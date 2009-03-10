@@ -2619,7 +2619,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 
 
 // This deferred code stub will be used for creating the boilerplate
-// by calling Runtime_CreateObjectLiteral.
+// by calling Runtime_CreateObjectLiteralBoilerplate.
 // Each created boilerplate is stored in the JSFunction and they are
 // therefore context dependent.
 class DeferredObjectLiteral: public DeferredCode {
@@ -2693,7 +2693,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   frame_->EmitPush(r2);
 
   // Clone the boilerplate object.
-  frame_->CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
+  frame_->CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
   frame_->EmitPush(r0);  // save the result
   // r0: cloned object literal
 
@@ -2702,9 +2702,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
     Literal* key = property->key();
     Expression* value = property->value();
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT: break;
-      case ObjectLiteral::Property::OBJECT_LITERAL:
-        if (property->value()->AsObjectLiteral()->is_simple()) break;
+      case ObjectLiteral::Property::CONSTANT:
+        break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        if (property->value()->AsMaterializedLiteral()->is_simple()) break;
+        // else fall through
       case ObjectLiteral::Property::COMPUTED:  // fall through
       case ObjectLiteral::Property::PROTOTYPE: {
         frame_->EmitPush(r0);  // dup the result
@@ -2741,6 +2743,49 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
+// This deferred code stub will be used for creating the boilerplate
+// by calling Runtime_CreateArrayLiteralBoilerplate.
+// Each created boilerplate is stored in the JSFunction and they are
+// therefore context dependent.
+class DeferredArrayLiteral: public DeferredCode {
+ public:
+  DeferredArrayLiteral(CodeGenerator* generator, ArrayLiteral* node)
+      : DeferredCode(generator), node_(node) {
+    set_comment("[ DeferredArrayLiteral");
+  }
+
+  virtual void Generate();
+
+ private:
+  ArrayLiteral* node_;
+};
+
+
+void DeferredArrayLiteral::Generate() {
+  // Argument is passed in r1.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+
+  // If the entry is undefined we call the runtime system to computed
+  // the literal.
+
+  VirtualFrame* frame = generator()->frame();
+  // Literal array (0).
+  frame->EmitPush(r1);
+  // Literal index (1).
+  __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
+  frame->EmitPush(r0);
+  // Constant properties (2).
+  __ mov(r0, Operand(node_->literals()));
+  frame->EmitPush(r0);
+  Result boilerplate =
+      frame->CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+  __ mov(r2, Operand(boilerplate.reg()));
+  // Result is returned in r2.
+  exit_.Jump();
+}
+
+
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -2748,17 +2793,34 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  // Call runtime to create the array literal.
-  __ mov(r0, Operand(node->literals()));
-  frame_->EmitPush(r0);
-  // Load the function of this frame.
-  __ ldr(r0, frame_->Function());
-  __ ldr(r0, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
-  frame_->EmitPush(r0);
-  frame_->CallRuntime(Runtime::kCreateArrayLiteral, 2);
+  DeferredArrayLiteral* deferred = new DeferredArrayLiteral(this, node);
 
-  // Push the resulting array literal on the stack.
-  frame_->EmitPush(r0);
+  // Retrieve the literal array and check the allocated entry.
+
+  // Load the function of this activation.
+  __ ldr(r1, frame_->Function());
+
+  // Load the literals array of the function.
+  __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ ldr(r2, FieldMemOperand(r1, literal_offset));
+
+  // Check whether we need to materialize the object literal boilerplate.
+  // If so, jump to the deferred code.
+  __ cmp(r2, Operand(Factory::undefined_value()));
+  deferred->enter()->Branch(eq);
+  deferred->BindExit();
+
+  // Push the object literal boilerplate.
+  frame_->EmitPush(r2);
+
+  // Clone the boilerplate object.
+  frame_->CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+  frame_->EmitPush(r0);  // save the result
+  // r0: cloned object literal
 
   // Generate code to set the elements in the array that are not
   // literals.

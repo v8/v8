@@ -158,13 +158,12 @@ class Parser {
 
   // Decide if a property should be the object boilerplate.
   bool IsBoilerplateProperty(ObjectLiteral::Property* property);
-  // If the property is CONSTANT type, return the literal value;
-  // if the property is OBJECT_LITERAL and the object literal is
-  // simple return a fixed array containing the keys and values of the
-  // object literal.
+  // If the expression is a literal, return the literal value;
+  // if the expression is a materialized literal and is simple return a
+  // compile time value as encoded by CompileTimeValue::GetValue().
   // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
-  Handle<Object> GetBoilerplateValue(ObjectLiteral::Property* property);
+  Handle<Object> GetBoilerplateValue(Expression* expression);
 
   enum FunctionLiteralType {
     EXPRESSION,
@@ -3059,6 +3058,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
 
   // Update the scope information before the pre-parsing bailout.
   temp_scope_->set_contains_array_literal();
+  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
   if (is_pre_parsing_) return NULL;
 
@@ -3067,16 +3067,19 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       Factory::NewFixedArray(values.length(), TENURED);
 
   // Fill in the literals.
+  bool is_simple = true;
   for (int i = 0; i < values.length(); i++) {
-    Literal* literal = values.at(i)->AsLiteral();
-    if (literal == NULL) {
+    Handle<Object> boilerplate_value = GetBoilerplateValue(values.at(i));
+    if (boilerplate_value->IsUndefined()) {
       literals->set_the_hole(i);
+      is_simple = false;
     } else {
-      literals->set(i, *literal->handle());
+      literals->set(i, *boilerplate_value);
     }
   }
 
-  return NEW(ArrayLiteral(literals, values.elements()));
+  return NEW(ArrayLiteral(literals, values.elements(),
+                          literal_index, is_simple));
 }
 
 
@@ -3086,14 +3089,46 @@ bool Parser::IsBoilerplateProperty(ObjectLiteral::Property* property) {
 }
 
 
-Handle<Object> Parser::GetBoilerplateValue(ObjectLiteral::Property* property) {
-  if (property->kind() == ObjectLiteral::Property::CONSTANT)
-    return property->value()->AsLiteral()->handle();
-  if (property->kind() == ObjectLiteral::Property::OBJECT_LITERAL) {
-    ObjectLiteral* object_literal = property->value()->AsObjectLiteral();
-    if (object_literal->is_simple()) {
-      return object_literal->constant_properties();
-    }
+bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
+  MaterializedLiteral* lit = expression->AsMaterializedLiteral();
+  return lit != NULL && lit->is_simple();
+}
+
+Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
+  ASSERT(IsCompileTimeValue(expression));
+  Handle<FixedArray> result = Factory::NewFixedArray(2, TENURED);
+  ObjectLiteral* object_literal = expression->AsObjectLiteral();
+  if (object_literal != NULL) {
+    ASSERT(object_literal->is_simple());
+    result->set(kTypeSlot, Smi::FromInt(OBJECT_LITERAL));
+    result->set(kElementsSlot, *object_literal->constant_properties());
+  } else {
+    ArrayLiteral* array_literal = expression->AsArrayLiteral();
+    ASSERT(array_literal != NULL && array_literal->is_simple());
+    result->set(kTypeSlot, Smi::FromInt(ARRAY_LITERAL));
+    result->set(kElementsSlot, *array_literal->literals());
+  }
+  return result;
+}
+
+
+CompileTimeValue::Type CompileTimeValue::GetType(Handle<FixedArray> value) {
+  Smi* type_value = Smi::cast(value->get(kTypeSlot));
+  return static_cast<Type>(type_value->value());
+}
+
+
+Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
+  return Handle<FixedArray>(FixedArray::cast(value->get(kElementsSlot)));
+}
+
+
+Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
+  if (expression->AsLiteral() != NULL) {
+    return expression->AsLiteral()->handle();
+  }
+  if (CompileTimeValue::IsCompileTimeValue(expression)) {
+    return CompileTimeValue::GetValue(expression);
   }
   return Factory::undefined_value();
 }
@@ -3202,7 +3237,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
     Handle<Object> key = property->key()->handle();
-    Handle<Object> value = GetBoilerplateValue(property);
+    Handle<Object> value = GetBoilerplateValue(property->value());
     is_simple = is_simple && !value->IsUndefined();
 
     // Add name, value pair to the fixed array.
