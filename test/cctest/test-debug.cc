@@ -210,20 +210,46 @@ static int SetBreakPointFromJS(const char* function_name,
 }
 
 
-// Set a break point in a script using the global Debug object.
-static int SetScriptBreakPointFromJS(const char* script_data,
-                                     int line, int column) {
+// Set a break point in a script identified by id using the global Debug object.
+static int SetScriptBreakPointByIdFromJS(int script_id, int line, int column) {
   EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
   if (column >= 0) {
     // Column specified set script break point on precise location.
     OS::SNPrintF(buffer,
-                 "debug.Debug.setScriptBreakPoint(\"%s\",%d,%d)",
-                 script_data, line, column);
+                 "debug.Debug.setScriptBreakPointById(%d,%d,%d)",
+                 script_id, line, column);
   } else {
     // Column not specified set script break point on line.
     OS::SNPrintF(buffer,
-                 "debug.Debug.setScriptBreakPoint(\"%s\",%d)",
-                 script_data, line);
+                 "debug.Debug.setScriptBreakPointById(%d,%d)",
+                 script_id, line);
+  }
+  buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
+  {
+    v8::TryCatch try_catch;
+    v8::Handle<v8::String> str = v8::String::New(buffer.start());
+    v8::Handle<v8::Value> value = v8::Script::Compile(str)->Run();
+    ASSERT(!try_catch.HasCaught());
+    return value->Int32Value();
+  }
+}
+
+
+// Set a break point in a script identified by name using the global Debug
+// object.
+static int SetScriptBreakPointByNameFromJS(const char* script_name,
+                                           int line, int column) {
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+  if (column >= 0) {
+    // Column specified set script break point on precise location.
+    OS::SNPrintF(buffer,
+                 "debug.Debug.setScriptBreakPointByName(\"%s\",%d,%d)",
+                 script_name, line, column);
+  } else {
+    // Column not specified set script break point on line.
+    OS::SNPrintF(buffer,
+                 "debug.Debug.setScriptBreakPointByName(\"%s\",%d)",
+                 script_name, line);
   }
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
   {
@@ -1166,8 +1192,9 @@ TEST(BreakPointThroughJavaScript) {
 }
 
 
-// Test that break points can be set using the global Debug object.
-TEST(ScriptBreakPointThroughJavaScript) {
+// Test that break points on scripts identified by name can be set using the
+// global Debug object.
+TEST(ScriptBreakPointByNameThroughJavaScript) {
   break_point_hit_count = 0;
   v8::HandleScope scope;
   DebugLocalContext env;
@@ -1175,7 +1202,6 @@ TEST(ScriptBreakPointThroughJavaScript) {
 
   v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
                                    v8::Undefined());
-  v8::Script::Compile(v8::String::New("function foo(){bar();bar();}"))->Run();
 
   v8::Local<v8::String> script = v8::String::New(
     "function f() {\n"
@@ -1213,7 +1239,7 @@ TEST(ScriptBreakPointThroughJavaScript) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Call f and g with break point on line 12.
-  int sbp1 = SetScriptBreakPointFromJS("test", 12, 0);
+  int sbp1 = SetScriptBreakPointByNameFromJS("test", 12, 0);
   break_point_hit_count = 0;
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(0, break_point_hit_count);
@@ -1229,7 +1255,7 @@ TEST(ScriptBreakPointThroughJavaScript) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Call f and g with break point on line 2.
-  int sbp2 = SetScriptBreakPointFromJS("test", 2, 0);
+  int sbp2 = SetScriptBreakPointByNameFromJS("test", 2, 0);
   break_point_hit_count = 0;
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
@@ -1237,17 +1263,17 @@ TEST(ScriptBreakPointThroughJavaScript) {
   CHECK_EQ(2, break_point_hit_count);
 
   // Call f and g with break point on line 2, 4, 12, 14 and 15.
-  int sbp3 = SetScriptBreakPointFromJS("test", 4, 0);
-  int sbp4 = SetScriptBreakPointFromJS("test", 12, 0);
-  int sbp5 = SetScriptBreakPointFromJS("test", 14, 0);
-  int sbp6 = SetScriptBreakPointFromJS("test", 15, 0);
+  int sbp3 = SetScriptBreakPointByNameFromJS("test", 4, 0);
+  int sbp4 = SetScriptBreakPointByNameFromJS("test", 12, 0);
+  int sbp5 = SetScriptBreakPointByNameFromJS("test", 14, 0);
+  int sbp6 = SetScriptBreakPointByNameFromJS("test", 15, 0);
   break_point_hit_count = 0;
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
   g->Call(env->Global(), 0, NULL);
   CHECK_EQ(7, break_point_hit_count);
 
-  // Remove the all the break points again.
+  // Remove all the break points again.
   break_point_hit_count = 0;
   ClearBreakPointFromJS(sbp2);
   ClearBreakPointFromJS(sbp3);
@@ -1259,18 +1285,113 @@ TEST(ScriptBreakPointThroughJavaScript) {
   g->Call(env->Global(), 0, NULL);
   CHECK_EQ(0, break_point_hit_count);
 
-  // Now set a function break point
-  int bp7 = SetBreakPointFromJS("g", 0, 0);
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+
+  // Make sure that the break point numbers are consecutive.
+  CHECK_EQ(1, sbp1);
+  CHECK_EQ(2, sbp2);
+  CHECK_EQ(3, sbp3);
+  CHECK_EQ(4, sbp4);
+  CHECK_EQ(5, sbp5);
+  CHECK_EQ(6, sbp6);
+}
+
+
+TEST(ScriptBreakPointByIdThroughJavaScript) {
+  break_point_hit_count = 0;
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
+                                   v8::Undefined());
+
+  v8::Local<v8::String> source = v8::String::New(
+    "function f() {\n"
+    "  function h() {\n"
+    "    a = 0;  // line 2\n"
+    "  }\n"
+    "  b = 1;  // line 4\n"
+    "  return h();\n"
+    "}\n"
+    "\n"
+    "function g() {\n"
+    "  function h() {\n"
+    "    a = 0;\n"
+    "  }\n"
+    "  b = 2;  // line 12\n"
+    "  h();\n"
+    "  b = 3;  // line 14\n"
+    "  f();    // line 15\n"
+    "}");
+
+  // Compile the script and get the two functions.
+  v8::ScriptOrigin origin =
+      v8::ScriptOrigin(v8::String::New("test"));
+  v8::Local<v8::Script> script = v8::Script::Compile(source, &origin);
+  script->Run();
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  v8::Local<v8::Function> g =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("g")));
+
+  // Get the script id knowing that internally it is a 32 integer.
+  uint32_t script_id = script->Id()->Uint32Value();
+
+  // Call f and g without break points.
+  break_point_hit_count = 0;
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
+  g->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Call f and g with break point on line 12.
+  int sbp1 = SetScriptBreakPointByIdFromJS(script_id, 12, 0);
+  break_point_hit_count = 0;
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
   g->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
 
-  // Reload the script and get g again checking that the break point survives.
-  // This tests that the function break point was converted to a script break
-  // point.
-  v8::Script::Compile(script, &origin)->Run();
-  g = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("g")));
+  // Remove the break point again.
+  break_point_hit_count = 0;
+  ClearBreakPointFromJS(sbp1);
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
+  g->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Call f and g with break point on line 2.
+  int sbp2 = SetScriptBreakPointByIdFromJS(script_id, 2, 0);
+  break_point_hit_count = 0;
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(1, break_point_hit_count);
   g->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
+
+  // Call f and g with break point on line 2, 4, 12, 14 and 15.
+  int sbp3 = SetScriptBreakPointByIdFromJS(script_id, 4, 0);
+  int sbp4 = SetScriptBreakPointByIdFromJS(script_id, 12, 0);
+  int sbp5 = SetScriptBreakPointByIdFromJS(script_id, 14, 0);
+  int sbp6 = SetScriptBreakPointByIdFromJS(script_id, 15, 0);
+  break_point_hit_count = 0;
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, break_point_hit_count);
+  g->Call(env->Global(), 0, NULL);
+  CHECK_EQ(7, break_point_hit_count);
+
+  // Remove all the break points again.
+  break_point_hit_count = 0;
+  ClearBreakPointFromJS(sbp2);
+  ClearBreakPointFromJS(sbp3);
+  ClearBreakPointFromJS(sbp4);
+  ClearBreakPointFromJS(sbp5);
+  ClearBreakPointFromJS(sbp6);
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
+  g->Call(env->Global(), 0, NULL);
+  CHECK_EQ(0, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
@@ -1282,7 +1403,6 @@ TEST(ScriptBreakPointThroughJavaScript) {
   CHECK_EQ(4, sbp4);
   CHECK_EQ(5, sbp5);
   CHECK_EQ(6, sbp6);
-  CHECK_EQ(7, bp7);
 }
 
 
@@ -1309,7 +1429,7 @@ TEST(EnableDisableScriptBreakPoint) {
       v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
 
   // Set script break point on line 1 (in function f).
-  int sbp = SetScriptBreakPointFromJS("test", 1, 0);
+  int sbp = SetScriptBreakPointByNameFromJS("test", 1, 0);
 
   // Call f while enabeling and disabling the script break point.
   break_point_hit_count = 0;
@@ -1370,7 +1490,7 @@ TEST(ConditionalScriptBreakPoint) {
       v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
 
   // Set script break point on line 5 (in function g).
-  int sbp1 = SetScriptBreakPointFromJS("test", 5, 0);
+  int sbp1 = SetScriptBreakPointByNameFromJS("test", 5, 0);
 
   // Call f with different conditions on the script break point.
   break_point_hit_count = 0;
@@ -1428,7 +1548,7 @@ TEST(ScriptBreakPointIgnoreCount) {
       v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
 
   // Set script break point on line 1 (in function f).
-  int sbp = SetScriptBreakPointFromJS("test", 1, 0);
+  int sbp = SetScriptBreakPointByNameFromJS("test", 1, 0);
 
   // Call f with different ignores on the script break point.
   break_point_hit_count = 0;
@@ -1484,7 +1604,7 @@ TEST(ScriptBreakPointReload) {
   v8::ScriptOrigin origin_2 = v8::ScriptOrigin(v8::String::New("2"));
 
   // Set a script break point before the script is loaded.
-  SetScriptBreakPointFromJS("1", 2, 0);
+  SetScriptBreakPointByNameFromJS("1", 2, 0);
 
   // Compile the script and get the function.
   v8::Script::Compile(script, &origin_1)->Run();
@@ -1545,7 +1665,7 @@ TEST(ScriptBreakPointMultiple) {
       v8::ScriptOrigin(v8::String::New("test"));
 
   // Set a script break point before the scripts are loaded.
-  int sbp = SetScriptBreakPointFromJS("test", 1, 0);
+  int sbp = SetScriptBreakPointByNameFromJS("test", 1, 0);
 
   // Compile the scripts with same script data and get the functions.
   v8::Script::Compile(script_f, &origin)->Run();
@@ -1571,7 +1691,7 @@ TEST(ScriptBreakPointMultiple) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Set script break point with the scripts loaded.
-  sbp = SetScriptBreakPointFromJS("test", 1, 0);
+  sbp = SetScriptBreakPointByNameFromJS("test", 1, 0);
 
   // Call f and g and check that the script break point is active.
   break_point_hit_count = 0;
@@ -1607,8 +1727,8 @@ TEST(ScriptBreakPointLineOffset) {
                           v8::Integer::New(7));
 
   // Set two script break points before the script is loaded.
-  int sbp1 = SetScriptBreakPointFromJS("test.html", 8, 0);
-  int sbp2 = SetScriptBreakPointFromJS("test.html", 9, 0);
+  int sbp1 = SetScriptBreakPointByNameFromJS("test.html", 8, 0);
+  int sbp2 = SetScriptBreakPointByNameFromJS("test.html", 9, 0);
 
   // Compile the script and get the function.
   v8::Script::Compile(script, &origin)->Run();
@@ -1629,7 +1749,7 @@ TEST(ScriptBreakPointLineOffset) {
   CHECK_EQ(0, break_point_hit_count);
 
   // Set a script break point with the script loaded.
-  sbp1 = SetScriptBreakPointFromJS("test.html", 9, 0);
+  sbp1 = SetScriptBreakPointByNameFromJS("test.html", 9, 0);
 
   // Call f and check that the script break point is active.
   break_point_hit_count = 0;
@@ -1673,9 +1793,9 @@ TEST(ScriptBreakPointLine) {
     " a=5;                      // line 12");
 
   // Set a couple script break point before the script is loaded.
-  int sbp1 = SetScriptBreakPointFromJS("test.html", 0, -1);
-  int sbp2 = SetScriptBreakPointFromJS("test.html", 1, -1);
-  int sbp3 = SetScriptBreakPointFromJS("test.html", 5, -1);
+  int sbp1 = SetScriptBreakPointByNameFromJS("test.html", 0, -1);
+  int sbp2 = SetScriptBreakPointByNameFromJS("test.html", 1, -1);
+  int sbp3 = SetScriptBreakPointByNameFromJS("test.html", 5, -1);
 
   // Compile the script and get the function.
   break_point_hit_count = 0;
@@ -1700,7 +1820,7 @@ TEST(ScriptBreakPointLine) {
 
   // Clear the script break point on g and set one on h.
   ClearBreakPointFromJS(sbp3);
-  int sbp4 = SetScriptBreakPointFromJS("test.html", 6, -1);
+  int sbp4 = SetScriptBreakPointByNameFromJS("test.html", 6, -1);
 
   // Call g and check that the script break point in h is hit.
   g->Call(env->Global(), 0, NULL);
@@ -1712,7 +1832,7 @@ TEST(ScriptBreakPointLine) {
   // more.
   ClearBreakPointFromJS(sbp2);
   ClearBreakPointFromJS(sbp4);
-  int sbp5 = SetScriptBreakPointFromJS("test.html", 4, -1);
+  int sbp5 = SetScriptBreakPointByNameFromJS("test.html", 4, -1);
   break_point_hit_count = 0;
   f->Call(env->Global(), 0, NULL);
   g->Call(env->Global(), 0, NULL);
@@ -1725,7 +1845,7 @@ TEST(ScriptBreakPointLine) {
   CHECK_EQ(0, strlen(last_function_hit));
 
   // Set a break point in the code after the last function decleration.
-  int sbp6 = SetScriptBreakPointFromJS("test.html", 12, -1);
+  int sbp6 = SetScriptBreakPointByNameFromJS("test.html", 12, -1);
 
   // Reload the script which should hit three break points.
   break_point_hit_count = 0;

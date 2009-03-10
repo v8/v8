@@ -2550,6 +2550,9 @@ class Script: public Struct {
   // [name]: the script name.
   DECL_ACCESSORS(name, Object)
 
+  // [id]: the script id.
+  DECL_ACCESSORS(id, Object)
+
   // [line_offset]: script line offset in resource from where it was extracted.
   DECL_ACCESSORS(line_offset, Smi)
 
@@ -2583,7 +2586,8 @@ class Script: public Struct {
   static const int kWrapperOffset = kColumnOffsetOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kLineEndsOffset = kTypeOffset + kPointerSize;
-  static const int kSize = kLineEndsOffset + kPointerSize;
+  static const int kIdOffset = kLineEndsOffset + kPointerSize;
+  static const int kSize = kIdOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);

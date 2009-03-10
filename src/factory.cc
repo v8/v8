@@ -153,9 +153,12 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 
 
 Handle<Script> Factory::NewScript(Handle<String> source) {
+  static uint32_t next_id = 1;
+
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(Heap::undefined_value());
+  script->set_id(*Factory::NewNumberFromUint(next_id++));
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
@@ -274,6 +277,11 @@ Handle<Object> Factory::NewNumber(double value,
 
 Handle<Object> Factory::NewNumberFromInt(int value) {
   CALL_HEAP_FUNCTION(Heap::NumberFromInt32(value), Object);
+}
+
+
+Handle<Object> Factory::NewNumberFromUint(uint32_t value) {
+  CALL_HEAP_FUNCTION(Heap::NumberFromUint32(value), Object);
 }
 
 

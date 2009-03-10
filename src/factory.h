@@ -170,6 +170,7 @@ class Factory : public AllStatic {
                                   PretenureFlag pretenure = NOT_TENURED);
 
   static Handle<Object> NewNumberFromInt(int value);
+  static Handle<Object> NewNumberFromUint(uint32_t value);
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.

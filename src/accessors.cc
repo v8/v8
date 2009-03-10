@@ -198,6 +198,24 @@ const AccessorDescriptor Accessors::ScriptName = {
 
 
 //
+// Accessors::ScriptId
+//
+
+
+Object* Accessors::ScriptGetId(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  return Script::cast(script)->id();
+}
+
+
+const AccessorDescriptor Accessors::ScriptId = {
+  ScriptGetId,
+  IllegalSetter,
+  0
+};
+
+
+//
 // Accessors::ScriptLineOffset
 //
 

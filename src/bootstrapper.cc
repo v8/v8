@@ -985,12 +985,19 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("source"),
             proxy_source,
             common_attributes);
-    Handle<Proxy> proxy_data = Factory::NewProxy(&Accessors::ScriptName);
+    Handle<Proxy> proxy_name = Factory::NewProxy(&Accessors::ScriptName);
     script_descriptors =
         Factory::CopyAppendProxyDescriptor(
             script_descriptors,
             Factory::LookupAsciiSymbol("name"),
-            proxy_data,
+            proxy_name,
+            common_attributes);
+    Handle<Proxy> proxy_id = Factory::NewProxy(&Accessors::ScriptId);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("id"),
+            proxy_id,
             common_attributes);
     Handle<Proxy> proxy_line_offset =
         Factory::NewProxy(&Accessors::ScriptLineOffset);

@@ -888,18 +888,19 @@ function DebugResponseDetails(response) {
         var result = '';
         for (i = 0; i < body.length; i++) {
           if (i != 0) result += '\n';
+          if (body[i].id) {
+            result += body[i].id;
+          } else {
+            result += '[no id]';
+          }
+          result += ', ';
           if (body[i].name) {
             result += body[i].name;
           } else {
             result += '[unnamed] ';
-            var sourceStart = body[i].sourceStart;
-            if (sourceStart.length > 40) {
-              sourceStart = sourceStart.substring(0, 37) + '...';
-            }
-            result += sourceStart;
           }
           result += ' (lines: ';
-          result += body[i].sourceLines;
+          result += body[i].lineCount;
           result += ', length: ';
           result += body[i].sourceLength;
           if (body[i].type == Debug.ScriptType.Native) {
@@ -907,7 +908,13 @@ function DebugResponseDetails(response) {
           } else if (body[i].type == Debug.ScriptType.Extension) {
             result += ', extension';
           }
-          result += ')';
+          result += '), [';
+          var sourceStart = body[i].sourceStart;
+          if (sourceStart.length > 40) {
+            sourceStart = sourceStart.substring(0, 37) + '...';
+          }
+          result += sourceStart;
+          result += ']';
         }
         details.text = result;
         break;

@@ -1359,7 +1359,8 @@ FrameMirror.prototype.sourcePosition = function() {
 
 FrameMirror.prototype.sourceLocation = function() {
   if (this.func().resolved() && this.func().script()) {
-    return this.func().script().locationFromPosition(this.sourcePosition());
+    return this.func().script().locationFromPosition(this.sourcePosition(),
+                                                     true);
   }
 };
 
@@ -1558,6 +1559,11 @@ ScriptMirror.prototype.value = function() {
 
 ScriptMirror.prototype.name = function() {
   return this.script_.name;
+};
+
+
+ScriptMirror.prototype.id = function() {
+  return this.script_.id;
 };
 
 

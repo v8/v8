@@ -1054,6 +1054,22 @@ Local<Value> Script::Run() {
 }
 
 
+Local<Value> Script::Id() {
+  ON_BAILOUT("v8::Script::Id()", return Local<Value>());
+  LOG_API("Script::Id");
+  i::Object* raw_id = NULL;
+  {
+    HandleScope scope;
+    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
+    i::Handle<i::Script> script(i::Script::cast(fun->shared()->script()));
+    i::Handle<i::Object> id(script->id());
+    raw_id = *id;
+  }
+  i::Handle<i::Object> id(raw_id);
+  return Utils::ToLocal(id);
+}
+
+
 // --- E x c e p t i o n s ---
 
 

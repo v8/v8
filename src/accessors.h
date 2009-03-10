@@ -42,6 +42,7 @@ namespace v8 { namespace internal {
   V(StringLength)        \
   V(ScriptSource)        \
   V(ScriptName)          \
+  V(ScriptId)            \
   V(ScriptLineOffset)    \
   V(ScriptColumnOffset)  \
   V(ScriptType)          \
@@ -79,6 +80,7 @@ class Accessors : public AllStatic {
   static Object* ArrayGetLength(Object* object, void*);
   static Object* StringGetLength(Object* object, void*);
   static Object* ScriptGetName(Object* object, void*);
+  static Object* ScriptGetId(Object* object, void*);
   static Object* ScriptGetSource(Object* object, void*);
   static Object* ScriptGetLineOffset(Object* object, void*);
   static Object* ScriptGetColumnOffset(Object* object, void*);
