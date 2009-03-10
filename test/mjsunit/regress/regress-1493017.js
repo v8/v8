@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,62 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test for collection of abandoned maps
-
-// This test makes a wide, shallow tree of map transitions and maps
-// by adding the properties "a" through "j" in a pseudorandom order
-// to a new A() object.  This should create map transitions forming
-// a partial denary tree.  These objects only stick around for about
-// 1000 iterations, with each iteration creating a new object.  Therefore,
-// some of the maps going to leaves will become abandoned.
-// There are still map transitions going to them though, so
-// only the new map-collection code will remove them.
-
-// Every 101 object creations, the object is created again, and tested
-// after each property addition to make sure that no map transitions
-// are visible as properties.  This is a regression test for a bug.
+// Test collection of abandoned maps.  Tests that deleted map
+// transitions do not show up as properties in for in.
 
 // Flags: --expose-gc --collect-maps
 
-function dotest() {
-  function A() {
-  }
+function C() {}
 
-  function B() {
-    this.x = 3;
-  }
 
-  var a_B = new B();
-  var r = 1;
-  var i = 0;
-  var holder = new Array();
-  while (i++ < 2001) {
-    if (i == 1400) {
-      gc();
-    }
-    var s = r % 100000000;
-    var obj = new A();
-    holder[i % 1000] = obj;
-    while (s > 0) {
-      var property_name = String.fromCharCode(s % 10 + 97);
-      obj[property_name] = a_B;
-      s = s / 10;
-    }
-    if (i % 101 == 0) {
-      // Check that all object maps have no undefined properties
-      s = r % 100000000;
-      obj = new A();
-      while (s > 0) {
-        for (var p in obj) {
-          assertEquals(a_B, obj[p] );
-        }
-        property_name = String.fromCharCode(s % 10 + 97);
-        obj[property_name] = a_B;
-        s = s / 10;
-      }
-    }
-    r = r * 7 % 100000000;
-  }
+// Create an instance of C.  Add a property to the instance and then
+// remove all references to instances of C.
+var o = new C();
+o.x = 42;
+o = null;
+
+// Force a global GC. This will collect the maps starting from C and
+// delete map transitions.
+gc();
+
+// Create a new instance of C.
+o = new C();
+
+// Test that the deleted map transitions do not show up in for in.
+for (var p in o) {
+  assertTrue(false);
 }
-
-dotest();
