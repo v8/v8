@@ -160,6 +160,9 @@ function DoRegExpExecGlobal(regexp, string) {
 
 
 function RegExpExec(string) {
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError('method_called_on_incompatible', ['RegExp.prototype.exec', this]);
+  }
   if (%_ArgumentsLength() == 0) {
     if (IS_UNDEFINED(regExpInput)) {
       throw MakeError('no_input_to_regexp', [this]);

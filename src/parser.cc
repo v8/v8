@@ -4177,10 +4177,8 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
 STATIC_CHECK(('a' ^ 'A') == 0x20);
 
 uc32 RegExpParser::ParseControlLetterEscape() {
-  if (!has_more()) {
-    ReportError(CStrVector("\\c at end of pattern"));
-    return '\0';
-  }
+  if (!has_more())
+    return 'c';
   uc32 letter = current() & ~(0x20);  // Collapse upper and lower case letters.
   if (letter < 'A' || 'Z' < letter) {
     // Non-spec error-correction: "\c" followed by non-control letter is

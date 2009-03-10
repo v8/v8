@@ -628,8 +628,17 @@ function DefineError(f) {
   %SetProperty(global, name, f, DONT_ENUM);
   this['$' + name] = f;
   // Configure the error function.
-  // prototype of 'Error' must be as default: new Object().
-  if (name != 'Error') %FunctionSetPrototype(f, new $Error());
+  if (name == 'Error') {
+    // The prototype of the Error object must itself be an error.
+    // However, it can't be an instance of the Error object because
+    // it hasn't been properly configured yet.  Instead we create a
+    // special not-a-true-error-but-close-enough object.
+    function ErrorPrototype() {}
+    %FunctionSetInstanceClassName(ErrorPrototype, 'Error');
+    %FunctionSetPrototype(f, new ErrorPrototype());
+  } else {
+    %FunctionSetPrototype(f, new $Error());
+  }
   %FunctionSetInstanceClassName(f, 'Error');
   %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
   f.prototype.name = name;
