@@ -207,7 +207,7 @@ class Parser {
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
   IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
 
-  void RegisterTargetUse(JumpTarget* target, int index);
+  void RegisterTargetUse(BreakTarget* target, int index);
 
   // Create a number literal.
   Literal* NewNumberLiteral(double value);
@@ -2052,7 +2052,7 @@ Block* Parser::WithHelper(Expression* obj,
                           bool is_catch_block,
                           bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<JumpTarget*>* target_list = NEW(ZoneList<JumpTarget*>(0));
+  ZoneList<BreakTarget*>* target_list = NEW(ZoneList<BreakTarget*>(0));
   TargetCollector collector(target_list);
   Statement* stat;
   { Target target(this, &collector);
@@ -2197,7 +2197,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<JumpTarget*>* target_list = NEW(ZoneList<JumpTarget*>(0));
+  ZoneList<BreakTarget*>* target_list = NEW(ZoneList<BreakTarget*>(0));
   TargetCollector collector(target_list);
   Block* try_block;
 
@@ -2220,7 +2220,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   // then we will need to collect jump targets from the catch block. Since
   // we don't know yet if there will be a finally block, we always collect
   // the jump targets.
-  ZoneList<JumpTarget*>* catch_target_list = NEW(ZoneList<JumpTarget*>(0));
+  ZoneList<BreakTarget*>* catch_target_list = NEW(ZoneList<BreakTarget*>(0));
   TargetCollector catch_collector(catch_target_list);
   bool has_catch = false;
   if (tok == Token::CATCH) {
@@ -3580,10 +3580,10 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 }
 
 
-void Parser::RegisterTargetUse(JumpTarget* target, int index) {
-  // Register that a jump target found at the given index in the target
-  // stack has been used from the top of the target stack. Add the jump
-  // target to any TargetCollectors passed on the stack.
+void Parser::RegisterTargetUse(BreakTarget* target, int index) {
+  // Register that a break target found at the given index in the
+  // target stack has been used from the top of the target stack. Add
+  // the break target to any TargetCollectors passed on the stack.
   for (int i = target_stack_->length(); i-- > index;) {
     TargetCollector* collector = target_stack_->at(i)->AsTargetCollector();
     if (collector != NULL) collector->AddTarget(target);

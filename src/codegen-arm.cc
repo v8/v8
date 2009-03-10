@@ -4020,11 +4020,6 @@ bool CodeGenerator::HasValidEntryRegisters() { return true; }
 #endif
 
 
-bool CodeGenerator::IsActualFunctionReturn(JumpTarget* target) {
-  return (target == &function_return_ && !function_return_is_shadowed_);
-}
-
-
 #undef __
 #define __ masm->
 

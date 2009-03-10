@@ -622,7 +622,7 @@ class CodeGenerator: public AstVisitor {
 
   // Jump targets.
   // The target of the return from the function.
-  JumpTarget function_return_;
+  BreakTarget function_return_;
 
   // True if the function return is shadowed (ie, jumping to the target
   // function_return_ does not jump to the true function return, but rather

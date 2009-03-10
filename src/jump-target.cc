@@ -37,35 +37,13 @@ namespace v8 { namespace internal {
 
 JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
     : cgen_(cgen),
+      masm_(cgen == NULL ? NULL : cgen->masm()),
       direction_(direction),
       reaching_frames_(0),
       merge_labels_(0),
       entry_frame_(NULL),
       is_bound_(false),
       is_linked_(false) {
-  ASSERT(cgen_ != NULL);
-  masm_ = cgen_->masm();
-}
-
-
-JumpTarget::JumpTarget()
-    : cgen_(NULL),
-      masm_(NULL),
-      direction_(FORWARD_ONLY),
-      reaching_frames_(0),
-      merge_labels_(0),
-      entry_frame_(NULL),
-      is_bound_(false),
-      is_linked_(false) {
-}
-
-
-void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
-  ASSERT(cgen != NULL);
-  ASSERT(cgen_ == NULL);
-  cgen_ = cgen;
-  masm_ = cgen->masm();
-  direction_ = direction;
 }
 
 
@@ -512,7 +490,31 @@ void JumpTarget::Bind(Result* arg0,
 }
 
 
-void JumpTarget::CopyTo(JumpTarget* destination) {
+void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
+  ASSERT(reaching_frames_.length() == merge_labels_.length());
+  Label fresh;
+  merge_labels_.Add(fresh);
+  reaching_frames_.Add(frame);
+}
+
+
+// -------------------------------------------------------------------------
+// BreakTarget implementation.
+
+BreakTarget::BreakTarget() : JumpTarget(NULL, FORWARD_ONLY) {
+}
+
+
+void BreakTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
+  ASSERT(cgen != NULL);
+  ASSERT(cgen_ == NULL);
+  cgen_ = cgen;
+  masm_ = cgen->masm();
+  direction_ = direction;
+}
+
+
+void BreakTarget::CopyTo(BreakTarget* destination) {
   ASSERT(destination != NULL);
   destination->cgen_ = cgen_;
   destination->masm_ = masm_;
@@ -531,18 +533,10 @@ void JumpTarget::CopyTo(JumpTarget* destination) {
 }
 
 
-void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
-  ASSERT(reaching_frames_.length() == merge_labels_.length());
-  Label fresh;
-  merge_labels_.Add(fresh);
-  reaching_frames_.Add(frame);
-}
-
-
 // -------------------------------------------------------------------------
 // ShadowTarget implementation.
 
-ShadowTarget::ShadowTarget(JumpTarget* shadowed) {
+ShadowTarget::ShadowTarget(BreakTarget* shadowed) {
   ASSERT(shadowed != NULL);
   other_target_ = shadowed;
 
@@ -574,7 +568,7 @@ void ShadowTarget::StopShadowing() {
 
   // The states of this target, which was shadowed, and the original
   // target, which was shadowing, are swapped.
-  JumpTarget temp;
+  BreakTarget temp;
   other_target_->CopyTo(&temp);
   CopyTo(other_target_);
   temp.CopyTo(this);

@@ -427,10 +427,6 @@ class CodeGenerator: public AstVisitor {
   void CodeForStatementPosition(Node* node);
   void CodeForSourcePosition(int pos);
 
-  // Is the given jump target the actual (ie, non-shadowed) function return
-  // target?
-  bool IsActualFunctionReturn(JumpTarget* target);
-
 #ifdef DEBUG
   // True if the registers are valid for entry to a block.
   bool HasValidEntryRegisters();
@@ -453,7 +449,7 @@ class CodeGenerator: public AstVisitor {
   int break_stack_height_;
 
   // Jump targets
-  JumpTarget function_return_;
+  BreakTarget function_return_;
 
   // True if the function return is shadowed (ie, jumping to the target
   // function_return_ does not jump to the true function return, but rather

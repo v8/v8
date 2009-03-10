@@ -152,7 +152,7 @@ ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
 }
 
 
-void TargetCollector::AddTarget(JumpTarget* target) {
+void TargetCollector::AddTarget(BreakTarget* target) {
   // Add the label to the collector, but discard duplicates.
   int length = targets_->length();
   for (int i = 0; i < length; i++) {

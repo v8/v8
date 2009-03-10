@@ -200,7 +200,7 @@ class BreakableStatement: public Statement {
   virtual BreakableStatement* AsBreakableStatement() { return this; }
 
   // Code generation
-  JumpTarget* break_target() { return &break_target_; }
+  BreakTarget* break_target() { return &break_target_; }
 
   // Used during code generation for restoring the stack when a
   // break/continue crosses a statement that keeps stuff on the stack.
@@ -219,7 +219,7 @@ class BreakableStatement: public Statement {
  private:
   ZoneStringList* labels_;
   Type type_;
-  JumpTarget break_target_;
+  BreakTarget break_target_;
   int break_stack_height_;
 };
 
@@ -276,7 +276,7 @@ class IterationStatement: public BreakableStatement {
   Statement* body() const { return body_; }
 
   // Code generation
-  JumpTarget* continue_target()  { return &continue_target_; }
+  BreakTarget* continue_target()  { return &continue_target_; }
 
  protected:
   explicit IterationStatement(ZoneStringList* labels)
@@ -288,7 +288,7 @@ class IterationStatement: public BreakableStatement {
 
  private:
   Statement* body_;
-  JumpTarget continue_target_;
+  BreakTarget continue_target_;
 };
 
 
@@ -451,12 +451,12 @@ class CaseClause: public ZoneObject {
     CHECK(!is_default());
     return label_;
   }
-  JumpTarget* body_target() { return &body_target_; }
+  BreakTarget* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const  { return statements_; }
 
  private:
   Expression* label_;
-  JumpTarget body_target_;
+  BreakTarget body_target_;
   ZoneList<Statement*>* statements_;
 };
 
@@ -517,23 +517,23 @@ class IfStatement: public Statement {
 // stack in the compiler; this should probably be reworked.
 class TargetCollector: public Node {
  public:
-  explicit TargetCollector(ZoneList<JumpTarget*>* targets)
+  explicit TargetCollector(ZoneList<BreakTarget*>* targets)
       : targets_(targets) {
   }
 
   // Adds a jump target to the collector. The collector stores a pointer not
   // a copy of the target to make binding work, so make sure not to pass in
   // references to something on the stack.
-  void AddTarget(JumpTarget* target);
+  void AddTarget(BreakTarget* target);
 
   // Virtual behaviour. TargetCollectors are never part of the AST.
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
-  ZoneList<JumpTarget*>* targets() { return targets_; }
+  ZoneList<BreakTarget*>* targets() { return targets_; }
 
  private:
-  ZoneList<JumpTarget*>* targets_;
+  ZoneList<BreakTarget*>* targets_;
 };
 
 
@@ -542,16 +542,16 @@ class TryStatement: public Statement {
   explicit TryStatement(Block* try_block)
       : try_block_(try_block), escaping_targets_(NULL) { }
 
-  void set_escaping_targets(ZoneList<JumpTarget*>* targets) {
+  void set_escaping_targets(ZoneList<BreakTarget*>* targets) {
     escaping_targets_ = targets;
   }
 
   Block* try_block() const { return try_block_; }
-  ZoneList<JumpTarget*>* escaping_targets() const { return escaping_targets_; }
+  ZoneList<BreakTarget*>* escaping_targets() const { return escaping_targets_; }
 
  private:
   Block* try_block_;
-  ZoneList<JumpTarget*>* escaping_targets_;
+  ZoneList<BreakTarget*>* escaping_targets_;
 };
 
 

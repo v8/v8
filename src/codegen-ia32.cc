@@ -2235,7 +2235,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // indication of when it is safe to do so.
       static const bool test_at_bottom = false;
 
-      JumpTarget body;  // Uninitialized.
+      JumpTarget body(this);  // Initialized as forward-only.
       IncrementLoopNesting();
 
       // If the condition is always false and has no side effects, we
@@ -2254,13 +2254,12 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
           // Continue is the test at the bottom, no need to label the
           // test at the top.  The body is a backward target.
           node->continue_target()->Initialize(this);
-          body.Initialize(this, JumpTarget::BIDIRECTIONAL);
+          body.make_bidirectional();
         } else {
           // Label the test at the top as the continue target.  The
           // body is a forward-only target.
           node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
           node->continue_target()->Bind();
-          body.Initialize(this);
         }
         // Compile the test with the body as the true target and
         // preferred fall-through and with the break target as the

@@ -58,19 +58,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   explicit JumpTarget(CodeGenerator* cgen,
                       Directionality direction = FORWARD_ONLY);
 
-  // Construct a jump target without a code generator.  A code generator
-  // must be supplied before using the jump target as a label.  This is
-  // useful, eg, when jump targets are embedded in AST nodes.
-  JumpTarget();
-
   virtual ~JumpTarget() { Unuse(); }
-
-  // Supply a code generator and directionality to an already
-  // constructed jump target.  This function expects to be given a
-  // non-null code generator, and to be called only when the code
-  // generator is not yet set.
-  void Initialize(CodeGenerator* cgen,
-                  Directionality direction = FORWARD_ONLY);
 
   // Accessors.
   CodeGenerator* code_generator() const { return cgen_; }
@@ -81,6 +69,8 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   void set_entry_frame(VirtualFrame* frame) {
     entry_frame_ = frame;
   }
+
+  void make_bidirectional() { direction_ = BIDIRECTIONAL; }
 
   // Predicates testing the state of the encapsulated label.
   bool is_bound() const { return is_bound_; }
@@ -96,13 +86,6 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // frames are not deallocated and dangling jumps to the target are
   // left dangling.
   void Reset();
-
-  // Copy the state of this jump target to the destination.  The lists
-  // of forward-reaching frames and merge-point labels are copied.
-  // All virtual frame pointers are copied, not the pointed-to frames.
-  // The previous state of the destination is overwritten, without
-  // deallocating pointed-to virtual frames.
-  void CopyTo(JumpTarget* destination);
 
   // Emit a jump to the target.  There must be a current frame at the
   // jump and there will be no current frame after the jump.
@@ -170,7 +153,6 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // Used to emit code.
   MacroAssembler* masm_;
 
- private:
   // Directionality flag set at initialization time.
   Directionality direction_;
 
@@ -194,6 +176,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   bool is_bound_;
   bool is_linked_;
 
+ private:
   // Add a virtual frame reaching this labeled block via a forward
   // jump, and a fresh label for its merge code.
   void AddReachingFrame(VirtualFrame* frame);
@@ -211,22 +194,60 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
 
 // -------------------------------------------------------------------------
-// Shadow jump targets
+// Break targets
 //
-// Shadow jump targets represent a jump target that is temporarily shadowed
-// by another one (represented by the original during shadowing).  They are
-// used to catch jumps to labels in certain contexts, e.g. try blocks.
-// After shadowing ends, the formerly shadowed target is again represented
-// by the original and the ShadowTarget can be used as a jump target in its
-// own right, representing the formerly shadowing target.
+// A break target is a jump target that can be used to break out of a
+// statement that keeps extra state on the stack (eg, for/in or
+// try/finally).  They know the expected stack height at the target
+// and will drop state from nested statements as part of merging.
+//
+// Break targets are used for return, break, and continue targets.
 
-class ShadowTarget : public JumpTarget {
+class BreakTarget : public JumpTarget {
+ public:
+  // Construct a break target without a code generator.  A code
+  // generator must be supplied before using the break target as a
+  // label.  This is useful, eg, when break targets are embedded in AST
+  // nodes.
+  BreakTarget();
+
+  // Supply a code generator and directionality to an already
+  // constructed jump target.  This function expects to be given a
+  // non-null code generator, and to be called only when the code
+  // generator is not yet set.
+  void Initialize(CodeGenerator* cgen,
+                  Directionality direction = FORWARD_ONLY);
+
+  // Copy the state of this break target to the destination.  The
+  // lists of forward-reaching frames and merge-point labels are
+  // copied.  All virtual frame pointers are copied, not the
+  // pointed-to frames.  The previous state of the destination is
+  // overwritten, without deallocating pointed-to virtual frames.
+  void CopyTo(BreakTarget* destination);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BreakTarget);
+};
+
+
+// -------------------------------------------------------------------------
+// Shadow break targets
+//
+// A shadow break target represents a break target that is temporarily
+// shadowed by another one (represented by the original during
+// shadowing).  They are used to catch jumps to labels in certain
+// contexts, e.g. try blocks.  After shadowing ends, the formerly
+// shadowed target is again represented by the original and the
+// ShadowTarget can be used as a jump target in its own right,
+// representing the formerly shadowing target.
+
+class ShadowTarget : public BreakTarget {
  public:
   // Construct a shadow jump target.  After construction the shadow
-  // target object holds the state of the original jump target, and
-  // the original target is actually a fresh one that intercepts jumps
-  // intended for the shadowed one.
-  explicit ShadowTarget(JumpTarget* shadowed);
+  // target object holds the state of the original target, and the
+  // original target is actually a fresh one that intercepts control
+  // flow intended for the shadowed one.
+  explicit ShadowTarget(BreakTarget* shadowed);
 
   virtual ~ShadowTarget() {
     ASSERT(!is_shadowing_);
@@ -239,12 +260,12 @@ class ShadowTarget : public JumpTarget {
 
   // During shadowing, the currently shadowing target.  After
   // shadowing, the target that was shadowed.
-  JumpTarget* other_target() const { return other_target_; }
+  BreakTarget* other_target() const { return other_target_; }
 
  private:
   // During shadowing, the currently shadowing target.  After
   // shadowing, the target that was shadowed.
-  JumpTarget* other_target_;
+  BreakTarget* other_target_;
 
 #ifdef DEBUG
   bool is_shadowing_;
