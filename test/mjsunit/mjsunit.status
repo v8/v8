@@ -3,7 +3,7 @@
 # modification, are permitted provided that the following conditions are
 # met:
 #
-#     * Redistributions of source code must retain the above copyright
+n#     * Redistributions of source code must retain the above copyright
 #       notice, this list of conditions and the following disclaimer.
 #     * Redistributions in binary form must reproduce the above
 #       copyright notice, this list of conditions and the following
@@ -36,7 +36,7 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
 # Bug on IA32, realiably triggers a debug assertion.  Unpredictable in
 # release mode on IA32, currently passes on ARM.
-bugs/bug-265: (PASS || FAIL), FAIL if $mode == debug
+bugs/bug-265: (PASS || FAIL || CRASH), FAIL if $mode == debug
 
 [ $arch == arm ]
 
