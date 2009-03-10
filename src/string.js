@@ -62,7 +62,7 @@ function StringValueOf() {
 
 // ECMA-262, section 15.5.4.4
 function StringCharAt(pos) {
-  var char_code = %_FastCharCodeAt(subject, index);
+  var char_code = %_FastCharCodeAt(this, index);
   if (!%_IsSmi(char_code)) {
     var subject = ToString(this);
     var index = TO_INTEGER(pos);
