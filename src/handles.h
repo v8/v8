@@ -225,6 +225,10 @@ Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
 // if none exists.
 Handle<JSValue> GetScriptWrapper(Handle<Script> script);
 
+// Script line number computations.
+void InitScriptLineEnds(Handle<Script> script);
+int GetScriptLineNumber(Handle<Script> script, int code_position);
+
 // Computes the enumerable keys from interceptors. Used for debug mirrors and
 // by GetKeysInFixedArrayFor below.
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,

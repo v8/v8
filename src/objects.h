@@ -2576,9 +2576,6 @@ class Script: public Struct {
   void ScriptVerify();
 #endif
 
-  void InitLineEnds();
-  int GetLineNumber(int code_position);
-
   static const int kSourceOffset = HeapObject::kHeaderSize;
   static const int kNameOffset = kSourceOffset + kPointerSize;
   static const int kLineOffsetOffset = kNameOffset + kPointerSize;

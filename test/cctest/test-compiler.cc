@@ -312,7 +312,7 @@ TEST(Regression236) {
 
   Handle<Script> script = Factory::NewScript(Factory::empty_string());
   script->set_source(Heap::undefined_value());
-  CHECK_EQ(-1, script->GetLineNumber(0));
-  CHECK_EQ(-1, script->GetLineNumber(100));
-  CHECK_EQ(-1, script->GetLineNumber(-1));
+  CHECK_EQ(-1, GetScriptLineNumber(script, 0));
+  CHECK_EQ(-1, GetScriptLineNumber(script, 100));
+  CHECK_EQ(-1, GetScriptLineNumber(script, -1));
 }

@@ -317,7 +317,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // the line number is not for free.
   if (Logger::is_enabled() || OProfileAgent::is_enabled()) {
     if (script->name()->IsString()) {
-      int line_num = script->GetLineNumber(start_position);
+      int line_num = GetScriptLineNumber(script, start_position);
       if (line_num > 0) {
         line_num += script->line_offset()->value() + 1;
       }
