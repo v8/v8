@@ -1722,7 +1722,8 @@ v8::Handle<Value> CCatcher(const v8::Arguments& args) {
   if (args.Length() < 1) return v8::Boolean::New(false);
   v8::HandleScope scope;
   v8::TryCatch try_catch;
-  v8::Script::Compile(args[0]->ToString())->Run();
+  Local<Value> result = v8::Script::Compile(args[0]->ToString())->Run();
+  CHECK(!try_catch.HasCaught() || result.IsEmpty());
   return v8::Boolean::New(try_catch.HasCaught());
 }
 
@@ -1806,8 +1807,9 @@ TEST(APIThrowMessageAndVerboseTryCatch) {
   LocalContext context(0, templ);
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
-  CompileRun("ThrowFromC();");
+  Local<Value> result = CompileRun("ThrowFromC();");
   CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
   CHECK(message_received);
   v8::V8::RemoveMessageListeners(check_message);
 }
@@ -1853,6 +1855,7 @@ v8::Handle<Value> CThrowCountDown(const v8::Arguments& args) {
       int expected = args[3]->Int32Value();
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
+        CHECK(result.IsEmpty());
         CHECK(!i::Top::has_scheduled_exception());
       } else {
         CHECK_NE(expected, count);
