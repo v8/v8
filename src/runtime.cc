@@ -930,14 +930,21 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  Handle<Object> index(args[2]);
-  ASSERT(index->IsNumber());
-  Handle<Object> result = RegExpImpl::Exec(regexp, subject, index);
+  // Due to the way the JS files are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CONVERT_CHECKED(Smi, index, args[2]);
+  CONVERT_CHECKED(JSArray, raw_last_match_info, args[3]);
+  Handle<JSArray> last_match_info(raw_last_match_info);
+  CHECK(last_match_info->HasFastElements());
+  Handle<Object> result = RegExpImpl::Exec(regexp,
+                                           subject,
+                                           index->value(),
+                                           last_match_info);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -945,12 +952,16 @@ static Object* Runtime_RegExpExec(Arguments args) {
 
 static Object* Runtime_RegExpExecGlobal(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  Handle<Object> result = RegExpImpl::ExecGlobal(regexp, subject);
+  CONVERT_CHECKED(JSArray, raw_last_match_info, args[2]);
+  Handle<JSArray> last_match_info(raw_last_match_info);
+  CHECK(last_match_info->HasFastElements());
+  Handle<Object> result =
+      RegExpImpl::ExecGlobal(regexp, subject, last_match_info);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }

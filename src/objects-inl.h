@@ -2338,6 +2338,13 @@ Object* JSRegExp::DataAt(int index) {
 }
 
 
+void JSRegExp::SetDataAt(int index, Object* value) {
+  ASSERT(TypeTag() != NOT_COMPILED);
+  ASSERT(index >= kDataIndex);  // Only implementation data can be set this way.
+  FixedArray::cast(data())->set(index, value);
+}
+
+
 bool JSObject::HasFastElements() {
   return !elements()->IsDictionary();
 }

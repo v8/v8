@@ -154,3 +154,14 @@ for (var i = 1; i <= 9; i++) {
   }
   assertEquals("", RegExp['$' + (i)], "$" + i);
 }
+
+RegExp.multiline = "foo";
+assertTrue(typeof RegExp.multiline == typeof Boolean(), "RegExp.multiline coerces values to booleans");
+RegExp.input = Number();
+assertTrue(typeof RegExp.input == typeof String(), "RegExp.input coerces values to booleans");
+
+// Ensure that we save the correct string as the last subject when
+// we do a match on a sliced string (the top one not the underlying).
+var foo = "lsdfj sldkfj sdklfj læsdfjl sdkfjlsdk fjsdl fjsdljskdj flsj flsdkj flskd regexp: /foobar/\nldkfj sdlkfj sdkl";
+assertTrue(/^([a-z]+): (.*)/.test(foo.substring(foo.indexOf("regexp:"))), "regexp: setup");
+assertEquals("regexp", RegExp.$1, "RegExp.$1");

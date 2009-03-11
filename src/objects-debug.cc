@@ -696,9 +696,20 @@ void JSRegExp::JSRegExpVerify() {
       break;
     }
     case JSRegExp::IRREGEXP: {
+      bool is_native = FLAG_regexp_native;
+#ifdef ARM
+      // No native regexp on arm yet.
+      is_native = false;
+#endif
       FixedArray* arr = FixedArray::cast(data());
-      Object* irregexp_data = arr->get(JSRegExp::kIrregexpDataIndex);
-      ASSERT(irregexp_data->IsFixedArray());
+      Object* ascii_data = arr->get(JSRegExp::kIrregexpASCIICodeIndex);
+      ASSERT(ascii_data->IsTheHole()
+          || (is_native ? ascii_data->IsCode() : ascii_data->IsByteArray()));
+      Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
+      ASSERT(uc16_data->IsTheHole()
+          || (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
+      ASSERT(arr->get(JSRegExp::kIrregexpCaptureCountIndex)->IsSmi());
+      ASSERT(arr->get(JSRegExp::kIrregexpMaxRegisterCountIndex)->IsSmi());
       break;
     }
     default:

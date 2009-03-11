@@ -2966,6 +2966,19 @@ class JSValue: public JSObject {
 };
 
 // Regular expressions
+// The regular expression holds a single reference to a FixedArray in
+// the kDataOffset field.
+// The FixedArray contains the following data:
+// - tag : type of regexp implementation (not compiled yet, atom or irregexp)
+// - reference to the original source string
+// - reference to the original flag string
+// If it is an atom regexp
+// - a reference to a literal string to search for
+// If it is an irregexp regexp:
+// - a reference to code for ASCII inputs (bytecode or compiled).
+// - a reference to code for UC16 inputs (bytecode or compiled).
+// - max number of registers used by irregexp implementations.
+// - number of capture registers (output values) of the regexp.
 class JSRegExp: public JSObject {
  public:
   // Meaning of Type:
@@ -2993,6 +3006,8 @@ class JSRegExp: public JSObject {
   inline Flags GetFlags();
   inline String* Pattern();
   inline Object* DataAt(int index);
+  // Set implementation data after the object has been prepared.
+  inline void SetDataAt(int index, Object* value);
 
   static inline JSRegExp* cast(Object* obj);
 
@@ -3004,14 +3019,29 @@ class JSRegExp: public JSObject {
   static const int kDataOffset = JSObject::kHeaderSize;
   static const int kSize = kDataOffset + kIntSize;
 
+  // Indices in the data array.
   static const int kTagIndex = 0;
   static const int kSourceIndex = kTagIndex + 1;
   static const int kFlagsIndex = kSourceIndex + 1;
-  // These two are the same since the same entry is shared for
-  // different purposes in different types of regexps.
-  static const int kAtomPatternIndex = kFlagsIndex + 1;
-  static const int kIrregexpDataIndex = kFlagsIndex + 1;
-  static const int kDataSize = kAtomPatternIndex + 1;
+  static const int kDataIndex = kFlagsIndex + 1;
+  // The data fields are used in different ways depending on the
+  // value of the tag.
+  // Atom regexps (literal strings).
+  static const int kAtomPatternIndex = kDataIndex;
+
+  static const int kAtomDataSize = kAtomPatternIndex + 1;
+
+  // Irregexp compiled code or bytecode for ASCII.
+  static const int kIrregexpASCIICodeIndex = kDataIndex;
+  // Irregexp compiled code or bytecode for UC16.
+  static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
+  // Maximal number of registers used by either ASCII or UC16.
+  // Only used to check that there is enough stack space
+  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 2;
+  // Number of captures in the compiled regexp.
+  static const int kIrregexpCaptureCountIndex = kDataIndex + 3;
+
+  static const int kIrregexpDataSize = kIrregexpCaptureCountIndex + 1;
 };
 
 
@@ -3805,6 +3835,10 @@ class JSArray: public JSObject {
 
   // Casting.
   static inline JSArray* cast(Object* obj);
+
+  // Uses handles.  Ensures that the fixed array backing the JSArray has at
+  // least the stated size.
+  void EnsureSize(int minimum_size_of_backing_fixed_array);
 
   // Dispatched behavior.
 #ifdef DEBUG

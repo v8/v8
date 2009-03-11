@@ -165,8 +165,9 @@ function StringMatch(regexp) {
   // Build the result array.
   var result = new $Array(match_string);
   for (var i = 0; i < matches.length; ++i) {
-    var match = matches[i];
-    var match_string = subject.slice(match[0], match[1]);
+    var matchInfo = matches[i];
+    var match_string = subject.slice(matchInfo[CAPTURE0],
+                                     matchInfo[CAPTURE1]);
     result[i] = match_string;
   }
 
@@ -218,7 +219,9 @@ function StringReplace(search, replace) {
   if (IS_FUNCTION(replace)) {
     builder.add(replace.call(null, search, start, subject));
   } else {
-    ExpandReplacement(ToString(replace), subject, [ start, end ], builder);
+    reusableMatchInfo[CAPTURE0] = start;
+    reusableMatchInfo[CAPTURE1] = end;
+    ExpandReplacement(ToString(replace), subject, reusableMatchInfo, builder);
   }
 
   // suffix
@@ -226,6 +229,15 @@ function StringReplace(search, replace) {
 
   return builder.generate();
 }
+
+
+// This has the same size as the lastMatchInfo array, and can be used for
+// functions that expect that structure to be returned.  It is used when the
+// needle is a string rather than a regexp.  In this case we can't update
+// lastMatchArray without erroneously affecting the properties on the global
+// RegExp object.
+var reusableMatchInfo = [2, -1, -1, "", ""];
+var reusableMatchArray = [ void 0 ];
 
 
 // Helper function for regular expressions in String.prototype.replace.
@@ -237,9 +249,10 @@ function StringReplaceRegExp(subject, regexp, replace) {
     matches = DoRegExpExecGlobal(regexp, subject);
     if (matches.length == 0) return subject;
   } else {
-    var captures = DoRegExpExec(regexp, subject, 0);
-    if (IS_NULL(captures)) return subject;
-    matches = [ captures ];
+    var lastMatchInfo = DoRegExpExec(regexp, subject, 0);
+    if (IS_NULL(lastMatchInfo)) return subject;
+    reusableMatchArray[0] = lastMatchInfo;
+    matches = reusableMatchArray;
   }
 
   // Determine the number of matches.
@@ -253,17 +266,17 @@ function StringReplaceRegExp(subject, regexp, replace) {
   replace = ToString(replace);
   if (%StringIndexOf(replace, "$", 0) < 0) {
     for (var i = 0; i < length; i++) {
-      var captures = matches[i];
-      result.addSpecialSlice(previous, captures[0]);
+      var matchInfo = matches[i];
+      result.addSpecialSlice(previous, matchInfo[CAPTURE0]);
       result.add(replace);
-      previous = captures[1];  // continue after match
+      previous = matchInfo[CAPTURE1];  // continue after match
     }
   } else {
     for (var i = 0; i < length; i++) {
-      var captures = matches[i];
-      result.addSpecialSlice(previous, captures[0]);
-      ExpandReplacement(replace, subject, captures, result);
-      previous = captures[1];  // continue after match
+      var matchInfo = matches[i];
+      result.addSpecialSlice(previous, matchInfo[CAPTURE0]);
+      ExpandReplacement(replace, subject, matchInfo, result);
+      previous = matchInfo[CAPTURE1];  // continue after match
     }
   }
   result.addSpecialSlice(previous, subject.length);
@@ -273,7 +286,7 @@ function StringReplaceRegExp(subject, regexp, replace) {
 
 // Expand the $-expressions in the string and return a new string with
 // the result.
-function ExpandReplacement(string, subject, captures, builder) {
+function ExpandReplacement(string, subject, matchInfo, builder) {
   var next = %StringIndexOf(string, '$', 0);
   if (next < 0) {
     builder.add(string);
@@ -281,7 +294,7 @@ function ExpandReplacement(string, subject, captures, builder) {
   }
 
   // Compute the number of captures; see ECMA-262, 15.5.4.11, p. 102.
-  var m = captures.length >> 1;  // includes the match
+  var m = NUMBER_OF_CAPTURES(matchInfo) >> 1;  // Includes the match.
 
   if (next > 0) builder.add(SubString(string, 0, next));
   var length = string.length;
@@ -299,13 +312,14 @@ function ExpandReplacement(string, subject, captures, builder) {
         builder.add('$');
       } else if (peek == 38) {  // $& - match
         ++position;
-        builder.addSpecialSlice(captures[0], captures[1]);
+        builder.addSpecialSlice(matchInfo[CAPTURE0],
+                                matchInfo[CAPTURE1]);
       } else if (peek == 96) {  // $` - prefix
         ++position;
-        builder.addSpecialSlice(0, captures[0]);
+        builder.addSpecialSlice(0, matchInfo[CAPTURE0]);
       } else if (peek == 39) {  // $' - suffix
         ++position;
-        builder.addSpecialSlice(captures[1], subject.length);
+        builder.addSpecialSlice(matchInfo[CAPTURE1], subject.length);
       } else if (peek >= 48 && peek <= 57) {  // $n, 0 <= n <= 9
         ++position;
         var n = peek - 48;
@@ -329,7 +343,7 @@ function ExpandReplacement(string, subject, captures, builder) {
           }
         }
         if (0 < n && n < m) {
-          addCaptureString(builder, captures, n);
+          addCaptureString(builder, matchInfo, n);
         } else {
           // Because of the captures range check in the parsing of two
           // digit capture references, we can only enter here when a
@@ -361,26 +375,27 @@ function ExpandReplacement(string, subject, captures, builder) {
 };
 
 
-// Compute the string of a given PCRE capture.
-function CaptureString(string, captures, index) {
+// Compute the string of a given regular expression capture.
+function CaptureString(string, lastCaptureInfo, index) {
   // Scale the index.
   var scaled = index << 1;
   // Compute start and end.
-  var start = captures[scaled];
-  var end = captures[scaled + 1];
+  var start = lastCaptureInfo[CAPTURE(scaled)];
+  var end = lastCaptureInfo[CAPTURE(scaled + 1)];
   // If either start or end is missing return undefined.
   if (start < 0 || end < 0) return;
   return SubString(string, start, end);
 };
 
 
-// Add the string of a given PCRE capture to the ReplaceResultBuilder
-function addCaptureString(builder, captures, index) {
+// Add the string of a given regular expression capture to the
+// ReplaceResultBuilder
+function addCaptureString(builder, matchInfo, index) {
   // Scale the index.
   var scaled = index << 1;
   // Compute start and end.
-  var start = captures[scaled];
-  var end = captures[scaled + 1];
+  var start = matchInfo[CAPTURE(scaled)];
+  var end = matchInfo[CAPTURE(scaled + 1)];
   // If either start or end is missing return.
   if (start < 0 || end <= start) return;
   builder.addSpecialSlice(start, end);
@@ -396,10 +411,8 @@ function addCaptureString(builder, captures, index) {
 // should be 'abcd' and not 'dddd' (or anything else).
 function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   var result = new ReplaceResultBuilder(subject);
-  // Captures is an array of pairs of (start, end) indices for the match and
-  // any captured substrings.
-  var captures = DoRegExpExec(regexp, subject, 0);
-  if (IS_NULL(captures)) return subject;
+  var lastMatchInfo = DoRegExpExec(regexp, subject, 0);
+  if (IS_NULL(lastMatchInfo)) return subject;
 
   // There's at least one match.  If the regexp is global, we have to loop
   // over all matches.  The loop is not in C++ code here like the one in
@@ -409,13 +422,16 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   if (regexp.global) {
     var previous = 0;
     do {
-      result.addSpecialSlice(previous, captures[0]);
-      result.add(ApplyReplacementFunction(replace, captures, subject));
+      result.addSpecialSlice(previous, lastMatchInfo[CAPTURE0]);
+      var startOfMatch = lastMatchInfo[CAPTURE0];
+      previous = lastMatchInfo[CAPTURE1];
+      result.add(ApplyReplacementFunction(replace, lastMatchInfo, subject));
+      // Can't use lastMatchInfo any more from here, since the function could
+      // overwrite it.
       // Continue with the next match.
-      previous = captures[1];
       // Increment previous if we matched an empty string, as per ECMA-262
       // 15.5.4.10.
-      if (previous == captures[0]) {
+      if (previous == startOfMatch) {
         // Add the skipped character to the output, if any.
         if (previous < subject.length) {
           result.addSpecialSlice(previous, previous + 1);
@@ -425,19 +441,22 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
 
       // Per ECMA-262 15.10.6.2, if the previous index is greater than the
       // string length, there is no match
-      captures = (previous > subject.length)
+      lastMatchInfo = (previous > subject.length)
           ? null
           : DoRegExpExec(regexp, subject, previous);
-    } while (!IS_NULL(captures));
+    } while (!IS_NULL(lastMatchInfo));
 
     // Tack on the final right substring after the last match, if necessary.
     if (previous < subject.length) {
       result.addSpecialSlice(previous, subject.length);
     }
   } else { // Not a global regexp, no need to loop.
-    result.addSpecialSlice(0, captures[0]);
-    result.add(ApplyReplacementFunction(replace, captures, subject));
-    result.addSpecialSlice(captures[1], subject.length);
+    result.addSpecialSlice(0, lastMatchInfo[CAPTURE0]);
+    var endOfMatch = lastMatchInfo[CAPTURE1];
+    result.add(ApplyReplacementFunction(replace, lastMatchInfo, subject));
+    // Can't use lastMatchInfo any more from here, since the function could
+    // overwrite it.
+    result.addSpecialSlice(endOfMatch, subject.length);
   }
 
   return result.generate();
@@ -445,20 +464,20 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
 
 
 // Helper function to apply a string replacement function once.
-function ApplyReplacementFunction(replace, captures, subject) {
+function ApplyReplacementFunction(replace, lastMatchInfo, subject) {
   // Compute the parameter list consisting of the match, captures, index,
   // and subject for the replace function invocation.
-  var index = captures[0];
+  var index = lastMatchInfo[CAPTURE0];
   // The number of captures plus one for the match.
-  var m = captures.length >> 1;
+  var m = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
   if (m == 1) {
-    var s = CaptureString(subject, captures, 0);
+    var s = CaptureString(subject, lastMatchInfo, 0);
     // Don't call directly to avoid exposing the built-in global object.
     return ToString(replace.call(null, s, index, subject));
   }
   var parameters = $Array(m + 2);
   for (var j = 0; j < m; j++) {
-    parameters[j] = CaptureString(subject, captures, j);
+    parameters[j] = CaptureString(subject, lastMatchInfo, j);
   }
   parameters[j] = index;
   parameters[j + 1] = subject;
@@ -559,14 +578,14 @@ function StringSplit(separator, limit) {
       return result;
     }
 
-    var match = splitMatch(sep, subject, currentIndex, startIndex);
+    var lastMatchInfo = splitMatch(sep, subject, currentIndex, startIndex);
 
-    if (IS_NULL(match)) {
+    if (IS_NULL(lastMatchInfo)) {
       result[result.length] = subject.slice(currentIndex, length);
       return result;
     }
 
-    var endIndex = match[0];
+    var endIndex = lastMatchInfo[CAPTURE1];
 
     // We ignore a zero-length match at the currentIndex.
     if (startIndex === endIndex && endIndex === currentIndex) {
@@ -574,11 +593,20 @@ function StringSplit(separator, limit) {
       continue;
     }
 
-    result[result.length] = match[1];
+    result[result.length] =
+        SubString(subject, currentIndex, lastMatchInfo[CAPTURE0]);
     if (result.length === lim) return result;
 
-    for (var i = 2; i < match.length; i++) {
-      result[result.length] = match[i];
+    for (var i = 2; i < NUMBER_OF_CAPTURES(lastMatchInfo); i += 2) {
+      var start = lastMatchInfo[CAPTURE(i)];
+      var end = lastMatchInfo[CAPTURE(i + 1)];
+      if (start != -1 && end != -1) {
+        result[result.length] = SubString(subject,
+                                          lastMatchInfo[CAPTURE(i)],
+                                          lastMatchInfo[CAPTURE(i + 1)]);
+      } else {
+        result[result.length] = void 0;
+      }
       if (result.length === lim) return result;
     }
 
@@ -588,32 +616,24 @@ function StringSplit(separator, limit) {
 
 
 // ECMA-262 section 15.5.4.14
-// Helper function used by split.
+// Helper function used by split.  This version returns the lastMatchInfo
+// instead of allocating a new array with basically the same information.
 function splitMatch(separator, subject, current_index, start_index) {
   if (IS_REGEXP(separator)) {
-    var ovector = DoRegExpExec(separator, subject, start_index);
-    if (ovector == null) return null;
-    var nof_results = ovector.length >> 1;
-    var result = new $Array(nof_results + 1);
+    var lastMatchInfo = DoRegExpExec(separator, subject, start_index);
+    if (lastMatchInfo == null) return null;
     // Section 15.5.4.14 paragraph two says that we do not allow zero length
     // matches at the end of the string.
-    if (ovector[0] === subject.length) return null;
-    result[0] = ovector[1];
-    result[1] = subject.slice(current_index, ovector[0]);
-    for (var i = 1; i < nof_results; i++) {
-      var matching_start = ovector[2*i];
-      var matching_end = ovector[2*i + 1];
-      if (matching_start != -1 && matching_end != -1) {
-        result[i + 1] = subject.slice(matching_start, matching_end);
-      }
-    }
-    return result;
+    if (lastMatchInfo[CAPTURE0] === subject.length) return null;
+    return lastMatchInfo;
   }
 
   var separatorIndex = subject.indexOf(separator, start_index);
   if (separatorIndex === -1) return null;
 
-  return [ separatorIndex + separator.length, subject.slice(current_index, separatorIndex) ];
+  reusableMatchInfo[CAPTURE0] = separatorIndex;
+  reusableMatchInfo[CAPTURE1] = separatorIndex + separator.length;
+  return reusableMatchInfo;
 };
 
 

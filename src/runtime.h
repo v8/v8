@@ -137,8 +137,8 @@ namespace v8 { namespace internal {
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3) \
-  F(RegExpExec, 3) \
-  F(RegExpExecGlobal, 2) \
+  F(RegExpExec, 4) \
+  F(RegExpExecGlobal, 3) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2) \

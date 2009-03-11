@@ -851,18 +851,38 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
 }
 
 
-void Factory::SetRegExpData(Handle<JSRegExp> regexp,
-                            JSRegExp::Type type,
-                            Handle<String> source,
-                            JSRegExp::Flags flags,
-                            Handle<Object> data) {
-  Handle<FixedArray> store = NewFixedArray(JSRegExp::kDataSize);
+void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp,
+                                JSRegExp::Type type,
+                                Handle<String> source,
+                                JSRegExp::Flags flags,
+                                Handle<Object> data) {
+  Handle<FixedArray> store = NewFixedArray(JSRegExp::kAtomDataSize);
+
   store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
   store->set(JSRegExp::kSourceIndex, *source);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
   store->set(JSRegExp::kAtomPatternIndex, *data);
   regexp->set_data(*store);
 }
+
+void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
+                                    JSRegExp::Type type,
+                                    Handle<String> source,
+                                    JSRegExp::Flags flags,
+                                    int capture_count) {
+  Handle<FixedArray> store = NewFixedArray(JSRegExp::kIrregexpDataSize);
+
+  store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
+  store->set(JSRegExp::kSourceIndex, *source);
+  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
+  store->set(JSRegExp::kIrregexpASCIICodeIndex, Heap::the_hole_value());
+  store->set(JSRegExp::kIrregexpUC16CodeIndex, Heap::the_hole_value());
+  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(0));
+  store->set(JSRegExp::kIrregexpCaptureCountIndex,
+             Smi::FromInt(capture_count));
+  regexp->set_data(*store);
+}
+
 
 
 void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
