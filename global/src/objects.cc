@@ -435,7 +435,7 @@ Object* JSObject::SetNormalizedProperty(String* name,
                                         PropertyDetails details) {
   ASSERT(!HasFastProperties());
   int entry = property_dictionary()->FindStringEntry(name);
-  if (entry == -1) {
+  if (entry == Dictionary::kNotFound) {
     Object* store_value = value;
     if (IsJSGlobalObject()) {
       store_value = Heap::AllocateJSGlobalPropertyCell(value);
@@ -456,11 +456,32 @@ Object* JSObject::SetNormalizedProperty(String* name,
         JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
     cell->set_value(value);
     // Please note we have to update the property details.
-    property_dictionary()->SetStringEntry(entry, name, cell, details);
+    property_dictionary()->DetailsAtPut(entry, details);
   } else {
     property_dictionary()->SetStringEntry(entry, name, value, details);
   }
   return value;
+}
+
+
+Object* JSObject::DeleteNormalizedProperty(String* name) {
+  ASSERT(!HasFastProperties());
+  Dictionary* dictionary = property_dictionary();
+  int entry = dictionary->FindStringEntry(name);
+  if (entry != Dictionary::kNotFound) {
+    PropertyDetails details = dictionary->DetailsAt(entry);
+    if (details.IsDontDelete()) return Heap::false_value();
+    // If we have a global object set the cell to the hole.
+    if (IsJSGlobalObject()) {
+      JSGlobalPropertyCell* cell =
+          JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
+      cell->set_value(Heap::the_hole_value());
+      dictionary->DetailsAtPut(entry, details.AsDeleted());
+    } else {
+      return dictionary->DeleteProperty(entry);
+    }
+  }
+  return Heap::true_value();
 }
 
 
@@ -1323,19 +1344,27 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
 Object* JSObject::AddSlowProperty(String* name,
                                   Object* value,
                                   PropertyAttributes attributes) {
-  PropertyDetails details = PropertyDetails(attributes, NORMAL);
+  ASSERT(!HasFastProperties());
+  Dictionary* dict = property_dictionary();
   Object* store_value = value;
   if (IsJSGlobalObject()) {
+    // In case name is an orphaned property reuse the cell.
+    int entry = dict->FindStringEntry(name);
+    if (entry != Dictionary::kNotFound) {
+      store_value = dict->ValueAt(entry);
+      JSGlobalPropertyCell::cast(store_value)->set_value(value);
+      PropertyDetails details = PropertyDetails(attributes, NORMAL);
+      dict->SetStringEntry(entry, name, store_value, details);
+      return value;
+    }
     store_value = Heap::AllocateJSGlobalPropertyCell(value);
     if (store_value->IsFailure()) return store_value;
+    JSGlobalPropertyCell::cast(store_value)->set_value(value);
   }
-  Object* result = property_dictionary()->AddStringEntry(name,
-                                                         store_value,
-                                                         details);
+  PropertyDetails details = PropertyDetails(attributes, NORMAL);
+  Object* result = dict->AddStringEntry(name, store_value, details);
   if (result->IsFailure()) return result;
-  if (property_dictionary() != result) {
-    set_properties(Dictionary::cast(result));
-  }
+  if (dict != result) set_properties(Dictionary::cast(result));
   return value;
 }
 
@@ -1643,11 +1672,16 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
     }
   } else {
     int entry = property_dictionary()->FindStringEntry(name);
-    if (entry != DescriptorArray::kNotFound) {
+    if (entry != Dictionary::kNotFound) {
       // Make sure to disallow caching for uninitialized constants
       // found in the dictionary-mode objects.
       Object* value = property_dictionary()->ValueAt(entry);
       if (IsJSGlobalObject()) {
+        PropertyDetails d = property_dictionary()->DetailsAt(entry);
+        if (d.IsDeleted()) {
+          result->NotFound();
+          return;
+        }
         value = JSGlobalPropertyCell::cast(value)->value();
       }
       if (value->IsTheHole()) {
@@ -2185,12 +2219,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name) {
   Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
   if (obj->IsFailure()) return obj;
 
-  ASSERT(!HasFastProperties());
-  // Attempt to remove the property from the property dictionary.
-  Dictionary* dictionary = property_dictionary();
-  int entry = dictionary->FindStringEntry(name);
-  if (entry != -1) return dictionary->DeleteProperty(entry);
-  return Heap::true_value();
+  return DeleteNormalizedProperty(name);
 }
 
 
@@ -2238,7 +2267,7 @@ Object* JSObject::DeleteElementPostInterceptor(uint32_t index) {
   ASSERT(!HasFastElements());
   Dictionary* dictionary = element_dictionary();
   int entry = dictionary->FindNumberEntry(index);
-  if (entry != -1) return dictionary->DeleteProperty(entry);
+  if (entry != Dictionary::kNotFound) return dictionary->DeleteProperty(entry);
   return Heap::true_value();
 }
 
@@ -2305,7 +2334,9 @@ Object* JSObject::DeleteElement(uint32_t index) {
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) return dictionary->DeleteProperty(entry);
+    if (entry != Dictionary::kNotFound) {
+      return dictionary->DeleteProperty(entry);
+    }
   }
   return Heap::true_value();
 }
@@ -2348,10 +2379,7 @@ Object* JSObject::DeleteProperty(String* name) {
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (obj->IsFailure()) return obj;
     // Make sure the properties are normalized before removing the entry.
-    Dictionary* dictionary = property_dictionary();
-    int entry = dictionary->FindStringEntry(name);
-    if (entry != -1) return dictionary->DeleteProperty(entry);
-    return Heap::true_value();
+    return DeleteNormalizedProperty(name);
   }
 }
 
@@ -5061,7 +5089,9 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
       return true;
     }
   } else {
-    if (element_dictionary()->FindNumberEntry(index) != -1) return true;
+    if (element_dictionary()->FindNumberEntry(index) != Dictionary::kNotFound) {
+      return true;
+    }
   }
 
   // Handle [] on String objects.
@@ -5136,7 +5166,8 @@ bool JSObject::HasLocalElement(uint32_t index) {
     return (index < length) &&
            !FixedArray::cast(elements())->get(index)->IsTheHole();
   } else {
-    return element_dictionary()->FindNumberEntry(index) != -1;
+    return element_dictionary()->FindNumberEntry(index)
+        != Dictionary::kNotFound;
   }
 }
 
@@ -5162,7 +5193,9 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     if ((index < length) &&
         !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
   } else {
-    if (element_dictionary()->FindNumberEntry(index) != -1) return true;
+    if (element_dictionary()->FindNumberEntry(index) != Dictionary::kNotFound) {
+      return true;
+    }
   }
 
   // Handle [] on String objects.
@@ -5370,7 +5403,7 @@ Object* JSObject::GetElementPostInterceptor(JSObject* receiver,
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    if (entry != Dictionary::kNotFound) {
       return dictionary->ValueAt(entry);
     }
   }
@@ -5440,7 +5473,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    if (entry != Dictionary::kNotFound) {
       return dictionary->ValueAt(entry);
     }
   }
@@ -5700,7 +5733,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
     return (index < length) &&
         !FixedArray::cast(elements())->get(index)->IsTheHole();
   }
-  return element_dictionary()->FindNumberEntry(index) != -1;
+  return element_dictionary()->FindNumberEntry(index)
+      != Dictionary::kNotFound;
 }
 
 
@@ -6231,7 +6265,7 @@ Object* HashTable<prefix_size, element_size>::Allocate(int at_least_space_for) {
 template <int prefix_size, int element_size>
 int HashTable<prefix_size, element_size>::FindEntry(HashTableKey* key) {
   uint32_t nof = NumberOfElements();
-  if (nof == 0) return -1;  // Bail out if empty.
+  if (nof == 0) return kNotFound;  // Bail out if empty.
 
   uint32_t capacity = Capacity();
   uint32_t hash = key->Hash();
@@ -6241,17 +6275,17 @@ int HashTable<prefix_size, element_size>::FindEntry(HashTableKey* key) {
   uint32_t passed_elements = 0;
   if (!element->IsNull()) {
     if (!element->IsUndefined() && key->IsMatch(element)) return entry;
-    if (++passed_elements == nof) return -1;
+    if (++passed_elements == nof) return kNotFound;
   }
   for (uint32_t i = 1; !element->IsUndefined(); i++) {
     entry = GetProbe(hash, i, capacity);
     element = KeyAt(entry);
     if (!element->IsNull()) {
       if (!element->IsUndefined() && key->IsMatch(element)) return entry;
-      if (++passed_elements == nof) return -1;
+      if (++passed_elements == nof) return kNotFound;
     }
   }
-  return -1;
+  return kNotFound;
 }
 
 
@@ -6328,7 +6362,7 @@ Object* SymbolTable::LookupString(String* string, Object** s) {
 bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
   SymbolKey key(string);
   int entry = FindEntry(&key);
-  if (entry == -1) {
+  if (entry == kNotFound) {
     return false;
   } else {
     String* result = String::cast(KeyAt(entry));
@@ -6349,7 +6383,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);
 
   // Symbol already in table.
-  if (entry != -1) {
+  if (entry != kNotFound) {
     *s = KeyAt(entry);
     return this;
   }
@@ -6379,7 +6413,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
 Object* CompilationCacheTable::Lookup(String* src) {
   StringKey key(src);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6387,7 +6421,7 @@ Object* CompilationCacheTable::Lookup(String* src) {
 Object* CompilationCacheTable::LookupEval(String* src, Context* context) {
   StringSharedKey key(src, context->closure()->shared());
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6396,7 +6430,7 @@ Object* CompilationCacheTable::LookupRegExp(String* src,
                                             JSRegExp::Flags flags) {
   RegExpKey key(src, flags);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6546,7 +6580,7 @@ class MapNameKey : public HashTableKey {
 Object* MapCache::Lookup(FixedArray* array) {
   SymbolsKey key(array);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6568,7 +6602,7 @@ Object* MapCache::Put(FixedArray* array, Map* value) {
 int LookupCache::Lookup(Map* map, String* name) {
   MapNameKey key(map, name);
   int entry = FindEntry(&key);
-  if (entry == -1) return kNotFound;
+  if (entry == kNotFound) return kNotFound;
   return Smi::cast(get(EntryToIndex(entry) + 1))->value();
 }
 
@@ -6719,7 +6753,7 @@ Object* Dictionary::AtPut(HashTableKey* key, Object* value) {
   int entry = FindEntry(key);
 
   // If the entry is present set the value;
-  if (entry != -1) {
+  if (entry != kNotFound) {
     ValueAtPut(entry, value);
     return this;
   }
@@ -6794,7 +6828,7 @@ Object* Dictionary::AddStringEntry(String* key,
                                    Object* value,
                                    PropertyDetails details) {
   StringKey k(key);
-  SLOW_ASSERT(FindEntry(&k) == -1);
+  SLOW_ASSERT(FindEntry(&k) == kNotFound);
   return Add(&k, value, details);
 }
 
@@ -6804,7 +6838,7 @@ Object* Dictionary::AddNumberEntry(uint32_t key,
                                    PropertyDetails details) {
   NumberKey k(key);
   UpdateMaxNumberKey(key);
-  SLOW_ASSERT(FindEntry(&k) == -1);
+  SLOW_ASSERT(FindEntry(&k) == kNotFound);
   return Add(&k, value, details);
 }
 

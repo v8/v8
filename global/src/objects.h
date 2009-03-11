@@ -148,20 +148,23 @@ class PropertyDetails BASE_EMBEDDED {
 
   int index() { return IndexField::decode(value_); }
 
+  inline PropertyDetails AsDeleted();
+
   static bool IsValidIndex(int index) { return IndexField::is_valid(index); }
 
   bool IsReadOnly() { return (attributes() & READ_ONLY) != 0; }
   bool IsDontDelete() { return (attributes() & DONT_DELETE) != 0; }
   bool IsDontEnum() { return (attributes() & DONT_ENUM) != 0; }
+  bool IsDeleted() { return DeletedField::decode(value_) != 0;}
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
   class TypeField:       public BitField<PropertyType,       0, 3> {};
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
-  class IndexField:      public BitField<uint32_t,           6, 31-6> {};
+  class DeletedField:    public BitField<uint32_t,           6, 1> {};
+  class IndexField:      public BitField<uint32_t,           7, 31-7> {};
 
   static const int kInitialIndex = 1;
-
  private:
   uint32_t value_;
 };
@@ -1191,6 +1194,9 @@ class JSObject: public HeapObject {
                                 Object* value,
                                 PropertyDetails details);
 
+  // Deletes the named property in a normalized object.
+  Object* DeleteNormalizedProperty(String* name);
+
   // Sets a property that currently has lazy loading.
   Object* SetLazyProperty(LookupResult* result,
                           String* name,
@@ -1838,6 +1844,9 @@ class HashTable: public FixedArray {
   static const int kElementsStartOffset   =
       kHeaderSize + kElementsStartIndex * kPointerSize;
 
+  // Constant used for denoting a absent entry.
+  static const int kNotFound = -1;
+
  protected:
   // Find entry for key otherwise return -1.
   int FindEntry(HashTableKey* key);
@@ -1933,9 +1942,6 @@ class LookupCache: public HashTable<0, 2> {
   int Lookup(Map* map, String* name);
   Object* Put(Map* map, String* name, int offset);
   static inline LookupCache* cast(Object* obj);
-
-  // Constant returned by Lookup when the key was not found.
-  static const int kNotFound = -1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(LookupCache);

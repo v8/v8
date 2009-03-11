@@ -1879,7 +1879,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       // Attempt dictionary lookup.
       Dictionary* dictionary = receiver->property_dictionary();
       int entry = dictionary->FindStringEntry(key);
-      if ((entry != DescriptorArray::kNotFound) &&
+      if ((entry != Dictionary::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
         Object* value = dictionary->ValueAt(entry);
         if (receiver->IsJSGlobalObject()) {

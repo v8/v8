@@ -229,6 +229,7 @@ class LookupResult BASE_EMBEDDED {
   bool IsReadOnly() { return details_.IsReadOnly(); }
   bool IsDontDelete() { return details_.IsDontDelete(); }
   bool IsDontEnum() { return details_.IsDontEnum(); }
+  bool IsDeleted() { return details_.IsDeleted(); }
 
   bool IsValid() { return  lookup_type_ != NOT_FOUND; }
   bool IsNotFound() { return lookup_type_ == NOT_FOUND; }
