@@ -307,7 +307,11 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   DeleteFrame();
 
   // Process any deferred code using the register allocator.
-  ProcessDeferred();
+  if (HasStackOverflow()) {
+    ClearDeferred();
+  } else {
+    ProcessDeferred();
+  }
 
   // There is no need to delete the register allocator, it is a
   // stack-allocated local.
@@ -1567,6 +1571,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  node->break_target()->Unuse();
 }
 
 
@@ -2094,37 +2099,39 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
     // There are two ways to reach the body: from the corresponding
     // test or as the fall through of the previous body.
-    if (!clause->body_target()->is_linked() && !has_valid_frame()) {
-      // If we have neither, skip this body.
-      continue;
-    } else if (clause->body_target()->is_linked() && has_valid_frame()) {
-      // If we have both, put a jump on the fall through path to avoid
-      // the dropping of the switch value on the test path.  The
-      // exception is the default which has already had the switch
-      // value dropped.
-      if (clause->is_default()) {
-        clause->body_target()->Bind();
+    if (clause->body_target()->is_linked() || has_valid_frame()) {
+      if (clause->body_target()->is_linked()) {
+        if (has_valid_frame()) {
+          // If we have both a jump to the test and a fall through, put
+          // a jump on the fall through path to avoid the dropping of
+          // the switch value on the test path.  The exception is the
+          // default which has already had the switch value dropped.
+          if (clause->is_default()) {
+            clause->body_target()->Bind();
+          } else {
+            JumpTarget body(this);
+            body.Jump();
+            clause->body_target()->Bind();
+            frame_->Drop();
+            body.Bind();
+          }
+        } else {
+          // No fall through to worry about.
+          clause->body_target()->Bind();
+          if (!clause->is_default()) {
+            frame_->Drop();
+          }
+        }
       } else {
-        JumpTarget body(this);
-        body.Jump();
-        clause->body_target()->Bind();
-        frame_->Drop();
-        body.Bind();
+        // Otherwise, we have only fall through.
+        ASSERT(has_valid_frame());
       }
-    } else if (clause->body_target()->is_linked()) {
-      // No fall through to worry about.
-      clause->body_target()->Bind();
-      if (!clause->is_default()) {
-        frame_->Drop();
-      }
-    } else {
-      // Otherwise, we have only fall through.
-      ASSERT(has_valid_frame());
-    }
 
-    // We are now prepared to compile the body.
-    Comment cmnt(masm_, "[ Case body");
-    VisitStatements(clause->statements());
+      // We are now prepared to compile the body.
+      Comment cmnt(masm_, "[ Case body");
+      VisitStatements(clause->statements());
+    }
+    clause->body_target()->Unuse();
   }
 
   // We may not have a valid frame here so bind the break target only
@@ -2132,6 +2139,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  node->break_target()->Unuse();
 }
 
 
@@ -2452,6 +2460,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   }
 
   DecrementLoopNesting();
+  node->continue_target()->Unuse();
+  node->break_target()->Unuse();
 }
 
 
@@ -2636,6 +2646,9 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Exit.
   exit.Bind();
+
+  node->continue_target()->Unuse();
+  node->break_target()->Unuse();
 }
 
 

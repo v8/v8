@@ -53,6 +53,13 @@ DeferredCode::DeferredCode(CodeGenerator* generator)
 }
 
 
+void CodeGenerator::ClearDeferred() {
+  for (int i = 0; i < deferred_.length(); i++) {
+    deferred_[i]->Clear();
+  }
+}
+
+
 void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
@@ -66,6 +73,7 @@ void CodeGenerator::ProcessDeferred() {
     Comment cmnt(masm, code->comment());
     code->Generate();
     ASSERT(code->enter()->is_bound());
+    code->Clear();
   }
 }
 

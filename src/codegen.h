@@ -52,6 +52,7 @@
 // CodeGenerator::CodeGenerator
 // CodeGenerator::~CodeGenerator
 // CodeGenerator::ProcessDeferred
+// CodeGenerator::ClearDeferred
 // CodeGenerator::GenCode
 // CodeGenerator::BuildBoilerplate
 // CodeGenerator::ComputeCallInitialize
@@ -91,6 +92,14 @@ class DeferredCode: public ZoneObject {
   virtual ~DeferredCode() { }
 
   virtual void Generate() = 0;
+
+  // Unuse the entry and exit targets, deallocating all virtual frames
+  // held by them.  It will be impossible to emit a (correct) jump
+  // into or out of the deferred code after clearing.
+  void Clear() {
+    enter_.Unuse();
+    exit_.Unuse();
+  }
 
   MacroAssembler* masm() const { return masm_; }
   CodeGenerator* generator() const { return generator_; }

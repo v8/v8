@@ -284,7 +284,11 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   DeleteFrame();
 
   // Process any deferred code using the register allocator.
-  ProcessDeferred();
+  if (HasStackOverflow()) {
+    ClearDeferred();
+  } else {
+    ProcessDeferred();
+  }
 
   allocator_ = NULL;
   scope_ = NULL;
@@ -1133,6 +1137,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  node->break_target()->Unuse();
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
@@ -1594,6 +1599,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  node->break_target()->Unuse();
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
@@ -1781,6 +1787,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  node->continue_target()->Unuse();
+  node->break_target()->Unuse();
   ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
@@ -1971,6 +1979,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Exit.
   exit.Bind();
+  node->continue_target()->Unuse();
+  node->break_target()->Unuse();
   ASSERT(frame_->height() == original_height);
 }
 
