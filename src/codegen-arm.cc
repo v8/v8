@@ -2260,31 +2260,33 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   VisitStatementsAndSpill(node->finally_block()->statements());
 
   if (has_valid_frame()) {
-    JumpTarget exit(this);
     // Restore state and return value or faked TOS.
     frame_->EmitPop(r2);
     frame_->EmitPop(r0);
+  }
 
-    // Generate code to jump to the right destination for all used
-    // formerly shadowing targets.  Deallocate each shadow target.
-    for (int i = 0; i < shadows.length(); i++) {
-      if (shadows[i]->is_bound()) {
-        JumpTarget* original = shadows[i]->other_target();
-        __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
-        if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
-          JumpTarget skip(this);
-          skip.Branch(ne);
-          frame_->PrepareForReturn();
-          original->Jump();
-          skip.Bind();
-        } else {
-          original->Branch(eq);
-        }
+  // Generate code to jump to the right destination for all used
+  // formerly shadowing targets.  Deallocate each shadow target.
+  for (int i = 0; i < shadows.length(); i++) {
+    if (has_valid_frame() && shadows[i]->is_bound()) {
+      JumpTarget* original = shadows[i]->other_target();
+      __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
+      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
+        JumpTarget skip(this);
+        skip.Branch(ne);
+        frame_->PrepareForReturn();
+        original->Jump();
+        skip.Bind();
+      } else {
+        original->Branch(eq);
       }
-      delete shadows[i];
     }
+    delete shadows[i];
+  }
 
+  if (has_valid_frame()) {
     // Check if we need to rethrow the exception.
+    JumpTarget exit(this);
     __ cmp(r2, Operand(Smi::FromInt(THROWING)));
     exit.Branch(ne);
 
