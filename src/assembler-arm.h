@@ -218,6 +218,9 @@ inline Condition ReverseCondition(Condition cc) {
 // implementations.
 enum Hint { no_hint };
 
+// Hints are not used on the arm.  Negating is trivial.
+inline Hint NegateHint(Hint ignored) { return no_hint; }
+
 
 // The pc store offset may be 8 or 12 depending on the processor implementation.
 int PcStoreOffset();

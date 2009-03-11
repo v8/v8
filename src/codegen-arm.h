@@ -330,7 +330,6 @@ class CodeGenerator: public AstVisitor {
   // Control flow
   void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
-  void CleanStack(int num_bytes);
 
   bool CheckForInlineRuntimeCall(CallRuntime* node);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
@@ -446,7 +445,6 @@ class CodeGenerator: public AstVisitor {
   RegisterAllocator* allocator_;
   Condition cc_reg_;
   CodeGenState* state_;
-  int break_stack_height_;
 
   // Jump targets
   BreakTarget function_return_;

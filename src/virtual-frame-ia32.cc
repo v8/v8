@@ -171,8 +171,11 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   MergeMoveRegistersToRegisters(expected);
   MergeMoveMemoryToRegisters(expected);
 
-  // Fix any sync bit problems.
-  for (int i = 0; i <= stack_pointer_; i++) {
+  // Fix any sync bit problems from the bottom-up, stopping when we
+  // hit the stack pointer or the top of the frame if the stack
+  // pointer is floating above the frame.
+  int limit = Min(stack_pointer_, elements_.length() - 1);
+  for (int i = 0; i <= limit; i++) {
     FrameElement source = elements_[i];
     FrameElement target = expected->elements_[i];
     if (source.is_synced() && !target.is_synced()) {
@@ -209,7 +212,10 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   int esi_caches = kIllegalIndex;
   // A "singleton" memory element.
   FrameElement memory_element = FrameElement::MemoryElement();
-  for (int i = stack_pointer_; i >= 0; i--) {
+  // Loop downward from the stack pointer or the top of the frame if
+  // the stack pointer is floating above the frame.
+  int start = Min(stack_pointer_, elements_.length() - 1);
+  for (int i = start; i >= 0; i--) {
     FrameElement target = expected->elements_[i];
     if (target.is_memory()) {
       FrameElement source = elements_[i];

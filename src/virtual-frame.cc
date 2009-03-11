@@ -129,13 +129,27 @@ void VirtualFrame::Adjust(int count) {
 void VirtualFrame::Forget(int count) {
   ASSERT(count >= 0);
   ASSERT(stack_pointer_ == elements_.length() - 1);
-  ASSERT(elements_.length() >= count);
 
   stack_pointer_ -= count;
+  ForgetElements(count);
+}
+
+
+void VirtualFrame::ForgetElements(int count) {
+  ASSERT(count >= 0);
+  ASSERT(elements_.length() >= count);
+
   for (int i = 0; i < count; i++) {
     FrameElement last = elements_.RemoveLast();
     if (last.is_register()) {
-      Unuse(last.reg());
+      // A hack to properly count register references for the code
+      // generator's current frame and also for other frames.  The
+      // same code appears in PrepareMergeTo.
+      if (cgen_->frame() == this) {
+        Unuse(last.reg());
+      } else {
+        frame_registers_.Unuse(last.reg());
+      }
     }
   }
 }
@@ -324,15 +338,11 @@ void VirtualFrame::AttachToCodeGenerator() {
 void VirtualFrame::PrepareForReturn() {
   // Spill all locals. This is necessary to make sure all locals have
   // the right value when breaking at the return site in the debugger.
+  //
+  // TODO(203): It is also necessary to ensure that merging at the
+  // return site does not generate code to overwrite eax, where the
+  // return value is kept in a non-refcounted register reference.
   for (int i = 0; i < expression_base_index(); i++) SpillElementAt(i);
-
-  // Drop all non-local stack elements.
-  Drop(height());
-
-  // Validate state: The expression stack should be empty and the
-  // stack pointer should have been updated to reflect this.
-  ASSERT(height() == 0);
-  ASSERT(stack_pointer_ == expression_base_index() - 1);
 }
 
 

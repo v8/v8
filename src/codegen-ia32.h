@@ -501,7 +501,6 @@ class CodeGenerator: public AstVisitor {
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
   void CheckStack();
-  void CleanStack(int num_bytes);
 
   bool CheckForInlineRuntimeCall(CallRuntime* node);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
@@ -617,7 +616,6 @@ class CodeGenerator: public AstVisitor {
   VirtualFrame* frame_;
   RegisterAllocator* allocator_;
   CodeGenState* state_;
-  int break_stack_height_;
   int loop_nesting_;
 
   // Jump targets.

@@ -34,10 +34,6 @@ bugs: FAIL
 # too long to run in debug mode on ARM.
 fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
-# Bug on IA32, realiably triggers a debug assertion.  Unpredictable in
-# release mode on IA32, currently passes on ARM.
-bugs/bug-265: (PASS || FAIL || CRASH), FAIL if $mode == debug
-
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.

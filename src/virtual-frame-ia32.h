@@ -80,9 +80,17 @@ class VirtualFrame : public Malloced {
   // emitted.
   void Adjust(int count);
 
-  // Forget elements from the top of the frame to match an actual frame (eg,
-  // the frame after a runtime call).  No code is emitted.
+  // Forget count elements from the top of the frame all in-memory
+  // (including synced) and adjust the stack pointer downward, to
+  // match an external frame effect (examples include a call removing
+  // its arguments, and exiting a try/catch removing an exception
+  // handler).  No code will be emitted.
   void Forget(int count);
+
+  // Forget count elements from the top of the frame without adjusting
+  // the stack pointer downward.  This is used, for example, before
+  // merging frames at break, continue, and return targets.
+  void ForgetElements(int count);
 
   // Spill all values from the frame to memory.
   void SpillAll();
@@ -124,8 +132,7 @@ class VirtualFrame : public Malloced {
   void Enter();
   void Exit();
 
-  // Prepare for returning from the frame by spilling locals and
-  // dropping all non-locals elements in the virtual frame.  This
+  // Prepare for returning from the frame by spilling locals.  This
   // avoids generating unnecessary merge code when jumping to the
   // shared return site.  Emits code for spills.
   void PrepareForReturn();

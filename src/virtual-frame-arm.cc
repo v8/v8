@@ -168,8 +168,11 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   MergeMoveRegistersToRegisters(expected);
   MergeMoveMemoryToRegisters(expected);
 
-  // Fix any sync bit problems.
-  for (int i = 0; i <= stack_pointer_; i++) {
+  // Fix any sync bit problems from the bottom-up, stopping when we
+  // hit the stack pointer or the top of the frame if the stack
+  // pointer is floating above the frame.
+  int limit = Min(stack_pointer_, elements_.length() - 1);
+  for (int i = 0; i <= limit; i++) {
     FrameElement source = elements_[i];
     FrameElement target = expected->elements_[i];
     if (source.is_synced() && !target.is_synced()) {
@@ -197,17 +200,15 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   // Move registers, constants, and copies to memory.  Perform moves
   // from the top downward in the frame in order to leave the backing
   // stores of copies in registers.
-  //
-  // Moving memory-backed copies to memory requires a spare register
-  // for the memory-to-memory moves.  Since we are performing a merge,
-  // we use esi (which is already saved in the frame).  We keep track
-  // of the index of the frame element esi is caching or kIllegalIndex
-  // if esi has not been disturbed.
+  // On ARM, all elements are in memory.
 
-  for (int i = 0; i < elements_.length(); i++) {
+#ifdef DEBUG
+  int start = Min(stack_pointer_, elements_.length() - 1);
+  for (int i = start; i >= 0; i--) {
     ASSERT(elements_[i].is_memory());
     ASSERT(expected->elements_[i].is_memory());
   }
+#endif
 }
 
 

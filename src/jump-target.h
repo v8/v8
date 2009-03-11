@@ -58,7 +58,30 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   explicit JumpTarget(CodeGenerator* cgen,
                       Directionality direction = FORWARD_ONLY);
 
+  // Construct a jump target without a code generator.  A code
+  // generator must be supplied before using the jump target as a
+  // label.  This is useful, eg, when break targets are embedded in
+  // AST nodes.
+  JumpTarget();
+
+  // Supply a code generator and directionality to an already
+  // constructed jump target.  This function expects to be given a
+  // non-null code generator, and to be called only when the code
+  // generator is not yet set.
+  virtual void Initialize(CodeGenerator* cgen,
+                          Directionality direction = FORWARD_ONLY);
+
   virtual ~JumpTarget() { Unuse(); }
+
+  // Treat the jump target as a fresh one.  The state is reset and
+  // pointed-to virtual frames are deallocated.  There should be no
+  // dangling jumps to the target.
+  void Unuse();
+
+  // Reset the internal state of this jump target.  Pointed-to virtual
+  // frames are not deallocated and dangling jumps to the target are
+  // left dangling.
+  void Reset();
 
   // Accessors.
   CodeGenerator* code_generator() const { return cgen_; }
@@ -77,19 +100,9 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   bool is_linked() const { return is_linked_; }
   bool is_unused() const { return !is_bound() && !is_linked(); }
 
-  // Treat the jump target as a fresh one.  The expected frame if any
-  // will be deallocated and there should be no dangling jumps to the
-  // target (thus no reaching frames).
-  void Unuse();
-
-  // Reset the internal state of this jump target.  Pointed-to virtual
-  // frames are not deallocated and dangling jumps to the target are
-  // left dangling.
-  void Reset();
-
   // Emit a jump to the target.  There must be a current frame at the
   // jump and there will be no current frame after the jump.
-  void Jump();
+  virtual void Jump();
   void Jump(Result* arg);
   void Jump(Result* arg0, Result* arg1);
   void Jump(Result* arg0, Result* arg1, Result* arg2);
@@ -97,7 +110,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // Emit a conditional branch to the target.  There must be a current
   // frame at the branch.  The current frame will fall through to the
   // code after the branch.
-  void Branch(Condition cc, Hint hint = no_hint);
+  virtual void Branch(Condition cc, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg0, Result* arg1, Hint hint = no_hint);
   void Branch(Condition cc,
@@ -125,7 +138,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // A mergable elements argument of kAllElements indicates that all
   // frame elements must be mergable.  Mergable elements are ignored
   // completely for forward-only jump targets.
-  void Bind(int mergable_elements = kAllElements);
+  virtual void Bind(int mergable_elements = kAllElements);
   void Bind(Result* arg, int mergable_elements = kAllElements);
   void Bind(Result* arg0, Result* arg1, int mergable_elements = kAllElements);
   void Bind(Result* arg0,
@@ -209,14 +222,14 @@ class BreakTarget : public JumpTarget {
   // generator must be supplied before using the break target as a
   // label.  This is useful, eg, when break targets are embedded in AST
   // nodes.
-  BreakTarget();
+  BreakTarget() {}
 
-  // Supply a code generator and directionality to an already
-  // constructed jump target.  This function expects to be given a
-  // non-null code generator, and to be called only when the code
-  // generator is not yet set.
-  void Initialize(CodeGenerator* cgen,
-                  Directionality direction = FORWARD_ONLY);
+  // Supply a code generator, expected expression stack height, and
+  // directionality to an already constructed break target.  This
+  // function expects to be given a non-null code generator, and to be
+  // called only when the code generator is not yet set.
+  virtual void Initialize(CodeGenerator* cgen,
+                          Directionality direction = FORWARD_ONLY);
 
   // Copy the state of this break target to the destination.  The
   // lists of forward-reaching frames and merge-point labels are
@@ -225,7 +238,28 @@ class BreakTarget : public JumpTarget {
   // overwritten, without deallocating pointed-to virtual frames.
   void CopyTo(BreakTarget* destination);
 
+  // Emit a jump to the target.  There must be a current frame at the
+  // jump and there will be no current frame after the jump.
+  virtual void Jump();
+
+  // Emit a conditional branch to the target.  There must be a current
+  // frame at the branch.  The current frame will fall through to the
+  // code after the branch.
+  virtual void Branch(Condition cc, Hint hint = no_hint);
+
+  // Bind a break target.  If there is no current frame at the binding
+  // site, there must be at least one frame reaching via a forward
+  // jump.
+  virtual void Bind(int mergable_elements = kAllElements);
+
+  // Setter for expected height.
+  void set_expected_height(int expected) { expected_height_ = expected; }
+
  private:
+  // The expected height of the expression stack where the target will
+  // be bound, statically known at initialization time.
+  int expected_height_;
+
   DISALLOW_COPY_AND_ASSIGN(BreakTarget);
 };
 

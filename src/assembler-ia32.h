@@ -177,7 +177,6 @@ enum Hint {
   taken = 0x3e
 };
 
-
 // The result of negating a hint is as if the corresponding condition
 // were negated by NegateCondition.  That is, no_hint is mapped to
 // itself and not_taken and taken are mapped to each other.
@@ -186,6 +185,7 @@ inline Hint NegateHint(Hint hint) {
       ? no_hint
       : ((hint == not_taken) ? taken : not_taken);
 }
+
 
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates

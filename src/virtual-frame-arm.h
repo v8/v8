@@ -84,6 +84,11 @@ class VirtualFrame : public Malloced {
   // the frame after a runtime call).  No code is emitted.
   void Forget(int count);
 
+  // Forget count elements from the top of the frame without adjusting
+  // the stack pointer downward.  This is used, for example, before
+  // merging frames at break, continue, and return targets.
+  void ForgetElements(int count);
+
   // Spill all values from the frame to memory.
   void SpillAll();
 

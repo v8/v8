@@ -37,8 +37,21 @@ namespace v8 { namespace internal {
 
 JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
     : cgen_(cgen),
-      masm_(cgen == NULL ? NULL : cgen->masm()),
       direction_(direction),
+      reaching_frames_(0),
+      merge_labels_(0),
+      entry_frame_(NULL),
+      is_bound_(false),
+      is_linked_(false) {
+  ASSERT(cgen != NULL);
+  masm_ = cgen->masm();
+}
+
+
+JumpTarget::JumpTarget()
+    : cgen_(NULL),
+      masm_(NULL),
+      direction_(FORWARD_ONLY),
       reaching_frames_(0),
       merge_labels_(0),
       entry_frame_(NULL),
@@ -47,13 +60,25 @@ JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
 }
 
 
+void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
+  ASSERT(cgen != NULL);
+  ASSERT(cgen_ == NULL);
+  cgen_ = cgen;
+  masm_ = cgen->masm();
+  direction_ = direction;
+}
+
+
 void JumpTarget::Unuse() {
   ASSERT(!is_linked());
-  entry_label_.Unuse();
+#ifdef DEBUG
+  for (int i = 0; i < reaching_frames_.length(); i++) {
+    ASSERT(reaching_frames_[i] == NULL);
+  }
+#endif
   delete entry_frame_;
-  entry_frame_ = NULL;
-  is_bound_ = false;
-  is_linked_ = false;
+
+  Reset();
 }
 
 
@@ -501,16 +526,10 @@ void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
 // -------------------------------------------------------------------------
 // BreakTarget implementation.
 
-BreakTarget::BreakTarget() : JumpTarget(NULL, FORWARD_ONLY) {
-}
-
-
 void BreakTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
-  ASSERT(cgen != NULL);
-  ASSERT(cgen_ == NULL);
-  cgen_ = cgen;
-  masm_ = cgen->masm();
-  direction_ = direction;
+  JumpTarget::Initialize(cgen, direction);
+  ASSERT(cgen_->has_valid_frame());
+  expected_height_ = cgen_->frame()->height();
 }
 
 
@@ -530,6 +549,58 @@ void BreakTarget::CopyTo(BreakTarget* destination) {
   destination->entry_label_ = entry_label_;
   destination->is_bound_ = is_bound_;
   destination->is_linked_ = is_linked_;
+  destination->expected_height_ = expected_height_;
+}
+
+
+void BreakTarget::Jump() {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
+
+  // This is a break target so drop leftover statement state from the
+  // frame before merging.
+  cgen_->frame()->ForgetElements(cgen_->frame()->height() - expected_height_);
+  JumpTarget::Jump();
+}
+
+
+void BreakTarget::Branch(Condition cc, Hint hint) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
+
+  int count = cgen_->frame()->height() - expected_height_;
+  if (count > 0) {
+    // We negate and branch here rather than using
+    // JumpTarget::Branch's negate and branch.  This gives us a hook
+    // to remove statement state from the frame.
+    JumpTarget fall_through(cgen_);
+    // Branch to fall through will not negate, because it is a
+    // forward-only target.
+    fall_through.Branch(NegateCondition(cc), NegateHint(hint));
+    Jump();  // May emit merge code here.
+    fall_through.Bind();
+  } else {
+    JumpTarget::Branch(cc, hint);
+  }
+}
+
+
+void BreakTarget::Bind(int mergable_elements) {
+#ifdef DEBUG
+  ASSERT(mergable_elements == kAllElements);
+  ASSERT(cgen_ != NULL);
+  for (int i = 0; i < reaching_frames_.length(); i++) {
+    ASSERT(reaching_frames_[i]->height() == expected_height_);
+  }
+#endif
+
+  // This is a break target so drop leftover statement state from the
+  // frame before merging.
+  if (cgen_->has_valid_frame()) {
+    int count = cgen_->frame()->height() - expected_height_;
+    cgen_->frame()->ForgetElements(count);
+  }
+  JumpTarget::Bind(mergable_elements);
 }
 
 
@@ -546,15 +617,19 @@ ShadowTarget::ShadowTarget(BreakTarget* shadowed) {
   // While shadowing this shadow target saves the state of the original.
   shadowed->CopyTo(this);
 
+  // The original's state is reset.  We do not Unuse it because that
+  // would delete the expected frame and assert that the target is not
+  // linked.
+  shadowed->Reset();
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
+  shadowed->set_expected_height(cgen_->frame()->height());
+
   // Setting the code generator to null prevents the shadow target from
   // being used until shadowing stops.
   cgen_ = NULL;
   masm_ = NULL;
 
-  // The original's state is reset.  We do not Unuse it because that
-  // would delete the expected frame and assert that the target is not
-  // linked.
-  shadowed->Reset();
 }
 
 

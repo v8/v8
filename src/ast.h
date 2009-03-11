@@ -202,11 +202,6 @@ class BreakableStatement: public Statement {
   // Code generation
   BreakTarget* break_target() { return &break_target_; }
 
-  // Used during code generation for restoring the stack when a
-  // break/continue crosses a statement that keeps stuff on the stack.
-  int break_stack_height() { return break_stack_height_; }
-  void set_break_stack_height(int height) { break_stack_height_ = height; }
-
   // Testers.
   bool is_target_for_anonymous() const { return type_ == TARGET_FOR_ANONYMOUS; }
 
@@ -220,7 +215,6 @@ class BreakableStatement: public Statement {
   ZoneStringList* labels_;
   Type type_;
   BreakTarget break_target_;
-  int break_stack_height_;
 };
 
 
@@ -451,12 +445,12 @@ class CaseClause: public ZoneObject {
     CHECK(!is_default());
     return label_;
   }
-  BreakTarget* body_target() { return &body_target_; }
+  JumpTarget* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const  { return statements_; }
 
  private:
   Expression* label_;
-  BreakTarget body_target_;
+  JumpTarget body_target_;
   ZoneList<Statement*>* statements_;
 };
 

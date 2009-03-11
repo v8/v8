@@ -80,7 +80,6 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       frame_(NULL),
       allocator_(NULL),
       state_(NULL),
-      break_stack_height_(0),
       loop_nesting_(0),
       function_return_is_shadowed_(false),
       in_spilled_code_(false) {
@@ -107,8 +106,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
   frame_ = new VirtualFrame(this);
-  function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
-  function_return_is_shadowed_ = false;
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
@@ -125,7 +122,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // esi: callee's context
     allocator_->Initialize();
     frame_->Enter();
-    // tos: code slot
+
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
         fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
@@ -136,6 +133,10 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
 
     // Allocate space for locals and initialize them.
     frame_->AllocateStackSlots(scope_->num_stack_slots());
+    // Initialize the function return target after the locals are set
+    // up, because it needs the expected frame height from the frame.
+    function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
+    function_return_is_shadowed_ = false;
 
     // Allocate the arguments object and copy the parameters into it.
     if (scope_->arguments() != NULL) {
@@ -1561,7 +1562,6 @@ void CodeGenerator::VisitBlock(Block* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ Block");
   CodeForStatementPosition(node);
-  node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
   VisitStatements(node->statements());
   if (node->break_target()->is_linked()) {
@@ -1763,17 +1763,10 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 }
 
 
-void CodeGenerator::CleanStack(int num_bytes) {
-  ASSERT(num_bytes % kPointerSize == 0);
-  frame_->Drop(num_bytes / kPointerSize);
-}
-
-
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ContinueStatement");
   CodeForStatementPosition(node);
-  CleanStack(break_stack_height_ - node->target()->break_stack_height());
   node->target()->continue_target()->Jump();
 }
 
@@ -1782,7 +1775,6 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ BreakStatement");
   CodeForStatementPosition(node);
-  CleanStack(break_stack_height_ - node->target()->break_stack_height());
   node->target()->break_target()->Jump();
 }
 
@@ -2020,7 +2012,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
-  node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
 
   // Compile the switch value.
@@ -2148,7 +2139,6 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ LoopStatement");
   CodeForStatementPosition(node);
-  node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
 
   // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
@@ -2471,15 +2461,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
   CodeForStatementPosition(node);
 
-  // We keep stuff on the stack while the body is executing.
-  // Record it, so that a break/continue crossing this statement
-  // can restore the stack.
-  const int kForInStackSize = 5 * kPointerSize;
-  break_stack_height_ += kForInStackSize;
-  node->set_break_stack_height(break_stack_height_);
-  node->break_target()->Initialize(this);
-  node->continue_target()->Initialize(this);
-
   JumpTarget primitive(this);
   JumpTarget jsobject(this);
   JumpTarget fixed_array(this);
@@ -2568,6 +2549,11 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Condition.
   entry.Bind();
+  // Grab the current frame's height for the break and continue
+  // targets only after all the state is pushed on the frame.
+  node->break_target()->Initialize(this);
+  node->continue_target()->Initialize(this);
+
   __ mov(eax, frame_->ElementAt(0));  // load the current count
   __ cmp(eax, frame_->ElementAt(1));  // compare to the array length
   node->break_target()->Branch(above_equal);
@@ -2650,8 +2636,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Exit.
   exit.Bind();
-
-  break_stack_height_ -= kForInStackSize;
 }
 
 
@@ -2917,16 +2901,11 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   frame_->EmitPush(ecx);
 
   // We keep two elements on the stack - the (possibly faked) result
-  // and the state - while evaluating the finally block. Record it, so
-  // that a break/continue crossing this statement can restore the
-  // stack.
-  const int kFinallyStackSize = 2 * kPointerSize;
-  break_stack_height_ += kFinallyStackSize;
-
+  // and the state - while evaluating the finally block.
+  //
   // Generate code for the statements in the finally block.
   VisitStatementsAndSpill(node->finally_block()->statements());
 
-  break_stack_height_ -= kFinallyStackSize;
   if (has_valid_frame()) {
     JumpTarget exit(this);
     // Restore state and return value or faked TOS.
