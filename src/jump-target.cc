@@ -629,7 +629,6 @@ ShadowTarget::ShadowTarget(BreakTarget* shadowed) {
   // being used until shadowing stops.
   cgen_ = NULL;
   masm_ = NULL;
-
 }
 
 
