@@ -1760,7 +1760,11 @@ THREADED_TEST(APIThrowTryCatch) {
 
 // Test that a try-finally block doesn't shadow a try-catch block
 // when setting up an external handler.
-THREADED_TEST(TryCatchInTryFinally) {
+//
+// TODO(271): This should be a threaded test. It was disabled for the
+// thread tests because it fails on the ARM simulator.  Should be made
+// threadable again when the simulator issue is resolved.
+TEST(TryCatchInTryFinally) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("CCatcher"),
@@ -1913,7 +1917,11 @@ THREADED_TEST(EvalInTryFinally) {
 // Each entry is an activation, either JS or C.  The index is the count at that
 // level.  Stars identify activations with exception handlers, the @ identifies
 // the exception handler that should catch the exception.
-THREADED_TEST(ExceptionOrder) {
+//
+// TODO(271): This should be a threaded test. It was disabled for the
+// thread tests because it fails on the ARM simulator.  Should be made
+// threadable again when the simulator issue is resolved.
+TEST(ExceptionOrder) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("check"), v8::FunctionTemplate::New(JSCheck));
