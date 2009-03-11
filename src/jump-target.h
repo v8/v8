@@ -48,7 +48,7 @@ namespace v8 { namespace internal {
 // In particular, this means that at least one of the control-flow
 // graph edges reaching the target must be a forward edge.
 
-class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
+class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
  public:
   // Forward-only jump targets can only be reached by forward CFG edges.
   enum Directionality { FORWARD_ONLY, BIDIRECTIONAL };

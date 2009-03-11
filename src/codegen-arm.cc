@@ -2053,7 +2053,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // After shadowing stops, the original labels are unshadowed and the
   // LabelShadows represent the formerly shadowing labels.
   bool has_unlinks = false;
-  for (int i = 0; i <= nof_escapes; i++) {
+  for (int i = 0; i < shadows.length(); i++) {
     shadows[i]->StopShadowing();
     has_unlinks = has_unlinks || shadows[i]->is_linked();
   }
@@ -2076,8 +2076,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
 
   // Generate unlink code for the (formerly) shadowing labels that have been
-  // jumped to.
-  for (int i = 0; i <= nof_escapes; i++) {
+  // jumped to.  Deallocate each shadow target.
+  for (int i = 0; i < shadows.length(); i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain;
       shadows[i]->Bind();
@@ -2105,6 +2105,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       }
       shadows[i]->other_target()->Jump();
     }
+    delete shadows[i];
   }
 
   exit.Bind();
@@ -2169,7 +2170,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // After shadowing stops, the original labels are unshadowed and the
   // LabelShadows represent the formerly shadowing labels.
   int nof_unlinks = 0;
-  for (int i = 0; i <= nof_escapes; i++) {
+  for (int i = 0; i < shadows.length(); i++) {
     shadows[i]->StopShadowing();
     if (shadows[i]->is_linked()) nof_unlinks++;
   }
@@ -2199,8 +2200,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   }
 
   // Generate code to unlink and set the state for the (formerly)
-  // shadowing labels that have been jumped to.
-  for (int i = 0; i <= nof_escapes; i++) {
+  // shadowing targets that have been jumped to.
+  for (int i = 0; i < shadows.length(); i++) {
     if (shadows[i]->is_linked()) {
       // If we have come from the shadowed return, the return value is
       // in (a non-refcounted reference to) r0.  We must preserve it
@@ -2264,9 +2265,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     frame_->EmitPop(r2);
     frame_->EmitPop(r0);
 
-    // Generate code to jump to the right destination for all used (formerly)
-    // shadowing labels.
-    for (int i = 0; i <= nof_escapes; i++) {
+    // Generate code to jump to the right destination for all used
+    // formerly shadowing targets.  Deallocate each shadow target.
+    for (int i = 0; i < shadows.length(); i++) {
       if (shadows[i]->is_bound()) {
         JumpTarget* original = shadows[i]->other_target();
         __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
@@ -2280,6 +2281,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
           original->Branch(eq);
         }
       }
+      delete shadows[i];
     }
 
     // Check if we need to rethrow the exception.
