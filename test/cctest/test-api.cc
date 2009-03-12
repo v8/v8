@@ -1722,8 +1722,7 @@ v8::Handle<Value> CCatcher(const v8::Arguments& args) {
   if (args.Length() < 1) return v8::Boolean::New(false);
   v8::HandleScope scope;
   v8::TryCatch try_catch;
-  Local<Value> result = v8::Script::Compile(args[0]->ToString())->Run();
-  CHECK(!try_catch.HasCaught() || result.IsEmpty());
+  v8::Script::Compile(args[0]->ToString())->Run();
   return v8::Boolean::New(try_catch.HasCaught());
 }
 
@@ -1760,11 +1759,7 @@ THREADED_TEST(APIThrowTryCatch) {
 
 // Test that a try-finally block doesn't shadow a try-catch block
 // when setting up an external handler.
-//
-// TODO(271): This should be a threaded test. It was disabled for the
-// thread tests because it fails on the ARM simulator.  Should be made
-// threadable again when the simulator issue is resolved.
-TEST(TryCatchInTryFinally) {
+THREADED_TEST(TryCatchInTryFinally) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("CCatcher"),
@@ -1811,9 +1806,8 @@ TEST(APIThrowMessageAndVerboseTryCatch) {
   LocalContext context(0, templ);
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
-  Local<Value> result = CompileRun("ThrowFromC();");
+  CompileRun("ThrowFromC();");
   CHECK(try_catch.HasCaught());
-  CHECK(result.IsEmpty());
   CHECK(message_received);
   v8::V8::RemoveMessageListeners(check_message);
 }
@@ -1859,7 +1853,6 @@ v8::Handle<Value> CThrowCountDown(const v8::Arguments& args) {
       int expected = args[3]->Int32Value();
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
-        CHECK(result.IsEmpty());
         CHECK(!i::Top::has_scheduled_exception());
       } else {
         CHECK_NE(expected, count);
@@ -1917,11 +1910,7 @@ THREADED_TEST(EvalInTryFinally) {
 // Each entry is an activation, either JS or C.  The index is the count at that
 // level.  Stars identify activations with exception handlers, the @ identifies
 // the exception handler that should catch the exception.
-//
-// TODO(271): This should be a threaded test. It was disabled for the
-// thread tests because it fails on the ARM simulator.  Should be made
-// threadable again when the simulator issue is resolved.
-TEST(ExceptionOrder) {
+THREADED_TEST(ExceptionOrder) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("check"), v8::FunctionTemplate::New(JSCheck));
