@@ -158,10 +158,12 @@ class Parser {
 
   // Decide if a property should be the object boilerplate.
   bool IsBoilerplateProperty(ObjectLiteral::Property* property);
-  // If the property is CONSTANT type, it returns the literal value,
-  // otherwise, it return undefined literal as the placeholder
+  // If the expression is a literal, return the literal value;
+  // if the expression is a materialized literal and is simple return a
+  // compile time value as encoded by CompileTimeValue::GetValue().
+  // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
-  Literal* GetBoilerplateValue(ObjectLiteral::Property* property);
+  Handle<Object> GetBoilerplateValue(Expression* expression);
 
   enum FunctionLiteralType {
     EXPRESSION,
@@ -205,7 +207,7 @@ class Parser {
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
   IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
 
-  void RegisterLabelUse(Label* label, int index);
+  void RegisterTargetUse(BreakTarget* target, int index);
 
   // Create a number literal.
   Literal* NewNumberLiteral(double value);
@@ -2050,8 +2052,8 @@ Block* Parser::WithHelper(Expression* obj,
                           bool is_catch_block,
                           bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<Label*>* label_list = NEW(ZoneList<Label*>(0));
-  LabelCollector collector(label_list);
+  ZoneList<BreakTarget*>* target_list = NEW(ZoneList<BreakTarget*>(0));
+  TargetCollector collector(target_list);
   Statement* stat;
   { Target target(this, &collector);
     with_nesting_level_++;
@@ -2064,7 +2066,7 @@ Block* Parser::WithHelper(Expression* obj,
   // 2: The try-finally block evaluating the body.
   Block* result = NEW(Block(NULL, 2, false));
 
-  if (result) {
+  if (result != NULL) {
     result->AddStatement(NEW(WithEnterStatement(obj, is_catch_block)));
 
     // Create body block.
@@ -2077,12 +2079,10 @@ Block* Parser::WithHelper(Expression* obj,
 
     // Return a try-finally statement.
     TryFinally* wrapper = NEW(TryFinally(body, exit));
-    wrapper->set_escaping_labels(collector.labels());
+    wrapper->set_escaping_targets(collector.targets());
     result->AddStatement(wrapper);
-    return result;
-  } else {
-    return NULL;
   }
+  return result;
 }
 
 
@@ -2197,8 +2197,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<Label*>* label_list = NEW(ZoneList<Label*>(0));
-  LabelCollector collector(label_list);
+  ZoneList<BreakTarget*>* target_list = NEW(ZoneList<BreakTarget*>(0));
+  TargetCollector collector(target_list);
   Block* try_block;
 
   { Target target(this, &collector);
@@ -2217,10 +2217,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   }
 
   // If we can break out from the catch block and there is a finally block,
-  // then we will need to collect labels from the catch block. Since we don't
-  // know yet if there will be a finally block, we always collect the labels.
-  ZoneList<Label*>* catch_label_list = NEW(ZoneList<Label*>(0));
-  LabelCollector catch_collector(catch_label_list);
+  // then we will need to collect jump targets from the catch block. Since
+  // we don't know yet if there will be a finally block, we always collect
+  // the jump targets.
+  ZoneList<BreakTarget*>* catch_target_list = NEW(ZoneList<BreakTarget*>(0));
+  TargetCollector catch_collector(catch_target_list);
   bool has_catch = false;
   if (tok == Token::CATCH) {
     has_catch = true;
@@ -2260,7 +2261,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   if (!is_pre_parsing_ && catch_block != NULL && finally_block != NULL) {
     TryCatch* statement = NEW(TryCatch(try_block, catch_var, catch_block));
-    statement->set_escaping_labels(collector.labels());
+    statement->set_escaping_targets(collector.targets());
     try_block = NEW(Block(NULL, 1, false));
     try_block->AddStatement(statement);
     catch_block = NULL;
@@ -2271,15 +2272,15 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     if (catch_block != NULL) {
       ASSERT(finally_block == NULL);
       result = NEW(TryCatch(try_block, catch_var, catch_block));
-      result->set_escaping_labels(collector.labels());
+      result->set_escaping_targets(collector.targets());
     } else {
       ASSERT(finally_block != NULL);
       result = NEW(TryFinally(try_block, finally_block));
-      // Add the labels of the try block and the catch block.
-      for (int i = 0; i < collector.labels()->length(); i++) {
-        catch_collector.labels()->Add(collector.labels()->at(i));
+      // Add the jump targets of the try block and the catch block.
+      for (int i = 0; i < collector.targets()->length(); i++) {
+        catch_collector.targets()->Add(collector.targets()->at(i));
       }
-      result->set_escaping_labels(catch_collector.labels());
+      result->set_escaping_targets(catch_collector.targets());
     }
   }
 
@@ -3057,6 +3058,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
 
   // Update the scope information before the pre-parsing bailout.
   temp_scope_->set_contains_array_literal();
+  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
 
   if (is_pre_parsing_) return NULL;
 
@@ -3065,16 +3067,19 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       Factory::NewFixedArray(values.length(), TENURED);
 
   // Fill in the literals.
+  bool is_simple = true;
   for (int i = 0; i < values.length(); i++) {
-    Literal* literal = values.at(i)->AsLiteral();
-    if (literal == NULL) {
+    Handle<Object> boilerplate_value = GetBoilerplateValue(values.at(i));
+    if (boilerplate_value->IsUndefined()) {
       literals->set_the_hole(i);
+      is_simple = false;
     } else {
-      literals->set(i, *literal->handle());
+      literals->set(i, *boilerplate_value);
     }
   }
 
-  return NEW(ArrayLiteral(literals, values.elements()));
+  return NEW(ArrayLiteral(literals, values.elements(),
+                          literal_index, is_simple));
 }
 
 
@@ -3084,10 +3089,48 @@ bool Parser::IsBoilerplateProperty(ObjectLiteral::Property* property) {
 }
 
 
-Literal* Parser::GetBoilerplateValue(ObjectLiteral::Property* property) {
-  if (property->kind() == ObjectLiteral::Property::CONSTANT)
-    return property->value()->AsLiteral();
-  return GetLiteralUndefined();
+bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
+  MaterializedLiteral* lit = expression->AsMaterializedLiteral();
+  return lit != NULL && lit->is_simple();
+}
+
+Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
+  ASSERT(IsCompileTimeValue(expression));
+  Handle<FixedArray> result = Factory::NewFixedArray(2, TENURED);
+  ObjectLiteral* object_literal = expression->AsObjectLiteral();
+  if (object_literal != NULL) {
+    ASSERT(object_literal->is_simple());
+    result->set(kTypeSlot, Smi::FromInt(OBJECT_LITERAL));
+    result->set(kElementsSlot, *object_literal->constant_properties());
+  } else {
+    ArrayLiteral* array_literal = expression->AsArrayLiteral();
+    ASSERT(array_literal != NULL && array_literal->is_simple());
+    result->set(kTypeSlot, Smi::FromInt(ARRAY_LITERAL));
+    result->set(kElementsSlot, *array_literal->literals());
+  }
+  return result;
+}
+
+
+CompileTimeValue::Type CompileTimeValue::GetType(Handle<FixedArray> value) {
+  Smi* type_value = Smi::cast(value->get(kTypeSlot));
+  return static_cast<Type>(type_value->value());
+}
+
+
+Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
+  return Handle<FixedArray>(FixedArray::cast(value->get(kElementsSlot)));
+}
+
+
+Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
+  if (expression->AsLiteral() != NULL) {
+    return expression->AsLiteral()->handle();
+  }
+  if (CompileTimeValue::IsCompileTimeValue(expression)) {
+    return CompileTimeValue::GetValue(expression);
+  }
+  return Factory::undefined_value();
 }
 
 
@@ -3182,24 +3225,30 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   Handle<FixedArray> constant_properties =
       Factory::NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
   int position = 0;
+  bool is_simple = true;
   for (int i = 0; i < properties.length(); i++) {
     ObjectLiteral::Property* property = properties.at(i);
-    if (!IsBoilerplateProperty(property)) continue;
+    if (!IsBoilerplateProperty(property)) {
+      is_simple = false;
+      continue;
+    }
 
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
     Handle<Object> key = property->key()->handle();
-    Literal* literal = GetBoilerplateValue(property);
+    Handle<Object> value = GetBoilerplateValue(property->value());
+    is_simple = is_simple && !value->IsUndefined();
 
     // Add name, value pair to the fixed array.
     constant_properties->set(position++, *key);
-    constant_properties->set(position++, *literal->handle());
+    constant_properties->set(position++, *value);
   }
 
   return new ObjectLiteral(constant_properties,
                            properties.elements(),
-                           literal_index);
+                           literal_index,
+                           is_simple);
 }
 
 
@@ -3506,7 +3555,7 @@ BreakableStatement* Parser::LookupBreakTarget(Handle<String> label, bool* ok) {
 
     if ((anonymous && stat->is_target_for_anonymous()) ||
         (!anonymous && ContainsLabel(stat->labels(), label))) {
-      RegisterLabelUse(stat->break_target(), i);
+      RegisterTargetUse(stat->break_target(), i);
       return stat;
     }
   }
@@ -3523,7 +3572,7 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 
     ASSERT(stat->is_target_for_anonymous());
     if (anonymous || ContainsLabel(stat->labels(), label)) {
-      RegisterLabelUse(stat->continue_target(), i);
+      RegisterTargetUse(stat->continue_target(), i);
       return stat;
     }
   }
@@ -3531,13 +3580,13 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 }
 
 
-void Parser::RegisterLabelUse(Label* label, int index) {
-  // Register that a label found at the given index in the target
-  // stack has been used from the top of the target stack. Add the
-  // label to any LabelCollectors passed on the stack.
+void Parser::RegisterTargetUse(BreakTarget* target, int index) {
+  // Register that a break target found at the given index in the
+  // target stack has been used from the top of the target stack. Add
+  // the break target to any TargetCollectors passed on the stack.
   for (int i = target_stack_->length(); i-- > index;) {
-    LabelCollector* collector = target_stack_->at(i)->AsLabelCollector();
-    if (collector != NULL) collector->AddLabel(label);
+    TargetCollector* collector = target_stack_->at(i)->AsTargetCollector();
+    if (collector != NULL) collector->AddTarget(target);
   }
 }
 
@@ -4128,10 +4177,8 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
 STATIC_CHECK(('a' ^ 'A') == 0x20);
 
 uc32 RegExpParser::ParseControlLetterEscape() {
-  if (!has_more()) {
-    ReportError(CStrVector("\\c at end of pattern"));
-    return '\0';
-  }
+  if (!has_more())
+    return 'c';
   uc32 letter = current() & ~(0x20);  // Collapse upper and lower case letters.
   if (letter < 'A' || 'Z' < letter) {
     // Non-spec error-correction: "\c" followed by non-control letter is

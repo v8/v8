@@ -518,10 +518,11 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   {  // --- E m p t y ---
     Handle<Code> code =
         Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
-    Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
-
     empty_function->set_code(*code);
-    empty_function->shared()->set_script(*Factory::NewScript(source));
+    Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
+    Handle<Script> script = Factory::NewScript(source);
+    script->set_type(Smi::FromInt(SCRIPT_TYPE_NATIVE));
+    empty_function->shared()->set_script(*script);
     empty_function->shared()->set_start_position(0);
     empty_function->shared()->set_end_position(source->length());
     empty_function->shared()->DontAdaptArguments();
@@ -984,12 +985,19 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("source"),
             proxy_source,
             common_attributes);
-    Handle<Proxy> proxy_data = Factory::NewProxy(&Accessors::ScriptName);
+    Handle<Proxy> proxy_name = Factory::NewProxy(&Accessors::ScriptName);
     script_descriptors =
         Factory::CopyAppendProxyDescriptor(
             script_descriptors,
             Factory::LookupAsciiSymbol("name"),
-            proxy_data,
+            proxy_name,
+            common_attributes);
+    Handle<Proxy> proxy_id = Factory::NewProxy(&Accessors::ScriptId);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("id"),
+            proxy_id,
             common_attributes);
     Handle<Proxy> proxy_line_offset =
         Factory::NewProxy(&Accessors::ScriptLineOffset);
@@ -1028,6 +1036,7 @@ bool Genesis::InstallNatives() {
 
     // Allocate the empty script.
     Handle<Script> script = Factory::NewScript(Factory::empty_string());
+    script->set_type(Smi::FromInt(SCRIPT_TYPE_NATIVE));
     global_context()->set_empty_script(*script);
   }
 

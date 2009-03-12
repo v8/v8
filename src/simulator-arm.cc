@@ -1525,7 +1525,7 @@ void Simulator::Execute() {
 
 
 Object* Simulator::Call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
-                           int32_t p3, int32_t p4) {
+                        int32_t p3, int32_t p4) {
   // Setup parameters
   set_register(r0, p0);
   set_register(r1, p1);

@@ -35,6 +35,7 @@
 #include "variables.h"
 #include "macro-assembler.h"
 #include "jsregexp.h"
+#include "jump-target.h"
 
 namespace v8 { namespace internal {
 
@@ -92,6 +93,10 @@ namespace v8 { namespace internal {
   V(ThisFunction)
 
 
+// Forward declarations
+class TargetCollector;
+class MaterializedLiteral;
+
 #define DEF_FORWARD_DECLARATION(type) class type;
 NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
@@ -118,13 +123,16 @@ class Node: public ZoneObject {
   virtual VariableProxy* AsVariableProxy() { return NULL; }
   virtual Property* AsProperty() { return NULL; }
   virtual Call* AsCall() { return NULL; }
-  virtual LabelCollector* AsLabelCollector() { return NULL; }
+  virtual TargetCollector* AsTargetCollector() { return NULL; }
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual UnaryOperation* AsUnaryOperation() { return NULL; }
   virtual BinaryOperation* AsBinaryOperation() { return NULL; }
   virtual Assignment* AsAssignment() { return NULL; }
   virtual FunctionLiteral* AsFunctionLiteral() { return NULL; }
+  virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
+  virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
+  virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
 
   void set_statement_pos(int statement_pos) { statement_pos_ = statement_pos; }
   int statement_pos() const { return statement_pos_; }
@@ -192,12 +200,7 @@ class BreakableStatement: public Statement {
   virtual BreakableStatement* AsBreakableStatement() { return this; }
 
   // Code generation
-  Label* break_target() { return &break_target_; }
-
-  // Used during code generation for restoring the stack when a
-  // break/continue crosses a statement that keeps stuff on the stack.
-  int break_stack_height() { return break_stack_height_; }
-  void set_break_stack_height(int height) { break_stack_height_ = height; }
+  BreakTarget* break_target() { return &break_target_; }
 
   // Testers.
   bool is_target_for_anonymous() const { return type_ == TARGET_FOR_ANONYMOUS; }
@@ -211,8 +214,7 @@ class BreakableStatement: public Statement {
  private:
   ZoneStringList* labels_;
   Type type_;
-  Label break_target_;
-  int break_stack_height_;
+  BreakTarget break_target_;
 };
 
 
@@ -268,7 +270,7 @@ class IterationStatement: public BreakableStatement {
   Statement* body() const { return body_; }
 
   // Code generation
-  Label* continue_target()  { return &continue_target_; }
+  BreakTarget* continue_target()  { return &continue_target_; }
 
  protected:
   explicit IterationStatement(ZoneStringList* labels)
@@ -280,7 +282,7 @@ class IterationStatement: public BreakableStatement {
 
  private:
   Statement* body_;
-  Label continue_target_;
+  BreakTarget continue_target_;
 };
 
 
@@ -443,10 +445,12 @@ class CaseClause: public ZoneObject {
     CHECK(!is_default());
     return label_;
   }
+  JumpTarget* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const  { return statements_; }
 
  private:
   Expression* label_;
+  JumpTarget body_target_;
   ZoneList<Statement*>* statements_;
 };
 
@@ -503,43 +507,45 @@ class IfStatement: public Statement {
 };
 
 
-// NOTE: LabelCollectors are represented as nodes to fit in the target
+// NOTE: TargetCollectors are represented as nodes to fit in the target
 // stack in the compiler; this should probably be reworked.
-class LabelCollector: public Node {
+class TargetCollector: public Node {
  public:
-  explicit LabelCollector(ZoneList<Label*>* labels) : labels_(labels) { }
+  explicit TargetCollector(ZoneList<BreakTarget*>* targets)
+      : targets_(targets) {
+  }
 
-  // Adds a label to the collector. The collector stores a pointer not
-  // a copy of the label to make binding work, so make sure not to
-  // pass in references to something on the stack.
-  void AddLabel(Label* label);
+  // Adds a jump target to the collector. The collector stores a pointer not
+  // a copy of the target to make binding work, so make sure not to pass in
+  // references to something on the stack.
+  void AddTarget(BreakTarget* target);
 
-  // Virtual behaviour. LabelCollectors are never part of the AST.
+  // Virtual behaviour. TargetCollectors are never part of the AST.
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
-  virtual LabelCollector* AsLabelCollector() { return this; }
+  virtual TargetCollector* AsTargetCollector() { return this; }
 
-  ZoneList<Label*>* labels() { return labels_; }
+  ZoneList<BreakTarget*>* targets() { return targets_; }
 
  private:
-  ZoneList<Label*>* labels_;
+  ZoneList<BreakTarget*>* targets_;
 };
 
 
 class TryStatement: public Statement {
  public:
   explicit TryStatement(Block* try_block)
-      : try_block_(try_block), escaping_labels_(NULL) { }
+      : try_block_(try_block), escaping_targets_(NULL) { }
 
-  void set_escaping_labels(ZoneList<Label*>* labels) {
-    escaping_labels_ = labels;
+  void set_escaping_targets(ZoneList<BreakTarget*>* targets) {
+    escaping_targets_ = targets;
   }
 
   Block* try_block() const { return try_block_; }
-  ZoneList<Label*>* escaping_labels() const { return escaping_labels_; }
+  ZoneList<BreakTarget*>* escaping_targets() const { return escaping_targets_; }
 
  private:
   Block* try_block_;
-  ZoneList<Label*>* escaping_labels_;
+  ZoneList<BreakTarget*>* escaping_targets_;
 };
 
 
@@ -624,11 +630,20 @@ class Literal: public Expression {
 // Base class for literals that needs space in the corresponding JSFunction.
 class MaterializedLiteral: public Expression {
  public:
-  explicit MaterializedLiteral(int literal_index)
-      : literal_index_(literal_index) {}
+  explicit MaterializedLiteral(int literal_index, bool is_simple)
+      : literal_index_(literal_index), is_simple_(is_simple) {}
+
+  virtual MaterializedLiteral* AsMaterializedLiteral() { return this; }
+
   int literal_index() { return literal_index_; }
+
+  // A materialized literal is simple if the values consist of only
+  // constants and simple object and array literals.
+  bool is_simple() const { return is_simple_; }
+
  private:
   int literal_index_;
+  bool is_simple_;
 };
 
 
@@ -643,10 +658,11 @@ class ObjectLiteral: public MaterializedLiteral {
    public:
 
     enum Kind {
-      CONSTANT,       // Property with constant value (at compile time).
-      COMPUTED,       // Property with computed value (at execution time).
-      GETTER, SETTER,  // Property is an accessor function.
-      PROTOTYPE       // Property is __proto__.
+      CONSTANT,              // Property with constant value (compile time).
+      COMPUTED,              // Property with computed value (execution time).
+      MATERIALIZED_LITERAL,  // Property value is a materialized literal.
+      GETTER, SETTER,        // Property is an accessor function.
+      PROTOTYPE              // Property is __proto__.
     };
 
     Property(Literal* key, Expression* value);
@@ -664,12 +680,13 @@ class ObjectLiteral: public MaterializedLiteral {
 
   ObjectLiteral(Handle<FixedArray> constant_properties,
                 ZoneList<Property*>* properties,
-                int literal_index)
-      : MaterializedLiteral(literal_index),
+                int literal_index,
+                bool is_simple)
+      : MaterializedLiteral(literal_index, is_simple),
         constant_properties_(constant_properties),
-        properties_(properties) {
-  }
+        properties_(properties) {}
 
+  virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
 
   Handle<FixedArray> constant_properties() const {
@@ -689,7 +706,7 @@ class RegExpLiteral: public MaterializedLiteral {
   RegExpLiteral(Handle<String> pattern,
                 Handle<String> flags,
                 int literal_index)
-      : MaterializedLiteral(literal_index),
+      : MaterializedLiteral(literal_index, false),
         pattern_(pattern),
         flags_(flags) {}
 
@@ -705,14 +722,18 @@ class RegExpLiteral: public MaterializedLiteral {
 
 // An array literal has a literals object that is used
 // for minimizing the work when constructing it at runtime.
-class ArrayLiteral: public Expression {
+class ArrayLiteral: public MaterializedLiteral {
  public:
   ArrayLiteral(Handle<FixedArray> literals,
-               ZoneList<Expression*>* values)
-      : literals_(literals), values_(values) {
-  }
+               ZoneList<Expression*>* values,
+               int literal_index,
+               bool is_simple)
+      : MaterializedLiteral(literal_index, is_simple),
+        literals_(literals),
+        values_(values) {}
 
   virtual void Accept(AstVisitor* v);
+  virtual ArrayLiteral* AsArrayLiteral() { return this; }
 
   Handle<FixedArray> literals() const { return literals_; }
   ZoneList<Expression*>* values() const { return values_; }
@@ -860,8 +881,13 @@ class Slot: public Expression {
 
 class Property: public Expression {
  public:
-  Property(Expression* obj, Expression* key, int pos)
-      : obj_(obj), key_(key), pos_(pos) { }
+  // Synthetic properties are property lookups introduced by the system,
+  // to objects that aren't visible to the user. Function calls to synthetic
+  // properties should use the global object as receiver, not the base object
+  // of the resolved Reference.
+  enum Type { NORMAL, SYNTHETIC };
+  Property(Expression* obj, Expression* key, int pos, Type type = NORMAL)
+      : obj_(obj), key_(key), pos_(pos), type_(type) { }
 
   virtual void Accept(AstVisitor* v);
 
@@ -873,6 +899,7 @@ class Property: public Expression {
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
   int position() const { return pos_; }
+  bool is_synthetic() const { return type_ == SYNTHETIC; }
 
   // Returns a property singleton property access on 'this'.  Used
   // during preparsing.
@@ -882,8 +909,9 @@ class Property: public Expression {
   Expression* obj_;
   Expression* key_;
   int pos_;
+  Type type_;
 
-  // Dummy property used during preparsing
+  // Dummy property used during preparsing.
   static Property this_property_;
 };
 
@@ -1179,6 +1207,9 @@ class FunctionLiteral: public Expression {
         is_expression_(is_expression),
         loop_nesting_(0),
         function_token_position_(RelocInfo::kNoPosition) {
+#ifdef DEBUG
+    already_compiled_ = false;
+#endif
   }
 
   virtual void Accept(AstVisitor* v);
@@ -1205,6 +1236,13 @@ class FunctionLiteral: public Expression {
   bool loop_nesting() const { return loop_nesting_; }
   void set_loop_nesting(int nesting) { loop_nesting_ = nesting; }
 
+#ifdef DEBUG
+  void mark_as_compiled() {
+    ASSERT(!already_compiled_);
+    already_compiled_ = true;
+  }
+#endif
+
  private:
   Handle<String> name_;
   Scope* scope_;
@@ -1218,6 +1256,9 @@ class FunctionLiteral: public Expression {
   bool is_expression_;
   int loop_nesting_;
   int function_token_position_;
+#ifdef DEBUG
+  bool already_compiled_;
+#endif
 };
 
 

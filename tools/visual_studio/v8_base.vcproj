@@ -345,6 +345,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\debug-agent.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\debug-agent.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\debug-ia32.cc"
 				>
 			</File>
@@ -481,6 +489,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\jump-target.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-ia32.cc"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\jsregexp-inl.h"
 				>
 			</File>
@@ -569,6 +589,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\oprofile-agent.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\oprofile-agent.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\parser.cc"
 				>
 			</File>
@@ -642,6 +670,18 @@
 			</File>
 			<File
 				RelativePath="..\..\src\regexp-stack.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\register-allocator.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\register-allocator.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\register-allocator-ia32.cc"
 				>
 			</File>
 			<File
@@ -806,6 +846,22 @@
 			</File>
 			<File
 				RelativePath="..\..\src\variables.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-ia32.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-ia32.cc"
 				>
 			</File>
 			<File

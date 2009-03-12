@@ -35,6 +35,9 @@
 
 namespace v8 { namespace internal {
 
+// -------------------------------------------------------------------------
+// MacroAssembler implementation.
+
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
@@ -111,8 +114,7 @@ class RecordWriteStub : public CodeStub {
   // scratch) OOOOAAAASSSS.
   class ScratchBits: public BitField<uint32_t, 0, 4> {};
   class AddressBits: public BitField<uint32_t, 4, 4> {};
-  class ObjectBits: public BitField<uint32_t, 8, 4> {
-};
+  class ObjectBits: public BitField<uint32_t, 8, 4> {};
 
   Major MajorKey() { return RecordWrite; }
 
@@ -301,6 +303,20 @@ void MacroAssembler::Set(Register dst, const Immediate& x) {
 
 void MacroAssembler::Set(const Operand& dst, const Immediate& x) {
   mov(dst, x);
+}
+
+
+void MacroAssembler::CmpObjectType(Register heap_object,
+                                   InstanceType type,
+                                   Register map) {
+  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  CmpInstanceType(map, type);
+}
+
+
+void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
+  cmpb(FieldOperand(map, Map::kInstanceTypeOffset),
+       static_cast<int8_t>(type));
 }
 
 
@@ -606,6 +622,19 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
+                                      Register result,
+                                      Register op,
+                                      JumpTarget* then_target) {
+  JumpTarget ok(cgen);
+  test(result, Operand(result));
+  ok.Branch(not_zero, taken);
+  test(op, Operand(op));
+  then_target->Branch(sign, not_taken);
+  ok.Bind();
+}
+
+
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
@@ -642,9 +671,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   j(zero, miss, not_taken);
 
   // Check that the function really is a function.
-  mov(result, FieldOperand(function, HeapObject::kMapOffset));
-  movzx_b(scratch, FieldOperand(result, Map::kInstanceTypeOffset));
-  cmp(scratch, JS_FUNCTION_TYPE);
+  CmpObjectType(function, JS_FUNCTION_TYPE, result);
   j(not_equal, miss, not_taken);
 
   // Make sure that the function has an instance prototype.
@@ -665,9 +692,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   // If the function does not have an initial map, we're done.
   Label done;
-  mov(scratch, FieldOperand(result, HeapObject::kMapOffset));
-  movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  cmp(scratch, MAP_TYPE);
+  CmpObjectType(result, MAP_TYPE, scratch);
   j(not_equal, &done);
 
   // Get the prototype from the initial map.
@@ -862,7 +887,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   bool resolved;
   Handle<Code> code = ResolveBuiltin(id, &resolved);
 
-    // Calls are not allowed in some stubs.
+  // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
   // Rely on the assertion to check that the number of provided

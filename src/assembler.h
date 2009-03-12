@@ -48,7 +48,7 @@ namespace v8 { namespace internal {
 // unknown pc location. Assembler::bind() is used to bind a label to the
 // current pc. A label can be bound only once.
 
-class Label : public ZoneObject {  // LabelShadows are dynamically allocated.
+class Label BASE_EMBEDDED {
  public:
   INLINE(Label())                 { Unuse(); }
   INLINE(~Label())                { ASSERT(!is_linked()); }
@@ -84,55 +84,8 @@ class Label : public ZoneObject {  // LabelShadows are dynamically allocated.
   friend class Assembler;
   friend class RegexpAssembler;
   friend class Displacement;
-  friend class LabelShadow;
+  friend class ShadowTarget;
   friend class RegExpMacroAssemblerIrregexp;
-};
-
-
-// A LabelShadow represents a label that is temporarily shadowed by another
-// label (represented by the original label during shadowing). They are used
-// to catch jumps to labels in certain contexts, e.g. try blocks.  After
-// shadowing ends, the formerly shadowed label is again represented by the
-// original label and the LabelShadow can be used as a label in its own
-// right, representing the formerly shadowing label.
-class LabelShadow : public Label {
- public:
-  explicit LabelShadow(Label* original) {
-    ASSERT(original != NULL);
-    original_label_ = original;
-    original_pos_ = original->pos_;
-    original->Unuse();
-#ifdef DEBUG
-    is_shadowing_ = true;
-#endif
-  }
-
-  ~LabelShadow() {
-    ASSERT(!is_shadowing_);
-  }
-
-  void StopShadowing() {
-    ASSERT(is_shadowing_ && is_unused());
-    pos_ = original_label_->pos_;
-    original_label_->pos_ = original_pos_;
-#ifdef DEBUG
-    is_shadowing_ = false;
-#endif
-  }
-
-  Label* original_label() const { return original_label_; }
-
- private:
-  // During shadowing, the currently shadowing label.  After shadowing, the
-  // label that was shadowed.
-  Label* original_label_;
-
-  // During shadowing, the saved state of the original label.
-  int original_pos_;
-
-#ifdef DEBUG
-  bool is_shadowing_;
-#endif
 };
 
 

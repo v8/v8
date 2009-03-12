@@ -822,7 +822,8 @@ void Scope::AllocateParameterLocals() {
         var->rewrite_ =
           new Property(arguments_shadow_,
                        new Literal(Handle<Object>(Smi::FromInt(i))),
-                       RelocInfo::kNoPosition);
+                       RelocInfo::kNoPosition,
+                       Property::SYNTHETIC);
         arguments_shadow->var_uses()->RecordUses(var->var_uses());
       }
     }

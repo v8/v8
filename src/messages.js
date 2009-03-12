@@ -153,7 +153,7 @@ function MakeGenericError(constructor, type, args) {
     args = [];
   }
 
-  var e = new constructor();
+  var e = new constructor(kAddMessageAccessorsMarker);
   e.type = type;
   e.arguments = args;
   return e;
@@ -181,7 +181,7 @@ function FormatMessage(message) {
 
 function GetLineNumber(message) {
   if (message.startPos == -1) return -1;
-  var location = message.script.locationFromPosition(message.startPos);
+  var location = message.script.locationFromPosition(message.startPos, true);
   if (location == null) return -1;
   return location.line + 1;
 }
@@ -190,7 +190,7 @@ function GetLineNumber(message) {
 // Returns the source code line containing the given source
 // position, or the empty string if the position is invalid.
 function GetSourceLine(message) {
-  var location = message.script.locationFromPosition(message.startPos);
+  var location = message.script.locationFromPosition(message.startPos, true);
   if (location == null) return "";
   location.restrict();
   return location.sourceText();
@@ -230,10 +230,13 @@ function MakeError(type, args) {
 /**
  * Get information on a specific source position.
  * @param {number} position The source position
+ * @param {boolean} include_resource_offset Set to true to have the resource
+ *     offset added to the location
  * @return {SourceLocation}
  *     If line is negative or not in the source null is returned.
  */
-Script.prototype.locationFromPosition = function (position) {
+Script.prototype.locationFromPosition = function (position,
+                                                  include_resource_offset) {
   var lineCount = this.lineCount();
   var line = -1;
   if (position <= this.line_ends[0]) {
@@ -256,9 +259,11 @@ Script.prototype.locationFromPosition = function (position) {
   var column = position - start;
 
   // Adjust according to the offset within the resource.
-  line += this.line_offset;
-  if (line == this.line_offset) {
-    column += this.column_offset;
+  if (include_resource_offset) {
+    line += this.line_offset;
+    if (line == this.line_offset) {
+      column += this.column_offset;
+    }
   }
 
   return new SourceLocation(this, position, line, column, start, end);
@@ -573,7 +578,7 @@ function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
       file = %FunctionGetScript(fun).data;
     }
     if (file) {
-      var location = %FunctionGetScript(fun).locationFromPosition(pos);
+      var location = %FunctionGetScript(fun).locationFromPosition(pos, true);
       if (!isTopLevel) result += "(";
       result += file;
       if (location != null) {
@@ -589,6 +594,29 @@ function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
+// If this object gets passed to an error constructor the error will
+// get an accessor for .message that constructs a descriptive error
+// message on access.
+var kAddMessageAccessorsMarker = { };
+
+// Defines accessors for a property that is calculated the first time
+// the property is read and then replaces the accessor with the value.
+// Also, setting the property causes the accessors to be deleted.
+function DefineOneShotAccessor(obj, name, fun) {
+  // Note that the accessors consistently operate on 'obj', not 'this'.
+  // Since the object may occur in someone else's prototype chain we
+  // can't rely on 'this' being the same as 'obj'.
+  obj.__defineGetter__(name, function () {
+    var value = fun(obj);
+    obj[name] = value;
+    return value;
+  });
+  obj.__defineSetter__(name, function (v) {
+    delete obj[name];
+    obj[name] = v;
+  });
+}
+
 function DefineError(f) {
   // Store the error function in both the global object
   // and the runtime object. The function is fetched
@@ -600,14 +628,30 @@ function DefineError(f) {
   %SetProperty(global, name, f, DONT_ENUM);
   this['$' + name] = f;
   // Configure the error function.
-  // prototype of 'Error' must be as default: new Object().
-  if (name != 'Error') %FunctionSetPrototype(f, new $Error());
+  if (name == 'Error') {
+    // The prototype of the Error object must itself be an error.
+    // However, it can't be an instance of the Error object because
+    // it hasn't been properly configured yet.  Instead we create a
+    // special not-a-true-error-but-close-enough object.
+    function ErrorPrototype() {}
+    %FunctionSetPrototype(ErrorPrototype, $Object.prototype);
+    %FunctionSetInstanceClassName(ErrorPrototype, 'Error');
+    %FunctionSetPrototype(f, new ErrorPrototype());
+  } else {
+    %FunctionSetPrototype(f, new $Error());
+  }
   %FunctionSetInstanceClassName(f, 'Error');
   %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
   f.prototype.name = name;
   %SetCode(f, function(m) {
     if (%IsConstructCall()) {
-      if (!IS_UNDEFINED(m)) this.message = ToString(m);
+      if (m === kAddMessageAccessorsMarker) {
+        DefineOneShotAccessor(this, 'message', function (obj) {
+          return FormatMessage({type: obj.type, args: obj.arguments});
+        });
+      } else if (!IS_UNDEFINED(m)) {
+        this.message = ToString(m);
+      }
     } else {
       return new f(m);
     }

@@ -123,7 +123,8 @@ namespace v8 { namespace internal {
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
   V(FixedArray, natives_source_cache)                   \
-  V(Object, keyed_lookup_cache)
+  V(Object, keyed_lookup_cache)                         \
+  V(Object, last_script_id)
 
 
 #define ROOT_LIST(V)                                  \
@@ -166,8 +167,6 @@ namespace v8 { namespace internal {
   V(char_at_symbol, "CharAt")                                            \
   V(undefined_symbol, "undefined")                                       \
   V(value_of_symbol, "valueOf")                                          \
-  V(CreateObjectLiteralBoilerplate_symbol, "CreateObjectLiteralBoilerplate") \
-  V(CreateArrayLiteral_symbol, "CreateArrayLiteral")                     \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \
@@ -691,6 +690,9 @@ class Heap : public AllStatic {
   static inline Object* GetKeyedLookupCache();
   static inline void SetKeyedLookupCache(LookupCache* cache);
   static inline void ClearKeyedLookupCache();
+
+  // Update the next script id.
+  static inline void SetLastScriptId(Object* last_script_id);
 
 #ifdef DEBUG
   static void Print();

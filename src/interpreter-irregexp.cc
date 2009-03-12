@@ -39,7 +39,7 @@
 namespace v8 { namespace internal {
 
 
-static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
+static unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize;
 
 
 static bool BackRefMatchesNoCase(int from,
@@ -50,8 +50,8 @@ static bool BackRefMatchesNoCase(int from,
     unibrow::uchar old_char = subject[from++];
     unibrow::uchar new_char = subject[current++];
     if (old_char == new_char) continue;
-    canonicalize.get(old_char, '\0', &old_char);
-    canonicalize.get(new_char, '\0', &new_char);
+    interp_canonicalize.get(old_char, '\0', &old_char);
+    interp_canonicalize.get(new_char, '\0', &new_char);
     if (old_char != new_char) {
       return false;
     }

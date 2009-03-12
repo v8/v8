@@ -61,6 +61,10 @@ Debug.ScriptType = { Native: 0,
                      Extension: 1,
                      Normal: 2 };
 
+// The different script break point types.
+Debug.ScriptBreakPointType = { ScriptId: 0,
+                               ScriptName: 1 };
+
 function ScriptTypeFlag(type) {
   return (1 << type);
 }
@@ -210,9 +214,15 @@ function IsBreakPointTriggered(break_id, break_point) {
 
 
 // Object representing a script break point. The script is referenced by its
-// script name and the break point is represented as line and column.
-function ScriptBreakPoint(script_name, opt_line, opt_column) {
-  this.script_name_ = script_name;
+// script name or script id and the break point is represented as line and
+// column.
+function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column) {
+  this.type_ = type;
+  if (type == Debug.ScriptBreakPointType.ScriptId) {
+    this.script_id_ = script_id_or_name;
+  } else {  // type == Debug.ScriptBreakPointType.ScriptName
+    this.script_name_ = script_id_or_name;
+  }
   this.line_ = opt_line || 0;
   this.column_ = opt_column;
   this.hit_count_ = 0;
@@ -224,6 +234,16 @@ function ScriptBreakPoint(script_name, opt_line, opt_column) {
 
 ScriptBreakPoint.prototype.number = function() {
   return this.number_;
+};
+
+
+ScriptBreakPoint.prototype.type = function() {
+  return this.type_;
+};
+
+
+ScriptBreakPoint.prototype.script_id = function() {
+  return this.script_id_;
 };
 
 
@@ -292,9 +312,13 @@ ScriptBreakPoint.prototype.setIgnoreCount = function(ignoreCount) {
 // Check whether a script matches this script break point. Currently this is
 // only based on script name.
 ScriptBreakPoint.prototype.matchesScript = function(script) {
-  return this.script_name_ == script.name &&
-         script.line_offset <= this.line_  &&
-         this.line_ < script.line_offset + script.lineCount();
+  if (this.type_ == Debug.ScriptBreakPointType.ScriptId) {
+    return this.script_id_ == script.id;
+  } else {  // this.type_ == Debug.ScriptBreakPointType.ScriptName
+    return this.script_name_ == script.name &&
+           script.line_offset <= this.line_  &&
+           this.line_ < script.line_offset + script.lineCount();
+  }
 };
 
 
@@ -356,7 +380,8 @@ ScriptBreakPoint.prototype.clear = function () {
 // break points set in this script.
 function UpdateScriptBreakPoints(script) {
   for (var i = 0; i < script_break_points.length; i++) {
-    if (script_break_points[i].script_name() == script.name) {
+    if (script_break_points[i].type() == Debug.ScriptBreakPointType.ScriptName &&
+        script_break_points[i].script_name() == script.name) {
       script_break_points[i].set(script);
     }
   }
@@ -437,10 +462,11 @@ Debug.sourcePosition = function(f) {
   return %FunctionGetScriptSourcePosition(f);
 };
 
-Debug.findFunctionSourcePosition = function(func, opt_line, opt_column) {
+
+Debug.findFunctionSourceLocation = function(func, opt_line, opt_column) {
   var script = %FunctionGetScript(func);
   var script_offset = %FunctionGetScriptSourcePosition(func);
-  return script.locationFromLine(opt_line, opt_column, script_offset).position;
+  return script.locationFromLine(opt_line, opt_column, script_offset);
 }
 
 
@@ -478,8 +504,10 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   if (%FunctionIsAPIFunction(func)) {
     throw new Error('Cannot set break point in native code.');
   }
-  var source_position = this.findFunctionSourcePosition(func, opt_line, opt_column) -
-                        this.sourcePosition(func);
+  // Find source position relative to start of the function
+  var break_position =
+      this.findFunctionSourceLocation(func, opt_line, opt_column).position;
+  var source_position = break_position - this.sourcePosition(func);
   // Find the script for the function.
   var script = %FunctionGetScript(func);
   // Break in builtin JavaScript code is not supported.
@@ -488,15 +516,15 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   }
   // If the script for the function has a name convert this to a script break
   // point.
-  if (script && script.name) {
+  if (script && script.id) {
     // Adjust the source position to be script relative.
     source_position += %FunctionGetScriptSourcePosition(func);
     // Find line and column for the position in the script and set a script
     // break point from that.
     var location = script.locationFromPosition(source_position);
-    return this.setScriptBreakPoint(script.name,
-                                    location.line, location.column,
-                                    opt_condition);
+    return this.setScriptBreakPointById(script.id,
+                                        location.line, location.column,
+                                        opt_condition);
   } else {
     // Set a break point directly on the function.
     var break_point = MakeBreakPoint(source_position, opt_line, opt_column);
@@ -573,18 +601,20 @@ Debug.findScriptBreakPoint = function(break_point_number, remove) {
 }
 
 
-// Sets a breakpoint in a script identified through script name at the
+// Sets a breakpoint in a script identified through id or name at the
 // specified source line and column within that line.
-Debug.setScriptBreakPoint = function(script_name, opt_line, opt_column, opt_condition) {
+Debug.setScriptBreakPoint = function(type, script_id_or_name,
+                                     opt_line, opt_column, opt_condition) {
   // Create script break point object.
-  var script_break_point = new ScriptBreakPoint(script_name, opt_line, opt_column);
+  var script_break_point =
+      new ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column);
 
   // Assign number to the new script break point and add it.
   script_break_point.number_ = next_break_point_number++;
   script_break_point.setCondition(opt_condition);
   script_break_points.push(script_break_point);
 
-  // Run through all scripts to see it this script break point matches any
+  // Run through all scripts to see if this script break point matches any
   // loaded scripts.
   var scripts = this.scripts();
   for (var i = 0; i < scripts.length; i++) {
@@ -594,6 +624,24 @@ Debug.setScriptBreakPoint = function(script_name, opt_line, opt_column, opt_cond
   }
 
   return script_break_point.number();
+}
+
+
+Debug.setScriptBreakPointById = function(script_id,
+                                         opt_line, opt_column,
+                                         opt_condition) {
+  return this.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
+                                  script_id, opt_line, opt_column,
+                                  opt_condition)
+}
+
+
+Debug.setScriptBreakPointByName = function(script_name,
+                                           opt_line, opt_column,
+                                           opt_condition) {
+  return this.setScriptBreakPoint(Debug.ScriptBreakPointType.ScriptName,
+                                  script_name, opt_line, opt_column,
+                                  opt_condition)
 }
 
 
@@ -789,11 +837,7 @@ BreakEvent.prototype.toJSONProtocol = function() {
     o.body.sourceLine = this.sourceLine(),
     o.body.sourceColumn = this.sourceColumn(),
     o.body.sourceLineText = this.sourceLineText(),
-    o.body.script = { name: script.name(),
-                      lineOffset: script.lineOffset(),
-                      columnOffset: script.columnOffset(),
-                      lineCount: script.lineCount()
-                    };
+    o.body.script = MakeScriptObject_(script, false);
   }
 
   // Add an Array of break points hit if any.
@@ -886,11 +930,7 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
     // Add script information to the event if available.
     var script = this.func().script();
     if (script) {
-      o.body.script = { name: script.name(),
-                        lineOffset: script.lineOffset(),
-                        columnOffset: script.columnOffset(),
-                        lineCount: script.lineCount()
-                      };
+      o.body.script = MakeScriptObject_(script, false);
     }
   } else {
     o.body.sourceLine = -1;
@@ -939,12 +979,7 @@ CompileEvent.prototype.toJSONProtocol = function() {
     o.event = "afterCompile";
   }
   o.body = {};
-  o.body.script = { name: this.script_.name(),
-                    lineOffset: this.script_.lineOffset(),
-                    columnOffset: this.script_.columnOffset(),
-                    lineCount: this.script_.lineCount(),
-                    source: this.script_.source()
-                   };
+  o.body.script = MakeScriptObject_(this.script_, true);
 
   return o.toJSONProtocol();
 }
@@ -972,6 +1007,20 @@ NewFunctionEvent.prototype.name = function() {
 
 NewFunctionEvent.prototype.setBreakPoint = function(p) {
   Debug.setBreakPoint(this.func, p || 0);
+};
+
+
+function MakeScriptObject_(script, include_source) {
+  var o = { id: script.id(),
+            name: script.name(),
+            lineOffset: script.lineOffset(),
+            columnOffset: script.columnOffset(),
+            lineCount: script.lineCount(),
+          };
+  if (include_source) {
+    o.source = script.source();
+  }
+  return o;
 };
 
 
@@ -1219,7 +1268,7 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
     response.failed('Missing argument "type" or "target"');
     return;
   }
-  if (type != 'function' && type != 'script') {
+  if (type != 'function' && type != 'script' && type != 'scriptId') {
     response.failed('Illegal type "' + type + '"');
     return;
   }
@@ -1248,11 +1297,13 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
 
     // Set function break point.
     break_point_number = Debug.setBreakPoint(f, line, column, condition);
-  } else {
+  } else if (type == 'script') {
     // set script break point.
-    break_point_number = Debug.setScriptBreakPoint(target,
-                                                   line, column,
-                                                   condition);
+    break_point_number =
+        Debug.setScriptBreakPointByName(target, line, column, condition);
+  } else {  // type == 'scriptId.
+    break_point_number =
+        Debug.setScriptBreakPointById(target, line, column, condition);
   }
 
   // Set additional break point properties.
@@ -1270,8 +1321,13 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
 
   // Add break point information to the response.
   if (break_point instanceof ScriptBreakPoint) {
-    response.body.type = 'script';
-    response.body.script_name = break_point.script_name();
+    if (break_point.type() == Debug.ScriptBreakPointType.ScriptId) {
+      response.body.type = 'scriptId';
+      response.body.script_id = break_point.script_id();
+    } else {
+      response.body.type = 'scriptName';
+      response.body.script_name = break_point.script_name();
+    }
     response.body.line = break_point.line();
     response.body.column = break_point.column();
   } else {
@@ -1604,6 +1660,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
       if (scripts[i].name) {
         script.name = scripts[i].name;
       }
+      script.id = scripts[i].id;
       script.lineOffset = scripts[i].line_offset;
       script.columnOffset = scripts[i].column_offset;
       script.lineCount = scripts[i].lineCount();

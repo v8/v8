@@ -141,6 +141,7 @@ const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
 
 class AccessorInfo;
 class Allocation;
+class Arguments;
 class Assembler;
 class BreakableStatement;
 class Code;
@@ -170,7 +171,6 @@ class IterationStatement;
 class JSArray;
 class JSFunction;
 class JSObject;
-class LabelCollector;
 class LargeObjectSpace;
 template <typename T, class P = FreeStoreAllocationPolicy> class List;
 class LookupResult;

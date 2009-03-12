@@ -2041,6 +2041,7 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)
+ACCESSORS(Script, id, Object, kIdOffset)
 ACCESSORS(Script, line_offset, Smi, kLineOffsetOffset)
 ACCESSORS(Script, column_offset, Smi, kColumnOffsetOffset)
 ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
@@ -2334,6 +2335,13 @@ String* JSRegExp::Pattern() {
 Object* JSRegExp::DataAt(int index) {
   ASSERT(TypeTag() != NOT_COMPILED);
   return FixedArray::cast(data())->get(index);
+}
+
+
+void JSRegExp::SetDataAt(int index, Object* value) {
+  ASSERT(TypeTag() != NOT_COMPILED);
+  ASSERT(index >= kDataIndex);  // Only implementation data can be set this way.
+  FixedArray::cast(data())->set(index, value);
 }
 
 

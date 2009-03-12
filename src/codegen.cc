@@ -38,8 +38,10 @@
 namespace v8 { namespace internal {
 
 DeferredCode::DeferredCode(CodeGenerator* generator)
-  : masm_(generator->masm()),
-    generator_(generator),
+  : generator_(generator),
+    masm_(generator->masm()),
+    enter_(generator),
+    exit_(generator, JumpTarget::BIDIRECTIONAL),
     statement_position_(masm_->current_statement_position()),
     position_(masm_->current_position()) {
   generator->AddDeferred(this);
@@ -48,6 +50,13 @@ DeferredCode::DeferredCode(CodeGenerator* generator)
 #ifdef DEBUG
   comment_ = "";
 #endif
+}
+
+
+void CodeGenerator::ClearDeferred() {
+  for (int i = 0; i < deferred_.length(); i++) {
+    deferred_[i]->Clear();
+  }
 }
 
 
@@ -60,13 +69,40 @@ void CodeGenerator::ProcessDeferred() {
     if (code->position() != RelocInfo::kNoPosition) {
       masm->RecordPosition(code->position());
     }
-    // Bind labels and generate the code.
-    masm->bind(code->enter());
+    // Generate the code.
     Comment cmnt(masm, code->comment());
     code->Generate();
-    if (code->exit()->is_bound()) {
-      masm->jmp(code->exit());  // platform independent?
-    }
+    ASSERT(code->enter()->is_bound());
+    code->Clear();
+  }
+}
+
+
+void CodeGenerator::SetFrame(VirtualFrame* new_frame,
+                             RegisterFile* non_frame_registers) {
+  RegisterFile saved_counts;
+  if (has_valid_frame()) {
+    frame_->DetachFromCodeGenerator();
+    // The remaining register reference counts are the non-frame ones.
+    allocator_->SaveTo(&saved_counts);
+  }
+
+  if (new_frame != NULL) {
+    // Restore the non-frame register references that go with the new frame.
+    allocator_->RestoreFrom(non_frame_registers);
+    new_frame->AttachToCodeGenerator();
+  }
+
+  frame_ = new_frame;
+  saved_counts.CopyTo(non_frame_registers);
+}
+
+
+void CodeGenerator::DeleteFrame() {
+  if (has_valid_frame()) {
+    frame_->DetachFromCodeGenerator();
+    delete frame_;
+    frame_ = NULL;
   }
 }
 
@@ -122,9 +158,6 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
     return Handle<Code>::null();
   }
 
-  // Process any deferred code.
-  cgen.ProcessDeferred();
-
   // Allocate and install the code.
   CodeDesc desc;
   cgen.masm()->GetCode(&desc);
@@ -154,7 +187,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
       PrintF("\n\n");
     }
     PrintF("--- Code ---\n");
-    code->Disassemble();
+    code->Disassemble(*flit->name()->ToCString());
   }
 #endif  // ENABLE_DISASSEMBLER
 
@@ -212,6 +245,12 @@ static Handle<Code> ComputeLazyCompile(int argc) {
 
 
 Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
+#ifdef DEBUG
+  // We should not try to compile the same function literal more than
+  // once.
+  node->mark_as_compiled();
+#endif
+
   // Determine if the function can be lazily compiled. This is
   // necessary to allow some of our builtin JS files to be lazily
   // compiled. These builtins cannot be handled lazily by the parser,
@@ -386,14 +425,14 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
-  // Label pointer per number in range
+  // Label pointer per number in range.
   SmartPointer<Label*> case_targets(NewArray<Label*>(range));
 
-  // Label per switch case
+  // Label per switch case.
   SmartPointer<Label> case_labels(NewArray<Label>(length));
 
-  Label* fail_label = default_index >= 0 ? &(case_labels[default_index])
-                                         : node->break_target();
+  Label* fail_label =
+      default_index >= 0 ? &(case_labels[default_index]) : NULL;
 
   // Populate array of label pointers for each number in the range.
   // Initally put the failure label everywhere.
@@ -404,7 +443,7 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
   // Overwrite with label of a case for the number value of that case.
   // (In reverse order, so that if the same label occurs twice, the
   // first one wins).
-  for (int i = length-1; i >= 0 ; i--) {
+  for (int i = length - 1; i >= 0 ; i--) {
     CaseClause* clause = cases->at(i);
     if (!clause->is_default()) {
       Object* label_value = *(clause->label()->AsLiteral()->handle());
@@ -424,21 +463,36 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
 
 void CodeGenerator::GenerateFastCaseSwitchCases(
     SwitchStatement* node,
-    Vector<Label> case_labels) {
+    Vector<Label> case_labels,
+    VirtualFrame* start_frame) {
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
   for (int i = 0; i < length; i++) {
     Comment cmnt(masm(), "[ Case clause");
-    masm()->bind(&(case_labels[i]));
+
+    // We may not have a virtual frame if control flow did not fall
+    // off the end of the previous case.  In that case, use the start
+    // frame.  Otherwise, we have to merge the existing one to the
+    // start frame as part of the previous case.
+    if (!has_valid_frame()) {
+      RegisterFile non_frame_registers = RegisterAllocator::Reserved();
+      SetFrame(new VirtualFrame(start_frame), &non_frame_registers);
+    } else {
+      frame_->MergeTo(start_frame);
+    }
+    masm()->bind(&case_labels[i]);
     VisitStatements(cases->at(i)->statements());
   }
-
-  masm()->bind(node->break_target());
 }
 
 
 bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
+  // TODO(238): Due to issue 238, fast case switches can crash on ARM
+  // and possibly IA32.  They are disabled for now.
+  // See http://code.google.com/p/v8/issues/detail?id=238
+  return false;
+
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
@@ -454,9 +508,10 @@ bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
     CaseClause* clause = cases->at(i);
     if (clause->is_default()) {
       if (default_index >= 0) {
-        return false;  // More than one default label:
-                       // Defer to normal case for error.
-    }
+        // There is more than one default label. Defer to the normal case
+        // for error.
+        return false;
+      }
       default_index = i;
     } else {
       Expression* label = clause->label();
@@ -468,9 +523,9 @@ bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
       if (!value->IsSmi()) {
         return false;
       }
-      int smi = Smi::cast(value)->value();
-      if (smi < min_index) { min_index = smi; }
-      if (smi > max_index) { max_index = smi; }
+      int int_value = Smi::cast(value)->value();
+      min_index = Min(int_value, min_index);
+      max_index = Max(int_value, max_index);
     }
   }
 
@@ -486,7 +541,18 @@ bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
 }
 
 
-void CodeGenerator::CodeForStatement(Node* node) {
+void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
+  if (FLAG_debug_info) {
+    int pos = fun->start_position();
+    if (pos != RelocInfo::kNoPosition) {
+      masm()->RecordStatementPosition(pos);
+      masm()->RecordPosition(pos);
+    }
+  }
+}
+
+
+void CodeGenerator::CodeForStatementPosition(Node* node) {
   if (FLAG_debug_info) {
     int pos = node->statement_pos();
     if (pos != RelocInfo::kNoPosition) {

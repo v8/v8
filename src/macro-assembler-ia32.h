@@ -32,8 +32,11 @@
 
 namespace v8 { namespace internal {
 
+// Forward declaration.
+class JumpTarget;
 
-// Helper type to make boolean flag easier to read at call-site.
+
+// Helper types to make flags easier to read at call sites.
 enum InvokeFlag {
   CALL_FUNCTION,
   JUMP_FUNCTION
@@ -136,6 +139,13 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, const Immediate& x);
   void Set(const Operand& dst, const Immediate& x);
 
+  // Compare object type for heap object.
+  // Incoming register is heap_object and outgoing register is map.
+  void CmpObjectType(Register heap_object, InstanceType type, Register map);
+
+  // Compare instance type for map.
+  void CmpInstanceType(Register map, InstanceType type);
+
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
@@ -178,6 +188,12 @@ class MacroAssembler: public Assembler {
 
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
+
+  // Check if result is zero and op is negative in code using jump targets.
+  void NegativeZeroTest(CodeGenerator* cgen,
+                        Register result,
+                        Register op,
+                        JumpTarget* then_target);
 
   // Check if result is zero and any of op1 and op2 are negative.
   // Register scratch is destroyed, and it must be different from op2.
@@ -326,7 +342,6 @@ static inline Operand FieldOperand(Register object,
                                    int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
-
 
 } }  // namespace v8::internal
 

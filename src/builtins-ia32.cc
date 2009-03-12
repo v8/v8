@@ -77,9 +77,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     __ test(edi, Immediate(kSmiTagMask));
     __ j(zero, &rt_call);
     // Check that function is a JSFunction
-    __ mov(eax, FieldOperand(edi, JSFunction::kMapOffset));
-    __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
-    __ cmp(eax, JS_FUNCTION_TYPE);
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
     __ j(not_equal, &rt_call);
 
     // Verified that the constructor is a JSFunction.
@@ -91,9 +89,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     __ j(zero, &rt_call);
     // edi: constructor
     // eax: initial map (if proven valid below)
-    __ mov(ebx, FieldOperand(eax, JSFunction::kMapOffset));
-    __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-    __ cmp(ebx, MAP_TYPE);
+    __ CmpObjectType(eax, MAP_TYPE, ebx);
     __ j(not_equal, &rt_call);
 
     // Check that the constructor is not constructing a JSFunction (see comments
@@ -101,8 +97,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // instance type would be JS_FUNCTION_TYPE.
     // edi: constructor
     // eax: initial map
-    __ movzx_b(ebx, FieldOperand(eax, Map::kInstanceTypeOffset));
-    __ cmp(ebx, JS_FUNCTION_TYPE);
+    __ CmpInstanceType(eax, JS_FUNCTION_TYPE);
     __ j(equal, &rt_call);
 
     // Now allocate the JSObject on the heap.
@@ -391,9 +386,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ mov(edi, Operand(esp, eax, times_4, +1 * kPointerSize));
     __ test(edi, Immediate(kSmiTagMask));
     __ j(zero, &non_function, not_taken);
-    __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));  // get the map
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-    __ cmp(ecx, JS_FUNCTION_TYPE);
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
     __ j(equal, &function, taken);
 
     // Non-function called: Clear the function to force exception.

@@ -175,18 +175,18 @@ assertEquals(3, script.locationFromLine(1, 12, start_b).line - comment_lines);
 assertEquals(0, script.locationFromLine(1, 12, start_b).column);
 
 // Test the Debug.findSourcePosition which wraps SourceManager.
-assertEquals(0 + start_a, Debug.findFunctionSourcePosition(a, 0, 0));
-assertEquals(0 + start_b, Debug.findFunctionSourcePosition(b, 0, 0));
-assertEquals(6 + start_b, Debug.findFunctionSourcePosition(b, 1, 0));
-assertEquals(8 + start_b, Debug.findFunctionSourcePosition(b, 1, 2));
-assertEquals(18 + start_b, Debug.findFunctionSourcePosition(b, 2, 0));
-assertEquals(0 + start_c, Debug.findFunctionSourcePosition(c, 0, 0));
-assertEquals(7 + start_c, Debug.findFunctionSourcePosition(c, 1, 0));
-assertEquals(21 + start_c, Debug.findFunctionSourcePosition(c, 2, 0));
-assertEquals(38 + start_c, Debug.findFunctionSourcePosition(c, 3, 0));
-assertEquals(52 + start_c, Debug.findFunctionSourcePosition(c, 4, 0));
-assertEquals(69 + start_c, Debug.findFunctionSourcePosition(c, 5, 0));
-assertEquals(76 + start_c, Debug.findFunctionSourcePosition(c, 6, 0));
+assertEquals(0 + start_a, Debug.findFunctionSourceLocation(a, 0, 0).position);
+assertEquals(0 + start_b, Debug.findFunctionSourceLocation(b, 0, 0).position);
+assertEquals(6 + start_b, Debug.findFunctionSourceLocation(b, 1, 0).position);
+assertEquals(8 + start_b, Debug.findFunctionSourceLocation(b, 1, 2).position);
+assertEquals(18 + start_b, Debug.findFunctionSourceLocation(b, 2, 0).position);
+assertEquals(0 + start_c, Debug.findFunctionSourceLocation(c, 0, 0).position);
+assertEquals(7 + start_c, Debug.findFunctionSourceLocation(c, 1, 0).position);
+assertEquals(21 + start_c, Debug.findFunctionSourceLocation(c, 2, 0).position);
+assertEquals(38 + start_c, Debug.findFunctionSourceLocation(c, 3, 0).position);
+assertEquals(52 + start_c, Debug.findFunctionSourceLocation(c, 4, 0).position);
+assertEquals(69 + start_c, Debug.findFunctionSourceLocation(c, 5, 0).position);
+assertEquals(76 + start_c, Debug.findFunctionSourceLocation(c, 6, 0).position);
 
 // Test source line and restriction. All the following tests start from line 1
 // column 2 in function b, which is the call to c.

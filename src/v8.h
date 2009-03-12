@@ -92,4 +92,6 @@ class V8 : public AllStatic {
 
 } }  // namespace v8::internal
 
+namespace i = v8::internal;
+
 #endif  // V8_V8_H_

@@ -148,9 +148,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
   __ j(zero, miss_label, not_taken);
 
   // Check that the object is a JS array.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, JS_ARRAY_TYPE);
+  __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
   __ j(not_equal, miss_label, not_taken);
 
   // Load length directly from the JS array.
@@ -465,13 +463,14 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   __ lea(ecx, FieldOperand(eax, Code::kHeaderSize));
   __ jmp(Operand(ecx));
 
-  return GetCodeWithFlags(flags);
+  return GetCodeWithFlags(flags, "LazyCompileStub");
 }
 
 
 Object* CallStubCompiler::CompileCallField(Object* object,
                                            JSObject* holder,
-                                           int index) {
+                                           int index,
+                                           String* name) {
   // ----------- S t a t e -------------
   // -----------------------------------
   Label miss;
@@ -493,9 +492,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));
   __ j(zero, &miss, not_taken);
-  __ mov(ebx, FieldOperand(edi, HeapObject::kMapOffset));  // get the map
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, JS_FUNCTION_TYPE);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ebx);
   __ j(not_equal, &miss, not_taken);
 
   // Patch the receiver on the stack with the global proxy if
@@ -514,7 +511,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(FIELD);
+  return GetCode(FIELD, name);
 }
 
 
@@ -572,9 +569,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       // Check that the object is a smi or a heap number.
       __ test(edx, Immediate(kSmiTagMask));
       __ j(zero, &fast, taken);
-      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-      __ cmp(ecx, HEAP_NUMBER_TYPE);
+      __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ecx);
       __ j(not_equal, &miss, not_taken);
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.
@@ -634,7 +629,11 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(CONSTANT_FUNCTION);
+  String* function_name = NULL;
+  if (function->shared()->name()->IsString()) {
+    function_name = String::cast(function->shared()->name());
+  }
+  return GetCode(CONSTANT_FUNCTION, function_name);
 }
 
 
@@ -686,9 +685,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));
   __ j(zero, &miss, not_taken);
-  __ mov(ebx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, JS_FUNCTION_TYPE);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ebx);
   __ j(not_equal, &miss, not_taken);
 
   // Patch the receiver on the stack with the global proxy if
@@ -707,7 +704,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR);
+  return GetCode(INTERCEPTOR, name);
 }
 
 
@@ -742,7 +739,7 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION);
+  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
 }
 
 
@@ -797,7 +794,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(CALLBACKS);
+  return GetCode(CALLBACKS, name);
 }
 
 
@@ -850,7 +847,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR);
+  return GetCode(INTERCEPTOR, name);
 }
 
 
@@ -893,13 +890,14 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION);
+  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
 }
 
 
 Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            JSObject* holder,
-                                           int index) {
+                                           int index,
+                                           String* name) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- esp[0] : return address
@@ -913,13 +911,14 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(FIELD);
+  return GetCode(FIELD, name);
 }
 
 
 Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
                                               JSObject* holder,
-                                              AccessorInfo* callback) {
+                                              AccessorInfo* callback,
+                                              String* name) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- esp[0] : return address
@@ -934,13 +933,14 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS);
+  return GetCode(CALLBACKS, name);
 }
 
 
 Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
                                               JSObject* holder,
-                                              Object* value) {
+                                              Object* value,
+                                              String* name) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- esp[0] : return address
@@ -954,7 +954,7 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CONSTANT_FUNCTION);
+  return GetCode(CONSTANT_FUNCTION, name);
 }
 
 
@@ -974,7 +974,7 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR);
+  return GetCode(INTERCEPTOR, name);
 }
 
 
@@ -1003,7 +1003,7 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(FIELD);
+  return GetCode(FIELD, name);
 }
 
 
@@ -1033,7 +1033,7 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS);
+  return GetCode(CALLBACKS, name);
 }
 
 
@@ -1062,7 +1062,7 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CONSTANT_FUNCTION);
+  return GetCode(CONSTANT_FUNCTION, name);
 }
 
 
@@ -1090,7 +1090,7 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR);
+  return GetCode(INTERCEPTOR, name);
 }
 
 
@@ -1118,7 +1118,7 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS);
+  return GetCode(CALLBACKS, name);
 }
 
 
@@ -1144,7 +1144,7 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS);
+  return GetCode(CALLBACKS, name);
 }
 
 
@@ -1170,7 +1170,7 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS);
+  return GetCode(CALLBACKS, name);
 }
 
 

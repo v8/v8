@@ -60,48 +60,6 @@ static Handle<CompilationCacheTable> GetTable(CompilationCache::Entry entry) {
 }
 
 
-// We only re-use a cached function for some script source code if the
-// script originates from the same places. This is to avoid issues
-// when reporting errors, etc.
-static bool HasOrigin(Handle<JSFunction> boilerplate,
-                      Handle<Object> name,
-                      int line_offset,
-                      int column_offset) {
-  Handle<Script> script =
-      Handle<Script>(Script::cast(boilerplate->shared()->script()));
-  // If the script name isn't set, the boilerplate script should have
-  // an undefined name to have the same origin.
-  if (name.is_null()) {
-    return script->name()->IsUndefined();
-  }
-  // Do the fast bailout checks first.
-  if (line_offset != script->line_offset()->value()) return false;
-  if (column_offset != script->column_offset()->value()) return false;
-  // Check that both names are strings. If not, no match.
-  if (!name->IsString() || !script->name()->IsString()) return false;
-  // Compare the two name strings for equality.
-  return String::cast(*name)->Equals(String::cast(script->name()));
-}
-
-
-static Handle<JSFunction> Lookup(Handle<String> source,
-                                 CompilationCache::Entry entry) {
-  // Make sure not to leak the table into the surrounding handle
-  // scope. Otherwise, we risk keeping old tables around even after
-  // having cleared the cache.
-  Object* result;
-  { HandleScope scope;
-    Handle<CompilationCacheTable> table = GetTable(entry);
-    result = table->Lookup(*source);
-  }
-  if (result->IsJSFunction()) {
-    return Handle<JSFunction>(JSFunction::cast(result));
-  } else {
-    return Handle<JSFunction>::null();
-  }
-}
-
-
 static Handle<JSFunction> Lookup(Handle<String> source,
                                  Handle<Context> context,
                                  CompilationCache::Entry entry) {
@@ -121,20 +79,32 @@ static Handle<JSFunction> Lookup(Handle<String> source,
 }
 
 
+static Handle<FixedArray> Lookup(Handle<String> source,
+                                 JSRegExp::Flags flags) {
+  // Make sure not to leak the table into the surrounding handle
+  // scope. Otherwise, we risk keeping old tables around even after
+  // having cleared the cache.
+  Object* result;
+  { HandleScope scope;
+    Handle<CompilationCacheTable> table = GetTable(CompilationCache::REGEXP);
+    result = table->LookupRegExp(*source, flags);
+  }
+  if (result->IsFixedArray()) {
+    return Handle<FixedArray>(FixedArray::cast(result));
+  } else {
+    return Handle<FixedArray>::null();
+  }
+}
+
+
 Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
                                                   Handle<Object> name,
                                                   int line_offset,
                                                   int column_offset) {
-  Handle<JSFunction> result = Lookup(source, SCRIPT);
-  if (result.is_null()) {
-    Counters::compilation_cache_misses.Increment();
-  } else if (HasOrigin(result, name, line_offset, column_offset)) {
-    Counters::compilation_cache_hits.Increment();
-  } else {
-    result = Handle<JSFunction>::null();
-    Counters::compilation_cache_misses.Increment();
-  }
-  return result;
+  // TODO(245): Start caching scripts again but make it local to a
+  // global context to avoid sharing code between independent
+  // environments.
+  return Handle<JSFunction>::null();
 }
 
 
@@ -152,39 +122,37 @@ Handle<JSFunction> CompilationCache::LookupEval(Handle<String> source,
 }
 
 
-void CompilationCache::PutFunction(Handle<String> source,
-                                   Entry entry,
-                                   Handle<JSFunction> boilerplate) {
-  HandleScope scope;
-  ASSERT(boilerplate->IsBoilerplate());
-  Handle<CompilationCacheTable> table = GetTable(entry);
-  CALL_HEAP_FUNCTION_VOID(table->Put(*source, *boilerplate));
+Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
+                                                  JSRegExp::Flags flags) {
+  Handle<FixedArray> result = Lookup(source, flags);
+  if (result.is_null()) {
+    Counters::compilation_cache_misses.Increment();
+  } else {
+    Counters::compilation_cache_hits.Increment();
+  }
+  return result;
 }
 
 
-void CompilationCache::PutEvalFunction(Handle<String> source,
-                                       Handle<Context> context,
-                                       Entry entry,
-                                       Handle<JSFunction> boilerplate) {
+void CompilationCache::PutScript(Handle<String> source,
+                                 Entry entry,
+                                 Handle<JSFunction> boilerplate) {
+  // TODO(245): Start caching scripts again but make it local to a
+  // global context to avoid sharing code between independent
+  // environments.
+}
+
+
+void CompilationCache::PutEval(Handle<String> source,
+                               Handle<Context> context,
+                               Entry entry,
+                               Handle<JSFunction> boilerplate) {
   HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
   Handle<CompilationCacheTable> table = GetTable(entry);
   CALL_HEAP_FUNCTION_VOID(table->PutEval(*source, *context, *boilerplate));
 }
 
-
-Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
-                                                  JSRegExp::Flags flags) {
-  Handle<CompilationCacheTable> table = GetTable(REGEXP);
-  Object* result = table->LookupRegExp(*source, flags);
-  if (result->IsFixedArray()) {
-    Counters::regexp_cache_hits.Increment();
-    return Handle<FixedArray>(FixedArray::cast(result));
-  } else {
-    Counters::regexp_cache_misses.Increment();
-    return Handle<FixedArray>();
-  }
-}
 
 
 void CompilationCache::PutRegExp(Handle<String> source,

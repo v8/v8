@@ -36,8 +36,7 @@ Debug = debug.Debug
 var bp1, bp2;
 
 function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break)
-  {
+  if (event == Debug.DebugEvent.Break) {
     if (state == 0) {
       exec_state.prepareStep(Debug.StepAction.StepIn, 1000);
       state = 1;
@@ -68,7 +67,6 @@ bp1 = Debug.setBreakPoint(f, 1);
 state = 0;
 result = -1;
 f();
-print(state);
 assertEquals(499, result);
 
 // Check that performing 1000 steps with a break point on the statement in the

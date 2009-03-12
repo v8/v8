@@ -1078,6 +1078,8 @@ def BuildOptions():
   result.add_option("--simulator", help="Run tests with architecture simulator",
       default='none')
   result.add_option("--special-command", default=None)
+  result.add_option("--valgrind", help="Run tests through valgrind",
+      default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
   result.add_option("--warn-unused", help="Report unused rules",
@@ -1214,12 +1216,18 @@ def Main():
       path = SplitPath(arg)
       paths.append(path)
 
+  # Check for --valgrind option. If enabled, we overwrite the special
+  # command flag with a command that uses the run-valgrind.py script.
+  if options.valgrind:
+    run_valgrind = join(workspace, "tools", "run-valgrind.py")
+    options.special_command = "python -u " + run_valgrind + " @"
+
   # First build the required targets
   buildspace = abspath('.')
   context = Context(workspace, buildspace, VERBOSE,
                     join(buildspace, 'shell'),
                     options.timeout,
-                    GetSpecialCommandProcessor(options.special_command), 
+                    GetSpecialCommandProcessor(options.special_command),
                     options.suppress_dialogs)
   if options.j != 1:
     options.scons_flags += ['-j', str(options.j)]

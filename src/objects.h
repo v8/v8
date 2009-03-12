@@ -144,6 +144,10 @@ class PropertyDetails BASE_EMBEDDED {
     return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
   }
 
+  bool IsProperty() {
+    return type() < FIRST_PHANTOM_PROPERTY_TYPE;
+  }
+
   PropertyAttributes attributes() { return AttributesField::decode(value_); }
 
   int index() { return IndexField::decode(value_); }
@@ -1433,6 +1437,7 @@ class JSObject: public HeapObject {
 
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
+  static const int kInitialMaxFastElementArray = 100000;
   static const int kMaxFastProperties = 8;
   static const int kMaxInstanceSize = 255 * kPointerSize;
   // When extending the backing storage for property values, we increase
@@ -1717,6 +1722,10 @@ class DescriptorArray: public FixedArray {
     return( descriptor_number << 1) + 1;
   }
 
+  bool is_null_descriptor(int descriptor_number) {
+    return PropertyDetails(GetDetails(descriptor_number)).type() ==
+        NULL_DESCRIPTOR;
+  }
   // Swap operation on FixedArray without using write barriers.
   static inline void fast_swap(FixedArray* array, int first, int second);
 
@@ -2157,7 +2166,7 @@ class Code: public HeapObject {
   // Printing
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
-  void Disassemble();
+  void Disassemble(const char* name);
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
@@ -2256,6 +2265,16 @@ class Code: public HeapObject {
     ASSERT_SIZE_TAG_ALIGNED(body_size);
     ASSERT_SIZE_TAG_ALIGNED(sinfo_size);
     return RoundUp(kHeaderSize + body_size + sinfo_size, kCodeAlignment);
+  }
+
+  // Calculate the size of the code object to report for log events. This takes
+  // the layout of the code object into account.
+  int ExecutableSize() {
+    // Check that the assumptions about the layout of the code object holds.
+    ASSERT_EQ(reinterpret_cast<unsigned int>(instruction_start()) -
+              reinterpret_cast<unsigned int>(address()),
+              Code::kHeaderSize);
+    return instruction_size() + Code::kHeaderSize;
   }
 
   // Locating source position.
@@ -2531,6 +2550,9 @@ class Script: public Struct {
   // [name]: the script name.
   DECL_ACCESSORS(name, Object)
 
+  // [id]: the script id.
+  DECL_ACCESSORS(id, Object)
+
   // [line_offset]: script line offset in resource from where it was extracted.
   DECL_ACCESSORS(line_offset, Smi)
 
@@ -2554,9 +2576,6 @@ class Script: public Struct {
   void ScriptVerify();
 #endif
 
-  void InitLineEnds();
-  int GetLineNumber(int code_position);
-
   static const int kSourceOffset = HeapObject::kHeaderSize;
   static const int kNameOffset = kSourceOffset + kPointerSize;
   static const int kLineOffsetOffset = kNameOffset + kPointerSize;
@@ -2564,7 +2583,8 @@ class Script: public Struct {
   static const int kWrapperOffset = kColumnOffsetOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kLineEndsOffset = kTypeOffset + kPointerSize;
-  static const int kSize = kLineEndsOffset + kPointerSize;
+  static const int kIdOffset = kLineEndsOffset + kPointerSize;
+  static const int kSize = kIdOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);
@@ -2946,6 +2966,19 @@ class JSValue: public JSObject {
 };
 
 // Regular expressions
+// The regular expression holds a single reference to a FixedArray in
+// the kDataOffset field.
+// The FixedArray contains the following data:
+// - tag : type of regexp implementation (not compiled yet, atom or irregexp)
+// - reference to the original source string
+// - reference to the original flag string
+// If it is an atom regexp
+// - a reference to a literal string to search for
+// If it is an irregexp regexp:
+// - a reference to code for ASCII inputs (bytecode or compiled).
+// - a reference to code for UC16 inputs (bytecode or compiled).
+// - max number of registers used by irregexp implementations.
+// - number of capture registers (output values) of the regexp.
 class JSRegExp: public JSObject {
  public:
   // Meaning of Type:
@@ -2973,6 +3006,8 @@ class JSRegExp: public JSObject {
   inline Flags GetFlags();
   inline String* Pattern();
   inline Object* DataAt(int index);
+  // Set implementation data after the object has been prepared.
+  inline void SetDataAt(int index, Object* value);
 
   static inline JSRegExp* cast(Object* obj);
 
@@ -2984,14 +3019,29 @@ class JSRegExp: public JSObject {
   static const int kDataOffset = JSObject::kHeaderSize;
   static const int kSize = kDataOffset + kIntSize;
 
+  // Indices in the data array.
   static const int kTagIndex = 0;
   static const int kSourceIndex = kTagIndex + 1;
   static const int kFlagsIndex = kSourceIndex + 1;
-  // These two are the same since the same entry is shared for
-  // different purposes in different types of regexps.
-  static const int kAtomPatternIndex = kFlagsIndex + 1;
-  static const int kIrregexpDataIndex = kFlagsIndex + 1;
-  static const int kDataSize = kAtomPatternIndex + 1;
+  static const int kDataIndex = kFlagsIndex + 1;
+  // The data fields are used in different ways depending on the
+  // value of the tag.
+  // Atom regexps (literal strings).
+  static const int kAtomPatternIndex = kDataIndex;
+
+  static const int kAtomDataSize = kAtomPatternIndex + 1;
+
+  // Irregexp compiled code or bytecode for ASCII.
+  static const int kIrregexpASCIICodeIndex = kDataIndex;
+  // Irregexp compiled code or bytecode for UC16.
+  static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
+  // Maximal number of registers used by either ASCII or UC16.
+  // Only used to check that there is enough stack space
+  static const int kIrregexpMaxRegisterCountIndex = kDataIndex + 2;
+  // Number of captures in the compiled regexp.
+  static const int kIrregexpCaptureCountIndex = kDataIndex + 3;
+
+  static const int kIrregexpDataSize = kIrregexpCaptureCountIndex + 1;
 };
 
 
@@ -3785,6 +3835,10 @@ class JSArray: public JSObject {
 
   // Casting.
   static inline JSArray* cast(Object* obj);
+
+  // Uses handles.  Ensures that the fixed array backing the JSArray has at
+  // least the stated size.
+  void EnsureSize(int minimum_size_of_backing_fixed_array);
 
   // Dispatched behavior.
 #ifdef DEBUG

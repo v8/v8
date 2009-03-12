@@ -169,7 +169,8 @@ inline bool JavaScriptFrame::has_adapted_arguments() const {
 }
 
 
-inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
+template<typename Iterator>
+inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's
   // problematic that we can't use the safe-cast operator to cast to
   // the JavaScript frame type, because we may encounter arguments
@@ -177,6 +178,39 @@ inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   StackFrame* frame = iterator_.frame();
   ASSERT(frame->is_java_script() || frame->is_arguments_adaptor());
   return static_cast<JavaScriptFrame*>(frame);
+}
+
+
+template<typename Iterator>
+JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+    StackFrame::Id id) {
+  while (!done()) {
+    Advance();
+    if (frame()->id() == id) return;
+  }
+}
+
+
+template<typename Iterator>
+void JavaScriptFrameIteratorTemp<Iterator>::Advance() {
+  do {
+    iterator_.Advance();
+  } while (!iterator_.done() && !iterator_.frame()->is_java_script());
+}
+
+
+template<typename Iterator>
+void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToArgumentsFrame() {
+  if (!frame()->has_adapted_arguments()) return;
+  iterator_.Advance();
+  ASSERT(iterator_.frame()->is_arguments_adaptor());
+}
+
+
+template<typename Iterator>
+void JavaScriptFrameIteratorTemp<Iterator>::Reset() {
+  iterator_.Reset();
+  if (!done()) Advance();
 }
 
 

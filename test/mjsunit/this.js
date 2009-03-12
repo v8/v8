@@ -35,7 +35,7 @@ assertTrue(this === (function() { return this; })());
 assertTrue(this === f());
 
 var x = {}, y = {};
-x.f = y.f = f; 
+x.f = y.f = f;
 assertFalse(x === f());
 assertFalse(y === f());
 assertTrue(x === x.f());

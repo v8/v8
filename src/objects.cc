@@ -2391,7 +2391,7 @@ bool JSObject::IsSimpleEnum() {
 int Map::NumberOfDescribedProperties() {
   int result = 0;
   for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (!r.IsTransition()) result++;
+    if (r.IsProperty()) result++;
   }
   return result;
 }
@@ -2399,7 +2399,7 @@ int Map::NumberOfDescribedProperties() {
 
 int Map::PropertyIndexFor(String* name) {
   for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.Equals(name)) return r.GetFieldIndex();
+    if (r.Equals(name) && !r.IsNullDescriptor()) return r.GetFieldIndex();
   }
   return -1;
 }
@@ -2933,6 +2933,7 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
   int new_size = number_of_descriptors() - transitions - null_descriptors;
 
   // If key is in descriptor, we replace it in-place when filtering.
+  // Count a null descriptor for key as inserted, not replaced.
   int index = Search(descriptor->GetKey());
   const bool inserting = (index == kNotFound);
   const bool replacing = !inserting;
@@ -2949,9 +2950,9 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
         t == CALLBACKS ||
         t == INTERCEPTOR) {
       keep_enumeration_index = true;
-    } else if (t == NULL_DESCRIPTOR || remove_transitions) {
-     // Replaced descriptor has been counted as removed if it is null
-     // or a transition that will be replaced.  Adjust count in this case.
+    } else if (remove_transitions) {
+     // Replaced descriptor has been counted as removed if it is
+     // a transition that will be replaced.  Adjust count in this case.
       ++new_size;
     }
   }
@@ -2990,7 +2991,9 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
     ASSERT(r.GetKey() == descriptor->GetKey());
     r.advance();
   } else {
-    ASSERT(r.eos() || r.GetKey()->Hash() > descriptor_hash);
+    ASSERT(r.eos() ||
+           r.GetKey()->Hash() > descriptor_hash ||
+           r.IsNullDescriptor());
   }
   for (; !r.eos(); r.advance()) {
     if (r.IsNullDescriptor()) continue;
@@ -3004,24 +3007,25 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
 
 Object* DescriptorArray::RemoveTransitions() {
-  // Remove all transitions.  Return a copy of the array with all transitions
-  // removed, or a Failure object if the new array could not be allocated.
+  // Remove all transitions and null descriptors. Return a copy of the array
+  // with all transitions removed, or a Failure object if the new array could
+  // not be allocated.
 
   // Compute the size of the map transition entries to be removed.
-  int count_transitions = 0;
+  int num_removed = 0;
   for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (r.IsTransition()) count_transitions++;
+    if (!r.IsProperty()) num_removed++;
   }
 
   // Allocate the new descriptor array.
-  Object* result = Allocate(number_of_descriptors() - count_transitions);
+  Object* result = Allocate(number_of_descriptors() - num_removed);
   if (result->IsFailure()) return result;
   DescriptorArray* new_descriptors = DescriptorArray::cast(result);
 
   // Copy the content.
   DescriptorWriter w(new_descriptors);
   for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (!r.IsTransition()) w.WriteFrom(&r);
+    if (r.IsProperty()) w.WriteFrom(&r);
   }
   ASSERT(w.eos());
 
@@ -3097,10 +3101,10 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
     ASSERT(hash == mid_hash);
     // There might be more, so we find the first one and
     // check them all to see if we have a match.
-    if (name == mid_name) return mid;
+    if (name == mid_name  && !is_null_descriptor(mid)) return mid;
     while ((mid > low) && (GetKey(mid - 1)->Hash() == hash)) mid--;
     for (; (mid <= high) && (GetKey(mid)->Hash() == hash); mid++) {
-      if (GetKey(mid)->Equals(name)) return mid;
+      if (GetKey(mid)->Equals(name) && !is_null_descriptor(mid)) return mid;
     }
     break;
   }
@@ -3110,7 +3114,9 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
 
 int DescriptorArray::LinearSearch(String* name, int len) {
   for (int number = 0; number < len; number++) {
-    if (name->Equals(GetKey(number))) return number;
+    if (name->Equals(GetKey(number)) && !is_null_descriptor(number)) {
+      return number;
+    }
   }
   return kNotFound;
 }
@@ -4795,10 +4801,13 @@ const char* Code::ICState2String(InlineCacheState state) {
 }
 
 
-void Code::Disassemble() {
-  PrintF("kind = %s", Kind2String(kind()));
+void Code::Disassemble(const char* name) {
+  PrintF("kind = %s\n", Kind2String(kind()));
+  if ((name != NULL) && (name[0] != '\0')) {
+    PrintF("name = %s\n", name);
+  }
 
-  PrintF("\nInstructions (size = %d)\n", instruction_size());
+  PrintF("Instructions (size = %d)\n", instruction_size());
   Disassembler::Decode(NULL, this);
   PrintF("\n");
 
@@ -4876,6 +4885,22 @@ Object* JSArray::Initialize(int capacity) {
   }
   set_elements(new_elements);
   return this;
+}
+
+
+void JSArray::EnsureSize(int required_size) {
+  Handle<JSArray> self(this);
+  ASSERT(HasFastElements());
+  if (elements()->length() >= required_size) return;
+  Handle<FixedArray> old_backing(elements());
+  int old_size = old_backing->length();
+  // Doubling in size would be overkill, but leave some slack to avoid
+  // constantly growing.
+  int new_size = required_size + (required_size >> 3);
+  Handle<FixedArray> new_backing = Factory::NewFixedArray(new_size);
+  // Can't use this any more now because we may have had a GC!
+  for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
+  self->SetContent(*new_backing);
 }
 
 
@@ -5640,7 +5665,8 @@ int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
          !r.eos();
          r.advance()) {
       PropertyDetails details = r.GetDetails();
-      if (!details.IsTransition() && (details.attributes() & filter) == 0) {
+      if (details.IsProperty() &&
+          (details.attributes() & filter) == 0) {
         result++;
       }
     }
@@ -5782,7 +5808,7 @@ void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
     for (DescriptorReader r(map()->instance_descriptors());
          !r.eos();
          r.advance()) {
-      if (!r.IsTransition()) {
+      if (r.IsProperty()) {
         storage->set(index++, r.GetKey());
       }
     }
@@ -6946,76 +6972,6 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   ASSERT(obj->HasFastProperties());
 
   return obj;
-}
-
-
-// Init line_ends array with code positions of line ends inside script source
-void Script::InitLineEnds() {
-  if (!line_ends()->IsUndefined()) return;
-
-  if (!source()->IsString()) {
-    ASSERT(source()->IsUndefined());
-    set_line_ends(*(Factory::NewJSArray(0)));
-    ASSERT(line_ends()->IsJSArray());
-    return;
-  }
-
-  Handle<String> src(String::cast(source()));
-  const int src_len = src->length();
-  Handle<String> new_line = Factory::NewStringFromAscii(CStrVector("\n"));
-
-  // Pass 1: Identify line count
-  int line_count = 0;
-  int position = 0;
-  while (position != -1 && position < src_len) {
-    position = Runtime::StringMatch(src, new_line, position);
-    if (position != -1) {
-      position++;
-    }
-    // Even if the last line misses a line end, it is counted
-    line_count++;
-  }
-
-  // Pass 2: Fill in line ends positions
-  Handle<FixedArray> array = Factory::NewFixedArray(line_count);
-  int array_index = 0;
-  position = 0;
-  while (position != -1 && position < src_len) {
-    position = Runtime::StringMatch(src, new_line, position);
-    // If the script does not end with a line ending add the final end position
-    // as just past the last line ending.
-    array->set(array_index++,
-               Smi::FromInt(position != -1 ? position++ : src_len));
-  }
-  ASSERT(array_index == line_count);
-
-  Handle<JSArray> object = Factory::NewJSArrayWithElements(array);
-  set_line_ends(*object);
-  ASSERT(line_ends()->IsJSArray());
-}
-
-
-// Convert code position into line number
-int Script::GetLineNumber(int code_pos) {
-  InitLineEnds();
-  JSArray* line_ends_array = JSArray::cast(line_ends());
-  const int line_ends_len = (Smi::cast(line_ends_array->length()))->value();
-
-  int line = -1;
-  if (line_ends_len > 0 &&
-      code_pos <= (Smi::cast(line_ends_array->GetElement(0)))->value()) {
-    line = 0;
-  } else {
-    for (int i = 1; i < line_ends_len; ++i) {
-      if ((Smi::cast(line_ends_array->GetElement(i - 1)))->value() < code_pos &&
-          code_pos <= (Smi::cast(line_ends_array->GetElement(i)))->value()) {
-        line = i;
-        break;
-      }
-    }
-  }
-
-  return line != -1 ? line + line_offset()->value() : line;
 }
 
 

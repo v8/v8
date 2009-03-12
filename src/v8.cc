@@ -31,6 +31,7 @@
 #include "debug.h"
 #include "serialize.h"
 #include "stub-cache.h"
+#include "oprofile-agent.h"
 
 namespace v8 { namespace internal {
 
@@ -85,6 +86,8 @@ bool V8::Initialize(Deserializer *des) {
   // objects in place for creating the code object used for probing.
   CPU::Setup();
 
+  OProfileAgent::Initialize();
+
   return true;
 }
 
@@ -92,6 +95,8 @@ bool V8::Initialize(Deserializer *des) {
 void V8::TearDown() {
   if (HasBeenDisposed()) return;
   if (!HasBeenSetup()) return;
+
+  OProfileAgent::TearDown();
 
   if (FLAG_preemption) {
     v8::Locker locker;

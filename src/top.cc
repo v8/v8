@@ -38,9 +38,6 @@ namespace v8 { namespace internal {
 
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();
-StackFrame::Id Top::break_frame_id_;
-int Top::break_count_;
-int Top::break_id_;
 
 NoAllocationStringAllocator* preallocated_message_space = NULL;
 
@@ -222,10 +219,6 @@ void Top::Initialize() {
 
   InitializeThreadLocal();
 
-  break_frame_id_ = StackFrame::NO_ID;
-  break_count_ = 0;
-  break_id_ = 0;
-
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && (preallocated_message_space == NULL)) {
     // Start the thread which will set aside some memory.
@@ -292,44 +285,6 @@ void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
 void Top::UnregisterTryCatchHandler(v8::TryCatch* that) {
   ASSERT(thread_local_.try_catch_handler_ == that);
   thread_local_.try_catch_handler_ = that->next_;
-}
-
-
-void Top::new_break(StackFrame::Id break_frame_id) {
-  ExecutionAccess access;
-  break_frame_id_ = break_frame_id;
-  break_id_ = ++break_count_;
-}
-
-
-void Top::set_break(StackFrame::Id break_frame_id, int break_id) {
-  ExecutionAccess access;
-  break_frame_id_ = break_frame_id;
-  break_id_ = break_id;
-}
-
-
-bool Top::check_break(int break_id) {
-  ExecutionAccess access;
-  return break_id == break_id_;
-}
-
-
-bool Top::is_break() {
-  ExecutionAccess access;
-  return break_id_ != 0;
-}
-
-
-StackFrame::Id Top::break_frame_id() {
-  ExecutionAccess access;
-  return break_frame_id_;
-}
-
-
-int Top::break_id() {
-  ExecutionAccess access;
-  return break_id_;
 }
 
 
@@ -668,26 +623,6 @@ Object* Top::PromoteScheduledException() {
 }
 
 
-// NOTE: The stack trace frame iterator is an iterator that only
-// traverse proper JavaScript frames; that is JavaScript frames that
-// have proper JavaScript functions. This excludes the problematic
-// functions in runtime.js.
-class StackTraceFrameIterator: public JavaScriptFrameIterator {
- public:
-  StackTraceFrameIterator() {
-    if (!done() && !frame()->function()->IsJSFunction()) Advance();
-  }
-
-  void Advance() {
-    while (true) {
-      JavaScriptFrameIterator::Advance();
-      if (done()) return;
-      if (frame()->function()->IsJSFunction()) return;
-    }
-  }
-};
-
-
 void Top::PrintCurrentStackTrace(FILE* out) {
   StackTraceFrameIterator it;
   while (!it.done()) {
@@ -888,16 +823,36 @@ void Top::TraceException(bool flag) {
 
 
 bool Top::optional_reschedule_exception(bool is_bottom_call) {
-  if (!is_out_of_memory() &&
-      (thread_local_.external_caught_exception_ || is_bottom_call)) {
-    thread_local_.external_caught_exception_ = false;
-    clear_pending_exception();
-    return false;
-  } else {
-    thread_local_.scheduled_exception_ = pending_exception();
-    clear_pending_exception();
-    return true;
+  // Allways reschedule out of memory exceptions.
+  if (!is_out_of_memory()) {
+    // Never reschedule the exception if this is the bottom call.
+    bool clear_exception = is_bottom_call;
+
+    // If the exception is externally caught, clear it if there are no
+    // JavaScript frames on the way to the C++ frame that has the
+    // external handler.
+    if (thread_local_.external_caught_exception_) {
+      ASSERT(thread_local_.try_catch_handler_ != NULL);
+      Address external_handler_address =
+          reinterpret_cast<Address>(thread_local_.try_catch_handler_);
+      JavaScriptFrameIterator it;
+      if (it.done() || (it.frame()->sp() > external_handler_address)) {
+        clear_exception = true;
+      }
+    }
+
+    // Clear the exception if needed.
+    if (clear_exception) {
+      thread_local_.external_caught_exception_ = false;
+      clear_pending_exception();
+      return false;
+    }
   }
+
+  // Reschedule the exception.
+  thread_local_.scheduled_exception_ = pending_exception();
+  clear_pending_exception();
+  return true;
 }
 
 

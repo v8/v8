@@ -153,14 +153,32 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 
 
 Handle<Script> Factory::NewScript(Handle<String> source) {
+  // Generate id for this script.
+  int id;
+  if (Heap::last_script_id()->IsUndefined()) {
+    // Script ids start from one.
+    id = 1;
+  } else {
+    // Increment id, wrap when positive smi is exhausted.
+    id = Smi::cast(Heap::last_script_id())->value();
+    id++;
+    if (!Smi::IsValid(id)) {
+      id = 0;
+    }
+  }
+  Heap::SetLastScriptId(Smi::FromInt(id));
+
+  // Create and initialize script object.
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(Heap::undefined_value());
+  script->set_id(Heap::last_script_id());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
   script->set_wrapper(*Factory::NewProxy(0, TENURED));
   script->set_line_ends(Heap::undefined_value());
+
   return script;
 }
 
@@ -274,6 +292,11 @@ Handle<Object> Factory::NewNumber(double value,
 
 Handle<Object> Factory::NewNumberFromInt(int value) {
   CALL_HEAP_FUNCTION(Heap::NumberFromInt32(value), Object);
+}
+
+
+Handle<Object> Factory::NewNumberFromUint(uint32_t value) {
+  CALL_HEAP_FUNCTION(Heap::NumberFromUint32(value), Object);
 }
 
 
@@ -536,7 +559,9 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Copy the descriptors from the array.
   DescriptorWriter w(*result);
   for (DescriptorReader r(*array); !r.eos(); r.advance()) {
-    w.WriteFrom(&r);
+    if (!r.IsNullDescriptor()) {
+      w.WriteFrom(&r);
+    }
     descriptor_count++;
   }
 
@@ -826,18 +851,38 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
 }
 
 
-void Factory::SetRegExpData(Handle<JSRegExp> regexp,
-                            JSRegExp::Type type,
-                            Handle<String> source,
-                            JSRegExp::Flags flags,
-                            Handle<Object> data) {
-  Handle<FixedArray> store = NewFixedArray(JSRegExp::kDataSize);
+void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp,
+                                JSRegExp::Type type,
+                                Handle<String> source,
+                                JSRegExp::Flags flags,
+                                Handle<Object> data) {
+  Handle<FixedArray> store = NewFixedArray(JSRegExp::kAtomDataSize);
+
   store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
   store->set(JSRegExp::kSourceIndex, *source);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
   store->set(JSRegExp::kAtomPatternIndex, *data);
   regexp->set_data(*store);
 }
+
+void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
+                                    JSRegExp::Type type,
+                                    Handle<String> source,
+                                    JSRegExp::Flags flags,
+                                    int capture_count) {
+  Handle<FixedArray> store = NewFixedArray(JSRegExp::kIrregexpDataSize);
+
+  store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
+  store->set(JSRegExp::kSourceIndex, *source);
+  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
+  store->set(JSRegExp::kIrregexpASCIICodeIndex, Heap::the_hole_value());
+  store->set(JSRegExp::kIrregexpUC16CodeIndex, Heap::the_hole_value());
+  store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(0));
+  store->set(JSRegExp::kIrregexpCaptureCountIndex,
+             Smi::FromInt(capture_count));
+  regexp->set_data(*store);
+}
+
 
 
 void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,

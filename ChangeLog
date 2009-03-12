@@ -1,3 +1,27 @@
+2009-03-12: Version 1.1.0
+
+        Improved code generation infrastructure by doing simple register
+        allocation and constant folding and propagation.
+
+        Optimized regular expression matching by avoiding to create
+        intermediate string arrays and by flattening nested array
+        representations of RegExp data.
+
+        Traverse a few stack frames when recording profiler samples to
+        include partial call graphs in the profiling output.
+
+        Added support for using OProfile to profile generated code.
+
+        Added remote debugging support to the D8 developer shell.
+
+        Optimized creation of nested literals like JSON objects.
+
+        Fixed a bug in garbage collecting unused maps and turned it on by
+        default (--collect-maps).
+
+        Added support for running tests under Valgrind.
+
+
 2009-02-27: Version 1.0.3
 
         Optimized double-to-integer conversions in bit operations by using

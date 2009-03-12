@@ -524,6 +524,11 @@ class EXPORT Script {
    * Runs the script returning the resulting value.
    */
   Local<Value> Run();
+
+  /**
+   * Returns the script id value.
+   */
+  Local<Value> Id();
 };
 
 

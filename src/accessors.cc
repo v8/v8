@@ -198,6 +198,24 @@ const AccessorDescriptor Accessors::ScriptName = {
 
 
 //
+// Accessors::ScriptId
+//
+
+
+Object* Accessors::ScriptGetId(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  return Script::cast(script)->id();
+}
+
+
+const AccessorDescriptor Accessors::ScriptId = {
+  ScriptGetId,
+  IllegalSetter,
+  0
+};
+
+
+//
 // Accessors::ScriptLineOffset
 //
 
@@ -257,9 +275,10 @@ const AccessorDescriptor Accessors::ScriptType = {
 
 
 Object* Accessors::ScriptGetLineEnds(Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  Script::cast(script)->InitLineEnds();
-  return Script::cast(script)->line_ends();
+  HandleScope scope;
+  Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
+  InitScriptLineEnds(script);
+  return script->line_ends();
 }
 
 

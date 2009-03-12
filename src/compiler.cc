@@ -35,6 +35,7 @@
 #include "scopes.h"
 #include "rewriter.h"
 #include "usage-analyzer.h"
+#include "oprofile-agent.h"
 
 namespace v8 { namespace internal {
 
@@ -123,16 +124,20 @@ static Handle<JSFunction> MakeFunction(bool is_global,
     return Handle<JSFunction>::null();
   }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
+#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
   // Log the code generation for the script. Check explicit whether logging is
   // to avoid allocating when not required.
-  if (Logger::is_enabled()) {
+  if (Logger::is_enabled() || OProfileAgent::is_enabled()) {
     if (script->name()->IsString()) {
       SmartPointer<char> data =
           String::cast(script->name())->ToCString(DISALLOW_NULLS);
       LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, *data));
+      OProfileAgent::CreateNativeCodeRegion(*data, code->address(),
+                                            code->ExecutableSize());
     } else {
       LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, ""));
+      OProfileAgent::CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
+          code->address(), code->ExecutableSize());
     }
   }
 #endif
@@ -210,7 +215,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                           extension,
                           pre_data);
     if (extension == NULL && !result.is_null()) {
-      CompilationCache::PutFunction(source, CompilationCache::SCRIPT, result);
+      CompilationCache::PutScript(source, CompilationCache::SCRIPT, result);
     }
 
     // Get rid of the pre-parsing data (if necessary).
@@ -220,7 +225,6 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
   }
 
   if (result.is_null()) Top::ReportPendingMessages();
-
   return result;
 }
 
@@ -249,7 +253,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
     script->set_line_offset(Smi::FromInt(line_offset));
     result = MakeFunction(is_global, true, script, context, NULL, NULL);
     if (!result.is_null()) {
-      CompilationCache::PutEvalFunction(source, context, entry, result);
+      CompilationCache::PutEval(source, context, entry, result);
     }
   }
 
@@ -307,20 +311,26 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
     return false;
   }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
+#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
   // Log the code generation. If source information is available include script
   // name and line number. Check explicit whether logging is enabled as finding
   // the line number is not for free.
-  if (Logger::is_enabled()) {
+  if (Logger::is_enabled() || OProfileAgent::is_enabled()) {
     if (script->name()->IsString()) {
-      int line_num = script->GetLineNumber(start_position);
+      int line_num = GetScriptLineNumber(script, start_position);
       if (line_num > 0) {
         line_num += script->line_offset()->value() + 1;
       }
       LOG(CodeCreateEvent("LazyCompile", *code, *lit->name(),
                           String::cast(script->name()), line_num));
+      OProfileAgent::CreateNativeCodeRegion(*lit->name(),
+                                            String::cast(script->name()),
+                                            line_num, code->address(),
+                                            code->ExecutableSize());
     } else {
       LOG(CodeCreateEvent("LazyCompile", *code, *lit->name()));
+      OProfileAgent::CreateNativeCodeRegion(*lit->name(), code->address(),
+                                            code->ExecutableSize());
     }
   }
 #endif

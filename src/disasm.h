@@ -39,6 +39,7 @@ class NameConverter {
  public:
   virtual ~NameConverter() {}
   virtual const char* NameOfCPURegister(int reg) const;
+  virtual const char* NameOfByteCPURegister(int reg) const;
   virtual const char* NameOfXMMRegister(int reg) const;
   virtual const char* NameOfAddress(byte* addr) const;
   virtual const char* NameOfConstant(byte* addr) const;

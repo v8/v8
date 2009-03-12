@@ -130,9 +130,7 @@ static void GenerateCheckNonFunctionOrLoaded(MacroAssembler* masm, Label* miss,
   __ test(value, Immediate(kSmiTagMask));
   __ j(zero, &done, not_taken);
   // Check if the value is a function.
-  __ mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, JS_FUNCTION_TYPE);
+  __ CmpObjectType(value, JS_FUNCTION_TYPE, scratch);
   __ j(not_equal, &done, taken);
   // Check if the function has been loaded.
   __ mov(scratch, FieldOperand(value, JSFunction::kSharedFunctionInfoOffset));
@@ -441,9 +439,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Check for number.
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &number, not_taken);
-  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, HEAP_NUMBER_TYPE);
+  __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ebx);
   __ j(not_equal, &non_number, taken);
   __ bind(&number);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
@@ -491,9 +487,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ j(zero, miss, not_taken);
 
   // Check that the value is a JavaScript function.
-  __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
-  __ cmp(edx, JS_FUNCTION_TYPE);
+  __ CmpObjectType(edx, JS_FUNCTION_TYPE, edx);
   __ j(not_equal, miss, not_taken);
 
   // Check that the function has been loaded.
@@ -739,15 +733,15 @@ void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) {
   // The keyed load has a fast inlined case if the IC call instruction
   // is immediately followed by a test instruction.
   if (*test_instruction_address == kTestEaxByte) {
-    // Fetch the offset from the call instruction to the map cmp
+    // Fetch the offset from the test instruction to the map cmp
     // instruction.  This offset is stored in the last 4 bytes of the
     // 5 byte test instruction.
     Address offset_address = test_instruction_address + 1;
     int offset_value = *(reinterpret_cast<int*>(offset_address));
-    // Compute the map address.  The operand-immediate compare
-    // instruction is two bytes larger than a call instruction so we
-    // add 2 to get to the map address.
-    Address map_address = address + offset_value + 2;
+    // Compute the map address.  The map address is in the last 4
+    // bytes of the 7-byte operand-immediate compare instruction, so
+    // we add 3 to the offset to get the map address.
+    Address map_address = test_instruction_address + offset_value + 3;
     // patch the map check.
     (*(reinterpret_cast<Object**>(map_address))) = value;
   }

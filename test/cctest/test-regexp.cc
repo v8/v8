@@ -214,6 +214,7 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\x34", "'\x34'");
   CHECK_PARSE_EQ("\\x60", "'\x60'");
   CHECK_PARSE_EQ("\\x3z", "'x3z'");
+  CHECK_PARSE_EQ("\\c", "'c'");
   CHECK_PARSE_EQ("\\u0034", "'\x34'");
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
   CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
@@ -363,8 +364,6 @@ TEST(Errors) {
   const char* kUnterminatedCharacterClass = "Unterminated character class";
   ExpectError("[", kUnterminatedCharacterClass);
   ExpectError("[a-", kUnterminatedCharacterClass);
-  const char* kEndControl = "\\c at end of pattern";
-  ExpectError("\\c", kEndControl);
   const char* kNothingToRepeat = "Nothing to repeat";
   ExpectError("*", kNothingToRepeat);
   ExpectError("?", kNothingToRepeat);

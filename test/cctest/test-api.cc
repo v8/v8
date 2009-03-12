@@ -1722,7 +1722,8 @@ v8::Handle<Value> CCatcher(const v8::Arguments& args) {
   if (args.Length() < 1) return v8::Boolean::New(false);
   v8::HandleScope scope;
   v8::TryCatch try_catch;
-  v8::Script::Compile(args[0]->ToString())->Run();
+  Local<Value> result = v8::Script::Compile(args[0]->ToString())->Run();
+  CHECK(!try_catch.HasCaught() || result.IsEmpty());
   return v8::Boolean::New(try_catch.HasCaught());
 }
 
@@ -1759,7 +1760,11 @@ THREADED_TEST(APIThrowTryCatch) {
 
 // Test that a try-finally block doesn't shadow a try-catch block
 // when setting up an external handler.
-THREADED_TEST(TryCatchInTryFinally) {
+//
+// TODO(271): This should be a threaded test. It was disabled for the
+// thread tests because it fails on the ARM simulator.  Should be made
+// threadable again when the simulator issue is resolved.
+TEST(TryCatchInTryFinally) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("CCatcher"),
@@ -1806,8 +1811,9 @@ TEST(APIThrowMessageAndVerboseTryCatch) {
   LocalContext context(0, templ);
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
-  CompileRun("ThrowFromC();");
+  Local<Value> result = CompileRun("ThrowFromC();");
   CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
   CHECK(message_received);
   v8::V8::RemoveMessageListeners(check_message);
 }
@@ -1853,6 +1859,7 @@ v8::Handle<Value> CThrowCountDown(const v8::Arguments& args) {
       int expected = args[3]->Int32Value();
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
+        CHECK(result.IsEmpty());
         CHECK(!i::Top::has_scheduled_exception());
       } else {
         CHECK_NE(expected, count);
@@ -1910,7 +1917,11 @@ THREADED_TEST(EvalInTryFinally) {
 // Each entry is an activation, either JS or C.  The index is the count at that
 // level.  Stars identify activations with exception handlers, the @ identifies
 // the exception handler that should catch the exception.
-THREADED_TEST(ExceptionOrder) {
+//
+// TODO(271): This should be a threaded test. It was disabled for the
+// thread tests because it fails on the ARM simulator.  Should be made
+// threadable again when the simulator issue is resolved.
+TEST(ExceptionOrder) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("check"), v8::FunctionTemplate::New(JSCheck));
@@ -5320,6 +5331,28 @@ TEST(CatchStackOverflow) {
 }
 
 
+static void CheckTryCatchSourceInfo(v8::Handle<v8::Script> script,
+                                    const char* resource_name,
+                                    int line_offset) {
+  v8::HandleScope scope;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Value> result = script->Run();
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  v8::Handle<v8::Message> message = try_catch.Message();
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(10 + line_offset, message->GetLineNumber());
+  CHECK_EQ(91, message->GetStartPosition());
+  CHECK_EQ(92, message->GetEndPosition());
+  CHECK_EQ(2, message->GetStartColumn());
+  CHECK_EQ(3, message->GetEndColumn());
+  v8::String::AsciiValue line(message->GetSourceLine());
+  CHECK_EQ("  throw 'nirk';", *line);
+  v8::String::AsciiValue name(message->GetScriptResourceName());
+  CHECK_EQ(resource_name, *name);
+}
+
+
 THREADED_TEST(TryCatchSourceInfo) {
   v8::HandleScope scope;
   LocalContext context;
@@ -5337,23 +5370,22 @@ THREADED_TEST(TryCatchSourceInfo) {
       "}\n"
       "\n"
       "Foo();\n");
-  v8::Handle<v8::Script> script =
-      v8::Script::Compile(source, v8::String::New("test.js"));
-  v8::TryCatch try_catch;
-  v8::Handle<v8::Value> result = script->Run();
-  CHECK(result.IsEmpty());
-  CHECK(try_catch.HasCaught());
-  v8::Handle<v8::Message> message = try_catch.Message();
-  CHECK(!message.IsEmpty());
-  CHECK_EQ(10, message->GetLineNumber());
-  CHECK_EQ(91, message->GetStartPosition());
-  CHECK_EQ(92, message->GetEndPosition());
-  CHECK_EQ(2, message->GetStartColumn());
-  CHECK_EQ(3, message->GetEndColumn());
-  v8::String::AsciiValue line(message->GetSourceLine());
-  CHECK_EQ("  throw 'nirk';", *line);
-  v8::String::AsciiValue name(message->GetScriptResourceName());
-  CHECK_EQ("test.js", *name);
+
+  const char* resource_name;
+  v8::Handle<v8::Script> script;
+  resource_name = "test.js";
+  script = v8::Script::Compile(source, v8::String::New(resource_name));
+  CheckTryCatchSourceInfo(script, resource_name, 0);
+
+  resource_name = "test1.js";
+  v8::ScriptOrigin origin1(v8::String::New(resource_name));
+  script = v8::Script::Compile(source, &origin1);
+  CheckTryCatchSourceInfo(script, resource_name, 0);
+
+  resource_name = "test2.js";
+  v8::ScriptOrigin origin2(v8::String::New(resource_name), v8::Integer::New(7));
+  script = v8::Script::Compile(source, &origin2);
+  CheckTryCatchSourceInfo(script, resource_name, 7);
 }
 
 

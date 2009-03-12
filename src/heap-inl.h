@@ -211,6 +211,11 @@ void Heap::ClearKeyedLookupCache() {
 }
 
 
+void Heap::SetLastScriptId(Object* last_script_id) {
+  last_script_id_ = last_script_id;
+}
+
+
 #define GC_GREEDY_CHECK() \
   ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
 
@@ -226,43 +231,43 @@ void Heap::ClearKeyedLookupCache() {
   do {                                                                    \
     GC_GREEDY_CHECK();                                                    \
     Object* __object__ = FUNCTION_CALL;                                   \
-    if (!__object__->IsFailure()) return RETURN_VALUE;                    \
+    if (!__object__->IsFailure()) RETURN_VALUE;                           \
     if (__object__->IsOutOfMemoryFailure()) {                             \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0");      \
     }                                                                     \
-    if (!__object__->IsRetryAfterGC()) return RETURN_EMPTY;               \
+    if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
     Heap::CollectGarbage(Failure::cast(__object__)->requested(),          \
                          Failure::cast(__object__)->allocation_space());  \
     __object__ = FUNCTION_CALL;                                           \
-    if (!__object__->IsFailure()) return RETURN_VALUE;                    \
+    if (!__object__->IsFailure()) RETURN_VALUE;                           \
     if (__object__->IsOutOfMemoryFailure()) {                             \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1");      \
     }                                                                     \
-    if (!__object__->IsRetryAfterGC()) return RETURN_EMPTY;               \
+    if (!__object__->IsRetryAfterGC()) RETURN_EMPTY;                      \
     Counters::gc_last_resort_from_handles.Increment();                    \
     Heap::CollectAllGarbage();                                            \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __object__ = FUNCTION_CALL;                                         \
     }                                                                     \
-    if (!__object__->IsFailure()) return RETURN_VALUE;                    \
+    if (!__object__->IsFailure()) RETURN_VALUE;                           \
     if (__object__->IsOutOfMemoryFailure()) {                             \
       /* TODO(1181417): Fix this. */                                      \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2");      \
     }                                                                     \
     ASSERT(!__object__->IsRetryAfterGC());                                \
-    return RETURN_EMPTY;                                                  \
+    RETURN_EMPTY;                                                         \
   } while (false)
 
 
-#define CALL_HEAP_FUNCTION(FUNCTION_CALL, TYPE)         \
-  CALL_AND_RETRY(FUNCTION_CALL,                         \
-                 Handle<TYPE>(TYPE::cast(__object__)),  \
-                 Handle<TYPE>())
+#define CALL_HEAP_FUNCTION(FUNCTION_CALL, TYPE)                \
+  CALL_AND_RETRY(FUNCTION_CALL,                                \
+                 return Handle<TYPE>(TYPE::cast(__object__)),  \
+                 return Handle<TYPE>())
 
 
 #define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL) \
-  CALL_AND_RETRY(FUNCTION_CALL, , )
+  CALL_AND_RETRY(FUNCTION_CALL, return, return)
 
 
 #ifdef DEBUG

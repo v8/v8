@@ -31,8 +31,8 @@ function makeArguments() {
   var result = [ ];
   result.push(17);
   result.push(-31);
-  result.push(Number.MAX_VALUE);
-  result.push(new Array(5003));
+  result.push(new Array(100));
+  result.push(new Array(100003));
   result.push(Number.MIN_VALUE);
   result.push("whoops");
   result.push("x");
@@ -121,7 +121,8 @@ var knownProblems = {
   "PushContext": true,
   "LazyCompile": true,
   "CreateObjectLiteralBoilerplate": true,
-  "CloneObjectLiteralBoilerplate": true,
+  "CloneLiteralBoilerplate": true,
+  "CreateArrayLiteralBoilerplate": true,
   "IS_VAR": true,
   "ResolvePossiblyDirectEval": true,
   "Log": true
