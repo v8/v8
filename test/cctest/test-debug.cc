@@ -3720,6 +3720,17 @@ TEST(CallFunctionInDebugger) {
 
   // Test that a function with closure can be run in the debugger.
   v8::Script::Compile(v8::String::New("CheckClosure()"))->Run();
+
+
+  // Test that the source line is correct when there is a line offset.
+  v8::ScriptOrigin origin(v8::String::New("test"),
+                          v8::Integer::New(7));
+  v8::Script::Compile(v8::String::New("CheckSourceLine(7)"), &origin)->Run();
+  v8::Script::Compile(v8::String::New("function f() {\n"
+                                      "  CheckSourceLine(8)\n"
+                                      "  CheckSourceLine(9)\n"
+                                      "  CheckSourceLine(10)\n"
+                                      "}; f()"), &origin)->Run();
 }
 
 

@@ -1592,8 +1592,9 @@ ScriptMirror.prototype.lineCount = function() {
 };
 
 
-ScriptMirror.prototype.locationFromPosition = function(position) {
-  return this.script_.locationFromPosition(position);
+ScriptMirror.prototype.locationFromPosition = function(
+    position, include_resource_offset) {
+  return this.script_.locationFromPosition(position, include_resource_offset);
 }
 
 

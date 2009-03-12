@@ -521,7 +521,7 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
     source_position += %FunctionGetScriptSourcePosition(func);
     // Find line and column for the position in the script and set a script
     // break point from that.
-    var location = script.locationFromPosition(source_position);
+    var location = script.locationFromPosition(source_position, false);
     return this.setScriptBreakPointById(script.id,
                                         location.line, location.column,
                                         opt_condition);

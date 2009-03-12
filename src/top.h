@@ -158,12 +158,10 @@ class Top {
   }
 
   static void setup_external_caught() {
-    if (!thread_local_.external_caught_exception_) {
-      thread_local_.external_caught_exception_ =
-          has_pending_exception() &&
-          (thread_local_.catcher_ != NULL) &&
-          (thread_local_.try_catch_handler_ == thread_local_.catcher_);
-    }
+    thread_local_.external_caught_exception_ =
+        (!thread_local_.pending_exception_->IsTheHole()) &&
+        (thread_local_.catcher_ != NULL) &&
+        (Top::thread_local_.try_catch_handler_ == Top::thread_local_.catcher_);
   }
 
   // Tells whether the current context has experienced an out of memory

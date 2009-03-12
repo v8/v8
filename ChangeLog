@@ -1,3 +1,16 @@
+2009-03-12: Version 1.1.1
+
+        Fixed an assertion in the new compiler to take stack overflow
+        exceptions into account.
+
+        Removed exception propagation code that could cause crashes.
+
+        Fixed minor bug in debugger line number computations.
+
+        8-byte align the C stack on Linux and Windows to speed up floating
+        point computations.
+
+
 2009-03-12: Version 1.1.0
 
         Improved code generation infrastructure by doing simple register

@@ -302,7 +302,7 @@ Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_p
   var offset_position = opt_offset_position || 0;
   if (line < 0 || column < 0 || offset_position < 0) return null;
   if (line == 0) {
-    return this.locationFromPosition(offset_position + column);
+    return this.locationFromPosition(offset_position + column, false);
   } else {
     // Find the line where the offset position is located
     var lineCount = this.lineCount();
@@ -519,7 +519,7 @@ SourceSlice.prototype.sourceText = function () {
 // Returns the offset of the given position within the containing
 // line.
 function GetPositionInLine(message) {
-  var location = message.script.locationFromPosition(message.startPos);
+  var location = message.script.locationFromPosition(message.startPos, false);
   if (location == null) return -1;
   location.restrict();
   return message.startPos - location.start;
