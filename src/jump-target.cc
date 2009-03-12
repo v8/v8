@@ -70,7 +70,10 @@ void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
 
 
 void JumpTarget::Unuse() {
-  ASSERT(!is_linked());
+  // We should not deallocate jump targets that have unresolved jumps
+  // to them.  In the event of a compile-time stack overflow or an
+  // unitialized jump target, we don't care.
+  ASSERT(!is_linked() || cgen_ == NULL || cgen_->HasStackOverflow());
 #ifdef DEBUG
   for (int i = 0; i < reaching_frames_.length(); i++) {
     ASSERT(reaching_frames_[i] == NULL);
