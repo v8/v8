@@ -212,8 +212,8 @@ double OS::nan_value() {
 
 
 int OS::ActivationFrameAlignment() {
-  // No constraint on Linux.
-  return 0;
+  // Floating point code runs faster if the stack is 8-byte aligned.
+  return 8;
 }
 
 
