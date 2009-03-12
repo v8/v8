@@ -42,6 +42,10 @@ class AstOptimizer: public AstVisitor {
   void Optimize(ZoneList<Statement*>* statements);
 
  private:
+  // Used for loop condition analysis.  Cleared before visiting a loop
+  // condition, set when a function literal is visited.
+  bool has_function_literal_;
+
   // Helpers
   void OptimizeArguments(ZoneList<Expression*>* arguments);
 
@@ -89,14 +93,14 @@ void AstOptimizer::VisitIfStatement(IfStatement* node) {
 }
 
 
-
-
 void AstOptimizer::VisitLoopStatement(LoopStatement* node) {
   if (node->init() != NULL) {
     Visit(node->init());
   }
   if (node->cond() != NULL) {
+    has_function_literal_ = false;
     Visit(node->cond());
+    node->has_function_literal_ = has_function_literal_;
   }
   if (node->body() != NULL) {
     Visit(node->body());
@@ -182,6 +186,7 @@ void AstOptimizer::VisitDebuggerStatement(DebuggerStatement* node) {
 
 void AstOptimizer::VisitFunctionLiteral(FunctionLiteral* node) {
   USE(node);
+  has_function_literal_ = true;
 }
 
 

@@ -93,8 +93,6 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
     entry_frame_ = frame;
   }
 
-  void make_bidirectional() { direction_ = BIDIRECTIONAL; }
-
   // Predicates testing the state of the encapsulated label.
   bool is_bound() const { return is_bound_; }
   bool is_linked() const { return is_linked_; }

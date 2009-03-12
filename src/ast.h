@@ -291,8 +291,13 @@ class LoopStatement: public IterationStatement {
   enum Type { DO_LOOP, FOR_LOOP, WHILE_LOOP };
 
   LoopStatement(ZoneStringList* labels, Type type)
-      : IterationStatement(labels), type_(type), init_(NULL),
-        cond_(NULL), next_(NULL) { }
+      : IterationStatement(labels),
+        type_(type),
+        init_(NULL),
+        cond_(NULL),
+        next_(NULL),
+        has_function_literal_(false) {
+  }
 
   void Initialize(Statement* init,
                   Expression* cond,
@@ -312,6 +317,7 @@ class LoopStatement: public IterationStatement {
   Statement* init() const  { return init_; }
   Expression* cond() const  { return cond_; }
   Statement* next() const  { return next_; }
+  bool has_function_literal() const { return has_function_literal_; }
 
 #ifdef DEBUG
   const char* OperatorString() const;
@@ -322,6 +328,10 @@ class LoopStatement: public IterationStatement {
   Statement* init_;
   Expression* cond_;
   Statement* next_;
+  // True if there is a function literal subexpression in the condition.
+  bool has_function_literal_;
+
+  friend class AstOptimizer;
 };
 
 

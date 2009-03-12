@@ -2228,17 +2228,23 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::WHILE_LOOP: {
-      // TODO(260): This flag controls whether to duplicate the test
-      // at the bottom of the loop.  Replace it with a better
-      // indication of when it is safe to do so.
-      static const bool test_at_bottom = false;
+      // Do not duplicate conditions with function literal
+      // subexpressions.  This can cause us to compile the function
+      // literal twice.
+      bool test_at_bottom = !node->has_function_literal();
 
-      JumpTarget body(this);  // Initialized as forward-only.
       IncrementLoopNesting();
 
       // If the condition is always false and has no side effects, we
       // do not need to compile anything.
       if (info == ALWAYS_FALSE) break;
+
+      JumpTarget body;
+      if (test_at_bottom) {
+        body.Initialize(this, JumpTarget::BIDIRECTIONAL);
+      } else {
+        body.Initialize(this);
+      }
 
       // Based on the condition analysis, compile the test as necessary.
       if (info == ALWAYS_TRUE) {
@@ -2252,7 +2258,6 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
           // Continue is the test at the bottom, no need to label the
           // test at the top.  The body is a backward target.
           node->continue_target()->Initialize(this);
-          body.make_bidirectional();
         } else {
           // Label the test at the top as the continue target.  The
           // body is a forward-only target.
@@ -2321,13 +2326,10 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::FOR_LOOP: {
-      // TODO(260): This flag controls whether to duplicate the test
-      // at the bottom of the loop.  Replace it with a better
-      // indication of when it is safe to do so.
-      static const bool test_at_bottom = false;
-
-      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
-      JumpTarget body(this);
+      // Do not duplicate conditions with function literal
+      // subexpressions.  This can cause us to compile the function
+      // literal twice.
+      bool test_at_bottom = !node->has_function_literal();
 
       // Compile the init expression if present.
       if (node->init() != NULL) {
@@ -2339,6 +2341,19 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // If the condition is always false and has no side effects, we
       // do not need to compile anything else.
       if (info == ALWAYS_FALSE) break;
+
+      // Target for backward edge if no test at the bottom, otherwise
+      // unused.
+      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
+
+      // Target for backward edge if there is a test at the bottom,
+      // otherwise used as target for test at the top.
+      JumpTarget body;
+      if (test_at_bottom) {
+        body.Initialize(this, JumpTarget::BIDIRECTIONAL);
+      } else {
+        body.Initialize(this);
+      }
 
       // Based on the condition analysis, compile the test as necessary.
       if (info == ALWAYS_TRUE) {
