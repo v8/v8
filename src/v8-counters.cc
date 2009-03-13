@@ -31,12 +31,10 @@
 
 namespace v8 { namespace internal {
 
-#define SR(name, caption) \
-  StatsRate Counters::name = { \
-  { { "t:" #caption, NULL, false }, 0, 0 }, \
-  { "c:" #caption, NULL, false } };
+#define HT(name, caption) \
+  HistogramTimer Counters::name = { #caption, NULL, false, 0, 0 }; \
 
-  STATS_RATE_LIST(SR)
+  HISTOGRAM_TIMER_LIST(HT)
 #undef SR
 
 #define SC(name, caption) \

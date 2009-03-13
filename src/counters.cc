@@ -33,6 +33,8 @@
 namespace v8 { namespace internal {
 
 CounterLookupCallback StatsTable::lookup_function_ = NULL;
+CreateHistogramCallback StatsTable::create_histogram_function_ = NULL;
+AddHistogramSampleCallback StatsTable::add_histogram_sample_function_ = NULL;
 
 // Start the timer.
 void StatsCounterTimer::Start() {
@@ -51,6 +53,25 @@ void StatsCounterTimer::Stop() {
   // Compute the delta between start and stop, in milliseconds.
   int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
   counter_.Increment(milliseconds);
+}
+
+// Start the timer.
+void HistogramTimer::Start() {
+  if (GetHistogram() != NULL) {
+    stop_time_ = 0;
+    start_time_ = OS::Ticks();
+  }
+}
+
+// Stop the timer and record the results.
+void HistogramTimer::Stop() {
+  if (histogram_ != NULL) {
+    stop_time_ = OS::Ticks();
+
+    // Compute the delta between start and stop, in milliseconds.
+    int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
+    StatsTable::AddHistogramSample(histogram_, milliseconds);
+  }
 }
 
 } }  // namespace v8::internal

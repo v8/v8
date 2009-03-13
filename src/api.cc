@@ -2700,6 +2700,15 @@ void V8::SetCounterFunction(CounterLookupCallback callback) {
   i::StatsTable::SetCounterFunction(callback);
 }
 
+void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
+  if (IsDeadCheck("v8::V8::SetCreateHistogramFunction()")) return;
+  i::StatsTable::SetCreateHistogramFunction(callback);
+}
+
+void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
+  if (IsDeadCheck("v8::V8::SetAddHistogramSampleFunction()")) return;
+  i::StatsTable::SetAddHistogramSampleFunction(callback);
+}
 
 void V8::EnableSlidingStateWindow() {
   if (IsDeadCheck("v8::V8::EnableSlidingStateWindow()")) return;

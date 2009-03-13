@@ -839,7 +839,7 @@ class EXPORT String : public Primitive {
    * external string resource.
    */
   static Local<String> NewExternal(ExternalStringResource* resource);
-  
+
   /**
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
@@ -859,7 +859,7 @@ class EXPORT String : public Primitive {
    * external string resource.
    */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
-  
+
   /**
    * Associate an external string resource with this string by transforming it
    * in place so that existing references to this string in the JavaScript heap
@@ -1816,6 +1816,13 @@ class EXPORT Exception {
 
 typedef int* (*CounterLookupCallback)(const char* name);
 
+typedef void* (*CreateHistogramCallback)(const char* name,
+                                         int min,
+                                         int max,
+                                         size_t buckets);
+
+typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
+
 // --- F a i l e d A c c e s s C h e c k C a l l b a c k ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
@@ -1904,6 +1911,15 @@ class EXPORT V8 {
    * statistics counters.
    */
   static void SetCounterFunction(CounterLookupCallback);
+
+  /**
+   * Enables the host application to provide a mechanism for recording
+   * histograms. The CreateHistogram function returns a
+   * histogram which will later be passed to the AddHistogramSample
+   * function.
+   */
+  static void SetCreateHistogramFunction(CreateHistogramCallback);
+  static void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
 
   /**
    * Enables the computation of a sliding window of states. The sliding

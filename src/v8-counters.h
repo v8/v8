@@ -32,16 +32,16 @@
 
 namespace v8 { namespace internal {
 
-#define STATS_RATE_LIST(SR)                                             \
-  SR(gc_compactor, V8.GCCompactor) /* GC Compactor time */              \
-  SR(gc_scavenger, V8.GCScavenger) /* GC Scavenger time */              \
-  SR(gc_context, V8.GCContext)     /* GC context cleanup time */        \
-  SR(compile, V8.Compile)          /* Compile time*/                    \
-  SR(compile_eval, V8.CompileEval) /* Eval compile time */              \
-  SR(compile_lazy, V8.CompileLazy) /* Lazy compile time */              \
-  SR(parse, V8.Parse)              /* Parse time */                     \
-  SR(parse_lazy, V8.ParseLazy)     /* Lazy parse time */                \
-  SR(pre_parse, V8.PreParse)       /* Pre-parse time */
+#define HISTOGRAM_TIMER_LIST(HT)                                 \
+  HT(gc_compactor, V8.GCCompactor) /* GC Compactor time */       \
+  HT(gc_scavenger, V8.GCScavenger) /* GC Scavenger time */       \
+  HT(gc_context, V8.GCContext)     /* GC context cleanup time */ \
+  HT(compile, V8.Compile)          /* Compile time*/             \
+  HT(compile_eval, V8.CompileEval) /* Eval compile time */       \
+  HT(compile_lazy, V8.CompileLazy) /* Lazy compile time */       \
+  HT(parse, V8.Parse)              /* Parse time */              \
+  HT(parse_lazy, V8.ParseLazy)     /* Lazy parse time */         \
+  HT(pre_parse, V8.PreParse)       /* Pre-parse time */
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40
@@ -129,10 +129,10 @@ namespace v8 { namespace internal {
 // This file contains all the v8 counters that are in use.
 class Counters : AllStatic {
  public:
-#define SR(name, caption) \
-  static StatsRate name;
-  STATS_RATE_LIST(SR)
-#undef SR
+#define HT(name, caption) \
+  static HistogramTimer name;
+  HISTOGRAM_TIMER_LIST(HT)
+#undef HT
 
 #define SC(name, caption) \
   static StatsCounter name;
@@ -142,7 +142,7 @@ class Counters : AllStatic {
 
   enum Id {
 #define RATE_ID(name, caption) k_##name,
-    STATS_RATE_LIST(RATE_ID)
+    HISTOGRAM_TIMER_LIST(RATE_ID)
 #undef RATE_ID
 #define COUNTER_ID(name, caption) k_##name,
   STATS_COUNTER_LIST_1(COUNTER_ID)

@@ -1075,7 +1075,7 @@ Parser::Parser(Handle<Script> script,
 
 
 bool Parser::PreParseProgram(unibrow::CharacterStream* stream) {
-  StatsRateScope timer(&Counters::pre_parse);
+  HistogramTimerScope timer(&Counters::pre_parse);
   StackGuard guard;
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
@@ -1098,7 +1098,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       bool in_global_context) {
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
-  StatsRateScope timer(&Counters::parse);
+  HistogramTimerScope timer(&Counters::parse);
   StringShape shape(*source);
   Counters::total_parse_size.Increment(source->length(shape));
 
@@ -1151,7 +1151,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    int start_position,
                                    bool is_expression) {
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
-  StatsRateScope timer(&Counters::parse_lazy);
+  HistogramTimerScope timer(&Counters::parse_lazy);
   source->TryFlattenIfNotFlat(StringShape(*source));
   StringShape shape(*source);
   Counters::total_parse_size.Increment(source->length(shape));

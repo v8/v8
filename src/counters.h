@@ -42,6 +42,18 @@ class StatsTable : public AllStatic {
     lookup_function_ = f;
   }
 
+  // Register an application-defined function to create
+  // a histogram for passing to the AddHistogramSample function
+  static void SetCreateHistogramFunction(CreateHistogramCallback f) {
+    create_histogram_function_ = f;
+  }
+
+  // Register an application-defined function to add a sample
+  // to a histogram created with CreateHistogram function
+  static void SetAddHistogramSampleFunction(AddHistogramSampleCallback f) {
+    add_histogram_sample_function_ = f;
+  }
+
   static bool HasCounterFunction() {
     return lookup_function_ != NULL;
   }
@@ -57,8 +69,30 @@ class StatsTable : public AllStatic {
     return lookup_function_(name);
   }
 
+  // Create a histogram by name. If the create is successful,
+  // returns a non-NULL pointer for use with AddHistogramSample
+  // function. min and max define the expected minimum and maximum
+  // sample values. buckets is the maximum number of buckets
+  // that the samples will be grouped into.
+  static void *CreateHistogram(const char* name,
+                               int min,
+                               int max,
+                               size_t buckets) {
+    if (!create_histogram_function_) return NULL;
+    return create_histogram_function_(name, min, max, buckets);
+  }
+
+  // Add a sample to a histogram created with the CreateHistogram
+  // function.
+  static void AddHistogramSample(void* histogram, int sample) {
+    if (!add_histogram_sample_function_) return;
+    return add_histogram_sample_function_(histogram, sample);
+  }
+
  private:
   static CounterLookupCallback lookup_function_;
+  static CreateHistogramCallback create_histogram_function_;
+  static AddHistogramSampleCallback add_histogram_sample_function_;
 };
 
 // StatsCounters are dynamically created values which can be tracked in
@@ -152,44 +186,50 @@ struct StatsCounterTimer {
   }
 };
 
-// A StatsRate is a combination of both a timer and a counter so that
-// several statistics can be produced:
-//    min, max, avg, count, total
-//
-// For example:
-//   StatsCounter c = { { { L"t:myrate", NULL, false }, 0, 0 },
-//                      { L"c:myrate", NULL, false } };
-struct StatsRate {
-  StatsCounterTimer timer_;
-  StatsCounter counter_;
+// A HistogramTimer allows distributions of results to be created
+// HistogramTimer t = { L"foo", NULL, false, 0, 0 };
+struct HistogramTimer {
+  const char* name_;
+  void* histogram_;
+  bool lookup_done_;
 
-  // Starts the rate timer.
-  void Start() {
-    timer_.Start();
+  int64_t start_time_;
+  int64_t stop_time_;
+
+  // Start the timer.
+  void Start();
+
+  // Stop the timer and record the results.
+  void Stop();
+
+  // Returns true if the timer is running.
+  bool Running() {
+    return (histogram_ != NULL) && (start_time_ != 0) && (stop_time_ == 0);
   }
 
-  // Stops the rate and records the time.
-  void Stop() {
-    if (timer_.Running()) {
-      timer_.Stop();
-      counter_.Increment();
+ protected:
+  // Returns the handle to the histogram.
+  void* GetHistogram() {
+    if (!lookup_done_) {
+      lookup_done_ = true;
+      histogram_ = StatsTable::CreateHistogram(name_, 0, 10000, 50);
     }
+    return histogram_;
   }
 };
 
-
-// Helper class for scoping a rate.
-class StatsRateScope BASE_EMBEDDED {
+// Helper class for scoping a HistogramTimer.
+class HistogramTimerScope BASE_EMBEDDED {
  public:
-  explicit StatsRateScope(StatsRate* rate) :
-      rate_(rate) {
-    rate_->Start();
+  explicit HistogramTimerScope(HistogramTimer* timer) :
+  timer_(timer) {
+    timer_->Start();
   }
-  ~StatsRateScope() {
-    rate_->Stop();
+  ~HistogramTimerScope() {
+    timer_->Stop();
   }
  private:
-  StatsRate* rate_;
+  HistogramTimer* timer_;
 };
 
 

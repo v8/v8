@@ -310,7 +310,7 @@ void Heap::CollectAllGarbageIfContextDisposed() {
   // contexts are disposed and leave it to the embedder to make
   // informed decisions about when to force a collection.
   if (!FLAG_expose_gc && context_disposed_pending_) {
-    StatsRateScope scope(&Counters::gc_context);
+    HistogramTimerScope scope(&Counters::gc_context);
     CollectAllGarbage();
   }
   context_disposed_pending_ = false;
@@ -345,7 +345,7 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
     // Tell the tracer which collector we've selected.
     tracer.set_collector(collector);
 
-    StatsRate* rate = (collector == SCAVENGER)
+    HistogramTimer* rate = (collector == SCAVENGER)
         ? &Counters::gc_scavenger
         : &Counters::gc_compactor;
     rate->Start();
