@@ -36,6 +36,13 @@ class RegExpMacroAssembler;
 
 class RegExpImpl {
  public:
+  static inline bool UseNativeRegexp() {
+#ifdef ARM
+    return false;
+#else
+    return FLAG_regexp_native;
+#endif
+  }
   // Creates a regular expression literal in the old space.
   // This function calls the garbage collector if necessary.
   static Handle<Object> CreateRegExpLiteral(Handle<JSFunction> constructor,
@@ -117,6 +124,7 @@ class RegExpImpl {
   static const int kFirstCapture = 1;
   static const int kLastMatchOverhead = 3;
 
+  // Used to access the lastMatchInfo array.
   static int GetCapture(FixedArray* array, int index) {
     return Smi::cast(array->get(index + kFirstCapture))->value();
   }
@@ -139,18 +147,24 @@ class RegExpImpl {
     array->set(index + kFirstCapture, Smi::FromInt(to));
   }
 
- private:
-  static String* last_ascii_string_;
-  static String* two_byte_cached_string_;
+  static int GetLastCaptureCount(FixedArray* array) {
+    return Smi::cast(array->get(kLastCaptureCount))->value();
+  }
 
-  static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
-
+  // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray* re);
   static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
   static int IrregexpNumberOfCaptures(FixedArray* re);
   static int IrregexpNumberOfRegisters(FixedArray* re);
   static ByteArray* IrregexpByteCode(FixedArray* re, bool is_ascii);
   static Code* IrregexpNativeCode(FixedArray* re, bool is_ascii);
+
+ private:
+  static String* last_ascii_string_;
+  static String* two_byte_cached_string_;
+
+  static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
+
 
   // On a successful match, the result is a JSArray containing
   // captured positions. On a failure, the result is the null value.
@@ -171,10 +185,6 @@ class RegExpImpl {
                               int character_position,
                               int utf8_position);
 
-  // Used to access the lastMatchInfo array.
-  static int GetLastCaptureCount(FixedArray* array) {
-    return Smi::cast(array->get(kLastCaptureCount))->value();
-  }
   // A one element cache of the last utf8_subject string and its length.  The
   // subject JS String object is cached in the heap.  We also cache a
   // translation between position and utf8 position.

@@ -3003,6 +3003,7 @@ class JSRegExp: public JSObject {
   DECL_ACCESSORS(data, Object)
 
   inline Type TypeTag();
+  inline int CaptureCount();
   inline Flags GetFlags();
   inline String* Pattern();
   inline Object* DataAt(int index);

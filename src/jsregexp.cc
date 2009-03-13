@@ -600,7 +600,6 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
     if (previous_index > subject->length() || previous_index < 0) {
       // Per ECMA-262 15.10.6.2, if the previous index is greater than the
       // string length, there is no match.
-      matches = Factory::null_value();
       return result;
     } else {
 #ifdef DEBUG
@@ -666,81 +665,28 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
   bool rc;
 
   Handle<String> original_subject = subject;
-  if (FLAG_regexp_native) {
-#ifndef ARM
-    Handle<Code> code(IrregexpNativeCode(*regexp, is_ascii));
-
-    // Character offsets into string.
-    int start_offset = previous_index;
-    int end_offset = subject->length(shape);
-
-    if (shape.IsCons()) {
-      subject = Handle<String>(ConsString::cast(*subject)->first());
-    } else if (shape.IsSliced()) {
-      SlicedString* slice = SlicedString::cast(*subject);
-      start_offset += slice->start();
-      end_offset += slice->start();
-      subject = Handle<String>(slice->buffer());
-    }
-
-    // String is now either Sequential or External
-    StringShape flatshape(*subject);
-    bool is_ascii = flatshape.IsAsciiRepresentation();
-    int char_size_shift = is_ascii ? 0 : 1;
-
-    RegExpMacroAssemblerIA32::Result res;
-
-    if (flatshape.IsExternal()) {
-      const byte* address;
-      if (is_ascii) {
-        ExternalAsciiString* ext = ExternalAsciiString::cast(*subject);
-        address = reinterpret_cast<const byte*>(ext->resource()->data());
-      } else {
-        ExternalTwoByteString* ext = ExternalTwoByteString::cast(*subject);
-        address = reinterpret_cast<const byte*>(ext->resource()->data());
-      }
-      res = RegExpMacroAssemblerIA32::Execute(
-          *code,
-          const_cast<Address*>(&address),
-          start_offset << char_size_shift,
-          end_offset << char_size_shift,
-          offsets_vector,
-          previous_index == 0);
-    } else {  // Sequential string
-      ASSERT(StringShape(*subject).IsSequential());
-      Address char_address =
-          is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
-                   : SeqTwoByteString::cast(*subject)->GetCharsAddress();
-      int byte_offset = char_address - reinterpret_cast<Address>(*subject);
-      res = RegExpMacroAssemblerIA32::Execute(
-          *code,
-          reinterpret_cast<Address*>(subject.location()),
-          byte_offset + (start_offset << char_size_shift),
-          byte_offset + (end_offset << char_size_shift),
-          offsets_vector,
-          previous_index == 0);
-    }
+  if (UseNativeRegexp()) {
+#ifdef ARM
+    UNREACHABLE();
+#else
+    Handle<Code> code(RegExpImpl::IrregexpNativeCode(*regexp, is_ascii));
+    RegExpMacroAssemblerIA32::Result res =
+        RegExpMacroAssemblerIA32::Match(code,
+                                        subject,
+                                        offsets_vector,
+                                        offsets_vector_length,
+                                        previous_index);
 
     if (res == RegExpMacroAssemblerIA32::EXCEPTION) {
       ASSERT(Top::has_pending_exception());
       return Handle<Object>::null();
     }
-    rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
+    ASSERT(res == RegExpMacroAssemblerIA32::SUCCESS
+        || res == RegExpMacroAssemblerIA32::FAILURE);
 
-    if (rc) {
-      // Capture values are relative to start_offset only.
-      for (int i = 0; i < offsets_vector_length; i++) {
-        if (offsets_vector[i] >= 0) {
-          offsets_vector[i] += previous_index;
-        }
-      }
-    }
-  } else {
-#else
-  // Unimplemented on ARM, fall through to bytecode.
-  }
-  {
+    rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
 #endif
+  } else {
     for (int i = number_of_capture_registers - 1; i >= 0; i--) {
       offsets_vector[i] = -1;
     }
@@ -757,6 +703,9 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
   }
 
   FixedArray* array = last_match_info->elements();
+  // Clear previous input/string values to avoid potential memory leak.
+  SetLastSubject(array, Heap::empty_string());
+  SetLastInput(array, Heap::empty_string());
   ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
   // The captures come in (start, end+1) pairs.
   for (int i = 0; i < number_of_capture_registers; i += 2) {
@@ -4716,9 +4665,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
 
   NodeInfo info = *node->info();
 
-  if (FLAG_regexp_native) {
+  if (RegExpImpl::UseNativeRegexp()) {
 #ifdef ARM
-    // Unimplemented, fall-through to bytecode implementation.
+    UNREACHABLE();
 #else  // IA32
     RegExpMacroAssemblerIA32::Mode mode;
     if (is_ascii) {

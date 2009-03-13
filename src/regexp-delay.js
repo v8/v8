@@ -200,9 +200,9 @@ function RegExpExec(string) {
 
 
 // Section 15.10.6.3 doesn't actually make sense, but the intention seems to be
-// that test is defined in terms of String.prototype.exec even if the method is
-// called on a non-RegExp object. However, it probably means the original
-// value of String.prototype.exec, which is what everybody else implements.
+// that test is defined in terms of String.prototype.exec. However, it probably
+// means the original value of String.prototype.exec, which is what everybody
+// else implements.
 function RegExpTest(string) {
   if (!IS_REGEXP(this)) {
     throw MakeTypeError('method_called_on_incompatible',

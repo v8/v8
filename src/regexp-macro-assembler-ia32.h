@@ -113,6 +113,12 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
 
+  static Result Match(Handle<Code> regexp,
+                      Handle<String> subject,
+                      int* offsets_vector,
+                      int offsets_vector_length,
+                      int previous_index);
+
   static Result Execute(Code* code,
                         Address* input,
                         int start_offset,

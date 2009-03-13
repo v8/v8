@@ -978,6 +978,79 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 }
 
 
+
+RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
+    Handle<Code> regexp_code,
+    Handle<String> subject,
+    int* offsets_vector,
+    int offsets_vector_length,
+    int previous_index) {
+  StringShape shape(*subject);
+
+  // Character offsets into string.
+  int start_offset = previous_index;
+  int end_offset = subject->length(shape);
+
+  if (shape.IsCons()) {
+    subject =
+      Handle<String>(String::cast(ConsString::cast(*subject)->first()));
+  } else if (shape.IsSliced()) {
+    SlicedString* slice = SlicedString::cast(*subject);
+    start_offset += slice->start();
+    end_offset += slice->start();
+    subject = Handle<String>(String::cast(slice->buffer()));
+  }
+
+  // String is now either Sequential or External
+  StringShape flatshape(*subject);
+  bool is_ascii = flatshape.IsAsciiRepresentation();
+  int char_size_shift = is_ascii ? 0 : 1;
+
+  RegExpMacroAssemblerIA32::Result res;
+
+  if (flatshape.IsExternal()) {
+    const byte* address;
+    if (is_ascii) {
+      ExternalAsciiString* ext = ExternalAsciiString::cast(*subject);
+      address = reinterpret_cast<const byte*>(ext->resource()->data());
+    } else {
+      ExternalTwoByteString* ext = ExternalTwoByteString::cast(*subject);
+      address = reinterpret_cast<const byte*>(ext->resource()->data());
+    }
+
+    res = Execute(*regexp_code,
+                  const_cast<Address*>(&address),
+                  start_offset << char_size_shift,
+                  end_offset << char_size_shift,
+                  offsets_vector,
+                  previous_index == 0);
+  } else {  // Sequential string
+    ASSERT(StringShape(*subject).IsSequential());
+    Address char_address =
+        is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
+                 : SeqTwoByteString::cast(*subject)->GetCharsAddress();
+    int byte_offset = char_address - reinterpret_cast<Address>(*subject);
+    res = Execute(*regexp_code,
+                  reinterpret_cast<Address*>(subject.location()),
+                  byte_offset + (start_offset << char_size_shift),
+                  byte_offset + (end_offset << char_size_shift),
+                  offsets_vector,
+                  previous_index == 0);
+  }
+
+  if (res == RegExpMacroAssemblerIA32::SUCCESS) {
+    // Capture values are relative to start_offset only.
+    for (int i = 0; i < offsets_vector_length; i++) {
+      if (offsets_vector[i] >= 0) {
+        offsets_vector[i] += previous_index;
+      }
+    }
+  }
+
+  return res;
+}
+
+
 // Private methods:
 
 

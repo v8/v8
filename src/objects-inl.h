@@ -2316,6 +2316,19 @@ JSRegExp::Type JSRegExp::TypeTag() {
 }
 
 
+int JSRegExp::CaptureCount() {
+  switch (TypeTag()) {
+    case ATOM:
+      return 0;
+    case IRREGEXP:
+      return Smi::cast(DataAt(kIrregexpCaptureCountIndex))->value();
+    default:
+      UNREACHABLE();
+      return -1;
+  }
+}
+
+
 JSRegExp::Flags JSRegExp::GetFlags() {
   ASSERT(this->data()->IsFixedArray());
   Object* data = this->data();

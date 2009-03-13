@@ -1180,6 +1180,527 @@ static Object* Runtime_CharFromCode(Arguments args) {
   return Heap::empty_string();
 }
 
+// Forward declarations.
+static const int kStringBuilderConcatHelperLengthBits = 11;
+static const int kStringBuilderConcatHelperPositionBits = 19;
+
+template <typename schar>
+static inline void StringBuilderConcatHelper(String*,
+                                             StringShape,
+                                             schar*,
+                                             FixedArray*,
+                                             int);
+
+typedef BitField<int, 0, 11> StringBuilderSubstringLength;
+typedef BitField<int, 11, 19> StringBuilderSubstringPosition;
+
+class ReplacementStringBuilder {
+ public:
+  ReplacementStringBuilder(Handle<String> subject, int estimated_part_count)
+      : subject_(subject),
+        parts_(Factory::NewFixedArray(estimated_part_count)),
+        part_count_(0),
+        character_count_(0),
+        is_ascii_(StringShape(*subject).IsAsciiRepresentation()) {
+    // Require a non-zero initial size. Ensures that doubling the size to
+    // extend the array will work.
+    ASSERT(estimated_part_count > 0);
+  }
+
+  void AddSubjectSlice(int from, int to) {
+    ASSERT(from >= 0);
+    int length = to - from;
+    ASSERT(length >= 0);
+    if (length > 0) {
+      // Can we encode the slice in 11 bits for length and 19 bits for
+      // start position - as used by StringBuilderConcatHelper?
+      if (StringBuilderSubstringLength::is_valid(length) &&
+          StringBuilderSubstringPosition::is_valid(from)) {
+        int encoded_slice = StringBuilderSubstringLength::encode(length) |
+            StringBuilderSubstringPosition::encode(from);
+        AddElement(Smi::FromInt(encoded_slice));
+      } else {
+        Handle<String> slice = Factory::NewStringSlice(subject_, from, to);
+        AddElement(*slice);
+      }
+      IncrementCharacterCount(length);
+    }
+  }
+
+
+  void AddString(Handle<String> string) {
+    StringShape shape(*string);
+    int length = string->length(shape);
+    if (length > 0) {
+      AddElement(*string);
+      if (!shape.IsAsciiRepresentation()) {
+        is_ascii_ = false;
+      }
+      IncrementCharacterCount(length);
+    }
+  }
+
+
+  Handle<String> ToString() {
+    if (part_count_ == 0) {
+      return Factory::empty_string();
+    }
+
+    Handle<String> joined_string;
+    if (is_ascii_) {
+      joined_string = NewRawAsciiString(character_count_);
+      AssertNoAllocation no_alloc;
+      SeqAsciiString* seq = SeqAsciiString::cast(*joined_string);
+      char* char_buffer = seq->GetChars();
+      StringBuilderConcatHelper(*subject_,
+                                StringShape(*subject_),
+                                char_buffer,
+                                *parts_,
+                                part_count_);
+    } else {
+      // Non-ASCII.
+      joined_string = NewRawTwoByteString(character_count_);
+      AssertNoAllocation no_alloc;
+      SeqTwoByteString* seq = SeqTwoByteString::cast(*joined_string);
+      uc16* char_buffer = seq->GetChars();
+      StringBuilderConcatHelper(*subject_,
+                                StringShape(*subject_),
+                                char_buffer,
+                                *parts_,
+                                part_count_);
+    }
+    return joined_string;
+  }
+
+
+  void IncrementCharacterCount(int by) {
+    if (character_count_ > Smi::kMaxValue - by) {
+      V8::FatalProcessOutOfMemory("String.replace result too large.");
+    }
+    character_count_ += by;
+  }
+
+ private:
+
+  Handle<String> NewRawAsciiString(int size) {
+    CALL_HEAP_FUNCTION(Heap::AllocateRawAsciiString(size), String);
+  }
+
+
+  Handle<String> NewRawTwoByteString(int size) {
+    CALL_HEAP_FUNCTION(Heap::AllocateRawTwoByteString(size), String);
+  }
+
+
+  void AddElement(Object* element) {
+    ASSERT(element->IsSmi() || element->IsString());
+    // Extend parts_ array if necessary.
+    if (parts_->length() == part_count_) {
+      Handle<FixedArray> extended_array =
+          Factory::NewFixedArray(part_count_ * 2);
+      parts_->CopyTo(0, *extended_array, 0, part_count_);
+      parts_ = extended_array;
+    }
+    parts_->set(part_count_, element);
+    part_count_++;
+  }
+
+  Handle<String> subject_;
+  Handle<FixedArray> parts_;
+  int part_count_;
+  int character_count_;
+  bool is_ascii_;
+};
+
+
+class CompiledReplacement {
+ public:
+  CompiledReplacement()
+      : parts_(1), replacement_substrings_(0) {}
+
+  void Compile(Handle<String> replacement,
+               int capture_count,
+               int subject_length);
+
+  void Apply(ReplacementStringBuilder* builder,
+             int match_from,
+             int match_to,
+             Handle<JSArray> last_match_info);
+
+  // Number of distinct parts of the replacement pattern.
+  int parts() {
+    return parts_.length();
+  }
+ private:
+  enum PartType {
+    SUBJECT_PREFIX = 1,
+    SUBJECT_SUFFIX,
+    SUBJECT_CAPTURE,
+    REPLACEMENT_SUBSTRING,
+    REPLACEMENT_STRING,
+
+    NUMBER_OF_PART_TYPES
+  };
+
+  struct ReplacementPart {
+    static inline ReplacementPart SubjectMatch() {
+      return ReplacementPart(SUBJECT_CAPTURE, 0);
+    }
+    static inline ReplacementPart SubjectCapture(int capture_index) {
+      return ReplacementPart(SUBJECT_CAPTURE, capture_index);
+    }
+    static inline ReplacementPart SubjectPrefix() {
+      return ReplacementPart(SUBJECT_PREFIX, 0);
+    }
+    static inline ReplacementPart SubjectSuffix(int subject_length) {
+      return ReplacementPart(SUBJECT_SUFFIX, subject_length);
+    }
+    static inline ReplacementPart ReplacementString() {
+      return ReplacementPart(REPLACEMENT_STRING, 0);
+    }
+    static inline ReplacementPart ReplacementSubString(int from, int to) {
+      ASSERT(from >= 0);
+      ASSERT(to > from);
+      return ReplacementPart(-from, to);
+    }
+
+    // If tag <= 0 then it is the negation of a start index of a substring of
+    // the replacement pattern, otherwise it's a value from PartType.
+    ReplacementPart(int tag, int data)
+        : tag(tag), data(data) {
+      // Must be non-positive or a PartType value.
+      ASSERT(tag < NUMBER_OF_PART_TYPES);
+    }
+    // Either a value of PartType or a non-positive number that is
+    // the negation of an index into the replacement string.
+    int tag;
+    // The data value's interpretation depends on the value of tag:
+    // tag == SUBJECT_PREFIX ||
+    // tag == SUBJECT_SUFFIX:  data is unused.
+    // tag == SUBJECT_CAPTURE: data is the number of the capture.
+    // tag == REPLACEMENT_SUBSTRING ||
+    // tag == REPLACEMENT_STRING:    data is index into array of substrings
+    //                               of the replacement string.
+    // tag <= 0: Temporary representation of the substring of the replacement
+    //           string ranging over -tag .. data.
+    //           Is replaced by REPLACEMENT_{SUB,}STRING when we create the
+    //           substring objects.
+    int data;
+  };
+
+  template<typename Char>
+  static void ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+                                      Vector<Char> characters,
+                                      int capture_count,
+                                      int subject_length) {
+    int length = characters.length();
+    int last = 0;
+    for (int i = 0; i < length; i++) {
+      Char c = characters[i];
+      if (c == '$') {
+        int next_index = i + 1;
+        if (next_index == length) {  // No next character!
+          break;
+        }
+        Char c2 = characters[next_index];
+        switch (c2) {
+        case '$':
+          if (i > last) {
+            // There is a substring before. Include the first "$".
+            parts->Add(ReplacementPart::ReplacementSubString(last, next_index));
+            last = next_index + 1;  // Continue after the second "$".
+          } else {
+            // Let the next substring start with the second "$".
+            last = next_index;
+          }
+          i = next_index;
+          break;
+        case '`':
+          if (i > last) {
+            parts->Add(ReplacementPart::ReplacementSubString(last, i));
+          }
+          parts->Add(ReplacementPart::SubjectPrefix());
+          i = next_index;
+          last = i + 1;
+          break;
+        case '\'':
+          if (i > last) {
+            parts->Add(ReplacementPart::ReplacementSubString(last, i));
+          }
+          parts->Add(ReplacementPart::SubjectSuffix(subject_length));
+          i = next_index;
+          last = i + 1;
+          break;
+        case '&':
+          if (i > last) {
+            parts->Add(ReplacementPart::ReplacementSubString(last, i));
+          }
+          parts->Add(ReplacementPart::SubjectMatch());
+          i = next_index;
+          last = i + 1;
+          break;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+          int capture_ref = c2 - '0';
+          if (capture_ref > capture_count) {
+            i = next_index;
+            continue;
+          }
+          int second_digit_index = next_index + 1;
+          if (second_digit_index < length) {
+            // Peek ahead to see if we have two digits.
+            Char c3 = characters[second_digit_index];
+            if ('0' <= c3 && c3 <= '9') {  // Double digits.
+              int double_digit_ref = capture_ref * 10 + c3 - '0';
+              if (double_digit_ref <= capture_count) {
+                next_index = second_digit_index;
+                capture_ref = double_digit_ref;
+              }
+            }
+          }
+          if (capture_ref > 0) {
+            if (i > last) {
+              parts->Add(ReplacementPart::ReplacementSubString(last, i));
+            }
+            parts->Add(ReplacementPart::SubjectCapture(capture_ref));
+            last = next_index + 1;
+          }
+          i = next_index;
+          break;
+        }
+        default:
+          i = next_index;
+          break;
+        }
+      }
+    }
+    if (length > last) {
+      if (last == 0) {
+        parts->Add(ReplacementPart::ReplacementString());
+      } else {
+        parts->Add(ReplacementPart::ReplacementSubString(last, length));
+      }
+    }
+  }
+
+  ZoneList<ReplacementPart> parts_;
+  ZoneList<Handle<String> > replacement_substrings_;
+};
+
+
+void CompiledReplacement::Compile(Handle<String> replacement,
+                                  int capture_count,
+                                  int subject_length) {
+  StringShape shape(*replacement);
+  ASSERT(replacement->IsFlat(shape));
+  if (shape.IsAsciiRepresentation()) {
+    AssertNoAllocation no_alloc;
+    ParseReplacementPattern(&parts_,
+                            replacement->ToAsciiVector(),
+                            capture_count,
+                            subject_length);
+  } else {
+    ASSERT(shape.IsTwoByteRepresentation());
+    AssertNoAllocation no_alloc;
+
+    ParseReplacementPattern(&parts_,
+                            replacement->ToUC16Vector(),
+                            capture_count,
+                            subject_length);
+  }
+  // Find substrings of replacement string and create them as String objects..
+  int substring_index = 0;
+  for (int i = 0, n = parts_.length(); i < n; i++) {
+    int tag = parts_[i].tag;
+    if (tag <= 0) {  // A replacement string slice.
+      int from = -tag;
+      int to = parts_[i].data;
+      replacement_substrings_.Add(Factory::NewStringSlice(replacement,
+                                                          from,
+                                                          to));
+      parts_[i].tag = REPLACEMENT_SUBSTRING;
+      parts_[i].data = substring_index;
+      substring_index++;
+    } else if (tag == REPLACEMENT_STRING) {
+      replacement_substrings_.Add(replacement);
+      parts_[i].data = substring_index;
+      substring_index++;
+    }
+  }
+}
+
+
+void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
+                                int match_from,
+                                int match_to,
+                                Handle<JSArray> last_match_info) {
+  for (int i = 0, n = parts_.length(); i < n; i++) {
+    ReplacementPart part = parts_[i];
+    switch (part.tag) {
+      case SUBJECT_PREFIX:
+        builder->AddSubjectSlice(0, match_from);
+        break;
+      case SUBJECT_SUFFIX: {
+        int subject_length = part.data;
+        builder->AddSubjectSlice(match_to, subject_length);
+        break;
+      }
+      case SUBJECT_CAPTURE: {
+        int capture = part.data;
+        FixedArray* match_info = last_match_info->elements();
+        int from = RegExpImpl::GetCapture(match_info, capture * 2);
+        int to = RegExpImpl::GetCapture(match_info, capture * 2 + 1);
+        if (from >= 0 && to > from) {
+          builder->AddSubjectSlice(from, to);
+        }
+        break;
+      }
+      case REPLACEMENT_SUBSTRING:
+      case REPLACEMENT_STRING:
+        builder->AddString(replacement_substrings_[part.data]);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+
+
+static Object* StringReplaceRegExpWithString(String* subject,
+                                             JSRegExp* regexp,
+                                             String* replacement,
+                                             JSArray* last_match_info) {
+  ASSERT(subject->IsFlat(StringShape(subject)));
+  ASSERT(replacement->IsFlat(StringShape(replacement)));
+
+  HandleScope handles;
+
+  int length = subject->length();
+  Handle<String> subject_handle(subject);
+  Handle<JSRegExp> regexp_handle(regexp);
+  Handle<String> replacement_handle(replacement);
+  Handle<JSArray> last_match_info_handle(last_match_info);
+  Handle<Object> match = RegExpImpl::Exec(regexp_handle,
+                                          subject_handle,
+                                          0,
+                                          last_match_info_handle);
+  if (match.is_null()) {
+    return Failure::Exception();
+  }
+  if (match->IsNull()) {
+    return *subject_handle;
+  }
+
+  int capture_count = regexp_handle->CaptureCount();
+
+  // CompiledReplacement uses zone allocation.
+  ZoneScope zone(DELETE_ON_EXIT);
+  CompiledReplacement compiled_replacement;
+  compiled_replacement.Compile(replacement_handle,
+                               capture_count,
+                               length);
+
+  bool is_global = regexp_handle->GetFlags().is_global();
+
+  // Guessing the number of parts that the final result string is built
+  // from. Global regexps can match any number of times, so we guess
+  // conservatively.
+  int expected_parts =
+      (compiled_replacement.parts() + 1) * (is_global ? 4 : 1) + 1;
+  ReplacementStringBuilder builder(subject_handle, expected_parts);
+
+  // Index of end of last match.
+  int prev = 0;
+
+  do {
+    ASSERT(last_match_info_handle->HasFastElements());
+    FixedArray* match_info_array = last_match_info_handle->elements();
+
+    ASSERT_EQ(capture_count * 2 + 2,
+              RegExpImpl::GetLastCaptureCount(match_info_array));
+    int start = RegExpImpl::GetCapture(match_info_array, 0);
+    int end = RegExpImpl::GetCapture(match_info_array, 1);
+
+    if (prev < start) {
+      builder.AddSubjectSlice(prev, start);
+    }
+    compiled_replacement.Apply(&builder,
+                               start,
+                               end,
+                               last_match_info_handle);
+    prev = end;
+
+    // Only continue checking for global regexps.
+    if (!is_global) break;
+
+    // Continue from where the match ended, unless it was an empty match.
+    int next = end;
+    if (start == end) {
+      next = end + 1;
+      if (next > length) break;
+    }
+
+    match = RegExpImpl::Exec(regexp_handle,
+                             subject_handle,
+                             next,
+                             last_match_info_handle);
+    if (match.is_null()) {
+      return Failure::Exception();
+    }
+  } while (!match->IsNull());
+
+  if (prev < length) {
+    builder.AddSubjectSlice(prev, length);
+  }
+
+  return *(builder.ToString());
+}
+
+
+static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
+  ASSERT(args.length() == 4);
+
+  CONVERT_CHECKED(String, subject, args[0]);
+  StringShape subject_shape(subject);
+  if (!subject->IsFlat(subject_shape)) {
+    Object* flat_subject = subject->TryFlatten(subject_shape);
+    if (flat_subject->IsFailure()) {
+      return flat_subject;
+    }
+    subject = String::cast(flat_subject);
+  }
+
+  CONVERT_CHECKED(String, replacement, args[2]);
+  StringShape replacement_shape(replacement);
+  if (!replacement->IsFlat(replacement_shape)) {
+    Object* flat_replacement = replacement->TryFlatten(replacement_shape);
+    if (flat_replacement->IsFailure()) {
+      return flat_replacement;
+    }
+    replacement = String::cast(flat_replacement);
+  }
+
+  CONVERT_CHECKED(JSRegExp, regexp, args[1]);
+  CONVERT_CHECKED(JSArray, last_match_info, args[3]);
+
+  ASSERT(last_match_info->HasFastElements());
+
+  return StringReplaceRegExpWithString(subject,
+                                       regexp,
+                                       replacement,
+                                       last_match_info);
+}
+
+
 
 // Cap on the maximal shift in the Boyer-Moore implementation. By setting a
 // limit, we can fix the size of tables.
@@ -2922,9 +3443,9 @@ static inline void StringBuilderConcatHelper(String* special,
   for (int i = 0; i < array_length; i++) {
     Object* element = fixed_array->get(i);
     if (element->IsSmi()) {
-      int len = Smi::cast(element)->value();
-      int pos = len >> 11;
-      len &= 0x7ff;
+      int encoded_slice = Smi::cast(element)->value();
+      int pos = StringBuilderSubstringPosition::decode(encoded_slice);
+      int len = StringBuilderSubstringLength::decode(encoded_slice);
       String::WriteToFlat(special,
                           special_shape,
                           sink + position,

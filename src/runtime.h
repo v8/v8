@@ -146,6 +146,7 @@ namespace v8 { namespace internal {
   F(StringLastIndexOf, 3) \
   F(StringLocaleCompare, 2) \
   F(StringSlice, 3) \
+  F(StringReplaceRegExpWithString, 4) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2) \
