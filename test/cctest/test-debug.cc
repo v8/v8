@@ -3244,7 +3244,6 @@ void MessageQueueDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
-  v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_continue, buffer_2));
   message_queue_barriers.barrier_2.Wait();
   // Main thread compiles and runs source_2.
   // Queued commands are executed at the start of compilation of source_2.
@@ -3286,7 +3285,6 @@ TEST(MessageQueues) {
   CompileRun(source_1);
   message_queue_barriers.barrier_1.Wait();
   message_queue_barriers.barrier_2.Wait();
-  v8::Debug::DebugBreak();
   CompileRun(source_2);
   message_queue_barriers.barrier_3.Wait();
   CompileRun(source_3);
@@ -3464,28 +3462,25 @@ void BreakpointsDebuggerThread::Run() {
       "\"type\":\"request\","
       "\"command\":\"setbreakpoint\","
       "\"arguments\":{\"type\":\"function\",\"target\":\"dog\",\"line\":3}}";
-  const char* command_3 = "{\"seq\":103,"
-      "\"type\":\"request\","
-      "\"command\":\"continue\"}";
-  const char* command_4 = "{\"seq\":104,"
+  const char* command_3 = "{\"seq\":104,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
       "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":false}}";
-  const char* command_5 = "{\"seq\":105,"
+  const char* command_4 = "{\"seq\":105,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
       "\"arguments\":{\"expression\":\"x\",\"disable_break\":true}}";
-  const char* command_6 = "{\"seq\":106,"
+  const char* command_5 = "{\"seq\":106,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
-  const char* command_7 = "{\"seq\":107,"
+  const char* command_6 = "{\"seq\":107,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
-  const char* command_8 = "{\"seq\":108,"
+  const char* command_7 = "{\"seq\":108,"
      "\"type\":\"request\","
      "\"command\":\"evaluate\","
      "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":true}}";
-  const char* command_9 = "{\"seq\":109,"
+  const char* command_8 = "{\"seq\":109,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
 
@@ -3493,12 +3488,9 @@ void BreakpointsDebuggerThread::Run() {
   // v8 thread initializes, runs source_1
   breakpoints_barriers->barrier_1.Wait();
   // 1:Set breakpoint in cat().
-  v8::Debug::DebugBreak();
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
   // 2:Set breakpoint in dog()
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
-  // 3:Continue
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_3, buffer));
   breakpoints_barriers->barrier_2.Wait();
   // v8 thread starts compiling source_2.
   // Automatic break happens, to run queued commands
@@ -3508,29 +3500,31 @@ void BreakpointsDebuggerThread::Run() {
   // message callback receives break event.
   breakpoints_barriers->semaphore_1->Wait();
   // 4:Evaluate dog() (which has a breakpoint).
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_4, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_3, buffer));
   // v8 thread hits breakpoint in dog()
   breakpoints_barriers->semaphore_1->Wait();  // wait for break event
   // 5:Evaluate x
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_5, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_4, buffer));
   // 6:Continue evaluation of dog()
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_6, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_5, buffer));
   // dog() finishes.
   // 7:Continue evaluation of source_2, finish cat(17), hit breakpoint
   // in cat(19).
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_7, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_6, buffer));
   // message callback gets break event
   breakpoints_barriers->semaphore_1->Wait();  // wait for break event
   // 8: Evaluate dog() with breaks disabled
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_7, buffer));
   // 9: Continue evaluation of source2, reach end.
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_9, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
 }
 
 BreakpointsDebuggerThread breakpoints_debugger_thread;
 BreakpointsV8Thread breakpoints_v8_thread;
 
 TEST(RecursiveBreakpoints) {
+  i::FLAG_debugger_auto_break = true;
+
   // Create a V8 environment
   Barriers stack_allocated_breakpoints_barriers;
   stack_allocated_breakpoints_barriers.Initialize();
@@ -3802,13 +3796,15 @@ static void HostDispatchHandlerHitCount(void* dispatch, void *data) {
 // Test that clearing the debug event listener actually clears all break points
 // and related information.
 TEST(DebuggerHostDispatch) {
+  i::FLAG_debugger_auto_break = true;
+
   v8::HandleScope scope;
   DebugLocalContext env;
 
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
   const char* command_continue =
-    "{\"seq\":106,"
+    "{\"seq\":0,"
      "\"type\":\"request\","
      "\"command\":\"continue\"}";
 
@@ -3818,10 +3814,10 @@ TEST(DebuggerHostDispatch) {
                                     NULL);
 
   // Fill a host dispatch and a continue command on the command queue before
-  // generating a debug break.
+  // running some code.
   v8::Debug::SendHostDispatch(NULL);
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
-  CompileRun("debugger");
+  CompileRun("void 0");
 
   // The host dispatch callback should be called.
   CHECK_EQ(1, host_dispatch_hit_count);

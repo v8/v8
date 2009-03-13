@@ -688,7 +688,7 @@ Object* Debug::Break(Arguments args) {
     ClearStepping();
 
     // Notify the debug event listeners.
-    Debugger::OnDebugBreak(break_points_hit);
+    Debugger::OnDebugBreak(break_points_hit, false);
   } else if (thread_local_.last_step_action_ != StepNone) {
     // Hold on to last step action as it is cleared by the call to
     // ClearStepping.
@@ -1508,12 +1508,13 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   }
 
   // Process debug event
-  ProcessDebugEvent(v8::Exception, event_data);
+  ProcessDebugEvent(v8::Exception, event_data, false);
   // Return to continue execution from where the exception was thrown.
 }
 
 
-void Debugger::OnDebugBreak(Handle<Object> break_points_hit) {
+void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
+                            bool auto_continue) {
   HandleScope scope;
 
   // Debugger has already been entered by caller.
@@ -1539,7 +1540,7 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit) {
   }
 
   // Process debug event
-  ProcessDebugEvent(v8::Break, event_data);
+  ProcessDebugEvent(v8::Break, event_data, auto_continue);
 }
 
 
@@ -1564,7 +1565,7 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
   }
 
   // Process debug event
-  ProcessDebugEvent(v8::BeforeCompile, event_data);
+  ProcessDebugEvent(v8::BeforeCompile, event_data, false);
 }
 
 
@@ -1625,7 +1626,7 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
     return;
   }
   // Process debug event
-  ProcessDebugEvent(v8::AfterCompile, event_data);
+  ProcessDebugEvent(v8::AfterCompile, event_data, false);
 }
 
 
@@ -1650,12 +1651,13 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
     return;
   }
   // Process debug event.
-  ProcessDebugEvent(v8::NewFunction, event_data);
+  ProcessDebugEvent(v8::NewFunction, event_data, false);
 }
 
 
 void Debugger::ProcessDebugEvent(v8::DebugEvent event,
-                                 Handle<Object> event_data) {
+                                 Handle<Object> event_data,
+                                 bool auto_continue) {
   HandleScope scope;
 
   // Create the execution state.
@@ -1666,7 +1668,7 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   }
   // First notify the builtin debugger.
   if (message_thread_ != NULL) {
-    message_thread_->DebugEvent(event, exec_state, event_data);
+    message_thread_->DebugEvent(event, exec_state, event_data, auto_continue);
   }
   // Notify registered debug event listener. This can be either a C or a
   // JavaScript function.
@@ -1769,6 +1771,15 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command) {
     message_thread_->ProcessCommand(
         Vector<uint16_t>(const_cast<uint16_t *>(command.start()),
                          command.length()));
+  }
+}
+
+
+bool Debugger::HasCommands() {
+  if (message_thread_ != NULL) {
+    return message_thread_->HasCommands();
+  } else {
+    return false;
   }
 }
 
@@ -1904,7 +1915,8 @@ void DebugMessageThread::Run() {
 // the VM.
 void DebugMessageThread::DebugEvent(v8::DebugEvent event,
                                     Handle<Object> exec_state,
-                                    Handle<Object> event_data) {
+                                    Handle<Object> event_data,
+                                    bool auto_continue) {
   HandleScope scope;
 
   if (!Debug::Load()) return;
@@ -1947,18 +1959,27 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
   }
 
   // Notify the debugger that a debug event has occurred.
-  bool success = SetEventJSONFromEvent(event_data);
-  if (!success) {
-    // If failed to notify debugger just continue running.
-    return;
+  if (!auto_continue) {
+    bool success = SetEventJSONFromEvent(event_data);
+    if (!success) {
+      // If failed to notify debugger just continue running.
+      return;
+    }
   }
 
-  // Wait for requests from the debugger.
+  // Process requests from the debugger.
   host_running_ = false;
   while (true) {
+    // Wait for new command in the queue.
     command_received_->Wait();
-    Logger::DebugTag("Got request from command queue, in interactive loop.");
+
+    // The debug command interrupt flag might have been set when the command was
+    // added.
+    StackGuard::Continue(DEBUGCOMMAND);
+
+    // Get the command from the queue.
     Vector<uint16_t> command = command_queue_.Get();
+    Logger::DebugTag("Got request from command queue, in interactive loop.");
     ASSERT(!host_running_);
     if (!Debugger::debugger_active()) {
       host_running_ = true;
@@ -2031,7 +2052,7 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     SendMessage(str);
 
     // Return from debug event processing is VM should be running.
-    if (running) {
+    if (running || (auto_continue && !HasCommands())) {
       return;
     }
   }
@@ -2049,6 +2070,10 @@ void DebugMessageThread::ProcessCommand(Vector<uint16_t> command) {
   Logger::DebugTag("Put command on command_queue.");
   command_queue_.Put(command_copy);
   command_received_->Signal();
+
+  if (!Debug::InDebugger()) {
+    StackGuard::DebugCommand();
+  }
 }
 
 

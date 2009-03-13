@@ -136,6 +136,9 @@ DEFINE_int(min_preparse_length, 1024,
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
+DEFINE_bool(debugger_auto_break, false,
+            "automatically set the debug break flag when debugger commands are "
+            "in the queue (experimental)")
 
 // execution.cc
 DEFINE_bool(call_regexp, false, "allow calls to RegExp objects")
