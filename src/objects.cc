@@ -213,15 +213,8 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
   if (structure->IsFixedArray()) {
     Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
     if (getter->IsJSFunction()) {
-      HandleScope scope;
-      Handle<JSFunction> fun(JSFunction::cast(getter));
-      Handle<Object> self(receiver);
-      bool has_pending_exception;
-      Handle<Object> result =
-          Execution::Call(fun, self, 0, NULL, &has_pending_exception);
-      // Check for pending exception and return the result.
-      if (has_pending_exception) return Failure::Exception();
-      return *result;
+      return Object::GetPropertyWithDefinedGetter(receiver,
+                                                  JSFunction::cast(getter));
     }
     // Getter is not a function.
     return Heap::undefined_value();
@@ -229,6 +222,20 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
 
   UNREACHABLE();
   return 0;
+}
+
+
+Object* Object::GetPropertyWithDefinedGetter(Object* receiver,
+                                             JSFunction* getter) {
+  HandleScope scope;
+  Handle<JSFunction> fun(JSFunction::cast(getter));
+  Handle<Object> self(receiver);
+  bool has_pending_exception;
+  Handle<Object> result =
+      Execution::Call(fun, self, 0, NULL, &has_pending_exception);
+  // Check for pending exception and return the result.
+  if (has_pending_exception) return Failure::Exception();
+  return *result;
 }
 
 
@@ -1499,13 +1506,7 @@ Object* JSObject::SetPropertyWithCallback(Object* structure,
   if (structure->IsFixedArray()) {
     Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
     if (setter->IsJSFunction()) {
-      Handle<JSFunction> fun(JSFunction::cast(setter));
-      Handle<JSObject> self(this);
-      bool has_pending_exception;
-      Object** argv[] = { value_handle.location() };
-      Execution::Call(fun, self, 1, argv, &has_pending_exception);
-      // Check for pending exception and return the result.
-      if (has_pending_exception) return Failure::Exception();
+     return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
     } else {
       Handle<String> key(name);
       Handle<Object> holder_handle(holder);
@@ -1513,13 +1514,25 @@ Object* JSObject::SetPropertyWithCallback(Object* structure,
       return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
                                                HandleVector(args, 2)));
     }
-    return *value_handle;
   }
 
   UNREACHABLE();
   return 0;
 }
 
+
+Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
+                                               Object* value) {
+  Handle<Object> value_handle(value);
+  Handle<JSFunction> fun(JSFunction::cast(setter));
+  Handle<JSObject> self(this);
+  bool has_pending_exception;
+  Object** argv[] = { value_handle.location() };
+  Execution::Call(fun, self, 1, argv, &has_pending_exception);
+  // Check for pending exception and return the result.
+  if (has_pending_exception) return Failure::Exception();
+  return *value_handle;
+}
 
 void JSObject::LookupCallbackSetterInPrototypes(String* name,
                                                 LookupResult* result) {
@@ -1538,6 +1551,26 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
     }
   }
   result->NotFound();
+}
+
+
+Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
+  for (Object* pt = GetPrototype();
+       pt != Heap::null_value();
+       pt = pt->GetPrototype()) {
+    if (JSObject::cast(pt)->HasFastElements()) continue;
+    Dictionary* dictionary = JSObject::cast(pt)->element_dictionary();
+    int entry = dictionary->FindNumberEntry(index);
+    if (entry != -1) {
+      Object* element = dictionary->ValueAt(entry);
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      if (details.type() == CALLBACKS) {
+        // Only accessors allowed as elements.
+        return FixedArray::cast(element)->get(kSetterIndex);
+      }
+    }
+  }
+  return Heap::undefined_value();
 }
 
 
@@ -2496,10 +2529,6 @@ Object* JSObject::DefineGetterSetter(String* name,
   // Try to flatten before operating on the string.
   name->TryFlattenIfNotFlat(StringShape(name));
 
-  // Make sure name is not an index.
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) return Heap::undefined_value();
-
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or it's prototype chain.
   // This mechanism is needed for instance in a browser setting, where
@@ -2516,34 +2545,74 @@ Object* JSObject::DefineGetterSetter(String* name,
     }
   }
 
-  // Lookup the name.
-  LookupResult result;
-  LocalLookup(name, &result);
-  if (result.IsValid()) {
-    if (result.IsReadOnly()) return Heap::undefined_value();
-    if (result.type() == CALLBACKS) {
-      Object* obj = result.GetCallbackObject();
-      if (obj->IsFixedArray()) return obj;
+  uint32_t index;
+  bool is_element = name->AsArrayIndex(&index);
+  if (is_element && IsJSArray()) return Heap::undefined_value();
+
+  if (is_element) {
+    // Lookup the index.
+    if (!HasFastElements()) {
+      Dictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindNumberEntry(index);
+      if (entry != -1) {
+        Object* result = dictionary->ValueAt(entry);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        if (details.IsReadOnly()) return Heap::undefined_value();
+        if (details.type() == CALLBACKS) {
+          // Only accessors allowed as elements.
+          ASSERT(result->IsFixedArray());
+          return result;
+        }
+      }
+    }
+  } else {
+    // Lookup the name.
+    LookupResult result;
+    LocalLookup(name, &result);
+    if (result.IsValid()) {
+      if (result.IsReadOnly()) return Heap::undefined_value();
+      if (result.type() == CALLBACKS) {
+        Object* obj = result.GetCallbackObject();
+        if (obj->IsFixedArray()) return obj;
+      }
     }
   }
 
-  // Normalize object to make this operation simple.
-  Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
-  if (ok->IsFailure()) return ok;
-
   // Allocate the fixed array to hold getter and setter.
-  Object* array = Heap::AllocateFixedArray(2, TENURED);
-  if (array->IsFailure()) return array;
-
-  // Update the dictionary with the new CALLBACKS property.
+  Object* structure = Heap::AllocateFixedArray(2, TENURED);
+  if (structure->IsFailure()) return structure;
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
-  Object* dict =
-      property_dictionary()->SetOrAddStringEntry(name, array, details);
-  if (dict->IsFailure()) return dict;
 
-  // Set the potential new dictionary on the object.
-  set_properties(Dictionary::cast(dict));
-  return array;
+  if (is_element) {
+    // Normalize object to make this operation simple.
+    Object* ok = NormalizeElements();
+    if (ok->IsFailure()) return ok;
+
+    // Update the dictionary with the new CALLBACKS property.
+    Object* dict =
+        element_dictionary()->SetOrAddNumberEntry(index, structure, details);
+    if (dict->IsFailure()) return dict;
+
+    // If name is an index we need to stay in slow case.
+    Dictionary* elements = Dictionary::cast(dict);
+    elements->set_requires_slow_elements();
+    // Set the potential new dictionary on the object.
+    set_elements(Dictionary::cast(dict));
+  } else {
+    // Normalize object to make this operation simple.
+    Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+    if (ok->IsFailure()) return ok;
+
+    // Update the dictionary with the new CALLBACKS property.
+    Object* dict =
+        property_dictionary()->SetOrAddStringEntry(name, structure, details);
+    if (dict->IsFailure()) return dict;
+
+    // Set the potential new dictionary on the object.
+    set_properties(Dictionary::cast(dict));
+  }
+
+  return structure;
 }
 
 
@@ -2583,24 +2652,40 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
     return Heap::undefined_value();
   }
 
-  // Make sure name is not an index.
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) return Heap::undefined_value();
-
   // Make the lookup and include prototypes.
-  for (Object* obj = this;
-       obj != Heap::null_value();
-       obj = JSObject::cast(obj)->GetPrototype()) {
-    LookupResult result;
-    JSObject::cast(obj)->LocalLookup(name, &result);
-    if (result.IsValid()) {
-      if (result.IsReadOnly()) return Heap::undefined_value();
-      if (result.type() == CALLBACKS) {
-        Object* obj = result.GetCallbackObject();
-        if (obj->IsFixedArray()) {
-          return FixedArray::cast(obj)->get(is_getter
-                                            ? kGetterIndex
-                                            : kSetterIndex);
+  int accessor_index = is_getter ? kGetterIndex : kSetterIndex;
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    for (Object* obj = this;
+         obj != Heap::null_value();
+         obj = JSObject::cast(obj)->GetPrototype()) {
+      JSObject* jsObject = JSObject::cast(obj);
+      if (!jsObject->HasFastElements()) {
+        Dictionary* dictionary = jsObject->element_dictionary();
+        int entry = dictionary->FindNumberEntry(index);
+        if (entry != -1) {
+          Object* element = dictionary->ValueAt(entry);
+          PropertyDetails details = dictionary->DetailsAt(entry);
+          if (details.type() == CALLBACKS) {
+            // Only accessors allowed as elements.
+            return FixedArray::cast(element)->get(accessor_index);
+          }
+        }
+      }
+    }
+  } else {
+    for (Object* obj = this;
+         obj != Heap::null_value();
+         obj = JSObject::cast(obj)->GetPrototype()) {
+      LookupResult result;
+      JSObject::cast(obj)->LocalLookup(name, &result);
+      if (result.IsValid()) {
+        if (result.IsReadOnly()) return Heap::undefined_value();
+        if (result.type() == CALLBACKS) {
+          Object* obj = result.GetCallbackObject();
+          if (obj->IsFixedArray()) {
+            return FixedArray::cast(obj)->get(accessor_index);
+          }
         }
       }
     }
@@ -5176,6 +5261,13 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   FixedArray* elms = FixedArray::cast(elements());
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
+  if (!IsJSArray() && (index >= elms_length || elms->get(index)->IsTheHole())) {
+    Object* setter = LookupCallbackSetterInPrototypes(index);
+    if (setter->IsJSFunction()) {
+      return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+    }
+  }
+
   // Check whether there is extra space in fixed array..
   if (index < elms_length) {
     elms->set(index, value);
@@ -5245,10 +5337,41 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Insert element in the dictionary.
   FixedArray* elms = FixedArray::cast(elements());
   Dictionary* dictionary = Dictionary::cast(elms);
-  Object* result = dictionary->AtNumberPut(index, value);
-  if (result->IsFailure()) return result;
-  if (elms != FixedArray::cast(result)) {
-    set_elements(FixedArray::cast(result));
+
+  int entry = dictionary->FindNumberEntry(index);
+  if (entry != -1) {
+    Object* element = dictionary->ValueAt(entry);
+    PropertyDetails details = dictionary->DetailsAt(entry);
+    if (details.type() == CALLBACKS) {
+      // Only accessors allowed as elements.
+      FixedArray* structure = FixedArray::cast(element);
+      if (structure->get(kSetterIndex)->IsJSFunction()) {
+        JSFunction* setter = JSFunction::cast(structure->get(kSetterIndex));
+        return SetPropertyWithDefinedSetter(setter, value);
+      } else {
+        Handle<Object> self(this);
+        Handle<Object> key(Factory::NewNumberFromUint(index));
+        Handle<Object> args[2] = { key, self };
+        return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
+                                                 HandleVector(args, 2)));
+      }
+    } else {
+      dictionary->UpdateMaxNumberKey(index);
+      dictionary->ValueAtPut(entry, value);
+    }
+  } else {
+    // Index not already used. Look for an accessor in the prototype chain.
+    if (!IsJSArray()) {
+      Object* setter = LookupCallbackSetterInPrototypes(index);
+      if (setter->IsJSFunction()) {
+        return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+      }
+    }
+    Object* result = dictionary->AtNumberPut(index, value);
+    if (result->IsFailure()) return result;
+    if (elms != FixedArray::cast(result)) {
+      set_elements(FixedArray::cast(result));
+    }
   }
 
   // Update the array length if this JSObject is an array.
@@ -5381,7 +5504,18 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
     if (entry != -1) {
-      return dictionary->ValueAt(entry);
+      Object* element = dictionary->ValueAt(entry);
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      if (details.type() == CALLBACKS) {
+        // Only accessors allowed as elements.
+        FixedArray* structure = FixedArray::cast(element);
+        Object* getter = structure->get(kGetterIndex);
+        if (getter->IsJSFunction()) {
+          return GetPropertyWithDefinedGetter(receiver,
+                                              JSFunction::cast(getter));
+        }
+      }
+      return element;
     }
   }
 
@@ -5896,7 +6030,6 @@ class NumberKey : public HashTableKey {
  public:
   explicit NumberKey(uint32_t number) : number_(number) { }
 
- private:
   bool IsMatch(Object* number) {
     return number_ == ToUint32(number);
   }
@@ -5909,6 +6042,9 @@ class NumberKey : public HashTableKey {
     return Heap::NumberFromDouble(number_);
   }
 
+  bool IsStringKey() { return false; }
+
+ private:
   static uint32_t NumberHash(Object* obj) {
     return ComputeIntegerHash(ToUint32(obj));
   }
@@ -5917,8 +6053,6 @@ class NumberKey : public HashTableKey {
     ASSERT(obj->IsNumber());
     return static_cast<uint32_t>(obj->Number());
   }
-
-  bool IsStringKey() { return false; }
 
   uint32_t number_;
 };
@@ -6716,9 +6850,7 @@ void Dictionary::UpdateMaxNumberKey(uint32_t key) {
   // Check if this index is high enough that we should require slow
   // elements.
   if (key > kRequiresSlowElementsLimit) {
-    set(kMaxNumberKeyIndex,
-        Smi::FromInt(kRequiresSlowElementsMask),
-        SKIP_WRITE_BARRIER);
+    set_requires_slow_elements();
     return;
   }
   // Update max key value.
@@ -6774,6 +6906,21 @@ Object* Dictionary::SetOrAddStringEntry(String* key,
                             details.type(),
                             DetailsAt(entry).index());
   SetEntry(entry, key, value, details);
+  return this;
+}
+
+
+Object* Dictionary::SetOrAddNumberEntry(uint32_t key,
+                                        Object* value,
+                                        PropertyDetails details) {
+  NumberKey k(key);
+  int entry = FindEntry(&k);
+  if (entry == -1) return AddNumberEntry(key, value, details);
+  // Preserve enumeration index.
+  details = PropertyDetails(details.attributes(),
+                            details.type(),
+                            DetailsAt(entry).index());
+  SetEntry(entry, k.GetObject(), value, details);
   return this;
 }
 

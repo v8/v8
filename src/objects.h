@@ -707,6 +707,8 @@ class Object BASE_EMBEDDED {
                                   Object* structure,
                                   String* name,
                                   Object* holder);
+  Object* GetPropertyWithDefinedGetter(Object* receiver,
+                                       JSFunction* getter);
 
   inline Object* GetElement(uint32_t index);
   Object* GetElementWithReceiver(Object* receiver, uint32_t index);
@@ -1168,6 +1170,8 @@ class JSObject: public HeapObject {
                                   String* name,
                                   Object* value,
                                   JSObject* holder);
+  Object* SetPropertyWithDefinedSetter(JSFunction* setter,
+                                       Object* value);
   Object* SetPropertyWithInterceptor(String* name,
                                      Object* value,
                                      PropertyAttributes attributes);
@@ -1295,6 +1299,7 @@ class JSObject: public HeapObject {
   void LookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
+  Object* LookupCallbackSetterInPrototypes(uint32_t index);
   void LookupCallback(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
@@ -1990,8 +1995,12 @@ class Dictionary: public DictionaryBase {
   Object* AddStringEntry(String* key, Object* value, PropertyDetails details);
   Object* AddNumberEntry(uint32_t key, Object* value, PropertyDetails details);
 
-  // Set and existing string entry or add a new one if needed.
+  // Set an existing entry or add a new one if needed.
   Object* SetOrAddStringEntry(String* key,
+                              Object* value,
+                              PropertyDetails details);
+
+  Object* SetOrAddNumberEntry(uint32_t key,
                               Object* value,
                               PropertyDetails details);
 
@@ -2016,8 +2025,10 @@ class Dictionary: public DictionaryBase {
   // If slow elements are required we will never go back to fast-case
   // for the elements kept in this dictionary.  We require slow
   // elements if an element has been added at an index larger than
-  // kRequiresSlowElementsLimit.
+  // kRequiresSlowElementsLimit or set_requires_slow_elements() has been called
+  // when defining a getter or setter with a number key.
   inline bool requires_slow_elements();
+  inline void set_requires_slow_elements();
 
   // Get the value of the max number key that has been added to this
   // dictionary.  max_number_key can only be called if
@@ -2050,6 +2061,8 @@ class Dictionary: public DictionaryBase {
   static const int kRequiresSlowElementsTagSize = 1;
   static const uint32_t kRequiresSlowElementsLimit = (1 << 29) - 1;
 
+  void UpdateMaxNumberKey(uint32_t key);
+
  private:
   // Generic at put operation.
   Object* AtPut(HashTableKey* key, Object* value);
@@ -2067,8 +2080,6 @@ class Dictionary: public DictionaryBase {
                        Object* key,
                        Object* value,
                        PropertyDetails details);
-
-  void UpdateMaxNumberKey(uint32_t key);
 
   // Generate new enumeration indices to avoid enumeration index overflow.
   Object* GenerateNewEnumerationIndices();

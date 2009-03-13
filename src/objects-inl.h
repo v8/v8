@@ -1327,6 +1327,13 @@ uint32_t Dictionary::max_number_key() {
 }
 
 
+void Dictionary::set_requires_slow_elements() {
+  set(kMaxNumberKeyIndex,
+      Smi::FromInt(kRequiresSlowElementsMask),
+      SKIP_WRITE_BARRIER);
+}
+
+
 // ------------------------------------
 // Cast operations
 
