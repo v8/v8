@@ -52,13 +52,11 @@ assertTrue(typeof f.x == 'undefined');
 var result_y;
 var proto = new Object();
 proto.__defineSetter__('y', function (value) { result_y = value; });
-var f = new F();
-f.y = undefined;
+var f = { };
 f.__proto__ = proto;
 F.call(f);
 assertEquals(87, result_y);
 assertTrue(typeof f.y == 'undefined');
-
 
 // Test the same issue in the runtime system.  Make sure that
 // accessors added to the prototype chain are called instead of
@@ -76,4 +74,3 @@ Object.prototype.__defineSetter__('z', function(value) { result_z = value; });
 o2.z = 27;
 assertEquals(27, result_z);
 assertTrue(typeof o2.z == 'undefined');
-

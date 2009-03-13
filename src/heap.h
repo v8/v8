@@ -605,6 +605,9 @@ class Heap : public AllStatic {
   // Performs a full garbage collection.
   static void CollectAllGarbage();
 
+  // Clears all inline caches by forcing a global garbage collection.
+  static void ClearStoreICs();
+
   // Performs a full garbage collection if a context has been disposed
   // since the last time the check was performed.
   static void CollectAllGarbageIfContextDisposed();
@@ -807,6 +810,14 @@ class Heap : public AllStatic {
            > old_gen_allocation_limit_;
   }
 
+  static bool has_store_ics() {
+    return has_store_ics_;
+  }
+
+  static void store_ic_created() {
+    has_store_ics_ = true;
+  }
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
@@ -871,6 +882,8 @@ class Heap : public AllStatic {
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   static int old_gen_exhausted_;
+
+  static bool has_store_ics_;
 
   // Declare all the roots
 #define ROOT_DECLARATION(type, name) static type* name##_;

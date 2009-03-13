@@ -5143,10 +5143,10 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
 // and setter on the first call to DefineAccessor and ignored on
 // subsequent calls.
 static Object* Runtime_DefineAccessor(Arguments args) {
-  RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);
+  RUNTIME_ASSERT(4 <= args.length() && args.length() <= 6);
   // Compute attributes.
   PropertyAttributes attributes = NONE;
-  if (args.length() == 5) {
+  if (args.length() >= 5) {
     CONVERT_CHECKED(Smi, attrs, args[4]);
     int value = attrs->value();
     // Only attribute bits should be set.
@@ -5154,11 +5154,17 @@ static Object* Runtime_DefineAccessor(Arguments args) {
     attributes = static_cast<PropertyAttributes>(value);
   }
 
+  bool never_used = (args.length() == 6) && (args[5] == Heap::true_value());
+
   CONVERT_CHECKED(JSObject, obj, args[0]);
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag, args[2]);
   CONVERT_CHECKED(JSFunction, fun, args[3]);
-  return obj->DefineAccessor(name, flag->value() == 0, fun, attributes);
+  return obj->DefineAccessor(name,
+                             flag->value() == 0,
+                             fun,
+                             attributes,
+                             never_used);
 }
 
 

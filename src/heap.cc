@@ -72,6 +72,8 @@ int Heap::old_gen_allocation_limit_ = kMinimumAllocationLimit;
 
 int Heap::old_gen_exhausted_ = false;
 
+bool Heap::has_store_ics_ = false;
+
 int Heap::amount_of_external_allocated_memory_ = 0;
 int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
@@ -294,6 +296,14 @@ void Heap::CollectAllGarbage() {
 }
 
 
+void Heap::ClearStoreICs() {
+  if (has_store_ics_) {
+    Counters::clear_store_ic.Increment();
+    CollectAllGarbage();
+  }
+}
+
+
 void Heap::CollectAllGarbageIfContextDisposed() {
   // If the garbage collector interface is exposed through the global
   // gc() function, we avoid being clever about forcing GCs when
@@ -475,6 +485,7 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 void Heap::MarkCompactEpilogue(bool is_compacting) {
   Top::MarkCompactEpilogue(is_compacting);
   ThreadManager::MarkCompactEpilogue(is_compacting);
+  Heap::has_store_ics_ = false;
 }
 
 

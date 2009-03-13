@@ -912,6 +912,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
   // Patch the call site depending on the state of the cache.
   if (state == UNINITIALIZED || state == MONOMORPHIC_PROTOTYPE_FAILURE) {
+    Heap::store_ic_created();
     set_target(Code::cast(code));
   } else if (state == MONOMORPHIC) {
     // Only move to mega morphic if the target changes.
