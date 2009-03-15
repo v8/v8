@@ -167,6 +167,8 @@ namespace v8 { namespace internal {
   V(char_at_symbol, "CharAt")                                            \
   V(undefined_symbol, "undefined")                                       \
   V(value_of_symbol, "valueOf")                                          \
+  V(CreateObjectLiteralBoilerplate_symbol, "CreateObjectLiteralBoilerplate") \
+  V(CreateArrayLiteral_symbol, "CreateArrayLiteral")                     \
   V(InitializeVarGlobal_symbol, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_symbol, "InitializeConstGlobal")               \
   V(stack_overflow_symbol, "kStackOverflowBoilerplate")                  \

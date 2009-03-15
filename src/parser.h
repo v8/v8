@@ -29,7 +29,6 @@
 #define V8_PARSER_H_
 
 #include "scanner.h"
-#include "allocation.h"
 
 namespace v8 { namespace internal {
 
@@ -165,35 +164,6 @@ FunctionLiteral* MakeLazyAST(Handle<Script> script,
                              int start_position,
                              int end_position,
                              bool is_expression);
-
-
-// Support for handling complex values (array and object literals) that
-// can be fully handled at compile time.
-class CompileTimeValue: public AllStatic {
- public:
-  enum Type {
-    OBJECT_LITERAL,
-    ARRAY_LITERAL
-  };
-
-  static bool IsCompileTimeValue(Expression* expression);
-
-  // Get the value as a compile time value.
-  static Handle<FixedArray> GetValue(Expression* expression);
-
-  // Get the type of a compile time value returned by GetValue().
-  static Type GetType(Handle<FixedArray> value);
-
-  // Get the elements array of a compile time value returned by GetValue().
-  static Handle<FixedArray> GetElements(Handle<FixedArray> value);
-
- private:
-  static const int kTypeSlot = 0;
-  static const int kElementsSlot = 1;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
-};
-
 
 } }  // namespace v8::internal
 

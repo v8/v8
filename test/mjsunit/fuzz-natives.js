@@ -121,8 +121,7 @@ var knownProblems = {
   "PushContext": true,
   "LazyCompile": true,
   "CreateObjectLiteralBoilerplate": true,
-  "CloneLiteralBoilerplate": true,
-  "CreateArrayLiteralBoilerplate": true,
+  "CloneObjectLiteralBoilerplate": true,
   "IS_VAR": true,
   "ResolvePossiblyDirectEval": true,
   "Log": true
