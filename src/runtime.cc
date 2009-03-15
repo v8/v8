@@ -1146,10 +1146,10 @@ class ReplacementStringBuilder {
           StringBuilderSubstringPosition::is_valid(from)) {
         int encoded_slice = StringBuilderSubstringLength::encode(length) |
             StringBuilderSubstringPosition::encode(from);
-        AddElement(Smi::FromInt(encoded_slice));
+        AddElement(Handle<Object>(Smi::FromInt(encoded_slice)));
       } else {
         Handle<String> slice = Factory::NewStringSlice(subject_, from, to);
-        AddElement(*slice);
+        AddElement(slice);
       }
       IncrementCharacterCount(length);
     }
@@ -1160,7 +1160,7 @@ class ReplacementStringBuilder {
     StringShape shape(*string);
     int length = string->length(shape);
     if (length > 0) {
-      AddElement(*string);
+      AddElement(string);
       if (!shape.IsAsciiRepresentation()) {
         is_ascii_ = false;
       }
@@ -1220,7 +1220,7 @@ class ReplacementStringBuilder {
   }
 
 
-  void AddElement(Object* element) {
+  void AddElement(Handle<Object> element) {
     ASSERT(element->IsSmi() || element->IsString());
     // Extend parts_ array if necessary.
     if (parts_->length() == part_count_) {
@@ -1229,7 +1229,7 @@ class ReplacementStringBuilder {
       parts_->CopyTo(0, *extended_array, 0, part_count_);
       parts_ = extended_array;
     }
-    parts_->set(part_count_, element);
+    parts_->set(part_count_, *element);
     part_count_++;
   }
 
@@ -1551,12 +1551,16 @@ static Object* StringReplaceRegExpWithString(String* subject,
 
   do {
     ASSERT(last_match_info_handle->HasFastElements());
-    FixedArray* match_info_array = last_match_info_handle->elements();
+    int start, end;
+    {
+      AssertNoAllocation match_info_array_is_not_in_a_handle;
+      FixedArray* match_info_array = last_match_info_handle->elements();
 
-    ASSERT_EQ(capture_count * 2 + 2,
-              RegExpImpl::GetLastCaptureCount(match_info_array));
-    int start = RegExpImpl::GetCapture(match_info_array, 0);
-    int end = RegExpImpl::GetCapture(match_info_array, 1);
+      ASSERT_EQ(capture_count * 2 + 2,
+                RegExpImpl::GetLastCaptureCount(match_info_array));
+      start = RegExpImpl::GetCapture(match_info_array, 0);
+      end = RegExpImpl::GetCapture(match_info_array, 1);
+    }
 
     if (prev < start) {
       builder.AddSubjectSlice(prev, start);
