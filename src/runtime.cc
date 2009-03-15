@@ -43,7 +43,6 @@
 #include "scopeinfo.h"
 #include "v8threads.h"
 #include "smart-pointer.h"
-#include "parser.h"
 
 namespace v8 { namespace internal {
 
@@ -70,13 +69,6 @@ namespace v8 { namespace internal {
   RUNTIME_ASSERT(obj->IsBoolean());                                   \
   bool name = (obj)->IsTrue();
 
-// Cast the given object to an int and store it in a variable with
-// the given name.  If the object is not a Smi call IllegalOperation
-// and return.
-#define CONVERT_INT_CHECKED(name, obj)                            \
-  RUNTIME_ASSERT(obj->IsSmi());                                   \
-  int name = Smi::cast(obj)->value();
-
 // Cast the given object to a double and store it in a variable with
 // the given name.  If the object is not a number (as opposed to
 // the number not-a-number) call IllegalOperation and return.
@@ -100,7 +92,7 @@ static Object* IllegalOperation() {
 }
 
 
-static Object* Runtime_CloneLiteralBoilerplate(Arguments args) {
+static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
   return Heap::CopyJSObject(boilerplate);
 }
@@ -139,14 +131,14 @@ static Handle<Map> ComputeObjectLiteralMap(
 }
 
 
-static Handle<Object> CreateLiteralBoilerplate(
-    Handle<FixedArray> literals,
-    Handle<FixedArray> constant_properties);
+static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  // Copy the arguments.
+  Handle<FixedArray> literals = args.at<FixedArray>(0);
+  int literals_index = Smi::cast(args[1])->value();
+  Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
 
-
-static Handle<Object> CreateObjectLiteralBoilerplate(
-    Handle<FixedArray> literals,
-    Handle<FixedArray> constant_properties) {
   // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
@@ -169,13 +161,6 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
       Handle<Object> value(constant_properties->get(index+1));
-      if (value->IsFixedArray()) {
-        // The value contains the constant_properties of a
-        // simple object literal.
-        Handle<FixedArray> array = Handle<FixedArray>::cast(value);
-        value = CreateLiteralBoilerplate(literals, array);
-        if (value.is_null()) return value;
-      }
       Handle<Object> result;
       uint32_t element_index = 0;
       if (key->IsSymbol()) {
@@ -200,96 +185,39 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
       // exception, the exception is converted to an empty handle in
       // the handle based operations.  In that case, we need to
       // convert back to an exception.
-      if (result.is_null()) return result;
+      if (result.is_null()) return Failure::Exception();
     }
   }
-
-  return boilerplate;
-}
-
-
-static Handle<Object> CreateArrayLiteralBoilerplate(
-    Handle<FixedArray> literals,
-    Handle<FixedArray> elements) {
-  // Create the JSArray.
-  Handle<JSFunction> constructor(
-      JSFunction::GlobalContextFromLiterals(*literals)->array_function());
-  Handle<Object> object = Factory::NewJSObject(constructor);
-
-  Handle<Object> copied_elements = Factory::CopyFixedArray(elements);
-
-  Handle<FixedArray> content = Handle<FixedArray>::cast(copied_elements);
-  for (int i = 0; i < content->length(); i++) {
-    if (content->get(i)->IsFixedArray()) {
-      // The value contains the constant_properties of a
-      // simple object literal.
-      Handle<FixedArray> fa(FixedArray::cast(content->get(i)));
-      Handle<Object> result = CreateLiteralBoilerplate(literals, fa);
-      if (result.is_null()) return result;
-      content->set(i, *result);
-    }
-  }
-
-  // Set the elements.
-  Handle<JSArray>::cast(object)->SetContent(*content);
-  return object;
-}
-
-
-static Handle<Object> CreateLiteralBoilerplate(
-    Handle<FixedArray> literals,
-    Handle<FixedArray> array) {
-  Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
-  switch (CompileTimeValue::GetType(array)) {
-    case CompileTimeValue::OBJECT_LITERAL:
-      return CreateObjectLiteralBoilerplate(literals, elements);
-    case CompileTimeValue::ARRAY_LITERAL:
-      return CreateArrayLiteralBoilerplate(literals, elements);
-    default:
-      UNREACHABLE();
-      return Handle<Object>::null();
-  }
-}
-
-
-static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  // Copy the arguments.
-  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_INT_CHECKED(literals_index, args[1]);
-  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
-
-  Handle<Object> result =
-    CreateObjectLiteralBoilerplate(literals, constant_properties);
-
-  if (result.is_null()) return Failure::Exception();
 
   // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *result);
+  literals->set(literals_index, *boilerplate);
 
-  return *result;
+  return *boilerplate;
 }
 
 
-static Object* Runtime_CreateArrayLiteralBoilerplate(Arguments args) {
+static Object* Runtime_CreateArrayLiteral(Arguments args) {
   // Takes a FixedArray of elements containing the literal elements of
   // the array literal and produces JSArray with those elements.
   // Additionally takes the literals array of the surrounding function
   // which contains the context from which to get the Array function
   // to use for creating the array literal.
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
-  CONVERT_INT_CHECKED(literals_index, args[1]);
-  CONVERT_ARG_CHECKED(FixedArray, elements, 2);
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(FixedArray, elements, args[0]);
+  CONVERT_CHECKED(FixedArray, literals, args[1]);
+  JSFunction* constructor =
+      JSFunction::GlobalContextFromLiterals(literals)->array_function();
+  // Create the JSArray.
+  Object* object = Heap::AllocateJSObject(constructor);
+  if (object->IsFailure()) return object;
 
-  Handle<Object> object = CreateArrayLiteralBoilerplate(literals, elements);
-  if (object.is_null()) return Failure::Exception();
+  // Copy the elements.
+  Object* content = elements->Copy();
+  if (content->IsFailure()) return content;
 
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *object);
-  return *object;
+  // Set the elements.
+  JSArray::cast(object)->SetContent(FixedArray::cast(content));
+  return object;
 }
 
 

@@ -32,7 +32,6 @@
 #include "debug.h"
 #include "scopes.h"
 #include "runtime.h"
-#include "parser.h"
 
 namespace v8 { namespace internal {
 
@@ -3484,18 +3483,14 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   frame_->Push(&boilerplate);
   // Clone the boilerplate object.
   Result clone =
-      frame_->CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+      frame_->CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
   // Push the newly cloned literal object as the result.
   frame_->Push(&clone);
 
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property = node->properties()->at(i);
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-        break;
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
-        // else fall through.
+      case ObjectLiteral::Property::CONSTANT: break;
       case ObjectLiteral::Property::COMPUTED: {
         Handle<Object> key(property->key()->handle());
         Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
@@ -3553,123 +3548,59 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-// This deferred code stub will be used for creating the boilerplate
-// by calling Runtime_CreateArrayLiteralBoilerplate.
-// Each created boilerplate is stored in the JSFunction and they are
-// therefore context dependent.
-class DeferredArrayLiteral: public DeferredCode {
- public:
-  DeferredArrayLiteral(CodeGenerator* generator,
-                       ArrayLiteral* node)
-      : DeferredCode(generator), node_(node) {
-    set_comment("[ DeferredArrayLiteral");
-  }
-
-  virtual void Generate();
-
- private:
-  ArrayLiteral* node_;
-};
-
-
-void DeferredArrayLiteral::Generate() {
-  Result literals(generator());
-  enter()->Bind(&literals);
-  // Since the entry is undefined we call the runtime system to
-  // compute the literal.
-
-  VirtualFrame* frame = generator()->frame();
-  // Literal array (0).
-  frame->Push(&literals);
-  // Literal index (1).
-  frame->Push(Smi::FromInt(node_->literal_index()));
-  // Constant properties (2).
-  frame->Push(node_->literals());
-  Result boilerplate =
-      frame->CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
-  exit_.Jump(&boilerplate);
-}
-
-
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
-  DeferredArrayLiteral* deferred = new DeferredArrayLiteral(this, node);
 
-  // Retrieve the literals array and check the allocated entry.  Begin
-  // with a writable copy of the function of this activation in a
-  // register.
+  // Call the runtime to create the array literal.
+  frame_->Push(node->literals());
+  // Load the literals array of the current function.
   frame_->PushFunction();
   Result literals = frame_->Pop();
   literals.ToRegister();
-  frame_->Spill(literals.reg());
-
-  // Load the literals array of the function.
+  frame_->Spill(literals.reg());  // Make it writable.
   __ mov(literals.reg(),
          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
-
-  // Load the literal at the ast saved index.
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  Result boilerplate = allocator_->Allocate();
-  ASSERT(boilerplate.is_valid());
-  __ mov(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
-
-  // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code passing the literals array.
-  __ cmp(boilerplate.reg(), Factory::undefined_value());
-  deferred->enter()->Branch(equal, &literals, not_taken);
-
-  literals.Unuse();
-  // The deferred code returns the boilerplate object.
-  deferred->BindExit(&boilerplate);
+  frame_->Push(&literals);
+  Result array = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 2);
 
   // Push the resulting array literal on the stack.
-  frame_->Push(&boilerplate);
-
-  // Clone the boilerplate object.
-  Result clone =
-      frame_->CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
-  // Push the newly cloned literal object as the result.
-  frame_->Push(&clone);
+  frame_->Push(&array);
 
   // Generate code to set the elements in the array that are not
   // literals.
   for (int i = 0; i < node->values()->length(); i++) {
     Expression* value = node->values()->at(i);
 
-    // If value is a literal the property value is already set in the
+    // If value is literal the property value is already set in the
     // boilerplate object.
-    if (value->AsLiteral() != NULL) continue;
-    // If value is a materialized literal the property value is already set
-    // in the boilerplate object if it is simple.
-    if (CompileTimeValue::IsCompileTimeValue(value)) continue;
+    if (value->AsLiteral() == NULL) {
+      // The property must be set by generated code.
+      Load(value);
 
-    // The property must be set by generated code.
-    Load(value);
+      // Get the property value off the stack.
+      Result prop_value = frame_->Pop();
+      prop_value.ToRegister();
 
-    // Get the property value off the stack.
-    Result prop_value = frame_->Pop();
-    prop_value.ToRegister();
+      // Fetch the array literal while leaving a copy on the stack and
+      // use it to get the elements array.
+      frame_->Dup();
+      Result elements = frame_->Pop();
+      elements.ToRegister();
+      frame_->Spill(elements.reg());
+      // Get the elements array.
+      __ mov(elements.reg(),
+             FieldOperand(elements.reg(), JSObject::kElementsOffset));
 
-    // Fetch the array literal while leaving a copy on the stack and
-    // use it to get the elements array.
-    frame_->Dup();
-    Result elements = frame_->Pop();
-    elements.ToRegister();
-    frame_->Spill(elements.reg());
-    // Get the elements array.
-    __ mov(elements.reg(),
-           FieldOperand(elements.reg(), JSObject::kElementsOffset));
+      // Write to the indexed properties array.
+      int offset = i * kPointerSize + Array::kHeaderSize;
+      __ mov(FieldOperand(elements.reg(), offset), prop_value.reg());
 
-    // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
-    __ mov(FieldOperand(elements.reg(), offset), prop_value.reg());
-
-    // Update the write barrier for the array address.
-    frame_->Spill(prop_value.reg());  // Overwritten by the write barrier.
-    Result scratch = allocator_->Allocate();
-    ASSERT(scratch.is_valid());
-    __ RecordWrite(elements.reg(), offset, prop_value.reg(), scratch.reg());
+      // Update the write barrier for the array address.
+      frame_->Spill(prop_value.reg());  // Overwritten by the write barrier.
+      Result scratch = allocator_->Allocate();
+      ASSERT(scratch.is_valid());
+      __ RecordWrite(elements.reg(), offset, prop_value.reg(), scratch.reg());
+    }
   }
 }
 

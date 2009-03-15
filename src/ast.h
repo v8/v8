@@ -95,7 +95,6 @@ namespace v8 { namespace internal {
 
 // Forward declarations
 class TargetCollector;
-class MaterializedLiteral;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 NODE_LIST(DEF_FORWARD_DECLARATION)
@@ -130,9 +129,6 @@ class Node: public ZoneObject {
   virtual BinaryOperation* AsBinaryOperation() { return NULL; }
   virtual Assignment* AsAssignment() { return NULL; }
   virtual FunctionLiteral* AsFunctionLiteral() { return NULL; }
-  virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
-  virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
-  virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
 
   void set_statement_pos(int statement_pos) { statement_pos_ = statement_pos; }
   int statement_pos() const { return statement_pos_; }
@@ -630,20 +626,11 @@ class Literal: public Expression {
 // Base class for literals that needs space in the corresponding JSFunction.
 class MaterializedLiteral: public Expression {
  public:
-  explicit MaterializedLiteral(int literal_index, bool is_simple)
-      : literal_index_(literal_index), is_simple_(is_simple) {}
-
-  virtual MaterializedLiteral* AsMaterializedLiteral() { return this; }
-
+  explicit MaterializedLiteral(int literal_index)
+      : literal_index_(literal_index) {}
   int literal_index() { return literal_index_; }
-
-  // A materialized literal is simple if the values consist of only
-  // constants and simple object and array literals.
-  bool is_simple() const { return is_simple_; }
-
  private:
   int literal_index_;
-  bool is_simple_;
 };
 
 
@@ -658,11 +645,10 @@ class ObjectLiteral: public MaterializedLiteral {
    public:
 
     enum Kind {
-      CONSTANT,              // Property with constant value (compile time).
-      COMPUTED,              // Property with computed value (execution time).
-      MATERIALIZED_LITERAL,  // Property value is a materialized literal.
-      GETTER, SETTER,        // Property is an accessor function.
-      PROTOTYPE              // Property is __proto__.
+      CONSTANT,       // Property with constant value (at compile time).
+      COMPUTED,       // Property with computed value (at execution time).
+      GETTER, SETTER,  // Property is an accessor function.
+      PROTOTYPE       // Property is __proto__.
     };
 
     Property(Literal* key, Expression* value);
@@ -680,13 +666,12 @@ class ObjectLiteral: public MaterializedLiteral {
 
   ObjectLiteral(Handle<FixedArray> constant_properties,
                 ZoneList<Property*>* properties,
-                int literal_index,
-                bool is_simple)
-      : MaterializedLiteral(literal_index, is_simple),
+                int literal_index)
+      : MaterializedLiteral(literal_index),
         constant_properties_(constant_properties),
-        properties_(properties) {}
+        properties_(properties) {
+  }
 
-  virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
 
   Handle<FixedArray> constant_properties() const {
@@ -706,7 +691,7 @@ class RegExpLiteral: public MaterializedLiteral {
   RegExpLiteral(Handle<String> pattern,
                 Handle<String> flags,
                 int literal_index)
-      : MaterializedLiteral(literal_index, false),
+      : MaterializedLiteral(literal_index),
         pattern_(pattern),
         flags_(flags) {}
 
@@ -722,18 +707,14 @@ class RegExpLiteral: public MaterializedLiteral {
 
 // An array literal has a literals object that is used
 // for minimizing the work when constructing it at runtime.
-class ArrayLiteral: public MaterializedLiteral {
+class ArrayLiteral: public Expression {
  public:
   ArrayLiteral(Handle<FixedArray> literals,
-               ZoneList<Expression*>* values,
-               int literal_index,
-               bool is_simple)
-      : MaterializedLiteral(literal_index, is_simple),
-        literals_(literals),
-        values_(values) {}
+               ZoneList<Expression*>* values)
+      : literals_(literals), values_(values) {
+  }
 
   virtual void Accept(AstVisitor* v);
-  virtual ArrayLiteral* AsArrayLiteral() { return this; }
 
   Handle<FixedArray> literals() const { return literals_; }
   ZoneList<Expression*>* values() const { return values_; }
