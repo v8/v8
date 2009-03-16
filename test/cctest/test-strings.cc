@@ -117,6 +117,7 @@ static void InitializeBuildingBlocks(
           StringShape shape(*building_blocks[i]);
           CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
         }
+        DeleteArray<char>(buf);
         break;
       }
     }
@@ -364,6 +365,7 @@ TEST(DeepAscii) {
   for (int i = 0; i < 500; i++) {
     TraverseFirst(flat_string, string, DEEP_ASCII_DEPTH);
   }
+  DeleteArray<char>(foo);
 }
 
 

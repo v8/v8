@@ -117,6 +117,7 @@ class ApiTestFuzzer: public v8::internal::Thread {
         gate_(v8::internal::OS::CreateSemaphore(0)),
         active_(true) {
   }
+  ~ApiTestFuzzer() { delete gate_; }
 
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
   virtual void Run();
@@ -5566,14 +5567,14 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
   // Add more than 8 (see kMaxFastProperties) properties
   // so that the constructor will force copying map.
   // Cannot sprintf, gcc complains unsafety.
-  char buf[5];
+  char buf[4];
   for (char i = '0'; i <= '9' ; i++) {
-    buf[1] = i;
+    buf[0] = i;
     for (char j = '0'; j <= '9'; j++) {
-      buf[2] = j;
+      buf[1] = j;
       for (char k = '0'; k <= '9'; k++) {
-        buf[3] = k;
-        buf[4] = 0;
+        buf[2] = k;
+        buf[3] = 0;
         templ->Set(v8_str(buf), v8::Number::New(k));
       }
     }
@@ -5621,6 +5622,7 @@ TEST(PreCompile) {
   v8::ScriptData *sd = v8::ScriptData::PreCompile(script, strlen(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
+  delete sd;
 }
 
 
@@ -5702,6 +5704,8 @@ class RegExpInterruptTest {
     CHECK(regexp_success_);
     CHECK(gc_success_);
   }
+  RegExpInterruptTest() : block_(NULL) {}
+  ~RegExpInterruptTest() { delete block_; }
  private:
   // Number of garbage collections required.
   static const int kRequiredGCs = 5;
