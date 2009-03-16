@@ -54,8 +54,7 @@ class FrameElement BASE_EMBEDDED {
 
   // The default constructor creates an invalid frame element.
   FrameElement() {
-    type_ = TypeField::encode(INVALID) | SyncField::encode(NOT_SYNCED);
-    data_.reg_ = no_reg;
+    Initialize(INVALID, no_reg, NOT_SYNCED);
   }
 
   // Factory function to construct an invalid frame element.
@@ -66,18 +65,13 @@ class FrameElement BASE_EMBEDDED {
 
   // Factory function to construct an in-memory frame element.
   static FrameElement MemoryElement() {
-    FrameElement result;
-    result.type_ = TypeField::encode(MEMORY) | SyncField::encode(SYNCED);
-    // In-memory elements have no useful data.
-    result.data_.reg_ = no_reg;
+    FrameElement result(MEMORY, no_reg, SYNCED);
     return result;
   }
 
   // Factory function to construct an in-register frame element.
   static FrameElement RegisterElement(Register reg, SyncFlag is_synced) {
-    FrameElement result;
-    result.type_ = TypeField::encode(REGISTER) | SyncField::encode(is_synced);
-    result.data_.reg_ = reg;
+    FrameElement result(REGISTER, reg, is_synced);
     return result;
   }
 
@@ -85,9 +79,7 @@ class FrameElement BASE_EMBEDDED {
   // compile time.
   static FrameElement ConstantElement(Handle<Object> value,
                                       SyncFlag is_synced) {
-    FrameElement result;
-    result.type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
-    result.data_.handle_ = value.location();
+    FrameElement result(value, is_synced);
     return result;
   }
 
@@ -152,6 +144,21 @@ class FrameElement BASE_EMBEDDED {
     int index_;
   } data_;
 
+  // The index of the next element in a list of copies, or the frame's
+  // illegal index if there is no next element.
+  int next_;
+
+  // Used to construct memory and register elements.
+  FrameElement(Type type, Register reg, SyncFlag is_synced) {
+    Initialize(type, reg, is_synced);
+  }
+
+  // Used to construct constant elements.
+  inline FrameElement(Handle<Object> value, SyncFlag is_synced);
+
+  // Used to initialize invalid, memory, and register elements.
+  inline void Initialize(Type type, Register reg, SyncFlag is_synced);
+
   friend class VirtualFrame;
 };
 
@@ -163,5 +170,24 @@ class FrameElement BASE_EMBEDDED {
 #else  // ia32
 #include "virtual-frame-ia32.h"
 #endif
+
+
+namespace v8 { namespace internal {
+
+FrameElement::FrameElement(Handle<Object> value, SyncFlag is_synced) {
+  type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
+  data_.handle_ = value.location();
+  next_ = VirtualFrame::kIllegalIndex;
+}
+
+
+void FrameElement::Initialize(Type type, Register reg, SyncFlag is_synced) {
+  type_ = TypeField::encode(type) | SyncField::encode(is_synced);
+  data_.reg_ = reg;
+  next_ = VirtualFrame::kIllegalIndex;
+}
+
+
+} }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_H_

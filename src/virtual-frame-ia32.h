@@ -57,6 +57,9 @@ class VirtualFrame : public Malloced {
     bool previous_state_;
   };
 
+  // An illegal index into the virtual frame.
+  static const int kIllegalIndex = -1;
+
   // Construct an initial virtual frame on entry to a JS function.
   explicit VirtualFrame(CodeGenerator* cgen);
 
@@ -305,9 +308,6 @@ class VirtualFrame : public Malloced {
   void Nip(int num_dropped);
 
  private:
-  // An illegal index into the virtual frame.
-  static const int kIllegalIndex = -1;
-
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
   static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
   static const int kContextOffset = StandardFrameConstants::kContextOffset;
