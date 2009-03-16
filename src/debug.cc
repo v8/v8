@@ -1958,7 +1958,8 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     return;
   }
 
-  // Notify the debugger that a debug event has occurred.
+  // Notify the debugger that a debug event has occurred unless auto continue is
+  // active in which case no event is send.
   if (!auto_continue) {
     bool success = SetEventJSONFromEvent(event_data);
     if (!success) {
@@ -2051,7 +2052,9 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     // Return the result.
     SendMessage(str);
 
-    // Return from debug event processing is VM should be running.
+    // Return from debug event processing if either the VM is put into the
+    // runnning state (through a continue command) or auto continue is active
+    // and there are no more commands queued.
     if (running || (auto_continue && !HasCommands())) {
       return;
     }
