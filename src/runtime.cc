@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1135,37 +1135,49 @@ class ReplacementStringBuilder {
     ASSERT(estimated_part_count > 0);
   }
 
+  void EnsureCapacity(int elements) {
+    int length = parts_->length();
+    int required_length = part_count_ + elements;
+    if (length < required_length) {
+      int new_length = length;
+      do {
+        new_length *= 2;
+      } while (new_length < required_length);
+      Handle<FixedArray> extended_array =
+          Factory::NewFixedArray(new_length);
+      parts_->CopyTo(0, *extended_array, 0, part_count_);
+      parts_ = extended_array;
+    }
+  }
+
   void AddSubjectSlice(int from, int to) {
     ASSERT(from >= 0);
     int length = to - from;
-    ASSERT(length >= 0);
-    if (length > 0) {
-      // Can we encode the slice in 11 bits for length and 19 bits for
-      // start position - as used by StringBuilderConcatHelper?
-      if (StringBuilderSubstringLength::is_valid(length) &&
-          StringBuilderSubstringPosition::is_valid(from)) {
-        int encoded_slice = StringBuilderSubstringLength::encode(length) |
-            StringBuilderSubstringPosition::encode(from);
-        AddElement(Handle<Object>(Smi::FromInt(encoded_slice)));
-      } else {
-        Handle<String> slice = Factory::NewStringSlice(subject_, from, to);
-        AddElement(slice);
-      }
-      IncrementCharacterCount(length);
+    ASSERT(length > 0);
+    // Can we encode the slice in 11 bits for length and 19 bits for
+    // start position - as used by StringBuilderConcatHelper?
+    if (StringBuilderSubstringLength::is_valid(length) &&
+        StringBuilderSubstringPosition::is_valid(from)) {
+      int encoded_slice = StringBuilderSubstringLength::encode(length) |
+          StringBuilderSubstringPosition::encode(from);
+      AddElement(Smi::FromInt(encoded_slice));
+    } else {
+      Handle<String> slice = Factory::NewStringSlice(subject_, from, to);
+      AddElement(*slice);
     }
+    IncrementCharacterCount(length);
   }
 
 
   void AddString(Handle<String> string) {
     StringShape shape(*string);
     int length = string->length(shape);
-    if (length > 0) {
-      AddElement(string);
-      if (!shape.IsAsciiRepresentation()) {
-        is_ascii_ = false;
-      }
-      IncrementCharacterCount(length);
+    ASSERT(length > 0);
+    AddElement(*string);
+    if (!shape.IsAsciiRepresentation()) {
+      is_ascii_ = false;
     }
+    IncrementCharacterCount(length);
   }
 
 
@@ -1220,16 +1232,9 @@ class ReplacementStringBuilder {
   }
 
 
-  void AddElement(Handle<Object> element) {
+  void AddElement(Object* element) {
     ASSERT(element->IsSmi() || element->IsString());
-    // Extend parts_ array if necessary.
-    if (parts_->length() == part_count_) {
-      Handle<FixedArray> extended_array =
-          Factory::NewFixedArray(part_count_ * 2);
-      parts_->CopyTo(0, *extended_array, 0, part_count_);
-      parts_ = extended_array;
-    }
-    parts_->set(part_count_, *element);
+    parts_->set(part_count_, element);
     part_count_++;
   }
 
@@ -1474,11 +1479,13 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
     ReplacementPart part = parts_[i];
     switch (part.tag) {
       case SUBJECT_PREFIX:
-        builder->AddSubjectSlice(0, match_from);
+        if (match_from > 0) builder->AddSubjectSlice(0, match_from);
         break;
       case SUBJECT_SUFFIX: {
         int subject_length = part.data;
-        builder->AddSubjectSlice(match_to, subject_length);
+        if (match_to < subject_length) {
+          builder->AddSubjectSlice(match_to, subject_length);
+        }
         break;
       }
       case SUBJECT_CAPTURE: {
@@ -1549,8 +1556,17 @@ static Object* StringReplaceRegExpWithString(String* subject,
   // Index of end of last match.
   int prev = 0;
 
+  // Number of parts added by compiled replacement plus preceeding string
+  // and possibly suffix after last match.
+  const int parts_added_per_loop = compiled_replacement.parts() + 2;
+  bool matched;
   do {
     ASSERT(last_match_info_handle->HasFastElements());
+    // Increase the capacity of the builder before entering local handle-scope,
+    // so its internal buffer can safely allocate a new handle if it grows.
+    builder.EnsureCapacity(parts_added_per_loop);
+
+    HandleScope loop_scope;
     int start, end;
     {
       AssertNoAllocation match_info_array_is_not_in_a_handle;
@@ -1588,7 +1604,8 @@ static Object* StringReplaceRegExpWithString(String* subject,
     if (match.is_null()) {
       return Failure::Exception();
     }
-  } while (!match->IsNull());
+    matched = !match->IsNull();
+  } while (matched);
 
   if (prev < length) {
     builder.AddSubjectSlice(prev, length);
