@@ -92,6 +92,7 @@ class Shell: public i::AllStatic {
   static Handle<Value> DebugCommandToJSONRequest(Handle<String> command);
 
   static Handle<Value> Print(const Arguments& args);
+  static Handle<Value> Yield(const Arguments& args);
   static Handle<Value> Quit(const Arguments& args);
   static Handle<Value> Version(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);

@@ -27,6 +27,7 @@
 
 
 #include <stdlib.h>
+#include <errno.h>
 
 #include "d8.h"
 #include "d8-debug.h"
@@ -170,6 +171,12 @@ Handle<Value> Shell::Load(const Arguments& args) {
       return ThrowException(String::New("Error executing  file"));
     }
   }
+  return Undefined();
+}
+
+
+Handle<Value> Shell::Yield(const Arguments& args) {
+  v8::Unlocker unlocker;
   return Undefined();
 }
 
@@ -481,6 +488,8 @@ void ShellThread::Run() {
                        FunctionTemplate::New(Shell::Print));
   global_template->Set(String::New("load"),
                        FunctionTemplate::New(Shell::Load));
+  global_template->Set(String::New("yield"),
+                       FunctionTemplate::New(Shell::Yield));
   global_template->Set(String::New("version"),
                        FunctionTemplate::New(Shell::Version));
 
@@ -530,6 +539,14 @@ int Shell::Main(int argc, char* argv[]) {
   }
   Initialize();
   bool run_shell = (argc == 1);
+
+  // Default use preemption if threads are created.
+  bool use_preemption = true;
+
+  // Default to use lowest possible thread preemption interval to test as many
+  // edgecases as possible.
+  int preemption_interval = 1;
+
   i::List<i::Thread*> threads(1);
 
   {
@@ -542,6 +559,22 @@ int Shell::Main(int argc, char* argv[]) {
       char* str = argv[i];
       if (strcmp(str, "--shell") == 0) {
         run_shell = true;
+      } else if (strcmp(str, "--preemption") == 0) {
+        use_preemption = true;
+      } else if (strcmp(str, "--no-preemption") == 0) {
+        use_preemption = false;
+      } else if (strcmp(str, "--preemption-interval") == 0) {
+        if (i + 1 < argc) {
+          char *end = NULL;
+          preemption_interval = strtol(argv[++i], &end, 10);  // NOLINT
+          if (preemption_interval <= 0 || *end != '\0' || errno == ERANGE) {
+            printf("Invalid value for --preemption-interval '%s'\n", argv[i]);
+            return 1;
+          }
+        } else {
+          printf("Missing value for --preemption-interval\n");
+          return 1;
+       }
       } else if (strcmp(str, "-f") == 0) {
         // Ignore any -f flags for compatibility with other stand-alone
         // JavaScript engines.
@@ -557,9 +590,6 @@ int Shell::Main(int argc, char* argv[]) {
           return 1;
         i++;
       } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
-        // Use the lowest possible thread preemption interval to test as many
-        // edgecases as possible.
-        Locker::StartPreemption(1);
         int size = 0;
         const char *files = ReadChars(argv[++i], &size);
         if (files == NULL) return 1;
@@ -580,6 +610,11 @@ int Shell::Main(int argc, char* argv[]) {
         if (!ExecuteString(source, file_name, false, true))
           return 1;
       }
+    }
+
+    // Start preemption if threads have been created and preemption is enabled.
+    if (threads.length() > 0 && use_preemption) {
+      Locker::StartPreemption(preemption_interval);
     }
 
     // Run the remote debugger if requested.
