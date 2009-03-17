@@ -985,16 +985,14 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
     int* offsets_vector,
     int offsets_vector_length,
     int previous_index) {
-  StringShape shape(*subject);
-
   // Character offsets into string.
   int start_offset = previous_index;
-  int end_offset = subject->length(shape);
+  int end_offset = subject->length();
 
-  if (shape.IsCons()) {
+  if (StringShape(*subject).IsCons()) {
     subject =
       Handle<String>(String::cast(ConsString::cast(*subject)->first()));
-  } else if (shape.IsSliced()) {
+  } else if (StringShape(*subject).IsSliced()) {
     SlicedString* slice = SlicedString::cast(*subject);
     start_offset += slice->start();
     end_offset += slice->start();
@@ -1002,13 +1000,12 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
   }
 
   // String is now either Sequential or External
-  StringShape flatshape(*subject);
-  bool is_ascii = flatshape.IsAsciiRepresentation();
+  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
   int char_size_shift = is_ascii ? 0 : 1;
 
   RegExpMacroAssemblerIA32::Result res;
 
-  if (flatshape.IsExternal()) {
+  if (StringShape(*subject).IsExternal()) {
     const byte* address;
     if (is_ascii) {
       ExternalAsciiString* ext = ExternalAsciiString::cast(*subject);

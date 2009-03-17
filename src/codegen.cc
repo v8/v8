@@ -402,8 +402,7 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
      "_Log"}
   };
   Handle<String> name = node->name();
-  StringShape shape(*name);
-  if (name->length(shape) > 0 && name->Get(shape, 0) == '_') {
+  if (name->length() > 0 && name->Get(0) == '_') {
     for (unsigned i = 0;
          i < sizeof(kInlineRuntimeLUT) / sizeof(InlineRuntimeLUT);
          i++) {

@@ -90,11 +90,9 @@ Handle<String> Factory::NewRawTwoByteString(int length,
 
 
 Handle<String> Factory::NewConsString(Handle<String> first,
-                                      StringShape first_shape,
-                                      Handle<String> second,
-                                      StringShape second_shape) {
-  if (first->length(first_shape) == 0) return second;
-  if (second->length(second_shape) == 0) return first;
+                                      Handle<String> second) {
+  if (first->length() == 0) return second;
+  if (second->length() == 0) return first;
   CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first, *second), String);
 }
 

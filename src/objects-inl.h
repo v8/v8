@@ -143,15 +143,15 @@ bool Object::IsSeqString() {
 
 bool Object::IsSeqAsciiString() {
   if (!IsString()) return false;
-  StringShape shape(String::cast(this));
-  return shape.IsSequential() && shape.IsAsciiRepresentation();
+  return StringShape(String::cast(this)).IsSequential() &&
+         StringShape(String::cast(this)).IsAsciiRepresentation();
 }
 
 
 bool Object::IsSeqTwoByteString() {
   if (!IsString()) return false;
-  StringShape shape(String::cast(this));
-  return shape.IsSequential() && shape.IsTwoByteRepresentation();
+  return StringShape(String::cast(this)).IsSequential() &&
+         StringShape(String::cast(this)).IsTwoByteRepresentation();
 }
 
 
@@ -163,15 +163,15 @@ bool Object::IsExternalString() {
 
 bool Object::IsExternalAsciiString() {
   if (!IsString()) return false;
-  StringShape shape(String::cast(this));
-  return shape.IsExternal() && shape.IsAsciiRepresentation();
+  return StringShape(String::cast(this)).IsExternal() &&
+         StringShape(String::cast(this)).IsAsciiRepresentation();
 }
 
 
 bool Object::IsExternalTwoByteString() {
   if (!IsString()) return false;
-  StringShape shape(String::cast(this));
-  return shape.IsExternal() && shape.IsTwoByteRepresentation();
+  return StringShape(String::cast(this)).IsExternal() &&
+         StringShape(String::cast(this)).IsTwoByteRepresentation();
 }
 
 
@@ -1243,15 +1243,13 @@ void DescriptorArray::fast_swap(FixedArray* array, int first, int second) {
 int DescriptorArray::Search(String* name) {
   SLOW_ASSERT(IsSortedNoDuplicates());
 
-  StringShape shape(name);
-
   // Check for empty descriptor array.
   int nof = number_of_descriptors();
   if (nof == 0) return kNotFound;
 
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if (shape.IsSymbol() && nof < kMaxElementsForLinearSearch) {
+  if (StringShape(name).IsSymbol() && nof < kMaxElementsForLinearSearch) {
     return LinearSearch(name, nof);
   }
 
@@ -1392,27 +1390,21 @@ INT_ACCESSORS(Array, length, kLengthOffset)
 
 bool String::Equals(String* other) {
   if (other == this) return true;
-  StringShape this_shape(this);
-  StringShape other_shape(other);
-  if (this_shape.IsSymbol() && other_shape.IsSymbol()) return false;
-  return SlowEquals(this_shape, other, other_shape);
+  if (StringShape(this).IsSymbol() && StringShape(other).IsSymbol()) {
+    return false;
+  }
+  return SlowEquals(other);
 }
 
 
-int String::length(StringShape shape) {
-  ASSERT(shape.type() == StringShape(this).type());
+int String::length() {
   uint32_t len = READ_INT_FIELD(this, kLengthOffset);
 
   ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
   ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
   ASSERT(kLongStringTag == 0);
 
-  return len >> (shape.size_tag() + kLongLengthShift);
-}
-
-
-int String::length() {
-  return length(StringShape(this));
+  return len >> (StringShape(this).size_tag() + kLongLengthShift);
 }
 
 
@@ -1421,10 +1413,9 @@ void String::set_length(int value) {
   ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
   ASSERT(kLongStringTag == 0);
 
-  StringShape shape(this);
   WRITE_INT_FIELD(this,
                   kLengthOffset,
-                  value << (shape.size_tag() + kLongLengthShift));
+                  value << (StringShape(this).size_tag() + kLongLengthShift));
 }
 
 
@@ -1438,21 +1429,19 @@ void String::set_length_field(uint32_t value) {
 }
 
 
-Object* String::TryFlattenIfNotFlat(StringShape shape) {
-  ASSERT(shape.type() == StringShape(this).type());
+Object* String::TryFlattenIfNotFlat() {
   // We don't need to flatten strings that are already flat.  Since this code
   // is inlined, it can be helpful in the flat case to not call out to Flatten.
-  if (!IsFlat(shape)) {
-    return TryFlatten(shape);
+  if (!IsFlat()) {
+    return TryFlatten();
   }
   return this;
 }
 
 
-uint16_t String::Get(StringShape shape, int index) {
-  ASSERT(shape.type() == StringShape(this).type());
-  ASSERT(index >= 0 && index < length(shape));
-  switch (shape.full_representation_tag()) {
+uint16_t String::Get(int index) {
+  ASSERT(index >= 0 && index < length());
+  switch (StringShape(this).full_representation_tag()) {
     case kSeqStringTag | kAsciiStringTag:
       return SeqAsciiString::cast(this)->SeqAsciiStringGet(index);
     case kSeqStringTag | kTwoByteStringTag:
@@ -1476,29 +1465,26 @@ uint16_t String::Get(StringShape shape, int index) {
 }
 
 
-void String::Set(StringShape shape, int index, uint16_t value) {
-  ASSERT(shape.type() == StringShape(this).type());
-  ASSERT(shape.type() == StringShape(this).type());
-  ASSERT(index >= 0 && index < length(shape));
-  ASSERT(shape.IsSequential());
+void String::Set(int index, uint16_t value) {
+  ASSERT(index >= 0 && index < length());
+  ASSERT(StringShape(this).IsSequential());
 
-  return shape.IsAsciiRepresentation()
+  return StringShape(this).IsAsciiRepresentation()
       ? SeqAsciiString::cast(this)->SeqAsciiStringSet(index, value)
       : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
 
 
-bool String::IsFlat(StringShape shape) {
-  ASSERT(shape.type() == StringShape(this).type());
-  switch (shape.representation_tag()) {
+bool String::IsFlat() {
+  switch (StringShape(this).representation_tag()) {
     case kConsStringTag: {
       String* second = ConsString::cast(this)->second();
       // Only flattened strings have second part empty.
       return second->length() == 0;
     }
     case kSlicedStringTag: {
-      StringShape slice_shape = StringShape(SlicedString::cast(this)->buffer());
-      StringRepresentationTag tag = slice_shape.representation_tag();
+      StringRepresentationTag tag =
+          StringShape(SlicedString::cast(this)->buffer()).representation_tag();
       return tag == kSeqStringTag || tag == kExternalStringTag;
     }
     default:
@@ -1552,7 +1538,7 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 }
 
 
-int SeqTwoByteString::SeqTwoByteStringSize(StringShape shape) {
+int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
@@ -1561,13 +1547,13 @@ int SeqTwoByteString::SeqTwoByteStringSize(StringShape shape) {
 
   // Use the map (and not 'this') to compute the size tag, since
   // TwoByteStringSize is called during GC when maps are encoded.
-  length >>= shape.size_tag() + kLongLengthShift;
+  length >>= StringShape(instance_type).size_tag() + kLongLengthShift;
 
   return SizeFor(length);
 }
 
 
-int SeqAsciiString::SeqAsciiStringSize(StringShape shape) {
+int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
@@ -1576,7 +1562,7 @@ int SeqAsciiString::SeqAsciiStringSize(StringShape shape) {
 
   // Use the map (and not 'this') to compute the size tag, since
   // AsciiStringSize is called during GC when maps are encoded.
-  length >>= shape.size_tag() + kLongLengthShift;
+  length >>= StringShape(instance_type).size_tag() + kLongLengthShift;
 
   return SizeFor(length);
 }

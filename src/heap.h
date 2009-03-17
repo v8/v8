@@ -532,7 +532,6 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateSubString(String* buffer,
-                                   StringShape buffer_shape,
                                    int start,
                                    int end);
 

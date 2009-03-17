@@ -108,15 +108,6 @@ class RegExpImpl {
                                            Handle<String> subject,
                                            Handle<JSArray> lastMatchInfo);
 
-  static void NewSpaceCollectionPrologue();
-  static void OldSpaceCollectionPrologue();
-
-  // Converts a source string to a 16 bit flat string.  The string
-  // will be either sequential or it will be a SlicedString backed
-  // by a flat string.
-  static Handle<String> StringToTwoByte(Handle<String> pattern);
-  static Handle<String> CachedStringToTwoByte(Handle<String> pattern);
-
   // Offsets in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
   static const int kLastSubject = 1;

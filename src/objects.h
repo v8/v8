@@ -3139,13 +3139,9 @@ class StringHasher {
 // to be passed by value and is immutable, but be aware that flattening a
 // string can potentially alter its shape.  Also be aware that a GC caused by
 // something else can alter the shape of a string due to ConsString
-// shortcutting.
-//
-// Most of the methods designed to interrogate a string as to its exact nature
-// have been made into methods on StringShape in order to encourage the use of
-// StringShape.  The String class has both a length() and a length(StringShape)
-// operation.  The former is simpler to type, but the latter is faster if you
-// need the StringShape for some other operation immediately before or after.
+// shortcutting.  Keeping these restrictions in mind has proven to be error-
+// prone and so we no longer put StringShapes in variables unless there is a
+// concrete performance benefit at that particular point in the code.
 class StringShape BASE_EMBEDDED {
  public:
   inline explicit StringShape(String* s);
@@ -3194,9 +3190,6 @@ class StringShape BASE_EMBEDDED {
 class String: public HeapObject {
  public:
   // Get and set the length of the string.
-  // Fast version.
-  inline int length(StringShape shape);
-  // Easy version.
   inline int length();
   inline void set_length(int value);
 
@@ -3208,22 +3201,22 @@ class String: public HeapObject {
   inline void set_length_field(uint32_t value);
 
   // Get and set individual two byte chars in the string.
-  inline void Set(StringShape shape, int index, uint16_t value);
+  inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  inline uint16_t Get(StringShape shape, int index);
+  inline uint16_t Get(int index);
 
   // Try to flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString or a
   // SlicedString.  Flatten mutates the ConsString and might return a
   // failure.
-  Object* TryFlatten(StringShape shape);
+  Object* TryFlatten();
 
   // Try to flatten the string.  Checks first inline to see if it is necessary.
   // Do not handle allocation failures.  After calling TryFlattenIfNotFlat, the
   // string could still be a ConsString, in which case a failure is returned.
   // Use FlattenString from Handles.cc to be sure to flatten.
-  inline Object* TryFlattenIfNotFlat(StringShape shape);
+  inline Object* TryFlattenIfNotFlat();
 
   Vector<const char> ToAsciiVector();
   Vector<const uc16> ToUC16Vector();
@@ -3302,7 +3295,7 @@ class String: public HeapObject {
   void StringPrint();
   void StringVerify();
 #endif
-  inline bool IsFlat(StringShape shape);
+  inline bool IsFlat();
 
   // Layout description.
   static const int kLengthOffset = HeapObject::kHeaderSize;
@@ -3364,7 +3357,6 @@ class String: public HeapObject {
   // Helper function for flattening strings.
   template <typename sinkchar>
   static void WriteToFlat(String* source,
-                          StringShape shape,
                           sinkchar* sink,
                           int from,
                           int to);
@@ -3405,9 +3397,7 @@ class String: public HeapObject {
  private:
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
-  bool SlowEquals(StringShape this_shape,
-                  String* other,
-                  StringShape other_shape);
+  bool SlowEquals(String* other);
 
   // Slow case of AsArrayIndex.
   bool SlowAsArrayIndex(uint32_t* index);
@@ -3454,7 +3444,7 @@ class SeqAsciiString: public SeqString {
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an AsciiString
   // instance.
-  inline int SeqAsciiStringSize(StringShape shape);
+  inline int SeqAsciiStringSize(InstanceType instance_type);
 
   // Computes the size for an AsciiString instance of a given length.
   static int SizeFor(int length) {
@@ -3499,7 +3489,7 @@ class SeqTwoByteString: public SeqString {
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of a TwoByteString
   // instance.
-  inline int SeqTwoByteStringSize(StringShape shape);
+  inline int SeqTwoByteStringSize(InstanceType instance_type);
 
   // Computes the size for a TwoByteString instance of a given length.
   static int SizeFor(int length) {

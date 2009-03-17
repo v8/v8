@@ -1097,11 +1097,10 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(&Counters::parse);
-  StringShape shape(*source);
-  Counters::total_parse_size.Increment(source->length(shape));
+  Counters::total_parse_size.Increment(source->length());
 
   // Initialize parser state.
-  source->TryFlattenIfNotFlat(shape);
+  source->TryFlattenIfNotFlat();
   scanner_.Init(source, stream, 0);
   ASSERT(target_stack_ == NULL);
 
@@ -1150,9 +1149,8 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    bool is_expression) {
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
-  source->TryFlattenIfNotFlat(StringShape(*source));
-  StringShape shape(*source);
-  Counters::total_parse_size.Increment(source->length(shape));
+  source->TryFlattenIfNotFlat();
+  Counters::total_parse_size.Increment(source->length());
   SafeStringInputBuffer buffer(source.location());
 
   // Initialize parser state.

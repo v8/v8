@@ -362,29 +362,27 @@ void LogMessageBuilder::Append(const char c) {
 // Append a heap string.
 void LogMessageBuilder::Append(String* str) {
   AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
-  StringShape shape(str);
-  int length = str->length(shape);
+  int length = str->length();
   for (int i = 0; i < length; i++) {
-    Append(static_cast<char>(str->Get(shape, i)));
+    Append(static_cast<char>(str->Get(i)));
   }
 }
 
 void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
-  StringShape shape(str);
-  int len = str->length(shape);
+  int len = str->length();
   if (len > 0x1000)
     len = 0x1000;
   if (show_impl_info) {
-    Append(shape.IsAsciiRepresentation() ? 'a' : '2');
-    if (shape.IsExternal())
+    Append(StringShape(str).IsAsciiRepresentation() ? 'a' : '2');
+    if (StringShape(str).IsExternal())
       Append('e');
-    if (shape.IsSymbol())
+    if (StringShape(str).IsSymbol())
       Append('#');
     Append(":%i:", str->length());
   }
   for (int i = 0; i < len; i++) {
-    uc32 c = str->Get(shape, i);
+    uc32 c = str->Get(i);
     if (c > 0xff) {
       Append("\\u%04x", c);
     } else if (c < 32 || c > 126) {

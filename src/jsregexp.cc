@@ -55,27 +55,6 @@
 namespace v8 { namespace internal {
 
 
-String* RegExpImpl::last_ascii_string_ = NULL;
-String* RegExpImpl::two_byte_cached_string_ = NULL;
-
-
-void RegExpImpl::NewSpaceCollectionPrologue() {
-  // The two byte string is always in the old space.  The Ascii string may be
-  // in either place.  If it is in the old space we don't need to do anything.
-  if (Heap::InNewSpace(last_ascii_string_)) {
-    // Invalidate the cache.
-    last_ascii_string_ = NULL;
-    two_byte_cached_string_ = NULL;
-  }
-}
-
-
-void RegExpImpl::OldSpaceCollectionPrologue() {
-  last_ascii_string_ = NULL;
-  two_byte_cached_string_ = NULL;
-}
-
-
 Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
                                                Handle<String> pattern,
                                                Handle<String> flags,
@@ -92,55 +71,10 @@ Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
 }
 
 
-// Converts a source string to a 16 bit flat string or a SlicedString containing
-// a 16 bit flat string).
-Handle<String> RegExpImpl::CachedStringToTwoByte(Handle<String> subject) {
-  if (*subject == last_ascii_string_) {
-    ASSERT(two_byte_cached_string_ != NULL);
-    return Handle<String>(String::cast(two_byte_cached_string_));
-  }
-  Handle<String> two_byte_string = StringToTwoByte(subject);
-  last_ascii_string_ = *subject;
-  two_byte_cached_string_ = *two_byte_string;
-  return two_byte_string;
-}
-
-
-// Converts a source string to a 16 bit flat string or a SlicedString containing
-// a 16 bit flat string).
-Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
-  StringShape shape(*pattern);
-  if (!pattern->IsFlat(shape)) {
-    FlattenString(pattern);
-    shape = StringShape(*pattern);
-  }
-  Handle<String> flat_string(shape.IsCons() ?
-    String::cast(ConsString::cast(*pattern)->first()) :
-    *pattern);
-  ASSERT(flat_string->IsString());
-  StringShape flat_shape(*flat_string);
-  ASSERT(!flat_shape.IsCons());
-  ASSERT(flat_shape.IsSequential() ||
-         flat_shape.IsSliced() ||
-         flat_shape.IsExternal());
-  if (!flat_shape.IsAsciiRepresentation()) {
-    return flat_string;
-  }
-
-  int len = flat_string->length(flat_shape);
-  Handle<String> two_byte_string =
-    Factory::NewRawTwoByteString(len, TENURED);
-  uc16* dest = SeqTwoByteString::cast(*two_byte_string)->GetChars();
-  String::WriteToFlat(*flat_string, flat_shape, dest, 0, len);
-  return two_byte_string;
-}
-
-
 static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
   int flags = JSRegExp::NONE;
-  StringShape shape(*str);
-  for (int i = 0; i < str->length(shape); i++) {
-    switch (str->Get(shape, i)) {
+  for (int i = 0; i < str->length(); i++) {
+    switch (str->Get(i)) {
       case 'i':
         flags |= JSRegExp::IGNORE_CASE;
         break;
@@ -421,7 +355,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re,
   JSRegExp::Flags flags = re->GetFlags();
 
   Handle<String> pattern(re->Pattern());
-  if (!pattern->IsFlat(StringShape(*pattern))) {
+  if (!pattern->IsFlat()) {
     FlattenString(pattern);
   }
 
@@ -552,7 +486,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   }
 #endif
 
-  if (!subject->IsFlat(StringShape(*subject))) {
+  if (!subject->IsFlat()) {
     FlattenString(subject);
   }
 
@@ -590,7 +524,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
   int result_length = 0;
   Handle<Object> matches;
 
-  if (!subject->IsFlat(StringShape(*subject))) {
+  if (!subject->IsFlat()) {
     FlattenString(subject);
   }
 
@@ -659,9 +593,8 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
                                             int previous_index,
                                             int* offsets_vector,
                                             int offsets_vector_length) {
-  StringShape shape(*subject);
-  ASSERT(subject->IsFlat(shape));
-  bool is_ascii = shape.IsAsciiRepresentation();
+  ASSERT(subject->IsFlat());
+  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
   bool rc;
 
   Handle<String> original_subject = subject;

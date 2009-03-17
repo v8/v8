@@ -1077,12 +1077,11 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject->TryFlattenIfNotFlat(StringShape(subject));
-  StringShape shape(subject);
-  if (i >= static_cast<uint32_t>(subject->length(shape))) {
+  subject->TryFlattenIfNotFlat();
+  if (i >= static_cast<uint32_t>(subject->length())) {
     return Heap::nan_value();
   }
-  return Smi::FromInt(subject->Get(shape, i));
+  return Smi::FromInt(subject->Get(i));
 }
 
 
@@ -1114,7 +1113,6 @@ static const int kStringBuilderConcatHelperPositionBits = 19;
 
 template <typename schar>
 static inline void StringBuilderConcatHelper(String*,
-                                             StringShape,
                                              schar*,
                                              FixedArray*,
                                              int);
@@ -1170,11 +1168,10 @@ class ReplacementStringBuilder {
 
 
   void AddString(Handle<String> string) {
-    StringShape shape(*string);
-    int length = string->length(shape);
+    int length = string->length();
     ASSERT(length > 0);
     AddElement(*string);
-    if (!shape.IsAsciiRepresentation()) {
+    if (!StringShape(*string).IsAsciiRepresentation()) {
       is_ascii_ = false;
     }
     IncrementCharacterCount(length);
@@ -1193,7 +1190,6 @@ class ReplacementStringBuilder {
       SeqAsciiString* seq = SeqAsciiString::cast(*joined_string);
       char* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
-                                StringShape(*subject_),
                                 char_buffer,
                                 *parts_,
                                 part_count_);
@@ -1204,7 +1200,6 @@ class ReplacementStringBuilder {
       SeqTwoByteString* seq = SeqTwoByteString::cast(*joined_string);
       uc16* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
-                                StringShape(*subject_),
                                 char_buffer,
                                 *parts_,
                                 part_count_);
@@ -1432,16 +1427,15 @@ class CompiledReplacement {
 void CompiledReplacement::Compile(Handle<String> replacement,
                                   int capture_count,
                                   int subject_length) {
-  StringShape shape(*replacement);
-  ASSERT(replacement->IsFlat(shape));
-  if (shape.IsAsciiRepresentation()) {
+  ASSERT(replacement->IsFlat());
+  if (StringShape(*replacement).IsAsciiRepresentation()) {
     AssertNoAllocation no_alloc;
     ParseReplacementPattern(&parts_,
                             replacement->ToAsciiVector(),
                             capture_count,
                             subject_length);
   } else {
-    ASSERT(shape.IsTwoByteRepresentation());
+    ASSERT(StringShape(*replacement).IsTwoByteRepresentation());
     AssertNoAllocation no_alloc;
 
     ParseReplacementPattern(&parts_,
@@ -1514,8 +1508,8 @@ static Object* StringReplaceRegExpWithString(String* subject,
                                              JSRegExp* regexp,
                                              String* replacement,
                                              JSArray* last_match_info) {
-  ASSERT(subject->IsFlat(StringShape(subject)));
-  ASSERT(replacement->IsFlat(StringShape(replacement)));
+  ASSERT(subject->IsFlat());
+  ASSERT(replacement->IsFlat());
 
   HandleScope handles;
 
@@ -1619,9 +1613,8 @@ static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
   ASSERT(args.length() == 4);
 
   CONVERT_CHECKED(String, subject, args[0]);
-  StringShape subject_shape(subject);
-  if (!subject->IsFlat(subject_shape)) {
-    Object* flat_subject = subject->TryFlatten(subject_shape);
+  if (!subject->IsFlat()) {
+    Object* flat_subject = subject->TryFlatten();
     if (flat_subject->IsFailure()) {
       return flat_subject;
     }
@@ -1629,9 +1622,8 @@ static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
   }
 
   CONVERT_CHECKED(String, replacement, args[2]);
-  StringShape replacement_shape(replacement);
-  if (!replacement->IsFlat(replacement_shape)) {
-    Object* flat_replacement = replacement->TryFlatten(replacement_shape);
+  if (!replacement->IsFlat()) {
+    Object* flat_replacement = replacement->TryFlatten();
     if (flat_replacement->IsFailure()) {
       return flat_replacement;
     }
@@ -2002,27 +1994,24 @@ int Runtime::StringMatch(Handle<String> sub,
                          Handle<String> pat,
                          int start_index) {
   ASSERT(0 <= start_index);
-  StringShape sub_shape(*sub);
-  ASSERT(start_index <= sub->length(sub_shape));
+  ASSERT(start_index <= sub->length());
 
   int pattern_length = pat->length();
   if (pattern_length == 0) return start_index;
 
-  int subject_length = sub->length(sub_shape);
+  int subject_length = sub->length();
   if (start_index + pattern_length > subject_length) return -1;
 
-  if (!sub->IsFlat(sub_shape)) {
+  if (!sub->IsFlat()) {
     FlattenString(sub);
-    sub_shape = StringShape(*sub);
   }
-  StringShape pat_shape(*pat);
   // Searching for one specific character is common.  For one
   // character patterns linear search is necessary, so any smart
   // algorithm is unnecessary overhead.
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    if (sub_shape.IsAsciiRepresentation()) {
-      uc16 pchar = pat->Get(pat_shape, 0);
+    if (StringShape(*sub).IsAsciiRepresentation()) {
+      uc16 pchar = pat->Get(0);
       if (pchar > String::kMaxAsciiCharCode) {
         return -1;
       }
@@ -2037,28 +2026,24 @@ int Runtime::StringMatch(Handle<String> sub,
       return reinterpret_cast<const char*>(pos) - ascii_vector.start()
           + start_index;
     }
-    return SingleCharIndexOf(sub->ToUC16Vector(),
-                             pat->Get(pat_shape, 0),
-                             start_index);
+    return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
   }
 
-  if (!pat->IsFlat(pat_shape)) {
+  if (!pat->IsFlat()) {
     FlattenString(pat);
-    pat_shape = StringShape(*pat);
-    sub_shape = StringShape(*sub);
   }
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // dispatch on type of strings
-  if (pat_shape.IsAsciiRepresentation()) {
+  if (StringShape(*pat).IsAsciiRepresentation()) {
     Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (sub_shape.IsAsciiRepresentation()) {
+    if (StringShape(*sub).IsAsciiRepresentation()) {
       return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
     }
     return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = pat->ToUC16Vector();
-  if (sub_shape.IsAsciiRepresentation()) {
+  if (StringShape(*sub).IsAsciiRepresentation()) {
     return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
   }
   return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
@@ -2090,17 +2075,14 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   CONVERT_CHECKED(String, pat, args[1]);
   Object* index = args[2];
 
-  sub->TryFlattenIfNotFlat(StringShape(sub));
-  pat->TryFlattenIfNotFlat(StringShape(pat));
-
-  StringShape sub_shape(sub);
-  StringShape pat_shape(pat);
+  sub->TryFlattenIfNotFlat();
+  pat->TryFlattenIfNotFlat();
 
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
-  uint32_t pattern_length = pat->length(pat_shape);
-  uint32_t sub_length = sub->length(sub_shape);
+  uint32_t pattern_length = pat->length();
+  uint32_t sub_length = sub->length();
 
   if (start_index + pattern_length > sub_length) {
     start_index = sub_length - pattern_length;
@@ -2109,7 +2091,7 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   for (int i = start_index; i >= 0; i--) {
     bool found = true;
     for (uint32_t j = 0; j < pattern_length; j++) {
-      if (sub->Get(sub_shape, i + j) != pat->Get(pat_shape, j)) {
+      if (sub->Get(i + j) != pat->Get(j)) {
         found = false;
         break;
       }
@@ -2129,10 +2111,8 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   CONVERT_CHECKED(String, str2, args[1]);
 
   if (str1 == str2) return Smi::FromInt(0);  // Equal.
-  StringShape shape1(str1);
-  StringShape shape2(str2);
-  int str1_length = str1->length(shape1);
-  int str2_length = str2->length(shape2);
+  int str1_length = str1->length();
+  int str2_length = str2->length();
 
   // Decide trivial cases without flattening.
   if (str1_length == 0) {
@@ -2147,11 +2127,11 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   // No need to flatten if we are going to find the answer on the first
   // character.  At this point we know there is at least one character
   // in each string, due to the trivial case handling above.
-  int d = str1->Get(shape1, 0) - str2->Get(shape2, 0);
+  int d = str1->Get(0) - str2->Get(0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1->TryFlattenIfNotFlat(shape1);  // Shapes are no longer valid now!
-  str2->TryFlattenIfNotFlat(shape2);
+  str1->TryFlattenIfNotFlat();
+  str2->TryFlattenIfNotFlat();
 
   static StringInputBuffer buf1;
   static StringInputBuffer buf2;
@@ -2286,11 +2266,10 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 // Returns a single character string where first character equals
 // string->Get(index).
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
-  StringShape shape(*string);
-  if (index < static_cast<uint32_t>(string->length(shape))) {
-    string->TryFlattenIfNotFlat(shape);  // Invalidates shape!
+  if (index < static_cast<uint32_t>(string->length())) {
+    string->TryFlattenIfNotFlat();
     return LookupSingleCharacterStringFromCode(
-        string->Get(StringShape(*string), index));
+        string->Get(index));
   }
   return Execution::CharAt(string, index);
 }
@@ -2481,7 +2460,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
       result = SetElement(js_object, index, value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
-      key_string->TryFlattenIfNotFlat(StringShape(*key_string));
+      key_string->TryFlattenIfNotFlat();
       result = SetProperty(js_object, key_string, value, attr);
     }
     if (result.is_null()) return Failure::Exception();
@@ -2775,7 +2754,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
-  subject->TryFlattenIfNotFlat(StringShape(subject));
+  subject->TryFlattenIfNotFlat();
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -2805,11 +2784,10 @@ static Object* Runtime_StringFromCharCodeArray(Arguments args) {
 
   if (object->IsFailure()) return object;
   String* result = String::cast(object);
-  StringShape result_shape(result);
   for (int i = 0; i < length; i++) {
     Object* element = codes->GetElement(i);
     CONVERT_NUMBER_CHECKED(int, chr, Int32, element);
-    result->Set(result_shape, i, chr & 0xffff);
+    result->Set(i, chr & 0xffff);
   }
   return result;
 }
@@ -2858,7 +2836,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlattenIfNotFlat(StringShape(source));
+  source->TryFlattenIfNotFlat();
 
   int escaped_length = 0;
   int length = source->length();
@@ -2888,7 +2866,6 @@ static Object* Runtime_URIEscape(Arguments args) {
   Object* o = Heap::AllocateRawAsciiString(escaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
-  StringShape dshape(destination);
   int dest_position = 0;
 
   Access<StringInputBuffer> buffer(&runtime_string_input_buffer);
@@ -2896,20 +2873,20 @@ static Object* Runtime_URIEscape(Arguments args) {
   while (buffer->has_more()) {
     uint16_t chr = buffer->GetNext();
     if (chr >= 256) {
-      destination->Set(dshape, dest_position, '%');
-      destination->Set(dshape, dest_position+1, 'u');
-      destination->Set(dshape, dest_position+2, hex_chars[chr >> 12]);
-      destination->Set(dshape, dest_position+3, hex_chars[(chr >> 8) & 0xf]);
-      destination->Set(dshape, dest_position+4, hex_chars[(chr >> 4) & 0xf]);
-      destination->Set(dshape, dest_position+5, hex_chars[chr & 0xf]);
+      destination->Set(dest_position, '%');
+      destination->Set(dest_position+1, 'u');
+      destination->Set(dest_position+2, hex_chars[chr >> 12]);
+      destination->Set(dest_position+3, hex_chars[(chr >> 8) & 0xf]);
+      destination->Set(dest_position+4, hex_chars[(chr >> 4) & 0xf]);
+      destination->Set(dest_position+5, hex_chars[chr & 0xf]);
       dest_position += 6;
     } else if (IsNotEscaped(chr)) {
-      destination->Set(dshape, dest_position, chr);
+      destination->Set(dest_position, chr);
       dest_position++;
     } else {
-      destination->Set(dshape, dest_position, '%');
-      destination->Set(dshape, dest_position+1, hex_chars[chr >> 4]);
-      destination->Set(dshape, dest_position+2, hex_chars[chr & 0xf]);
+      destination->Set(dest_position, '%');
+      destination->Set(dest_position+1, hex_chars[chr >> 4]);
+      destination->Set(dest_position+2, hex_chars[chr & 0xf]);
       dest_position += 3;
     }
   }
@@ -2938,26 +2915,25 @@ static inline int TwoDigitHex(uint16_t character1, uint16_t character2) {
 
 
 static inline int Unescape(String* source,
-                           StringShape shape,
                            int i,
                            int length,
                            int* step) {
-  uint16_t character = source->Get(shape, i);
+  uint16_t character = source->Get(i);
   int32_t hi = 0;
   int32_t lo = 0;
   if (character == '%' &&
       i <= length - 6 &&
-      source->Get(shape, i + 1) == 'u' &&
-      (hi = TwoDigitHex(source->Get(shape, i + 2),
-                        source->Get(shape, i + 3))) != -1 &&
-      (lo = TwoDigitHex(source->Get(shape, i + 4),
-                        source->Get(shape, i + 5))) != -1) {
+      source->Get(i + 1) == 'u' &&
+      (hi = TwoDigitHex(source->Get(i + 2),
+                        source->Get(i + 3))) != -1 &&
+      (lo = TwoDigitHex(source->Get(i + 4),
+                        source->Get(i + 5))) != -1) {
     *step = 6;
     return (hi << 8) + lo;
   } else if (character == '%' &&
       i <= length - 3 &&
-      (lo = TwoDigitHex(source->Get(shape, i + 1),
-                        source->Get(shape, i + 2))) != -1) {
+      (lo = TwoDigitHex(source->Get(i + 1),
+                        source->Get(i + 2))) != -1) {
     *step = 3;
     return lo;
   } else {
@@ -2972,22 +2948,17 @@ static Object* Runtime_URIUnescape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlattenIfNotFlat(StringShape(source));
-  StringShape source_shape(source);
+  source->TryFlattenIfNotFlat();
 
   bool ascii = true;
-  int length = source->length(source_shape);
+  int length = source->length();
 
   int unescaped_length = 0;
   for (int i = 0; i < length; unescaped_length++) {
     int step;
-    if (Unescape(source,
-                 source_shape,
-                 i,
-                 length,
-                 &step) >
-        String::kMaxAsciiCharCode)
+    if (Unescape(source, i, length, &step) > String::kMaxAsciiCharCode) {
       ascii = false;
+    }
     i += step;
   }
 
@@ -3000,14 +2971,11 @@ static Object* Runtime_URIUnescape(Arguments args) {
               Heap::AllocateRawTwoByteString(unescaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
-  StringShape destination_shape(destination);
 
   int dest_position = 0;
   for (int i = 0; i < length; dest_position++) {
     int step;
-    destination->Set(destination_shape,
-                     dest_position,
-                     Unescape(source, source_shape, i, length, &step));
+    destination->Set(dest_position, Unescape(source, i, length, &step));
     i += step;
   }
   return destination;
@@ -3021,33 +2989,31 @@ static Object* Runtime_StringParseInt(Arguments args) {
   CONVERT_DOUBLE_CHECKED(n, args[1]);
   int radix = FastD2I(n);
 
-  s->TryFlattenIfNotFlat(StringShape(s));
+  s->TryFlattenIfNotFlat();
 
-  StringShape shape(s);
-
-  int len = s->length(shape);
+  int len = s->length();
   int i;
 
   // Skip leading white space.
-  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(shape, i)); i++) ;
+  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(i)); i++) ;
   if (i == len) return Heap::nan_value();
 
   // Compute the sign (default to +).
   int sign = 1;
-  if (s->Get(shape, i) == '-') {
+  if (s->Get(i) == '-') {
     sign = -1;
     i++;
-  } else if (s->Get(shape, i) == '+') {
+  } else if (s->Get(i) == '+') {
     i++;
   }
 
   // Compute the radix if 0.
   if (radix == 0) {
     radix = 10;
-    if (i < len && s->Get(shape, i) == '0') {
+    if (i < len && s->Get(i) == '0') {
       radix = 8;
       if (i + 1 < len) {
-        int c = s->Get(shape, i + 1);
+        int c = s->Get(i + 1);
         if (c == 'x' || c == 'X') {
           radix = 16;
           i += 2;
@@ -3056,8 +3022,8 @@ static Object* Runtime_StringParseInt(Arguments args) {
     }
   } else if (radix == 16) {
     // Allow 0x or 0X prefix if radix is 16.
-    if (i + 1 < len && s->Get(shape, i) == '0') {
-      int c = s->Get(shape, i + 1);
+    if (i + 1 < len && s->Get(i) == '0') {
+      int c = s->Get(i + 1);
       if (c == 'x' || c == 'X') i += 2;
     }
   }
@@ -3089,40 +3055,26 @@ static unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping;
 
 
 template <class Converter>
-static Object* ConvertCase(Arguments args,
-                           unibrow::Mapping<Converter, 128>* mapping) {
-  NoHandleAllocation ha;
-
-  CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlattenIfNotFlat(StringShape(s));
-  StringShape shape(s);
-
-  int raw_string_length = s->length(shape);
-  // Assume that the string is not empty; we need this assumption later
-  if (raw_string_length == 0) return s;
-  int length = raw_string_length;
-
-
-  // We try this twice, once with the assumption that the result is
-  // no longer than the input and, if that assumption breaks, again
-  // with the exact length.  This is implemented using a goto back
-  // to this label if we discover that the assumption doesn't hold.
-  // I apologize sincerely for this and will give a vaffel-is to
-  // the first person who can implement it in a nicer way.
- try_convert:
-
+static Object* ConvertCaseHelper(String* s,
+                                 int length,
+                                 int input_string_length,
+                                 unibrow::Mapping<Converter, 128>* mapping) {
+  // We try this twice, once with the assumption that the result is no longer
+  // than the input and, if that assumption breaks, again with the exact
+  // length.  This may not be pretty, but it is nicer than what was here before
+  // and I hereby claim my vaffel-is.
+  //
   // Allocate the resulting string.
   //
   // NOTE: This assumes that the upper/lower case of an ascii
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o = shape.IsAsciiRepresentation()
+  Object* o = StringShape(s).IsAsciiRepresentation()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
   String* result = String::cast(o);
-  StringShape result_shape(result);
   bool has_changed_character = false;
 
   // Convert all characters to upper case, assuming that they will fit
@@ -3130,24 +3082,23 @@ static Object* ConvertCase(Arguments args,
   Access<StringInputBuffer> buffer(&runtime_string_input_buffer);
   buffer->Reset(s);
   unibrow::uchar chars[Converter::kMaxWidth];
-  int i = 0;
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();
-  while (i < length) {
+  for (int i = 0; i < length; ) {
     bool has_next = buffer->has_more();
     uc32 next = has_next ? buffer->GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
-      result->Set(result_shape, i, current);
+      result->Set(i, current);
       i++;
     } else if (char_length == 1) {
       // Common case: converting the letter resulted in one character.
       ASSERT(static_cast<uc32>(chars[0]) != current);
-      result->Set(result_shape, i, chars[0]);
+      result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
-    } else if (length == raw_string_length) {
+    } else if (length == input_string_length) {
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
       // characters.  No matter, we calculate the exact length
@@ -3174,12 +3125,16 @@ static Object* ConvertCase(Arguments args,
         int char_length = mapping->get(current, 0, chars);
         if (char_length == 0) char_length = 1;
         current_length += char_length;
+        if (current_length > Smi::kMaxValue) {
+          Top::context()->mark_out_of_memory();
+          return Failure::OutOfMemoryException();
+        }
       }
-      length = current_length;
-      goto try_convert;
+      // Try again with the real length.
+      return Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
-        result->Set(result_shape, i, chars[j]);
+        result->Set(i, chars[j]);
         i++;
       }
       has_changed_character = true;
@@ -3195,6 +3150,28 @@ static Object* ConvertCase(Arguments args,
     // alive.
     return s;
   }
+}
+
+
+template <class Converter>
+static Object* ConvertCase(Arguments args,
+                           unibrow::Mapping<Converter, 128>* mapping) {
+  NoHandleAllocation ha;
+
+  CONVERT_CHECKED(String, s, args[0]);
+  s->TryFlattenIfNotFlat();
+
+  int input_string_length = s->length();
+  // Assume that the string is not empty; we need this assumption later
+  if (input_string_length == 0) return s;
+  int length = input_string_length;
+
+  Object* answer = ConvertCaseHelper(s, length, length, mapping);
+  if (answer->IsSmi()) {
+    // Retry with correct length.
+    answer = ConvertCaseHelper(s, Smi::cast(answer)->value(), length, mapping);
+  }
+  return answer;  // This may be a failure.
 }
 
 
@@ -3384,7 +3361,6 @@ static Object* Runtime_StringAdd(Arguments args) {
 
 template<typename sinkchar>
 static inline void StringBuilderConcatHelper(String* special,
-                                             StringShape special_shape,
                                              sinkchar* sink,
                                              FixedArray* fixed_array,
                                              int array_length) {
@@ -3396,16 +3372,14 @@ static inline void StringBuilderConcatHelper(String* special,
       int pos = StringBuilderSubstringPosition::decode(encoded_slice);
       int len = StringBuilderSubstringLength::decode(encoded_slice);
       String::WriteToFlat(special,
-                          special_shape,
                           sink + position,
                           pos,
                           pos + len);
       position += len;
     } else {
       String* string = String::cast(element);
-      StringShape shape(string);
-      int element_length = string->length(shape);
-      String::WriteToFlat(string, shape, sink + position, 0, element_length);
+      int element_length = string->length();
+      String::WriteToFlat(string, sink + position, 0, element_length);
       position += element_length;
     }
   }
@@ -3417,8 +3391,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
   CONVERT_CHECKED(String, special, args[1]);
-  StringShape special_shape(special);
-  int special_length = special->length(special_shape);
+  int special_length = special->length();
   Object* smi_array_length = array->length();
   if (!smi_array_length->IsSmi()) {
     Top::context()->mark_out_of_memory();
@@ -3440,7 +3413,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special_shape.IsAsciiRepresentation();
+  bool ascii = StringShape(special).IsAsciiRepresentation();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
@@ -3454,14 +3427,13 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
       position += len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
-      StringShape element_shape(element);
-      int element_length = element->length(element_shape);
+      int element_length = element->length();
       if (!Smi::IsValid(element_length + position)) {
         Top::context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !element_shape.IsAsciiRepresentation()) {
+      if (ascii && !StringShape(element).IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
@@ -3477,7 +3449,6 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (object->IsFailure()) return object;
     SeqAsciiString* answer = SeqAsciiString::cast(object);
     StringBuilderConcatHelper(special,
-                              special_shape,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -3487,7 +3458,6 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (object->IsFailure()) return object;
     SeqTwoByteString* answer = SeqTwoByteString::cast(object);
     StringBuilderConcatHelper(special,
-                              special_shape,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -3682,24 +3652,21 @@ static Object* Runtime_StringCompare(Arguments args) {
   CONVERT_CHECKED(String, x, args[0]);
   CONVERT_CHECKED(String, y, args[1]);
 
-  StringShape x_shape(x);
-  StringShape y_shape(y);
-
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);
-  if (y->length(y_shape) == 0) {
-    if (x->length(x_shape) == 0) return Smi::FromInt(EQUAL);
+  if (y->length() == 0) {
+    if (x->length() == 0) return Smi::FromInt(EQUAL);
     return Smi::FromInt(GREATER);
-  } else if (x->length(x_shape) == 0) {
+  } else if (x->length() == 0) {
     return Smi::FromInt(LESS);
   }
 
-  int d = x->Get(x_shape, 0) - y->Get(y_shape, 0);
+  int d = x->Get(0) - y->Get(0);
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlattenIfNotFlat(x_shape);  // Shapes are no longer valid!
-  y->TryFlattenIfNotFlat(y_shape);
+  x->TryFlattenIfNotFlat();
+  y->TryFlattenIfNotFlat();
 
   static StringInputBuffer bufx;
   static StringInputBuffer bufy;

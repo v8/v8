@@ -643,8 +643,7 @@ TEST(MacroAssembler) {
 
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("foobar"));
-  Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
-  CHECK(IrregexpInterpreter::Match(array, f1_16, captures, 0));
+  CHECK(IrregexpInterpreter::Match(array, f1, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(1, captures[2]);
@@ -653,8 +652,7 @@ TEST(MacroAssembler) {
 
   Handle<String> f2 =
       Factory::NewStringFromAscii(CStrVector("barfoo"));
-  Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
-  CHECK(!IrregexpInterpreter::Match(array, f2_16, captures, 0));
+  CHECK(!IrregexpInterpreter::Match(array, f2, captures, 0));
   CHECK_EQ(42, captures[0]);
 }
 

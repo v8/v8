@@ -254,10 +254,9 @@ TEST(GarbageCollection) {
 
 static void VerifyStringAllocation(const char* string) {
   String* s = String::cast(Heap::AllocateStringFromUtf8(CStrVector(string)));
-  StringShape shape(s);
-  CHECK_EQ(static_cast<int>(strlen(string)), s->length(shape));
-  for (int index = 0; index < s->length(shape); index++) {
-    CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(shape, index));  }
+  CHECK_EQ(static_cast<int>(strlen(string)), s->length());
+  for (int index = 0; index < s->length(); index++) {
+    CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));  }
 }
 
 
