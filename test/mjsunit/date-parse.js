@@ -41,12 +41,13 @@ function testDateParse(string) {
 // number of milliseconds to make it timezone independent.
 function testDateParseLocalTime(string) {
   var d = Date.parse(string);
-  assertTrue(d > 0 && !isNaN(d));
+  assertTrue(!isNaN(d), string + " is NaN.");
+  assertTrue(d > 0, string + " <= 0.");
 };
 
 
 function testDateParseMisc(array) {
-  assertTrue(array.length == 2);
+  assertEquals(2, array.length, "array [" + array + "] length != 2.");
   var string = array[0];
   var expected = array[1];
   var d = Date.parse(string);
@@ -262,4 +263,6 @@ var testCasesNegative = [
     'May 25 2008 1:30( )AM (PM)',
     'May 25 2008 AAA (GMT)'];
 
-testCasesNegative.forEach(function (s) { assertTrue(isNaN(Date.parse(s))); });
+testCasesNegative.forEach(function (s) {
+    assertTrue(isNaN(Date.parse(s)), s + " is not NaN.");
+});

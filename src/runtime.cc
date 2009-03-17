@@ -35,6 +35,7 @@
 #include "compiler.h"
 #include "cpu.h"
 #include "dateparser.h"
+#include "dateparser-inl.h"
 #include "debug.h"
 #include "execution.h"
 #include "jsregexp.h"
@@ -4484,8 +4485,19 @@ static Object* Runtime_DateParseString(Arguments args) {
   CONVERT_CHECKED(String, string_object, args[0]);
 
   Handle<String> str(string_object);
+  FlattenString(str);
   Handle<FixedArray> output = Factory::NewFixedArray(DateParser::OUTPUT_SIZE);
-  if (DateParser::Parse(*str, *output)) {
+  bool result;
+  {
+    AssertNoAllocation no_allocation;
+    if (StringShape(*str).IsAsciiRepresentation()) {
+      result = DateParser::Parse(str->ToAsciiVector(), *output);
+    } else {
+      ASSERT(StringShape(*str).IsTwoByteRepresentation());
+      result = DateParser::Parse(str->ToUC16Vector(), *output);
+    }
+  }
+  if (result) {
     return *Factory::NewJSArrayWithElements(output);
   } else {
     return *Factory::null_value();
