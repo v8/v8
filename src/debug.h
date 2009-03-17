@@ -574,20 +574,10 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : prev_(Debug::debugger_entry()),
         has_js_frames_(!it_.done()) {
-    ASSERT(!Debug::preemption_pending());
+    ASSERT(prev_ == NULL ? !Debug::preemption_pending() : true);
 
     // Link recursive debugger entry.
     Debug::set_debugger_entry(this);
-
-    // If a preemption is pending when first entering the debugger clear it as
-    // we don't want preemption happening while executing JavaScript in the
-    // debugger. When recursively entering the debugger the preemption flag
-    // cannot be set as this is disabled while in the debugger (see
-    // RuntimePreempt).
-    if (prev_ == NULL && StackGuard::IsPreempted()) {
-      StackGuard::Continue(PREEMPT);
-    }
-    ASSERT(!StackGuard::IsPreempted());
 
     // Store the previous break id and frame id.
     break_id_ = Debug::break_id();
