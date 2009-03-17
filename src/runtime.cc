@@ -3084,7 +3084,7 @@ static Object* ConvertCaseHelper(String* s,
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();
-  for (int i = 0; i < length; ) {
+  for (int i = 0; i < length;) {
     bool has_next = buffer->has_more();
     uc32 next = has_next ? buffer->GetNext() : 0;
     int char_length = mapping->get(current, next, chars);

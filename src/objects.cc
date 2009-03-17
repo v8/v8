@@ -4190,7 +4190,8 @@ bool String::SlowEquals(String* other) {
     if (Hash() != other->Hash()) return false;
   }
 
-  if (StringShape(this).IsSequentialAscii() && StringShape(other).IsSequentialAscii()) {
+  if (StringShape(this).IsSequentialAscii() &&
+      StringShape(other).IsSequentialAscii()) {
     const char* str1 = SeqAsciiString::cast(this)->GetChars();
     const char* str2 = SeqAsciiString::cast(other)->GetChars();
     return CompareRawStringContents(Vector<const char>(str1, len),
