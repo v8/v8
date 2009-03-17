@@ -234,6 +234,8 @@ namespace v8 { namespace internal {
   F(GetFrameCount, 1) \
   F(GetFrameDetails, 2) \
   F(GetCFrames, 1) \
+  F(GetThreadCount, 1) \
+  F(GetThreadDetails, 2) \
   F(GetBreakLocations, 1) \
   F(SetFunctionBreakPoint, 3) \
   F(SetScriptBreakPoint, 3) \

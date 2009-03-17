@@ -5738,6 +5738,78 @@ static Object* Runtime_GetCFrames(Arguments args) {
 }
 
 
+static Object* Runtime_GetThreadCount(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+
+  // Check arguments.
+  Object* result = Runtime_CheckExecutionState(args);
+  if (result->IsFailure()) return result;
+
+  // Count all archived V8 threads.
+  int n = 0;
+  for (ThreadState* thread = ThreadState::FirstInUse();
+       thread != NULL;
+       thread = thread->Next()) {
+    n++;
+  }
+
+  // Total number of threads is current thread and archived threads.
+  return Smi::FromInt(n + 1);
+}
+
+
+static const int kThreadDetailsCurrentThreadIndex = 0;
+static const int kThreadDetailsThreadIdIndex = 1;
+static const int kThreadDetailsSize = 2;
+
+// Return an array with thread details
+// args[0]: number: break id
+// args[1]: number: thread index
+//
+// The array returned contains the following information:
+// 0: Is current thread?
+// 1: Thread id
+static Object* Runtime_GetThreadDetails(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+
+  // Check arguments.
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+
+  // Allocate array for result.
+  Handle<FixedArray> details = Factory::NewFixedArray(kThreadDetailsSize);
+
+  // Thread index 0 is current thread.
+  if (index == 0) {
+    // Fill the details.
+    details->set(kThreadDetailsCurrentThreadIndex, Heap::true_value());
+    details->set(kThreadDetailsThreadIdIndex,
+                 Smi::FromInt(ThreadManager::CurrentId()));
+  } else {
+    // Find the thread with the requested index.
+    int n = 1;
+    ThreadState* thread = ThreadState::FirstInUse();
+    while (index != n && thread != NULL) {
+      thread = thread->Next();
+      n++;
+    }
+    if (thread == NULL) {
+      return Heap::undefined_value();
+    }
+
+    // Fill the details.
+    details->set(kThreadDetailsCurrentThreadIndex, Heap::false_value());
+    details->set(kThreadDetailsThreadIdIndex, Smi::FromInt(thread->id()));
+  }
+
+  // Convert to JS array and return.
+  return *Factory::NewJSArrayWithElements(details);
+}
+
+
 static Object* Runtime_GetBreakLocations(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);

@@ -45,6 +45,10 @@ class ThreadState {
 
   static ThreadState* GetFree();
 
+  // Id of thread.
+  void set_id(int id) { id_ = id; }
+  int id() { return id_; }
+
   // Get data area for archiving a thread.
   char* data() { return data_; }
  private:
@@ -52,9 +56,11 @@ class ThreadState {
 
   void AllocateSpace();
 
+  int id_;
   char* data_;
   ThreadState* next_;
   ThreadState* previous_;
+
   // In the following two lists there is always at least one object on the list.
   // The first object is a flying anchor that is only there to simplify linking
   // and unlinking.
@@ -77,9 +83,15 @@ class ThreadManager : public AllStatic {
   static void MarkCompactPrologue(bool is_compacting);
   static void MarkCompactEpilogue(bool is_compacting);
   static bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
+
+  static int CurrentId();
+  static void AssignId();
+
+  static const int kInvalidId = -1;
  private:
   static void EagerlyArchiveThread();
 
+  static int next_id_;  // V8 threads are identified through an integer.
   static Mutex* mutex_;
   static ThreadHandle mutex_owner_;
   static ThreadHandle lazily_archived_thread_;
