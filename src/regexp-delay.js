@@ -300,7 +300,7 @@ function RegExpGetRightContext() {
 
 // The properties $1..$9 are the first nine capturing substrings of the last
 // successful match, or ''.  The function RegExpMakeCaptureGetter will be
-// called with indeces from 1 to 9.
+// called with indices from 1 to 9.
 function RegExpMakeCaptureGetter(n) {
   return function() {
     var index = n * 2;
@@ -321,10 +321,10 @@ function RegExpMakeCaptureGetter(n) {
 // the subject string for the last successful match.
 var lastMatchInfo = [
     2,                 // REGEXP_NUMBER_OF_CAPTURES
-    0,                 // REGEXP_FIRST_CAPTURE + 0
-    0,                 // REGEXP_FIRST_CAPTURE + 1
     "",                // Last subject.
     void 0,            // Last input - settable with RegExpSetInput.
+    0,                 // REGEXP_FIRST_CAPTURE + 0
+    0,                 // REGEXP_FIRST_CAPTURE + 1
 ];
 
 // -------------------------------------------------------------------
@@ -353,8 +353,7 @@ function SetupRegExp() {
     return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
   }
   function RegExpSetInput(string) {
-    lastMatchInfo[lastMatchInfo[REGEXP_NUMBER_OF_CAPTURES] + 2] =
-        ToString(string);
+    LAST_INPUT(lastMatchInfo) = ToString(string);
   };
 
   // All these accessors are set with the 'never_used' flag set to true.

@@ -34,7 +34,6 @@
 #include "compilation-cache.h"
 #include "debug.h"
 #include "global-handles.h"
-#include "jsregexp.h"
 #include "mark-compact.h"
 #include "natives.h"
 #include "scanner.h"

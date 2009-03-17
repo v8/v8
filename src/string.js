@@ -236,7 +236,7 @@ function StringReplace(search, replace) {
 // needle is a string rather than a regexp.  In this case we can't update
 // lastMatchArray without erroneously affecting the properties on the global
 // RegExp object.
-var reusableMatchInfo = [2, -1, -1, "", ""];
+var reusableMatchInfo = [2, "", "", -1, -1];
 
 
 // Helper function for regular expressions in String.prototype.replace.

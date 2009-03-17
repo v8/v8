@@ -641,18 +641,22 @@ TEST(MacroAssembler) {
   Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode(source));
   int captures[5];
 
-  Handle<String> f1 =
-      Factory::NewStringFromAscii(CStrVector("foobar"));
-  CHECK(IrregexpInterpreter::Match(array, f1, captures, 0));
+  const uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
+  Handle<String> f1_16 =
+      Factory::NewStringFromTwoByte(Vector<const uc16>(str1, 6));
+
+  CHECK(IrregexpInterpreter::Match(array, f1_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(1, captures[2]);
   CHECK_EQ(2, captures[3]);
   CHECK_EQ(84, captures[4]);
 
-  Handle<String> f2 =
-      Factory::NewStringFromAscii(CStrVector("barfoo"));
-  CHECK(!IrregexpInterpreter::Match(array, f2, captures, 0));
+  const uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
+  Handle<String> f2_16 =
+      Factory::NewStringFromTwoByte(Vector<const uc16>(str2, 6));
+
+  CHECK(!IrregexpInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(42, captures[0]);
 }
 

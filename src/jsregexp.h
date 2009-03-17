@@ -112,7 +112,7 @@ class RegExpImpl {
   static const int kLastCaptureCount = 0;
   static const int kLastSubject = 1;
   static const int kLastInput = 2;
-  static const int kFirstCapture = 1;
+  static const int kFirstCapture = 3;
   static const int kLastMatchOverhead = 3;
 
   // Used to access the lastMatchInfo array.
@@ -125,13 +125,11 @@ class RegExpImpl {
   }
 
   static void SetLastSubject(FixedArray* array, String* to) {
-    int capture_count = GetLastCaptureCount(array);
-    array->set(capture_count + kLastSubject, to);
+    array->set(kLastSubject, to);
   }
 
   static void SetLastInput(FixedArray* array, String* to) {
-    int capture_count = GetLastCaptureCount(array);
-    array->set(capture_count + kLastInput, to);
+    array->set(kLastInput, to);
   }
 
   static void SetCapture(FixedArray* array, int index, int to) {
