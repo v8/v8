@@ -228,8 +228,6 @@ class OS {
 
   static char* StrChr(char* str, int c);
   static void StrNCpy(Vector<char> dest, const char* src, size_t n);
-  static char* StrDup(const char* str);
-  static char* StrNDup(const char* str, size_t n);
 
   // Support for profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted

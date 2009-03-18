@@ -196,16 +196,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-char* OS::StrDup(const char* str) {
-  return strdup(str);
-}
-
-
-char* OS::StrNDup(const char* str, size_t n) {
-  return strndup(str, n);
-}
-
-
 double OS::nan_value() {
   return NAN;
 }

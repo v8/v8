@@ -199,28 +199,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-char *OS::StrDup(const char* str) {
-  return strdup(str);
-}
-
-
-char* OS::StrNDup(const char* str, size_t n) {
-  // Stupid implementation of strndup since freebsd isn't born with
-  // one.
-  size_t len = strlen(str);
-  if (len <= n) {
-    return StrDup(str);
-  }
-  char* result = new char[n+1];
-  size_t i;
-  for (i = 0; i <= n; i++) {
-    result[i] = str[i];
-  }
-  result[i] = '\0';
-  return result;
-}
-
-
 double OS::nan_value() {
   return NAN;
 }
