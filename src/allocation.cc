@@ -87,6 +87,16 @@ char* StrDup(const char* str) {
 }
 
 
+char* StrNDup(const char* str, size_t n) {
+  size_t length = strlen(str);
+  if (n < length) length = n;
+  char* result = NewArray<char>(length + 1);
+  memcpy(result, str, length * kCharSize);
+  result[length] = '\0';
+  return result;
+}
+
+
 int NativeAllocationChecker::allocation_disallowed_ = 0;
 
 
