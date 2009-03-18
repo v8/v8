@@ -656,9 +656,8 @@ Handle<Code> ComputeCallMiss(int argc) {
 Object* LoadCallbackProperty(Arguments args) {
   Handle<JSObject> recv = args.at<JSObject>(0);
   AccessorInfo* callback = AccessorInfo::cast(args[1]);
-  v8::AccessorGetter fun =
-      FUNCTION_CAST<v8::AccessorGetter>(
-          v8::ToCData<Address>(callback->getter()));
+  Address getter_address = v8::ToCData<Address>(callback->getter());
+  v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
   Handle<String> name = args.at<String>(2);
   Handle<JSObject> holder = args.at<JSObject>(3);
@@ -669,10 +668,9 @@ Object* LoadCallbackProperty(Arguments args) {
   // locations of the arguments to this function maybe we don't have
   // to explicitly create the structure but can just pass a pointer
   // into the stack.
-  v8::AccessorInfo info(
-    v8::Utils::ToLocal(recv),
-    v8::Utils::ToLocal(data),
-    v8::Utils::ToLocal(holder));
+  v8::AccessorInfo info(v8::Utils::ToLocal(recv),
+                        v8::Utils::ToLocal(data),
+                        v8::Utils::ToLocal(holder));
   v8::Handle<v8::Value> result;
   {
     // Leaving JavaScript.
@@ -680,30 +678,25 @@ Object* LoadCallbackProperty(Arguments args) {
     result = fun(v8::Utils::ToLocal(name), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();
-  if (result.IsEmpty()) {
-    return Heap::undefined_value();
-  } else {
-    return *v8::Utils::OpenHandle(*result);
-  }
+  if (result.IsEmpty()) return Heap::undefined_value();
+  return *v8::Utils::OpenHandle(*result);
 }
 
 
 Object* StoreCallbackProperty(Arguments args) {
   Handle<JSObject> recv = args.at<JSObject>(0);
   AccessorInfo* callback = AccessorInfo::cast(args[1]);
-  v8::AccessorSetter fun =
-      FUNCTION_CAST<v8::AccessorSetter>(
-          v8::ToCData<Address>(callback->setter()));
+  Address setter_address = v8::ToCData<Address>(callback->setter());
+  v8::AccessorSetter fun = FUNCTION_CAST<v8::AccessorSetter>(setter_address);
   ASSERT(fun != NULL);
   Handle<String> name = args.at<String>(2);
   Handle<Object> value = args.at<Object>(3);
   HandleScope scope;
   Handle<Object> data(callback->data());
   LOG(ApiNamedPropertyAccess("store", *recv, *name));
-  v8::AccessorInfo info(
-    v8::Utils::ToLocal(recv),
-    v8::Utils::ToLocal(data),
-    v8::Utils::ToLocal(recv));
+  v8::AccessorInfo info(v8::Utils::ToLocal(recv),
+                        v8::Utils::ToLocal(data),
+                        v8::Utils::ToLocal(recv));
   {
     // Leaving JavaScript.
     VMState state(OTHER);
@@ -715,28 +708,17 @@ Object* StoreCallbackProperty(Arguments args) {
 
 
 Object* LoadInterceptorProperty(Arguments args) {
-  HandleScope scope;
-  Handle<JSObject> recv = args.at<JSObject>(0);
-  Handle<JSObject> holder = args.at<JSObject>(1);
-  Handle<String> name = args.at<String>(2);
+  JSObject* recv = JSObject::cast(args[0]);
+  JSObject* holder = JSObject::cast(args[1]);
+  String* name = String::cast(args[2]);
   ASSERT(holder->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  Handle<Object> result = GetPropertyWithInterceptor(recv, holder, name, &attr);
+  Object* result = holder->GetPropertyWithInterceptor(recv, name, &attr);
 
-  // GetPropertyWithInterceptor already converts a scheduled exception
-  // to a pending one if any. Don't use RETURN_IF_SCHEDULED_EXCEPTION() here.
-
-  // Make sure to propagate exceptions.
-  if (result.is_null())  {
-    // Failure::Exception is converted to a null handle in the
-    // handle-based methods such as SetProperty.  We therefore need
-    // to convert null handles back to exceptions.
-    ASSERT(Top::has_pending_exception());
-    return Failure::Exception();
-  }
+  if (result->IsFailure()) return result;
 
   // If the property is present, return it.
-  if (attr != ABSENT) return *result;
+  if (attr != ABSENT) return result;
 
   // If the top frame is an internal frame, this is really a call
   // IC. In this case, we simply return the undefined result which
@@ -744,43 +726,38 @@ Object* LoadInterceptorProperty(Arguments args) {
   // function.
   StackFrameIterator it;
   it.Advance();  // skip exit frame
-  if (it.frame()->is_internal()) return *result;
+  if (it.frame()->is_internal()) return result;
 
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here, so we
   // can't use either LoadIC or KeyedLoadIC constructors.
   IC ic(IC::NO_EXTRA_FRAME);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
-  if (!ic.is_contextual()) return *result;
+  if (!ic.is_contextual()) return result;
 
   // Throw a reference error.
-  Handle<Object> error =
-      Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
-  return Top::Throw(*error);
+  {
+    HandleScope scope;
+    // We cannot use the raw name pointer here since getting the
+    // property might cause a GC.  However, we can get the name from
+    // the stack using the arguments object.
+    Handle<String> name_handle = args.at<String>(2);
+    Handle<Object> error =
+        Factory::NewReferenceError("not_defined",
+                                   HandleVector(&name_handle, 1));
+    return Top::Throw(*error);
+  }
 }
 
 
 Object* StoreInterceptorProperty(Arguments args) {
-  HandleScope scope;
-  Handle<JSObject> recv = args.at<JSObject>(0);
-  Handle<String> name = args.at<String>(1);
-  Handle<Object> value = args.at<Object>(2);
+  JSObject* recv = JSObject::cast(args[0]);
+  String* name = String::cast(args[1]);
+  Object* value = args[2];
   ASSERT(recv->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  Handle<Object> result = SetPropertyWithInterceptor(recv, name, value, attr);
-
-  // SetPropertyWithInterceptor already converts a scheduled exception
-  // to a pending one if any. Don't use RETURN_IF_SCHEDULED_EXCEPTION() here.
-
-  // Make sure to propagate exceptions.
-  if (result.is_null()) {
-    // Failure::Exception is converted to a null handle in the
-    // handle-based methods such as SetProperty.  We therefore need
-    // to convert null handles back to exceptions.
-    ASSERT(Top::has_pending_exception());
-    return Failure::Exception();
-  }
-  return *result;
+  Object* result = recv->SetPropertyWithInterceptor(name, value, attr);
+  return result;
 }
 
 

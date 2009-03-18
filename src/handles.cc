@@ -52,44 +52,39 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-void** HandleScope::CreateHandle(void* value) {
+void** HandleScope::Extend() {
   void** result = current_.next;
-  if (result == current_.limit) {
-    // Make sure there's at least one scope on the stack and that the
-    // top of the scope stack isn't a barrier.
-    if (current_.extensions < 0) {
-      Utils::ReportApiFailure("v8::HandleScope::CreateHandle()",
-                              "Cannot create a handle without a HandleScope");
-      return NULL;
-    }
-    HandleScopeImplementer* impl = HandleScopeImplementer::instance();
-    // If there's more room in the last block, we use that. This is used
-    // for fast creation of scopes after scope barriers.
-    if (!impl->Blocks()->is_empty()) {
-      void** limit = &impl->Blocks()->last()[kHandleBlockSize];
-      if (current_.limit != limit) {
-        current_.limit = limit;
-      }
-    }
 
-    // If we still haven't found a slot for the handle, we extend the
-    // current handle scope by allocating a new handle block.
-    if (result == current_.limit) {
-      // If there's a spare block, use it for growing the current scope.
-      result = impl->GetSpareOrNewBlock();
-      // Add the extension to the global list of blocks, but count the
-      // extension as part of the current scope.
-      impl->Blocks()->Add(result);
-      current_.extensions++;
-      current_.limit = &result[kHandleBlockSize];
+  ASSERT(result == current_.limit);
+  // Make sure there's at least one scope on the stack and that the
+  // top of the scope stack isn't a barrier.
+  if (current_.extensions < 0) {
+    Utils::ReportApiFailure("v8::HandleScope::CreateHandle()",
+                            "Cannot create a handle without a HandleScope");
+    return NULL;
+  }
+  HandleScopeImplementer* impl = HandleScopeImplementer::instance();
+  // If there's more room in the last block, we use that. This is used
+  // for fast creation of scopes after scope barriers.
+  if (!impl->Blocks()->is_empty()) {
+    void** limit = &impl->Blocks()->last()[kHandleBlockSize];
+    if (current_.limit != limit) {
+      current_.limit = limit;
     }
   }
+  
+  // If we still haven't found a slot for the handle, we extend the
+  // current handle scope by allocating a new handle block.
+  if (result == current_.limit) {
+    // If there's a spare block, use it for growing the current scope.
+    result = impl->GetSpareOrNewBlock();
+    // Add the extension to the global list of blocks, but count the
+    // extension as part of the current scope.
+    impl->Blocks()->Add(result);
+    current_.extensions++;
+    current_.limit = &result[kHandleBlockSize];
+  }
 
-  // Update the current next field, set the value in the created
-  // handle, and return the result.
-  ASSERT(result < current_.limit);
-  current_.next = result + 1;
-  *result = value;
   return result;
 }
 
