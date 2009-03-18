@@ -565,11 +565,21 @@ class MacOSSemaphore : public Semaphore {
   // platform is not needed here.
   void Wait() { semaphore_wait(semaphore_); }
 
+  bool Wait(int timeout);
+
   void Signal() { semaphore_signal(semaphore_); }
 
  private:
   semaphore_t semaphore_;
 };
+
+
+bool MacOSSemaphore::Wait(int timeout) {
+  mach_timespec_t ts;
+  ts.tv_sec = timeout / 1000000;
+  ts.tv_nsec = (timeout % 1000000) * 1000;
+  return semaphore_timedwait(semaphore_, ts) != KERN_OPERATION_TIMED_OUT;
+}
 
 
 Semaphore* OS::CreateSemaphore(int count) {

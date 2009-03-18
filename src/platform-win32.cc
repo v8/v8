@@ -1538,6 +1538,12 @@ class Win32Semaphore : public Semaphore {
     WaitForSingleObject(sem, INFINITE);
   }
 
+  bool Wait(int timeout) {
+    // Timeout in Windows API is in milliseconds.
+    DWORD millis_timeout = timeout / 1000;
+    return WaitForSingleObject(sem, millis_timeout) != WAIT_TIMEOUT;
+  }
+
   void Signal() {
     LONG dummy;
     ReleaseSemaphore(sem, 1, &dummy);

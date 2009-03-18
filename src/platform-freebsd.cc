@@ -608,10 +608,12 @@ class FreeBSDSemaphore : public Semaphore {
   virtual ~FreeBSDSemaphore() { sem_destroy(&sem_); }
 
   virtual void Wait();
+  virtual bool Wait(int timeout);
   virtual void Signal() { sem_post(&sem_); }
  private:
   sem_t sem_;
 };
+
 
 void FreeBSDSemaphore::Wait() {
   while (true) {
@@ -620,6 +622,39 @@ void FreeBSDSemaphore::Wait() {
     CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
   }
 }
+
+
+bool FreeBSDSemaphore::Wait(int timeout) {
+  const long kOneSecondMicros = 1000000;  // NOLINT
+  const long kOneSecondNanos = 1000000000;  // NOLINT
+
+  // Split timeout into second and nanosecond parts.
+  long nanos = (timeout % kOneSecondMicros) * 1000;  // NOLINT
+  time_t secs = timeout / kOneSecondMicros;
+
+  // Get the current real time clock.
+  struct timespec ts;
+  if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+    return false;
+  }
+
+  // Calculate realtime for end of timeout.
+  ts.tv_nsec += nanos;
+  if (ts.tv_nsec >= kOneSecondNanos) {
+    ts.tv_nsec -= kOneSecondNanos;
+    ts.tv_nsec++;
+  }
+  ts.tv_sec += secs;
+
+  // Wait for semaphore signalled or timeout.
+  while (true) {
+    int result = sem_timedwait(&sem_, &ts);
+    if (result == 0) return true;  // Successfully got semaphore.
+    if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
+    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
+  }
+}
+
 
 Semaphore* OS::CreateSemaphore(int count) {
   return new FreeBSDSemaphore(count);

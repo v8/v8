@@ -151,7 +151,7 @@ V8_EXTRA_FLAGS = {
 MKSNAPSHOT_EXTRA_FLAGS = {
   'gcc': {
     'os:linux': {
-      'LIBS': ['pthread'],
+      'LIBS': ['pthread', 'rt'],
     },
     'os:macos': {
       'LIBS': ['pthread'],
@@ -195,7 +195,7 @@ CCTEST_EXTRA_FLAGS = {
       'LIBPATH': [abspath('.')]
     },
     'os:linux': {
-      'LIBS':         ['pthread'],
+      'LIBS':         ['pthread', 'rt'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],
@@ -233,7 +233,7 @@ SAMPLE_FLAGS = {
       'LIBPATH': ['.']
     },
     'os:linux': {
-      'LIBS':         ['pthread'],
+      'LIBS':         ['pthread', 'rt'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],
@@ -301,7 +301,7 @@ D8_FLAGS = {
       'LIBS': ['readline']
     },
     'os:linux': {
-      'LIBS': ['pthread'],
+      'LIBS': ['pthread', 'rt'],
     },
     'os:macos': {
       'LIBS': ['pthread'],

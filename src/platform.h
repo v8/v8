@@ -410,9 +410,15 @@ class Semaphore {
  public:
   virtual ~Semaphore() {}
 
-  // Suspends the calling thread until the counter is non zero
+  // Suspends the calling thread until the semaphore counter is non zero
   // and then decrements the semaphore counter.
   virtual void Wait() = 0;
+
+  // Suspends the calling thread until the counter is non zero or the timeout
+  // time has passsed. If timeout happens the return value is false and the
+  // counter is unchanged. Otherwise the semaphore counter is decremented and
+  // true is returned. The timeout value is specified in microseconds.
+  virtual bool Wait(int timeout) = 0;
 
   // Increments the semaphore counter.
   virtual void Signal() = 0;
