@@ -1634,6 +1634,7 @@ bool Win32Socket::Connect(const char* host, const char* port) {
 
   // Connect.
   status = connect(socket_, result->ai_addr, result->ai_addrlen);
+  freeaddrinfo(result);
   return status == 0;
 }
 

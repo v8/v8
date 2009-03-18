@@ -22,6 +22,8 @@ class SocketListenerThread : public Thread {
     // Close both sockets.
     delete client_;
     delete server_;
+    delete listening_;
+    delete[] data_;
   }
 
   void Run();
@@ -128,6 +130,7 @@ TEST(Socket) {
     medium_data[i] = i % 256;
   }
   SendAndReceive(medium_data, kBufferSizeMedium);
+  delete[] medium_data;
 
   // Send and receive even more data.
   static const int kBufferSizeLarge = 1000000;
@@ -136,6 +139,7 @@ TEST(Socket) {
     large_data[i] = i % 256;
   }
   SendAndReceive(large_data, kBufferSizeLarge);
+  delete[] large_data;
 }
 
 
