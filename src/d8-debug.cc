@@ -332,7 +332,7 @@ void KeyboardThread::Run() {
 
     // Pass the keyboard command to the main thread.
     remote_debugger_->KeyboardCommand(
-        i::SmartPointer<char>(i::OS::StrDup(command)));
+        i::SmartPointer<char>(i::StrDup(command)));
   }
 }
 

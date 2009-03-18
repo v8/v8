@@ -248,7 +248,7 @@ List<const char*>* FlagList::argv() {
     args->Add(buffer.ToCString().Detach());
     JSArguments jsargs = *args_flag->args_variable();
     for (int j = 0; j < jsargs.argc(); j++) {
-      args->Add(OS::StrDup(jsargs[j]));
+      args->Add(StrDup(jsargs[j]));
     }
   }
   return args;
