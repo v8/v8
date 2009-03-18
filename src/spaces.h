@@ -1481,7 +1481,7 @@ class MapSpace : public PagedSpace {
   MapSpaceFreeList free_list_;
 
   // An array of page start address in a map space.
-  Address page_addresses_[kMaxMapPageIndex];
+  Address page_addresses_[kMaxMapPageIndex + 1];
 
  public:
   TRACK_MEMORY("MapSpace")
