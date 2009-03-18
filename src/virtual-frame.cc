@@ -93,9 +93,11 @@ FrameElement VirtualFrame::CopyElementAt(int index) {
     case FrameElement::REGISTER:
       // All copies are backed by memory or register locations.
       result.type_ =
-          FrameElement::TypeField::encode(FrameElement::COPY) |
-          FrameElement::SyncField::encode(FrameElement::NOT_SYNCED);
+          FrameElement::TypeField::encode(FrameElement::COPY)
+          | FrameElement::IsCopiedField::encode(false)
+          | FrameElement::SyncField::encode(FrameElement::NOT_SYNCED);
       result.data_.index_ = index;
+      elements_[index].set_copied();
       break;
 
     case FrameElement::INVALID:
@@ -367,7 +369,8 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
 
   // If the original may be a copy, adjust to preserve the copy-on-write
   // semantics of copied elements.
-  if (original.is_register() || original.is_memory()) {
+  if (original.is_copied() &&
+      (original.is_register() || original.is_memory())) {
     FrameElement ignored = AdjustCopies(frame_index);
   }
 

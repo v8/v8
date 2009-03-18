@@ -550,6 +550,7 @@ FrameElement VirtualFrame::AdjustCopies(int index) {
     return copy;
   }
 
+  elements_[index].clear_copied();
   return FrameElement::InvalidElement();
 }
 
@@ -569,7 +570,9 @@ void VirtualFrame::TakeFrameSlotAt(int index) {
       // push that register on top of the frame.  If it is copied,
       // make the first copy the backing store and push a fresh copy
       // on top of the frame.
-      FrameElement copy = AdjustCopies(index);
+      FrameElement copy = original.is_copied()
+                          ? AdjustCopies(index)
+                          : FrameElement::InvalidElement();
       if (copy.is_valid()) {
         // The original element was a copy.  Push the copy of the new
         // backing store.
@@ -593,7 +596,9 @@ void VirtualFrame::TakeFrameSlotAt(int index) {
       // If the element is not copied, push it on top of the frame.
       // If it is copied, make the first copy be the new backing store
       // and push a fresh copy on top of the frame.
-      FrameElement copy = AdjustCopies(index);
+      FrameElement copy = original.is_copied()
+                          ? AdjustCopies(index)
+                          : FrameElement::InvalidElement();
       if (copy.is_valid()) {
         // The original element was a copy.  Push the copy of the new
         // backing store.
@@ -634,7 +639,8 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
   FrameElement original = elements_[index];
   // If the stored-to slot may be copied, adjust to preserve the
   // copy-on-write semantics of copied elements.
-  if (original.is_register() || original.is_memory()) {
+  if (original.is_copied() &&
+      (original.is_register() || original.is_memory())) {
     FrameElement ignored = AdjustCopies(index);
   }
 
