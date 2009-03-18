@@ -83,11 +83,10 @@ void RegisterFile::CopyTo(RegisterFile* other) {
 
 Result RegisterAllocator::AllocateWithoutSpilling() {
   // Return the first free register, if any.
-  for (int i = 0; i < kNumRegisters; i++) {
-    if (!is_used(i)) {
-      Register free_reg = { i };
-      return Result(free_reg, cgen_);
-    }
+  int free_reg = registers_.ScanForFreeRegister();
+  if (free_reg < kNumRegisters) {
+    Register free_result = { free_reg };
+    return Result(free_result, cgen_);
   }
   return Result(cgen_);
 }

@@ -149,10 +149,9 @@ class RegisterFile BASE_EMBEDDED {
   // Record that a register will no longer be used by decrementing its
   // reference count.
   void Unuse(Register reg) {
+    ASSERT(!reg.is(no_reg));
     ASSERT(is_used(reg.code()));
-    if (is_used(reg.code())) {
-      ref_counts_[reg.code()]--;
-    }
+    ref_counts_[reg.code()]--;
   }
 
   // Copy the reference counts from this register file to the other.
@@ -160,6 +159,17 @@ class RegisterFile BASE_EMBEDDED {
 
  private:
   int ref_counts_[kNumRegisters];
+
+  // Very fast inlined loop to find a free register.
+  // Used in RegisterAllocator::AllocateWithoutSpilling.
+  // Returns kNumRegisters if no free register found.
+  inline int ScanForFreeRegister() {
+    int i = 0;
+    for (; i < kNumRegisters ; ++i) {
+      if (ref_counts_[i] == 0) break;
+    }
+    return i;
+  }
 
   friend class RegisterAllocator;
 };
