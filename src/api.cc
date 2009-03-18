@@ -1919,6 +1919,17 @@ void v8::Object::TurnOnAccessCheck() {
 }
 
 
+Local<v8::Object> v8::Object::Clone() {
+  ON_BAILOUT("v8::Object::Clone()", return Local<Object>());
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::JSObject> result = i::Copy(self);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(Local<Object>());
+  return Utils::ToLocal(result);
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }

@@ -1076,6 +1076,12 @@ class V8EXPORT Object : public Value {
    */
   void TurnOnAccessCheck();
 
+  /**
+   * Clone this object with a fast but shallow copy.  Values will point
+   * to the same values as the original object.
+   */
+  Local<Object> Clone();
+
   static Local<Object> New();
   static Object* Cast(Value* obj);
  private:
