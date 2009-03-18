@@ -634,6 +634,11 @@ bool LinuxSemaphore::Wait(int timeout) {
   while (true) {
     int result = sem_timedwait(&sem_, &ts);
     if (result == 0) return true;  // Successfully got semaphore.
+    if (result > 0) {
+      // For glibc prior to 2.3.4 sem_timedwait returns the error instead of -1.
+      errno = result;
+      result = -1;
+    }
     if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
     CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
   }
