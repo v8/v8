@@ -5810,7 +5810,7 @@ TEST(ObjectClone) {
   v8::HandleScope scope;
   LocalContext env;
 
-  char* sample =
+  const char* sample =
     "var rv = {};"      \
     "rv.alpha = 'hello';" \
     "rv.beta = 123;"     \
@@ -5837,4 +5837,3 @@ TEST(ObjectClone) {
   CHECK_EQ(v8::Integer::New(123), obj->Get(v8_str("beta")));
   CHECK_EQ(v8::Integer::New(456), clone->Get(v8_str("beta")));
 }
-

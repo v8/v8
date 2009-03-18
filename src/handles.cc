@@ -72,7 +72,7 @@ void** HandleScope::Extend() {
       current_.limit = limit;
     }
   }
-  
+
   // If we still haven't found a slot for the handle, we extend the
   // current handle scope by allocating a new handle block.
   if (result == current_.limit) {
