@@ -651,13 +651,7 @@ class FreeBSDSocket : public Socket {
   }
   explicit FreeBSDSocket(int socket): socket_(socket) { }
 
-
-  virtual ~FreeBSDSocket() {
-    if (IsValid()) {
-      // Close socket.
-      close(socket_);
-    }
-  }
+  virtual ~FreeBSDSocket() { Close(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -666,6 +660,9 @@ class FreeBSDSocket : public Socket {
 
   // Client initialization.
   bool Connect(const char* host, const char* port);
+
+  // Close.
+  bool Close();
 
   // Data Transimission
   int Send(const char* data, int len) const;
@@ -741,6 +738,16 @@ bool FreeBSDSocket::Connect(const char* host, const char* port) {
   return status == 0;
 }
 
+
+bool FreeBSDSocket::Close() {
+  if (IsValid()) {
+    // Close socket.
+    int status = close(socket_);
+    socket_ = -1;
+    return status == 0;
+  }
+  return true;
+}
 
 int FreeBSDSocket::Send(const char* data, int len) const {
   int status = send(socket_, data, len, 0);

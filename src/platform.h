@@ -439,6 +439,9 @@ class Socket {
   // Client initialization.
   virtual bool Connect(const char* host, const char* port) = 0;
 
+  // Close.
+  virtual bool Close() = 0;
+
   // Data Transimission
   virtual int Send(const char* data, int len) const = 0;
   virtual int Receive(char* data, int len) const = 0;

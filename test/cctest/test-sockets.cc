@@ -103,6 +103,7 @@ static void SendAndReceive(char *data, int len) {
   }
 
   // Close the client before the listener to avoid TIME_WAIT issues.
+  client->Close();
   delete client;
   delete listener;
 }

@@ -577,13 +577,7 @@ class MacOSSocket : public Socket {
   }
   explicit MacOSSocket(int socket): socket_(socket) { }
 
-
-  virtual ~MacOSSocket() {
-    if (IsValid()) {
-      // Close socket.
-      close(socket_);
-    }
-  }
+  virtual ~MacOSSocket() { Close(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -592,6 +586,9 @@ class MacOSSocket : public Socket {
 
   // Client initialization.
   bool Connect(const char* host, const char* port);
+
+  // Close.
+  bool Close();
 
   // Data Transimission
   int Send(const char* data, int len) const;
@@ -671,6 +668,17 @@ bool MacOSSocket::Connect(const char* host, const char* port) {
   // Connect.
   status = connect(socket_, result->ai_addr, result->ai_addrlen);
   return status == 0;
+}
+
+
+bool MacOSSocket::Close() {
+  if (IsValid()) {
+    // Close socket.
+    int status = close(socket_);
+    socket_ = -1;
+    return status == 0;
+  }
+  return true;
 }
 
 

@@ -1550,12 +1550,7 @@ class Win32Socket : public Socket {
   explicit Win32Socket(SOCKET socket): socket_(socket) { }
 
 
-  virtual ~Win32Socket() {
-    if (IsValid()) {
-      // Close socket.
-      closesocket(socket_);
-    }
-  }
+  virtual ~Win32Socket() { Close(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -1564,6 +1559,9 @@ class Win32Socket : public Socket {
 
   // Client initialization.
   bool Connect(const char* host, const char* port);
+
+  // Close.
+  bool Close();
 
   // Data Transimission
   int Send(const char* data, int len) const;
@@ -1637,6 +1635,17 @@ bool Win32Socket::Connect(const char* host, const char* port) {
   // Connect.
   status = connect(socket_, result->ai_addr, result->ai_addrlen);
   return status == 0;
+}
+
+
+bool Win32Socket::Close() {
+  if (IsValid()) {
+    // Close socket.
+    int rc = closesocket(socket_);
+    socket_ = INVALID_SOCKET;
+    return rc != SOCKET_ERROR;
+  }
+  return true;
 }
 
 

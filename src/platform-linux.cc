@@ -652,13 +652,7 @@ class LinuxSocket : public Socket {
   }
   explicit LinuxSocket(int socket): socket_(socket) { }
 
-
-  virtual ~LinuxSocket() {
-    if (IsValid()) {
-      // Close socket.
-      close(socket_);
-    }
-  }
+  virtual ~LinuxSocket() { Close(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -667,6 +661,9 @@ class LinuxSocket : public Socket {
 
   // Client initialization.
   bool Connect(const char* host, const char* port);
+
+  // Close.
+  bool Close();
 
   // Data Transimission
   int Send(const char* data, int len) const;
@@ -740,6 +737,17 @@ bool LinuxSocket::Connect(const char* host, const char* port) {
   // Connect.
   status = connect(socket_, result->ai_addr, result->ai_addrlen);
   return status == 0;
+}
+
+
+bool LinuxSocket::Close() {
+  if (IsValid()) {
+    // Close socket.
+    int status = close(socket_);
+    socket_ = -1;
+    return status == 0;
+  }
+  return true;
 }
 
 
