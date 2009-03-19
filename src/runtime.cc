@@ -1780,10 +1780,10 @@ static inline int CharOccurrence(int char_code) {
 // Uses only the bad-shift table of Boyer-Moore and only uses it
 // for the character compared to the last character of the needle.
 template <typename schar, typename pchar>
-static int BoyerMooreHorsepool(Vector<const schar> subject,
-                               Vector<const pchar> pattern,
-                               int start_index,
-                               bool* complete) {
+static int BoyerMooreHorspool(Vector<const schar> subject,
+                              Vector<const pchar> pattern,
+                              int start_index,
+                              bool* complete) {
   int n = subject.length();
   int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
@@ -1983,7 +1983,7 @@ static int StringMatchStrategy(Vector<const schar> sub,
   bool complete;
   int idx = SimpleIndexOf(sub, pat, start_index, &complete);
   if (complete) return idx;
-  idx = BoyerMooreHorsepool(sub, pat, idx, &complete);
+  idx = BoyerMooreHorspool(sub, pat, idx, &complete);
   if (complete) return idx;
   return BoyerMooreIndexOf(sub, pat, idx);
 }
