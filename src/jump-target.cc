@@ -270,6 +270,16 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
     }
   }
 
+  // Set the copied flags in the frame to be exact.  This assumes that
+  // the backing store of copies is always lower in the frame.
+  for (int i = 0; i < length; i++) {
+    entry_frame_->elements_[i].clear_copied();
+    if (entry_frame_->elements_[i].is_copy()) {
+      int index = entry_frame_->elements_[i].index();
+      entry_frame_->elements_[index].set_copied();
+    }
+  }
+
   // Fill in the other fields of the entry frame.
   entry_frame_->local_count_ = initial_frame->local_count_;
   entry_frame_->frame_pointer_ = initial_frame->frame_pointer_;

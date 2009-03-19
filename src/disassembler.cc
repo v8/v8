@@ -99,7 +99,7 @@ static void DumpBuffer(FILE* f, char* buff) {
   }
 }
 
-static const int kOutBufferSize = 1024 + String::kMaxShortPrintLength;
+static const int kOutBufferSize = 2048 + String::kMaxShortPrintLength;
 static const int kRelocInfoPosition = 57;
 
 static int DecodeIt(FILE* f,

@@ -101,6 +101,16 @@ class FrameElement BASE_EMBEDDED {
   bool is_constant() const { return type() == CONSTANT; }
   bool is_copy() const { return type() == COPY; }
 
+  bool is_copied() const { return IsCopiedField::decode(type_); }
+
+  void set_copied() {
+    type_ = (type_ & ~IsCopiedField::mask()) | IsCopiedField::encode(true);
+  }
+
+  void clear_copied() {
+    type_ = (type_ & ~IsCopiedField::mask()) | IsCopiedField::encode(false);
+  }
+
   Register reg() const {
     ASSERT(is_register());
     return data_.reg_;
@@ -129,7 +139,8 @@ class FrameElement BASE_EMBEDDED {
 
   // BitField is <type, shift, size>.
   class SyncField : public BitField<SyncFlag, 0, 1> {};
-  class TypeField : public BitField<Type, 1, 32 - 1> {};
+  class IsCopiedField : public BitField<bool, 1, 1> {};
+  class TypeField : public BitField<Type, 2, 32 - 2> {};
 
   Type type() const { return TypeField::decode(type_); }
 
@@ -143,10 +154,6 @@ class FrameElement BASE_EMBEDDED {
     Object** handle_;
     int index_;
   } data_;
-
-  // The index of the next element in a list of copies, or the frame's
-  // illegal index if there is no next element.
-  int next_;
 
   // Used to construct memory and register elements.
   FrameElement(Type type, Register reg, SyncFlag is_synced) {
@@ -175,16 +182,18 @@ class FrameElement BASE_EMBEDDED {
 namespace v8 { namespace internal {
 
 FrameElement::FrameElement(Handle<Object> value, SyncFlag is_synced) {
-  type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
+  type_ = TypeField::encode(CONSTANT)
+          | IsCopiedField::encode(false)
+          | SyncField::encode(is_synced);
   data_.handle_ = value.location();
-  next_ = VirtualFrame::kIllegalIndex;
 }
 
 
 void FrameElement::Initialize(Type type, Register reg, SyncFlag is_synced) {
-  type_ = TypeField::encode(type) | SyncField::encode(is_synced);
+  type_ = TypeField::encode(type)
+          | IsCopiedField::encode(false)
+          | SyncField::encode(is_synced);
   data_.reg_ = reg;
-  next_ = VirtualFrame::kIllegalIndex;
 }
 
 
