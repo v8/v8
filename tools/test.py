@@ -479,7 +479,7 @@ def Execute(args, context, timeout=None):
     try:
       os.unlink(name)
     except OSError, e:
-      PrintError(str(e))
+      PrintError("os.unlink() " + str(e))
   CheckedUnlink(outname)
   CheckedUnlink(errname)
   return CommandOutput(exit_code, timed_out, output, errors)
@@ -590,7 +590,7 @@ class LiteralTestSuite(TestSuite):
       test.GetTestStatus(context, sections, defs)
 
 
-PREFIX = {'debug': '_g', 'release': ''}
+SUFFIX = {'debug': '_g', 'release': ''}
 
 
 class Context(object):
@@ -605,11 +605,10 @@ class Context(object):
     self.suppress_dialogs = suppress_dialogs
 
   def GetVm(self, mode):
-    name = self.vm_root + PREFIX[mode]
-    if utils.IsWindows():
-      return name + '.exe'
-    else:
-      return name
+    name = self.vm_root + SUFFIX[mode]
+    if utils.IsWindows() and not name.endswith('.exe'):
+      name = name + '.exe'
+    return name
 
 def RunTestCases(all_cases, progress, tasks):
   def DoSkip(case):
@@ -1092,6 +1091,7 @@ def BuildOptions():
         dest="suppress_dialogs", default=True, action="store_true")
   result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
+  result.add_option("--shell", help="Path to V8 shell", default="shell");
   return result
 
 
@@ -1222,21 +1222,22 @@ def Main():
     run_valgrind = join(workspace, "tools", "run-valgrind.py")
     options.special_command = "python -u " + run_valgrind + " @"
 
-  # First build the required targets
-  buildspace = abspath('.')
+  shell = abspath(options.shell)
+  buildspace = dirname(shell)
   context = Context(workspace, buildspace, VERBOSE,
-                    join(buildspace, 'shell'),
+                    shell,
                     options.timeout,
                     GetSpecialCommandProcessor(options.special_command),
                     options.suppress_dialogs)
-  if options.j != 1:
-    options.scons_flags += ['-j', str(options.j)]
+  # First build the required targets
   if not options.no_build:
     reqs = [ ]
     for path in paths:
       reqs += root.GetBuildRequirements(path, context)
     reqs = list(set(reqs))
     if len(reqs) > 0:
+      if options.j != 1:
+        options.scons_flags += ['-j', str(options.j)]
       if not BuildRequirements(context, reqs, options.mode, options.scons_flags):
         return 1
 
@@ -1253,6 +1254,9 @@ def Main():
   globally_unused_rules = None
   for path in paths:
     for mode in options.mode:
+      if not exists(context.GetVm(mode)):
+        print "Can't find shell executable: '%s'" % context.GetVm(mode)
+        continue
       env = {
         'mode': mode,
         'system': utils.GuessOS(),
