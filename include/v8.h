@@ -736,6 +736,11 @@ class V8EXPORT String : public Primitive {
   int WriteUtf8(char* buffer, int length = -1) const; // UTF-8
 
   /**
+   * A zero length string.
+   */
+  static v8::Local<v8::String> Empty();
+
+  /**
    * Returns true if the string is external
    */
   bool IsExternal() const;
