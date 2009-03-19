@@ -261,6 +261,12 @@ Handle<Object> GetPrototype(Handle<Object> obj) {
 }
 
 
+Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
+                                   bool create_if_needed) {
+  CALL_HEAP_FUNCTION(obj->GetHiddenProperties(create_if_needed), Object);
+}
+
+
 Handle<Object> DeleteElement(Handle<JSObject> obj,
                              uint32_t index) {
   CALL_HEAP_FUNCTION(obj->DeleteElement(index), Object);

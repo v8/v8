@@ -1255,6 +1255,78 @@ THREADED_TEST(InternalFields) {
 }
 
 
+THREADED_TEST(IdentityHash) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  // Ensure that the test starts with an fresh heap to test whether the hash
+  // code is based on the address.
+  i::Heap::CollectAllGarbage();
+  Local<v8::Object> obj = v8::Object::New();
+  int hash = obj->GetIdentityHash();
+  int hash1 = obj->GetIdentityHash();
+  CHECK_EQ(hash, hash1);
+  int hash2 = v8::Object::New()->GetIdentityHash();
+  // Since the identity hash is essentially a random number two consecutive
+  // objects should not be assigned the same hash code. If the test below fails
+  // the random number generator should be evaluated.
+  CHECK_NE(hash, hash2);
+  i::Heap::CollectAllGarbage();
+  int hash3 = v8::Object::New()->GetIdentityHash();
+  // Make sure that the identity hash is not based on the initial address of
+  // the object alone. If the test below fails the random number generator
+  // should be evaluated.
+  CHECK_NE(hash, hash3);
+  int hash4 = obj->GetIdentityHash();
+  CHECK_EQ(hash, hash4);
+}
+
+
+THREADED_TEST(HiddenProperties) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  v8::Local<v8::Object> obj = v8::Object::New();
+  v8::Local<v8::String> key = v8_str("api-test::hidden-key");
+  v8::Local<v8::String> empty = v8_str("");
+  v8::Local<v8::String> prop_name = v8_str("prop_name");
+  
+  i::Heap::CollectAllGarbage();
+
+  CHECK(obj->SetHiddenValue(key, v8::Integer::New(1503)));
+  CHECK_EQ(1503, obj->GetHiddenValue(key)->Int32Value());
+  CHECK(obj->SetHiddenValue(key, v8::Integer::New(2002)));
+  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  
+  i::Heap::CollectAllGarbage();
+
+  // Make sure we do not find the hidden property.
+  CHECK(!obj->Has(empty));
+  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK(obj->Get(empty)->IsUndefined());
+  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK(obj->Set(empty, v8::Integer::New(2003)));
+  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2003, obj->Get(empty)->Int32Value());
+  
+  i::Heap::CollectAllGarbage();
+
+  // Add another property and delete it afterwards to force the object in
+  // slow case.
+  CHECK(obj->Set(prop_name, v8::Integer::New(2008)));
+  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK_EQ(2008, obj->Get(prop_name)->Int32Value());
+  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  CHECK(obj->Delete(prop_name));
+  CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
+  
+  i::Heap::CollectAllGarbage();
+
+  CHECK(obj->DeleteHiddenValue(key));
+  CHECK(obj->GetHiddenValue(key).IsEmpty());
+}
+
+
 THREADED_TEST(External) {
   v8::HandleScope scope;
   int x = 3;

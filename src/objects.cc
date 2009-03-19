@@ -3192,8 +3192,12 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
 
 
 int DescriptorArray::LinearSearch(String* name, int len) {
+  uint32_t hash = name->Hash();
   for (int number = 0; number < len; number++) {
-    if (name->Equals(GetKey(number)) && !is_null_descriptor(number)) {
+    String* entry = GetKey(number);
+    if ((entry->Hash() == hash) &&
+        name->Equals(entry) &&
+        !is_null_descriptor(number)) {
       return number;
     }
   }
@@ -4237,7 +4241,7 @@ bool String::IsEqualTo(Vector<const char> str) {
 
 
 uint32_t String::ComputeAndSetHash() {
-  // Should only be call if hash code has not yet been computed.
+  // Should only be called if hash code has not yet been computed.
   ASSERT(!(length_field() & kHashComputedMask));
 
   // Compute the hash code.
@@ -4249,7 +4253,9 @@ uint32_t String::ComputeAndSetHash() {
 
   // Check the hash code is there.
   ASSERT(length_field() & kHashComputedMask);
-  return field >> kHashShift;
+  uint32_t result = field >> kHashShift;
+  ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+  return result;
 }
 
 
@@ -5124,6 +5130,45 @@ bool JSObject::HasLocalElement(uint32_t index) {
   } else {
     return element_dictionary()->FindNumberEntry(index) != -1;
   }
+}
+
+
+Object* JSObject::GetHiddenProperties(bool create_if_needed) {
+  String* key = Heap::hidden_symbol();
+  if (this->HasFastProperties()) {
+    // If the object has fast properties, check whether the first slot in the
+    // descriptor array matches the hidden symbol. Since the hidden symbols
+    // hash code is zero it will always occupy the first entry if present.
+    DescriptorArray* descriptors = this->map()->instance_descriptors();
+    if (descriptors->number_of_descriptors() > 0) {
+      if (descriptors->GetKey(0) == key) {
+#ifdef DEBUG
+        PropertyDetails details(descriptors->GetDetails(0));
+        ASSERT(details.type() == FIELD);
+#endif // DEBUG
+        Object* value = descriptors->GetValue(0);
+        return FastPropertyAt(Descriptor::IndexFromValue(value));
+      }
+    }
+  }
+
+  // Only attempt to find the hidden properties in the local object and not
+  // in the prototype chain.
+  if (!this->HasLocalProperty(key)) {
+    // Hidden properties object not found. Allocate a new hidden properties
+    // object if requested. Otherwise return the undefined value.
+    if (create_if_needed) {
+      Object* obj = Heap::AllocateJSObject(
+          Top::context()->global_context()->object_function());
+      if (obj->IsFailure()) {
+        return obj;
+      }
+      return this->SetProperty(key, obj, DONT_ENUM);
+    } else {
+      return Heap::undefined_value();
+    }
+  }
+  return this->GetProperty(key);
 }
 
 
@@ -6021,13 +6066,20 @@ class NumberKey : public HashTableKey {
 // StringKey simply carries a string object as key.
 class StringKey : public HashTableKey {
  public:
-  explicit StringKey(String* string) : string_(string) { }
+  explicit StringKey(String* string) :
+      string_(string),
+      hash_(StringHash(string)) { }
 
   bool IsMatch(Object* string) {
+    // We know that all entries in a hash table had their hash keys created.
+    // Use that knowledge to have fast failure.
+    if (hash_ != StringHash(string)) {
+      return false;
+    }
     return string_->Equals(String::cast(string));
   }
 
-  uint32_t Hash() { return StringHash(string_); }
+  uint32_t Hash() { return hash_; }
 
   HashFunction GetHashFunction() { return StringHash; }
 
@@ -6040,6 +6092,7 @@ class StringKey : public HashTableKey {
   bool IsStringKey() { return true; }
 
   String* string_;
+  uint32_t hash_;
 };
 
 
@@ -6166,7 +6219,9 @@ class Utf8SymbolKey : public HashTableKey {
                                       static_cast<unsigned>(string_.length()));
     chars_ = buffer.Length();
     length_field_ = String::ComputeLengthAndHashField(&buffer, chars_);
-    return length_field_ >> String::kHashShift;
+    uint32_t result = length_field_ >> String::kHashShift;
+    ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
   }
 
   Object* GetObject() {

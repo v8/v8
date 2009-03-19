@@ -223,6 +223,8 @@ Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
 
 Handle<Object> GetPrototype(Handle<Object> obj);
 
+Handle<Object> GetHiddenProperties(Handle<JSObject> obj, bool create_if_needed);
+
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
 Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
 

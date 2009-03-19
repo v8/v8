@@ -1247,6 +1247,11 @@ class JSObject: public HeapObject {
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
 
+  // Return the object's hidden properties object. If the object has no hidden
+  // properties and create_if_needed is true, then a new hidden property object
+  // will be allocated. Otherwise the Heap::undefined_value is returned.
+  Object* GetHiddenProperties(bool create_if_needed);
+
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSObject* receiver, uint32_t index);

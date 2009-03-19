@@ -56,6 +56,8 @@ namespace v8 { namespace internal {
   SYMBOL_LIST(SYMBOL_ALLOCATION)
 #undef SYMBOL_ALLOCATION
 
+String* Heap::hidden_symbol_;
+
 NewSpace Heap::new_space_;
 OldSpace* Heap::old_pointer_space_ = NULL;
 OldSpace* Heap::old_data_space_ = NULL;
@@ -1202,6 +1204,16 @@ bool Heap::CreateInitialObjects() {
   (name##_) = String::cast(obj);
   SYMBOL_LIST(SYMBOL_INITIALIZE)
 #undef SYMBOL_INITIALIZE
+  
+  // Allocate the hidden symbol which is used to identify the hidden properties
+  // in JSObjects. The hash code has a special value so that it will not match
+  // the empty string when searching for the property. It cannot be part of the
+  // SYMBOL_LIST because it needs to be allocated manually with the special
+  // hash code in place. The hash code for the hidden_symbol is zero to ensure
+  // that it will always be at the first entry in property descriptors.
+  obj = AllocateSymbol(CStrVector(""), 0, String::kHashComputedMask);
+  if (obj->IsFailure()) return false;
+  hidden_symbol_ = String::cast(obj);
 
   // Allocate the proxy for __proto__.
   obj = AllocateProxy((Address) &Accessors::ObjectPrototype);
@@ -2630,6 +2642,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v) {
   v->VisitPointer(bit_cast<Object**, String**>(&name##_));
   SYMBOL_LIST(SYMBOL_ITERATE)
 #undef SYMBOL_ITERATE
+  v->VisitPointer(bit_cast<Object**, String**>(&hidden_symbol_));
   SYNCHRONIZE_TAG("symbol");
 
   Bootstrapper::Iterate(v);
