@@ -1075,6 +1075,28 @@ class EXPORT Object : public Value {
    * access check info, the object cannot be accessed by anyone.
    */
   void TurnOnAccessCheck();
+  
+  /**
+   * Returns the identity hash for this object. The current implemenation uses
+   * a hidden property on the object to store the identity hash.
+   */
+  int GetIdentityHash();
+  
+  /**
+   * Access hidden properties on JavaScript objects. These properties are
+   * hidden from the executing JavaScript and only accessible through the V8
+   * C++ API. Hidden properties introduced by V8 internally (for example the
+   * identity hash) are prefixed with "v8::".
+   */
+  bool SetHiddenValue(Handle<String> key, Handle<Value> value);
+  Local<Value> GetHiddenValue(Handle<String> key);
+  bool DeleteHiddenValue(Handle<String> key);
+
+  /**
+   * Clone this object with a fast but shallow copy.  Values will point
+   * to the same values as the original object.
+   */
+  Local<Object> Clone();
 
   static Local<Object> New();
   static Object* Cast(Value* obj);

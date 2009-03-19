@@ -2438,10 +2438,15 @@ void StringHasher::AddCharacterNoIndex(uc32 c) {
 
 
 uint32_t StringHasher::GetHash() {
+  // Get the calculated raw hash value and do some more bit ops to distribute
+  // the hash further. Ensure that we never return zero as the hash value.
   uint32_t result = raw_running_hash_;
   result += (result << 3);
   result ^= (result >> 11);
   result += (result << 15);
+  if (result == 0) {
+    result = 27;
+  }
   return result;
 }
 

@@ -1919,6 +1919,88 @@ void v8::Object::TurnOnAccessCheck() {
 }
 
 
+Local<v8::Object> v8::Object::Clone() {
+  ON_BAILOUT("v8::Object::Clone()", return Local<Object>());
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::JSObject> result = i::Copy(self);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(Local<Object>());
+  return Utils::ToLocal(result);
+}
+
+
+int v8::Object::GetIdentityHash() {
+  ON_BAILOUT("v8::Object::GetIdentityHash()", return 0);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
+  i::Handle<i::Object> hash_symbol = i::Factory::identity_hash_symbol();
+  i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
+  int hash_value;
+  if (hash->IsSmi()) {
+    hash_value = i::Smi::cast(*hash)->value();
+  } else {
+    hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+    i::SetProperty(hidden_props,
+                   hash_symbol,
+                   i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
+                   static_cast<PropertyAttributes>(None));
+  }
+  return hash_value;
+}
+
+
+bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
+                                v8::Handle<v8::Value> value) {
+  ON_BAILOUT("v8::Object::SetHiddenValue()", return false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::SetProperty(
+      hidden_props,
+      key_obj,
+      value_obj,
+      static_cast<PropertyAttributes>(None));
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
+v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
+  ON_BAILOUT("v8::Object::GetHiddenValue()", return Local<v8::Value>());
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, false));
+  if (hidden_props->IsUndefined()) {
+    return v8::Local<v8::Value>();
+  }
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> result = i::GetProperty(hidden_props, key_obj);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(v8::Local<v8::Value>());
+  if (result->IsUndefined()) {
+    return v8::Local<v8::Value>();
+  }
+  return Utils::ToLocal(result);
+}
+
+
+bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
+  ON_BAILOUT("v8::DeleteHiddenValue()", return false);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::JSObject> hidden_props(
+      i::JSObject::cast(*i::GetHiddenProperties(self, false)));
+  if (hidden_props->IsUndefined()) {
+    return false;
+  }
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
+  return i::DeleteProperty(hidden_props, key_obj)->IsTrue();
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
@@ -2200,7 +2282,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.1.1.2";
+  return "1.1.1.3";
 }
 
 

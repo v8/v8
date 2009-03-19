@@ -195,7 +195,8 @@ namespace v8 { namespace internal {
   V(space_symbol, " ")                                                   \
   V(exec_symbol, "exec")                                                 \
   V(zero_symbol, "0")                                                    \
-  V(global_eval_symbol, "GlobalEval")
+  V(global_eval_symbol, "GlobalEval")                                    \
+  V(identity_hash_symbol, "v8::IdentityHash")
 
 
 // Forward declaration of the GCTracer class.
@@ -645,6 +646,10 @@ class Heap : public AllStatic {
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
+  // The hidden_symbol is special because it is the empty string, but does
+  // not match the empty string.
+  static String* hidden_symbol() { return hidden_symbol_; }
+
   // Iterates over all roots in the heap.
   static void IterateRoots(ObjectVisitor* v);
   // Iterates over all strong roots in the heap.
@@ -887,6 +892,10 @@ class Heap : public AllStatic {
 #define SYMBOL_DECLARATION(name, str) static String* name##_;
   SYMBOL_LIST(SYMBOL_DECLARATION)
 #undef SYMBOL_DECLARATION
+
+  // The special hidden symbol which is an empty string, but does not match
+  // any string when looked up in properties.
+  static String* hidden_symbol_;
 
   // GC callback function, called before and after mark-compact GC.
   // Allocations in the callback function are disallowed.

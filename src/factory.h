@@ -302,6 +302,10 @@ class Factory : public AllStatic {
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
+  static Handle<String> hidden_symbol() {
+    return Handle<String>(&Heap::hidden_symbol_);
+  }
+
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   static Handle<Dictionary> DictionaryAtNumberPut(Handle<Dictionary>,

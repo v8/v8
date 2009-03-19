@@ -118,7 +118,16 @@ class HandleScope {
   static int NumberOfHandles();
 
   // Creates a new handle with the given value.
-  static void** CreateHandle(void* value);
+  static inline void** CreateHandle(void* value) {
+    void** result = current_.next;
+    if (result == current_.limit) result = Extend();
+    // Update the current next field, set the value in the created
+    // handle, and return the result.
+    ASSERT(result < current_.limit);
+    current_.next = result + 1;
+    *result = value;
+    return result;
+  }
 
  private:
   // Prevent heap allocation or illegal handle scopes.
@@ -149,6 +158,9 @@ class HandleScope {
     ZapRange(current_.next, current_.limit);
 #endif
   }
+
+  // Extend the handle scope making room for more handles.
+  static void** Extend();
 
   // Deallocates any extensions used by the current scope.
   static void DeleteExtensions();
@@ -210,6 +222,8 @@ Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           PropertyAttributes* attributes);
 
 Handle<Object> GetPrototype(Handle<Object> obj);
+
+Handle<Object> GetHiddenProperties(Handle<JSObject> obj, bool create_if_needed);
 
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
 Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
