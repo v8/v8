@@ -37,16 +37,13 @@ function testLiteral(size, array_in_middle) {
   var literal = "function f() { return ";
 
   for (var i = 0; i < size; i++) {
-    literal += "{a:";
+    literal += "[";
   }
 
   literal += array_in_middle ? " [42.2]" : "{a:42.2}";
 
   for (var i = 0; i < size; i++) {
-    literal += "}";
-    if (i < size - 1) {
-      literal += ", b:42, c:/asd/, x:'foo', y:[], z:new Object()";
-    }
+    literal += "]";
   }
 
   literal += "; }";
@@ -58,7 +55,7 @@ function testLiteral(size, array_in_middle) {
 
   // Check that the properties have the expected values.
   for (var i = 0; i < size; i++) {
-    x = x.a;
+    x = x[0];
   }
 
   if (array_in_middle) {
@@ -71,7 +68,7 @@ function testLiteral(size, array_in_middle) {
 
   var y = f();
   for (var i = 0; i < size; i++) {
-    y = y.a;
+    y = y[0];
   }
 
   if (array_in_middle) {

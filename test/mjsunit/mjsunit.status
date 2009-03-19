@@ -34,6 +34,8 @@ bugs: FAIL
 # too long to run in debug mode on ARM.
 fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
+big-object-literal: PASS, SKIP if ($arch == arm)
+
 # Bug realiably triggers a debug assertion and crashed in release mode.
 bugs/bug-269: CRASH, FAIL if $mode == debug
 
