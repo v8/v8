@@ -586,8 +586,10 @@ int Shell::Main(int argc, char* argv[]) {
         v8::HandleScope handle_scope;
         v8::Handle<v8::String> file_name = v8::String::New("unnamed");
         v8::Handle<v8::String> source = v8::String::New(argv[i + 1]);
-        if (!ExecuteString(source, file_name, false, true))
+        if (!ExecuteString(source, file_name, false, true)) {
+          OnExit();
           return 1;
+        }
         i++;
       } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
         int size = 0;
@@ -607,8 +609,10 @@ int Shell::Main(int argc, char* argv[]) {
           printf("Error reading '%s'\n", str);
           return 1;
         }
-        if (!ExecuteString(source, file_name, false, true))
+        if (!ExecuteString(source, file_name, false, true)) {
+          OnExit();
           return 1;
+        }
       }
     }
 
