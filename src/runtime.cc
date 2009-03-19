@@ -4480,27 +4480,30 @@ static Object* Runtime_DateCurrentTime(Arguments args) {
 
 static Object* Runtime_DateParseString(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
 
-  CONVERT_CHECKED(String, string_object, args[0]);
-
-  Handle<String> str(string_object);
+  CONVERT_ARG_CHECKED(String, str, 0);
   FlattenString(str);
-  Handle<FixedArray> output = Factory::NewFixedArray(DateParser::OUTPUT_SIZE);
+
+  CONVERT_ARG_CHECKED(JSArray, output, 1);
+  RUNTIME_ASSERT(output->HasFastElements());
+
+  AssertNoAllocation no_allocation;
+
+  FixedArray* output_array = output->elements();
+  RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
-  {
-    AssertNoAllocation no_allocation;
-    if (StringShape(*str).IsAsciiRepresentation()) {
-      result = DateParser::Parse(str->ToAsciiVector(), *output);
-    } else {
-      ASSERT(StringShape(*str).IsTwoByteRepresentation());
-      result = DateParser::Parse(str->ToUC16Vector(), *output);
-    }
-  }
-  if (result) {
-    return *Factory::NewJSArrayWithElements(output);
+  if (StringShape(*str).IsAsciiRepresentation()) {
+    result = DateParser::Parse(str->ToAsciiVector(), output_array);
   } else {
-    return *Factory::null_value();
+    ASSERT(StringShape(*str).IsTwoByteRepresentation());
+    result = DateParser::Parse(str->ToUC16Vector(), output_array);
+  }
+
+  if (result) {
+    return *output;
+  } else {
+    return Heap::null_value();
   }
 }
 

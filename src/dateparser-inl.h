@@ -29,7 +29,7 @@ namespace v8 { namespace internal {
 
 template <typename Char>
 bool DateParser::Parse(Vector<Char> str, FixedArray* out) {
-  ASSERT(out->length() == OUTPUT_SIZE);
+  ASSERT(out->length() >= OUTPUT_SIZE);
   InputReader<Char> in(str);
   TimeZoneComposer tz;
   TimeComposer time;

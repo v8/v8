@@ -185,7 +185,7 @@ namespace v8 { namespace internal {
   \
   /* Dates */ \
   F(DateCurrentTime, 0) \
-  F(DateParseString, 1) \
+  F(DateParseString, 2) \
   F(DateLocalTimezone, 1) \
   F(DateLocalTimeOffset, 0) \
   F(DateDaylightSavingsOffset, 1) \

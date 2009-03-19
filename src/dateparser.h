@@ -48,7 +48,9 @@ class DateParser : public AllStatic {
   template <typename Char>
   static bool Parse(Vector<Char> str, FixedArray* output);
 
-  enum {YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, UTC_OFFSET, OUTPUT_SIZE};
+  enum {
+    YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, UTC_OFFSET, OUTPUT_SIZE
+  };
 
  private:
   // Range testing
