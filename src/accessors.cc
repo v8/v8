@@ -509,17 +509,13 @@ Object* Accessors::ObjectSetPrototype(JSObject* receiver,
   // SpiderMonkey behaves this way.
   if (!value->IsJSObject() && !value->IsNull()) return value;
 
-  bool clear_ics = false;
   for (Object* pt = value; pt != Heap::null_value(); pt = pt->GetPrototype()) {
-    JSObject *obj = JSObject::cast(pt);
-    if (obj == receiver) {
+    if (JSObject::cast(pt) == receiver) {
       // Cycle detected.
       HandleScope scope;
       return Top::Throw(*Factory::NewError("cyclic_proto",
                                            HandleVector<Object>(NULL, 0)));
     }
-    if (obj->HasLocalPropertyWithType(CALLBACKS))
-      clear_ics = true;
   }
 
   // Find the first object in the chain whose prototype object is not
@@ -537,10 +533,6 @@ Object* Accessors::ObjectSetPrototype(JSObject* receiver,
   if (new_map->IsFailure()) return new_map;
   Map::cast(new_map)->set_prototype(value);
   current->set_map(Map::cast(new_map));
-
-  // Finally, if the prototype contains a setter we may have broken
-  // the assumptions made when creating ics so we have to clear them.
-  if (clear_ics) Heap::ClearStoreICs();
 
   // To be consistent with other Set functions, return the value.
   return value;

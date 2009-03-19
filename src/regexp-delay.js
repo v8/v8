@@ -356,15 +356,12 @@ function SetupRegExp() {
     LAST_INPUT(lastMatchInfo) = ToString(string);
   };
 
-  // All these accessors are set with the 'never_used' flag set to true.
-  // This is because at this point there can be no existing ics for setting
-  // these properties and so we don't have to bother clearing them.
   %DefineAccessor($RegExp, 'input', GETTER, RegExpGetInput, DONT_DELETE);
-  %DefineAccessor($RegExp, 'input', SETTER, RegExpSetInput, DONT_DELETE, true);
+  %DefineAccessor($RegExp, 'input', SETTER, RegExpSetInput, DONT_DELETE);
   %DefineAccessor($RegExp, '$_', GETTER, RegExpGetInput, DONT_ENUM | DONT_DELETE);
-  %DefineAccessor($RegExp, '$_', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE, true);
+  %DefineAccessor($RegExp, '$_', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE);
   %DefineAccessor($RegExp, '$input', GETTER, RegExpGetInput, DONT_ENUM | DONT_DELETE);
-  %DefineAccessor($RegExp, '$input', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE, true);
+  %DefineAccessor($RegExp, '$input', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE);
 
   // The properties multiline and $* are aliases for each other.  When this
   // value is set in SpiderMonkey, the value it is set to is coerced to a
@@ -379,9 +376,9 @@ function SetupRegExp() {
   function RegExpSetMultiline(flag) { multiline = flag ? true : false; };
 
   %DefineAccessor($RegExp, 'multiline', GETTER, RegExpGetMultiline, DONT_DELETE);
-  %DefineAccessor($RegExp, 'multiline', SETTER, RegExpSetMultiline, DONT_DELETE, true);
+  %DefineAccessor($RegExp, 'multiline', SETTER, RegExpSetMultiline, DONT_DELETE);
   %DefineAccessor($RegExp, '$*', GETTER, RegExpGetMultiline, DONT_ENUM | DONT_DELETE);
-  %DefineAccessor($RegExp, '$*', SETTER, RegExpSetMultiline, DONT_ENUM | DONT_DELETE, true);
+  %DefineAccessor($RegExp, '$*', SETTER, RegExpSetMultiline, DONT_ENUM | DONT_DELETE);
 
 
   function NoOpSetter(ignored) {}
@@ -389,25 +386,25 @@ function SetupRegExp() {
 
   // Static properties set by a successful match.
   %DefineAccessor($RegExp, 'lastMatch', GETTER, RegExpGetLastMatch, DONT_DELETE);
-  %DefineAccessor($RegExp, 'lastMatch', SETTER, NoOpSetter, DONT_DELETE, true);
+  %DefineAccessor($RegExp, 'lastMatch', SETTER, NoOpSetter, DONT_DELETE);
   %DefineAccessor($RegExp, '$&', GETTER, RegExpGetLastMatch, DONT_ENUM | DONT_DELETE);
-  %DefineAccessor($RegExp, '$&', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE, true);
+  %DefineAccessor($RegExp, '$&', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
   %DefineAccessor($RegExp, 'lastParen', GETTER, RegExpGetLastParen, DONT_DELETE);
-  %DefineAccessor($RegExp, 'lastParen', SETTER, NoOpSetter, DONT_DELETE, true);
+  %DefineAccessor($RegExp, 'lastParen', SETTER, NoOpSetter, DONT_DELETE);
   %DefineAccessor($RegExp, '$+', GETTER, RegExpGetLastParen, DONT_ENUM | DONT_DELETE);
-  %DefineAccessor($RegExp, '$+', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE, true);
+  %DefineAccessor($RegExp, '$+', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
   %DefineAccessor($RegExp, 'leftContext', GETTER, RegExpGetLeftContext, DONT_DELETE);
-  %DefineAccessor($RegExp, 'leftContext', SETTER, NoOpSetter, DONT_DELETE, true);
+  %DefineAccessor($RegExp, 'leftContext', SETTER, NoOpSetter, DONT_DELETE);
   %DefineAccessor($RegExp, '$`', GETTER, RegExpGetLeftContext, DONT_ENUM | DONT_DELETE);
-  %DefineAccessor($RegExp, '$`', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE, true);
+  %DefineAccessor($RegExp, '$`', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
   %DefineAccessor($RegExp, 'rightContext', GETTER, RegExpGetRightContext, DONT_DELETE);
-  %DefineAccessor($RegExp, 'rightContext', SETTER, NoOpSetter, DONT_DELETE, true);
+  %DefineAccessor($RegExp, 'rightContext', SETTER, NoOpSetter, DONT_DELETE);
   %DefineAccessor($RegExp, "$'", GETTER, RegExpGetRightContext, DONT_ENUM | DONT_DELETE);
-  %DefineAccessor($RegExp, "$'", SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE, true);
+  %DefineAccessor($RegExp, "$'", SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
 
   for (var i = 1; i < 10; ++i) {
     %DefineAccessor($RegExp, '$' + i, GETTER, RegExpMakeCaptureGetter(i), DONT_DELETE);
-    %DefineAccessor($RegExp, '$' + i, SETTER, NoOpSetter, DONT_DELETE, true);
+    %DefineAccessor($RegExp, '$' + i, SETTER, NoOpSetter, DONT_DELETE);
   }
 }
 

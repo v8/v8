@@ -2483,38 +2483,6 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
 }
 
 
-bool JSObject::HasLocalPropertyWithType(PropertyType type) {
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return false;
-    ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->HasLocalPropertyWithType(type);
-  }
-
-  if (HasFastProperties()) {
-    DescriptorArray* descriptors = map()->instance_descriptors();
-    int length = descriptors->number_of_descriptors();
-    for (int i = 0; i < length; i++) {
-      PropertyDetails details(descriptors->GetDetails(i));
-      if (details.type() == type)
-        return true;
-    }
-  } else {
-    Handle<Dictionary> properties = Handle<Dictionary>(property_dictionary());
-    int capacity = properties->Capacity();
-    for (int i = 0; i < capacity; i++) {
-      if (properties->IsKey(properties->KeyAt(i))) {
-        PropertyDetails details = properties->DetailsAt(i);
-        if (details.type() == type)
-          return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-
 void JSObject::Lookup(String* name, LookupResult* result) {
   // Ecma-262 3rd 8.6.2.4
   for (Object* current = this;
@@ -2642,11 +2610,8 @@ Object* JSObject::DefineGetterSetter(String* name,
 }
 
 
-Object* JSObject::DefineAccessor(String* name,
-                                 bool is_getter,
-                                 JSFunction* fun,
-                                 PropertyAttributes attributes,
-                                 bool never_used) {
+Object* JSObject::DefineAccessor(String* name, bool is_getter, JSFunction* fun,
+                                 PropertyAttributes attributes) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayNamedAccess(this, name, v8::ACCESS_HAS)) {
@@ -2658,22 +2623,13 @@ Object* JSObject::DefineAccessor(String* name,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return this;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(name,
-                                                 is_getter,
-                                                 fun,
-                                                 attributes,
-                                                 never_used);
+    return JSObject::cast(proto)->DefineAccessor(name, is_getter,
+                                                 fun, attributes);
   }
 
   Object* array = DefineGetterSetter(name, attributes);
   if (array->IsFailure() || array->IsUndefined()) return array;
   FixedArray::cast(array)->set(is_getter ? 0 : 1, fun);
-
-  // Because setters are nonlocal (they're accessible through the
-  // prototype chain) but our inline caches are local we clear them
-  // when a new setter is introduced.
-  if (!(is_getter || never_used)) Heap::ClearStoreICs();
-
   return this;
 }
 

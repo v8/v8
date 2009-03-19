@@ -1200,13 +1200,8 @@ class JSObject: public HeapObject {
                                                       String* name);
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
-  // Defines an accessor.  This may violate some of the assumptions we
-  // make when setting up ics so unless it is guaranteed that no ics
-  // exist for this property we have to clear all ics.  Set the 'never_used'
-  // flag to true if you know there can be no ics.
   Object* DefineAccessor(String* name, bool is_getter, JSFunction* fun,
-                         PropertyAttributes attributes, bool never_used);
-
+                         PropertyAttributes attributes);
   Object* LookupAccessor(String* name, bool is_getter);
 
   // Used from Object::GetProperty().
@@ -1277,8 +1272,6 @@ class JSObject: public HeapObject {
   // objects.
   inline bool HasNamedInterceptor();
   inline bool HasIndexedInterceptor();
-
-  bool HasLocalPropertyWithType(PropertyType type);
 
   // Support functions for v8 api (needed for correct interceptor behavior).
   bool HasRealNamedProperty(String* key);

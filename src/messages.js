@@ -602,7 +602,7 @@ var kAddMessageAccessorsMarker = { };
 // Defines accessors for a property that is calculated the first time
 // the property is read and then replaces the accessor with the value.
 // Also, setting the property causes the accessors to be deleted.
-function DefineOneShotAccessor(obj, name, fun, never_used) {
+function DefineOneShotAccessor(obj, name, fun) {
   // Note that the accessors consistently operate on 'obj', not 'this'.
   // Since the object may occur in someone else's prototype chain we
   // can't rely on 'this' being the same as 'obj'.
@@ -611,10 +611,10 @@ function DefineOneShotAccessor(obj, name, fun, never_used) {
     obj[name] = value;
     return value;
   });
-  %DefineAccessor(ToObject(obj), ToString(name), SETTER, function (v) {
+  obj.__defineSetter__(name, function (v) {
     delete obj[name];
     obj[name] = v;
-  }, 0, never_used);
+  });
 }
 
 function DefineError(f) {
@@ -648,7 +648,7 @@ function DefineError(f) {
       if (m === kAddMessageAccessorsMarker) {
         DefineOneShotAccessor(this, 'message', function (obj) {
           return FormatMessage({type: obj.type, args: obj.arguments});
-        }, true);
+        });
       } else if (!IS_UNDEFINED(m)) {
         this.message = ToString(m);
       }
