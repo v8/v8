@@ -42,25 +42,49 @@ void DebuggerAgentMessageHandler(const uint16_t* message, int length,
 
 // Debugger agent main thread.
 void DebuggerAgent::Run() {
-  // Create a server socket and bind it to the requested port.
-  server_ = OS::CreateSocket();
-  server_->Bind(port_);
+  const int kOneSecondInMicros = 1000000;
 
+  // First bind the socket to the requested port.
+  bool bound = false;
+  while (!bound && !terminate_) {
+    bound = server_->Bind(port_);
+
+    // If an error occoured wait a bit before retrying. The most common error
+    // would be that the port is already in use so this avoids a busy loop and
+    // make the agent take over the port when it becomes free.
+    if (!bound) {
+      terminate_now_->Wait(kOneSecondInMicros);
+    }
+  }
+
+  // Accept connections on the bound port.
   while (!terminate_) {
-    // Listen for new connections.
-    server_->Listen(1);
-
-    // Accept the new connection.
-    Socket* client = server_->Accept();
-
-    // Create and start a new session.
-    CreateSession(client);
+    bool ok = server_->Listen(1);
+    if (ok) {
+      // Accept the new connection.
+      Socket* client = server_->Accept();
+      ok = client != NULL;
+      if (ok) {
+        // Create and start a new session.
+        CreateSession(client);
+      }
+    }
   }
 }
 
 
 void DebuggerAgent::Shutdown() {
-  delete server_;
+  // Set the termination flag.
+  terminate_ = true;
+
+  // Signal termination and make the server exit either its listen call or its
+  // binding loop. This makes sure that no new sessions can be established.
+  terminate_now_->Signal();
+  server_->Shutdown();
+  Join();
+
+  // Close existing session if any.
+  CloseSession();
 }
 
 
@@ -83,6 +107,19 @@ void DebuggerAgent::CreateSession(Socket* client) {
 }
 
 
+void DebuggerAgent::CloseSession() {
+  ScopedLock with(session_access_);
+
+  // Terminate the session.
+  if (session_ != NULL) {
+    session_->Shutdown();
+    session_->Join();
+    delete session_;
+    session_ = NULL;
+  }
+}
+
+
 void DebuggerAgent::DebuggerMessage(const uint16_t* message, int length) {
   ScopedLock with(session_access_);
 
@@ -94,15 +131,17 @@ void DebuggerAgent::DebuggerMessage(const uint16_t* message, int length) {
 }
 
 
-void DebuggerAgent::SessionClosed(DebuggerAgentSession* session) {
-  ScopedLock with(session_access_);
+void DebuggerAgent::OnSessionClosed(DebuggerAgentSession* session) {
+  // Don't do anything during termination.
+  if (terminate_) {
+    return;
+  }
 
   // Terminate the session.
+  ScopedLock with(session_access_);
   ASSERT(session == session_);
   if (session == session_) {
-    session->Join();
-    delete session;
-    session_ = NULL;
+    CloseSession();
   }
 }
 
@@ -113,7 +152,7 @@ void DebuggerAgentSession::Run() {
     SmartPointer<char> message = DebuggerAgentUtil::ReceiveMessage(client_);
     if (*message == NULL) {
       // Session is closed.
-      agent_->SessionClosed(this);
+      agent_->OnSessionClosed(this);
       return;
     }
 
@@ -139,6 +178,12 @@ void DebuggerAgentSession::Run() {
 
 void DebuggerAgentSession::DebuggerMessage(Vector<uint16_t> message) {
   DebuggerAgentUtil::SendMessage(client_, message);
+}
+
+
+void DebuggerAgentSession::Shutdown() {
+  // Shutdown the socket to end the blocking receive.
+  client_->Shutdown();
 }
 
 

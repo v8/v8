@@ -44,8 +44,9 @@ class DebuggerAgent: public Thread {
  public:
   explicit DebuggerAgent(int port)
       : port_(port), server_(OS::CreateSocket()), terminate_(false),
-        session_access_(OS::CreateMutex()), session_(NULL) {}
-  ~DebuggerAgent() {}
+        session_access_(OS::CreateMutex()), session_(NULL),
+        terminate_now_(OS::CreateSemaphore(0)) {}
+  ~DebuggerAgent() { delete server_; }
 
   void Shutdown();
 
@@ -53,13 +54,15 @@ class DebuggerAgent: public Thread {
   void Run();
   void CreateSession(Socket* socket);
   void DebuggerMessage(const uint16_t* message, int length);
-  void SessionClosed(DebuggerAgentSession* session);
+  void CloseSession();
+  void OnSessionClosed(DebuggerAgentSession* session);
 
   int port_;  // Port to use for the agent.
   Socket* server_;  // Server socket for listen/accept.
   bool terminate_;  // Termination flag.
   Mutex* session_access_;  // Mutex guarging access to session_.
   DebuggerAgentSession* session_;  // Current active session if any.
+  Semaphore* terminate_now_;  // Semaphore to signal termination.
 
   friend class DebuggerAgentSession;
   friend void DebuggerAgentMessageHandler(const uint16_t* message, int length,
@@ -77,6 +80,7 @@ class DebuggerAgentSession: public Thread {
       : agent_(agent), client_(client) {}
 
   void DebuggerMessage(Vector<uint16_t> message);
+  void Shutdown();
 
  private:
   void Run();
@@ -84,7 +88,7 @@ class DebuggerAgentSession: public Thread {
   void DebuggerMessage(Vector<char> message);
 
   DebuggerAgent* agent_;
-  const Socket* client_;
+  Socket* client_;
 
   DISALLOW_COPY_AND_ASSIGN(DebuggerAgentSession);
 };

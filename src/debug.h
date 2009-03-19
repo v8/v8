@@ -443,6 +443,9 @@ class Debugger {
   // Start the debugger agent listening on the provided port.
   static bool StartAgent(int port);
 
+  // Stop the debugger agent.
+  static void StopAgent();
+
   inline static bool EventActive(v8::DebugEvent event) {
     // Currently argument event is not used.
     return !Debugger::compiling_natives_ && Debugger::debugger_active_;

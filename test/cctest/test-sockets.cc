@@ -8,13 +8,10 @@
 using namespace ::v8::internal;
 
 
-static const char* kPort = "5858";
-static const char* kLocalhost = "localhost";
-
 class SocketListenerThread : public Thread {
  public:
-  explicit SocketListenerThread(int data_size)
-      : data_size_(data_size), server_(NULL), client_(NULL),
+  explicit SocketListenerThread(int port, int data_size)
+      : port_(port), data_size_(data_size), server_(NULL), client_(NULL),
         listening_(OS::CreateSemaphore(0)) {
     data_ = new char[data_size_];
   }
@@ -31,6 +28,7 @@ class SocketListenerThread : public Thread {
   char* data() { return data_; }
 
  private:
+  int port_;
   char* data_;
   int data_size_;
   Socket* server_;  // Server socket used for bind/accept.
@@ -45,7 +43,7 @@ void SocketListenerThread::Run() {
   // Create the server socket and bind it to the requested port.
   server_ = OS::CreateSocket();
   CHECK(server_ != NULL);
-  ok = server_->Bind(5858);
+  ok = server_->Bind(port_);
   CHECK(ok);
 
   // Listen for new connections.
@@ -78,18 +76,25 @@ static bool SendAll(Socket* socket, const char* data, int len) {
 }
 
 
-static void SendAndReceive(char *data, int len) {
+static void SendAndReceive(int port, char *data, int len) {
+  static const char* kLocalhost = "localhost";
+
   bool ok;
 
+  // Make a string with the port number.
+  const int kPortBuferLen = 6;
+  char port_str[kPortBuferLen];
+  OS::SNPrintF(Vector<char>(port_str, kPortBuferLen), "%d", port);
+
   // Create a socket listener.
-  SocketListenerThread* listener = new SocketListenerThread(len);
+  SocketListenerThread* listener = new SocketListenerThread(port, len);
   listener->Start();
   listener->WaitForListening();
 
   // Connect and write some data.
   Socket* client = OS::CreateSocket();
   CHECK(client != NULL);
-  ok = client->Connect(kLocalhost, kPort);
+  ok = client->Connect(kLocalhost, port_str);
   CHECK(ok);
 
   // Send all the data.
@@ -112,6 +117,10 @@ static void SendAndReceive(char *data, int len) {
 
 
 TEST(Socket) {
+  // Make sure this port is not used by other tests to allow tests to run in
+  // parallel.
+  static const int kPort = 5859;
+
   bool ok;
 
   // Initialize socket support.
@@ -121,7 +130,7 @@ TEST(Socket) {
   // Send and receive some data.
   static const int kBufferSizeSmall = 20;
   char small_data[kBufferSizeSmall + 1] = "1234567890abcdefghij";
-  SendAndReceive(small_data, kBufferSizeSmall);
+  SendAndReceive(kPort, small_data, kBufferSizeSmall);
 
   // Send and receive some more data.
   static const int kBufferSizeMedium = 10000;
@@ -129,7 +138,7 @@ TEST(Socket) {
   for (int i = 0; i < kBufferSizeMedium; i++) {
     medium_data[i] = i % 256;
   }
-  SendAndReceive(medium_data, kBufferSizeMedium);
+  SendAndReceive(kPort, medium_data, kBufferSizeMedium);
   delete[] medium_data;
 
   // Send and receive even more data.
@@ -138,7 +147,7 @@ TEST(Socket) {
   for (int i = 0; i < kBufferSizeLarge; i++) {
     large_data[i] = i % 256;
   }
-  SendAndReceive(large_data, kBufferSizeLarge);
+  SendAndReceive(kPort, large_data, kBufferSizeLarge);
   delete[] large_data;
 }
 

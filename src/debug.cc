@@ -1839,6 +1839,16 @@ bool Debugger::StartAgent(int port) {
 }
 
 
+void Debugger::StopAgent() {
+  if (agent_ != NULL) {
+    agent_->Shutdown();
+    agent_->Join();
+    delete agent_;
+    agent_ = NULL;
+  }
+}
+
+
 DebugMessageThread::DebugMessageThread()
     : host_running_(true),
       command_queue_(kQueueInitialSize),

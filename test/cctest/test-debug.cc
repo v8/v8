@@ -3822,3 +3822,44 @@ TEST(DebuggerHostDispatch) {
   // The host dispatch callback should be called.
   CHECK_EQ(1, host_dispatch_hit_count);
 }
+
+
+TEST(DebuggerAgent) {
+  // Make sure this port is not used by other tests to allow tests to run in
+  // parallel.
+  const int kPort = 5858;
+
+  // Make a string with the port number.
+  const int kPortBuferLen = 6;
+  char port_str[kPortBuferLen];
+  OS::SNPrintF(i::Vector<char>(port_str, kPortBuferLen), "%d", kPort);
+
+  bool ok;
+
+  // Initialize the socket library.
+  i::Socket::Setup();
+
+  // Test starting and stopping the agent without any client connection.
+  i::Debugger::StartAgent(kPort);
+  i::Debugger::StopAgent();
+
+  // Test starting the agent, connecting a client and shutting down the agent
+  // with the client connected.
+  ok = i::Debugger::StartAgent(kPort);
+  CHECK(ok);
+  i::Socket* client = i::OS::CreateSocket();
+  ok = client->Connect("localhost", port_str);
+  CHECK(ok);
+  i::Debugger::StopAgent();
+  delete client;
+
+  // Test starting and stopping the agent with the required port already
+  // occoupied.
+  i::Socket* server = i::OS::CreateSocket();
+  server->Bind(kPort);
+
+  i::Debugger::StartAgent(kPort);
+  i::Debugger::StopAgent();
+
+  delete server;
+}
