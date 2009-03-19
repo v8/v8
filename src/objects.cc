@@ -5145,7 +5145,7 @@ Object* JSObject::GetHiddenProperties(bool create_if_needed) {
 #ifdef DEBUG
         PropertyDetails details(descriptors->GetDetails(0));
         ASSERT(details.type() == FIELD);
-#endif // DEBUG
+#endif  // DEBUG
         Object* value = descriptors->GetValue(0);
         return FastPropertyAt(Descriptor::IndexFromValue(value));
       }

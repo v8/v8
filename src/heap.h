@@ -644,7 +644,7 @@ class Heap : public AllStatic {
 #define SYMBOL_ACCESSOR(name, str) static String* name() { return name##_; }
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
-  
+
   // The hidden_symbol is special because it is the empty string, but does
   // not match the empty string.
   static String* hidden_symbol() { return hidden_symbol_; }
@@ -891,7 +891,7 @@ class Heap : public AllStatic {
 #define SYMBOL_DECLARATION(name, str) static String* name##_;
   SYMBOL_LIST(SYMBOL_DECLARATION)
 #undef SYMBOL_DECLARATION
-  
+
   // The special hidden symbol which is an empty string, but does not match
   // any string when looked up in properties.
   static String* hidden_symbol_;

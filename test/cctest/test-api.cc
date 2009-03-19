@@ -1290,14 +1290,14 @@ THREADED_TEST(HiddenProperties) {
   v8::Local<v8::String> key = v8_str("api-test::hidden-key");
   v8::Local<v8::String> empty = v8_str("");
   v8::Local<v8::String> prop_name = v8_str("prop_name");
-  
+
   i::Heap::CollectAllGarbage();
 
   CHECK(obj->SetHiddenValue(key, v8::Integer::New(1503)));
   CHECK_EQ(1503, obj->GetHiddenValue(key)->Int32Value());
   CHECK(obj->SetHiddenValue(key, v8::Integer::New(2002)));
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
-  
+
   i::Heap::CollectAllGarbage();
 
   // Make sure we do not find the hidden property.
@@ -1308,7 +1308,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK(obj->Set(empty, v8::Integer::New(2003)));
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
   CHECK_EQ(2003, obj->Get(empty)->Int32Value());
-  
+
   i::Heap::CollectAllGarbage();
 
   // Add another property and delete it afterwards to force the object in
@@ -1319,7 +1319,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
   CHECK(obj->Delete(prop_name));
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
-  
+
   i::Heap::CollectAllGarbage();
 
   CHECK(obj->DeleteHiddenValue(key));

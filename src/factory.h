@@ -299,7 +299,7 @@ class Factory : public AllStatic {
   static Handle<String> name() { return Handle<String>(&Heap::name##_); }
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
-  
+
   static Handle<String> hidden_symbol() {
     return Handle<String>(&Heap::hidden_symbol_);
   }

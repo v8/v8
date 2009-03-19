@@ -1204,7 +1204,7 @@ bool Heap::CreateInitialObjects() {
   (name##_) = String::cast(obj);
   SYMBOL_LIST(SYMBOL_INITIALIZE)
 #undef SYMBOL_INITIALIZE
-  
+
   // Allocate the hidden symbol which is used to identify the hidden properties
   // in JSObjects. The hash code has a special value so that it will not match
   // the empty string when searching for the property. It cannot be part of the
