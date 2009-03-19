@@ -439,8 +439,10 @@ class Socket {
   // Client initialization.
   virtual bool Connect(const char* host, const char* port) = 0;
 
-  // Close.
-  virtual bool Close() = 0;
+  // Shutdown socket for both read and write. This causes blocking Send and
+  // Receive calls to exit. After Shutdown the Socket object cannot be used for
+  // any communication.
+  virtual bool Shutdown() = 0;
 
   // Data Transimission
   virtual int Send(const char* data, int len) const = 0;

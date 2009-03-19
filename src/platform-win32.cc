@@ -1548,9 +1548,7 @@ class Win32Socket : public Socket {
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   }
   explicit Win32Socket(SOCKET socket): socket_(socket) { }
-
-
-  virtual ~Win32Socket() { Close(); }
+  virtual ~Win32Socket() { Shutdown(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -1560,8 +1558,8 @@ class Win32Socket : public Socket {
   // Client initialization.
   bool Connect(const char* host, const char* port);
 
-  // Close.
-  bool Close();
+  // Shutdown socket for both read and write.
+  bool Shutdown();
 
   // Data Transimission
   int Send(const char* data, int len) const;
@@ -1639,12 +1637,13 @@ bool Win32Socket::Connect(const char* host, const char* port) {
 }
 
 
-bool Win32Socket::Close() {
+bool Win32Socket::Shutdown() {
   if (IsValid()) {
-    // Close socket.
-    int rc = closesocket(socket_);
+    // Shutdown socket for both read and write.
+    int status = shutdown(socket_, SD_BOTH);
+    closesocket(socket_);
     socket_ = INVALID_SOCKET;
-    return rc != SOCKET_ERROR;
+    return status == SOCKET_ERROR;
   }
   return true;
 }

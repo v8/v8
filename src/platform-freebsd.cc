@@ -650,8 +650,7 @@ class FreeBSDSocket : public Socket {
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   }
   explicit FreeBSDSocket(int socket): socket_(socket) { }
-
-  virtual ~FreeBSDSocket() { Close(); }
+  virtual ~FreeBSDSocket() { Shutdown(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -661,8 +660,8 @@ class FreeBSDSocket : public Socket {
   // Client initialization.
   bool Connect(const char* host, const char* port);
 
-  // Close.
-  bool Close();
+  // Shutdown socket for both read and write.
+  bool Shutdown();
 
   // Data Transimission
   int Send(const char* data, int len) const;
@@ -740,15 +739,17 @@ bool FreeBSDSocket::Connect(const char* host, const char* port) {
 }
 
 
-bool FreeBSDSocket::Close() {
+bool FreeBSDSocket::Shutdown() {
   if (IsValid()) {
-    // Close socket.
-    int status = close(socket_);
+    // Shutdown socket for both read and write.
+    int status = shutdown(socket_, SHUT_RDWR);
+    close(socket_);
     socket_ = -1;
     return status == 0;
   }
   return true;
 }
+
 
 int FreeBSDSocket::Send(const char* data, int len) const {
   int status = send(socket_, data, len, 0);

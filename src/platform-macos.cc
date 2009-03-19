@@ -576,8 +576,7 @@ class MacOSSocket : public Socket {
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   }
   explicit MacOSSocket(int socket): socket_(socket) { }
-
-  virtual ~MacOSSocket() { Close(); }
+  virtual ~MacOSSocket() { Shutdown(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -587,8 +586,8 @@ class MacOSSocket : public Socket {
   // Client initialization.
   bool Connect(const char* host, const char* port);
 
-  // Close.
-  bool Close();
+  // Shutdown socket for both read and write.
+  bool Shutdown();
 
   // Data Transimission
   int Send(const char* data, int len) const;
@@ -672,10 +671,11 @@ bool MacOSSocket::Connect(const char* host, const char* port) {
 }
 
 
-bool MacOSSocket::Close() {
+bool MacOSSocket::Shutdown() {
   if (IsValid()) {
-    // Close socket.
-    int status = close(socket_);
+    // Shutdown socket for both read and write.
+    int status = shutdown(socket_, SHUT_RDWR);
+    close(socket_);
     socket_ = -1;
     return status == 0;
   }
