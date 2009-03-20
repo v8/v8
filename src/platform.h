@@ -448,6 +448,9 @@ class Socket {
   virtual int Send(const char* data, int len) const = 0;
   virtual int Receive(char* data, int len) const = 0;
 
+  // Set the value of the SO_REUSEADDR socket option.
+  virtual bool SetReuseAddress(bool reuse_address) = 0;
+
   virtual bool IsValid() const = 0;
 
   static bool Setup();

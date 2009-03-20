@@ -1565,6 +1565,8 @@ class Win32Socket : public Socket {
   int Send(const char* data, int len) const;
   int Receive(char* data, int len) const;
 
+  bool SetReuseAddress(bool reuse_address);
+
   bool IsValid() const { return socket_ != INVALID_SOCKET; }
 
  private:
@@ -1658,6 +1660,14 @@ int Win32Socket::Send(const char* data, int len) const {
 int Win32Socket::Receive(char* data, int len) const {
   int status = recv(socket_, data, len, 0);
   return status;
+}
+
+
+bool Win32Socket::SetReuseAddress(bool reuse_address) {
+  BOOL on = reuse_address ? TRUE : FALSE;
+  int status = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
+                          reinterpret_cast<char*>(&on), sizeof(on));
+  return status == SOCKET_ERROR;
 }
 
 

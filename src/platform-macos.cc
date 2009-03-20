@@ -593,6 +593,8 @@ class MacOSSocket : public Socket {
   int Send(const char* data, int len) const;
   int Receive(char* data, int len) const;
 
+  bool SetReuseAddress(bool reuse_address);
+
   bool IsValid() const { return socket_ != -1; }
 
  private:
@@ -692,6 +694,13 @@ int MacOSSocket::Send(const char* data, int len) const {
 int MacOSSocket::Receive(char* data, int len) const {
   int status = recv(socket_, data, len, 0);
   return status;
+}
+
+
+bool MacOSSocket::SetReuseAddress(bool reuse_address) {
+  int on = reuse_address ? 1 : 0;
+  int status = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+  return status == 0;
 }
 
 
