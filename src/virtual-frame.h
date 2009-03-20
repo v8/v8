@@ -29,7 +29,6 @@
 #define V8_VIRTUAL_FRAME_H_
 
 #include "macro-assembler.h"
-#include "register-allocator.h"
 
 namespace v8 { namespace internal {
 

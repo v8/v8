@@ -30,8 +30,9 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
-#include "scopes.h"
 #include "runtime.h"
+#include "scopes.h"
+#include "virtual-frame.h"
 
 namespace v8 { namespace internal {
 
@@ -436,6 +437,16 @@ void CodeGenerator::LoadCondition(Expression* x,
 
   ASSERT(!(force_control && !dest->is_used()));
   ASSERT(dest->is_used() || frame_->height() == original_height + 1);
+}
+
+
+void CodeGenerator::LoadAndSpill(Expression* expression,
+                                 TypeofState typeof_state) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Load(expression, typeof_state);
+  frame_->SpillAll();
+  set_in_spilled_code(true);
 }
 
 
@@ -1550,6 +1561,28 @@ void CodeGenerator::CheckStack() {
     deferred->enter()->Branch(below, not_taken);
     deferred->BindExit();
   }
+}
+
+
+void CodeGenerator::VisitAndSpill(Statement* statement) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Visit(statement);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
+}
+
+
+void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  VisitStatements(statements);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
 }
 
 

@@ -28,9 +28,13 @@
 #ifndef V8_JUMP_TARGET_H_
 #define V8_JUMP_TARGET_H_
 
-#include "virtual-frame.h"
-
 namespace v8 { namespace internal {
+
+// Forward declarations.
+class FrameElement;
+class Result;
+class VirtualFrame;
+
 
 // -------------------------------------------------------------------------
 // Jump targets

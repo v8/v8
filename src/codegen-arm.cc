@@ -30,8 +30,9 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
-#include "scopes.h"
 #include "runtime.h"
+#include "scopes.h"
+#include "virtual-frame.h"
 
 namespace v8 { namespace internal {
 
@@ -376,6 +377,22 @@ MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(
 }
 
 
+void CodeGenerator::LoadConditionAndSpill(Expression* expression,
+                                          TypeofState typeof_state,
+                                          JumpTarget* true_target,
+                                          JumpTarget* false_target,
+                                          bool force_control) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  LoadCondition(expression, typeof_state, true_target, false_target,
+                force_control);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
+}
+
+
 // Loads a value on TOS. If it is a boolean value, the result may have been
 // (partially) translated into branches, or it may have set the condition
 // code register. If force_cc is set, the value is forced to set the
@@ -418,6 +435,16 @@ void CodeGenerator::LoadCondition(Expression* x,
   ASSERT(!has_valid_frame() ||
          (has_cc() && frame_->height() == original_height) ||
          (!has_cc() && frame_->height() == original_height + 1));
+}
+
+
+void CodeGenerator::LoadAndSpill(Expression* expression,
+                                 TypeofState typeof_state) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Load(expression, typeof_state);
+  frame_->SpillAll();
+  set_in_spilled_code(true);
 }
 
 
@@ -1110,6 +1137,28 @@ void CodeGenerator::CheckStack() {
     StackCheckStub stub;
     frame_->CallStub(&stub, 0);
   }
+}
+
+
+void CodeGenerator::VisitAndSpill(Statement* statement) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Visit(statement);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+    }
+  set_in_spilled_code(true);
+}
+
+
+void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  VisitStatements(statements);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
 }
 
 
@@ -3971,6 +4020,15 @@ Handle<String> Reference::GetName() {
     ASSERT(raw_name != NULL);
     return Handle<String>(String::cast(*raw_name->handle()));
   }
+}
+
+
+void Reference::GetValueAndSpill(TypeofState typeof_state) {
+  ASSERT(cgen_->in_spilled_code());
+  cgen_->set_in_spilled_code(false);
+  GetValue(typeof_state);
+  cgen_->frame()->SpillAll();
+  cgen_->set_in_spilled_code(true);
 }
 
 

@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "codegen.h"
-#include "jump-target.h"
+#include "virtual-frame.h"
 
 namespace v8 { namespace internal {
 

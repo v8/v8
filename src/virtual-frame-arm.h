@@ -28,6 +28,8 @@
 #ifndef V8_VIRTUAL_FRAME_ARM_H_
 #define V8_VIRTUAL_FRAME_ARM_H_
 
+#include "register-allocator.h"
+
 namespace v8 { namespace internal {
 
 // -------------------------------------------------------------------------
