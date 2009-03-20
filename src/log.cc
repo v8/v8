@@ -142,28 +142,17 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
-  // If c_entry_fp is available, this means that we are inside a C++
-  // function and sample->fp value isn't reliable due to FPO.
-  if (Top::c_entry_fp(Top::GetCurrentThread()) != NULL) {
-    SafeStackTraceFrameIterator it(
-        reinterpret_cast<Address>(sample->sp),
-        reinterpret_cast<Address>(low_stack_bound_));
-    int i = 0;
-    while (!it.done() && i < TickSample::kMaxFramesCount) {
-      sample->stack[i++] = it.frame()->pc();
-      it.Advance();
-    }
-    sample->frames_count = i;
-  } else if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
-    // The check assumes that stack grows from lower addresses.
-    sample->stack[0] = Memory::Address_at(
-        (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
-    sample->frames_count = 1;
-  } else {
-    // FP seems to be in some intermediate state,
-    // better discard this sample
-    sample->frames_count = 0;
+  SafeStackTraceFrameIterator it(
+      reinterpret_cast<Address>(sample->fp),
+      reinterpret_cast<Address>(sample->sp),
+      reinterpret_cast<Address>(sample->sp),
+      reinterpret_cast<Address>(low_stack_bound_));
+  int i = 0;
+  while (!it.done() && i < TickSample::kMaxFramesCount) {
+    sample->stack[i++] = it.frame()->pc();
+    it.Advance();
   }
+  sample->frames_count = i;
 }
 
 
@@ -936,7 +925,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
     msg.Append(",overflow");
   }
   for (int i = 0; i < sample->frames_count; ++i) {
-    msg.Append(",%p", sample->stack[i]);
+    msg.Append(",0x%x", reinterpret_cast<uint32_t>(sample->stack[i]));
   }
   msg.Append('\n');
   msg.WriteToLogFile();

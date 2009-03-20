@@ -1750,7 +1750,6 @@ class Sampler::PlatformData : public Malloced {
         SuspendThread(profiled_thread_);
         context.ContextFlags = CONTEXT_FULL;
         GetThreadContext(profiled_thread_, &context);
-        ResumeThread(profiled_thread_);
         // Invoke tick handler with program counter and stack pointer.
         sample.pc = context.Eip;
         sample.sp = context.Esp;
@@ -1760,6 +1759,10 @@ class Sampler::PlatformData : public Malloced {
       // We always sample the VM state.
       sample.state = Logger::state();
       sampler_->Tick(&sample);
+
+      if (sampler_->IsProfiling()) {
+        ResumeThread(profiled_thread_);
+      }
 
       // Wait until next sampling.
       Sleep(sampler_->interval_);

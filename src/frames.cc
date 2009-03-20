@@ -66,23 +66,32 @@ class StackHandlerIterator BASE_EMBEDDED {
 #define INITIALIZE_SINGLETON(type, field) field##_(this),
 StackFrameIterator::StackFrameIterator()
     : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL), thread_(Top::GetCurrentThread()) {
+      frame_(NULL), handler_(NULL), thread_(Top::GetCurrentThread()),
+      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
   Reset();
 }
 StackFrameIterator::StackFrameIterator(ThreadLocalTop* t)
     : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL), thread_(t) {
+      frame_(NULL), handler_(NULL), thread_(t),
+      fp_(NULL), sp_(NULL), advance_(&StackFrameIterator::AdvanceWithHandler) {
   Reset();
 }
-StackFrameIterator::StackFrameIterator(bool reset)
+StackFrameIterator::StackFrameIterator(bool use_top, Address fp, Address sp)
     : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL), thread_(Top::GetCurrentThread()) {
-  if (reset) Reset();
+      frame_(NULL), handler_(NULL),
+      thread_(use_top ? Top::GetCurrentThread() : NULL),
+      fp_(use_top ? NULL : fp), sp_(sp),
+      advance_(use_top ? &StackFrameIterator::AdvanceWithHandler :
+               &StackFrameIterator::AdvanceWithoutHandler) {
+  if (use_top || fp != NULL) {
+    Reset();
+  }
 }
+
 #undef INITIALIZE_SINGLETON
 
 
-void StackFrameIterator::Advance() {
+void StackFrameIterator::AdvanceWithHandler() {
   ASSERT(!done());
   // Compute the state of the calling frame before restoring
   // callee-saved registers and unwinding handlers. This allows the
@@ -105,17 +114,45 @@ void StackFrameIterator::Advance() {
 }
 
 
-void StackFrameIterator::Reset() {
-  Address fp = Top::c_entry_fp(thread_);
+void StackFrameIterator::AdvanceWithoutHandler() {
+  // A simpler version of Advance which doesn't care about handler.
+  ASSERT(!done());
   StackFrame::State state;
-  StackFrame::Type type = ExitFrame::GetStateForFramePointer(fp, &state);
+  StackFrame::Type type = frame_->GetCallerState(&state);
   frame_ = SingletonFor(type, &state);
-  handler_ = StackHandler::FromAddress(Top::handler(thread_));
+}
+
+
+void StackFrameIterator::Reset() {
+  StackFrame::State state;
+  StackFrame::Type type;
+  if (thread_ != NULL) {
+    type = ExitFrame::GetStateForFramePointer(Top::c_entry_fp(thread_), &state);
+    handler_ = StackHandler::FromAddress(Top::handler(thread_));
+  } else {
+    ASSERT(fp_ != NULL);
+    state.fp = fp_;
+    state.sp = sp_;
+    state.pc_address =
+        reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp_));
+    type = StackFrame::ComputeType(&state);
+    if (SingletonFor(type) == NULL) return;
+  }
+  frame_ = SingletonFor(type, &state);
 }
 
 
 StackFrame* StackFrameIterator::SingletonFor(StackFrame::Type type,
                                              StackFrame::State* state) {
+  if (type == StackFrame::NONE) return NULL;
+  StackFrame* result = SingletonFor(type);
+  ASSERT(result != NULL);
+  result->state_ = *state;
+  return result;
+}
+
+
+StackFrame* StackFrameIterator::SingletonFor(StackFrame::Type type) {
 #define FRAME_TYPE_CASE(type, field) \
   case StackFrame::type: result = &field##_; break;
 
@@ -125,8 +162,6 @@ StackFrame* StackFrameIterator::SingletonFor(StackFrame::Type type,
     STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
     default: break;
   }
-  ASSERT(result != NULL);
-  result->state_ = *state;
   return result;
 
 #undef FRAME_TYPE_CASE
@@ -154,29 +189,50 @@ void StackTraceFrameIterator::Advance() {
 
 
 SafeStackFrameIterator::SafeStackFrameIterator(
-    Address low_bound, Address high_bound) :
+    Address fp, Address sp, Address low_bound, Address high_bound) :
     low_bound_(low_bound), high_bound_(high_bound),
-    is_working_iterator_(IsInBounds(low_bound, high_bound,
-                                    Top::c_entry_fp(Top::GetCurrentThread()))),
-    iteration_done_(!is_working_iterator_), iterator_(is_working_iterator_) {
+    is_valid_top_(
+        IsWithinBounds(low_bound, high_bound,
+                       Top::c_entry_fp(Top::GetCurrentThread())) &&
+        Top::handler(Top::GetCurrentThread()) != NULL),
+    is_valid_fp_(IsWithinBounds(low_bound, high_bound, fp)),
+    is_working_iterator_(is_valid_top_ || is_valid_fp_),
+    iteration_done_(!is_working_iterator_),
+    iterator_(is_valid_top_, is_valid_fp_ ? fp : NULL, sp) {
 }
 
 
 void SafeStackFrameIterator::Advance() {
   ASSERT(is_working_iterator_);
   ASSERT(!done());
-  StackFrame* frame = iterator_.frame();
-  iteration_done_ =
-      !IsGoodStackAddress(frame->sp()) || !IsGoodStackAddress(frame->fp());
-  if (!iteration_done_) {
-    iterator_.Advance();
-    if (!iterator_.done()) {
-      // Check that we have actually moved to the previous frame in the stack
-      StackFrame* prev_frame = iterator_.frame();
-      iteration_done_ =
-          prev_frame->sp() < frame->sp() || prev_frame->fp() < frame->fp();
-    }
-  }
+  StackFrame* last_frame = iterator_.frame();
+  Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
+  // Before advancing to the next stack frame, perform pointer validity tests
+  iteration_done_ = !IsValidFrame(last_frame) || !IsValidCaller(last_frame);
+  if (iteration_done_) return;
+
+  iterator_.Advance();
+  if (iterator_.done()) return;
+  // Check that we have actually moved to the previous frame in the stack
+  StackFrame* prev_frame = iterator_.frame();
+  iteration_done_ = prev_frame->sp() < last_sp || prev_frame->fp() < last_fp;
+}
+
+
+bool SafeStackFrameIterator::IsValidFrame(StackFrame* frame) const {
+  return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp()) &&
+      // JavaScriptFrame uses function shared info to advance, hence it must
+      // point to a valid function object.
+      (!frame->is_java_script() ||
+       reinterpret_cast<JavaScriptFrame*>(frame)->is_at_function());
+}
+
+
+bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
+  StackFrame::State state;
+  frame->ComputeCallerState(&state);
+  return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp) &&
+      iterator_.SingletonFor(frame->GetCallerState(&state)) != NULL;
 }
 
 
@@ -193,9 +249,9 @@ void SafeStackFrameIterator::Reset() {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 SafeStackTraceFrameIterator::SafeStackTraceFrameIterator(
-    Address low_bound, Address high_bound) :
-    SafeJavaScriptFrameIterator(low_bound, high_bound) {
-  if (!done() && !frame()->function()->IsJSFunction()) Advance();
+    Address fp, Address sp, Address low_bound, Address high_bound) :
+    SafeJavaScriptFrameIterator(fp, sp, low_bound, high_bound) {
+  if (!done() && !frame()->is_at_function()) Advance();
 }
 
 
@@ -203,7 +259,7 @@ void SafeStackTraceFrameIterator::Advance() {
   while (true) {
     SafeJavaScriptFrameIterator::Advance();
     if (done()) return;
-    if (frame()->function()->IsJSFunction()) return;
+    if (frame()->is_at_function()) return;
   }
 }
 #endif
@@ -279,8 +335,19 @@ void StackFrame::Uncook() {
 }
 
 
+StackFrame::Type StackFrame::GetCallerState(State* state) const {
+  ComputeCallerState(state);
+  return ComputeType(state);
+}
+
+
 Code* EntryFrame::code() const {
   return Heap::js_entry_code();
+}
+
+
+void EntryFrame::ComputeCallerState(State* state) const {
+  GetCallerState(state);
 }
 
 
@@ -301,13 +368,12 @@ Code* ExitFrame::code() const {
 }
 
 
-StackFrame::Type ExitFrame::GetCallerState(State* state) const {
+void ExitFrame::ComputeCallerState(State* state) const {
   // Setup the caller state.
   state->sp = pp();
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
   state->pc_address
       = reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset);
-  return ComputeType(state);
 }
 
 
@@ -338,11 +404,10 @@ int StandardFrame::ComputeExpressionsCount() const {
 }
 
 
-StackFrame::Type StandardFrame::GetCallerState(State* state) const {
+void StandardFrame::ComputeCallerState(State* state) const {
   state->sp = caller_sp();
   state->fp = caller_fp();
   state->pc_address = reinterpret_cast<Address*>(ComputePCAddress(fp()));
-  return ComputeType(state);
 }
 
 

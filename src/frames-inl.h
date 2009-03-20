@@ -169,6 +169,20 @@ inline bool JavaScriptFrame::has_adapted_arguments() const {
 }
 
 
+inline bool JavaScriptFrame::is_at_function() const {
+  Object* result = function_slot_object();
+  return Heap::Contains(reinterpret_cast<Address>(result)) &&
+      result->IsJSFunction();
+}
+
+
+inline Object* JavaScriptFrame::function() const {
+  Object* result = function_slot_object();
+  ASSERT(result->IsJSFunction());
+  return result;
+}
+
+
 template<typename Iterator>
 inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's

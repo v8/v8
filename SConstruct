@@ -574,7 +574,7 @@ def BuildSpecific(env, mode, env_overrides):
   library_name = 'v8' + suffix
   env['LIBRARY'] = library_name
 
-  # Build the object files by invoking SCons recursively.  
+  # Build the object files by invoking SCons recursively.
   (object_files, shell_files, mksnapshot) = env.SConscript(
     join('src', 'SConscript'),
     build_dir=join('obj', target_id),
@@ -596,7 +596,7 @@ def BuildSpecific(env, mode, env_overrides):
     pdb_name = library_name + '.dll.pdb'
     library = env.SharedLibrary(library_name, object_files, PDB=pdb_name)
   context.library_targets.append(library)
-  
+
   d8_env = Environment()
   d8_env.Replace(**context.flags['d8'])
   shell = d8_env.Program('d8' + suffix, object_files + shell_files)
@@ -616,7 +616,7 @@ def BuildSpecific(env, mode, env_overrides):
     sample_program = sample_env.Program(sample_name, sample_object)
     sample_env.Depends(sample_program, library)
     context.sample_targets.append(sample_program)
-  
+
   cctest_program = env.SConscript(
     join('test', 'cctest', 'SConscript'),
     build_dir=join('obj', 'test', target_id),
@@ -624,7 +624,7 @@ def BuildSpecific(env, mode, env_overrides):
     duplicate=False
   )
   context.cctest_targets.append(cctest_program)
-  
+
   return context
 
 

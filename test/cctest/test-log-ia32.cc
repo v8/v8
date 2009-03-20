@@ -9,6 +9,7 @@
 #include "v8.h"
 
 #include "log.h"
+#include "top.h"
 #include "cctest.h"
 
 using v8::Function;
@@ -23,6 +24,7 @@ using v8::internal::Handle;
 using v8::internal::JSFunction;
 using v8::internal::StackTracer;
 using v8::internal::TickSample;
+using v8::internal::Top;
 
 
 static v8::Persistent<v8::Context> env;
@@ -31,7 +33,7 @@ static v8::Persistent<v8::Context> env;
 static struct {
   StackTracer* tracer;
   TickSample* sample;
-} trace_env;
+} trace_env = { NULL, NULL };
 
 
 static void InitTraceEnv(StackTracer* tracer, TickSample* sample) {
@@ -42,62 +44,43 @@ static void InitTraceEnv(StackTracer* tracer, TickSample* sample) {
 
 static void DoTrace(unsigned int fp) {
   trace_env.sample->fp = fp;
-  // something that is less than fp
-  trace_env.sample->sp = trace_env.sample->fp - 100;
+  // sp is only used to define stack high bound
+  trace_env.sample->sp =
+      reinterpret_cast<unsigned int>(trace_env.sample) - 10240;
   trace_env.tracer->Trace(trace_env.sample);
 }
 
 
-static void CFuncDoTrace() {
-  unsigned int fp;
-#ifdef __GNUC__
-  fp = reinterpret_cast<unsigned int>(__builtin_frame_address(0));
-#elif defined _MSC_VER
-  __asm mov [fp], ebp  // NOLINT
-#endif
+// Hide c_entry_fp to emulate situation when sampling is done while
+// pure JS code is being executed
+static void DoTraceHideCEntryFPAddress(unsigned int fp) {
+  v8::internal::Address saved_c_frame_fp = *(Top::c_entry_fp_address());
+  CHECK(saved_c_frame_fp);
+  *(Top::c_entry_fp_address()) = 0;
   DoTrace(fp);
+  *(Top::c_entry_fp_address()) = saved_c_frame_fp;
 }
 
 
-static void CFunc(int i) {
-  for (int j = i; j >= 0; --j) {
-    CFuncDoTrace();
-  }
-}
-
-
-static void CheckRetAddrIsInFunction(unsigned int ret_addr,
+static void CheckRetAddrIsInFunction(const char* func_name,
+                                     unsigned int ret_addr,
                                      unsigned int func_start_addr,
                                      unsigned int func_len) {
-  printf("CheckRetAddrIsInFunction: %08x %08x %08x\n",
-         func_start_addr, ret_addr, func_start_addr + func_len);
+  printf("CheckRetAddrIsInFunction \"%s\": %08x %08x %08x\n",
+         func_name, func_start_addr, ret_addr, func_start_addr + func_len);
   CHECK_GE(ret_addr, func_start_addr);
   CHECK_GE(func_start_addr + func_len, ret_addr);
 }
 
 
-#ifdef DEBUG
-static const int kMaxCFuncLen = 0x40;  // seems enough for a small C function
-
-static void CheckRetAddrIsInCFunction(unsigned int ret_addr,
-                                      unsigned int func_start_addr) {
-  CheckRetAddrIsInFunction(ret_addr, func_start_addr, kMaxCFuncLen);
-}
-#endif
-
-
-TEST(PureCStackTrace) {
-  TickSample sample;
-  StackTracer tracer(reinterpret_cast<unsigned int>(&sample));
-  InitTraceEnv(&tracer, &sample);
-  CFunc(0);
-#ifdef DEBUG
-  // C stack trace works only in debug mode, in release mode EBP is
-  // usually treated as a general-purpose register
-  CHECK_GT(sample.frames_count, 0);
-  CheckRetAddrIsInCFunction(reinterpret_cast<unsigned int>(sample.stack[0]),
-                            reinterpret_cast<unsigned int>(&CFunc));
-#endif
+static void CheckRetAddrIsInJSFunction(const char* func_name,
+                                       unsigned int ret_addr,
+                                       Handle<JSFunction> func) {
+  v8::internal::Code* func_code = func->code();
+  CheckRetAddrIsInFunction(
+      func_name, ret_addr,
+      reinterpret_cast<unsigned int>(func_code->instruction_start()),
+      func_code->ExecutableSize());
 }
 
 
@@ -107,27 +90,49 @@ class TraceExtension : public v8::Extension {
  public:
   TraceExtension() : v8::Extension("v8/trace", kSource) { }
   virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
+      v8::Handle<String> name);
   static v8::Handle<v8::Value> Trace(const v8::Arguments& args);
+  static v8::Handle<v8::Value> JSTrace(const v8::Arguments& args);
  private:
+  static unsigned int GetFP(const v8::Arguments& args);
   static const char* kSource;
 };
 
 
-const char* TraceExtension::kSource = "native function trace();";
+const char* TraceExtension::kSource =
+    "native function trace();"
+    "native function js_trace();";
 
 
 v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(TraceExtension::Trace);
+    v8::Handle<String> name) {
+  if (name->Equals(String::New("trace"))) {
+    return v8::FunctionTemplate::New(TraceExtension::Trace);
+  } else if (name->Equals(String::New("js_trace"))) {
+    return v8::FunctionTemplate::New(TraceExtension::JSTrace);
+  } else {
+    CHECK(false);
+    return v8::Handle<v8::FunctionTemplate>();
+  }
+}
+
+
+unsigned int TraceExtension::GetFP(const v8::Arguments& args) {
+  CHECK_EQ(1, args.Length());
+  unsigned int fp = args[0]->Int32Value() << 2;
+  printf("Trace: %08x\n", fp);
+  return fp;
 }
 
 
 v8::Handle<v8::Value> TraceExtension::Trace(const v8::Arguments& args) {
-  CHECK_EQ(1, args.Length());
-  unsigned int fp = args[0]->Int32Value() << 2;
-  printf("Trace: %08x\n", fp);
-  DoTrace(fp);
+  DoTrace(GetFP(args));
+  return v8::Undefined();
+}
+
+
+v8::Handle<v8::Value> TraceExtension::JSTrace(const v8::Arguments& args) {
+  DoTraceHideCEntryFPAddress(GetFP(args));
   return v8::Undefined();
 }
 
@@ -163,6 +168,21 @@ static Local<Value> GetGlobalProperty(const char* name) {
 }
 
 
+static Handle<JSFunction> GetGlobalJSFunction(const char* name) {
+  Handle<JSFunction> js_func(JSFunction::cast(
+                                 *(v8::Utils::OpenHandle(
+                                       *GetGlobalProperty(name)))));
+  return js_func;
+}
+
+
+static void CheckRetAddrIsInJSFunction(const char* func_name,
+                                       unsigned int ret_addr) {
+  CheckRetAddrIsInJSFunction(func_name, ret_addr,
+                             GetGlobalJSFunction(func_name));
+}
+
+
 static void SetGlobalProperty(const char* name, Local<Value> value) {
   env->Global()->Set(String::New(name), value);
 }
@@ -188,17 +208,17 @@ static bool Patch(byte* from,
 }
 
 
-TEST(PureJSStackTrace) {
-  TickSample sample;
-  StackTracer tracer(reinterpret_cast<unsigned int>(&sample));
-  InitTraceEnv(&tracer, &sample);
-
-  InitializeVM();
-  v8::HandleScope scope;
-  Handle<JSFunction> call_trace = CompileFunction("trace(0x6666);");
-  CHECK(!call_trace.is_null());
-  v8::internal::Code* call_trace_code = call_trace->code();
-  CHECK(call_trace_code->IsCode());
+// Creates a global function named 'func_name' that calls the tracing
+// function 'trace_func_name' with an actual EBP register value,
+// shifted right to be presented as Smi.
+static void CreateTraceCallerFunction(const char* func_name,
+                                      const char* trace_func_name) {
+  ::v8::internal::EmbeddedVector<char, 256> trace_call_buf;
+  ::v8::internal::OS::SNPrintF(trace_call_buf, "%s(0x6666);", trace_func_name);
+  Handle<JSFunction> func = CompileFunction(trace_call_buf.start());
+  CHECK(!func.is_null());
+  v8::internal::Code* func_code = func->code();
+  CHECK(func_code->IsCode());
 
   // push 0xcccc (= 0x6666 << 1)
   byte original[] = { 0x68, 0xcc, 0xcc, 0x00, 0x00 };
@@ -206,29 +226,89 @@ TEST(PureJSStackTrace) {
   byte patch[] = { 0x89, 0xe8, 0xd1, 0xe8, 0x50 };
   // Patch generated code to replace pushing of a constant with
   // pushing of ebp contents in a Smi
-  CHECK(Patch(call_trace_code->instruction_start(),
-              call_trace_code->instruction_size(),
+  CHECK(Patch(func_code->instruction_start(),
+              func_code->instruction_size(),
               original, patch, sizeof(patch)));
 
-  SetGlobalProperty("JSFuncDoTrace", v8::ToApi<Value>(call_trace));
+  SetGlobalProperty(func_name, v8::ToApi<Value>(func));
+}
 
+
+TEST(CFromJSStackTrace) {
+  TickSample sample;
+  StackTracer tracer(reinterpret_cast<unsigned int>(&sample));
+  InitTraceEnv(&tracer, &sample);
+
+  InitializeVM();
+  v8::HandleScope scope;
+  CreateTraceCallerFunction("JSFuncDoTrace", "trace");
   CompileRun(
       "function JSTrace() {"
       "  JSFuncDoTrace();"
       "};\n"
       "JSTrace();");
   CHECK_GT(sample.frames_count, 1);
-  CheckRetAddrIsInFunction(
-      reinterpret_cast<unsigned int>(sample.stack[0]),
-      reinterpret_cast<unsigned int>(call_trace_code->instruction_start()),
-      call_trace_code->instruction_size());
-  Handle<JSFunction> js_trace(JSFunction::cast(*(v8::Utils::OpenHandle(
-      *GetGlobalProperty("JSTrace")))));
-  v8::internal::Code* js_trace_code = js_trace->code();
-  CheckRetAddrIsInFunction(
-      reinterpret_cast<unsigned int>(sample.stack[1]),
-      reinterpret_cast<unsigned int>(js_trace_code->instruction_start()),
-      js_trace_code->instruction_size());
+  // Stack sampling will start from the first JS function, i.e. "JSFuncDoTrace"
+  CheckRetAddrIsInJSFunction("JSFuncDoTrace",
+                             reinterpret_cast<unsigned int>(sample.stack[0]));
+  CheckRetAddrIsInJSFunction("JSTrace",
+                             reinterpret_cast<unsigned int>(sample.stack[1]));
 }
+
+
+TEST(PureJSStackTrace) {
+  TickSample sample;
+  StackTracer tracer(reinterpret_cast<unsigned int>(&sample));
+  InitTraceEnv(&tracer, &sample);
+
+  InitializeVM();
+  v8::HandleScope scope;
+  CreateTraceCallerFunction("JSFuncDoTrace", "js_trace");
+  CompileRun(
+      "function JSTrace() {"
+      "  JSFuncDoTrace();"
+      "};\n"
+      "function OuterJSTrace() {"
+      "  JSTrace();"
+      "};\n"
+      "OuterJSTrace();");
+  CHECK_GT(sample.frames_count, 1);
+  // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
+  CheckRetAddrIsInJSFunction("JSTrace",
+                             reinterpret_cast<unsigned int>(sample.stack[0]));
+  CheckRetAddrIsInJSFunction("OuterJSTrace",
+                             reinterpret_cast<unsigned int>(sample.stack[1]));
+}
+
+
+static void CFuncDoTrace() {
+  unsigned int fp;
+#ifdef __GNUC__
+  fp = reinterpret_cast<unsigned int>(__builtin_frame_address(0));
+#elif defined _MSC_VER
+  __asm mov [fp], ebp  // NOLINT
+#endif
+  DoTrace(fp);
+}
+
+
+static int CFunc(int depth) {
+  if (depth <= 0) {
+    CFuncDoTrace();
+    return 0;
+  } else {
+    return CFunc(depth - 1) + 1;
+  }
+}
+
+
+TEST(PureCStackTrace) {
+  TickSample sample;
+  StackTracer tracer(reinterpret_cast<unsigned int>(&sample));
+  InitTraceEnv(&tracer, &sample);
+  // Check that sampler doesn't crash
+  CHECK_EQ(10, CFunc(10));
+}
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

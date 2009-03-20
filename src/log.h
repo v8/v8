@@ -270,7 +270,7 @@ class Logger {
 };
 
 
-// Class that extracts stack trace, used for profiling
+// Class that extracts stack trace, used for profiling.
 class StackTracer BASE_EMBEDDED {
  public:
   explicit StackTracer(unsigned int low_stack_bound)
