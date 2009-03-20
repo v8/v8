@@ -1341,7 +1341,7 @@ THREADED_TEST(External) {
   CHECK_EQ(x, 10);
 
   // Make sure unaligned pointers are wrapped properly.
-  char* data = "0123456789";
+  char* data = strdup("0123456789");
   Local<v8::External> zero = v8::External::New(&data[0]);
   Local<v8::External> one = v8::External::New(&data[1]);
   Local<v8::External> two = v8::External::New(&data[2]);
@@ -1355,6 +1355,7 @@ THREADED_TEST(External) {
   CHECK_EQ('2', *char_ptr);
   char_ptr = reinterpret_cast<char*>(three->Value());
   CHECK_EQ('3', *char_ptr);
+  free(data);
 }
 
 
