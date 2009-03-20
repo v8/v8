@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2008-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,7 +34,16 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
  public:
   // Type of input string to generate code for.
   enum Mode { ASCII = 1, UC16 = 2 };
-  enum Result { EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
+  // Result of calling the generated RegExp code:
+  // RETRY: Something significant changed during execution, and the matching
+  //        should be retried from scratch.
+  // EXCEPTION: Something failed during execution. If no exception has been
+  //        thrown, it's an internal out-of-memory, and the caller should
+  //        throw the exception.
+  // FAILURE: Matching failed.
+  // SUCCESS: Matching succeeded, and the output array has been filled with
+  //        capture positions.
+  enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
 
   RegExpMacroAssemblerIA32(Mode mode, int registers_to_save);
   virtual ~RegExpMacroAssemblerIA32();
@@ -120,9 +129,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                       int previous_index);
 
   static Result Execute(Code* code,
-                        Address* input,
+                        String* input,
                         int start_offset,
-                        int end_offset,
+                        const byte* input_start,
+                        const byte* input_end,
                         int* output,
                         bool at_start);
 
@@ -131,10 +141,13 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const int kFramePointer = 0;
   // Above the frame pointer - function parameters and return address.
   static const int kReturn_eip = kFramePointer + kPointerSize;
-  static const int kInputBuffer = kReturn_eip + kPointerSize;
-  static const int kInputStartOffset = kInputBuffer + kPointerSize;
-  static const int kInputEndOffset = kInputStartOffset + kPointerSize;
-  static const int kRegisterOutput = kInputEndOffset + kPointerSize;
+  static const int kFrameAlign = kReturn_eip + kPointerSize;
+  // Parameters.
+  static const int kInputString = kFrameAlign;
+  static const int kStartIndex = kInputString + kPointerSize;
+  static const int kInputStart = kStartIndex + kPointerSize;
+  static const int kInputEnd = kInputStart + kPointerSize;
+  static const int kRegisterOutput = kInputEnd + kPointerSize;
   static const int kAtStart = kRegisterOutput + kPointerSize;
   static const int kStackHighEnd = kAtStart + kPointerSize;
   // Below the frame pointer - local stack variables.
@@ -152,11 +165,12 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // Initial size of constant buffers allocated during compilation.
   static const int kRegExpConstantsSize = 256;
 
+  static const byte* StringCharacterPosition(String* subject, int start_index);
+
   // Compares two-byte strings case insensitively.
   // Called from generated RegExp code.
-  static int CaseInsensitiveCompareUC16(uc16** buffer,
-                                        int byte_offset1,
-                                        int byte_offset2,
+  static int CaseInsensitiveCompareUC16(Address byte_offset1,
+                                        Address byte_offset2,
                                         size_t byte_length);
 
   // Load a number of characters at the given offset from the
@@ -172,7 +186,12 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
-  static int CheckStackGuardState(Address* return_address, Code* re_code);
+  static int CheckStackGuardState(Address* return_address,
+                                  Code* re_code,
+                                  Address re_frame);
+
+  // Generate a call to CheckStackGuardState.
+  void CallCheckStackGuardState(Register scratch);
 
   // Called from RegExp if the backtrack stack limit is hit.
   // Tries to expand the stack. Returns the new stack-pointer if

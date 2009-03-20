@@ -158,7 +158,7 @@ class RegExpImpl {
   // On a successful match, the result is a JSArray containing
   // captured positions. On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
-  static Handle<Object> IrregexpExecOnce(Handle<FixedArray> regexp,
+  static Handle<Object> IrregexpExecOnce(Handle<JSRegExp> jsregexp,
                                          int num_captures,
                                          Handle<JSArray> lastMatchInfo,
                                          Handle<String> subject16,

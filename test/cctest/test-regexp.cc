@@ -679,36 +679,20 @@ class ContextInitializer {
   v8::internal::StackGuard stack_guard_;
 };
 
-// Helper functions for calling the Execute method.
-template <typename T>
-static RegExpMacroAssemblerIA32::Result ExecuteIA32(Code* code,
-                                                    const T** input,
-                                                    int start_offset,
-                                                    int end_offset,
-                                                    int* captures,
-                                                    bool at_start) {
-  return RegExpMacroAssemblerIA32::Execute(
-      code,
-      reinterpret_cast<Address*>(
-          reinterpret_cast<void*>(const_cast<T**>(input))),
-      start_offset,
-      end_offset,
-      captures,
-      at_start);
-}
 
-template <typename T>
 static RegExpMacroAssemblerIA32::Result ExecuteIA32(Code* code,
-                                                    T** input,
+                                                    String* input,
                                                     int start_offset,
-                                                    int end_offset,
+                                                    const byte* input_start,
+                                                    const byte* input_end,
                                                     int* captures,
                                                     bool at_start) {
   return RegExpMacroAssemblerIA32::Execute(
       code,
-      reinterpret_cast<Address*>(reinterpret_cast<void*>(input)),
+      input,
       start_offset,
-      end_offset,
+      input_start,
+      input_end,
       captures,
       at_start);
 }
@@ -729,15 +713,15 @@ TEST(MacroAssemblerIA32Success) {
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
-  Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
+  const byte* start_adr =
+      reinterpret_cast<const byte*>(seq_input->GetCharsAddress());
 
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + seq_input->length(),
                   captures,
                   true);
 
@@ -775,14 +759,13 @@ TEST(MacroAssemblerIA32Simple) {
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   captures,
                   true);
 
@@ -795,13 +778,12 @@ TEST(MacroAssemblerIA32Simple) {
   input = Factory::NewStringFromAscii(CStrVector("barbarbar"));
   seq_input = Handle<SeqAsciiString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
-  start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  end_offset = start_offset + seq_input->length();
 
   result = ExecuteIA32(*code,
-                       seq_input.location(),
-                       start_offset,
-                       end_offset,
+                       *input,
+                       0,
+                       start_adr,
+                       start_adr + input->length(),
                        captures,
                        true);
 
@@ -837,14 +819,13 @@ TEST(MacroAssemblerIA32SimpleUC16) {
       Factory::NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length() * sizeof(uc16);
 
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   captures,
                   true);
 
@@ -858,13 +839,12 @@ TEST(MacroAssemblerIA32SimpleUC16) {
   input = Factory::NewStringFromTwoByte(Vector<const uc16>(input_data2, 9));
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
-  start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  end_offset = start_offset + seq_input->length() * sizeof(uc16);
 
   result = ExecuteIA32(*code,
-                       seq_input.location(),
-                       start_offset,
-                       end_offset,
+                       *input,
+                       0,
+                       start_adr,
+                       start_adr + input->length() * 2,
                        captures,
                        true);
 
@@ -896,14 +876,13 @@ TEST(MacroAssemblerIA32Backtrack) {
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   NULL,
                   true);
 
@@ -939,15 +918,14 @@ TEST(MacroAssemblerIA32BackReferenceASCII) {
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("fooofo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   int output[3];
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   output,
                   true);
 
@@ -989,15 +967,13 @@ TEST(MacroAssemblerIA32BackReferenceUC16) {
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length() * sizeof(input_data[0]);
-
   int output[3];
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length() * 2,
                   output,
                   true);
 
@@ -1043,24 +1019,23 @@ TEST(MacroAssemblerIA32AtStart) {
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foobar"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   NULL,
                   true);
 
   CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
 
-  start_offset += 3;
   result = ExecuteIA32(*code,
-                       seq_input.location(),
-                       start_offset,
-                       end_offset,
+                       *input,
+                       3,
+                       start_adr + 3,
+                       start_adr + input->length(),
                        NULL,
                        false);
 
@@ -1105,15 +1080,14 @@ TEST(MacroAssemblerIA32BackRefNoCase) {
       Factory::NewStringFromAscii(CStrVector("aBcAbCABCxYzab"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   int output[4];
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   output,
                   true);
 
@@ -1206,15 +1180,14 @@ TEST(MacroAssemblerIA32Registers) {
       Factory::NewStringFromAscii(CStrVector("foofoofoofoofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   int output[5];
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   output,
                   true);
 
@@ -1248,14 +1221,13 @@ TEST(MacroAssemblerIA32StackOverflow) {
       Factory::NewStringFromAscii(CStrVector("dummy"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   NULL,
                   true);
 
@@ -1294,15 +1266,14 @@ TEST(MacroAssemblerIA32LotsOfRegisters) {
       Factory::NewStringFromAscii(CStrVector("sample text"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
-  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
-  int end_offset = start_offset + seq_input->length();
 
   int captures[2];
   RegExpMacroAssemblerIA32::Result result =
       ExecuteIA32(*code,
-                  seq_input.location(),
-                  start_offset,
-                  end_offset,
+                  *input,
+                  0,
+                  start_adr,
+                  start_adr + input->length(),
                   captures,
                   true);
 

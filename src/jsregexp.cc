@@ -466,15 +466,9 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
                                         Handle<JSArray> last_match_info) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
-  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
-  if (!EnsureCompiledIrregexp(regexp, is_ascii)) {
-    return Handle<Object>::null();
-  }
-
   // Prepare space for the return values.
-  Handle<FixedArray> re_data(FixedArray::cast(regexp->data()));
   int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(*re_data) + 1) * 2;
+      (IrregexpNumberOfCaptures(FixedArray::cast(regexp->data())) + 1) * 2;
   OffsetsVector offsets(number_of_capture_registers);
 
   int previous_index = index;
@@ -493,7 +487,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
 
   last_match_info->EnsureSize(number_of_capture_registers + kLastMatchOverhead);
 
-  return IrregexpExecOnce(re_data,
+  return IrregexpExecOnce(regexp,
                           number_of_capture_registers,
                           last_match_info,
                           subject,
@@ -507,16 +501,10 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
                                               Handle<String> subject,
                                               Handle<JSArray> last_match_info) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
-  Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()));
-
-  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
-  if (!EnsureCompiledIrregexp(regexp, is_ascii)) {
-    return Handle<Object>::null();
-  }
 
   // Prepare space for the return values.
   int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(*irregexp) + 1) * 2;
+      (IrregexpNumberOfCaptures(FixedArray::cast(regexp->data())) + 1) * 2;
   OffsetsVector offsets(number_of_capture_registers);
 
   int previous_index = 0;
@@ -545,7 +533,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
       }
 #endif
       HandleScope scope;
-      matches = IrregexpExecOnce(irregexp,
+      matches = IrregexpExecOnce(regexp,
                                  number_of_capture_registers,
                                  last_match_info,
                                  subject,
@@ -587,7 +575,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
 }
 
 
-Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
+Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> jsregexp,
                                             int number_of_capture_registers,
                                             Handle<JSArray> last_match_info,
                                             Handle<String> subject,
@@ -595,22 +583,29 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
                                             int* offsets_vector,
                                             int offsets_vector_length) {
   ASSERT(subject->IsFlat());
-  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
   bool rc;
 
   Handle<String> original_subject = subject;
+  Handle<FixedArray> regexp(FixedArray::cast(jsregexp->data()));
   if (UseNativeRegexp()) {
 #ifdef ARM
     UNREACHABLE();
 #else
-    Handle<Code> code(RegExpImpl::IrregexpNativeCode(*regexp, is_ascii));
-    RegExpMacroAssemblerIA32::Result res =
-        RegExpMacroAssemblerIA32::Match(code,
-                                        subject,
-                                        offsets_vector,
-                                        offsets_vector_length,
-                                        previous_index);
-
+    RegExpMacroAssemblerIA32::Result res;
+    do {
+      bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
+      if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
+        return Handle<Object>::null();
+      }
+      Handle<Code> code(RegExpImpl::IrregexpNativeCode(*regexp, is_ascii));
+      res = RegExpMacroAssemblerIA32::Match(code,
+                                            subject,
+                                            offsets_vector,
+                                            offsets_vector_length,
+                                            previous_index);
+      // If result is RETRY, the string have changed representation, and we
+      // must restart from scratch.
+    } while (res == RegExpMacroAssemblerIA32::RETRY);
     if (res == RegExpMacroAssemblerIA32::EXCEPTION) {
       ASSERT(Top::has_pending_exception());
       return Handle<Object>::null();
@@ -621,6 +616,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
     rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
 #endif
   } else {
+    bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
     for (int i = number_of_capture_registers - 1; i >= 0; i--) {
       offsets_vector[i] = -1;
     }
