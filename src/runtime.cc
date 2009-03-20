@@ -1554,7 +1554,7 @@ static Object* StringReplaceRegExpWithString(String* subject,
   // Number of parts added by compiled replacement plus preceeding string
   // and possibly suffix after last match.
   const int parts_added_per_loop = compiled_replacement.parts() + 2;
-  bool matched = true;
+  bool matched;
   do {
     ASSERT(last_match_info_handle->HasFastElements());
     // Increase the capacity of the builder before entering local handle-scope,

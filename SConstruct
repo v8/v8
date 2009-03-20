@@ -35,37 +35,6 @@ root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c, utils
 
-TOP = os.environ.get('TOP')
-if TOP is None:
-  TOP=""
-
-ANDROID_FLAGS = ['-march=armv5te',
-                 '-mtune=xscale',
-                 '-msoft-float',
-                 '-fpic',
-                 '-mthumb-interwork',
-                 '-funwind-tables',
-                 '-fstack-protector',
-                 '-fno-short-enums',
-                 '-fmessage-length=0',
-                 '-finline-functions',
-                 '-fno-inline-functions-called-once',
-                 '-fgcse-after-reload',
-                 '-frerun-cse-after-loop',
-                 '-frename-registers',
-                 '-fomit-frame-pointer',
-                 '-fno-strict-aliasing',
-                 '-finline-limit=64',
-                 '-MD']
-
-ANDROID_INCLUDES = [TOP + '/bionic/libc/arch-arm/include',
-                    TOP + '/bionic/libc/include',
-                    TOP + '/bionic/libstdc++/include',
-                    TOP + '/bionic/libc/kernel/common',
-                    TOP + '/bionic/libc/kernel/arch-arm',
-                    TOP + '/bionic/libm/include',
-                    TOP + '/bionic/libm/include/arch/arm',
-                    TOP + '/bionic/libthread_db/include']
 
 LIBRARY_FLAGS = {
   'all': {
@@ -95,12 +64,6 @@ LIBRARY_FLAGS = {
     'os:win32': {
       'CCFLAGS':      ['-DWIN32'],
       'CXXFLAGS':     ['-DWIN32'],
-    },
-    'os:android': {
-      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__', '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__', 'SK_RELEASE', 'NDEBUG'],
-      'CCFLAGS':      ANDROID_FLAGS,
-      'WARNINGFLAGS': ['-Wall', '-Wno-unused', '-Werror=return-type', '-Wstrict-aliasing=2'],
-      'CPPPATH':      ANDROID_INCLUDES,
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -151,23 +114,14 @@ V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'CXXFLAGS':     [], #['-fvisibility=hidden'],
-      'WARNINGFLAGS': ['-Wall', '-Werror', '-W',
+      'WARNINGFLAGS': ['-pedantic', '-Wall', '-Werror', '-W',
           '-Wno-unused-parameter']
     },
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
     },
-    'arch:android': {
-      'CPPDEFINES':   ['ARM']
-    },
     'os:win32': {
-      'WARNINGFLAGS': ['-pedantic', '-Wno-long-long']
-    },
-    'os:linux': {
-      'WARNINGFLAGS': ['-pedantic']
-    },
-    'os:macos': {
-      'WARNINGFLAGS': ['-pedantic']
+      'WARNINGFLAGS': ['-Wno-long-long']
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
@@ -220,7 +174,7 @@ MKSNAPSHOT_EXTRA_FLAGS = {
 DTOA_EXTRA_FLAGS = {
   'gcc': {
     'all': {
-      'WARNINGFLAGS': ['-Werror', '-Wno-uninitialized']
+      'WARNINGFLAGS': ['-Werror']
     }
   },
   'msvc': {
@@ -276,8 +230,7 @@ SAMPLE_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': ['.'],
-      'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
+      'LIBPATH': ['.']
     },
     'os:linux': {
       'LIBS':         ['pthread', 'rt'],
@@ -291,13 +244,9 @@ SAMPLE_FLAGS = {
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
     },
-    'os:android': {
-      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__', '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__', 'SK_RELEASE', 'NDEBUG'],
-      'CCFLAGS':      ANDROID_FLAGS,
-      'CPPPATH':      ANDROID_INCLUDES,
-      'LIBPATH':     [TOP + '/out/target/product/generic/obj/lib'],
-      'LINKFLAGS':    ['-nostdlib', '-Bdynamic', '-Wl,-T,' + TOP + '/build/core/armelf.x', '-Wl,-dynamic-linker,/system/bin/linker', '-Wl,--gc-sections', '-Wl,-z,nocopyreloc', '-Wl,-rpath-link=' + TOP + '/out/target/product/generic/obj/lib', TOP + '/out/target/product/generic/obj/lib/crtbegin_dynamic.o', TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/lib/gcc/arm-eabi/4.2.1/interwork/libgcc.a', TOP + '/out/target/product/generic/obj/lib/crtend_android.o'],
-      'LIBS':         ['c', 'stdc++', 'm'],
+    'wordsize:64': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
     },
     'mode:release': {
       'CCFLAGS':      ['-O2']
@@ -406,7 +355,7 @@ SIMPLE_OPTIONS = {
     'help': 'the toolchain to use'
   },
   'os': {
-    'values': ['freebsd', 'linux', 'macos', 'win32', 'android'],
+    'values': ['freebsd', 'linux', 'macos', 'win32'],
     'default': OS_GUESS,
     'help': 'the os to build for'
   },
@@ -561,8 +510,6 @@ class BuildContext(object):
           options[key] = prefix + value
 
   def ConfigureObject(self, env, input, **kw):
-    if (kw.has_key('CPPPATH') and env.has_key('CPPPATH')):
-      kw['CPPPATH'] += env['CPPPATH']
     if self.options['library'] == 'static':
       return env.StaticObject(input, **kw)
     else:

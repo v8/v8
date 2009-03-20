@@ -68,7 +68,6 @@ SOURCES = {
   'simulator:arm': ['simulator-arm.cc'],
   'os:freebsd': ['platform-freebsd.cc'],
   'os:linux':   ['platform-linux.cc'],
-  'os:android': ['platform-linux.cc'],
   'os:macos':   ['platform-macos.cc'],
   'os:nullos':  ['platform-nullos.cc'],
   'os:win32':   ['platform-win32.cc'],
