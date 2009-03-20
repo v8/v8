@@ -44,7 +44,9 @@
 #include <sys/stat.h>   // open
 #include <fcntl.h>      // open
 #include <unistd.h>     // sysconf
+#ifdef __GLIBC__
 #include <execinfo.h>   // backtrace, backtrace_symbols
+#endif  // def __GLIBC__
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
@@ -361,6 +363,8 @@ void OS::LogSharedLibraryAddresses() {
 
 
 int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
+  // backtrace is a glibc extension.
+#ifdef __GLIBC__
   void** addresses = NewArray<void*>(frames_size);
 
   int frames_count = backtrace(addresses, frames_size);
@@ -387,6 +391,9 @@ int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
   free(symbols);
 
   return frames_count;
+#else  // ndef __GLIBC__
+  return 0;
+#endif  // ndef __GLIBC__
 }
 
 
@@ -814,6 +821,8 @@ Socket* OS::CreateSocket() {
 static Sampler* active_sampler_ = NULL;
 
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+  // Ucontext is a glibc extension - no profiling on Android at the moment.
+#ifdef __GLIBC__
   USE(info);
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL) return;
@@ -840,6 +849,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample.state = Logger::state();
 
   active_sampler_->Tick(&sample);
+#endif
 }
 
 
