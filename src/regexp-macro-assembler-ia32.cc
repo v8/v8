@@ -1109,7 +1109,7 @@ const byte* RegExpMacroAssemblerIA32::StringCharacterPosition(String* subject,
   ASSERT(start_index <= subject->length());
   if (StringShape(subject).IsAsciiRepresentation()) {
     const byte* address;
-    if (subject->IsExternalAsciiString()) {
+    if (StringShape(subject).IsExternal()) {
       const char* data = ExternalAsciiString::cast(subject)->resource()->data();
       address = reinterpret_cast<const byte*>(data);
     } else {
@@ -1120,7 +1120,7 @@ const byte* RegExpMacroAssemblerIA32::StringCharacterPosition(String* subject,
     return address + start_index;
   }
   const uc16* data;
-  if (subject->IsExternalTwoByteString()) {
+  if (StringShape(subject).IsExternal()) {
     data = ExternalTwoByteString::cast(subject)->resource()->data();
   } else {
     ASSERT(subject->IsSeqTwoByteString());
