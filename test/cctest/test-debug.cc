@@ -3824,8 +3824,6 @@ TEST(DebuggerHostDispatch) {
 }
 
 
-// This test fails on some Linux versions - disabled for now.
-#if 0
 TEST(DebuggerAgent) {
   // Make sure this port is not used by other tests to allow tests to run in
   // parallel.
@@ -3865,4 +3863,3 @@ TEST(DebuggerAgent) {
 
   delete server;
 }
-#endif

@@ -44,6 +44,9 @@ void DebuggerAgentMessageHandler(const uint16_t* message, int length,
 void DebuggerAgent::Run() {
   const int kOneSecondInMicros = 1000000;
 
+  // Allow this socket to reuse port even if still in TIME_WAIT.
+  server_->SetReuseAddress(true);
+
   // First bind the socket to the requested port.
   bool bound = false;
   while (!bound && !terminate_) {
