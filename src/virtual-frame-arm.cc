@@ -28,8 +28,8 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
+#include "register-allocator-inl.h"
 #include "scopes.h"
-#include "virtual-frame.h"
 
 namespace v8 { namespace internal {
 

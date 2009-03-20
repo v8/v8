@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "code-stubs.h"
-#include "codegen.h"
+#include "codegen-inl.h"
 #include "debug.h"
 #include "disasm.h"
 #include "disassembler.h"

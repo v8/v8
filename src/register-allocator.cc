@@ -27,8 +27,8 @@
 
 #include "v8.h"
 
-#include "codegen.h"
-#include "virtual-frame.h"
+#include "codegen-inl.h"
+#include "register-allocator-inl.h"
 
 namespace v8 { namespace internal {
 
@@ -56,14 +56,6 @@ void Result::CopyTo(Result* destination) const {
   } else {
     ASSERT(!is_valid());
   }
-}
-
-
-void Result::Unuse() {
-  if (is_register()) {
-    cgen_->allocator()->Unuse(reg());
-  }
-  type_ = INVALID;
 }
 
 

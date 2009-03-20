@@ -73,9 +73,9 @@ class Result BASE_EMBEDDED {
     return *this;
   }
 
-  ~Result() { Unuse(); }
+  inline ~Result();
 
-  void Unuse();
+  inline void Unuse();
 
   Type type() const { return type_; }
 

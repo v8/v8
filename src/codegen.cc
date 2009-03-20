@@ -31,10 +31,10 @@
 #include "codegen-inl.h"
 #include "debug.h"
 #include "prettyprinter.h"
+#include "register-allocator-inl.h"
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "stub-cache.h"
-#include "virtual-frame.h"
 
 namespace v8 { namespace internal {
 
