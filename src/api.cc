@@ -2282,7 +2282,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.1.1.3";
+  return "1.1.1.4";
 }
 
 
@@ -2474,9 +2474,17 @@ Local<External> v8::External::New(void* data) {
 }
 
 
+Local<String> v8::String::Empty() {
+  EnsureInitialized("v8::String::Empty()");
+  LOG_API("String::Empty()");
+  return Utils::ToLocal(i::Factory::empty_symbol());
+}
+
+
 Local<String> v8::String::New(const char* data, int length) {
   EnsureInitialized("v8::String::New()");
   LOG_API("String::New(char)");
+  if (length == 0) return Empty();
   if (length == -1) length = strlen(data);
   i::Handle<i::String> result =
       i::Factory::NewStringFromUtf8(i::Vector<const char>(data, length));
@@ -2505,6 +2513,7 @@ static int TwoByteStringLength(const uint16_t* data) {
 Local<String> v8::String::New(const uint16_t* data, int length) {
   EnsureInitialized("v8::String::New()");
   LOG_API("String::New(uint16_)");
+  if (length == 0) return Empty();
   if (length == -1) length = TwoByteStringLength(data);
   i::Handle<i::String> result =
       i::Factory::NewStringFromTwoByte(i::Vector<const uint16_t>(data, length));
