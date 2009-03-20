@@ -1151,6 +1151,10 @@ class V8EXPORT External : public Value {
   static External* Cast(Value* obj);
   void* Value() const;
  private:
+  enum {
+    kAlignedPointerMask = 3,
+    kAlignedPointerShift = 2
+  };
   External();
 };
 

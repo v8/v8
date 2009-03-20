@@ -1447,7 +1447,7 @@ Local<Integer> Value::ToInteger() const {
 External* External::Cast(v8::Value* that) {
   if (IsDeadCheck("v8::External::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->IsProxy(),
+  ApiCheck(obj->IsProxy() || obj->IsSmi(),
            "v8::External::Cast()",
            "Could not convert to external");
   return static_cast<External*>(that);
@@ -2229,6 +2229,11 @@ int32_t Int32::Value() const {
 void* External::Value() const {
   if (IsDeadCheck("v8::External::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (obj->IsSmi()) {
+    // The external value was an aligned pointer.
+    return reinterpret_cast<void*>(
+        i::Smi::cast(*obj)->value() << kAlignedPointerShift);
+  }
   return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
 }
 
@@ -2467,8 +2472,14 @@ Local<External> v8::External::New(void* data) {
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
   LOG_API("External::New");
   EnsureInitialized("v8::External::New()");
-  i::Handle<i::Proxy> obj = i::Factory::NewProxy(static_cast<i::Address>(data));
-  return Utils::ToLocal(obj);
+  if ((reinterpret_cast<intptr_t>(data) & kAlignedPointerMask) == 0) {
+    uintptr_t data_ptr = reinterpret_cast<uintptr_t>(data);
+    int data_value = static_cast<int>(data_ptr >> kAlignedPointerShift);
+    STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
+    i::Handle<i::Smi> obj(i::Smi::FromInt(data_value));
+    return Utils::ToLocal(obj);
+  }
+  return Utils::ToLocal(i::Factory::NewProxy(static_cast<i::Address>(data)));
 }
 
 

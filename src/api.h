@@ -181,6 +181,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<External> ToLocal(
       v8::internal::Handle<v8::internal::Proxy> obj);
+  static inline Local<External> ToLocal(
+      v8::internal::Handle<v8::internal::Smi> obj);
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Number> NumberToLocal(
@@ -256,6 +258,7 @@ MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, Proxy, External)
+MAKE_TO_LOCAL(ToLocal, Smi, External)
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
 MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)
