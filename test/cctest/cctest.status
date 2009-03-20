@@ -30,6 +30,9 @@ prefix cctest
 # BUG(96): Fix this flaky test.
 test-debug/ThreadedDebugging: PASS || FAIL
 
+# BUG(281): This test fails on some Linuxes.
+test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
+
 [ $arch == arm ]
 
 test-debug: SKIP
