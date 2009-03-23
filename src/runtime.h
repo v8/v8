@@ -253,9 +253,10 @@ namespace v8 { namespace internal {
   \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4)\
-  F(CreateArrayLiteral, 2) \
+  F(CreateArrayLiteralBoilerplate, 3) \
   F(CreateObjectLiteralBoilerplate, 3) \
-  F(CloneObjectLiteralBoilerplate, 1) \
+  F(CloneLiteralBoilerplate, 1) \
+  F(CloneShallowLiteralBoilerplate, 1) \
   \
   /* Catch context extension objects */ \
   F(CreateCatchExtensionObject, 2) \
@@ -328,7 +329,6 @@ class Runtime : public AllStatic {
     kNofFunctions
 #undef F
   };
-  static Object* CreateArrayLiteral(Arguments args);
 
   // Runtime function descriptor.
   struct Function {

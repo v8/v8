@@ -50,4 +50,13 @@ function makeObjectInArray() {
 a = makeObjectInArray();
 a[0].bar = 1;
 b = makeObjectInArray();
-assertEquals('undefined', typeof(b[0].bar), "Object in object");
+assertEquals('undefined', typeof(b[0].bar), "Object in array");
+
+function makeArrayInArray() {
+  return [ [] ];
+}
+
+a = makeArrayInArray();
+a[0].push(5);
+b = makeArrayInArray();
+assertEquals(0, b[0].length, "Array in array");

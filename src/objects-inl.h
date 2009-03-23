@@ -1094,6 +1094,15 @@ Object* JSObject::FastPropertyAtPut(int index, Object* value) {
 }
 
 
+Object* JSObject::InObjectPropertyAt(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  ASSERT(index < 0);
+  int offset = map()->instance_size() + (index * kPointerSize);
+  return READ_FIELD(this, offset);
+}
+
+
 Object* JSObject::InObjectPropertyAtPut(int index,
                                         Object* value,
                                         WriteBarrierMode mode) {

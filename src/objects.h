@@ -1396,7 +1396,8 @@ class JSObject: public HeapObject {
   inline Object* FastPropertyAt(int index);
   inline Object* FastPropertyAtPut(int index, Object* value);
 
-  // Access to set in object properties.
+  // Access to in object properties.
+  inline Object* InObjectPropertyAt(int index);
   inline Object* InObjectPropertyAtPut(int index,
                                        Object* value,
                                        WriteBarrierMode mode
