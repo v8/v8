@@ -617,6 +617,9 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> jsregexp,
 #endif
   } else {
     bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
+    if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
+      return Handle<Object>::null();
+    }
     for (int i = number_of_capture_registers - 1; i >= 0; i--) {
       offsets_vector[i] = -1;
     }
