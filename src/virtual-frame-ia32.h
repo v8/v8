@@ -435,13 +435,12 @@ class VirtualFrame : public Malloced {
   // should be equal.
   void MergeMoveMemoryToRegisters(VirtualFrame* expected);
 
-  // Helper function to implement the copy-on-write semantics of an
-  // element's copies just before writing to the element.  The copies
-  // are updated, but the element is not changed.  A copy of the new
-  // backing store of all the copies is returned if there were any
-  // copies and in invalid frame element is returned if there were no
-  // copies.
-  FrameElement AdjustCopies(int index);
+  // Invalidates a frame slot (puts an invalid frame element in it).
+  // Copies on the frame are correctly handled, and if this slot was
+  // the backing store of copies, the index of the new backing store
+  // is returned.  Otherwise, returns kIllegalIndex.
+  // Register counts are correctly updated.
+  int InvalidateFrameSlotAt(int index);
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).

@@ -375,17 +375,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
     return;
   }
 
-  // If the original may be a copy, adjust to preserve the copy-on-write
-  // semantics of copied elements.
-  if (original.is_copied() &&
-      (original.is_register() || original.is_memory())) {
-    FrameElement ignored = AdjustCopies(frame_index);
-  }
-
-  // If the original is a register reference, deallocate it.
-  if (original.is_register()) {
-    Unuse(original.reg());
-  }
+  InvalidateFrameSlotAt(frame_index);
 
   FrameElement new_element;
   if (value->is_register()) {
@@ -400,9 +390,9 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
       for (int i = 0; i < elements_.length(); i++) {
         FrameElement element = elements_[i];
         if (element.is_register() && element.reg().is(value->reg())) {
-          // The register backing store is lower in the frame than its
-          // copy.
           if (i < frame_index) {
+            // The register backing store is lower in the frame than its
+            // copy.
             elements_[frame_index] = CopyElementAt(i);
           } else {
             // There was an early bailout for the case of setting a
