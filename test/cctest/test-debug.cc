@@ -3840,12 +3840,12 @@ TEST(DebuggerAgent) {
   i::Socket::Setup();
 
   // Test starting and stopping the agent without any client connection.
-  i::Debugger::StartAgent(kPort);
+  i::Debugger::StartAgent("test", kPort);
   i::Debugger::StopAgent();
 
   // Test starting the agent, connecting a client and shutting down the agent
   // with the client connected.
-  ok = i::Debugger::StartAgent(kPort);
+  ok = i::Debugger::StartAgent("test", kPort);
   CHECK(ok);
   i::Socket* client = i::OS::CreateSocket();
   ok = client->Connect("localhost", port_str);
@@ -3858,7 +3858,7 @@ TEST(DebuggerAgent) {
   i::Socket* server = i::OS::CreateSocket();
   server->Bind(kPort);
 
-  i::Debugger::StartAgent(kPort);
+  i::Debugger::StartAgent("test", kPort);
   i::Debugger::StopAgent();
 
   delete server;

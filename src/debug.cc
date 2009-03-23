@@ -1828,9 +1828,9 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
 }
 
 
-bool Debugger::StartAgent(int port) {
+bool Debugger::StartAgent(const char* name, int port) {
   if (Socket::Setup()) {
-    agent_ = new DebuggerAgent(port);
+    agent_ = new DebuggerAgent(name, port);
     agent_->Start();
     return true;
   }

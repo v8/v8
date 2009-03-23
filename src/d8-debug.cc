@@ -305,6 +305,11 @@ void RemoteDebugger::HandleKeyboardCommand(char* command) {
 
 
 void ReceiverThread::Run() {
+  // Receive the connect message (with empty body).
+  i::SmartPointer<char> message =
+    i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
+  ASSERT(*message == NULL);
+
   while (true) {
     // Receive a message.
     i::SmartPointer<char> message =

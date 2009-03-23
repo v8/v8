@@ -42,8 +42,9 @@ class DebuggerAgentSession;
 // handles connection from a remote debugger.
 class DebuggerAgent: public Thread {
  public:
-  explicit DebuggerAgent(int port)
-      : port_(port), server_(OS::CreateSocket()), terminate_(false),
+  explicit DebuggerAgent(const char* name, int port)
+      : port_(port), name_(StrDup(name)),
+        server_(OS::CreateSocket()), terminate_(false),
         session_access_(OS::CreateMutex()), session_(NULL),
         terminate_now_(OS::CreateSemaphore(0)) {}
   ~DebuggerAgent() { delete server_; }
@@ -57,6 +58,7 @@ class DebuggerAgent: public Thread {
   void CloseSession();
   void OnSessionClosed(DebuggerAgentSession* session);
 
+  SmartPointer<const char> name_;  // Name of the embedding application.
   int port_;  // Port to use for the agent.
   Socket* server_;  // Server socket for listen/accept.
   bool terminate_;  // Termination flag.
@@ -101,6 +103,8 @@ class DebuggerAgentUtil {
   static int kContentLengthSize;
 
   static SmartPointer<char> ReceiveMessage(const Socket* conn);
+  static bool SendConnectMessage(const Socket* conn,
+                                 const char* embedding_host);
   static bool SendMessage(const Socket* conn, const Vector<uint16_t> message);
   static bool SendMessage(const Socket* conn,
                           const v8::Handle<v8::String> message);
