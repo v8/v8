@@ -387,23 +387,31 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
           FrameElement::RegisterElement(value->reg(),
                                         FrameElement::NOT_SYNCED);
     } else {
-      for (int i = 0; i < elements_.length(); i++) {
-        FrameElement element = elements_[i];
-        if (element.is_register() && element.reg().is(value->reg())) {
-          if (i < frame_index) {
-            // The register backing store is lower in the frame than its
-            // copy.
-            elements_[frame_index] = CopyElementAt(i);
-          } else {
-            // There was an early bailout for the case of setting a
-            // register element to itself.
-            ASSERT(i != frame_index);
-            element.clear_sync();
-            elements_[frame_index] = element;
-            elements_[i] = CopyElementAt(frame_index);
-          }
-          // Exit the loop once the appropriate copy is inserted.
+      int i = 0;
+      for (; i < elements_.length(); i++) {
+        if (elements_[i].is_register() && elements_[i].reg().is(value->reg())) {
           break;
+        }
+      }
+      ASSERT(i < elements_.length());
+
+      if (i < frame_index) {
+        // The register backing store is lower in the frame than its copy.
+        elements_[frame_index] = CopyElementAt(i);
+      } else {
+        // There was an early bailout for the case of setting a
+        // register element to itself.
+        ASSERT(i != frame_index);
+        elements_[frame_index] = elements_[i];
+        elements_[i] = CopyElementAt(frame_index);
+        if (elements_[frame_index].is_synced()) {
+          elements_[i].set_sync();
+        }
+        elements_[frame_index].clear_sync();
+        for (int j = i + 1; j < elements_.length(); j++) {
+          if (elements_[j].is_copy() && elements_[j].index() == i) {
+            elements_[j].set_index(frame_index);
+          }
         }
       }
     }
