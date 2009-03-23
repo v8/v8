@@ -1020,7 +1020,7 @@ bool Logger::Setup() {
   // as log is initialized early with V8, we can assume that JS execution
   // frames can never reach this point on stack
   int stack_var;
-  ticker_ = new Ticker(10, reinterpret_cast<unsigned int>(&stack_var));
+  ticker_ = new Ticker(1, reinterpret_cast<unsigned int>(&stack_var));
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();
