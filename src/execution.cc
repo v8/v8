@@ -482,7 +482,8 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
                                               bool* exc) {
   if (data->property_list()->IsUndefined() &&
       !data->constructor()->IsUndefined()) {
-    Object* result;
+    // Initialization to make gcc happy.
+    Object* result = NULL;
     {
       HandleScope scope;
       Handle<FunctionTemplateInfo> cons_template =

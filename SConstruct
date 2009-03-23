@@ -35,6 +35,40 @@ root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c, utils
 
+# ANDROID_TOP is the top of the Android checkout, fetched from the environment
+# variable 'TOP'.   You will also need to set the CXX, CC, AR and RANLIB
+# environment variables to the cross-compiling tools.
+ANDROID_TOP = os.environ.get('TOP')
+if ANDROID_TOP is None:
+  ANDROID_TOP=""
+
+ANDROID_FLAGS = ['-march=armv5te',
+                 '-mtune=xscale',
+                 '-msoft-float',
+                 '-fpic',
+                 '-mthumb-interwork',
+                 '-funwind-tables',
+                 '-fstack-protector',
+                 '-fno-short-enums',
+                 '-fmessage-length=0',
+                 '-finline-functions',
+                 '-fno-inline-functions-called-once',
+                 '-fgcse-after-reload',
+                 '-frerun-cse-after-loop',
+                 '-frename-registers',
+                 '-fomit-frame-pointer',
+                 '-fno-strict-aliasing',
+                 '-finline-limit=64',
+                 '-MD']
+
+ANDROID_INCLUDES = [ANDROID_TOP + '/bionic/libc/arch-arm/include',
+                    ANDROID_TOP + '/bionic/libc/include',
+                    ANDROID_TOP + '/bionic/libstdc++/include',
+                    ANDROID_TOP + '/bionic/libc/kernel/common',
+                    ANDROID_TOP + '/bionic/libc/kernel/arch-arm',
+                    ANDROID_TOP + '/bionic/libm/include',
+                    ANDROID_TOP + '/bionic/libm/include/arch/arm',
+                    ANDROID_TOP + '/bionic/libthread_db/include']
 
 LIBRARY_FLAGS = {
   'all': {
@@ -50,7 +84,11 @@ LIBRARY_FLAGS = {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections']
+      'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections',
+                       '-ffunction-sections'],
+      'os:android': {
+        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+      }
     },
     'os:linux': {
       'CCFLAGS':      ['-ansi'],
@@ -64,6 +102,14 @@ LIBRARY_FLAGS = {
     'os:win32': {
       'CCFLAGS':      ['-DWIN32'],
       'CXXFLAGS':     ['-DWIN32'],
+    },
+    'os:android': {
+      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
+                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
+      'CCFLAGS':      ANDROID_FLAGS,
+      'WARNINGFLAGS': ['-Wall', '-Wno-unused', '-Werror=return-type',
+                       '-Wstrict-aliasing=2'],
+      'CPPPATH':      ANDROID_INCLUDES,
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -114,14 +160,23 @@ V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'CXXFLAGS':     [], #['-fvisibility=hidden'],
-      'WARNINGFLAGS': ['-pedantic', '-Wall', '-Werror', '-W',
+      'WARNINGFLAGS': ['-Wall', '-Werror', '-W',
           '-Wno-unused-parameter']
     },
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
     },
+    'arch:android': {
+      'CPPDEFINES':   ['ARM']
+    },
     'os:win32': {
-      'WARNINGFLAGS': ['-Wno-long-long']
+      'WARNINGFLAGS': ['-pedantic', '-Wno-long-long']
+    },
+    'os:linux': {
+      'WARNINGFLAGS': ['-pedantic']
+    },
+    'os:macos': {
+      'WARNINGFLAGS': ['-pedantic']
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
@@ -174,7 +229,7 @@ MKSNAPSHOT_EXTRA_FLAGS = {
 DTOA_EXTRA_FLAGS = {
   'gcc': {
     'all': {
-      'WARNINGFLAGS': ['-Werror']
+      'WARNINGFLAGS': ['-Werror', '-Wno-uninitialized']
     }
   },
   'msvc': {
@@ -230,7 +285,8 @@ SAMPLE_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBPATH': ['.']
+      'LIBPATH': ['.'],
+      'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
     },
     'os:linux': {
       'LIBS':         ['pthread', 'rt'],
@@ -243,6 +299,27 @@ SAMPLE_FLAGS = {
     },
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
+    },
+    'os:android': {
+      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
+                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
+      'CCFLAGS':      ANDROID_FLAGS,
+      'CPPPATH':      ANDROID_INCLUDES,
+      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
+      'LINKFLAGS':    ['-nostdlib',
+                       '-Bdynamic',
+                       '-Wl,-T,' + ANDROID_TOP + '/build/core/armelf.x',
+                       '-Wl,-dynamic-linker,/system/bin/linker',
+                       '-Wl,--gc-sections',
+                       '-Wl,-z,nocopyreloc',
+                       '-Wl,-rpath-link=' + ANDROID_TOP + '/out/target/product/generic/obj/lib',
+                       ANDROID_TOP + '/out/target/product/generic/obj/lib/crtbegin_dynamic.o',
+                       ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/lib/gcc/arm-eabi/4.2.1/interwork/libgcc.a',
+                       ANDROID_TOP + '/out/target/product/generic/obj/lib/crtend_android.o'],
+      'LIBS':         ['c', 'stdc++', 'm'],
+      'mode:release': {
+        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+      }
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -355,7 +432,7 @@ SIMPLE_OPTIONS = {
     'help': 'the toolchain to use'
   },
   'os': {
-    'values': ['freebsd', 'linux', 'macos', 'win32'],
+    'values': ['freebsd', 'linux', 'macos', 'win32', 'android'],
     'default': OS_GUESS,
     'help': 'the os to build for'
   },
@@ -510,6 +587,8 @@ class BuildContext(object):
           options[key] = prefix + value
 
   def ConfigureObject(self, env, input, **kw):
+    if (kw.has_key('CPPPATH') and env.has_key('CPPPATH')):
+      kw['CPPPATH'] += env['CPPPATH']
     if self.options['library'] == 'static':
       return env.StaticObject(input, **kw)
     else:
