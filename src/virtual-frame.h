@@ -165,6 +165,11 @@ class FrameElement BASE_EMBEDDED {
   // Used to initialize invalid, memory, and register elements.
   inline void Initialize(Type type, Register reg, SyncFlag is_synced);
 
+  void set_index(int new_index) {
+    ASSERT(is_copy());
+    data_.index_ = new_index;
+  }
+
   friend class VirtualFrame;
 };
 
