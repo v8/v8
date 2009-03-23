@@ -43,7 +43,7 @@ class DebuggerAgentSession;
 class DebuggerAgent: public Thread {
  public:
   explicit DebuggerAgent(const char* name, int port)
-      : port_(port), name_(StrDup(name)),
+      : name_(StrDup(name)), port_(port),
         server_(OS::CreateSocket()), terminate_(false),
         session_access_(OS::CreateMutex()), session_(NULL),
         terminate_now_(OS::CreateSemaphore(0)) {}
