@@ -1141,20 +1141,25 @@ class V8EXPORT Function : public Object {
 
 
 /**
- * A JavaScript value that wraps a c++ void*.  This type of value is
- * mainly used to associate c++ data structures with JavaScript
+ * A JavaScript value that wraps a C++ void*.  This type of value is
+ * mainly used to associate C++ data structures with JavaScript
  * objects.
+ *
+ * The Wrap function V8 will return the most optimal Value object wrapping the
+ * C++ void*. The type of the value is not guaranteed to be an External object
+ * and no assumptions about its type should be made. To access the wrapped
+ * value Unwrap should be used, all other operations on that object will lead
+ * to unpredictable results.
  */
 class V8EXPORT External : public Value {
  public:
+  static Local<Value> Wrap(void* data);
+  static void* Unwrap(Handle<Value> obj);
+
   static Local<External> New(void* value);
   static External* Cast(Value* obj);
   void* Value() const;
  private:
-  enum {
-    kAlignedPointerMask = 3,
-    kAlignedPointerShift = 2
-  };
   External();
 };
 

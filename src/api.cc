@@ -1447,7 +1447,7 @@ Local<Integer> Value::ToInteger() const {
 External* External::Cast(v8::Value* that) {
   if (IsDeadCheck("v8::External::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->IsProxy() || obj->IsSmi(),
+  ApiCheck(obj->IsProxy(),
            "v8::External::Cast()",
            "Could not convert to external");
   return static_cast<External*>(that);
@@ -2226,18 +2226,6 @@ int32_t Int32::Value() const {
 }
 
 
-void* External::Value() const {
-  if (IsDeadCheck("v8::External::Value()")) return 0;
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (obj->IsSmi()) {
-    // The external value was an aligned pointer.
-    return reinterpret_cast<void*>(
-        i::Smi::cast(*obj)->value() << kAlignedPointerShift);
-  }
-  return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
-}
-
-
 int v8::Object::InternalFieldCount() {
   if (IsDeadCheck("v8::Object::InternalFieldCount()")) return 0;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
@@ -2468,18 +2456,58 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
 }
 
 
-Local<External> v8::External::New(void* data) {
+static Local<External> ExternalNewImpl(void* data) {
+  return Utils::ToLocal(i::Factory::NewProxy(static_cast<i::Address>(data)));
+}
+
+static void* ExternalValueImpl(i::Handle<i::Object> obj) {
+  return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
+}
+
+
+static const intptr_t kAlignedPointerMask = 3;
+static const int kAlignedPointerShift = 2;
+
+
+Local<Value> v8::External::Wrap(void* data) {
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
-  LOG_API("External::New");
-  EnsureInitialized("v8::External::New()");
+  LOG_API("External::Wrap");
+  EnsureInitialized("v8::External::Wrap()");
   if ((reinterpret_cast<intptr_t>(data) & kAlignedPointerMask) == 0) {
     uintptr_t data_ptr = reinterpret_cast<uintptr_t>(data);
     int data_value = static_cast<int>(data_ptr >> kAlignedPointerShift);
     STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
-    i::Handle<i::Smi> obj(i::Smi::FromInt(data_value));
+    i::Handle<i::Object> obj(i::Smi::FromInt(data_value));
     return Utils::ToLocal(obj);
   }
-  return Utils::ToLocal(i::Factory::NewProxy(static_cast<i::Address>(data)));
+  return ExternalNewImpl(data);
+}
+
+
+void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
+  if (IsDeadCheck("v8::External::Unwrap()")) return 0;
+  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
+  if (obj->IsSmi()) {
+    // The external value was an aligned pointer.
+    uintptr_t result = i::Smi::cast(*obj)->value() << kAlignedPointerShift;
+    return reinterpret_cast<void*>(result);
+  }
+  return ExternalValueImpl(obj);
+}
+
+
+Local<External> v8::External::New(void* data) {
+  STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
+  LOG_API("External::New");
+  EnsureInitialized("v8::External::New()");
+  return ExternalNewImpl(data);
+}
+
+
+void* External::Value() const {
+  if (IsDeadCheck("v8::External::Value()")) return 0;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return ExternalValueImpl(obj);
 }
 
 

@@ -1342,18 +1342,18 @@ THREADED_TEST(External) {
 
   // Make sure unaligned pointers are wrapped properly.
   char* data = i::StrDup("0123456789");
-  Local<v8::External> zero = v8::External::New(&data[0]);
-  Local<v8::External> one = v8::External::New(&data[1]);
-  Local<v8::External> two = v8::External::New(&data[2]);
-  Local<v8::External> three = v8::External::New(&data[3]);
+  Local<v8::Value> zero = v8::External::Wrap(&data[0]);
+  Local<v8::Value> one = v8::External::Wrap(&data[1]);
+  Local<v8::Value> two = v8::External::Wrap(&data[2]);
+  Local<v8::Value> three = v8::External::Wrap(&data[3]);
 
-  char* char_ptr = reinterpret_cast<char*>(zero->Value());
+  char* char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(zero));
   CHECK_EQ('0', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(one->Value());
+  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(one));
   CHECK_EQ('1', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(two->Value());
+  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(two));
   CHECK_EQ('2', *char_ptr);
-  char_ptr = reinterpret_cast<char*>(three->Value());
+  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(three));
   CHECK_EQ('3', *char_ptr);
   i::DeleteArray(data);
 }
