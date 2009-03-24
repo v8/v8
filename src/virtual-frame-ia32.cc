@@ -538,6 +538,9 @@ int VirtualFrame::InvalidateFrameSlotAt(int index) {
     backing_reg = original.reg();
     register_locations_[backing_reg.code()] = new_backing_index;
   }
+  // Invalidate the element at index.
+  elements_[index] = FrameElement::InvalidElement();
+  // Set the new backing element.
   if (elements_[new_backing_index].is_synced()) {
     elements_[new_backing_index] =
         FrameElement::RegisterElement(backing_reg, FrameElement::SYNCED);
