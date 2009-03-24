@@ -6095,3 +6095,26 @@ TEST(RegExpStringModification) {
 
   local_env->Exit();
 }
+
+
+// Test that we can set a property on the global object even if there
+// is a read-only property in the prototype chain.
+TEST(ReadOnlyPropertyInGlobalProto) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  LocalContext context(0, templ);
+  v8::Handle<v8::Object> global = context->Global();
+  v8::Handle<v8::Object> global_proto =
+      v8::Handle<v8::Object>::Cast(global->Get(v8_str("__proto__")));
+  global_proto->Set(v8_str("x"), v8::Integer::New(0), v8::ReadOnly);
+  global_proto->Set(v8_str("y"), v8::Integer::New(0), v8::ReadOnly);
+  // Check without 'eval' or 'with'.
+  v8::Handle<v8::Value> res =
+      CompileRun("function f() { x = 42; return x; }; f()");
+  // Check with 'eval'.
+  res = CompileRun("function f() { eval('1'); y = 42; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(42), res);
+  // Check with 'with'.
+  res = CompileRun("function f() { with (this) { y = 42 }; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(42), res);
+}
