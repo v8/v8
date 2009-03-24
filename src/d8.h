@@ -89,7 +89,8 @@ class CounterMap {
   }
   class Iterator {
    public:
-    Iterator(CounterMap* map): map_(&map->hash_map_), entry_(map_->Start()) { }
+    explicit Iterator(CounterMap* map)
+        : map_(&map->hash_map_), entry_(map_->Start()) { }
     void Next() { entry_ = map_->Next(entry_); }
     bool More() { return entry_ != NULL; }
     const char* CurrentKey() { return static_cast<const char*>(entry_->key); }

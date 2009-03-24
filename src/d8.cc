@@ -97,7 +97,7 @@ Persistent<Context> Shell::evaluation_context_;
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
   const char* name2 = reinterpret_cast<const char*>(key2);
-  return strcmp(name1, name2) != 0;
+  return strcmp(name1, name2) == 0;
 }
 
 
