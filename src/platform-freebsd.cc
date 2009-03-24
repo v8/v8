@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for FreeBSD goes here
+// Platform specific code for FreeBSD goes here. For the POSIX comaptible parts
+// the implementation is in platform-posix.cc.
 
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/ucontext.h>
 #include <stdlib.h>
@@ -44,9 +44,6 @@
 #include <unistd.h>     // getpagesize
 #include <execinfo.h>   // backtrace, backtrace_symbols
 #include <strings.h>    // index
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <limits.h>
@@ -636,175 +633,6 @@ bool FreeBSDSemaphore::Wait(int timeout) {
 
 Semaphore* OS::CreateSemaphore(int count) {
   return new FreeBSDSemaphore(count);
-}
-
-
-// ----------------------------------------------------------------------------
-// FreeBSD socket support.
-//
-
-class FreeBSDSocket : public Socket {
- public:
-  explicit FreeBSDSocket() {
-    // Create the socket.
-    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  }
-  explicit FreeBSDSocket(int socket): socket_(socket) { }
-  virtual ~FreeBSDSocket() { Shutdown(); }
-
-  // Server initialization.
-  bool Bind(const int port);
-  bool Listen(int backlog) const;
-  Socket* Accept() const;
-
-  // Client initialization.
-  bool Connect(const char* host, const char* port);
-
-  // Shutdown socket for both read and write.
-  bool Shutdown();
-
-  // Data Transimission
-  int Send(const char* data, int len) const;
-  int Receive(char* data, int len) const;
-
-  bool SetReuseAddress(bool reuse_address);
-
-  bool IsValid() const { return socket_ != -1; }
-
- private:
-  int socket_;
-};
-
-
-bool FreeBSDSocket::Bind(const int port) {
-  if (!IsValid())  {
-    return false;
-  }
-
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(port);
-  int status = bind(socket_,
-                    reinterpret_cast<struct sockaddr *>(&addr),
-                    sizeof(addr));
-  return status == 0;
-}
-
-
-bool FreeBSDSocket::Listen(int backlog) const {
-  if (!IsValid()) {
-    return false;
-  }
-
-  int status = listen(socket_, backlog);
-  return status == 0;
-}
-
-
-Socket* FreeBSDSocket::Accept() const {
-  if (!IsValid()) {
-    return NULL;
-  }
-
-  int socket = accept(socket_, NULL, NULL);
-  if (socket == -1) {
-    return NULL;
-  } else {
-    return new FreeBSDSocket(socket);
-  }
-}
-
-
-bool FreeBSDSocket::Connect(const char* host, const char* port) {
-  if (!IsValid()) {
-    return false;
-  }
-
-  // Lookup host and port.
-  struct addrinfo *result = NULL;
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(addrinfo));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
-  int status = getaddrinfo(host, port, &hints, &result);
-  if (status != 0) {
-    return false;
-  }
-
-  // Connect.
-  status = connect(socket_, result->ai_addr, result->ai_addrlen);
-  freeaddrinfo(result);
-  return status == 0;
-}
-
-
-bool FreeBSDSocket::Shutdown() {
-  if (IsValid()) {
-    // Shutdown socket for both read and write.
-    int status = shutdown(socket_, SHUT_RDWR);
-    close(socket_);
-    socket_ = -1;
-    return status == 0;
-  }
-  return true;
-}
-
-
-int FreeBSDSocket::Send(const char* data, int len) const {
-  int status = send(socket_, data, len, 0);
-  return status;
-}
-
-
-int FreeBSDSocket::Receive(char* data, int len) const {
-  int status = recv(socket_, data, len, 0);
-  return status;
-}
-
-
-bool FreeBSDSocket::SetReuseAddress(bool reuse_address) {
-  int on = reuse_address ? 1 : 0;
-  int status = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  return status == 0;
-}
-
-
-bool Socket::Setup() {
-  // Nothing to do on FreeBSD.
-  return true;
-}
-
-
-int Socket::LastError() {
-  return errno;
-}
-
-
-uint16_t Socket::HToN(uint16_t value) {
-  return htons(value);
-}
-
-
-uint16_t Socket::NToH(uint16_t value) {
-  return ntohs(value);
-}
-
-
-uint32_t Socket::HToN(uint32_t value) {
-  return htonl(value);
-}
-
-
-uint32_t Socket::NToH(uint32_t value) {
-  return ntohl(value);
-}
-
-
-Socket* OS::CreateSocket() {
-  return new FreeBSDSocket();
 }
 
 
