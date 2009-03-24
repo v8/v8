@@ -174,5 +174,6 @@ TEST(SNPrintF) {
     } else {
       CHECK_EQ(length, strlen(buffer.start()));
     }
+    buffer.Dispose();
   }
 }

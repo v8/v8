@@ -119,10 +119,11 @@ static void DeleteArray(T* array) {
 }
 
 
-// The normal strdup function uses malloc.  This version of StrDup
-// uses new and calls the FatalProcessOutOfMemory handler if
-// allocation fails.
+// The normal strdup functions use malloc.  These versions of StrDup
+// and StrNDup uses new and calls the FatalProcessOutOfMemory handler
+// if allocation fails.
 char* StrDup(const char* str);
+char* StrNDup(const char* str, size_t n);
 
 
 // Allocation policy for allocating in the C free store using malloc

@@ -517,10 +517,9 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
   Object* object = *value;
   if (object->IsString()) {
     String* string = String::cast(object);
-    StringShape shape(string);
     if (quote) Print("\"");
-    for (int i = 0; i < string->length(shape); i++) {
-      Print("%c", string->Get(shape, i));
+    for (int i = 0; i < string->length(); i++) {
+      Print("%c", string->Get(i));
     }
     if (quote) Print("\"");
   } else if (object == Heap::null_value()) {

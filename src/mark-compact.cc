@@ -228,13 +228,13 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
       static_cast<StringRepresentationTag>(type & kStringRepresentationMask);
   if (rep != kConsStringTag) return object;
 
-  Object* second = reinterpret_cast<ConsString*>(object)->second();
+  Object* second = reinterpret_cast<ConsString*>(object)->unchecked_second();
   if (reinterpret_cast<String*>(second) != Heap::empty_string()) return object;
 
   // Since we don't have the object's start, it is impossible to update the
   // remembered set.  Therefore, we only replace the string with its left
   // substring when the remembered set does not change.
-  Object* first = reinterpret_cast<ConsString*>(object)->first();
+  Object* first = reinterpret_cast<ConsString*>(object)->unchecked_first();
   if (!Heap::InNewSpace(object) && Heap::InNewSpace(first)) return object;
 
   *p = first;

@@ -418,20 +418,22 @@ class Debugger {
   static Handle<Object> MakeCompileEvent(Handle<Script> script,
                                          bool before,
                                          bool* caught_exception);
-  static void OnDebugBreak(Handle<Object> break_points_hit);
+  static void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   static void OnException(Handle<Object> exception, bool uncaught);
   static void OnBeforeCompile(Handle<Script> script);
   static void OnAfterCompile(Handle<Script> script,
                            Handle<JSFunction> fun);
   static void OnNewFunction(Handle<JSFunction> fun);
   static void ProcessDebugEvent(v8::DebugEvent event,
-                                Handle<Object> event_data);
+                                Handle<Object> event_data,
+                                bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
   static void SetMessageHandler(v8::DebugMessageHandler handler, void* data);
   static void SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
                                      void* data);
   static void SendMessage(Vector<uint16_t> message);
   static void ProcessCommand(Vector<const uint16_t> command);
+  static bool HasCommands();
   static void ProcessHostDispatch(void* dispatch);
   static void UpdateActiveDebugger();
   static Handle<Object> Call(Handle<JSFunction> fun,
@@ -439,7 +441,10 @@ class Debugger {
                              bool* pending_exception);
 
   // Start the debugger agent listening on the provided port.
-  static bool StartAgent(int port);
+  static bool StartAgent(const char* name, int port);
+
+  // Stop the debugger agent.
+  static void StopAgent();
 
   inline static bool EventActive(v8::DebugEvent event) {
     // Currently argument event is not used.
@@ -528,7 +533,8 @@ class DebugMessageThread: public Thread {
   // when host_running_ is false.
   void DebugEvent(v8::DebugEvent,
                   Handle<Object> exec_state,
-                  Handle<Object> event_data);
+                  Handle<Object> event_data,
+                  bool auto_continue);
   // Puts event on the output queue.  Called by V8.
   // This is where V8 hands off
   // processing of the event to the DebugMessageThread thread,
@@ -545,6 +551,9 @@ class DebugMessageThread: public Thread {
 
   // Main function of DebugMessageThread thread.
   void Run();
+
+  // Check whether there are commands in the queue.
+  bool HasCommands() { return !command_queue_.IsEmpty(); }
 
   bool host_running_;  // Is the debugging host running or stopped?
   Semaphore* command_received_;  // Non-zero when command queue is non-empty.
@@ -568,20 +577,10 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : prev_(Debug::debugger_entry()),
         has_js_frames_(!it_.done()) {
-    ASSERT(!Debug::preemption_pending());
+    ASSERT(prev_ == NULL ? !Debug::preemption_pending() : true);
 
     // Link recursive debugger entry.
     Debug::set_debugger_entry(this);
-
-    // If a preemption is pending when first entering the debugger clear it as
-    // we don't want preemption happening while executing JavaScript in the
-    // debugger. When recursively entering the debugger the preemption flag
-    // cannot be set as this is disabled while in the debugger (see
-    // RuntimePreempt).
-    if (prev_ == NULL && StackGuard::IsPreempted()) {
-      StackGuard::Continue(PREEMPT);
-    }
-    ASSERT(!StackGuard::IsPreempted());
 
     // Store the previous break id and frame id.
     break_id_ = Debug::break_id();
@@ -614,6 +613,12 @@ class EnterDebugger BASE_EMBEDDED {
     if (prev_ == NULL && Debug::preemption_pending()) {
       StackGuard::Preempt();
       Debug::set_preemption_pending(false);
+    }
+
+    // If there are commands in the queue when leaving the debugger request that
+    // these commands are processed.
+    if (prev_ == NULL && Debugger::HasCommands()) {
+      StackGuard::DebugCommand();
     }
 
     // Leaving this debugger entry.

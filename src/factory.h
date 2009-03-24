@@ -98,9 +98,7 @@ class Factory : public AllStatic {
 
   // Create a new cons string object which consists of a pair of strings.
   static Handle<String> NewConsString(Handle<String> first,
-                                      StringShape first_shape,
-                                      Handle<String> second,
-                                      StringShape second_shape);
+                                      Handle<String> second);
 
   // Create a new sliced string object which represents a substring of a
   // backing string.

@@ -43,26 +43,28 @@ inline bool IsLineFeed(uc32 c) {
 }
 
 
+static inline bool IsInRange(int value, int lower_limit, int higher_limit) {
+  ASSERT(lower_limit <= higher_limit);
+  return static_cast<unsigned int>(value - lower_limit) <=
+      static_cast<unsigned int>(higher_limit - lower_limit);
+}
+
+
 inline bool IsDecimalDigit(uc32 c) {
   // ECMA-262, 3rd, 7.8.3 (p 16)
-  return
-    '0' <= c && c <= '9';
+  return IsInRange(c, '0', '9');
 }
 
 
 inline bool IsHexDigit(uc32 c) {
   // ECMA-262, 3rd, 7.6 (p 15)
-  return
-    ('0' <= c && c <= '9') ||
-    ('A' <= c && c <= 'F') ||
-    ('a' <= c && c <= 'f');
+  return IsDecimalDigit(c) || IsInRange(c | 0x20, 'a', 'f');
 }
 
 
 inline bool IsRegExpWord(uc16 c) {
-  return ('a' <= c && c <= 'z')
-      || ('A' <= c && c <= 'Z')
-      || ('0' <= c && c <= '9')
+  return IsInRange(c | 0x20, 'a', 'z')
+      || IsDecimalDigit(c)
       || (c == '_');
 }
 

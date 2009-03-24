@@ -28,12 +28,12 @@
 #ifndef V8_CODEGEN_ARM_H_
 #define V8_CODEGEN_ARM_H_
 
-#include "scopes.h"
-
 namespace v8 { namespace internal {
 
 // Forward declarations
 class DeferredCode;
+class RegisterAllocator;
+class RegisterFile;
 
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
@@ -220,27 +220,11 @@ class CodeGenerator: public AstVisitor {
   // reach the end of the statement (ie, it does not exit via break,
   // continue, return, or throw).  This function is used temporarily while
   // the code generator is being transformed.
-  void VisitAndSpill(Statement* statement) {
-    ASSERT(in_spilled_code());
-    set_in_spilled_code(false);
-    Visit(statement);
-    if (frame_ != NULL) {
-      frame_->SpillAll();
-    }
-    set_in_spilled_code(true);
-  }
+  void VisitAndSpill(Statement* statement);
 
   // Visit a list of statements and then spill the virtual frame if control
   // flow can reach the end of the list.
-  void VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
-    ASSERT(in_spilled_code());
-    set_in_spilled_code(false);
-    VisitStatements(statements);
-    if (frame_ != NULL) {
-      frame_->SpillAll();
-    }
-    set_in_spilled_code(true);
-  }
+  void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
@@ -278,13 +262,7 @@ class CodeGenerator: public AstVisitor {
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
   void LoadAndSpill(Expression* expression,
-                    TypeofState typeof_state = NOT_INSIDE_TYPEOF) {
-    ASSERT(in_spilled_code());
-    set_in_spilled_code(false);
-    Load(expression, typeof_state);
-    frame_->SpillAll();
-    set_in_spilled_code(true);
-  }
+                    TypeofState typeof_state = NOT_INSIDE_TYPEOF);
 
   // Call LoadCondition and then spill the virtual frame unless control flow
   // cannot reach the end of the expression (ie, by emitting only
@@ -293,16 +271,7 @@ class CodeGenerator: public AstVisitor {
                              TypeofState typeof_state,
                              JumpTarget* true_target,
                              JumpTarget* false_target,
-                             bool force_control) {
-    ASSERT(in_spilled_code());
-    set_in_spilled_code(false);
-    LoadCondition(expression, typeof_state, true_target, false_target,
-                  force_control);
-    if (frame_ != NULL) {
-      frame_->SpillAll();
-    }
-    set_in_spilled_code(true);
-  }
+                             bool force_control);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -468,15 +437,6 @@ class CodeGenerator: public AstVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };
-
-
-void Reference::GetValueAndSpill(TypeofState typeof_state) {
-  ASSERT(cgen_->in_spilled_code());
-  cgen_->set_in_spilled_code(false);
-  GetValue(typeof_state);
-  cgen_->frame()->SpillAll();
-  cgen_->set_in_spilled_code(true);
-}
 
 
 } }  // namespace v8::internal

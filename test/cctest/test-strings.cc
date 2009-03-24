@@ -62,8 +62,7 @@ static void InitializeBuildingBlocks(
         building_blocks[i] =
             Factory::NewStringFromTwoByte(Vector<const uc16>(buf, len));
         for (int j = 0; j < len; j++) {
-          StringShape shape(*building_blocks[i]);
-          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
+          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
       }
@@ -75,8 +74,7 @@ static void InitializeBuildingBlocks(
         building_blocks[i] =
             Factory::NewStringFromAscii(Vector<const char>(buf, len));
         for (int j = 0; j < len; j++) {
-          StringShape shape(*building_blocks[i]);
-          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
+          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
       }
@@ -101,8 +99,7 @@ static void InitializeBuildingBlocks(
         Resource* resource = new Resource(Vector<const uc16>(buf, len));
         building_blocks[i] = Factory::NewExternalStringFromTwoByte(resource);
         for (int j = 0; j < len; j++) {
-          StringShape shape(*building_blocks[i]);
-          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
+          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
         break;
       }
@@ -114,9 +111,9 @@ static void InitializeBuildingBlocks(
         building_blocks[i] =
             Factory::NewStringFromAscii(Vector<const char>(buf, len));
         for (int j = 0; j < len; j++) {
-          StringShape shape(*building_blocks[i]);
-          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
+          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
+        DeleteArray<char>(buf);
         break;
       }
     }
@@ -131,9 +128,7 @@ static Handle<String> ConstructLeft(
   for (int i = 0; i < depth; i++) {
     answer = Factory::NewConsString(
         answer,
-        StringShape(*answer),
-        building_blocks[i % NUMBER_OF_BUILDING_BLOCKS],
-        StringShape(*building_blocks[i % NUMBER_OF_BUILDING_BLOCKS]));
+        building_blocks[i % NUMBER_OF_BUILDING_BLOCKS]);
   }
   return answer;
 }
@@ -146,9 +141,7 @@ static Handle<String> ConstructRight(
   for (int i = depth - 1; i >= 0; i--) {
     answer = Factory::NewConsString(
         building_blocks[i % NUMBER_OF_BUILDING_BLOCKS],
-        StringShape(*building_blocks[i % NUMBER_OF_BUILDING_BLOCKS]),
-        answer,
-        StringShape(*answer));
+        answer);
   }
   return answer;
 }
@@ -165,19 +158,13 @@ static Handle<String> ConstructBalancedHelper(
   if (to - from == 2) {
     return Factory::NewConsString(
         building_blocks[from % NUMBER_OF_BUILDING_BLOCKS],
-        StringShape(*building_blocks[from % NUMBER_OF_BUILDING_BLOCKS]),
-        building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS],
-        StringShape(*building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS]));
+        building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS]);
   }
   Handle<String> part1 =
     ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2));
   Handle<String> part2 =
     ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to);
-  return Factory::NewConsString(
-      part1,
-      StringShape(*part1),
-      part2,
-      StringShape(*part2));
+  return Factory::NewConsString(part1, part2);
 }
 
 
@@ -215,8 +202,8 @@ static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
     CHECK_EQ(c, buffer2.GetNext());
     i++;
   }
-  s1->Get(StringShape(*s1), s1->length() - 1);
-  s2->Get(StringShape(*s2), s2->length() - 1);
+  s1->Get(s1->length() - 1);
+  s2->Get(s2->length() - 1);
 }
 
 
@@ -298,19 +285,13 @@ static Handle<String> ConstructSliceTree(
     Handle<String> rhs = building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS];
     if (gen() % 2 == 0)
       rhs = SliceOf(rhs);
-    return Factory::NewConsString(lhs,
-                                  StringShape(*lhs),
-                                  rhs,
-                                  StringShape(*rhs));
+    return Factory::NewConsString(lhs, rhs);
   }
   Handle<String> part1 =
     ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2));
   Handle<String> part2 =
     ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to);
-  Handle<String> branch = Factory::NewConsString(part1,
-                                                 StringShape(*part1),
-                                                 part2,
-                                                 StringShape(*part2));
+  Handle<String> branch = Factory::NewConsString(part1, part2);
   if (gen() % 2 == 0)
     return branch;
   return(SliceOf(branch));
@@ -350,20 +331,15 @@ TEST(DeepAscii) {
       Factory::NewStringFromAscii(Vector<const char>(foo, DEEP_ASCII_DEPTH));
   Handle<String> foo_string = Factory::NewStringFromAscii(CStrVector("foo"));
   for (int i = 0; i < DEEP_ASCII_DEPTH; i += 10) {
-    string = Factory::NewConsString(string,
-                                    StringShape(*string),
-                                    foo_string,
-                                    StringShape(*foo_string));
+    string = Factory::NewConsString(string, foo_string);
   }
-  Handle<String> flat_string = Factory::NewConsString(string,
-                                                      StringShape(*string),
-                                                      foo_string,
-                                                      StringShape(*foo_string));
+  Handle<String> flat_string = Factory::NewConsString(string, foo_string);
   FlattenString(flat_string);
 
   for (int i = 0; i < 500; i++) {
     TraverseFirst(flat_string, string, DEEP_ASCII_DEPTH);
   }
+  DeleteArray<char>(foo);
 }
 
 

@@ -27,9 +27,8 @@
 
 #include "v8.h"
 
-#include "codegen.h"
 #include "codegen-inl.h"
-#include "virtual-frame.h"
+#include "register-allocator-inl.h"
 
 namespace v8 { namespace internal {
 
@@ -93,9 +92,11 @@ FrameElement VirtualFrame::CopyElementAt(int index) {
     case FrameElement::REGISTER:
       // All copies are backed by memory or register locations.
       result.type_ =
-          FrameElement::TypeField::encode(FrameElement::COPY) |
-          FrameElement::SyncField::encode(FrameElement::NOT_SYNCED);
+          FrameElement::TypeField::encode(FrameElement::COPY)
+          | FrameElement::IsCopiedField::encode(false)
+          | FrameElement::SyncField::encode(FrameElement::NOT_SYNCED);
       result.data_.index_ = index;
+      elements_[index].set_copied();
       break;
 
     case FrameElement::INVALID:
@@ -208,11 +209,15 @@ void VirtualFrame::SpillElementAt(int index) {
   if (!elements_[index].is_valid()) return;
 
   SyncElementAt(index);
+  // The element is now in memory.  Its copied flag is preserved.
+  FrameElement new_element = FrameElement::MemoryElement();
+  if (elements_[index].is_copied()) {
+    new_element.set_copied();
+  }
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
   }
-  // The element is now in memory.
-  elements_[index] = FrameElement::MemoryElement();
+  elements_[index] = new_element;
 }
 
 
@@ -275,6 +280,11 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
       // of the element is irrelevant.  We clear the sync bit.
       ASSERT(source.is_valid());
       elements_[i].clear_sync();
+    }
+
+    elements_[i].clear_copied();
+    if (elements_[i].is_copy()) {
+      elements_[elements_[i].index()].set_copied();
     }
   }
 }
@@ -365,16 +375,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
     return;
   }
 
-  // If the original may be a copy, adjust to preserve the copy-on-write
-  // semantics of copied elements.
-  if (original.is_register() || original.is_memory()) {
-    FrameElement ignored = AdjustCopies(frame_index);
-  }
-
-  // If the original is a register reference, deallocate it.
-  if (original.is_register()) {
-    Unuse(original.reg());
-  }
+  InvalidateFrameSlotAt(frame_index);
 
   FrameElement new_element;
   if (value->is_register()) {
@@ -386,23 +387,31 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
           FrameElement::RegisterElement(value->reg(),
                                         FrameElement::NOT_SYNCED);
     } else {
-      for (int i = 0; i < elements_.length(); i++) {
-        FrameElement element = elements_[i];
-        if (element.is_register() && element.reg().is(value->reg())) {
-          // The register backing store is lower in the frame than its
-          // copy.
-          if (i < frame_index) {
-            elements_[frame_index] = CopyElementAt(i);
-          } else {
-            // There was an early bailout for the case of setting a
-            // register element to itself.
-            ASSERT(i != frame_index);
-            element.clear_sync();
-            elements_[frame_index] = element;
-            elements_[i] = CopyElementAt(frame_index);
-          }
-          // Exit the loop once the appropriate copy is inserted.
+      int i = 0;
+      for (; i < elements_.length(); i++) {
+        if (elements_[i].is_register() && elements_[i].reg().is(value->reg())) {
           break;
+        }
+      }
+      ASSERT(i < elements_.length());
+
+      if (i < frame_index) {
+        // The register backing store is lower in the frame than its copy.
+        elements_[frame_index] = CopyElementAt(i);
+      } else {
+        // There was an early bailout for the case of setting a
+        // register element to itself.
+        ASSERT(i != frame_index);
+        elements_[frame_index] = elements_[i];
+        elements_[i] = CopyElementAt(frame_index);
+        if (elements_[frame_index].is_synced()) {
+          elements_[i].set_sync();
+        }
+        elements_[frame_index].clear_sync();
+        for (int j = i + 1; j < elements_.length(); j++) {
+          if (elements_[j].is_copy() && elements_[j].index() == i) {
+            elements_[j].set_index(frame_index);
+          }
         }
       }
     }
@@ -523,8 +532,7 @@ void VirtualFrame::Nip(int num_dropped) {
 
 
 bool FrameElement::Equals(FrameElement other) {
-  if (type() != other.type()) return false;
-  if (is_synced() != other.is_synced()) return false;
+  if (type_ != other.type_) return false;
 
   if (is_register()) {
     if (!reg().is(other.reg())) return false;
@@ -539,23 +547,25 @@ bool FrameElement::Equals(FrameElement other) {
 
 
 bool VirtualFrame::Equals(VirtualFrame* other) {
+#ifdef DEBUG
+  // These are sanity checks in debug builds, but we do not need to
+  // use them to distinguish frames at merge points.
   if (cgen_ != other->cgen_) return false;
   if (masm_ != other->masm_) return false;
-  if (elements_.length() != other->elements_.length()) return false;
-
-  for (int i = 0; i < elements_.length(); i++) {
-    if (!elements_[i].Equals(other->elements_[i])) return false;
-  }
-
   if (parameter_count_ != other->parameter_count_) return false;
   if (local_count_ != other->local_count_) return false;
-  if (stack_pointer_ != other->stack_pointer_) return false;
   if (frame_pointer_ != other->frame_pointer_) return false;
 
   for (int i = 0; i < kNumRegisters; i++) {
     if (frame_registers_.count(i) != other->frame_registers_.count(i)) {
       return false;
     }
+  }
+  if (elements_.length() != other->elements_.length()) return false;
+#endif
+  if (stack_pointer_ != other->stack_pointer_) return false;
+  for (int i = 0; i < elements_.length(); i++) {
+    if (!elements_[i].Equals(other->elements_[i])) return false;
   }
 
   return true;

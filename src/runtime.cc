@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,6 +35,7 @@
 #include "compiler.h"
 #include "cpu.h"
 #include "dateparser.h"
+#include "dateparser-inl.h"
 #include "debug.h"
 #include "execution.h"
 #include "jsregexp.h"
@@ -43,6 +44,7 @@
 #include "scopeinfo.h"
 #include "v8threads.h"
 #include "smart-pointer.h"
+#include "parser.h"
 
 namespace v8 { namespace internal {
 
@@ -69,6 +71,13 @@ namespace v8 { namespace internal {
   RUNTIME_ASSERT(obj->IsBoolean());                                   \
   bool name = (obj)->IsTrue();
 
+// Cast the given object to a Smi and store its value in an int variable
+// with the given name.  If the object is not a Smi call IllegalOperation
+// and return.
+#define CONVERT_SMI_CHECKED(name, obj)                            \
+  RUNTIME_ASSERT(obj->IsSmi());                                   \
+  int name = Smi::cast(obj)->value();
+
 // Cast the given object to a double and store it in a variable with
 // the given name.  If the object is not a number (as opposed to
 // the number not-a-number) call IllegalOperation and return.
@@ -92,7 +101,103 @@ static Object* IllegalOperation() {
 }
 
 
-static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
+static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
+  StackLimitCheck check;
+  if (check.HasOverflowed()) return Top::StackOverflow();
+
+  Object* result = Heap::CopyJSObject(boilerplate);
+  if (result->IsFailure()) return result;
+  JSObject* copy = JSObject::cast(result);
+
+  // Deep copy local properties.
+  if (copy->HasFastProperties()) {
+    FixedArray* properties = copy->properties();
+    WriteBarrierMode mode = properties->GetWriteBarrierMode();
+    for (int i = 0; i < properties->length(); i++) {
+      Object* value = properties->get(i);
+      if (value->IsJSObject()) {
+        JSObject* jsObject = JSObject::cast(value);
+        result = DeepCopyBoilerplate(jsObject);
+        if (result->IsFailure()) return result;
+        properties->set(i, result, mode);
+      }
+    }
+    mode = copy->GetWriteBarrierMode();
+    for (int i = 0; i < copy->map()->inobject_properties(); i++) {
+      Object* value = copy->InObjectPropertyAt(i);
+      if (value->IsJSObject()) {
+        JSObject* jsObject = JSObject::cast(value);
+        result = DeepCopyBoilerplate(jsObject);
+        if (result->IsFailure()) return result;
+        copy->InObjectPropertyAtPut(i, result, mode);
+      }
+    }
+  } else {
+    result = Heap::AllocateFixedArray(copy->NumberOfLocalProperties(NONE));
+    if (result->IsFailure()) return result;
+    FixedArray* names = FixedArray::cast(result);
+    copy->GetLocalPropertyNames(names, 0);
+    for (int i = 0; i < names->length(); i++) {
+      ASSERT(names->get(i)->IsString());
+      String* keyString = String::cast(names->get(i));
+      PropertyAttributes attributes =
+        copy->GetLocalPropertyAttribute(keyString);
+      // Only deep copy fields from the object literal expression.
+      // In particular, don't try to copy the length attribute of
+      // an array.
+      if (attributes != NONE) continue;
+      Object* value = copy->GetProperty(keyString, &attributes);
+      ASSERT(!value->IsFailure());
+      if (value->IsJSObject()) {
+        JSObject* jsObject = JSObject::cast(value);
+        result = DeepCopyBoilerplate(jsObject);
+        if (result->IsFailure()) return result;
+        result = copy->SetProperty(keyString, result, NONE);
+        if (result->IsFailure()) return result;
+      }
+    }
+  }
+
+  // Deep copy local elements.
+  if (copy->HasFastElements()) {
+    FixedArray* elements = copy->elements();
+    WriteBarrierMode mode = elements->GetWriteBarrierMode();
+    for (int i = 0; i < elements->length(); i++) {
+      Object* value = elements->get(i);
+      if (value->IsJSObject()) {
+        JSObject* jsObject = JSObject::cast(value);
+        result = DeepCopyBoilerplate(jsObject);
+        if (result->IsFailure()) return result;
+        elements->set(i, result, mode);
+      }
+    }
+  } else {
+    Dictionary* element_dictionary = copy->element_dictionary();
+    int capacity = element_dictionary->Capacity();
+    for (int i = 0; i < capacity; i++) {
+      Object* k = element_dictionary->KeyAt(i);
+      if (element_dictionary->IsKey(k)) {
+        Object* value = element_dictionary->ValueAt(i);
+        if (value->IsJSObject()) {
+          JSObject* jsObject = JSObject::cast(value);
+          result = DeepCopyBoilerplate(jsObject);
+          if (result->IsFailure()) return result;
+          element_dictionary->ValueAtPut(i, result);
+        }
+      }
+    }
+  }
+  return copy;
+}
+
+
+static Object* Runtime_CloneLiteralBoilerplate(Arguments args) {
+  CONVERT_CHECKED(JSObject, boilerplate, args[0]);
+  return DeepCopyBoilerplate(boilerplate);
+}
+
+
+static Object* Runtime_CloneShallowLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
   return Heap::CopyJSObject(boilerplate);
 }
@@ -131,14 +236,14 @@ static Handle<Map> ComputeObjectLiteralMap(
 }
 
 
-static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  // Copy the arguments.
-  Handle<FixedArray> literals = args.at<FixedArray>(0);
-  int literals_index = Smi::cast(args[1])->value();
-  Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
+static Handle<Object> CreateLiteralBoilerplate(
+    Handle<FixedArray> literals,
+    Handle<FixedArray> constant_properties);
 
+
+static Handle<Object> CreateObjectLiteralBoilerplate(
+    Handle<FixedArray> literals,
+    Handle<FixedArray> constant_properties) {
   // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
@@ -161,6 +266,13 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
       Handle<Object> value(constant_properties->get(index+1));
+      if (value->IsFixedArray()) {
+        // The value contains the constant_properties of a
+        // simple object literal.
+        Handle<FixedArray> array = Handle<FixedArray>::cast(value);
+        value = CreateLiteralBoilerplate(literals, array);
+        if (value.is_null()) return value;
+      }
       Handle<Object> result;
       uint32_t element_index = 0;
       if (key->IsSymbol()) {
@@ -185,39 +297,97 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
       // exception, the exception is converted to an empty handle in
       // the handle based operations.  In that case, we need to
       // convert back to an exception.
-      if (result.is_null()) return Failure::Exception();
+      if (result.is_null()) return result;
     }
   }
 
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *boilerplate);
-
-  return *boilerplate;
+  return boilerplate;
 }
 
 
-static Object* Runtime_CreateArrayLiteral(Arguments args) {
+static Handle<Object> CreateArrayLiteralBoilerplate(
+    Handle<FixedArray> literals,
+    Handle<FixedArray> elements) {
+  // Create the JSArray.
+  Handle<JSFunction> constructor(
+      JSFunction::GlobalContextFromLiterals(*literals)->array_function());
+  Handle<Object> object = Factory::NewJSObject(constructor);
+
+  Handle<Object> copied_elements = Factory::CopyFixedArray(elements);
+
+  Handle<FixedArray> content = Handle<FixedArray>::cast(copied_elements);
+  for (int i = 0; i < content->length(); i++) {
+    if (content->get(i)->IsFixedArray()) {
+      // The value contains the constant_properties of a
+      // simple object literal.
+      Handle<FixedArray> fa(FixedArray::cast(content->get(i)));
+      Handle<Object> result =
+        CreateLiteralBoilerplate(literals, fa);
+      if (result.is_null()) return result;
+      content->set(i, *result);
+    }
+  }
+
+  // Set the elements.
+  Handle<JSArray>::cast(object)->SetContent(*content);
+  return object;
+}
+
+
+static Handle<Object> CreateLiteralBoilerplate(
+    Handle<FixedArray> literals,
+    Handle<FixedArray> array) {
+  Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
+  switch (CompileTimeValue::GetType(array)) {
+    case CompileTimeValue::OBJECT_LITERAL:
+      return CreateObjectLiteralBoilerplate(literals, elements);
+    case CompileTimeValue::ARRAY_LITERAL:
+      return CreateArrayLiteralBoilerplate(literals, elements);
+    default:
+      UNREACHABLE();
+      return Handle<Object>::null();
+  }
+}
+
+
+static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  // Copy the arguments.
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+
+  Handle<Object> result =
+    CreateObjectLiteralBoilerplate(literals, constant_properties);
+
+  if (result.is_null()) return Failure::Exception();
+
+  // Update the functions literal and return the boilerplate.
+  literals->set(literals_index, *result);
+
+  return *result;
+}
+
+
+static Object* Runtime_CreateArrayLiteralBoilerplate(Arguments args) {
   // Takes a FixedArray of elements containing the literal elements of
   // the array literal and produces JSArray with those elements.
   // Additionally takes the literals array of the surrounding function
   // which contains the context from which to get the Array function
   // to use for creating the array literal.
-  ASSERT(args.length() == 2);
-  CONVERT_CHECKED(FixedArray, elements, args[0]);
-  CONVERT_CHECKED(FixedArray, literals, args[1]);
-  JSFunction* constructor =
-      JSFunction::GlobalContextFromLiterals(literals)->array_function();
-  // Create the JSArray.
-  Object* object = Heap::AllocateJSObject(constructor);
-  if (object->IsFailure()) return object;
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, elements, 2);
 
-  // Copy the elements.
-  Object* content = elements->Copy();
-  if (content->IsFailure()) return content;
+  Handle<Object> object = CreateArrayLiteralBoilerplate(literals, elements);
+  if (object.is_null()) return Failure::Exception();
 
-  // Set the elements.
-  JSArray::cast(object)->SetContent(FixedArray::cast(content));
-  return object;
+  // Update the functions literal and return the boilerplate.
+  literals->set(literals_index, *object);
+  return *object;
 }
 
 
@@ -1077,12 +1247,11 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject->TryFlattenIfNotFlat(StringShape(subject));
-  StringShape shape(subject);
-  if (i >= static_cast<uint32_t>(subject->length(shape))) {
+  subject->TryFlattenIfNotFlat();
+  if (i >= static_cast<uint32_t>(subject->length())) {
     return Heap::nan_value();
   }
-  return Smi::FromInt(subject->Get(shape, i));
+  return Smi::FromInt(subject->Get(i));
 }
 
 
@@ -1107,6 +1276,541 @@ static Object* Runtime_CharFromCode(Arguments args) {
   }
   return Heap::empty_string();
 }
+
+// Forward declarations.
+static const int kStringBuilderConcatHelperLengthBits = 11;
+static const int kStringBuilderConcatHelperPositionBits = 19;
+
+template <typename schar>
+static inline void StringBuilderConcatHelper(String*,
+                                             schar*,
+                                             FixedArray*,
+                                             int);
+
+typedef BitField<int, 0, 11> StringBuilderSubstringLength;
+typedef BitField<int, 11, 19> StringBuilderSubstringPosition;
+
+class ReplacementStringBuilder {
+ public:
+  ReplacementStringBuilder(Handle<String> subject, int estimated_part_count)
+      : subject_(subject),
+        parts_(Factory::NewFixedArray(estimated_part_count)),
+        part_count_(0),
+        character_count_(0),
+        is_ascii_(StringShape(*subject).IsAsciiRepresentation()) {
+    // Require a non-zero initial size. Ensures that doubling the size to
+    // extend the array will work.
+    ASSERT(estimated_part_count > 0);
+  }
+
+  void EnsureCapacity(int elements) {
+    int length = parts_->length();
+    int required_length = part_count_ + elements;
+    if (length < required_length) {
+      int new_length = length;
+      do {
+        new_length *= 2;
+      } while (new_length < required_length);
+      Handle<FixedArray> extended_array =
+          Factory::NewFixedArray(new_length);
+      parts_->CopyTo(0, *extended_array, 0, part_count_);
+      parts_ = extended_array;
+    }
+  }
+
+  void AddSubjectSlice(int from, int to) {
+    ASSERT(from >= 0);
+    int length = to - from;
+    ASSERT(length > 0);
+    // Can we encode the slice in 11 bits for length and 19 bits for
+    // start position - as used by StringBuilderConcatHelper?
+    if (StringBuilderSubstringLength::is_valid(length) &&
+        StringBuilderSubstringPosition::is_valid(from)) {
+      int encoded_slice = StringBuilderSubstringLength::encode(length) |
+          StringBuilderSubstringPosition::encode(from);
+      AddElement(Smi::FromInt(encoded_slice));
+    } else {
+      Handle<String> slice = Factory::NewStringSlice(subject_, from, to);
+      AddElement(*slice);
+    }
+    IncrementCharacterCount(length);
+  }
+
+
+  void AddString(Handle<String> string) {
+    int length = string->length();
+    ASSERT(length > 0);
+    AddElement(*string);
+    if (!StringShape(*string).IsAsciiRepresentation()) {
+      is_ascii_ = false;
+    }
+    IncrementCharacterCount(length);
+  }
+
+
+  Handle<String> ToString() {
+    if (part_count_ == 0) {
+      return Factory::empty_string();
+    }
+
+    Handle<String> joined_string;
+    if (is_ascii_) {
+      joined_string = NewRawAsciiString(character_count_);
+      AssertNoAllocation no_alloc;
+      SeqAsciiString* seq = SeqAsciiString::cast(*joined_string);
+      char* char_buffer = seq->GetChars();
+      StringBuilderConcatHelper(*subject_,
+                                char_buffer,
+                                *parts_,
+                                part_count_);
+    } else {
+      // Non-ASCII.
+      joined_string = NewRawTwoByteString(character_count_);
+      AssertNoAllocation no_alloc;
+      SeqTwoByteString* seq = SeqTwoByteString::cast(*joined_string);
+      uc16* char_buffer = seq->GetChars();
+      StringBuilderConcatHelper(*subject_,
+                                char_buffer,
+                                *parts_,
+                                part_count_);
+    }
+    return joined_string;
+  }
+
+
+  void IncrementCharacterCount(int by) {
+    if (character_count_ > Smi::kMaxValue - by) {
+      V8::FatalProcessOutOfMemory("String.replace result too large.");
+    }
+    character_count_ += by;
+  }
+
+ private:
+
+  Handle<String> NewRawAsciiString(int size) {
+    CALL_HEAP_FUNCTION(Heap::AllocateRawAsciiString(size), String);
+  }
+
+
+  Handle<String> NewRawTwoByteString(int size) {
+    CALL_HEAP_FUNCTION(Heap::AllocateRawTwoByteString(size), String);
+  }
+
+
+  void AddElement(Object* element) {
+    ASSERT(element->IsSmi() || element->IsString());
+    parts_->set(part_count_, element);
+    part_count_++;
+  }
+
+  Handle<String> subject_;
+  Handle<FixedArray> parts_;
+  int part_count_;
+  int character_count_;
+  bool is_ascii_;
+};
+
+
+class CompiledReplacement {
+ public:
+  CompiledReplacement()
+      : parts_(1), replacement_substrings_(0) {}
+
+  void Compile(Handle<String> replacement,
+               int capture_count,
+               int subject_length);
+
+  void Apply(ReplacementStringBuilder* builder,
+             int match_from,
+             int match_to,
+             Handle<JSArray> last_match_info);
+
+  // Number of distinct parts of the replacement pattern.
+  int parts() {
+    return parts_.length();
+  }
+ private:
+  enum PartType {
+    SUBJECT_PREFIX = 1,
+    SUBJECT_SUFFIX,
+    SUBJECT_CAPTURE,
+    REPLACEMENT_SUBSTRING,
+    REPLACEMENT_STRING,
+
+    NUMBER_OF_PART_TYPES
+  };
+
+  struct ReplacementPart {
+    static inline ReplacementPart SubjectMatch() {
+      return ReplacementPart(SUBJECT_CAPTURE, 0);
+    }
+    static inline ReplacementPart SubjectCapture(int capture_index) {
+      return ReplacementPart(SUBJECT_CAPTURE, capture_index);
+    }
+    static inline ReplacementPart SubjectPrefix() {
+      return ReplacementPart(SUBJECT_PREFIX, 0);
+    }
+    static inline ReplacementPart SubjectSuffix(int subject_length) {
+      return ReplacementPart(SUBJECT_SUFFIX, subject_length);
+    }
+    static inline ReplacementPart ReplacementString() {
+      return ReplacementPart(REPLACEMENT_STRING, 0);
+    }
+    static inline ReplacementPart ReplacementSubString(int from, int to) {
+      ASSERT(from >= 0);
+      ASSERT(to > from);
+      return ReplacementPart(-from, to);
+    }
+
+    // If tag <= 0 then it is the negation of a start index of a substring of
+    // the replacement pattern, otherwise it's a value from PartType.
+    ReplacementPart(int tag, int data)
+        : tag(tag), data(data) {
+      // Must be non-positive or a PartType value.
+      ASSERT(tag < NUMBER_OF_PART_TYPES);
+    }
+    // Either a value of PartType or a non-positive number that is
+    // the negation of an index into the replacement string.
+    int tag;
+    // The data value's interpretation depends on the value of tag:
+    // tag == SUBJECT_PREFIX ||
+    // tag == SUBJECT_SUFFIX:  data is unused.
+    // tag == SUBJECT_CAPTURE: data is the number of the capture.
+    // tag == REPLACEMENT_SUBSTRING ||
+    // tag == REPLACEMENT_STRING:    data is index into array of substrings
+    //                               of the replacement string.
+    // tag <= 0: Temporary representation of the substring of the replacement
+    //           string ranging over -tag .. data.
+    //           Is replaced by REPLACEMENT_{SUB,}STRING when we create the
+    //           substring objects.
+    int data;
+  };
+
+  template<typename Char>
+  static void ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+                                      Vector<Char> characters,
+                                      int capture_count,
+                                      int subject_length) {
+    int length = characters.length();
+    int last = 0;
+    for (int i = 0; i < length; i++) {
+      Char c = characters[i];
+      if (c == '$') {
+        int next_index = i + 1;
+        if (next_index == length) {  // No next character!
+          break;
+        }
+        Char c2 = characters[next_index];
+        switch (c2) {
+        case '$':
+          if (i > last) {
+            // There is a substring before. Include the first "$".
+            parts->Add(ReplacementPart::ReplacementSubString(last, next_index));
+            last = next_index + 1;  // Continue after the second "$".
+          } else {
+            // Let the next substring start with the second "$".
+            last = next_index;
+          }
+          i = next_index;
+          break;
+        case '`':
+          if (i > last) {
+            parts->Add(ReplacementPart::ReplacementSubString(last, i));
+          }
+          parts->Add(ReplacementPart::SubjectPrefix());
+          i = next_index;
+          last = i + 1;
+          break;
+        case '\'':
+          if (i > last) {
+            parts->Add(ReplacementPart::ReplacementSubString(last, i));
+          }
+          parts->Add(ReplacementPart::SubjectSuffix(subject_length));
+          i = next_index;
+          last = i + 1;
+          break;
+        case '&':
+          if (i > last) {
+            parts->Add(ReplacementPart::ReplacementSubString(last, i));
+          }
+          parts->Add(ReplacementPart::SubjectMatch());
+          i = next_index;
+          last = i + 1;
+          break;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
+          int capture_ref = c2 - '0';
+          if (capture_ref > capture_count) {
+            i = next_index;
+            continue;
+          }
+          int second_digit_index = next_index + 1;
+          if (second_digit_index < length) {
+            // Peek ahead to see if we have two digits.
+            Char c3 = characters[second_digit_index];
+            if ('0' <= c3 && c3 <= '9') {  // Double digits.
+              int double_digit_ref = capture_ref * 10 + c3 - '0';
+              if (double_digit_ref <= capture_count) {
+                next_index = second_digit_index;
+                capture_ref = double_digit_ref;
+              }
+            }
+          }
+          if (capture_ref > 0) {
+            if (i > last) {
+              parts->Add(ReplacementPart::ReplacementSubString(last, i));
+            }
+            parts->Add(ReplacementPart::SubjectCapture(capture_ref));
+            last = next_index + 1;
+          }
+          i = next_index;
+          break;
+        }
+        default:
+          i = next_index;
+          break;
+        }
+      }
+    }
+    if (length > last) {
+      if (last == 0) {
+        parts->Add(ReplacementPart::ReplacementString());
+      } else {
+        parts->Add(ReplacementPart::ReplacementSubString(last, length));
+      }
+    }
+  }
+
+  ZoneList<ReplacementPart> parts_;
+  ZoneList<Handle<String> > replacement_substrings_;
+};
+
+
+void CompiledReplacement::Compile(Handle<String> replacement,
+                                  int capture_count,
+                                  int subject_length) {
+  ASSERT(replacement->IsFlat());
+  if (StringShape(*replacement).IsAsciiRepresentation()) {
+    AssertNoAllocation no_alloc;
+    ParseReplacementPattern(&parts_,
+                            replacement->ToAsciiVector(),
+                            capture_count,
+                            subject_length);
+  } else {
+    ASSERT(StringShape(*replacement).IsTwoByteRepresentation());
+    AssertNoAllocation no_alloc;
+
+    ParseReplacementPattern(&parts_,
+                            replacement->ToUC16Vector(),
+                            capture_count,
+                            subject_length);
+  }
+  // Find substrings of replacement string and create them as String objects..
+  int substring_index = 0;
+  for (int i = 0, n = parts_.length(); i < n; i++) {
+    int tag = parts_[i].tag;
+    if (tag <= 0) {  // A replacement string slice.
+      int from = -tag;
+      int to = parts_[i].data;
+      replacement_substrings_.Add(Factory::NewStringSlice(replacement,
+                                                          from,
+                                                          to));
+      parts_[i].tag = REPLACEMENT_SUBSTRING;
+      parts_[i].data = substring_index;
+      substring_index++;
+    } else if (tag == REPLACEMENT_STRING) {
+      replacement_substrings_.Add(replacement);
+      parts_[i].data = substring_index;
+      substring_index++;
+    }
+  }
+}
+
+
+void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
+                                int match_from,
+                                int match_to,
+                                Handle<JSArray> last_match_info) {
+  for (int i = 0, n = parts_.length(); i < n; i++) {
+    ReplacementPart part = parts_[i];
+    switch (part.tag) {
+      case SUBJECT_PREFIX:
+        if (match_from > 0) builder->AddSubjectSlice(0, match_from);
+        break;
+      case SUBJECT_SUFFIX: {
+        int subject_length = part.data;
+        if (match_to < subject_length) {
+          builder->AddSubjectSlice(match_to, subject_length);
+        }
+        break;
+      }
+      case SUBJECT_CAPTURE: {
+        int capture = part.data;
+        FixedArray* match_info = last_match_info->elements();
+        int from = RegExpImpl::GetCapture(match_info, capture * 2);
+        int to = RegExpImpl::GetCapture(match_info, capture * 2 + 1);
+        if (from >= 0 && to > from) {
+          builder->AddSubjectSlice(from, to);
+        }
+        break;
+      }
+      case REPLACEMENT_SUBSTRING:
+      case REPLACEMENT_STRING:
+        builder->AddString(replacement_substrings_[part.data]);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+}
+
+
+
+static Object* StringReplaceRegExpWithString(String* subject,
+                                             JSRegExp* regexp,
+                                             String* replacement,
+                                             JSArray* last_match_info) {
+  ASSERT(subject->IsFlat());
+  ASSERT(replacement->IsFlat());
+
+  HandleScope handles;
+
+  int length = subject->length();
+  Handle<String> subject_handle(subject);
+  Handle<JSRegExp> regexp_handle(regexp);
+  Handle<String> replacement_handle(replacement);
+  Handle<JSArray> last_match_info_handle(last_match_info);
+  Handle<Object> match = RegExpImpl::Exec(regexp_handle,
+                                          subject_handle,
+                                          0,
+                                          last_match_info_handle);
+  if (match.is_null()) {
+    return Failure::Exception();
+  }
+  if (match->IsNull()) {
+    return *subject_handle;
+  }
+
+  int capture_count = regexp_handle->CaptureCount();
+
+  // CompiledReplacement uses zone allocation.
+  ZoneScope zone(DELETE_ON_EXIT);
+  CompiledReplacement compiled_replacement;
+  compiled_replacement.Compile(replacement_handle,
+                               capture_count,
+                               length);
+
+  bool is_global = regexp_handle->GetFlags().is_global();
+
+  // Guessing the number of parts that the final result string is built
+  // from. Global regexps can match any number of times, so we guess
+  // conservatively.
+  int expected_parts =
+      (compiled_replacement.parts() + 1) * (is_global ? 4 : 1) + 1;
+  ReplacementStringBuilder builder(subject_handle, expected_parts);
+
+  // Index of end of last match.
+  int prev = 0;
+
+  // Number of parts added by compiled replacement plus preceeding string
+  // and possibly suffix after last match.
+  const int parts_added_per_loop = compiled_replacement.parts() + 2;
+  bool matched = true;
+  do {
+    ASSERT(last_match_info_handle->HasFastElements());
+    // Increase the capacity of the builder before entering local handle-scope,
+    // so its internal buffer can safely allocate a new handle if it grows.
+    builder.EnsureCapacity(parts_added_per_loop);
+
+    HandleScope loop_scope;
+    int start, end;
+    {
+      AssertNoAllocation match_info_array_is_not_in_a_handle;
+      FixedArray* match_info_array = last_match_info_handle->elements();
+
+      ASSERT_EQ(capture_count * 2 + 2,
+                RegExpImpl::GetLastCaptureCount(match_info_array));
+      start = RegExpImpl::GetCapture(match_info_array, 0);
+      end = RegExpImpl::GetCapture(match_info_array, 1);
+    }
+
+    if (prev < start) {
+      builder.AddSubjectSlice(prev, start);
+    }
+    compiled_replacement.Apply(&builder,
+                               start,
+                               end,
+                               last_match_info_handle);
+    prev = end;
+
+    // Only continue checking for global regexps.
+    if (!is_global) break;
+
+    // Continue from where the match ended, unless it was an empty match.
+    int next = end;
+    if (start == end) {
+      next = end + 1;
+      if (next > length) break;
+    }
+
+    match = RegExpImpl::Exec(regexp_handle,
+                             subject_handle,
+                             next,
+                             last_match_info_handle);
+    if (match.is_null()) {
+      return Failure::Exception();
+    }
+    matched = !match->IsNull();
+  } while (matched);
+
+  if (prev < length) {
+    builder.AddSubjectSlice(prev, length);
+  }
+
+  return *(builder.ToString());
+}
+
+
+static Object* Runtime_StringReplaceRegExpWithString(Arguments args) {
+  ASSERT(args.length() == 4);
+
+  CONVERT_CHECKED(String, subject, args[0]);
+  if (!subject->IsFlat()) {
+    Object* flat_subject = subject->TryFlatten();
+    if (flat_subject->IsFailure()) {
+      return flat_subject;
+    }
+    subject = String::cast(flat_subject);
+  }
+
+  CONVERT_CHECKED(String, replacement, args[2]);
+  if (!replacement->IsFlat()) {
+    Object* flat_replacement = replacement->TryFlatten();
+    if (flat_replacement->IsFailure()) {
+      return flat_replacement;
+    }
+    replacement = String::cast(flat_replacement);
+  }
+
+  CONVERT_CHECKED(JSRegExp, regexp, args[1]);
+  CONVERT_CHECKED(JSArray, last_match_info, args[3]);
+
+  ASSERT(last_match_info->HasFastElements());
+
+  return StringReplaceRegExpWithString(subject,
+                                       regexp,
+                                       replacement,
+                                       last_match_info);
+}
+
 
 
 // Cap on the maximal shift in the Boyer-Moore implementation. By setting a
@@ -1245,10 +1949,10 @@ static inline int CharOccurrence(int char_code) {
 // Uses only the bad-shift table of Boyer-Moore and only uses it
 // for the character compared to the last character of the needle.
 template <typename schar, typename pchar>
-static int BoyerMooreHorsepool(Vector<const schar> subject,
-                               Vector<const pchar> pattern,
-                               int start_index,
-                               bool* complete) {
+static int BoyerMooreHorspool(Vector<const schar> subject,
+                              Vector<const pchar> pattern,
+                              int start_index,
+                              bool* complete) {
   int n = subject.length();
   int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
@@ -1448,7 +2152,7 @@ static int StringMatchStrategy(Vector<const schar> sub,
   bool complete;
   int idx = SimpleIndexOf(sub, pat, start_index, &complete);
   if (complete) return idx;
-  idx = BoyerMooreHorsepool(sub, pat, idx, &complete);
+  idx = BoyerMooreHorspool(sub, pat, idx, &complete);
   if (complete) return idx;
   return BoyerMooreIndexOf(sub, pat, idx);
 }
@@ -1460,27 +2164,24 @@ int Runtime::StringMatch(Handle<String> sub,
                          Handle<String> pat,
                          int start_index) {
   ASSERT(0 <= start_index);
-  StringShape sub_shape(*sub);
-  ASSERT(start_index <= sub->length(sub_shape));
+  ASSERT(start_index <= sub->length());
 
   int pattern_length = pat->length();
   if (pattern_length == 0) return start_index;
 
-  int subject_length = sub->length(sub_shape);
+  int subject_length = sub->length();
   if (start_index + pattern_length > subject_length) return -1;
 
-  if (!sub->IsFlat(sub_shape)) {
+  if (!sub->IsFlat()) {
     FlattenString(sub);
-    sub_shape = StringShape(*sub);
   }
-  StringShape pat_shape(*pat);
   // Searching for one specific character is common.  For one
   // character patterns linear search is necessary, so any smart
   // algorithm is unnecessary overhead.
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    if (sub_shape.IsAsciiRepresentation()) {
-      uc16 pchar = pat->Get(pat_shape, 0);
+    if (StringShape(*sub).IsAsciiRepresentation()) {
+      uc16 pchar = pat->Get(0);
       if (pchar > String::kMaxAsciiCharCode) {
         return -1;
       }
@@ -1495,28 +2196,24 @@ int Runtime::StringMatch(Handle<String> sub,
       return reinterpret_cast<const char*>(pos) - ascii_vector.start()
           + start_index;
     }
-    return SingleCharIndexOf(sub->ToUC16Vector(),
-                             pat->Get(pat_shape, 0),
-                             start_index);
+    return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
   }
 
-  if (!pat->IsFlat(pat_shape)) {
+  if (!pat->IsFlat()) {
     FlattenString(pat);
-    pat_shape = StringShape(*pat);
-    sub_shape = StringShape(*sub);
   }
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // dispatch on type of strings
-  if (pat_shape.IsAsciiRepresentation()) {
+  if (StringShape(*pat).IsAsciiRepresentation()) {
     Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (sub_shape.IsAsciiRepresentation()) {
+    if (StringShape(*sub).IsAsciiRepresentation()) {
       return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
     }
     return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = pat->ToUC16Vector();
-  if (sub_shape.IsAsciiRepresentation()) {
+  if (StringShape(*sub).IsAsciiRepresentation()) {
     return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
   }
   return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
@@ -1548,17 +2245,14 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   CONVERT_CHECKED(String, pat, args[1]);
   Object* index = args[2];
 
-  sub->TryFlattenIfNotFlat(StringShape(sub));
-  pat->TryFlattenIfNotFlat(StringShape(pat));
-
-  StringShape sub_shape(sub);
-  StringShape pat_shape(pat);
+  sub->TryFlattenIfNotFlat();
+  pat->TryFlattenIfNotFlat();
 
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
-  uint32_t pattern_length = pat->length(pat_shape);
-  uint32_t sub_length = sub->length(sub_shape);
+  uint32_t pattern_length = pat->length();
+  uint32_t sub_length = sub->length();
 
   if (start_index + pattern_length > sub_length) {
     start_index = sub_length - pattern_length;
@@ -1567,7 +2261,7 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   for (int i = start_index; i >= 0; i--) {
     bool found = true;
     for (uint32_t j = 0; j < pattern_length; j++) {
-      if (sub->Get(sub_shape, i + j) != pat->Get(pat_shape, j)) {
+      if (sub->Get(i + j) != pat->Get(j)) {
         found = false;
         break;
       }
@@ -1587,10 +2281,8 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   CONVERT_CHECKED(String, str2, args[1]);
 
   if (str1 == str2) return Smi::FromInt(0);  // Equal.
-  StringShape shape1(str1);
-  StringShape shape2(str2);
-  int str1_length = str1->length(shape1);
-  int str2_length = str2->length(shape2);
+  int str1_length = str1->length();
+  int str2_length = str2->length();
 
   // Decide trivial cases without flattening.
   if (str1_length == 0) {
@@ -1605,11 +2297,11 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   // No need to flatten if we are going to find the answer on the first
   // character.  At this point we know there is at least one character
   // in each string, due to the trivial case handling above.
-  int d = str1->Get(shape1, 0) - str2->Get(shape2, 0);
+  int d = str1->Get(0) - str2->Get(0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1->TryFlattenIfNotFlat(shape1);  // Shapes are no longer valid now!
-  str2->TryFlattenIfNotFlat(shape2);
+  str1->TryFlattenIfNotFlat();
+  str2->TryFlattenIfNotFlat();
 
   static StringInputBuffer buf1;
   static StringInputBuffer buf2;
@@ -1744,11 +2436,10 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 // Returns a single character string where first character equals
 // string->Get(index).
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
-  StringShape shape(*string);
-  if (index < static_cast<uint32_t>(string->length(shape))) {
-    string->TryFlattenIfNotFlat(shape);  // Invalidates shape!
+  if (index < static_cast<uint32_t>(string->length())) {
+    string->TryFlattenIfNotFlat();
     return LookupSingleCharacterStringFromCode(
-        string->Get(StringShape(*string), index));
+        string->Get(index));
   }
   return Execution::CharAt(string, index);
 }
@@ -1939,7 +2630,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
       result = SetElement(js_object, index, value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
-      key_string->TryFlattenIfNotFlat(StringShape(*key_string));
+      key_string->TryFlattenIfNotFlat();
       result = SetProperty(js_object, key_string, value, attr);
     }
     if (result.is_null()) return Failure::Exception();
@@ -2233,7 +2924,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
-  subject->TryFlattenIfNotFlat(StringShape(subject));
+  subject->TryFlattenIfNotFlat();
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -2263,11 +2954,10 @@ static Object* Runtime_StringFromCharCodeArray(Arguments args) {
 
   if (object->IsFailure()) return object;
   String* result = String::cast(object);
-  StringShape result_shape(result);
   for (int i = 0; i < length; i++) {
     Object* element = codes->GetElement(i);
     CONVERT_NUMBER_CHECKED(int, chr, Int32, element);
-    result->Set(result_shape, i, chr & 0xffff);
+    result->Set(i, chr & 0xffff);
   }
   return result;
 }
@@ -2316,7 +3006,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlattenIfNotFlat(StringShape(source));
+  source->TryFlattenIfNotFlat();
 
   int escaped_length = 0;
   int length = source->length();
@@ -2346,7 +3036,6 @@ static Object* Runtime_URIEscape(Arguments args) {
   Object* o = Heap::AllocateRawAsciiString(escaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
-  StringShape dshape(destination);
   int dest_position = 0;
 
   Access<StringInputBuffer> buffer(&runtime_string_input_buffer);
@@ -2354,20 +3043,20 @@ static Object* Runtime_URIEscape(Arguments args) {
   while (buffer->has_more()) {
     uint16_t chr = buffer->GetNext();
     if (chr >= 256) {
-      destination->Set(dshape, dest_position, '%');
-      destination->Set(dshape, dest_position+1, 'u');
-      destination->Set(dshape, dest_position+2, hex_chars[chr >> 12]);
-      destination->Set(dshape, dest_position+3, hex_chars[(chr >> 8) & 0xf]);
-      destination->Set(dshape, dest_position+4, hex_chars[(chr >> 4) & 0xf]);
-      destination->Set(dshape, dest_position+5, hex_chars[chr & 0xf]);
+      destination->Set(dest_position, '%');
+      destination->Set(dest_position+1, 'u');
+      destination->Set(dest_position+2, hex_chars[chr >> 12]);
+      destination->Set(dest_position+3, hex_chars[(chr >> 8) & 0xf]);
+      destination->Set(dest_position+4, hex_chars[(chr >> 4) & 0xf]);
+      destination->Set(dest_position+5, hex_chars[chr & 0xf]);
       dest_position += 6;
     } else if (IsNotEscaped(chr)) {
-      destination->Set(dshape, dest_position, chr);
+      destination->Set(dest_position, chr);
       dest_position++;
     } else {
-      destination->Set(dshape, dest_position, '%');
-      destination->Set(dshape, dest_position+1, hex_chars[chr >> 4]);
-      destination->Set(dshape, dest_position+2, hex_chars[chr & 0xf]);
+      destination->Set(dest_position, '%');
+      destination->Set(dest_position+1, hex_chars[chr >> 4]);
+      destination->Set(dest_position+2, hex_chars[chr & 0xf]);
       dest_position += 3;
     }
   }
@@ -2396,26 +3085,25 @@ static inline int TwoDigitHex(uint16_t character1, uint16_t character2) {
 
 
 static inline int Unescape(String* source,
-                           StringShape shape,
                            int i,
                            int length,
                            int* step) {
-  uint16_t character = source->Get(shape, i);
+  uint16_t character = source->Get(i);
   int32_t hi = 0;
   int32_t lo = 0;
   if (character == '%' &&
       i <= length - 6 &&
-      source->Get(shape, i + 1) == 'u' &&
-      (hi = TwoDigitHex(source->Get(shape, i + 2),
-                        source->Get(shape, i + 3))) != -1 &&
-      (lo = TwoDigitHex(source->Get(shape, i + 4),
-                        source->Get(shape, i + 5))) != -1) {
+      source->Get(i + 1) == 'u' &&
+      (hi = TwoDigitHex(source->Get(i + 2),
+                        source->Get(i + 3))) != -1 &&
+      (lo = TwoDigitHex(source->Get(i + 4),
+                        source->Get(i + 5))) != -1) {
     *step = 6;
     return (hi << 8) + lo;
   } else if (character == '%' &&
       i <= length - 3 &&
-      (lo = TwoDigitHex(source->Get(shape, i + 1),
-                        source->Get(shape, i + 2))) != -1) {
+      (lo = TwoDigitHex(source->Get(i + 1),
+                        source->Get(i + 2))) != -1) {
     *step = 3;
     return lo;
   } else {
@@ -2430,22 +3118,17 @@ static Object* Runtime_URIUnescape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlattenIfNotFlat(StringShape(source));
-  StringShape source_shape(source);
+  source->TryFlattenIfNotFlat();
 
   bool ascii = true;
-  int length = source->length(source_shape);
+  int length = source->length();
 
   int unescaped_length = 0;
   for (int i = 0; i < length; unescaped_length++) {
     int step;
-    if (Unescape(source,
-                 source_shape,
-                 i,
-                 length,
-                 &step) >
-        String::kMaxAsciiCharCode)
+    if (Unescape(source, i, length, &step) > String::kMaxAsciiCharCode) {
       ascii = false;
+    }
     i += step;
   }
 
@@ -2458,14 +3141,11 @@ static Object* Runtime_URIUnescape(Arguments args) {
               Heap::AllocateRawTwoByteString(unescaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
-  StringShape destination_shape(destination);
 
   int dest_position = 0;
   for (int i = 0; i < length; dest_position++) {
     int step;
-    destination->Set(destination_shape,
-                     dest_position,
-                     Unescape(source, source_shape, i, length, &step));
+    destination->Set(dest_position, Unescape(source, i, length, &step));
     i += step;
   }
   return destination;
@@ -2479,33 +3159,31 @@ static Object* Runtime_StringParseInt(Arguments args) {
   CONVERT_DOUBLE_CHECKED(n, args[1]);
   int radix = FastD2I(n);
 
-  s->TryFlattenIfNotFlat(StringShape(s));
+  s->TryFlattenIfNotFlat();
 
-  StringShape shape(s);
-
-  int len = s->length(shape);
+  int len = s->length();
   int i;
 
   // Skip leading white space.
-  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(shape, i)); i++) ;
+  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(i)); i++) ;
   if (i == len) return Heap::nan_value();
 
   // Compute the sign (default to +).
   int sign = 1;
-  if (s->Get(shape, i) == '-') {
+  if (s->Get(i) == '-') {
     sign = -1;
     i++;
-  } else if (s->Get(shape, i) == '+') {
+  } else if (s->Get(i) == '+') {
     i++;
   }
 
   // Compute the radix if 0.
   if (radix == 0) {
     radix = 10;
-    if (i < len && s->Get(shape, i) == '0') {
+    if (i < len && s->Get(i) == '0') {
       radix = 8;
       if (i + 1 < len) {
-        int c = s->Get(shape, i + 1);
+        int c = s->Get(i + 1);
         if (c == 'x' || c == 'X') {
           radix = 16;
           i += 2;
@@ -2514,8 +3192,8 @@ static Object* Runtime_StringParseInt(Arguments args) {
     }
   } else if (radix == 16) {
     // Allow 0x or 0X prefix if radix is 16.
-    if (i + 1 < len && s->Get(shape, i) == '0') {
-      int c = s->Get(shape, i + 1);
+    if (i + 1 < len && s->Get(i) == '0') {
+      int c = s->Get(i + 1);
       if (c == 'x' || c == 'X') i += 2;
     }
   }
@@ -2547,40 +3225,26 @@ static unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping;
 
 
 template <class Converter>
-static Object* ConvertCase(Arguments args,
-                           unibrow::Mapping<Converter, 128>* mapping) {
-  NoHandleAllocation ha;
-
-  CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlattenIfNotFlat(StringShape(s));
-  StringShape shape(s);
-
-  int raw_string_length = s->length(shape);
-  // Assume that the string is not empty; we need this assumption later
-  if (raw_string_length == 0) return s;
-  int length = raw_string_length;
-
-
-  // We try this twice, once with the assumption that the result is
-  // no longer than the input and, if that assumption breaks, again
-  // with the exact length.  This is implemented using a goto back
-  // to this label if we discover that the assumption doesn't hold.
-  // I apologize sincerely for this and will give a vaffel-is to
-  // the first person who can implement it in a nicer way.
- try_convert:
-
+static Object* ConvertCaseHelper(String* s,
+                                 int length,
+                                 int input_string_length,
+                                 unibrow::Mapping<Converter, 128>* mapping) {
+  // We try this twice, once with the assumption that the result is no longer
+  // than the input and, if that assumption breaks, again with the exact
+  // length.  This may not be pretty, but it is nicer than what was here before
+  // and I hereby claim my vaffel-is.
+  //
   // Allocate the resulting string.
   //
   // NOTE: This assumes that the upper/lower case of an ascii
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o = shape.IsAsciiRepresentation()
+  Object* o = StringShape(s).IsAsciiRepresentation()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
   String* result = String::cast(o);
-  StringShape result_shape(result);
   bool has_changed_character = false;
 
   // Convert all characters to upper case, assuming that they will fit
@@ -2588,24 +3252,23 @@ static Object* ConvertCase(Arguments args,
   Access<StringInputBuffer> buffer(&runtime_string_input_buffer);
   buffer->Reset(s);
   unibrow::uchar chars[Converter::kMaxWidth];
-  int i = 0;
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();
-  while (i < length) {
+  for (int i = 0; i < length;) {
     bool has_next = buffer->has_more();
     uc32 next = has_next ? buffer->GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
-      result->Set(result_shape, i, current);
+      result->Set(i, current);
       i++;
     } else if (char_length == 1) {
       // Common case: converting the letter resulted in one character.
       ASSERT(static_cast<uc32>(chars[0]) != current);
-      result->Set(result_shape, i, chars[0]);
+      result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
-    } else if (length == raw_string_length) {
+    } else if (length == input_string_length) {
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
       // characters.  No matter, we calculate the exact length
@@ -2632,12 +3295,16 @@ static Object* ConvertCase(Arguments args,
         int char_length = mapping->get(current, 0, chars);
         if (char_length == 0) char_length = 1;
         current_length += char_length;
+        if (current_length > Smi::kMaxValue) {
+          Top::context()->mark_out_of_memory();
+          return Failure::OutOfMemoryException();
+        }
       }
-      length = current_length;
-      goto try_convert;
+      // Try again with the real length.
+      return Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
-        result->Set(result_shape, i, chars[j]);
+        result->Set(i, chars[j]);
         i++;
       }
       has_changed_character = true;
@@ -2653,6 +3320,28 @@ static Object* ConvertCase(Arguments args,
     // alive.
     return s;
   }
+}
+
+
+template <class Converter>
+static Object* ConvertCase(Arguments args,
+                           unibrow::Mapping<Converter, 128>* mapping) {
+  NoHandleAllocation ha;
+
+  CONVERT_CHECKED(String, s, args[0]);
+  s->TryFlattenIfNotFlat();
+
+  int input_string_length = s->length();
+  // Assume that the string is not empty; we need this assumption later
+  if (input_string_length == 0) return s;
+  int length = input_string_length;
+
+  Object* answer = ConvertCaseHelper(s, length, length, mapping);
+  if (answer->IsSmi()) {
+    // Retry with correct length.
+    answer = ConvertCaseHelper(s, Smi::cast(answer)->value(), length, mapping);
+  }
+  return answer;  // This may be a failure.
 }
 
 
@@ -2842,7 +3531,6 @@ static Object* Runtime_StringAdd(Arguments args) {
 
 template<typename sinkchar>
 static inline void StringBuilderConcatHelper(String* special,
-                                             StringShape special_shape,
                                              sinkchar* sink,
                                              FixedArray* fixed_array,
                                              int array_length) {
@@ -2850,20 +3538,18 @@ static inline void StringBuilderConcatHelper(String* special,
   for (int i = 0; i < array_length; i++) {
     Object* element = fixed_array->get(i);
     if (element->IsSmi()) {
-      int len = Smi::cast(element)->value();
-      int pos = len >> 11;
-      len &= 0x7ff;
+      int encoded_slice = Smi::cast(element)->value();
+      int pos = StringBuilderSubstringPosition::decode(encoded_slice);
+      int len = StringBuilderSubstringLength::decode(encoded_slice);
       String::WriteToFlat(special,
-                          special_shape,
                           sink + position,
                           pos,
                           pos + len);
       position += len;
     } else {
       String* string = String::cast(element);
-      StringShape shape(string);
-      int element_length = string->length(shape);
-      String::WriteToFlat(string, shape, sink + position, 0, element_length);
+      int element_length = string->length();
+      String::WriteToFlat(string, sink + position, 0, element_length);
       position += element_length;
     }
   }
@@ -2875,8 +3561,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
   CONVERT_CHECKED(String, special, args[1]);
-  StringShape special_shape(special);
-  int special_length = special->length(special_shape);
+  int special_length = special->length();
   Object* smi_array_length = array->length();
   if (!smi_array_length->IsSmi()) {
     Top::context()->mark_out_of_memory();
@@ -2898,7 +3583,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special_shape.IsAsciiRepresentation();
+  bool ascii = StringShape(special).IsAsciiRepresentation();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
@@ -2912,14 +3597,13 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
       position += len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
-      StringShape element_shape(element);
-      int element_length = element->length(element_shape);
+      int element_length = element->length();
       if (!Smi::IsValid(element_length + position)) {
         Top::context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !element_shape.IsAsciiRepresentation()) {
+      if (ascii && !StringShape(element).IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
@@ -2935,7 +3619,6 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (object->IsFailure()) return object;
     SeqAsciiString* answer = SeqAsciiString::cast(object);
     StringBuilderConcatHelper(special,
-                              special_shape,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -2945,7 +3628,6 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (object->IsFailure()) return object;
     SeqTwoByteString* answer = SeqTwoByteString::cast(object);
     StringBuilderConcatHelper(special,
-                              special_shape,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -3140,24 +3822,21 @@ static Object* Runtime_StringCompare(Arguments args) {
   CONVERT_CHECKED(String, x, args[0]);
   CONVERT_CHECKED(String, y, args[1]);
 
-  StringShape x_shape(x);
-  StringShape y_shape(y);
-
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);
-  if (y->length(y_shape) == 0) {
-    if (x->length(x_shape) == 0) return Smi::FromInt(EQUAL);
+  if (y->length() == 0) {
+    if (x->length() == 0) return Smi::FromInt(EQUAL);
     return Smi::FromInt(GREATER);
-  } else if (x->length(x_shape) == 0) {
+  } else if (x->length() == 0) {
     return Smi::FromInt(LESS);
   }
 
-  int d = x->Get(x_shape, 0) - y->Get(y_shape, 0);
+  int d = x->Get(0) - y->Get(0);
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlattenIfNotFlat(x_shape);  // Shapes are no longer valid!
-  y->TryFlattenIfNotFlat(y_shape);
+  x->TryFlattenIfNotFlat();
+  y->TryFlattenIfNotFlat();
 
   static StringInputBuffer bufx;
   static StringInputBuffer bufy;
@@ -3753,8 +4432,10 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
     context_ext = Handle<JSObject>(Top::context()->global());
   }
 
-  // Set the property, but ignore if read_only variable.
-  if ((attributes & READ_ONLY) == 0) {
+  // Set the property, but ignore if read_only variable on the context
+  // extension object itself.
+  if ((attributes & READ_ONLY) == 0 ||
+      (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
     Handle<Object> set = SetProperty(context_ext, name, value, attributes);
     if (set.is_null()) {
       // Failure::Exception is converted to a null handle in the
@@ -3970,16 +4651,30 @@ static Object* Runtime_DateCurrentTime(Arguments args) {
 
 static Object* Runtime_DateParseString(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
 
-  CONVERT_CHECKED(String, string_object, args[0]);
+  CONVERT_ARG_CHECKED(String, str, 0);
+  FlattenString(str);
 
-  Handle<String> str(string_object);
-  Handle<FixedArray> output = Factory::NewFixedArray(DateParser::OUTPUT_SIZE);
-  if (DateParser::Parse(*str, *output)) {
-    return *Factory::NewJSArrayWithElements(output);
+  CONVERT_ARG_CHECKED(JSArray, output, 1);
+  RUNTIME_ASSERT(output->HasFastElements());
+
+  AssertNoAllocation no_allocation;
+
+  FixedArray* output_array = output->elements();
+  RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
+  bool result;
+  if (StringShape(*str).IsAsciiRepresentation()) {
+    result = DateParser::Parse(str->ToAsciiVector(), output_array);
   } else {
-    return *Factory::null_value();
+    ASSERT(StringShape(*str).IsTwoByteRepresentation());
+    result = DateParser::Parse(str->ToUC16Vector(), output_array);
+  }
+
+  if (result) {
+    return *output;
+  } else {
+    return Heap::null_value();
   }
 }
 
@@ -5220,6 +5915,78 @@ static Object* Runtime_GetCFrames(Arguments args) {
     frames_array->set(i, *frame_value);
   }
   return *Factory::NewJSArrayWithElements(frames_array);
+}
+
+
+static Object* Runtime_GetThreadCount(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+
+  // Check arguments.
+  Object* result = Runtime_CheckExecutionState(args);
+  if (result->IsFailure()) return result;
+
+  // Count all archived V8 threads.
+  int n = 0;
+  for (ThreadState* thread = ThreadState::FirstInUse();
+       thread != NULL;
+       thread = thread->Next()) {
+    n++;
+  }
+
+  // Total number of threads is current thread and archived threads.
+  return Smi::FromInt(n + 1);
+}
+
+
+static const int kThreadDetailsCurrentThreadIndex = 0;
+static const int kThreadDetailsThreadIdIndex = 1;
+static const int kThreadDetailsSize = 2;
+
+// Return an array with thread details
+// args[0]: number: break id
+// args[1]: number: thread index
+//
+// The array returned contains the following information:
+// 0: Is current thread?
+// 1: Thread id
+static Object* Runtime_GetThreadDetails(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 2);
+
+  // Check arguments.
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
+
+  // Allocate array for result.
+  Handle<FixedArray> details = Factory::NewFixedArray(kThreadDetailsSize);
+
+  // Thread index 0 is current thread.
+  if (index == 0) {
+    // Fill the details.
+    details->set(kThreadDetailsCurrentThreadIndex, Heap::true_value());
+    details->set(kThreadDetailsThreadIdIndex,
+                 Smi::FromInt(ThreadManager::CurrentId()));
+  } else {
+    // Find the thread with the requested index.
+    int n = 1;
+    ThreadState* thread = ThreadState::FirstInUse();
+    while (index != n && thread != NULL) {
+      thread = thread->Next();
+      n++;
+    }
+    if (thread == NULL) {
+      return Heap::undefined_value();
+    }
+
+    // Fill the details.
+    details->set(kThreadDetailsCurrentThreadIndex, Heap::false_value());
+    details->set(kThreadDetailsThreadIdIndex, Smi::FromInt(thread->id()));
+  }
+
+  // Convert to JS array and return.
+  return *Factory::NewJSArrayWithElements(details);
 }
 
 

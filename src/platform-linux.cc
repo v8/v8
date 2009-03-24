@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for Linux goes here
+// Platform specific code for Linux goes here. For the POSIX comaptible parts
+// the implementation is in platform-posix.cc.
 
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <stdlib.h>
 
@@ -42,16 +42,14 @@
 #include <sys/types.h>  // mmap & munmap
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
-#include <sys/fcntl.h>  // open
-#include <unistd.h>     // getpagesize
+#include <fcntl.h>      // open
+#include <unistd.h>     // sysconf
+#ifdef __GLIBC__
 #include <execinfo.h>   // backtrace, backtrace_symbols
+#endif  // def __GLIBC__
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
-
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netdb.h>
 
 #undef MAP_TYPE
 
@@ -196,16 +194,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-char* OS::StrDup(const char* str) {
-  return strdup(str);
-}
-
-
-char* OS::StrNDup(const char* str, size_t n) {
-  return strndup(str, n);
-}
-
-
 double OS::nan_value() {
   return NAN;
 }
@@ -240,14 +228,14 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 
 
 size_t OS::AllocateAlignment() {
-  return getpagesize();
+  return sysconf(_SC_PAGESIZE);
 }
 
 
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
                    bool executable) {
-  const size_t msize = RoundUp(requested, getpagesize());
+  const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
   int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
@@ -371,6 +359,8 @@ void OS::LogSharedLibraryAddresses() {
 
 
 int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
+  // backtrace is a glibc extension.
+#ifdef __GLIBC__
   void** addresses = NewArray<void*>(frames_size);
 
   int frames_count = backtrace(addresses, frames_size);
@@ -397,6 +387,9 @@ int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
   free(symbols);
 
   return frames_count;
+#else  // ndef __GLIBC__
+  return 0;
+#endif  // ndef __GLIBC__
 }
 
 
@@ -592,10 +585,12 @@ class LinuxSemaphore : public Semaphore {
   virtual ~LinuxSemaphore() { sem_destroy(&sem_); }
 
   virtual void Wait();
+  virtual bool Wait(int timeout);
   virtual void Signal() { sem_post(&sem_); }
  private:
   sem_t sem_;
 };
+
 
 void LinuxSemaphore::Wait() {
   while (true) {
@@ -605,159 +600,46 @@ void LinuxSemaphore::Wait() {
   }
 }
 
+
+bool LinuxSemaphore::Wait(int timeout) {
+  const long kOneSecondMicros = 1000000;  // NOLINT
+  const long kOneSecondNanos = 1000000000;  // NOLINT
+
+  // Split timeout into second and nanosecond parts.
+  long nanos = (timeout % kOneSecondMicros) * 1000;  // NOLINT
+  time_t secs = timeout / kOneSecondMicros;
+
+  // Get the current realtime clock.
+  struct timespec ts;
+  if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+    return false;
+  }
+
+  // Calculate real time for end of timeout.
+  ts.tv_nsec += nanos;
+  if (ts.tv_nsec >= kOneSecondNanos) {
+    ts.tv_nsec -= kOneSecondNanos;
+    ts.tv_nsec++;
+  }
+  ts.tv_sec += secs;
+
+  // Wait for semaphore signalled or timeout.
+  while (true) {
+    int result = sem_timedwait(&sem_, &ts);
+    if (result == 0) return true;  // Successfully got semaphore.
+    if (result > 0) {
+      // For glibc prior to 2.3.4 sem_timedwait returns the error instead of -1.
+      errno = result;
+      result = -1;
+    }
+    if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
+    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
+  }
+}
+
+
 Semaphore* OS::CreateSemaphore(int count) {
   return new LinuxSemaphore(count);
-}
-
-
-// ----------------------------------------------------------------------------
-// Linux socket support.
-//
-
-class LinuxSocket : public Socket {
- public:
-  explicit LinuxSocket() {
-    // Create the socket.
-    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  }
-  explicit LinuxSocket(int socket): socket_(socket) { }
-
-
-  virtual ~LinuxSocket() {
-    if (IsValid()) {
-      // Close socket.
-      close(socket_);
-    }
-  }
-
-  // Server initialization.
-  bool Bind(const int port);
-  bool Listen(int backlog) const;
-  Socket* Accept() const;
-
-  // Client initialization.
-  bool Connect(const char* host, const char* port);
-
-  // Data Transimission
-  int Send(const char* data, int len) const;
-  int Receive(char* data, int len) const;
-
-  bool IsValid() const { return socket_ != -1; }
-
- private:
-  int socket_;
-};
-
-
-bool LinuxSocket::Bind(const int port) {
-  if (!IsValid())  {
-    return false;
-  }
-
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(port);
-  int status = bind(socket_,
-                    reinterpret_cast<struct sockaddr *>(&addr),
-                    sizeof(addr));
-  return status == 0;
-}
-
-
-bool LinuxSocket::Listen(int backlog) const {
-  if (!IsValid()) {
-    return false;
-  }
-
-  int status = listen(socket_, backlog);
-  return status == 0;
-}
-
-
-Socket* LinuxSocket::Accept() const {
-  if (!IsValid()) {
-    return NULL;
-  }
-
-  int socket = accept(socket_, NULL, NULL);
-  if (socket == -1) {
-    return NULL;
-  } else {
-    return new LinuxSocket(socket);
-  }
-}
-
-
-bool LinuxSocket::Connect(const char* host, const char* port) {
-  if (!IsValid()) {
-    return false;
-  }
-
-  // Lookup host and port.
-  struct addrinfo *result = NULL;
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(addrinfo));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
-  int status = getaddrinfo(host, port, &hints, &result);
-  if (status != 0) {
-    return false;
-  }
-
-  // Connect.
-  status = connect(socket_, result->ai_addr, result->ai_addrlen);
-  return status == 0;
-}
-
-
-int LinuxSocket::Send(const char* data, int len) const {
-  int status = send(socket_, data, len, 0);
-  return status;
-}
-
-
-int LinuxSocket::Receive(char* data, int len) const {
-  int status = recv(socket_, data, len, 0);
-  return status;
-}
-
-
-bool Socket::Setup() {
-  // Nothing to do on Linux.
-  return true;
-}
-
-
-int Socket::LastError() {
-  return errno;
-}
-
-
-uint16_t Socket::HToN(uint16_t value) {
-  return htons(value);
-}
-
-
-uint16_t Socket::NToH(uint16_t value) {
-  return ntohs(value);
-}
-
-
-uint32_t Socket::HToN(uint32_t value) {
-  return htonl(value);
-}
-
-
-uint32_t Socket::NToH(uint32_t value) {
-  return ntohl(value);
-}
-
-
-Socket* OS::CreateSocket() {
-  return new LinuxSocket();
 }
 
 
@@ -766,6 +648,8 @@ Socket* OS::CreateSocket() {
 static Sampler* active_sampler_ = NULL;
 
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
+  // Ucontext is a glibc extension - no profiling on Android at the moment.
+#ifdef __GLIBC__
   USE(info);
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL) return;
@@ -792,6 +676,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample.state = Logger::state();
 
   active_sampler_->Tick(&sample);
+#endif
 }
 
 

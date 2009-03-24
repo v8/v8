@@ -36,6 +36,13 @@ class RegExpMacroAssembler;
 
 class RegExpImpl {
  public:
+  static inline bool UseNativeRegexp() {
+#ifdef ARM
+    return false;
+#else
+    return FLAG_regexp_native;
+#endif
+  }
   // Creates a regular expression literal in the old space.
   // This function calls the garbage collector if necessary.
   static Handle<Object> CreateRegExpLiteral(Handle<JSFunction> constructor,
@@ -101,22 +108,14 @@ class RegExpImpl {
                                            Handle<String> subject,
                                            Handle<JSArray> lastMatchInfo);
 
-  static void NewSpaceCollectionPrologue();
-  static void OldSpaceCollectionPrologue();
-
-  // Converts a source string to a 16 bit flat string.  The string
-  // will be either sequential or it will be a SlicedString backed
-  // by a flat string.
-  static Handle<String> StringToTwoByte(Handle<String> pattern);
-  static Handle<String> CachedStringToTwoByte(Handle<String> pattern);
-
   // Offsets in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
   static const int kLastSubject = 1;
   static const int kLastInput = 2;
-  static const int kFirstCapture = 1;
+  static const int kFirstCapture = 3;
   static const int kLastMatchOverhead = 3;
 
+  // Used to access the lastMatchInfo array.
   static int GetCapture(FixedArray* array, int index) {
     return Smi::cast(array->get(index + kFirstCapture))->value();
   }
@@ -126,25 +125,22 @@ class RegExpImpl {
   }
 
   static void SetLastSubject(FixedArray* array, String* to) {
-    int capture_count = GetLastCaptureCount(array);
-    array->set(capture_count + kLastSubject, to);
+    array->set(kLastSubject, to);
   }
 
   static void SetLastInput(FixedArray* array, String* to) {
-    int capture_count = GetLastCaptureCount(array);
-    array->set(capture_count + kLastInput, to);
+    array->set(kLastInput, to);
   }
 
   static void SetCapture(FixedArray* array, int index, int to) {
     array->set(index + kFirstCapture, Smi::FromInt(to));
   }
 
- private:
-  static String* last_ascii_string_;
-  static String* two_byte_cached_string_;
+  static int GetLastCaptureCount(FixedArray* array) {
+    return Smi::cast(array->get(kLastCaptureCount))->value();
+  }
 
-  static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
-
+  // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray* re);
   static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
   static int IrregexpNumberOfCaptures(FixedArray* re);
@@ -152,10 +148,17 @@ class RegExpImpl {
   static ByteArray* IrregexpByteCode(FixedArray* re, bool is_ascii);
   static Code* IrregexpNativeCode(FixedArray* re, bool is_ascii);
 
+ private:
+  static String* last_ascii_string_;
+  static String* two_byte_cached_string_;
+
+  static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
+
+
   // On a successful match, the result is a JSArray containing
   // captured positions. On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
-  static Handle<Object> IrregexpExecOnce(Handle<FixedArray> regexp,
+  static Handle<Object> IrregexpExecOnce(Handle<JSRegExp> jsregexp,
                                          int num_captures,
                                          Handle<JSArray> lastMatchInfo,
                                          Handle<String> subject16,
@@ -171,10 +174,6 @@ class RegExpImpl {
                               int character_position,
                               int utf8_position);
 
-  // Used to access the lastMatchInfo array.
-  static int GetLastCaptureCount(FixedArray* array) {
-    return Smi::cast(array->get(kLastCaptureCount))->value();
-  }
   // A one element cache of the last utf8_subject string and its length.  The
   // subject JS String object is cached in the heap.  We also cache a
   // translation between position and utf8 position.

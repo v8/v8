@@ -27,8 +27,8 @@
 
 #include "v8.h"
 
-#include "codegen.h"
-#include "register-allocator.h"
+#include "codegen-inl.h"
+#include "register-allocator-inl.h"
 
 namespace v8 { namespace internal {
 
@@ -59,14 +59,6 @@ void Result::CopyTo(Result* destination) const {
 }
 
 
-void Result::Unuse() {
-  if (is_register()) {
-    cgen_->allocator()->Unuse(reg());
-  }
-  type_ = INVALID;
-}
-
-
 // -------------------------------------------------------------------------
 // RegisterFile implementation.
 
@@ -83,11 +75,10 @@ void RegisterFile::CopyTo(RegisterFile* other) {
 
 Result RegisterAllocator::AllocateWithoutSpilling() {
   // Return the first free register, if any.
-  for (int i = 0; i < kNumRegisters; i++) {
-    if (!is_used(i)) {
-      Register free_reg = { i };
-      return Result(free_reg, cgen_);
-    }
+  int free_reg = registers_.ScanForFreeRegister();
+  if (free_reg < kNumRegisters) {
+    Register free_result = { free_reg };
+    return Result(free_result, cgen_);
   }
   return Result(cgen_);
 }

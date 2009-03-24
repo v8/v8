@@ -2116,7 +2116,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlattenIfNotFlat(i::StringShape(*str));
+  str->TryFlattenIfNotFlat();
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2141,7 +2141,7 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlattenIfNotFlat(i::StringShape(*str));
+  str->TryFlattenIfNotFlat();
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2159,16 +2159,14 @@ int String::Write(uint16_t* buffer, int start, int length) const {
 bool v8::String::IsExternal() const {
   EnsureInitialized("v8::String::IsExternal()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  i::StringShape shape(*str);
-  return shape.IsExternalTwoByte();
+  return i::StringShape(*str).IsExternalTwoByte();
 }
 
 
 bool v8::String::IsExternalAscii() const {
   EnsureInitialized("v8::String::IsExternalAscii()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  i::StringShape shape(*str);
-  return shape.IsExternalAscii();
+  return i::StringShape(*str).IsExternalAscii();
 }
 
 
@@ -2228,13 +2226,6 @@ int32_t Int32::Value() const {
 }
 
 
-void* External::Value() const {
-  if (IsDeadCheck("v8::External::Value()")) return 0;
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
-}
-
-
 int v8::Object::InternalFieldCount() {
   if (IsDeadCheck("v8::Object::InternalFieldCount()")) return 0;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
@@ -2282,7 +2273,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.1.1.4";
+  return "1.1.2";
 }
 
 
@@ -2465,12 +2456,58 @@ bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
 }
 
 
+static Local<External> ExternalNewImpl(void* data) {
+  return Utils::ToLocal(i::Factory::NewProxy(static_cast<i::Address>(data)));
+}
+
+static void* ExternalValueImpl(i::Handle<i::Object> obj) {
+  return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
+}
+
+
+static const intptr_t kAlignedPointerMask = 3;
+static const int kAlignedPointerShift = 2;
+
+
+Local<Value> v8::External::Wrap(void* data) {
+  STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
+  LOG_API("External::Wrap");
+  EnsureInitialized("v8::External::Wrap()");
+  if ((reinterpret_cast<intptr_t>(data) & kAlignedPointerMask) == 0) {
+    uintptr_t data_ptr = reinterpret_cast<uintptr_t>(data);
+    int data_value = static_cast<int>(data_ptr >> kAlignedPointerShift);
+    STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
+    i::Handle<i::Object> obj(i::Smi::FromInt(data_value));
+    return Utils::ToLocal(obj);
+  }
+  return ExternalNewImpl(data);
+}
+
+
+void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
+  if (IsDeadCheck("v8::External::Unwrap()")) return 0;
+  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
+  if (obj->IsSmi()) {
+    // The external value was an aligned pointer.
+    uintptr_t result = i::Smi::cast(*obj)->value() << kAlignedPointerShift;
+    return reinterpret_cast<void*>(result);
+  }
+  return ExternalValueImpl(obj);
+}
+
+
 Local<External> v8::External::New(void* data) {
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
   LOG_API("External::New");
   EnsureInitialized("v8::External::New()");
-  i::Handle<i::Proxy> obj = i::Factory::NewProxy(static_cast<i::Address>(data));
-  return Utils::ToLocal(obj);
+  return ExternalNewImpl(data);
+}
+
+
+void* External::Value() const {
+  if (IsDeadCheck("v8::External::Value()")) return 0;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return ExternalValueImpl(obj);
 }
 
 
@@ -2791,6 +2828,15 @@ void V8::SetCounterFunction(CounterLookupCallback callback) {
   i::StatsTable::SetCounterFunction(callback);
 }
 
+void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
+  if (IsDeadCheck("v8::V8::SetCreateHistogramFunction()")) return;
+  i::StatsTable::SetCreateHistogramFunction(callback);
+}
+
+void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
+  if (IsDeadCheck("v8::V8::SetAddHistogramSampleFunction()")) return;
+  i::StatsTable::SetAddHistogramSampleFunction(callback);
+}
 
 void V8::EnableSlidingStateWindow() {
   if (IsDeadCheck("v8::V8::EnableSlidingStateWindow()")) return;
@@ -3067,8 +3113,8 @@ Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
 }
 
 
-bool Debug::EnableAgent(int port) {
-  return i::Debugger::StartAgent(port);
+bool Debug::EnableAgent(const char* name, int port) {
+  return i::Debugger::StartAgent(name, port);
 }
 
 

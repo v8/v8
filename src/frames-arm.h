@@ -154,11 +154,9 @@ class InternalFrameConstants : public AllStatic {
 };
 
 
-inline Object* JavaScriptFrame::function() const {
+inline Object* JavaScriptFrame::function_slot_object() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
-  Object* result = Memory::Object_at(fp() + offset);
-  ASSERT(result->IsJSFunction());
-  return result;
+  return Memory::Object_at(fp() + offset);
 }
 
 

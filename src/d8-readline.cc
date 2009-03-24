@@ -103,7 +103,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static unsigned current_index;
   static Persistent<Array> current_completions;
   if (state == 0) {
-    i::SmartPointer<char> full_text(i::OS::StrNDup(rl_line_buffer, rl_point));
+    i::SmartPointer<char> full_text(i::StrNDup(rl_line_buffer, rl_point));
     HandleScope scope;
     Handle<Array> completions =
       Shell::GetCompletions(String::New(text), String::New(*full_text));

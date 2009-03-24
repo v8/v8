@@ -228,8 +228,6 @@ class OS {
 
   static char* StrChr(char* str, int c);
   static void StrNCpy(Vector<char> dest, const char* src, size_t n);
-  static char* StrDup(const char* str);
-  static char* StrNDup(const char* str, size_t n);
 
   // Support for profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted
@@ -410,9 +408,15 @@ class Semaphore {
  public:
   virtual ~Semaphore() {}
 
-  // Suspends the calling thread until the counter is non zero
+  // Suspends the calling thread until the semaphore counter is non zero
   // and then decrements the semaphore counter.
   virtual void Wait() = 0;
+
+  // Suspends the calling thread until the counter is non zero or the timeout
+  // time has passsed. If timeout happens the return value is false and the
+  // counter is unchanged. Otherwise the semaphore counter is decremented and
+  // true is returned. The timeout value is specified in microseconds.
+  virtual bool Wait(int timeout) = 0;
 
   // Increments the semaphore counter.
   virtual void Signal() = 0;
@@ -435,9 +439,17 @@ class Socket {
   // Client initialization.
   virtual bool Connect(const char* host, const char* port) = 0;
 
+  // Shutdown socket for both read and write. This causes blocking Send and
+  // Receive calls to exit. After Shutdown the Socket object cannot be used for
+  // any communication.
+  virtual bool Shutdown() = 0;
+
   // Data Transimission
   virtual int Send(const char* data, int len) const = 0;
   virtual int Receive(char* data, int len) const = 0;
+
+  // Set the value of the SO_REUSEADDR socket option.
+  virtual bool SetReuseAddress(bool reuse_address) = 0;
 
   virtual bool IsValid() const = 0;
 

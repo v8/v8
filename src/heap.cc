@@ -34,7 +34,6 @@
 #include "compilation-cache.h"
 #include "debug.h"
 #include "global-handles.h"
-#include "jsregexp.h"
 #include "mark-compact.h"
 #include "natives.h"
 #include "scanner.h"
@@ -230,7 +229,6 @@ void Heap::ReportStatisticsAfterGC() {
 
 
 void Heap::GarbageCollectionPrologue() {
-  RegExpImpl::NewSpaceCollectionPrologue();
   gc_count_++;
 #ifdef DEBUG
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
@@ -302,7 +300,7 @@ void Heap::CollectAllGarbageIfContextDisposed() {
   // contexts are disposed and leave it to the embedder to make
   // informed decisions about when to force a collection.
   if (!FLAG_expose_gc && context_disposed_pending_) {
-    StatsRateScope scope(&Counters::gc_context);
+    HistogramTimerScope scope(&Counters::gc_context);
     CollectAllGarbage();
   }
   context_disposed_pending_ = false;
@@ -337,7 +335,7 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
     // Tell the tracer which collector we've selected.
     tracer.set_collector(collector);
 
-    StatsRate* rate = (collector == SCAVENGER)
+    HistogramTimer* rate = (collector == SCAVENGER)
         ? &Counters::gc_scavenger
         : &Counters::gc_compactor;
     rate->Start();
@@ -467,7 +465,6 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   ClearKeyedLookupCache();
 
   CompilationCache::MarkCompactPrologue();
-  RegExpImpl::OldSpaceCollectionPrologue();
 
   Top::MarkCompactPrologue(is_compacting);
   ThreadManager::MarkCompactPrologue(is_compacting);
@@ -1393,41 +1390,31 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
 Object* Heap::AllocateConsString(String* first,
                                  String* second) {
-  StringShape first_shape(first);
-  StringShape second_shape(second);
-  int first_length = first->length(first_shape);
-  int second_length = second->length(second_shape);
+  int first_length = first->length();
+  int second_length = second->length();
   int length = first_length + second_length;
-  bool is_ascii = first_shape.IsAsciiRepresentation()
-      && second_shape.IsAsciiRepresentation();
+  bool is_ascii = StringShape(first).IsAsciiRepresentation()
+      && StringShape(second).IsAsciiRepresentation();
 
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
-    ASSERT(first->IsFlat(first_shape));
-    ASSERT(second->IsFlat(second_shape));
+    ASSERT(first->IsFlat());
+    ASSERT(second->IsFlat());
     if (is_ascii) {
       Object* result = AllocateRawAsciiString(length);
       if (result->IsFailure()) return result;
       // Copy the characters into the new object.
       char* dest = SeqAsciiString::cast(result)->GetChars();
-      String::WriteToFlat(first, first_shape, dest, 0, first_length);
-      String::WriteToFlat(second,
-                          second_shape,
-                          dest + first_length,
-                          0,
-                          second_length);
+      String::WriteToFlat(first, dest, 0, first_length);
+      String::WriteToFlat(second, dest + first_length, 0, second_length);
       return result;
     } else {
       Object* result = AllocateRawTwoByteString(length);
       if (result->IsFailure()) return result;
       // Copy the characters into the new object.
       uc16* dest = SeqTwoByteString::cast(result)->GetChars();
-      String::WriteToFlat(first, first_shape, dest, 0, first_length);
-      String::WriteToFlat(second,
-                          second_shape,
-                          dest + first_length,
-                          0,
-                          second_length);
+      String::WriteToFlat(first, dest, 0, first_length);
+      String::WriteToFlat(second, dest + first_length, 0, second_length);
       return result;
     }
   }
@@ -1458,25 +1445,24 @@ Object* Heap::AllocateConsString(String* first,
 Object* Heap::AllocateSlicedString(String* buffer,
                                    int start,
                                    int end) {
-  StringShape buffer_shape(buffer);
   int length = end - start;
 
   // If the resulting string is small make a sub string.
   if (end - start <= String::kMinNonFlatLength) {
-    return Heap::AllocateSubString(buffer, buffer_shape, start, end);
+    return Heap::AllocateSubString(buffer, start, end);
   }
 
   Map* map;
   if (length <= String::kMaxShortStringSize) {
-    map = buffer_shape.IsAsciiRepresentation() ?
+    map = StringShape(buffer).IsAsciiRepresentation() ?
       short_sliced_ascii_string_map() :
       short_sliced_string_map();
   } else if (length <= String::kMaxMediumStringSize) {
-    map = buffer_shape.IsAsciiRepresentation() ?
+    map = StringShape(buffer).IsAsciiRepresentation() ?
       medium_sliced_ascii_string_map() :
       medium_sliced_string_map();
   } else {
-    map = buffer_shape.IsAsciiRepresentation() ?
+    map = StringShape(buffer).IsAsciiRepresentation() ?
       long_sliced_ascii_string_map() :
       long_sliced_string_map();
   }
@@ -1494,41 +1480,38 @@ Object* Heap::AllocateSlicedString(String* buffer,
 
 
 Object* Heap::AllocateSubString(String* buffer,
-                                StringShape buffer_shape,
                                 int start,
                                 int end) {
   int length = end - start;
 
   if (length == 1) {
     return Heap::LookupSingleCharacterStringFromCode(
-        buffer->Get(buffer_shape, start));
+        buffer->Get(start));
   }
 
   // Make an attempt to flatten the buffer to reduce access time.
-  if (!buffer->IsFlat(buffer_shape)) {
-    buffer->TryFlatten(buffer_shape);
-    buffer_shape = StringShape(buffer);
+  if (!buffer->IsFlat()) {
+    buffer->TryFlatten();
   }
 
-  Object* result = buffer_shape.IsAsciiRepresentation()
+  Object* result = StringShape(buffer).IsAsciiRepresentation()
       ? AllocateRawAsciiString(length)
       : AllocateRawTwoByteString(length);
   if (result->IsFailure()) return result;
 
   // Copy the characters into the new object.
   String* string_result = String::cast(result);
-  StringShape result_shape(string_result);
   StringHasher hasher(length);
   int i = 0;
   for (; i < length && hasher.is_array_index(); i++) {
-    uc32 c = buffer->Get(buffer_shape, start + i);
+    uc32 c = buffer->Get(start + i);
     hasher.AddCharacter(c);
-    string_result->Set(result_shape, i, c);
+    string_result->Set(i, c);
   }
   for (; i < length; i++) {
-    uc32 c = buffer->Get(buffer_shape, start + i);
+    uc32 c = buffer->Get(start + i);
     hasher.AddCharacterNoIndex(c);
-    string_result->Set(result_shape, i, c);
+    string_result->Set(i, c);
   }
   string_result->set_length_field(hasher.GetHashField());
   return result;
@@ -1591,7 +1574,7 @@ Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
   Object* result = Heap::AllocateRawTwoByteString(1);
   if (result->IsFailure()) return result;
   String* answer = String::cast(result);
-  answer->Set(StringShape(answer), 0, code);
+  answer->Set(0, code);
   return answer;
 }
 
@@ -2017,10 +2000,9 @@ Object* Heap::AllocateStringFromUtf8(Vector<const char> string,
   // Convert and copy the characters into the new object.
   String* string_result = String::cast(result);
   decoder->Reset(string.start(), string.length());
-  StringShape result_shape(string_result);
   for (int i = 0; i < chars; i++) {
     uc32 r = decoder->GetNext();
-    string_result->Set(result_shape, i, r);
+    string_result->Set(i, r);
   }
   return result;
 }
@@ -2043,9 +2025,8 @@ Object* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
   // Copy the characters into the new object, which may be either ASCII or
   // UTF-16.
   String* string_result = String::cast(result);
-  StringShape result_shape(string_result);
   for (int i = 0; i < string.length(); i++) {
-    string_result->Set(result_shape, i, string[i]);
+    string_result->Set(i, string[i]);
   }
   return result;
 }
@@ -2164,14 +2145,13 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   reinterpret_cast<HeapObject*>(result)->set_map(map);
   // The hash value contains the length of the string.
   String* answer = String::cast(result);
-  StringShape answer_shape(answer);
   answer->set_length_field(length_field);
 
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
   for (int i = 0; i < chars; i++) {
-    answer->Set(answer_shape, i, buffer->GetNext());
+    answer->Set(i, buffer->GetNext());
   }
   return answer;
 }

@@ -117,6 +117,7 @@ class ApiTestFuzzer: public v8::internal::Thread {
         gate_(v8::internal::OS::CreateSemaphore(0)),
         active_(true) {
   }
+  ~ApiTestFuzzer() { delete gate_; }
 
   // The ApiTestFuzzer is also a Thread, so it has a Run method.
   virtual void Run();
@@ -1338,6 +1339,23 @@ THREADED_TEST(External) {
   CHECK_EQ(x, 3);
   *ptr = 10;
   CHECK_EQ(x, 10);
+
+  // Make sure unaligned pointers are wrapped properly.
+  char* data = i::StrDup("0123456789");
+  Local<v8::Value> zero = v8::External::Wrap(&data[0]);
+  Local<v8::Value> one = v8::External::Wrap(&data[1]);
+  Local<v8::Value> two = v8::External::Wrap(&data[2]);
+  Local<v8::Value> three = v8::External::Wrap(&data[3]);
+
+  char* char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(zero));
+  CHECK_EQ('0', *char_ptr);
+  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(one));
+  CHECK_EQ('1', *char_ptr);
+  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(two));
+  CHECK_EQ('2', *char_ptr);
+  char_ptr = reinterpret_cast<char*>(v8::External::Unwrap(three));
+  CHECK_EQ('3', *char_ptr);
+  i::DeleteArray(data);
 }
 
 
@@ -5638,14 +5656,14 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
   // Add more than 8 (see kMaxFastProperties) properties
   // so that the constructor will force copying map.
   // Cannot sprintf, gcc complains unsafety.
-  char buf[5];
+  char buf[4];
   for (char i = '0'; i <= '9' ; i++) {
-    buf[1] = i;
+    buf[0] = i;
     for (char j = '0'; j <= '9'; j++) {
-      buf[2] = j;
+      buf[1] = j;
       for (char k = '0'; k <= '9'; k++) {
-        buf[3] = k;
-        buf[4] = 0;
+        buf[2] = k;
+        buf[3] = 0;
         templ->Set(v8_str(buf), v8::Number::New(k));
       }
     }
@@ -5693,6 +5711,7 @@ TEST(PreCompile) {
   v8::ScriptData *sd = v8::ScriptData::PreCompile(script, strlen(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
+  delete sd;
 }
 
 
@@ -5755,6 +5774,8 @@ THREADED_TEST(CrossContextNew) {
 
 class RegExpInterruptTest {
  public:
+  RegExpInterruptTest() : block_(NULL) {}
+  ~RegExpInterruptTest() { delete block_; }
   void RunTest() {
     block_ = i::OS::CreateSemaphore(0);
     gc_count_ = 0;
@@ -5809,7 +5830,7 @@ class RegExpInterruptTest {
     while (gc_during_regexp_ < kRequiredGCs) {
       int gc_before = gc_count_;
       {
-        // match 15-30 "a"'s against 14 and a "b".
+        // Match 15-30 "a"'s against 14 and a "b".
         const char* c_source =
             "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
             ".exec('aaaaaaaaaaaaaaab') === null";
@@ -5822,7 +5843,7 @@ class RegExpInterruptTest {
         }
       }
       {
-        // match 15-30 "a"'s against 15 and a "b".
+        // Match 15-30 "a"'s against 15 and a "b".
         const char* c_source =
             "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
             ".exec('aaaaaaaaaaaaaaaab')[0] === 'aaaaaaaaaaaaaaaa'";
@@ -5904,4 +5925,196 @@ TEST(ObjectClone) {
   clone->Set(v8_str("beta"), v8::Integer::New(456));
   CHECK_EQ(v8::Integer::New(123), obj->Get(v8_str("beta")));
   CHECK_EQ(v8::Integer::New(456), clone->Get(v8_str("beta")));
+}
+
+
+class RegExpStringModificationTest {
+ public:
+  RegExpStringModificationTest()
+      : block_(i::OS::CreateSemaphore(0)),
+        morphs_(0),
+        morphs_during_regexp_(0),
+        ascii_resource_(i::Vector<const char>("aaaaaaaaaaaaaab", 15)),
+        uc16_resource_(i::Vector<const uint16_t>(two_byte_content_, 15)) {}
+  ~RegExpStringModificationTest() { delete block_; }
+  void RunTest() {
+    regexp_success_ = false;
+    morph_success_ = false;
+
+    // Initialize the contents of two_byte_content_ to be a uc16 representation
+    // of "aaaaaaaaaaaaaab".
+    for (int i = 0; i < 14; i++) {
+      two_byte_content_[i] = 'a';
+    }
+    two_byte_content_[14] = 'b';
+
+    // Create the input string for the regexp - the one we are going to change
+    // properties of.
+    input_ = i::Factory::NewExternalStringFromAscii(&ascii_resource_);
+
+    // Inject the input as a global variable.
+    i::Handle<i::String> input_name =
+        i::Factory::NewStringFromAscii(i::Vector<const char>("input", 5));
+    i::Top::global_context()->global()->SetProperty(*input_name, *input_, NONE);
+
+
+    MorphThread morph_thread(this);
+    morph_thread.Start();
+    v8::Locker::StartPreemption(1);
+    LongRunningRegExp();
+    {
+      v8::Unlocker unlock;
+      morph_thread.Join();
+    }
+    v8::Locker::StopPreemption();
+    CHECK(regexp_success_);
+    CHECK(morph_success_);
+  }
+ private:
+
+  class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
+   public:
+    explicit AsciiVectorResource(i::Vector<const char> vector)
+        : data_(vector) {}
+    virtual ~AsciiVectorResource() {}
+    virtual size_t length() const { return data_.length(); }
+    virtual const char* data() const { return data_.start(); }
+   private:
+    i::Vector<const char> data_;
+  };
+  class UC16VectorResource : public v8::String::ExternalStringResource {
+   public:
+    explicit UC16VectorResource(i::Vector<const i::uc16> vector)
+        : data_(vector) {}
+    virtual ~UC16VectorResource() {}
+    virtual size_t length() const { return data_.length(); }
+    virtual const i::uc16* data() const { return data_.start(); }
+   private:
+    i::Vector<const i::uc16> data_;
+  };
+  // Number of string modifications required.
+  static const int kRequiredModifications = 5;
+  static const int kMaxModifications = 100;
+
+  class MorphThread : public i::Thread {
+   public:
+    explicit MorphThread(RegExpStringModificationTest* test)
+        : test_(test) {}
+    virtual void Run() {
+      test_->MorphString();
+    }
+   private:
+     RegExpStringModificationTest* test_;
+  };
+
+  void MorphString() {
+    block_->Wait();
+    while (morphs_during_regexp_ < kRequiredModifications &&
+           morphs_ < kMaxModifications) {
+      {
+        v8::Locker lock;
+        // Swap string between ascii and two-byte representation.
+        i::String* string = *input_;
+        CHECK(i::StringShape(string).IsExternal());
+        if (i::StringShape(string).IsAsciiRepresentation()) {
+          // Morph external string to be TwoByte string.
+          i::ExternalAsciiString* ext_string =
+              i::ExternalAsciiString::cast(string);
+          i::ExternalTwoByteString* morphed =
+              reinterpret_cast<i::ExternalTwoByteString*>(ext_string);
+          morphed->map()->set_instance_type(i::SHORT_EXTERNAL_STRING_TYPE);
+          morphed->set_resource(&uc16_resource_);
+        } else {
+          // Morph external string to be ASCII string.
+          i::ExternalTwoByteString* ext_string =
+              i::ExternalTwoByteString::cast(string);
+          i::ExternalAsciiString* morphed =
+              reinterpret_cast<i::ExternalAsciiString*>(ext_string);
+          morphed->map()->set_instance_type(
+              i::SHORT_EXTERNAL_ASCII_STRING_TYPE);
+          morphed->set_resource(&ascii_resource_);
+        }
+        morphs_++;
+      }
+      i::OS::Sleep(1);
+    }
+    morph_success_ = true;
+  }
+
+  void LongRunningRegExp() {
+    block_->Signal();  // Enable morphing thread on next preemption.
+    while (morphs_during_regexp_ < kRequiredModifications &&
+           morphs_ < kMaxModifications) {
+      int morphs_before = morphs_;
+      {
+        // Match 15-30 "a"'s against 14 and a "b".
+        const char* c_source =
+            "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
+            ".exec(input) === null";
+        Local<String> source = String::New(c_source);
+        Local<Script> script = Script::Compile(source);
+        Local<Value> result = script->Run();
+        CHECK(result->IsTrue());
+      }
+      int morphs_after = morphs_;
+      morphs_during_regexp_ += morphs_after - morphs_before;
+    }
+    regexp_success_ = true;
+  }
+
+  i::uc16 two_byte_content_[15];
+  i::Semaphore* block_;
+  int morphs_;
+  int morphs_during_regexp_;
+  bool regexp_success_;
+  bool morph_success_;
+  i::Handle<i::String> input_;
+  AsciiVectorResource ascii_resource_;
+  UC16VectorResource uc16_resource_;
+};
+
+
+// Test that a regular expression execution can be interrupted and
+// the string changed without failing.
+TEST(RegExpStringModification) {
+  v8::Locker lock;
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  Local<Context> local_env;
+  {
+    LocalContext env;
+    local_env = env.local();
+  }
+
+  // Local context should still be live.
+  CHECK(!local_env.IsEmpty());
+  local_env->Enter();
+
+  // Should complete without problems.
+  RegExpStringModificationTest().RunTest();
+
+  local_env->Exit();
+}
+
+
+// Test that we can set a property on the global object even if there
+// is a read-only property in the prototype chain.
+TEST(ReadOnlyPropertyInGlobalProto) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  LocalContext context(0, templ);
+  v8::Handle<v8::Object> global = context->Global();
+  v8::Handle<v8::Object> global_proto =
+      v8::Handle<v8::Object>::Cast(global->Get(v8_str("__proto__")));
+  global_proto->Set(v8_str("x"), v8::Integer::New(0), v8::ReadOnly);
+  global_proto->Set(v8_str("y"), v8::Integer::New(0), v8::ReadOnly);
+  // Check without 'eval' or 'with'.
+  v8::Handle<v8::Value> res =
+      CompileRun("function f() { x = 42; return x; }; f()");
+  // Check with 'eval'.
+  res = CompileRun("function f() { eval('1'); y = 42; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(42), res);
+  // Check with 'with'.
+  res = CompileRun("function f() { with (this) { y = 42 }; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(42), res);
 }

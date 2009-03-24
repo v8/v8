@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for FreeBSD goes here
+// Platform specific code for FreeBSD goes here. For the POSIX comaptible parts
+// the implementation is in platform-posix.cc.
 
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/ucontext.h>
 #include <stdlib.h>
@@ -44,9 +44,6 @@
 #include <unistd.h>     // getpagesize
 #include <execinfo.h>   // backtrace, backtrace_symbols
 #include <strings.h>    // index
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <limits.h>
@@ -196,28 +193,6 @@ char* OS::StrChr(char* str, int c) {
 
 void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
   strncpy(dest.start(), src, n);
-}
-
-
-char *OS::StrDup(const char* str) {
-  return strdup(str);
-}
-
-
-char* OS::StrNDup(const char* str, size_t n) {
-  // Stupid implementation of strndup since freebsd isn't born with
-  // one.
-  size_t len = strlen(str);
-  if (len <= n) {
-    return StrDup(str);
-  }
-  char* result = new char[n+1];
-  size_t i;
-  for (i = 0; i <= n; i++) {
-    result[i] = str[i];
-  }
-  result[i] = '\0';
-  return result;
 }
 
 
@@ -608,10 +583,12 @@ class FreeBSDSemaphore : public Semaphore {
   virtual ~FreeBSDSemaphore() { sem_destroy(&sem_); }
 
   virtual void Wait();
+  virtual bool Wait(int timeout);
   virtual void Signal() { sem_post(&sem_); }
  private:
   sem_t sem_;
 };
+
 
 void FreeBSDSemaphore::Wait() {
   while (true) {
@@ -621,159 +598,41 @@ void FreeBSDSemaphore::Wait() {
   }
 }
 
+
+bool FreeBSDSemaphore::Wait(int timeout) {
+  const long kOneSecondMicros = 1000000;  // NOLINT
+  const long kOneSecondNanos = 1000000000;  // NOLINT
+
+  // Split timeout into second and nanosecond parts.
+  long nanos = (timeout % kOneSecondMicros) * 1000;  // NOLINT
+  time_t secs = timeout / kOneSecondMicros;
+
+  // Get the current real time clock.
+  struct timespec ts;
+  if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+    return false;
+  }
+
+  // Calculate realtime for end of timeout.
+  ts.tv_nsec += nanos;
+  if (ts.tv_nsec >= kOneSecondNanos) {
+    ts.tv_nsec -= kOneSecondNanos;
+    ts.tv_nsec++;
+  }
+  ts.tv_sec += secs;
+
+  // Wait for semaphore signalled or timeout.
+  while (true) {
+    int result = sem_timedwait(&sem_, &ts);
+    if (result == 0) return true;  // Successfully got semaphore.
+    if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
+    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
+  }
+}
+
+
 Semaphore* OS::CreateSemaphore(int count) {
   return new FreeBSDSemaphore(count);
-}
-
-
-// ----------------------------------------------------------------------------
-// FreeBSD socket support.
-//
-
-class FreeBSDSocket : public Socket {
- public:
-  explicit FreeBSDSocket() {
-    // Create the socket.
-    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  }
-  explicit FreeBSDSocket(int socket): socket_(socket) { }
-
-
-  virtual ~FreeBSDSocket() {
-    if (IsValid()) {
-      // Close socket.
-      close(socket_);
-    }
-  }
-
-  // Server initialization.
-  bool Bind(const int port);
-  bool Listen(int backlog) const;
-  Socket* Accept() const;
-
-  // Client initialization.
-  bool Connect(const char* host, const char* port);
-
-  // Data Transimission
-  int Send(const char* data, int len) const;
-  int Receive(char* data, int len) const;
-
-  bool IsValid() const { return socket_ != -1; }
-
- private:
-  int socket_;
-};
-
-
-bool FreeBSDSocket::Bind(const int port) {
-  if (!IsValid())  {
-    return false;
-  }
-
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(port);
-  int status = bind(socket_,
-                    reinterpret_cast<struct sockaddr *>(&addr),
-                    sizeof(addr));
-  return status == 0;
-}
-
-
-bool FreeBSDSocket::Listen(int backlog) const {
-  if (!IsValid()) {
-    return false;
-  }
-
-  int status = listen(socket_, backlog);
-  return status == 0;
-}
-
-
-Socket* FreeBSDSocket::Accept() const {
-  if (!IsValid()) {
-    return NULL;
-  }
-
-  int socket = accept(socket_, NULL, NULL);
-  if (socket == -1) {
-    return NULL;
-  } else {
-    return new FreeBSDSocket(socket);
-  }
-}
-
-
-bool FreeBSDSocket::Connect(const char* host, const char* port) {
-  if (!IsValid()) {
-    return false;
-  }
-
-  // Lookup host and port.
-  struct addrinfo *result = NULL;
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(addrinfo));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
-  int status = getaddrinfo(host, port, &hints, &result);
-  if (status != 0) {
-    return false;
-  }
-
-  // Connect.
-  status = connect(socket_, result->ai_addr, result->ai_addrlen);
-  return status == 0;
-}
-
-
-int FreeBSDSocket::Send(const char* data, int len) const {
-  int status = send(socket_, data, len, 0);
-  return status;
-}
-
-
-int FreeBSDSocket::Receive(char* data, int len) const {
-  int status = recv(socket_, data, len, 0);
-  return status;
-}
-
-
-bool Socket::Setup() {
-  // Nothing to do on FreeBSD.
-  return true;
-}
-
-
-int Socket::LastError() {
-  return errno;
-}
-
-
-uint16_t Socket::HToN(uint16_t value) {
-  return htons(value);
-}
-
-
-uint16_t Socket::NToH(uint16_t value) {
-  return ntohs(value);
-}
-
-
-uint32_t Socket::HToN(uint32_t value) {
-  return htonl(value);
-}
-
-
-uint32_t Socket::NToH(uint32_t value) {
-  return ntohl(value);
-}
-
-
-Socket* OS::CreateSocket() {
-  return new FreeBSDSocket();
 }
 
 

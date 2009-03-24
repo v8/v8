@@ -38,6 +38,8 @@ namespace v8 {
 
 static internal::Thread::LocalStorageKey thread_state_key =
     internal::Thread::CreateThreadLocalKey();
+static internal::Thread::LocalStorageKey thread_id_key =
+    internal::Thread::CreateThreadLocalKey();
 
 
 // Track whether this V8 instance has ever called v8::Locker. This allows the
@@ -61,6 +63,9 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
     }
   }
   ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
+
+  // Make sure this thread is assigned a thread id.
+  internal::ThreadManager::AssignId();
 }
 
 
@@ -115,6 +120,7 @@ bool ThreadManager::RestoreThread() {
     lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
     ASSERT(Thread::GetThreadLocal(thread_state_key) ==
            lazily_archived_thread_state_);
+    lazily_archived_thread_state_->set_id(kInvalidId);
     lazily_archived_thread_state_->LinkInto(ThreadState::FREE_LIST);
     lazily_archived_thread_state_ = NULL;
     Thread::SetThreadLocal(thread_state_key, NULL);
@@ -143,6 +149,7 @@ bool ThreadManager::RestoreThread() {
   from = RegExpStack::RestoreStack(from);
   from = Bootstrapper::RestoreState(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
+  state->set_id(kInvalidId);
   state->Unlink();
   state->LinkInto(ThreadState::FREE_LIST);
   return true;
@@ -176,7 +183,8 @@ ThreadState* ThreadState::free_anchor_ = new ThreadState();
 ThreadState* ThreadState::in_use_anchor_ = new ThreadState();
 
 
-ThreadState::ThreadState() : next_(this), previous_(this) {
+ThreadState::ThreadState() : id_(ThreadManager::kInvalidId),
+                             next_(this), previous_(this) {
 }
 
 
@@ -224,6 +232,7 @@ ThreadState* ThreadState::Next() {
 }
 
 
+int ThreadManager::next_id_ = 0;
 Mutex* ThreadManager::mutex_ = OS::CreateMutex();
 ThreadHandle ThreadManager::mutex_owner_(ThreadHandle::INVALID);
 ThreadHandle ThreadManager::lazily_archived_thread_(ThreadHandle::INVALID);
@@ -238,6 +247,9 @@ void ThreadManager::ArchiveThread() {
   Thread::SetThreadLocal(thread_state_key, reinterpret_cast<void*>(state));
   lazily_archived_thread_.Initialize(ThreadHandle::SELF);
   lazily_archived_thread_state_ = state;
+  ASSERT(state->id() == kInvalidId);
+  state->set_id(CurrentId());
+  ASSERT(state->id() != kInvalidId);
 }
 
 
@@ -286,6 +298,18 @@ void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
     Top::MarkCompactEpilogue(is_compacting, data);
+  }
+}
+
+
+int ThreadManager::CurrentId() {
+  return bit_cast<int, void*>(Thread::GetThreadLocal(thread_id_key));
+}
+
+
+void ThreadManager::AssignId() {
+  if (Thread::GetThreadLocal(thread_id_key) == NULL) {
+    Thread::SetThreadLocal(thread_id_key, bit_cast<void*, int>(next_id_++));
   }
 }
 

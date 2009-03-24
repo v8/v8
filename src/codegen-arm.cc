@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,8 +30,11 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
-#include "scopes.h"
+#include "parser.h"
+#include "register-allocator-inl.h"
 #include "runtime.h"
+#include "scopes.h"
+
 
 namespace v8 { namespace internal {
 
@@ -376,6 +379,22 @@ MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(
 }
 
 
+void CodeGenerator::LoadConditionAndSpill(Expression* expression,
+                                          TypeofState typeof_state,
+                                          JumpTarget* true_target,
+                                          JumpTarget* false_target,
+                                          bool force_control) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  LoadCondition(expression, typeof_state, true_target, false_target,
+                force_control);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
+}
+
+
 // Loads a value on TOS. If it is a boolean value, the result may have been
 // (partially) translated into branches, or it may have set the condition
 // code register. If force_cc is set, the value is forced to set the
@@ -418,6 +437,16 @@ void CodeGenerator::LoadCondition(Expression* x,
   ASSERT(!has_valid_frame() ||
          (has_cc() && frame_->height() == original_height) ||
          (!has_cc() && frame_->height() == original_height + 1));
+}
+
+
+void CodeGenerator::LoadAndSpill(Expression* expression,
+                                 TypeofState typeof_state) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Load(expression, typeof_state);
+  frame_->SpillAll();
+  set_in_spilled_code(true);
 }
 
 
@@ -1110,6 +1139,28 @@ void CodeGenerator::CheckStack() {
     StackCheckStub stub;
     frame_->CallStub(&stub, 0);
   }
+}
+
+
+void CodeGenerator::VisitAndSpill(Statement* statement) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Visit(statement);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+    }
+  set_in_spilled_code(true);
+}
+
+
+void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  VisitStatements(statements);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
 }
 
 
@@ -1966,14 +2017,17 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   VisitAndSpill(node->body());
 
-  // Next.
+  // Next.  Reestablish a spilled frame in case we are coming here via
+  // a continue in the body.
   node->continue_target()->Bind();
+  frame_->SpillAll();
   frame_->EmitPop(r0);
   __ add(r0, r0, Operand(Smi::FromInt(1)));
   frame_->EmitPush(r0);
   entry.Jump();
 
-  // Cleanup.
+  // Cleanup.  No need to spill because VirtualFrame::Drop is safe for
+  // any frame.
   node->break_target()->Bind();
   frame_->Drop(5);
 
@@ -2612,7 +2666,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 
 
 // This deferred code stub will be used for creating the boilerplate
-// by calling Runtime_CreateObjectLiteral.
+// by calling Runtime_CreateObjectLiteralBoilerplate.
 // Each created boilerplate is stored in the JSFunction and they are
 // therefore context dependent.
 class DeferredObjectLiteral: public DeferredCode {
@@ -2634,7 +2688,7 @@ void DeferredObjectLiteral::Generate() {
   enter()->Bind();
   VirtualFrame::SpilledScope spilled_scope(generator());
 
-  // If the entry is undefined we call the runtime system to computed
+  // If the entry is undefined we call the runtime system to compute
   // the literal.
 
   VirtualFrame* frame = generator()->frame();
@@ -2686,7 +2740,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   frame_->EmitPush(r2);
 
   // Clone the boilerplate object.
-  frame_->CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
+  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
+  if (node->depth() == 1) {
+    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  }
+  frame_->CallRuntime(clone_function_id, 1);
   frame_->EmitPush(r0);  // save the result
   // r0: cloned object literal
 
@@ -2695,7 +2753,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
     Literal* key = property->key();
     Expression* value = property->value();
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT: break;
+      case ObjectLiteral::Property::CONSTANT:
+        break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
+        // else fall through
       case ObjectLiteral::Property::COMPUTED:  // fall through
       case ObjectLiteral::Property::PROTOTYPE: {
         frame_->EmitPush(r0);  // dup the result
@@ -2732,6 +2794,49 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
+// This deferred code stub will be used for creating the boilerplate
+// by calling Runtime_CreateArrayLiteralBoilerplate.
+// Each created boilerplate is stored in the JSFunction and they are
+// therefore context dependent.
+class DeferredArrayLiteral: public DeferredCode {
+ public:
+  DeferredArrayLiteral(CodeGenerator* generator, ArrayLiteral* node)
+      : DeferredCode(generator), node_(node) {
+    set_comment("[ DeferredArrayLiteral");
+  }
+
+  virtual void Generate();
+
+ private:
+  ArrayLiteral* node_;
+};
+
+
+void DeferredArrayLiteral::Generate() {
+  // Argument is passed in r1.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+
+  // If the entry is undefined we call the runtime system to computed
+  // the literal.
+
+  VirtualFrame* frame = generator()->frame();
+  // Literal array (0).
+  frame->EmitPush(r1);
+  // Literal index (1).
+  __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
+  frame->EmitPush(r0);
+  // Constant properties (2).
+  __ mov(r0, Operand(node_->literals()));
+  frame->EmitPush(r0);
+  Result boilerplate =
+      frame->CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+  __ mov(r2, Operand(boilerplate.reg()));
+  // Result is returned in r2.
+  exit_.Jump();
+}
+
+
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -2739,43 +2844,67 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  // Call runtime to create the array literal.
-  __ mov(r0, Operand(node->literals()));
-  frame_->EmitPush(r0);
-  // Load the function of this frame.
-  __ ldr(r0, frame_->Function());
-  __ ldr(r0, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
-  frame_->EmitPush(r0);
-  frame_->CallRuntime(Runtime::kCreateArrayLiteral, 2);
+  DeferredArrayLiteral* deferred = new DeferredArrayLiteral(this, node);
 
-  // Push the resulting array literal on the stack.
-  frame_->EmitPush(r0);
+  // Retrieve the literal array and check the allocated entry.
+
+  // Load the function of this activation.
+  __ ldr(r1, frame_->Function());
+
+  // Load the literals array of the function.
+  __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ ldr(r2, FieldMemOperand(r1, literal_offset));
+
+  // Check whether we need to materialize the object literal boilerplate.
+  // If so, jump to the deferred code.
+  __ cmp(r2, Operand(Factory::undefined_value()));
+  deferred->enter()->Branch(eq);
+  deferred->BindExit();
+
+  // Push the object literal boilerplate.
+  frame_->EmitPush(r2);
+
+  // Clone the boilerplate object.
+  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
+  if (node->depth() == 1) {
+    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  }
+  frame_->CallRuntime(clone_function_id, 1);
+  frame_->EmitPush(r0);  // save the result
+  // r0: cloned object literal
 
   // Generate code to set the elements in the array that are not
   // literals.
   for (int i = 0; i < node->values()->length(); i++) {
     Expression* value = node->values()->at(i);
 
-    // If value is literal the property value is already
-    // set in the boilerplate object.
-    if (value->AsLiteral() == NULL) {
-      // The property must be set by generated code.
-      LoadAndSpill(value);
-      frame_->EmitPop(r0);
+    // If value is a literal the property value is already set in the
+    // boilerplate object.
+    if (value->AsLiteral() != NULL) continue;
+    // If value is a materialized literal the property value is already set
+    // in the boilerplate object if it is simple.
+    if (CompileTimeValue::IsCompileTimeValue(value)) continue;
 
-      // Fetch the object literal
-      __ ldr(r1, frame_->Top());
-        // Get the elements array.
-      __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
+    // The property must be set by generated code.
+    LoadAndSpill(value);
+    frame_->EmitPop(r0);
 
-      // Write to the indexed properties array.
-      int offset = i * kPointerSize + Array::kHeaderSize;
-      __ str(r0, FieldMemOperand(r1, offset));
+    // Fetch the object literal.
+    __ ldr(r1, frame_->Top());
+    // Get the elements array.
+    __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
 
-      // Update the write barrier for the array address.
-      __ mov(r3, Operand(offset));
-      __ RecordWrite(r1, r3, r2);
-    }
+    // Write to the indexed properties array.
+    int offset = i * kPointerSize + Array::kHeaderSize;
+    __ str(r0, FieldMemOperand(r1, offset));
+
+    // Update the write barrier for the array address.
+    __ mov(r3, Operand(offset));
+    __ RecordWrite(r1, r3, r2);
   }
   ASSERT(frame_->height() == original_height + 1);
 }
@@ -3971,6 +4100,15 @@ Handle<String> Reference::GetName() {
     ASSERT(raw_name != NULL);
     return Handle<String>(String::cast(*raw_name->handle()));
   }
+}
+
+
+void Reference::GetValueAndSpill(TypeofState typeof_state) {
+  ASSERT(cgen_->in_spilled_code());
+  cgen_->set_in_spilled_code(false);
+  GetValue(typeof_state);
+  cgen_->frame()->SpillAll();
+  cgen_->set_in_spilled_code(true);
 }
 
 

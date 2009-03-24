@@ -228,7 +228,6 @@ function TimeInYear(year) {
 
 
 // Compute modified Julian day from year, month, date.
-// The missing days in 1582 are ignored for JavaScript compatibility.
 function ToJulianDay(year, month, date) {
   var jy = (month > 1) ? year : year - 1;
   var jm = (month > 1) ? month + 2 : month + 14;
@@ -568,10 +567,12 @@ function DatePrintString(time) {
 
 // -------------------------------------------------------------------
 
+// Reused output buffer.
+var parse_buffer = $Array(7);
 
 // ECMA 262 - 15.9.4.2
 function DateParse(string) {
-  var arr = %DateParseString(ToString(string));
+  var arr = %DateParseString(ToString(string), parse_buffer);
   if (IS_NULL(arr)) return $NaN;
 
   var day = MakeDay(arr[0], arr[1], arr[2]);

@@ -324,6 +324,10 @@ function DebugRequest(cmd_line) {
       this.request_ = this.clearCommandToJSONRequest_(args);
       break;
 
+    case 'threads':
+      this.request_ = this.threadsCommandToJSONRequest_(args);
+      break;
+
     case 'trace':
       // Return undefined to indicate command handled internally (no JSON).
       this.request_ = void 0;
@@ -686,6 +690,14 @@ DebugRequest.prototype.clearCommandToJSONRequest_ = function(args) {
 };
 
 
+// Create a JSON request for the threads command.
+DebugRequest.prototype.threadsCommandToJSONRequest_ = function(args) {
+  // Build a threads request from the text command.
+  var request = this.createRequest('threads');
+  return request.toJSONProtocol();
+};
+
+
 // Handle the trace command.
 DebugRequest.prototype.traceCommand_ = function(args) {
   // Process arguments.
@@ -915,6 +927,18 @@ function DebugResponseDetails(response) {
           }
           result += sourceStart;
           result += ']';
+        }
+        details.text = result;
+        break;
+
+      case 'threads':
+        var result = 'Active V8 threads: ' + body.totalThreads + '\n';
+        body.threads.sort(function(a, b) { return a.id - b.id; });
+        for (i = 0; i < body.threads.length; i++) {
+          result += body.threads[i].current ? '*' : ' ';
+          result += ' ';
+          result += body.threads[i].id;
+          result += '\n';
         }
         details.text = result;
         break;

@@ -31,8 +31,9 @@
 #include "codegen-inl.h"
 #include "debug.h"
 #include "prettyprinter.h"
-#include "scopeinfo.h"
+#include "register-allocator-inl.h"
 #include "runtime.h"
+#include "scopeinfo.h"
 #include "stub-cache.h"
 
 namespace v8 { namespace internal {
@@ -402,8 +403,7 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
      "_Log"}
   };
   Handle<String> name = node->name();
-  StringShape shape(*name);
-  if (name->length(shape) > 0 && name->Get(shape, 0) == '_') {
+  if (name->length() > 0 && name->Get(0) == '_') {
     for (unsigned i = 0;
          i < sizeof(kInlineRuntimeLUT) / sizeof(InlineRuntimeLUT);
          i++) {

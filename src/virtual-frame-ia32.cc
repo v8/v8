@@ -27,9 +27,9 @@
 
 #include "v8.h"
 
-#include "codegen.h"
 #include "codegen-inl.h"
-#include "virtual-frame.h"
+#include "register-allocator-inl.h"
+#include "scopes.h"
 
 namespace v8 { namespace internal {
 
@@ -171,17 +171,20 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   MergeMoveRegistersToRegisters(expected);
   MergeMoveMemoryToRegisters(expected);
 
-  // Fix any sync bit problems from the bottom-up, stopping when we
-  // hit the stack pointer or the top of the frame if the stack
-  // pointer is floating above the frame.
-  int limit = Min(stack_pointer_, elements_.length() - 1);
-  for (int i = 0; i <= limit; i++) {
+  // Fix any sync flag problems from the bottom-up and make the copied
+  // flags exact.  This assumes that the backing store of copies is
+  // always lower in the frame.
+  for (int i = 0; i < elements_.length(); i++) {
     FrameElement source = elements_[i];
     FrameElement target = expected->elements_[i];
     if (source.is_synced() && !target.is_synced()) {
       elements_[i].clear_sync();
     } else if (!source.is_synced() && target.is_synced()) {
       SyncElementAt(i);
+    }
+    elements_[i].clear_copied();
+    if (elements_[i].is_copy()) {
+      elements_[elements_[i].index()].set_copied();
     }
   }
 
@@ -495,62 +498,60 @@ void VirtualFrame::PushReceiverSlotAddress() {
 }
 
 
-// Before changing an element which is copied, adjust so that the
-// first copy becomes the new backing store and all the other copies
-// are updated.  If the original was in memory, the new backing store
-// is allocated to a register.  Return a copy of the new backing store
-// or an invalid element if the original was not a copy.
-FrameElement VirtualFrame::AdjustCopies(int index) {
+int VirtualFrame::InvalidateFrameSlotAt(int index) {
   FrameElement original = elements_[index];
-  ASSERT(original.is_memory() || original.is_register());
 
-  // Go looking for a first copy above index.
-  int i = index + 1;
-  while (i < elements_.length()) {
-    FrameElement elt = elements_[i];
-    if (elt.is_copy() && elt.index() == index) break;
-    i++;
-  }
-
-  if (i < elements_.length()) {
-    // There was a first copy.  Make it the new backing element.
-    Register backing_reg;
-    if (original.is_memory()) {
-      Result fresh = cgen_->allocator()->Allocate();
-      ASSERT(fresh.is_valid());
-      backing_reg = fresh.reg();
-      __ mov(backing_reg, Operand(ebp, fp_relative(index)));
-    } else {
-      // The original was in a register.
-      backing_reg = original.reg();
-    }
-    FrameElement new_backing_element =
-        FrameElement::RegisterElement(backing_reg, FrameElement::NOT_SYNCED);
-    if (elements_[i].is_synced()) {
-      new_backing_element.set_sync();
-    }
-    Use(backing_reg);
-    elements_[i] = new_backing_element;
-
-    // Update the other copies.
-    FrameElement copy = CopyElementAt(i);
-    for (int j = i; j < elements_.length(); j++) {
-      FrameElement elt = elements_[j];
-      if (elt.is_copy() && elt.index() == index) {
-        if (elt.is_synced()) {
-          copy.set_sync();
-        } else {
-          copy.clear_sync();
-        }
-        elements_[j] = copy;
+  // Is this element the backing store of any copies?
+  int new_backing_index = kIllegalIndex;
+  if (original.is_copied()) {
+    // Verify it is copied, and find first copy.
+    for (int i = index + 1; i < elements_.length(); i++) {
+      if (elements_[i].is_copy() && elements_[i].index() == index) {
+        new_backing_index = i;
+        break;
       }
     }
-
-    copy.clear_sync();
-    return copy;
   }
 
-  return FrameElement::InvalidElement();
+  if (new_backing_index == kIllegalIndex) {
+    // No copies found, return kIllegalIndex.
+    if (original.is_register()) {
+      Unuse(original.reg());
+    }
+    elements_[index] = FrameElement::InvalidElement();
+    return kIllegalIndex;
+  }
+
+  // This is the backing store of copies.
+  Register backing_reg;
+  if (original.is_memory()) {
+    Result fresh = cgen_->allocator()->Allocate();
+    ASSERT(fresh.is_valid());
+    Use(fresh.reg());
+    backing_reg = fresh.reg();
+    __ mov(backing_reg, Operand(ebp, fp_relative(index)));
+  } else {
+    // The original was in a register.
+    backing_reg = original.reg();
+  }
+  // Invalidate the element at index.
+  elements_[index] = FrameElement::InvalidElement();
+  // Set the new backing element.
+  if (elements_[new_backing_index].is_synced()) {
+    elements_[new_backing_index] =
+        FrameElement::RegisterElement(backing_reg, FrameElement::SYNCED);
+  } else {
+    elements_[new_backing_index] =
+        FrameElement::RegisterElement(backing_reg, FrameElement::NOT_SYNCED);
+  }
+  // Update the other copies.
+  for (int i = new_backing_index + 1; i < elements_.length(); i++) {
+    if (elements_[i].is_copy() && elements_[i].index() == index) {
+      elements_[i].set_index(new_backing_index);
+      elements_[new_backing_index].set_copied();
+    }
+  }
+  return new_backing_index;
 }
 
 
@@ -558,69 +559,38 @@ void VirtualFrame::TakeFrameSlotAt(int index) {
   ASSERT(index >= 0);
   ASSERT(index <= elements_.length());
   FrameElement original = elements_[index];
+  int new_backing_store_index = InvalidateFrameSlotAt(index);
+  if (new_backing_store_index != kIllegalIndex) {
+    elements_.Add(CopyElementAt(new_backing_store_index));
+    return;
+  }
 
   switch (original.type()) {
-    case FrameElement::INVALID:
-      UNREACHABLE();
-      break;
-
     case FrameElement::MEMORY: {
-      // Allocate the element to a register.  If it is not copied,
-      // push that register on top of the frame.  If it is copied,
-      // make the first copy the backing store and push a fresh copy
-      // on top of the frame.
-      FrameElement copy = AdjustCopies(index);
-      if (copy.is_valid()) {
-        // The original element was a copy.  Push the copy of the new
-        // backing store.
-        elements_.Add(copy);
-      } else {
-        // The element was not a copy.  Move it to a register and push
-        // that.
-        Result fresh = cgen_->allocator()->Allocate();
-        ASSERT(fresh.is_valid());
-        FrameElement new_element =
-            FrameElement::RegisterElement(fresh.reg(),
-                                          FrameElement::NOT_SYNCED);
-        Use(fresh.reg());
-        elements_.Add(new_element);
-        __ mov(fresh.reg(), Operand(ebp, fp_relative(index)));
-      }
+      // Emit code to load the original element's data into a register.
+      // Push that register as a FrameElement on top of the frame.
+      Result fresh = cgen_->allocator()->Allocate();
+      ASSERT(fresh.is_valid());
+      FrameElement new_element =
+          FrameElement::RegisterElement(fresh.reg(),
+                                        FrameElement::NOT_SYNCED);
+      Use(fresh.reg());
+      elements_.Add(new_element);
+      __ mov(fresh.reg(), Operand(ebp, fp_relative(index)));
       break;
     }
-
-    case FrameElement::REGISTER: {
-      // If the element is not copied, push it on top of the frame.
-      // If it is copied, make the first copy be the new backing store
-      // and push a fresh copy on top of the frame.
-      FrameElement copy = AdjustCopies(index);
-      if (copy.is_valid()) {
-        // The original element was a copy.  Push the copy of the new
-        // backing store.
-        elements_.Add(copy);
-        // This is the only case where we have to unuse the original
-        // register.  The original is still counted and so is the new
-        // backing store of the copies.
-        Unuse(original.reg());
-      } else {
-        // The element was not a copy.  Push it.
-        original.clear_sync();
-        elements_.Add(original);
-      }
-      break;
-    }
-
+    case FrameElement::REGISTER:
+      Use(original.reg());
+      // Fall through.
     case FrameElement::CONSTANT:
-      original.clear_sync();
-      elements_.Add(original);
-      break;
-
     case FrameElement::COPY:
       original.clear_sync();
       elements_.Add(original);
       break;
+    case FrameElement::INVALID:
+      UNREACHABLE();
+      break;
   }
-  elements_[index] = FrameElement::InvalidElement();
 }
 
 
@@ -631,21 +601,13 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
   ASSERT(index >= 0);
   ASSERT(index < elements_.length());
 
-  FrameElement original = elements_[index];
-  // If the stored-to slot may be copied, adjust to preserve the
-  // copy-on-write semantics of copied elements.
-  if (original.is_register() || original.is_memory()) {
-    FrameElement ignored = AdjustCopies(index);
-  }
-
-  // If the stored-to slot is a register reference, deallocate it.
-  if (original.is_register()) {
-    Unuse(original.reg());
-  }
-
   int top_index = elements_.length() - 1;
   FrameElement top = elements_[top_index];
+  FrameElement original = elements_[index];
+  if (top.is_copy() && top.index() == index) return;
   ASSERT(top.is_valid());
+
+  InvalidateFrameSlotAt(index);
 
   if (top.is_copy()) {
     // There are two cases based on the relative positions of the
@@ -698,16 +660,11 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
       // All the copies of the old backing element (including the top
       // element) become copies of the new backing element.
       for (int i = backing_index + 1; i < elements_.length(); i++) {
-        FrameElement current = elements_[i];
-        if (current.is_copy() && current.index() == backing_index) {
-          elements_[i] = new_element;
-          if (current.is_synced()) {
-            elements_[i].set_sync();
-          }
+        if (elements_[i].is_copy() && elements_[i].index() == backing_index) {
+          elements_[i].set_index(index);
         }
       }
     }
-
     return;
   }
 

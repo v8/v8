@@ -27,8 +27,8 @@
 
 #include "v8.h"
 
-#include "codegen.h"
-#include "jump-target.h"
+#include "codegen-inl.h"
+#include "register-allocator-inl.h"
 
 namespace v8 { namespace internal {
 
@@ -78,7 +78,6 @@ void JumpTarget::Unuse() {
     delete reaching_frames_[i];
   }
   delete entry_frame_;
-
   Reset();
 }
 
@@ -144,19 +143,12 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
 
 
 void JumpTarget::ComputeEntryFrame(int mergable_elements) {
-  // Given: a collection of frames reaching by forward CFG edges
-  // (including the code generator's current frame) and the
-  // directionality of the block.  Compute: an entry frame for the
+  // Given: a collection of frames reaching by forward CFG edges and
+  // the directionality of the block.  Compute: an entry frame for the
   // block.
 
-  // Choose an initial frame, either the code generator's current
-  // frame if there is one, or the first reaching frame if not.
-  VirtualFrame* initial_frame = cgen_->frame();
-  int start_index = 0;  // Begin iteration with the 1st reaching frame.
-  if (initial_frame == NULL) {
-    initial_frame = reaching_frames_[0];
-    start_index = 1;  // Begin iteration with the 2nd reaching frame.
-  }
+  // Choose an initial frame.
+  VirtualFrame* initial_frame = reaching_frames_[0];
 
   // A list of pointers to frame elements in the entry frame.  NULL
   // indicates that the element has not yet been determined.
@@ -186,9 +178,9 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   }
 
   // Compute elements based on the other reaching frames.
-  if (start_index < reaching_frames_.length()) {
+  if (reaching_frames_.length() > 1) {
     for (int i = 0; i < length; i++) {
-      for (int j = start_index; j < reaching_frames_.length(); j++) {
+      for (int j = 1; j < reaching_frames_.length(); j++) {
         FrameElement* element = elements[i];
 
         // Element computation is monotonic: new information will not
@@ -227,12 +219,11 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
       // If the value is synced on all frames, put it in memory.  This
       // costs nothing at the merge code but will incur a
       // memory-to-register move when the value is needed later.
-      bool is_synced = initial_frame->elements_[i].is_synced();
-      int j = start_index;
-      while (is_synced && j < reaching_frames_.length()) {
+      bool is_synced = true;
+      for (int j = 0; is_synced && j < reaching_frames_.length(); j++) {
         is_synced = reaching_frames_[j]->elements_[i].is_synced();
-        j++;
       }
+
       // There is nothing to be done if the elements are all synced.
       // It is already recorded as a memory element.
       if (is_synced) continue;
@@ -243,17 +234,8 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
       int max_count = kMinInt;
       int best_reg_code = no_reg.code_;
 
-      // Consider the initial frame.
-      FrameElement element = initial_frame->elements_[i];
-      if (element.is_register() &&
-          !frame_registers.is_used(element.reg())) {
-        candidate_registers.Use(element.reg());
-        max_count = 1;
-        best_reg_code = element.reg().code();
-      }
-      // Consider the other frames.
-      for (int j = start_index; j < reaching_frames_.length(); j++) {
-        element = reaching_frames_[j]->elements_[i];
+      for (int j = 0; j < reaching_frames_.length(); j++) {
+        FrameElement element = reaching_frames_[j]->elements_[i];
         if (element.is_register() &&
             !frame_registers.is_used(element.reg())) {
           candidate_registers.Use(element.reg());
@@ -285,6 +267,16 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
     } else {
       // The element is already determined.
       entry_frame_->elements_[i] = *elements[i];
+    }
+  }
+
+  // Set the copied flags in the frame to be exact.  This assumes that
+  // the backing store of copies is always lower in the frame.
+  for (int i = 0; i < length; i++) {
+    entry_frame_->elements_[i].clear_copied();
+    if (entry_frame_->elements_[i].is_copy()) {
+      int index = entry_frame_->elements_[i].index();
+      entry_frame_->elements_[index].set_copied();
     }
   }
 
@@ -590,16 +582,18 @@ void BreakTarget::Bind(int mergable_elements) {
 #ifdef DEBUG
   ASSERT(mergable_elements == kAllElements);
   ASSERT(cgen_ != NULL);
+  // All the forward-reaching frames should have been adjusted at the
+  // jumps to this target.
   for (int i = 0; i < reaching_frames_.length(); i++) {
-    ASSERT(reaching_frames_[i]->height() == expected_height_);
+    ASSERT(reaching_frames_[i] == NULL ||
+           reaching_frames_[i]->height() == expected_height_);
   }
 #endif
-
-  // This is a break target so drop leftover statement state from the
-  // frame before merging.
+  // This is a break target so we drop leftover statement state from
+  // the frame before merging, even on the fall through.  This is
+  // because we can bind the return target with state on the frame.
   if (cgen_->has_valid_frame()) {
-    int count = cgen_->frame()->height() - expected_height_;
-    cgen_->frame()->ForgetElements(count);
+    cgen_->frame()->ForgetElements(cgen_->frame()->height() - expected_height_);
   }
   JumpTarget::Bind(mergable_elements);
 }

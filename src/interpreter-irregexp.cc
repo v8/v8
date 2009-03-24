@@ -569,13 +569,12 @@ bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
                                 Handle<String> subject,
                                 int* registers,
                                 int start_position) {
-  ASSERT(subject->IsFlat(StringShape(*subject)));
+  ASSERT(subject->IsFlat());
 
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
-  StringShape subject_shape(*subject);
   uc16 previous_char = '\n';
-  if (subject_shape.IsAsciiRepresentation()) {
+  if (StringShape(*subject).IsAsciiRepresentation()) {
     Vector<const char> subject_vector = subject->ToAsciiVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(code_base,

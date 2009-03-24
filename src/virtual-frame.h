@@ -29,7 +29,6 @@
 #define V8_VIRTUAL_FRAME_H_
 
 #include "macro-assembler.h"
-#include "register-allocator.h"
 
 namespace v8 { namespace internal {
 
@@ -54,8 +53,7 @@ class FrameElement BASE_EMBEDDED {
 
   // The default constructor creates an invalid frame element.
   FrameElement() {
-    type_ = TypeField::encode(INVALID) | SyncField::encode(NOT_SYNCED);
-    data_.reg_ = no_reg;
+    Initialize(INVALID, no_reg, NOT_SYNCED);
   }
 
   // Factory function to construct an invalid frame element.
@@ -66,18 +64,13 @@ class FrameElement BASE_EMBEDDED {
 
   // Factory function to construct an in-memory frame element.
   static FrameElement MemoryElement() {
-    FrameElement result;
-    result.type_ = TypeField::encode(MEMORY) | SyncField::encode(SYNCED);
-    // In-memory elements have no useful data.
-    result.data_.reg_ = no_reg;
+    FrameElement result(MEMORY, no_reg, SYNCED);
     return result;
   }
 
   // Factory function to construct an in-register frame element.
   static FrameElement RegisterElement(Register reg, SyncFlag is_synced) {
-    FrameElement result;
-    result.type_ = TypeField::encode(REGISTER) | SyncField::encode(is_synced);
-    result.data_.reg_ = reg;
+    FrameElement result(REGISTER, reg, is_synced);
     return result;
   }
 
@@ -85,9 +78,7 @@ class FrameElement BASE_EMBEDDED {
   // compile time.
   static FrameElement ConstantElement(Handle<Object> value,
                                       SyncFlag is_synced) {
-    FrameElement result;
-    result.type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
-    result.data_.handle_ = value.location();
+    FrameElement result(value, is_synced);
     return result;
   }
 
@@ -108,6 +99,16 @@ class FrameElement BASE_EMBEDDED {
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
   bool is_copy() const { return type() == COPY; }
+
+  bool is_copied() const { return IsCopiedField::decode(type_); }
+
+  void set_copied() {
+    type_ = (type_ & ~IsCopiedField::mask()) | IsCopiedField::encode(true);
+  }
+
+  void clear_copied() {
+    type_ = (type_ & ~IsCopiedField::mask()) | IsCopiedField::encode(false);
+  }
 
   Register reg() const {
     ASSERT(is_register());
@@ -137,7 +138,8 @@ class FrameElement BASE_EMBEDDED {
 
   // BitField is <type, shift, size>.
   class SyncField : public BitField<SyncFlag, 0, 1> {};
-  class TypeField : public BitField<Type, 1, 32 - 1> {};
+  class IsCopiedField : public BitField<bool, 1, 1> {};
+  class TypeField : public BitField<Type, 2, 32 - 2> {};
 
   Type type() const { return TypeField::decode(type_); }
 
@@ -152,6 +154,22 @@ class FrameElement BASE_EMBEDDED {
     int index_;
   } data_;
 
+  // Used to construct memory and register elements.
+  FrameElement(Type type, Register reg, SyncFlag is_synced) {
+    Initialize(type, reg, is_synced);
+  }
+
+  // Used to construct constant elements.
+  inline FrameElement(Handle<Object> value, SyncFlag is_synced);
+
+  // Used to initialize invalid, memory, and register elements.
+  inline void Initialize(Type type, Register reg, SyncFlag is_synced);
+
+  void set_index(int new_index) {
+    ASSERT(is_copy());
+    data_.index_ = new_index;
+  }
+
   friend class VirtualFrame;
 };
 
@@ -163,5 +181,26 @@ class FrameElement BASE_EMBEDDED {
 #else  // ia32
 #include "virtual-frame-ia32.h"
 #endif
+
+
+namespace v8 { namespace internal {
+
+FrameElement::FrameElement(Handle<Object> value, SyncFlag is_synced) {
+  type_ = TypeField::encode(CONSTANT)
+          | IsCopiedField::encode(false)
+          | SyncField::encode(is_synced);
+  data_.handle_ = value.location();
+}
+
+
+void FrameElement::Initialize(Type type, Register reg, SyncFlag is_synced) {
+  type_ = TypeField::encode(type)
+          | IsCopiedField::encode(false)
+          | SyncField::encode(is_synced);
+  data_.reg_ = reg;
+}
+
+
+} }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_H_

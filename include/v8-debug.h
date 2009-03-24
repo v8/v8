@@ -162,9 +162,10 @@ class EXPORT Debug {
  /**
   * Enable the V8 builtin debug agent. The debugger agent will listen on the
   * supplied TCP/IP port for remote debugger connection.
+  * \param name the name of the embedding application
   * \param port the TCP/IP port to listen on
   */
-  static bool EnableAgent(int port);
+  static bool EnableAgent(const char* name, int port);
 };
 
 

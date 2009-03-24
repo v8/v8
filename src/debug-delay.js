@@ -752,6 +752,10 @@ ExecutionState.prototype.frameCount = function() {
   return %GetFrameCount(this.break_id);
 };
 
+ExecutionState.prototype.threadCount = function() {
+  return %GetThreadCount(this.break_id);
+};
+
 ExecutionState.prototype.frame = function(opt_index) {
   // If no index supplied return the selected frame.
   if (opt_index == null) opt_index = this.selected_frame;
@@ -1167,6 +1171,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.sourceRequest_(request, response);
       } else if (request.command == 'scripts') {
         this.scriptsRequest_(request, response);
+      } else if (request.command == 'threads') {
+        this.threadsRequest_(request, response);
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
       }
@@ -1669,6 +1675,28 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
       script.type = scripts[i].type;
       response.body.push(script);
     }
+  }
+};
+
+
+DebugCommandProcessor.prototype.threadsRequest_ = function(request, response) {
+  // Get the number of threads.
+  var total_threads = this.exec_state_.threadCount();
+
+  // Get information for all threads.
+  var threads = [];
+  for (var i = 0; i < total_threads; i++) {
+    var details = %GetThreadDetails(this.exec_state_.break_id, i);
+    var thread_info = { current: details[0],
+                        id: details[1]
+                      }
+    threads.push(thread_info);
+  }
+
+  // Create the response body.
+  response.body = {
+    totalThreads: total_threads,
+    threads: threads
   }
 };
 

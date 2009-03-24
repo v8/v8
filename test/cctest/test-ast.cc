@@ -53,6 +53,7 @@ TEST(List) {
 
   list->Clear();
   CHECK_EQ(0, list->length());
+  delete list;
 }
 
 

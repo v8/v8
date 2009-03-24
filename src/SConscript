@@ -66,9 +66,10 @@ SOURCES = {
     'stub-cache-ia32.cc', 'virtual-frame-ia32.cc'
   ],
   'simulator:arm': ['simulator-arm.cc'],
-  'os:freebsd': ['platform-freebsd.cc'],
-  'os:linux':   ['platform-linux.cc'],
-  'os:macos':   ['platform-macos.cc'],
+  'os:freebsd': ['platform-freebsd.cc', 'platform-posix.cc'],
+  'os:linux':   ['platform-linux.cc', 'platform-posix.cc'],
+  'os:android': ['platform-linux.cc', 'platform-posix.cc'],
+  'os:macos':   ['platform-macos.cc', 'platform-posix.cc'],
   'os:nullos':  ['platform-nullos.cc'],
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],

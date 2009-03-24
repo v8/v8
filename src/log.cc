@@ -142,28 +142,17 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
-  // If c_entry_fp is available, this means that we are inside a C++
-  // function and sample->fp value isn't reliable due to FPO.
-  if (Top::c_entry_fp(Top::GetCurrentThread()) != NULL) {
-    SafeStackTraceFrameIterator it(
-        reinterpret_cast<Address>(sample->sp),
-        reinterpret_cast<Address>(low_stack_bound_));
-    int i = 0;
-    while (!it.done() && i < TickSample::kMaxFramesCount) {
-      sample->stack[i++] = it.frame()->pc();
-      it.Advance();
-    }
-    sample->frames_count = i;
-  } else if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
-    // The check assumes that stack grows from lower addresses.
-    sample->stack[0] = Memory::Address_at(
-        (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
-    sample->frames_count = 1;
-  } else {
-    // FP seems to be in some intermediate state,
-    // better discard this sample
-    sample->frames_count = 0;
+  SafeStackTraceFrameIterator it(
+      reinterpret_cast<Address>(sample->fp),
+      reinterpret_cast<Address>(sample->sp),
+      reinterpret_cast<Address>(sample->sp),
+      reinterpret_cast<Address>(low_stack_bound_));
+  int i = 0;
+  while (!it.done() && i < TickSample::kMaxFramesCount) {
+    sample->stack[i++] = it.frame()->pc();
+    it.Advance();
   }
+  sample->frames_count = i;
 }
 
 
@@ -362,29 +351,27 @@ void LogMessageBuilder::Append(const char c) {
 // Append a heap string.
 void LogMessageBuilder::Append(String* str) {
   AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
-  StringShape shape(str);
-  int length = str->length(shape);
+  int length = str->length();
   for (int i = 0; i < length; i++) {
-    Append(static_cast<char>(str->Get(shape, i)));
+    Append(static_cast<char>(str->Get(i)));
   }
 }
 
 void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
-  StringShape shape(str);
-  int len = str->length(shape);
+  int len = str->length();
   if (len > 0x1000)
     len = 0x1000;
   if (show_impl_info) {
-    Append(shape.IsAsciiRepresentation() ? 'a' : '2');
-    if (shape.IsExternal())
+    Append(StringShape(str).IsAsciiRepresentation() ? 'a' : '2');
+    if (StringShape(str).IsExternal())
       Append('e');
-    if (shape.IsSymbol())
+    if (StringShape(str).IsSymbol())
       Append('#');
     Append(":%i:", str->length());
   }
   for (int i = 0; i < len; i++) {
-    uc32 c = str->Get(shape, i);
+    uc32 c = str->Get(i);
     if (c > 0xff) {
       Append("\\u%04x", c);
     } else if (c < 32 || c > 126) {
@@ -938,7 +925,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
     msg.Append(",overflow");
   }
   for (int i = 0; i < sample->frames_count; ++i) {
-    msg.Append(",%p", sample->stack[i]);
+    msg.Append(",0x%x", reinterpret_cast<uint32_t>(sample->stack[i]));
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1033,7 +1020,7 @@ bool Logger::Setup() {
   // as log is initialized early with V8, we can assume that JS execution
   // frames can never reach this point on stack
   int stack_var;
-  ticker_ = new Ticker(10, reinterpret_cast<unsigned int>(&stack_var));
+  ticker_ = new Ticker(1, reinterpret_cast<unsigned int>(&stack_var));
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();

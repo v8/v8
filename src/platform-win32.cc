@@ -745,28 +745,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-char* OS::StrDup(const char* str) {
-  return _strdup(str);
-}
-
-
-char* OS::StrNDup(const char* str, size_t n) {
-  // Stupid implementation of strndup since windows isn't born with
-  // one.
-  size_t len = strlen(str);
-  if (len <= n) {
-    return StrDup(str);
-  }
-  char* result = new char[n+1];
-  size_t i;
-  for (i = 0; i <= n; i++) {
-    result[i] = str[i];
-  }
-  result[i] = '\0';
-  return result;
-}
-
-
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
 // and verification).  The estimate is conservative, ie, not all addresses in
@@ -1538,6 +1516,12 @@ class Win32Semaphore : public Semaphore {
     WaitForSingleObject(sem, INFINITE);
   }
 
+  bool Wait(int timeout) {
+    // Timeout in Windows API is in milliseconds.
+    DWORD millis_timeout = timeout / 1000;
+    return WaitForSingleObject(sem, millis_timeout) != WAIT_TIMEOUT;
+  }
+
   void Signal() {
     LONG dummy;
     ReleaseSemaphore(sem, 1, &dummy);
@@ -1564,14 +1548,7 @@ class Win32Socket : public Socket {
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   }
   explicit Win32Socket(SOCKET socket): socket_(socket) { }
-
-
-  virtual ~Win32Socket() {
-    if (IsValid()) {
-      // Close socket.
-      closesocket(socket_);
-    }
-  }
+  virtual ~Win32Socket() { Shutdown(); }
 
   // Server initialization.
   bool Bind(const int port);
@@ -1581,9 +1558,14 @@ class Win32Socket : public Socket {
   // Client initialization.
   bool Connect(const char* host, const char* port);
 
+  // Shutdown socket for both read and write.
+  bool Shutdown();
+
   // Data Transimission
   int Send(const char* data, int len) const;
   int Receive(char* data, int len) const;
+
+  bool SetReuseAddress(bool reuse_address);
 
   bool IsValid() const { return socket_ != INVALID_SOCKET; }
 
@@ -1652,7 +1634,20 @@ bool Win32Socket::Connect(const char* host, const char* port) {
 
   // Connect.
   status = connect(socket_, result->ai_addr, result->ai_addrlen);
+  freeaddrinfo(result);
   return status == 0;
+}
+
+
+bool Win32Socket::Shutdown() {
+  if (IsValid()) {
+    // Shutdown socket for both read and write.
+    int status = shutdown(socket_, SD_BOTH);
+    closesocket(socket_);
+    socket_ = INVALID_SOCKET;
+    return status == SOCKET_ERROR;
+  }
+  return true;
 }
 
 
@@ -1665,6 +1660,14 @@ int Win32Socket::Send(const char* data, int len) const {
 int Win32Socket::Receive(char* data, int len) const {
   int status = recv(socket_, data, len, 0);
   return status;
+}
+
+
+bool Win32Socket::SetReuseAddress(bool reuse_address) {
+  BOOL on = reuse_address ? TRUE : FALSE;
+  int status = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR,
+                          reinterpret_cast<char*>(&on), sizeof(on));
+  return status == SOCKET_ERROR;
 }
 
 
@@ -1747,7 +1750,6 @@ class Sampler::PlatformData : public Malloced {
         SuspendThread(profiled_thread_);
         context.ContextFlags = CONTEXT_FULL;
         GetThreadContext(profiled_thread_, &context);
-        ResumeThread(profiled_thread_);
         // Invoke tick handler with program counter and stack pointer.
         sample.pc = context.Eip;
         sample.sp = context.Esp;
@@ -1757,6 +1759,10 @@ class Sampler::PlatformData : public Malloced {
       // We always sample the VM state.
       sample.state = Logger::state();
       sampler_->Tick(&sample);
+
+      if (sampler_->IsProfiling()) {
+        ResumeThread(profiled_thread_);
+      }
 
       // Wait until next sampling.
       Sleep(sampler_->interval_);

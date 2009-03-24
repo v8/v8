@@ -27,9 +27,9 @@
 
 #include "v8.h"
 
-#include "codegen.h"
 #include "codegen-inl.h"
-#include "virtual-frame.h"
+#include "register-allocator-inl.h"
+#include "scopes.h"
 
 namespace v8 { namespace internal {
 
@@ -290,14 +290,9 @@ void VirtualFrame::PushReceiverSlotAddress() {
 }
 
 
-// Before changing an element which is copied, adjust so that the
-// first copy becomes the new backing store and all the other copies
-// are updated.  If the original was in memory, the new backing store
-// is allocated to a register.  Return a copy of the new backing store
-// or an invalid element if the original was not a copy.
-FrameElement VirtualFrame::AdjustCopies(int index) {
+int VirtualFrame::InvalidateFrameSlotAt(int index) {
   UNIMPLEMENTED();
-  return FrameElement::InvalidElement();
+  return kIllegalIndex;
 }
 
 

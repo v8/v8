@@ -102,7 +102,7 @@ const ORIGINAL_DATE   = (global.Date, $Date);
 
 # Constants used on an array to implement the properties of the RegExp object.
 const REGEXP_NUMBER_OF_CAPTURES = 0;
-const REGEXP_FIRST_CAPTURE = 1;
+const REGEXP_FIRST_CAPTURE = 3;
 
 # We can't put macros in macros so we use constants here.
 # REGEXP_NUMBER_OF_CAPTURES
@@ -111,10 +111,10 @@ macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
 # Last input and last subject are after the captures so we can omit them on
 # results returned from global searches.  Beware - these evaluate their
 # arguments twice.
-macro LAST_SUBJECT(array) = ((array)[(array)[0] + 1]);
-macro LAST_INPUT(array) = ((array)[(array)[0] + 2]);
+macro LAST_SUBJECT(array) = ((array)[1]);
+macro LAST_INPUT(array) = ((array)[2]);
 
 # REGEXP_FIRST_CAPTURE
-macro CAPTURE(index) = (1 + (index));
-const CAPTURE0 = 1;
-const CAPTURE1 = 2;
+macro CAPTURE(index) = (3 + (index));
+const CAPTURE0 = 3;
+const CAPTURE1 = 4;

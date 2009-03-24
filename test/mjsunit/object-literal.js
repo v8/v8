@@ -58,6 +58,48 @@ for (var i = 0; i < 2; i++) {
   }
 }
 
-arr[0].a = 2;
-assertEquals(2, arr[0].a);
-assertEquals(7, arr[1].a);
+arr[0].b.x = 2;
+assertEquals(2, arr[0].b.x);
+assertEquals(12, arr[1].b.x);
+
+
+function makeSparseArray() {
+  return {
+    '0': { x: 12, y: 24 },
+    '1000000': { x: 0, y: 0 }
+  };
+}
+
+var sa1 = makeSparseArray();
+sa1[0].x = 0;
+var sa2 = makeSparseArray();
+assertEquals(12, sa2[0].x);
+
+// Test that non-constant literals work.
+var n = new Object();
+
+function makeNonConstantArray() { return [ [ n ] ]; }
+
+var a = makeNonConstantArray();
+a[0][0].foo = "bar";
+assertEquals("bar", n.foo);
+
+function makeNonConstantObject() { return { a: { b: n } }; }
+
+a = makeNonConstantObject();
+a.a.b.bar = "foo";
+assertEquals("foo", n.bar);
+
+// Test that exceptions for regexps still hold.
+function makeRegexpInArray() { return [ [ /a*/, {} ] ]; }
+
+a = makeRegexpInArray();
+var b = makeRegexpInArray();
+assertTrue(a[0][0] === b[0][0]);
+assertFalse(a[0][1] === b[0][1]);
+
+function makeRegexpInObject() { return { a: { b: /b*/, c: {} } }; }
+a = makeRegexpInObject();
+b = makeRegexpInObject();
+assertTrue(a.a.b === b.a.b);
+assertFalse(a.a.c === b.a.c);

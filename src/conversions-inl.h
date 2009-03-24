@@ -30,6 +30,7 @@
 
 #include <math.h>
 #include <float.h>         // required for DBL_MAX and on Win32 for finite()
+#include <stdarg.h>
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.

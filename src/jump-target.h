@@ -28,9 +28,13 @@
 #ifndef V8_JUMP_TARGET_H_
 #define V8_JUMP_TARGET_H_
 
-#include "virtual-frame.h"
-
 namespace v8 { namespace internal {
+
+// Forward declarations.
+class FrameElement;
+class Result;
+class VirtualFrame;
+
 
 // -------------------------------------------------------------------------
 // Jump targets
@@ -92,8 +96,6 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   void set_entry_frame(VirtualFrame* frame) {
     entry_frame_ = frame;
   }
-
-  void make_bidirectional() { direction_ = BIDIRECTIONAL; }
 
   // Predicates testing the state of the encapsulated label.
   bool is_bound() const { return is_bound_; }

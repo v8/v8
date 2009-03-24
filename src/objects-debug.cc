@@ -30,6 +30,7 @@
 #include "disassembler.h"
 #include "disasm.h"
 #include "macro-assembler.h"
+#include "jsregexp.h"
 
 namespace v8 { namespace internal {
 
@@ -490,20 +491,19 @@ void JSValue::JSValueVerify() {
 
 
 void String::StringPrint() {
-  StringShape shape(this);
-  if (shape.IsSymbol()) {
+  if (StringShape(this).IsSymbol()) {
     PrintF("#");
-  } else if (shape.IsCons()) {
+  } else if (StringShape(this).IsCons()) {
     PrintF("c\"");
   } else {
     PrintF("\"");
   }
 
   for (int i = 0; i < length(); i++) {
-    PrintF("%c", Get(shape, i));
+    PrintF("%c", Get(i));
   }
 
-  if (!shape.IsSymbol()) PrintF("\"");
+  if (!StringShape(this).IsSymbol()) PrintF("\"");
 }
 
 
@@ -696,11 +696,8 @@ void JSRegExp::JSRegExpVerify() {
       break;
     }
     case JSRegExp::IRREGEXP: {
-      bool is_native = FLAG_regexp_native;
-#ifdef ARM
-      // No native regexp on arm yet.
-      is_native = false;
-#endif
+      bool is_native = RegExpImpl::UseNativeRegexp();
+
       FixedArray* arr = FixedArray::cast(data());
       Object* ascii_data = arr->get(JSRegExp::kIrregexpASCIICodeIndex);
       ASSERT(ascii_data->IsTheHole()

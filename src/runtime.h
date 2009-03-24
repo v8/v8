@@ -146,6 +146,7 @@ namespace v8 { namespace internal {
   F(StringLastIndexOf, 3) \
   F(StringLocaleCompare, 2) \
   F(StringSlice, 3) \
+  F(StringReplaceRegExpWithString, 4) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2) \
@@ -184,7 +185,7 @@ namespace v8 { namespace internal {
   \
   /* Dates */ \
   F(DateCurrentTime, 0) \
-  F(DateParseString, 1) \
+  F(DateParseString, 2) \
   F(DateLocalTimezone, 1) \
   F(DateLocalTimeOffset, 0) \
   F(DateDaylightSavingsOffset, 1) \
@@ -233,6 +234,8 @@ namespace v8 { namespace internal {
   F(GetFrameCount, 1) \
   F(GetFrameDetails, 2) \
   F(GetCFrames, 1) \
+  F(GetThreadCount, 1) \
+  F(GetThreadDetails, 2) \
   F(GetBreakLocations, 1) \
   F(SetFunctionBreakPoint, 3) \
   F(SetScriptBreakPoint, 3) \
@@ -250,9 +253,10 @@ namespace v8 { namespace internal {
   \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4)\
-  F(CreateArrayLiteral, 2) \
+  F(CreateArrayLiteralBoilerplate, 3) \
   F(CreateObjectLiteralBoilerplate, 3) \
-  F(CloneObjectLiteralBoilerplate, 1) \
+  F(CloneLiteralBoilerplate, 1) \
+  F(CloneShallowLiteralBoilerplate, 1) \
   \
   /* Catch context extension objects */ \
   F(CreateCatchExtensionObject, 2) \
@@ -325,7 +329,6 @@ class Runtime : public AllStatic {
     kNofFunctions
 #undef F
   };
-  static Object* CreateArrayLiteral(Arguments args);
 
   // Runtime function descriptor.
   struct Function {

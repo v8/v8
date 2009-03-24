@@ -3244,7 +3244,6 @@ void MessageQueueDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
-  v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_continue, buffer_2));
   message_queue_barriers.barrier_2.Wait();
   // Main thread compiles and runs source_2.
   // Queued commands are executed at the start of compilation of source_2.
@@ -3286,7 +3285,6 @@ TEST(MessageQueues) {
   CompileRun(source_1);
   message_queue_barriers.barrier_1.Wait();
   message_queue_barriers.barrier_2.Wait();
-  v8::Debug::DebugBreak();
   CompileRun(source_2);
   message_queue_barriers.barrier_3.Wait();
   CompileRun(source_3);
@@ -3464,28 +3462,25 @@ void BreakpointsDebuggerThread::Run() {
       "\"type\":\"request\","
       "\"command\":\"setbreakpoint\","
       "\"arguments\":{\"type\":\"function\",\"target\":\"dog\",\"line\":3}}";
-  const char* command_3 = "{\"seq\":103,"
-      "\"type\":\"request\","
-      "\"command\":\"continue\"}";
-  const char* command_4 = "{\"seq\":104,"
+  const char* command_3 = "{\"seq\":104,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
       "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":false}}";
-  const char* command_5 = "{\"seq\":105,"
+  const char* command_4 = "{\"seq\":105,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
       "\"arguments\":{\"expression\":\"x\",\"disable_break\":true}}";
-  const char* command_6 = "{\"seq\":106,"
+  const char* command_5 = "{\"seq\":106,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
-  const char* command_7 = "{\"seq\":107,"
+  const char* command_6 = "{\"seq\":107,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
-  const char* command_8 = "{\"seq\":108,"
+  const char* command_7 = "{\"seq\":108,"
      "\"type\":\"request\","
      "\"command\":\"evaluate\","
      "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":true}}";
-  const char* command_9 = "{\"seq\":109,"
+  const char* command_8 = "{\"seq\":109,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
 
@@ -3493,12 +3488,9 @@ void BreakpointsDebuggerThread::Run() {
   // v8 thread initializes, runs source_1
   breakpoints_barriers->barrier_1.Wait();
   // 1:Set breakpoint in cat().
-  v8::Debug::DebugBreak();
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
   // 2:Set breakpoint in dog()
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
-  // 3:Continue
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_3, buffer));
   breakpoints_barriers->barrier_2.Wait();
   // v8 thread starts compiling source_2.
   // Automatic break happens, to run queued commands
@@ -3508,29 +3500,31 @@ void BreakpointsDebuggerThread::Run() {
   // message callback receives break event.
   breakpoints_barriers->semaphore_1->Wait();
   // 4:Evaluate dog() (which has a breakpoint).
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_4, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_3, buffer));
   // v8 thread hits breakpoint in dog()
   breakpoints_barriers->semaphore_1->Wait();  // wait for break event
   // 5:Evaluate x
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_5, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_4, buffer));
   // 6:Continue evaluation of dog()
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_6, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_5, buffer));
   // dog() finishes.
   // 7:Continue evaluation of source_2, finish cat(17), hit breakpoint
   // in cat(19).
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_7, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_6, buffer));
   // message callback gets break event
   breakpoints_barriers->semaphore_1->Wait();  // wait for break event
   // 8: Evaluate dog() with breaks disabled
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_7, buffer));
   // 9: Continue evaluation of source2, reach end.
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_9, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
 }
 
 BreakpointsDebuggerThread breakpoints_debugger_thread;
 BreakpointsV8Thread breakpoints_v8_thread;
 
 TEST(RecursiveBreakpoints) {
+  i::FLAG_debugger_auto_break = true;
+
   // Create a V8 environment
   Barriers stack_allocated_breakpoints_barriers;
   stack_allocated_breakpoints_barriers.Initialize();
@@ -3802,13 +3796,15 @@ static void HostDispatchHandlerHitCount(void* dispatch, void *data) {
 // Test that clearing the debug event listener actually clears all break points
 // and related information.
 TEST(DebuggerHostDispatch) {
+  i::FLAG_debugger_auto_break = true;
+
   v8::HandleScope scope;
   DebugLocalContext env;
 
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
   const char* command_continue =
-    "{\"seq\":106,"
+    "{\"seq\":0,"
      "\"type\":\"request\","
      "\"command\":\"continue\"}";
 
@@ -3818,11 +3814,169 @@ TEST(DebuggerHostDispatch) {
                                     NULL);
 
   // Fill a host dispatch and a continue command on the command queue before
-  // generating a debug break.
+  // running some code.
   v8::Debug::SendHostDispatch(NULL);
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
-  CompileRun("debugger");
+  CompileRun("void 0");
 
   // The host dispatch callback should be called.
   CHECK_EQ(1, host_dispatch_hit_count);
+}
+
+
+TEST(DebuggerAgent) {
+  // Make sure this port is not used by other tests to allow tests to run in
+  // parallel.
+  const int kPort = 5858;
+
+  // Make a string with the port number.
+  const int kPortBufferLen = 6;
+  char port_str[kPortBufferLen];
+  OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
+
+  bool ok;
+
+  // Initialize the socket library.
+  i::Socket::Setup();
+
+  // Test starting and stopping the agent without any client connection.
+  i::Debugger::StartAgent("test", kPort);
+  i::Debugger::StopAgent();
+
+  // Test starting the agent, connecting a client and shutting down the agent
+  // with the client connected.
+  ok = i::Debugger::StartAgent("test", kPort);
+  CHECK(ok);
+  i::Socket* client = i::OS::CreateSocket();
+  ok = client->Connect("localhost", port_str);
+  CHECK(ok);
+  i::Debugger::StopAgent();
+  delete client;
+
+  // Test starting and stopping the agent with the required port already
+  // occoupied.
+  i::Socket* server = i::OS::CreateSocket();
+  server->Bind(kPort);
+
+  i::Debugger::StartAgent("test", kPort);
+  i::Debugger::StopAgent();
+
+  delete server;
+}
+
+
+class DebuggerAgentProtocolServerThread : public i::Thread {
+ public:
+  explicit DebuggerAgentProtocolServerThread(int port)
+      : port_(port), server_(NULL), client_(NULL),
+        listening_(OS::CreateSemaphore(0)) {
+  }
+  ~DebuggerAgentProtocolServerThread() {
+    // Close both sockets.
+    delete client_;
+    delete server_;
+    delete listening_;
+  }
+
+  void Run();
+  void WaitForListening() { listening_->Wait(); }
+  char* body() { return *body_; }
+
+ private:
+  int port_;
+  i::SmartPointer<char> body_;
+  i::Socket* server_;  // Server socket used for bind/accept.
+  i::Socket* client_;  // Single client connection used by the test.
+  i::Semaphore* listening_;  // Signalled when the server is in listen mode.
+};
+
+
+void DebuggerAgentProtocolServerThread::Run() {
+  bool ok;
+
+  // Create the server socket and bind it to the requested port.
+  server_ = i::OS::CreateSocket();
+  CHECK(server_ != NULL);
+  ok = server_->Bind(port_);
+  CHECK(ok);
+
+  // Listen for new connections.
+  ok = server_->Listen(1);
+  CHECK(ok);
+  listening_->Signal();
+
+  // Accept a connection.
+  client_ = server_->Accept();
+  CHECK(client_ != NULL);
+
+  // Receive a debugger agent protocol message.
+  i::DebuggerAgentUtil::ReceiveMessage(client_);
+}
+
+
+TEST(DebuggerAgentProtocolOverflowHeader) {
+  // Make sure this port is not used by other tests to allow tests to run in
+  // parallel.
+  const int kPort = 5860;
+  static const char* kLocalhost = "localhost";
+
+  // Make a string with the port number.
+  const int kPortBufferLen = 6;
+  char port_str[kPortBufferLen];
+  OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
+
+  // Initialize the socket library.
+  i::Socket::Setup();
+
+  // Create a socket server to receive a debugger agent message.
+  DebuggerAgentProtocolServerThread* server =
+      new DebuggerAgentProtocolServerThread(kPort);
+  server->Start();
+  server->WaitForListening();
+
+  // Connect.
+  i::Socket* client = i::OS::CreateSocket();
+  CHECK(client != NULL);
+  bool ok = client->Connect(kLocalhost, port_str);
+  CHECK(ok);
+
+  // Send headers which overflow the receive buffer.
+  static const int kBufferSize = 1000;
+  char buffer[kBufferSize];
+
+  // Long key and short value: XXXX....XXXX:0\r\n.
+  for (int i = 0; i < kBufferSize - 4; i++) {
+    buffer[i] = 'X';
+  }
+  buffer[kBufferSize - 4] = ':';
+  buffer[kBufferSize - 3] = '0';
+  buffer[kBufferSize - 2] = '\r';
+  buffer[kBufferSize - 1] = '\n';
+  client->Send(buffer, kBufferSize);
+
+  // Short key and long value: X:XXXX....XXXX\r\n.
+  buffer[0] = 'X';
+  buffer[1] = ':';
+  for (int i = 2; i < kBufferSize - 2; i++) {
+    buffer[i] = 'X';
+  }
+  buffer[kBufferSize - 2] = '\r';
+  buffer[kBufferSize - 1] = '\n';
+  client->Send(buffer, kBufferSize);
+
+  // Add empty body to request.
+  const char* content_length_zero_header = "Content-Length:0\r\n";
+  client->Send(content_length_zero_header, strlen(content_length_zero_header));
+  client->Send("\r\n", 2);
+
+  // Wait until data is received.
+  server->Join();
+
+  // Check for empty body.
+  CHECK(server->body() == NULL);
+
+  // Close the client before the server to avoid TIME_WAIT issues.
+  client->Shutdown();
+  delete client;
+  delete server;
 }

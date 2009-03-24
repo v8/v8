@@ -110,10 +110,10 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
-  StatsRate* rate = is_eval
+  HistogramTimer* rate = is_eval
       ? &Counters::compile_eval
       : &Counters::compile;
-  StatsRateScope timer(rate);
+  HistogramTimerScope timer(rate);
 
   // Compile the code.
   Handle<Code> code = MakeCode(lit, script, context, is_eval);
@@ -300,7 +300,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Measure how long it takes to do the lazy compilation; only take
   // the rest of the function into account to avoid overlap with the
   // lazy parsing statistics.
-  StatsRateScope timer(&Counters::compile_lazy);
+  HistogramTimerScope timer(&Counters::compile_lazy);
 
   // Compile the code.
   Handle<Code> code = MakeCode(lit, script, Handle<Context>::null(), false);

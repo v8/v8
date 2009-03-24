@@ -74,7 +74,6 @@ function GlobalIsFinite(number) {
 // ECMA-262 - 15.1.2.2
 function GlobalParseInt(string, radix) {
   if (radix === void 0) {
-    radix = 0;
     // Some people use parseInt instead of Math.floor.  This
     // optimization makes parseInt on a Smi 12 times faster (60ns
     // vs 800ns).  The following optimization makes parseInt on a
@@ -87,6 +86,7 @@ function GlobalParseInt(string, radix) {
       // Truncate number.
       return string | 0;
     }
+    radix = 0;
   } else {
     radix = TO_INT32(radix);
     if (!(radix == 0 || (2 <= radix && radix <= 36)))

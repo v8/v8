@@ -55,8 +55,7 @@ static inline int GetChar(const char* str, int index) {
 
 
 static inline int GetChar(String* str, int index) {
-  StringShape shape(str);
-  return str->Get(shape, index);
+  return str->Get(index);
 }
 
 
@@ -76,11 +75,10 @@ static inline const char* GetCString(const char* str, int index) {
 
 
 static inline const char* GetCString(String* str, int index) {
-  StringShape shape(str);
-  int length = str->length(shape);
+  int length = str->length();
   char* result = NewArray<char>(length + 1);
   for (int i = index; i < length; i++) {
-    uc16 c = str->Get(shape, i);
+    uc16 c = str->Get(i);
     if (c <= 127) {
       result[i - index] = static_cast<char>(c);
     } else {
@@ -108,8 +106,7 @@ static inline bool IsSpace(const char* str, int index) {
 
 
 static inline bool IsSpace(String* str, int index) {
-  StringShape shape(str);
-  return Scanner::kIsWhiteSpace.get(str->Get(shape, index));
+  return Scanner::kIsWhiteSpace.get(str->Get(index));
 }
 
 

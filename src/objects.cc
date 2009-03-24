@@ -213,15 +213,8 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
   if (structure->IsFixedArray()) {
     Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
     if (getter->IsJSFunction()) {
-      HandleScope scope;
-      Handle<JSFunction> fun(JSFunction::cast(getter));
-      Handle<Object> self(receiver);
-      bool has_pending_exception;
-      Handle<Object> result =
-          Execution::Call(fun, self, 0, NULL, &has_pending_exception);
-      // Check for pending exception and return the result.
-      if (has_pending_exception) return Failure::Exception();
-      return *result;
+      return Object::GetPropertyWithDefinedGetter(receiver,
+                                                  JSFunction::cast(getter));
     }
     // Getter is not a function.
     return Heap::undefined_value();
@@ -229,6 +222,20 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
 
   UNREACHABLE();
   return 0;
+}
+
+
+Object* Object::GetPropertyWithDefinedGetter(Object* receiver,
+                                             JSFunction* getter) {
+  HandleScope scope;
+  Handle<JSFunction> fun(JSFunction::cast(getter));
+  Handle<Object> self(receiver);
+  bool has_pending_exception;
+  Handle<Object> result =
+      Execution::Call(fun, self, 0, NULL, &has_pending_exception);
+  // Check for pending exception and return the result.
+  if (has_pending_exception) return Failure::Exception();
+  return *result;
 }
 
 
@@ -568,10 +575,9 @@ Failure* Failure::RetryAfterGC(int requested_bytes, AllocationSpace space) {
 // We don't use the BBC's overcorrect "an historic occasion" though if
 // you speak a dialect you may well say "an 'istoric occasion".
 static bool AnWord(String* str) {
-  StringShape shape(str);
-  if (str->length(shape) == 0) return false;  // A nothing.
-  int c0 = str->Get(shape, 0);
-  int c1 = str->length(shape) > 1 ? str->Get(shape, 1) : 0;
+  if (str->length() == 0) return false;  // A nothing.
+  int c0 = str->Get(0);
+  int c1 = str->length() > 1 ? str->Get(1) : 0;
   if (c0 == 'U') {
     if (c1 > 'Z') {
       return true;  // An Umpire, but a UTF8String, a U.
@@ -587,7 +593,7 @@ static bool AnWord(String* str) {
 }
 
 
-Object* String::TryFlatten(StringShape shape) {
+Object* String::TryFlatten() {
 #ifdef DEBUG
   // Do not attempt to flatten in debug mode when allocation is not
   // allowed.  This is to avoid an assertion failure when allocating.
@@ -596,7 +602,7 @@ Object* String::TryFlatten(StringShape shape) {
   if (!Heap::IsAllocationAllowed()) return this;
 #endif
 
-  switch (shape.representation_tag()) {
+  switch (StringShape(this).representation_tag()) {
     case kSlicedStringTag: {
       SlicedString* ss = SlicedString::cast(this);
       // The SlicedString constructor should ensure that there are no
@@ -604,7 +610,7 @@ Object* String::TryFlatten(StringShape shape) {
       // SlicedStrings.
       String* buf = ss->buffer();
       ASSERT(!buf->IsSlicedString());
-      Object* ok = buf->TryFlatten(StringShape(buf));
+      Object* ok = buf->TryFlatten();
       if (ok->IsFailure()) return ok;
       // Under certain circumstances (TryFlattenIfNotFlat fails in
       // String::Slice) we can have a cons string under a slice.
@@ -612,6 +618,8 @@ Object* String::TryFlatten(StringShape shape) {
       if (StringShape(String::cast(ok)).IsCons()) {
         ss->set_buffer(ConsString::cast(ok)->first());
       }
+      ASSERT(StringShape(this).IsAsciiRepresentation() ==
+          StringShape(ss->buffer()).IsAsciiRepresentation());
       return this;
     }
     case kConsStringTag: {
@@ -623,21 +631,19 @@ Object* String::TryFlatten(StringShape shape) {
       // cons string is in old space.  It can never get GCed until there is
       // an old space GC.
       PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
-      int len = length(shape);
+      int len = length();
       Object* object;
       String* result;
-      if (shape.IsAsciiRepresentation()) {
+      if (StringShape(this).IsAsciiRepresentation()) {
         object = Heap::AllocateRawAsciiString(len, tenure);
         if (object->IsFailure()) return object;
         result = String::cast(object);
         String* first = cs->first();
-        StringShape first_shape(first);
-        int first_length = first->length(first_shape);
+        int first_length = first->length();
         char* dest = SeqAsciiString::cast(result)->GetChars();
-        WriteToFlat(first, first_shape, dest, 0, first_length);
+        WriteToFlat(first, dest, 0, first_length);
         String* second = cs->second();
         WriteToFlat(second,
-                    StringShape(second),
                     dest + first_length,
                     0,
                     len - first_length);
@@ -647,12 +653,10 @@ Object* String::TryFlatten(StringShape shape) {
         result = String::cast(object);
         uc16* dest = SeqTwoByteString::cast(result)->GetChars();
         String* first = cs->first();
-        StringShape first_shape(first);
-        int first_length = first->length(first_shape);
-        WriteToFlat(first, first_shape, dest, 0, first_length);
+        int first_length = first->length();
+        WriteToFlat(first, dest, 0, first_length);
         String* second = cs->second();
         WriteToFlat(second,
-                    StringShape(second),
                     dest + first_length,
                     0,
                     len - first_length);
@@ -754,8 +758,7 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 
 
 void String::StringShortPrint(StringStream* accumulator) {
-  StringShape shape(this);
-  int len = length(shape);
+  int len = length();
   if (len > kMaxMediumStringSize) {
     accumulator->Add("<Very long string[%u]>", len);
     return;
@@ -783,7 +786,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   }
   buf.Reset(this);
   if (ascii) {
-    accumulator->Add("<String[%u]: ", length(shape));
+    accumulator->Add("<String[%u]: ", length());
     for (int i = 0; i < len; i++) {
       accumulator->Put(buf.GetNext());
     }
@@ -791,7 +794,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   } else {
     // Backslash indicates that the string contains control
     // characters and that backslashes are therefore escaped.
-    accumulator->Add("<String[%u]\\: ", length(shape));
+    accumulator->Add("<String[%u]\\: ", length());
     for (int i = 0; i < len; i++) {
       int c = buf.GetNext();
       if (c == '\n') {
@@ -972,12 +975,12 @@ int HeapObject::SlowSizeFromMap(Map* map) {
 
   if (instance_type < FIRST_NONSTRING_TYPE
       && (StringShape(instance_type).IsSequential())) {
-    StringShape shape(instance_type);
-    if (shape.IsAsciiRepresentation()) {
-      return reinterpret_cast<SeqAsciiString*>(this)->SeqAsciiStringSize(shape);
+    if (StringShape(instance_type).IsAsciiRepresentation()) {
+      SeqAsciiString* seq_ascii_this = reinterpret_cast<SeqAsciiString*>(this);
+      return seq_ascii_this->SeqAsciiStringSize(instance_type);
     } else {
       SeqTwoByteString* self = reinterpret_cast<SeqTwoByteString*>(this);
-      return self->SeqTwoByteStringSize(shape);
+      return self->SeqTwoByteStringSize(instance_type);
     }
   }
 
@@ -1499,13 +1502,7 @@ Object* JSObject::SetPropertyWithCallback(Object* structure,
   if (structure->IsFixedArray()) {
     Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
     if (setter->IsJSFunction()) {
-      Handle<JSFunction> fun(JSFunction::cast(setter));
-      Handle<JSObject> self(this);
-      bool has_pending_exception;
-      Object** argv[] = { value_handle.location() };
-      Execution::Call(fun, self, 1, argv, &has_pending_exception);
-      // Check for pending exception and return the result.
-      if (has_pending_exception) return Failure::Exception();
+     return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
     } else {
       Handle<String> key(name);
       Handle<Object> holder_handle(holder);
@@ -1513,13 +1510,25 @@ Object* JSObject::SetPropertyWithCallback(Object* structure,
       return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
                                                HandleVector(args, 2)));
     }
-    return *value_handle;
   }
 
   UNREACHABLE();
   return 0;
 }
 
+
+Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
+                                               Object* value) {
+  Handle<Object> value_handle(value);
+  Handle<JSFunction> fun(JSFunction::cast(setter));
+  Handle<JSObject> self(this);
+  bool has_pending_exception;
+  Object** argv[] = { value_handle.location() };
+  Execution::Call(fun, self, 1, argv, &has_pending_exception);
+  // Check for pending exception and return the result.
+  if (has_pending_exception) return Failure::Exception();
+  return *value_handle;
+}
 
 void JSObject::LookupCallbackSetterInPrototypes(String* name,
                                                 LookupResult* result) {
@@ -1538,6 +1547,26 @@ void JSObject::LookupCallbackSetterInPrototypes(String* name,
     }
   }
   result->NotFound();
+}
+
+
+Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
+  for (Object* pt = GetPrototype();
+       pt != Heap::null_value();
+       pt = pt->GetPrototype()) {
+    if (JSObject::cast(pt)->HasFastElements()) continue;
+    Dictionary* dictionary = JSObject::cast(pt)->element_dictionary();
+    int entry = dictionary->FindNumberEntry(index);
+    if (entry != -1) {
+      Object* element = dictionary->ValueAt(entry);
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      if (details.type() == CALLBACKS) {
+        // Only accessors allowed as elements.
+        return FixedArray::cast(element)->get(kSetterIndex);
+      }
+    }
+  }
+  return Heap::undefined_value();
 }
 
 
@@ -2494,11 +2523,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   }
 
   // Try to flatten before operating on the string.
-  name->TryFlattenIfNotFlat(StringShape(name));
-
-  // Make sure name is not an index.
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) return Heap::undefined_value();
+  name->TryFlattenIfNotFlat();
 
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or it's prototype chain.
@@ -2516,34 +2541,74 @@ Object* JSObject::DefineGetterSetter(String* name,
     }
   }
 
-  // Lookup the name.
-  LookupResult result;
-  LocalLookup(name, &result);
-  if (result.IsValid()) {
-    if (result.IsReadOnly()) return Heap::undefined_value();
-    if (result.type() == CALLBACKS) {
-      Object* obj = result.GetCallbackObject();
-      if (obj->IsFixedArray()) return obj;
+  uint32_t index;
+  bool is_element = name->AsArrayIndex(&index);
+  if (is_element && IsJSArray()) return Heap::undefined_value();
+
+  if (is_element) {
+    // Lookup the index.
+    if (!HasFastElements()) {
+      Dictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindNumberEntry(index);
+      if (entry != -1) {
+        Object* result = dictionary->ValueAt(entry);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        if (details.IsReadOnly()) return Heap::undefined_value();
+        if (details.type() == CALLBACKS) {
+          // Only accessors allowed as elements.
+          ASSERT(result->IsFixedArray());
+          return result;
+        }
+      }
+    }
+  } else {
+    // Lookup the name.
+    LookupResult result;
+    LocalLookup(name, &result);
+    if (result.IsValid()) {
+      if (result.IsReadOnly()) return Heap::undefined_value();
+      if (result.type() == CALLBACKS) {
+        Object* obj = result.GetCallbackObject();
+        if (obj->IsFixedArray()) return obj;
+      }
     }
   }
 
-  // Normalize object to make this operation simple.
-  Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
-  if (ok->IsFailure()) return ok;
-
   // Allocate the fixed array to hold getter and setter.
-  Object* array = Heap::AllocateFixedArray(2, TENURED);
-  if (array->IsFailure()) return array;
-
-  // Update the dictionary with the new CALLBACKS property.
+  Object* structure = Heap::AllocateFixedArray(2, TENURED);
+  if (structure->IsFailure()) return structure;
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
-  Object* dict =
-      property_dictionary()->SetOrAddStringEntry(name, array, details);
-  if (dict->IsFailure()) return dict;
 
-  // Set the potential new dictionary on the object.
-  set_properties(Dictionary::cast(dict));
-  return array;
+  if (is_element) {
+    // Normalize object to make this operation simple.
+    Object* ok = NormalizeElements();
+    if (ok->IsFailure()) return ok;
+
+    // Update the dictionary with the new CALLBACKS property.
+    Object* dict =
+        element_dictionary()->SetOrAddNumberEntry(index, structure, details);
+    if (dict->IsFailure()) return dict;
+
+    // If name is an index we need to stay in slow case.
+    Dictionary* elements = Dictionary::cast(dict);
+    elements->set_requires_slow_elements();
+    // Set the potential new dictionary on the object.
+    set_elements(Dictionary::cast(dict));
+  } else {
+    // Normalize object to make this operation simple.
+    Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+    if (ok->IsFailure()) return ok;
+
+    // Update the dictionary with the new CALLBACKS property.
+    Object* dict =
+        property_dictionary()->SetOrAddStringEntry(name, structure, details);
+    if (dict->IsFailure()) return dict;
+
+    // Set the potential new dictionary on the object.
+    set_properties(Dictionary::cast(dict));
+  }
+
+  return structure;
 }
 
 
@@ -2583,24 +2648,40 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
     return Heap::undefined_value();
   }
 
-  // Make sure name is not an index.
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) return Heap::undefined_value();
-
   // Make the lookup and include prototypes.
-  for (Object* obj = this;
-       obj != Heap::null_value();
-       obj = JSObject::cast(obj)->GetPrototype()) {
-    LookupResult result;
-    JSObject::cast(obj)->LocalLookup(name, &result);
-    if (result.IsValid()) {
-      if (result.IsReadOnly()) return Heap::undefined_value();
-      if (result.type() == CALLBACKS) {
-        Object* obj = result.GetCallbackObject();
-        if (obj->IsFixedArray()) {
-          return FixedArray::cast(obj)->get(is_getter
-                                            ? kGetterIndex
-                                            : kSetterIndex);
+  int accessor_index = is_getter ? kGetterIndex : kSetterIndex;
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    for (Object* obj = this;
+         obj != Heap::null_value();
+         obj = JSObject::cast(obj)->GetPrototype()) {
+      JSObject* jsObject = JSObject::cast(obj);
+      if (!jsObject->HasFastElements()) {
+        Dictionary* dictionary = jsObject->element_dictionary();
+        int entry = dictionary->FindNumberEntry(index);
+        if (entry != -1) {
+          Object* element = dictionary->ValueAt(entry);
+          PropertyDetails details = dictionary->DetailsAt(entry);
+          if (details.type() == CALLBACKS) {
+            // Only accessors allowed as elements.
+            return FixedArray::cast(element)->get(accessor_index);
+          }
+        }
+      }
+    }
+  } else {
+    for (Object* obj = this;
+         obj != Heap::null_value();
+         obj = JSObject::cast(obj)->GetPrototype()) {
+      LookupResult result;
+      JSObject::cast(obj)->LocalLookup(name, &result);
+      if (result.IsValid()) {
+        if (result.IsReadOnly()) return Heap::undefined_value();
+        if (result.type() == CALLBACKS) {
+          Object* obj = result.GetCallbackObject();
+          if (obj->IsFixedArray()) {
+            return FixedArray::cast(obj)->get(accessor_index);
+          }
         }
       }
     }
@@ -3149,13 +3230,12 @@ bool String::LooksValid() {
 
 
 int String::Utf8Length() {
-  StringShape shape(this);
-  if (shape.IsAsciiRepresentation()) return length(shape);
+  if (StringShape(this).IsAsciiRepresentation()) return length();
   // Attempt to flatten before accessing the string.  It probably
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
   // so it's still a good idea.
-  TryFlattenIfNotFlat(shape);  // shape is now no longer valid.
+  TryFlattenIfNotFlat();
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(0, this);
   int result = 0;
@@ -3166,26 +3246,23 @@ int String::Utf8Length() {
 
 
 Vector<const char> String::ToAsciiVector() {
-  StringShape shape(this);
-  ASSERT(shape.IsAsciiRepresentation());
-  ASSERT(IsFlat(shape));
+  ASSERT(StringShape(this).IsAsciiRepresentation());
+  ASSERT(IsFlat());
 
   int offset = 0;
-  int length = this->length(shape);
-  StringRepresentationTag string_tag = shape.representation_tag();
+  int length = this->length();
+  StringRepresentationTag string_tag = StringShape(this).representation_tag();
   String* string = this;
   if (string_tag == kSlicedStringTag) {
     SlicedString* sliced = SlicedString::cast(string);
     offset += sliced->start();
     string = sliced->buffer();
-    shape = StringShape(string);
-    string_tag = shape.representation_tag();
+    string_tag = StringShape(string).representation_tag();
   } else if (string_tag == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
-    ASSERT(cons->second()->length(StringShape(cons->second())) == 0);
+    ASSERT(cons->second()->length() == 0);
     string = cons->first();
-    shape = StringShape(string);
-    string_tag = shape.representation_tag();
+    string_tag = StringShape(string).representation_tag();
   }
   if (string_tag == kSeqStringTag) {
     SeqAsciiString* seq = SeqAsciiString::cast(string);
@@ -3200,26 +3277,23 @@ Vector<const char> String::ToAsciiVector() {
 
 
 Vector<const uc16> String::ToUC16Vector() {
-  StringShape shape(this);
-  ASSERT(shape.IsTwoByteRepresentation());
-  ASSERT(IsFlat(shape));
+  ASSERT(StringShape(this).IsTwoByteRepresentation());
+  ASSERT(IsFlat());
 
   int offset = 0;
-  int length = this->length(shape);
-  StringRepresentationTag string_tag = shape.representation_tag();
+  int length = this->length();
+  StringRepresentationTag string_tag = StringShape(this).representation_tag();
   String* string = this;
   if (string_tag == kSlicedStringTag) {
     SlicedString* sliced = SlicedString::cast(string);
     offset += sliced->start();
     string = String::cast(sliced->buffer());
-    shape = StringShape(string);
-    string_tag = shape.representation_tag();
+    string_tag = StringShape(string).representation_tag();
   } else if (string_tag == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
-    ASSERT(cons->second()->length(StringShape(cons->second())) == 0);
+    ASSERT(cons->second()->length() == 0);
     string = cons->first();
-    shape = StringShape(string);
-    string_tag = shape.representation_tag();
+    string_tag = StringShape(string).representation_tag();
   }
   if (string_tag == kSeqStringTag) {
     SeqTwoByteString* seq = SeqTwoByteString::cast(string);
@@ -3299,9 +3373,8 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  StringShape shape(this);
-  ASSERT(!shape.IsAsciiRepresentation());
-  switch (shape.representation_tag()) {
+  ASSERT(!StringShape(this).IsAsciiRepresentation());
+  switch (StringShape(this).representation_tag()) {
     case kSeqStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
     case kExternalStringTag:
@@ -3313,7 +3386,7 @@ const uc16* String::GetTwoByteData(unsigned start) {
       if (StringShape(buffer).IsCons()) {
         ConsString* cs = ConsString::cast(buffer);
         // Flattened string.
-        ASSERT(cs->second()->length(StringShape(cs->second())) == 0);
+        ASSERT(cs->second()->length() == 0);
         buffer = cs->first();
       }
       return buffer->GetTwoByteData(start + sliced_string->start());
@@ -3416,8 +3489,7 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
 
   while (true) {
     String* left = current->first();
-    StringShape left_shape(left);
-    unsigned left_length = (unsigned)left->length(left_shape);
+    unsigned left_length = (unsigned)left->length();
     if (left_length > offset &&
         (max_chars <= left_length - offset ||
          (rbb->capacity <= left_length - offset &&
@@ -3429,7 +3501,7 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
       // the point where we switch to the -IntoBuffer routines (below) in order
       // to maximize the chances of delegating a big chunk of work to the
       // efficient *AsciiStringReadBlock routines.
-      if (left_shape.IsCons()) {
+      if (StringShape(left).IsCons()) {
         current = ConsString::cast(left);
         continue;
       } else {
@@ -3594,10 +3666,9 @@ const unibrow::byte* String::ReadBlock(String* input,
     rbb->remaining = 0;
     return NULL;
   }
-  StringShape shape(input);
-  switch (shape.representation_tag()) {
+  switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (shape.IsAsciiRepresentation()) {
+      if (StringShape(input).IsAsciiRepresentation()) {
         SeqAsciiString* str = SeqAsciiString::cast(input);
         return str->SeqAsciiStringReadBlock(&rbb->remaining,
                                             offset_ptr,
@@ -3618,7 +3689,7 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                               offset_ptr,
                                                               max_chars);
     case kExternalStringTag:
-      if (shape.IsAsciiRepresentation()) {
+      if (StringShape(input).IsAsciiRepresentation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
             &rbb->remaining,
             offset_ptr,
@@ -3670,9 +3741,8 @@ FlatStringReader::~FlatStringReader() {
 void FlatStringReader::RefreshState() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
-  StringShape shape(*str);
-  ASSERT(str->IsFlat(shape));
-  is_ascii_ = shape.IsAsciiRepresentation();
+  ASSERT(str->IsFlat());
+  is_ascii_ = StringShape(*str).IsAsciiRepresentation();
   if (is_ascii_) {
     start_ = str->ToAsciiVector().start();
   } else {
@@ -3708,13 +3778,12 @@ void String::ReadBlockIntoBuffer(String* input,
                                  ReadBlockBuffer* rbb,
                                  unsigned* offset_ptr,
                                  unsigned max_chars) {
-  StringShape shape(input);
-  ASSERT(*offset_ptr <= (unsigned)input->length(shape));
+  ASSERT(*offset_ptr <= (unsigned)input->length());
   if (max_chars == 0) return;
 
-  switch (shape.representation_tag()) {
+  switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (shape.IsAsciiRepresentation()) {
+      if (StringShape(input).IsAsciiRepresentation()) {
         SeqAsciiString::cast(input)->SeqAsciiStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
@@ -3736,7 +3805,7 @@ void String::ReadBlockIntoBuffer(String* input,
                                                                  max_chars);
       return;
     case kExternalStringTag:
-      if (shape.IsAsciiRepresentation()) {
+      if (StringShape(input).IsAsciiRepresentation()) {
          ExternalAsciiString::cast(input)->
              ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
        } else {
@@ -3760,12 +3829,11 @@ const unibrow::byte* String::ReadBlock(String* input,
                                        unsigned capacity,
                                        unsigned* remaining,
                                        unsigned* offset_ptr) {
-  StringShape shape(input);
-  ASSERT(*offset_ptr <= (unsigned)input->length(shape));
-  unsigned chars = input->length(shape) - *offset_ptr;
+  ASSERT(*offset_ptr <= (unsigned)input->length());
+  unsigned chars = input->length() - *offset_ptr;
   ReadBlockBuffer rbb(util_buffer, 0, capacity, 0);
   const unibrow::byte* answer = ReadBlock(input, &rbb, offset_ptr, chars);
-  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length(shape)));
+  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length()));
   *remaining = rbb.remaining;
   return answer;
 }
@@ -3776,14 +3844,13 @@ const unibrow::byte* String::ReadBlock(String** raw_input,
                                        unsigned capacity,
                                        unsigned* remaining,
                                        unsigned* offset_ptr) {
-  StringShape shape(*raw_input);
   Handle<String> input(raw_input);
-  ASSERT(*offset_ptr <= (unsigned)input->length(shape));
-  unsigned chars = input->length(shape) - *offset_ptr;
+  ASSERT(*offset_ptr <= (unsigned)input->length());
+  unsigned chars = input->length() - *offset_ptr;
   if (chars > capacity) chars = capacity;
   ReadBlockBuffer rbb(util_buffer, 0, capacity, 0);
   ReadBlockIntoBuffer(*input, &rbb, offset_ptr, chars);
-  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length(shape)));
+  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length()));
   *remaining = rbb.remaining;
   return rbb.util_buffer;
 }
@@ -3803,13 +3870,12 @@ void ConsString::ConsStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
 
   while (true) {
     String* left = current->first();
-    StringShape left_shape(left);
-    unsigned left_length = (unsigned)left->length(left_shape);
+    unsigned left_length = (unsigned)left->length();
     if (left_length > offset &&
       max_chars <= left_length - offset) {
       // Left hand side only - iterate unless we have reached the bottom of
       // the cons tree.
-      if (left_shape.IsCons()) {
+      if (StringShape(left).IsCons()) {
         current = ConsString::cast(left);
         continue;
       } else {
@@ -3877,27 +3943,23 @@ uint16_t ConsString::ConsStringGet(int index) {
   // Check for a flattened cons string
   if (second()->length() == 0) {
     String* left = first();
-    return left->Get(StringShape(left), index);
+    return left->Get(index);
   }
 
   String* string = String::cast(this);
-  StringShape shape(string);
 
   while (true) {
-    if (shape.IsCons()) {
+    if (StringShape(string).IsCons()) {
       ConsString* cons_string = ConsString::cast(string);
       String* left = cons_string->first();
-      StringShape left_shape(left);
-      if (left->length(left_shape) > index) {
+      if (left->length() > index) {
         string = left;
-        shape = left_shape;
       } else {
-        index -= left->length(left_shape);
+        index -= left->length();
         string = cons_string->second();
-        shape = StringShape(string);
       }
     } else {
-      return string->Get(shape, index);
+      return string->Get(index);
     }
   }
 
@@ -3908,17 +3970,15 @@ uint16_t ConsString::ConsStringGet(int index) {
 
 template <typename sinkchar>
 void String::WriteToFlat(String* src,
-                         StringShape src_shape,
                          sinkchar* sink,
                          int f,
                          int t) {
   String* source = src;
-  StringShape shape = src_shape;
   int from = f;
   int to = t;
   while (true) {
-    ASSERT(0 <= from && from <= to && to <= source->length(shape));
-    switch (shape.full_representation_tag()) {
+    ASSERT(0 <= from && from <= to && to <= source->length());
+    switch (StringShape(source).full_representation_tag()) {
       case kAsciiStringTag | kExternalStringTag: {
         CopyChars(sink,
                   ExternalAsciiString::cast(source)->resource()->data() + from,
@@ -3952,19 +4012,17 @@ void String::WriteToFlat(String* src,
         from += start;
         to += start;
         source = String::cast(sliced_string->buffer());
-        shape = StringShape(source);
         break;
       }
       case kAsciiStringTag | kConsStringTag:
       case kTwoByteStringTag | kConsStringTag: {
         ConsString* cons_string = ConsString::cast(source);
         String* first = cons_string->first();
-        StringShape first_shape(first);
-        int boundary = first->length(first_shape);
+        int boundary = first->length();
         if (to - boundary >= boundary - from) {
           // Right hand side is longer.  Recurse over left.
           if (from < boundary) {
-            WriteToFlat(first, first_shape, sink, from, boundary);
+            WriteToFlat(first, sink, from, boundary);
             sink += boundary - from;
             from = 0;
           } else {
@@ -3972,20 +4030,17 @@ void String::WriteToFlat(String* src,
           }
           to -= boundary;
           source = cons_string->second();
-          shape = StringShape(source);
         } else {
           // Left hand side is longer.  Recurse over right.
           if (to > boundary) {
             String* second = cons_string->second();
             WriteToFlat(second,
-                        StringShape(second),
                         sink + boundary - from,
                         0,
                         to - boundary);
             to = boundary;
           }
           source = first;
-          shape = first_shape;
         }
         break;
       }
@@ -4003,7 +4058,7 @@ uint16_t SlicedString::SlicedStringGet(int index) {
   ASSERT(index >= 0 && index < this->length());
   // Delegate to the buffer string.
   String* underlying = buffer();
-  return underlying->Get(StringShape(underlying), start() + index);
+  return underlying->Get(start() + index);
 }
 
 
@@ -4067,9 +4122,8 @@ static StringInputBuffer string_compare_buffer_b;
 
 template <typename IteratorA>
 static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
-  StringShape b_shape(b);
-  if (b->IsFlat(b_shape)) {
-    if (b_shape.IsAsciiRepresentation()) {
+  if (b->IsFlat()) {
+    if (StringShape(b).IsAsciiRepresentation()) {
       VectorIterator<char> ib(b->ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
@@ -4086,12 +4140,10 @@ static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
 static StringInputBuffer string_compare_buffer_a;
 
 
-bool String::SlowEquals(StringShape this_shape,
-                        String* other,
-                        StringShape other_shape) {
+bool String::SlowEquals(String* other) {
   // Fast check: negative check with lengths.
-  int len = length(this_shape);
-  if (len != other->length(other_shape)) return false;
+  int len = length();
+  if (len != other->length()) return false;
   if (len == 0) return true;
 
   // Fast check: if hash code is computed for both strings
@@ -4100,18 +4152,19 @@ bool String::SlowEquals(StringShape this_shape,
     if (Hash() != other->Hash()) return false;
   }
 
-  if (this_shape.IsSequentialAscii() && other_shape.IsSequentialAscii()) {
+  if (StringShape(this).IsSequentialAscii() &&
+      StringShape(other).IsSequentialAscii()) {
     const char* str1 = SeqAsciiString::cast(this)->GetChars();
     const char* str2 = SeqAsciiString::cast(other)->GetChars();
     return CompareRawStringContents(Vector<const char>(str1, len),
                                     Vector<const char>(str2, len));
   }
 
-  if (this->IsFlat(this_shape)) {
-    if (this_shape.IsAsciiRepresentation()) {
+  if (this->IsFlat()) {
+    if (StringShape(this).IsAsciiRepresentation()) {
       Vector<const char> vec1 = this->ToAsciiVector();
-      if (other->IsFlat(other_shape)) {
-        if (other_shape.IsAsciiRepresentation()) {
+      if (other->IsFlat()) {
+        if (StringShape(other).IsAsciiRepresentation()) {
           Vector<const char> vec2 = other->ToAsciiVector();
           return CompareRawStringContents(vec1, vec2);
         } else {
@@ -4126,8 +4179,8 @@ bool String::SlowEquals(StringShape this_shape,
       }
     } else {
       Vector<const uc16> vec1 = this->ToUC16Vector();
-      if (other->IsFlat(other_shape)) {
-        if (other_shape.IsAsciiRepresentation()) {
+      if (other->IsFlat()) {
+        if (StringShape(other).IsAsciiRepresentation()) {
           VectorIterator<uc16> buf1(vec1);
           VectorIterator<char> ib(other->ToAsciiVector());
           return CompareStringContents(&buf1, &ib);
@@ -4177,14 +4230,13 @@ bool String::MarkAsUndetectable() {
 
 
 bool String::IsEqualTo(Vector<const char> str) {
-  StringShape this_shape(this);
-  int slen = length(this_shape);
+  int slen = length();
   Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {
     uc32 r = decoder->GetNext();
-    if (Get(this_shape, i) != r) return false;
+    if (Get(i) != r) return false;
   }
   return i == slen && !decoder->has_more();
 }
@@ -4240,8 +4292,7 @@ bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
 
 
 bool String::SlowAsArrayIndex(uint32_t* index) {
-  StringShape shape(this);
-  if (length(shape) <= kMaxCachedArrayIndexLength) {
+  if (length() <= kMaxCachedArrayIndexLength) {
     Hash();  // force computation of hash code
     uint32_t field = length_field();
     if ((field & kIsArrayIndexMask) == 0) return false;
@@ -4249,7 +4300,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
     return true;
   } else {
     StringInputBuffer buffer(this);
-    return ComputeArrayIndex(&buffer, index, length(shape));
+    return ComputeArrayIndex(&buffer, index, length());
   }
 }
 
@@ -4310,9 +4361,8 @@ uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
 
 
 Object* String::Slice(int start, int end) {
-  StringShape shape(this);
-  if (start == 0 && end == length(shape)) return this;
-  if (shape.representation_tag() == kSlicedStringTag) {
+  if (start == 0 && end == length()) return this;
+  if (StringShape(this).representation_tag() == kSlicedStringTag) {
     // Translate slices of a SlicedString into slices of the
     // underlying string buffer.
     SlicedString* str = SlicedString::cast(this);
@@ -4336,14 +4386,13 @@ Object* String::Slice(int start, int end) {
   // if Heap::AllocateSlicedString actually returned a SlicedString.  It will
   // return flat strings for small slices for efficiency reasons.
   String* answer = String::cast(result);
-  StringShape answer_shape(answer);
-  if (answer_shape.IsSliced() &&
-      shape.representation_tag() == kConsStringTag) {
-    TryFlatten(shape);
+  if (StringShape(answer).IsSliced() &&
+      StringShape(this).representation_tag() == kConsStringTag) {
+    TryFlatten();
     // If the flatten succeeded we might as well make the sliced string point
     // to the flat string rather than the cons string.
     String* second = ConsString::cast(this)->second();
-    if (second->length(StringShape(second)) == 0) {
+    if (second->length() == 0) {
       SlicedString::cast(answer)->set_buffer(ConsString::cast(this)->first());
     }
   }
@@ -4352,10 +4401,9 @@ Object* String::Slice(int start, int end) {
 
 
 void String::PrintOn(FILE* file) {
-  StringShape shape(this);
-  int length = this->length(shape);
+  int length = this->length();
   for (int i = 0; i < length; i++) {
-    fprintf(file, "%c", Get(shape, i));
+    fprintf(file, "%c", Get(i));
   }
 }
 
@@ -5221,6 +5269,13 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   FixedArray* elms = FixedArray::cast(elements());
   uint32_t elms_length = static_cast<uint32_t>(elms->length());
 
+  if (!IsJSArray() && (index >= elms_length || elms->get(index)->IsTheHole())) {
+    Object* setter = LookupCallbackSetterInPrototypes(index);
+    if (setter->IsJSFunction()) {
+      return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+    }
+  }
+
   // Check whether there is extra space in fixed array..
   if (index < elms_length) {
     elms->set(index, value);
@@ -5290,10 +5345,41 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Insert element in the dictionary.
   FixedArray* elms = FixedArray::cast(elements());
   Dictionary* dictionary = Dictionary::cast(elms);
-  Object* result = dictionary->AtNumberPut(index, value);
-  if (result->IsFailure()) return result;
-  if (elms != FixedArray::cast(result)) {
-    set_elements(FixedArray::cast(result));
+
+  int entry = dictionary->FindNumberEntry(index);
+  if (entry != -1) {
+    Object* element = dictionary->ValueAt(entry);
+    PropertyDetails details = dictionary->DetailsAt(entry);
+    if (details.type() == CALLBACKS) {
+      // Only accessors allowed as elements.
+      FixedArray* structure = FixedArray::cast(element);
+      if (structure->get(kSetterIndex)->IsJSFunction()) {
+        JSFunction* setter = JSFunction::cast(structure->get(kSetterIndex));
+        return SetPropertyWithDefinedSetter(setter, value);
+      } else {
+        Handle<Object> self(this);
+        Handle<Object> key(Factory::NewNumberFromUint(index));
+        Handle<Object> args[2] = { key, self };
+        return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
+                                                 HandleVector(args, 2)));
+      }
+    } else {
+      dictionary->UpdateMaxNumberKey(index);
+      dictionary->ValueAtPut(entry, value);
+    }
+  } else {
+    // Index not already used. Look for an accessor in the prototype chain.
+    if (!IsJSArray()) {
+      Object* setter = LookupCallbackSetterInPrototypes(index);
+      if (setter->IsJSFunction()) {
+        return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+      }
+    }
+    Object* result = dictionary->AtNumberPut(index, value);
+    if (result->IsFailure()) return result;
+    if (elms != FixedArray::cast(result)) {
+      set_elements(FixedArray::cast(result));
+    }
   }
 
   // Update the array length if this JSObject is an array.
@@ -5426,7 +5512,18 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
     if (entry != -1) {
-      return dictionary->ValueAt(entry);
+      Object* element = dictionary->ValueAt(entry);
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      if (details.type() == CALLBACKS) {
+        // Only accessors allowed as elements.
+        FixedArray* structure = FixedArray::cast(element);
+        Object* getter = structure->get(kGetterIndex);
+        if (getter->IsJSFunction()) {
+          return GetPropertyWithDefinedGetter(receiver,
+                                              JSFunction::cast(getter));
+        }
+      }
+      return element;
     }
   }
 
@@ -5901,13 +5998,12 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     Object* val = JSValue::cast(this)->value();
     if (val->IsString()) {
       String* str = String::cast(val);
-      StringShape shape(str);
       if (storage) {
-        for (int i = 0; i < str->length(shape); i++) {
+        for (int i = 0; i < str->length(); i++) {
           storage->set(counter + i, Smi::FromInt(i), SKIP_WRITE_BARRIER);
         }
       }
-      counter += str->length(shape);
+      counter += str->length();
     }
   }
   ASSERT(!storage || storage->length() == counter);
@@ -5941,7 +6037,6 @@ class NumberKey : public HashTableKey {
  public:
   explicit NumberKey(uint32_t number) : number_(number) { }
 
- private:
   bool IsMatch(Object* number) {
     return number_ == ToUint32(number);
   }
@@ -5954,6 +6049,9 @@ class NumberKey : public HashTableKey {
     return Heap::NumberFromDouble(number_);
   }
 
+  bool IsStringKey() { return false; }
+
+ private:
   static uint32_t NumberHash(Object* obj) {
     return ComputeIntegerHash(ToUint32(obj));
   }
@@ -5962,8 +6060,6 @@ class NumberKey : public HashTableKey {
     ASSERT(obj->IsNumber());
     return static_cast<uint32_t>(obj->Number());
   }
-
-  bool IsStringKey() { return false; }
 
   uint32_t number_;
 };
@@ -6165,10 +6261,9 @@ class SymbolKey : public HashTableKey {
   Object* GetObject() {
     // If the string is a cons string, attempt to flatten it so that
     // symbols will most often be flat strings.
-    StringShape shape(string_);
-    if (shape.IsCons()) {
+    if (StringShape(string_).IsCons()) {
       ConsString* cons_string = ConsString::cast(string_);
-      cons_string->TryFlatten(shape);
+      cons_string->TryFlatten();
       if (cons_string->second() == Heap::empty_string()) {
         string_ = cons_string->first();
       }
@@ -6771,9 +6866,7 @@ void Dictionary::UpdateMaxNumberKey(uint32_t key) {
   // Check if this index is high enough that we should require slow
   // elements.
   if (key > kRequiresSlowElementsLimit) {
-    set(kMaxNumberKeyIndex,
-        Smi::FromInt(kRequiresSlowElementsMask),
-        SKIP_WRITE_BARRIER);
+    set_requires_slow_elements();
     return;
   }
   // Update max key value.
@@ -6829,6 +6922,21 @@ Object* Dictionary::SetOrAddStringEntry(String* key,
                             details.type(),
                             DetailsAt(entry).index());
   SetEntry(entry, key, value, details);
+  return this;
+}
+
+
+Object* Dictionary::SetOrAddNumberEntry(uint32_t key,
+                                        Object* value,
+                                        PropertyDetails details) {
+  NumberKey k(key);
+  int entry = FindEntry(&k);
+  if (entry == -1) return AddNumberEntry(key, value, details);
+  // Preserve enumeration index.
+  details = PropertyDetails(details.attributes(),
+                            details.type(),
+                            DetailsAt(entry).index());
+  SetEntry(entry, k.GetObject(), value, details);
   return this;
 }
 

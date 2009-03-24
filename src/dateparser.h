@@ -32,7 +32,6 @@
 
 namespace v8 { namespace internal {
 
-
 class DateParser : public AllStatic {
  public:
 
@@ -46,25 +45,34 @@ class DateParser : public AllStatic {
   // [5]: second
   // [6]: UTC offset in seconds, or null value if no timezone specified
   // If parsing fails, return false (content of output array is not defined).
-  static bool Parse(String* str, FixedArray* output);
+  template <typename Char>
+  static bool Parse(Vector<Char> str, FixedArray* output);
 
-  enum {YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, UTC_OFFSET, OUTPUT_SIZE};
+  enum {
+    YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, UTC_OFFSET, OUTPUT_SIZE
+  };
 
  private:
   // Range testing
-  static bool Between(int x, int lo, int hi) { return x >= lo && x <= hi; }
+  static inline bool Between(int x, int lo, int hi) {
+    return static_cast<unsigned>(x - lo) <= static_cast<unsigned>(hi - lo);
+  }
   // Indicates a missing value.
   static const int kNone = kMaxInt;
 
   // InputReader provides basic string parsing and character classification.
+  template <typename Char>
   class InputReader BASE_EMBEDDED {
    public:
-    explicit InputReader(String* s) : buffer_(s), has_read_number_(false) {
+    explicit InputReader(Vector<Char> s)
+        : index_(0),
+          buffer_(s),
+          has_read_number_(false) {
       Next();
     }
 
     // Advance to the next character of the string.
-    void Next() { ch_ = buffer_.has_more() ? buffer_.GetNext() : 0; }
+    void Next() { ch_ = (index_ < buffer_.length()) ? buffer_[index_++] : 0; }
 
     // Read a string of digits as an unsigned number (cap just below kMaxInt).
     int ReadUnsignedNumber() {
@@ -124,7 +132,8 @@ class DateParser : public AllStatic {
     // Else, return something outside of 'A'-'Z' and 'a'-'z'.
     uint32_t GetAsciiAlphaLower() const { return ch_ | 32; }
 
-    StringInputBuffer buffer_;
+    int index_;
+    Vector<Char> buffer_;
     bool has_read_number_;
     uint32_t ch_;
   };

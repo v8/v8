@@ -236,51 +236,16 @@ function StringReplace(search, replace) {
 // needle is a string rather than a regexp.  In this case we can't update
 // lastMatchArray without erroneously affecting the properties on the global
 // RegExp object.
-var reusableMatchInfo = [2, -1, -1, "", ""];
-var reusableMatchArray = [ void 0 ];
+var reusableMatchInfo = [2, "", "", -1, -1];
 
 
 // Helper function for regular expressions in String.prototype.replace.
 function StringReplaceRegExp(subject, regexp, replace) {
-  // Compute an array of matches; each match is really a list of
-  // captures - pairs of (start, end) indexes into the subject string.
-  var matches;
-  if (regexp.global) {
-    matches = DoRegExpExecGlobal(regexp, subject);
-    if (matches.length == 0) return subject;
-  } else {
-    var lastMatchInfo = DoRegExpExec(regexp, subject, 0);
-    if (IS_NULL(lastMatchInfo)) return subject;
-    reusableMatchArray[0] = lastMatchInfo;
-    matches = reusableMatchArray;
-  }
-
-  // Determine the number of matches.
-  var length = matches.length;
-
-  // Build the resulting string of subject slices and replacements.
-  var result = new ReplaceResultBuilder(subject);
-  var previous = 0;
-  // The caller of StringReplaceRegExp must ensure that replace is not a
-  // function.
   replace = ToString(replace);
-  if (%StringIndexOf(replace, "$", 0) < 0) {
-    for (var i = 0; i < length; i++) {
-      var matchInfo = matches[i];
-      result.addSpecialSlice(previous, matchInfo[CAPTURE0]);
-      result.add(replace);
-      previous = matchInfo[CAPTURE1];  // continue after match
-    }
-  } else {
-    for (var i = 0; i < length; i++) {
-      var matchInfo = matches[i];
-      result.addSpecialSlice(previous, matchInfo[CAPTURE0]);
-      ExpandReplacement(replace, subject, matchInfo, result);
-      previous = matchInfo[CAPTURE1];  // continue after match
-    }
-  }
-  result.addSpecialSlice(previous, subject.length);
-  return result.generate();
+  return %StringReplaceRegExpWithString(subject,
+                                        regexp,
+                                        replace,
+                                        lastMatchInfo);
 };
 
 

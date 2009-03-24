@@ -318,6 +318,21 @@ void StackGuard::DebugBreak() {
 }
 
 
+bool StackGuard::IsDebugCommand() {
+  ExecutionAccess access;
+  return thread_local_.interrupt_flags_ & DEBUGCOMMAND;
+}
+
+
+void StackGuard::DebugCommand() {
+  if (FLAG_debugger_auto_break) {
+    ExecutionAccess access;
+    thread_local_.interrupt_flags_ |= DEBUGCOMMAND;
+    set_limits(kInterruptLimit, access);
+  }
+}
+
+
 void StackGuard::Continue(InterruptFlag after_what) {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ &= ~static_cast<int>(after_what);
@@ -467,7 +482,8 @@ Handle<JSObject> Execution::InstantiateObject(Handle<ObjectTemplateInfo> data,
                                               bool* exc) {
   if (data->property_list()->IsUndefined() &&
       !data->constructor()->IsUndefined()) {
-    Object* result;
+    // Initialization to make gcc happy.
+    Object* result = NULL;
     {
       HandleScope scope;
       Handle<FunctionTemplateInfo> cons_template =
@@ -556,8 +572,18 @@ Object* Execution::DebugBreakHelper() {
     }
   }
 
-  // Clear the debug request flag.
+  // Check for debug command break only.
+  bool debug_command_only =
+      StackGuard::IsDebugCommand() && !StackGuard::IsDebugBreak();
+
+  // Clear the debug request flags.
   StackGuard::Continue(DEBUGBREAK);
+  StackGuard::Continue(DEBUGCOMMAND);
+
+  // If debug command only and already in debugger ignore it.
+  if (debug_command_only && Debug::InDebugger()) {
+    return Heap::undefined_value();
+  }
 
   HandleScope scope;
   // Enter the debugger. Just continue if we fail to enter the debugger.
@@ -567,7 +593,7 @@ Object* Execution::DebugBreakHelper() {
   }
 
   // Notify the debug event listeners.
-  Debugger::OnDebugBreak(Factory::undefined_value());
+  Debugger::OnDebugBreak(Factory::undefined_value(), debug_command_only);
 
   // Return to continue execution.
   return Heap::undefined_value();
@@ -575,7 +601,9 @@ Object* Execution::DebugBreakHelper() {
 
 
 Object* Execution::HandleStackGuardInterrupt() {
-  if (StackGuard::IsDebugBreak()) DebugBreakHelper();
+  if (StackGuard::IsDebugBreak() || StackGuard::IsDebugCommand()) {
+    DebugBreakHelper();
+  }
   if (StackGuard::IsPreempted()) RuntimePreempt();
   if (StackGuard::IsInterrupted()) {
     // interrupt

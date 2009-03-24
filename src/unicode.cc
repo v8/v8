@@ -28,8 +28,8 @@
 // This file was generated at 2008-11-25 16:02:40.592795
 
 #include "unicode-inl.h"
-#include <cstdlib>
-#include <cstdio>
+#include <stdlib.h>
+#include <stdio.h>
 
 namespace unibrow {
 

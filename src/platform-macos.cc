@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for MacOS goes here
+// Platform specific code for MacOS goes here. For the POSIX comaptible parts
+// the implementation is in platform-posix.cc.
 
 #include <ucontext.h>
 #include <unistd.h>
@@ -45,14 +46,10 @@
 #include <mach/task.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #include <errno.h>
 
 #undef MAP_TYPE
@@ -199,28 +196,6 @@ char* OS::StrChr(char* str, int c) {
 
 void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
   strncpy(dest.start(), src, n);
-}
-
-
-char* OS::StrDup(const char* str) {
-  return strdup(str);
-}
-
-
-char* OS::StrNDup(const char* str, size_t n) {
-  // Stupid implementation of strndup since macos isn't born with
-  // one.
-  size_t len = strlen(str);
-  if (len <= n) {
-    return StrDup(str);
-  }
-  char* result = new char[n+1];
-  size_t i;
-  for (i = 0; i <= n; i++) {
-    result[i] = str[i];
-  }
-  result[i] = '\0';
-  return result;
 }
 
 
@@ -565,6 +540,8 @@ class MacOSSemaphore : public Semaphore {
   // platform is not needed here.
   void Wait() { semaphore_wait(semaphore_); }
 
+  bool Wait(int timeout);
+
   void Signal() { semaphore_signal(semaphore_); }
 
  private:
@@ -572,165 +549,16 @@ class MacOSSemaphore : public Semaphore {
 };
 
 
+bool MacOSSemaphore::Wait(int timeout) {
+  mach_timespec_t ts;
+  ts.tv_sec = timeout / 1000000;
+  ts.tv_nsec = (timeout % 1000000) * 1000;
+  return semaphore_timedwait(semaphore_, ts) != KERN_OPERATION_TIMED_OUT;
+}
+
+
 Semaphore* OS::CreateSemaphore(int count) {
   return new MacOSSemaphore(count);
-}
-
-
-// ----------------------------------------------------------------------------
-// MacOS socket support.
-//
-
-class MacOSSocket : public Socket {
- public:
-  explicit MacOSSocket() {
-    // Create the socket.
-    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  }
-  explicit MacOSSocket(int socket): socket_(socket) { }
-
-
-  virtual ~MacOSSocket() {
-    if (IsValid()) {
-      // Close socket.
-      close(socket_);
-    }
-  }
-
-  // Server initialization.
-  bool Bind(const int port);
-  bool Listen(int backlog) const;
-  Socket* Accept() const;
-
-  // Client initialization.
-  bool Connect(const char* host, const char* port);
-
-  // Data Transimission
-  int Send(const char* data, int len) const;
-  int Receive(char* data, int len) const;
-
-  bool IsValid() const { return socket_ != -1; }
-
- private:
-  int socket_;
-};
-
-
-bool MacOSSocket::Bind(const int port) {
-  if (!IsValid())  {
-    return false;
-  }
-
-  int on = 1;
-  int status = setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  if (status != 0) {
-    return false;
-  }
-
-  sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-  addr.sin_port = htons(port);
-  status = bind(socket_,
-                reinterpret_cast<struct sockaddr *>(&addr),
-                sizeof(addr));
-  return status == 0;
-}
-
-
-bool MacOSSocket::Listen(int backlog) const {
-  if (!IsValid()) {
-    return false;
-  }
-
-  int status = listen(socket_, backlog);
-  return status == 0;
-}
-
-
-Socket* MacOSSocket::Accept() const {
-  if (!IsValid()) {
-    return NULL;
-  }
-
-  int socket = accept(socket_, NULL, NULL);
-  if (socket == -1) {
-    return NULL;
-  } else {
-    return new MacOSSocket(socket);
-  }
-}
-
-
-bool MacOSSocket::Connect(const char* host, const char* port) {
-  if (!IsValid()) {
-    return false;
-  }
-
-  // Lookup host and port.
-  struct addrinfo *result = NULL;
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(addrinfo));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
-  int status = getaddrinfo(host, port, &hints, &result);
-  if (status != 0) {
-    return false;
-  }
-
-  // Connect.
-  status = connect(socket_, result->ai_addr, result->ai_addrlen);
-  return status == 0;
-}
-
-
-int MacOSSocket::Send(const char* data, int len) const {
-  int status = send(socket_, data, len, 0);
-  return status;
-}
-
-
-int MacOSSocket::Receive(char* data, int len) const {
-  int status = recv(socket_, data, len, 0);
-  return status;
-}
-
-
-bool Socket::Setup() {
-  // Nothing to do on MacOS.
-  return true;
-}
-
-
-int Socket::LastError() {
-  return errno;
-}
-
-
-uint16_t Socket::HToN(uint16_t value) {
-  return htons(value);
-}
-
-
-uint16_t Socket::NToH(uint16_t value) {
-  return ntohs(value);
-}
-
-
-uint32_t Socket::HToN(uint32_t value) {
-  return htonl(value);
-}
-
-
-uint32_t Socket::NToH(uint32_t value) {
-  return ntohl(value);
-}
-
-
-Socket* OS::CreateSocket() {
-  return new MacOSSocket();
 }
 
 

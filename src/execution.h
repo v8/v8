@@ -35,7 +35,8 @@ namespace v8 { namespace internal {
 enum InterruptFlag {
   INTERRUPT = 1 << 0,
   DEBUGBREAK = 1 << 1,
-  PREEMPT = 1 << 2
+  DEBUGCOMMAND = 1 << 2,
+  PREEMPT = 1 << 3
 };
 
 class Execution : public AllStatic {
@@ -159,6 +160,8 @@ class StackGuard BASE_EMBEDDED {
   static void Interrupt();
   static bool IsDebugBreak();
   static void DebugBreak();
+  static bool IsDebugCommand();
+  static void DebugCommand();
   static void Continue(InterruptFlag after_what);
 
  private:
