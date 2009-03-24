@@ -28,12 +28,8 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
-
-// Disable exceptions on windows to not generate warnings from <map>.
-#define _HAS_EXCEPTIONS 0
-#include <map>
-
 #include "v8.h"
+#include "hashmap.h"
 
 
 namespace v8 {
@@ -72,6 +68,43 @@ class CounterCollection {
 };
 
 
+class CounterMap {
+ public:
+  CounterMap(): hash_map_(Match) { }
+  Counter* Lookup(const char* name) {
+    i::HashMap::Entry* answer = hash_map_.Lookup(
+        const_cast<char*>(name),
+        Hash(name),
+        false);
+    if (!answer) return NULL;
+    return reinterpret_cast<Counter*>(answer->value);
+  }
+  void Set(const char* name, Counter* value) {
+    i::HashMap::Entry* answer = hash_map_.Lookup(
+        const_cast<char*>(name),
+        Hash(name),
+        true);
+    ASSERT(answer != NULL);
+    answer->value = value;
+  }
+  class Iterator {
+   public:
+    Iterator(CounterMap* map): map_(&map->hash_map_), entry_(map_->Start()) { }
+    void Next() { entry_ = map_->Next(entry_); }
+    bool More() { return entry_ != NULL; }
+    const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
+    Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
+   private:
+    i::HashMap* map_;
+    i::HashMap::Entry* entry_;
+  };
+ private:
+  static int Hash(const char* name);
+  static bool Match(void* key1, void* key2);
+  i::HashMap hash_map_;
+};
+
+
 class Shell: public i::AllStatic {
  public:
   static bool ExecuteString(Handle<String> source,
@@ -104,8 +137,7 @@ class Shell: public i::AllStatic {
  private:
   static Persistent<Context> utility_context_;
   static Persistent<Context> evaluation_context_;
-  typedef std::map<const char*, Counter*> CounterMap;
-  static CounterMap counter_map_;
+  static CounterMap* counter_map_;
   // We statically allocate a set of local counters to be used if we
   // don't want to store the stats in a memory-mapped file
   static CounterCollection local_counters_;

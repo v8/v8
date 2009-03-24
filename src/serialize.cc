@@ -963,8 +963,8 @@ bool Serializer::IsVisited(HeapObject* obj) {
 
 
 Address Serializer::GetSavedAddress(HeapObject* obj) {
-  HashMap::Entry* entry
-  = saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
+  HashMap::Entry* entry =
+    saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
   ASSERT(entry != NULL);
   return reinterpret_cast<Address>(entry->value);
 }

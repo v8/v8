@@ -86,12 +86,19 @@ i::SmartPointer<char> DumbLineEditor::Prompt(const char* prompt) {
 }
 
 
-Shell::CounterMap Shell::counter_map_;
+CounterMap* Shell::counter_map_;
 i::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
 Persistent<Context> Shell::utility_context_;
 Persistent<Context> Shell::evaluation_context_;
+
+
+bool CounterMap::Match(void* key1, void* key2) {
+  const char* name1 = reinterpret_cast<const char*>(key1);
+  const char* name2 = reinterpret_cast<const char*>(key2);
+  return strcmp(name1, name2) != 0;
+}
 
 
 // Converts a V8 value to a C string.
@@ -298,20 +305,31 @@ void Shell::MapCounters(const char* name) {
 }
 
 
+int CounterMap::Hash(const char* name) {
+  int h = 0;
+  int c;
+  while ((c = *name++) != 0) {
+    h += h << 5;
+    h += c;
+  }
+  return h;
+}
+
+
 int* Shell::LookupCounter(const char* name) {
-  CounterMap::iterator item = counter_map_.find(name);
-  if (item != counter_map_.end()) {
-    Counter* result = (*item).second;
-    return result->ptr();
+  Counter* counter = counter_map_->Lookup(name);
+  if (counter != NULL) {
+    return counter->ptr();
   }
   Counter* result = counters_->GetNextCounter();
   if (result == NULL) return NULL;
-  counter_map_[name] = result;
+  counter_map_->Set(name, result);
   return result->Bind(name);
 }
 
 
 void Shell::Initialize() {
+  Shell::counter_map_ = new CounterMap();
   // Set up counters
   if (i::FLAG_map_counters != NULL)
     MapCounters(i::FLAG_map_counters);
@@ -382,11 +400,9 @@ void Shell::OnExit() {
     ::printf("+----------------------------------------+-------------+\n");
     ::printf("| Name                                   | Value       |\n");
     ::printf("+----------------------------------------+-------------+\n");
-    for (CounterMap::iterator i = counter_map_.begin();
-         i != counter_map_.end();
-         i++) {
-      Counter* counter = (*i).second;
-      ::printf("| %-38s | %11i |\n", (*i).first, counter->value());
+    for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
+      Counter* counter = i.CurrentValue();
+      ::printf("| %-38s | %11i |\n", i.CurrentKey(), counter->value());
     }
     ::printf("+----------------------------------------+-------------+\n");
   }
