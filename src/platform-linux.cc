@@ -284,7 +284,7 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-#ifdef ARM
+#if defined(__arm__) || defined(__thumb__)
   asm("bkpt 0");
 #else
   asm("int $3");
