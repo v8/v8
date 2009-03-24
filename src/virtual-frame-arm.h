@@ -338,6 +338,10 @@ class VirtualFrame : public Malloced {
   // (the fp register).
   int frame_pointer_;
 
+  // The index of the register frame element using each register, or
+  // kIllegalIndex if a register is not on the frame.
+  int register_locations_[kNumRegisters];
+
   // The frame has an embedded register file that it uses to track registers
   // used in the frame.
   RegisterFile frame_registers_;
