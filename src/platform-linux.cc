@@ -234,9 +234,9 @@ size_t OS::AllocateAlignment() {
 
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
-                   bool executable) {
+                   bool is_executable) {
   const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
-  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
+  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
     LOG(StringEvent("OS::Allocate", "mmap failed"));
@@ -248,10 +248,27 @@ void* OS::Allocate(const size_t requested,
 }
 
 
-void OS::Free(void* buf, const size_t length) {
+void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
-  munmap(buf, length);
+  munmap(address, size);
 }
+
+
+#ifdef ENABLE_HEAP_PROTECTION
+
+void OS::Protect(void* address, size_t size) {
+  // TODO(1240712): mprotect has a return value which is ignored here.
+  mprotect(address, size, PROT_READ);
+}
+
+
+void OS::Unprotect(void* address, size_t size, bool is_executable) {
+  // TODO(1240712): mprotect has a return value which is ignored here.
+  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  mprotect(address, size, prot);
+}
+
+#endif
 
 
 void OS::Sleep(int milliseconds) {
@@ -267,7 +284,7 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-#if defined (__arm__) || defined(__thumb__)
+#ifdef ARM
   asm("bkpt 0");
 #else
   asm("int $3");
@@ -418,8 +435,8 @@ bool VirtualMemory::IsReserved() {
 }
 
 
-bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
-  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
+bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   if (MAP_FAILED == mmap(address, size, prot,
                          MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
                          kMmapFd, kMmapFdOffset)) {

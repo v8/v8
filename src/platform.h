@@ -168,10 +168,16 @@ class OS {
   // Returns the address of allocated memory, or NULL if failed.
   static void* Allocate(const size_t requested,
                         size_t* allocated,
-                        bool executable);
-  static void Free(void* buf, const size_t length);
+                        bool is_executable);
+  static void Free(void* address, const size_t size);
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
+
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect a block of memory by marking it read-only/writable.
+  static void Protect(void* address, size_t size);
+  static void Unprotect(void* address, size_t size, bool is_executable);
+#endif
 
   // Returns an indication of whether a pointer is in a space that
   // has been allocated by Allocate().  This method may conservatively
@@ -267,7 +273,7 @@ class VirtualMemory {
   size_t size() { return size_; }
 
   // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size, bool executable);
+  bool Commit(void* address, size_t size, bool is_executable);
 
   // Uncommit real memory.  Returns whether the operation succeeded.
   bool Uncommit(void* address, size_t size);

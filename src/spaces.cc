@@ -302,9 +302,8 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
   *num_pages = PagesInChunk(start, size);
   ASSERT(*num_pages > 0);
   ASSERT(initial_chunk_ != NULL);
-  ASSERT(initial_chunk_->address() <= start);
-  ASSERT(start + size <= reinterpret_cast<Address>(initial_chunk_->address())
-                             + initial_chunk_->size());
+  ASSERT(InInitialChunk(start));
+  ASSERT(InInitialChunk(start + size - 1));
   if (!initial_chunk_->Commit(start, size, owner->executable() == EXECUTABLE)) {
     return Page::FromAddress(NULL);
   }
@@ -325,9 +324,8 @@ bool MemoryAllocator::CommitBlock(Address start,
   ASSERT(start != NULL);
   ASSERT(size > 0);
   ASSERT(initial_chunk_ != NULL);
-  ASSERT(initial_chunk_->address() <= start);
-  ASSERT(start + size <= reinterpret_cast<Address>(initial_chunk_->address())
-                             + initial_chunk_->size());
+  ASSERT(InInitialChunk(start));
+  ASSERT(InInitialChunk(start + size - 1));
 
   if (!initial_chunk_->Commit(start, size, executable)) return false;
   Counters::memory_allocated.Increment(size);
@@ -407,14 +405,7 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
   // We cannot free a chunk contained in the initial chunk because it was not
   // allocated with AllocateRawMemory.  Instead we uncommit the virtual
   // memory.
-  bool in_initial_chunk = false;
-  if (initial_chunk_ != NULL) {
-    Address start = static_cast<Address>(initial_chunk_->address());
-    Address end = start + initial_chunk_->size();
-    in_initial_chunk = (start <= c.address()) && (c.address() < end);
-  }
-
-  if (in_initial_chunk) {
+  if (InInitialChunk(c.address())) {
     // TODO(1240712): VirtualMemory::Uncommit has a return value which
     // is ignored here.
     initial_chunk_->Uncommit(c.address(), c.size());
@@ -527,6 +518,28 @@ void PagedSpace::TearDown() {
 
   accounting_stats_.Clear();
 }
+
+
+#ifdef ENABLE_HEAP_PROTECTION
+
+void PagedSpace::Protect() {
+  Page* page = first_page_;
+  while (page->is_valid()) {
+    MemoryAllocator::ProtectChunkFromPage(page);
+    page = MemoryAllocator::FindLastPageInSameChunk(page)->next_page();
+  }
+}
+
+
+void PagedSpace::Unprotect() {
+  Page* page = first_page_;
+  while (page->is_valid()) {
+    MemoryAllocator::UnprotectChunkFromPage(page);
+    page = MemoryAllocator::FindLastPageInSameChunk(page)->next_page();
+  }
+}
+
+#endif
 
 
 void PagedSpace::ClearRSet() {
@@ -832,6 +845,24 @@ void NewSpace::TearDown() {
   to_space_.TearDown();
   from_space_.TearDown();
 }
+
+
+#ifdef ENABLE_HEAP_PROTECTION
+
+void NewSpace::Protect() {
+  MemoryAllocator::Protect(ToSpaceLow(), Capacity());
+  MemoryAllocator::Protect(FromSpaceLow(), Capacity());
+}
+
+
+void NewSpace::Unprotect() {
+  MemoryAllocator::Unprotect(ToSpaceLow(), Capacity(),
+                             to_space_.executable());
+  MemoryAllocator::Unprotect(FromSpaceLow(), Capacity(),
+                             from_space_.executable());
+}
+
+#endif
 
 
 void NewSpace::Flip() {
@@ -2240,6 +2271,30 @@ void LargeObjectSpace::TearDown() {
   size_ = 0;
   page_count_ = 0;
 }
+
+
+#ifdef ENABLE_HEAP_PROTECTION
+
+void LargeObjectSpace::Protect() {
+  LargeObjectChunk* chunk = first_chunk_;
+  while (chunk != NULL) {
+    MemoryAllocator::Protect(chunk->address(), chunk->size());
+    chunk = chunk->next();
+  }
+}
+
+
+void LargeObjectSpace::Unprotect() {
+  LargeObjectChunk* chunk = first_chunk_;
+  while (chunk != NULL) {
+    bool is_code = chunk->GetObject()->IsCode();
+    MemoryAllocator::Unprotect(chunk->address(), chunk->size(),
+                               is_code ? EXECUTABLE : NOT_EXECUTABLE);
+    chunk = chunk->next();
+  }
+}
+
+#endif
 
 
 Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
