@@ -1578,6 +1578,11 @@ int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
 
 
 String* ConsString::first() {
+  ASSERT(String::cast(READ_FIELD(this, kSecondOffset))->length() != 0 ||
+      StringShape(
+          String::cast(
+              READ_FIELD(this, kFirstOffset))).IsAsciiRepresentation()
+          == StringShape(this).IsAsciiRepresentation());
   return String::cast(READ_FIELD(this, kFirstOffset));
 }
 
@@ -1610,6 +1615,10 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 
 
 String* SlicedString::buffer() {
+  ASSERT(
+      StringShape(
+          String::cast(READ_FIELD(this, kBufferOffset))).IsAsciiRepresentation()
+      == StringShape(this).IsAsciiRepresentation());
   return String::cast(READ_FIELD(this, kBufferOffset));
 }
 

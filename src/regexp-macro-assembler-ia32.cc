@@ -972,6 +972,8 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
   int start_offset = previous_index;
   int end_offset = subject_ptr->length();
 
+  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
+
   if (StringShape(subject_ptr).IsCons()) {
     subject_ptr = ConsString::cast(subject_ptr)->first();
   } else if (StringShape(subject_ptr).IsSliced()) {
@@ -980,9 +982,10 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
     end_offset += slice->start();
     subject_ptr = slice->buffer();
   }
-
+  // Ensure that an underlying string has the same ascii-ness.
+  ASSERT(StringShape(subject_ptr).IsAsciiRepresentation() == is_ascii);
+  ASSERT(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
   // String is now either Sequential or External
-  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
   int char_size_shift = is_ascii ? 0 : 1;
   int char_length = end_offset - start_offset;
 

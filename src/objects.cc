@@ -618,6 +618,8 @@ Object* String::TryFlatten() {
       if (StringShape(String::cast(ok)).IsCons()) {
         ss->set_buffer(ConsString::cast(ok)->first());
       }
+      ASSERT(StringShape(this).IsAsciiRepresentation() ==
+          StringShape(ss->buffer()).IsAsciiRepresentation());
       return this;
     }
     case kConsStringTag: {
