@@ -2016,14 +2016,17 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   VisitAndSpill(node->body());
 
-  // Next.
+  // Next.  Reestablish a spilled frame in case we are coming here via
+  // a continue in the body.
   node->continue_target()->Bind();
+  frame_->SpillAll();
   frame_->EmitPop(r0);
   __ add(r0, r0, Operand(Smi::FromInt(1)));
   frame_->EmitPush(r0);
   entry.Jump();
 
-  // Cleanup.
+  // Cleanup.  No need to spill because VirtualFrame::Drop is safe for
+  // any frame.
   node->break_target()->Bind();
   frame_->Drop(5);
 
