@@ -100,7 +100,7 @@ void AstOptimizer::VisitLoopStatement(LoopStatement* node) {
   if (node->cond() != NULL) {
     has_function_literal_ = false;
     Visit(node->cond());
-    node->has_function_literal_ = has_function_literal_;
+    node->may_have_function_literal_ = has_function_literal_;
   }
   if (node->body() != NULL) {
     Visit(node->body());

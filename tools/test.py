@@ -163,7 +163,7 @@ class SimpleProgressIndicator(ProgressIndicator):
         print failed.output.stdout.strip()
       print "Command: %s" % EscapeCommand(failed.command)
       if failed.HasCrashed():
-        print "--- CRASHED ---"      
+        print "--- CRASHED ---"
     if len(self.failed) == 0:
       print "==="
       print "=== All tests succeeded"
@@ -244,7 +244,7 @@ class CompactProgressIndicator(ProgressIndicator):
         print self.templates['stderr'] % stderr
       print "Command: %s" % EscapeCommand(output.command)
       if output.HasCrashed():
-        print "--- CRASHED ---"      
+        print "--- CRASHED ---"
 
   def Truncate(self, str, length):
     if length and (len(str) > (length - 3)):
@@ -345,7 +345,7 @@ class TestCase(object):
 
   def GetSource(self):
     return "(no source available)"
-    
+
   def RunCommand(self, command):
     full_command = self.context.processor(command)
     output = Execute(full_command, self.context, self.context.timeout)
@@ -411,7 +411,7 @@ def Win32SetErrorMode(mode):
   except ImportError:
     pass
   return prev_error_mode
-  
+
 def RunProcess(context, timeout, args, **rest):
   if context.verbose: print "#", " ".join(args)
   popen_args = args

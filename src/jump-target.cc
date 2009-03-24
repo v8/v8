@@ -272,11 +272,15 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
 
   // Set the copied flags in the frame to be exact.  This assumes that
   // the backing store of copies is always lower in the frame.
+  // Set the register counts and indices.
   for (int i = 0; i < length; i++) {
+    FrameElement current = entry_frame_->elements_[i];
     entry_frame_->elements_[i].clear_copied();
-    if (entry_frame_->elements_[i].is_copy()) {
-      int index = entry_frame_->elements_[i].index();
-      entry_frame_->elements_[index].set_copied();
+    if (current.is_copy()) {
+      entry_frame_->elements_[current.index()].set_copied();
+    } else if (current.is_register()) {
+      entry_frame_->frame_registers_.Use(current.reg());
+      entry_frame_->register_locations_[current.reg().code()] = i;
     }
   }
 
@@ -292,11 +296,6 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
     stack_pointer--;
   }
   entry_frame_->stack_pointer_ = stack_pointer;
-
-  // Unuse the reserved registers---they do not actually appear in
-  // the entry frame.
-  RegisterAllocator::UnuseReserved(&frame_registers);
-  entry_frame_->frame_registers_ = frame_registers;
 }
 
 

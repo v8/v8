@@ -277,16 +277,22 @@ class Space : public Malloced {
  public:
   Space(AllocationSpace id, Executability executable)
       : id_(id), executable_(executable) {}
+
   virtual ~Space() {}
+
   // Does the space need executable memory?
   Executability executable() { return executable_; }
+
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
+
   virtual int Size() = 0;
+
 #ifdef DEBUG
   virtual void Verify() = 0;
   virtual void Print() = 0;
 #endif
+
  private:
   AllocationSpace id_;
   Executability executable_;
@@ -396,6 +402,17 @@ class MemoryAllocator : public AllStatic {
   static Page* FindFirstPageInSameChunk(Page* p);
   static Page* FindLastPageInSameChunk(Page* p);
 
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect a block of memory by marking it read-only/writable.
+  static inline void Protect(Address start, size_t size);
+  static inline void Unprotect(Address start, size_t size,
+                               Executability executable);
+
+  // Protect/unprotect a chunk given a page in the chunk.
+  static inline void ProtectChunkFromPage(Page* page);
+  static inline void UnprotectChunkFromPage(Page* page);
+#endif
+
 #ifdef DEBUG
   // Reports statistic info of the space.
   static void ReportStatistics();
@@ -459,6 +476,9 @@ class MemoryAllocator : public AllStatic {
 
   // Returns the chunk id that a page belongs to.
   static inline int GetChunkId(Page* p);
+
+  // True if the address lies in the initial chunk.
+  static inline bool InInitialChunk(Address address);
 
   // Initializes pages in a chunk. Returns the first page address.
   // This function and GetChunkId() are provided for the mark-compact
@@ -669,7 +689,6 @@ class AllocationStats BASE_EMBEDDED {
 
 
 class PagedSpace : public Space {
-  friend class PageIterator;
  public:
   // Creates a space with a maximum capacity, and an id.
   PagedSpace(int max_capacity, AllocationSpace id, Executability executable);
@@ -764,6 +783,12 @@ class PagedSpace : public Space {
   // Ensures that the capacity is at least 'capacity'. Returns false on failure.
   bool EnsureCapacity(int capacity);
 
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect the space by marking it read-only/writable.
+  void Protect();
+  void Unprotect();
+#endif
+
 #ifdef DEBUG
   // Print meta info and objects in this space.
   virtual void Print();
@@ -834,6 +859,8 @@ class PagedSpace : public Space {
   // Returns the number of total pages in this space.
   int CountTotalPages();
 #endif
+
+  friend class PageIterator;
 };
 
 
@@ -1116,6 +1143,12 @@ class NewSpace : public Space {
 
   bool ToSpaceContains(Address a) { return to_space_.Contains(a); }
   bool FromSpaceContains(Address a) { return from_space_.Contains(a); }
+
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect the space by marking it read-only/writable.
+  virtual void Protect();
+  virtual void Unprotect();
+#endif
 
 #ifdef DEBUG
   // Verify the active semispace.
@@ -1554,7 +1587,6 @@ class LargeObjectChunk {
 
 
 class LargeObjectSpace : public Space {
-  friend class LargeObjectIterator;
  public:
   explicit LargeObjectSpace(AllocationSpace id);
   virtual ~LargeObjectSpace() {}
@@ -1606,6 +1638,12 @@ class LargeObjectSpace : public Space {
   // Checks whether the space is empty.
   bool IsEmpty() { return first_chunk_ == NULL; }
 
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect the space by marking it read-only/writable.
+  void Protect();
+  void Unprotect();
+#endif
+
 #ifdef DEBUG
   virtual void Verify();
   virtual void Print();
@@ -1634,6 +1672,8 @@ class LargeObjectSpace : public Space {
   // Returns the number of extra bytes (rounded up to the nearest full word)
   // required for extra_object_bytes of extra pointers (in bytes).
   static inline int ExtraRSetBytesFor(int extra_object_bytes);
+
+  friend class LargeObjectIterator;
 
  public:
   TRACK_MEMORY("LargeObjectSpace")

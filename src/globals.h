@@ -359,7 +359,8 @@ struct AccessorDescriptor {
   V(JS)                   \
   V(GC)                   \
   V(COMPILER)             \
-  V(OTHER)
+  V(OTHER)                \
+  V(EXTERNAL)
 
 enum StateTag {
 #define DEF_STATE_TAG(name) name,

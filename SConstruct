@@ -70,6 +70,17 @@ ANDROID_INCLUDES = [ANDROID_TOP + '/bionic/libc/arch-arm/include',
                     ANDROID_TOP + '/bionic/libm/include/arch/arm',
                     ANDROID_TOP + '/bionic/libthread_db/include']
 
+ANDROID_LINKFLAGS = ['-nostdlib',
+                     '-Bdynamic',
+                     '-Wl,-T,' + ANDROID_TOP + '/build/core/armelf.x',
+                     '-Wl,-dynamic-linker,/system/bin/linker',
+                     '-Wl,--gc-sections',
+                     '-Wl,-z,nocopyreloc',
+                     '-Wl,-rpath-link=' + ANDROID_TOP + '/out/target/product/generic/obj/lib',
+                     ANDROID_TOP + '/out/target/product/generic/obj/lib/crtbegin_dynamic.o',
+                     ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/lib/gcc/arm-eabi/4.2.1/interwork/libgcc.a',
+                     ANDROID_TOP + '/out/target/product/generic/obj/lib/crtend_android.o'];
+
 LIBRARY_FLAGS = {
   'all': {
     'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING']
@@ -306,16 +317,7 @@ SAMPLE_FLAGS = {
       'CCFLAGS':      ANDROID_FLAGS,
       'CPPPATH':      ANDROID_INCLUDES,
       'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
-      'LINKFLAGS':    ['-nostdlib',
-                       '-Bdynamic',
-                       '-Wl,-T,' + ANDROID_TOP + '/build/core/armelf.x',
-                       '-Wl,-dynamic-linker,/system/bin/linker',
-                       '-Wl,--gc-sections',
-                       '-Wl,-z,nocopyreloc',
-                       '-Wl,-rpath-link=' + ANDROID_TOP + '/out/target/product/generic/obj/lib',
-                       ANDROID_TOP + '/out/target/product/generic/obj/lib/crtbegin_dynamic.o',
-                       ANDROID_TOP + '/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/lib/gcc/arm-eabi/4.2.1/interwork/libgcc.a',
-                       ANDROID_TOP + '/out/target/product/generic/obj/lib/crtend_android.o'],
+      'LINKFLAGS':    ANDROID_LINKFLAGS,
       'LIBS':         ['c', 'stdc++', 'm'],
       'mode:release': {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
@@ -385,6 +387,11 @@ D8_FLAGS = {
     },
     'os:freebsd': {
       'LIBS': ['pthread'],
+    },
+    'os:android': {
+      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
+      'LINKFLAGS':    ANDROID_LINKFLAGS,
+      'LIBS':         ['c', 'stdc++', 'm'],
     },
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],

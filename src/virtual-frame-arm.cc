@@ -52,6 +52,9 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
   for (int i = 0; i < parameter_count_ + 1; i++) {
     elements_.Add(FrameElement::MemoryElement());
   }
+  for (int i = 0; i < kNumRegisters; i++) {
+    register_locations_[i] = kIllegalIndex;
+  }
 }
 
 

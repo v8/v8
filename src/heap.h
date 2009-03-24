@@ -273,6 +273,12 @@ class Heap : public AllStatic {
     return new_space_.allocation_limit_address();
   }
 
+#ifdef ENABLE_HEAP_PROTECTION
+  // Protect/unprotect the heap by marking all spaces read-only/writable.
+  static void Protect();
+  static void Unprotect();
+#endif
+
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

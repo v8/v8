@@ -63,6 +63,9 @@ VirtualFrame::VirtualFrame(VirtualFrame* original)
   for (int i = 0; i < original->elements_.length(); i++) {
     elements_.Add(original->elements_[i]);
   }
+  for (int i = 0; i < kNumRegisters; i++) {
+    register_locations_[i] = original->register_locations_[i];
+  }
 }
 
 
@@ -150,19 +153,26 @@ void VirtualFrame::ForgetElements(int count) {
         Unuse(last.reg());
       } else {
         frame_registers_.Unuse(last.reg());
+        register_locations_[last.reg().code()] = kIllegalIndex;
       }
     }
   }
 }
 
 
-void VirtualFrame::Use(Register reg) {
+void VirtualFrame::Use(Register reg, int index) {
+  ASSERT(frame_registers_.count(reg) == 0);
+  ASSERT(register_locations_[reg.code()] == kIllegalIndex);
+  register_locations_[reg.code()] = index;
   frame_registers_.Use(reg);
   cgen_->allocator()->Use(reg);
 }
 
 
 void VirtualFrame::Unuse(Register reg) {
+  ASSERT(frame_registers_.count(reg) == 1);
+  ASSERT(register_locations_[reg.code()] != kIllegalIndex);
+  register_locations_[reg.code()] = kIllegalIndex;
   frame_registers_.Unuse(reg);
   cgen_->allocator()->Unuse(reg);
 }
@@ -270,6 +280,7 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
           Unuse(source.reg());
         } else {
           frame_registers_.Unuse(source.reg());
+          register_locations_[source.reg().code()] = kIllegalIndex;
         }
       }
       elements_[i] = target;
@@ -382,7 +393,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
     // There are two cases depending no whether the register already
     // occurs in the frame or not.
     if (register_count(value->reg()) == 0) {
-      Use(value->reg());
+      Use(value->reg(), frame_index);
       elements_[frame_index] =
           FrameElement::RegisterElement(value->reg(),
                                         FrameElement::NOT_SYNCED);
@@ -408,6 +419,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
           elements_[i].set_sync();
         }
         elements_[frame_index].clear_sync();
+        register_locations_[value->reg().code()] = frame_index;
         for (int j = i + 1; j < elements_.length(); j++) {
           if (elements_[j].is_copy() && elements_[j].index() == i) {
             elements_[j].set_index(frame_index);
@@ -487,7 +499,7 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
 void VirtualFrame::Push(Register reg) {
   FrameElement new_element;
   if (register_count(reg) == 0) {
-    Use(reg);
+    Use(reg, elements_.length());
     new_element =
         FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED);
   } else {
@@ -558,6 +570,9 @@ bool VirtualFrame::Equals(VirtualFrame* other) {
 
   for (int i = 0; i < kNumRegisters; i++) {
     if (frame_registers_.count(i) != other->frame_registers_.count(i)) {
+      return false;
+    }
+    if (register_locations_[i] != other->register_locations_[i]) {
       return false;
     }
   }

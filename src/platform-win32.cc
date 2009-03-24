@@ -801,12 +801,12 @@ size_t OS::AllocateAlignment() {
 
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
-                   bool executable) {
+                   bool is_executable) {
   // VirtualAlloc rounds allocated size to page size automatically.
   size_t msize = RoundUp(requested, GetPageSize());
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
-  int prot = executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
   LPVOID mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
   if (mbase == NULL) {
     LOG(StringEvent("OS::Allocate", "VirtualAlloc failed"));
@@ -821,11 +821,30 @@ void* OS::Allocate(const size_t requested,
 }
 
 
-void OS::Free(void* buf, const size_t length) {
+void OS::Free(void* address, const size_t size) {
   // TODO(1240712): VirtualFree has a return value which is ignored here.
-  VirtualFree(buf, 0, MEM_RELEASE);
-  USE(length);
+  VirtualFree(address, 0, MEM_RELEASE);
+  USE(size);
 }
+
+
+#ifdef ENABLE_HEAP_PROTECTION
+
+void OS::Protect(void* address, size_t size) {
+  // TODO(1240712): VirtualProtect has a return value which is ignored here.
+  DWORD old_protect;
+  VirtualProtect(address, size, PAGE_READONLY, &old_protect);
+}
+
+
+void OS::Unprotect(void* address, size_t size, bool is_executable) {
+  // TODO(1240712): VirtualProtect has a return value which is ignored here.
+  DWORD new_protect = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  DWORD old_protect;
+  VirtualProtect(address, size, new_protect, &old_protect);
+}
+
+#endif
 
 
 void OS::Sleep(int milliseconds) {
@@ -1299,8 +1318,8 @@ VirtualMemory::~VirtualMemory() {
 }
 
 
-bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
-  int prot = executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
   if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
     return false;
   }

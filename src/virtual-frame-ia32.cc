@@ -51,6 +51,9 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
   for (int i = 0; i < parameter_count_ + 2; i++) {
     elements_.Add(FrameElement::MemoryElement());
   }
+  for (int i = 0; i < kNumRegisters; i++) {
+    register_locations_[i] = kIllegalIndex;
+  }
 }
 
 
@@ -325,7 +328,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
             if (target.is_synced() && !source.is_synced()) {
               SyncElementAt(i);
             }
-            Use(target.reg());
+            Use(target.reg(), i);
             Unuse(source.reg());
             elements_[i] = target;
             __ mov(target.reg(), source.reg());
@@ -388,7 +391,7 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
       if (target.is_synced() && !source.is_memory()) {
         SyncElementAt(i);
       }
-      Use(target.reg());
+      Use(target.reg(), i);
       elements_[i] = target;
     }
   }
@@ -527,12 +530,13 @@ int VirtualFrame::InvalidateFrameSlotAt(int index) {
   if (original.is_memory()) {
     Result fresh = cgen_->allocator()->Allocate();
     ASSERT(fresh.is_valid());
-    Use(fresh.reg());
+    Use(fresh.reg(), new_backing_index);
     backing_reg = fresh.reg();
     __ mov(backing_reg, Operand(ebp, fp_relative(index)));
   } else {
     // The original was in a register.
     backing_reg = original.reg();
+    register_locations_[backing_reg.code()] = new_backing_index;
   }
   // Invalidate the element at index.
   elements_[index] = FrameElement::InvalidElement();
@@ -574,13 +578,13 @@ void VirtualFrame::TakeFrameSlotAt(int index) {
       FrameElement new_element =
           FrameElement::RegisterElement(fresh.reg(),
                                         FrameElement::NOT_SYNCED);
-      Use(fresh.reg());
+      Use(fresh.reg(), elements_.length());
       elements_.Add(new_element);
       __ mov(fresh.reg(), Operand(ebp, fp_relative(index)));
       break;
     }
     case FrameElement::REGISTER:
-      Use(original.reg());
+      Use(original.reg(), elements_.length());
       // Fall through.
     case FrameElement::CONSTANT:
     case FrameElement::COPY:
@@ -641,11 +645,14 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
         ASSERT(temp.is_valid());
         __ mov(temp.reg(), Operand(ebp, fp_relative(backing_index)));
         __ mov(Operand(ebp, fp_relative(index)), temp.reg());
-      } else if (backing_element.is_synced()) {
-        // If the element is a register, we will not actually move
-        // anything on the stack but only update the virtual frame
-        // element.
-        backing_element.clear_sync();
+      } else {
+        register_locations_[backing_element.reg().code()] = index;
+        if (backing_element.is_synced()) {
+          // If the element is a register, we will not actually move
+          // anything on the stack but only update the virtual frame
+          // element.
+          backing_element.clear_sync();
+        }
       }
       elements_[index] = backing_element;
 
@@ -686,6 +693,7 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
     __ mov(temp.reg(), Operand(esp, 0));
     __ mov(Operand(ebp, fp_relative(index)), temp.reg());
   } else if (top.is_register()) {
+    register_locations_[top.reg().code()] = index;
     // The stored-to slot has the (unsynced) register reference and
     // the top element becomes a copy.  The sync state of the top is
     // preserved.
@@ -892,7 +900,7 @@ Result VirtualFrame::Pop() {
     ASSERT(index <= stack_pointer_);
     Result temp = cgen_->allocator()->Allocate();
     ASSERT(temp.is_valid());
-    Use(temp.reg());
+    Use(temp.reg(), index);
     FrameElement new_element =
         FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
     elements_[index] = new_element;

@@ -2861,6 +2861,30 @@ void Heap::Shrink() {
 }
 
 
+#ifdef ENABLE_HEAP_PROTECTION
+
+void Heap::Protect() {
+  new_space_.Protect();
+  map_space_->Protect();
+  old_pointer_space_->Protect();
+  old_data_space_->Protect();
+  code_space_->Protect();
+  lo_space_->Protect();
+}
+
+
+void Heap::Unprotect() {
+  new_space_.Unprotect();
+  map_space_->Unprotect();
+  old_pointer_space_->Unprotect();
+  old_data_space_->Unprotect();
+  code_space_->Unprotect();
+  lo_space_->Unprotect();
+}
+
+#endif
+
+
 #ifdef DEBUG
 
 class PrintHandleVisitor: public ObjectVisitor {

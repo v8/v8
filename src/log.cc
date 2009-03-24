@@ -29,10 +29,12 @@
 
 #include "v8.h"
 
+#include "bootstrapper.h"
 #include "log.h"
-#include "platform.h"
-#include "string-stream.h"
 #include "macro-assembler.h"
+#include "platform.h"
+#include "serialize.h"
+#include "string-stream.h"
 
 namespace v8 { namespace internal {
 
@@ -1115,10 +1117,23 @@ VMState::VMState(StateTag state) {
 
   if (FLAG_log_state_changes) {
     LOG(UncheckedStringEvent("Entering", StateToString(state_)));
-    if (previous_) {
+    if (previous_ != NULL) {
       LOG(UncheckedStringEvent("From", StateToString(previous_->state_)));
     }
   }
+
+#ifdef ENABLE_HEAP_PROTECTION
+  if (FLAG_protect_heap && previous_ != NULL) {
+    if (state_ == EXTERNAL) {
+      // We are leaving V8.
+      ASSERT(previous_ == NULL || previous_->state_ != EXTERNAL);
+      Heap::Protect();
+    } else {
+      // Are we entering V8?
+      if (previous_->state_ == EXTERNAL) Heap::Unprotect();
+    }
+  }
+#endif
 }
 
 
@@ -1127,10 +1142,22 @@ VMState::~VMState() {
 
   if (FLAG_log_state_changes) {
     LOG(UncheckedStringEvent("Leaving", StateToString(state_)));
-    if (previous_) {
+    if (previous_ != NULL) {
       LOG(UncheckedStringEvent("To", StateToString(previous_->state_)));
     }
   }
+
+#ifdef ENABLE_HEAP_PROTECTION
+  if (FLAG_protect_heap && previous_ != NULL) {
+    if (state_ == EXTERNAL) {
+      // Are we (re)entering V8?
+      if (previous_->state_ != EXTERNAL) Heap::Unprotect();
+    } else {
+      // Are we leaving V8?
+      if (previous_->state_ == EXTERNAL) Heap::Protect();
+    }
+  }
+#endif
 }
 #endif
 

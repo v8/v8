@@ -2261,11 +2261,10 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::WHILE_LOOP: {
-      // Do not duplicate conditions with function literal
+      // Do not duplicate conditions that may have function literal
       // subexpressions.  This can cause us to compile the function
       // literal twice.
-      bool test_at_bottom =
-          !scope_->is_global_scope() && !node->has_function_literal();
+      bool test_at_bottom = !node->may_have_function_literal();
 
       IncrementLoopNesting();
 
@@ -2360,11 +2359,10 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::FOR_LOOP: {
-      // Do not duplicate conditions with function literal
+      // Do not duplicate conditions that may have function literal
       // subexpressions.  This can cause us to compile the function
       // literal twice.
-      bool test_at_bottom =
-          !scope_->is_global_scope() && !node->has_function_literal();
+      bool test_at_bottom = !node->may_have_function_literal();
 
       // Compile the init expression if present.
       if (node->init() != NULL) {

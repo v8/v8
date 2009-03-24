@@ -296,7 +296,7 @@ class LoopStatement: public IterationStatement {
         init_(NULL),
         cond_(NULL),
         next_(NULL),
-        has_function_literal_(false) {
+        may_have_function_literal_(true) {
   }
 
   void Initialize(Statement* init,
@@ -317,7 +317,9 @@ class LoopStatement: public IterationStatement {
   Statement* init() const  { return init_; }
   Expression* cond() const  { return cond_; }
   Statement* next() const  { return next_; }
-  bool has_function_literal() const { return has_function_literal_; }
+  bool may_have_function_literal() const {
+    return may_have_function_literal_;
+  }
 
 #ifdef DEBUG
   const char* OperatorString() const;
@@ -329,7 +331,7 @@ class LoopStatement: public IterationStatement {
   Expression* cond_;
   Statement* next_;
   // True if there is a function literal subexpression in the condition.
-  bool has_function_literal_;
+  bool may_have_function_literal_;
 
   friend class AstOptimizer;
 };
