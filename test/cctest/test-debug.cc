@@ -3830,9 +3830,9 @@ TEST(DebuggerAgent) {
   const int kPort = 5858;
 
   // Make a string with the port number.
-  const int kPortBuferLen = 6;
-  char port_str[kPortBuferLen];
-  OS::SNPrintF(i::Vector<char>(port_str, kPortBuferLen), "%d", kPort);
+  const int kPortBufferLen = 6;
+  char port_str[kPortBufferLen];
+  OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
 
   bool ok;
 
@@ -3861,5 +3861,122 @@ TEST(DebuggerAgent) {
   i::Debugger::StartAgent("test", kPort);
   i::Debugger::StopAgent();
 
+  delete server;
+}
+
+
+class DebuggerAgentProtocolServerThread : public i::Thread {
+ public:
+  explicit DebuggerAgentProtocolServerThread(int port)
+      : port_(port), server_(NULL), client_(NULL),
+        listening_(OS::CreateSemaphore(0)) {
+  }
+  ~DebuggerAgentProtocolServerThread() {
+    // Close both sockets.
+    delete client_;
+    delete server_;
+    delete listening_;
+  }
+
+  void Run();
+  void WaitForListening() { listening_->Wait(); }
+  char* body() { return *body_; }
+
+ private:
+  int port_;
+  i::SmartPointer<char> body_;
+  i::Socket* server_;  // Server socket used for bind/accept.
+  i::Socket* client_;  // Single client connection used by the test.
+  i::Semaphore* listening_;  // Signalled when the server is in listen mode.
+};
+
+
+void DebuggerAgentProtocolServerThread::Run() {
+  bool ok;
+
+  // Create the server socket and bind it to the requested port.
+  server_ = i::OS::CreateSocket();
+  CHECK(server_ != NULL);
+  ok = server_->Bind(port_);
+  CHECK(ok);
+
+  // Listen for new connections.
+  ok = server_->Listen(1);
+  CHECK(ok);
+  listening_->Signal();
+
+  // Accept a connection.
+  client_ = server_->Accept();
+  CHECK(client_ != NULL);
+
+  // Receive a debugger agent protocol message.
+  i::DebuggerAgentUtil::ReceiveMessage(client_);
+}
+
+
+TEST(DebuggerAgentProtocolOverflowHeader) {
+  // Make sure this port is not used by other tests to allow tests to run in
+  // parallel.
+  const int kPort = 5860;
+  static const char* kLocalhost = "localhost";
+
+  // Make a string with the port number.
+  const int kPortBufferLen = 6;
+  char port_str[kPortBufferLen];
+  OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
+
+  // Initialize the socket library.
+  i::Socket::Setup();
+
+  // Create a socket server to receive a debugger agent message.
+  DebuggerAgentProtocolServerThread* server =
+      new DebuggerAgentProtocolServerThread(kPort);
+  server->Start();
+  server->WaitForListening();
+
+  // Connect.
+  i::Socket* client = i::OS::CreateSocket();
+  CHECK(client != NULL);
+  bool ok = client->Connect(kLocalhost, port_str);
+  CHECK(ok);
+
+  // Send headers which overflow the receive buffer.
+  static const int kBufferSize = 1000;
+  char buffer[kBufferSize];
+
+  // Long key and short value: XXXX....XXXX:0\r\n.
+  for (int i = 0; i < kBufferSize - 4; i++) {
+    buffer[i] = 'X';
+  }
+  buffer[kBufferSize - 4] = ':';
+  buffer[kBufferSize - 3] = '0';
+  buffer[kBufferSize - 2] = '\r';
+  buffer[kBufferSize - 1] = '\n';
+  client->Send(buffer, kBufferSize);
+
+  // Short key and long value: X:XXXX....XXXX\r\n.
+  buffer[0] = 'X';
+  buffer[1] = ':';
+  for (int i = 2; i < kBufferSize - 2; i++) {
+    buffer[i] = 'X';
+  }
+  buffer[kBufferSize - 2] = '\r';
+  buffer[kBufferSize - 1] = '\n';
+  client->Send(buffer, kBufferSize);
+
+  // Add empty body to request.
+  const char* content_length_zero_header = "Content-Length:0\r\n";
+  client->Send(content_length_zero_header, strlen(content_length_zero_header));
+  client->Send("\r\n", 2);
+
+  // Wait until data is received.
+  server->Join();
+
+  // Check for empty body.
+  CHECK(server->body() == NULL);
+
+  // Close the client before the server to avoid TIME_WAIT issues.
+  client->Shutdown();
+  delete client;
   delete server;
 }
