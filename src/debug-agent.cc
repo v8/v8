@@ -96,7 +96,7 @@ void DebuggerAgent::CreateSession(Socket* client) {
 
   // If another session is already established terminate this one.
   if (session_ != NULL) {
-    static const char* message = "Remote debugging session already active\n";
+    static const char* message = "Remote debugging session already active\r\n";
 
     client->Send(message, strlen(message));
     delete client;
@@ -202,72 +202,69 @@ SmartPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
   int received;
 
   // Read header.
-  const int kHeaderBufferSize = 80;
-  char header_buffer[kHeaderBufferSize];
-  int header_buffer_position = 0;
-  char c = '\0';  // One character receive buffer.
-  char last_c = '\0';  // Previous character.
   int content_length = 0;
-  while (!(c == '\n' && last_c == '\n')) {
-    last_c = c;
-    received = conn->Receive(&c, 1);
-    if (received <= 0) {
-      PrintF("Error %d\n", Socket::LastError());
-      return SmartPointer<char>();
-    }
+  while (true) {
+    const int kHeaderBufferSize = 80;
+    char header_buffer[kHeaderBufferSize];
+    int header_buffer_position = 0;
+    char c = '\0';  // One character receive buffer.
+    char prev_c = '\0';  // Previous character.
 
-    // Check for end of header line.
-    if (c == '\n') {
-      // Empty header line.
-      if (header_buffer_position == 0) {
-        continue;
+    // Read until CRLF.
+    while (!(c == '\n' && prev_c == '\r')) {
+      prev_c = c;
+      received = conn->Receive(&c, 1);
+      if (received <= 0) {
+        PrintF("Error %d\n", Socket::LastError());
+        return SmartPointer<char>();
       }
 
-      // Terminate header.
-      ASSERT(header_buffer_position < kHeaderBufferSize);
+      // Add character to header buffer.
       if (header_buffer_position < kHeaderBufferSize) {
-        header_buffer[header_buffer_position] = '\0';
-      }
-
-      // Split header.
-      char* key = header_buffer;
-      char* value = NULL;
-      for (int i = 0; i < header_buffer_position; i++) {
-        if (header_buffer[i] == ':') {
-          header_buffer[i] = '\0';
-          value = header_buffer + i + 1;
-          while (*value == ' ') {
-            value++;
-          }
-          break;
-        }
-      }
-
-      // Check that key is Content-Length.
-      if (strcmp(key, kContentLength) == 0) {
-        // Get the content length value if within a sensible range.
-        if (strlen(value) > 7) {
-          return SmartPointer<char>();
-        }
-        for (int i = 0; value[i] != '\0'; i++) {
-          // Bail out if illegal data.
-          if (value[i] < '0' || value[i] > '9') {
-            return SmartPointer<char>();
-          }
-          content_length = 10 * content_length + (value[i] - '0');
-        }
-      } else {
-        // For now just print all other headers than Content-Length.
-        PrintF("%s: %s\n", key, value);
-      }
-
-      // Start collecting new header.
-      header_buffer_position = 0;
-    } else {
-      // Add character to header buffer (reserve room for terminating '\0').
-      if (header_buffer_position < kHeaderBufferSize - 1) {
         header_buffer[header_buffer_position++] = c;
       }
+    }
+
+    // Check for end of header (empty header line).
+    if (header_buffer_position == 2) {  // Receive buffer contains CRLF.
+      break;
+    }
+
+    // Terminate header.
+    ASSERT(header_buffer_position > 1);  // At least CRLF is received.
+    ASSERT(header_buffer_position <= kHeaderBufferSize);
+    header_buffer[header_buffer_position - 2] = '\0';
+
+    // Split header.
+    char* key = header_buffer;
+    char* value = NULL;
+    for (int i = 0; header_buffer[i] != '\0'; i++) {
+      if (header_buffer[i] == ':') {
+        header_buffer[i] = '\0';
+        value = header_buffer + i + 1;
+        while (*value == ' ') {
+          value++;
+        }
+        break;
+      }
+    }
+
+    // Check that key is Content-Length.
+    if (strcmp(key, kContentLength) == 0) {
+      // Get the content length value if within a sensible range.
+      if (strlen(value) > 7) {
+        return SmartPointer<char>();
+      }
+      for (int i = 0; value[i] != '\0'; i++) {
+        // Bail out if illegal data.
+        if (value[i] < '0' || value[i] > '9') {
+          return SmartPointer<char>();
+        }
+        content_length = 10 * content_length + (value[i] - '0');
+      }
+    } else {
+      // For now just print all other headers than Content-Length.
+      PrintF("%s: %s\n", key, value != NULL ? value : "(no value)");
     }
   }
 
@@ -298,34 +295,34 @@ bool DebuggerAgentUtil::SendConnectMessage(const Socket* conn,
 
   // Send the header.
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "Type: connect\n");
+                     "Type: connect\r\n");
   ok = conn->Send(buffer, len);
   if (!ok) return false;
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "V8-Version: %s\n", v8::V8::GetVersion());
+                     "V8-Version: %s\r\n", v8::V8::GetVersion());
   ok = conn->Send(buffer, len);
   if (!ok) return false;
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "Protocol-Version: 1\n");
+                     "Protocol-Version: 1\r\n");
   ok = conn->Send(buffer, len);
   if (!ok) return false;
 
   if (embedding_host != NULL) {
     len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                       "Embedding-Host: %s\n", embedding_host);
+                       "Embedding-Host: %s\r\n", embedding_host);
     ok = conn->Send(buffer, len);
     if (!ok) return false;
   }
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "%s: 0\n", kContentLength);
+                     "%s: 0\r\n", kContentLength);
   ok = conn->Send(buffer, len);
   if (!ok) return false;
 
   // Terminate header with empty line.
-  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\n");
+  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\r\n");
   ok = conn->Send(buffer, len);
   if (!ok) return false;
 
@@ -349,11 +346,11 @@ bool DebuggerAgentUtil::SendMessage(const Socket* conn,
   // Send the header.
   int len;
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "%s: %d\n", kContentLength, utf8_len);
+                     "%s: %d\r\n", kContentLength, utf8_len);
   conn->Send(buffer, len);
 
   // Terminate header with empty line.
-  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\n");
+  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\r\n");
   conn->Send(buffer, len);
 
   // Send message body as UTF-8.
@@ -386,11 +383,11 @@ bool DebuggerAgentUtil::SendMessage(const Socket* conn,
   // Send the header.
   int len;
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
-                     "Content-Length: %d\n", utf8_request.length());
+                     "Content-Length: %d\r\n", utf8_request.length());
   conn->Send(buffer, len);
 
   // Terminate header with empty line.
-  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\n");
+  len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\r\n");
   conn->Send(buffer, len);
 
   // Send message body as UTF-8.
