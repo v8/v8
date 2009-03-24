@@ -377,12 +377,13 @@ class VirtualFrame : public Malloced {
   }
 
   // Record an occurrence of a register in the virtual frame.  This has the
-  // effect of incrementing both the register's frame-internal reference
-  // count and its external reference count.
-  void Use(Register reg);
+  // effect of incrementing the register's external reference count and
+  // of updating the index of the register's location in the frame.
+  void Use(Register reg, int index);
 
   // Record that a register reference has been dropped from the frame.  This
-  // decrements both the register's internal and external reference counts.
+  // decrements the register's external reference count and invalidates the
+  // index of the register's location in the frame.
   void Unuse(Register reg);
 
   // Spill the element at a particular index---write it to memory if
