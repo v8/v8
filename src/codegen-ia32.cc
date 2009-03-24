@@ -30,10 +30,10 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "parser.h"
 #include "register-allocator-inl.h"
 #include "runtime.h"
 #include "scopes.h"
-#include "parser.h"
 
 namespace v8 { namespace internal {
 

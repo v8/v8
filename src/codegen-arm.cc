@@ -30,6 +30,7 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "parser.h"
 #include "register-allocator-inl.h"
 #include "runtime.h"
 #include "scopes.h"
@@ -2755,7 +2756,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       case ObjectLiteral::Property::CONSTANT:
         break;
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        if (property->value()->AsMaterializedLiteral()->is_simple()) break;
+        if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
         // else fall through
       case ObjectLiteral::Property::COMPUTED:  // fall through
       case ObjectLiteral::Property::PROTOTYPE: {
@@ -2881,26 +2882,29 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   for (int i = 0; i < node->values()->length(); i++) {
     Expression* value = node->values()->at(i);
 
-    // If value is literal the property value is already
-    // set in the boilerplate object.
-    if (value->AsLiteral() == NULL) {
-      // The property must be set by generated code.
-      LoadAndSpill(value);
-      frame_->EmitPop(r0);
+    // If value is a literal the property value is already set in the
+    // boilerplate object.
+    if (value->AsLiteral() != NULL) continue;
+    // If value is a materialized literal the property value is already set
+    // in the boilerplate object if it is simple.
+    if (CompileTimeValue::IsCompileTimeValue(value)) continue;
 
-      // Fetch the object literal
-      __ ldr(r1, frame_->Top());
-        // Get the elements array.
-      __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
+    // The property must be set by generated code.
+    LoadAndSpill(value);
+    frame_->EmitPop(r0);
 
-      // Write to the indexed properties array.
-      int offset = i * kPointerSize + Array::kHeaderSize;
-      __ str(r0, FieldMemOperand(r1, offset));
+    // Fetch the object literal.
+    __ ldr(r1, frame_->Top());
+    // Get the elements array.
+    __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
 
-      // Update the write barrier for the array address.
-      __ mov(r3, Operand(offset));
-      __ RecordWrite(r1, r3, r2);
-    }
+    // Write to the indexed properties array.
+    int offset = i * kPointerSize + Array::kHeaderSize;
+    __ str(r0, FieldMemOperand(r1, offset));
+
+    // Update the write barrier for the array address.
+    __ mov(r3, Operand(offset));
+    __ RecordWrite(r1, r3, r2);
   }
   ASSERT(frame_->height() == original_height + 1);
 }
