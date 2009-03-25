@@ -784,10 +784,6 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
                                     int dropped_args) {
   int spilled_args = 0;
   switch (code->kind()) {
-    case Code::CALL_IC:
-      ASSERT(arg->reg().is(eax));
-      spilled_args = dropped_args + 1;
-      break;
     case Code::LOAD_IC:
       ASSERT(arg->reg().is(ecx));
       ASSERT(dropped_args == 0);

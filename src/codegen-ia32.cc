@@ -4454,12 +4454,8 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (function == NULL) {
     // Call the JS runtime function.
     Handle<Code> stub = ComputeCallInitialize(arg_count);
-
-    Result num_args = allocator()->Allocate(eax);
-    ASSERT(num_args.is_valid());
-    __ Set(num_args.reg(), Immediate(args->length()));
-    Result answer = frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET,
-                                           &num_args, arg_count + 1);
+    Result answer =
+        frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     frame_->RestoreContextRegister();
     frame_->SetElementAt(0, &answer);
   } else {

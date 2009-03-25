@@ -179,12 +179,10 @@ void VirtualFrame::Spill(Register target) {
 }
 
 
-// Spill any register if possible, making its external reference count zero.
+// If there are any registers referenced only by the frame, spill one.
 Register VirtualFrame::SpillAnyRegister() {
-  // Find the leftmost (ordered by register code), least
-  // internally-referenced register whose internal reference count matches
-  // its external reference count (so that spilling it from the frame frees
-  // it for use).
+  // Find the leftmost (ordered by register code) register whose only
+  // reference is in the frame.
   for (int i = 0; i < kNumRegisters; i++) {
     if (is_used(i) && cgen_->allocator()->count(i) == 1) {
       Register result = { i };

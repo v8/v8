@@ -3456,18 +3456,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   Comment cmnt(masm_, "[ CallRuntime");
   Runtime::Function* function = node->function();
 
-  if (function != NULL) {
-    // Push the arguments ("left-to-right").
-    int arg_count = args->length();
-    for (int i = 0; i < arg_count; i++) {
-      LoadAndSpill(args->at(i));
-    }
-
-    // Call the C runtime function.
-    frame_->CallRuntime(function, arg_count);
-    frame_->EmitPush(r0);
-
-  } else {
+  if (function == NULL) {
     // Prepare stack for calling JS runtime function.
     __ mov(r0, Operand(node->name()));
     frame_->EmitPush(r0);
@@ -3475,17 +3464,24 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     __ ldr(r1, GlobalObject());
     __ ldr(r0, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
     frame_->EmitPush(r0);
+  }
 
-    int arg_count = args->length();
-    for (int i = 0; i < arg_count; i++) {
-      LoadAndSpill(args->at(i));
-    }
+  // Push the arguments ("left-to-right").
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    LoadAndSpill(args->at(i));
+  }
 
+  if (function == NULL) {
     // Call the JS runtime function.
-    Handle<Code> stub = ComputeCallInitialize(args->length());
+    Handle<Code> stub = ComputeCallInitialize(arg_count);
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
     frame_->Drop();
+    frame_->EmitPush(r0);
+  } else {
+    // Call the C runtime function.
+    frame_->CallRuntime(function, arg_count);
     frame_->EmitPush(r0);
   }
   ASSERT(frame_->height() == original_height + 1);
