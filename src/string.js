@@ -157,21 +157,8 @@ function StringMatch(regexp) {
 
   if (!regexp.global) return regexp.exec(subject);
   %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
-  var matches = DoRegExpExecGlobal(regexp, subject);
-
-  // If the regexp did not match, return null.
-  if (matches.length == 0) return null;
-
-  // Build the result array.
-  var result = new $Array(match_string);
-  for (var i = 0; i < matches.length; ++i) {
-    var matchInfo = matches[i];
-    var match_string = subject.slice(matchInfo[CAPTURE0],
-                                     matchInfo[CAPTURE1]);
-    result[i] = match_string;
-  }
-
-  return result;
+  // lastMatchInfo is defined in regexp-delay.js.
+  return %StringMatch(subject, regexp, lastMatchInfo);
 }
 
 

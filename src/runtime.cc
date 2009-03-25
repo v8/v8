@@ -1038,28 +1038,13 @@ static Object* Runtime_RegExpExec(Arguments args) {
   CONVERT_CHECKED(Smi, index, args[2]);
   CONVERT_CHECKED(JSArray, raw_last_match_info, args[3]);
   Handle<JSArray> last_match_info(raw_last_match_info);
-  CHECK(last_match_info->HasFastElements());
+  RUNTIME_ASSERT(last_match_info->HasFastElements());
+  RUNTIME_ASSERT(index->value() >= 0);
+  RUNTIME_ASSERT(index->value() <= subject->length());
   Handle<Object> result = RegExpImpl::Exec(regexp,
                                            subject,
                                            index->value(),
                                            last_match_info);
-  if (result.is_null()) return Failure::Exception();
-  return *result;
-}
-
-
-static Object* Runtime_RegExpExecGlobal(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
-  Handle<JSRegExp> regexp(raw_regexp);
-  CONVERT_CHECKED(String, raw_subject, args[1]);
-  Handle<String> subject(raw_subject);
-  CONVERT_CHECKED(JSArray, raw_last_match_info, args[2]);
-  Handle<JSArray> last_match_info(raw_last_match_info);
-  CHECK(last_match_info->HasFastElements());
-  Handle<Object> result =
-      RegExpImpl::ExecGlobal(regexp, subject, last_match_info);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -2334,6 +2319,57 @@ static Object* Runtime_StringSlice(Arguments args) {
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
   return value->Slice(start, end);
+}
+
+
+static Object* Runtime_StringMatch(Arguments args) {
+  ASSERT_EQ(3, args.length());
+
+  CONVERT_ARG_CHECKED(String, subject, 0);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 1);
+  CONVERT_ARG_CHECKED(JSArray, regexp_info, 2);
+  HandleScope handles;
+
+  Handle<Object> match = RegExpImpl::Exec(regexp, subject, 0, regexp_info);
+
+  if (match.is_null()) {
+    return Failure::Exception();
+  }
+  if (match->IsNull()) {
+    return Heap::null_value();
+  }
+  int length = subject->length();
+
+  ZoneScope zone_space(DELETE_ON_EXIT);
+  ZoneList<int> offsets(8);
+  do {
+    int start;
+    int end;
+    {
+      AssertNoAllocation no_alloc;
+      FixedArray* elements = regexp_info->elements();
+      start = Smi::cast(elements->get(RegExpImpl::kFirstCapture))->value();
+      end = Smi::cast(elements->get(RegExpImpl::kFirstCapture + 1))->value();
+    }
+    offsets.Add(start);
+    offsets.Add(end);
+    int index = start < end ? end : end + 1;
+    if (index > length) break;
+    match = RegExpImpl::Exec(regexp, subject, index, regexp_info);
+    if (match.is_null()) {
+      return Failure::Exception();
+    }
+  } while (!match->IsNull());
+  int matches = offsets.length() / 2;
+  Handle<FixedArray> elements = Factory::NewFixedArray(matches);
+  for (int i = 0; i < matches ; i++) {
+    int from = offsets.at(i * 2);
+    int to = offsets.at(i * 2 + 1);
+    elements->set(i, *Factory::NewStringSlice(subject, from, to));
+  }
+  Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
+  result->set_length(Smi::FromInt(matches));
+  return *result;
 }
 
 

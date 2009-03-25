@@ -314,7 +314,7 @@ Time::Time() {
 
 // Initialize timestamp from a JavaScript timestamp.
 Time::Time(double jstime) {
-  t() = static_cast<uint64_t>(jstime) * kTimeScaler + kTimeEpoc;
+  t() = static_cast<int64_t>(jstime) * kTimeScaler + kTimeEpoc;
 }
 
 

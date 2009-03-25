@@ -94,19 +94,14 @@ class RegExpImpl {
                                  int index,
                                  Handle<JSArray> lastMatchInfo);
 
-  static Handle<Object> AtomExecGlobal(Handle<JSRegExp> regexp,
-                                       Handle<String> subject,
-                                       Handle<JSArray> lastMatchInfo);
-
   // Execute an Irregexp bytecode pattern.
+  // On a successful match, the result is a JSArray containing
+  // captured positions. On a failure, the result is the null value.
+  // Returns an empty handle in case of an exception.
   static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
                                      int index,
                                      Handle<JSArray> lastMatchInfo);
-
-  static Handle<Object> IrregexpExecGlobal(Handle<JSRegExp> regexp,
-                                           Handle<String> subject,
-                                           Handle<JSArray> lastMatchInfo);
 
   // Offsets in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
@@ -154,17 +149,6 @@ class RegExpImpl {
 
   static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
 
-
-  // On a successful match, the result is a JSArray containing
-  // captured positions. On a failure, the result is the null value.
-  // Returns an empty handle in case of an exception.
-  static Handle<Object> IrregexpExecOnce(Handle<JSRegExp> jsregexp,
-                                         int num_captures,
-                                         Handle<JSArray> lastMatchInfo,
-                                         Handle<String> subject16,
-                                         int previous_index,
-                                         int* ovector,
-                                         int ovector_length);
 
   // Set the subject cache.  The previous string buffer is not deleted, so the
   // caller should ensure that it doesn't leak.
