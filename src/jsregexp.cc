@@ -417,7 +417,6 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   last_match_info->EnsureSize(number_of_capture_registers + kLastMatchOverhead);
 
   int* offsets_vector = offsets.vector();
-  int offsets_vector_length = offsets.length();
   bool rc;
 
   // Dispatch to the correct RegExp implementation.
@@ -438,7 +437,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
       res = RegExpMacroAssemblerIA32::Match(code,
                                             subject,
                                             offsets_vector,
-                                            offsets_vector_length,
+                                            offsets.length(),
                                             previous_index);
       // If result is RETRY, the string have changed representation, and we
       // must restart from scratch.
