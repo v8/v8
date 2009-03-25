@@ -75,12 +75,12 @@ class SplayTree(object):
     """Remove the node with the given key from the SplayTree."""
     # Raise exception for key that is not found if the tree is empty.
     if self.IsEmpty():
-      raise 'KeyNotFound'
+      raise Exception('KeyNotFound')
     # Splay on the key to move the node with the given key to the top.
     self.Splay(key)
     # Raise exception for key that is not found.
     if self.root.key != key:
-      raise 'KeyNotFound'
+      raise Exception('KeyNotFound')
     removed = self.root
     # Link out the root node.
     if not self.root.left:
