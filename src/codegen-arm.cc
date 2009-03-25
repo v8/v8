@@ -4858,7 +4858,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Notify the simulator of the transition to C code.
   __ swi(assembler::arm::call_rt_r5);
 #else /* !defined(__arm__) */
-  __ mov(pc, Operand(r5));
+  __ Jump(r5);
 #endif /* !defined(__arm__) */
 
   if (always_allocate) {
