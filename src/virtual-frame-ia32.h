@@ -76,8 +76,16 @@ class VirtualFrame : public Malloced {
     return elements_.length() - expression_base_index();
   }
 
-  int register_count(Register reg) {
-    return frame_registers_.count(reg);
+  int register_index(Register reg) {
+    return register_locations_[reg.code()];
+  }
+
+  bool is_used(int reg_code) {
+    return register_locations_[reg_code] != kIllegalIndex;
+  }
+
+  bool is_used(Register reg) {
+    return is_used(reg.code());
   }
 
   // Add extra in-memory elements to the top of the frame to match an actual
@@ -332,10 +340,6 @@ class VirtualFrame : public Malloced {
   // The index of the element that is at the processor's frame pointer
   // (the ebp register).
   int frame_pointer_;
-
-  // The frame has an embedded register file that it uses to track registers
-  // used in the frame.
-  RegisterFile frame_registers_;
 
   // The index of the register frame element using each register, or
   // kIllegalIndex if a register is not on the frame.

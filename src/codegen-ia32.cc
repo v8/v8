@@ -5163,11 +5163,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
 #ifdef DEBUG
 bool CodeGenerator::HasValidEntryRegisters() {
-  return (allocator()->count(eax) == frame()->register_count(eax))
-      && (allocator()->count(ebx) == frame()->register_count(ebx))
-      && (allocator()->count(ecx) == frame()->register_count(ecx))
-      && (allocator()->count(edx) == frame()->register_count(edx))
-      && (allocator()->count(edi) == frame()->register_count(edi));
+  return (allocator()->count(eax) == (frame()->is_used(eax) ? 1 : 0))
+      && (allocator()->count(ebx) == (frame()->is_used(ebx) ? 1 : 0))
+      && (allocator()->count(ecx) == (frame()->is_used(ecx) ? 1 : 0))
+      && (allocator()->count(edx) == (frame()->is_used(edx) ? 1 : 0))
+      && (allocator()->count(edi) == (frame()->is_used(edi) ? 1 : 0));
 }
 #endif
 

@@ -308,7 +308,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
           elements_[i] = target;
         } else {
           // We need to move source to target.
-          if (frame_registers_.is_used(target.reg())) {
+          if (is_used(target.reg())) {
             // The move is blocked because the target contains valid data.
             // If we are stuck with only cycles remaining, then we spill source.
             // Otherwise, we just need more iterations.
