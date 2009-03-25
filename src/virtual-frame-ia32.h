@@ -261,21 +261,33 @@ class VirtualFrame : public Malloced {
                        InvokeFlag flag,
                        int frame_arg_count);
 
-  // Call into a JS code object, given the number of arguments it
-  // removes from the top of the physical frame.
-  // Register arguments are passed as results and consumed by the call.
+  // Call into a call IC or a JS code object given the number of
+  // arguments it drops from the top of the stack.  Arguments passed
+  // in registers are given as results and invalidated by the call.
   Result CallCodeObject(Handle<Code> ic,
                         RelocInfo::Mode rmode,
-                        int dropped_args);
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        Result* arg,
                         int dropped_args);
   Result CallCodeObject(Handle<Code> ic,
                         RelocInfo::Mode rmode,
                         Result* arg0,
                         Result* arg1,
                         int dropped_args);
+
+  // Call load IC.  Name and receiver are found on top of the frame.
+  // Receiver is not dropped.
+  Result CallLoadIC(RelocInfo::Mode mode);
+
+  // Call keyed load IC.  Key and receiver are found on top of the
+  // frame.  They are not dropped.
+  Result CallKeyedLoadIC(RelocInfo::Mode mode);
+
+  // Call store IC.  Name, value, and receiver are found on top of the
+  // frame.  Receiver is not dropped.
+  Result CallStoreIC();
+
+  // Call keyed store IC.  Value, key, and receiver are found on top
+  // of the frame.  Key and receiver are not dropped.
+  Result CallKeyedStoreIC();
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers

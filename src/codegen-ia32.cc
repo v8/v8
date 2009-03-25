@@ -3235,17 +3235,12 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  // Load the global object.
   LoadGlobal();
-  // Setup the name register.  All non-reserved registers are available.
-  Result name = allocator_->Allocate(ecx);
-  ASSERT(name.is_valid());
-  __ mov(name.reg(), slot->var()->name());
-  RelocInfo::Mode rmode = (typeof_state == INSIDE_TYPEOF)
-                        ? RelocInfo::CODE_TARGET
-                        : RelocInfo::CODE_TARGET_CONTEXT;
-  Result answer = frame_->CallCodeObject(ic, rmode, &name, 0);
+  frame_->Push(slot->var()->name());
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+                         ? RelocInfo::CODE_TARGET
+                         : RelocInfo::CODE_TARGET_CONTEXT;
+  Result answer = frame_->CallLoadIC(mode);
 
   // Discard the global object. The result is in answer.
   frame_->Drop();
@@ -3552,20 +3547,12 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         // else fall through.
       case ObjectLiteral::Property::COMPUTED: {
         Handle<Object> key(property->key()->handle());
-        Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
         if (key->IsSymbol()) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          Result value = frame_->Pop();
-          value.ToRegister(eax);
-
-          Result name = allocator_->Allocate(ecx);
-          ASSERT(name.is_valid());
-          __ Set(name.reg(), Immediate(key));
-          Result ignored =
-              frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET,
-                                     &value, &name, 0);
+          frame_->Push(key);
+          Result ignored = frame_->CallStoreIC();
           // Drop the duplicated receiver and ignore the result.
           frame_->Drop();
           break;
@@ -5187,7 +5174,6 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
 
 void DeferredReferenceGetKeyedValue::Generate() {
   CodeGenerator* cgen = generator();
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   Result receiver(cgen);
   Result key(cgen);
   enter()->Bind(&receiver, &key);
@@ -5200,14 +5186,10 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the cmp instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Result value(cgen);
-  if (is_global_) {
-    value = cgen->frame()->CallCodeObject(ic,
-                                          RelocInfo::CODE_TARGET_CONTEXT,
-                                          0);
-  } else {
-    value = cgen->frame()->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-  }
+  RelocInfo::Mode mode = is_global_
+                         ? RelocInfo::CODE_TARGET_CONTEXT
+                         : RelocInfo::CODE_TARGET;
+  Result value = cgen->frame()->CallKeyedLoadIC(mode);
   // The result needs to be specifically the eax register because the
   // offset to the patch site will be expected in a test eax
   // instruction.
@@ -5269,21 +5251,16 @@ void Reference::GetValue(TypeofState typeof_state) {
       // thrown below, we must distinguish between the two kinds of
       // loads (typeof expression loads must not throw a reference
       // error).
-      VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from named Property");
-      Handle<String> name(GetName());
+      cgen_->frame()->Push(GetName());
+
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-      // Setup the name register.
-      Result name_reg = cgen_->allocator()->Allocate(ecx);
-      ASSERT(name_reg.is_valid());
-      __ mov(name_reg.reg(), name);
       ASSERT(var == NULL || var->is_global());
-      RelocInfo::Mode rmode = (var == NULL)
-                            ? RelocInfo::CODE_TARGET
-                            : RelocInfo::CODE_TARGET_CONTEXT;
-      Result answer = frame->CallCodeObject(ic, rmode, &name_reg, 0);
-      frame->Push(&answer);
+      RelocInfo::Mode mode = (var == NULL)
+                             ? RelocInfo::CODE_TARGET
+                             : RelocInfo::CODE_TARGET_CONTEXT;
+      Result answer = cgen_->frame()->CallLoadIC(mode);
+      cgen_->frame()->Push(&answer);
       break;
     }
 
@@ -5373,20 +5350,18 @@ void Reference::GetValue(TypeofState typeof_state) {
         cgen_->frame()->Push(&value);
 
       } else {
-        VirtualFrame* frame = cgen_->frame();
         Comment cmnt(masm, "[ Load from keyed Property");
-        Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-        RelocInfo::Mode rmode = is_global
-                              ? RelocInfo::CODE_TARGET_CONTEXT
-                              : RelocInfo::CODE_TARGET;
-        Result answer = frame->CallCodeObject(ic, rmode, 0);
+        RelocInfo::Mode mode = is_global
+                               ? RelocInfo::CODE_TARGET_CONTEXT
+                               : RelocInfo::CODE_TARGET;
+        Result answer = cgen_->frame()->CallKeyedLoadIC(mode);
         // Make sure that we do not have a test instruction after the
         // call.  A test instruction after the call is used to
         // indicate that we have generated an inline version of the
         // keyed load.  The explicit nop instruction is here because
         // the push that follows might be peep-hole optimized away.
         __ nop();
-        frame->Push(&answer);
+        cgen_->frame()->Push(&answer);
       }
       break;
     }
@@ -5430,11 +5405,9 @@ void Reference::TakeValue(TypeofState typeof_state) {
 void Reference::SetValue(InitState init_state) {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
-  MacroAssembler* masm = cgen_->masm();
-  VirtualFrame* frame = cgen_->frame();
   switch (type_) {
     case SLOT: {
-      Comment cmnt(masm, "[ Store to Slot");
+      Comment cmnt(cgen_->masm(), "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
@@ -5442,35 +5415,17 @@ void Reference::SetValue(InitState init_state) {
     }
 
     case NAMED: {
-      Comment cmnt(masm, "[ Store to named Property");
-      // Call the appropriate IC code.
-      Handle<String> name(GetName());
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
-      Result argument = frame->Pop();
-      argument.ToRegister(eax);
-      ASSERT(argument.is_valid());
-      Result property_name = cgen_->allocator()->Allocate(ecx);
-      ASSERT(property_name.is_valid());
-      // Setup the name register.
-      __ mov(property_name.reg(), name);
-      Result answer = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET,
-                                            &argument, &property_name, 0);
-      frame->Push(&answer);
+      Comment cmnt(cgen_->masm(), "[ Store to named Property");
+      cgen_->frame()->Push(GetName());
+      Result answer = cgen_->frame()->CallStoreIC();
+      cgen_->frame()->Push(&answer);
       break;
     }
 
     case KEYED: {
-      Comment cmnt(masm, "[ Store to keyed Property");
-      // Call IC code.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
-      Result arg = frame->Pop();
-      arg.ToRegister(eax);
-      ASSERT(arg.is_valid());
-      Result answer = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET,
-                                            &arg, 0);
-      frame->Push(&answer);
+      Comment cmnt(cgen_->masm(), "[ Store to keyed Property");
+      Result answer = cgen_->frame()->CallKeyedStoreIC();
+      cgen_->frame()->Push(&answer);
       break;
     }
 

@@ -778,31 +778,70 @@ Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg,
-                                    int dropped_args) {
-  int spilled_args = 0;
-  switch (code->kind()) {
-    case Code::LOAD_IC:
-      ASSERT(arg->reg().is(ecx));
-      ASSERT(dropped_args == 0);
-      spilled_args = 1;
-      break;
-    case Code::KEYED_STORE_IC:
-      ASSERT(arg->reg().is(eax));
-      ASSERT(dropped_args == 0);
-      spilled_args = 2;
-      break;
-    default:
-      // No other types of code objects are called with values
-      // in exactly one register.
-      UNREACHABLE();
-      break;
+Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
+  // Name and receiver are on the top of the frame.  The IC expects
+  // name in ecx and receiver on the stack.  It does not drop the
+  // receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Result name = Pop();
+  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
+  name.ToRegister(ecx);
+  name.Unuse();
+  return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
+  // Key and receiver are on top of the frame.  The IC expects them on
+  // the stack.  It does not drop them.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
+  return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallStoreIC() {
+  // Name, value, and receiver are on top of the frame.  The IC
+  // expects name in ecx, value in eax, and receiver on the stack.  It
+  // does not drop the receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Result name = Pop();
+  Result value = Pop();
+  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
+
+  if (value.is_register() && value.reg().is(ecx)) {
+    if (name.is_register() && name.reg().is(eax)) {
+      // Wrong registers.
+      __ xchg(eax, ecx);
+    } else {
+      // Register eax is free for value, which frees ecx for name.
+      value.ToRegister(eax);
+      name.ToRegister(ecx);
+    }
+  } else {
+    // Register ecx is free for name, which guarantees eax is free for
+    // value.
+    name.ToRegister(ecx);
+    value.ToRegister(eax);
   }
-  PrepareForCall(spilled_args, dropped_args);
-  arg->Unuse();
-  return RawCallCodeObject(code, rmode);
+
+  name.Unuse();
+  value.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
+
+
+Result VirtualFrame::CallKeyedStoreIC() {
+  // Value, key, and receiver are on the top of the frame.  The IC
+  // expects value in eax and key and receiver on the stack.  It does
+  // not drop the key and receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  // TODO(1222589): Make the IC grab the values from the stack.
+  Result value = Pop();
+  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
+  value.ToRegister(eax);
+  value.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -813,12 +852,6 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
                                     int dropped_args) {
   int spilled_args = 1;
   switch (code->kind()) {
-    case Code::STORE_IC:
-      ASSERT(arg0->reg().is(eax));
-      ASSERT(arg1->reg().is(ecx));
-      ASSERT(dropped_args == 0);
-      spilled_args = 1;
-      break;
     case Code::BUILTIN:
       ASSERT(*code == Builtins::builtin(Builtins::JSConstructCall));
       ASSERT(arg0->reg().is(eax));

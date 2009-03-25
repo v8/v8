@@ -455,10 +455,12 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
     case Code::FUNCTION:
       spilled_args = dropped_args + 1;
       break;
+#ifdef ARM
     case Code::KEYED_LOAD_IC:
       ASSERT(dropped_args == 0);
       spilled_args = 2;
       break;
+#endif
     default:
       // The other types of code objects are called with values
       // in specific registers, and are handled in functions with
