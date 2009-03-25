@@ -235,14 +235,14 @@ class TickProcessor(object):
       removed_node = self.js_entries.Remove(from_addr)
       removed_node.value.SetStartAddress(to_addr);
       self.js_entries.Insert(to_addr, removed_node.value)
-    except 'KeyNotFound':
+    except splaytree.KeyNotFoundError:
       print('Code move event for unknown code: 0x%x' % from_addr)
 
   def ProcessCodeDelete(self, from_addr):
     try:
       removed_node = self.js_entries.Remove(from_addr)
       self.deleted_code.append(removed_node.value)
-    except 'KeyNotFound':
+    except splaytree.KeyNotFoundError:
       print('Code delete event for unknown code: 0x%x' % from_addr)
 
   def ProcessBeginCodeRegion(self, id, assm, start, name):

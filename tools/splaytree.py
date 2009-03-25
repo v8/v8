@@ -36,6 +36,13 @@ class Node(object):
     self.right = None
 
 
+class KeyNotFoundError(Exception):
+  """KeyNotFoundError is raised when removing a non-existing node."""
+
+  def __init__(self, key):
+    self.key = key
+
+
 class SplayTree(object):
   """The splay tree itself is just a reference to the root of the tree."""
 
@@ -75,12 +82,12 @@ class SplayTree(object):
     """Remove the node with the given key from the SplayTree."""
     # Raise exception for key that is not found if the tree is empty.
     if self.IsEmpty():
-      raise Exception('KeyNotFound')
+      raise KeyNotFoundError(key)
     # Splay on the key to move the node with the given key to the top.
     self.Splay(key)
     # Raise exception for key that is not found.
     if self.root.key != key:
-      raise Exception('KeyNotFound')
+      raise KeyNotFoundError(key)
     removed = self.root
     # Link out the root node.
     if not self.root.left:
