@@ -83,56 +83,6 @@ void OS::Setup() {
 }
 
 
-int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
-  struct rusage usage;
-
-  if (getrusage(RUSAGE_SELF, &usage) < 0) return -1;
-  *secs = usage.ru_utime.tv_sec;
-  *usecs = usage.ru_utime.tv_usec;
-  return 0;
-}
-
-
-double OS::TimeCurrentMillis() {
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) < 0) return 0.0;
-  return (static_cast<double>(tv.tv_sec) * 1000) +
-         (static_cast<double>(tv.tv_usec) / 1000);
-}
-
-
-int64_t OS::Ticks() {
-  // FreeBSD's gettimeofday has microsecond resolution.
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) < 0)
-    return 0;
-  return (static_cast<int64_t>(tv.tv_sec) * 1000000) + tv.tv_usec;
-}
-
-
-char* OS::LocalTimezone(double time) {
-  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
-  return const_cast<char*>(t->tm_zone);
-}
-
-
-double OS::DaylightSavingsOffset(double time) {
-  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
-  return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
-}
-
-
-double OS::LocalTimeOffset() {
-  time_t tv = time(NULL);
-  struct tm* t = localtime(&tv);
-  // tm_gmtoff includes any daylight savings offset, so subtract it.
-  return static_cast<double>(t->tm_gmtoff * msPerSecond -
-                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
-}
-
-
 FILE* OS::FOpen(const char* path, const char* mode) {
   return fopen(path, mode);
 }
