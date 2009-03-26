@@ -436,6 +436,28 @@ class CodeGenerator: public AstVisitor {
       StaticType* type,
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
 
+  // If possible, combine two constant smi values using op to produce
+  // a smi result, and push it on the virtual frame, all at compile time.
+  // Returns true if it succeeds.  Otherwise it has no effect.
+  bool FoldConstantSmis(Token::Value op, int left, int right);
+
+  // Emit code to perform a binary operation on
+  // a constant smi and a likely smi.  Consumes the Result *operand.
+  void ConstantSmiBinaryOperation(Token::Value op,
+                                  Result* operand,
+                                  Handle<Object> constant_operand,
+                                  StaticType* type,
+                                  bool reversed,
+                                  OverwriteMode overwrite_mode);
+
+  // Emit code to perform a binary operation on two likely smis.
+  // The code to handle smi arguments is produced inline.
+  // Consumes the Results *left and *right.
+  void LikelySmiBinaryOperation(Token::Value op,
+                                Result* left,
+                                Result* right,
+                                OverwriteMode overwrite_mode);
+
   void Comparison(Condition cc,
                   bool strict,
                   ControlDestination* destination);
@@ -448,13 +470,6 @@ class CodeGenerator: public AstVisitor {
   // Load an integer constant x into a register target using
   // at most 16 bits of user-controlled data per assembly operation.
   void LoadUnsafeSmi(Register target, Handle<Object> value);
-
-  bool IsInlineSmi(Literal* literal);
-  void SmiOperation(Token::Value op,
-                    StaticType* type,
-                    Handle<Object> value,
-                    bool reversed,
-                    OverwriteMode overwrite_mode);
 
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
@@ -562,7 +577,6 @@ class CodeGenerator: public AstVisitor {
 #endif
 
   bool is_eval_;  // Tells whether code is generated for eval.
-
   Handle<Script> script_;
   List<DeferredCode*> deferred_;
 
