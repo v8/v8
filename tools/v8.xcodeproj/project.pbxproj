@@ -47,6 +47,8 @@
 		8939880D0F2A362A007D5254 /* d8.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C920EE46A1700B48DEB /* d8.cc */; };
 		893988160F2A3688007D5254 /* d8-debug.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893988150F2A3686007D5254 /* d8-debug.cc */; };
 		893988330F2A3B8F007D5254 /* d8-js.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893988320F2A3B8B007D5254 /* d8-js.cc */; };
+		893A72240F7B101400303DD2 /* platform-posix.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893A72230F7B0FF200303DD2 /* platform-posix.cc */; };
+		893A72250F7B101B00303DD2 /* platform-posix.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893A72230F7B0FF200303DD2 /* platform-posix.cc */; };
 		893CCE640E71D83700357A03 /* code-stubs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1110E719B8F00D62E90 /* code-stubs.cc */; };
 		8944AD100F1D4D500028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
 		8944AD110F1D4D570028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
@@ -283,6 +285,10 @@
 		8939880B0F2A35FA007D5254 /* v8_shell */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = v8_shell; sourceTree = BUILT_PRODUCTS_DIR; };
 		893988150F2A3686007D5254 /* d8-debug.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-debug.cc"; path = "../src/d8-debug.cc"; sourceTree = "<group>"; };
 		893988320F2A3B8B007D5254 /* d8-js.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "d8-js.cc"; sourceTree = "<group>"; };
+		893A72230F7B0FF200303DD2 /* platform-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "platform-posix.cc"; sourceTree = "<group>"; };
+		893A722A0F7B4A3200303DD2 /* dateparser-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "dateparser-inl.h"; sourceTree = "<group>"; };
+		893A722D0F7B4A7100303DD2 /* register-allocator-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "register-allocator-inl.h"; sourceTree = "<group>"; };
+		893A72320F7B4AD700303DD2 /* d8-debug.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "d8-debug.h"; path = "../src/d8-debug.h"; sourceTree = "<group>"; };
 		8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-stack.cc"; sourceTree = "<group>"; };
 		8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-stack.h"; sourceTree = "<group>"; };
 		89471C7F0EB23EE400B6874B /* flag-definitions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flag-definitions.h"; sourceTree = "<group>"; };
@@ -654,6 +660,7 @@
 				897FF1230E719B8F00D62E90 /* cpu-arm.cc */,
 				897FF1240E719B8F00D62E90 /* cpu-ia32.cc */,
 				897FF1250E719B8F00D62E90 /* cpu.h */,
+				893A722A0F7B4A3200303DD2 /* dateparser-inl.h */,
 				897FF1260E719B8F00D62E90 /* dateparser.cc */,
 				897FF1270E719B8F00D62E90 /* dateparser.h */,
 				898BD20C0EF6CC850068B00A /* debug-arm.cc */,
@@ -735,6 +742,7 @@
 				897FF1660E719B8F00D62E90 /* platform-linux.cc */,
 				897FF1670E719B8F00D62E90 /* platform-macos.cc */,
 				897FF1680E719B8F00D62E90 /* platform-nullos.cc */,
+				893A72230F7B0FF200303DD2 /* platform-posix.cc */,
 				897FF1690E719B8F00D62E90 /* platform-win32.cc */,
 				897FF16A0E719B8F00D62E90 /* platform.h */,
 				897FF16B0E719B8F00D62E90 /* prettyprinter.cc */,
@@ -756,6 +764,7 @@
 				8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */,
 				58950D520F55514900F3E8BA /* register-allocator-arm.cc */,
 				58950D530F55514900F3E8BA /* register-allocator-ia32.cc */,
+				893A722D0F7B4A7100303DD2 /* register-allocator-inl.h */,
 				58950D540F55514900F3E8BA /* register-allocator.cc */,
 				58950D550F55514900F3E8BA /* register-allocator.h */,
 				897FF16F0E719B8F00D62E90 /* rewriter.cc */,
@@ -862,6 +871,7 @@
 			children = (
 				89A15C910EE46A1700B48DEB /* d8-readline.cc */,
 				893988150F2A3686007D5254 /* d8-debug.cc */,
+				893A72320F7B4AD700303DD2 /* d8-debug.h */,
 				89A15C920EE46A1700B48DEB /* d8.cc */,
 				89A15C930EE46A1700B48DEB /* d8.h */,
 				89A15C940EE46A1700B48DEB /* d8.js */,
@@ -1118,7 +1128,9 @@
 				89A88E120E71A67A0043BA31 /* messages.cc in Sources */,
 				89A88E130E71A6860043BA31 /* objects-debug.cc in Sources */,
 				89A88E140E71A6870043BA31 /* objects.cc in Sources */,
+				9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 				89A88E150E71A68C0043BA31 /* parser.cc in Sources */,
+				893A72240F7B101400303DD2 /* platform-posix.cc in Sources */,
 				89A88E160E71A68E0043BA31 /* platform-macos.cc in Sources */,
 				89A88E170E71A6950043BA31 /* prettyprinter.cc in Sources */,
 				89A88E180E71A6960043BA31 /* property.cc in Sources */,
@@ -1153,7 +1165,6 @@
 				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
 				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
-				9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1217,7 +1228,9 @@
 				89F23C660E78D5B2006B2466 /* messages.cc in Sources */,
 				89F23C670E78D5B2006B2466 /* objects-debug.cc in Sources */,
 				89F23C680E78D5B2006B2466 /* objects.cc in Sources */,
+				9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 				89F23C690E78D5B2006B2466 /* parser.cc in Sources */,
+				893A72250F7B101B00303DD2 /* platform-posix.cc in Sources */,
 				89F23C6A0E78D5B2006B2466 /* platform-macos.cc in Sources */,
 				89F23C6B0E78D5B2006B2466 /* prettyprinter.cc in Sources */,
 				89F23C6C0E78D5B2006B2466 /* property.cc in Sources */,
@@ -1253,7 +1266,6 @@
 				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
 				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
-				9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
