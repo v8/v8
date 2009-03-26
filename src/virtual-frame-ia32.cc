@@ -725,7 +725,7 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
+Result VirtualFrame::RawCallStub(CodeStub* stub) {
   ASSERT(cgen_->HasValidEntryRegisters());
   __ CallStub(stub);
   Result result = cgen_->allocator()->Allocate(eax);
@@ -734,22 +734,20 @@ Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f,
-                                 int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
-  __ CallRuntime(f, frame_arg_count);
+  __ CallRuntime(f, arg_count);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
   return result;
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
-                                 int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
-  __ CallRuntime(id, frame_arg_count);
+  __ CallRuntime(id, arg_count);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
   return result;
@@ -758,8 +756,8 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
 
 Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
-                                   int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+                                   int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
   __ InvokeBuiltin(id, flag);
   Result result = cgen_->allocator()->Allocate(eax);
@@ -845,29 +843,43 @@ Result VirtualFrame::CallKeyedStoreIC() {
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg0,
-                                    Result* arg1,
-                                    int dropped_args) {
-  int spilled_args = 1;
-  switch (code->kind()) {
-    case Code::BUILTIN:
-      ASSERT(*code == Builtins::builtin(Builtins::JSConstructCall));
-      ASSERT(arg0->reg().is(eax));
-      ASSERT(arg1->reg().is(edi));
-      spilled_args = dropped_args + 1;
-      break;
-    default:
-      // No other types of code objects are called with values
-      // in exactly two registers.
-      UNREACHABLE();
-      break;
-  }
-  PrepareForCall(spilled_args, dropped_args);
-  arg0->Unuse();
-  arg1->Unuse();
-  return RawCallCodeObject(code, rmode);
+Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
+                                int arg_count,
+                                int loop_nesting) {
+  // Arguments, receiver, and function name are on top of the frame.
+  // The IC expects them on the stack.  It does not drop the function
+  // name slot (but it does drop the rest).
+  Handle<Code> ic = (loop_nesting > 0)
+                    ? cgen_->ComputeCallInitializeInLoop(arg_count)
+                    : cgen_->ComputeCallInitialize(arg_count);
+  // Spill args, receiver, and function.  The call will drop args and
+  // receiver.
+  PrepareForCall(arg_count + 2, arg_count + 1);
+  return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallConstructor(int arg_count) {
+  // Arguments, receiver, and function are on top of the frame.  The
+  // IC expects arg count in eax, function in edi, and the arguments
+  // and receiver on the stack.
+  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  // Duplicate the function before preparing the frame.
+  PushElementAt(arg_count + 1);
+  Result function = Pop();
+  PrepareForCall(arg_count + 1, arg_count + 1);  // Spill args and receiver.
+  function.ToRegister(edi);
+
+  // Constructors are called with the number of arguments in register
+  // eax for now. Another option would be to have separate construct
+  // call trampolines per different arguments counts encountered.
+  Result num_args = cgen_->allocator()->Allocate(eax);
+  ASSERT(num_args.is_valid());
+  __ Set(num_args.reg(), Immediate(arg_count));
+
+  function.Unuse();
+  num_args.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CONSTRUCT_CALL);
 }
 
 

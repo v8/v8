@@ -431,58 +431,27 @@ void VirtualFrame::PushFrameSlotAt(int index) {
 }
 
 
-Result VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
-  return RawCallStub(stub, frame_arg_count);
+Result VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
+  return RawCallStub(stub);
 }
 
 
-Result VirtualFrame::CallStub(CodeStub* stub,
-                              Result* arg,
-                              int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   arg->Unuse();
-  return RawCallStub(stub, frame_arg_count);
+  return RawCallStub(stub);
 }
 
 
 Result VirtualFrame::CallStub(CodeStub* stub,
                               Result* arg0,
                               Result* arg1,
-                              int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+                              int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   arg0->Unuse();
   arg1->Unuse();
-  return RawCallStub(stub, frame_arg_count);
-}
-
-
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    int dropped_args) {
-  int spilled_args = 0;
-  switch (code->kind()) {
-    case Code::CALL_IC:
-      spilled_args = dropped_args + 1;
-      break;
-    case Code::FUNCTION:
-      spilled_args = dropped_args + 1;
-      break;
-#ifdef ARM
-    case Code::KEYED_LOAD_IC:
-      ASSERT(dropped_args == 0);
-      spilled_args = 2;
-      break;
-#endif
-    default:
-      // The other types of code objects are called with values
-      // in specific registers, and are handled in functions with
-      // a different signature.
-      UNREACHABLE();
-      break;
-  }
-  PrepareForCall(spilled_args, dropped_args);
-  return RawCallCodeObject(code, rmode);
+  return RawCallStub(stub);
 }
 
 

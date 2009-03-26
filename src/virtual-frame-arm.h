@@ -250,24 +250,21 @@ class VirtualFrame : public Malloced {
 
   // Call a code stub, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
-  Result CallStub(CodeStub* stub, int frame_arg_count);
-  Result CallStub(CodeStub* stub, Result* arg, int frame_arg_count);
-  Result CallStub(CodeStub* stub,
-                  Result* arg0,
-                  Result* arg1,
-                  int frame_arg_count);
+  Result CallStub(CodeStub* stub, int arg_count);
+  Result CallStub(CodeStub* stub, Result* arg, int arg_count);
+  Result CallStub(CodeStub* stub, Result* arg0, Result* arg1, int arg_count);
 
   // Call the runtime, given the number of arguments expected on (and
   // removed from) the top of the physical frame.
-  Result CallRuntime(Runtime::Function* f, int frame_arg_count);
-  Result CallRuntime(Runtime::FunctionId id, int frame_arg_count);
+  Result CallRuntime(Runtime::Function* f, int arg_count);
+  Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
   // Invoke a builtin, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
   Result InvokeBuiltin(Builtins::JavaScript id,
                        InvokeJSFlags flag,
                        Result* arg_count_register,
-                       int frame_arg_count);
+                       int arg_count);
 
   // Call into a JS code object, given the number of arguments it
   // removes from the top of the physical frame.
@@ -460,7 +457,7 @@ class VirtualFrame : public Malloced {
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).
-  Result RawCallStub(CodeStub* stub, int frame_arg_count);
+  Result RawCallStub(CodeStub* stub);
 
   // Calls a code object which has already been prepared for calling
   // (via PrepareForCall).

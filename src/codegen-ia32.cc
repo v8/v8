@@ -3877,16 +3877,12 @@ void CodeGenerator::VisitCall(Call* node) {
       Load(args->at(i));
     }
 
-    // Setup the receiver register and call the IC initialization code.
-    Handle<Code> stub = (loop_nesting() > 0)
-        ? ComputeCallInitializeInLoop(arg_count)
-        : ComputeCallInitialize(arg_count);
+    // Call the IC initialization code.
     CodeForSourcePosition(node->position());
-    Result result = frame_->CallCodeObject(stub,
-                                           RelocInfo::CODE_TARGET_CONTEXT,
-                                           arg_count + 1);
+    Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET_CONTEXT,
+                                       arg_count,
+                                       loop_nesting());
     frame_->RestoreContextRegister();
-
     // Replace the function on the stack with the result.
     frame_->SetElementAt(0, &result);
 
@@ -3929,15 +3925,10 @@ void CodeGenerator::VisitCall(Call* node) {
       }
 
       // Call the IC initialization code.
-      Handle<Code> stub = (loop_nesting() > 0)
-        ? ComputeCallInitializeInLoop(arg_count)
-        : ComputeCallInitialize(arg_count);
       CodeForSourcePosition(node->position());
-      Result result = frame_->CallCodeObject(stub,
-                                             RelocInfo::CODE_TARGET,
-                                             arg_count + 1);
+      Result result =
+          frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, loop_nesting());
       frame_->RestoreContextRegister();
-
       // Replace the function on the stack with the result.
       frame_->SetElementAt(0, &result);
 
@@ -4003,30 +3994,10 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
     Load(args->at(i));
   }
 
-  // Constructors are called with the number of arguments in register
-  // eax for now. Another option would be to have separate construct
-  // call trampolines per different arguments counts encountered.
-  Result num_args = allocator()->Allocate(eax);
-  ASSERT(num_args.is_valid());
-  __ Set(num_args.reg(), Immediate(arg_count));
-
-  // Load the function into temporary function slot as per calling
-  // convention.
-  frame_->PushElementAt(arg_count + 1);
-  Result function = frame_->Pop();
-  function.ToRegister(edi);
-  ASSERT(function.is_valid());
-
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   CodeForSourcePosition(node->position());
-  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
-  Result result = frame_->CallCodeObject(ic,
-                                         RelocInfo::CONSTRUCT_CALL,
-                                         &num_args,
-                                         &function,
-                                         arg_count + 1);
-
+  Result result = frame_->CallConstructor(arg_count);
   // Replace the function on the stack with the result.
   frame_->SetElementAt(0, &result);
 }
@@ -4439,10 +4410,9 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   }
 
   if (function == NULL) {
-    // Call the JS runtime function.
-    Handle<Code> stub = ComputeCallInitialize(arg_count);
-    Result answer =
-        frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
+    // Call the JS runtime function.  Pass 0 as the loop nesting depth
+    // because we do not handle runtime calls specially in loops.
+    Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, 0);
     frame_->RestoreContextRegister();
     frame_->SetElementAt(0, &answer);
   } else {

@@ -243,35 +243,20 @@ class VirtualFrame : public Malloced {
 
   // Call a code stub, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
-  Result CallStub(CodeStub* stub, int frame_arg_count);
-  Result CallStub(CodeStub* stub, Result* arg, int frame_arg_count);
-  Result CallStub(CodeStub* stub,
-                  Result* arg0,
-                  Result* arg1,
-                  int frame_arg_count);
+  Result CallStub(CodeStub* stub, int arg_count);
+  Result CallStub(CodeStub* stub, Result* arg, int arg_count);
+  Result CallStub(CodeStub* stub, Result* arg0, Result* arg1, int arg_count);
 
   // Call the runtime, given the number of arguments expected on (and
   // removed from) the top of the physical frame.
-  Result CallRuntime(Runtime::Function* f, int frame_arg_count);
-  Result CallRuntime(Runtime::FunctionId id, int frame_arg_count);
+  Result CallRuntime(Runtime::Function* f, int arg_count);
+  Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
   // Invoke a builtin, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
   Result InvokeBuiltin(Builtins::JavaScript id,
                        InvokeFlag flag,
-                       int frame_arg_count);
-
-  // Call into a call IC or a JS code object given the number of
-  // arguments it drops from the top of the stack.  Arguments passed
-  // in registers are given as results and invalidated by the call.
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        int dropped_args);
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        Result* arg0,
-                        Result* arg1,
-                        int dropped_args);
+                       int arg_count);
 
   // Call load IC.  Name and receiver are found on top of the frame.
   // Receiver is not dropped.
@@ -288,6 +273,17 @@ class VirtualFrame : public Malloced {
   // Call keyed store IC.  Value, key, and receiver are found on top
   // of the frame.  Key and receiver are not dropped.
   Result CallKeyedStoreIC();
+
+  // Call call IC.  Arguments, reciever, and function name are found
+  // on top of the frame.  Function name slot is not dropped.  The
+  // argument count does not include the receiver.
+  Result CallCallIC(RelocInfo::Mode mode, int arg_count, int loop_nesting);
+
+  // Allocate and call JS function as constructor.  Arguments,
+  // receiver (global object), and function are found on top of the
+  // frame.  Function is not dropped.  The argument count does not
+  // include the receiver.
+  Result CallConstructor(int arg_count);
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers
@@ -467,7 +463,7 @@ class VirtualFrame : public Malloced {
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).
-  Result RawCallStub(CodeStub* stub, int frame_arg_count);
+  Result RawCallStub(CodeStub* stub);
 
   // Calls a code object which has already been prepared for calling
   // (via PrepareForCall).

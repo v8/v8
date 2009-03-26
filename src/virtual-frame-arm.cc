@@ -232,7 +232,7 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
+Result VirtualFrame::RawCallStub(CodeStub* stub) {
   ASSERT(cgen_->HasValidEntryRegisters());
   __ CallStub(stub);
   Result result = cgen_->allocator()->Allocate(r0);
@@ -241,22 +241,20 @@ Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f,
-                                 int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
-  __ CallRuntime(f, frame_arg_count);
+  __ CallRuntime(f, arg_count);
   Result result = cgen_->allocator()->Allocate(r0);
   ASSERT(result.is_valid());
   return result;
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
-                                 int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
-  __ CallRuntime(id, frame_arg_count);
+  __ CallRuntime(id, arg_count);
   Result result = cgen_->allocator()->Allocate(r0);
   ASSERT(result.is_valid());
   return result;
@@ -266,9 +264,9 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
 Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags,
                                    Result* arg_count_register,
-                                   int frame_arg_count) {
+                                   int arg_count) {
   ASSERT(arg_count_register->reg().is(r0));
-  PrepareForCall(frame_arg_count, frame_arg_count);
+  PrepareForCall(arg_count, arg_count);
   arg_count_register->Unuse();
   __ InvokeBuiltin(id, flags);
   Result result = cgen_->allocator()->Allocate(r0);
@@ -283,6 +281,33 @@ Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
   Result result = cgen_->allocator()->Allocate(r0);
   ASSERT(result.is_valid());
   return result;
+}
+
+
+Result VirtualFrame::CallCodeObject(Handle<Code> code,
+                                    RelocInfo::Mode rmode,
+                                    int dropped_args) {
+  int spilled_args = 0;
+  switch (code->kind()) {
+    case Code::CALL_IC:
+      spilled_args = dropped_args + 1;
+      break;
+    case Code::FUNCTION:
+      spilled_args = dropped_args + 1;
+      break;
+    case Code::KEYED_LOAD_IC:
+      ASSERT(dropped_args == 0);
+      spilled_args = 2;
+      break;
+    default:
+      // The other types of code objects are called with values
+      // in specific registers, and are handled in functions with
+      // a different signature.
+      UNREACHABLE();
+      break;
+  }
+  PrepareForCall(spilled_args, dropped_args);
+  return RawCallCodeObject(code, rmode);
 }
 
 
