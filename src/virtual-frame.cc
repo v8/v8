@@ -212,22 +212,41 @@ void VirtualFrame::SpillElementAt(int index) {
 }
 
 
-// Clear the dirty bits for the range of elements in [begin, end).
+// Clear the dirty bits for the range of elements in
+// [min(stack_pointer_ + 1,begin), end).
 void VirtualFrame::SyncRange(int begin, int end) {
   ASSERT(begin >= 0);
   ASSERT(end <= elements_.length());
-  for (int i = begin; i < end; i++) {
-    RawSyncElementAt(i);
+  if (begin > stack_pointer_) {
+    // Elements between stack_pointer_ + 1 and begin must also be synced.
+    for (int i = stack_pointer_ + 1; i < end; i++) {
+      SyncElementByPushing(i);
+    }
+  } else if (end <= stack_pointer_ + 1) {
+    for (int i = begin; i < end; i++) {
+      if (!elements_[i].is_synced()) {
+          SyncElementBelowStackPointer(i);
+      }
+    }
+  } else {
+    // Split into two ranges that each satisfy a condition above.
+    SyncRange(begin, stack_pointer_ + 1);
+    SyncRange(stack_pointer_ + 1, end);
   }
 }
 
 
 // Clear the dirty bit for the element at a given index.
 void VirtualFrame::SyncElementAt(int index) {
-  if (index > stack_pointer_ + 1) {
-    SyncRange(stack_pointer_ + 1, index);
+  if (index <= stack_pointer_) {
+    if (!elements_[index].is_synced()) {
+      SyncElementBelowStackPointer(index);
+    }
+  } else {
+    for (int i = stack_pointer_ + 1; i <= index; i++) {
+      SyncElementByPushing(i);
+    }
   }
-  RawSyncElementAt(index);
 }
 
 
@@ -286,24 +305,18 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
   ASSERT(height() >= spilled_args);
   ASSERT(dropped_args <= spilled_args);
 
-  int arg_base_index = elements_.length() - spilled_args;
-  // Spill the arguments.  We spill from the top down so that the
-  // backing stores of register copies will be spilled only after all
-  // the copies are spilled---it is better to spill via a
-  // register-to-memory move than a memory-to-memory move.
-  for (int i = elements_.length() - 1; i >= arg_base_index; i--) {
-    SpillElementAt(i);
+  SyncRange(0, elements_.length());
+  // Spill registers.
+  for (int i = 0; i < kNumRegisters; i++) {
+    if (is_used(i)) {
+      SpillElementAt(register_locations_[i]);
+    }
   }
 
-  // Below the arguments, spill registers and sync everything else.
-  // Syncing is necessary for the locals and parameters to give the
-  // debugger a consistent view of the frame.
-  for (int i = arg_base_index - 1; i >= 0; i--) {
-    FrameElement element = elements_[i];
-    if (element.is_register()) {
+  // Spill the arguments.
+  for (int i = elements_.length() - spilled_args; i < elements_.length(); i++) {
+    if (!elements_[i].is_memory()) {
       SpillElementAt(i);
-    } else if (element.is_valid()) {
-      SyncElementAt(i);
     }
   }
 

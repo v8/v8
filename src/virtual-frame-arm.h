@@ -407,9 +407,11 @@ class VirtualFrame : public Malloced {
   // Sync the range of elements in [begin, end).
   void SyncRange(int begin, int end);
 
-  // Sync a single element, assuming that its index is less than
-  // or equal to stack pointer + 1.
-  void RawSyncElementAt(int index);
+  // Sync a single unsynced element that lies beneath or at the stack pointer.
+  void SyncElementBelowStackPointer(int index);
+
+  // Sync a single unsynced element that lies just above the stack pointer.
+  void SyncElementByPushing(int index);
 
   // Push a copy of a frame slot (typically a local or parameter) on top of
   // the frame.

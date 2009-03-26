@@ -58,98 +58,13 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
 }
 
 
-// Clear the dirty bit for the element at a given index if it is a
-// valid element.  The stack address corresponding to the element must
-// be allocated on the physical stack, or the first element above the
-// stack pointer so it can be allocated by a single push instruction.
-void VirtualFrame::RawSyncElementAt(int index) {
-  FrameElement element = elements_[index];
+void VirtualFrame::SyncElementBelowStackPointer(int index) {
+  UNREACHABLE();
+}
 
-  if (!element.is_valid() || element.is_synced()) return;
 
-  if (index <= stack_pointer_) {
-    // Emit code to write elements below the stack pointer to their
-    // (already allocated) stack address.
-    switch (element.type()) {
-      case FrameElement::INVALID:  // Fall through.
-      case FrameElement::MEMORY:
-        // There was an early bailout for invalid and synced elements
-        // (memory elements are always synced).
-        UNREACHABLE();
-        break;
-
-      case FrameElement::REGISTER:
-        __ str(element.reg(), MemOperand(fp, fp_relative(index)));
-        break;
-
-      case FrameElement::CONSTANT: {
-        Result temp = cgen_->allocator()->Allocate();
-        ASSERT(temp.is_valid());
-        __ mov(temp.reg(), Operand(element.handle()));
-        __ str(temp.reg(), MemOperand(fp, fp_relative(index)));
-        break;
-      }
-
-      case FrameElement::COPY: {
-        int backing_index = element.index();
-        FrameElement backing_element = elements_[backing_index];
-        if (backing_element.is_memory()) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          __ ldr(temp.reg(), MemOperand(fp, fp_relative(backing_index)));
-          __ str(temp.reg(), MemOperand(fp, fp_relative(index)));
-        } else {
-          ASSERT(backing_element.is_register());
-          __ str(backing_element.reg(), MemOperand(fp, fp_relative(index)));
-        }
-        break;
-      }
-    }
-
-  } else {
-    // Push elements above the stack pointer to allocate space and
-    // sync them.  Space should have already been allocated in the
-    // actual frame for all the elements below this one.
-    ASSERT(index == stack_pointer_ + 1);
-    stack_pointer_++;
-    switch (element.type()) {
-      case FrameElement::INVALID:  // Fall through.
-      case FrameElement::MEMORY:
-        // There was an early bailout for invalid and synced elements
-        // (memory elements are always synced).
-        UNREACHABLE();
-        break;
-
-      case FrameElement::REGISTER:
-        __ push(element.reg());
-        break;
-
-      case FrameElement::CONSTANT: {
-        Result temp = cgen_->allocator()->Allocate();
-        ASSERT(temp.is_valid());
-        __ mov(temp.reg(), Operand(element.handle()));
-        __ push(temp.reg());
-        break;
-      }
-
-      case FrameElement::COPY: {
-        int backing_index = element.index();
-        FrameElement backing = elements_[backing_index];
-        ASSERT(backing.is_memory() || backing.is_register());
-        if (backing.is_memory()) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          __ ldr(temp.reg(), MemOperand(fp, fp_relative(backing_index)));
-          __ push(temp.reg());
-        } else {
-          __ push(backing.reg());
-        }
-        break;
-      }
-    }
-  }
-
-  elements_[index].set_sync();
+void VirtualFrame::SyncElementByPushing(int index) {
+  UNREACHABLE();
 }
 
 

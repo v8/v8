@@ -57,101 +57,101 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
 }
 
 
-// Clear the dirty bit for the element at a given index if it is a
-// valid element.  The stack address corresponding to the element must
-// be allocated on the physical stack, or the first element above the
-// stack pointer so it can be allocated by a single push instruction.
-void VirtualFrame::RawSyncElementAt(int index) {
+void VirtualFrame::SyncElementBelowStackPointer(int index) {
+  // Emit code to write elements below the stack pointer to their
+  // (already allocated) stack address.
+  ASSERT(index <= stack_pointer_);
   FrameElement element = elements_[index];
+  ASSERT(!element.is_synced());
+  switch (element.type()) {
+    case FrameElement::INVALID:
+      break;
 
-  if (!element.is_valid() || element.is_synced()) return;
+    case FrameElement::MEMORY:
+      // This function should not be called with synced elements.
+      // (memory elements are always synced).
+      UNREACHABLE();
+      break;
 
-  if (index <= stack_pointer_) {
-    // Emit code to write elements below the stack pointer to their
-    // (already allocated) stack address.
-    switch (element.type()) {
-      case FrameElement::INVALID:  // Fall through.
-      case FrameElement::MEMORY:
-        // There was an early bailout for invalid and synced elements
-        // (memory elements are always synced).
-        UNREACHABLE();
-        break;
+    case FrameElement::REGISTER:
+      __ mov(Operand(ebp, fp_relative(index)), element.reg());
+      break;
 
-      case FrameElement::REGISTER:
-        __ mov(Operand(ebp, fp_relative(index)), element.reg());
-        break;
-
-      case FrameElement::CONSTANT:
-        if (cgen_->IsUnsafeSmi(element.handle())) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
-          __ mov(Operand(ebp, fp_relative(index)), temp.reg());
-        } else {
-          __ Set(Operand(ebp, fp_relative(index)),
-                 Immediate(element.handle()));
-        }
-        break;
-
-      case FrameElement::COPY: {
-        int backing_index = element.index();
-        FrameElement backing_element = elements_[backing_index];
-        if (backing_element.is_memory()) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          __ mov(temp.reg(), Operand(ebp, fp_relative(backing_index)));
-          __ mov(Operand(ebp, fp_relative(index)), temp.reg());
-        } else {
-          ASSERT(backing_element.is_register());
-          __ mov(Operand(ebp, fp_relative(index)), backing_element.reg());
-        }
-        break;
+    case FrameElement::CONSTANT:
+      if (cgen_->IsUnsafeSmi(element.handle())) {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
+        __ mov(Operand(ebp, fp_relative(index)), temp.reg());
+      } else {
+        __ Set(Operand(ebp, fp_relative(index)),
+               Immediate(element.handle()));
       }
-    }
+      break;
 
-  } else {
-    // Push elements above the stack pointer to allocate space and
-    // sync them.  Space should have already been allocated in the
-    // actual frame for all the elements below this one.
-    ASSERT(index == stack_pointer_ + 1);
-    stack_pointer_++;
-    switch (element.type()) {
-      case FrameElement::INVALID:  // Fall through.
-      case FrameElement::MEMORY:
-        // There was an early bailout for invalid and synced elements
-        // (memory elements are always synced).
-        UNREACHABLE();
-        break;
-
-      case FrameElement::REGISTER:
-        __ push(element.reg());
-        break;
-
-      case FrameElement::CONSTANT:
-        if (cgen_->IsUnsafeSmi(element.handle())) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
-          __ push(temp.reg());
-        } else {
-          __ push(Immediate(element.handle()));
-        }
-        break;
-
-      case FrameElement::COPY: {
-        int backing_index = element.index();
-        FrameElement backing = elements_[backing_index];
-        ASSERT(backing.is_memory() || backing.is_register());
-        if (backing.is_memory()) {
-          __ push(Operand(ebp, fp_relative(backing_index)));
-        } else {
-          __ push(backing.reg());
-        }
-        break;
+    case FrameElement::COPY: {
+      int backing_index = element.index();
+      FrameElement backing_element = elements_[backing_index];
+      if (backing_element.is_memory()) {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        __ mov(temp.reg(), Operand(ebp, fp_relative(backing_index)));
+        __ mov(Operand(ebp, fp_relative(index)), temp.reg());
+      } else {
+        ASSERT(backing_element.is_register());
+        __ mov(Operand(ebp, fp_relative(index)), backing_element.reg());
       }
+      break;
     }
   }
+  elements_[index].set_sync();
+}
 
+
+void VirtualFrame::SyncElementByPushing(int index) {
+  // Sync an element of the frame that is just above the stack pointer
+  // by pushing it.
+  ASSERT(index == stack_pointer_ + 1);
+  stack_pointer_++;
+  FrameElement element = elements_[index];
+
+  switch (element.type()) {
+    case FrameElement::INVALID:
+      __ push(Immediate(Smi::FromInt(0)));
+      break;
+
+    case FrameElement::MEMORY:
+      // No memory elements exist above the stack pointer.
+      UNREACHABLE();
+      break;
+
+    case FrameElement::REGISTER:
+      __ push(element.reg());
+      break;
+
+    case FrameElement::CONSTANT:
+      if (cgen_->IsUnsafeSmi(element.handle())) {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
+        __ push(temp.reg());
+      } else {
+        __ push(Immediate(element.handle()));
+      }
+      break;
+
+    case FrameElement::COPY: {
+      int backing_index = element.index();
+      FrameElement backing = elements_[backing_index];
+      ASSERT(backing.is_memory() || backing.is_register());
+      if (backing.is_memory()) {
+        __ push(Operand(ebp, fp_relative(backing_index)));
+      } else {
+        __ push(backing.reg());
+      }
+      break;
+    }
+  }
   elements_[index].set_sync();
 }
 
