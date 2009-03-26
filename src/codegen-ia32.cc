@@ -4351,9 +4351,12 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
-  // Load the key onto the stack and set register eax to the formal
-  // parameters count for the currently executing function.
+  // Load the key into edx and set eax to the formal parameters count
+  // for the currently executing function.
   Load(args->at(0));
+  Result key = frame_->Pop();
+  key.ToRegister(edx);
+
   Result parameters_count = allocator()->Allocate(eax);
   ASSERT(parameters_count.is_valid());
   __ Set(parameters_count.reg(),
@@ -4361,8 +4364,8 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
 
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
-  Result result = frame_->CallStub(&stub, &parameters_count, 0);
-  frame_->SetElementAt(0, &result);
+  Result result = frame_->CallStub(&stub, &parameters_count, &key, 0);
+  frame_->Push(&result);
 }
 
 
@@ -6259,6 +6262,8 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The key is in edx and the parameter count is in eax.
+
   // The displacement is used for skipping the frame pointer on the
   // stack. It is the offset of the last parameter (if any) relative
   // to the frame pointer.
@@ -6266,48 +6271,50 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   Label slow;
-  __ mov(ebx, Operand(esp, 1 * kPointerSize));  // skip return address
-  __ test(ebx, Immediate(kSmiTagMask));
+  __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &slow, not_taken);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
+  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(ecx, Operand(ebx, StandardFrameConstants::kContextOffset));
   __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
   __ j(equal, &adaptor);
 
   // Check index against formal parameters count limit passed in
   // through register eax. Use unsigned comparison to get negative
   // check for free.
-  __ cmp(ebx, Operand(eax));
+  __ cmp(edx, Operand(eax));
   __ j(above_equal, &slow, not_taken);
 
   // Read the argument from the stack and return it.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
-  __ lea(edx, Operand(ebp, eax, times_2, 0));
-  __ neg(ebx);
-  __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+  __ lea(ebx, Operand(ebp, eax, times_2, 0));
+  __ neg(edx);
+  __ mov(eax, Operand(ebx, edx, times_2, kDisplacement));
   __ ret(0);
 
   // Arguments adaptor case: Check index against actual arguments
   // limit found in the arguments adaptor frame. Use unsigned
   // comparison to get negative check for free.
   __ bind(&adaptor);
-  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmp(ebx, Operand(ecx));
+  __ mov(ecx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmp(edx, Operand(ecx));
   __ j(above_equal, &slow, not_taken);
 
   // Read the argument from the stack and return it.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
-  __ lea(edx, Operand(edx, ecx, times_2, 0));
-  __ neg(ebx);
-  __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+  __ lea(ebx, Operand(ebx, ecx, times_2, 0));
+  __ neg(edx);
+  __ mov(eax, Operand(ebx, edx, times_2, kDisplacement));
   __ ret(0);
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.
   __ bind(&slow);
+  __ pop(ebx);  // Return address.
+  __ push(edx);
+  __ push(ebx);
   __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
 }
 
