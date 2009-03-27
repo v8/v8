@@ -734,6 +734,39 @@ Result VirtualFrame::RawCallStub(CodeStub* stub) {
 }
 
 
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+  PrepareForCall(0, 0);
+  arg->ToRegister(eax);
+  arg->Unuse();
+  return RawCallStub(stub);
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
+  PrepareForCall(0, 0);
+
+  if (arg0->is_register() && arg0->reg().is(eax)) {
+    if (arg1->is_register() && arg1->reg().is(edx)) {
+      // Wrong registers.
+      __ xchg(eax, edx);
+    } else {
+      // Register edx is free for arg0, which frees eax for arg1.
+      arg0->ToRegister(edx);
+      arg1->ToRegister(eax);
+    }
+  } else {
+    // Register eax is free for arg1, which guarantees edx is free for
+    // arg0.
+    arg1->ToRegister(eax);
+    arg0->ToRegister(edx);
+  }
+
+  arg0->Unuse();
+  arg1->Unuse();
+  return RawCallStub(stub);
+}
+
+
 Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());

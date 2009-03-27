@@ -868,11 +868,11 @@ void DeferredInlineSmiOperation::Generate() {
   }
 
   GenericBinaryOpStub igostub(op_);
-  Result arg0 = generator()->allocator()->Allocate(r0);
+  Result arg0 = generator()->allocator()->Allocate(r1);
   ASSERT(arg0.is_valid());
-  Result arg1 = generator()->allocator()->Allocate(r1);
+  Result arg1 = generator()->allocator()->Allocate(r0);
   ASSERT(arg1.is_valid());
-  generator()->frame()->CallStub(&igostub, &arg0, &arg1, 0);
+  generator()->frame()->CallStub(&igostub, &arg0, &arg1);
   exit_.Jump();
 }
 

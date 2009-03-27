@@ -1508,12 +1508,10 @@ void CodeGenerator::Comparison(Condition cc,
       __ test(left_side.reg(), Immediate(kSmiTagMask));
       is_smi.Branch(zero, &left_side, &right_side, taken);
 
-      // Setup and call the compare stub, which expects arguments in edx
-      // and eax.
+      // Setup and call the compare stub, which expects its arguments
+      // in registers.
       CompareStub stub(cc, strict);
-      left_side.ToRegister(edx);  // Only left_side currently uses a register.
-      right_side.ToRegister(eax);  // left_side is not in eax.  eax is free.
-      Result result = frame_->CallStub(&stub, &left_side, &right_side, 0);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
       __ cmp(result.reg(), 0);
       result.Unuse();
@@ -1588,23 +1586,10 @@ void CodeGenerator::Comparison(Condition cc,
       temp.Unuse();
       is_smi.Branch(zero, &left_side, &right_side, taken);
     }
-    // When non-smi, call out to the compare stub.  "parameters" setup by
-    // calling code in edx and eax and "result" is returned in the flags.
-    if (!left_side.reg().is(eax)) {
-      right_side.ToRegister(eax);
-      left_side.ToRegister(edx);
-    } else if (!right_side.reg().is(edx)) {
-      left_side.ToRegister(edx);
-      right_side.ToRegister(eax);
-    } else {
-      frame_->Spill(eax);  // Can be multiply referenced, even now.
-      frame_->Spill(edx);
-      __ xchg(eax, edx);
-      // If left_side and right_side become real (non-dummy) arguments
-      // to CallStub, they need to be swapped in this case.
-    }
+    // When non-smi, call out to the compare stub, which expects its
+    // arguments in registers.
     CompareStub stub(cc, strict);
-    Result answer = frame_->CallStub(&stub, &right_side, &left_side, 0);
+    Result answer = frame_->CallStub(&stub, &left_side, &right_side);
     if (cc == equal) {
       __ test(answer.reg(), Operand(answer.reg()));
     } else {
@@ -4392,15 +4377,12 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  Result initial_value = allocator()->Allocate(eax);
-  ASSERT(initial_value.is_valid());
-  __ Set(initial_value.reg(),
-         Immediate(Smi::FromInt(scope_->num_parameters())));
   // ArgumentsAccessStub takes the parameter count as an input argument
-  // in register eax.
+  // in register eax.  Create a constant result for it.
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())), this);
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  Result result = frame_->CallStub(&stub, &initial_value, 0);
+  Result result = frame_->CallStub(&stub, &count);
   frame_->Push(&result);
 }
 
@@ -4475,20 +4457,15 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
-  // Load the key into edx and set eax to the formal parameters count
-  // for the currently executing function.
+  // ArgumentsAccessStub expects the key in edx and the formal
+  // parameter count in eax.
   Load(args->at(0));
   Result key = frame_->Pop();
-  key.ToRegister(edx);
-
-  Result parameters_count = allocator()->Allocate(eax);
-  ASSERT(parameters_count.is_valid());
-  __ Set(parameters_count.reg(),
-         Immediate(Smi::FromInt(scope_->num_parameters())));
-
+  // Explicitly create a constant result.
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())), this);
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
-  Result result = frame_->CallStub(&stub, &parameters_count, &key, 0);
+  Result result = frame_->CallStub(&stub, &key, &count);
   frame_->Push(&result);
 }
 
@@ -4647,8 +4624,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         UnarySubStub stub;
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
-        operand.ToRegister(eax);
-        Result answer = frame_->CallStub(&stub, &operand, 0);
+        Result answer = frame_->CallStub(&stub, &operand);
         frame_->Push(&answer);
         break;
       }
@@ -4781,15 +4757,13 @@ void DeferredCountOperation::Generate() {
 
   Result value(cgen);
   enter()->Bind(&value);
-  value.ToRegister(eax);  // The stubs below expect their argument in eax.
-
   if (is_postfix_) {
     RevertToNumberStub to_number_stub(is_increment_);
-    value = generator()->frame()->CallStub(&to_number_stub, &value, 0);
+    value = generator()->frame()->CallStub(&to_number_stub, &value);
   }
 
   CounterOpStub stub(result_offset_, is_postfix_, is_increment_);
-  value = generator()->frame()->CallStub(&stub, &value, 0);
+  value = generator()->frame()->CallStub(&stub, &value);
   exit_.Jump(&value);
 }
 

@@ -437,24 +437,6 @@ Result VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
 }
 
 
-Result VirtualFrame::CallStub(CodeStub* stub, Result* arg, int arg_count) {
-  PrepareForCall(arg_count, arg_count);
-  arg->Unuse();
-  return RawCallStub(stub);
-}
-
-
-Result VirtualFrame::CallStub(CodeStub* stub,
-                              Result* arg0,
-                              Result* arg1,
-                              int arg_count) {
-  PrepareForCall(arg_count, arg_count);
-  arg0->Unuse();
-  arg1->Unuse();
-  return RawCallStub(stub);
-}
-
-
 void VirtualFrame::Push(Register reg) {
   if (is_used(reg)) {
     elements_.Add(CopyElementAt(register_index(reg)));

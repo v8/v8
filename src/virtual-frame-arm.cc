@@ -241,6 +241,21 @@ Result VirtualFrame::RawCallStub(CodeStub* stub) {
 }
 
 
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+  PrepareForCall(0, 0);
+  arg->Unuse();
+  return RawCallStub(stub);
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
+  PrepareForCall(0, 0);
+  arg0->Unuse();
+  arg1->Unuse();
+  return RawCallStub(stub);
+}
+
+
 Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());

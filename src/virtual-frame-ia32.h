@@ -241,19 +241,28 @@ class VirtualFrame : public Malloced {
   // Push a try-catch or try-finally handler on top of the virtual frame.
   void PushTryHandler(HandlerType type);
 
-  // Call a code stub, given the number of arguments it expects on (and
-  // removes from) the top of the physical frame.
+  // Call stub given the number of arguments it expects on (and
+  // removes from) the stack.
   Result CallStub(CodeStub* stub, int arg_count);
-  Result CallStub(CodeStub* stub, Result* arg, int arg_count);
-  Result CallStub(CodeStub* stub, Result* arg0, Result* arg1, int arg_count);
 
-  // Call the runtime, given the number of arguments expected on (and
-  // removed from) the top of the physical frame.
+  // Call stub that takes a single argument passed in eax.  The
+  // argument is given as a result which does not have to be eax or
+  // even a register.  The argument is consumed by the call.
+  Result CallStub(CodeStub* stub, Result* arg);
+
+  // Call stub that takes a pair of arguments passed in edx (arg0) and
+  // eax (arg1).  The arguments are given as results which do not have
+  // to be in the proper registers or even in registers.  The
+  // arguments are consumed by the call.
+  Result CallStub(CodeStub* stub, Result* arg0, Result* arg1);
+
+  // Call runtime given the number of arguments expected on (and
+  // removed from) the stack.
   Result CallRuntime(Runtime::Function* f, int arg_count);
   Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
-  // Invoke a builtin, given the number of arguments it expects on (and
-  // removes from) the top of the physical frame.
+  // Invoke builtin given the number of arguments it expects on (and
+  // removes from) the stack.
   Result InvokeBuiltin(Builtins::JavaScript id,
                        InvokeFlag flag,
                        int arg_count);
