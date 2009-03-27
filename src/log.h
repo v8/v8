@@ -83,7 +83,7 @@ class LogMessageBuilder;
 #endif
 
 
-class VMState {
+class VMState BASE_EMBEDDED {
 #ifdef ENABLE_LOGGING_AND_PROFILING
  public:
   explicit VMState(StateTag state);
@@ -251,6 +251,9 @@ class Logger {
 
   // A stack of VM states.
   static VMState* current_state_;
+
+  // Singleton bottom or default vm state.
+  static VMState bottom_state_;
 
   // SlidingStateWindow instance keeping a sliding window of the most
   // recent VM states.

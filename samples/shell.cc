@@ -45,7 +45,7 @@ v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
 
 
-int main(int argc, char* argv[]) {
+int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::HandleScope handle_scope;
   // Create a template for the global object.
@@ -95,8 +95,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
   }
-  if (run_shell) RunShell(context);
   return 0;
+}
+
+
+int main(int argc, char* argv[]) {
+  int result = RunMain(argc, argv);
+  v8::V8::Dispose();
+  return result;
 }
 
 

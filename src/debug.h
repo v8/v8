@@ -429,6 +429,7 @@ class Debugger {
                                 bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
   static void SetMessageHandler(v8::DebugMessageHandler handler, void* data);
+  static void TearDown();
   static void SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
                                      void* data);
   static void SendMessage(Vector<uint16_t> message);
@@ -527,7 +528,7 @@ class LockingMessageQueue BASE_EMBEDDED {
 class DebugMessageThread: public Thread {
  public:
   DebugMessageThread();  // Called from API thread.
-  virtual ~DebugMessageThread();  // Never called.
+  virtual ~DebugMessageThread();
   // Called by V8 thread.  Reports events from V8 VM.
   // Also handles command processing in stopped state of V8,
   // when host_running_ is false.
@@ -554,6 +555,7 @@ class DebugMessageThread: public Thread {
 
   // Check whether there are commands in the queue.
   bool HasCommands() { return !command_queue_.IsEmpty(); }
+  void Stop();
 
   bool host_running_;  // Is the debugging host running or stopped?
   Semaphore* command_received_;  // Non-zero when command queue is non-empty.
@@ -564,6 +566,7 @@ class DebugMessageThread: public Thread {
   static const int kQueueInitialSize = 4;
   LockingMessageQueue command_queue_;
   LockingMessageQueue message_queue_;
+  bool keep_running_;
   DISALLOW_COPY_AND_ASSIGN(DebugMessageThread);
 };
 

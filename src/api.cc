@@ -2272,6 +2272,12 @@ bool v8::V8::Initialize() {
 }
 
 
+bool v8::V8::Dispose() {
+  i::V8::TearDown();
+  return true;
+}
+
+
 const char* v8::V8::GetVersion() {
   return "1.1.4 (candidate)";
 }

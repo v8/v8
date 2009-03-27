@@ -62,7 +62,7 @@
 // printing / etc in the flag parser code.  We only do this for writable flags.
 #elif defined(FLAG_MODE_META)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  { Flag::TYPE_##ftype, #nam, &FLAG_##nam, &FLAGDEFAULT_##nam, cmt },
+  { Flag::TYPE_##ftype, #nam, &FLAG_##nam, &FLAGDEFAULT_##nam, cmt, false },
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt)
 
 #else

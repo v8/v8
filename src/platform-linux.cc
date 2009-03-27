@@ -417,6 +417,7 @@ class ThreadHandle::PlatformData : public Malloced {
       case ThreadHandle::INVALID: thread_ = kNoThread; break;
     }
   }
+
   pthread_t thread_;  // Thread handle for pthread.
 };
 

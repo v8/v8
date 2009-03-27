@@ -41,6 +41,11 @@ class MessageTestCase(test.TestCase):
     self.config = config
     self.mode = mode
 
+  def IgnoreLine(self, str):
+    """Ignore empty lines and valgrind output."""
+    if not str: return True
+    else: return str.startswith('==') or str.startswith('**')
+
   def IsFailureOutput(self, output):
     f = file(self.expected)
     # Skip initial '#' comment and spaces
@@ -58,7 +63,8 @@ class MessageTestCase(test.TestCase):
       pattern = '^%s$' % pattern
       patterns.append(pattern)
     # Compare actual output with the expected
-    outlines = [ s for s in output.stdout.split('\n') if s ]
+    raw_lines = output.stdout.split('\n')
+    outlines = [ s for s in raw_lines if not self.IgnoreLine(s) ]
     if len(outlines) != len(patterns):
       return True
     for i in xrange(len(patterns)):

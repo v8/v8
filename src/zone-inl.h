@@ -50,6 +50,12 @@ inline void* Zone::New(int size) {
 }
 
 
+template <typename T>
+T* Zone::NewArray(int length) {
+  return static_cast<T*>(Zone::New(length * sizeof(T)));
+}
+
+
 bool Zone::excess_allocation() {
   return segment_bytes_allocated_ > zone_excess_limit_;
 }

@@ -1737,6 +1737,15 @@ void Debugger::SetEventListener(Handle<Object> callback,
 }
 
 
+void Debugger::TearDown() {
+  if (message_thread_ != NULL) {
+    message_thread_->Stop();
+    delete message_thread_;
+    message_thread_ = NULL;
+  }
+}
+
+
 void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
   message_handler_ = handler;
   message_handler_data_ = data;
@@ -1852,16 +1861,23 @@ void Debugger::StopAgent() {
 DebugMessageThread::DebugMessageThread()
     : host_running_(true),
       command_queue_(kQueueInitialSize),
-      message_queue_(kQueueInitialSize) {
+      message_queue_(kQueueInitialSize),
+      keep_running_(true) {
   command_received_ = OS::CreateSemaphore(0);
   message_received_ = OS::CreateSemaphore(0);
 }
 
-// Does not free resources held by DebugMessageThread
-// because this cannot be done thread-safely.
+// Should only be done after the thread is done running.
 DebugMessageThread::~DebugMessageThread() {
+  delete command_received_;
+  delete message_received_;
 }
 
+void DebugMessageThread::Stop() {
+  keep_running_ = false;
+  SendMessage(Vector<uint16_t>(NULL, 0));
+  Join();
+}
 
 // Puts an event coming from V8 on the queue.  Creates
 // a copy of the JSON formatted event string managed by the V8.
@@ -1909,7 +1925,7 @@ bool DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
 
 void DebugMessageThread::Run() {
   // Sends debug events to an installed debugger message callback.
-  while (true) {
+  while (keep_running_) {
     // Wait and Get are paired so that semaphore count equals queue length.
     message_received_->Wait();
     Logger::DebugTag("Get message from event message_queue.");
