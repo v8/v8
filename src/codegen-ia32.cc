@@ -699,12 +699,10 @@ class FloatingPointHelper : public AllStatic {
 
 
 // Flag that indicates whether or not the code that handles smi arguments
-// should be inlined, placed in the stub, or omitted entirely.
+// should be placed in the stub, inlined, or omitted entirely.
 enum GenericBinaryFlags {
   SMI_CODE_IN_STUB,
-  SMI_CODE_INLINED,
-  // It is known at compile time that at least one argument is not a smi.
-  NO_SMI_CODE
+  SMI_CODE_INLINED
 };
 
 
@@ -713,7 +711,9 @@ class GenericBinaryOpStub: public CodeStub {
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       GenericBinaryFlags flags)
-      : op_(op), mode_(mode), flags_(flags) { }
+      : op_(op), mode_(mode), flags_(flags) {
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
 
   void GenerateSmiCode(MacroAssembler* masm, Label* slow);
 
@@ -735,8 +735,8 @@ class GenericBinaryOpStub: public CodeStub {
 
   // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 12> {};
-  class FlagBits: public BitField<GenericBinaryFlags, 14, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 13> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
@@ -845,9 +845,10 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
   bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
   bool right_is_non_smi = right.is_constant() && !right.handle()->IsSmi();
+  bool generate_no_smi_code = false;  // No smi code at all, inline or in stub.
 
   if (left_is_smi && right_is_smi) {
-    // Compute the result, and return that as a constant on the frame.
+    // Compute the constant result at compile time, and leave it on the frame.
     int left_int = Smi::cast(*left.handle())->value();
     int right_int = Smi::cast(*right.handle())->value();
     if (FoldConstantSmis(op, left_int, right_int)) return;
@@ -855,18 +856,18 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   if (left_is_non_smi || right_is_non_smi) {
     // Set flag so that we go straight to the slow case, with no smi code.
-    flags = NO_SMI_CODE;
+    generate_no_smi_code = true;
   } else if (right_is_smi) {
-    ConstantSmiBinaryOperation(op, &left, right.handle(), type,
-                                 false, overwrite_mode);
+    ConstantSmiBinaryOperation(op, &left, right.handle(),
+                               type, false, overwrite_mode);
     return;
   } else if (left_is_smi) {
-    ConstantSmiBinaryOperation(op, &right, left.handle(), type,
-                                 true, overwrite_mode);
+    ConstantSmiBinaryOperation(op, &right, left.handle(),
+                               type, true, overwrite_mode);
     return;
   }
 
-  if (flags == SMI_CODE_INLINED) {
+  if (flags == SMI_CODE_INLINED && !generate_no_smi_code) {
     LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
   } else {
     frame_->Push(&left);
@@ -874,7 +875,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // If we know the arguments aren't smis, use the binary operation stub
     // that does not check for the fast smi case.
     // The same stub is used for NO_SMI_CODE and SMI_CODE_INLINED.
-    if (flags == NO_SMI_CODE) {
+    if (generate_no_smi_code) {
       flags = SMI_CODE_INLINED;
     }
     GenericBinaryOpStub stub(op, overwrite_mode, flags);
@@ -969,8 +970,8 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                              Result* left,
                                              Result* right,
                                              OverwriteMode overwrite_mode) {
-  // Create a new deferred code object that calls GenericBinaryOpStub
-  // in the slow case.
+  // Implements a binary operation using a deferred code object
+  // and some inline code to operate on smis quickly.
   DeferredInlineBinaryOperation* deferred =
       new DeferredInlineBinaryOperation(this, op, overwrite_mode,
                                         SMI_CODE_INLINED);
@@ -1233,7 +1234,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 
     case Token::SUB: {
       DeferredCode* deferred = NULL;
-      Result answer(this);  // Only allocated a new register if reversed.
+      Result answer(this);  // Only allocate a new register if reversed.
       if (reversed) {
         answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
@@ -5570,10 +5571,14 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
 
   ASSERT(answer.is_valid());
   // Perform the smi check.
-  __ mov(answer.reg(), left->reg());
-  __ or_(answer.reg(), Operand(right->reg()));
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
-  __ test(answer.reg(), Immediate(kSmiTagMask));
+  if (left->reg().is(right->reg())) {
+    __ test(left->reg(), Immediate(kSmiTagMask));
+  } else {
+    __ mov(answer.reg(), left->reg());
+    __ or_(answer.reg(), Operand(right->reg()));
+    ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+    __ test(answer.reg(), Immediate(kSmiTagMask));
+  }
   enter()->Branch(not_zero, left, right, not_taken);
 
   // All operations start by copying the left argument into answer.

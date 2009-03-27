@@ -441,8 +441,8 @@ class CodeGenerator: public AstVisitor {
   // Returns true if it succeeds.  Otherwise it has no effect.
   bool FoldConstantSmis(Token::Value op, int left, int right);
 
-  // Emit code to perform a binary operation on
-  // a constant smi and a likely smi.  Consumes the Result *operand.
+  // Emit code to perform a binary operation on a constant
+  // smi and a likely smi.  Consumes the Result *operand.
   void ConstantSmiBinaryOperation(Token::Value op,
                                   Result* operand,
                                   Handle<Object> constant_operand,
