@@ -674,7 +674,7 @@ Object* LoadCallbackProperty(Arguments args) {
   v8::Handle<v8::Value> result;
   {
     // Leaving JavaScript.
-    VMState state(OTHER);
+    VMState state(EXTERNAL);
     result = fun(v8::Utils::ToLocal(name), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();
@@ -699,7 +699,7 @@ Object* StoreCallbackProperty(Arguments args) {
                         v8::Utils::ToLocal(recv));
   {
     // Leaving JavaScript.
-    VMState state(OTHER);
+    VMState state(EXTERNAL);
     fun(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();

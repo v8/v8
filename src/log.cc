@@ -1125,11 +1125,11 @@ VMState::VMState(StateTag state) {
   if (FLAG_protect_heap && previous_ != NULL) {
     if (state_ == EXTERNAL) {
       // We are leaving V8.
-      ASSERT(previous_ == NULL || previous_->state_ != EXTERNAL);
+      ASSERT(previous_->state_ != EXTERNAL);
       Heap::Protect();
-    } else {
-      // Are we entering V8?
-      if (previous_->state_ == EXTERNAL) Heap::Unprotect();
+    } else if (previous_->state_ == EXTERNAL) {
+      // We are entering V8.
+      Heap::Unprotect();
     }
   }
 #endif
@@ -1149,11 +1149,12 @@ VMState::~VMState() {
 #ifdef ENABLE_HEAP_PROTECTION
   if (FLAG_protect_heap && previous_ != NULL) {
     if (state_ == EXTERNAL) {
-      // Are we (re)entering V8?
-      if (previous_->state_ != EXTERNAL) Heap::Unprotect();
-    } else {
-      // Are we leaving V8?
-      if (previous_->state_ == EXTERNAL) Heap::Protect();
+      // We are reentering V8.
+      ASSERT(previous_->state_ != EXTERNAL);
+      Heap::Unprotect();
+    } else if (previous_->state_ == EXTERNAL) {
+      // We are leaving V8.
+      Heap::Protect();
     }
   }
 #endif

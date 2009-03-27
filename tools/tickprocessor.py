@@ -147,7 +147,7 @@ class Assembler(object):
     self.regions = []
 
 
-VMStates = { 'JS': 0, 'GC': 1, 'COMPILER': 2, 'OTHER': 3 }
+VMStates = { 'JS': 0, 'GC': 1, 'COMPILER': 2, 'OTHER': 3, 'EXTERNAL' : 4 }
 
 
 class TickProcessor(object):
@@ -416,7 +416,13 @@ class TickProcessor(object):
 class CmdLineProcessor(object):
 
   def __init__(self):
-    self.options = ["js", "gc", "compiler", "other", "ignore-unknown", "separate-ic"]
+    self.options = ["js",
+                    "gc",
+                    "compiler",
+                    "other",
+                    "external",
+                    "ignore-unknown",
+                    "separate-ic"]
     # default values
     self.state = None
     self.ignore_unknown = False
@@ -425,7 +431,7 @@ class CmdLineProcessor(object):
 
   def ProcessArguments(self):
     try:
-      opts, args = getopt.getopt(sys.argv[1:], "jgco", self.options)
+      opts, args = getopt.getopt(sys.argv[1:], "jgcoe", self.options)
     except getopt.GetoptError:
       self.PrintUsageAndExit()
     for key, value in opts:
@@ -437,6 +443,8 @@ class CmdLineProcessor(object):
         self.state = VMStates['COMPILER']
       if key in ("-o", "--other"):
         self.state = VMStates['OTHER']
+      if key in ("-e", "--external"):
+        self.state = VMStates['EXTERNAL']
       if key in ("--ignore-unknown"):
         self.ignore_unknown = True
       if key in ("--separate-ic"):

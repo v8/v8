@@ -516,7 +516,7 @@ bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(OTHER);
+    VMState state(EXTERNAL);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       v8::Utils::ToLocal(key_handle),
                       type,
@@ -560,7 +560,7 @@ bool Top::MayIndexedAccess(JSObject* receiver,
   bool result = false;
   {
     // Leaving JavaScript.
-    VMState state(OTHER);
+    VMState state(EXTERNAL);
     result = callback(v8::Utils::ToLocal(receiver_handle),
                       index,
                       type,

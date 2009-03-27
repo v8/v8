@@ -48,7 +48,7 @@ class CcTestCase(test.TestCase):
 
   def GetName(self):
     return self.path[-1]
-    
+
   def BuildCommand(self, name):
     serialization_file = join('obj', 'test', self.mode, 'serdes')
     serialization_file += '_' + self.GetName()
@@ -60,12 +60,12 @@ class CcTestCase(test.TestCase):
 
   def GetCommand(self):
     return self.BuildCommand(self.raw_name)
-    
+
   def Run(self):
     if self.dependency != '':
       dependent_command = self.BuildCommand(self.dependency)
       output = self.RunCommand(dependent_command)
-      if output.HasFailed(): 
+      if output.HasFailed():
         return output
     return test.TestCase.Run(self)
 
@@ -97,7 +97,7 @@ class CcTestConfiguration(test.TestConfiguration):
       if self.Contains(path, full_path):
         result.append(CcTestCase(full_path, executable, mode, raw_test, dependency, self.context))
     return result
-  
+
   def GetTestStatus(self, sections, defs):
     status_file = join(self.root, 'cctest.status')
     if exists(status_file):
