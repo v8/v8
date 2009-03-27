@@ -552,7 +552,7 @@ class Debugger {
 // seperate from the V8 thread.
 class DebugMessageThread: public Thread {
  public:
-   DebugMessageThread() : keep_running_(true) {}
+  DebugMessageThread() : keep_running_(true) {}
   virtual ~DebugMessageThread() {}
 
   // Main function of DebugMessageThread thread.
