@@ -86,69 +86,6 @@ void OS::Setup() {
 }
 
 
-FILE* OS::FOpen(const char* path, const char* mode) {
-  return fopen(path, mode);
-}
-
-
-void OS::Print(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  VPrint(format, args);
-  va_end(args);
-}
-
-
-void OS::VPrint(const char* format, va_list args) {
-  vprintf(format, args);
-}
-
-
-void OS::PrintError(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  VPrintError(format, args);
-  va_end(args);
-}
-
-
-void OS::VPrintError(const char* format, va_list args) {
-  vfprintf(stderr, format, args);
-}
-
-
-int OS::SNPrintF(Vector<char> str, const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  int result = VSNPrintF(str, format, args);
-  va_end(args);
-  return result;
-}
-
-
-int OS::VSNPrintF(Vector<char> str,
-                  const char* format,
-                  va_list args) {
-  int n = vsnprintf(str.start(), str.length(), format, args);
-  if (n < 0 || n >= str.length()) {
-    str[str.length() - 1] = '\0';
-    return -1;
-  } else {
-    return n;
-  }
-}
-
-
-char* OS::StrChr(char* str, int c) {
-  return strchr(str, c);
-}
-
-
-void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
-  strncpy(dest.start(), src, n);
-}
-
-
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
 // and verification).  The estimate is conservative, ie, not all addresses in
