@@ -3988,11 +3988,11 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
 class EmptyExternalStringResource : public v8::String::ExternalStringResource {
  public:
   EmptyExternalStringResource() { empty_[0] = 0; }
-  virtual ~EmptyExternalStringResource() {};
+  virtual ~EmptyExternalStringResource() {}
   virtual size_t length() const { return empty_.length(); }
   virtual const uint16_t* data() const { return empty_.start(); }
  private:
-  ::v8::internal::EmbeddedVector<uint16_t,1> empty_;
+  ::v8::internal::EmbeddedVector<uint16_t, 1> empty_;
 };
 
 
@@ -4014,8 +4014,7 @@ TEST(DebugGetLoadedScripts) {
       "var scripts = %DebugGetLoadedScripts();"
       "for (var i = 0; i < scripts.length; ++i) {"
       "    scripts[i].line_ends;"
-      "}"
-  );
+      "}");
   // Must not crash while accessing line_ends.
   i::FLAG_allow_natives_syntax = allow_natives_syntax;
 }
