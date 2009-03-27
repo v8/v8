@@ -3074,9 +3074,10 @@ void Debug::DebugBreak() {
 }
 
 
-void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
+void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+                              bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
-  i::Debugger::SetMessageHandler(handler, data);
+  i::Debugger::SetMessageHandler(handler, data, message_handler_thread);
 }
 
 

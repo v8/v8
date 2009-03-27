@@ -396,6 +396,46 @@ class Debug {
 };
 
 
+// A Queue of Vector<uint16_t> objects.  A thread-safe version is
+// LockingMessageQueue, based on this class.
+class MessageQueue BASE_EMBEDDED {
+ public:
+  explicit MessageQueue(int size);
+  ~MessageQueue();
+  bool IsEmpty() const { return start_ == end_; }
+  Vector<uint16_t> Get();
+  void Put(const Vector<uint16_t>& message);
+  void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
+ private:
+  // Doubles the size of the message queue, and copies the messages.
+  void Expand();
+
+  Vector<uint16_t>* messages_;
+  int start_;
+  int end_;
+  int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
+};
+
+
+// LockingMessageQueue is a thread-safe circular buffer of Vector<uint16_t>
+// messages.  The message data is not managed by LockingMessageQueue.
+// Pointers to the data are passed in and out. Implemented by adding a
+// Mutex to MessageQueue.  Includes logging of all puts and gets.
+class LockingMessageQueue BASE_EMBEDDED {
+ public:
+  explicit LockingMessageQueue(int size);
+  ~LockingMessageQueue();
+  bool IsEmpty() const;
+  Vector<uint16_t> Get();
+  void Put(const Vector<uint16_t>& message);
+  void Clear();
+ private:
+  MessageQueue queue_;
+  Mutex* lock_;
+  DISALLOW_COPY_AND_ASSIGN(LockingMessageQueue);
+};
+
+
 class DebugMessageThread;
 
 class Debugger {
@@ -427,14 +467,33 @@ class Debugger {
   static void ProcessDebugEvent(v8::DebugEvent event,
                                 Handle<Object> event_data,
                                 bool auto_continue);
+  static void NotifyMessageHandler(v8::DebugEvent event,
+                                   Handle<Object> exec_state,
+                                   Handle<Object> event_data,
+                                   bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  static void SetMessageHandler(v8::DebugMessageHandler handler, void* data);
+  static void SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+                                bool message_handler_thread);
   static void TearDown();
   static void SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
                                      void* data);
+
+  // Invoke the message handler function.
+  static void InvokeMessageHandler(Vector< uint16_t> message);
+
+  // Send a message to the message handler eiher through the message thread or
+  // directly.
   static void SendMessage(Vector<uint16_t> message);
+
+  // Send the JSON message for a debug event.
+  static bool SendEventMessage(Handle<Object> event_data);
+
+  // Add a debugger command to the command queue.
   static void ProcessCommand(Vector<const uint16_t> command);
+
+  // Check whether there are commands in the command queue.
   static bool HasCommands();
+
   static void ProcessHostDispatch(void* dispatch);
   static void UpdateActiveDebugger();
   static Handle<Object> Call(Handle<JSFunction> fun,
@@ -477,95 +536,30 @@ class Debugger {
 
   static DebuggerAgent* agent_;
 
+  static const int kQueueInitialSize = 4;
+  static LockingMessageQueue command_queue_;
+  static LockingMessageQueue message_queue_;
+  static Semaphore* command_received_;  // Signaled for each command received.
+  static Semaphore* message_received_;  // Signalled for each message send.
+
   friend class DebugMessageThread;
 };
 
 
-// A Queue of Vector<uint16_t> objects.  A thread-safe version is
-// LockingMessageQueue, based on this class.
-class MessageQueue BASE_EMBEDDED {
- public:
-  explicit MessageQueue(int size);
-  ~MessageQueue();
-  bool IsEmpty() const { return start_ == end_; }
-  Vector<uint16_t> Get();
-  void Put(const Vector<uint16_t>& message);
-  void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
- private:
-  // Doubles the size of the message queue, and copies the messages.
-  void Expand();
-
-  Vector<uint16_t>* messages_;
-  int start_;
-  int end_;
-  int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
-};
-
-
-// LockingMessageQueue is a thread-safe circular buffer of Vector<uint16_t>
-// messages.  The message data is not managed by LockingMessageQueue.
-// Pointers to the data are passed in and out. Implemented by adding a
-// Mutex to MessageQueue.  Includes logging of all puts and gets.
-class LockingMessageQueue BASE_EMBEDDED {
- public:
-  explicit LockingMessageQueue(int size);
-  ~LockingMessageQueue();
-  bool IsEmpty() const;
-  Vector<uint16_t> Get();
-  void Put(const Vector<uint16_t>& message);
-  void Clear();
- private:
-  MessageQueue queue_;
-  Mutex* lock_;
-  DISALLOW_COPY_AND_ASSIGN(LockingMessageQueue);
-};
-
-
-/* This class is the data for a running thread that serializes
- * event messages and command processing for the debugger.
- * All uncommented methods are called only from this message thread.
- */
+// Thread to read messages from the message queue and invoke the debug message
+// handler in another thread as the V8 thread. This thread is started if the
+// registration of the debug message handler requested to be called in a thread
+// seperate from the V8 thread.
 class DebugMessageThread: public Thread {
  public:
-  DebugMessageThread();  // Called from API thread.
-  virtual ~DebugMessageThread();
-  // Called by V8 thread.  Reports events from V8 VM.
-  // Also handles command processing in stopped state of V8,
-  // when host_running_ is false.
-  void DebugEvent(v8::DebugEvent,
-                  Handle<Object> exec_state,
-                  Handle<Object> event_data,
-                  bool auto_continue);
-  // Puts event on the output queue.  Called by V8.
-  // This is where V8 hands off
-  // processing of the event to the DebugMessageThread thread,
-  // which forwards it to the debug_message_handler set by the API.
-  void SendMessage(Vector<uint16_t> event_json);
-  // Formats an event into JSON, and calls SendMessage.
-  bool SetEventJSONFromEvent(Handle<Object> event_data);
-  // Puts a command coming from the public API on the queue.  Called
-  // by the API client thread.  This is where the API client hands off
-  // processing of the command to the DebugMessageThread thread.
-  void ProcessCommand(Vector<uint16_t> command);
-  void ProcessHostDispatch(void* dispatch);
-  void OnDebuggerInactive();
+   DebugMessageThread() : keep_running_(true) {}
+  virtual ~DebugMessageThread() {}
 
   // Main function of DebugMessageThread thread.
   void Run();
-
-  // Check whether there are commands in the queue.
-  bool HasCommands() { return !command_queue_.IsEmpty(); }
   void Stop();
 
-  bool host_running_;  // Is the debugging host running or stopped?
-  Semaphore* command_received_;  // Non-zero when command queue is non-empty.
-  Semaphore* message_received_;  // Exactly equal to message queue length.
  private:
-  bool TwoByteEqualsAscii(Vector<uint16_t> two_byte, const char* ascii);
-
-  static const int kQueueInitialSize = 4;
-  LockingMessageQueue command_queue_;
-  LockingMessageQueue message_queue_;
   bool keep_running_;
   DISALLOW_COPY_AND_ASSIGN(DebugMessageThread);
 };
