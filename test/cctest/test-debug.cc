@@ -3980,3 +3980,42 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
   delete client;
   delete server;
 }
+
+
+// Test for issue http://code.google.com/p/v8/issues/detail?id=289.
+// Make sure that DebugGetLoadedScripts doesn't return scripts
+// with disposed external source.
+class EmptyExternalStringResource : public v8::String::ExternalStringResource {
+ public:
+  EmptyExternalStringResource() { empty_[0] = 0; }
+  virtual ~EmptyExternalStringResource() {};
+  virtual size_t length() const { return empty_.length(); }
+  virtual const uint16_t* data() const { return empty_.start(); }
+ private:
+  ::v8::internal::EmbeddedVector<uint16_t,1> empty_;
+};
+
+
+TEST(DebugGetLoadedScripts) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  EmptyExternalStringResource source_ext_str;
+  v8::Local<v8::String> source = v8::String::NewExternal(&source_ext_str);
+  v8::Handle<v8::Script> evil_script = v8::Script::Compile(source);
+  Handle<i::ExternalTwoByteString> i_source(
+      i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
+  // This situation can happen if source was an external string disposed
+  // by its owner.
+  i_source->set_resource(0);
+
+  bool allow_natives_syntax = i::FLAG_allow_natives_syntax;
+  i::FLAG_allow_natives_syntax = true;
+  CompileRun(
+      "var scripts = %DebugGetLoadedScripts();"
+      "for (var i = 0; i < scripts.length; ++i) {"
+      "    scripts[i].line_ends;"
+      "}"
+  );
+  // Must not crash while accessing line_ends.
+  i::FLAG_allow_natives_syntax = allow_natives_syntax;
+}

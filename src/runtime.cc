@@ -6509,6 +6509,22 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
 }
 
 
+// If an object given is an external string, check that the underlying
+// resource is accessible. For other kinds of objects, always return true.
+static bool IsExternalStringValid(Object* str) {
+  if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
+    return true;
+  }
+  if (StringShape(String::cast(str)).IsAsciiRepresentation()) {
+    return ExternalAsciiString::cast(str)->resource() != 0;
+  } else if (StringShape(String::cast(str)).IsTwoByteRepresentation()) {
+    return ExternalTwoByteString::cast(str)->resource() != 0;
+  } else {
+    return true;
+  }
+}
+
+
 // Helper function used by Runtime_DebugGetLoadedScripts below.
 static int DebugGetLoadedScripts(FixedArray* instances, int instances_size) {
   NoHandleAllocation ha;
@@ -6520,7 +6536,7 @@ static int DebugGetLoadedScripts(FixedArray* instances, int instances_size) {
   while (iterator.has_next()) {
     HeapObject* obj = iterator.next();
     ASSERT(obj != NULL);
-    if (obj->IsScript()) {
+    if (obj->IsScript() && IsExternalStringValid(Script::cast(obj)->source())) {
       if (instances != NULL && count < instances_size) {
         instances->set(count, obj);
       }
