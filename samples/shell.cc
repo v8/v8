@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -129,6 +129,7 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
     printf("%s", cstr);
   }
   printf("\n");
+  fflush(stdout);
   return v8::Undefined();
 }
 
