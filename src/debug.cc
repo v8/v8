@@ -2000,9 +2000,7 @@ void Debugger::ProcessHostDispatch(void* dispatch) {
 
 
 void Debugger::UpdateActiveDebugger() {
-  set_debugger_active((message_thread_ != NULL &&
-                       message_handler_ != NULL) ||
-                       !event_listener_.is_null());
+  set_debugger_active(message_handler_ != NULL || !event_listener_.is_null());
   if (!debugger_active() && message_thread_) {
     // Send an empty command to the debugger if in a break to make JavaScript
     // run again if the debugger is closed.
