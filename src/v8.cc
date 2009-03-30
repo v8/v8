@@ -111,6 +111,8 @@ void V8::TearDown() {
   Heap::TearDown();
   Logger::TearDown();
 
+  Debugger::TearDown();
+
   has_been_setup_ = false;
   has_been_disposed_ = true;
 }

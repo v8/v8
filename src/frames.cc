@@ -230,6 +230,25 @@ bool SafeStackFrameIterator::IsValidFrame(StackFrame* frame) const {
 
 bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
   StackFrame::State state;
+  if (frame->is_entry() || frame->is_entry_construct()) {
+    // See EntryFrame::GetCallerState. It computes the caller FP address
+    // and calls ExitFrame::GetStateForFramePointer on it. We need to be
+    // sure that caller FP address is valid.
+    Address caller_fp = Memory::Address_at(
+        frame->fp() + EntryFrameConstants::kCallerFPOffset);
+    if (!IsValidStackAddress(caller_fp)) {
+      return false;
+    }
+  } else if (frame->is_arguments_adaptor()) {
+    // See ArgumentsAdaptorFrame::GetCallerStackPointer. It assumes that
+    // the number of arguments is stored on stack as Smi. We need to check
+    // that it really an Smi.
+    Object* number_of_args = reinterpret_cast<ArgumentsAdaptorFrame*>(frame)->
+        GetExpression(0);
+    if (!number_of_args->IsSmi()) {
+      return false;
+    }
+  }
   frame->ComputeCallerState(&state);
   return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp) &&
       iterator_.SingletonFor(frame->GetCallerState(&state)) != NULL;

@@ -30,15 +30,25 @@ function CheckMatch(re, str, matches) {
   var result = str.match(re);
   if (matches.length > 0) {
     assertEquals(matches.length, result.length);
-    for (idx in matches) {
+    var lastExpected;
+    var lastFrom;
+    var lastLength;
+    for (var idx = 0; idx < matches.length; idx++) {
       var from = matches[idx][0];
       var length = matches[idx][1];
       var expected = str.substr(from, length);
-      assertEquals(expected, result[idx]);
+      var name = str + "[" + from + ".." + (from+length) + "]";
+      assertEquals(expected, result[idx], name);
+      if (re.global || idx == 0) {
+        lastExpected = expected;
+        lastFrom = from;
+        lastLength = length;
+      }
     }
-    assertEquals(expected, RegExp.lastMatch);
-    assertEquals(str.substr(0, from), RegExp.leftContext);
-    assertEquals(str.substr(from + length), RegExp.rightContext);
+    assertEquals(lastExpected, RegExp.lastMatch, "lastMatch");
+    assertEquals(str.substr(0, lastFrom), RegExp.leftContext, "leftContext");
+    assertEquals(
+        str.substr(lastFrom + lastLength), RegExp.rightContext, "rightContext");
   } else {
     assertTrue(result === null);
   }
@@ -58,3 +68,10 @@ assertEquals("xxxdefxxxdefxxx", "xxxabcxxxabcxxx".replace(/abc/g, "def"));
 assertEquals("o-o-oofo-ofo", "ofooofoooofofooofo".replace(/foo/g, "-"));
 assertEquals("deded", "deded".replace(/x/g, "-"));
 assertEquals("-a-b-c-d-e-f-", "abcdef".replace(new RegExp("", "g"), "-"));
+
+CheckMatch(/a(.)/, "xyzzyabxyzzzyacxyzzy", [[5, 2], [6, 1]]);
+CheckMatch(/a(.)/g, "xyzzyabxyzzyacxyzzy", [[5, 2], [12, 2]]);
+
+CheckMatch(/a|(?:)/g, "aba", [[0, 1], [1, 0], [2, 1], [3, 0]]);
+CheckMatch(/a|(?:)/g, "baba", [[0, 0], [1, 1], [2, 0], [3, 1], [4, 0]]);
+CheckMatch(/a|(?:)/g, "bab", [[0, 0], [1, 1], [2, 0], [3, 0]]);

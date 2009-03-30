@@ -30,6 +30,7 @@
 #include <cstring>
 #include <cstdio>
 #include "cctest.h"
+#include "debug.h"
 
 
 CcTest* CcTest::last_ = NULL;
@@ -120,5 +121,6 @@ int main(int argc, char* argv[]) {
   }
   if (print_run_count && tests_run != 1)
     printf("Ran %i tests.\n", tests_run);
+  v8::V8::Dispose();
   return 0;
 }

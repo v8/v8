@@ -11,6 +11,7 @@
 
 #include "factory.h"
 #include "cctest.h"
+#include "zone-inl.h"
 
 unsigned int seed = 123;
 
@@ -48,6 +49,8 @@ static const int SUPER_DEEP_DEPTH = 80 * 1024;
 
 static void InitializeBuildingBlocks(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS]) {
+  // A list of pointers that we don't have any interest in cleaning up.
+  // If they are reachable from a root then leak detection won't complain.
   for (int i = 0; i < NUMBER_OF_BUILDING_BLOCKS; i++) {
     int len = gen() % 16;
     if (len > 14) {
@@ -80,7 +83,7 @@ static void InitializeBuildingBlocks(
       }
       case 2: {
         class Resource: public v8::String::ExternalStringResource,
-                        public Malloced {
+                        public ZoneObject {
          public:
           explicit Resource(Vector<const uc16> string): data_(string.start()) {
             length_ = string.length();
@@ -92,7 +95,7 @@ static void InitializeBuildingBlocks(
           const uc16* data_;
           size_t length_;
         };
-        uc16* buf = NewArray<uc16>(len);
+        uc16* buf = Zone::NewArray<uc16>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = gen() % 65536;
         }
@@ -212,6 +215,7 @@ TEST(Traverse) {
   InitializeVM();
   v8::HandleScope scope;
   Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS];
+  ZoneScope zone(DELETE_ON_EXIT);
   InitializeBuildingBlocks(building_blocks);
   Handle<String> flat = ConstructBalanced(building_blocks);
   FlattenString(flat);
@@ -303,6 +307,7 @@ TEST(Slice) {
   InitializeVM();
   v8::HandleScope scope;
   Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS];
+  ZoneScope zone(DELETE_ON_EXIT);
   InitializeBuildingBlocks(building_blocks);
 
   seed = 42;

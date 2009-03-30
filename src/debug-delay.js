@@ -1645,6 +1645,7 @@ DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
 
 DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   var types = ScriptTypeFlag(Debug.ScriptType.Normal);
+  var includeSource = false;
   if (request.arguments) {
     // Pull out arguments.
     if (!IS_UNDEFINED(request.arguments.types)) {
@@ -1652,6 +1653,10 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
       if (isNaN(types) || types < 0) {
         return response.failed('Invalid types "' + request.arguments.types + '"');
       }
+    }
+    
+    if (!IS_UNDEFINED(request.arguments.includeSource)) {
+      includeSource = %ToBoolean(request.arguments.includeSource);
     }
   }
 
@@ -1670,7 +1675,11 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
       script.lineOffset = scripts[i].line_offset;
       script.columnOffset = scripts[i].column_offset;
       script.lineCount = scripts[i].lineCount();
-      script.sourceStart = scripts[i].source.substring(0, 80);
+      if (includeSource) {
+        script.source = scripts[i].source;
+      } else {
+        script.sourceStart = scripts[i].source.substring(0, 80);
+      }
       script.sourceLength = scripts[i].source.length;
       script.type = scripts[i].type;
       response.body.push(script);

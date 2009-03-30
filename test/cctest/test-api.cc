@@ -154,7 +154,7 @@ class ApiTestFuzzer: public v8::internal::Thread {
 class RegisterThreadedTest {
  public:
   explicit RegisterThreadedTest(CcTest::TestFunction* callback)
-      : callback_(callback) {
+      : fuzzer_(NULL), callback_(callback) {
     prev_ = first_;
     first_ = this;
     count_++;
@@ -5098,6 +5098,10 @@ void ApiTestFuzzer::ContextSwitch() {
 
 void ApiTestFuzzer::TearDown() {
   fuzzing_ = false;
+  for (int i = 0; i < RegisterThreadedTest::count(); i++) {
+    ApiTestFuzzer *fuzzer = RegisterThreadedTest::nth(i)->fuzzer_;
+    if (fuzzer != NULL) fuzzer->Join();
+  }
 }
 
 

@@ -201,7 +201,7 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = call_fun(v8::Utils::ToLocal(key), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();
@@ -1423,7 +1423,7 @@ Object* JSObject::SetPropertyWithInterceptor(String* name,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       Handle<Object> value_unhole(value->IsTheHole() ?
                                   Heap::undefined_value() :
                                   value);
@@ -1490,7 +1490,7 @@ Object* JSObject::SetPropertyWithCallback(Object* structure,
                           v8::Utils::ToLocal(holder_handle));
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       call_fun(v8::Utils::ToLocal(key),
                v8::Utils::ToLocal(value_handle),
                info);
@@ -1892,7 +1892,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     v8::Handle<v8::Boolean> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = query(v8::Utils::ToLocal(name_handle), info);
     }
     if (!result.IsEmpty()) {
@@ -1907,7 +1907,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
     if (!result.IsEmpty()) return NONE;
@@ -2156,7 +2156,7 @@ Object* JSObject::DeletePropertyWithInterceptor(String* name) {
     v8::Handle<v8::Boolean> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = deleter(v8::Utils::ToLocal(name_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();
@@ -2207,7 +2207,7 @@ Object* JSObject::DeleteElementWithInterceptor(uint32_t index) {
   v8::Handle<v8::Boolean> result;
   {
     // Leaving JavaScript.
-    VMState state(OTHER);
+    VMState state(EXTERNAL);
     result = deleter(index, info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION();
@@ -5086,7 +5086,7 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
     v8::Handle<v8::Boolean> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = query(index, info);
     }
     if (!result.IsEmpty()) return result->IsTrue();
@@ -5097,7 +5097,7 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = getter(index, info);
     }
     if (!result.IsEmpty()) return !result->IsUndefined();
@@ -5247,7 +5247,7 @@ Object* JSObject::SetElementWithInterceptor(uint32_t index, Object* value) {
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = setter(index, v8::Utils::ToLocal(value_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();
@@ -5474,7 +5474,7 @@ Object* JSObject::GetElementWithInterceptor(JSObject* receiver,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = getter(index, info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();
@@ -5713,7 +5713,7 @@ Object* JSObject::GetPropertyWithInterceptor(JSObject* receiver,
     v8::Handle<v8::Value> result;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
     RETURN_IF_SCHEDULED_EXCEPTION();

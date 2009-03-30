@@ -58,6 +58,9 @@ class Zone {
   // allocating new segments of memory on demand using malloc().
   static inline void* New(int size);
 
+  template <typename T>
+  static inline T* NewArray(int length);
+
   // Delete all objects and free all memory allocated in the Zone.
   static void DeleteAll();
 

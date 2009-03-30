@@ -1080,13 +1080,13 @@ class V8EXPORT Object : public Value {
    * access check info, the object cannot be accessed by anyone.
    */
   void TurnOnAccessCheck();
-  
+
   /**
    * Returns the identity hash for this object. The current implemenation uses
    * a hidden property on the object to store the identity hash.
    */
   int GetIdentityHash();
-  
+
   /**
    * Access hidden properties on JavaScript objects. These properties are
    * hidden from the executing JavaScript and only accessible through the V8
@@ -2032,6 +2032,17 @@ class V8EXPORT V8 {
    * See also PauseProfiler().
    */
   static void ResumeProfiler();
+
+  /**
+   * Releases any resources used by v8 and stops any utility threads
+   * that may be running.  Note that disposing v8 is permanent, it
+   * cannot be reinitialized.
+   *
+   * It should generally not be necessary to dispose v8 before exiting
+   * a process, this should happen automatically.  It is only necessary
+   * to use if the process needs the resources taken up by v8.
+   */
+  static bool Dispose();
 
  private:
   V8();

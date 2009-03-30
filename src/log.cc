@@ -407,6 +407,7 @@ FILE* Logger::logfile_ = NULL;
 Profiler* Logger::profiler_ = NULL;
 Mutex* Logger::mutex_ = NULL;
 VMState* Logger::current_state_ = NULL;
+VMState Logger::bottom_state_(OTHER);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
@@ -1017,7 +1018,7 @@ bool Logger::Setup() {
     mutex_ = OS::CreateMutex();
   }
 
-  current_state_ = new VMState(OTHER);
+  current_state_ = &bottom_state_;
 
   // as log is initialized early with V8, we can assume that JS execution
   // frames can never reach this point on stack
@@ -1052,8 +1053,6 @@ void Logger::TearDown() {
     profiler_ = NULL;
   }
 
-  // Deleting the current_state_ has the side effect of assigning to it(!).
-  while (current_state_) delete current_state_;
   delete sliding_state_window_;
 
   delete ticker_;
@@ -1126,11 +1125,11 @@ VMState::VMState(StateTag state) {
   if (FLAG_protect_heap && previous_ != NULL) {
     if (state_ == EXTERNAL) {
       // We are leaving V8.
-      ASSERT(previous_ == NULL || previous_->state_ != EXTERNAL);
+      ASSERT(previous_->state_ != EXTERNAL);
       Heap::Protect();
-    } else {
-      // Are we entering V8?
-      if (previous_->state_ == EXTERNAL) Heap::Unprotect();
+    } else if (previous_->state_ == EXTERNAL) {
+      // We are entering V8.
+      Heap::Unprotect();
     }
   }
 #endif
@@ -1150,11 +1149,12 @@ VMState::~VMState() {
 #ifdef ENABLE_HEAP_PROTECTION
   if (FLAG_protect_heap && previous_ != NULL) {
     if (state_ == EXTERNAL) {
-      // Are we (re)entering V8?
-      if (previous_->state_ != EXTERNAL) Heap::Unprotect();
-    } else {
-      // Are we leaving V8?
-      if (previous_->state_ == EXTERNAL) Heap::Protect();
+      // We are reentering V8.
+      ASSERT(previous_->state_ != EXTERNAL);
+      Heap::Unprotect();
+    } else if (previous_->state_ == EXTERNAL) {
+      // We are leaving V8.
+      Heap::Protect();
     }
   }
 #endif

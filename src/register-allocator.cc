@@ -107,7 +107,7 @@ Result RegisterAllocator::Allocate(Register target) {
   // If the target is only referenced in the frame, it can be spilled and
   // then allocated.
   ASSERT(cgen_->has_valid_frame());
-  if (count(target) == cgen_->frame()->register_count(target)) {
+  if (cgen_->frame()->is_used(target) && count(target) == 1)  {
     cgen_->frame()->Spill(target);
     ASSERT(!is_used(target));
     return Result(target, cgen_);

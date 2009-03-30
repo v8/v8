@@ -31,8 +31,11 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 
 #include <sys/socket.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include <sys/types.h>
 
 #include <arpa/inet.h>
@@ -45,6 +48,131 @@
 
 
 namespace v8 { namespace internal {
+
+
+// ----------------------------------------------------------------------------
+// POSIX date/time support.
+//
+
+int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
+  struct rusage usage;
+
+  if (getrusage(RUSAGE_SELF, &usage) < 0) return -1;
+  *secs = usage.ru_utime.tv_sec;
+  *usecs = usage.ru_utime.tv_usec;
+  return 0;
+}
+
+
+double OS::TimeCurrentMillis() {
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) < 0) return 0.0;
+  return (static_cast<double>(tv.tv_sec) * 1000) +
+         (static_cast<double>(tv.tv_usec) / 1000);
+}
+
+
+int64_t OS::Ticks() {
+  // gettimeofday has microsecond resolution.
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) < 0)
+    return 0;
+  return (static_cast<int64_t>(tv.tv_sec) * 1000000) + tv.tv_usec;
+}
+
+
+char* OS::LocalTimezone(double time) {
+  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  struct tm* t = localtime(&tv);
+  return const_cast<char*>(t->tm_zone);
+}
+
+
+double OS::DaylightSavingsOffset(double time) {
+  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  struct tm* t = localtime(&tv);
+  return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
+}
+
+
+double OS::LocalTimeOffset() {
+  time_t tv = time(NULL);
+  struct tm* t = localtime(&tv);
+  // tm_gmtoff includes any daylight savings offset, so subtract it.
+  return static_cast<double>(t->tm_gmtoff * msPerSecond -
+                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
+}
+
+
+// ----------------------------------------------------------------------------
+// POSIX stdio support.
+//
+
+FILE* OS::FOpen(const char* path, const char* mode) {
+  return fopen(path, mode);
+}
+
+
+void OS::Print(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VPrint(format, args);
+  va_end(args);
+}
+
+
+void OS::VPrint(const char* format, va_list args) {
+  vprintf(format, args);
+}
+
+
+void OS::PrintError(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  VPrintError(format, args);
+  va_end(args);
+}
+
+
+void OS::VPrintError(const char* format, va_list args) {
+  vfprintf(stderr, format, args);
+}
+
+
+int OS::SNPrintF(Vector<char> str, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  int result = VSNPrintF(str, format, args);
+  va_end(args);
+  return result;
+}
+
+
+int OS::VSNPrintF(Vector<char> str,
+                  const char* format,
+                  va_list args) {
+  int n = vsnprintf(str.start(), str.length(), format, args);
+  if (n < 0 || n >= str.length()) {
+    str[str.length() - 1] = '\0';
+    return -1;
+  } else {
+    return n;
+  }
+}
+
+
+// ----------------------------------------------------------------------------
+// POSIX string support.
+//
+
+char* OS::StrChr(char* str, int c) {
+  return strchr(str, c);
+}
+
+
+void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
+  strncpy(dest.start(), src, n);
+}
 
 
 // ----------------------------------------------------------------------------

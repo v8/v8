@@ -314,7 +314,7 @@ Time::Time() {
 
 // Initialize timestamp from a JavaScript timestamp.
 Time::Time(double jstime) {
-  t() = static_cast<uint64_t>(jstime) * kTimeScaler + kTimeEpoc;
+  t() = static_cast<int64_t>(jstime) * kTimeScaler + kTimeEpoc;
 }
 
 
@@ -1817,13 +1817,16 @@ void Sampler::Start() {
   // thread.
   if (IsProfiling()) {
     // Get a handle to the calling thread. This is the thread that we are
-    // going to profile. We need to duplicate the handle because we are
-    // going to use it in the sampler thread. using GetThreadHandle() will
-    // not work in this case.
-    BOOL ok = DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
-                              GetCurrentProcess(), &data_->profiled_thread_,
-                              THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME |
-                              THREAD_QUERY_INFORMATION, FALSE, 0);
+    // going to profile. We need to make a copy of the handle because we are
+    // going to use it in the sampler thread. Using GetThreadHandle() will
+    // not work in this case. We're using OpenThread because DuplicateHandle
+    // for some reason doesn't work in Chrome's sandbox.
+    data_->profiled_thread_ = OpenThread(THREAD_GET_CONTEXT |
+                                         THREAD_SUSPEND_RESUME |
+                                         THREAD_QUERY_INFORMATION,
+                                         FALSE,
+                                         GetCurrentThreadId());
+    BOOL ok = data_->profiled_thread_ != NULL;
     if (!ok) return;
   }
 

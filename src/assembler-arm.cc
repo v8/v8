@@ -84,55 +84,6 @@ CRegister cr14 = { 14 };
 CRegister cr15 = { 15 };
 
 
-// In order to determine the pc store offset, we execute a small code sequence.
-// See ARM Architecture Reference Manual section A-2.4.3
-// Note that 'str pc, [sp]' and 'stmia sp, {pc}' were using different offsets
-// under the QEMU emulator (now fixed), so we are careful to test the actual
-// instruction we are interested in (stmia).
-int PcStoreOffset() {
-#if !defined(__arm__)
-  // Building an ARM emulator based target. The emulator is wired for 8 byte
-  // pc offsets as is the default in the spec.
-  static int pc_store_offset = 8;
-#elif defined(__arm__) && !defined(__thumb__)
-  // __arm__ may be defined in thumb mode.
-  static int pc_store_offset = -1;
-  asm volatile(
-    "sub sp, sp, #4  \n\t"
-    "sub r1, pc, #4  \n\t"
-    "stmia sp, {pc}  \n\t"
-    "ldr r0, [sp]    \n\t"
-    "add sp, sp, #4  \n\t"
-    "sub %0, r0, r1  \n\t"
-    : "=r" (pc_store_offset) : : "r0", "r1", "memory");
-#elif defined(__thumb__)
-  static int pc_store_offset = -1;
-  asm volatile(
-  "@   Enter ARM Mode  \n\t"
-      "adr r2, 1f      \n\t"
-      "bx  r2          \n\t"
-      ".ALIGN 4        \n\t"
-      ".ARM            \n"
-  "1:  sub sp, sp, #4  \n\t"
-      "sub r1, pc, #4  \n\t"
-      "stmia sp, {pc}  \n\t"
-      "ldr r0, [sp]    \n\t"
-      "add sp, sp, #4  \n\t"
-      "sub %0, r0, r1  \n"
-  "@   Enter THUMB Mode\n\t"
-      "adr r2, 2f+1    \n\t"
-      "bx  r2          \n\t"
-      ".THUMB          \n"
-  "2:                  \n\t"
-      : "=r" (pc_store_offset) : : "r0", "r1", "r2", "memory");
-#else
-#error unsupported architecture
-#endif
-  ASSERT(pc_store_offset == 8 || pc_store_offset == 12);
-  return pc_store_offset;
-}
-
-
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo
 

@@ -698,8 +698,8 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
-// Flag that indicates whether or not the code for dealing with smis
-// is inlined or should be dealt with in the stub.
+// Flag that indicates whether or not the code that handles smi arguments
+// should be placed in the stub, inlined, or omitted entirely.
 enum GenericBinaryFlags {
   SMI_CODE_IN_STUB,
   SMI_CODE_INLINED
@@ -711,7 +711,9 @@ class GenericBinaryOpStub: public CodeStub {
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       GenericBinaryFlags flags)
-      : op_(op), mode_(mode), flags_(flags) { }
+      : op_(op), mode_(mode), flags_(flags) {
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
 
   void GenerateSmiCode(MacroAssembler* masm, Label* slow);
 
@@ -739,9 +741,9 @@ class GenericBinaryOpStub: public CodeStub {
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
     // Encode the parameters in a unique 16 bit value.
-    return OpBits::encode(op_) |
-        ModeBits::encode(mode_) |
-        FlagBits::encode(flags_);
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           | FlagBits::encode(flags_);
   }
   void Generate(MacroAssembler* masm);
 };
@@ -764,6 +766,10 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
+// A deferred code class implementing binary operations on likely smis.
+// This class generates both inline code and deferred code.
+// The fastest path is implemented inline.  Deferred code calls
+// the GenericBinaryOpStub stub for slow cases.
 class DeferredInlineBinaryOperation: public DeferredCode {
  public:
   DeferredInlineBinaryOperation(CodeGenerator* generator,
@@ -774,7 +780,8 @@ class DeferredInlineBinaryOperation: public DeferredCode {
     set_comment("[ DeferredInlineBinaryOperation");
   }
 
-  Result GenerateInlineCode();
+  // Consumes its arguments, left and right, leaving them invalid.
+  Result GenerateInlineCode(Result* left, Result* right);
 
   virtual void Generate();
 
@@ -832,21 +839,147 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
       break;
   }
 
-  if (flags == SMI_CODE_INLINED) {
-    // Create a new deferred code for the slow-case part.
-    DeferredInlineBinaryOperation* deferred =
-        new DeferredInlineBinaryOperation(this, op, overwrite_mode, flags);
-    // Generate the inline part of the code.
-    // The operands are on the frame.
-    Result answer = deferred->GenerateInlineCode();
-    deferred->BindExit(&answer);
-    frame_->Push(&answer);
+  Result right = frame_->Pop();
+  Result left = frame_->Pop();
+  bool left_is_smi = left.is_constant() && left.handle()->IsSmi();
+  bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
+  bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
+  bool right_is_non_smi = right.is_constant() && !right.handle()->IsSmi();
+  bool generate_no_smi_code = false;  // No smi code at all, inline or in stub.
+
+  if (left_is_smi && right_is_smi) {
+    // Compute the constant result at compile time, and leave it on the frame.
+    int left_int = Smi::cast(*left.handle())->value();
+    int right_int = Smi::cast(*right.handle())->value();
+    if (FoldConstantSmis(op, left_int, right_int)) return;
+  }
+
+  if (left_is_non_smi || right_is_non_smi) {
+    // Set flag so that we go straight to the slow case, with no smi code.
+    generate_no_smi_code = true;
+  } else if (right_is_smi) {
+    ConstantSmiBinaryOperation(op, &left, right.handle(),
+                               type, false, overwrite_mode);
+    return;
+  } else if (left_is_smi) {
+    ConstantSmiBinaryOperation(op, &right, left.handle(),
+                               type, true, overwrite_mode);
+    return;
+  }
+
+  if (flags == SMI_CODE_INLINED && !generate_no_smi_code) {
+    LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
   } else {
-    // Call the stub and push the result to the stack.
+    frame_->Push(&left);
+    frame_->Push(&right);
+    // If we know the arguments aren't smis, use the binary operation stub
+    // that does not check for the fast smi case.
+    // The same stub is used for NO_SMI_CODE and SMI_CODE_INLINED.
+    if (generate_no_smi_code) {
+      flags = SMI_CODE_INLINED;
+    }
     GenericBinaryOpStub stub(op, overwrite_mode, flags);
     Result answer = frame_->CallStub(&stub, 2);
     frame_->Push(&answer);
   }
+}
+
+
+bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
+  Object* answer_object = Heap::undefined_value();
+  switch (op) {
+    case Token::ADD:
+      if (Smi::IsValid(left + right)) {
+        answer_object = Smi::FromInt(left + right);
+      }
+      break;
+    case Token::SUB:
+      if (Smi::IsValid(left - right)) {
+        answer_object = Smi::FromInt(left - right);
+      }
+      break;
+    case Token::MUL: {
+        double answer = static_cast<double>(left) * right;
+        if (answer >= Smi::kMinValue && answer <= Smi::kMaxValue) {
+          // If the product is zero and the non-zero factor is negative,
+          // the spec requires us to return floating point negative zero.
+          if (answer != 0 || (left >= 0 && right >= 0)) {
+            answer_object = Smi::FromInt(static_cast<int>(answer));
+          }
+        }
+      }
+      break;
+    case Token::DIV:
+    case Token::MOD:
+      break;
+    case Token::BIT_OR:
+      answer_object = Smi::FromInt(left | right);
+      break;
+    case Token::BIT_AND:
+      answer_object = Smi::FromInt(left & right);
+      break;
+    case Token::BIT_XOR:
+      answer_object = Smi::FromInt(left ^ right);
+      break;
+
+    case Token::SHL: {
+        int shift_amount = right & 0x1F;
+        if (Smi::IsValid(left << shift_amount)) {
+          answer_object = Smi::FromInt(left << shift_amount);
+        }
+        break;
+      }
+    case Token::SHR: {
+        int shift_amount = right & 0x1F;
+        unsigned int unsigned_left = left;
+        unsigned_left >>= shift_amount;
+        if (unsigned_left <= static_cast<unsigned int>(Smi::kMaxValue)) {
+          answer_object = Smi::FromInt(unsigned_left);
+        }
+        break;
+      }
+    case Token::SAR: {
+        int shift_amount = right & 0x1F;
+        unsigned int unsigned_left = left;
+        if (left < 0) {
+          // Perform arithmetic shift of a negative number by
+          // complementing number, logical shifting, complementing again.
+          unsigned_left = ~unsigned_left;
+          unsigned_left >>= shift_amount;
+          unsigned_left = ~unsigned_left;
+        } else {
+          unsigned_left >>= shift_amount;
+        }
+        ASSERT(Smi::IsValid(unsigned_left));  // Converted to signed.
+        answer_object = Smi::FromInt(unsigned_left);  // Converted to signed.
+        break;
+      }
+    default:
+      UNREACHABLE();
+      break;
+  }
+  if (answer_object == Heap::undefined_value()) {
+    return false;
+  }
+  frame_->Push(Handle<Object>(answer_object));
+  return true;
+}
+
+
+void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
+                                             Result* left,
+                                             Result* right,
+                                             OverwriteMode overwrite_mode) {
+  // Implements a binary operation using a deferred code object
+  // and some inline code to operate on smis quickly.
+  DeferredInlineBinaryOperation* deferred =
+      new DeferredInlineBinaryOperation(this, op, overwrite_mode,
+                                        SMI_CODE_INLINED);
+  // Generate the inline code that handles some smi operations,
+  // and jumps to the deferred code for everything else.
+  Result answer = deferred->GenerateInlineCode(left, right);
+  deferred->BindExit(&answer);
+  frame_->Push(&answer);
 }
 
 
@@ -1049,77 +1182,85 @@ void DeferredInlineSmiSubReversed::Generate() {
 }
 
 
-void CodeGenerator::SmiOperation(Token::Value op,
-                                 StaticType* type,
-                                 Handle<Object> value,
-                                 bool reversed,
-                                 OverwriteMode overwrite_mode) {
+void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
+                                               Result* operand,
+                                               Handle<Object> value,
+                                               StaticType* type,
+                                               bool reversed,
+                                               OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
-  // of the operands is a literal smi. With this optimization, the
-  // performance of the system is increased by ~15%, and the generated
-  // code size is increased by ~1% (measured on a combination of
-  // different benchmarks).
+  // of the operands is a constant smi.
+  // Consumes the argument "operand".
 
   // TODO(199): Optimize some special cases of operations involving a
   // smi literal (multiply by 2, shift by 0, etc.).
+  if (IsUnsafeSmi(value)) {
+    Result unsafe_operand(value, this);
+    if (reversed) {
+      LikelySmiBinaryOperation(op, &unsafe_operand, operand,
+                               overwrite_mode);
+    } else {
+      LikelySmiBinaryOperation(op, operand, &unsafe_operand,
+                               overwrite_mode);
+    }
+    ASSERT(!operand->is_valid());
+    return;
+  }
 
   // Get the literal value.
   Smi* smi_value = Smi::cast(*value);
   int int_value = smi_value->value();
-  ASSERT(is_intn(int_value, kMaxSmiInlinedBits));
 
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred = NULL;
-      if (!reversed) {
-        deferred = new DeferredInlineSmiAdd(this, smi_value, overwrite_mode);
-      } else {
+      if (reversed) {
         deferred = new DeferredInlineSmiAddReversed(this, smi_value,
                                                     overwrite_mode);
+      } else {
+        deferred = new DeferredInlineSmiAdd(this, smi_value, overwrite_mode);
       }
-      Result operand = frame_->Pop();
-      operand.ToRegister();
-      frame_->Spill(operand.reg());
-      __ add(Operand(operand.reg()), Immediate(value));
-      deferred->enter()->Branch(overflow, &operand, not_taken);
-      __ test(operand.reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, &operand, not_taken);
-      deferred->BindExit(&operand);
-      frame_->Push(&operand);
+      operand->ToRegister();
+      frame_->Spill(operand->reg());
+      __ add(Operand(operand->reg()), Immediate(value));
+      deferred->enter()->Branch(overflow, operand, not_taken);
+      __ test(operand->reg(), Immediate(kSmiTagMask));
+      deferred->enter()->Branch(not_zero, operand, not_taken);
+      deferred->BindExit(operand);
+      frame_->Push(operand);
       break;
     }
 
     case Token::SUB: {
       DeferredCode* deferred = NULL;
-      Result operand = frame_->Pop();
-      Result answer(this);  // Only allocated a new register if reversed.
-      if (!reversed) {
-        operand.ToRegister();
-        frame_->Spill(operand.reg());
-        deferred = new DeferredInlineSmiSub(this,
-                                            smi_value,
-                                            overwrite_mode);
-        __ sub(Operand(operand.reg()), Immediate(value));
-        answer = operand;
-      } else {
+      Result answer(this);  // Only allocate a new register if reversed.
+      if (reversed) {
         answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
         deferred = new DeferredInlineSmiSubReversed(this,
                                                     smi_value,
                                                     overwrite_mode);
-        __ mov(answer.reg(), Immediate(value));
-        if (operand.is_register()) {
-          __ sub(answer.reg(), Operand(operand.reg()));
+        __ Set(answer.reg(), Immediate(value));
+        if (operand->is_register()) {
+          __ sub(answer.reg(), Operand(operand->reg()));
         } else {
-          ASSERT(operand.is_constant());
-          __ sub(Operand(answer.reg()), Immediate(operand.handle()));
+          ASSERT(operand->is_constant());
+          __ sub(Operand(answer.reg()), Immediate(operand->handle()));
         }
+      } else {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        deferred = new DeferredInlineSmiSub(this,
+                                            smi_value,
+                                            overwrite_mode);
+        __ sub(Operand(operand->reg()), Immediate(value));
+        answer = *operand;
       }
-      deferred->enter()->Branch(overflow, &operand, not_taken);
+      deferred->enter()->Branch(overflow, operand, not_taken);
       __ test(answer.reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, &operand, not_taken);
-      operand.Unuse();
+      deferred->enter()->Branch(not_zero, operand, not_taken);
+      operand->Unuse();
       deferred->BindExit(&answer);
       frame_->Push(&answer);
       break;
@@ -1127,10 +1268,9 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SAR: {
       if (reversed) {
-        Result top = frame_->Pop();
-        frame_->Push(value);
-        frame_->Push(&top);
-        GenericBinaryOperation(op, type, overwrite_mode);
+        Result constant_operand(value, this);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1138,25 +1278,25 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
             new DeferredInlineSmiOperation(this, Token::SAR, smi_value,
                                            overwrite_mode);
-        Result result = frame_->Pop();
-        result.ToRegister();
-        __ test(result.reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, &result, not_taken);
-        frame_->Spill(result.reg());
-        __ sar(result.reg(), shift_value);
-        __ and_(result.reg(), ~kSmiTagMask);
-        deferred->BindExit(&result);
-        frame_->Push(&result);
+        operand->ToRegister();
+        __ test(operand->reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(not_zero, operand, not_taken);
+        if (shift_value > 0) {
+          frame_->Spill(operand->reg());
+          __ sar(operand->reg(), shift_value);
+          __ and_(operand->reg(), ~kSmiTagMask);
+        }
+        deferred->BindExit(operand);
+        frame_->Push(operand);
       }
       break;
     }
 
     case Token::SHR: {
       if (reversed) {
-        Result top = frame_->Pop();
-        frame_->Push(value);
-        frame_->Push(&top);
-        GenericBinaryOperation(op, type, overwrite_mode);
+        Result constant_operand(value, this);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1164,21 +1304,20 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
             new DeferredInlineSmiOperation(this, Token::SHR, smi_value,
                                            overwrite_mode);
-        Result operand = frame_->Pop();
-        operand.ToRegister();
-        __ test(operand.reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, &operand, not_taken);
+        operand->ToRegister();
+        __ test(operand->reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(not_zero, operand, not_taken);
         Result answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
-        __ mov(answer.reg(), Operand(operand.reg()));
+        __ mov(answer.reg(), operand->reg());
         __ sar(answer.reg(), kSmiTagSize);
         __ shr(answer.reg(), shift_value);
         // A negative Smi shifted right two is in the positive Smi range.
         if (shift_value < 2) {
           __ test(answer.reg(), Immediate(0xc0000000));
-          deferred->enter()->Branch(not_zero, &operand, not_taken);
+          deferred->enter()->Branch(not_zero, operand, not_taken);
         }
-        operand.Unuse();
+        operand->Unuse();
         ASSERT(kSmiTagSize == times_2);  // Adjust the code if not true.
         __ lea(answer.reg(),
                Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
@@ -1190,10 +1329,9 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SHL: {
       if (reversed) {
-        Result top = frame_->Pop();
-        frame_->Push(value);
-        frame_->Push(&top);
-        GenericBinaryOperation(op, type, overwrite_mode);
+        Result constant_operand(value, this);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1201,13 +1339,12 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
             new DeferredInlineSmiOperation(this, Token::SHL, smi_value,
                                            overwrite_mode);
-        Result operand = frame_->Pop();
-        operand.ToRegister();
-        __ test(operand.reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, &operand, not_taken);
+        operand->ToRegister();
+        __ test(operand->reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(not_zero, operand, not_taken);
         Result answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
-        __ mov(answer.reg(), Operand(operand.reg()));
+        __ mov(answer.reg(), operand->reg());
         ASSERT(kSmiTag == 0);  // adjust code if not the case
         // We do no shifts, only the Smi conversion, if shift_value is 1.
         if (shift_value == 0) {
@@ -1218,8 +1355,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
         // Convert int result to Smi, checking that it is in int range.
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ add(answer.reg(), Operand(answer.reg()));
-        deferred->enter()->Branch(overflow, &operand, not_taken);
-        operand.Unuse();
+        deferred->enter()->Branch(overflow, operand, not_taken);
+        operand->Unuse();
         deferred->BindExit(&answer);
         frame_->Push(&answer);
       }
@@ -1230,51 +1367,51 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND: {
       DeferredCode* deferred = NULL;
-      if (!reversed) {
-        deferred =  new DeferredInlineSmiOperation(this, op, smi_value,
-                                                   overwrite_mode);
-      } else {
+      if (reversed) {
         deferred = new DeferredInlineSmiOperationReversed(this, op, smi_value,
                                                           overwrite_mode);
+      } else {
+        deferred =  new DeferredInlineSmiOperation(this, op, smi_value,
+                                                   overwrite_mode);
       }
-      Result operand = frame_->Pop();
-      operand.ToRegister();
-      __ test(operand.reg(), Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, &operand, not_taken);
-      frame_->Spill(operand.reg());
+      operand->ToRegister();
+      __ test(operand->reg(), Immediate(kSmiTagMask));
+      deferred->enter()->Branch(not_zero, operand, not_taken);
+      frame_->Spill(operand->reg());
       if (op == Token::BIT_AND) {
         if (int_value == 0) {
-          __ xor_(Operand(operand.reg()), operand.reg());
+          __ xor_(Operand(operand->reg()), operand->reg());
         } else {
-          __ and_(Operand(operand.reg()), Immediate(value));
+          __ and_(Operand(operand->reg()), Immediate(value));
         }
       } else if (op == Token::BIT_XOR) {
         if (int_value != 0) {
-          __ xor_(Operand(operand.reg()), Immediate(value));
+          __ xor_(Operand(operand->reg()), Immediate(value));
         }
       } else {
         ASSERT(op == Token::BIT_OR);
         if (int_value != 0) {
-          __ or_(Operand(operand.reg()), Immediate(value));
+          __ or_(Operand(operand->reg()), Immediate(value));
         }
       }
-      deferred->BindExit(&operand);
-      frame_->Push(&operand);
+      deferred->BindExit(operand);
+      frame_->Push(operand);
       break;
     }
 
     default: {
-      if (!reversed) {
-        frame_->Push(value);
+      Result constant_operand(value, this);
+      if (reversed) {
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
       } else {
-        Result top = frame_->Pop();
-        frame_->Push(value);
-        frame_->Push(&top);
+        LikelySmiBinaryOperation(op, operand, &constant_operand,
+                                 overwrite_mode);
       }
-      GenericBinaryOperation(op, type, overwrite_mode);
       break;
     }
   }
+  ASSERT(!operand->is_valid());
 }
 
 
@@ -1372,12 +1509,10 @@ void CodeGenerator::Comparison(Condition cc,
       __ test(left_side.reg(), Immediate(kSmiTagMask));
       is_smi.Branch(zero, &left_side, &right_side, taken);
 
-      // Setup and call the compare stub, which expects arguments in edx
-      // and eax.
+      // Setup and call the compare stub, which expects its arguments
+      // in registers.
       CompareStub stub(cc, strict);
-      left_side.ToRegister(edx);  // Only left_side currently uses a register.
-      right_side.ToRegister(eax);  // left_side is not in eax.  eax is free.
-      Result result = frame_->CallStub(&stub, &left_side, &right_side, 0);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
       __ cmp(result.reg(), 0);
       result.Unuse();
@@ -1452,23 +1587,10 @@ void CodeGenerator::Comparison(Condition cc,
       temp.Unuse();
       is_smi.Branch(zero, &left_side, &right_side, taken);
     }
-    // When non-smi, call out to the compare stub.  "parameters" setup by
-    // calling code in edx and eax and "result" is returned in the flags.
-    if (!left_side.reg().is(eax)) {
-      right_side.ToRegister(eax);
-      left_side.ToRegister(edx);
-    } else if (!right_side.reg().is(edx)) {
-      left_side.ToRegister(edx);
-      right_side.ToRegister(eax);
-    } else {
-      frame_->Spill(eax);  // Can be multiply referenced, even now.
-      frame_->Spill(edx);
-      __ xchg(eax, edx);
-      // If left_side and right_side become real (non-dummy) arguments
-      // to CallStub, they need to be swapped in this case.
-    }
+    // When non-smi, call out to the compare stub, which expects its
+    // arguments in registers.
     CompareStub stub(cc, strict);
-    Result answer = frame_->CallStub(&stub, &right_side, &left_side, 0);
+    Result answer = frame_->CallStub(&stub, &left_side, &right_side);
     if (cc == equal) {
       __ test(answer.reg(), Operand(answer.reg()));
     } else {
@@ -3235,17 +3357,12 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  // Load the global object.
   LoadGlobal();
-  // Setup the name register.  All non-reserved registers are available.
-  Result name = allocator_->Allocate(ecx);
-  ASSERT(name.is_valid());
-  __ mov(name.reg(), slot->var()->name());
-  RelocInfo::Mode rmode = (typeof_state == INSIDE_TYPEOF)
-                        ? RelocInfo::CODE_TARGET
-                        : RelocInfo::CODE_TARGET_CONTEXT;
-  Result answer = frame_->CallCodeObject(ic, rmode, &name, 0);
+  frame_->Push(slot->var()->name());
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+                         ? RelocInfo::CODE_TARGET
+                         : RelocInfo::CODE_TARGET_CONTEXT;
+  Result answer = frame_->CallLoadIC(mode);
 
   // Discard the global object. The result is in answer.
   frame_->Drop();
@@ -3552,20 +3669,12 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         // else fall through.
       case ObjectLiteral::Property::COMPUTED: {
         Handle<Object> key(property->key()->handle());
-        Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
         if (key->IsSymbol()) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          Result value = frame_->Pop();
-          value.ToRegister(eax);
-
-          Result name = allocator_->Allocate(ecx);
-          ASSERT(name.is_valid());
-          __ Set(name.reg(), Immediate(key));
-          Result ignored =
-              frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET,
-                                     &value, &name, 0);
+          frame_->Push(key);
+          Result ignored = frame_->CallStoreIC();
           // Drop the duplicated receiver and ignore the result.
           frame_->Drop();
           break;
@@ -3744,13 +3853,6 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
 }
 
 
-bool CodeGenerator::IsInlineSmi(Literal* literal) {
-  if (literal == NULL || !literal->handle()->IsSmi()) return false;
-  int int_value = Smi::cast(*literal->handle())->value();
-  return is_intn(int_value, kMaxSmiInlinedBits);
-}
-
-
 void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
   CodeForStatementPosition(node);
@@ -3795,13 +3897,8 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       } else {
         target.GetValue(NOT_INSIDE_TYPEOF);
       }
-      if (IsInlineSmi(literal)) {
-        SmiOperation(node->binary_op(), node->type(), literal->handle(), false,
-                     NO_OVERWRITE);
-      } else {
-        Load(node->value());
-        GenericBinaryOperation(node->binary_op(), node->type());
-      }
+      Load(node->value());
+      GenericBinaryOperation(node->binary_op(), node->type());
     }
 
     if (var != NULL &&
@@ -3890,16 +3987,12 @@ void CodeGenerator::VisitCall(Call* node) {
       Load(args->at(i));
     }
 
-    // Setup the receiver register and call the IC initialization code.
-    Handle<Code> stub = (loop_nesting() > 0)
-        ? ComputeCallInitializeInLoop(arg_count)
-        : ComputeCallInitialize(arg_count);
+    // Call the IC initialization code.
     CodeForSourcePosition(node->position());
-    Result result = frame_->CallCodeObject(stub,
-                                           RelocInfo::CODE_TARGET_CONTEXT,
-                                           arg_count + 1);
+    Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET_CONTEXT,
+                                       arg_count,
+                                       loop_nesting());
     frame_->RestoreContextRegister();
-
     // Replace the function on the stack with the result.
     frame_->SetElementAt(0, &result);
 
@@ -3942,15 +4035,10 @@ void CodeGenerator::VisitCall(Call* node) {
       }
 
       // Call the IC initialization code.
-      Handle<Code> stub = (loop_nesting() > 0)
-        ? ComputeCallInitializeInLoop(arg_count)
-        : ComputeCallInitialize(arg_count);
       CodeForSourcePosition(node->position());
-      Result result = frame_->CallCodeObject(stub,
-                                             RelocInfo::CODE_TARGET,
-                                             arg_count + 1);
+      Result result =
+          frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, loop_nesting());
       frame_->RestoreContextRegister();
-
       // Replace the function on the stack with the result.
       frame_->SetElementAt(0, &result);
 
@@ -4016,30 +4104,10 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
     Load(args->at(i));
   }
 
-  // Constructors are called with the number of arguments in register
-  // eax for now. Another option would be to have separate construct
-  // call trampolines per different arguments counts encountered.
-  Result num_args = allocator()->Allocate(eax);
-  ASSERT(num_args.is_valid());
-  __ Set(num_args.reg(), Immediate(arg_count));
-
-  // Load the function into temporary function slot as per calling
-  // convention.
-  frame_->PushElementAt(arg_count + 1);
-  Result function = frame_->Pop();
-  function.ToRegister(edi);
-  ASSERT(function.is_valid());
-
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   CodeForSourcePosition(node->position());
-  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
-  Result result = frame_->CallCodeObject(ic,
-                                         RelocInfo::CONSTRUCT_CALL,
-                                         &num_args,
-                                         &function,
-                                         arg_count + 1);
-
+  Result result = frame_->CallConstructor(arg_count);
   // Replace the function on the stack with the result.
   frame_->SetElementAt(0, &result);
 }
@@ -4310,15 +4378,12 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  Result initial_value = allocator()->Allocate(eax);
-  ASSERT(initial_value.is_valid());
-  __ Set(initial_value.reg(),
-         Immediate(Smi::FromInt(scope_->num_parameters())));
   // ArgumentsAccessStub takes the parameter count as an input argument
-  // in register eax.
+  // in register eax.  Create a constant result for it.
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())), this);
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  Result result = frame_->CallStub(&stub, &initial_value, 0);
+  Result result = frame_->CallStub(&stub, &count);
   frame_->Push(&result);
 }
 
@@ -4393,18 +4458,16 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
-  // Load the key onto the stack and set register eax to the formal
-  // parameters count for the currently executing function.
+  // ArgumentsAccessStub expects the key in edx and the formal
+  // parameter count in eax.
   Load(args->at(0));
-  Result parameters_count = allocator()->Allocate(eax);
-  ASSERT(parameters_count.is_valid());
-  __ Set(parameters_count.reg(),
-         Immediate(Smi::FromInt(scope_->num_parameters())));
-
+  Result key = frame_->Pop();
+  // Explicitly create a constant result.
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())), this);
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
-  Result result = frame_->CallStub(&stub, &parameters_count, 0);
-  frame_->SetElementAt(0, &result);
+  Result result = frame_->CallStub(&stub, &key, &count);
+  frame_->Push(&result);
 }
 
 
@@ -4452,14 +4515,9 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   }
 
   if (function == NULL) {
-    // Call the JS runtime function.
-    Handle<Code> stub = ComputeCallInitialize(arg_count);
-
-    Result num_args = allocator()->Allocate(eax);
-    ASSERT(num_args.is_valid());
-    __ Set(num_args.reg(), Immediate(args->length()));
-    Result answer = frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET,
-                                           &num_args, arg_count + 1);
+    // Call the JS runtime function.  Pass 0 as the loop nesting depth
+    // because we do not handle runtime calls specially in loops.
+    Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, 0);
     frame_->RestoreContextRegister();
     frame_->SetElementAt(0, &answer);
   } else {
@@ -4567,8 +4625,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         UnarySubStub stub;
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
-        operand.ToRegister(eax);
-        Result answer = frame_->CallStub(&stub, &operand, 0);
+        Result answer = frame_->CallStub(&stub, &operand);
         frame_->Push(&answer);
         break;
       }
@@ -4701,15 +4758,13 @@ void DeferredCountOperation::Generate() {
 
   Result value(cgen);
   enter()->Bind(&value);
-  value.ToRegister(eax);  // The stubs below expect their argument in eax.
-
   if (is_postfix_) {
     RevertToNumberStub to_number_stub(is_increment_);
-    value = generator()->frame()->CallStub(&to_number_stub, &value, 0);
+    value = generator()->frame()->CallStub(&to_number_stub, &value);
   }
 
   CounterOpStub stub(result_offset_, is_postfix_, is_increment_);
-  value = generator()->frame()->CallStub(&stub, &value, 0);
+  value = generator()->frame()->CallStub(&stub, &value);
   exit_.Jump(&value);
 }
 
@@ -4963,24 +5018,9 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       overwrite_mode = OVERWRITE_RIGHT;
     }
 
-    // Optimize for the case where (at least) one of the expressions
-    // is a literal small integer.
-    Literal* lliteral = node->left()->AsLiteral();
-    Literal* rliteral = node->right()->AsLiteral();
-
-    if (IsInlineSmi(rliteral)) {
-      Load(node->left());
-      SmiOperation(node->op(), node->type(), rliteral->handle(), false,
-                   overwrite_mode);
-    } else if (IsInlineSmi(lliteral)) {
-      Load(node->right());
-      SmiOperation(node->op(), node->type(), lliteral->handle(), true,
-                   overwrite_mode);
-    } else {
-      Load(node->left());
-      Load(node->right());
-      GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
-    }
+    Load(node->left());
+    Load(node->right());
+    GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
   }
 }
 
@@ -5163,11 +5203,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
 #ifdef DEBUG
 bool CodeGenerator::HasValidEntryRegisters() {
-  return (allocator()->count(eax) == frame()->register_count(eax))
-      && (allocator()->count(ebx) == frame()->register_count(ebx))
-      && (allocator()->count(ecx) == frame()->register_count(ecx))
-      && (allocator()->count(edx) == frame()->register_count(edx))
-      && (allocator()->count(edi) == frame()->register_count(edi));
+  return (allocator()->count(eax) == (frame()->is_used(eax) ? 1 : 0))
+      && (allocator()->count(ebx) == (frame()->is_used(ebx) ? 1 : 0))
+      && (allocator()->count(ecx) == (frame()->is_used(ecx) ? 1 : 0))
+      && (allocator()->count(edx) == (frame()->is_used(edx) ? 1 : 0))
+      && (allocator()->count(edi) == (frame()->is_used(edi) ? 1 : 0));
 }
 #endif
 
@@ -5191,7 +5231,6 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
 
 void DeferredReferenceGetKeyedValue::Generate() {
   CodeGenerator* cgen = generator();
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   Result receiver(cgen);
   Result key(cgen);
   enter()->Bind(&receiver, &key);
@@ -5204,14 +5243,10 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the cmp instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  Result value(cgen);
-  if (is_global_) {
-    value = cgen->frame()->CallCodeObject(ic,
-                                          RelocInfo::CODE_TARGET_CONTEXT,
-                                          0);
-  } else {
-    value = cgen->frame()->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-  }
+  RelocInfo::Mode mode = is_global_
+                         ? RelocInfo::CODE_TARGET_CONTEXT
+                         : RelocInfo::CODE_TARGET;
+  Result value = cgen->frame()->CallKeyedLoadIC(mode);
   // The result needs to be specifically the eax register because the
   // offset to the patch site will be expected in a test eax
   // instruction.
@@ -5273,21 +5308,16 @@ void Reference::GetValue(TypeofState typeof_state) {
       // thrown below, we must distinguish between the two kinds of
       // loads (typeof expression loads must not throw a reference
       // error).
-      VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from named Property");
-      Handle<String> name(GetName());
+      cgen_->frame()->Push(GetName());
+
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-      // Setup the name register.
-      Result name_reg = cgen_->allocator()->Allocate(ecx);
-      ASSERT(name_reg.is_valid());
-      __ mov(name_reg.reg(), name);
       ASSERT(var == NULL || var->is_global());
-      RelocInfo::Mode rmode = (var == NULL)
-                            ? RelocInfo::CODE_TARGET
-                            : RelocInfo::CODE_TARGET_CONTEXT;
-      Result answer = frame->CallCodeObject(ic, rmode, &name_reg, 0);
-      frame->Push(&answer);
+      RelocInfo::Mode mode = (var == NULL)
+                             ? RelocInfo::CODE_TARGET
+                             : RelocInfo::CODE_TARGET_CONTEXT;
+      Result answer = cgen_->frame()->CallLoadIC(mode);
+      cgen_->frame()->Push(&answer);
       break;
     }
 
@@ -5377,20 +5407,18 @@ void Reference::GetValue(TypeofState typeof_state) {
         cgen_->frame()->Push(&value);
 
       } else {
-        VirtualFrame* frame = cgen_->frame();
         Comment cmnt(masm, "[ Load from keyed Property");
-        Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-        RelocInfo::Mode rmode = is_global
-                              ? RelocInfo::CODE_TARGET_CONTEXT
-                              : RelocInfo::CODE_TARGET;
-        Result answer = frame->CallCodeObject(ic, rmode, 0);
+        RelocInfo::Mode mode = is_global
+                               ? RelocInfo::CODE_TARGET_CONTEXT
+                               : RelocInfo::CODE_TARGET;
+        Result answer = cgen_->frame()->CallKeyedLoadIC(mode);
         // Make sure that we do not have a test instruction after the
         // call.  A test instruction after the call is used to
         // indicate that we have generated an inline version of the
         // keyed load.  The explicit nop instruction is here because
         // the push that follows might be peep-hole optimized away.
         __ nop();
-        frame->Push(&answer);
+        cgen_->frame()->Push(&answer);
       }
       break;
     }
@@ -5434,11 +5462,9 @@ void Reference::TakeValue(TypeofState typeof_state) {
 void Reference::SetValue(InitState init_state) {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
-  MacroAssembler* masm = cgen_->masm();
-  VirtualFrame* frame = cgen_->frame();
   switch (type_) {
     case SLOT: {
-      Comment cmnt(masm, "[ Store to Slot");
+      Comment cmnt(cgen_->masm(), "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
@@ -5446,35 +5472,17 @@ void Reference::SetValue(InitState init_state) {
     }
 
     case NAMED: {
-      Comment cmnt(masm, "[ Store to named Property");
-      // Call the appropriate IC code.
-      Handle<String> name(GetName());
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
-      Result argument = frame->Pop();
-      argument.ToRegister(eax);
-      ASSERT(argument.is_valid());
-      Result property_name = cgen_->allocator()->Allocate(ecx);
-      ASSERT(property_name.is_valid());
-      // Setup the name register.
-      __ mov(property_name.reg(), name);
-      Result answer = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET,
-                                            &argument, &property_name, 0);
-      frame->Push(&answer);
+      Comment cmnt(cgen_->masm(), "[ Store to named Property");
+      cgen_->frame()->Push(GetName());
+      Result answer = cgen_->frame()->CallStoreIC();
+      cgen_->frame()->Push(&answer);
       break;
     }
 
     case KEYED: {
-      Comment cmnt(masm, "[ Store to keyed Property");
-      // Call IC code.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
-      Result arg = frame->Pop();
-      arg.ToRegister(eax);
-      ASSERT(arg.is_valid());
-      Result answer = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET,
-                                            &arg, 0);
-      frame->Push(&answer);
+      Comment cmnt(cgen_->masm(), "[ Store to keyed Property");
+      Result answer = cgen_->frame()->CallKeyedStoreIC();
+      cgen_->frame()->Push(&answer);
       break;
     }
 
@@ -5544,59 +5552,47 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 #undef __
 #define __ masm_->
 
-Result DeferredInlineBinaryOperation::GenerateInlineCode() {
+Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
+                                                         Result* right) {
   // Perform fast-case smi code for the operation (left <op> right) and
   // returns the result in a Result.
   // If any fast-case tests fail, it jumps to the slow-case deferred code,
   // which calls the binary operation stub, with the arguments (in registers)
   // on top of the frame.
+  // Consumes its arguments (sets left and right to invalid and frees their
+  // registers).
 
-  VirtualFrame* frame = generator()->frame();
-  // If operation is division or modulus, ensure
-  // that the special registers needed are free.
-  Result reg_eax(generator());  // Valid only if op is DIV or MOD.
-  Result reg_edx(generator());  // Valid only if op is DIV or MOD.
-  if (op_ == Token::DIV || op_ == Token::MOD) {
-    reg_eax = generator()->allocator()->Allocate(eax);
-    ASSERT(reg_eax.is_valid());
-    reg_edx = generator()->allocator()->Allocate(edx);
-    ASSERT(reg_edx.is_valid());
-  }
+  left->ToRegister();
+  right->ToRegister();
+  // A newly allocated register answer is used to hold the answer.
+  // The registers containing left and right are not modified in
+  // most cases, so they usually don't need to be spilled in the fast case.
+  Result answer = generator()->allocator()->Allocate();
 
-  Result right = frame->Pop();
-  Result left = frame->Pop();
-  left.ToRegister();
-  right.ToRegister();
-  // Answer is used to compute the answer, leaving left and right unchanged.
-  // It is also returned from this function.
-  // It is used as a temporary register in a few places, as well.
-  Result answer(generator());
-  if (reg_eax.is_valid()) {
-    answer = reg_eax;
-  } else {
-    answer = generator()->allocator()->Allocate();
-  }
   ASSERT(answer.is_valid());
   // Perform the smi check.
-  __ mov(answer.reg(), Operand(left.reg()));
-  __ or_(answer.reg(), Operand(right.reg()));
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
-  __ test(answer.reg(), Immediate(kSmiTagMask));
-  enter()->Branch(not_zero, &left, &right, not_taken);
+  if (left->reg().is(right->reg())) {
+    __ test(left->reg(), Immediate(kSmiTagMask));
+  } else {
+    __ mov(answer.reg(), left->reg());
+    __ or_(answer.reg(), Operand(right->reg()));
+    ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+    __ test(answer.reg(), Immediate(kSmiTagMask));
+  }
+  enter()->Branch(not_zero, left, right, not_taken);
 
   // All operations start by copying the left argument into answer.
-  __ mov(answer.reg(), Operand(left.reg()));
+  __ mov(answer.reg(), left->reg());
   switch (op_) {
     case Token::ADD:
-      __ add(answer.reg(), Operand(right.reg()));  // add optimistically
-      enter()->Branch(overflow, &left, &right, not_taken);
+      __ add(answer.reg(), Operand(right->reg()));  // add optimistically
+      enter()->Branch(overflow, left, right, not_taken);
       break;
 
     case Token::SUB:
-      __ sub(answer.reg(), Operand(right.reg()));  // subtract optimistically
-      enter()->Branch(overflow, &left, &right, not_taken);
+      __ sub(answer.reg(), Operand(right->reg()));  // subtract optimistically
+      enter()->Branch(overflow, left, right, not_taken);
       break;
-
 
     case Token::MUL: {
       // If the smi tag is 0 we can just leave the tag on one operand.
@@ -5605,9 +5601,9 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
       // Left hand operand has been copied into answer.
       __ sar(answer.reg(), kSmiTagSize);
       // Do multiplication of smis, leaving result in answer.
-      __ imul(answer.reg(), Operand(right.reg()));
+      __ imul(answer.reg(), Operand(right->reg()));
       // Go slow on overflows.
-      enter()->Branch(overflow, &left, &right, not_taken);
+      enter()->Branch(overflow, left, right, not_taken);
       // Check for negative zero result.  If product is zero,
       // and one argument is negative, go to slow case.
       // The frame is unchanged in this block, so local control flow can
@@ -5615,83 +5611,162 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
       Label non_zero_result;
       __ test(answer.reg(), Operand(answer.reg()));
       __ j(not_zero, &non_zero_result, taken);
-      __ mov(answer.reg(), Operand(left.reg()));
-      __ or_(answer.reg(), Operand(right.reg()));
-      enter()->Branch(negative, &left, &right, not_taken);
+      __ mov(answer.reg(), left->reg());
+      __ or_(answer.reg(), Operand(right->reg()));
+      enter()->Branch(negative, left, right, not_taken);
       __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
       __ bind(&non_zero_result);
       break;
     }
 
-    case Token::DIV: {
-      // Left hand argument has been copied into answer, which is eax.
-      // Sign extend eax into edx:eax.
-      __ cdq();
-      // Check for 0 divisor.
-      __ test(right.reg(), Operand(right.reg()));
-      enter()->Branch(zero, &left, &right, not_taken);
-      // Divide edx:eax by ebx.
-      __ idiv(right.reg());
-      // Check for negative zero result.  If result is zero, and divisor
-      // is negative, return a floating point negative zero.
-      // The frame is unchanged in this block, so local control flow can
-      // use a Label rather than a JumpTarget.
-      Label non_zero_result;
-      __ test(left.reg(), Operand(left.reg()));
-      __ j(not_zero, &non_zero_result, taken);
-      __ test(right.reg(), Operand(right.reg()));
-      enter()->Branch(negative, &left, &right, not_taken);
-      __ bind(&non_zero_result);
-      // Check for the corner case of dividing the most negative smi
-      // by -1. We cannot use the overflow flag, since it is not set
-      // by idiv instruction.
-      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-      __ cmp(reg_eax.reg(), 0x40000000);
-      enter()->Branch(equal, &left, &right, not_taken);
-      // Check that the remainder is zero.
-      __ test(reg_edx.reg(), Operand(reg_edx.reg()));
-      enter()->Branch(not_zero, &left, &right, not_taken);
-      // Tag the result and store it in register temp.
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(answer.reg(), Operand(eax, eax, times_1, kSmiTag));
-      break;
-    }
-
+    case Token::DIV:  // Fall through.
     case Token::MOD: {
-      // Left hand argument has been copied into answer, which is eax.
+      // Div and mod use the registers eax and edx.  Left and right must
+      // be preserved, because the original operands are needed if we switch
+      // to the slow case.  Move them if either is in eax or edx.
+      // The Result answer should be changed into an alias for eax.
+      // Precondition:
+      // The Results left and right are valid.  They may be the same register,
+      // and may be unspilled.  The Result answer is valid and is distinct
+      // from left and right, and is spilled.
+      // The value in left is copied to answer.
+
+      Result reg_eax = generator()->allocator()->Allocate(eax);
+      Result reg_edx = generator()->allocator()->Allocate(edx);
+      // These allocations may have failed, if one of left, right, or answer
+      // is in register eax or edx.
+      bool left_copied_to_eax = false;  // We will make sure this becomes true.
+
+      // Part 1: Get eax
+      if (answer.reg().is(eax)) {
+        reg_eax = answer;
+        left_copied_to_eax = true;
+      } else if (right->reg().is(eax) || left->reg().is(eax)) {
+        // We need a non-edx register to move one or both of left and right to.
+        // We use answer if it is not edx, otherwise we allocate one.
+        if (answer.reg().is(edx)) {
+          reg_edx = answer;
+          answer = generator()->allocator()->Allocate();
+          ASSERT(answer.is_valid());
+        }
+
+        if (left->reg().is(eax)) {
+          reg_eax = *left;
+          left_copied_to_eax = true;
+          *left = answer;
+        }
+        if (right->reg().is(eax)) {
+          reg_eax = *right;
+          *right = answer;
+        }
+        __ mov(answer.reg(), eax);
+      }
+      // End of Part 1.
+      // reg_eax is valid, and neither left nor right is in eax.
+      ASSERT(reg_eax.is_valid());
+      ASSERT(!left->reg().is(eax));
+      ASSERT(!right->reg().is(eax));
+
+      // Part 2: Get edx
+      // reg_edx is invalid if and only if either left, right,
+      // or answer is in edx.  If edx is valid, then either edx
+      // was free, or it was answer, but answer was reallocated.
+      if (answer.reg().is(edx)) {
+        reg_edx = answer;
+      } else if (right->reg().is(edx) || left->reg().is(edx)) {
+        // Is answer used?
+        if (answer.reg().is(eax) || answer.reg().is(left->reg()) ||
+            answer.reg().is(right->reg())) {
+          answer = generator()->allocator()->Allocate();
+          ASSERT(answer.is_valid());  // We cannot hit both Allocate() calls.
+        }
+        if (left->reg().is(edx)) {
+          reg_edx = *left;
+          *left = answer;
+        }
+        if (right->reg().is(edx)) {
+          reg_edx = *right;
+          *right = answer;
+        }
+        __ mov(answer.reg(), edx);
+      }
+      // End of Part 2
+      ASSERT(reg_edx.is_valid());
+      ASSERT(!left->reg().is(eax));
+      ASSERT(!right->reg().is(eax));
+
+      answer = reg_eax;  // May free answer, if it was never used.
+      generator()->frame()->Spill(eax);
+      if (!left_copied_to_eax) {
+        __ mov(eax, left->reg());
+        left_copied_to_eax = true;
+      }
+      generator()->frame()->Spill(edx);
+
+      // Postcondition:
+      // reg_eax, reg_edx are valid, correct, and spilled.
+      // reg_eax contains the value originally in left
+      // left and right are not eax or edx.  They may or may not be
+      // spilled or distinct.
+      // answer is an alias for reg_eax.
+
       // Sign extend eax into edx:eax.
       __ cdq();
       // Check for 0 divisor.
-      __ test(right.reg(), Operand(right.reg()));
-      enter()->Branch(zero, &left, &right, not_taken);
-
-      // Divide edx:eax by ebx.
-      __ idiv(right.reg());
-      // Check for negative zero result.  If result is zero, and divisor
-      // is negative, return a floating point negative zero.
-      // The frame is unchanged in this block, so local control flow can
-      // use a Label rather than a JumpTarget.
-      Label non_zero_result;
-      __ test(reg_edx.reg(), Operand(reg_edx.reg()));
-      __ j(not_zero, &non_zero_result, taken);
-      __ test(left.reg(), Operand(left.reg()));
-      enter()->Branch(negative, &left, &right, not_taken);
-      __ bind(&non_zero_result);
-      // The answer is in edx.
-      answer = reg_edx;
+      __ test(right->reg(), Operand(right->reg()));
+      enter()->Branch(zero, left, right, not_taken);
+      // Divide edx:eax by the right operand.
+      __ idiv(right->reg());
+      if (op_ == Token::DIV) {
+        // Check for negative zero result.  If result is zero, and divisor
+        // is negative, return a floating point negative zero.
+        // The frame is unchanged in this block, so local control flow can
+        // use a Label rather than a JumpTarget.
+        Label non_zero_result;
+        __ test(left->reg(), Operand(left->reg()));
+        __ j(not_zero, &non_zero_result, taken);
+        __ test(right->reg(), Operand(right->reg()));
+        enter()->Branch(negative, left, right, not_taken);
+        __ bind(&non_zero_result);
+        // Check for the corner case of dividing the most negative smi
+        // by -1. We cannot use the overflow flag, since it is not set
+        // by idiv instruction.
+        ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+        __ cmp(eax, 0x40000000);
+        enter()->Branch(equal, left, right, not_taken);
+        // Check that the remainder is zero.
+        __ test(edx, Operand(edx));
+        enter()->Branch(not_zero, left, right, not_taken);
+        // Tag the result and store it in register temp.
+        ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+        __ lea(answer.reg(), Operand(eax, eax, times_1, kSmiTag));
+      } else {
+        ASSERT(op_ == Token::MOD);
+        // Check for a negative zero result.  If the result is zero, and the
+        // dividend is negative, return a floating point negative zero.
+        // The frame is unchanged in this block, so local control flow can
+        // use a Label rather than a JumpTarget.
+        Label non_zero_result;
+        __ test(edx, Operand(edx));
+        __ j(not_zero, &non_zero_result, taken);
+        __ test(left->reg(), Operand(left->reg()));
+        enter()->Branch(negative, left, right, not_taken);
+        __ bind(&non_zero_result);
+        // The answer is in edx.
+        answer = reg_edx;
+      }
       break;
     }
-
     case Token::BIT_OR:
-      __ or_(answer.reg(), Operand(right.reg()));
+      __ or_(answer.reg(), Operand(right->reg()));
       break;
 
     case Token::BIT_AND:
-      __ and_(answer.reg(), Operand(right.reg()));
+      __ and_(answer.reg(), Operand(right->reg()));
       break;
 
     case Token::BIT_XOR:
-      __ xor_(answer.reg(), Operand(right.reg()));
+      __ xor_(answer.reg(), Operand(right->reg()));
       break;
 
     case Token::SHL:
@@ -5701,29 +5776,29 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
       // Left is in two registers already, so even if left or answer is ecx,
       // we can move right to it, and use the other one.
       // Right operand must be in register cl because x86 likes it that way.
-      if (right.reg().is(ecx)) {
+      if (right->reg().is(ecx)) {
         // Right is already in the right place.  Left may be in the
         // same register, which causes problems.  Use answer instead.
-        if (left.reg().is(ecx)) {
-          left = answer;
+        if (left->reg().is(ecx)) {
+          *left = answer;
         }
-      } else if (left.reg().is(ecx)) {
-        generator()->frame()->Spill(left.reg());
-        __ mov(left.reg(), Operand(right.reg()));
-        right = left;
-        left = answer;  // Use copy of left in answer as left.
+      } else if (left->reg().is(ecx)) {
+        generator()->frame()->Spill(left->reg());
+        __ mov(left->reg(), right->reg());
+        *right = *left;
+        *left = answer;  // Use copy of left in answer as left.
       } else if (answer.reg().is(ecx)) {
-        __ mov(answer.reg(), Operand(right.reg()));
-        right = answer;
+        __ mov(answer.reg(), right->reg());
+        *right = answer;
       } else {
         Result reg_ecx = generator()->allocator()->Allocate(ecx);
         ASSERT(reg_ecx.is_valid());
-        __ mov(reg_ecx.reg(), Operand(right.reg()));
-        right = reg_ecx;
+        __ mov(ecx, right->reg());
+        *right = reg_ecx;
       }
-      ASSERT(left.reg().is_valid());
-      ASSERT(!left.reg().is(ecx));
-      ASSERT(right.reg().is(ecx));
+      ASSERT(left->reg().is_valid());
+      ASSERT(!left->reg().is(ecx));
+      ASSERT(right->reg().is(ecx));
       answer.Unuse();  // Answer may now be being used for left or right.
       // We will modify left and right, which we do not do in any other
       // binary operation.  The exits to slow code need to restore the
@@ -5731,20 +5806,20 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
       // the same answer.
 
       // We are modifying left and right.  They must be spilled!
-      generator()->frame()->Spill(left.reg());
-      generator()->frame()->Spill(right.reg());
+      generator()->frame()->Spill(left->reg());
+      generator()->frame()->Spill(right->reg());
 
       // Remove tags from operands (but keep sign).
-      __ sar(left.reg(), kSmiTagSize);
+      __ sar(left->reg(), kSmiTagSize);
       __ sar(ecx, kSmiTagSize);
       // Perform the operation.
       switch (op_) {
         case Token::SAR:
-          __ sar(left.reg());
+          __ sar(left->reg());
           // No checks of result necessary
           break;
         case Token::SHR: {
-          __ shr(left.reg());
+          __ shr(left->reg());
           // Check that the *unsigned* result fits in a smi.
           // Neither of the two high-order bits can be set:
           // - 0x80000000: high bit would be lost when smi tagging.
@@ -5756,18 +5831,18 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
           // The low bit of the left argument may be lost, but only
           // in a case where it is dropped anyway.
           JumpTarget result_ok(generator());
-          __ test(left.reg(), Immediate(0xc0000000));
-          result_ok.Branch(zero, &left, &right, taken);
-          __ shl(left.reg());
+          __ test(left->reg(), Immediate(0xc0000000));
+          result_ok.Branch(zero, left, taken);
+          __ shl(left->reg());
           ASSERT(kSmiTag == 0);
-          __ shl(left.reg(), kSmiTagSize);
-          __ shl(right.reg(), kSmiTagSize);
-          enter()->Jump(&left, &right);
-          result_ok.Bind(&left, &right);
+          __ shl(left->reg(), kSmiTagSize);
+          __ shl(right->reg(), kSmiTagSize);
+          enter()->Jump(left, right);
+          result_ok.Bind(left);
           break;
         }
         case Token::SHL: {
-          __ shl(left.reg());
+          __ shl(left->reg());
           // Check that the *signed* result fits in a smi.
           //
           // TODO(207): Can reduce registers from 4 to 3 by
@@ -5775,23 +5850,23 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
           JumpTarget result_ok(generator());
           Result smi_test_reg = generator()->allocator()->Allocate();
           ASSERT(smi_test_reg.is_valid());
-          __ lea(smi_test_reg.reg(), Operand(left.reg(), 0x40000000));
+          __ lea(smi_test_reg.reg(), Operand(left->reg(), 0x40000000));
           __ test(smi_test_reg.reg(), Immediate(0x80000000));
           smi_test_reg.Unuse();
-          result_ok.Branch(zero, &left, &right, taken);
-          __ shr(left.reg());
+          result_ok.Branch(zero, left, taken);
+          __ shr(left->reg());
           ASSERT(kSmiTag == 0);
-          __ shl(left.reg(), kSmiTagSize);
-          __ shl(right.reg(), kSmiTagSize);
-          enter()->Jump(&left, &right);
-          result_ok.Bind(&left, &right);
+          __ shl(left->reg(), kSmiTagSize);
+          __ shl(right->reg(), kSmiTagSize);
+          enter()->Jump(left, right);
+          result_ok.Bind(left);
           break;
         }
         default:
           UNREACHABLE();
       }
-      // Smi-tag the result, in left, and make answer an alias for left.
-      answer = left;
+      // Smi-tag the result, in left, and make answer an alias for left->
+      answer = *left;
       answer.ToRegister();
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
       __ lea(answer.reg(),
@@ -5802,6 +5877,8 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
       UNREACHABLE();
       break;
   }
+  left->Unuse();
+  right->Unuse();
   return answer;
 }
 
@@ -6338,6 +6415,8 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The key is in edx and the parameter count is in eax.
+
   // The displacement is used for skipping the frame pointer on the
   // stack. It is the offset of the last parameter (if any) relative
   // to the frame pointer.
@@ -6345,48 +6424,50 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   Label slow;
-  __ mov(ebx, Operand(esp, 1 * kPointerSize));  // skip return address
-  __ test(ebx, Immediate(kSmiTagMask));
+  __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &slow, not_taken);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
+  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(ecx, Operand(ebx, StandardFrameConstants::kContextOffset));
   __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
   __ j(equal, &adaptor);
 
   // Check index against formal parameters count limit passed in
   // through register eax. Use unsigned comparison to get negative
   // check for free.
-  __ cmp(ebx, Operand(eax));
+  __ cmp(edx, Operand(eax));
   __ j(above_equal, &slow, not_taken);
 
   // Read the argument from the stack and return it.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
-  __ lea(edx, Operand(ebp, eax, times_2, 0));
-  __ neg(ebx);
-  __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+  __ lea(ebx, Operand(ebp, eax, times_2, 0));
+  __ neg(edx);
+  __ mov(eax, Operand(ebx, edx, times_2, kDisplacement));
   __ ret(0);
 
   // Arguments adaptor case: Check index against actual arguments
   // limit found in the arguments adaptor frame. Use unsigned
   // comparison to get negative check for free.
   __ bind(&adaptor);
-  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmp(ebx, Operand(ecx));
+  __ mov(ecx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmp(edx, Operand(ecx));
   __ j(above_equal, &slow, not_taken);
 
   // Read the argument from the stack and return it.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
-  __ lea(edx, Operand(edx, ecx, times_2, 0));
-  __ neg(ebx);
-  __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+  __ lea(ebx, Operand(ebx, ecx, times_2, 0));
+  __ neg(edx);
+  __ mov(eax, Operand(ebx, edx, times_2, kDisplacement));
   __ ret(0);
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.
   __ bind(&slow);
+  __ pop(ebx);  // Return address.
+  __ push(edx);
+  __ push(ebx);
   __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
 }
 

@@ -138,7 +138,6 @@ namespace v8 { namespace internal {
   /* Regular expressions */ \
   F(RegExpCompile, 3) \
   F(RegExpExec, 4) \
-  F(RegExpExecGlobal, 3) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2) \
@@ -147,6 +146,7 @@ namespace v8 { namespace internal {
   F(StringLocaleCompare, 2) \
   F(StringSlice, 3) \
   F(StringReplaceRegExpWithString, 4) \
+  F(StringMatch, 3) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2) \

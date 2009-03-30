@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -45,7 +45,7 @@ v8::Handle<v8::String> ReadFile(const char* name);
 void ReportException(v8::TryCatch* handler);
 
 
-int main(int argc, char* argv[]) {
+int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::HandleScope handle_scope;
   // Create a template for the global object.
@@ -100,6 +100,13 @@ int main(int argc, char* argv[]) {
 }
 
 
+int main(int argc, char* argv[]) {
+  int result = RunMain(argc, argv);
+  v8::V8::Dispose();
+  return result;
+}
+
+
 // Extracts a C string from a V8 Utf8Value.
 const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<string conversion failed>";
@@ -123,6 +130,7 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
     printf("%s", cstr);
   }
   printf("\n");
+  fflush(stdout);
   return v8::Undefined();
 }
 

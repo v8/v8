@@ -58,6 +58,7 @@ struct Flag {
   void* valptr_;            // Pointer to the global flag variable.
   const void* defptr_;      // Pointer to the default value.
   const char* cmt_;         // A comment about the flags purpose.
+  bool owns_ptr_;           // Does the flag own its string value?
 
   FlagType type() const { return type_; }
 
@@ -80,9 +81,17 @@ struct Flag {
     return reinterpret_cast<double*>(valptr_);
   }
 
-  const char** string_variable() const {
+  const char* string_value() const {
     ASSERT(type_ == TYPE_STRING);
-    return reinterpret_cast<const char**>(valptr_);
+    return *reinterpret_cast<const char**>(valptr_);
+  }
+
+  void set_string_value(const char *value, bool owns_ptr) {
+    ASSERT(type_ == TYPE_STRING);
+    const char **ptr = reinterpret_cast<const char **>(valptr_);
+    if (owns_ptr_ && *ptr != NULL) DeleteArray(*ptr);
+    *ptr = value;
+    owns_ptr_ = owns_ptr;
   }
 
   JSArguments* args_variable() const {
@@ -125,7 +134,7 @@ struct Flag {
       case TYPE_FLOAT:
         return *float_variable() == float_default();
       case TYPE_STRING: {
-        const char* str1 = *string_variable();
+        const char* str1 = string_value();
         const char* str2 = string_default();
         if (str2 == NULL) return str1 == NULL;
         if (str1 == NULL) return str2 == NULL;
@@ -151,7 +160,7 @@ struct Flag {
         *float_variable() = float_default();
         break;
       case TYPE_STRING:
-        *string_variable() = string_default();
+        set_string_value(string_default(), false);
         break;
       case TYPE_ARGS:
         *args_variable() = args_default();
@@ -197,7 +206,7 @@ static SmartPointer<const char> ToString(Flag* flag) {
       buffer.Add("%f", FmtElm(*flag->float_variable()));
       break;
     case Flag::TYPE_STRING: {
-      const char* str = *flag->string_variable();
+      const char* str = flag->string_value();
       buffer.Add("%s", str ? str : "NULL");
       break;
     }
@@ -389,17 +398,17 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           *flag->float_variable() = strtod(value, &endp);
           break;
         case Flag::TYPE_STRING:
-          *flag->string_variable() = value;
+          flag->set_string_value(value ? StrDup(value) : NULL, true);
           break;
         case Flag::TYPE_ARGS: {
           int start_pos = (value == NULL) ? i : i - 1;
           int js_argc = *argc - start_pos;
           const char** js_argv = NewArray<const char*>(js_argc);
           if (value != NULL) {
-            js_argv[0] = value;
+            js_argv[0] = StrDup(value);
           }
           for (int k = i; k < *argc; k++) {
-            js_argv[k - start_pos] = argv[k];
+            js_argv[k - start_pos] = StrDup(argv[k]);
           }
           *flag->args_variable() = JSArguments(js_argc, js_argv);
           i = *argc;  // Consume all arguments
@@ -491,11 +500,7 @@ int FlagList::SetFlagsFromString(const char* str, int len) {
 
   // cleanup
   DeleteArray(argv);
-  // don't delete copy0 since the substrings
-  // may be pointed to by FLAG variables!
-  // (this is a memory leak, but it's minor since this
-  // code is only used for debugging, or perhaps once
-  // during initialization).
+  DeleteArray(copy0);
 
   return result;
 }

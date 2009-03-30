@@ -131,7 +131,8 @@ class EXPORT Debug {
   static void DebugBreak();
 
   // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler(DebugMessageHandler handler, void* data = NULL);
+  static void SetMessageHandler(DebugMessageHandler handler, void* data = NULL,
+                                bool message_handler_thread = true);
   static void SendCommand(const uint16_t* command, int length);
 
   // Dispatch interface.

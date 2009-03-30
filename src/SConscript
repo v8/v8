@@ -83,6 +83,24 @@ D8_FILES = {
   'all': [
     'd8.cc', 'd8-debug.cc'
   ],
+  'os:linux': [
+    'd8-posix.cc'
+  ],
+  'os:macos': [
+    'd8-posix.cc'
+  ],
+  'os:android': [
+    'd8-posix.cc'
+  ],
+  'os:freebsd': [
+    'd8-posix.cc'
+  ],
+  'os:windows': [
+    'd8-windows.cc'
+  ],
+  'os:nullos': [
+    'd8-windows.cc'   # Empty implementation at the moment.
+  ],
   'console:readline': [
     'd8-readline.cc'
   ]

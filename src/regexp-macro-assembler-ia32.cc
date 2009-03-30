@@ -962,6 +962,8 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
     int previous_index) {
 
   ASSERT(subject->IsFlat());
+  ASSERT(previous_index >= 0);
+  ASSERT(previous_index <= subject->length());
 
   // No allocations before calling the regexp, but we can't use
   // AssertNoAllocation, since regexps might be preempted, and another thread

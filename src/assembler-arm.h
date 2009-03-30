@@ -222,10 +222,6 @@ enum Hint { no_hint };
 inline Hint NegateHint(Hint ignored) { return no_hint; }
 
 
-// The pc store offset may be 8 or 12 depending on the processor implementation.
-int PcStoreOffset();
-
-
 // -----------------------------------------------------------------------------
 // Addressing modes and instruction variants
 

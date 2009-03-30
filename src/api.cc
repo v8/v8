@@ -2272,8 +2272,14 @@ bool v8::V8::Initialize() {
 }
 
 
+bool v8::V8::Dispose() {
+  i::V8::TearDown();
+  return true;
+}
+
+
 const char* v8::V8::GetVersion() {
-  return "1.1.3";
+  return "1.1.4";
 }
 
 
@@ -3068,9 +3074,10 @@ void Debug::DebugBreak() {
 }
 
 
-void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
+void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+                              bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
-  i::Debugger::SetMessageHandler(handler, data);
+  i::Debugger::SetMessageHandler(handler, data, message_handler_thread);
 }
 
 

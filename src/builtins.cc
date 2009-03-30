@@ -376,7 +376,7 @@ BUILTIN(HandleApiCall) {
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       value = callback(args);
     }
     if (value.IsEmpty()) {
@@ -437,7 +437,7 @@ BUILTIN(HandleApiCallAsFunction) {
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       value = callback(args);
     }
     if (value.IsEmpty()) {

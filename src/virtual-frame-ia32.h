@@ -76,8 +76,16 @@ class VirtualFrame : public Malloced {
     return elements_.length() - expression_base_index();
   }
 
-  int register_count(Register reg) {
-    return frame_registers_.count(reg);
+  int register_index(Register reg) {
+    return register_locations_[reg.code()];
+  }
+
+  bool is_used(int reg_code) {
+    return register_locations_[reg_code] != kIllegalIndex;
+  }
+
+  bool is_used(Register reg) {
+    return is_used(reg.code());
   }
 
   // Add extra in-memory elements to the top of the frame to match an actual
@@ -233,41 +241,58 @@ class VirtualFrame : public Malloced {
   // Push a try-catch or try-finally handler on top of the virtual frame.
   void PushTryHandler(HandlerType type);
 
-  // Call a code stub, given the number of arguments it expects on (and
-  // removes from) the top of the physical frame.
-  Result CallStub(CodeStub* stub, int frame_arg_count);
-  Result CallStub(CodeStub* stub, Result* arg, int frame_arg_count);
-  Result CallStub(CodeStub* stub,
-                  Result* arg0,
-                  Result* arg1,
-                  int frame_arg_count);
+  // Call stub given the number of arguments it expects on (and
+  // removes from) the stack.
+  Result CallStub(CodeStub* stub, int arg_count);
 
-  // Call the runtime, given the number of arguments expected on (and
-  // removed from) the top of the physical frame.
-  Result CallRuntime(Runtime::Function* f, int frame_arg_count);
-  Result CallRuntime(Runtime::FunctionId id, int frame_arg_count);
+  // Call stub that takes a single argument passed in eax.  The
+  // argument is given as a result which does not have to be eax or
+  // even a register.  The argument is consumed by the call.
+  Result CallStub(CodeStub* stub, Result* arg);
 
-  // Invoke a builtin, given the number of arguments it expects on (and
-  // removes from) the top of the physical frame.
+  // Call stub that takes a pair of arguments passed in edx (arg0) and
+  // eax (arg1).  The arguments are given as results which do not have
+  // to be in the proper registers or even in registers.  The
+  // arguments are consumed by the call.
+  Result CallStub(CodeStub* stub, Result* arg0, Result* arg1);
+
+  // Call runtime given the number of arguments expected on (and
+  // removed from) the stack.
+  Result CallRuntime(Runtime::Function* f, int arg_count);
+  Result CallRuntime(Runtime::FunctionId id, int arg_count);
+
+  // Invoke builtin given the number of arguments it expects on (and
+  // removes from) the stack.
   Result InvokeBuiltin(Builtins::JavaScript id,
                        InvokeFlag flag,
-                       int frame_arg_count);
+                       int arg_count);
 
-  // Call into a JS code object, given the number of arguments it
-  // removes from the top of the physical frame.
-  // Register arguments are passed as results and consumed by the call.
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        int dropped_args);
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        Result* arg,
-                        int dropped_args);
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        Result* arg0,
-                        Result* arg1,
-                        int dropped_args);
+  // Call load IC.  Name and receiver are found on top of the frame.
+  // Receiver is not dropped.
+  Result CallLoadIC(RelocInfo::Mode mode);
+
+  // Call keyed load IC.  Key and receiver are found on top of the
+  // frame.  They are not dropped.
+  Result CallKeyedLoadIC(RelocInfo::Mode mode);
+
+  // Call store IC.  Name, value, and receiver are found on top of the
+  // frame.  Receiver is not dropped.
+  Result CallStoreIC();
+
+  // Call keyed store IC.  Value, key, and receiver are found on top
+  // of the frame.  Key and receiver are not dropped.
+  Result CallKeyedStoreIC();
+
+  // Call call IC.  Arguments, reciever, and function name are found
+  // on top of the frame.  Function name slot is not dropped.  The
+  // argument count does not include the receiver.
+  Result CallCallIC(RelocInfo::Mode mode, int arg_count, int loop_nesting);
+
+  // Allocate and call JS function as constructor.  Arguments,
+  // receiver (global object), and function are found on top of the
+  // frame.  Function is not dropped.  The argument count does not
+  // include the receiver.
+  Result CallConstructor(int arg_count);
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers
@@ -333,10 +358,6 @@ class VirtualFrame : public Malloced {
   // (the ebp register).
   int frame_pointer_;
 
-  // The frame has an embedded register file that it uses to track registers
-  // used in the frame.
-  RegisterFile frame_registers_;
-
   // The index of the register frame element using each register, or
   // kIllegalIndex if a register is not on the frame.
   int register_locations_[kNumRegisters];
@@ -398,9 +419,11 @@ class VirtualFrame : public Malloced {
   // Sync the range of elements in [begin, end).
   void SyncRange(int begin, int end);
 
-  // Sync a single element, assuming that its index is less than
-  // or equal to stack pointer + 1.
-  void RawSyncElementAt(int index);
+  // Sync a single unsynced element that lies beneath or at the stack pointer.
+  void SyncElementBelowStackPointer(int index);
+
+  // Sync a single unsynced element that lies just above the stack pointer.
+  void SyncElementByPushing(int index);
 
   // Push a copy of a frame slot (typically a local or parameter) on top of
   // the frame.
@@ -449,7 +472,7 @@ class VirtualFrame : public Malloced {
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).
-  Result RawCallStub(CodeStub* stub, int frame_arg_count);
+  Result RawCallStub(CodeStub* stub);
 
   // Calls a code object which has already been prepared for calling
   // (via PrepareForCall).

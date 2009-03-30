@@ -430,7 +430,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
     LOG(ApiObjectAccess("interceptor-named-enum", *object));
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = enum_fun(info);
     }
   }
@@ -454,7 +454,7 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
     LOG(ApiObjectAccess("interceptor-indexed-enum", *object));
     {
       // Leaving JavaScript.
-      VMState state(OTHER);
+      VMState state(EXTERNAL);
       result = enum_fun(info);
     }
   }

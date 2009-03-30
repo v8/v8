@@ -57,101 +57,101 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
 }
 
 
-// Clear the dirty bit for the element at a given index if it is a
-// valid element.  The stack address corresponding to the element must
-// be allocated on the physical stack, or the first element above the
-// stack pointer so it can be allocated by a single push instruction.
-void VirtualFrame::RawSyncElementAt(int index) {
+void VirtualFrame::SyncElementBelowStackPointer(int index) {
+  // Emit code to write elements below the stack pointer to their
+  // (already allocated) stack address.
+  ASSERT(index <= stack_pointer_);
   FrameElement element = elements_[index];
+  ASSERT(!element.is_synced());
+  switch (element.type()) {
+    case FrameElement::INVALID:
+      break;
 
-  if (!element.is_valid() || element.is_synced()) return;
+    case FrameElement::MEMORY:
+      // This function should not be called with synced elements.
+      // (memory elements are always synced).
+      UNREACHABLE();
+      break;
 
-  if (index <= stack_pointer_) {
-    // Emit code to write elements below the stack pointer to their
-    // (already allocated) stack address.
-    switch (element.type()) {
-      case FrameElement::INVALID:  // Fall through.
-      case FrameElement::MEMORY:
-        // There was an early bailout for invalid and synced elements
-        // (memory elements are always synced).
-        UNREACHABLE();
-        break;
+    case FrameElement::REGISTER:
+      __ mov(Operand(ebp, fp_relative(index)), element.reg());
+      break;
 
-      case FrameElement::REGISTER:
-        __ mov(Operand(ebp, fp_relative(index)), element.reg());
-        break;
-
-      case FrameElement::CONSTANT:
-        if (cgen_->IsUnsafeSmi(element.handle())) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
-          __ mov(Operand(ebp, fp_relative(index)), temp.reg());
-        } else {
-          __ Set(Operand(ebp, fp_relative(index)),
-                 Immediate(element.handle()));
-        }
-        break;
-
-      case FrameElement::COPY: {
-        int backing_index = element.index();
-        FrameElement backing_element = elements_[backing_index];
-        if (backing_element.is_memory()) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          __ mov(temp.reg(), Operand(ebp, fp_relative(backing_index)));
-          __ mov(Operand(ebp, fp_relative(index)), temp.reg());
-        } else {
-          ASSERT(backing_element.is_register());
-          __ mov(Operand(ebp, fp_relative(index)), backing_element.reg());
-        }
-        break;
+    case FrameElement::CONSTANT:
+      if (cgen_->IsUnsafeSmi(element.handle())) {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
+        __ mov(Operand(ebp, fp_relative(index)), temp.reg());
+      } else {
+        __ Set(Operand(ebp, fp_relative(index)),
+               Immediate(element.handle()));
       }
-    }
+      break;
 
-  } else {
-    // Push elements above the stack pointer to allocate space and
-    // sync them.  Space should have already been allocated in the
-    // actual frame for all the elements below this one.
-    ASSERT(index == stack_pointer_ + 1);
-    stack_pointer_++;
-    switch (element.type()) {
-      case FrameElement::INVALID:  // Fall through.
-      case FrameElement::MEMORY:
-        // There was an early bailout for invalid and synced elements
-        // (memory elements are always synced).
-        UNREACHABLE();
-        break;
-
-      case FrameElement::REGISTER:
-        __ push(element.reg());
-        break;
-
-      case FrameElement::CONSTANT:
-        if (cgen_->IsUnsafeSmi(element.handle())) {
-          Result temp = cgen_->allocator()->Allocate();
-          ASSERT(temp.is_valid());
-          cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
-          __ push(temp.reg());
-        } else {
-          __ push(Immediate(element.handle()));
-        }
-        break;
-
-      case FrameElement::COPY: {
-        int backing_index = element.index();
-        FrameElement backing = elements_[backing_index];
-        ASSERT(backing.is_memory() || backing.is_register());
-        if (backing.is_memory()) {
-          __ push(Operand(ebp, fp_relative(backing_index)));
-        } else {
-          __ push(backing.reg());
-        }
-        break;
+    case FrameElement::COPY: {
+      int backing_index = element.index();
+      FrameElement backing_element = elements_[backing_index];
+      if (backing_element.is_memory()) {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        __ mov(temp.reg(), Operand(ebp, fp_relative(backing_index)));
+        __ mov(Operand(ebp, fp_relative(index)), temp.reg());
+      } else {
+        ASSERT(backing_element.is_register());
+        __ mov(Operand(ebp, fp_relative(index)), backing_element.reg());
       }
+      break;
     }
   }
+  elements_[index].set_sync();
+}
 
+
+void VirtualFrame::SyncElementByPushing(int index) {
+  // Sync an element of the frame that is just above the stack pointer
+  // by pushing it.
+  ASSERT(index == stack_pointer_ + 1);
+  stack_pointer_++;
+  FrameElement element = elements_[index];
+
+  switch (element.type()) {
+    case FrameElement::INVALID:
+      __ push(Immediate(Smi::FromInt(0)));
+      break;
+
+    case FrameElement::MEMORY:
+      // No memory elements exist above the stack pointer.
+      UNREACHABLE();
+      break;
+
+    case FrameElement::REGISTER:
+      __ push(element.reg());
+      break;
+
+    case FrameElement::CONSTANT:
+      if (cgen_->IsUnsafeSmi(element.handle())) {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
+        __ push(temp.reg());
+      } else {
+        __ push(Immediate(element.handle()));
+      }
+      break;
+
+    case FrameElement::COPY: {
+      int backing_index = element.index();
+      FrameElement backing = elements_[backing_index];
+      ASSERT(backing.is_memory() || backing.is_register());
+      if (backing.is_memory()) {
+        __ push(Operand(ebp, fp_relative(backing_index)));
+      } else {
+        __ push(backing.reg());
+      }
+      break;
+    }
+  }
   elements_[index].set_sync();
 }
 
@@ -308,7 +308,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
           elements_[i] = target;
         } else {
           // We need to move source to target.
-          if (frame_registers_.is_used(target.reg())) {
+          if (is_used(target.reg())) {
             // The move is blocked because the target contains valid data.
             // If we are stuck with only cycles remaining, then we spill source.
             // Otherwise, we just need more iterations.
@@ -725,7 +725,7 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
+Result VirtualFrame::RawCallStub(CodeStub* stub) {
   ASSERT(cgen_->HasValidEntryRegisters());
   __ CallStub(stub);
   Result result = cgen_->allocator()->Allocate(eax);
@@ -734,22 +734,53 @@ Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f,
-                                 int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+  PrepareForCall(0, 0);
+  arg->ToRegister(eax);
+  arg->Unuse();
+  return RawCallStub(stub);
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
+  PrepareForCall(0, 0);
+
+  if (arg0->is_register() && arg0->reg().is(eax)) {
+    if (arg1->is_register() && arg1->reg().is(edx)) {
+      // Wrong registers.
+      __ xchg(eax, edx);
+    } else {
+      // Register edx is free for arg0, which frees eax for arg1.
+      arg0->ToRegister(edx);
+      arg1->ToRegister(eax);
+    }
+  } else {
+    // Register eax is free for arg1, which guarantees edx is free for
+    // arg0.
+    arg1->ToRegister(eax);
+    arg0->ToRegister(edx);
+  }
+
+  arg0->Unuse();
+  arg1->Unuse();
+  return RawCallStub(stub);
+}
+
+
+Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
-  __ CallRuntime(f, frame_arg_count);
+  __ CallRuntime(f, arg_count);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
   return result;
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
-                                 int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
-  __ CallRuntime(id, frame_arg_count);
+  __ CallRuntime(id, arg_count);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
   return result;
@@ -758,8 +789,8 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
 
 Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
-                                   int frame_arg_count) {
-  PrepareForCall(frame_arg_count, frame_arg_count);
+                                   int arg_count) {
+  PrepareForCall(arg_count, arg_count);
   ASSERT(cgen_->HasValidEntryRegisters());
   __ InvokeBuiltin(id, flag);
   Result result = cgen_->allocator()->Allocate(eax);
@@ -778,67 +809,110 @@ Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg,
-                                    int dropped_args) {
-  int spilled_args = 0;
-  switch (code->kind()) {
-    case Code::CALL_IC:
-      ASSERT(arg->reg().is(eax));
-      spilled_args = dropped_args + 1;
-      break;
-    case Code::LOAD_IC:
-      ASSERT(arg->reg().is(ecx));
-      ASSERT(dropped_args == 0);
-      spilled_args = 1;
-      break;
-    case Code::KEYED_STORE_IC:
-      ASSERT(arg->reg().is(eax));
-      ASSERT(dropped_args == 0);
-      spilled_args = 2;
-      break;
-    default:
-      // No other types of code objects are called with values
-      // in exactly one register.
-      UNREACHABLE();
-      break;
-  }
-  PrepareForCall(spilled_args, dropped_args);
-  arg->Unuse();
-  return RawCallCodeObject(code, rmode);
+Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
+  // Name and receiver are on the top of the frame.  The IC expects
+  // name in ecx and receiver on the stack.  It does not drop the
+  // receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Result name = Pop();
+  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
+  name.ToRegister(ecx);
+  name.Unuse();
+  return RawCallCodeObject(ic, mode);
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg0,
-                                    Result* arg1,
-                                    int dropped_args) {
-  int spilled_args = 1;
-  switch (code->kind()) {
-    case Code::STORE_IC:
-      ASSERT(arg0->reg().is(eax));
-      ASSERT(arg1->reg().is(ecx));
-      ASSERT(dropped_args == 0);
-      spilled_args = 1;
-      break;
-    case Code::BUILTIN:
-      ASSERT(*code == Builtins::builtin(Builtins::JSConstructCall));
-      ASSERT(arg0->reg().is(eax));
-      ASSERT(arg1->reg().is(edi));
-      spilled_args = dropped_args + 1;
-      break;
-    default:
-      // No other types of code objects are called with values
-      // in exactly two registers.
-      UNREACHABLE();
-      break;
+Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
+  // Key and receiver are on top of the frame.  The IC expects them on
+  // the stack.  It does not drop them.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
+  return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallStoreIC() {
+  // Name, value, and receiver are on top of the frame.  The IC
+  // expects name in ecx, value in eax, and receiver on the stack.  It
+  // does not drop the receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Result name = Pop();
+  Result value = Pop();
+  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
+
+  if (value.is_register() && value.reg().is(ecx)) {
+    if (name.is_register() && name.reg().is(eax)) {
+      // Wrong registers.
+      __ xchg(eax, ecx);
+    } else {
+      // Register eax is free for value, which frees ecx for name.
+      value.ToRegister(eax);
+      name.ToRegister(ecx);
+    }
+  } else {
+    // Register ecx is free for name, which guarantees eax is free for
+    // value.
+    name.ToRegister(ecx);
+    value.ToRegister(eax);
   }
-  PrepareForCall(spilled_args, dropped_args);
-  arg0->Unuse();
-  arg1->Unuse();
-  return RawCallCodeObject(code, rmode);
+
+  name.Unuse();
+  value.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
+
+
+Result VirtualFrame::CallKeyedStoreIC() {
+  // Value, key, and receiver are on the top of the frame.  The IC
+  // expects value in eax and key and receiver on the stack.  It does
+  // not drop the key and receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  // TODO(1222589): Make the IC grab the values from the stack.
+  Result value = Pop();
+  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
+  value.ToRegister(eax);
+  value.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
+
+
+Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
+                                int arg_count,
+                                int loop_nesting) {
+  // Arguments, receiver, and function name are on top of the frame.
+  // The IC expects them on the stack.  It does not drop the function
+  // name slot (but it does drop the rest).
+  Handle<Code> ic = (loop_nesting > 0)
+                    ? cgen_->ComputeCallInitializeInLoop(arg_count)
+                    : cgen_->ComputeCallInitialize(arg_count);
+  // Spill args, receiver, and function.  The call will drop args and
+  // receiver.
+  PrepareForCall(arg_count + 2, arg_count + 1);
+  return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallConstructor(int arg_count) {
+  // Arguments, receiver, and function are on top of the frame.  The
+  // IC expects arg count in eax, function in edi, and the arguments
+  // and receiver on the stack.
+  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  // Duplicate the function before preparing the frame.
+  PushElementAt(arg_count + 1);
+  Result function = Pop();
+  PrepareForCall(arg_count + 1, arg_count + 1);  // Spill args and receiver.
+  function.ToRegister(edi);
+
+  // Constructors are called with the number of arguments in register
+  // eax for now. Another option would be to have separate construct
+  // call trampolines per different arguments counts encountered.
+  Result num_args = cgen_->allocator()->Allocate(eax);
+  ASSERT(num_args.is_valid());
+  __ Set(num_args.reg(), Immediate(arg_count));
+
+  function.Unuse();
+  num_args.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CONSTRUCT_CALL);
 }
 
 
