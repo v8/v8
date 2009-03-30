@@ -95,6 +95,7 @@ int RunMain(int argc, char* argv[]) {
         return 1;
     }
   }
+  if (run_shell) RunShell(context);
   return 0;
 }
 
