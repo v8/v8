@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -407,7 +407,7 @@ FILE* Logger::logfile_ = NULL;
 Profiler* Logger::profiler_ = NULL;
 Mutex* Logger::mutex_ = NULL;
 VMState* Logger::current_state_ = NULL;
-VMState Logger::bottom_state_(OTHER);
+VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
@@ -1110,6 +1110,13 @@ static const char* StateToString(StateTag state) {
 }
 
 VMState::VMState(StateTag state) {
+#if !defined(ENABLE_HEAP_PROTECTION)
+  // When not protecting the heap, there is no difference between
+  // EXTERNAL and OTHER.  As an optimizatin in that case, we will not
+  // perform EXTERNAL->OTHER transitions through the API.  We thus
+  // compress the two states into one.
+  if (state == EXTERNAL) state = OTHER;
+#endif
   state_ = state;
   previous_ = Logger::current_state_;
   Logger::current_state_ = this;

@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -40,6 +40,12 @@
 
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
+
+#ifdef ENABLE_HEAP_PROTECTION
+#define ENTER_V8 i::VMState __state__(i::OTHER)
+#else
+#define ENTER_V8 ((void) 0)
+#endif
 
 
 namespace v8 {
@@ -459,6 +465,7 @@ void** v8::HandleScope::RawClose(void** value) {
 // NeanderObject constructor.  When you add one to the site calling the
 // constructor you should check that you ensured the VM was not dead first.
 NeanderObject::NeanderObject(int size) {
+  ENTER_V8;
   EnsureInitialized("v8::Nowhere");
   value_ = i::Factory::NewNeanderObject();
   i::Handle<i::FixedArray> elements = i::Factory::NewFixedArray(size);
@@ -523,6 +530,7 @@ static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
 
 void Template::Set(v8::Handle<String> name, v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Template::SetProperty()")) return;
   HandleScope scope;
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list());
@@ -571,6 +579,7 @@ static int next_serial_number = 0;
 
 Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
     v8::Handle<Value> data, v8::Handle<Signature> signature) {
+  ENTER_V8;
   EnsureInitialized("v8::FunctionTemplate::New()");
   LOG_API("FunctionTemplate::New");
   i::Handle<i::Struct> struct_obj =
@@ -803,6 +812,7 @@ Local<ObjectTemplate> ObjectTemplate::New() {
 
 Local<ObjectTemplate> ObjectTemplate::New(
       v8::Handle<FunctionTemplate> constructor) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::New()")) return Local<ObjectTemplate>();
   EnsureInitialized("v8::ObjectTemplate::New()");
   LOG_API("ObjectTemplate::New");
@@ -988,6 +998,7 @@ ScriptData* ScriptData::New(unsigned* data, int length) {
 Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
                               v8::ScriptData* script_data) {
+  ENTER_V8;
   ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
   LOG_API("Script::Compile");
   i::Handle<i::String> str = Utils::OpenHandle(*source);
@@ -2262,6 +2273,7 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 // --- E n v i r o n m e n t ---
 
 bool v8::V8::Initialize() {
+  ENTER_V8;
   if (i::V8::HasBeenSetup()) return true;
   HandleScope scope;
   if (i::Snapshot::Initialize()) {
@@ -2299,6 +2311,7 @@ Persistent<Context> v8::Context::New(
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
     v8::Handle<Value> global_object) {
+  ENTER_V8;
   EnsureInitialized("v8::Context::New()");
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
@@ -2525,6 +2538,7 @@ Local<String> v8::String::Empty() {
 
 
 Local<String> v8::String::New(const char* data, int length) {
+  ENTER_V8;
   EnsureInitialized("v8::String::New()");
   LOG_API("String::New(char)");
   if (length == 0) return Empty();
