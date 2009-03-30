@@ -1,3 +1,20 @@
+2009-03-30: Version 1.1.4
+
+        Optimized String.prototype.match.
+
+        Improved the stack information in profiles.
+
+        Fixed bug in ARM port making it possible to compile the runtime
+        system for thumb mode again.
+
+        Implemented a number of optimizations in the code generator.
+
+        Fixed a number of memory leaks in tests.
+
+        Fixed crash bug in connection with script source code and external
+	strings.
+
+
 2009-03-24: Version 1.1.3
 
         Fixed assertion failures in compilation of loop conditions.
