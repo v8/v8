@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -43,7 +43,9 @@ namespace v8 { namespace internal {
 VirtualFrame::VirtualFrame(CodeGenerator* cgen)
     : cgen_(cgen),
       masm_(cgen->masm()),
-      elements_(0),
+      elements_(cgen->scope()->num_parameters()
+                + cgen->scope()->num_stack_slots()
+                + kPreallocatedElements),
       parameter_count_(cgen->scope()->num_parameters()),
       local_count_(0),
       stack_pointer_(parameter_count_ + 1),  // 0-based index of TOS.
