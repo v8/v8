@@ -147,6 +147,27 @@ class Assembler(object):
     self.regions = []
 
 
+class FunctionEnumerator(object):
+
+  def __init__(self):
+    self.known_funcs = {}
+    self.next_func_id = 0
+
+  def GetFunctionId(self, name):
+    if not self.known_funcs.has_key(name):
+      self.known_funcs[name] = self.next_func_id
+      self.next_func_id += 1
+    return self.known_funcs[name]
+
+  def GetKnownFunctions(self):
+    known_funcs_items = self.known_funcs.items();
+    known_funcs_items.sort(key = itemgetter(1))
+    result = []
+    for func, id_not_used in known_funcs_items:
+      result.append(func)
+    return result
+
+
 VMStates = { 'JS': 0, 'GC': 1, 'COMPILER': 2, 'OTHER': 3, 'EXTERNAL' : 4 }
 
 
@@ -170,37 +191,46 @@ class TickProcessor(object):
     self.number_of_gc_ticks = 0
     # Flag indicating whether to ignore unaccounted ticks in the report
     self.ignore_unknown = False
+    self.func_enum = FunctionEnumerator()
+    self.packed_stacks = []
 
-  def ProcessLogfile(self, filename, included_state = None, ignore_unknown = False, separate_ic = False):
+  def ProcessLogfile(self, filename, included_state = None, ignore_unknown = False, separate_ic = False, call_graph_json = False):
     self.log_file = filename
     self.included_state = included_state
     self.ignore_unknown = ignore_unknown
     self.separate_ic = separate_ic
+    self.call_graph_json = call_graph_json
 
     try:
       logfile = open(filename, 'rb')
     except IOError:
       sys.exit("Could not open logfile: " + filename)
     try:
-      logreader = csv.reader(logfile)
-      for row in logreader:
-        if row[0] == 'tick':
-          self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]), self.PreprocessStack(row[4:]))
-        elif row[0] == 'code-creation':
-          self.ProcessCodeCreation(row[1], int(row[2], 16), int(row[3]), row[4])
-        elif row[0] == 'code-move':
-          self.ProcessCodeMove(int(row[1], 16), int(row[2], 16))
-        elif row[0] == 'code-delete':
-          self.ProcessCodeDelete(int(row[1], 16))
-        elif row[0] == 'shared-library':
-          self.AddSharedLibraryEntry(row[1], int(row[2], 16), int(row[3], 16))
-          self.ParseVMSymbols(row[1], int(row[2], 16), int(row[3], 16))
-        elif row[0] == 'begin-code-region':
-          self.ProcessBeginCodeRegion(int(row[1], 16), int(row[2], 16), int(row[3], 16), row[4])
-        elif row[0] == 'end-code-region':
-          self.ProcessEndCodeRegion(int(row[1], 16), int(row[2], 16), int(row[3], 16))
-        elif row[0] == 'code-allocate':
-          self.ProcessCodeAllocate(int(row[1], 16), int(row[2], 16))
+      try:
+        logreader = csv.reader(logfile)
+        row_num = 1
+        for row in logreader:
+          row_num += 1
+          if row[0] == 'tick':
+            self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]), self.PreprocessStack(row[4:]))
+          elif row[0] == 'code-creation':
+            self.ProcessCodeCreation(row[1], int(row[2], 16), int(row[3]), row[4])
+          elif row[0] == 'code-move':
+            self.ProcessCodeMove(int(row[1], 16), int(row[2], 16))
+          elif row[0] == 'code-delete':
+            self.ProcessCodeDelete(int(row[1], 16))
+          elif row[0] == 'shared-library':
+            self.AddSharedLibraryEntry(row[1], int(row[2], 16), int(row[3], 16))
+            self.ParseVMSymbols(row[1], int(row[2], 16), int(row[3], 16))
+          elif row[0] == 'begin-code-region':
+            self.ProcessBeginCodeRegion(int(row[1], 16), int(row[2], 16), int(row[3], 16), row[4])
+          elif row[0] == 'end-code-region':
+            self.ProcessEndCodeRegion(int(row[1], 16), int(row[2], 16), int(row[3], 16))
+          elif row[0] == 'code-allocate':
+            self.ProcessCodeAllocate(int(row[1], 16), int(row[2], 16))
+      except csv.Error:
+        print("parse error in line " + str(row_num))
+        raise
     finally:
       logfile.close()
 
@@ -312,8 +342,25 @@ class TickProcessor(object):
         self.unaccounted_number_of_ticks += 1
     else:
       entry.Tick(pc, self.ProcessStack(stack))
+      if self.call_graph_json:
+        self.AddToPackedStacks(pc, stack)
+
+  def AddToPackedStacks(self, pc, stack):
+    full_stack = stack
+    full_stack.insert(0, pc)
+    func_names = self.ProcessStack(full_stack)
+    func_ids = []
+    for func in func_names:
+      func_ids.append(self.func_enum.GetFunctionId(func))
+    self.packed_stacks.append(func_ids)
 
   def PrintResults(self):
+    if not self.call_graph_json:
+      self.PrintStatistics()
+    else:
+      self.PrintCallGraphJSON()
+
+  def PrintStatistics(self):
     print('Statistical profiling result from %s, (%d ticks, %d unaccounted, %d excluded).' %
           (self.log_file,
            self.total_number_of_ticks,
@@ -412,6 +459,16 @@ class TickProcessor(object):
         'call_path' : stack[0] + '  <-  ' + stack[1]
       })
 
+  def PrintCallGraphJSON(self):
+    print('\nvar __profile_funcs = ["' +
+          '",\n"'.join(self.func_enum.GetKnownFunctions()) +
+          '"];')
+    print('var __profile_ticks = [')
+    str_packed_stacks = []
+    for stack in self.packed_stacks:
+      str_packed_stacks.append('[' + ','.join(map(str, stack)) + ']')
+    print(',\n'.join(str_packed_stacks))
+    print('];')
 
 class CmdLineProcessor(object):
 
@@ -422,12 +479,14 @@ class CmdLineProcessor(object):
                     "other",
                     "external",
                     "ignore-unknown",
-                    "separate-ic"]
+                    "separate-ic",
+                    "call-graph-json"]
     # default values
     self.state = None
     self.ignore_unknown = False
     self.log_file = None
     self.separate_ic = False
+    self.call_graph_json = False
 
   def ProcessArguments(self):
     try:
@@ -449,6 +508,8 @@ class CmdLineProcessor(object):
         self.ignore_unknown = True
       if key in ("--separate-ic"):
         self.separate_ic = True
+      if key in ("--call-graph-json"):
+        self.call_graph_json = True
     self.ProcessRequiredArgs(args)
 
   def ProcessRequiredArgs(self, args):
@@ -466,7 +527,8 @@ class CmdLineProcessor(object):
     sys.exit(2)
 
   def RunLogfileProcessing(self, tick_processor):
-    tick_processor.ProcessLogfile(self.log_file, self.state, self.ignore_unknown, self.separate_ic)
+    tick_processor.ProcessLogfile(self.log_file, self.state, self.ignore_unknown,
+                                  self.separate_ic, self.call_graph_json)
 
 
 if __name__ == '__main__':

@@ -299,6 +299,7 @@ class LogMessageBuilder BASE_EMBEDDED {
   void AppendDetailed(String* str, bool show_impl_info);
 
   void WriteToLogFile();
+  void WriteCStringToLogFile(const char* str);
 
  private:
   ScopedLock sl;
@@ -395,6 +396,14 @@ void LogMessageBuilder::WriteToLogFile() {
   ASSERT(rv == static_cast<size_t>(pos_));
   USE(rv);
 }
+
+// Write a null-terminated string to to the log file currently opened.
+void LogMessageBuilder::WriteCStringToLogFile(const char* str) {
+  size_t len = strlen(str);
+  size_t rv = fwrite(str, 1, len, Logger::logfile_);
+  ASSERT(rv == len);
+  USE(rv);
+}
 #endif
 
 
@@ -417,8 +426,7 @@ void Logger::Preamble(const char* content) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s", content);
-  msg.WriteToLogFile();
+  msg.WriteCStringToLogFile(content);
 #endif
 }
 
@@ -758,6 +766,20 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 }
 
 
+void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  msg.Append("code-creation,%s,0x%x,%d,\"", "RegExp",
+             reinterpret_cast<unsigned int>(code->address()),
+             code->ExecutableSize());
+  msg.AppendDetailed(source, false);
+  msg.Append("\"\n");
+  msg.WriteToLogFile();
+#endif
+}
+
+
 void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
@@ -1010,9 +1032,9 @@ bool Logger::Setup() {
         }
       }
       SmartPointer<const char> expanded = stream.ToCString();
-      logfile_ = OS::FOpen(*expanded, "w");
+      logfile_ = OS::FOpen(*expanded, OS::LogFileOpenMode);
     } else {
-      logfile_ = OS::FOpen(FLAG_logfile, "w");
+      logfile_ = OS::FOpen(FLAG_logfile, OS::LogFileOpenMode);
     }
     message_buffer_ = NewArray<char>(kMessageBufferSize);
     mutex_ = OS::CreateMutex();

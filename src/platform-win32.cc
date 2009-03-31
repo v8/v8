@@ -683,6 +683,10 @@ FILE* OS::FOpen(const char* path, const char* mode) {
 }
 
 
+// Open log file in binary mode to avoid /n -> /r/n conversion.
+const char* OS::LogFileOpenMode = "wb";
+
+
 // Print (debug) message to console.
 void OS::Print(const char* format, ...) {
   va_list args;
