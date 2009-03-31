@@ -98,7 +98,7 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections',
                        '-ffunction-sections'],
       'os:android': {
-        'CCFLAGS':    ['-mthumb'],
+        'CCFLAGS':    ['-mthumb', '-Os'],
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
