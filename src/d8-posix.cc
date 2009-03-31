@@ -184,9 +184,18 @@ class OpenFDCloser {
 // scope.
 class ExecArgs {
  public:
-  ExecArgs(Handle<Value> arg0, Handle<Array> command_args) {
+  ExecArgs() {
+    exec_args_[0] = NULL;
+  }
+  bool Init(Handle<Value> arg0, Handle<Array> command_args) {
     String::Utf8Value prog(arg0);
-    int len = prog.length() + 1;
+    if (*prog == NULL) {
+      const char* message =
+          "os.system(): String conversion of program name failed";
+      ThrowException(String::New(message));
+      return false;
+    }
+    int len = prog.length() + 3;
     char* c_arg = new char[len];
     snprintf(c_arg, len, "%s", *prog);
     exec_args_[0] = c_arg;
@@ -194,12 +203,20 @@ class ExecArgs {
     for (unsigned j = 0; j < command_args->Length(); i++, j++) {
       Handle<Value> arg(command_args->Get(Integer::New(j)));
       String::Utf8Value utf8_arg(arg);
+      if (*utf8_arg == NULL) {
+        exec_args_[i] = NULL;  // Consistent state for destructor.
+        const char* message =
+            "os.system(): String conversion of argument failed.";
+        ThrowException(String::New(message));
+        return false;
+      }
       int len = utf8_arg.length() + 1;
       char* c_arg = new char[len];
       snprintf(c_arg, len, "%s", *utf8_arg);
       exec_args_[i] = c_arg;
     }
     exec_args_[i] = NULL;
+    return true;
   }
   ~ExecArgs() {
     for (unsigned i = 0; i < kMaxArgs; i++) {
@@ -454,7 +471,10 @@ Handle<Value> Shell::System(const Arguments& args) {
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
-  ExecArgs exec_args(args[0], command_args);
+  ExecArgs exec_args;
+  if (!exec_args.Init(args[0], command_args)) {
+    return v8::Undefined();
+  }
   int exec_error_fds[2];
   int stdout_fds[2];
 
@@ -498,6 +518,23 @@ Handle<Value> Shell::System(const Arguments& args) {
   }
 
   return scope.Close(accumulator);
+}
+
+
+Handle<Value> Shell::ChangeDirectory(const Arguments& args) {
+  if (args.Length() != 1) {
+    const char* message = "chdir() takes one argument";
+    return ThrowException(String::New(message));
+  }
+  String::Utf8Value directory(args[0]);
+  if (*directory == NULL) {
+    const char* message = "os.chdir(): String conversion of argument failed.";
+    return ThrowException(String::New(message));
+  }
+  if (chdir(*directory) != 0) {
+    return ThrowException(String::New(strerror(errno)));
+  }
+  return v8::Undefined();
 }
 
 

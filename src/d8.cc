@@ -163,6 +163,28 @@ Handle<Value> Shell::Print(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::SetEnvironment(const Arguments& args) {
+  if (args.Length() != 2) {
+    const char* message = "setenv() takes two arguments";
+    return ThrowException(String::New(message));
+  }
+  String::Utf8Value var(args[0]);
+  String::Utf8Value value(args[1]);
+  if (*var == NULL) {
+    const char* message =
+        "os.setenv(): String conversion of variable name failed.";
+    return ThrowException(String::New(message));
+  }
+  if (*value == NULL) {
+    const char* message =
+        "os.setenv(): String conversion of variable contents failed.";
+    return ThrowException(String::New(message));
+  }
+  setenv(*var, *value, 1);
+  return v8::Undefined();
+}
+
+
 Handle<Value> Shell::Load(const Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope;
@@ -342,7 +364,12 @@ void Shell::Initialize() {
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
-  global_template->Set(String::New("system"), FunctionTemplate::New(System));
+
+  Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
+  os_templ->Set(String::New("system"), FunctionTemplate::New(System));
+  os_templ->Set(String::New("chdir"), FunctionTemplate::New(ChangeDirectory));
+  os_templ->Set(String::New("setenv"), FunctionTemplate::New(SetEnvironment));
+  global_template->Set(String::New("os"), os_templ);
 
   utility_context_ = Context::New(NULL, global_template);
   utility_context_->SetSecurityToken(Undefined());
