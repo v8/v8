@@ -285,6 +285,7 @@ void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
 void Top::UnregisterTryCatchHandler(v8::TryCatch* that) {
   ASSERT(thread_local_.try_catch_handler_ == that);
   thread_local_.try_catch_handler_ = that->next_;
+  thread_local_.catcher_ = NULL;
 }
 
 
@@ -724,9 +725,8 @@ void Top::DoThrow(Object* exception,
   // Determine reporting and whether the exception is caught externally.
   bool is_caught_externally = false;
   bool is_out_of_memory = exception == Failure::OutOfMemoryException();
-  bool should_return_exception =  ShouldReportException(&is_caught_externally);
+  bool should_return_exception = ShouldReportException(&is_caught_externally);
   bool report_exception = !is_out_of_memory && should_return_exception;
-
 
   // Notify debugger of exception.
   Debugger::OnException(exception_handle, report_exception);
@@ -823,16 +823,36 @@ void Top::TraceException(bool flag) {
 
 
 bool Top::optional_reschedule_exception(bool is_bottom_call) {
-  if (!is_out_of_memory() &&
-      (thread_local_.external_caught_exception_ || is_bottom_call)) {
-    thread_local_.external_caught_exception_ = false;
-    clear_pending_exception();
-    return false;
-  } else {
-    thread_local_.scheduled_exception_ = pending_exception();
-    clear_pending_exception();
-    return true;
+  // Allways reschedule out of memory exceptions.
+  if (!is_out_of_memory()) {
+    // Never reschedule the exception if this is the bottom call.
+    bool clear_exception = is_bottom_call;
+
+    // If the exception is externally caught, clear it if there are no
+    // JavaScript frames on the way to the C++ frame that has the
+    // external handler.
+    if (thread_local_.external_caught_exception_) {
+      ASSERT(thread_local_.try_catch_handler_ != NULL);
+      Address external_handler_address =
+          reinterpret_cast<Address>(thread_local_.try_catch_handler_);
+      JavaScriptFrameIterator it;
+      if (it.done() || (it.frame()->sp() > external_handler_address)) {
+        clear_exception = true;
+      }
+    }
+
+    // Clear the exception if needed.
+    if (clear_exception) {
+      thread_local_.external_caught_exception_ = false;
+      clear_pending_exception();
+      return false;
+    }
   }
+
+  // Reschedule the exception.
+  thread_local_.scheduled_exception_ = pending_exception();
+  clear_pending_exception();
+  return true;
 }
 
 

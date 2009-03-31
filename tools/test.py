@@ -1261,7 +1261,8 @@ def Main():
       env = {
         'mode': mode,
         'system': utils.GuessOS(),
-        'arch': options.arch
+        'arch': options.arch,
+        'simulator': options.simulator
       }
       test_list = root.ListTests([], path, context, mode)
       unclassified_tests += test_list
