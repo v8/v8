@@ -538,4 +538,26 @@ Handle<Value> Shell::ChangeDirectory(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::SetEnvironment(const Arguments& args) {
+  if (args.Length() != 2) {
+    const char* message = "setenv() takes two arguments";
+    return ThrowException(String::New(message));
+  }
+  String::Utf8Value var(args[0]);
+  String::Utf8Value value(args[1]);
+  if (*var == NULL) {
+    const char* message =
+        "os.setenv(): String conversion of variable name failed.";
+    return ThrowException(String::New(message));
+  }
+  if (*value == NULL) {
+    const char* message =
+        "os.setenv(): String conversion of variable contents failed.";
+    return ThrowException(String::New(message));
+  }
+  setenv(*var, *value, 1);
+  return v8::Undefined();
+}
+
+
 }  // namespace v8

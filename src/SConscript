@@ -95,7 +95,7 @@ D8_FILES = {
   'os:freebsd': [
     'd8-posix.cc'
   ],
-  'os:windows': [
+  'os:win32': [
     'd8-windows.cc'
   ],
   'os:nullos': [

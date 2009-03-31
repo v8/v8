@@ -49,4 +49,11 @@ Handle<Value> Shell::ChangeDirectory(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::SetEnvironment(const Arguments& args) {
+  Handle<String> error_message =
+      String::New("setenv() is not yet supported on your OS");
+  return ThrowException(error_message);
+}
+
+
 }  // namespace v8
