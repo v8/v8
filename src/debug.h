@@ -495,7 +495,6 @@ class Debugger {
   static bool HasCommands();
 
   static void ProcessHostDispatch(void* dispatch);
-  static void UpdateActiveDebugger();
   static Handle<Object> Call(Handle<JSFunction> fun,
                              Handle<Object> data,
                              bool* pending_exception);
@@ -506,15 +505,22 @@ class Debugger {
   // Stop the debugger agent.
   static void StopAgent();
 
+  // Unload the debugger if possible. Only called when no debugger is currently
+  // active.
+  static void UnloadDebugger();
+
   inline static bool EventActive(v8::DebugEvent event) {
+    ScopedLock with(debugger_access_);
+
+    // Check whether the message handler was been cleared.
+    if (message_handler_cleared_) {
+      UnloadDebugger();
+    }
+
     // Currently argument event is not used.
-    return !Debugger::compiling_natives_ && Debugger::debugger_active_;
+    return !compiling_natives_ && Debugger::IsDebuggerActive();
   }
 
-  static void set_debugger_active(bool debugger_active) {
-    Debugger::debugger_active_ = debugger_active;
-  }
-  static bool debugger_active() { return Debugger::debugger_active_; }
   static void set_compiling_natives(bool compiling_natives) {
     Debugger::compiling_natives_ = compiling_natives;
   }
@@ -523,13 +529,17 @@ class Debugger {
   static bool is_loading_debugger() { return Debugger::is_loading_debugger_; }
 
  private:
-  static Handle<Object> event_listener_;  // Global handle to listener
+  static bool IsDebuggerActive();
+
+  static Mutex* debugger_access_;  // Mutex guarding debugger variables.
+  static Handle<Object> event_listener_;  // Global handle to listener.
   static Handle<Object> event_listener_data_;
-  static bool debugger_active_;  // Are there any active debugger?
   static bool compiling_natives_;  // Are we compiling natives?
   static bool is_loading_debugger_;  // Are we loading the debugger?
+  static bool never_unload_debugger_;  // Can we unload the debugger?
   static DebugMessageThread* message_thread_;
   static v8::DebugMessageHandler message_handler_;
+  static bool message_handler_cleared_;  // Was message handler cleared?
   static void* message_handler_data_;
   static v8::DebugHostDispatchHandler host_dispatch_handler_;
   static void* host_dispatch_handler_data_;
@@ -542,6 +552,7 @@ class Debugger {
   static Semaphore* command_received_;  // Signaled for each command received.
   static Semaphore* message_received_;  // Signalled for each message send.
 
+  friend class EnterDebugger;
   friend class DebugMessageThread;
 };
 
@@ -616,6 +627,13 @@ class EnterDebugger BASE_EMBEDDED {
     // these commands are processed.
     if (prev_ == NULL && Debugger::HasCommands()) {
       StackGuard::DebugCommand();
+    }
+
+    // If leaving the debugger with the debugger no longer active unload it.
+    if (prev_ == NULL) {
+      if (!Debugger::IsDebuggerActive()) {
+        Debugger::UnloadDebugger();
+      }
     }
 
     // Leaving this debugger entry.

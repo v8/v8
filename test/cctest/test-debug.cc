@@ -390,12 +390,6 @@ static Handle<Code> ComputeCallDebugBreak(int argc) {
 }
 
 
-// Check that the debugger is loaded.
-static void CheckDebuggerLoaded() {
-  CHECK(Debug::debug_context().is_null());
-}
-
-
 // Check that the debugger has been fully unloaded.
 void CheckDebuggerUnloaded(bool check_functions) {
   // Check that the debugger context is cleared and that there is no debug
@@ -435,12 +429,6 @@ void CheckDebuggerUnloaded(bool check_functions) {
 
 
 } }  // namespace v8::internal
-
-
-// Check that the debugger is loaded.
-static void CheckDebuggerLoaded() {
-  v8::internal::CheckDebuggerLoaded();
-}
 
 
 // Check that the debugger has been fully unloaded.
@@ -3740,8 +3728,6 @@ TEST(DebuggerUnload) {
   // Add debug event listener.
   v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
                                    v8::Undefined());
-  CheckDebuggerLoaded();
-
   // Create a couple of functions for the test.
   v8::Local<v8::Function> foo =
       CompileFunction(&env, "function foo(){x=1}", "foo");
@@ -3768,8 +3754,6 @@ TEST(DebuggerUnload) {
   // Set a new debug event listener.
   v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
                                    v8::Undefined());
-  CheckDebuggerLoaded();
-
   // Check that the break points was actually cleared.
   break_point_hit_count = 0;
   foo->Call(env->Global(), 0, NULL);
@@ -3783,6 +3767,89 @@ TEST(DebuggerUnload) {
 
   // Remove the debug event listener without clearing breakpoints again.
   v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded(true);
+}
+
+
+// Debugger message handler which counts the number of times it is called.
+static int message_handler_hit_count = 0;
+static void MessageHandlerHitCount(const uint16_t* message,
+                                   int length, void* data) {
+  message_handler_hit_count++;
+
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+  const char* command_continue =
+    "{\"seq\":0,"
+     "\"type\":\"request\","
+     "\"command\":\"continue\"}";
+
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+}
+
+
+// Test clearing the debug message handler.
+TEST(DebuggerClearMessageHandler) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Check debugger is unloaded before it is used.
+  CheckDebuggerUnloaded();
+
+  // Set a debug message handler.
+  v8::Debug::SetMessageHandler(MessageHandlerHitCount);
+
+  // Run code to throw a unhandled exception. This should end up in the message
+  // handler.
+  CompileRun("throw 1");
+
+  // The message handler should be called.
+  CHECK_GT(message_handler_hit_count, 0);
+
+  // Clear debug message handler.
+  message_handler_hit_count = 0;
+  v8::Debug::SetMessageHandler(NULL);
+
+  // Run code to throw a unhandled exception. This should end up in the message
+  // handler.
+  CompileRun("throw 1");
+
+  // The message handler should not be called more.
+  CHECK_EQ(0, message_handler_hit_count);
+
+  CheckDebuggerUnloaded(true);
+}
+
+
+// Debugger message handler which clears the message handler while active.
+static void MessageHandlerClearingMessageHandler(const uint16_t* message,
+                                                 int length,
+                                                 void* data) {
+  message_handler_hit_count++;
+
+  // Clear debug message handler.
+  v8::Debug::SetMessageHandler(NULL);
+}
+
+
+// Test clearing the debug message handler while processing a debug event.
+TEST(DebuggerClearMessageHandlerWhileActive) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Check debugger is unloaded before it is used.
+  CheckDebuggerUnloaded();
+
+  // Set a debug message handler.
+  v8::Debug::SetMessageHandler(MessageHandlerClearingMessageHandler);
+
+  // Run code to throw a unhandled exception. This should end up in the message
+  // handler.
+  CompileRun("throw 1");
+
+  // The message handler should be called.
+  CHECK_EQ(1, message_handler_hit_count);
+
   CheckDebuggerUnloaded(true);
 }
 

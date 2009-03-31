@@ -607,9 +607,6 @@ void Debug::Unload() {
     return;
   }
 
-  // Get rid of all break points and related information.
-  ClearAllBreakPoints();
-
   // Clear debugger context global handle.
   GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
@@ -1369,13 +1366,15 @@ void Debug::ClearMirrorCache() {
 }
 
 
+Mutex* Debugger::debugger_access_ = OS::CreateMutex();
 Handle<Object> Debugger::event_listener_ = Handle<Object>();
 Handle<Object> Debugger::event_listener_data_ = Handle<Object>();
-bool Debugger::debugger_active_ = false;
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
+bool Debugger::never_unload_debugger_ = false;
 DebugMessageThread* Debugger::message_thread_ = NULL;
 v8::DebugMessageHandler Debugger::message_handler_ = NULL;
+bool Debugger::message_handler_cleared_ = false;
 void* Debugger::message_handler_data_ = NULL;
 v8::DebugHostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
 void* Debugger::host_dispatch_handler_data_ = NULL;
@@ -1581,7 +1580,7 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   if (compiling_natives()) return;
 
   // No more to do if not debugging.
-  if (!debugger_active()) return;
+  if (!IsDebuggerActive()) return;
 
   // Store whether in debugger before entering debugger.
   bool in_debugger = Debug::InDebugger();
@@ -1710,6 +1709,20 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
 }
 
 
+void Debugger::UnloadDebugger() {
+  // Make sure that there are no breakpoints left.
+  Debug::ClearAllBreakPoints();
+
+  // Unload the debugger if feasible.
+  if (!never_unload_debugger_) {
+    Debug::Unload();
+  }
+
+  // Clear the flag indicating that the message handler was recently cleared.
+  message_handler_cleared_ = false;
+}
+
+
 void Debugger::NotifyMessageHandler(v8::DebugEvent event,
                                     Handle<Object> exec_state,
                                     Handle<Object> event_data,
@@ -1777,7 +1790,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     // Get the command from the queue.
     Vector<uint16_t> command = command_queue_.Get();
     Logger::DebugTag("Got request from command queue, in interactive loop.");
-    if (!Debugger::debugger_active()) {
+    if (!Debugger::IsDebuggerActive()) {
       return;
     }
 
@@ -1880,19 +1893,34 @@ void Debugger::SetEventListener(Handle<Object> callback,
     event_listener_data_ = Handle<Object>::cast(GlobalHandles::Create(*data));
   }
 
-  UpdateActiveDebugger();
+  // Unload the debugger if event listener cleared.
+  if (callback->IsUndefined()) {
+    UnloadDebugger();
+  }
 }
 
 
 void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
                                  bool message_handler_thread) {
+  ScopedLock with(debugger_access_);
+
   message_handler_ = handler;
   message_handler_data_ = data;
-  if (!message_thread_ && message_handler_thread) {
-    message_thread_ = new DebugMessageThread();
-    message_thread_->Start();
+  if (handler != NULL) {
+    if (!message_thread_ && message_handler_thread) {
+      message_thread_ = new DebugMessageThread();
+      message_thread_->Start();
+    }
+  } else {
+    // Indicate that the message handler was recently cleared.
+    message_handler_cleared_ = true;
+
+    // Send an empty command to the debugger if in a break to make JavaScript
+    // run again if the debugger is closed.
+    if (Debug::InDebugger()) {
+      ProcessCommand(Vector<const uint16_t>::empty());
+    }
   }
-  UpdateActiveDebugger();
 }
 
 
@@ -1908,6 +1936,8 @@ void Debugger::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
 // are allocated in various places and deallocated by the calling function
 // sometime after this call.
 void Debugger::InvokeMessageHandler(Vector<uint16_t> message) {
+  ScopedLock with(debugger_access_);
+
   if (message_handler_ != NULL) {
     message_handler_(message.start(), message.length(), message_handler_data_);
   }
@@ -1999,22 +2029,19 @@ void Debugger::ProcessHostDispatch(void* dispatch) {
 }
 
 
-void Debugger::UpdateActiveDebugger() {
-  set_debugger_active(message_handler_ != NULL || !event_listener_.is_null());
-  if (!debugger_active() && message_thread_) {
-    // Send an empty command to the debugger if in a break to make JavaScript
-    // run again if the debugger is closed.
-    ProcessCommand(Vector<const uint16_t>::empty());
-  }
-  if (!debugger_active()) {
-    Debug::Unload();
-  }
+bool Debugger::IsDebuggerActive() {
+  ScopedLock with(debugger_access_);
+
+  return message_handler_ != NULL || !event_listener_.is_null();
 }
 
 
 Handle<Object> Debugger::Call(Handle<JSFunction> fun,
                               Handle<Object> data,
                               bool* pending_exception) {
+  // When calling functions in the debugger prevent it from beeing unloaded.
+  Debugger::never_unload_debugger_ = true;
+
   // Enter the debugger.
   EnterDebugger debugger;
   if (debugger.FailedToEnter() || !debugger.HasJavaScriptFrames()) {
