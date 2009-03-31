@@ -977,6 +977,8 @@ Result VirtualFrame::Pop() {
     Use(temp.reg(), index);
     FrameElement new_element =
         FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
+    // Preserve the copy flag on the element.
+    if (element.is_copied()) new_element.set_copied();
     elements_[index] = new_element;
     __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
     return Result(temp.reg(), cgen_);
