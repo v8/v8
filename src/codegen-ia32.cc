@@ -4799,17 +4799,25 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                    target.size() * kPointerSize);
 
     Result value = frame_->Pop();
-    value.ToRegister();
-    ASSERT(value.is_valid());
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
-      Result old_value = value;
-      frame_->SetElementAt(target.size(), &old_value);
+      if (value.is_register()) {
+        Result old_value = allocator_->Allocate();
+        ASSERT(old_value.is_valid());
+        __ mov(old_value.reg(), value.reg());
+        frame_->SetElementAt(target.size(), &old_value);
+      } else {
+        ASSERT(value.is_constant());
+        Result old_value = value;
+        frame_->SetElementAt(target.size(), &old_value);
+      }
     }
 
     // Perform optimistic increment/decrement.  Ensure the value is
     // writable.
+    value.ToRegister();
+    ASSERT(value.is_valid());
     frame_->Spill(value.reg());
     ASSERT(allocator_->count(value.reg()) == 1);
 
