@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -32,10 +32,10 @@
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
-#include "scopes.h"
-#include "rewriter.h"
-#include "usage-analyzer.h"
 #include "oprofile-agent.h"
+#include "rewriter.h"
+#include "scopes.h"
+#include "usage-analyzer.h"
 
 namespace v8 { namespace internal {
 
