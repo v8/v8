@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -162,7 +163,7 @@ static bool TimeIsOut(const struct timeval& start_time, const int& total_time) {
 class ZombieProtector {
  public:
   explicit ZombieProtector(int pid): pid_(pid) { }
-  ~ZombieProtector() { if (pid_ != 0) waitpid(pid_, NULL, WNOHANG); }
+  ~ZombieProtector() { if (pid_ != 0) waitpid(pid_, NULL, 0); }
   void ChildIsDeadNow() { pid_ = 0; }
  private:
   int pid_;
@@ -394,7 +395,6 @@ static bool WaitForChild(int pid,
       return false;
     }
   }
-  child_waiter.ChildIsDeadNow();
   if (child_info.si_code == CLD_KILLED) {
     char message[999];
     snprintf(message,
@@ -417,7 +417,6 @@ static bool WaitForChild(int pid,
 #else  // No waitid call.
 
   int child_status;
-  printf("waitpid");
   waitpid(pid, &child_status, 0);  // We hang here if the child doesn't exit.
   child_waiter.ChildIsDeadNow();
   if (WIFSIGNALED(child_status)) {
@@ -538,6 +537,103 @@ Handle<Value> Shell::ChangeDirectory(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::SetUMask(const Arguments& args) {
+  if (args.Length() != 1) {
+    const char* message = "umask() takes one argument";
+    return ThrowException(String::New(message));
+  }
+  if (args[0]->IsNumber()) {
+    mode_t mask = args[0]->Int32Value();
+    int previous = umask(mask);
+    return Number::New(previous);
+  } else {
+    const char* message = "umask() argument must be numeric";
+    return ThrowException(String::New(message));
+  }
+}
+
+
+static bool CheckItsADirectory(char* directory) {
+  struct stat stat_buf;
+  int stat_result = stat(directory, &stat_buf);
+  if (stat_result != 0) {
+    ThrowException(String::New(strerror(errno)));
+    return false;
+  }
+  if ((stat_buf.st_mode & S_IFDIR) != 0) return true;
+  ThrowException(String::New(strerror(EEXIST)));
+  return false;
+}
+
+
+// Returns true for success.  Creates intermediate directories as needed.  No
+// error if the directory exists already.
+static bool mkdirp(char* directory, mode_t mask) {
+  int result = mkdir(directory, mask);
+  if (result == 0) return true;
+  if (errno == EEXIST) {
+    return CheckItsADirectory(directory);
+  } else if (errno == ENOENT) {  // Intermediate path element is missing.
+    char* last_slash = strrchr(directory, '/');
+    if (last_slash == NULL) {
+      ThrowException(String::New(strerror(errno)));
+      return false;
+    }
+    *last_slash = 0;
+    if (!mkdirp(directory, mask)) return false;
+    *last_slash = '/';
+    result = mkdir(directory, mask);
+    if (result == 0) return true;
+    if (errno == EEXIST) {
+      return CheckItsADirectory(directory);
+    }
+    ThrowException(String::New(strerror(errno)));
+    return false;
+  } else {
+    ThrowException(String::New(strerror(errno)));
+    return false;
+  }
+}
+
+
+Handle<Value> Shell::MakeDirectory(const Arguments& args) {
+  mode_t mask = 0777;
+  if (args.Length() == 2) {
+    if (args[1]->IsNumber()) {
+      mask = args[1]->Int32Value();
+    } else {
+      const char* message = "mkdirp() second argument must be numeric";
+      return ThrowException(String::New(message));
+    }
+  } else if (args.Length() != 1) {
+    const char* message = "mkdirp() takes one or two arguments";
+    return ThrowException(String::New(message));
+  }
+  String::Utf8Value directory(args[0]);
+  if (*directory == NULL) {
+    const char* message = "os.mkdirp(): String conversion of argument failed.";
+    return ThrowException(String::New(message));
+  }
+  mkdirp(*directory, mask);
+  return v8::Undefined();
+}
+
+
+Handle<Value> Shell::RemoveDirectory(const Arguments& args) {
+  if (args.Length() != 1) {
+    const char* message = "rmdir() takes one or two arguments";
+    return ThrowException(String::New(message));
+  }
+  String::Utf8Value directory(args[0]);
+  if (*directory == NULL) {
+    const char* message = "os.rmdir(): String conversion of argument failed.";
+    return ThrowException(String::New(message));
+  }
+  rmdir(*directory);
+  return v8::Undefined();
+}
+
+
 Handle<Value> Shell::SetEnvironment(const Arguments& args) {
   if (args.Length() != 2) {
     const char* message = "setenv() takes two arguments";
@@ -559,5 +655,14 @@ Handle<Value> Shell::SetEnvironment(const Arguments& args) {
   return v8::Undefined();
 }
 
+
+void Shell::AddOSMethods(Handle<ObjectTemplate> os_templ) {
+  os_templ->Set(String::New("system"), FunctionTemplate::New(System));
+  os_templ->Set(String::New("chdir"), FunctionTemplate::New(ChangeDirectory));
+  os_templ->Set(String::New("setenv"), FunctionTemplate::New(SetEnvironment));
+  os_templ->Set(String::New("umask"), FunctionTemplate::New(SetUMask));
+  os_templ->Set(String::New("mkdirp"), FunctionTemplate::New(MakeDirectory));
+  os_templ->Set(String::New("rmdir"), FunctionTemplate::New(RemoveDirectory));
+}
 
 }  // namespace v8

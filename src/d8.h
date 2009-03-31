@@ -149,10 +149,22 @@ class Shell: public i::AllStatic {
   //
   // os.setenv(variable, value) sets an environment variable.  Repeated calls to
   // this method leak memory due to the API of setenv in the standard C library.
+  //
+  // os.umask(alue) calls the umask system call and returns the old umask.
+  //
+  // os.mkdirp(name, mask) creates a directory.  The mask (if present) is anded
+  // with the current umask.  Intermediate directories are created if necessary.
+  // An exception is not thrown if the directory already exists.  Analogous to
+  // the "mkdir -p" command.
   static Handle<Value> OSObject(const Arguments& args);
   static Handle<Value> System(const Arguments& args);
   static Handle<Value> ChangeDirectory(const Arguments& args);
   static Handle<Value> SetEnvironment(const Arguments& args);
+  static Handle<Value> SetUMask(const Arguments& args);
+  static Handle<Value> MakeDirectory(const Arguments& args);
+  static Handle<Value> RemoveDirectory(const Arguments& args);
+
+  static void AddOSMethods(Handle<ObjectTemplate> os_template);
 
   static Handle<Context> utility_context() { return utility_context_; }
 

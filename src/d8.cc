@@ -344,9 +344,7 @@ void Shell::Initialize() {
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
 
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
-  os_templ->Set(String::New("system"), FunctionTemplate::New(System));
-  os_templ->Set(String::New("chdir"), FunctionTemplate::New(ChangeDirectory));
-  os_templ->Set(String::New("setenv"), FunctionTemplate::New(SetEnvironment));
+  AddOSMethods(os_templ);
   global_template->Set(String::New("os"), os_templ);
 
   utility_context_ = Context::New(NULL, global_template);
