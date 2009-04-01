@@ -1,3 +1,19 @@
+2009-04-01: Version 1.1.5
+
+        Fixed bug that caused function literals to not be optimized as
+        much as other functions.
+
+        Improved profiler support.
+
+        Fixed a crash bug in connection with debugger unloading.
+
+        Fixed a crash bug in the code generator caused by losing the
+        information that a frame element was copied.
+
+        Fixed an exception propagation bug that could cause non-null
+        return values when exceptions were thrown.
+
+
 2009-03-30: Version 1.1.4
 
         Optimized String.prototype.match.
