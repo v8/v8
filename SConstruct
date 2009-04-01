@@ -107,6 +107,9 @@ LIBRARY_FLAGS = {
     },
     'os:linux': {
       'CCFLAGS':      ['-ansi'],
+      'library:shared': {
+        'LIBS': ['pthread', 'rt']
+      }
     },
     'os:macos': {
       'CCFLAGS':      ['-ansi'],
