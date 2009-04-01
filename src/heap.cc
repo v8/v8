@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2864,22 +2864,26 @@ void Heap::Shrink() {
 #ifdef ENABLE_HEAP_PROTECTION
 
 void Heap::Protect() {
-  new_space_.Protect();
-  map_space_->Protect();
-  old_pointer_space_->Protect();
-  old_data_space_->Protect();
-  code_space_->Protect();
-  lo_space_->Protect();
+  if (HasBeenSetup()) {
+    new_space_.Protect();
+    map_space_->Protect();
+    old_pointer_space_->Protect();
+    old_data_space_->Protect();
+    code_space_->Protect();
+    lo_space_->Protect();
+  }
 }
 
 
 void Heap::Unprotect() {
-  new_space_.Unprotect();
-  map_space_->Unprotect();
-  old_pointer_space_->Unprotect();
-  old_data_space_->Unprotect();
-  code_space_->Unprotect();
-  lo_space_->Unprotect();
+  if (HasBeenSetup()) {
+    new_space_.Unprotect();
+    map_space_->Unprotect();
+    old_pointer_space_->Unprotect();
+    old_data_space_->Unprotect();
+    code_space_->Unprotect();
+    lo_space_->Unprotect();
+  }
 }
 
 #endif

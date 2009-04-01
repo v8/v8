@@ -92,12 +92,16 @@ LIBRARY_FLAGS = {
     },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
-      'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG']
+      'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG'],
+      'os:android': {
+        'CCFLAGS':    ['-mthumb']
+      }
     },
     'mode:release': {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections',
                        '-ffunction-sections'],
       'os:android': {
+        'CCFLAGS':    ['-mthumb', '-Os'],
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },

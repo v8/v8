@@ -113,6 +113,9 @@ FILE* OS::FOpen(const char* path, const char* mode) {
 }
 
 
+const char* OS::LogFileOpenMode = "w";
+
+
 void OS::Print(const char* format, ...) {
   va_list args;
   va_start(args, format);

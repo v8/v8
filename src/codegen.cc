@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,8 +30,10 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "oprofile-agent.h"
 #include "prettyprinter.h"
 #include "register-allocator-inl.h"
+#include "rewriter.h"
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "stub-cache.h"
@@ -264,6 +266,12 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
   if (FLAG_lazy && allow_lazy) {
     code = ComputeLazyCompile(node->num_parameters());
   } else {
+    // The bodies of function literals have not yet been visited by
+    // the AST optimizer/analyzer.
+    if (!Rewriter::Optimize(node)) {
+      return Handle<JSFunction>::null();
+    }
+
     code = MakeCode(node, script_, false);
 
     // Check for stack-overflow exception.
@@ -274,6 +282,12 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
 
     // Function compilation complete.
     LOG(CodeCreateEvent("Function", *code, *node->name()));
+
+#ifdef ENABLE_OPROFILE_AGENT
+    OProfileAgent::CreateNativeCodeRegion(*node->name(),
+                                          code->address(),
+                                          code->ExecutableSize());
+#endif
   }
 
   // Create a boilerplate function.

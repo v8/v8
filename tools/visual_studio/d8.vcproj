@@ -158,6 +158,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\src\d8-windows.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\src\d8.js"
 			>
 				<FileConfiguration

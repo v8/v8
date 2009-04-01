@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -41,6 +41,13 @@
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
+#ifdef ENABLE_HEAP_PROTECTION
+#define ENTER_V8 i::VMState __state__(i::OTHER)
+#define LEAVE_V8 i::VMState __state__(i::EXTERNAL)
+#else
+#define ENTER_V8 ((void) 0)
+#define LEAVE_V8 ((void) 0)
+#endif
 
 namespace v8 {
 
@@ -97,6 +104,7 @@ static FatalErrorCallback exception_behavior = NULL;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
+  ENTER_V8;
   API_Fatal(location, message);
 }
 
@@ -116,7 +124,10 @@ static FatalErrorCallback& GetFatalErrorHandler() {
 void i::V8::FatalProcessOutOfMemory(const char* location) {
   has_shut_down = true;
   FatalErrorCallback callback = GetFatalErrorHandler();
-  callback(location, "Allocation failed - process out of memory");
+  {
+    LEAVE_V8;
+    callback(location, "Allocation failed - process out of memory");
+  }
   // If the callback returns, we stop execution.
   UNREACHABLE();
 }
@@ -129,7 +140,10 @@ void V8::SetFatalErrorHandler(FatalErrorCallback that) {
 
 bool Utils::ReportApiFailure(const char* location, const char* message) {
   FatalErrorCallback callback = GetFatalErrorHandler();
-  callback(location, message);
+  {
+    LEAVE_V8;
+    callback(location, message);
+  }
   has_shut_down = true;
   return false;
 }
@@ -149,14 +163,20 @@ static inline bool ApiCheck(bool condition,
 
 static bool ReportV8Dead(const char* location) {
   FatalErrorCallback callback = GetFatalErrorHandler();
-  callback(location, "V8 is no longer usable");
+  {
+    LEAVE_V8;
+    callback(location, "V8 is no longer usable");
+  }
   return true;
 }
 
 
 static bool ReportEmptyHandle(const char* location) {
   FatalErrorCallback callback = GetFatalErrorHandler();
-  callback(location, "Reading from empty handle");
+  {
+    LEAVE_V8;
+    callback(location, "Reading from empty handle");
+  }
   return true;
 }
 
@@ -194,6 +214,7 @@ static i::StringInputBuffer write_input_buffer;
 
 
 static void EnsureInitialized(const char* location) {
+  ENTER_V8;
   if (IsDeadCheck(location)) return;
   ApiCheck(v8::V8::Initialize(), location, "Error initializing V8");
 }
@@ -213,6 +234,7 @@ void ImplementationUtilities::ZapHandleRange(void** begin, void** end) {
 
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Undefined()")) return v8::Handle<v8::Primitive>();
   EnsureInitialized("v8::Undefined()");
   return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::undefined_value()));
@@ -220,6 +242,7 @@ v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
 
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Null() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Null()")) return v8::Handle<v8::Primitive>();
   EnsureInitialized("v8::Null()");
   return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::null_value()));
@@ -227,6 +250,7 @@ v8::Handle<v8::Primitive> ImplementationUtilities::Null() {
 
 
 v8::Handle<v8::Boolean> ImplementationUtilities::True() {
+  ENTER_V8;
   if (IsDeadCheck("v8::True()")) return v8::Handle<v8::Boolean>();
   EnsureInitialized("v8::True()");
   return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::true_value()));
@@ -234,6 +258,7 @@ v8::Handle<v8::Boolean> ImplementationUtilities::True() {
 
 
 v8::Handle<v8::Boolean> ImplementationUtilities::False() {
+  ENTER_V8;
   if (IsDeadCheck("v8::False()")) return v8::Handle<v8::Boolean>();
   EnsureInitialized("v8::False()");
   return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::false_value()));
@@ -251,6 +276,7 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
 
 
 v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ThrowException()")) return v8::Handle<Value>();
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
@@ -336,6 +362,7 @@ bool SetResourceConstraints(ResourceConstraints* constraints) {
 
 
 void** V8::GlobalizeReference(void** obj) {
+  ENTER_V8;
   LOG_API("Persistent::New");
   if (IsDeadCheck("V8::Persistent::New")) return NULL;
   i::Handle<i::Object> result =
@@ -407,6 +434,7 @@ void** v8::HandleScope::CreateHandle(void* value) {
 
 
 void Context::Enter() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::Enter()")) return;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   thread_local.EnterContext(env);
@@ -459,6 +487,7 @@ void** v8::HandleScope::RawClose(void** value) {
 // NeanderObject constructor.  When you add one to the site calling the
 // constructor you should check that you ensured the VM was not dead first.
 NeanderObject::NeanderObject(int size) {
+  ENTER_V8;
   EnsureInitialized("v8::Nowhere");
   value_ = i::Factory::NewNeanderObject();
   i::Handle<i::FixedArray> elements = i::Factory::NewFixedArray(size);
@@ -523,6 +552,7 @@ static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
 
 void Template::Set(v8::Handle<String> name, v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Template::SetProperty()")) return;
   HandleScope scope;
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list());
@@ -546,6 +576,7 @@ static void InitializeFunctionTemplate(
 
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::PrototypeTemplate()")) {
     return Local<ObjectTemplate>();
   }
@@ -559,6 +590,7 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
 
 
 void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::Inherit()")) return;
   Utils::OpenHandle(this)->set_parent_template(*Utils::OpenHandle(*value));
 }
@@ -571,6 +603,7 @@ static int next_serial_number = 0;
 
 Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
     v8::Handle<Value> data, v8::Handle<Signature> signature) {
+  ENTER_V8;
   EnsureInitialized("v8::FunctionTemplate::New()");
   LOG_API("FunctionTemplate::New");
   i::Handle<i::Struct> struct_obj =
@@ -594,6 +627,7 @@ Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
 
 Local<Signature> Signature::New(Handle<FunctionTemplate> receiver,
       int argc, Handle<FunctionTemplate> argv[]) {
+  ENTER_V8;
   EnsureInitialized("v8::Signature::New()");
   LOG_API("Signature::New");
   i::Handle<i::Struct> struct_obj =
@@ -620,6 +654,7 @@ Local<TypeSwitch> TypeSwitch::New(Handle<FunctionTemplate> type) {
 
 
 Local<TypeSwitch> TypeSwitch::New(int argc, Handle<FunctionTemplate> types[]) {
+  ENTER_V8;
   EnsureInitialized("v8::TypeSwitch::New()");
   LOG_API("TypeSwitch::New");
   i::Handle<i::FixedArray> vector = i::Factory::NewFixedArray(argc);
@@ -649,6 +684,7 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 
 void FunctionTemplate::SetCallHandler(InvocationCallback callback,
                                       v8::Handle<Value> data) {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::SetCallHandler()")) return;
   HandleScope scope;
   i::Handle<i::Struct> struct_obj =
@@ -669,6 +705,7 @@ void FunctionTemplate::AddInstancePropertyAccessor(
       v8::Handle<Value> data,
       v8::AccessControl settings,
       v8::PropertyAttribute attributes) {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::AddInstancePropertyAccessor()")) {
     return;
   }
@@ -696,6 +733,7 @@ void FunctionTemplate::AddInstancePropertyAccessor(
 
 
 Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::InstanceTemplate()")
       || EmptyCheck("v8::FunctionTemplate::InstanceTemplate()", this))
     return Local<ObjectTemplate>();
@@ -711,12 +749,14 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
 
 
 void FunctionTemplate::SetClassName(Handle<String> name) {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::SetClassName()")) return;
   Utils::OpenHandle(this)->set_class_name(*Utils::OpenHandle(*name));
 }
 
 
 void FunctionTemplate::SetHiddenPrototype(bool value) {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::SetHiddenPrototype()")) return;
   Utils::OpenHandle(this)->set_hidden_prototype(value);
 }
@@ -729,6 +769,7 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
       NamedPropertyDeleter remover,
       NamedPropertyEnumerator enumerator,
       Handle<Value> data) {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::SetNamedInstancePropertyHandler()")) {
     return;
   }
@@ -755,6 +796,7 @@ void FunctionTemplate::SetIndexedInstancePropertyHandler(
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
+  ENTER_V8;
   if (IsDeadCheck(
         "v8::FunctionTemplate::SetIndexedInstancePropertyHandler()")) {
     return;
@@ -778,6 +820,7 @@ void FunctionTemplate::SetIndexedInstancePropertyHandler(
 void FunctionTemplate::SetInstanceCallAsFunctionHandler(
       InvocationCallback callback,
       Handle<Value> data) {
+  ENTER_V8;
   if (IsDeadCheck("v8::FunctionTemplate::SetInstanceCallAsFunctionHandler()")) {
     return;
   }
@@ -803,6 +846,7 @@ Local<ObjectTemplate> ObjectTemplate::New() {
 
 Local<ObjectTemplate> ObjectTemplate::New(
       v8::Handle<FunctionTemplate> constructor) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::New()")) return Local<ObjectTemplate>();
   EnsureInitialized("v8::ObjectTemplate::New()");
   LOG_API("ObjectTemplate::New");
@@ -836,6 +880,7 @@ void ObjectTemplate::SetAccessor(v8::Handle<String> name,
                                  v8::Handle<Value> data,
                                  AccessControl settings,
                                  PropertyAttribute attribute) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::SetAccessor()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -857,6 +902,7 @@ void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
                                              NamedPropertyDeleter remover,
                                              NamedPropertyEnumerator enumerator,
                                              Handle<Value> data) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::SetNamedPropertyHandler()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -873,6 +919,7 @@ void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
 
 
 void ObjectTemplate::MarkAsUndetectable() {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::MarkAsUndetectable()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -888,6 +935,7 @@ void ObjectTemplate::SetAccessCheckCallbacks(
       IndexedSecurityCallback indexed_callback,
       Handle<Value> data,
       bool turned_on_by_default) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::SetAccessCheckCallbacks()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -916,6 +964,7 @@ void ObjectTemplate::SetIndexedPropertyHandler(
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::SetIndexedPropertyHandler()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -933,6 +982,7 @@ void ObjectTemplate::SetIndexedPropertyHandler(
 
 void ObjectTemplate::SetCallAsFunctionHandler(InvocationCallback callback,
                                               Handle<Value> data) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::SetCallAsFunctionHandler()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -944,6 +994,7 @@ void ObjectTemplate::SetCallAsFunctionHandler(InvocationCallback callback,
 
 
 int ObjectTemplate::InternalFieldCount() {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::InternalFieldCount()")) {
     return 0;
   }
@@ -952,6 +1003,7 @@ int ObjectTemplate::InternalFieldCount() {
 
 
 void ObjectTemplate::SetInternalFieldCount(int value) {
+  ENTER_V8;
   if (IsDeadCheck("v8::ObjectTemplate::SetInternalFieldCount()")) return;
   if (!ApiCheck(i::Smi::IsValid(value),
                 "v8::ObjectTemplate::SetInternalFieldCount()",
@@ -988,6 +1040,7 @@ ScriptData* ScriptData::New(unsigned* data, int length) {
 Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
                               v8::ScriptData* script_data) {
+  ENTER_V8;
   ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
   LOG_API("Script::Compile");
   i::Handle<i::String> str = Utils::OpenHandle(*source);
@@ -1036,6 +1089,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 
 Local<Value> Script::Run() {
+  ENTER_V8;
   ON_BAILOUT("v8::Script::Run()", return Local<Value>());
   LOG_API("Script::Run");
   i::Object* raw_result = NULL;
@@ -1055,6 +1109,7 @@ Local<Value> Script::Run() {
 
 
 Local<Value> Script::Id() {
+  ENTER_V8;
   ON_BAILOUT("v8::Script::Id()", return Local<Value>());
   LOG_API("Script::Id");
   i::Object* raw_id = NULL;
@@ -1135,6 +1190,7 @@ void v8::TryCatch::SetCaptureMessage(bool value) {
 
 
 Local<String> Message::Get() const {
+  ENTER_V8;
   ON_BAILOUT("v8::Message::Get()", return Local<String>());
   HandleScope scope;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1145,6 +1201,7 @@ Local<String> Message::Get() const {
 
 
 v8::Handle<Value> Message::GetScriptResourceName() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Message::GetScriptResourceName()")) {
     return Local<String>();
   }
@@ -1187,6 +1244,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
 
 
 int Message::GetLineNumber() const {
+  ENTER_V8;
   ON_BAILOUT("v8::Message::GetLineNumber()", return -1);
   HandleScope scope;
   EXCEPTION_PREAMBLE();
@@ -1199,6 +1257,7 @@ int Message::GetLineNumber() const {
 
 
 int Message::GetStartPosition() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Message::GetStartPosition()")) return 0;
   HandleScope scope;
 
@@ -1208,6 +1267,7 @@ int Message::GetStartPosition() const {
 
 
 int Message::GetEndPosition() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Message::GetEndPosition()")) return 0;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1216,6 +1276,7 @@ int Message::GetEndPosition() const {
 
 
 int Message::GetStartColumn() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Message::GetStartColumn()")) return 0;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1230,6 +1291,7 @@ int Message::GetStartColumn() const {
 
 
 int Message::GetEndColumn() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Message::GetEndColumn()")) return 0;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1246,6 +1308,7 @@ int Message::GetEndColumn() const {
 
 
 Local<String> Message::GetSourceLine() const {
+  ENTER_V8;
   ON_BAILOUT("v8::Message::GetSourceLine()", return Local<String>());
   HandleScope scope;
   EXCEPTION_PREAMBLE();
@@ -1262,6 +1325,7 @@ Local<String> Message::GetSourceLine() const {
 
 
 void Message::PrintCurrentStackTrace(FILE* out) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Message::PrintCurrentStackTrace()")) return;
   i::Top::PrintCurrentStackTrace(out);
 }
@@ -1270,72 +1334,84 @@ void Message::PrintCurrentStackTrace(FILE* out) {
 // --- D a t a ---
 
 bool Value::IsUndefined() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsUndefined()")) return false;
   return Utils::OpenHandle(this)->IsUndefined();
 }
 
 
 bool Value::IsNull() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsNull()")) return false;
   return Utils::OpenHandle(this)->IsNull();
 }
 
 
 bool Value::IsTrue() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsTrue()")) return false;
   return Utils::OpenHandle(this)->IsTrue();
 }
 
 
 bool Value::IsFalse() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsFalse()")) return false;
   return Utils::OpenHandle(this)->IsFalse();
 }
 
 
 bool Value::IsFunction() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsFunction()")) return false;
   return Utils::OpenHandle(this)->IsJSFunction();
 }
 
 
 bool Value::IsString() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsString()")) return false;
   return Utils::OpenHandle(this)->IsString();
 }
 
 
 bool Value::IsArray() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsArray()")) return false;
   return Utils::OpenHandle(this)->IsJSArray();
 }
 
 
 bool Value::IsObject() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsObject()")) return false;
   return Utils::OpenHandle(this)->IsJSObject();
 }
 
 
 bool Value::IsNumber() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsNumber()")) return false;
   return Utils::OpenHandle(this)->IsNumber();
 }
 
 
 bool Value::IsBoolean() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsBoolean()")) return false;
   return Utils::OpenHandle(this)->IsBoolean();
 }
 
 
 bool Value::IsExternal() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsExternal()")) return false;
   return Utils::OpenHandle(this)->IsProxy();
 }
 
 
 bool Value::IsInt32() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsInt32()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return true;
@@ -1348,6 +1424,7 @@ bool Value::IsInt32() const {
 
 
 bool Value::IsDate() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->HasSpecificClassOf(i::Heap::Date_symbol());
@@ -1355,6 +1432,7 @@ bool Value::IsDate() const {
 
 
 Local<String> Value::ToString() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToString()")) return Local<String>();
   LOG_API("ToString");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1371,6 +1449,7 @@ Local<String> Value::ToString() const {
 
 
 Local<String> Value::ToDetailString() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToDetailString()")) return Local<String>();
   LOG_API("ToDetailString");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1387,6 +1466,7 @@ Local<String> Value::ToDetailString() const {
 
 
 Local<v8::Object> Value::ToObject() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToObject()")) return Local<v8::Object>();
   LOG_API("ToObject");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1403,6 +1483,7 @@ Local<v8::Object> Value::ToObject() const {
 
 
 Local<Boolean> Value::ToBoolean() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToBoolean()")) return Local<Boolean>();
   LOG_API("ToBoolean");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1413,6 +1494,7 @@ Local<Boolean> Value::ToBoolean() const {
 
 
 Local<Number> Value::ToNumber() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToNumber()")) return Local<Number>();
   LOG_API("ToNumber");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1429,6 +1511,7 @@ Local<Number> Value::ToNumber() const {
 
 
 Local<Integer> Value::ToInteger() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToInteger()")) return Local<Integer>();
   LOG_API("ToInteger");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1445,6 +1528,7 @@ Local<Integer> Value::ToInteger() const {
 
 
 External* External::Cast(v8::Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::External::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsProxy(),
@@ -1455,6 +1539,7 @@ External* External::Cast(v8::Value* that) {
 
 
 v8::Object* v8::Object::Cast(Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Object::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSObject(),
@@ -1465,6 +1550,7 @@ v8::Object* v8::Object::Cast(Value* that) {
 
 
 v8::Function* v8::Function::Cast(Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Function::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSFunction(),
@@ -1475,6 +1561,7 @@ v8::Function* v8::Function::Cast(Value* that) {
 
 
 v8::String* v8::String::Cast(v8::Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsString(),
@@ -1485,6 +1572,7 @@ v8::String* v8::String::Cast(v8::Value* that) {
 
 
 v8::Number* v8::Number::Cast(v8::Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Number::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsNumber(),
@@ -1495,6 +1583,7 @@ v8::Number* v8::Number::Cast(v8::Value* that) {
 
 
 v8::Integer* v8::Integer::Cast(v8::Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Integer::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsNumber(),
@@ -1505,6 +1594,7 @@ v8::Integer* v8::Integer::Cast(v8::Value* that) {
 
 
 v8::Array* v8::Array::Cast(Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Array::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSArray(),
@@ -1515,6 +1605,7 @@ v8::Array* v8::Array::Cast(Value* that) {
 
 
 v8::Date* v8::Date::Cast(v8::Value* that) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Date::Cast()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->HasSpecificClassOf(i::Heap::Date_symbol()),
@@ -1525,6 +1616,7 @@ v8::Date* v8::Date::Cast(v8::Value* that) {
 
 
 bool Value::BooleanValue() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::BooleanValue()")) return false;
   LOG_API("BooleanValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1535,6 +1627,7 @@ bool Value::BooleanValue() const {
 
 
 double Value::NumberValue() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::NumberValue()")) return i::OS::nan_value();
   LOG_API("NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1551,6 +1644,7 @@ double Value::NumberValue() const {
 
 
 int64_t Value::IntegerValue() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::IntegerValue()")) return 0;
   LOG_API("IntegerValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1571,6 +1665,7 @@ int64_t Value::IntegerValue() const {
 
 
 Local<Int32> Value::ToInt32() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToInt32()")) return Local<Int32>();
   LOG_API("ToInt32");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1587,6 +1682,7 @@ Local<Int32> Value::ToInt32() const {
 
 
 Local<Uint32> Value::ToUint32() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToUint32()")) return Local<Uint32>();
   LOG_API("ToUInt32");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1603,6 +1699,7 @@ Local<Uint32> Value::ToUint32() const {
 
 
 Local<Uint32> Value::ToArrayIndex() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::ToArrayIndex()")) return Local<Uint32>();
   LOG_API("ToArrayIndex");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1630,6 +1727,7 @@ Local<Uint32> Value::ToArrayIndex() const {
 
 
 int32_t Value::Int32Value() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::Int32Value()")) return 0;
   LOG_API("Int32Value");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1651,6 +1749,7 @@ int32_t Value::Int32Value() const {
 
 
 bool Value::Equals(Handle<Value> that) const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::Equals()")
       || EmptyCheck("v8::Value::Equals()", this)
       || EmptyCheck("v8::Value::Equals()", that))
@@ -1668,6 +1767,7 @@ bool Value::Equals(Handle<Value> that) const {
 
 
 bool Value::StrictEquals(Handle<Value> that) const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::StrictEquals()")
       || EmptyCheck("v8::Value::StrictEquals()", this)
       || EmptyCheck("v8::Value::StrictEquals()", that))
@@ -1698,6 +1798,7 @@ bool Value::StrictEquals(Handle<Value> that) const {
 
 
 uint32_t Value::Uint32Value() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Value::Uint32Value()")) return 0;
   LOG_API("Uint32Value");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1719,6 +1820,7 @@ uint32_t Value::Uint32Value() const {
 
 bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
                      v8::PropertyAttribute attribs) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::Set()", return false);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
@@ -1736,6 +1838,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
 
 
 Local<Value> v8::Object::Get(v8::Handle<Value> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
@@ -1748,6 +1851,7 @@ Local<Value> v8::Object::Get(v8::Handle<Value> key) {
 
 
 Local<Value> v8::Object::GetPrototype() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::GetPrototype()", return Local<v8::Value>());
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> result = i::GetPrototype(self);
@@ -1756,6 +1860,7 @@ Local<Value> v8::Object::GetPrototype() {
 
 
 Local<Array> v8::Object::GetPropertyNames() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::GetPropertyNames()", return Local<v8::Array>());
   v8::HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
@@ -1770,6 +1875,7 @@ Local<Array> v8::Object::GetPropertyNames() {
 
 
 Local<String> v8::Object::ObjectProtoToString() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::ObjectProtoToString()", return Local<v8::String>());
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
 
@@ -1822,6 +1928,7 @@ Local<String> v8::Object::ObjectProtoToString() {
 
 
 bool v8::Object::Delete(v8::Handle<String> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::Delete()", return false);
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
@@ -1831,6 +1938,7 @@ bool v8::Object::Delete(v8::Handle<String> key) {
 
 
 bool v8::Object::Has(v8::Handle<String> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::Has()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
@@ -1839,6 +1947,7 @@ bool v8::Object::Has(v8::Handle<String> key) {
 
 
 bool v8::Object::Delete(uint32_t index) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::DeleteProperty()", return false);
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
@@ -1847,6 +1956,7 @@ bool v8::Object::Delete(uint32_t index) {
 
 
 bool v8::Object::Has(uint32_t index) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::HasProperty()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   return self->HasElement(index);
@@ -1854,6 +1964,7 @@ bool v8::Object::Has(uint32_t index) {
 
 
 bool v8::Object::HasRealNamedProperty(Handle<String> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::HasRealNamedProperty()", return false);
   return Utils::OpenHandle(this)->HasRealNamedProperty(
       *Utils::OpenHandle(*key));
@@ -1861,12 +1972,14 @@ bool v8::Object::HasRealNamedProperty(Handle<String> key) {
 
 
 bool v8::Object::HasRealIndexedProperty(uint32_t index) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::HasRealIndexedProperty()", return false);
   return Utils::OpenHandle(this)->HasRealElementProperty(index);
 }
 
 
 bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::HasRealNamedCallbackProperty()", return false);
   return Utils::OpenHandle(this)->HasRealNamedCallbackProperty(
       *Utils::OpenHandle(*key));
@@ -1874,12 +1987,14 @@ bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
 
 
 bool v8::Object::HasNamedLookupInterceptor() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::HasNamedLookupInterceptor()", return false);
   return Utils::OpenHandle(this)->HasNamedInterceptor();
 }
 
 
 bool v8::Object::HasIndexedLookupInterceptor() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::HasIndexedLookupInterceptor()", return false);
   return Utils::OpenHandle(this)->HasIndexedInterceptor();
 }
@@ -1887,6 +2002,7 @@ bool v8::Object::HasIndexedLookupInterceptor() {
 
 Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       Handle<String> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::GetRealNamedPropertyInPrototypeChain()",
              return Local<Value>());
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
@@ -1909,6 +2025,7 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
 // Because the object gets a new map, existing inline cache caching
 // the old map of this object will fail.
 void v8::Object::TurnOnAccessCheck() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::TurnOnAccessCheck()", return);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
 
@@ -1920,6 +2037,7 @@ void v8::Object::TurnOnAccessCheck() {
 
 
 Local<v8::Object> v8::Object::Clone() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::Clone()", return Local<Object>());
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE();
@@ -1931,6 +2049,7 @@ Local<v8::Object> v8::Object::Clone() {
 
 
 int v8::Object::GetIdentityHash() {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::GetIdentityHash()", return 0);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
@@ -1952,6 +2071,7 @@ int v8::Object::GetIdentityHash() {
 
 bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
                                 v8::Handle<v8::Value> value) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::SetHiddenValue()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
@@ -1970,6 +2090,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
 
 
 v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::Object::GetHiddenValue()", return Local<v8::Value>());
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, false));
@@ -1989,6 +2110,7 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
 
 
 bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
+  ENTER_V8;
   ON_BAILOUT("v8::DeleteHiddenValue()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::JSObject> hidden_props(
@@ -2008,6 +2130,7 @@ Local<v8::Object> Function::NewInstance() const {
 
 Local<v8::Object> Function::NewInstance(int argc,
                                         v8::Handle<v8::Value> argv[]) const {
+  ENTER_V8;
   ON_BAILOUT("v8::Function::NewInstance()", return Local<v8::Object>());
   LOG_API("Function::NewInstance");
   HandleScope scope;
@@ -2024,6 +2147,7 @@ Local<v8::Object> Function::NewInstance(int argc,
 
 Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
                                 v8::Handle<v8::Value> argv[]) {
+  ENTER_V8;
   ON_BAILOUT("v8::Function::Call()", return Local<v8::Value>());
   LOG_API("Function::Call");
   i::Object* raw_result = NULL;
@@ -2045,6 +2169,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
 
 
 void Function::SetName(v8::Handle<v8::String> name) {
+  ENTER_V8;
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   func->shared()->set_name(*Utils::OpenHandle(*name));
 }
@@ -2057,18 +2182,21 @@ Handle<Value> Function::GetName() const {
 
 
 int String::Length() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::Length()")) return 0;
   return Utils::OpenHandle(this)->length();
 }
 
 
 int String::Utf8Length() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::Utf8Length()")) return 0;
   return Utils::OpenHandle(this)->Utf8Length();
 }
 
 
 int String::WriteUtf8(char* buffer, int capacity) const {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
   LOG_API("String::WriteUtf8");
   i::Handle<i::String> str = Utils::OpenHandle(this);
@@ -2110,6 +2238,7 @@ int String::WriteUtf8(char* buffer, int capacity) const {
 
 
 int String::WriteAscii(char* buffer, int start, int length) const {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
   LOG_API("String::WriteAscii");
   ASSERT(start >= 0 && length >= -1);
@@ -2135,6 +2264,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
 
 
 int String::Write(uint16_t* buffer, int start, int length) const {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::Write()")) return 0;
   LOG_API("String::Write");
   ASSERT(start >= 0 && length >= -1);
@@ -2157,6 +2287,7 @@ int String::Write(uint16_t* buffer, int start, int length) const {
 
 
 bool v8::String::IsExternal() const {
+  ENTER_V8;
   EnsureInitialized("v8::String::IsExternal()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   return i::StringShape(*str).IsExternalTwoByte();
@@ -2164,6 +2295,7 @@ bool v8::String::IsExternal() const {
 
 
 bool v8::String::IsExternalAscii() const {
+  ENTER_V8;
   EnsureInitialized("v8::String::IsExternalAscii()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   return i::StringShape(*str).IsExternalAscii();
@@ -2172,6 +2304,7 @@ bool v8::String::IsExternalAscii() const {
 
 v8::String::ExternalStringResource*
 v8::String::GetExternalStringResource() const {
+  ENTER_V8;
   EnsureInitialized("v8::String::GetExternalStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   ASSERT(str->IsExternalTwoByteString());
@@ -2182,6 +2315,7 @@ v8::String::GetExternalStringResource() const {
 
 v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
+  ENTER_V8;
   EnsureInitialized("v8::String::GetExternalAsciiStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   ASSERT(str->IsExternalAsciiString());
@@ -2191,6 +2325,7 @@ v8::String::ExternalAsciiStringResource*
 
 
 double Number::Value() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Number::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->Number();
@@ -2198,6 +2333,7 @@ double Number::Value() const {
 
 
 bool Boolean::Value() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Boolean::Value()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->IsTrue();
@@ -2205,6 +2341,7 @@ bool Boolean::Value() const {
 
 
 int64_t Integer::Value() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Integer::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
@@ -2216,6 +2353,7 @@ int64_t Integer::Value() const {
 
 
 int32_t Int32::Value() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Int32::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
@@ -2227,6 +2365,7 @@ int32_t Int32::Value() const {
 
 
 int v8::Object::InternalFieldCount() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Object::InternalFieldCount()")) return 0;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   return obj->GetInternalFieldCount();
@@ -2234,6 +2373,7 @@ int v8::Object::InternalFieldCount() {
 
 
 Local<Value> v8::Object::GetInternalField(int index) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Object::GetInternalField()")) return Local<Value>();
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   if (!ApiCheck(index < obj->GetInternalFieldCount(),
@@ -2247,6 +2387,7 @@ Local<Value> v8::Object::GetInternalField(int index) {
 
 
 void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Object::SetInternalField()")) return;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   if (!ApiCheck(index < obj->GetInternalFieldCount(),
@@ -2262,6 +2403,7 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 // --- E n v i r o n m e n t ---
 
 bool v8::V8::Initialize() {
+  ENTER_V8;
   if (i::V8::HasBeenSetup()) return true;
   HandleScope scope;
   if (i::Snapshot::Initialize()) {
@@ -2279,7 +2421,7 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.1.4.1";
+  return "1.1.5";
 }
 
 
@@ -2299,6 +2441,7 @@ Persistent<Context> v8::Context::New(
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
     v8::Handle<Value> global_object) {
+  ENTER_V8;
   EnsureInitialized("v8::Context::New()");
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
@@ -2361,6 +2504,7 @@ Persistent<Context> v8::Context::New(
 
 
 void v8::Context::SetSecurityToken(Handle<Value> token) {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::SetSecurityToken()")) return;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Handle<i::Object> token_handle = Utils::OpenHandle(*token);
@@ -2369,6 +2513,7 @@ void v8::Context::SetSecurityToken(Handle<Value> token) {
 
 
 void v8::Context::UseDefaultSecurityToken() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::UseDefaultSecurityToken()")) return;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   env->set_security_token(env->global());
@@ -2376,6 +2521,7 @@ void v8::Context::UseDefaultSecurityToken() {
 
 
 Handle<Value> v8::Context::GetSecurityToken() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::GetSecurityToken()")) return Handle<Value>();
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Object* security_token = env->security_token();
@@ -2396,6 +2542,7 @@ bool Context::InContext() {
 
 
 v8::Local<v8::Context> Context::GetEntered() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::GetEntered()")) return Local<Context>();
   i::Handle<i::Object> last = thread_local.LastEnteredContext();
   if (last.is_null()) return Local<Context>();
@@ -2405,6 +2552,7 @@ v8::Local<v8::Context> Context::GetEntered() {
 
 
 v8::Local<v8::Context> Context::GetCurrent() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::GetCurrent()")) return Local<Context>();
   i::Handle<i::Context> context(i::Top::global_context());
   return Utils::ToLocal(context);
@@ -2412,6 +2560,7 @@ v8::Local<v8::Context> Context::GetCurrent() {
 
 
 v8::Local<v8::Object> Context::Global() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::Global()")) return Local<v8::Object>();
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
@@ -2422,6 +2571,7 @@ v8::Local<v8::Object> Context::Global() {
 
 
 void Context::DetachGlobal() {
+  ENTER_V8;
   if (IsDeadCheck("v8::Context::DetachGlobal()")) return;
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
@@ -2431,6 +2581,7 @@ void Context::DetachGlobal() {
 
 
 Local<v8::Object> ObjectTemplate::NewInstance() {
+  ENTER_V8;
   ON_BAILOUT("v8::ObjectTemplate::NewInstance()", return Local<v8::Object>());
   LOG_API("ObjectTemplate::NewInstance");
   EXCEPTION_PREAMBLE();
@@ -2443,6 +2594,7 @@ Local<v8::Object> ObjectTemplate::NewInstance() {
 
 
 Local<v8::Function> FunctionTemplate::GetFunction() {
+  ENTER_V8;
   ON_BAILOUT("v8::FunctionTemplate::GetFunction()",
              return Local<v8::Function>());
   LOG_API("FunctionTemplate::GetFunction");
@@ -2456,6 +2608,7 @@ Local<v8::Function> FunctionTemplate::GetFunction() {
 
 
 bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
+  ENTER_V8;
   ON_BAILOUT("v8::FunctionTemplate::HasInstanceOf()", return false);
   i::Object* obj = *Utils::OpenHandle(*value);
   return obj->IsInstanceOf(*Utils::OpenHandle(this));
@@ -2476,6 +2629,7 @@ static const int kAlignedPointerShift = 2;
 
 
 Local<Value> v8::External::Wrap(void* data) {
+  ENTER_V8;
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
   LOG_API("External::Wrap");
   EnsureInitialized("v8::External::Wrap()");
@@ -2491,6 +2645,7 @@ Local<Value> v8::External::Wrap(void* data) {
 
 
 void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
+  ENTER_V8;
   if (IsDeadCheck("v8::External::Unwrap()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   if (obj->IsSmi()) {
@@ -2503,6 +2658,7 @@ void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
 
 
 Local<External> v8::External::New(void* data) {
+  ENTER_V8;
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
   LOG_API("External::New");
   EnsureInitialized("v8::External::New()");
@@ -2511,6 +2667,7 @@ Local<External> v8::External::New(void* data) {
 
 
 void* External::Value() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::External::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return ExternalValueImpl(obj);
@@ -2518,6 +2675,7 @@ void* External::Value() const {
 
 
 Local<String> v8::String::Empty() {
+  ENTER_V8;
   EnsureInitialized("v8::String::Empty()");
   LOG_API("String::Empty()");
   return Utils::ToLocal(i::Factory::empty_symbol());
@@ -2525,6 +2683,7 @@ Local<String> v8::String::Empty() {
 
 
 Local<String> v8::String::New(const char* data, int length) {
+  ENTER_V8;
   EnsureInitialized("v8::String::New()");
   LOG_API("String::New(char)");
   if (length == 0) return Empty();
@@ -2536,6 +2695,7 @@ Local<String> v8::String::New(const char* data, int length) {
 
 
 Local<String> v8::String::NewUndetectable(const char* data, int length) {
+  ENTER_V8;
   EnsureInitialized("v8::String::NewUndetectable()");
   LOG_API("String::NewUndetectable(char)");
   if (length == -1) length = strlen(data);
@@ -2554,6 +2714,7 @@ static int TwoByteStringLength(const uint16_t* data) {
 
 
 Local<String> v8::String::New(const uint16_t* data, int length) {
+  ENTER_V8;
   EnsureInitialized("v8::String::New()");
   LOG_API("String::New(uint16_)");
   if (length == 0) return Empty();
@@ -2565,6 +2726,7 @@ Local<String> v8::String::New(const uint16_t* data, int length) {
 
 
 Local<String> v8::String::NewUndetectable(const uint16_t* data, int length) {
+  ENTER_V8;
   EnsureInitialized("v8::String::NewUndetectable()");
   LOG_API("String::NewUndetectable(uint16_)");
   if (length == -1) length = TwoByteStringLength(data);
@@ -2593,6 +2755,7 @@ i::Handle<i::String> NewExternalAsciiStringHandle(
 
 static void DisposeExternalString(v8::Persistent<v8::Value> obj,
                                   void* parameter) {
+  ENTER_V8;
   i::ExternalTwoByteString* str =
       i::ExternalTwoByteString::cast(*Utils::OpenHandle(*obj));
 
@@ -2622,6 +2785,7 @@ static void DisposeExternalString(v8::Persistent<v8::Value> obj,
 
 static void DisposeExternalAsciiString(v8::Persistent<v8::Value> obj,
                                        void* parameter) {
+  ENTER_V8;
   i::ExternalAsciiString* str =
       i::ExternalAsciiString::cast(*Utils::OpenHandle(*obj));
 
@@ -2651,6 +2815,7 @@ static void DisposeExternalAsciiString(v8::Persistent<v8::Value> obj,
 
 Local<String> v8::String::NewExternal(
       v8::String::ExternalStringResource* resource) {
+  ENTER_V8;
   EnsureInitialized("v8::String::NewExternal()");
   LOG_API("String::NewExternal");
   const size_t total_size = resource->length() * sizeof(*resource->data());
@@ -2665,6 +2830,7 @@ Local<String> v8::String::NewExternal(
 
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::MakeExternal()")) return false;
   if (this->IsExternal()) return false;  // Already an external string.
   i::Handle <i::String> obj = Utils::OpenHandle(this);
@@ -2684,6 +2850,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 Local<String> v8::String::NewExternal(
       v8::String::ExternalAsciiStringResource* resource) {
+  ENTER_V8;
   EnsureInitialized("v8::String::NewExternal()");
   LOG_API("String::NewExternal");
   const size_t total_size = resource->length() * sizeof(*resource->data());
@@ -2699,6 +2866,7 @@ Local<String> v8::String::NewExternal(
 
 bool v8::String::MakeExternal(
     v8::String::ExternalAsciiStringResource* resource) {
+  ENTER_V8;
   if (IsDeadCheck("v8::String::MakeExternal()")) return false;
   if (this->IsExternal()) return false;  // Already an external string.
   i::Handle <i::String> obj = Utils::OpenHandle(this);
@@ -2717,6 +2885,7 @@ bool v8::String::MakeExternal(
 
 
 Local<v8::Object> v8::Object::New() {
+  ENTER_V8;
   EnsureInitialized("v8::Object::New()");
   LOG_API("Object::New");
   i::Handle<i::JSObject> obj =
@@ -2726,6 +2895,7 @@ Local<v8::Object> v8::Object::New() {
 
 
 Local<v8::Value> v8::Date::New(double time) {
+  ENTER_V8;
   EnsureInitialized("v8::Date::New()");
   LOG_API("Date::New");
   EXCEPTION_PREAMBLE();
@@ -2737,6 +2907,7 @@ Local<v8::Value> v8::Date::New(double time) {
 
 
 double v8::Date::NumberValue() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Date::NumberValue()")) return 0;
   LOG_API("Date::NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -2746,6 +2917,7 @@ double v8::Date::NumberValue() const {
 
 
 Local<v8::Array> v8::Array::New(int length) {
+  ENTER_V8;
   EnsureInitialized("v8::Array::New()");
   LOG_API("Array::New");
   i::Handle<i::JSArray> obj = i::Factory::NewJSArray(length);
@@ -2754,6 +2926,7 @@ Local<v8::Array> v8::Array::New(int length) {
 
 
 uint32_t v8::Array::Length() const {
+  ENTER_V8;
   if (IsDeadCheck("v8::Array::Length()")) return 0;
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
   i::Object* length = obj->length();
@@ -2766,6 +2939,7 @@ uint32_t v8::Array::Length() const {
 
 
 Local<String> v8::String::NewSymbol(const char* data, int length) {
+  ENTER_V8;
   EnsureInitialized("v8::String::NewSymbol()");
   LOG_API("String::NewSymbol(char)");
   if (length == -1) length = strlen(data);
@@ -2776,6 +2950,7 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
 
 
 Local<Number> v8::Number::New(double value) {
+  ENTER_V8;
   EnsureInitialized("v8::Number::New()");
   i::Handle<i::Object> result = i::Factory::NewNumber(value);
   return Utils::NumberToLocal(result);
@@ -2783,6 +2958,7 @@ Local<Number> v8::Number::New(double value) {
 
 
 Local<Integer> v8::Integer::New(int32_t value) {
+  ENTER_V8;
   EnsureInitialized("v8::Integer::New()");
   if (i::Smi::IsValid(value)) {
     return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value)));
@@ -2798,6 +2974,7 @@ void V8::IgnoreOutOfMemoryException() {
 
 
 bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
+  ENTER_V8;
   EnsureInitialized("v8::V8::AddMessageListener()");
   ON_BAILOUT("v8::V8::AddMessageListener()", return false);
   HandleScope scope;
@@ -2813,6 +2990,7 @@ bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
 
 
 void V8::RemoveMessageListeners(MessageCallback that) {
+  ENTER_V8;
   EnsureInitialized("v8::V8::RemoveMessageListener()");
   ON_BAILOUT("v8::V8::RemoveMessageListeners()", return);
   HandleScope scope;
@@ -2830,21 +3008,25 @@ void V8::RemoveMessageListeners(MessageCallback that) {
 
 
 void V8::SetCounterFunction(CounterLookupCallback callback) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::SetCounterFunction()")) return;
   i::StatsTable::SetCounterFunction(callback);
 }
 
 void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::SetCreateHistogramFunction()")) return;
   i::StatsTable::SetCreateHistogramFunction(callback);
 }
 
 void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::SetAddHistogramSampleFunction()")) return;
   i::StatsTable::SetAddHistogramSampleFunction(callback);
 }
 
 void V8::EnableSlidingStateWindow() {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::EnableSlidingStateWindow()")) return;
   i::Logger::EnableSlidingStateWindow();
 }
@@ -2852,12 +3034,14 @@ void V8::EnableSlidingStateWindow() {
 
 void V8::SetFailedAccessCheckCallbackFunction(
       FailedAccessCheckCallback callback) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::SetFailedAccessCheckCallbackFunction()")) return;
   i::Top::SetFailedAccessCheckCallback(callback);
 }
 
 
 void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::AddObjectGroup()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
   i::GlobalHandles::AddGroup(reinterpret_cast<i::Object***>(objects), length);
@@ -2865,18 +3049,21 @@ void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
 
 
 int V8::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::AdjustAmountOfExternalAllocatedMemory()")) return 0;
   return i::Heap::AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 }
 
 
 void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::SetGlobalGCPrologueCallback()")) return;
   i::Heap::SetGlobalGCPrologueCallback(callback);
 }
 
 
 void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
+  ENTER_V8;
   if (IsDeadCheck("v8::V8::SetGlobalGCEpilogueCallback()")) return;
   i::Heap::SetGlobalGCEpilogueCallback(callback);
 }
@@ -2896,6 +3083,7 @@ void V8::ResumeProfiler() {
 
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
+  ENTER_V8;
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
   if (obj.IsEmpty()) {
     str_ = NULL;
@@ -2922,6 +3110,7 @@ String::Utf8Value::~Utf8Value() {
 
 
 String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj) {
+  ENTER_V8;
   EnsureInitialized("v8::String::AsciiValue::AsciiValue()");
   if (obj.IsEmpty()) {
     str_ = NULL;
@@ -2948,6 +3137,7 @@ String::AsciiValue::~AsciiValue() {
 
 
 String::Value::Value(v8::Handle<v8::Value> obj) {
+  ENTER_V8;
   EnsureInitialized("v8::String::Value::Value()");
   if (obj.IsEmpty()) {
     str_ = NULL;
@@ -2973,6 +3163,7 @@ String::Value::~Value() {
 }
 
 Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
+  ENTER_V8;
   LOG_API("RangeError");
   ON_BAILOUT("v8::Exception::RangeError()", return Local<Value>());
   i::Object* error;
@@ -2987,6 +3178,7 @@ Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
+  ENTER_V8;
   LOG_API("ReferenceError");
   ON_BAILOUT("v8::Exception::ReferenceError()", return Local<Value>());
   i::Object* error;
@@ -3001,6 +3193,7 @@ Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
+  ENTER_V8;
   LOG_API("SyntaxError");
   ON_BAILOUT("v8::Exception::SyntaxError()", return Local<Value>());
   i::Object* error;
@@ -3015,6 +3208,7 @@ Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
+  ENTER_V8;
   LOG_API("TypeError");
   ON_BAILOUT("v8::Exception::TypeError()", return Local<Value>());
   i::Object* error;
@@ -3029,6 +3223,7 @@ Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
+  ENTER_V8;
   LOG_API("Error");
   ON_BAILOUT("v8::Exception::Error()", return Local<Value>());
   i::Object* error;
@@ -3047,6 +3242,7 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 
 bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
+  ENTER_V8;
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   HandleScope scope;
@@ -3061,6 +3257,7 @@ bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
 
 bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
                                   Handle<Value> data) {
+  ENTER_V8;
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   i::Debugger::SetEventListener(Utils::OpenHandle(*that),
                                 Utils::OpenHandle(*data));
@@ -3076,6 +3273,7 @@ void Debug::DebugBreak() {
 
 void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
                               bool message_handler_thread) {
+  ENTER_V8;
   EnsureInitialized("v8::Debug::SetMessageHandler");
   i::Debugger::SetMessageHandler(handler, data, message_handler_thread);
 }
@@ -3089,6 +3287,7 @@ void Debug::SendCommand(const uint16_t* command, int length) {
 
 void Debug::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
                                    void* data) {
+  ENTER_V8;
   EnsureInitialized("v8::Debug::SetHostDispatchHandler");
   i::Debugger::SetHostDispatchHandler(handler, data);
 }
@@ -3102,6 +3301,7 @@ void Debug::SendHostDispatch(void* dispatch) {
 
 Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
                           v8::Handle<v8::Value> data) {
+  ENTER_V8;
   if (!i::V8::HasBeenSetup()) return Handle<Value>();
   ON_BAILOUT("v8::Debug::Call()", return Handle<Value>());
   i::Handle<i::Object> result;

@@ -151,6 +151,9 @@ class OS {
 
   static FILE* FOpen(const char* path, const char* mode);
 
+  // Log file open mode is platform-dependent due to line ends issues.
+  static const char* LogFileOpenMode;
+
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output
   // should go to stdout.
@@ -484,7 +487,7 @@ class TickSample {
   unsigned int sp;  // Stack pointer.
   unsigned int fp;  // Frame pointer.
   StateTag state;   // The state of the VM.
-  static const int kMaxFramesCount = 5;
+  static const int kMaxFramesCount = 100;
   EmbeddedVector<Address, kMaxFramesCount> stack;  // Call stack.
   int frames_count;  // Number of captured frames.
 };

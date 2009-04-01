@@ -130,9 +130,12 @@ class Shell: public i::AllStatic {
   static Handle<Value> Quit(const Arguments& args);
   static Handle<Value> Version(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
-  // system("program_name", ["arg1", "arg2", ...], timeout1, timeout2) will run
-  // the command, passing the arguments to the program.  The standard output of
-  // the program will be picked up and returned as a multiline string.  If
+  // The OS object on the global object contains methods for performing
+  // operating system calls:
+  //
+  // os.system("program_name", ["arg1", "arg2", ...], timeout1, timeout2) will
+  // run the command, passing the arguments to the program.  The standard output
+  // of the program will be picked up and returned as a multiline string.  If
   // timeout1 is present then it should be a number.  -1 indicates no timeout
   // and a positive number is used as a timeout in milliseconds that limits the
   // time spent waiting between receiving output characters from the program.
@@ -140,7 +143,28 @@ class Shell: public i::AllStatic {
   // milliseconds on the total running time of the program.  Exceptions are
   // thrown on timeouts or other errors or if the exit status of the program
   // indicates an error.
+  //
+  // os.chdir(dir) changes directory to the given directory.  Throws an
+  // exception/ on error.
+  //
+  // os.setenv(variable, value) sets an environment variable.  Repeated calls to
+  // this method leak memory due to the API of setenv in the standard C library.
+  //
+  // os.umask(alue) calls the umask system call and returns the old umask.
+  //
+  // os.mkdirp(name, mask) creates a directory.  The mask (if present) is anded
+  // with the current umask.  Intermediate directories are created if necessary.
+  // An exception is not thrown if the directory already exists.  Analogous to
+  // the "mkdir -p" command.
+  static Handle<Value> OSObject(const Arguments& args);
   static Handle<Value> System(const Arguments& args);
+  static Handle<Value> ChangeDirectory(const Arguments& args);
+  static Handle<Value> SetEnvironment(const Arguments& args);
+  static Handle<Value> SetUMask(const Arguments& args);
+  static Handle<Value> MakeDirectory(const Arguments& args);
+  static Handle<Value> RemoveDirectory(const Arguments& args);
+
+  static void AddOSMethods(Handle<ObjectTemplate> os_template);
 
   static Handle<Context> utility_context() { return utility_context_; }
 

@@ -53,7 +53,7 @@ VirtualFrame::SpilledScope::~SpilledScope() {
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : cgen_(original->cgen_),
       masm_(original->masm_),
-      elements_(original->elements_.length()),
+      elements_(original->elements_.capacity()),
       parameter_count_(original->parameter_count_),
       local_count_(original->local_count_),
       stack_pointer_(original->stack_pointer_),

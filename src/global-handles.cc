@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -153,7 +153,12 @@ class GlobalHandles::Node : public Malloced {
     // behavior.
     WeakReferenceCallback func = callback();
     if (func != NULL) {
-      func(v8::Persistent<v8::Object>(ToApi<v8::Object>(handle())), par);
+      v8::Persistent<v8::Object> object = ToApi<v8::Object>(handle());
+      {
+        // Leaving V8.
+        VMState state(EXTERNAL);
+        func(object, par);
+      }
     }
   }
 

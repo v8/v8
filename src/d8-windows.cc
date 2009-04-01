@@ -35,10 +35,7 @@
 namespace v8 {
 
 
-Handle<Value> Shell::System(const Arguments& args) {
-  Handle<String> error_message =
-      String::New("system() is not yet supported on your OS");
-  return ThrowException(error_message);
+void Shell::AddOSMethods(Handle<ObjectTemplate> os_templ) {
 }
 
 

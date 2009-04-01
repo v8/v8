@@ -1812,7 +1812,8 @@ v8::Handle<Value> CCatcher(const v8::Arguments& args) {
   if (args.Length() < 1) return v8::Boolean::New(false);
   v8::HandleScope scope;
   v8::TryCatch try_catch;
-  v8::Script::Compile(args[0]->ToString())->Run();
+  Local<Value> result = v8::Script::Compile(args[0]->ToString())->Run();
+  CHECK(!try_catch.HasCaught() || result.IsEmpty());
   return v8::Boolean::New(try_catch.HasCaught());
 }
 
@@ -1849,7 +1850,12 @@ THREADED_TEST(APIThrowTryCatch) {
 
 // Test that a try-finally block doesn't shadow a try-catch block
 // when setting up an external handler.
-THREADED_TEST(TryCatchInTryFinally) {
+//
+// BUG(271): Some of the exception propagation does not work on the
+// ARM simulator because the simulator separates the C++ stack and the
+// JS stack.  This test therefore fails on the simulator.  The test is
+// not threaded to allow the threading tests to run on the simulator.
+TEST(TryCatchInTryFinally) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("CCatcher"),
@@ -1868,6 +1874,7 @@ THREADED_TEST(TryCatchInTryFinally) {
 
 static void receive_message(v8::Handle<v8::Message> message,
                             v8::Handle<v8::Value> data) {
+  message->Get();
   message_received = true;
 }
 
@@ -1896,8 +1903,9 @@ TEST(APIThrowMessageAndVerboseTryCatch) {
   LocalContext context(0, templ);
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
-  CompileRun("ThrowFromC();");
+  Local<Value> result = CompileRun("ThrowFromC();");
   CHECK(try_catch.HasCaught());
+  CHECK(result.IsEmpty());
   CHECK(message_received);
   v8::V8::RemoveMessageListeners(check_message);
 }
@@ -1943,6 +1951,7 @@ v8::Handle<Value> CThrowCountDown(const v8::Arguments& args) {
       int expected = args[3]->Int32Value();
       if (try_catch.HasCaught()) {
         CHECK_EQ(expected, count);
+        CHECK(result.IsEmpty());
         CHECK(!i::Top::has_scheduled_exception());
       } else {
         CHECK_NE(expected, count);
@@ -2000,7 +2009,12 @@ THREADED_TEST(EvalInTryFinally) {
 // Each entry is an activation, either JS or C.  The index is the count at that
 // level.  Stars identify activations with exception handlers, the @ identifies
 // the exception handler that should catch the exception.
-THREADED_TEST(ExceptionOrder) {
+//
+// BUG(271): Some of the exception propagation does not work on the
+// ARM simulator because the simulator separates the C++ stack and the
+// JS stack.  This test therefore fails on the simulator.  The test is
+// not threaded to allow the threading tests to run on the simulator.
+TEST(ExceptionOrder) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->Set(v8_str("check"), v8::FunctionTemplate::New(JSCheck));

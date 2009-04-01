@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -340,6 +340,7 @@ class VirtualFrame : public Malloced {
   static const int kContextOffset = StandardFrameConstants::kContextOffset;
 
   static const int kHandlerSize = StackHandlerConstants::kSize / kPointerSize;
+  static const int kPreallocatedElements = 5 + 8;  // 8 expression stack slots.
 
   CodeGenerator* cgen_;
   MacroAssembler* masm_;

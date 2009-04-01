@@ -883,7 +883,10 @@ class V8EXPORT String : public Primitive {
 
   /**
    * Converts an object to a utf8-encoded character array.  Useful if
-   * you want to print the object.
+   * you want to print the object.  If conversion to a string fails
+   * (eg. due to an exception in the toString() method of the object)
+   * then the length() method returns 0 and the * operator returns
+   * NULL.
    */
   class V8EXPORT Utf8Value {
    public:
@@ -903,6 +906,9 @@ class V8EXPORT String : public Primitive {
   /**
    * Converts an object to an ascii string.
    * Useful if you want to print the object.
+   * If conversion to a string fails (eg. due to an exception in the toString()
+   * method of the object) then the length() method returns 0 and the * operator
+   * returns NULL.
    */
   class V8EXPORT AsciiValue {
    public:
@@ -921,6 +927,9 @@ class V8EXPORT String : public Primitive {
 
   /**
    * Converts an object to a two-byte string.
+   * If conversion to a string fails (eg. due to an exception in the toString()
+   * method of the object) then the length() method returns 0 and the * operator
+   * returns NULL.
    */
   class V8EXPORT Value {
    public:

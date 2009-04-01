@@ -42,3 +42,9 @@ test-spaces/LargeObjectSpace: PASS || FAIL
 
 # BUG(240): Test seems flaky on ARM.
 test-api/RegExpInterruption: SKIP
+
+# BUG(271): During exception propagation, we compare pointers into the
+# stack.  These tests fail on the ARM simulator because the C++ and
+# the JavaScript stacks are separate.
+test-api/ExceptionOrder: PASS || FAIL
+test-api/TryCatchInTryFinally: PASS || FAIL
