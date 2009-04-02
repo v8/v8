@@ -101,8 +101,7 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
   if (!left->is_valid()) return left;
   if (!right->is_valid()) return right;
 
-  // If they have the same value, the result is the same.  (Exception:
-  // bidirectional frames cannot have constants or copies.)  If either
+  // If they have the same value, the result is the same.  If either
   // is unsynced, the result is.
   if (left->is_memory() && right->is_memory()) return left;
 
@@ -115,8 +114,7 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
     }
   }
 
-  if (direction_ == FORWARD_ONLY &&
-      left->is_constant() &&
+  if (left->is_constant() &&
       right->is_constant() &&
       left->handle().is_identical_to(right->handle())) {
     if (!left->is_synced()) {
@@ -126,8 +124,7 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
     }
   }
 
-  if (direction_ == FORWARD_ONLY &&
-      left->is_copy() &&
+  if (left->is_copy() &&
       right->is_copy() &&
       left->index() == right->index()) {
     if (!left->is_synced()) {
