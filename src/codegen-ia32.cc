@@ -274,25 +274,29 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       if (has_valid_frame()) {
         // If there is a valid frame, control flow can fall off the end of
         // the body.  In that case there is an implicit return statement.
-        // Compiling a return statement will jump to the return sequence if
-        // it is already generated or generate it if not.
         ASSERT(!function_return_is_shadowed_);
-        Literal undefined(Factory::undefined_value());
-        ReturnStatement statement(&undefined);
-        statement.set_statement_pos(fun->end_position());
-        VisitReturnStatement(&statement);
+        CodeForReturnPosition(fun);
+        frame_->PrepareForReturn();
+        Result undefined(Factory::undefined_value(), this);
+        if (function_return_.is_bound()) {
+          function_return_.Jump(&undefined);
+        } else {
+          // Though this is a (possibly) backward block, the frames
+          // can only differ on their top element.
+          function_return_.Bind(&undefined, 1);
+          GenerateReturnSequence(&undefined);
+        }
       } else if (function_return_.is_linked()) {
         // If the return target has dangling jumps to it, then we have not
         // yet generated the return sequence.  This can happen when (a)
         // control does not flow off the end of the body so we did not
         // compile an artificial return statement just above, and (b) there
         // are return statements in the body but (c) they are all shadowed.
-        //
-        // There is no valid frame here but it is safe (also necessary) to
-        // load the return value into eax.
-        __ mov(eax, Immediate(Factory::undefined_value()));
-        function_return_.Bind();
-        GenerateReturnSequence();
+        Result return_value(this);
+        // Though this is a (possibly) backward block, the frames can
+        // only differ on their top element.
+        function_return_.Bind(&return_value, 1);
+        GenerateReturnSequence(&return_value);
       }
     }
   }
@@ -1943,52 +1947,37 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ReturnStatement");
 
+  CodeForStatementPosition(node);
+  Load(node->expression());
+  Result return_value = frame_->Pop();
   if (function_return_is_shadowed_) {
-    // If the function return is shadowed, we spill all information
-    // and just jump to the label.
-    VirtualFrame::SpilledScope spilled_scope(this);
-    CodeForStatementPosition(node);
-    LoadAndSpill(node->expression());
-    frame_->EmitPop(eax);
-    function_return_.Jump();
+    function_return_.Jump(&return_value);
   } else {
-    // Load the returned value.
-    CodeForStatementPosition(node);
-    Load(node->expression());
-
-    // Pop the result from the frame and prepare the frame for
-    // returning thus making it easier to merge.
-    Result result = frame_->Pop();
     frame_->PrepareForReturn();
-
-    // Move the result into register eax where it belongs.
-    result.ToRegister(eax);
-    // TODO(203): Instead of explictly calling Unuse on the result, it
-    // might be better to pass the result to Jump and Bind below.
-    result.Unuse();
-
-    // If the function return label is already bound, we reuse the
-    // code by jumping to the return site.
     if (function_return_.is_bound()) {
-      function_return_.Jump();
+      // If the function return label is already bound we reuse the
+      // code by jumping to the return site.
+      function_return_.Jump(&return_value);
     } else {
-      function_return_.Bind();
-      GenerateReturnSequence();
+      // Though this is a (possibly) backward block, the frames can
+      // only differ on their top element.
+      function_return_.Bind(&return_value, 1);
+      GenerateReturnSequence(&return_value);
     }
   }
 }
 
 
-void CodeGenerator::GenerateReturnSequence() {
+void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // The return value is a live (but not currently reference counted)
   // reference to eax.  This is safe because the current frame does not
   // contain a reference to eax (it is prepared for the return by spilling
   // all registers).
-  ASSERT(has_valid_frame());
   if (FLAG_trace) {
-    frame_->Push(eax);  // Materialize result on the stack.
-    frame_->CallRuntime(Runtime::kTraceExit, 1);
+    frame_->Push(return_value);
+    *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
   }
+  return_value->ToRegister(eax);
 
   // Add a label for checking the size of the code used for returning.
   Label check_exit_codesize;
@@ -2921,14 +2910,22 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
     }
   }
 
-  // Generate unlink code for the (formerly) shadowing targets that have been
-  // jumped to.  Deallocate each shadow target.
+  // Generate unlink code for the (formerly) shadowing targets that
+  // have been jumped to.  Deallocate each shadow target.
+  Result return_value(this);
   for (int i = 0; i < shadows.length(); i++) {
     if (shadows[i]->is_linked()) {
-      // Unlink from try chain; be careful not to destroy the TOS.
-      shadows[i]->Bind();
-      // Because we can be jumping here (to spilled code) from unspilled
-      // code, we need to reestablish a spilled frame at this block.
+      // Unlink from try chain; be careful not to destroy the TOS if
+      // there is one.
+      if (i == kReturnShadowIndex) {
+        shadows[i]->Bind(&return_value);
+        return_value.ToRegister(eax);
+      } else {
+        shadows[i]->Bind();
+      }
+      // Because we can be jumping here (to spilled code) from
+      // unspilled code, we need to reestablish a spilled frame at
+      // this block.
       frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that we
@@ -2943,10 +2940,12 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
       // next_sp popped.
 
-      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
-        frame_->PrepareForReturn();
+      if (i == kReturnShadowIndex) {
+        if (!function_return_is_shadowed_) frame_->PrepareForReturn();
+        shadows[i]->other_target()->Jump(&return_value);
+      } else {
+        shadows[i]->other_target()->Jump();
       }
-      shadows[i]->other_target()->Jump();
     }
     delete shadows[i];
   }
@@ -3043,13 +3042,18 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   for (int i = 0; i < shadows.length(); i++) {
     if (shadows[i]->is_linked()) {
       // If we have come from the shadowed return, the return value is
-      // in (a non-refcounted reference to) eax.  We must preserve it
-      // until it is pushed.
-      //
+      // on the virtual frame.  We must preserve it until it is
+      // pushed.
+      if (i == kReturnShadowIndex) {
+        Result return_value(this);
+        shadows[i]->Bind(&return_value);
+        return_value.ToRegister(eax);
+      } else {
+        shadows[i]->Bind();
+      }
       // Because we can be jumping here (to spilled code) from
       // unspilled code, we need to reestablish a spilled frame at
       // this block.
-      shadows[i]->Bind();
       frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that
@@ -3103,14 +3107,23 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // formerly shadowing targets.  Deallocate each shadow target.
   for (int i = 0; i < shadows.length(); i++) {
     if (has_valid_frame() && shadows[i]->is_bound()) {
-      JumpTarget* original = shadows[i]->other_target();
+      BreakTarget* original = shadows[i]->other_target();
       __ cmp(Operand(ecx), Immediate(Smi::FromInt(JUMPING + i)));
-      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
-        JumpTarget skip(this);
-        skip.Branch(not_equal);
-        frame_->PrepareForReturn();
-        original->Jump();
-        skip.Bind();
+      if (i == kReturnShadowIndex) {
+        // The return value is (already) in eax.
+        Result return_value = allocator_->Allocate(eax);
+        ASSERT(return_value.is_valid());
+        if (function_return_is_shadowed_) {
+          original->Branch(equal, &return_value);
+        } else {
+          // Branch around the preparation for return which may emit
+          // code.
+          JumpTarget skip(this);
+          skip.Branch(not_equal);
+          frame_->PrepareForReturn();
+          original->Jump(&return_value);
+          skip.Bind();
+        }
       } else {
         original->Branch(equal);
       }

@@ -37,7 +37,7 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-void JumpTarget::Jump() {
+void JumpTarget::DoJump() {
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
   // Live non-frame registers are not allowed at unconditional jumps
@@ -65,7 +65,7 @@ void JumpTarget::Jump() {
 }
 
 
-void JumpTarget::Branch(Condition cc, Hint ignored) {
+void JumpTarget::DoBranch(Condition cc, Hint ignored) {
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
 
@@ -148,7 +148,7 @@ void JumpTarget::Call() {
 }
 
 
-void JumpTarget::Bind(int mergable_elements) {
+void JumpTarget::DoBind(int mergable_elements) {
   ASSERT(cgen_ != NULL);
   ASSERT(!is_bound());
 

@@ -105,7 +105,7 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // Emit a jump to the target.  There must be a current frame at the
   // jump and there will be no current frame after the jump.
   virtual void Jump();
-  void Jump(Result* arg);
+  virtual void Jump(Result* arg);
   void Jump(Result* arg0, Result* arg1);
   void Jump(Result* arg0, Result* arg1, Result* arg2);
 
@@ -113,7 +113,7 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // frame at the branch.  The current frame will fall through to the
   // code after the branch.
   virtual void Branch(Condition cc, Hint hint = no_hint);
-  void Branch(Condition cc, Result* arg, Hint hint = no_hint);
+  virtual void Branch(Condition cc, Result* arg, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg0, Result* arg1, Hint hint = no_hint);
   void Branch(Condition cc,
               Result* arg0,
@@ -141,7 +141,7 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // frame elements must be mergable.  Mergable elements are ignored
   // completely for forward-only jump targets.
   virtual void Bind(int mergable_elements = kAllElements);
-  void Bind(Result* arg, int mergable_elements = kAllElements);
+  virtual void Bind(Result* arg, int mergable_elements = kAllElements);
   void Bind(Result* arg0, Result* arg1, int mergable_elements = kAllElements);
   void Bind(Result* arg0,
             Result* arg1,
@@ -190,6 +190,12 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // member functions have been called.
   bool is_bound_;
   bool is_linked_;
+
+  // Implementations of Jump, Branch, and Bind with all arguments and
+  // return values using the virtual frame.
+  void DoJump();
+  void DoBranch(Condition cc, Hint hint);
+  void DoBind(int mergable_elements);
 
  private:
   // Add a virtual frame reaching this labeled block via a forward
@@ -243,16 +249,19 @@ class BreakTarget : public JumpTarget {
   // Emit a jump to the target.  There must be a current frame at the
   // jump and there will be no current frame after the jump.
   virtual void Jump();
+  virtual void Jump(Result* arg);
 
   // Emit a conditional branch to the target.  There must be a current
   // frame at the branch.  The current frame will fall through to the
   // code after the branch.
   virtual void Branch(Condition cc, Hint hint = no_hint);
+  virtual void Branch(Condition cc, Result* arg, Hint hint = no_hint);
 
   // Bind a break target.  If there is no current frame at the binding
   // site, there must be at least one frame reaching via a forward
   // jump.
   virtual void Bind(int mergable_elements = kAllElements);
+  virtual void Bind(Result* arg, int mergable_elements = kAllElements);
 
   // Setter for expected height.
   void set_expected_height(int expected) { expected_height_ = expected; }

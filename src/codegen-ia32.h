@@ -371,11 +371,10 @@ class CodeGenerator: public AstVisitor {
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
 
-  // Generate the return sequence code.  Should be called no more than once
-  // per compiled function (it binds the return target, which can not be
-  // done more than once).  The return value is assumed to be in eax by the
-  // code generated.
-  void GenerateReturnSequence();
+  // Generate the return sequence code.  Should be called no more than
+  // once per compiled function, immediately after binding the return
+  // target (which can not be done more than once).
+  void GenerateReturnSequence(Result* return_value);
 
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
@@ -567,6 +566,7 @@ class CodeGenerator: public AstVisitor {
   // positions are collected by the assembler and emitted with the relocation
   // information.
   void CodeForFunctionPosition(FunctionLiteral* fun);
+  void CodeForReturnPosition(FunctionLiteral* fun);
   void CodeForStatementPosition(Node* node);
   void CodeForSourcePosition(int pos);
 
