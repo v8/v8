@@ -507,7 +507,8 @@ def GetOptions():
   result = Options()
   result.Add('mode', 'compilation mode (debug, release)', 'release')
   result.Add('sample', 'build sample (shell, process)', '')
-  result.Add('env', 'override environment settings (NAME1:value1,NAME2:value2)', '')
+  result.Add('env', 'override environment settings (NAME0:value0,NAME1:value1,...)', '')
+  result.Add('importenv', 'import environment settings (NAME0,NAME1,...)', '')
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     help = '%s (%s)' % (name, ", ".join(option['values']))
     result.Add(name, help, option.get('default'))
@@ -626,9 +627,13 @@ def PostprocessOptions(options):
     options['arch'] = options['simulator']
 
 
-def ParseEnvOverrides(arg):
-  # The environment overrides are in the format NAME1:value1,NAME2:value2
+def ParseEnvOverrides(arg, imports):
+  # The environment overrides are in the format NAME0:value0,NAME1:value1,...
+  # The environment imports are in the format NAME0,NAME1,...
   overrides = {}
+  for var in imports.split(','):
+    if var in os.environ:
+      overrides[var] = os.environ[var]
   for override in arg.split(','):
     pos = override.find(':')
     if pos == -1:
@@ -726,7 +731,7 @@ def Build():
   env = Environment(options=opts)
   Help(opts.GenerateHelpText(env))
   VerifyOptions(env)
-  env_overrides = ParseEnvOverrides(env['env'])
+  env_overrides = ParseEnvOverrides(env['env'], env['importenv'])
 
   SourceSignatures(env['sourcesignatures'])
 
