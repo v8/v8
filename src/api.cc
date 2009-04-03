@@ -1908,6 +1908,7 @@ bool v8::Object::Delete(v8::Handle<String> key) {
 
 bool v8::Object::Has(v8::Handle<String> key) {
   ON_BAILOUT("v8::Object::Has()", return false);
+  ENTER_V8;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   return self->HasProperty(*key_obj);
@@ -1945,6 +1946,7 @@ bool v8::Object::HasRealIndexedProperty(uint32_t index) {
 
 bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
   ON_BAILOUT("v8::Object::HasRealNamedCallbackProperty()", return false);
+  ENTER_V8;
   return Utils::OpenHandle(this)->HasRealNamedCallbackProperty(
       *Utils::OpenHandle(*key));
 }
