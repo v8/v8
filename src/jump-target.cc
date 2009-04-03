@@ -72,7 +72,7 @@ void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
 void JumpTarget::Unuse() {
   // We should not deallocate jump targets that have unresolved jumps
   // to them.  In the event of a compile-time stack overflow or an
-  // unitialized jump target, we don't care.
+  // uninitialized jump target, we don't care.
   ASSERT(!is_linked() || cgen_ == NULL || cgen_->HasStackOverflow());
   for (int i = 0; i < reaching_frames_.length(); i++) {
     delete reaching_frames_[i];
@@ -103,6 +103,7 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
 
   // If they have the same value, the result is the same.  If either
   // is unsynced, the result is.
+
   if (left->is_memory() && right->is_memory()) return left;
 
   if (left->is_register() && right->is_register() &&
@@ -165,8 +166,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   for (int i = 0; i < length; i++) {
     FrameElement element = initial_frame->elements_[i];
     // We do not allow copies or constants in bidirectional frames.
-    if (direction_ == BIDIRECTIONAL &&
-        i > high_water_mark &&
+    if (direction_ == BIDIRECTIONAL && i > high_water_mark &&
         (element.is_constant() || element.is_copy())) {
       elements.Add(NULL);
     } else {
@@ -271,12 +271,25 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // the backing store of copies is always lower in the frame.
   // Set the register locations to their index in the frame.
   for (int i = 0; i < length; i++) {
-    FrameElement current = entry_frame_->elements_[i];
-    entry_frame_->elements_[i].clear_copied();
-    if (current.is_copy()) {
-      entry_frame_->elements_[current.index()].set_copied();
-    } else if (current.is_register()) {
-      entry_frame_->register_locations_[current.reg().code()] = i;
+    FrameElement* current = &entry_frame_->elements_[i];
+    current->clear_copied();
+    if (current->is_copy()) {
+      entry_frame_->elements_[current->index()].set_copied();
+    } else if (current->is_register()) {
+      entry_frame_->register_locations_[current->reg().code()] = i;
+    }
+
+    if (direction_ == BIDIRECTIONAL && i >= high_water_mark) {
+      current->set_static_type(StaticType::unknown());
+    } else {
+      StaticType merged_type = reaching_frames_[0]->elements_[i].static_type();
+      for (int j = 1, n = reaching_frames_.length();
+           !merged_type.is_unknown() && j < n;
+           j++) {
+        merged_type =
+            merged_type.merge(reaching_frames_[j]->elements_[i].static_type());
+      }
+      current->set_static_type(merged_type);
     }
   }
 

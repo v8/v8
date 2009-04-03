@@ -191,9 +191,10 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
     if (elements_[i].is_copy()) {
       elements_[elements_[i].index()].set_copied();
     }
+    elements_[i].set_static_type(target.static_type());
   }
 
-  // Adjust the stack point downard if necessary.
+  // Adjust the stack pointer downward if necessary.
   if (stack_pointer_ > expected->stack_pointer_) {
     int difference = stack_pointer_ - expected->stack_pointer_;
     stack_pointer_ = expected->stack_pointer_;
@@ -950,6 +951,7 @@ Result VirtualFrame::Pop() {
     if (element.is_memory()) {
       Result temp = cgen_->allocator()->Allocate();
       ASSERT(temp.is_valid());
+      temp.set_static_type(element.static_type());
       __ pop(temp.reg());
       return temp;
     }
@@ -981,11 +983,12 @@ Result VirtualFrame::Pop() {
         FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
     // Preserve the copy flag on the element.
     if (element.is_copied()) new_element.set_copied();
+    new_element.set_static_type(element.static_type());
     elements_[index] = new_element;
     __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
-    return Result(temp.reg(), cgen_);
+    return Result(temp.reg(), cgen_, element.static_type());
   } else if (element.is_register()) {
-    return Result(element.reg(), cgen_);
+    return Result(element.reg(), cgen_, element.static_type());
   } else {
     ASSERT(element.is_constant());
     return Result(element.handle(), cgen_);

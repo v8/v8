@@ -807,7 +807,7 @@ void DeferredInlineBinaryOperation::Generate() {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           StaticType* type,
+                                           SmiAnalysis* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -845,6 +845,34 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   Result right = frame_->Pop();
   Result left = frame_->Pop();
+
+  if (op == Token::ADD) {
+    bool left_is_string = left.static_type().is_jsstring();
+    bool right_is_string = right.static_type().is_jsstring();
+    if (left_is_string || right_is_string) {
+      frame_->Push(&left);
+      frame_->Push(&right);
+      Result answer(this);
+      if (left_is_string) {
+        if (right_is_string) {
+          // TODO(lrn): if (left.is_constant() && right.is_constant())
+          // -- do a compile time cons, if allocation during codegen is allowed.
+          answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+        } else {
+          answer =
+            frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
+        }
+      } else if (right_is_string) {
+        answer =
+          frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
+      }
+      answer.set_static_type(StaticType::jsstring());
+      frame_->Push(&answer);
+      return;
+    }
+    // Neither operand is known to be a string.
+  }
+
   bool left_is_smi = left.is_constant() && left.handle()->IsSmi();
   bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
   bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
@@ -1189,7 +1217,7 @@ void DeferredInlineSmiSubReversed::Generate() {
 void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                Result* operand,
                                                Handle<Object> value,
-                                               StaticType* type,
+                                               SmiAnalysis* type,
                                                bool reversed,
                                                OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
@@ -3499,8 +3527,8 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-    frame_->Push(node->handle());
-  }
+  frame_->Push(node->handle());
+}
 
 
 void CodeGenerator::LoadUnsafeSmi(Register target, Handle<Object> value) {

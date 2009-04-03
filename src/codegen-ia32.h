@@ -431,8 +431,9 @@ class CodeGenerator: public AstVisitor {
   // control destination.
   void ToBoolean(ControlDestination* destination);
 
-  void GenericBinaryOperation(Token::Value op,
-      StaticType* type,
+  void GenericBinaryOperation(
+      Token::Value op,
+      SmiAnalysis* type,
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
 
   // If possible, combine two constant smi values using op to produce
@@ -445,7 +446,7 @@ class CodeGenerator: public AstVisitor {
   void ConstantSmiBinaryOperation(Token::Value op,
                                   Result* operand,
                                   Handle<Object> constant_operand,
-                                  StaticType* type,
+                                  SmiAnalysis* type,
                                   bool reversed,
                                   OverwriteMode overwrite_mode);
 

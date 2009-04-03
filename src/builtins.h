@@ -124,6 +124,8 @@ namespace v8 { namespace internal {
   V(TO_OBJECT, 0)              \
   V(TO_NUMBER, 0)              \
   V(TO_STRING, 0)              \
+  V(STRING_ADD_LEFT, 1)        \
+  V(STRING_ADD_RIGHT, 1)       \
   V(APPLY_PREPARE, 1)          \
   V(APPLY_OVERFLOW, 1)
 

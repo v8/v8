@@ -93,10 +93,10 @@ FrameElement VirtualFrame::CopyElementAt(int index) {
     case FrameElement::MEMORY:  // Fall through.
     case FrameElement::REGISTER:
       // All copies are backed by memory or register locations.
-      result.type_ =
-          FrameElement::TypeField::encode(FrameElement::COPY)
-          | FrameElement::IsCopiedField::encode(false)
-          | FrameElement::SyncField::encode(FrameElement::NOT_SYNCED);
+      result.set_static_type(target.static_type());
+      result.type_ = FrameElement::COPY;
+      result.copied_ = false;
+      result.synced_ = false;
       result.data_.index_ = index;
       elements_[index].set_copied();
       break;
@@ -208,6 +208,7 @@ void VirtualFrame::SpillElementAt(int index) {
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
   }
+  new_element.set_static_type(elements_[index].static_type());
   elements_[index] = new_element;
 }
 
@@ -388,6 +389,8 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
       // register element, or the new element at frame_index, must be made
       // a copy.
       int i = register_index(value->reg());
+      ASSERT(value->static_type() == elements_[i].static_type());
+
       if (i < frame_index) {
         // The register FrameElement is lower in the frame than the new copy.
         elements_[frame_index] = CopyElementAt(i);
@@ -413,7 +416,8 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
       Use(value->reg(), frame_index);
       elements_[frame_index] =
           FrameElement::RegisterElement(value->reg(),
-                                        FrameElement::NOT_SYNCED);
+                                        FrameElement::NOT_SYNCED,
+                                        value->static_type());
     }
   } else {
     ASSERT(value->is_constant());
@@ -437,25 +441,33 @@ Result VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
 }
 
 
-void VirtualFrame::Push(Register reg) {
+void VirtualFrame::Push(Register reg, StaticType static_type) {
   if (is_used(reg)) {
-    elements_.Add(CopyElementAt(register_index(reg)));
+    int index = register_index(reg);
+    FrameElement element = CopyElementAt(index);
+    ASSERT(static_type.merge(element.static_type()) == element.static_type());
+    elements_.Add(element);
   } else {
     Use(reg, elements_.length());
-    elements_.Add(FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED));
+    FrameElement element =
+        FrameElement::RegisterElement(reg,
+                                      FrameElement::NOT_SYNCED,
+                                      static_type);
+    elements_.Add(element);
   }
 }
 
 
 void VirtualFrame::Push(Handle<Object> value) {
-  elements_.Add(FrameElement::ConstantElement(value,
-                                              FrameElement::NOT_SYNCED));
+  FrameElement element =
+      FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
+  elements_.Add(element);
 }
 
 
 void VirtualFrame::Push(Result* result) {
   if (result->is_register()) {
-    Push(result->reg());
+    Push(result->reg(), result->static_type());
   } else {
     ASSERT(result->is_constant());
     Push(result->handle());
@@ -476,7 +488,9 @@ void VirtualFrame::Nip(int num_dropped) {
 
 
 bool FrameElement::Equals(FrameElement other) {
-  if (type_ != other.type_) return false;
+  if (type_ != other.type_ ||
+      copied_ != other.copied_ ||
+      synced_ != other.synced_) return false;
 
   if (is_register()) {
     if (!reg().is(other.reg())) return false;

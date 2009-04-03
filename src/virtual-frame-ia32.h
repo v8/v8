@@ -321,7 +321,7 @@ class VirtualFrame : public Malloced {
   void EmitPush(Immediate immediate);
 
   // Push an element on the virtual frame.
-  void Push(Register reg);
+  void Push(Register reg, StaticType static_type = StaticType());
   void Push(Handle<Object> value);
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 
