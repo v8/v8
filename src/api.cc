@@ -1455,11 +1455,14 @@ Local<v8::Object> Value::ToObject() const {
 Local<Boolean> Value::ToBoolean() const {
   if (IsDeadCheck("v8::Value::ToBoolean()")) return Local<Boolean>();
   LOG_API("ToBoolean");
-  ENTER_V8;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> val =
-      obj->IsBoolean() ? obj : i::Execution::ToBoolean(obj);
-  return Local<Boolean>(ToApi<Boolean>(val));
+  if (obj->IsBoolean()) {
+    return Local<Boolean>(ToApi<Boolean>(obj));
+  } else {
+    ENTER_V8;
+    i::Handle<i::Object> val = i::Execution::ToBoolean(obj);
+    return Local<Boolean>(ToApi<Boolean>(val));
+  }
 }
 
 
@@ -1580,11 +1583,14 @@ v8::Date* v8::Date::Cast(v8::Value* that) {
 bool Value::BooleanValue() const {
   if (IsDeadCheck("v8::Value::BooleanValue()")) return false;
   LOG_API("BooleanValue");
-  ENTER_V8;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> value =
-      obj->IsBoolean() ? obj : i::Execution::ToBoolean(obj);
-  return value->IsTrue();
+  if (obj->IsBoolean()) {
+    return obj->IsTrue();
+  } else {
+    ENTER_V8;
+    i::Handle<i::Object> value = i::Execution::ToBoolean(obj);
+    return value->IsTrue();
+  }
 }
 
 
@@ -2347,8 +2353,8 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 // --- E n v i r o n m e n t ---
 
 bool v8::V8::Initialize() {
-  ENTER_V8;
   if (i::V8::HasBeenSetup()) return true;
+  ENTER_V8;
   HandleScope scope;
   if (i::Snapshot::Initialize()) {
     return true;
