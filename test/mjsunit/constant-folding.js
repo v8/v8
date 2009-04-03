@@ -25,6 +25,57 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test operations that involve one or more constants.
+// The code generator now handles compile-time constants specially.
+// Test the code generated when operands are known at compile time
+
+// Test count operations involving constants
+function test_count() {
+  var x = "foo";
+  var y = "3";
+
+  x += x++;  // ++ and -- apply ToNumber to their operand, even for postfix.
+  assertEquals(x, "fooNaN", "fooNaN test");
+  x = "luft";
+  x += ++x;
+  assertEquals(x, "luftNaN", "luftNaN test");
+
+  assertTrue(y++ === 3, "y++ === 3, where y = \"3\"");
+  y = 3;
+  assertEquals(y++, 3, "y++ == 3, where y = 3");
+  y = "7.1";
+  assertTrue(y++ === 7.1, "y++ === 7.1, where y = \"7.1\"");
+  var z = y = x = "9";
+  assertEquals( z++ + (++y) + x++, 28, "z++ + (++y) + x++ == 28");
+  z = y = x = 13;
+  assertEquals( z++ + (++y) + x++, 40, "z++ + (++y) + x++ == 40");
+  z = y = x = -5.5;
+  assertEquals( z++ + (++y) + x++, -15.5, "z++ + (++y) + x++ == -15.5");
+
+  assertEquals(y, -4.5);
+  z = y;
+  z++;
+  assertEquals(y, -4.5);
+  z = y;
+  y++;
+  assertEquals(z, -4.5);
+
+  y = 20;
+  z = y;
+  z++;
+  assertEquals(y, 20);
+  z = y;
+  y++;
+  assertEquals(z, 20);
+
+  const w = 30;
+  assertEquals(w++, 30);
+  assertEquals(++w, 31);
+  assertEquals(++w, 31);
+}
+
+test_count();
+
 // Test comparison operations that involve one or two constant smis.
 
 function test() {
@@ -118,4 +169,3 @@ function test() {
 }
 
 test();
-

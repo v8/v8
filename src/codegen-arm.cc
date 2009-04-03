@@ -708,29 +708,6 @@ class GenericBinaryOpStub : public CodeStub {
 };
 
 
-class InvokeBuiltinStub : public CodeStub {
- public:
-  enum Kind { Inc, Dec, ToNumber };
-  InvokeBuiltinStub(Kind kind, int argc) : kind_(kind), argc_(argc) { }
-
- private:
-  Kind kind_;
-  int argc_;
-
-  Major MajorKey() { return InvokeBuiltin; }
-  int MinorKey() { return (argc_ << 3) | static_cast<int>(kind_); }
-  void Generate(MacroAssembler* masm);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("InvokeBuiltinStub (kind %d, argc, %d)\n",
-           static_cast<int>(kind_),
-           argc_);
-  }
-#endif
-};
-
-
 void CodeGenerator::GenericBinaryOperation(Token::Value op) {
   VirtualFrame::SpilledScope spilled_scope(this);
   // sp[0] : y
@@ -3696,22 +3673,27 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
     // Slow case: Convert to number.
     slow.Bind();
-
-    // Postfix: Convert the operand to a number and store it as the result.
+    {
+      // Convert the operand to a number.
+      frame_->EmitPush(r0);
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(0));
+      frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, &arg_count, 1);
+    }
     if (is_postfix) {
-      InvokeBuiltinStub stub(InvokeBuiltinStub::ToNumber, 2);
-      frame_->CallStub(&stub, 0);
-      // Store to result (on the stack).
+      // Postfix: store to result (on the stack).
       __ str(r0, frame_->ElementAt(target.size()));
     }
 
-    // Compute the new value by calling the right JavaScript native.
+    // Compute the new value.
+    __ mov(r1, Operand(Smi::FromInt(1)));
+    frame_->EmitPush(r0);
+    frame_->EmitPush(r1);
     if (is_increment) {
-      InvokeBuiltinStub stub(InvokeBuiltinStub::Inc, 1);
-      frame_->CallStub(&stub, 0);
+      frame_->CallRuntime(Runtime::kNumberAdd, 2);
     } else {
-      InvokeBuiltinStub stub(InvokeBuiltinStub::Dec, 1);
-      frame_->CallStub(&stub, 0);
+      frame_->CallRuntime(Runtime::kNumberSub, 2);
     }
 
     // Store the new value in the target if not const.
@@ -4715,19 +4697,6 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
 
   __ bind(&done);
   __ StubReturn(1);
-}
-
-
-void InvokeBuiltinStub::Generate(MacroAssembler* masm) {
-  __ push(r0);
-  __ mov(r0, Operand(0));  // set number of arguments
-  switch (kind_) {
-    case ToNumber: __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_JS); break;
-    case Inc:      __ InvokeBuiltin(Builtins::INC, JUMP_JS);       break;
-    case Dec:      __ InvokeBuiltin(Builtins::DEC, JUMP_JS);       break;
-    default: UNREACHABLE();
-  }
-  __ StubReturn(argc_);
 }
 
 

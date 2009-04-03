@@ -105,8 +105,6 @@ namespace v8 { namespace internal {
   V(MUL, 1)                    \
   V(DIV, 1)                    \
   V(MOD, 1)                    \
-  V(INC, 0)                    \
-  V(DEC, 0)                    \
   V(BIT_OR, 1)                 \
   V(BIT_AND, 1)                \
   V(BIT_XOR, 1)                \

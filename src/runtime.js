@@ -197,18 +197,6 @@ function MOD(x) {
 }
 
 
-// ECMA-262, section 11.4.4, page 47.
-function INC() {
-  return %NumberAdd(%ToNumber(this), 1);
-}
-
-
-// ECMA-262, section 11.4.5, page 48.
-function DEC() {
-  return %NumberSub(%ToNumber(this), 1);
-}
-
-
 
 /* -------------------------------------------
    - - -   B i t   o p e r a t i o n s   - - -

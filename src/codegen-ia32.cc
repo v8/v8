@@ -4724,11 +4724,11 @@ class DeferredCountOperation: public DeferredCode {
   DeferredCountOperation(CodeGenerator* generator,
                          bool is_postfix,
                          bool is_increment,
-                         int result_offset)
+                         int target_size)
       : DeferredCode(generator),
         is_postfix_(is_postfix),
         is_increment_(is_increment),
-        result_offset_(result_offset) {
+        target_size_(target_size) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -4737,75 +4737,38 @@ class DeferredCountOperation: public DeferredCode {
  private:
   bool is_postfix_;
   bool is_increment_;
-  int result_offset_;
-};
-
-
-class RevertToNumberStub: public CodeStub {
- public:
-  explicit RevertToNumberStub(bool is_increment)
-     :  is_increment_(is_increment) { }
-
- private:
-  bool is_increment_;
-
-  Major MajorKey() { return RevertToNumber; }
-  int MinorKey() { return is_increment_ ? 1 : 0; }
-  void Generate(MacroAssembler* masm);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("RevertToNumberStub (is_increment %s)\n",
-           is_increment_ ? "true" : "false");
-  }
-#endif
-};
-
-
-class CounterOpStub: public CodeStub {
- public:
-  CounterOpStub(int result_offset, bool is_postfix, bool is_increment)
-     :  result_offset_(result_offset),
-        is_postfix_(is_postfix),
-        is_increment_(is_increment) { }
-
- private:
-  int result_offset_;
-  bool is_postfix_;
-  bool is_increment_;
-
-  Major MajorKey() { return CounterOp; }
-  int MinorKey() {
-    return ((result_offset_ << 2) |
-            (is_postfix_ ? 2 : 0) |
-            (is_increment_ ? 1 : 0));
-  }
-  void Generate(MacroAssembler* masm);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("CounterOpStub (result_offset %d), (is_postfix %s),"
-           " (is_increment %s)\n",
-           result_offset_,
-           is_postfix_ ? "true" : "false",
-           is_increment_ ? "true" : "false");
-  }
-#endif
+  int target_size_;
 };
 
 
 void DeferredCountOperation::Generate() {
   CodeGenerator* cgen = generator();
-
   Result value(cgen);
   enter()->Bind(&value);
-  if (is_postfix_) {
-    RevertToNumberStub to_number_stub(is_increment_);
-    value = generator()->frame()->CallStub(&to_number_stub, &value);
+  VirtualFrame* frame = cgen->frame();
+  // Undo the optimistic smi operation.
+  value.ToRegister();
+  frame->Spill(value.reg());
+  if (is_increment_) {
+    __ sub(Operand(value.reg()), Immediate(Smi::FromInt(1)));
+  } else {
+    __ add(Operand(value.reg()), Immediate(Smi::FromInt(1)));
   }
-
-  CounterOpStub stub(result_offset_, is_postfix_, is_increment_);
-  value = generator()->frame()->CallStub(&stub, &value);
+  frame->Push(&value);
+  value = frame->InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION, 1);
+  frame->Push(&value);
+  if (is_postfix_) {  // Fix up copy of old value with ToNumber(value).
+    // This is only safe because VisitCountOperation makes this frame slot
+    // beneath the reference a register, which is spilled at the above call.
+    // We cannot safely write to constants or copies below the water line.
+    frame->StoreToElementAt(target_size_ + 1);
+  }
+  frame->Push(Smi::FromInt(1));
+  if (is_increment_) {
+    value = frame->CallRuntime(Runtime::kNumberAdd, 2);
+  } else {
+    value = frame->CallRuntime(Runtime::kNumberSub, 2);
+  }
   exit_.Jump(&value);
 }
 
@@ -4819,7 +4782,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   Variable* var = node->expression()->AsVariableProxy()->AsVariable();
   bool is_const = (var != NULL && var->mode() == Variable::CONST);
 
-  // Postfix: Make room for the result.
+  // Postfix operators need a stack slot under the reference to hold
+  // the old value while the new one is being stored.
   if (is_postfix) {
     frame_->Push(Smi::FromInt(0));
   }
@@ -4836,16 +4800,21 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     target.TakeValue(NOT_INSIDE_TYPEOF);
 
     DeferredCountOperation* deferred =
-        new DeferredCountOperation(this, is_postfix, is_increment,
-                                   target.size() * kPointerSize);
+        new DeferredCountOperation(this, is_postfix,
+                                   is_increment, target.size());
 
     Result value = frame_->Pop();
     value.ToRegister();
-    ASSERT(value.is_valid());
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
-      Result old_value = value;
+      // Explicitly back the slot for the old value with a new register.
+      // This improves performance in some cases.
+      Result old_value = allocator_->Allocate();
+      ASSERT(old_value.is_valid());
+      __ mov(old_value.reg(), value.reg());
+      // SetElement must not create a constant element or a copy in this slot,
+      // since we will write to it, below the waterline, in deferred code.
       frame_->SetElementAt(target.size(), &old_value);
     }
 
@@ -4885,7 +4854,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       tmp.Unuse();
       __ test(value.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &value, not_taken);
-    } else {
+    } else {  // Otherwise we test separately for overflow and smi check.
       deferred->enter()->Branch(overflow, &value, not_taken);
       __ test(value.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &value, not_taken);
@@ -6776,49 +6745,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 
-
-void RevertToNumberStub::Generate(MacroAssembler* masm) {
-  // Revert optimistic increment/decrement.
-  if (is_increment_) {
-    __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
-  } else {
-    __ add(Operand(eax), Immediate(Smi::FromInt(1)));
-  }
-
-  __ pop(ecx);
-  __ push(eax);
-  __ push(ecx);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
-  // Code never returns due to JUMP_FUNCTION.
-}
-
-
-void CounterOpStub::Generate(MacroAssembler* masm) {
-  // Store to the result on the stack (skip return address) before
-  // performing the count operation.
-  if (is_postfix_) {
-    __ mov(Operand(esp, result_offset_ + kPointerSize), eax);
-  }
-
-  // Revert optimistic increment/decrement but only for prefix
-  // counts. For postfix counts it has already been reverted before
-  // the conversion to numbers.
-  if (!is_postfix_) {
-    if (is_increment_) {
-      __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
-    } else {
-      __ add(Operand(eax), Immediate(Smi::FromInt(1)));
-    }
-  }
-
-  // Compute the new value by calling the right JavaScript native.
-  __ pop(ecx);
-  __ push(eax);
-  __ push(ecx);
-  Builtins::JavaScript builtin = is_increment_ ? Builtins::INC : Builtins::DEC;
-  __ InvokeBuiltin(builtin, JUMP_FUNCTION);
-  // Code never returns due to JUMP_FUNCTION.
-}
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
