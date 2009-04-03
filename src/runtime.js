@@ -104,13 +104,9 @@ function STRICT_EQUALS(x) {
     return %NumberEquals(this, x);
   } 
 
-  if (IS_UNDEFINED(this)) {  
-    // Both undefined and undetectable.
-    return IS_UNDEFINED(x) ? 0 : 1;
-  }
-
-  // Objects, null, booleans and functions are all that's left.
-  // They can all be compared with a simple identity check.
+  // If anything else gets here, we just do simple identity check.
+  // Objects (including functions), null, undefined and booleans were
+  // checked in the CompareStub, so there should be nothing left.
   return %_ObjectEquals(this, x) ? 0 : 1;
 }
 

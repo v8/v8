@@ -6541,69 +6541,130 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
 
-  // If we're doing a strict equality comparison, we generate code
-  // to do fast comparison for objects and oddballs. Numbers and
-  // strings still go through the usual slow-case code.
-  if (strict_) {
-    Label slow;
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &slow);
+  // NOTICE! This code is only reached after a smi-fast-case check, so
+  // it is certain that at least one operand isn't a smi.
 
-    // Get the type of the first operand.
-    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  if (cc_ == equal) {  // Both strict and non-strict.
+    Label slow;  // Fallthrough label.
+    // Equality is almost reflexive (everything but NaN), so start by testing
+    // for "identity and not NaN".
+    {
+      Label not_identical;
+      __ cmp(eax, Operand(edx));
+      __ j(not_equal, &not_identical);
+      // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+      // so we do the second best thing - test it ourselves.
 
-    // If the first object is an object, we do pointer comparison.
-    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    Label non_object;
-    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-    __ j(less, &non_object);
-    __ sub(eax, Operand(edx));
-    __ ret(0);
+      Label return_equal;
+      Label heap_number;
+      // If it's not a heap number, then return equal.
+      __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+             Immediate(Factory::heap_number_map()));
+      __ j(equal, &heap_number);
+      __ bind(&return_equal);
+      __ Set(eax, Immediate(0));
+      __ ret(0);
 
-    // Check for oddballs: true, false, null, undefined.
-    __ bind(&non_object);
-    __ cmp(ecx, ODDBALL_TYPE);
-    __ j(not_equal, &slow);
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if it's
+      // not NaN.
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // Read top bits of double representation (second word of value).
+      __ mov(eax, FieldOperand(edx, HeapNumber::kValueOffset + kPointerSize));
+      // Test that exponent bits are all set.
+      __ not_(eax);
+      __ test(eax, Immediate(0x7ff00000));
+      __ j(not_zero, &return_equal);
+      __ not_(eax);
 
-    // If the oddball isn't undefined, we do pointer comparison. For
-    // the undefined value, we have to be careful and check for
-    // 'undetectable' objects too.
-    Label undefined;
-    __ cmp(Operand(eax), Immediate(Factory::undefined_value()));
-    __ j(equal, &undefined);
-    __ sub(eax, Operand(edx));
-    __ ret(0);
+      // Shift out flag and all exponent bits, retaining only mantissa.
+      __ shl(eax, 12);
+      // Or with all low-bits of mantissa.
+      __ or_(eax, FieldOperand(edx, HeapNumber::kValueOffset));
+      // Return zero equal if all bits in mantissa is zero (it's an Infinity)
+      // and non-zero if not (it's a NaN).
+      __ ret(0);
 
-    // Undefined case: If the other operand isn't undefined too, we
-    // have to check if it's 'undetectable'.
-    Label check_undetectable;
-    __ bind(&undefined);
-    __ cmp(Operand(edx), Immediate(Factory::undefined_value()));
-    __ j(not_equal, &check_undetectable);
-    __ Set(eax, Immediate(0));
-    __ ret(0);
+      __ bind(&not_identical);
+    }
 
-    // Check for undetectability of the other operand.
-    Label not_strictly_equal;
-    __ bind(&check_undetectable);
-    __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &not_strictly_equal);
-    __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kBitFieldOffset));
-    __ and_(ecx, 1 << Map::kIsUndetectable);
-    __ cmp(ecx, 1 << Map::kIsUndetectable);
-    __ j(not_equal, &not_strictly_equal);
-    __ Set(eax, Immediate(0));
-    __ ret(0);
+    // If we're doing a strict equality comparison, we don't have to do
+    // type conversion, so we generate code to do fast comparison for objects
+    // and oddballs. Non-smi numbers and strings still go through the usual
+    // slow-case code.
+    if (strict_) {
+      // If either is a Smi (we know that not both are), then they can only
+      // be equal if the other is a HeapNumber. If so, use the slow case.
+      {
+        Label not_smis;
+        ASSERT_EQ(0, kSmiTag);
+        ASSERT_EQ(0, Smi::FromInt(0));
+        __ mov(ecx, Immediate(kSmiTagMask));
+        __ and_(ecx, Operand(eax));
+        __ test(ecx, Operand(edx));
+        __ j(not_zero, &not_smis);
+        // One operand is a smi.
 
-    // No cigar: Objects aren't strictly equal. Register eax contains
-    // a non-smi value so it can't be 0. Just return.
-    ASSERT(kHeapObjectTag != 0);
-    __ bind(&not_strictly_equal);
-    __ ret(0);
+        // Check whether the non-smi is a heap number.
+        ASSERT_EQ(1, kSmiTagMask);
+        // ecx still holds eax & kSmiTag, which is either zero or one.
+        __ sub(Operand(ecx), Immediate(0x01));
+        __ mov(ebx, edx);
+        __ xor_(ebx, Operand(eax));
+        __ and_(ebx, Operand(ecx));  // ebx holds either 0 or eax ^ edx.
+        __ xor_(ebx, Operand(eax));
+        // if eax was smi, ebx is now edx, else eax.
 
-    // Fall through to the general case.
+        // Check if the non-smi operand is a heap number.
+        __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
+               Immediate(Factory::heap_number_map()));
+        // If heap number, handle it in the slow case.
+        __ j(equal, &slow);
+        // Return non-equal (ebx is not zero)
+        __ mov(eax, ebx);
+        __ ret(0);
+
+        __ bind(&not_smis);
+      }
+
+      // If either operand is a JSObject or an oddball value, then they are not
+      // equal since their pointers are different
+      // There is no test for undetectability in strict equality.
+
+      // Get the type of the first operand.
+      __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+
+      // If the first object is a JS object, we have done pointer comparison.
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      Label first_non_object;
+      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      __ j(less, &first_non_object);
+
+      // Return non-zero (eax is not zero)
+      Label return_not_equal;
+      ASSERT(kHeapObjectTag != 0);
+      __ bind(&return_not_equal);
+      __ ret(0);
+
+      __ bind(&first_non_object);
+      // Check for oddballs: true, false, null, undefined.
+      __ cmp(ecx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+
+      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      __ j(greater_equal, &return_not_equal);
+
+      // Check for oddballs: true, false, null, undefined.
+      __ cmp(ecx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      // Fall through to the general case.
+    }
     __ bind(&slow);
   }
 

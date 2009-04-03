@@ -2383,11 +2383,16 @@ THREADED_TEST(UndetectableObject) {
   ExpectBoolean("undetectable||false", false);
 
   ExpectBoolean("undetectable==null", true);
+  ExpectBoolean("null==undetectable", true);
   ExpectBoolean("undetectable==undefined", true);
+  ExpectBoolean("undefined==undetectable", true);
   ExpectBoolean("undetectable==undetectable", true);
 
+
   ExpectBoolean("undetectable===null", false);
-  ExpectBoolean("undetectable===undefined", true);
+  ExpectBoolean("null===undetectable", false);
+  ExpectBoolean("undetectable===undefined", false);
+  ExpectBoolean("undefined===undetectable", false);
   ExpectBoolean("undetectable===undetectable", true);
 }
 
@@ -2418,11 +2423,16 @@ THREADED_TEST(UndetectableString) {
   ExpectBoolean("undetectable||false", false);
 
   ExpectBoolean("undetectable==null", true);
+  ExpectBoolean("null==undetectable", true);
   ExpectBoolean("undetectable==undefined", true);
+  ExpectBoolean("undefined==undetectable", true);
   ExpectBoolean("undetectable==undetectable", true);
 
+
   ExpectBoolean("undetectable===null", false);
-  ExpectBoolean("undetectable===undefined", true);
+  ExpectBoolean("null===undetectable", false);
+  ExpectBoolean("undetectable===undefined", false);
+  ExpectBoolean("undefined===undetectable", false);
   ExpectBoolean("undetectable===undetectable", true);
 }
 
