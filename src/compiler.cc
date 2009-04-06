@@ -215,7 +215,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                           extension,
                           pre_data);
     if (extension == NULL && !result.is_null()) {
-      CompilationCache::PutScript(source, CompilationCache::SCRIPT, result);
+      CompilationCache::PutScript(source, result);
     }
 
     // Get rid of the pre-parsing data (if necessary).

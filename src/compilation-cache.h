@@ -70,7 +70,6 @@ class CompilationCache {
   // Associate the (source, kind) pair to the boilerplate. This may
   // overwrite an existing mapping.
   static void PutScript(Handle<String> source,
-                        Entry entry,
                         Handle<JSFunction> boilerplate);
 
   // Associate the (source, context->closure()->shared(), kind) triple
