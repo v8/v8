@@ -2406,6 +2406,45 @@ TEST(DebugStepNatives) {
 }
 
 
+// Test that step in works with function.apply.
+TEST(DebugStepFunctionApply) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Create a function for testing stepping.
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function bar(x, y, z) { if (x == 1) { a = y; b = z; } }"
+      "function foo(){ debugger; bar.apply(this, [1,2,3]); }",
+      "foo");
+
+  // Register a debug event listener which steps and counts.
+  v8::Debug::SetDebugEventListener(DebugEventStep);
+
+  step_action = StepIn;
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), 0, NULL);
+
+  // With stepping all break locations are hit.
+  CHECK_EQ(6, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+
+  // Register a debug event listener which just counts.
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount);
+
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), 0, NULL);
+
+  // Without stepping only the debugger statement is hit.
+  CHECK_EQ(1, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Test break on exceptions. For each exception break combination the number
 // of debug event exception callbacks and message callbacks are collected. The
 // number of debug event exception callbacks are used to check that the

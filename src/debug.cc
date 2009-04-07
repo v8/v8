@@ -1160,7 +1160,28 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
   if (fp == Debug::step_in_fp()) {
     // Don't allow step into functions in the native context.
     if (function->context()->global() != Top::context()->builtins()) {
-      Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
+      if (function->shared()->code() ==
+          Builtins::builtin(Builtins::FunctionApply)) {
+        // Handle function.apply separately to flood the function to be called
+        // and not the code for Builtins::FunctionApply. At the point of the
+        // call IC to call Builtins::FunctionApply the expression stack has the
+        // following content:
+        //   symbol "apply"
+        //   function apply was called on
+        //   receiver for apply (first parameter to apply)
+        //   arguments array for apply (second parameter to apply)
+        JavaScriptFrameIterator it;
+        ASSERT(it.frame()->fp() == fp);
+        ASSERT(it.frame()->GetExpression(1)->IsJSFunction());
+        if (it.frame()->GetExpression(1)->IsJSFunction()) {
+          Handle<JSFunction>
+              actual_function(JSFunction::cast(it.frame()->GetExpression(1)));
+          Handle<SharedFunctionInfo> actual_shared(actual_function->shared());
+          Debug::FloodWithOneShot(actual_shared);
+        }
+      } else {
+        Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
+      }
     }
   }
 }
