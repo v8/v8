@@ -3300,6 +3300,12 @@ class DebuggerThread : public v8::internal::Thread {
 };
 
 
+static v8::Handle<v8::Value> ThreadedAtBarrier1(const v8::Arguments& args) {
+  threaded_debugging_barriers.barrier_1.Wait();
+  return v8::Undefined();
+}
+
+
 static void ThreadedMessageHandler(const uint16_t* message, int length,
                                    void *data) {
   static char print_buffer[1000];
@@ -3313,7 +3319,7 @@ static void ThreadedMessageHandler(const uint16_t* message, int length,
 
 
 void V8Thread::Run() {
-  const char* source_1 =
+  const char* source =
       "flag = true;\n"
       "function bar( new_value ) {\n"
       "  flag = new_value;\n"
@@ -3323,19 +3329,25 @@ void V8Thread::Run() {
       "function foo() {\n"
       "  var x = 1;\n"
       "  while ( flag == true ) {\n"
+      "    if ( x == 1 ) {\n"
+      "      ThreadedAtBarrier1();\n"
+      "    }\n"
       "    x = x + 1;\n"
       "  }\n"
       "}\n"
-      "\n";
-  const char* source_2 = "foo();\n";
+      "\n"
+      "foo();\n";
 
   v8::HandleScope scope;
   DebugLocalContext env;
   v8::Debug::SetMessageHandler(&ThreadedMessageHandler);
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->Set(v8::String::New("ThreadedAtBarrier1"),
+                       v8::FunctionTemplate::New(ThreadedAtBarrier1));
+  v8::Handle<v8::Context> context = v8::Context::New(NULL, global_template);
+  v8::Context::Scope context_scope(context);
 
-  CompileRun(source_1);
-  threaded_debugging_barriers.barrier_1.Wait();
-  CompileRun(source_2);
+  CompileRun(source);
 }
 
 void DebuggerThread::Run() {
