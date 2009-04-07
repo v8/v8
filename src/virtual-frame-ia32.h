@@ -172,6 +172,10 @@ class VirtualFrame : public Malloced {
     PushFrameSlotAt(elements_.length() - index - 1);
   }
 
+  void StoreToElementAt(int index) {
+    StoreToFrameSlotAt(elements_.length() - index - 1);
+  }
+
   // A frame-allocated local as an assembly operand.
   Operand LocalAt(int index) const {
     ASSERT(0 <= index);
@@ -321,7 +325,7 @@ class VirtualFrame : public Malloced {
   void EmitPush(Immediate immediate);
 
   // Push an element on the virtual frame.
-  void Push(Register reg);
+  void Push(Register reg, StaticType static_type = StaticType());
   void Push(Handle<Object> value);
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 

@@ -274,25 +274,29 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       if (has_valid_frame()) {
         // If there is a valid frame, control flow can fall off the end of
         // the body.  In that case there is an implicit return statement.
-        // Compiling a return statement will jump to the return sequence if
-        // it is already generated or generate it if not.
         ASSERT(!function_return_is_shadowed_);
-        Literal undefined(Factory::undefined_value());
-        ReturnStatement statement(&undefined);
-        statement.set_statement_pos(fun->end_position());
-        VisitReturnStatement(&statement);
+        CodeForReturnPosition(fun);
+        frame_->PrepareForReturn();
+        Result undefined(Factory::undefined_value(), this);
+        if (function_return_.is_bound()) {
+          function_return_.Jump(&undefined);
+        } else {
+          // Though this is a (possibly) backward block, the frames
+          // can only differ on their top element.
+          function_return_.Bind(&undefined, 1);
+          GenerateReturnSequence(&undefined);
+        }
       } else if (function_return_.is_linked()) {
         // If the return target has dangling jumps to it, then we have not
         // yet generated the return sequence.  This can happen when (a)
         // control does not flow off the end of the body so we did not
         // compile an artificial return statement just above, and (b) there
         // are return statements in the body but (c) they are all shadowed.
-        //
-        // There is no valid frame here but it is safe (also necessary) to
-        // load the return value into eax.
-        __ mov(eax, Immediate(Factory::undefined_value()));
-        function_return_.Bind();
-        GenerateReturnSequence();
+        Result return_value(this);
+        // Though this is a (possibly) backward block, the frames can
+        // only differ on their top element.
+        function_return_.Bind(&return_value, 1);
+        GenerateReturnSequence(&return_value);
       }
     }
   }
@@ -803,7 +807,7 @@ void DeferredInlineBinaryOperation::Generate() {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           StaticType* type,
+                                           SmiAnalysis* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -841,6 +845,34 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   Result right = frame_->Pop();
   Result left = frame_->Pop();
+
+  if (op == Token::ADD) {
+    bool left_is_string = left.static_type().is_jsstring();
+    bool right_is_string = right.static_type().is_jsstring();
+    if (left_is_string || right_is_string) {
+      frame_->Push(&left);
+      frame_->Push(&right);
+      Result answer(this);
+      if (left_is_string) {
+        if (right_is_string) {
+          // TODO(lrn): if (left.is_constant() && right.is_constant())
+          // -- do a compile time cons, if allocation during codegen is allowed.
+          answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+        } else {
+          answer =
+            frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
+        }
+      } else if (right_is_string) {
+        answer =
+          frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
+      }
+      answer.set_static_type(StaticType::jsstring());
+      frame_->Push(&answer);
+      return;
+    }
+    // Neither operand is known to be a string.
+  }
+
   bool left_is_smi = left.is_constant() && left.handle()->IsSmi();
   bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
   bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
@@ -1185,7 +1217,7 @@ void DeferredInlineSmiSubReversed::Generate() {
 void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                Result* operand,
                                                Handle<Object> value,
-                                               StaticType* type,
+                                               SmiAnalysis* type,
                                                bool reversed,
                                                OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
@@ -1943,52 +1975,37 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ ReturnStatement");
 
+  CodeForStatementPosition(node);
+  Load(node->expression());
+  Result return_value = frame_->Pop();
   if (function_return_is_shadowed_) {
-    // If the function return is shadowed, we spill all information
-    // and just jump to the label.
-    VirtualFrame::SpilledScope spilled_scope(this);
-    CodeForStatementPosition(node);
-    LoadAndSpill(node->expression());
-    frame_->EmitPop(eax);
-    function_return_.Jump();
+    function_return_.Jump(&return_value);
   } else {
-    // Load the returned value.
-    CodeForStatementPosition(node);
-    Load(node->expression());
-
-    // Pop the result from the frame and prepare the frame for
-    // returning thus making it easier to merge.
-    Result result = frame_->Pop();
     frame_->PrepareForReturn();
-
-    // Move the result into register eax where it belongs.
-    result.ToRegister(eax);
-    // TODO(203): Instead of explictly calling Unuse on the result, it
-    // might be better to pass the result to Jump and Bind below.
-    result.Unuse();
-
-    // If the function return label is already bound, we reuse the
-    // code by jumping to the return site.
     if (function_return_.is_bound()) {
-      function_return_.Jump();
+      // If the function return label is already bound we reuse the
+      // code by jumping to the return site.
+      function_return_.Jump(&return_value);
     } else {
-      function_return_.Bind();
-      GenerateReturnSequence();
+      // Though this is a (possibly) backward block, the frames can
+      // only differ on their top element.
+      function_return_.Bind(&return_value, 1);
+      GenerateReturnSequence(&return_value);
     }
   }
 }
 
 
-void CodeGenerator::GenerateReturnSequence() {
+void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // The return value is a live (but not currently reference counted)
   // reference to eax.  This is safe because the current frame does not
   // contain a reference to eax (it is prepared for the return by spilling
   // all registers).
-  ASSERT(has_valid_frame());
   if (FLAG_trace) {
-    frame_->Push(eax);  // Materialize result on the stack.
-    frame_->CallRuntime(Runtime::kTraceExit, 1);
+    frame_->Push(return_value);
+    *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
   }
+  return_value->ToRegister(eax);
 
   // Add a label for checking the size of the code used for returning.
   Label check_exit_codesize;
@@ -2921,14 +2938,22 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
     }
   }
 
-  // Generate unlink code for the (formerly) shadowing targets that have been
-  // jumped to.  Deallocate each shadow target.
+  // Generate unlink code for the (formerly) shadowing targets that
+  // have been jumped to.  Deallocate each shadow target.
+  Result return_value(this);
   for (int i = 0; i < shadows.length(); i++) {
     if (shadows[i]->is_linked()) {
-      // Unlink from try chain; be careful not to destroy the TOS.
-      shadows[i]->Bind();
-      // Because we can be jumping here (to spilled code) from unspilled
-      // code, we need to reestablish a spilled frame at this block.
+      // Unlink from try chain; be careful not to destroy the TOS if
+      // there is one.
+      if (i == kReturnShadowIndex) {
+        shadows[i]->Bind(&return_value);
+        return_value.ToRegister(eax);
+      } else {
+        shadows[i]->Bind();
+      }
+      // Because we can be jumping here (to spilled code) from
+      // unspilled code, we need to reestablish a spilled frame at
+      // this block.
       frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that we
@@ -2943,10 +2968,12 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
       // next_sp popped.
 
-      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
-        frame_->PrepareForReturn();
+      if (i == kReturnShadowIndex) {
+        if (!function_return_is_shadowed_) frame_->PrepareForReturn();
+        shadows[i]->other_target()->Jump(&return_value);
+      } else {
+        shadows[i]->other_target()->Jump();
       }
-      shadows[i]->other_target()->Jump();
     }
     delete shadows[i];
   }
@@ -3043,13 +3070,18 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   for (int i = 0; i < shadows.length(); i++) {
     if (shadows[i]->is_linked()) {
       // If we have come from the shadowed return, the return value is
-      // in (a non-refcounted reference to) eax.  We must preserve it
-      // until it is pushed.
-      //
+      // on the virtual frame.  We must preserve it until it is
+      // pushed.
+      if (i == kReturnShadowIndex) {
+        Result return_value(this);
+        shadows[i]->Bind(&return_value);
+        return_value.ToRegister(eax);
+      } else {
+        shadows[i]->Bind();
+      }
       // Because we can be jumping here (to spilled code) from
       // unspilled code, we need to reestablish a spilled frame at
       // this block.
-      shadows[i]->Bind();
       frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that
@@ -3103,14 +3135,23 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // formerly shadowing targets.  Deallocate each shadow target.
   for (int i = 0; i < shadows.length(); i++) {
     if (has_valid_frame() && shadows[i]->is_bound()) {
-      JumpTarget* original = shadows[i]->other_target();
+      BreakTarget* original = shadows[i]->other_target();
       __ cmp(Operand(ecx), Immediate(Smi::FromInt(JUMPING + i)));
-      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
-        JumpTarget skip(this);
-        skip.Branch(not_equal);
-        frame_->PrepareForReturn();
-        original->Jump();
-        skip.Bind();
+      if (i == kReturnShadowIndex) {
+        // The return value is (already) in eax.
+        Result return_value = allocator_->Allocate(eax);
+        ASSERT(return_value.is_valid());
+        if (function_return_is_shadowed_) {
+          original->Branch(equal, &return_value);
+        } else {
+          // Branch around the preparation for return which may emit
+          // code.
+          JumpTarget skip(this);
+          skip.Branch(not_equal);
+          frame_->PrepareForReturn();
+          original->Jump(&return_value);
+          skip.Bind();
+        }
       } else {
         original->Branch(equal);
       }
@@ -3486,8 +3527,8 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-    frame_->Push(node->handle());
-  }
+  frame_->Push(node->handle());
+}
 
 
 void CodeGenerator::LoadUnsafeSmi(Register target, Handle<Object> value) {
@@ -4683,11 +4724,11 @@ class DeferredCountOperation: public DeferredCode {
   DeferredCountOperation(CodeGenerator* generator,
                          bool is_postfix,
                          bool is_increment,
-                         int result_offset)
+                         int target_size)
       : DeferredCode(generator),
         is_postfix_(is_postfix),
         is_increment_(is_increment),
-        result_offset_(result_offset) {
+        target_size_(target_size) {
     set_comment("[ DeferredCountOperation");
   }
 
@@ -4696,75 +4737,38 @@ class DeferredCountOperation: public DeferredCode {
  private:
   bool is_postfix_;
   bool is_increment_;
-  int result_offset_;
-};
-
-
-class RevertToNumberStub: public CodeStub {
- public:
-  explicit RevertToNumberStub(bool is_increment)
-     :  is_increment_(is_increment) { }
-
- private:
-  bool is_increment_;
-
-  Major MajorKey() { return RevertToNumber; }
-  int MinorKey() { return is_increment_ ? 1 : 0; }
-  void Generate(MacroAssembler* masm);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("RevertToNumberStub (is_increment %s)\n",
-           is_increment_ ? "true" : "false");
-  }
-#endif
-};
-
-
-class CounterOpStub: public CodeStub {
- public:
-  CounterOpStub(int result_offset, bool is_postfix, bool is_increment)
-     :  result_offset_(result_offset),
-        is_postfix_(is_postfix),
-        is_increment_(is_increment) { }
-
- private:
-  int result_offset_;
-  bool is_postfix_;
-  bool is_increment_;
-
-  Major MajorKey() { return CounterOp; }
-  int MinorKey() {
-    return ((result_offset_ << 2) |
-            (is_postfix_ ? 2 : 0) |
-            (is_increment_ ? 1 : 0));
-  }
-  void Generate(MacroAssembler* masm);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("CounterOpStub (result_offset %d), (is_postfix %s),"
-           " (is_increment %s)\n",
-           result_offset_,
-           is_postfix_ ? "true" : "false",
-           is_increment_ ? "true" : "false");
-  }
-#endif
+  int target_size_;
 };
 
 
 void DeferredCountOperation::Generate() {
   CodeGenerator* cgen = generator();
-
   Result value(cgen);
   enter()->Bind(&value);
-  if (is_postfix_) {
-    RevertToNumberStub to_number_stub(is_increment_);
-    value = generator()->frame()->CallStub(&to_number_stub, &value);
+  VirtualFrame* frame = cgen->frame();
+  // Undo the optimistic smi operation.
+  value.ToRegister();
+  frame->Spill(value.reg());
+  if (is_increment_) {
+    __ sub(Operand(value.reg()), Immediate(Smi::FromInt(1)));
+  } else {
+    __ add(Operand(value.reg()), Immediate(Smi::FromInt(1)));
   }
-
-  CounterOpStub stub(result_offset_, is_postfix_, is_increment_);
-  value = generator()->frame()->CallStub(&stub, &value);
+  frame->Push(&value);
+  value = frame->InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION, 1);
+  frame->Push(&value);
+  if (is_postfix_) {  // Fix up copy of old value with ToNumber(value).
+    // This is only safe because VisitCountOperation makes this frame slot
+    // beneath the reference a register, which is spilled at the above call.
+    // We cannot safely write to constants or copies below the water line.
+    frame->StoreToElementAt(target_size_ + 1);
+  }
+  frame->Push(Smi::FromInt(1));
+  if (is_increment_) {
+    value = frame->CallRuntime(Runtime::kNumberAdd, 2);
+  } else {
+    value = frame->CallRuntime(Runtime::kNumberSub, 2);
+  }
   exit_.Jump(&value);
 }
 
@@ -4778,7 +4782,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   Variable* var = node->expression()->AsVariableProxy()->AsVariable();
   bool is_const = (var != NULL && var->mode() == Variable::CONST);
 
-  // Postfix: Make room for the result.
+  // Postfix operators need a stack slot under the reference to hold
+  // the old value while the new one is being stored.
   if (is_postfix) {
     frame_->Push(Smi::FromInt(0));
   }
@@ -4795,16 +4800,21 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     target.TakeValue(NOT_INSIDE_TYPEOF);
 
     DeferredCountOperation* deferred =
-        new DeferredCountOperation(this, is_postfix, is_increment,
-                                   target.size() * kPointerSize);
+        new DeferredCountOperation(this, is_postfix,
+                                   is_increment, target.size());
 
     Result value = frame_->Pop();
     value.ToRegister();
-    ASSERT(value.is_valid());
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
-      Result old_value = value;
+      // Explicitly back the slot for the old value with a new register.
+      // This improves performance in some cases.
+      Result old_value = allocator_->Allocate();
+      ASSERT(old_value.is_valid());
+      __ mov(old_value.reg(), value.reg());
+      // SetElement must not create a constant element or a copy in this slot,
+      // since we will write to it, below the waterline, in deferred code.
       frame_->SetElementAt(target.size(), &old_value);
     }
 
@@ -4844,7 +4854,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       tmp.Unuse();
       __ test(value.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &value, not_taken);
-    } else {
+    } else {  // Otherwise we test separately for overflow and smi check.
       deferred->enter()->Branch(overflow, &value, not_taken);
       __ test(value.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &value, not_taken);
@@ -6500,69 +6510,130 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
 
-  // If we're doing a strict equality comparison, we generate code
-  // to do fast comparison for objects and oddballs. Numbers and
-  // strings still go through the usual slow-case code.
-  if (strict_) {
-    Label slow;
-    __ test(eax, Immediate(kSmiTagMask));
-    __ j(zero, &slow);
+  // NOTICE! This code is only reached after a smi-fast-case check, so
+  // it is certain that at least one operand isn't a smi.
 
-    // Get the type of the first operand.
-    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  if (cc_ == equal) {  // Both strict and non-strict.
+    Label slow;  // Fallthrough label.
+    // Equality is almost reflexive (everything but NaN), so start by testing
+    // for "identity and not NaN".
+    {
+      Label not_identical;
+      __ cmp(eax, Operand(edx));
+      __ j(not_equal, &not_identical);
+      // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+      // so we do the second best thing - test it ourselves.
 
-    // If the first object is an object, we do pointer comparison.
-    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    Label non_object;
-    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-    __ j(less, &non_object);
-    __ sub(eax, Operand(edx));
-    __ ret(0);
+      Label return_equal;
+      Label heap_number;
+      // If it's not a heap number, then return equal.
+      __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+             Immediate(Factory::heap_number_map()));
+      __ j(equal, &heap_number);
+      __ bind(&return_equal);
+      __ Set(eax, Immediate(0));
+      __ ret(0);
 
-    // Check for oddballs: true, false, null, undefined.
-    __ bind(&non_object);
-    __ cmp(ecx, ODDBALL_TYPE);
-    __ j(not_equal, &slow);
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if it's
+      // not NaN.
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // Read top bits of double representation (second word of value).
+      __ mov(eax, FieldOperand(edx, HeapNumber::kValueOffset + kPointerSize));
+      // Test that exponent bits are all set.
+      __ not_(eax);
+      __ test(eax, Immediate(0x7ff00000));
+      __ j(not_zero, &return_equal);
+      __ not_(eax);
 
-    // If the oddball isn't undefined, we do pointer comparison. For
-    // the undefined value, we have to be careful and check for
-    // 'undetectable' objects too.
-    Label undefined;
-    __ cmp(Operand(eax), Immediate(Factory::undefined_value()));
-    __ j(equal, &undefined);
-    __ sub(eax, Operand(edx));
-    __ ret(0);
+      // Shift out flag and all exponent bits, retaining only mantissa.
+      __ shl(eax, 12);
+      // Or with all low-bits of mantissa.
+      __ or_(eax, FieldOperand(edx, HeapNumber::kValueOffset));
+      // Return zero equal if all bits in mantissa is zero (it's an Infinity)
+      // and non-zero if not (it's a NaN).
+      __ ret(0);
 
-    // Undefined case: If the other operand isn't undefined too, we
-    // have to check if it's 'undetectable'.
-    Label check_undetectable;
-    __ bind(&undefined);
-    __ cmp(Operand(edx), Immediate(Factory::undefined_value()));
-    __ j(not_equal, &check_undetectable);
-    __ Set(eax, Immediate(0));
-    __ ret(0);
+      __ bind(&not_identical);
+    }
 
-    // Check for undetectability of the other operand.
-    Label not_strictly_equal;
-    __ bind(&check_undetectable);
-    __ test(edx, Immediate(kSmiTagMask));
-    __ j(zero, &not_strictly_equal);
-    __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kBitFieldOffset));
-    __ and_(ecx, 1 << Map::kIsUndetectable);
-    __ cmp(ecx, 1 << Map::kIsUndetectable);
-    __ j(not_equal, &not_strictly_equal);
-    __ Set(eax, Immediate(0));
-    __ ret(0);
+    // If we're doing a strict equality comparison, we don't have to do
+    // type conversion, so we generate code to do fast comparison for objects
+    // and oddballs. Non-smi numbers and strings still go through the usual
+    // slow-case code.
+    if (strict_) {
+      // If either is a Smi (we know that not both are), then they can only
+      // be equal if the other is a HeapNumber. If so, use the slow case.
+      {
+        Label not_smis;
+        ASSERT_EQ(0, kSmiTag);
+        ASSERT_EQ(0, Smi::FromInt(0));
+        __ mov(ecx, Immediate(kSmiTagMask));
+        __ and_(ecx, Operand(eax));
+        __ test(ecx, Operand(edx));
+        __ j(not_zero, &not_smis);
+        // One operand is a smi.
 
-    // No cigar: Objects aren't strictly equal. Register eax contains
-    // a non-smi value so it can't be 0. Just return.
-    ASSERT(kHeapObjectTag != 0);
-    __ bind(&not_strictly_equal);
-    __ ret(0);
+        // Check whether the non-smi is a heap number.
+        ASSERT_EQ(1, kSmiTagMask);
+        // ecx still holds eax & kSmiTag, which is either zero or one.
+        __ sub(Operand(ecx), Immediate(0x01));
+        __ mov(ebx, edx);
+        __ xor_(ebx, Operand(eax));
+        __ and_(ebx, Operand(ecx));  // ebx holds either 0 or eax ^ edx.
+        __ xor_(ebx, Operand(eax));
+        // if eax was smi, ebx is now edx, else eax.
 
-    // Fall through to the general case.
+        // Check if the non-smi operand is a heap number.
+        __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
+               Immediate(Factory::heap_number_map()));
+        // If heap number, handle it in the slow case.
+        __ j(equal, &slow);
+        // Return non-equal (ebx is not zero)
+        __ mov(eax, ebx);
+        __ ret(0);
+
+        __ bind(&not_smis);
+      }
+
+      // If either operand is a JSObject or an oddball value, then they are not
+      // equal since their pointers are different
+      // There is no test for undetectability in strict equality.
+
+      // Get the type of the first operand.
+      __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+
+      // If the first object is a JS object, we have done pointer comparison.
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      Label first_non_object;
+      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      __ j(less, &first_non_object);
+
+      // Return non-zero (eax is not zero)
+      Label return_not_equal;
+      ASSERT(kHeapObjectTag != 0);
+      __ bind(&return_not_equal);
+      __ ret(0);
+
+      __ bind(&first_non_object);
+      // Check for oddballs: true, false, null, undefined.
+      __ cmp(ecx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+
+      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      __ j(greater_equal, &return_not_equal);
+
+      // Check for oddballs: true, false, null, undefined.
+      __ cmp(ecx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      // Fall through to the general case.
+    }
     __ bind(&slow);
   }
 
@@ -6674,49 +6745,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 
-
-void RevertToNumberStub::Generate(MacroAssembler* masm) {
-  // Revert optimistic increment/decrement.
-  if (is_increment_) {
-    __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
-  } else {
-    __ add(Operand(eax), Immediate(Smi::FromInt(1)));
-  }
-
-  __ pop(ecx);
-  __ push(eax);
-  __ push(ecx);
-  __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_FUNCTION);
-  // Code never returns due to JUMP_FUNCTION.
-}
-
-
-void CounterOpStub::Generate(MacroAssembler* masm) {
-  // Store to the result on the stack (skip return address) before
-  // performing the count operation.
-  if (is_postfix_) {
-    __ mov(Operand(esp, result_offset_ + kPointerSize), eax);
-  }
-
-  // Revert optimistic increment/decrement but only for prefix
-  // counts. For postfix counts it has already been reverted before
-  // the conversion to numbers.
-  if (!is_postfix_) {
-    if (is_increment_) {
-      __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
-    } else {
-      __ add(Operand(eax), Immediate(Smi::FromInt(1)));
-    }
-  }
-
-  // Compute the new value by calling the right JavaScript native.
-  __ pop(ecx);
-  __ push(eax);
-  __ push(ecx);
-  Builtins::JavaScript builtin = is_increment_ ? Builtins::INC : Builtins::DEC;
-  __ InvokeBuiltin(builtin, JUMP_FUNCTION);
-  // Code never returns due to JUMP_FUNCTION.
-}
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {

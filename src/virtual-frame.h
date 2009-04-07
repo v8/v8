@@ -47,13 +47,14 @@ namespace v8 { namespace internal {
 class FrameElement BASE_EMBEDDED {
  public:
   enum SyncFlag {
-    SYNCED,
-    NOT_SYNCED
+    NOT_SYNCED,
+    SYNCED
   };
 
   // The default constructor creates an invalid frame element.
-  FrameElement() {
-    Initialize(INVALID, no_reg, NOT_SYNCED);
+  FrameElement()
+      : static_type_(), type_(INVALID), copied_(false), synced_(false) {
+    data_.reg_ = no_reg;
   }
 
   // Factory function to construct an invalid frame element.
@@ -69,9 +70,10 @@ class FrameElement BASE_EMBEDDED {
   }
 
   // Factory function to construct an in-register frame element.
-  static FrameElement RegisterElement(Register reg, SyncFlag is_synced) {
-    FrameElement result(REGISTER, reg, is_synced);
-    return result;
+  static FrameElement RegisterElement(Register reg,
+                                      SyncFlag is_synced,
+                                      StaticType static_type = StaticType()) {
+    return FrameElement(REGISTER, reg, is_synced, static_type);
   }
 
   // Factory function to construct a frame element whose value is known at
@@ -82,16 +84,16 @@ class FrameElement BASE_EMBEDDED {
     return result;
   }
 
-  bool is_synced() const { return SyncField::decode(type_) == SYNCED; }
+  bool is_synced() const { return synced_; }
 
   void set_sync() {
     ASSERT(type() != MEMORY);
-    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(SYNCED);
+    synced_ = true;
   }
 
   void clear_sync() {
     ASSERT(type() != MEMORY);
-    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(NOT_SYNCED);
+    synced_ = false;
   }
 
   bool is_valid() const { return type() != INVALID; }
@@ -100,15 +102,9 @@ class FrameElement BASE_EMBEDDED {
   bool is_constant() const { return type() == CONSTANT; }
   bool is_copy() const { return type() == COPY; }
 
-  bool is_copied() const { return IsCopiedField::decode(type_); }
-
-  void set_copied() {
-    type_ = (type_ & ~IsCopiedField::mask()) | IsCopiedField::encode(true);
-  }
-
-  void clear_copied() {
-    type_ = (type_ & ~IsCopiedField::mask()) | IsCopiedField::encode(false);
-  }
+  bool is_copied() const { return copied_; }
+  void set_copied() { copied_ = true; }
+  void clear_copied() { copied_ = false; }
 
   Register reg() const {
     ASSERT(is_register());
@@ -127,6 +123,14 @@ class FrameElement BASE_EMBEDDED {
 
   bool Equals(FrameElement other);
 
+  StaticType static_type() { return static_type_; }
+
+  void set_static_type(StaticType static_type) {
+    // TODO(lrn): If it's s copy, it would be better to update the real one,
+    // but we can't from here. The caller must handle this.
+    static_type_ = static_type;
+  }
+
  private:
   enum Type {
     INVALID,
@@ -136,17 +140,19 @@ class FrameElement BASE_EMBEDDED {
     COPY
   };
 
-  // BitField is <type, shift, size>.
-  class SyncField : public BitField<SyncFlag, 0, 1> {};
-  class IsCopiedField : public BitField<bool, 1, 1> {};
-  class TypeField : public BitField<Type, 2, 32 - 2> {};
+  Type type() const { return static_cast<Type>(type_); }
 
-  Type type() const { return TypeField::decode(type_); }
+  StaticType static_type_;
 
-  // The element's type and a dirty bit.  The dirty bit can be cleared
+  // The element's type.
+  byte type_;
+
+  bool copied_;
+
+  // The element's dirty-bit. The dirty bit can be cleared
   // for non-memory elements to indicate that the element agrees with
   // the value in memory in the actual frame.
-  int type_;
+  bool synced_;
 
   union {
     Register reg_;
@@ -155,15 +161,30 @@ class FrameElement BASE_EMBEDDED {
   } data_;
 
   // Used to construct memory and register elements.
-  FrameElement(Type type, Register reg, SyncFlag is_synced) {
-    Initialize(type, reg, is_synced);
+  FrameElement(Type type, Register reg, SyncFlag is_synced)
+      : static_type_(),
+        type_(type),
+        copied_(false),
+        synced_(is_synced  != NOT_SYNCED) {
+    data_.reg_ = reg;
+  }
+
+  FrameElement(Type type, Register reg, SyncFlag is_synced, StaticType stype)
+      : static_type_(stype),
+        type_(type),
+        copied_(false),
+        synced_(is_synced != NOT_SYNCED) {
+    data_.reg_ = reg;
   }
 
   // Used to construct constant elements.
-  inline FrameElement(Handle<Object> value, SyncFlag is_synced);
-
-  // Used to initialize invalid, memory, and register elements.
-  inline void Initialize(Type type, Register reg, SyncFlag is_synced);
+  FrameElement(Handle<Object> value, SyncFlag is_synced)
+      : static_type_(StaticType::TypeOf(*value)),
+        type_(CONSTANT),
+        copied_(false),
+        synced_(is_synced != NOT_SYNCED) {
+    data_.handle_ = value.location();
+  }
 
   void set_index(int new_index) {
     ASSERT(is_copy());
@@ -181,26 +202,5 @@ class FrameElement BASE_EMBEDDED {
 #else  // ia32
 #include "virtual-frame-ia32.h"
 #endif
-
-
-namespace v8 { namespace internal {
-
-FrameElement::FrameElement(Handle<Object> value, SyncFlag is_synced) {
-  type_ = TypeField::encode(CONSTANT)
-          | IsCopiedField::encode(false)
-          | SyncField::encode(is_synced);
-  data_.handle_ = value.location();
-}
-
-
-void FrameElement::Initialize(Type type, Register reg, SyncFlag is_synced) {
-  type_ = TypeField::encode(type)
-          | IsCopiedField::encode(false)
-          | SyncField::encode(is_synced);
-  data_.reg_ = reg;
-}
-
-
-} }  // namespace v8::internal
 
 #endif  // V8_VIRTUAL_FRAME_H_

@@ -163,10 +163,10 @@ class Expression: public Node {
   virtual void MarkAsStatement() { /* do nothing */ }
 
   // Static type information for this expression.
-  StaticType* type() { return &type_; }
+  SmiAnalysis* type() { return &type_; }
 
  private:
-  StaticType type_;
+  SmiAnalysis type_;
 };
 
 

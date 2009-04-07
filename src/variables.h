@@ -64,14 +64,14 @@ class UseCount BASE_EMBEDDED {
 // Variables and AST expression nodes can track their "type" to enable
 // optimizations and removal of redundant checks when generating code.
 
-class StaticType BASE_EMBEDDED {
+class SmiAnalysis {
  public:
   enum Kind {
     UNKNOWN,
     LIKELY_SMI
   };
 
-  StaticType() : kind_(UNKNOWN) {}
+  SmiAnalysis() : kind_(UNKNOWN) {}
 
   bool Is(Kind kind) const { return kind_ == kind; }
 
@@ -79,11 +79,11 @@ class StaticType BASE_EMBEDDED {
   bool IsUnknown() const { return Is(UNKNOWN); }
   bool IsLikelySmi() const { return Is(LIKELY_SMI); }
 
-  void CopyFrom(StaticType* other) {
+  void CopyFrom(SmiAnalysis* other) {
     kind_ = other->kind_;
   }
 
-  static const char* Type2String(StaticType* type);
+  static const char* Type2String(SmiAnalysis* type);
 
   // LIKELY_SMI accessors
   void SetAsLikelySmi() {
@@ -99,7 +99,7 @@ class StaticType BASE_EMBEDDED {
  private:
   Kind kind_;
 
-  DISALLOW_COPY_AND_ASSIGN(StaticType);
+  DISALLOW_COPY_AND_ASSIGN(SmiAnalysis);
 };
 
 
@@ -185,7 +185,7 @@ class Variable: public ZoneObject {
   Expression* rewrite() const  { return rewrite_; }
   Slot* slot() const;
 
-  StaticType* type() { return &type_; }
+  SmiAnalysis* type() { return &type_; }
 
  private:
   Variable(Scope* scope, Handle<String> name, Mode mode, bool is_valid_LHS,
@@ -205,7 +205,7 @@ class Variable: public ZoneObject {
   UseCount obj_uses_;  // uses of the object the variable points to
 
   // Static type information
-  StaticType type_;
+  SmiAnalysis type_;
 
   // Code generation.
   // rewrite_ is usually a Slot or a Property, but maybe any expression.

@@ -35,37 +35,41 @@
 // Include the declaration of the architecture defined class CodeGenerator.
 // The contract  to the shared code is that the the CodeGenerator is a subclass
 // of Visitor and that the following methods are available publicly:
-// CodeGenerator::MakeCode
-// CodeGenerator::SetFunctionInfo
-// CodeGenerator::masm
-// CodeGenerator::frame
-// CodeGenerator::has_valid_frame
-// CodeGenerator::SetFrame
-// CodeGenerator::DeleteFrame
-// CodeGenerator::allocator
-// CodeGenerator::AddDeferred
-// CodeGenerator::in_spilled_code
-// CodeGenerator::set_in_spilled_code
+//   MakeCode
+//   SetFunctionInfo
+//   masm
+//   frame
+//   has_valid_frame
+//   SetFrame
+//   DeleteFrame
+//   allocator
+//   AddDeferred
+//   in_spilled_code
+//   set_in_spilled_code
 //
 // These methods are either used privately by the shared code or implemented as
 // shared code:
-// CodeGenerator::CodeGenerator
-// CodeGenerator::~CodeGenerator
-// CodeGenerator::ProcessDeferred
-// CodeGenerator::ClearDeferred
-// CodeGenerator::GenCode
-// CodeGenerator::BuildBoilerplate
-// CodeGenerator::ComputeCallInitialize
-// CodeGenerator::ComputeCallInitializeInLoop
-// CodeGenerator::ProcessDeclarations
-// CodeGenerator::DeclareGlobals
-// CodeGenerator::CheckForInlineRuntimeCall
-// CodeGenerator::GenerateFastCaseSwitchStatement
-// CodeGenerator::GenerateFastCaseSwitchCases
-// CodeGenerator::TryGenerateFastCaseSwitchStatement
-// CodeGenerator::GenerateFastCaseSwitchJumpTable
-// CodeGenerator::FastCaseSwitchMinCaseCount
-// CodeGenerator::FastCaseSwitchMaxOverheadFactor
+//   CodeGenerator
+//   ~CodeGenerator
+//   ProcessDeferred
+//   ClearDeferred
+//   GenCode
+//   BuildBoilerplate
+//   ComputeCallInitialize
+//   ComputeCallInitializeInLoop
+//   ProcessDeclarations
+//   DeclareGlobals
+//   CheckForInlineRuntimeCall
+//   GenerateFastCaseSwitchStatement
+//   GenerateFastCaseSwitchCases
+//   TryGenerateFastCaseSwitchStatement
+//   GenerateFastCaseSwitchJumpTable
+//   FastCaseSwitchMinCaseCount
+//   FastCaseSwitchMaxOverheadFactor
+//   CodeForFunctionPosition
+//   CodeForReturnPosition
+//   CodeForStatementPosition
+//   CodeForSourcePosition
 
 #ifdef ARM
 #include "codegen-arm.h"

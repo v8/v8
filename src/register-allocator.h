@@ -32,6 +32,78 @@
 
 namespace v8 { namespace internal {
 
+
+// -------------------------------------------------------------------------
+// StaticType
+//
+// StaticType represent the type of an expression or a word at runtime.
+// The types are ordered by knowledge, so that if a value can come about
+// in more than one way, and there are different static types inferred
+// for the different ways, the types can be combined to a type that we
+// are still certain of (possibly just "unknown").
+
+class StaticType BASE_EMBEDDED {
+ public:
+  StaticType() : static_type_(UNKNOWN_TYPE) {}
+
+  static StaticType unknown() { return StaticType(); }
+  static StaticType smi() { return StaticType(SMI_TYPE); }
+  static StaticType jsstring() { return StaticType(STRING_TYPE); }
+  static StaticType heap_object() { return StaticType(HEAP_OBJECT_TYPE); }
+
+  // Accessors
+  bool is_unknown() { return static_type_ == UNKNOWN_TYPE; }
+  bool is_smi() { return static_type_ == SMI_TYPE; }
+  bool is_heap_object() { return (static_type_ & HEAP_OBJECT_TYPE) != 0; }
+  bool is_jsstring() { return static_type_ == STRING_TYPE; }
+
+  bool operator==(StaticType other) const {
+    return static_type_ == other.static_type_;
+  }
+
+  // Find the best approximating type for a value.
+  // The argument must not be NULL.
+  static StaticType TypeOf(Object* object) {
+    // Remember to make the most specific tests first. A string is also a heap
+    // object, so test for string-ness first.
+    if (object->IsSmi()) return smi();
+    if (object->IsString()) return jsstring();
+    if (object->IsHeapObject()) return heap_object();
+    return unknown();
+  }
+
+  // Merges two static types to a type that combines the knowledge
+  // of both. If there is no way to combine (e.g., being a string *and*
+  // being a smi), the resulting type is unknown.
+  StaticType merge(StaticType other) {
+    StaticType x(
+        static_cast<StaticTypeEnum>(static_type_ & other.static_type_));
+    return x;
+  }
+
+ private:
+  enum StaticTypeEnum {
+    // Numbers are chosen so that least upper bound of the following
+    // partial order is implemented by bitwise "and":
+    //
+    //    string
+    //       |
+    //    heap-object    smi
+    //           \       /
+    //            unknown
+    //
+    UNKNOWN_TYPE     = 0x00,
+    SMI_TYPE         = 0x01,
+    HEAP_OBJECT_TYPE = 0x02,
+    STRING_TYPE      = 0x04 | HEAP_OBJECT_TYPE
+  };
+  explicit StaticType(StaticTypeEnum static_type) : static_type_(static_type) {}
+
+  // StaticTypeEnum static_type_;
+  byte static_type_;
+};
+
+
 // -------------------------------------------------------------------------
 // Results
 //
@@ -47,14 +119,24 @@ class Result BASE_EMBEDDED {
   };
 
   // Construct an invalid result.
-  explicit Result(CodeGenerator* cgen) : type_(INVALID), cgen_(cgen) {}
+  explicit Result(CodeGenerator* cgen)
+      : static_type_(),
+        type_(INVALID),
+        cgen_(cgen) {}
 
   // Construct a register Result.
-  Result(Register reg, CodeGenerator* cgen);
+  Result(Register reg,
+         CodeGenerator* cgen);
+
+  // Construct a register Result with a known static type.
+  Result(Register reg,
+         CodeGenerator* cgen,
+         StaticType static_type);
 
   // Construct a Result whose value is a compile-time constant.
   Result(Handle<Object> value, CodeGenerator * cgen)
-      : type_(CONSTANT),
+      : static_type_(StaticType::TypeOf(*value)),
+        type_(CONSTANT),
         cgen_(cgen) {
     data_.handle_ = value.location();
   }
@@ -77,7 +159,10 @@ class Result BASE_EMBEDDED {
 
   inline void Unuse();
 
-  Type type() const { return type_; }
+  StaticType static_type() const { return static_type_; }
+  void set_static_type(StaticType static_type) { static_type_ = static_type; }
+
+  Type type() const { return static_cast<Type>(type_); }
 
   bool is_valid() const { return type() != INVALID; }
   bool is_register() const { return type() == REGISTER; }
@@ -104,7 +189,8 @@ class Result BASE_EMBEDDED {
   void ToRegister(Register reg);
 
  private:
-  Type type_;
+  StaticType static_type_;
+  byte type_;
 
   union {
     Register reg_;

@@ -394,6 +394,7 @@ class CodeGenerator: public AstVisitor {
   // positions are collected by the assembler and emitted with the relocation
   // information.
   void CodeForFunctionPosition(FunctionLiteral* fun);
+  void CodeForReturnPosition(FunctionLiteral* fun);
   void CodeForStatementPosition(Node* node);
   void CodeForSourcePosition(int pos);
 

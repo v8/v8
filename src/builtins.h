@@ -105,8 +105,6 @@ namespace v8 { namespace internal {
   V(MUL, 1)                    \
   V(DIV, 1)                    \
   V(MOD, 1)                    \
-  V(INC, 0)                    \
-  V(DEC, 0)                    \
   V(BIT_OR, 1)                 \
   V(BIT_AND, 1)                \
   V(BIT_XOR, 1)                \
@@ -124,6 +122,8 @@ namespace v8 { namespace internal {
   V(TO_OBJECT, 0)              \
   V(TO_NUMBER, 0)              \
   V(TO_STRING, 0)              \
+  V(STRING_ADD_LEFT, 1)        \
+  V(STRING_ADD_RIGHT, 1)       \
   V(APPLY_PREPARE, 1)          \
   V(APPLY_OVERFLOW, 1)
 

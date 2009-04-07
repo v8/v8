@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -5521,6 +5521,9 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         if (getter->IsJSFunction()) {
           return GetPropertyWithDefinedGetter(receiver,
                                               JSFunction::cast(getter));
+        } else {
+          // Getter is not a function.
+          return Heap::undefined_value();
         }
       }
       return element;

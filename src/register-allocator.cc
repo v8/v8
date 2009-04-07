@@ -36,8 +36,19 @@ namespace v8 { namespace internal {
 // Result implementation.
 
 Result::Result(Register reg, CodeGenerator* cgen)
-  : type_(REGISTER),
-    cgen_(cgen) {
+    : static_type_(),
+      type_(REGISTER),
+      cgen_(cgen) {
+  data_.reg_ = reg;
+  ASSERT(reg.is_valid());
+  cgen_->allocator()->Use(reg);
+}
+
+
+Result::Result(Register reg, CodeGenerator* cgen, StaticType static_type)
+    : static_type_(static_type),
+      type_(REGISTER),
+      cgen_(cgen) {
   data_.reg_ = reg;
   ASSERT(reg.is_valid());
   cgen_->allocator()->Use(reg);
@@ -45,6 +56,7 @@ Result::Result(Register reg, CodeGenerator* cgen)
 
 
 void Result::CopyTo(Result* destination) const {
+  destination->static_type_ = static_type_;
   destination->type_ = type();
   destination->cgen_ = cgen_;
 

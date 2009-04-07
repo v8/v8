@@ -28,6 +28,7 @@
 #ifndef V8_REGISTER_ALLOCATOR_INL_H_
 #define V8_REGISTER_ALLOCATOR_INL_H_
 
+#include "register-allocator.h"
 #include "virtual-frame.h"
 
 namespace v8 { namespace internal {

@@ -312,12 +312,11 @@ class VirtualFrame : public Malloced {
   void EmitPush(Register reg);
 
   // Push an element on the virtual frame.
-  void Push(Register reg);
+  void Push(Register reg, StaticType static_type = StaticType());
   void Push(Handle<Object> value);
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 
-  // Pushing a result invalidates it (its contents become owned by the
-  // frame).
+  // Pushing a result invalidates it (its contents become owned by the frame).
   void Push(Result* result);
 
   // Nip removes zero or more elements from immediately below the top

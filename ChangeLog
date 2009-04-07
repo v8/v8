@@ -1,3 +1,16 @@
+2009-04-07: Version 1.1.7
+
+        Added support for easily importing additional environment
+        variables into the SCons build.
+
+        Optimized strict equality checks.
+
+        Fixed crash in indexed setters on objects without a corresponding
+        getter (issue 298).
+
+        Re-enabled script compilation cache.
+
+
 2009-04-01: Version 1.1.6
 
         Reverted an unsafe code generator change.
@@ -33,7 +46,7 @@
         Fixed a number of memory leaks in tests.
 
         Fixed crash bug in connection with script source code and external
-	strings.
+        strings.
 
 
 2009-03-24: Version 1.1.3

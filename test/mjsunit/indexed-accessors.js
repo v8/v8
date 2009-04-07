@@ -98,3 +98,23 @@ assertEquals(6, a.length);
 var q = {};
 q.__defineGetter__('0', function() { return 42; });
 assertThrows('q[0] = 7');
+
+// Using a getter where only a setter is defined returns undefined.
+var q1 = {};
+q1.__defineSetter__('0', function() {q1.b = 17;});
+assertEquals(q1[0], undefined);
+// Setter works
+q1[0] = 3;
+assertEquals(q1[0], undefined);
+assertEquals(q1.b, 17);
+
+// Complex case of using an undefined getter.
+// From http://code.google.com/p/v8/issues/detail?id=298
+// Reported by nth10sd.
+
+a = function() {};
+__defineSetter__("0", function() {});
+if (a |= '') {};
+assertThrows('this[a].__parent__');
+assertEquals(a, 0);
+assertEquals(this[a], undefined);

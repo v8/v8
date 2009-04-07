@@ -85,10 +85,10 @@ void UseCount::Print() {
 
 
 // ----------------------------------------------------------------------------
-// Implementation StaticType.
+// Implementation SmiAnalysis.
 
 
-const char* StaticType::Type2String(StaticType* type) {
+const char* SmiAnalysis::Type2String(SmiAnalysis* type) {
   switch (type->kind_) {
     case UNKNOWN:
       return "UNKNOWN";

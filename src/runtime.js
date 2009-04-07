@@ -104,13 +104,9 @@ function STRICT_EQUALS(x) {
     return %NumberEquals(this, x);
   } 
 
-  if (IS_UNDEFINED(this)) {  
-    // Both undefined and undetectable.
-    return IS_UNDEFINED(x) ? 0 : 1;
-  }
-
-  // Objects, null, booleans and functions are all that's left.
-  // They can all be compared with a simple identity check.
+  // If anything else gets here, we just do simple identity check.
+  // Objects (including functions), null, undefined and booleans were
+  // checked in the CompareStub, so there should be nothing left.
   return %_ObjectEquals(this, x) ? 0 : 1;
 }
 
@@ -163,6 +159,20 @@ function ADD(x) {
 }
 
 
+// Left operand (this) is already a string.
+function STRING_ADD_LEFT(x) {
+  x = %ToString(%ToPrimitive(x, NO_HINT));
+  return %StringAdd(this, x);
+}
+
+
+// Right operand (x) is already a string.
+function STRING_ADD_RIGHT(x) {
+  var a = %ToString(%ToPrimitive(this, NO_HINT));
+  return %StringAdd(a, x);
+}
+
+
 // ECMA-262, section 11.6.2, page 50.
 function SUB(x) {
   return %NumberSub(%ToNumber(this), %ToNumber(x));
@@ -184,18 +194,6 @@ function DIV(x) {
 // ECMA-262, section 11.5.3, page 49.
 function MOD(x) {
   return %NumberMod(%ToNumber(this), %ToNumber(x));
-}
-
-
-// ECMA-262, section 11.4.4, page 47.
-function INC() {
-  return %NumberAdd(%ToNumber(this), 1);
-}
-
-
-// ECMA-262, section 11.4.5, page 48.
-function DEC() {
-  return %NumberSub(%ToNumber(this), 1);
 }
 
 
@@ -275,7 +273,7 @@ function IN(x) {
 
 
 // ECMA-262, section 11.8.6, page 54. To make the implementation more
-// efficient, the return value should be zero if the 'this' is an 
+// efficient, the return value should be zero if the 'this' is an
 // instance of F, and non-zero if not. This makes it possible to avoid
 // an expensive ToBoolean conversion in the generated code.
 function INSTANCE_OF(F) {
