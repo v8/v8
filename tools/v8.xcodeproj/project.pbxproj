@@ -202,6 +202,7 @@
 		89F23C9E0E78D5FD006B2466 /* macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */; };
 		89F23C9F0E78D604006B2466 /* simulator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF17D0E719B8F00D62E90 /* simulator-arm.cc */; };
 		89F23CA00E78D609006B2466 /* stub-cache-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */; };
+		89FB0E3A0F8E533F00B04B3C /* d8-posix.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89FB0E360F8E531900B04B3C /* d8-posix.cc */; };
 		9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 /* End PBXBuildFile section */
@@ -517,6 +518,8 @@
 		89B12E8D0E7FF2A40080BA62 /* presubmit.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = presubmit.py; sourceTree = "<group>"; };
 		89F23C870E78D5B2006B2466 /* libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
+		89FB0E360F8E531900B04B3C /* d8-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-posix.cc"; path = "../src/d8-posix.cc"; sourceTree = "<group>"; };
+		89FB0E370F8E531900B04B3C /* d8-windows.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-windows.cc"; path = "../src/d8-windows.cc"; sourceTree = "<group>"; };
 		9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "oprofile-agent.cc"; sourceTree = "<group>"; };
 		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -872,6 +875,8 @@
 				89A15C910EE46A1700B48DEB /* d8-readline.cc */,
 				893988150F2A3686007D5254 /* d8-debug.cc */,
 				893A72320F7B4AD700303DD2 /* d8-debug.h */,
+				89FB0E360F8E531900B04B3C /* d8-posix.cc */,
+				89FB0E370F8E531900B04B3C /* d8-windows.cc */,
 				89A15C920EE46A1700B48DEB /* d8.cc */,
 				89A15C930EE46A1700B48DEB /* d8.h */,
 				89A15C940EE46A1700B48DEB /* d8.js */,
@@ -1073,6 +1078,7 @@
 				8939880D0F2A362A007D5254 /* d8.cc in Sources */,
 				893988160F2A3688007D5254 /* d8-debug.cc in Sources */,
 				893988330F2A3B8F007D5254 /* d8-js.cc in Sources */,
+				89FB0E3A0F8E533F00B04B3C /* d8-posix.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

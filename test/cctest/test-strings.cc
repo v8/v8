@@ -424,7 +424,7 @@ TEST(ExternalCrBug9746) {
   Handle<String> string = Factory::NewExternalStringFromTwoByte(resource);
   Vector<const char> one_byte_vec = CStrVector(one_byte_data);
   Handle<String> compare = Factory::NewStringFromAscii(one_byte_vec);
-  
+
   // Verify the correct behaviour before "collecting" the external resource.
   CHECK(string->IsEqualTo(one_byte_vec));
   CHECK(string->Equals(*compare));
