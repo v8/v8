@@ -96,6 +96,24 @@ void MarkCompactCollector::CollectGarbage() {
 }
 
 
+#ifdef DEBUG
+// Helper class for verifying the symbol table.
+class SymbolTableVerifier : public ObjectVisitor {
+ public:
+  SymbolTableVerifier() { }
+  void VisitPointers(Object** start, Object** end) {
+    // Visit all HeapObject pointers in [start, end).
+    for (Object** p = start; p < end; p++) {
+      if ((*p)->IsHeapObject()) {
+        // Check that the symbol is actually a symbol.
+        ASSERT((*p)->IsNull() || (*p)->IsUndefined() || (*p)->IsSymbol());
+      }
+    }
+  }
+};
+#endif  // DEBUG
+
+
 void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // Rather than passing the tracer around we stash it in a static member
   // variable.
@@ -148,6 +166,10 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 
 #ifdef DEBUG
+  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
+  SymbolTableVerifier v;
+  symbol_table->IterateElements(&v);
+
   live_bytes_ = 0;
   live_young_objects_ = 0;
   live_old_pointer_objects_ = 0;
