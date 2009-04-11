@@ -1293,6 +1293,9 @@ THREADED_TEST(HiddenProperties) {
 
   i::Heap::CollectAllGarbage();
 
+  // Make sure delete of a non-existent hidden value works
+  CHECK(obj->DeleteHiddenValue(key));
+
   CHECK(obj->SetHiddenValue(key, v8::Integer::New(1503)));
   CHECK_EQ(1503, obj->GetHiddenValue(key)->Int32Value());
   CHECK(obj->SetHiddenValue(key, v8::Integer::New(2002)));

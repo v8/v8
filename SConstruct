@@ -142,7 +142,7 @@ LIBRARY_FLAGS = {
       'DIALECTFLAGS': ['/nologo'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '/GR-', '/Gy'],
-      'CPPDEFINES':   ['WIN32', '_USE_32BIT_TIME_T', 'PCRE_STATIC'],
+      'CPPDEFINES':   ['WIN32', '_USE_32BIT_TIME_T'],
       'LINKFLAGS':    ['/NOLOGO', '/MACHINE:X86', '/INCREMENTAL:NO',
           '/NXCOMPAT', '/IGNORE:4221'],
       'ARFLAGS':      ['/NOLOGO'],

@@ -3301,6 +3301,13 @@ Vector<const uc16> String::ToUC16Vector() {
   }
   ASSERT(string_tag == kExternalStringTag);
   ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
+  // This is a workaround for Chromium bug 9746: http://crbug.com/9746
+  // For external strings with a deleted resource we return a special
+  // Vector which will not compare to any string when doing SymbolTable
+  // lookups.
+  if (ext->resource() == NULL) {
+    return Vector<const uc16>(NULL, length);
+  }
   const uc16* start =
       reinterpret_cast<const uc16*>(ext->resource()->data());
   return Vector<const uc16>(start + offset, length);
@@ -4117,6 +4124,18 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
 }
 
 
+// This is a workaround for Chromium bug 9746: http://crbug.com/9746
+// Returns true if this Vector matches the problem exposed in the bug.
+template <typename T>
+static bool CheckVectorForBug9746(Vector<T> vec) {
+  // The problem is that somehow external string entries in the symbol
+  // table can have their resources collected while they are still in the
+  // table. This should not happen according to the test in the function
+  // DisposeExternalString in api.cc, but we have evidence that it does.
+  return (vec.start() == NULL) ? true : false;
+}
+
+
 static StringInputBuffer string_compare_buffer_b;
 
 
@@ -4127,7 +4146,9 @@ static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
       VectorIterator<char> ib(b->ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
-      VectorIterator<uc16> ib(b->ToUC16Vector());
+      Vector<const uc16> vb = b->ToUC16Vector();
+      if (CheckVectorForBug9746(vb)) return false;
+      VectorIterator<uc16> ib(vb);
       return CompareStringContents(ia, &ib);
     }
   } else {
@@ -4169,7 +4190,9 @@ bool String::SlowEquals(String* other) {
           return CompareRawStringContents(vec1, vec2);
         } else {
           VectorIterator<char> buf1(vec1);
-          VectorIterator<uc16> ib(other->ToUC16Vector());
+          Vector<const uc16> vec2 = other->ToUC16Vector();
+          if (CheckVectorForBug9746(vec2)) return false;
+          VectorIterator<uc16> ib(vec2);
           return CompareStringContents(&buf1, &ib);
         }
       } else {
@@ -4179,13 +4202,15 @@ bool String::SlowEquals(String* other) {
       }
     } else {
       Vector<const uc16> vec1 = this->ToUC16Vector();
+      if (CheckVectorForBug9746(vec1)) return false;
       if (other->IsFlat()) {
         if (StringShape(other).IsAsciiRepresentation()) {
           VectorIterator<uc16> buf1(vec1);
           VectorIterator<char> ib(other->ToAsciiVector());
           return CompareStringContents(&buf1, &ib);
         } else {
-          Vector<const uc16> vec2(other->ToUC16Vector());
+          Vector<const uc16> vec2 = other->ToUC16Vector();
+          if (CheckVectorForBug9746(vec2)) return false;
           return CompareRawStringContents(vec1, vec2);
         }
       } else {
@@ -4230,6 +4255,18 @@ bool String::MarkAsUndetectable() {
 
 
 bool String::IsEqualTo(Vector<const char> str) {
+  // This is a workaround for Chromium bug 9746: http://crbug.com/9746
+  // The problem is that somehow external string entries in the symbol
+  // table can have their resources deleted while they are still in the
+  // table. This should not happen according to the test in the function
+  // DisposeExternalString in api.cc but we have evidence that it does.
+  // Thus we add this bailout here.
+  StringShape shape(this);
+  if (shape.IsExternalTwoByte()) {
+    ExternalTwoByteString* ext = ExternalTwoByteString::cast(this);
+    if (ext->resource() == NULL) return false;
+  }
+
   int slen = length();
   Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
   decoder->Reset(str.start(), str.length());

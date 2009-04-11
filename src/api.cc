@@ -2077,13 +2077,13 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   ON_BAILOUT("v8::DeleteHiddenValue()", return false);
   ENTER_V8;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::JSObject> hidden_props(
-      i::JSObject::cast(*i::GetHiddenProperties(self, false)));
+  i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, false));
   if (hidden_props->IsUndefined()) {
-    return false;
+    return true;
   }
+  i::Handle<i::JSObject> js_obj(i::JSObject::cast(*hidden_props));
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  return i::DeleteProperty(hidden_props, key_obj)->IsTrue();
+  return i::DeleteProperty(js_obj, key_obj)->IsTrue();
 }
 
 
@@ -2373,7 +2373,7 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.1.7";
+  return "1.1.8";
 }
 
 

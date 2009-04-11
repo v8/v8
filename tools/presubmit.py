@@ -35,6 +35,9 @@ import re
 import sys
 import subprocess
 
+# Disabled LINT rules and reason.
+# build/include_what_you_use: Started giving false positives for variables
+#  named "string" and "map" assuming that you needed to include STL headers.
 
 ENABLED_LINT_RULES = """
 build/class
@@ -42,7 +45,6 @@ build/deprecated
 build/endif_comment
 build/forward_decl
 build/include_order
-build/include_what_you_use
 build/printf_format
 build/storage_class
 legal/copyright

@@ -1160,7 +1160,31 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
   if (fp == Debug::step_in_fp()) {
     // Don't allow step into functions in the native context.
     if (function->context()->global() != Top::context()->builtins()) {
-      Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
+      if (function->shared()->code() ==
+          Builtins::builtin(Builtins::FunctionApply) ||
+          function->shared()->code() ==
+          Builtins::builtin(Builtins::FunctionCall)) {
+        // Handle function.apply and function.call separately to flood the
+        // function to be called and not the code for Builtins::FunctionApply or
+        // Builtins::FunctionCall. At the point of the call IC to call either
+        // Builtins::FunctionApply or Builtins::FunctionCall the expression
+        // stack has the following content:
+        //   symbol "apply" or "call"
+        //   function apply or call was called on
+        //   receiver for apply or call (first parameter to apply or call)
+        //   ... further arguments to apply or call.
+        JavaScriptFrameIterator it;
+        ASSERT(it.frame()->fp() == fp);
+        ASSERT(it.frame()->GetExpression(1)->IsJSFunction());
+        if (it.frame()->GetExpression(1)->IsJSFunction()) {
+          Handle<JSFunction>
+              actual_function(JSFunction::cast(it.frame()->GetExpression(1)));
+          Handle<SharedFunctionInfo> actual_shared(actual_function->shared());
+          Debug::FloodWithOneShot(actual_shared);
+        }
+      } else {
+        Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
+      }
     }
   }
 }

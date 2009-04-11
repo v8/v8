@@ -552,9 +552,34 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 static Sampler* active_sampler_ = NULL;
 
+
+#if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
+// Android runs a fairly new Linux kernel, so signal info is there,
+// but the C library doesn't have the structs defined.
+
+struct sigcontext {
+  uint32_t trap_no;
+  uint32_t error_code;
+  uint32_t oldmask;
+  uint32_t gregs[16];
+  uint32_t arm_cpsr;
+  uint32_t fault_address;
+};
+typedef uint32_t __sigset_t;
+typedef struct sigcontext mcontext_t;
+typedef struct ucontext {
+  uint32_t uc_flags;
+  struct ucontext *uc_link;
+  stack_t uc_stack;
+  mcontext_t uc_mcontext;
+  __sigset_t uc_sigmask;
+} ucontext_t;
+enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
+
+#endif
+
+
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
-  // Ucontext is a glibc extension - no profiling on Android at the moment.
-#ifdef __GLIBC__
   USE(info);
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL) return;
@@ -581,7 +606,6 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample.state = Logger::state();
 
   active_sampler_->Tick(&sample);
-#endif
 }
 
 

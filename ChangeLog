@@ -1,3 +1,18 @@
+2009-04-11: Version 1.1.8
+
+        Changed test-debug/ThreadedDebugging to be non-flaky (issue 96).
+
+        Fixed step-in handling for Function.prototype.apply and call in 
+        the debugger (issue 269).
+
+        Fixed v8::Object::DeleteHiddenValue to not bail out when there
+        are no hidden properties.
+
+        Added workaround for crash bug, where external symbol table 
+        entries with deleted resources would lead to NPEs when looking
+        up in the symbol table.
+
+
 2009-04-07: Version 1.1.7
 
         Added support for easily importing additional environment

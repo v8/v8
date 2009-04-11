@@ -36,9 +36,6 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
 big-object-literal: PASS, SKIP if ($arch == arm)
 
-# Bug realiably triggers a debug assertion and crashed in release mode.
-bugs/bug-269: CRASH, FAIL if $mode == debug
-
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.
@@ -64,7 +61,7 @@ debug-stepin-constructor: CRASH, FAIL
 debug-step: SKIP
 debug-breakpoints: PASS || FAIL
 debug-handle: CRASH, FAIL if $mode == debug
-bugs/bug-269: SKIP
+regress/regress-269: SKIP
 
 # Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
 # Fails on real ARM hardware but not on the simulator.
