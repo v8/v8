@@ -86,6 +86,7 @@ StackFrameIterator::StackFrameIterator(bool use_top, Address fp, Address sp)
   if (use_top || fp != NULL) {
     Reset();
   }
+  JavaScriptFrame_.DisableHeapAccess();
 }
 
 #undef INITIALIZE_SINGLETON
@@ -231,11 +232,7 @@ bool SafeStackFrameIterator::CanIterateHandles(StackFrame* frame,
 
 
 bool SafeStackFrameIterator::IsValidFrame(StackFrame* frame) const {
-  return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp()) &&
-      // JavaScriptFrame uses function shared info to advance, hence it must
-      // point to a valid function object.
-      (!frame->is_java_script() ||
-       reinterpret_cast<JavaScriptFrame*>(frame)->is_at_function());
+  return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp());
 }
 
 
@@ -281,7 +278,7 @@ void SafeStackFrameIterator::Reset() {
 SafeStackTraceFrameIterator::SafeStackTraceFrameIterator(
     Address fp, Address sp, Address low_bound, Address high_bound) :
     SafeJavaScriptFrameIterator(fp, sp, low_bound, high_bound) {
-  if (!done() && !frame()->is_at_function()) Advance();
+  if (!done() && !frame()->is_java_script()) Advance();
 }
 
 
@@ -289,7 +286,7 @@ void SafeStackTraceFrameIterator::Advance() {
   while (true) {
     SafeJavaScriptFrameIterator::Advance();
     if (done()) return;
-    if (frame()->is_at_function()) return;
+    if (frame()->is_java_script()) return;
   }
 }
 #endif
