@@ -638,6 +638,7 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   bool IsValidStackAddress(Address addr) const {
     return IsWithinBounds(low_bound_, high_bound_, addr);
   }
+  bool CanIterateHandles(StackFrame* frame, StackHandler* handler);
   bool IsValidFrame(StackFrame* frame) const;
   bool IsValidCaller(StackFrame* frame);
 
