@@ -96,24 +96,6 @@ void MarkCompactCollector::CollectGarbage() {
 }
 
 
-#ifdef DEBUG
-// Helper class for verifying the symbol table.
-class SymbolTableVerifier : public ObjectVisitor {
- public:
-  SymbolTableVerifier() { }
-  void VisitPointers(Object** start, Object** end) {
-    // Visit all HeapObject pointers in [start, end).
-    for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject()) {
-        // Check that the symbol is actually a symbol.
-        ASSERT((*p)->IsNull() || (*p)->IsUndefined() || (*p)->IsSymbol());
-      }
-    }
-  }
-};
-#endif  // DEBUG
-
-
 void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // Rather than passing the tracer around we stash it in a static member
   // variable.
@@ -166,10 +148,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 
 #ifdef DEBUG
-  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
-  SymbolTableVerifier v;
-  symbol_table->IterateElements(&v);
-
   live_bytes_ = 0;
   live_young_objects_ = 0;
   live_old_pointer_objects_ = 0;
@@ -183,10 +161,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 
 void MarkCompactCollector::Finish() {
 #ifdef DEBUG
-  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
-  SymbolTableVerifier v;
-  symbol_table->IterateElements(&v);
-
   ASSERT(state_ == SWEEP_SPACES || state_ == REBUILD_RSETS);
   state_ = IDLE;
 #endif
@@ -246,13 +220,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   MapWord map_word = object->map_word();
   map_word.ClearMark();
   InstanceType type = map_word.ToMap()->instance_type();
-  if (type >= FIRST_NONSTRING_TYPE || (type & kIsSymbolMask) != 0) {
-    return object;
-  }
-
-  StringRepresentationTag rep =
-      static_cast<StringRepresentationTag>(type & kStringRepresentationMask);
-  if (rep != kConsStringTag) return object;
+  if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
 
   Object* second = reinterpret_cast<ConsString*>(object)->unchecked_second();
   if (reinterpret_cast<String*>(second) != Heap::empty_string()) return object;

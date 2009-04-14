@@ -374,9 +374,34 @@ void Heap::PerformScavenge() {
 }
 
 
+static void VerifySymbolTable() {
+#ifdef DEBUG
+  // Helper class for verifying the symbol table.
+  class SymbolTableVerifier : public ObjectVisitor {
+   public:
+    SymbolTableVerifier() { }
+    void VisitPointers(Object** start, Object** end) {
+      // Visit all HeapObject pointers in [start, end).
+      for (Object** p = start; p < end; p++) {
+        if ((*p)->IsHeapObject()) {
+          // Check that the symbol is actually a symbol.
+          ASSERT((*p)->IsNull() || (*p)->IsUndefined() || (*p)->IsSymbol());
+        }
+      }
+    }
+  };
+
+  SymbolTableVerifier verifier;
+  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
+  symbol_table->IterateElements(&verifier);
+#endif  // DEBUG
+}
+
+
 void Heap::PerformGarbageCollection(AllocationSpace space,
                                     GarbageCollector collector,
                                     GCTracer* tracer) {
+  VerifySymbolTable();
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
     global_gc_prologue_callback_();
@@ -421,6 +446,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     ASSERT(!allocation_allowed_);
     global_gc_epilogue_callback_();
   }
+  VerifySymbolTable();
 }
 
 
@@ -813,18 +839,9 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 
 
 static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
-  // A ConsString with an empty string as the right side is a
-  // candidate for being shortcut by the scavenger unless it is a
-  // symbol. It's not common to have non-flat symbols, so we do not
-  // shortcut them thereby avoiding turning symbols into strings.
-  ASSERT(kNotStringTag != 0 && kSymbolTag != 0);
-  static const uint32_t kShortcutTypeMask =
-      kIsNotStringMask |
-      kIsSymbolMask |
-      kStringRepresentationMask;
   ASSERT(object->map() == map);
   InstanceType type = map->instance_type();
-  if ((type & kShortcutTypeMask) != kConsStringTag) return false;
+  if ((type & kShortcutTypeMask) != kShortcutTypeTag) return false;
   ASSERT(object->IsString() && !object->IsSymbol());
   return ConsString::cast(object)->unchecked_second() == Heap::empty_string();
 }

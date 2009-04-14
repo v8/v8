@@ -441,6 +441,20 @@ enum StringRepresentationTag {
   kExternalStringTag = 0x3
 };
 
+
+// A ConsString with an empty string as the right side is a candidate
+// for being shortcut by the garbage collector unless it is a
+// symbol. It's not common to have non-flat symbols, so we do not
+// shortcut them thereby avoiding turning symbols into strings. See
+// heap.cc and mark-compact.cc.
+STATIC_ASSERT(kNotStringTag != 0 && kSymbolTag != 0);
+const uint32_t kShortcutTypeMask =
+    kIsNotStringMask |
+    kIsSymbolMask |
+    kStringRepresentationMask;
+const uint32_t kShortcutTypeTag = kConsStringTag;
+
+
 enum InstanceType {
   SHORT_SYMBOL_TYPE = kShortStringTag | kSymbolTag | kSeqStringTag,
   MEDIUM_SYMBOL_TYPE = kMediumStringTag | kSymbolTag | kSeqStringTag,
