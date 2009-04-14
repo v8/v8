@@ -1,3 +1,16 @@
+2009-04-14: Version 1.1.9
+
+        Made the stack traversal code in the profiler robust by avoiding
+        to look into the heap.
+
+        Added name inferencing for anonymous functions to facilitate
+        debugging and profiling.
+
+        Re-enabled stats timers in the developer shell (d8).
+
+        Fixed issue 303 by avoiding to shortcut cons-symbols.
+
+
 2009-04-11: Version 1.1.8
 
         Changed test-debug/ThreadedDebugging to be non-flaky (issue 96).
