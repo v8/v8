@@ -447,7 +447,6 @@ enum StringRepresentationTag {
 // symbol. It's not common to have non-flat symbols, so we do not
 // shortcut them thereby avoiding turning symbols into strings. See
 // heap.cc and mark-compact.cc.
-STATIC_ASSERT(kNotStringTag != 0 && kSymbolTag != 0);
 const uint32_t kShortcutTypeMask =
     kIsNotStringMask |
     kIsSymbolMask |

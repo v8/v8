@@ -839,6 +839,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 
 
 static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
+  STATIC_ASSERT(kNotStringTag != 0 && kSymbolTag != 0);
   ASSERT(object->map() == map);
   InstanceType type = map->instance_type();
   if ((type & kShortcutTypeMask) != kShortcutTypeTag) return false;
