@@ -498,13 +498,31 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
 // ---
 
 
-// Source for The JavaScript function which picks out the function name on the
+// Source for The JavaScript function which picks out the function name of the
 // top frame.
 const char* frame_function_name_source =
     "function frame_function_name(exec_state) {"
     "  return exec_state.frame(0).func().name();"
     "}";
 v8::Local<v8::Function> frame_function_name;
+
+
+// Source for The JavaScript function which picks out the source line for the
+// top frame.
+const char* frame_source_line_source =
+    "function frame_source_line(exec_state) {"
+    "  return exec_state.frame(0).sourceLine();"
+    "}";
+v8::Local<v8::Function> frame_source_line;
+
+
+// Source for The JavaScript function which picks out the source column for the
+// top frame.
+const char* frame_source_column_source =
+    "function frame_source_column(exec_state) {"
+    "  return exec_state.frame(0).sourceColumn();"
+    "}";
+v8::Local<v8::Function> frame_source_column;
 
 
 // Source for The JavaScript function which returns the number of frames.
@@ -517,6 +535,10 @@ v8::Handle<v8::Function> frame_count;
 
 // Global variable to store the last function hit - used by some tests.
 char last_function_hit[80];
+
+// Global variables to store the last source position - used by some tests.
+int last_source_line = -1;
+int last_source_column = -1;
 
 // Debug event handler which counts the break points which have been hit.
 int break_point_hit_count = 0;
@@ -543,6 +565,26 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
         v8::Handle<v8::String> function_name(result->ToString());
         function_name->WriteAscii(last_function_hit);
       }
+    }
+
+    if (!frame_source_line.IsEmpty()) {
+      // Get the source line.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_source_line->Call(exec_state,
+                                                             argc, argv);
+      CHECK(result->IsNumber());
+      last_source_line = result->Int32Value();
+    }
+
+    if (!frame_source_column.IsEmpty()) {
+      // Get the source column.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_source_column->Call(exec_state,
+                                                               argc, argv);
+      CHECK(result->IsNumber());
+      last_source_column = result->Int32Value();
     }
   }
 }
@@ -994,6 +1036,17 @@ TEST(BreakPointReturn) {
   break_point_hit_count = 0;
   v8::HandleScope scope;
   DebugLocalContext env;
+
+  // Create a functions for checking the source line and column when hitting
+  // a break point.
+  frame_source_line = CompileFunction(&env,
+                                      frame_source_line_source,
+                                      "frame_source_line");
+  frame_source_column = CompileFunction(&env,
+                                        frame_source_column_source,
+                                        "frame_source_column");
+
+
   v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
                                    v8::Undefined());
   v8::Script::Compile(v8::String::New("function foo(){}"))->Run();
@@ -1008,8 +1061,12 @@ TEST(BreakPointReturn) {
   int bp = SetBreakPoint(foo, 0);
   foo->Call(env->Global(), 0, NULL);
   CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ(0, last_source_line);
+  CHECK_EQ(16, last_source_column);
   foo->Call(env->Global(), 0, NULL);
   CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(0, last_source_line);
+  CHECK_EQ(16, last_source_column);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
@@ -3661,15 +3718,6 @@ TEST(SendCommandToUninitializedVM) {
   int dummy_length = AsciiToUtf16(dummy_command, dummy_buffer);
   v8::Debug::SendCommand(dummy_buffer, dummy_length);
 }
-
-
-// Source for a JavaScript function which returns the source line for the top
-// frame.
-static const char* frame_source_line_source =
-    "function frame_source_line(exec_state) {"
-    "  return exec_state.frame(0).sourceLine();"
-    "}";
-v8::Handle<v8::Function> frame_source_line;
 
 
 // Source for a JavaScript function which returns the data parameter of a
