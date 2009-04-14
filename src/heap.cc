@@ -374,23 +374,26 @@ void Heap::PerformScavenge() {
 }
 
 
-static void VerifySymbolTable() {
 #ifdef DEBUG
-  // Helper class for verifying the symbol table.
-  class SymbolTableVerifier : public ObjectVisitor {
-   public:
-    SymbolTableVerifier() { }
-    void VisitPointers(Object** start, Object** end) {
-      // Visit all HeapObject pointers in [start, end).
-      for (Object** p = start; p < end; p++) {
-        if ((*p)->IsHeapObject()) {
-          // Check that the symbol is actually a symbol.
-          ASSERT((*p)->IsNull() || (*p)->IsUndefined() || (*p)->IsSymbol());
-        }
+// Helper class for verifying the symbol table.
+class SymbolTableVerifier : public ObjectVisitor {
+ public:
+  SymbolTableVerifier() { }
+  void VisitPointers(Object** start, Object** end) {
+    // Visit all HeapObject pointers in [start, end).
+    for (Object** p = start; p < end; p++) {
+      if ((*p)->IsHeapObject()) {
+        // Check that the symbol is actually a symbol.
+        ASSERT((*p)->IsNull() || (*p)->IsUndefined() || (*p)->IsSymbol());
       }
     }
-  };
+  }
+};
+#endif  // DEBUG
 
+
+static void VerifySymbolTable() {
+#ifdef DEBUG
   SymbolTableVerifier verifier;
   SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
   symbol_table->IterateElements(&verifier);
