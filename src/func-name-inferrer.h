@@ -99,8 +99,9 @@ class FuncNameInferrer BASE_EMBEDDED {
 // leaving scope.
 class ScopedFuncNameInferrer BASE_EMBEDDED {
  public:
-  ScopedFuncNameInferrer(FuncNameInferrer* inferrer) : inferrer_(inferrer),
-                                                       is_entered_(false) {};
+  explicit ScopedFuncNameInferrer(FuncNameInferrer* inferrer) :
+      inferrer_(inferrer),
+      is_entered_(false) {}
   ~ScopedFuncNameInferrer() {
     if (is_entered_) {
       inferrer_->InferAndLeave();
