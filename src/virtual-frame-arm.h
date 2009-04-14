@@ -85,7 +85,7 @@ class VirtualFrame : public Malloced {
   }
 
   bool is_used(Register reg) {
-    return is_used(reg.code()) != kIllegalIndex;
+    return is_used(reg.code());
   }
 
   // Add extra in-memory elements to the top of the frame to match an actual
