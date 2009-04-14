@@ -27,8 +27,6 @@
 
 #include <v8.h>
 
-// To avoid warnings from <map> on windows we disable exceptions.
-#define _HAS_EXCEPTIONS 0
 #include <string>
 #include <map>
 
