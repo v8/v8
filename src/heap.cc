@@ -1384,6 +1384,7 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_script(undefined_value());
   share->set_start_position_and_type(0);
   share->set_debug_info(undefined_value());
+  share->set_inferred_name(empty_string());
   return result;
 }
 

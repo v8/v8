@@ -3391,6 +3391,13 @@ static Object* Runtime_StringToUpperCase(Arguments args) {
 }
 
 
+bool Runtime::IsUpperCaseChar(uint16_t ch) {
+  unibrow::uchar chars[unibrow::ToUppercase::kMaxWidth];
+  int char_length = to_upper_mapping.get(ch, 0, chars);
+  return char_length == 0;
+}
+
+
 static Object* Runtime_NumberToString(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -6061,8 +6068,8 @@ static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
 }
 
 
-static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
-                                              int position) {
+Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
+                                                int position) {
   // Iterate the heap looking for SharedFunctionInfo generated from the
   // script. The inner most SharedFunctionInfo containing the source position
   // for the requested break point is found.
@@ -6159,7 +6166,8 @@ static Object* Runtime_SetScriptBreakPoint(Arguments args) {
   RUNTIME_ASSERT(wrapper->value()->IsScript());
   Handle<Script> script(Script::cast(wrapper->value()));
 
-  Object* result = FindSharedFunctionInfoInScript(script, source_position);
+  Object* result = Runtime::FindSharedFunctionInfoInScript(
+      script, source_position);
   if (!result->IsUndefined()) {
     Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(result));
     // Find position within function. The script position might be before the

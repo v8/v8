@@ -709,6 +709,7 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
   Init();
   { IndentedScope indent("FUNC");
     PrintLiteralIndented("NAME", program->name(), true);
+    PrintLiteralIndented("INFERRED NAME", program->inferred_name(), true);
     PrintParameters(program->scope());
     PrintDeclarations(program->scope()->declarations());
     PrintStatements(program->body());
@@ -885,6 +886,7 @@ void AstPrinter::VisitDebuggerStatement(DebuggerStatement* node) {
 void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
   IndentedScope indent("FUNC LITERAL");
   PrintLiteralIndented("NAME", node->name(), false);
+  PrintLiteralIndented("INFERRED NAME", node->inferred_name(), false);
   PrintParameters(node->scope());
   // We don't want to see the function literal in this case: it
   // will be printed via PrintProgram when the code for it is

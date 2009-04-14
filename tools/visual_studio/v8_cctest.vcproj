@@ -186,6 +186,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-func-name-inference.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-hashmap.cc"
 			>
 		</File>
