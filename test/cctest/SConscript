@@ -42,6 +42,7 @@ SOURCES = {
     'test-debug.cc',
     'test-decls.cc',
     'test-flags.cc',
+    'test-func-name-inference.cc',
     'test-hashmap.cc',
     'test-heap.cc',
     'test-list.cc',

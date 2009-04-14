@@ -169,19 +169,6 @@ inline bool JavaScriptFrame::has_adapted_arguments() const {
 }
 
 
-inline bool JavaScriptFrame::is_at_function() const {
-  Object* result = function_slot_object();
-  // Verify that frame points at correct JS function object.
-  // We are verifying that function object address and
-  // the underlying map object address are valid, and that
-  // function is really a function.
-  return Heap::Contains(reinterpret_cast<Address>(result)) &&
-      result->IsHeapObject() &&
-      Heap::Contains(HeapObject::cast(result)->map()) &&
-      result->IsJSFunction();
-}
-
-
 inline Object* JavaScriptFrame::function() const {
   Object* result = function_slot_object();
   ASSERT(result->IsJSFunction());

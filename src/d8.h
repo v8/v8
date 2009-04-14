@@ -42,11 +42,16 @@ namespace i = v8::internal;
 class Counter {
  public:
   static const int kMaxNameSize = 64;
-  int32_t* Bind(const char* name);
-  int32_t* ptr() { return &counter_; }
-  int32_t value() { return counter_; }
+  int32_t* Bind(const char* name, bool histogram);
+  int32_t* ptr() { return &count_; }
+  int32_t count() { return count_; }
+  int32_t sample_total() { return sample_total_; }
+  bool is_histogram() { return is_histogram_; }
+  void AddSample(int32_t sample);
  private:
-  int32_t counter_;
+  int32_t count_;
+  int32_t sample_total_;
+  bool is_histogram_;
   uint8_t name_[kMaxNameSize];
 };
 
@@ -116,6 +121,11 @@ class Shell: public i::AllStatic {
   static void Initialize();
   static void OnExit();
   static int* LookupCounter(const char* name);
+  static void* CreateHistogram(const char* name,
+                               int min,
+                               int max,
+                               size_t buckets);
+  static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(const char* name);
   static Handle<String> ReadFile(const char* name);
   static void RunShell();
@@ -179,6 +189,7 @@ class Shell: public i::AllStatic {
   static CounterCollection local_counters_;
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
+  static Counter* GetCounter(const char* name, bool is_histogram);
 };
 
 

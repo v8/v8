@@ -203,6 +203,8 @@
 		89F23C9F0E78D604006B2466 /* simulator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF17D0E719B8F00D62E90 /* simulator-arm.cc */; };
 		89F23CA00E78D609006B2466 /* stub-cache-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */; };
 		89FB0E3A0F8E533F00B04B3C /* d8-posix.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89FB0E360F8E531900B04B3C /* d8-posix.cc */; };
+		9F92FAA90F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
+		9F92FAAA0F8F28AD0089F02C /* func-name-inferrer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */; };
 		9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 		9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 /* End PBXBuildFile section */
@@ -520,6 +522,8 @@
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89FB0E360F8E531900B04B3C /* d8-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-posix.cc"; path = "../src/d8-posix.cc"; sourceTree = "<group>"; };
 		89FB0E370F8E531900B04B3C /* d8-windows.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-windows.cc"; path = "../src/d8-windows.cc"; sourceTree = "<group>"; };
+		9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "func-name-inferrer.cc"; sourceTree = "<group>"; };
+		9F92FAA80F8F28AD0089F02C /* func-name-inferrer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "func-name-inferrer.h"; sourceTree = "<group>"; };
 		9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "oprofile-agent.cc"; sourceTree = "<group>"; };
 		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -692,6 +696,8 @@
 				897FF13B0E719B8F00D62E90 /* frames-inl.h */,
 				897FF13C0E719B8F00D62E90 /* frames.cc */,
 				897FF13D0E719B8F00D62E90 /* frames.h */,
+				9F92FAA70F8F28AD0089F02C /* func-name-inferrer.cc */,
+				9F92FAA80F8F28AD0089F02C /* func-name-inferrer.h */,
 				897FF13E0E719B8F00D62E90 /* global-handles.cc */,
 				897FF13F0E719B8F00D62E90 /* global-handles.h */,
 				897FF1400E719B8F00D62E90 /* globals.h */,
@@ -1117,6 +1123,7 @@
 				89A88E050E71A65D0043BA31 /* flags.cc in Sources */,
 				89A88E060E71A6600043BA31 /* frames-ia32.cc in Sources */,
 				89A88E070E71A6610043BA31 /* frames.cc in Sources */,
+				9F92FAA90F8F28AD0089F02C /* func-name-inferrer.cc in Sources */,
 				89A88E080E71A6620043BA31 /* global-handles.cc in Sources */,
 				89A88E090E71A6640043BA31 /* handles.cc in Sources */,
 				89A88E0A0E71A6650043BA31 /* hashmap.cc in Sources */,
@@ -1217,6 +1224,7 @@
 				89F23C580E78D5B2006B2466 /* flags.cc in Sources */,
 				89F23C9C0E78D5F1006B2466 /* frames-arm.cc in Sources */,
 				89F23C5A0E78D5B2006B2466 /* frames.cc in Sources */,
+				9F92FAAA0F8F28AD0089F02C /* func-name-inferrer.cc in Sources */,
 				89F23C5B0E78D5B2006B2466 /* global-handles.cc in Sources */,
 				89F23C5C0E78D5B2006B2466 /* handles.cc in Sources */,
 				89F23C5D0E78D5B2006B2466 /* hashmap.cc in Sources */,

@@ -373,7 +373,6 @@ class JavaScriptFrame: public StandardFrame {
   virtual Type type() const { return JAVA_SCRIPT; }
 
   // Accessors.
-  inline bool is_at_function() const;
   inline Object* function() const;
   inline Object* receiver() const;
   inline void set_receiver(Object* value);
@@ -414,11 +413,19 @@ class JavaScriptFrame: public StandardFrame {
 
  protected:
   explicit JavaScriptFrame(StackFrameIterator* iterator)
-      : StandardFrame(iterator) { }
+      : StandardFrame(iterator), disable_heap_access_(false) { }
 
   virtual Address GetCallerStackPointer() const;
 
+  // When this mode is enabled it is not allowed to access heap objects.
+  // This is a special mode used when gathering stack samples in profiler.
+  // A shortcoming is that caller's SP value will be calculated incorrectly
+  // (see GetCallerStackPointer implementation), but it is not used for stack
+  // sampling.
+  void DisableHeapAccess() { disable_heap_access_ = true; }
+
  private:
+  bool disable_heap_access_;
   inline Object* function_slot_object() const;
 
   friend class StackFrameIterator;
@@ -638,6 +645,7 @@ class SafeStackFrameIterator BASE_EMBEDDED {
   bool IsValidStackAddress(Address addr) const {
     return IsWithinBounds(low_bound_, high_bound_, addr);
   }
+  bool CanIterateHandles(StackFrame* frame, StackHandler* handler);
   bool IsValidFrame(StackFrame* frame) const;
   bool IsValidCaller(StackFrame* frame);
 

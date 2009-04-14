@@ -417,6 +417,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\func-name-inferrer.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\func-name-inferrer.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\global-handles.cc"
 				>
 			</File>

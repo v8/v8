@@ -86,6 +86,7 @@ StackFrameIterator::StackFrameIterator(bool use_top, Address fp, Address sp)
   if (use_top || fp != NULL) {
     Reset();
   }
+  JavaScriptFrame_.DisableHeapAccess();
 }
 
 #undef INITIALIZE_SINGLETON
@@ -208,7 +209,9 @@ void SafeStackFrameIterator::Advance() {
   StackFrame* last_frame = iterator_.frame();
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
   // Before advancing to the next stack frame, perform pointer validity tests
-  iteration_done_ = !IsValidFrame(last_frame) || !IsValidCaller(last_frame);
+  iteration_done_ = !IsValidFrame(last_frame) ||
+      !CanIterateHandles(last_frame, iterator_.handler()) ||
+      !IsValidCaller(last_frame);
   if (iteration_done_) return;
 
   iterator_.Advance();
@@ -219,12 +222,17 @@ void SafeStackFrameIterator::Advance() {
 }
 
 
+bool SafeStackFrameIterator::CanIterateHandles(StackFrame* frame,
+                                               StackHandler* handler) {
+  // If StackIterator iterates over StackHandles, verify that
+  // StackHandlerIterator can be instantiated (see StackHandlerIterator
+  // constructor.)
+  return !is_valid_top_ || (frame->sp() <= handler->address());
+}
+
+
 bool SafeStackFrameIterator::IsValidFrame(StackFrame* frame) const {
-  return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp()) &&
-      // JavaScriptFrame uses function shared info to advance, hence it must
-      // point to a valid function object.
-      (!frame->is_java_script() ||
-       reinterpret_cast<JavaScriptFrame*>(frame)->is_at_function());
+  return IsValidStackAddress(frame->sp()) && IsValidStackAddress(frame->fp());
 }
 
 
@@ -270,7 +278,7 @@ void SafeStackFrameIterator::Reset() {
 SafeStackTraceFrameIterator::SafeStackTraceFrameIterator(
     Address fp, Address sp, Address low_bound, Address high_bound) :
     SafeJavaScriptFrameIterator(fp, sp, low_bound, high_bound) {
-  if (!done() && !frame()->is_at_function()) Advance();
+  if (!done() && !frame()->is_java_script()) Advance();
 }
 
 
@@ -278,7 +286,7 @@ void SafeStackTraceFrameIterator::Advance() {
   while (true) {
     SafeJavaScriptFrameIterator::Advance();
     if (done()) return;
-    if (frame()->is_at_function()) return;
+    if (frame()->is_java_script()) return;
   }
 }
 #endif

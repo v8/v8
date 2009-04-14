@@ -299,7 +299,8 @@ class CodeGenerator: public AstVisitor {
                               int end_position,
                               bool is_expression,
                               bool is_toplevel,
-                              Handle<Script> script);
+                              Handle<Script> script,
+                              Handle<String> inferred_name);
 
   // Accessors
   MacroAssembler* masm() { return masm_; }

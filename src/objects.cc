@@ -679,7 +679,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     SmartPointer<uc16> smart_chars = this->ToWideCString();
     ASSERT(memcmp(*smart_chars,
                   resource->data(),
-                  resource->length()*sizeof(**smart_chars)) == 0);
+                  resource->length() * sizeof(**smart_chars)) == 0);
   }
 #endif  // DEBUG
 
@@ -4641,7 +4641,7 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
 void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
   IteratePointers(v, kNameOffset, kCodeOffset + kPointerSize);
   IteratePointers(v, kInstanceClassNameOffset, kScriptOffset + kPointerSize);
-  IteratePointer(v, kDebugInfoOffset);
+  IteratePointers(v, kDebugInfoOffset, kInferredNameOffset + kPointerSize);
 }
 
 
@@ -6304,7 +6304,7 @@ class SymbolKey : public HashTableKey {
     if (StringShape(string_).IsCons()) {
       ConsString* cons_string = ConsString::cast(string_);
       cons_string->TryFlatten();
-      if (cons_string->second() == Heap::empty_string()) {
+      if (cons_string->second()->length() == 0) {
         string_ = cons_string->first();
       }
     }
@@ -6312,6 +6312,7 @@ class SymbolKey : public HashTableKey {
     Map* map = Heap::SymbolMapForString(string_);
     if (map != NULL) {
       string_->set_map(map);
+      ASSERT(string_->IsSymbol());
       return string_;
     }
     // Otherwise allocate a new symbol.

@@ -268,12 +268,19 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
 }
 
 
-int32_t* Counter::Bind(const char* name) {
+int32_t* Counter::Bind(const char* name, bool is_histogram) {
   int i;
   for (i = 0; i < kMaxNameSize - 1 && name[i]; i++)
     name_[i] = static_cast<char>(name[i]);
   name_[i] = '\0';
-  return &counter_;
+  is_histogram_ = is_histogram;
+  return ptr();
+}
+
+
+void Counter::AddSample(int32_t sample) {
+  count_++;
+  sample_total_ += sample;
 }
 
 
@@ -302,6 +309,8 @@ void Shell::MapCounters(const char* name) {
   }
   counters_ = static_cast<CounterCollection*>(memory);
   V8::SetCounterFunction(LookupCounter);
+  V8::SetCreateHistogramFunction(CreateHistogram);
+  V8::SetAddHistogramSampleFunction(AddHistogramSample);
 }
 
 
@@ -316,15 +325,44 @@ int CounterMap::Hash(const char* name) {
 }
 
 
-int* Shell::LookupCounter(const char* name) {
+Counter* Shell::GetCounter(const char* name, bool is_histogram) {
   Counter* counter = counter_map_->Lookup(name);
+
+  if (counter == NULL) {
+    counter = counters_->GetNextCounter();
+    if (counter != NULL) {
+      counter_map_->Set(name, counter);
+      counter->Bind(name, is_histogram);
+    }
+  } else {
+    ASSERT(counter->is_histogram() == is_histogram);
+  }
+  return counter;
+}
+
+
+int* Shell::LookupCounter(const char* name) {
+  Counter* counter = GetCounter(name, false);
+
   if (counter != NULL) {
     return counter->ptr();
+  } else {
+    return NULL;
   }
-  Counter* result = counters_->GetNextCounter();
-  if (result == NULL) return NULL;
-  counter_map_->Set(name, result);
-  return result->Bind(name);
+}
+
+
+void* Shell::CreateHistogram(const char* name,
+                             int min,
+                             int max,
+                             size_t buckets) {
+  return GetCounter(name, true);
+}
+
+
+void Shell::AddHistogramSample(void* histogram, int sample) {
+  Counter* counter = reinterpret_cast<Counter*>(histogram);
+  counter->AddSample(sample);
 }
 
 
@@ -333,8 +371,12 @@ void Shell::Initialize() {
   // Set up counters
   if (i::FLAG_map_counters != NULL)
     MapCounters(i::FLAG_map_counters);
-  if (i::FLAG_dump_counters)
+  if (i::FLAG_dump_counters) {
     V8::SetCounterFunction(LookupCounter);
+    V8::SetCreateHistogramFunction(CreateHistogram);
+    V8::SetAddHistogramSampleFunction(AddHistogramSample);
+  }
+
   // Initialize the global objects
   HandleScope scope;
   Handle<ObjectTemplate> global_template = ObjectTemplate::New();
@@ -406,7 +448,14 @@ void Shell::OnExit() {
     ::printf("+----------------------------------------+-------------+\n");
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
       Counter* counter = i.CurrentValue();
-      ::printf("| %-38s | %11i |\n", i.CurrentKey(), counter->value());
+      if (counter->is_histogram()) {
+        ::printf("| c:%-36s | %11i |\n", i.CurrentKey(), counter->count());
+        ::printf("| t:%-36s | %11i |\n",
+                 i.CurrentKey(),
+                 counter->sample_total());
+      } else {
+        ::printf("| %-38s | %11i |\n", i.CurrentKey(), counter->count());
+      }
     }
     ::printf("+----------------------------------------+-------------+\n");
   }

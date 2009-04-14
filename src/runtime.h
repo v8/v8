@@ -355,6 +355,8 @@ class Runtime : public AllStatic {
 
   static int StringMatch(Handle<String> sub, Handle<String> pat, int index);
 
+  static bool IsUpperCaseChar(uint16_t ch);
+
   // TODO(1240886): The following three methods are *not* handle safe,
   // but accept handle arguments. This seems fragile.
 
@@ -368,6 +370,10 @@ class Runtime : public AllStatic {
                                    PropertyAttributes attr);
 
   static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
+
+  // This function is used in FunctionNameUsing* tests.
+  static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
+                                                int position);
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);

@@ -1223,7 +1223,8 @@ class FunctionLiteral: public Expression {
         end_position_(end_position),
         is_expression_(is_expression),
         loop_nesting_(0),
-        function_token_position_(RelocInfo::kNoPosition) {
+        function_token_position_(RelocInfo::kNoPosition),
+        inferred_name_(Heap::empty_string()) {
 #ifdef DEBUG
     already_compiled_ = false;
 #endif
@@ -1253,6 +1254,11 @@ class FunctionLiteral: public Expression {
   bool loop_nesting() const { return loop_nesting_; }
   void set_loop_nesting(int nesting) { loop_nesting_ = nesting; }
 
+  Handle<String> inferred_name() const  { return inferred_name_; }
+  void set_inferred_name(Handle<String> inferred_name) {
+    inferred_name_ = inferred_name;
+  }
+
 #ifdef DEBUG
   void mark_as_compiled() {
     ASSERT(!already_compiled_);
@@ -1273,6 +1279,7 @@ class FunctionLiteral: public Expression {
   bool is_expression_;
   int loop_nesting_;
   int function_token_position_;
+  Handle<String> inferred_name_;
 #ifdef DEBUG
   bool already_compiled_;
 #endif

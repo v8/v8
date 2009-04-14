@@ -80,7 +80,7 @@ int JavaScriptFrame::GetProvidedParametersCount() const {
 
 Address JavaScriptFrame::GetCallerStackPointer() const {
   int arguments;
-  if (Heap::gc_state() != Heap::NOT_IN_GC) {
+  if (Heap::gc_state() != Heap::NOT_IN_GC || disable_heap_access_) {
     // The arguments for cooked frames are traversed as if they were
     // expression stack elements of the calling frame. The reason for
     // this rather strange decision is that we cannot access the

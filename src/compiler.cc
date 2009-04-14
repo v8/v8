@@ -152,7 +152,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   CodeGenerator::SetFunctionInfo(fun, lit->scope()->num_parameters(),
                                  RelocInfo::kNoPosition,
                                  lit->start_position(), lit->end_position(),
-                                 lit->is_expression(), true, script);
+                                 lit->is_expression(), true, script,
+                                 lit->inferred_name());
 
   // Hint to the runtime system used when allocating space for initial
   // property space by setting the expected number of properties for
@@ -316,20 +317,22 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // name and line number. Check explicit whether logging is enabled as finding
   // the line number is not for free.
   if (Logger::is_enabled() || OProfileAgent::is_enabled()) {
+    Handle<String> func_name(lit->name()->length() > 0 ?
+                             *lit->name() : shared->inferred_name());
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, start_position);
       if (line_num > 0) {
         line_num += script->line_offset()->value() + 1;
       }
-      LOG(CodeCreateEvent("LazyCompile", *code, *lit->name(),
+      LOG(CodeCreateEvent("LazyCompile", *code, *func_name,
                           String::cast(script->name()), line_num));
-      OProfileAgent::CreateNativeCodeRegion(*lit->name(),
+      OProfileAgent::CreateNativeCodeRegion(*func_name,
                                             String::cast(script->name()),
                                             line_num, code->address(),
                                             code->ExecutableSize());
     } else {
-      LOG(CodeCreateEvent("LazyCompile", *code, *lit->name()));
-      OProfileAgent::CreateNativeCodeRegion(*lit->name(), code->address(),
+      LOG(CodeCreateEvent("LazyCompile", *code, *func_name));
+      OProfileAgent::CreateNativeCodeRegion(*func_name, code->address(),
                                             code->ExecutableSize());
     }
   }

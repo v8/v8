@@ -230,7 +230,8 @@ void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
                                     int end_position,
                                     bool is_expression,
                                     bool is_toplevel,
-                                    Handle<Script> script) {
+                                    Handle<Script> script,
+                                    Handle<String> inferred_name) {
   fun->shared()->set_length(length);
   fun->shared()->set_formal_parameter_count(length);
   fun->shared()->set_script(*script);
@@ -239,6 +240,7 @@ void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
   fun->shared()->set_end_position(end_position);
   fun->shared()->set_is_expression(is_expression);
   fun->shared()->set_is_toplevel(is_toplevel);
+  fun->shared()->set_inferred_name(*inferred_name);
 }
 
 
@@ -299,7 +301,8 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
   CodeGenerator::SetFunctionInfo(function, node->num_parameters(),
                                  node->function_token_position(),
                                  node->start_position(), node->end_position(),
-                                 node->is_expression(), false, script_);
+                                 node->is_expression(), false, script_,
+                                 node->inferred_name());
 
   // Notify debugger that a new function has been added.
   Debugger::OnNewFunction(function);
