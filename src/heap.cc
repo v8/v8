@@ -813,12 +813,20 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 
 
 static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
-  // A ConsString object with Heap::empty_string() as the right side
-  // is a candidate for being shortcut by the scavenger.
+  // A ConsString with an empty string as the right side is a
+  // candidate for being shortcut by the scavenger unless it is a
+  // symbol. It's not common to have non-flat symbols, so we do not
+  // shortcut them thereby avoiding turning symbols into strings.
+  ASSERT(kNotStringTag != 0 && kSymbolTag != 0);
+  static const uint32_t kShortcutTypeMask =
+      kIsNotStringMask |
+      kIsSymbolMask |
+      kStringRepresentationMask;
   ASSERT(object->map() == map);
-  if (map->instance_type() >= FIRST_NONSTRING_TYPE) return false;
-  return (StringShape(map).representation_tag() == kConsStringTag) &&
-         (ConsString::cast(object)->unchecked_second() == Heap::empty_string());
+  InstanceType type = map->instance_type();
+  if ((type & kShortcutTypeMask) != kConsStringTag) return false;
+  ASSERT(object->IsString() && !object->IsSymbol());
+  return ConsString::cast(object)->unchecked_second() == Heap::empty_string();
 }
 
 

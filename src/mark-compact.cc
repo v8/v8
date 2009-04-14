@@ -183,6 +183,10 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 
 void MarkCompactCollector::Finish() {
 #ifdef DEBUG
+  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
+  SymbolTableVerifier v;
+  symbol_table->IterateElements(&v);
+
   ASSERT(state_ == SWEEP_SPACES || state_ == REBUILD_RSETS);
   state_ = IDLE;
 #endif
