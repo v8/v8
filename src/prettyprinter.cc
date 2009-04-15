@@ -646,7 +646,7 @@ AstPrinter::~AstPrinter() {
 
 void AstPrinter::PrintIndented(const char* txt) {
   for (int i = 0; i < indent_; i++) {
-    Print(".   ");
+    Print(". ");
   }
   Print(txt);
 }
@@ -732,7 +732,7 @@ void AstPrinter::PrintParameters(Scope* scope) {
   if (scope->num_parameters() > 0) {
     IndentedScope indent("PARAMS");
     for (int i = 0; i < scope->num_parameters(); i++) {
-      PrintLiteralWithModeIndented("VAR ", scope->parameter(i),
+      PrintLiteralWithModeIndented("VAR", scope->parameter(i),
                                    scope->parameter(i)->name(),
                                    scope->parameter(i)->type());
     }
@@ -1024,7 +1024,7 @@ void AstPrinter::VisitProperty(Property* node) {
   Visit(node->obj());
   Literal* literal = node->key()->AsLiteral();
   if (literal != NULL && literal->handle()->IsSymbol()) {
-    PrintLiteralIndented("LITERAL", literal->handle(), false);
+    PrintLiteralIndented("NAME", literal->handle(), false);
   } else {
     PrintIndentedVisit("KEY", node->key());
   }
