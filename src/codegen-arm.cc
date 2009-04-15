@@ -2446,8 +2446,13 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
                                                  r1,
                                                  r2,
                                                  &slow));
+        if (potential_slot->var()->mode() == Variable::CONST) {
+          __ cmp(r0, Operand(Factory::the_hole_value()));
+          __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
+        }
         // There is always control flow to slow from
-        // ContextSlotOperandCheckExtensions.
+        // ContextSlotOperandCheckExtensions so we have to jump around
+        // it.
         done.Jump();
       }
     }
