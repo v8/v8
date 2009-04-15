@@ -4025,19 +4025,33 @@ TEST(DebuggerHostDispatch) {
      "\"type\":\"request\","
      "\"command\":\"continue\"}";
 
+  // Create an empty function to call for processing debug commands
+  v8::Local<v8::Function> empty =
+      CompileFunction(&env, "function empty(){}", "empty");
+
   // Setup message and host dispatch handlers.
   v8::Debug::SetMessageHandler(DummyMessageHandler);
   v8::Debug::SetHostDispatchHandler(HostDispatchHandlerHitCount,
                                     NULL);
 
-  // Fill a host dispatch and a continue command on the command queue before
-  // running some code.
+  // Send a host dispatch by itself.
+  v8::Debug::SendHostDispatch(NULL);
+  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
+  CHECK_EQ(1, host_dispatch_hit_count);
+
+  // Fill a host dispatch and a continue command on the command queue.
   v8::Debug::SendHostDispatch(NULL);
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
-  CompileRun("void 0");
+  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
 
-  // The host dispatch callback should be called.
-  CHECK_EQ(1, host_dispatch_hit_count);
+  // Fill a continue command and a host dispatch on the command queue.
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+  v8::Debug::SendHostDispatch(NULL);
+  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
+  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
+
+  // All the host dispatch callback should be called.
+  CHECK_EQ(3, host_dispatch_hit_count);
 }
 
 

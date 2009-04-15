@@ -1825,6 +1825,9 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
         Debugger::host_dispatch_handler_(reinterpret_cast<void*>(dispatch),
                                          Debugger::host_dispatch_handler_data_);
       }
+      if (auto_continue && !HasCommands()) {
+        return;
+      }
       continue;
     }
 
@@ -2030,6 +2033,8 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command) {
   Logger::DebugTag("Put command on command_queue.");
   command_queue_.Put(command_copy);
   command_received_->Signal();
+
+  // Set the debug command break flag to have the command processed.
   if (!Debug::InDebugger()) {
     StackGuard::DebugCommand();
   }
@@ -2042,7 +2047,7 @@ bool Debugger::HasCommands() {
 
 
 void Debugger::ProcessHostDispatch(void* dispatch) {
-// Puts a host dispatch comming from the public API on the queue.
+  // Puts a host dispatch comming from the public API on the queue.
   uint16_t hack[3];
   hack[0] = 0;
   hack[1] = reinterpret_cast<uint32_t>(dispatch) >> 16;
@@ -2050,6 +2055,11 @@ void Debugger::ProcessHostDispatch(void* dispatch) {
   Logger::DebugTag("Put dispatch on command_queue.");
   command_queue_.Put(Vector<uint16_t>(hack, 3).Clone());
   command_received_->Signal();
+
+  // Set the debug command break flag to have the host dispatch processed.
+  if (!Debug::InDebugger()) {
+    StackGuard::DebugCommand();
+  }
 }
 
 
