@@ -1,3 +1,15 @@
+2009-04-15: Version 1.1.10
+
+        Fixed crash bug that occurred when loading a const variable in the
+        presence of eval.
+
+        Allowed using with and eval in registered extensions in debug mode
+        by fixing bogus assert.
+
+        Fixed the source position for function returns to enable the
+        debugger to break there.
+
+
 2009-04-14: Version 1.1.9
 
         Made the stack traversal code in the profiler robust by avoiding
