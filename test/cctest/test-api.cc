@@ -2495,6 +2495,44 @@ THREADED_TEST(SimpleExtensions) {
 }
 
 
+static const char* kEvalExtensionSource =
+  "function UseEval() {"
+  "  var x = 42;"
+  "  return eval('x');"
+  "}";
+
+
+THREADED_TEST(UseEvalFromExtension) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("evaltest", kEvalExtensionSource));
+  const char* extension_names[] = { "evaltest" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  Context::Scope lock(context);
+  v8::Handle<Value> result = Script::Compile(v8_str("UseEval()"))->Run();
+  CHECK_EQ(result, v8::Integer::New(42));
+}
+
+
+static const char* kWithExtensionSource =
+  "function UseWith() {"
+  "  var x = 42;"
+  "  with({x:87}) { return x; }"
+  "}";
+
+
+THREADED_TEST(UseWithFromExtension) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("withtest", kWithExtensionSource));
+  const char* extension_names[] = { "withtest" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  Context::Scope lock(context);
+  v8::Handle<Value> result = Script::Compile(v8_str("UseWith()"))->Run();
+  CHECK_EQ(result, v8::Integer::New(87));
+}
+
+
 THREADED_TEST(AutoExtensions) {
   v8::HandleScope handle_scope;
   Extension* extension = new Extension("autotest", kSimpleExtensionSource);
