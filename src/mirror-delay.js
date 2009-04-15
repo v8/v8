@@ -1715,8 +1715,8 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
   // Collect the JSON property/value pairs in an array.
   var content = new Array();
 
-  // Add the handle for value mirrors.
-  if (mirror.isValue()) {
+  // Add the mirror handle.
+  if (mirror.isValue() || mirror.isScript()) {
     content.push(MakeJSONPair_('handle', NumberToJSON_(mirror.handle())));
   }
 
@@ -1771,10 +1771,11 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
       break;
 
     case SCRIPT_TYPE:
-      // Script is represented by name and source attributes.
+      // Script is represented by id, name and source attributes.
       if (mirror.name()) {
         content.push(MakeJSONPair_('name', StringToJSON_(mirror.name())));
       }
+      content.push(MakeJSONPair_('id', NumberToJSON_(mirror.id())));
       content.push(MakeJSONPair_('lineOffset',
                                  NumberToJSON_(mirror.lineOffset())));
       content.push(MakeJSONPair_('columnOffset',
@@ -1908,7 +1909,12 @@ JSONProtocolSerializer.prototype.serializeFrame_ = function(mirror, content) {
   content.push(MakeJSONPair_('index', NumberToJSON_(mirror.index())));
   content.push(MakeJSONPair_('receiver',
                              this.serializeReference(mirror.receiver())));
-  content.push(MakeJSONPair_('func', this.serializeReference(mirror.func())));
+  var func = mirror.func();
+  content.push(MakeJSONPair_('func', this.serializeReference(func)));
+  if (func.script()) {
+    content.push(MakeJSONPair_('script',
+                               this.serializeReference(func.script())));
+  }
   content.push(MakeJSONPair_('constructCall',
                              BooleanToJSON_(mirror.isConstructCall())));
   content.push(MakeJSONPair_('debuggerFrame',
