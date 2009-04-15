@@ -70,7 +70,8 @@ class FuncNameInferrer BASE_EMBEDDED {
 
   void SetFuncToInfer(FunctionLiteral* func_to_infer) {
     if (IsOpen()) {
-      ASSERT(func_to_infer_ == NULL);
+      // If we encounter another function literal after already having
+      // encountered one, the second one replaces the first.
       func_to_infer_ = func_to_infer;
     }
   }
