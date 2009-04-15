@@ -105,17 +105,17 @@ static int LengthWithoutIncompleteUtf8(char* buffer, int len) {
 // Returns false on timeout, true on data ready.
 static bool WaitOnFD(int fd,
                      int read_timeout,
-                     int* total_timeout,
+                     int total_timeout,
                      struct timeval& start_time) {
   fd_set readfds, writefds, exceptfds;
   struct timeval timeout;
-  if (*total_timeout != -1) {
+  int gone = 0;
+  if (total_timeout != -1) {
     struct timeval time_now;
     gettimeofday(&time_now, NULL);
     int seconds = time_now.tv_sec - start_time.tv_sec;
-    int gone = seconds * 1000 + (time_now.tv_usec - start_time.tv_usec) / 1000;
-    if (gone >= *total_timeout) return false;
-    *total_timeout -= gone;
+    gone = seconds * 1000 + (time_now.tv_usec - start_time.tv_usec) / 1000;
+    if (gone >= total_timeout) return false;
   }
   FD_ZERO(&readfds);
   FD_ZERO(&writefds);
@@ -123,8 +123,8 @@ static bool WaitOnFD(int fd,
   FD_SET(fd, &readfds);
   FD_SET(fd, &exceptfds);
   if (read_timeout == -1 ||
-      (*total_timeout != -1 && *total_timeout < read_timeout)) {
-    read_timeout = *total_timeout;
+      (total_timeout != -1 && total_timeout - gone < read_timeout)) {
+    read_timeout = total_timeout - gone;
   }
   timeout.tv_usec = (read_timeout % 1000) * 1000;
   timeout.tv_sec = read_timeout / 1000;
@@ -306,7 +306,7 @@ static bool ChildLaunchedOK(int* exec_error_fds) {
 static Handle<Value> GetStdout(int child_fd,
                                struct timeval& start_time,
                                int read_timeout,
-                               int* total_timeout) {
+                               int total_timeout) {
   Handle<String> accumulator = String::Empty();
   const char* source = "function(a, b) { return a + b; }";
   Handle<Value> cons_as_obj(Script::Compile(String::New(source))->Run());
@@ -332,7 +332,7 @@ static Handle<Value> GetStdout(int child_fd,
                       read_timeout,
                       total_timeout,
                       start_time) ||
-            (TimeIsOut(start_time, *total_timeout))) {
+            (TimeIsOut(start_time, total_timeout))) {
           return ThrowException(String::New("Timed out waiting for output"));
         }
         continue;
@@ -502,7 +502,7 @@ Handle<Value> Shell::System(const Arguments& args) {
   Handle<Value> accumulator = GetStdout(stdout_fds[kReadFD],
                                         start_time,
                                         read_timeout,
-                                        &total_timeout);
+                                        total_timeout);
   if (accumulator->IsUndefined()) {
     kill(pid, SIGINT);  // On timeout, kill the subprocess.
     return accumulator;

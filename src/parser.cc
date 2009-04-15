@@ -2092,7 +2092,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   // code. If 'with' statements were allowed, the simplified setup of
   // the runtime context chain would allow access to properties in the
   // global object from within a 'with' statement.
-  ASSERT(!Bootstrapper::IsActive());
+  ASSERT(extension_ != NULL || !Bootstrapper::IsActive());
 
   Expect(Token::WITH, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
@@ -2761,7 +2761,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
             if (var == NULL) {
               // We do not allow direct calls to 'eval' in our internal
               // JS files. Use builtin functions instead.
-              ASSERT(!Bootstrapper::IsActive());
+              ASSERT(extension_ != NULL || !Bootstrapper::IsActive());
               top_scope_->RecordEvalCall();
               is_potentially_direct_eval = true;
             }

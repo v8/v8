@@ -3286,8 +3286,14 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
                ContextSlotOperandCheckExtensions(potential_slot,
                                                  value,
                                                  &slow));
+        if (potential_slot->var()->mode() == Variable::CONST) {
+          __ cmp(value.reg(), Factory::the_hole_value());
+          done.Branch(not_equal, &value);
+          __ mov(value.reg(), Factory::undefined_value());
+        }
         // There is always control flow to slow from
-        // ContextSlotOperandCheckExtensions.
+        // ContextSlotOperandCheckExtensions so we have to jump around
+        // it.
         done.Jump(&value);
       }
     }

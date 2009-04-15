@@ -571,7 +571,7 @@ void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
 
 void CodeGenerator::CodeForReturnPosition(FunctionLiteral* fun) {
   if (FLAG_debug_info) {
-    int pos = fun->start_position();
+    int pos = fun->end_position();
     if (pos != RelocInfo::kNoPosition) {
       masm()->RecordStatementPosition(pos);
       masm()->RecordPosition(pos);
