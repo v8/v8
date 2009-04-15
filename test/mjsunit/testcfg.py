@@ -32,6 +32,7 @@ import re
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 
 
 class MjsunitTestCase(test.TestCase):
@@ -54,6 +55,12 @@ class MjsunitTestCase(test.TestCase):
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
+    files_match = FILES_PATTERN.search(source);
+    additional_files = []
+    if files_match:
+      additional_files += files_match.group(1).strip().split()
+    for a_file in additional_files:
+      result.append(join(dirname(self.config.root), '..', a_file))
     framework = join(dirname(self.config.root), 'mjsunit', 'mjsunit.js')
     result += [framework, self.file]
     return result
@@ -76,7 +83,8 @@ class MjsunitTestConfiguration(test.TestConfiguration):
     mjsunit = [current_path + [t] for t in self.Ls(self.root)]
     regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
     bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
-    all_tests = mjsunit + regress + bugs
+    tools = [current_path + ['tools', t] for t in self.Ls(join(self.root, 'tools'))]
+    all_tests = mjsunit + regress + bugs + tools
     result = []
     for test in all_tests:
       if self.Contains(path, test):
