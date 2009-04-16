@@ -212,10 +212,11 @@ Handle<Object> SetProperty(Handle<Object> object,
 }
 
 
-Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
-                                                   Handle<String> key,
-                                                   Handle<Object> value,
-                                                   PropertyAttributes attributes) {
+Handle<Object> IgnoreAttributesAndSetLocalProperty(
+    Handle<JSObject> object,
+    Handle<String> key,
+    Handle<Object> value,
+    PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(object->
       IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
 }
