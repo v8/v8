@@ -4574,7 +4574,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     __ swi(swi_number);
 #else
     // Actually call the add routine written in C.
-    __ blx(r5);
+    __ Call(r5);
 #endif
     // Store answer in the overwritable heap number.
     __ pop(r4);
