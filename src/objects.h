@@ -1585,11 +1585,15 @@ class FixedArray: public Array {
   bool IsEqualTo(FixedArray* other);
 #endif
 
-  // Swap two elements.
-  void Swap(int i, int j);
+  // Swap two elements in a pair of arrays.  If this array and the
+  // numbers array are the same object, the elements are only swapped
+  // once.
+  void SwapPairs(FixedArray* numbers, int i, int j);
 
-  // Sort this array and the smis as pairs wrt. the smis.
-  void SortPairs(FixedArray* smis);
+  // Sort prefix of this array and the numbers array as pairs wrt. the
+  // numbers.  If the numbers array and the this array are the same
+  // object, the prefix of this array is sorted.
+  void SortPairs(FixedArray* numbers, uint32_t len);
 
  protected:
   // Set operation on FixedArray without using write barriers.
