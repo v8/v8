@@ -43,22 +43,6 @@
 
 namespace v8 { namespace internal {
 
-#define FIELD_ADDR(p, offset) \
-  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
-
-
-#define WRITE_FIELD(p, offset, value) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
-
-
-#define WRITE_INT_FIELD(p, offset, value) \
-  (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
-
-
-#define WRITE_BARRIER(object, offset) \
-  Heap::RecordWrite(object->address(), offset);
-
-
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
 const int kGetterIndex = 0;
