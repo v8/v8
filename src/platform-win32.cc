@@ -1161,7 +1161,7 @@ void OS::LogSharedLibraryAddresses() {
 // it is triggered by the use of inline assembler.
 #pragma warning(push)
 #pragma warning(disable : 4748)
-int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
+int OS::StackWalk(Vector<OS::StackFrame> frames) {
   BOOL ok;
 
   // Load the required functions from DLL's.
@@ -1201,6 +1201,7 @@ int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
   int frames_count = 0;
 
   // Collect stack frames.
+  int frames_size = frames.length();
   while (frames_count < frames_size) {
     ok = _StackWalk64(
         IMAGE_FILE_MACHINE_I386,    // MachineType
@@ -1284,7 +1285,7 @@ int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
 
 #else  // __MINGW32__
 void OS::LogSharedLibraryAddresses() { }
-int OS::StackWalk(OS::StackFrame* frames, int frames_size) { return 0; }
+int OS::StackWalk(Vector<OS::StackFrame> frames) { return 0; }
 #endif  // __MINGW32__
 
 

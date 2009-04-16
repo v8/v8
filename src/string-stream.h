@@ -162,8 +162,8 @@ class StringStream {
   unsigned length_;  // does not include terminating 0-character
   char* buffer_;
 
+  bool full() const { return (capacity_ - length_) == 1; }
   int space() const { return capacity_ - length_; }
-  char* cursor() const { return buffer_ + length_; }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringStream);
 };

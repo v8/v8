@@ -5929,8 +5929,8 @@ static Object* Runtime_GetCFrames(Arguments args) {
   if (result->IsFailure()) return result;
 
   static const int kMaxCFramesSize = 200;
-  OS::StackFrame frames[kMaxCFramesSize];
-  int frames_count = OS::StackWalk(frames, kMaxCFramesSize);
+  ScopedVector<OS::StackFrame> frames(kMaxCFramesSize);
+  int frames_count = OS::StackWalk(frames);
   if (frames_count == OS::kStackWalkError) {
     return Heap::undefined_value();
   }

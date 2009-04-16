@@ -116,7 +116,7 @@ class PreallocatedMemoryThread: public Thread {
   // When the thread starts running it will allocate a fixed number of bytes
   // on the stack and publish the location of this memory for others to use.
   void Run() {
-    EmbeddedVector<char, 32 * 1024> local_buffer;
+    EmbeddedVector<char, 15 * 1024> local_buffer;
 
     // Initialize the buffer with a known good value.
     OS::StrNCpy(local_buffer, "Trace data was not generated.\n",

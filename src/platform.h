@@ -207,7 +207,7 @@ class OS {
     char text[kStackWalkMaxTextLen];
   };
 
-  static int StackWalk(StackFrame* frames, int frames_size);
+  static int StackWalk(Vector<StackFrame> frames);
 
   // Factory method for creating platform dependent Mutex.
   // Please use delete to reclaim the storage for the returned Mutex.

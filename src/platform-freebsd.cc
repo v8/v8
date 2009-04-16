@@ -262,7 +262,8 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
-int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
+int OS::StackWalk(Vector<OS::StackFrame> frames) {
+  int frames_size = frames.length();
   void** addresses = NewArray<void*>(frames_size);
 
   int frames_count = backtrace(addresses, frames_size);
