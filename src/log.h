@@ -174,11 +174,6 @@ class Logger {
   static void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
   static void CodeDeleteEvent(Address from);
-  // Emits region delimiters
-  static void BeginCodeRegionEvent(CodeRegion* region,
-                                   Assembler* masm,
-                                   const char* name);
-  static void EndCodeRegionEvent(CodeRegion* region, Assembler* masm);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
