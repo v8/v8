@@ -113,6 +113,20 @@ function assertNaN(value, name_opt) {
 }
 
 
+function assertNull(value, name_opt) {
+  if (value !== null) {
+    fail("null", value, name_opt);
+  }
+}
+
+
+function assertNotNull(value, name_opt) {
+  if (value === null) {
+    fail("not null", value, name_opt);
+  }
+}
+
+
 function assertThrows(code) {
   var threwException = true;
   try {

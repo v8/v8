@@ -94,7 +94,6 @@ goog.structs.SplayTree.prototype.insert = function(key, value) {
 };
 
 
-
 /**
  * Removes a node with the specified key from the tree if the tree
  * contains a node with this key. The removed node is returned. If the
