@@ -38,6 +38,7 @@
 #include "runtime.h"
 #include "top.h"
 #include "zone-inl.h"
+#include "token.h"
 
 namespace v8 { namespace internal {
 
@@ -416,6 +417,8 @@ class ExternalReference BASE_EMBEDDED {
 
   // Used to check if single stepping is enabled in generated code.
   static ExternalReference debug_step_in_fp_address();
+
+  static ExternalReference double_fp_operation(Token::Value operation);
 
   Address address() const {return address_;}
 

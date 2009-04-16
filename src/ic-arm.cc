@@ -39,7 +39,7 @@ namespace v8 { namespace internal {
 // Static IC stub generators.
 //
 
-#define __ masm->
+#define __ DEFINE_MASM(masm)
 
 
 // Helper function used from LoadIC/CallIC GenerateNormal.
@@ -96,7 +96,9 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
     // Compute the masked index: (hash + i + i * i) & mask.
     __ ldr(t1, FieldMemOperand(r2, String::kLengthOffset));
     __ mov(t1, Operand(t1, LSR, String::kHashShift));
-    if (i > 0) __ add(t1, t1, Operand(Dictionary::GetProbeOffset(i)));
+    if (i > 0) {
+      __ add(t1, t1, Operand(Dictionary::GetProbeOffset(i)));
+    }
     __ and_(t1, t1, Operand(r3));
 
     // Scale the index by multiplying by the element size.

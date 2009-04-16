@@ -582,4 +582,40 @@ ExternalReference ExternalReference::debug_step_in_fp_address() {
   return ExternalReference(Debug::step_in_fp_addr());
 }
 
+
+static double add_two_doubles(double x, double y) {
+  return x + y;
+}
+
+
+static double sub_two_doubles(double x, double y) {
+  return x - y;
+}
+
+
+static double mul_two_doubles(double x, double y) {
+  return x * y;
+}
+
+
+ExternalReference ExternalReference::double_fp_operation(
+    Token::Value operation) {
+  typedef double BinaryFPOperation(double x, double y);
+  BinaryFPOperation* function = NULL;
+  switch (operation) {
+    case Token::ADD:
+      function = &add_two_doubles;
+      break;
+    case Token::SUB:
+      function = &sub_two_doubles;
+      break;
+    case Token::MUL:
+      function = &mul_two_doubles;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return ExternalReference(FUNCTION_ADDR(function));
+}
+
 } }  // namespace v8::internal

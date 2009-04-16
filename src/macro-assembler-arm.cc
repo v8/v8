@@ -168,11 +168,11 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 
-void MacroAssembler::Ret() {
+void MacroAssembler::Ret(Condition cond) {
 #if USE_BX
-  bx(lr);
+  bx(lr, cond);
 #else
-  mov(pc, Operand(lr));
+  mov(pc, Operand(lr), LeaveCC, cond);
 #endif
 }
 

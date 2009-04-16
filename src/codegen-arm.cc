@@ -38,7 +38,8 @@
 
 namespace v8 { namespace internal {
 
-#define __ masm_->
+#define __ DEFINE_MASM(masm_)
+
 
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
@@ -677,13 +678,25 @@ class SetPropertyStub : public CodeStub {
 
 class GenericBinaryOpStub : public CodeStub {
  public:
-  explicit GenericBinaryOpStub(Token::Value op) : op_(op) { }
+  GenericBinaryOpStub(Token::Value op,
+                      OverwriteMode mode)
+      : op_(op), mode_(mode) { }
 
  private:
   Token::Value op_;
+  OverwriteMode mode_;
+
+  // Minor key encoding in 16 bits.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 14> {};
 
   Major MajorKey() { return GenericBinaryOp; }
-  int MinorKey() { return static_cast<int>(op_); }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_);
+  }
+
   void Generate(MacroAssembler* masm);
 
   const char* GetName() {
@@ -708,7 +721,8 @@ class GenericBinaryOpStub : public CodeStub {
 };
 
 
-void CodeGenerator::GenericBinaryOperation(Token::Value op) {
+void CodeGenerator::GenericBinaryOperation(Token::Value op,
+                                           OverwriteMode overwrite_mode) {
   VirtualFrame::SpilledScope spilled_scope(this);
   // sp[0] : y
   // sp[1] : x
@@ -727,7 +741,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op) {
     case Token::SAR: {
       frame_->EmitPop(r0);  // r0 : y
       frame_->EmitPop(r1);  // r1 : x
-      GenericBinaryOpStub stub(op);
+      GenericBinaryOpStub stub(op, overwrite_mode);
       frame_->CallStub(&stub, 0);
       break;
     }
@@ -767,11 +781,13 @@ class DeferredInlineSmiOperation: public DeferredCode {
   DeferredInlineSmiOperation(CodeGenerator* generator,
                              Token::Value op,
                              int value,
-                             bool reversed)
+                             bool reversed,
+                             OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         op_(op),
         value_(value),
-        reversed_(reversed) {
+        reversed_(reversed),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiOperation");
   }
 
@@ -781,6 +797,7 @@ class DeferredInlineSmiOperation: public DeferredCode {
   Token::Value op_;
   int value_;
   bool reversed_;
+  OverwriteMode overwrite_mode_;
 };
 
 
@@ -844,7 +861,7 @@ void DeferredInlineSmiOperation::Generate() {
       break;
   }
 
-  GenericBinaryOpStub igostub(op_);
+  GenericBinaryOpStub igostub(op_, overwrite_mode_);
   Result arg0 = generator()->allocator()->Allocate(r1);
   ASSERT(arg0.is_valid());
   Result arg1 = generator()->allocator()->Allocate(r0);
@@ -856,7 +873,8 @@ void DeferredInlineSmiOperation::Generate() {
 
 void CodeGenerator::SmiOperation(Token::Value op,
                                  Handle<Object> value,
-                                 bool reversed) {
+                                 bool reversed,
+                                 OverwriteMode mode) {
   VirtualFrame::SpilledScope spilled_scope(this);
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
@@ -875,7 +893,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed, mode);
 
       __ add(r0, r0, Operand(value), SetCC);
       deferred->enter()->Branch(vs);
@@ -887,7 +905,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SUB: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed, mode);
 
       if (!reversed) {
         __ sub(r0, r0, Operand(value), SetCC);
@@ -905,7 +923,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed, mode);
       __ tst(r0, Operand(kSmiTagMask));
       deferred->enter()->Branch(ne);
       switch (op) {
@@ -925,12 +943,12 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ mov(ip, Operand(value));
         frame_->EmitPush(ip);
         frame_->EmitPush(r0);
-        GenericBinaryOperation(op);
+        GenericBinaryOperation(op, mode);
 
       } else {
         int shift_value = int_value & 0x1f;  // least significant 5 bits
         DeferredCode* deferred =
-          new DeferredInlineSmiOperation(this, op, shift_value, false);
+          new DeferredInlineSmiOperation(this, op, shift_value, false, mode);
         __ tst(r0, Operand(kSmiTagMask));
         deferred->enter()->Branch(ne);
         __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
@@ -982,7 +1000,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->EmitPush(ip);
         frame_->EmitPush(r0);
       }
-      GenericBinaryOperation(op);
+      GenericBinaryOperation(op, mode);
       break;
   }
 
@@ -1487,8 +1505,8 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // Test for a Smi value in a HeapNumber.
   __ tst(r0, Operand(kSmiTagMask));
   is_smi.Branch(eq);
-  __ ldr(r1, MemOperand(r0, HeapObject::kMapOffset - kHeapObjectTag));
-  __ ldrb(r1, MemOperand(r1, Map::kInstanceTypeOffset - kHeapObjectTag));
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
   __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
   default_target->Branch(ne);
   frame_->EmitPush(r0);
@@ -2523,7 +2541,9 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
 
   if (s->is_eval_scope()) {
     Label next, fast;
-    if (!context.is(tmp)) __ mov(tmp, Operand(context));
+    if (!context.is(tmp)) {
+      __ mov(tmp, Operand(context));
+    }
     __ bind(&next);
     // Terminate at global context.
     __ ldr(tmp2, FieldMemOperand(tmp, HeapObject::kMapOffset));
@@ -2934,15 +2954,24 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       LoadAndSpill(node->value());
 
     } else {
+      // +=, *= and similar binary assignments.
+      // Get the old value of the lhs.
       target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
       Literal* literal = node->value()->AsLiteral();
+      bool overwrite =
+          (node->value()->AsBinaryOperation() != NULL &&
+           node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
       if (literal != NULL && literal->handle()->IsSmi()) {
-        SmiOperation(node->binary_op(), literal->handle(), false);
+        SmiOperation(node->binary_op(),
+                     literal->handle(),
+                     false,
+                     overwrite ? OVERWRITE_RIGHT : NO_OVERWRITE);
         frame_->EmitPush(r0);
 
       } else {
         LoadAndSpill(node->value());
-        GenericBinaryOperation(node->binary_op());
+        GenericBinaryOperation(node->binary_op(),
+                               overwrite ? OVERWRITE_RIGHT : NO_OVERWRITE);
         frame_->EmitPush(r0);
       }
     }
@@ -3822,19 +3851,39 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     // is a literal small integer.
     Literal* lliteral = node->left()->AsLiteral();
     Literal* rliteral = node->right()->AsLiteral();
+    // NOTE: The code below assumes that the slow cases (calls to runtime)
+    // never return a constant/immutable object.
+    bool overwrite_left =
+        (node->left()->AsBinaryOperation() != NULL &&
+         node->left()->AsBinaryOperation()->ResultOverwriteAllowed());
+    bool overwrite_right =
+        (node->right()->AsBinaryOperation() != NULL &&
+         node->right()->AsBinaryOperation()->ResultOverwriteAllowed());
 
     if (rliteral != NULL && rliteral->handle()->IsSmi()) {
       LoadAndSpill(node->left());
-      SmiOperation(node->op(), rliteral->handle(), false);
+      SmiOperation(node->op(),
+                   rliteral->handle(),
+                   false,
+                   overwrite_right ? OVERWRITE_RIGHT : NO_OVERWRITE);
 
     } else if (lliteral != NULL && lliteral->handle()->IsSmi()) {
       LoadAndSpill(node->right());
-      SmiOperation(node->op(), lliteral->handle(), true);
+      SmiOperation(node->op(),
+                   lliteral->handle(),
+                   true,
+                   overwrite_left ? OVERWRITE_LEFT : NO_OVERWRITE);
 
     } else {
+      OverwriteMode overwrite_mode = NO_OVERWRITE;
+      if (overwrite_left) {
+        overwrite_mode = OVERWRITE_LEFT;
+      } else if (overwrite_right) {
+        overwrite_mode = OVERWRITE_RIGHT;
+      }
       LoadAndSpill(node->left());
       LoadAndSpill(node->right());
-      GenericBinaryOperation(node->op());
+      GenericBinaryOperation(node->op(), overwrite_mode);
     }
     frame_->EmitPush(r0);
   }
@@ -4067,7 +4116,8 @@ bool CodeGenerator::HasValidEntryRegisters() { return true; }
 
 
 #undef __
-#define __ masm->
+#define __ DEFINE_MASM(masm)
+
 
 Handle<String> Reference::GetName() {
   ASSERT(type_ == NAMED);
@@ -4469,94 +4519,157 @@ void SetPropertyStub::Generate(MacroAssembler* masm) {
 }
 
 
+static void HandleBinaryOpSlowCases(MacroAssembler* masm,
+                                    Label* not_smi,
+                                    const Builtins::JavaScript& builtin,
+                                    Token::Value operation,
+                                    int swi_number,
+                                    OverwriteMode mode) {
+  Label slow;
+  if (mode == NO_OVERWRITE) {
+    __ bind(not_smi);
+  }
+  __ bind(&slow);
+  __ push(r1);
+  __ push(r0);
+  __ mov(r0, Operand(1));  // Set number of arguments.
+  __ InvokeBuiltin(builtin, JUMP_JS);  // Tail call.
+
+  // Could it be a double-double op?  If we already have a place to put
+  // the answer then we can do the op and skip the builtin and runtime call.
+  if (mode != NO_OVERWRITE) {
+    __ bind(not_smi);
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &slow);  // We can't handle a Smi-double combination yet.
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &slow);  // We can't handle a Smi-double combination yet.
+    // Get map of r0 into r2.
+    __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+    // Get type of r0 into r3.
+    __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+    __ cmp(r3, Operand(HEAP_NUMBER_TYPE));
+    __ b(ne, &slow);
+    // Get type of r1 into r3.
+    __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+    // Check they are both the same map (heap number map).
+    __ cmp(r2, r3);
+    __ b(ne, &slow);
+    // Both are doubles.
+    // Calling convention says that second double is in r2 and r3.
+    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
+    __ push(lr);
+    if (mode == OVERWRITE_LEFT) {
+      __ push(r1);
+    } else {
+      __ push(r0);
+    }
+    // Calling convention says that first double is in r0 and r1.
+    __ ldr(r0, FieldMemOperand(r1, HeapNumber::kValueOffset));
+    __ ldr(r1, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
+    // Call C routine that may not cause GC or other trouble.
+    __ mov(r5, Operand(ExternalReference::double_fp_operation(operation)));
+#if !defined(__arm__)
+    // Notify the simulator that we are calling an add routine in C.
+    __ swi(swi_number);
+#else
+    // Actually call the add routine written in C.
+    __ blx(r5);
+#endif
+    // Store answer in the overwritable heap number.
+    __ pop(r4);
+    __ str(r0, FieldMemOperand(r4, HeapNumber::kValueOffset));
+    __ str(r1, FieldMemOperand(r4, HeapNumber::kValueOffset + kPointerSize));
+    __ mov(r0, Operand(r4));
+    // And we are done.
+    __ pop(pc);
+  }
+}
+
+
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // r1 : x
   // r0 : y
   // result : r0
 
+  // All ops need to know whether we are dealing with two Smis.  Set up r2 to
+  // tell us that.
+  __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+
   switch (op_) {
     case Token::ADD: {
-      Label slow, exit;
-      // fast path
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      __ add(r0, r1, Operand(r0), SetCC);  // add y optimistically
-      // go slow-path in case of overflow
-      __ b(vs, &slow);
-      // go slow-path in case of non-smi operands
-      ASSERT(kSmiTag == 0);  // adjust code below
+      Label not_smi;
+      // Fast path.
+      ASSERT(kSmiTag == 0);  // Adjust code below.
       __ tst(r2, Operand(kSmiTagMask));
-      __ b(eq, &exit);
-      // slow path
-      __ bind(&slow);
-      __ sub(r0, r0, Operand(r1));  // revert optimistic add
-      __ push(r1);
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin(Builtins::ADD, JUMP_JS);
-      // done
-      __ bind(&exit);
+      __ b(ne, &not_smi);
+      __ add(r0, r1, Operand(r0), SetCC);  // Add y optimistically.
+      // Return if no overflow.
+      __ Ret(vc);
+      __ sub(r0, r0, Operand(r1));  // Revert optimistic add.
+
+      HandleBinaryOpSlowCases(masm,
+                              &not_smi,
+                              Builtins::ADD,
+                              Token::ADD,
+                              assembler::arm::simulator_fp_add,
+                              mode_);
       break;
     }
 
     case Token::SUB: {
-      Label slow, exit;
-      // fast path
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      __ sub(r3, r1, Operand(r0), SetCC);  // subtract y optimistically
-      // go slow-path in case of overflow
-      __ b(vs, &slow);
-      // go slow-path in case of non-smi operands
-      ASSERT(kSmiTag == 0);  // adjust code below
+      Label not_smi;
+      // Fast path.
+      ASSERT(kSmiTag == 0);  // Adjust code below.
       __ tst(r2, Operand(kSmiTagMask));
-      __ mov(r0, Operand(r3), LeaveCC, eq);  // conditionally set r0 to result
-      __ b(eq, &exit);
-      // slow path
-      __ bind(&slow);
-      __ push(r1);
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin(Builtins::SUB, JUMP_JS);
-      // done
-      __ bind(&exit);
+      __ b(ne, &not_smi);
+      __ sub(r0, r1, Operand(r0), SetCC);  // Subtract y optimistically.
+      // Return if no overflow.
+      __ Ret(vc);
+      __ sub(r0, r1, Operand(r0));  // Revert optimistic subtract.
+
+      HandleBinaryOpSlowCases(masm,
+                              &not_smi,
+                              Builtins::SUB,
+                              Token::SUB,
+                              assembler::arm::simulator_fp_sub,
+                              mode_);
       break;
     }
 
     case Token::MUL: {
-      Label slow, exit;
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      Label not_smi, slow;
       ASSERT(kSmiTag == 0);  // adjust code below
       __ tst(r2, Operand(kSmiTagMask));
-      __ b(ne, &slow);
-      // remove tag from one operand (but keep sign), so that result is smi
+      __ b(ne, &not_smi);
+      // Remove tag from one operand (but keep sign), so that result is Smi.
       __ mov(ip, Operand(r0, ASR, kSmiTagSize));
-      // do multiplication
-      __ smull(r3, r2, r1, ip);  // r3 = lower 32 bits of ip*r1
-      // go slow on overflows (overflow bit is not set)
+      // Do multiplication
+      __ smull(r3, r2, r1, ip);  // r3 = lower 32 bits of ip*r1.
+      // Go slow on overflows (overflow bit is not set).
       __ mov(ip, Operand(r3, ASR, 31));
       __ cmp(ip, Operand(r2));  // no overflow if higher 33 bits are identical
       __ b(ne, &slow);
-      // go slow on zero result to handle -0
+      // Go slow on zero result to handle -0.
       __ tst(r3, Operand(r3));
       __ mov(r0, Operand(r3), LeaveCC, ne);
-      __ b(ne, &exit);
-      // slow case
+      __ Ret(ne);
+      // Slow case.
       __ bind(&slow);
-      __ push(r1);
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin(Builtins::MUL, JUMP_JS);
-      // done
-      __ bind(&exit);
+
+      HandleBinaryOpSlowCases(masm,
+                              &not_smi,
+                              Builtins::MUL,
+                              Token::MUL,
+                              assembler::arm::simulator_fp_mul,
+                              mode_);
       break;
     }
 
     case Token::BIT_OR:
     case Token::BIT_AND:
     case Token::BIT_XOR: {
-      Label slow, exit;
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      Label slow;
       ASSERT(kSmiTag == 0);  // adjust code below
       __ tst(r2, Operand(kSmiTagMask));
       __ b(ne, &slow);
@@ -4566,7 +4679,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_XOR: __ eor(r0, r0, Operand(r1)); break;
         default: UNREACHABLE();
       }
-      __ b(&exit);
+      __ Ret();
       __ bind(&slow);
       __ push(r1);  // restore stack
       __ push(r0);
@@ -4584,16 +4697,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         default:
           UNREACHABLE();
       }
-      __ bind(&exit);
       break;
     }
 
     case Token::SHL:
     case Token::SHR:
     case Token::SAR: {
-      Label slow, exit;
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      Label slow;
       ASSERT(kSmiTag == 0);  // adjust code below
       __ tst(r2, Operand(kSmiTagMask));
       __ b(ne, &slow);
@@ -4633,7 +4743,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // tag result and store it in r0
       ASSERT(kSmiTag == 0);  // adjust code below
       __ mov(r0, Operand(r3, LSL, kSmiTagSize));
-      __ b(&exit);
+      __ Ret();
       // slow case
       __ bind(&slow);
       __ push(r1);  // restore stack
@@ -4645,13 +4755,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::SHL: __ InvokeBuiltin(Builtins::SHL, JUMP_JS); break;
         default: UNREACHABLE();
       }
-      __ bind(&exit);
       break;
     }
 
     default: UNREACHABLE();
   }
-  __ Ret();
+  // This code should be unreachable.
+  __ stop("Unreachable");
 }
 
 
@@ -4721,7 +4831,9 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ mov(cp, Operand(0), LeaveCC, eq);
   // Restore cp otherwise.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-  if (kDebug && FLAG_debug_code) __ mov(lr, Operand(pc));
+  if (kDebug && FLAG_debug_code) {
+    __ mov(lr, Operand(pc));
+  }
   __ pop(pc);
 }
 
@@ -4784,7 +4896,9 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   __ mov(cp, Operand(0), LeaveCC, eq);
   // Restore cp otherwise.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-  if (kDebug && FLAG_debug_code) __ mov(lr, Operand(pc));
+  if (kDebug && FLAG_debug_code) {
+    __ mov(lr, Operand(pc));
+  }
   __ pop(pc);
 }
 
@@ -5043,9 +5157,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   }
   __ ldr(ip, MemOperand(ip));  // deref address
 
-  // Branch and link to JSEntryTrampoline
+  // Branch and link to JSEntryTrampoline.  We don't use the double underscore
+  // macro for the add instruction because we don't want the coverage tool
+  // inserting instructions here after we read the pc.
   __ mov(lr, Operand(pc));
-  __ add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  masm->add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   // Unlink this frame from the handler chain. When reading the
   // address of the next handler, there is no need to use the address
@@ -5056,6 +5172,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ str(r3, MemOperand(ip));
   // No need to restore registers
   __ add(sp, sp, Operand(StackHandlerConstants::kSize));
+
 
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
@@ -5068,7 +5185,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore callee-saved registers and return.
 #ifdef DEBUG
-  if (FLAG_debug_code) __ mov(lr, Operand(pc));
+  if (FLAG_debug_code) {
+    __ mov(lr, Operand(pc));
+  }
 #endif
   __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
 }

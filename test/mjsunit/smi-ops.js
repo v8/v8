@@ -100,3 +100,98 @@ assertEquals(SMI_MIN - ONE_HUNDRED, Sub100(SMI_MIN));  // overflow
 assertEquals(ONE_HUNDRED - SMI_MIN, Sub100Reversed(SMI_MIN));  // overflow
 assertEquals(42 - ONE_HUNDRED, Sub100(OBJ_42));  // non-smi
 assertEquals(ONE_HUNDRED - 42, Sub100Reversed(OBJ_42));  // non-smi
+
+
+function Shr1(x) {
+  return x >>> 1;
+}
+
+function Shr100(x) {
+  return x >>> 100;
+}
+
+function Shr1Reversed(x) {
+  return 1 >>> x;
+}
+
+function Shr100Reversed(x) {
+  return 100 >>> x;
+}
+
+function Sar1(x) {
+  return x >> 1;
+}
+
+function Sar100(x) {
+  return x >> 100;
+}
+
+function Sar1Reversed(x) {
+  return 1 >> x;
+}
+
+function Sar100Reversed(x) {
+  return 100 >> x;
+}
+
+
+assertEquals(0, Shr1(1));
+assertEquals(0, Sar1(1));
+assertEquals(0, Shr1Reversed(2));
+assertEquals(0, Sar1Reversed(2));
+assertEquals(1610612736, Shr1(SMI_MIN));
+assertEquals(-536870912, Sar1(SMI_MIN));
+assertEquals(1, Shr1Reversed(SMI_MIN));
+assertEquals(1, Sar1Reversed(SMI_MIN));
+assertEquals(21, Shr1(OBJ_42));
+assertEquals(21, Sar1(OBJ_42));
+assertEquals(0, Shr1Reversed(OBJ_42));
+assertEquals(0, Sar1Reversed(OBJ_42));
+
+assertEquals(6, Shr100(100));
+assertEquals(6, Sar100(100));
+assertEquals(12, Shr100Reversed(99));
+assertEquals(12, Sar100Reversed(99));
+assertEquals(201326592, Shr100(SMI_MIN));
+assertEquals(-67108864, Sar100(SMI_MIN));
+assertEquals(100, Shr100Reversed(SMI_MIN));
+assertEquals(100, Sar100Reversed(SMI_MIN));
+assertEquals(2, Shr100(OBJ_42));
+assertEquals(2, Sar100(OBJ_42));
+assertEquals(0, Shr100Reversed(OBJ_42));
+assertEquals(0, Sar100Reversed(OBJ_42));
+
+
+function Xor1(x) {
+  return x ^ 1;
+}
+
+function Xor100(x) {
+  return x ^ 100;
+}
+
+function Xor1Reversed(x) {
+  return 1 ^ x;
+}
+
+function Xor100Reversed(x) {
+  return 100 ^ x;
+}
+
+
+assertEquals(0, Xor1(1));
+assertEquals(3, Xor1Reversed(2));
+assertEquals(SMI_MIN + 1, Xor1(SMI_MIN));
+assertEquals(SMI_MIN + 1, Xor1Reversed(SMI_MIN));
+assertEquals(43, Xor1(OBJ_42));
+assertEquals(43, Xor1Reversed(OBJ_42));
+
+assertEquals(0, Xor100(100));
+assertEquals(7, Xor100Reversed(99));
+assertEquals(-1073741724, Xor100(SMI_MIN));
+assertEquals(-1073741724, Xor100Reversed(SMI_MIN));
+assertEquals(78, Xor100(OBJ_42));
+assertEquals(78, Xor100Reversed(OBJ_42));
+
+var x = 0x23; var y = 0x35;
+assertEquals(0x16, x ^ y);

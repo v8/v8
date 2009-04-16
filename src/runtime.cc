@@ -3482,6 +3482,7 @@ static Object* Runtime_NumberToSmi(Arguments args) {
   return Heap::nan_value();
 }
 
+
 static Object* Runtime_NumberAdd(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);

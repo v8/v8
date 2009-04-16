@@ -683,6 +683,18 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       10,
       "Debug::step_in_fp_addr()");
+  Add(ExternalReference::double_fp_operation(Token::ADD).address(),
+      UNCLASSIFIED,
+      11,
+      "add_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::SUB).address(),
+      UNCLASSIFIED,
+      12,
+      "sub_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::MUL).address(),
+      UNCLASSIFIED,
+      13,
+      "mul_two_doubles");
 }
 
 

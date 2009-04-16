@@ -58,7 +58,7 @@ bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
 }
 
 
-#define __ masm->
+#define __ DEFINE_MASM(masm)
 
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,

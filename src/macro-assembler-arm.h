@@ -86,7 +86,7 @@ class MacroAssembler: public Assembler {
   void Call(Register target, Condition cond = al);
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
-  void Ret();
+  void Ret(Condition cond = al);
   // Jumps to the label at the index given by the Smi in "index".
   void SmiJumpTable(Register index, Vector<Label*> targets);
 
