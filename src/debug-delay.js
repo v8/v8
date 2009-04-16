@@ -1547,20 +1547,24 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
   }
 
   // Pull out arguments.
-  var handle = request.arguments.handle;
+  var handles = request.arguments.handles;
 
   // Check for legal arguments.
-  if (IS_UNDEFINED(handle)) {
-    return response.failed('Argument "handle" missing');
+  if (IS_UNDEFINED(handles)) {
+    return response.failed('Argument "handles" missing');
   }
 
-  // Lookup handle.
-  var mirror = LookupMirror(handle);
-  if (mirror) {
-    response.body = mirror;
-  } else {
-    return response.failed('Object #' + handle + '# not found');
+  // Lookup handles.
+  var mirrors = {};
+  for (var i = 0; i < handles.length; i++) {
+    var handle = handles[i];
+    var mirror = LookupMirror(handle);
+    if (!mirror) {
+      return response.failed('Object #' + handle + '# not found');
+    }
+    mirrors[handle] = mirror;
   }
+  response.body = mirrors;
 };
 
 
