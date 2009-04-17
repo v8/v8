@@ -507,6 +507,14 @@ void LinuxSemaphore::Wait() {
 }
 
 
+#ifndef TIMEVAL_TO_TIMESPEC
+#define TIMEVAL_TO_TIMESPEC(tv, ts) do {                            \
+    (ts)->tv_sec = (tv)->tv_sec;                                    \
+    (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
+} while(false)
+#endif 
+
+
 bool LinuxSemaphore::Wait(int timeout) {
   const long kOneSecondMicros = 1000000;  // NOLINT
 
