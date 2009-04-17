@@ -108,7 +108,7 @@ LIBRARY_FLAGS = {
     'os:linux': {
       'CCFLAGS':      ['-ansi'],
       'library:shared': {
-        'LIBS': ['pthread', 'rt']
+        'LIBS': ['pthread']
       }
     },
     'os:macos': {
@@ -224,7 +224,7 @@ V8_EXTRA_FLAGS = {
 MKSNAPSHOT_EXTRA_FLAGS = {
   'gcc': {
     'os:linux': {
-      'LIBS': ['pthread', 'rt'],
+      'LIBS': ['pthread'],
     },
     'os:macos': {
       'LIBS': ['pthread'],
@@ -269,7 +269,7 @@ CCTEST_EXTRA_FLAGS = {
       'LIBPATH': [abspath('.')]
     },
     'os:linux': {
-      'LIBS':         ['pthread', 'rt'],
+      'LIBS':         ['pthread'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],
@@ -308,7 +308,7 @@ SAMPLE_FLAGS = {
       'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
     },
     'os:linux': {
-      'LIBS':         ['pthread', 'rt'],
+      'LIBS':         ['pthread'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],
@@ -388,7 +388,7 @@ D8_FLAGS = {
       'LIBS': ['readline']
     },
     'os:linux': {
-      'LIBS': ['pthread', 'rt'],
+      'LIBS': ['pthread'],
     },
     'os:macos': {
       'LIBS': ['pthread'],

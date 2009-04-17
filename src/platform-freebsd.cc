@@ -503,27 +503,24 @@ void FreeBSDSemaphore::Wait() {
 
 bool FreeBSDSemaphore::Wait(int timeout) {
   const long kOneSecondMicros = 1000000;  // NOLINT
-  const long kOneSecondNanos = 1000000000;  // NOLINT
 
   // Split timeout into second and nanosecond parts.
-  long nanos = (timeout % kOneSecondMicros) * 1000;  // NOLINT
-  time_t secs = timeout / kOneSecondMicros;
+  struct timeval delta;
+  delta.tv_usec = timeout % kOneSecondMicros;
+  delta.tv_sec = timeout / kOneSecondMicros;
 
-  // Get the current real time clock.
-  struct timespec ts;
-  if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+  struct timeval current_time;
+  // Get the current time.
+  if (gettimeofday(&current_time, NULL) == -1) {
     return false;
   }
 
-  // Calculate realtime for end of timeout.
-  ts.tv_nsec += nanos;
-  if (ts.tv_nsec >= kOneSecondNanos) {
-    ts.tv_nsec -= kOneSecondNanos;
-    ts.tv_nsec++;
-  }
-  ts.tv_sec += secs;
+  // Calculate time for end of timeout.
+  struct timeval end_time;
+  timeradd(&current_time, &delta, &end_time);
 
-  // Wait for semaphore signalled or timeout.
+  struct timespec ts;
+  TIMEVAL_TO_TIMESPEC(&end_time, &ts);
   while (true) {
     int result = sem_timedwait(&sem_, &ts);
     if (result == 0) return true;  // Successfully got semaphore.
