@@ -200,6 +200,11 @@ devtools.profiler.CodeMap.CodeEntry = function(size, opt_name) {
 };
 
 
+devtools.profiler.CodeMap.CodeEntry.prototype.getName = function() {
+  return this.name;
+};
+
+    
 devtools.profiler.CodeMap.CodeEntry.prototype.toString = function() {
   return this.name + ': ' + this.size.toString(16);
 };
