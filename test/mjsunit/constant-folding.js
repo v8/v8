@@ -168,4 +168,29 @@ function test() {
   assertEquals(17, j, "switch with constant value");
 }
 
+
+function TrueToString() {
+  return true.toString();
+}
+
+
+function FalseToString() {
+  return false.toString();
+}
+
+
+function BoolTest() {
+  assertEquals("true", TrueToString());
+  assertEquals("true", TrueToString());
+  assertEquals("true", TrueToString());
+  assertEquals("false", FalseToString());
+  assertEquals("false", FalseToString());
+  assertEquals("false", FalseToString());
+  Boolean.prototype.toString = function() { return "foo"; }
+  assertEquals("foo", TrueToString());
+  assertEquals("foo", FalseToString());
+}
+
+
 test();
+BoolTest();
