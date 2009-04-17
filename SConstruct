@@ -238,6 +238,7 @@ MKSNAPSHOT_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
+      'CPPDEFINES': ['_HAS_EXCEPTIONS=0'],
       'LIBS': ['winmm', 'ws2_32']
     }
   }
