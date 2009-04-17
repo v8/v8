@@ -3593,7 +3593,7 @@ void ExternalTwoByteString::ExternalTwoByteStringReadBlockIntoBuffer(
   while (chars_read < max_chars) {
     uint16_t c = data[offset];
     if (c <= kMaxAsciiCharCode) {
-      // Fast case for ASCII characters.   Cursor is an input output argument.
+      // Fast case for ASCII characters. Cursor is an input output argument.
       if (!unibrow::CharacterStream::EncodeAsciiCharacter(c,
                                                           rbb->util_buffer,
                                                           rbb->capacity,

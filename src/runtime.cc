@@ -6525,9 +6525,9 @@ static bool IsExternalStringValid(Object* str) {
     return true;
   }
   if (StringShape(String::cast(str)).IsAsciiRepresentation()) {
-    return ExternalAsciiString::cast(str)->resource() != 0;
+    return ExternalAsciiString::cast(str)->resource() != NULL;
   } else if (StringShape(String::cast(str)).IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(str)->resource() != 0;
+    return ExternalTwoByteString::cast(str)->resource() != NULL;
   } else {
     return true;
   }

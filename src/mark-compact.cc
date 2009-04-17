@@ -404,15 +404,19 @@ class SymbolTableCleaner : public ObjectVisitor {
                                 ExternalString::kResourceOffset -
                                 kHeapObjectTag;
           if (is_two_byte) {
-            v8::String::ExternalStringResource* resource =
-                *reinterpret_cast<v8::String::ExternalStringResource**>
+            v8::String::ExternalStringResource** resource =
+                reinterpret_cast<v8::String::ExternalStringResource**>
                 (resource_addr);
-            delete resource;
+            delete *resource;
+            // Clear the resource pointer in the symbol.
+            *resource = NULL;
           } else {
-            v8::String::ExternalAsciiStringResource* resource =
-                *reinterpret_cast<v8::String::ExternalAsciiStringResource**>
+            v8::String::ExternalAsciiStringResource** resource =
+                reinterpret_cast<v8::String::ExternalAsciiStringResource**>
                 (resource_addr);
-            delete resource;
+            delete *resource;
+            // Clear the resource pointer in the symbol.
+            *resource = NULL;
           }
         }
         // Set the entry to null_value (as deleted).
