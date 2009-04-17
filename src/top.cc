@@ -123,8 +123,8 @@ class PreallocatedMemoryThread: public Thread {
                 local_buffer.length());
 
     // Publish the local buffer and signal its availability.
-    data_ = &local_buffer[0];
-    length_ = sizeof(local_buffer);
+    data_ = local_buffer.start();
+    length_ = local_buffer.length();
     data_ready_semaphore_->Signal();
 
     while (keep_running_) {
