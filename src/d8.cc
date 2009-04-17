@@ -163,6 +163,22 @@ Handle<Value> Shell::Print(const Arguments& args) {
 }
 
 
+Handle<Value> Shell::Read(const Arguments& args) {
+  if (args.Length() != 1) {
+    return ThrowException(String::New("Bad parameters"));
+  }
+  String::Utf8Value file(args[0]);
+  if (*file == NULL) {
+    return ThrowException(String::New("Error loading file"));
+  }
+  Handle<String> source = ReadFile(*file);
+  if (source.IsEmpty()) {
+    return ThrowException(String::New("Error loading file"));
+  }
+  return source;
+}
+
+
 Handle<Value> Shell::Load(const Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope;
@@ -381,6 +397,7 @@ void Shell::Initialize() {
   HandleScope scope;
   Handle<ObjectTemplate> global_template = ObjectTemplate::New();
   global_template->Set(String::New("print"), FunctionTemplate::New(Print));
+  global_template->Set(String::New("read"), FunctionTemplate::New(Read));
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
@@ -555,6 +572,8 @@ void ShellThread::Run() {
   Handle<ObjectTemplate> global_template = ObjectTemplate::New();
   global_template->Set(String::New("print"),
                        FunctionTemplate::New(Shell::Print));
+  global_template->Set(String::New("read"),
+                       FunctionTemplate::New(Shell::Read));
   global_template->Set(String::New("load"),
                        FunctionTemplate::New(Shell::Load));
   global_template->Set(String::New("yield"),

@@ -139,6 +139,7 @@ class Shell: public i::AllStatic {
   static Handle<Value> Yield(const Arguments& args);
   static Handle<Value> Quit(const Arguments& args);
   static Handle<Value> Version(const Arguments& args);
+  static Handle<Value> Read(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
