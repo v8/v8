@@ -263,8 +263,7 @@ bool StringShape::IsSequentialAscii() {
 
 
 bool StringShape::IsSequentialTwoByte() {
-  return (type_ & (kStringRepresentationMask | kStringEncodingMask)) ==
-         (kSeqStringTag | kTwoByteStringTag);
+  return full_representation_tag() == (kSeqStringTag | kTwoByteStringTag);
 }
 
 
@@ -274,8 +273,7 @@ bool StringShape::IsExternalAscii() {
 
 
 bool StringShape::IsExternalTwoByte() {
-  return (type_ & (kStringRepresentationMask | kStringEncodingMask)) ==
-         (kExternalStringTag | kTwoByteStringTag);
+  return full_representation_tag() == (kExternalStringTag | kTwoByteStringTag);
 }
 
 
