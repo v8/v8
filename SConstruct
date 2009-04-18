@@ -160,14 +160,18 @@ LIBRARY_FLAGS = {
       }
     },
     'mode:release': {
-      'CCFLAGS':      ['/O2', '/GL'],
-      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF', '/LTCG'],
-      'ARFLAGS':      ['/LTCG'],
+      'CCFLAGS':      ['/O2'],
+      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF'],
       'msvcrt:static': {
         'CCFLAGS': ['/MT']
       },
       'msvcrt:shared': {
         'CCFLAGS': ['/MD']
+      },
+      'msvcltcg:on': {
+        'CCFLAGS':      ['/GL'],
+        'LINKFLAGS':    ['/LTCG'],
+        'ARFLAGS':      ['/LTCG'],
       }
     },
   }
@@ -360,12 +364,16 @@ SAMPLE_FLAGS = {
     },
     'mode:release': {
       'CCFLAGS':   ['/O2'],
-      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF', '/LTCG'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF'],
       'msvcrt:static': {
         'CCFLAGS': ['/MT']
       },
       'msvcrt:shared': {
         'CCFLAGS': ['/MD']
+      },
+      'msvcltcg:on': {
+        'CCFLAGS':      ['/GL'],
+        'LINKFLAGS':    ['/LTCG'],
       }
     },
     'mode:debug': {
@@ -474,7 +482,12 @@ SIMPLE_OPTIONS = {
   'msvcrt': {
     'values': ['static', 'shared'],
     'default': 'static',
-    'help': 'the type of MSVCRT library to use'
+    'help': 'the type of Microsoft Visual C++ runtime library to use'
+  },
+  'msvcltcg': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'use Microsoft Visual C++ link-time code generation'
   },
   'wordsize': {
     'values': ['64', '32'],
