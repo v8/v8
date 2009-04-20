@@ -4893,26 +4893,6 @@ static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
 }
 
 
-static Object* Runtime_CompileScript(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 4);
-
-  CONVERT_ARG_CHECKED(String, source, 0);
-  CONVERT_ARG_CHECKED(String, script, 1);
-  CONVERT_CHECKED(Smi, line_attrs, args[2]);
-  int line = line_attrs->value();
-  CONVERT_CHECKED(Smi, col_attrs, args[3]);
-  int col = col_attrs->value();
-  Handle<JSFunction> boilerplate =
-      Compiler::Compile(source, script, line, col, NULL, NULL);
-  if (boilerplate.is_null()) return Failure::Exception();
-  Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate,
-                                          Handle<Context>(Top::context()));
-  return *fun;
-}
-
-
 static Object* Runtime_SetNewFunctionAttributes(Arguments args) {
   // This utility adjusts the property attributes for newly created Function
   // object ("new Function(...)") by changing the map.

@@ -195,7 +195,6 @@ namespace v8 { namespace internal {
   \
   /* Globals */ \
   F(CompileString, 2) \
-  F(CompileScript, 4) \
   F(GlobalPrint, 1) \
   \
   /* Eval */ \
