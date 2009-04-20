@@ -33,6 +33,7 @@
 
 namespace v8 { namespace internal {
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 
 // A debug break in the frame exit code is identified by a call instruction.
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
@@ -214,5 +215,6 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
 
 #undef __
 
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

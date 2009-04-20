@@ -320,16 +320,19 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   add(r6, fp, Operand(r4, LSL, kPointerSizeLog2));
   add(r6, r6, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
   // location. This is needed to allow nested break points.
   if (type == StackFrame::EXIT_DEBUG) {
     // Use sp as base to push.
     CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
   }
+#endif
 }
 
 
 void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
   if (type == StackFrame::EXIT_DEBUG) {
@@ -339,6 +342,7 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
     add(r3, fp, Operand(kOffset));
     CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
   }
+#endif
 
   // Clear top frame.
   mov(r3, Operand(0));
@@ -491,6 +495,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::SaveRegistersToMemory(RegList regs) {
   ASSERT((regs & ~kJSCallerSaved) == 0);
   // Copy the content of registers to memory location.
@@ -548,7 +553,7 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
     }
   }
 }
-
+#endif
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {

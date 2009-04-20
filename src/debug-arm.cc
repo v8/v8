@@ -32,7 +32,7 @@
 
 namespace v8 { namespace internal {
 
-
+#ifdef ENABLE_DEBUGGER_SUPPORT
 // Currently debug break is not supported in frame exit code on ARM.
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
   return false;
@@ -191,5 +191,6 @@ void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
 
 #undef __
 
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

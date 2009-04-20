@@ -304,8 +304,10 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
                                  node->is_expression(), false, script_,
                                  node->inferred_name());
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger that a new function has been added.
   Debugger::OnNewFunction(function);
+#endif
 
   // Set the expected number of properties for instances and return
   // the resulting function.

@@ -652,6 +652,7 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
   // We shouldn't get here if compiling the script failed.
   ASSERT(!boilerplate.is_null());
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // When the debugger running in its own context touches lazy loaded
   // functions loading can be triggered. In that case ensure that the
   // execution of the boilerplate is in the correct context.
@@ -660,6 +661,7 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
       Top::context() == *Debug::debug_context()) {
     Top::set_context(*compile_context);
   }
+#endif
 
   // Reset the lazy load data before running the script to make sure
   // not to get recursive lazy loading.

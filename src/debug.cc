@@ -41,6 +41,7 @@
 
 namespace v8 { namespace internal {
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 static void PrintLn(v8::Local<v8::Value> value) {
   v8::Local<v8::String> s = value->ToString();
   char* data = NewArray<char>(s->Length() + 1);
@@ -2223,5 +2224,6 @@ void LockingMessageQueue::Clear() {
   queue_.Clear();
 }
 
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

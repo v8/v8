@@ -389,7 +389,7 @@ enum PropertyNormalizationMode {
 // Note that for subtle reasons related to the ordering or numerical values of
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
-#define STRUCT_LIST(V)                                                    \
+#define STRUCT_LIST_ALL(V)                                                \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                           \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                  \
@@ -398,10 +398,19 @@ enum PropertyNormalizationMode {
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)       \
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                        \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                   \
-  V(DEBUG_INFO, DebugInfo, debug_info)                                    \
-  V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)                   \
   V(SCRIPT, Script, script)
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+#define STRUCT_LIST_DEBUGGER(V)                                           \
+  V(DEBUG_INFO, DebugInfo, debug_info)                                    \
+  V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)
+#else
+#define STRUCT_LIST_DEBUGGER(V)
+#endif
+
+#define STRUCT_LIST(V)                                                    \
+  STRUCT_LIST_ALL(V)                                                      \
+  STRUCT_LIST_DEBUGGER(V)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -4151,6 +4160,7 @@ class TypeSwitchInfo: public Struct {
 };
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo: public Struct {
@@ -4256,6 +4266,7 @@ class BreakPointInfo: public Struct {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
 };
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 #undef DECL_BOOLEAN_ACCESSORS

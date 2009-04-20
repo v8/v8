@@ -3179,10 +3179,12 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ DebuggerStatement");
   CodeForStatementPosition(node);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Spill everything, even constants, to the frame.
   frame_->SpillAll();
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
+#endif
 }
 
 

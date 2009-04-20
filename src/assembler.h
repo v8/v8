@@ -346,8 +346,10 @@ class RelocIterator: public Malloced {
 
 //----------------------------------------------------------------------------
 class IC_Utility;
-class Debug_Address;
 class SCTableReference;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+class Debug_Address;
+#endif
 
 // An ExternalReference represents a C++ address called from the generated
 // code. All references to C++ functions and must be encapsulated in an
@@ -365,7 +367,9 @@ class ExternalReference BASE_EMBEDDED {
 
   explicit ExternalReference(const IC_Utility& ic_utility);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   explicit ExternalReference(const Debug_Address& debug_address);
+#endif
 
   explicit ExternalReference(StatsCounter* counter);
 
@@ -388,9 +392,6 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable RegExpStack::limit_address()
   static ExternalReference address_of_regexp_stack_limit();
 
-  // Function Debug::Break()
-  static ExternalReference debug_break();
-
   // Static variable Heap::NewSpaceStart()
   static ExternalReference new_space_start();
   static ExternalReference heap_always_allocate_scope_depth();
@@ -399,12 +400,17 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_space_allocation_top_address();
   static ExternalReference new_space_allocation_limit_address();
 
-  // Used to check if single stepping is enabled in generated code.
-  static ExternalReference debug_step_in_fp_address();
-
   static ExternalReference double_fp_operation(Token::Value operation);
 
   Address address() const {return address_;}
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Function Debug::Break()
+  static ExternalReference debug_break();
+
+  // Used to check if single stepping is enabled in generated code.
+  static ExternalReference debug_step_in_fp_address();
+#endif
 
  private:
   explicit ExternalReference(void* address)

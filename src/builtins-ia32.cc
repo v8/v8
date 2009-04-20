@@ -69,10 +69,12 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   Label rt_call, allocated;
   if (FLAG_inline_new) {
     Label undo_allocation;
+#ifdef ENABLE_DEBUGGER_SUPPORT
     ExternalReference debug_step_in_fp =
         ExternalReference::debug_step_in_fp_address();
     __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
     __ j(not_equal, &rt_call);
+#endif
     // Check that function is not a Smi.
     __ test(edi, Immediate(kSmiTagMask));
     __ j(zero, &rt_call);

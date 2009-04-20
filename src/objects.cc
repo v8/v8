@@ -4661,6 +4661,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
     it.rinfo()->set_target_object(code);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::has_break_points()) {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
@@ -4674,6 +4675,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
       }
     }
   }
+#endif
   set_ic_flag(IC_TARGET_IS_OBJECT);
 }
 
@@ -4695,10 +4697,12 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
       v->VisitCodeTarget(it.rinfo());
     } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
       v->VisitExternalReference(it.rinfo()->target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
     } else if (Debug::has_break_points() &&
                RelocInfo::IsJSReturn(rmode) &&
                it.rinfo()->IsCallInstruction()) {
       v->VisitDebugTarget(it.rinfo());
+#endif
     } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
       v->VisitRuntimeEntry(it.rinfo());
     }
@@ -4723,6 +4727,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
     it.rinfo()->set_target_address(code->instruction_start());
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::has_break_points()) {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
@@ -4734,6 +4739,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
       }
     }
   }
+#endif
   set_ic_flag(IC_TARGET_IS_ADDRESS);
 }
 
@@ -7162,6 +7168,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 // Check if there is a break point at this code position.
 bool DebugInfo::HasBreakPoint(int code_position) {
   // Get the break point info object for this code position.
@@ -7405,6 +7412,6 @@ int BreakPointInfo::GetBreakPointCount() {
   // Multiple break points.
   return FixedArray::cast(break_point_objects())->length();
 }
-
+#endif
 
 } }  // namespace v8::internal

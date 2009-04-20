@@ -138,6 +138,7 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag);
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
@@ -147,7 +148,7 @@ class MacroAssembler: public Assembler {
   void CopyRegistersFromStackToMemory(Register base,
                                       Register scratch,
                                       RegList regs);
-
+#endif
 
   // ---------------------------------------------------------------------------
   // Exception handling

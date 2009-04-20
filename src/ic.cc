@@ -100,6 +100,7 @@ IC::IC(FrameDepth depth) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Address IC::OriginalCodeAddress() {
   HandleScope scope;
   // Compute the JavaScript frame for the frame pointer of this IC
@@ -126,7 +127,7 @@ Address IC::OriginalCodeAddress() {
   int delta = original_code->instruction_start() - code->instruction_start();
   return addr + delta;
 }
-
+#endif
 
 IC::State IC::StateFrom(Code* target, Object* receiver) {
   IC::State state = target->ic_state();
@@ -356,6 +357,7 @@ Object* CallIC::LoadFunction(State state,
       if (opt->IsJSFunction()) return opt;
     }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
     // Handle stepping into a function if step into is active.
     if (Debug::StepInActive()) {
       // Protect the result in a handle as the debugger can allocate and might
@@ -365,6 +367,7 @@ Object* CallIC::LoadFunction(State state,
       Debug::HandleStepIn(function, fp(), false);
       return *function;
     }
+#endif
 
     return result;
   }

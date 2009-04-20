@@ -2057,6 +2057,7 @@ ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, original_code, Code, kOriginalCodeIndex)
 ACCESSORS(DebugInfo, code, Code, kPatchedCodeIndex)
@@ -2066,6 +2067,7 @@ ACCESSORS(BreakPointInfo, code_position, Smi, kCodePositionIndex)
 ACCESSORS(BreakPointInfo, source_position, Smi, kSourcePositionIndex)
 ACCESSORS(BreakPointInfo, statement_position, Smi, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
+#endif
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,

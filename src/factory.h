@@ -310,8 +310,9 @@ class Factory : public AllStatic {
                                                   uint32_t key,
                                                   Handle<Object> value);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   static Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
-
+#endif
 
   // Return a map using the map cache in the global context.
   // The key the an ordered set of property names.

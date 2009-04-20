@@ -28,11 +28,11 @@
 #ifndef V8_V8_DEBUG_AGENT_H_
 #define V8_V8_DEBUG_AGENT_H_
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 #include "platform.h"
 
 namespace v8 { namespace internal {
-
 
 // Forward decelrations.
 class DebuggerAgentSession;
@@ -111,7 +111,8 @@ class DebuggerAgentUtil {
   static int ReceiveAll(const Socket* conn, char* data, int len);
 };
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_V8_DEBUG_AGENT_H_

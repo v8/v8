@@ -2335,7 +2335,9 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ DebuggerStatament");
   CodeForStatementPosition(node);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
+#endif
   // Ignore the return value.
   ASSERT(frame_->height() == original_height);
 }

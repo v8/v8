@@ -3180,7 +3180,7 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 // --- D e b u g   S u p p o r t ---
 
-
+#ifdef ENABLE_DEBUGGER_SUPPORT
 bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
@@ -3263,7 +3263,7 @@ Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
 bool Debug::EnableAgent(const char* name, int port) {
   return i::Debugger::StartAgent(name, port);
 }
-
+#endif // ENABLE_DEBUGGER_SUPPORT
 
 namespace internal {
 

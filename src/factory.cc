@@ -671,6 +671,7 @@ Handle<Object> Factory::ToObject(Handle<Object> object,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Get the original code of the function.
   Handle<Code> code(shared->code());
@@ -700,6 +701,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
   return debug_info;
 }
+#endif
 
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,

@@ -94,6 +94,7 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG'],
       'os:android': {
+        'CPPDEFINES': ['ENABLE_DEBUGGER_SUPPORT'],
         'CCFLAGS':    ['-mthumb']
       }
     },
@@ -102,7 +103,7 @@ LIBRARY_FLAGS = {
                        '-ffunction-sections'],
       'os:android': {
         'CCFLAGS':    ['-mthumb', '-Os'],
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG', 'ENABLE_DEBUGGER_SUPPORT']
       }
     },
     'os:linux': {

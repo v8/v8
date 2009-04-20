@@ -214,42 +214,6 @@ namespace v8 { namespace internal {
   F(DefineAccessor, -1 /* 4 or 5 */) \
   F(LookupAccessor, 3) \
   \
-  /* Debugging */ \
-  F(SetDebugEventListener, 2) \
-  F(Break, 0) \
-  F(DebugGetPropertyDetails, 2) \
-  F(DebugGetProperty, 2) \
-  F(DebugLocalPropertyNames, 1) \
-  F(DebugLocalElementNames, 1) \
-  F(DebugPropertyTypeFromDetails, 1) \
-  F(DebugPropertyAttributesFromDetails, 1) \
-  F(DebugPropertyIndexFromDetails, 1) \
-  F(DebugInterceptorInfo, 1) \
-  F(DebugNamedInterceptorPropertyNames, 1) \
-  F(DebugIndexedInterceptorElementNames, 1) \
-  F(DebugNamedInterceptorPropertyValue, 2) \
-  F(DebugIndexedInterceptorElementValue, 2) \
-  F(CheckExecutionState, 1) \
-  F(GetFrameCount, 1) \
-  F(GetFrameDetails, 2) \
-  F(GetCFrames, 1) \
-  F(GetThreadCount, 1) \
-  F(GetThreadDetails, 2) \
-  F(GetBreakLocations, 1) \
-  F(SetFunctionBreakPoint, 3) \
-  F(SetScriptBreakPoint, 3) \
-  F(ClearBreakPoint, 1) \
-  F(ChangeBreakOnException, 2) \
-  F(PrepareStep, 3) \
-  F(ClearStepping, 0) \
-  F(DebugEvaluate, 4) \
-  F(DebugEvaluateGlobal, 3) \
-  F(DebugGetLoadedScripts, 0) \
-  F(DebugReferencedBy, 3) \
-  F(DebugConstructedBy, 2) \
-  F(DebugGetPrototype, 1) \
-  F(SystemBreak, 0) \
-  \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4)\
   F(CreateArrayLiteralBoilerplate, 3) \
@@ -289,8 +253,6 @@ namespace v8 { namespace internal {
   F(DebugTrace, 0) \
   F(TraceEnter, 0) \
   F(TraceExit, 1) \
-  F(DebugBreak, 0) \
-  F(FunctionGetAssemblerCode, 1) \
   F(Abort, 2) \
   /* Logging */ \
   F(Log, 2) \
@@ -298,6 +260,48 @@ namespace v8 { namespace internal {
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1)
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+#define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
+  /* Debugger support*/ \
+  F(DebugBreak, 0) \
+  F(SetDebugEventListener, 2) \
+  F(Break, 0) \
+  F(DebugGetPropertyDetails, 2) \
+  F(DebugGetProperty, 2) \
+  F(DebugLocalPropertyNames, 1) \
+  F(DebugLocalElementNames, 1) \
+  F(DebugPropertyTypeFromDetails, 1) \
+  F(DebugPropertyAttributesFromDetails, 1) \
+  F(DebugPropertyIndexFromDetails, 1) \
+  F(DebugInterceptorInfo, 1) \
+  F(DebugNamedInterceptorPropertyNames, 1) \
+  F(DebugIndexedInterceptorElementNames, 1) \
+  F(DebugNamedInterceptorPropertyValue, 2) \
+  F(DebugIndexedInterceptorElementValue, 2) \
+  F(CheckExecutionState, 1) \
+  F(GetFrameCount, 1) \
+  F(GetFrameDetails, 2) \
+  F(GetCFrames, 1) \
+  F(GetThreadCount, 1) \
+  F(GetThreadDetails, 2) \
+  F(GetBreakLocations, 1) \
+  F(SetFunctionBreakPoint, 3) \
+  F(SetScriptBreakPoint, 3) \
+  F(ClearBreakPoint, 1) \
+  F(ChangeBreakOnException, 2) \
+  F(PrepareStep, 3) \
+  F(ClearStepping, 0) \
+  F(DebugEvaluate, 4) \
+  F(DebugEvaluateGlobal, 3) \
+  F(DebugGetLoadedScripts, 0) \
+  F(DebugReferencedBy, 3) \
+  F(DebugConstructedBy, 2) \
+  F(DebugGetPrototype, 1) \
+  F(SystemBreak, 0) \
+  F(FunctionGetAssemblerCode, 1)
+#else
+#define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
+#endif
 
 #ifdef DEBUG
 #define RUNTIME_FUNCTION_LIST_DEBUG(F) \
@@ -315,7 +319,8 @@ namespace v8 { namespace internal {
 
 #define RUNTIME_FUNCTION_LIST(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS(F) \
-  RUNTIME_FUNCTION_LIST_DEBUG(F)
+  RUNTIME_FUNCTION_LIST_DEBUG(F) \
+  RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 
 // ----------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.

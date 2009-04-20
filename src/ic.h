@@ -107,9 +107,11 @@ class IC {
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Computes the address in the original code when the code running is
   // containing break points (calls to DebugBreakXXX builtins).
   Address OriginalCodeAddress();
+#endif
 
   // Set the call-site target.
   void set_target(Code* code) { SetTargetAtAddress(address(), code); }

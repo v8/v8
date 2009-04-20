@@ -73,7 +73,7 @@ class MacroAssembler: public Assembler {
                    Register value,
                    Register scratch);
 
-
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
@@ -84,7 +84,7 @@ class MacroAssembler: public Assembler {
   void CopyRegistersFromStackToMemory(Register base,
                                       Register scratch,
                                       RegList regs);
-
+#endif
 
   // ---------------------------------------------------------------------------
   // Activation frames

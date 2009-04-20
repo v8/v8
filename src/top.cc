@@ -728,8 +728,10 @@ void Top::DoThrow(Object* exception,
   bool should_return_exception = ShouldReportException(&is_caught_externally);
   bool report_exception = !is_out_of_memory && should_return_exception;
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger of exception.
   Debugger::OnException(exception_handle, report_exception);
+#endif
 
   // Generate the message.
   Handle<Object> message_obj;

@@ -216,6 +216,7 @@ void MacroAssembler::RecordWrite(Register object, int offset,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::SaveRegistersToMemory(RegList regs) {
   ASSERT((regs & ~kJSCallerSaved) == 0);
   // Copy the content of registers to memory location.
@@ -290,7 +291,7 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
     }
   }
 }
-
+#endif
 
 void MacroAssembler::Set(Register dst, const Immediate& x) {
   if (x.is_zero()) {
@@ -378,6 +379,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   mov(edi, Operand(eax));
   lea(esi, Operand(ebp, eax, times_4, offset));
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
   // location. This is needed to allow nested break points.
   if (type == StackFrame::EXIT_DEBUG) {
@@ -389,6 +391,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
     // associated with this issue).
     PushRegistersFromMemory(kJSCallerSaved);
   }
+#endif
 
   // Reserve space for two arguments: argc and argv.
   sub(Operand(esp), Immediate(2 * kPointerSize));
@@ -406,6 +409,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
   if (type == StackFrame::EXIT_DEBUG) {
@@ -416,6 +420,7 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
     lea(ebx, Operand(ebp, kOffset));
     CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
   }
+#endif
 
   // Get the return address from the stack and restore the frame pointer.
   mov(ecx, Operand(ebp, 1 * kPointerSize));

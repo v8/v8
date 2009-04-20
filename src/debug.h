@@ -28,7 +28,6 @@
 #ifndef V8_V8_DEBUG_H_
 #define V8_V8_DEBUG_H_
 
-#include "../include/v8-debug.h"
 #include "assembler.h"
 #include "code-stubs.h"
 #include "debug-agent.h"
@@ -38,6 +37,8 @@
 #include "string-stream.h"
 #include "v8threads.h"
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+#include "../include/v8-debug.h"
 
 namespace v8 { namespace internal {
 
@@ -718,5 +719,7 @@ class Debug_Address {
 
 
 } }  // namespace v8::internal
+
+#endif // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_V8_DEBUG_H_
