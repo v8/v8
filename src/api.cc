@@ -3263,7 +3263,7 @@ Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
 bool Debug::EnableAgent(const char* name, int port) {
   return i::Debugger::StartAgent(name, port);
 }
-#endif // ENABLE_DEBUGGER_SUPPORT
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 namespace internal {
 

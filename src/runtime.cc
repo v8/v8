@@ -6793,7 +6793,8 @@ static Object* Runtime_FunctionGetAssemblerCode(Arguments args) {
 #endif  // DEBUG
   return Heap::undefined_value();
 }
-#endif // ENABLE_DEBUGGER_SUPPORT
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
 
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position

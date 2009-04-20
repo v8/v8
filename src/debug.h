@@ -720,6 +720,6 @@ class Debug_Address {
 
 } }  // namespace v8::internal
 
-#endif // ENABLE_DEBUGGER_SUPPORT
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_V8_DEBUG_H_
