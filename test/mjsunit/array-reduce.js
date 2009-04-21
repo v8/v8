@@ -175,59 +175,60 @@ testReduce("reduce", "EmptySparseReduceAccumulateNoInit",
            [], [], [,,[],,], accumulate);
 
 
-var verySparseArray = new Array(500000);
-verySparseArray[100000] = 2;
-verySparseArray[250000] = 4;
-verySparseArray[450000] = 6;
-var verySparseSlice2 = verySparseArray.slice(0, 100001);
-var verySparseSlice4 = verySparseArray.slice(0, 250001);
-var verySparseSlice6 = verySparseArray.slice(0, 450001);
+var verySparseArray = [];
+verySparseArray.length = 10000;
+verySparseArray[2000] = 2;
+verySparseArray[5000] = 4;
+verySparseArray[9000] = 6;
+var verySparseSlice2 = verySparseArray.slice(0, 2001);
+var verySparseSlice4 = verySparseArray.slice(0, 5001);
+var verySparseSlice6 = verySparseArray.slice(0, 9001);
 
 testReduce("reduce", "VerySparseReduceSum", 12,
-           [[0, 2, 100000, verySparseArray, 2],
-            [2, 4, 250000, verySparseArray, 6],
-            [6, 6, 450000, verySparseArray, 12]],
+           [[0, 2, 2000, verySparseArray, 2],
+            [2, 4, 5000, verySparseArray, 6],
+            [6, 6, 9000, verySparseArray, 12]],
            verySparseArray, sum, 0);
 
 testReduce("reduce", "VerySparseReduceProd", 48,
-           [[1, 2, 100000, verySparseArray, 2],
-            [2, 4, 250000, verySparseArray, 8],
-            [8, 6, 450000, verySparseArray, 48]],
+           [[1, 2, 2000, verySparseArray, 2],
+            [2, 4, 5000, verySparseArray, 8],
+            [8, 6, 9000, verySparseArray, 48]],
            verySparseArray, prod, 1);
 
 testReduce("reduce", "VerySparseReduceDec", Infinity,
-           [[0, 2, 100000, verySparseArray, Infinity],
-            [Infinity, 4, 250000, verySparseArray, Infinity],
-            [Infinity, 6, 450000, verySparseArray, Infinity]],
+           [[0, 2, 2000, verySparseArray, Infinity],
+            [Infinity, 4, 5000, verySparseArray, Infinity],
+            [Infinity, 6, 9000, verySparseArray, Infinity]],
            verySparseArray, dec, 0);
 
-testReduce("reduce", "SimpleSparseReduceAccumulate",
+testReduce("reduce", "VerySparseReduceAccumulate",
            verySparseSlice6,
-           [[[], 2, 100000, verySparseArray, verySparseSlice2],
-            [verySparseSlice2, 4, 250000, verySparseArray, verySparseSlice4],
-            [verySparseSlice4, 6, 450000, verySparseArray, verySparseSlice6]],
+           [[[], 2, 2000, verySparseArray, verySparseSlice2],
+            [verySparseSlice2, 4, 5000, verySparseArray, verySparseSlice4],
+            [verySparseSlice4, 6, 9000, verySparseArray, verySparseSlice6]],
            verySparseArray, accumulate, []);
 
 
 testReduce("reduce", "VerySparseReduceSumNoInit", 12,
-           [[2, 4, 250000, verySparseArray, 6],
-            [6, 6, 450000, verySparseArray, 12]],
+           [[2, 4, 5000, verySparseArray, 6],
+            [6, 6, 9000, verySparseArray, 12]],
            verySparseArray, sum);
 
 testReduce("reduce", "VerySparseReduceProdNoInit", 48,
-           [[2, 4, 250000, verySparseArray, 8],
-            [8, 6, 450000, verySparseArray, 48]],
+           [[2, 4, 5000, verySparseArray, 8],
+            [8, 6, 9000, verySparseArray, 48]],
            verySparseArray, prod);
 
 testReduce("reduce", "VerySparseReduceDecNoInit", Infinity,
-           [[2, 4, 250000, verySparseArray, Infinity],
-            [Infinity, 6, 450000, verySparseArray, Infinity]],
+           [[2, 4, 5000, verySparseArray, Infinity],
+            [Infinity, 6, 9000, verySparseArray, Infinity]],
            verySparseArray, dec);
 
 testReduce("reduce", "SimpleSparseReduceAccumulateNoInit",
            2,
-           [[2, 4, 250000, verySparseArray, 2],
-            [2, 6, 450000, verySparseArray, 2]],
+           [[2, 4, 5000, verySparseArray, 2],
+            [2, 6, 9000, verySparseArray, 2]],
            verySparseArray, accumulate);
 
 
@@ -306,59 +307,59 @@ testReduce("reduceRight", "EmptySparseReduceRightAccumulateNoInit",
            [], [], [,,[],,], accumulate);
 
 
-var verySparseSuffix6 = new Array(450001);
-verySparseSuffix6[450000] = 6;
-var verySparseSuffix4 = new Array(450001);
-verySparseSuffix4[250000] = 4;
-verySparseSuffix4[450000] = 6;
+var verySparseSuffix6 = [];
+verySparseSuffix6[9000] = 6;
+var verySparseSuffix4 = [];
+verySparseSuffix4[5000] = 4;
+verySparseSuffix4[9000] = 6;
 var verySparseSuffix2 = verySparseSlice6;
 
 
 testReduce("reduceRight", "VerySparseReduceRightSum", 12,
-           [[0, 6, 450000, verySparseArray, 6],
-            [6, 4, 250000, verySparseArray, 10],
-            [10, 2, 100000, verySparseArray, 12]],
+           [[0, 6, 9000, verySparseArray, 6],
+            [6, 4, 5000, verySparseArray, 10],
+            [10, 2, 2000, verySparseArray, 12]],
            verySparseArray, sum, 0);
 
 testReduce("reduceRight", "VerySparseReduceRightProd", 48,
-           [[1, 6, 450000, verySparseArray, 6],
-            [6, 4, 250000, verySparseArray, 24],
-            [24, 2, 100000, verySparseArray, 48]],
+           [[1, 6, 9000, verySparseArray, 6],
+            [6, 4, 5000, verySparseArray, 24],
+            [24, 2, 2000, verySparseArray, 48]],
            verySparseArray, prod, 1);
 
 testReduce("reduceRight", "VerySparseReduceRightDec", Infinity,
-           [[0, 6, 450000, verySparseArray, Infinity],
-            [Infinity, 4, 250000, verySparseArray, Infinity],
-            [Infinity, 2, 100000, verySparseArray, Infinity]],
+           [[0, 6, 9000, verySparseArray, Infinity],
+            [Infinity, 4, 5000, verySparseArray, Infinity],
+            [Infinity, 2, 2000, verySparseArray, Infinity]],
            verySparseArray, dec, 0);
 
-testReduce("reduceRight", "SimpleSparseReduceRightAccumulate",
+testReduce("reduceRight", "VerySparseReduceRightAccumulate",
            verySparseSuffix2,
-           [[[], 6, 450000, verySparseArray, verySparseSuffix6],
-            [verySparseSuffix6, 4, 250000, verySparseArray, verySparseSuffix4],
-            [verySparseSuffix4, 2, 100000, verySparseArray, verySparseSuffix2]],
+           [[[], 6, 9000, verySparseArray, verySparseSuffix6],
+            [verySparseSuffix6, 4, 5000, verySparseArray, verySparseSuffix4],
+            [verySparseSuffix4, 2, 2000, verySparseArray, verySparseSuffix2]],
            verySparseArray, accumulate, []);
 
 
 testReduce("reduceRight", "VerySparseReduceRightSumNoInit", 12,
-           [[6, 4, 250000, verySparseArray, 10],
-            [10, 2, 100000, verySparseArray, 12]],
+           [[6, 4, 5000, verySparseArray, 10],
+            [10, 2, 2000, verySparseArray, 12]],
            verySparseArray, sum);
 
 testReduce("reduceRight", "VerySparseReduceRightProdNoInit", 48,
-           [[6, 4, 250000, verySparseArray, 24],
-            [24, 2, 100000, verySparseArray, 48]],
+           [[6, 4, 5000, verySparseArray, 24],
+            [24, 2, 2000, verySparseArray, 48]],
            verySparseArray, prod);
 
 testReduce("reduceRight", "VerySparseReduceRightDecNoInit", Infinity,
-           [[6, 4, 250000, verySparseArray, Infinity],
-            [Infinity, 2, 100000, verySparseArray, Infinity]],
+           [[6, 4, 5000, verySparseArray, Infinity],
+            [Infinity, 2, 2000, verySparseArray, Infinity]],
            verySparseArray, dec);
 
 testReduce("reduceRight", "SimpleSparseReduceRightAccumulateNoInit",
            6,
-           [[6, 4, 250000, verySparseArray, 6],
-            [6, 2, 100000, verySparseArray, 6]],
+           [[6, 4, 5000, verySparseArray, 6],
+            [6, 2, 2000, verySparseArray, 6]],
            verySparseArray, accumulate);
 
 
@@ -385,7 +386,30 @@ testReduce("reduceRight", "SparseUndefinedReduceRightAddNoInit", NaN,
            ], undefArray, sum);
 
 
-// Test error conditions
+// Ignore non-array properties:
+
+var arrayPlus = [1,2,,3];
+arrayPlus[-1] = NaN;
+arrayPlus[Math.pow(2,32)] = NaN;
+arrayPlus[NaN] = NaN;
+arrayPlus["00"] = NaN;
+arrayPlus["02"] = NaN;
+arrayPlus["-0"] = NaN;
+
+testReduce("reduce", "ArrayWithNonElementPropertiesReduce", 6,
+           [[0, 1, 0, arrayPlus, 1],
+            [1, 2, 1, arrayPlus, 3],
+            [3, 3, 3, arrayPlus, 6],
+           ], arrayPlus, sum, 0);
+
+testReduce("reduceRight", "ArrayWithNonElementPropertiesReduceRight", 6,
+           [[0, 3, 3, arrayPlus, 3],
+            [3, 2, 1, arrayPlus, 5],
+            [5, 1, 0, arrayPlus, 6],
+           ], arrayPlus, sum, 0);
+
+
+// Test error conditions:
 
 try {
   [1].reduce("not a function");
@@ -428,6 +452,7 @@ try {
                "reduceRight no initial TypeError type");
 }
 
+
 try {
   [,,,].reduce(sum);
   fail("Reduce sparse no initial value not throwing");
@@ -436,7 +461,6 @@ try {
              "reduce sparse no initial value not throwing TypeError");
   assertEquals("reduce_no_initial", e.type,
                "reduce no initial TypeError type");
-
 }
 
 try {
