@@ -2603,6 +2603,9 @@ class Script: public Struct {
   // extracted.
   DECL_ACCESSORS(column_offset, Smi)
 
+  // [data]: additional data associated with this script.
+  DECL_ACCESSORS(data, Object)
+
   // [wrapper]: the wrapper cache.
   DECL_ACCESSORS(wrapper, Proxy)
 
@@ -2623,7 +2626,8 @@ class Script: public Struct {
   static const int kNameOffset = kSourceOffset + kPointerSize;
   static const int kLineOffsetOffset = kNameOffset + kPointerSize;
   static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
-  static const int kWrapperOffset = kColumnOffsetOffset + kPointerSize;
+  static const int kDataOffset = kColumnOffsetOffset + kPointerSize;
+  static const int kWrapperOffset = kDataOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kLineEndsOffset = kTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;

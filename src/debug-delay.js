@@ -1021,6 +1021,9 @@ function MakeScriptObject_(script, include_source) {
             columnOffset: script.columnOffset(),
             lineCount: script.lineCount(),
           };
+  if (!IS_UNDEFINED(script.data())) {
+    o.data = script.data();
+  }
   if (include_source) {
     o.source = script.source();
   }
@@ -1679,6 +1682,9 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
       script.lineOffset = scripts[i].line_offset;
       script.columnOffset = scripts[i].column_offset;
       script.lineCount = scripts[i].lineCount();
+      if (scripts[i].data) {
+        script.data = scripts[i].data;
+      }
       if (includeSource) {
         script.source = scripts[i].source;
       } else {

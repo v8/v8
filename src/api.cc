@@ -1108,6 +1108,19 @@ Local<Value> Script::Id() {
 }
 
 
+void Script::SetData(v8::Handle<Value> data) {
+  ON_BAILOUT("v8::Script::SetData()", return);
+  LOG_API("Script::SetData");
+  {
+    HandleScope scope;
+    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
+    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+    i::Handle<i::Script> script(i::Script::cast(fun->shared()->script()));
+    script->set_data(*raw_data);
+  }
+}
+
+
 // --- E x c e p t i o n s ---
 
 
@@ -1196,6 +1209,22 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
       i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
   return scope.Close(Utils::ToLocal(resource_name));
+}
+
+
+v8::Handle<Value> Message::GetScriptData() const {
+  if (IsDeadCheck("v8::Message::GetScriptResourceData()")) {
+    return Local<Value>();
+  }
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> obj =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  // Return this.script.data.
+  i::Handle<i::JSValue> script =
+      i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
+  i::Handle<i::Object> data(i::Script::cast(script->value())->data());
+  return scope.Close(Utils::ToLocal(data));
 }
 
 

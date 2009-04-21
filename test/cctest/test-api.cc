@@ -1394,6 +1394,7 @@ static void check_message(v8::Handle<v8::Message> message,
                           v8::Handle<Value> data) {
   CHECK_EQ(5.76, data->NumberValue());
   CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
+  CHECK_EQ(7.56, message->GetScriptData()->NumberValue());
   message_received = true;
 }
 
@@ -1406,7 +1407,10 @@ THREADED_TEST(MessageHandlerData) {
   LocalContext context;
   v8::ScriptOrigin origin =
       v8::ScriptOrigin(v8_str("6.75"));
-  Script::Compile(v8_str("throw 'error'"), &origin)->Run();
+  v8::Handle<v8::Script> script = Script::Compile(v8_str("throw 'error'"),
+                                                  &origin);
+  script->SetData(v8_str("7.56"));
+  script->Run();
   CHECK(message_received);
   // clear out the message listener
   v8::V8::RemoveMessageListeners(check_message);

@@ -529,6 +529,13 @@ class V8EXPORT Script {
    * Returns the script id value.
    */
   Local<Value> Id();
+
+  /**
+   * Associate an additional data object with the script. This is mainly used
+   * with the debugger as this data object is only available through the
+   * debugger API.
+   */
+  void SetData(Handle<Value> data);
 };
 
 
@@ -540,7 +547,17 @@ class V8EXPORT Message {
   Local<String> Get() const;
   Local<String> GetSourceLine() const;
 
+  /**
+   * Returns the resource name for the script from where the function causing
+   * the error originates.
+   */
   Handle<Value> GetScriptResourceName() const;
+
+  /**
+   * Returns the resource data for the script from where the function causing
+   * the error originates.
+   */
+  Handle<Value> GetScriptData() const;
 
   /**
    * Returns the number, 1-based, of the line where the error occurred.

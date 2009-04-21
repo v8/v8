@@ -1019,6 +1019,13 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("column_offset"),
             proxy_column_offset,
             common_attributes);
+    Handle<Proxy> proxy_data = Factory::NewProxy(&Accessors::ScriptData);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("data"),
+            proxy_data,
+            common_attributes);
     Handle<Proxy> proxy_type = Factory::NewProxy(&Accessors::ScriptType);
     script_descriptors =
         Factory::CopyAppendProxyDescriptor(

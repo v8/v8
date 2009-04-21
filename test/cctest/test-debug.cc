@@ -525,6 +525,24 @@ const char* frame_source_column_source =
 v8::Local<v8::Function> frame_source_column;
 
 
+// Source for The JavaScript function which picks out the script name for the
+// top frame.
+const char* frame_script_name_source =
+    "function frame_script_name(exec_state) {"
+    "  return exec_state.frame(0).func().script().name();"
+    "}";
+v8::Local<v8::Function> frame_script_name;
+
+
+// Source for The JavaScript function which picks out the script data for the
+// top frame.
+const char* frame_script_data_source =
+    "function frame_script_data(exec_state) {"
+    "  return exec_state.frame(0).func().script().data();"
+    "}";
+v8::Local<v8::Function> frame_script_data;
+
+
 // Source for The JavaScript function which returns the number of frames.
 static const char* frame_count_source =
     "function frame_count(exec_state) {"
@@ -535,6 +553,11 @@ v8::Handle<v8::Function> frame_count;
 
 // Global variable to store the last function hit - used by some tests.
 char last_function_hit[80];
+
+// Global variable to store the name and data for last script hit - used by some
+// tests.
+char last_script_name_hit[80];
+char last_script_data_hit[80];
 
 // Global variables to store the last source position - used by some tests.
 int last_source_line = -1;
@@ -585,6 +608,37 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
                                                                argc, argv);
       CHECK(result->IsNumber());
       last_source_column = result->Int32Value();
+    }
+
+    if (!frame_script_name.IsEmpty()) {
+      // Get the script name of the function script.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_script_name->Call(exec_state,
+                                                             argc, argv);
+      if (result->IsUndefined()) {
+        last_script_name_hit[0] = '\0';
+      } else {
+        CHECK(result->IsString());
+        v8::Handle<v8::String> script_name(result->ToString());
+        script_name->WriteAscii(last_script_name_hit);
+      }
+    }
+
+    if (!frame_script_data.IsEmpty()) {
+      // Get the script data of the function script.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_script_data->Call(exec_state,
+                                                             argc, argv);
+      if (result->IsUndefined()) {
+        last_script_data_hit[0] = '\0';
+      } else {
+        result = result->ToString();
+        CHECK(result->IsString());
+        v8::Handle<v8::String> script_data(result->ToString());
+        script_data->WriteAscii(last_script_data_hit);
+      }
     }
   }
 }
@@ -4248,4 +4302,59 @@ TEST(DebugGetLoadedScripts) {
       "}");
   // Must not crash while accessing line_ends.
   i::FLAG_allow_natives_syntax = allow_natives_syntax;
+}
+
+
+// Test script break points set on lines.
+TEST(ScriptNameAndData) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Create functions for retrieving script name and data for the function on
+  // the top frame when hitting a break point.
+  frame_script_name = CompileFunction(&env,
+                                      frame_script_name_source,
+                                      "frame_script_name");
+  frame_script_data = CompileFunction(&env,
+                                      frame_script_data_source,
+                                      "frame_script_data");
+
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
+                                   v8::Undefined());
+
+  // Test function source.
+  v8::Local<v8::String> script = v8::String::New(
+    "function f() {\n"
+    "  debugger;\n"
+    "}\n");
+
+  v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8::String::New("name"));
+  v8::Handle<v8::Script> script1 = v8::Script::Compile(script, &origin1);
+  script1->SetData(v8::String::New("data"));
+  script1->Run();
+  v8::Script::Compile(script, &origin1)->Run();
+  v8::Local<v8::Function> f;
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ("name", last_script_name_hit);
+  CHECK_EQ("data", last_script_data_hit);
+
+  v8::Local<v8::String> data_obj_source = v8::String::New(
+    "({ a: 'abc',\n"
+    "  b: 123,\n"
+    "  toString: function() { return this.a + ' ' + this.b; }\n"
+    "})\n");
+  v8::Local<v8::Value> data_obj = v8::Script::Compile(data_obj_source)->Run();
+  v8::ScriptOrigin origin2 = v8::ScriptOrigin(v8::String::New("new name"));
+  v8::Handle<v8::Script> script2 = v8::Script::Compile(script, &origin2);
+  script2->Run();
+  script2->SetData(data_obj);
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ("new name", last_script_name_hit);
+  CHECK_EQ("abc 123", last_script_data_hit);
 }
