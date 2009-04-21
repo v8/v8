@@ -879,6 +879,62 @@ function ArrayLastIndexOf(element, index) {
 }
 
 
+function ArrayReduce(callback, current) {
+  if (!IS_FUNCTION(callback)) {
+    throw MakeTypeError('called_non_callable', [callback]);
+  }
+  // Pull out the length so that modifications to the length in the
+  // loop will not affect the looping.
+  var length = this.length;
+  var i = 0;
+
+  find_initial: if (%_ArgumentsLength() < 2) {
+    for (; i < length; i++) {
+      current = this[i];
+      if (!IS_UNDEFINED(current) || i in this) {
+        i++;
+        break find_initial;
+      }
+    }
+    throw MakeTypeError('reduce_no_initial', []);
+  }
+
+  for (; i < length; i++) {
+    var element = this[i];
+    if (!IS_UNDEFINED(element) || i in this) {
+      current = callback.call(null, current, element, i, this);
+    }
+  }
+  return current;
+}
+
+function ArrayReduceRight(callback, current) {
+  if (!IS_FUNCTION(callback)) {
+    throw MakeTypeError('called_non_callable', [callback]);
+  }
+  var i = this.length - 1;
+
+  find_initial: if (%_ArgumentsLength() < 2) {
+    for (; i >= 0; i--) {
+      current = this[i];
+      if (!IS_UNDEFINED(current) || i in this) {
+        i--;
+        break find_initial;
+      }
+    }
+    throw MakeTypeError('reduce_no_initial', []);
+  }
+
+  for (; i >= 0; i--) {
+    var element = this[i];
+    if (!IS_UNDEFINED(element) || i in this) {
+      current = callback.call(null, current, element, i, this);
+    }
+  }
+  return current;
+}
+
+
 // -------------------------------------------------------------------
 
 
@@ -917,7 +973,9 @@ function SetupArray() {
     "every", ArrayEvery,
     "map", ArrayMap,
     "indexOf", ArrayIndexOf,
-    "lastIndexOf", ArrayLastIndexOf
+    "lastIndexOf", ArrayLastIndexOf,
+    "reduce", ArrayReduce,
+    "reduceRight", ArrayReduceRight
   ));
 
   // Manipulate the length of some of the functions to meet
@@ -930,7 +988,9 @@ function SetupArray() {
     ArrayMap: 1,
     ArrayIndexOf: 1,
     ArrayLastIndexOf: 1,
-    ArrayPush: 1
+    ArrayPush: 1,
+    ArrayReduce: 1,
+    ArrayReduceRight: 1
   });
 }
 

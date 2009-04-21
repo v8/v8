@@ -53,6 +53,9 @@ function fail(expected, found, name_opt) {
 
 function deepEquals(a, b) {
   if (a == b) return true;
+  if (typeof a == "number" && typeof b == "number" && isNaN(a) && isNaN(b)) {
+    return true;
+  }
   if ((typeof a) !== 'object' || (typeof b) !== 'object' ||
       (a === null) || (b === null))
     return false;
