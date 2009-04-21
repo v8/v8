@@ -373,6 +373,11 @@ class Runtime : public AllStatic {
                                    Handle<Object> value,
                                    PropertyAttributes attr);
 
+  static Object* ForceSetObjectProperty(Handle<JSObject> object,
+                                        Handle<Object> key,
+                                        Handle<Object> value,
+                                        PropertyAttributes attr);
+
   static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
 
   // This function is used in FunctionNameUsing* tests.

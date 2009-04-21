@@ -1783,6 +1783,17 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
+
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return value;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->IgnoreAttributesAndSetLocalProperty(
+        name,
+        value,
+        attributes);
+  }
+
   // Check for accessor in prototype chain removed here in clone.
   if (result->IsNotFound()) {
     return AddProperty(name, value, attributes);
@@ -1803,20 +1814,15 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
         return AddFastPropertyUsingMap(result->GetTransitionMap(),
                                        name,
                                        value);
-      } else {
-        return ConvertDescriptorToField(name, value, attributes);
       }
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
-    case CALLBACKS:
-      return SetPropertyWithCallback(result->GetCallbackObject(),
-                                     name,
-                                     value,
-                                     result->holder());
-    case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes);
+    case CALLBACKS: case INTERCEPTOR:
+      // Override callback in clone
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.

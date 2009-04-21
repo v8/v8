@@ -1835,6 +1835,26 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
+bool v8::Object::ForceSet(v8::Handle<Value> key,
+                          v8::Handle<Value> value,
+                          v8::PropertyAttribute attribs) {
+  ON_BAILOUT("v8::Object::ForceSet()", return false);
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::ForceSetProperty(
+      self,
+      key_obj,
+      value_obj,
+      static_cast<PropertyAttributes>(attribs));
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
 Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
   ENTER_V8;

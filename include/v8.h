@@ -1045,6 +1045,9 @@ class V8EXPORT Object : public Value {
   bool Set(Handle<Value> key,
            Handle<Value> value,
            PropertyAttribute attribs = None);
+  bool ForceSet(Handle<Value> key,
+                Handle<Value> value,
+                PropertyAttribute attribs = None);
   Local<Value> Get(Handle<Value> key);
 
   // TODO(1245389): Replace the type-specific versions of these

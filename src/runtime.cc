@@ -2688,6 +2688,59 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 }
 
 
+Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
+                                        Handle<Object> key,
+                                        Handle<Object> value,
+                                        PropertyAttributes attr) {
+  HandleScope scope;
+
+  // Check if the given key is an array index.
+  uint32_t index;
+  if (Array::IndexFromObject(*key, &index)) {
+    ASSERT(attr == NONE);
+
+    // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
+    // of a string using [] notation.  We need to support this too in
+    // JavaScript.
+    // In the case of a String object we just need to redirect the assignment to
+    // the underlying string if the index is in range.  Since the underlying
+    // string does nothing with the assignment then we can ignore such
+    // assignments.
+    if (js_object->IsStringObjectWithCharacterAt(index)) {
+      return *value;
+    }
+
+    return js_object->SetElement(index, *value);
+  }
+
+  if (key->IsString()) {
+    if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
+      ASSERT(attr == NONE);
+      return js_object->SetElement(index, *value);
+    } else {
+      Handle<String> key_string = Handle<String>::cast(key);
+      key_string->TryFlattenIfNotFlat();
+      return js_object->IgnoreAttributesAndSetLocalProperty(*key_string,
+                                                            *value,
+                                                            attr);
+    }
+  }
+
+  // Call-back into JavaScript to convert the key to a string.
+  bool has_pending_exception = false;
+  Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+  if (has_pending_exception) return Failure::Exception();
+  Handle<String> name = Handle<String>::cast(converted);
+
+  if (name->AsArrayIndex(&index)) {
+    ASSERT(attr == NONE);
+    return js_object->SetElement(index, *value);
+  } else {
+    return js_object->IgnoreAttributesAndSetLocalProperty(*name, *value, attr);
+  }
+}
+
+
 static Object* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);

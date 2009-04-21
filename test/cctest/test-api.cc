@@ -6238,3 +6238,118 @@ TEST(ReadOnlyPropertyInGlobalProto) {
   res = CompileRun("function f() { with (this) { y = 42 }; return y; }; f()");
   CHECK_EQ(v8::Integer::New(42), res);
 }
+
+static int force_set_set_count = 0;
+static int force_set_get_count = 0;
+bool pass_on_get = false;
+
+static v8::Handle<v8::Value> ForceSetGetter(v8::Local<v8::String> name,
+                                            const v8::AccessorInfo& info) {
+  force_set_get_count++;
+  if (pass_on_get) {
+    return v8::Handle<v8::Value>();
+  } else {
+    return v8::Int32::New(3);
+  }
+}
+
+static void ForceSetSetter(v8::Local<v8::String> name,
+                           v8::Local<v8::Value> value,
+                           const v8::AccessorInfo& info) {
+  force_set_set_count++;
+}
+
+static v8::Handle<v8::Value> ForceSetInterceptSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::AccessorInfo& info) {
+  force_set_set_count++;
+  return v8::Undefined();
+}
+
+TEST(ForceSet) {
+  force_set_get_count = 0;
+  force_set_set_count = 0;
+  pass_on_get = false;
+
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  v8::Handle<v8::String> access_property = v8::String::New("a");
+  templ->SetAccessor(access_property, ForceSetGetter, ForceSetSetter);
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  // Ordinary properties
+  v8::Handle<v8::String> simple_property = v8::String::New("p");
+  global->Set(simple_property, v8::Int32::New(4), v8::ReadOnly);
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should fail because the property is read-only
+  global->Set(simple_property, v8::Int32::New(5));
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should succeed even though the property is read-only
+  global->ForceSet(simple_property, v8::Int32::New(6));
+  CHECK_EQ(6, global->Get(simple_property)->Int32Value());
+
+  // Accessors
+  CHECK_EQ(0, force_set_set_count);
+  CHECK_EQ(0, force_set_get_count);
+  CHECK_EQ(3, global->Get(access_property)->Int32Value());
+  // CHECK_EQ the property shouldn't override it, just call the setter
+  // which in this case does nothing.
+  global->Set(access_property, v8::Int32::New(7));
+  CHECK_EQ(3, global->Get(access_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(2, force_set_get_count);
+  // Forcing the property to be set should override the accessor without
+  // calling it
+  global->ForceSet(access_property, v8::Int32::New(8));
+  CHECK_EQ(8, global->Get(access_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(2, force_set_get_count);
+}
+
+TEST(ForceSetWithInterceptor) {
+  force_set_get_count = 0;
+  force_set_set_count = 0;
+  pass_on_get = false;
+
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(ForceSetGetter, ForceSetInterceptSetter);
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  v8::Handle<v8::String> some_property = v8::String::New("a");
+  CHECK_EQ(0, force_set_set_count);
+  CHECK_EQ(0, force_set_get_count);
+  CHECK_EQ(3, global->Get(some_property)->Int32Value());
+  // Setting the property shouldn't override it, just call the setter
+  // which in this case does nothing.
+  global->Set(some_property, v8::Int32::New(7));
+  CHECK_EQ(3, global->Get(some_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(2, force_set_get_count);
+  // Getting the property when the interceptor returns an empty handle
+  // should yield undefined, since the property isn't present on the
+  // object itself yet.
+  pass_on_get = true;
+  CHECK(global->Get(some_property)->IsUndefined());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(3, force_set_get_count);
+  // Forcing the property to be set should cause the value to be
+  // set locally without calling the interceptor.
+  global->ForceSet(some_property, v8::Int32::New(8));
+  CHECK_EQ(8, global->Get(some_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(4, force_set_get_count);
+  // Reenabling the interceptor should cause it to take precedence over
+  // the property
+  pass_on_get = false;
+  CHECK_EQ(3, global->Get(some_property)->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(5, force_set_get_count);
+  // The interceptor should also work for other properties
+  CHECK_EQ(3, global->Get(v8::String::New("b"))->Int32Value());
+  CHECK_EQ(1, force_set_set_count);
+  CHECK_EQ(6, force_set_get_count);
+}

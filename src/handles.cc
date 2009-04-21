@@ -212,6 +212,15 @@ Handle<Object> SetProperty(Handle<Object> object,
 }
 
 
+Handle<Object> ForceSetProperty(Handle<JSObject> object,
+                                Handle<Object> key,
+                                Handle<Object> value,
+                                PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(
+      Runtime::ForceSetObjectProperty(object, key, value, attributes), Object);
+}
+
+
 Handle<Object> IgnoreAttributesAndSetLocalProperty(
     Handle<JSObject> object,
     Handle<String> key,
