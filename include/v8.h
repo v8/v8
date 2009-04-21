@@ -1045,6 +1045,13 @@ class V8EXPORT Object : public Value {
   bool Set(Handle<Value> key,
            Handle<Value> value,
            PropertyAttribute attribs = None);
+
+  // Sets a local property on this object, bypassing interceptors and
+  // overriding accessors or read-only properties.
+  //
+  // Note that if the object has an interceptor the property will be set
+  // locally, but since the interceptor takes precedence the local property
+  // will only be returned if the interceptor doesn't return a value.
   bool ForceSet(Handle<Value> key,
                 Handle<Value> value,
                 PropertyAttribute attribs = None);
