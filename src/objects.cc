@@ -1820,7 +1820,8 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
-    case CALLBACKS: case INTERCEPTOR:
+    case CALLBACKS:
+    case INTERCEPTOR:
       // Override callback in clone
       return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_TRANSITION:
