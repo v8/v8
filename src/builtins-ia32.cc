@@ -32,7 +32,7 @@
 namespace v8 { namespace internal {
 
 
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {

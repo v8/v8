@@ -298,6 +298,15 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 }
 
 
+#ifdef GENERATED_CODE_COVERAGE
+#define CODE_COVERAGE_STRINGIFY(x) #x
+#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
+#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
+#define ACCESS_MASM(masm) masm->stop(__FILE_LINE__); masm->
+#else
+#define ACCESS_MASM(masm) masm->
+#endif
+
 
 } }  // namespace v8::internal
 

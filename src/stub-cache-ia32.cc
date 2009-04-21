@@ -33,7 +33,7 @@
 
 namespace v8 { namespace internal {
 
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 
 static void ProbeTable(MacroAssembler* masm,
@@ -256,7 +256,7 @@ void StubCompiler::GenerateLoadField(MacroAssembler* masm,
 
   // Check that the maps haven't changed.
   Register reg =
-      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+      masm->CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
 
   // Get the value from the properties.
   GenerateFastPropertyLoad(masm, eax, reg, holder, index);
@@ -279,7 +279,7 @@ void StubCompiler::GenerateLoadCallback(MacroAssembler* masm,
 
   // Check that the maps haven't changed.
   Register reg =
-      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+      masm->CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
 
   // Push the arguments on the JS stack of the caller.
   __ pop(scratch2);  // remove return address
@@ -310,7 +310,7 @@ void StubCompiler::GenerateLoadConstant(MacroAssembler* masm,
 
   // Check that the maps haven't changed.
   Register reg =
-      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+      masm->CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
 
   // Return the constant value.
   __ mov(eax, Handle<Object>(value));
@@ -332,7 +332,7 @@ void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
 
   // Check that the maps haven't changed.
   Register reg =
-      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+      masm->CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
 
   // Push the arguments on the JS stack of the caller.
   __ pop(scratch2);  // remove return address
@@ -440,7 +440,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
 #undef __
 
-#define __ masm()->
+#define __ ACCESS_MASM(masm())
 
 
 // TODO(1241006): Avoid having lazy compile stubs specialized by the
@@ -485,7 +485,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
 
   // Do the right check and compute the holder register.
   Register reg =
-      __ CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
+      masm()->CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
 
   GenerateFastPropertyLoad(masm(), edi, reg, holder, index);
 
@@ -656,7 +656,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 
   // Check that maps have not changed and compute the holder register.
   Register reg =
-      __ CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
+      masm()->CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
 
   // Enter an internal frame.
   __ EnterInternalFrame();

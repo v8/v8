@@ -35,7 +35,7 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // JumpTarget implementation.
 
-#define __ masm_->
+#define __ ACCESS_MASM(masm_)
 
 void JumpTarget::DoJump() {
   ASSERT(cgen_ != NULL);

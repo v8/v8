@@ -38,7 +38,7 @@ namespace v8 { namespace internal {
 // Static IC stub generators.
 //
 
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 
 // Helper function used to load a property from a dictionary backing storage.
@@ -91,7 +91,9 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
     __ shr(r1, String::kHashShift);
-    if (i > 0) __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
+    if (i > 0) {
+      __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
+    }
     __ and_(r1, Operand(r2));
 
     // Scale the index by multiplying by the element size.

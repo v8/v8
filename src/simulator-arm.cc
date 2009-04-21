@@ -91,7 +91,7 @@ Debugger::~Debugger() {
 
 
 
-#ifdef ARM_GENERATED_CODE_COVERAGE
+#ifdef GENERATED_CODE_COVERAGE
 static FILE* coverage_log = NULL;
 
 
@@ -107,7 +107,7 @@ void Debugger::Stop(Instr* instr) {
   char* str = reinterpret_cast<char*>(instr->InstructionBits() & 0x0fffffff);
   if (strlen(str) > 0) {
     if (coverage_log != NULL) {
-      fprintf(coverage_log, "Simulator hit %s\n", str);
+      fprintf(coverage_log, "%s\n", str);
       fflush(coverage_log);
     }
     instr->SetInstructionBits(0xe1a00000);  // Overwrite with nop.
@@ -115,7 +115,7 @@ void Debugger::Stop(Instr* instr) {
   sim_->set_pc(sim_->get_pc() + Instr::kInstrSize);
 }
 
-#else  // ndef ARM_GENERATED_CODE_COVERAGE
+#else  // ndef GENERATED_CODE_COVERAGE
 
 static void InitializeCoverage() {
 }

@@ -37,7 +37,7 @@
 
 namespace v8 { namespace internal {
 
-#define __ masm_->
+#define __ ACCESS_MASM(masm_)
 
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
@@ -2009,18 +2009,18 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
 
   // Add a label for checking the size of the code used for returning.
   Label check_exit_codesize;
-  __ bind(&check_exit_codesize);
+  masm_->bind(&check_exit_codesize);
 
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  __ ret((scope_->num_parameters() + 1) * kPointerSize);
+  masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
   DeleteFrame();
 
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
   ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
-            __ SizeOfCodeGeneratedSince(&check_exit_codesize));
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 }
 
 
@@ -2143,7 +2143,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
                  times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
   smi_value.Unuse();
   // Calculate address to overwrite later with actual address of table.
-  int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
+  int32_t jump_table_ref = masm_->pc_offset() - sizeof(int32_t);
   __ Align(4);
   Label table_start;
   __ bind(&table_start);
@@ -3386,7 +3386,9 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
     Label next, fast;
-    if (!context.reg().is(tmp.reg())) __ mov(tmp.reg(), context.reg());
+    if (!context.reg().is(tmp.reg())) {
+      __ mov(tmp.reg(), context.reg());
+    }
     __ bind(&next);
     // Terminate at global context.
     __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
@@ -5275,8 +5277,11 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // instruction.
   ASSERT(value.is_register() && value.reg().is(eax));
   // The delta from the start of the map-compare instruction to the
-  // test eax instruction.
-  int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
+  // test eax instruction.  We use masm_ directly here instead of the
+  // __ macro because the __ macro sometimes uses macro expansion to turn
+  // into something that can't return a value.  This is encountered when
+  // doing generated code coverage tests.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
   __ test(value.reg(), Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
 
@@ -5291,7 +5296,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
 
 
 #undef __
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 Handle<String> Reference::GetName() {
   ASSERT(type_ == NAMED);
@@ -5573,7 +5578,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-#define __ masm_->
+#define __ ACCESS_MASM(masm_)
 
 Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
                                                          Result* right) {
@@ -5907,7 +5912,7 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
 
 
 #undef __
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (eax <op> ebx) and
@@ -6232,7 +6237,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       }
 
       // SHR should return uint32 - go to runtime for non-smi/negative result.
-      if (op_ == Token::SHR) __ bind(&non_smi_result);
+      if (op_ == Token::SHR) {
+        __ bind(&non_smi_result);
+      }
       __ mov(eax, Operand(esp, 1 * kPointerSize));
       __ mov(edx, Operand(esp, 2 * kPointerSize));
       break;

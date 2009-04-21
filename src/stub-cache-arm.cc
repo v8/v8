@@ -33,7 +33,7 @@
 
 namespace v8 { namespace internal {
 
-#define __ DEFINE_MASM(masm)
+#define __ ACCESS_MASM(masm)
 
 
 static void ProbeTable(MacroAssembler* masm,
@@ -456,7 +456,7 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 
 
 #undef __
-#define __ DEFINE_MASM(masm())
+#define __ ACCESS_MASM(masm())
 
 
 Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {

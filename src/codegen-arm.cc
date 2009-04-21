@@ -38,7 +38,7 @@
 
 namespace v8 { namespace internal {
 
-#define __ DEFINE_MASM(masm_)
+#define __ ACCESS_MASM(masm_)
 
 
 // -------------------------------------------------------------------------
@@ -4096,7 +4096,7 @@ bool CodeGenerator::HasValidEntryRegisters() { return true; }
 
 
 #undef __
-#define __ DEFINE_MASM(masm)
+#define __ ACCESS_MASM(masm)
 
 
 Handle<String> Reference::GetName() {

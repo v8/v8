@@ -39,7 +39,7 @@ namespace v8 { namespace internal {
 // Static IC stub generators.
 //
 
-#define __ DEFINE_MASM(masm)
+#define __ ACCESS_MASM(masm)
 
 
 // Helper function used from LoadIC/CallIC GenerateNormal.
