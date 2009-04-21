@@ -3230,7 +3230,7 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 // --- D e b u g   S u p p o r t ---
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
+bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   ENTER_V8;
@@ -3260,29 +3260,30 @@ void Debug::DebugBreak() {
 }
 
 
-void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
-  i::Debugger::SetMessageHandler(handler, data, message_handler_thread);
+  i::Debugger::SetMessageHandler(handler, message_handler_thread);
 }
 
 
-void Debug::SendCommand(const uint16_t* command, int length) {
+void Debug::SendCommand(const uint16_t* command, int length,
+                        ClientData* client_data) {
   if (!i::V8::HasBeenSetup()) return;
-  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length));
+  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length),
+                              client_data);
 }
 
 
-void Debug::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
-                                   void* data) {
+void Debug::SetHostDispatchHandler(HostDispatchHandler handler) {
   EnsureInitialized("v8::Debug::SetHostDispatchHandler");
   ENTER_V8;
-  i::Debugger::SetHostDispatchHandler(handler, data);
+  i::Debugger::SetHostDispatchHandler(handler);
 }
 
 
-void Debug::SendHostDispatch(void* dispatch) {
+void Debug::SendHostDispatch(ClientData* dispatch) {
   if (!i::V8::HasBeenSetup()) return;
   i::Debugger::ProcessHostDispatch(dispatch);
 }

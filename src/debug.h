@@ -397,6 +397,36 @@ class Debug {
 };
 
 
+// Message send by user to v8 debugger or debugger output message.
+// In addition to command text it may contain a pointer to some user data
+// which are expected to be passed along with the command reponse to message
+// handler.
+class Message {
+ public:
+  static Message NewCommand(const Vector<uint16_t>& command,
+                            v8::Debug::ClientData* data);
+  static Message NewHostDispatch(v8::Debug::ClientData* dispatch);
+  static Message NewOutput(v8::Handle<v8::String> output,
+                           v8::Debug::ClientData* data);
+  static Message NewEmptyMessage();
+  Message();
+  ~Message();
+
+  // Deletes user data and disposes of the text.
+  void Dispose();
+  bool IsHostDispatch() const;
+  Vector<uint16_t> text() const { return text_; }
+  v8::Debug::ClientData* client_data() const { return client_data_; }
+ private:
+  Message(const Vector<uint16_t>& text,
+          v8::Debug::ClientData* data,
+          bool is_host_dispatch);
+
+  Vector<uint16_t> text_;
+  v8::Debug::ClientData* client_data_;
+  bool is_host_dispatch_;
+};
+
 // A Queue of Vector<uint16_t> objects.  A thread-safe version is
 // LockingMessageQueue, based on this class.
 class MessageQueue BASE_EMBEDDED {
@@ -404,14 +434,14 @@ class MessageQueue BASE_EMBEDDED {
   explicit MessageQueue(int size);
   ~MessageQueue();
   bool IsEmpty() const { return start_ == end_; }
-  Vector<uint16_t> Get();
-  void Put(const Vector<uint16_t>& message);
+  Message Get();
+  void Put(const Message& message);
   void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
  private:
   // Doubles the size of the message queue, and copies the messages.
   void Expand();
 
-  Vector<uint16_t>* messages_;
+  Message* messages_;
   int start_;
   int end_;
   int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
@@ -427,8 +457,8 @@ class LockingMessageQueue BASE_EMBEDDED {
   explicit LockingMessageQueue(int size);
   ~LockingMessageQueue();
   bool IsEmpty() const;
-  Vector<uint16_t> Get();
-  void Put(const Vector<uint16_t>& message);
+  Message Get();
+  void Put(const Message& message);
   void Clear();
  private:
   MessageQueue queue_;
@@ -473,29 +503,29 @@ class Debugger {
                                    Handle<Object> event_data,
                                    bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  static void SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+  static void SetMessageHandler(v8::Debug::MessageHandler handler,
                                 bool message_handler_thread);
   static void TearDown();
-  static void SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
-                                     void* data);
+  static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler);
 
   // Invoke the message handler function.
-  static void InvokeMessageHandler(Vector< uint16_t> message);
+  static void InvokeMessageHandler(Message message);
 
   // Send a message to the message handler eiher through the message thread or
   // directly.
-  static void SendMessage(Vector<uint16_t> message);
+  static void SendMessage(Message message);
 
   // Send the JSON message for a debug event.
   static bool SendEventMessage(Handle<Object> event_data);
 
   // Add a debugger command to the command queue.
-  static void ProcessCommand(Vector<const uint16_t> command);
+  static void ProcessCommand(Vector<const uint16_t> command,
+                             v8::Debug::ClientData* client_data = NULL);
 
   // Check whether there are commands in the command queue.
   static bool HasCommands();
 
-  static void ProcessHostDispatch(void* dispatch);
+  static void ProcessHostDispatch(v8::Debug::ClientData* dispatch);
   static Handle<Object> Call(Handle<JSFunction> fun,
                              Handle<Object> data,
                              bool* pending_exception);
@@ -539,11 +569,9 @@ class Debugger {
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static bool never_unload_debugger_;  // Can we unload the debugger?
   static DebugMessageThread* message_thread_;
-  static v8::DebugMessageHandler message_handler_;
+  static v8::Debug::MessageHandler message_handler_;
   static bool message_handler_cleared_;  // Was message handler cleared?
-  static void* message_handler_data_;
-  static v8::DebugHostDispatchHandler host_dispatch_handler_;
-  static void* host_dispatch_handler_data_;
+  static v8::Debug::HostDispatchHandler host_dispatch_handler_;
 
   static DebuggerAgent* agent_;
 

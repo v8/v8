@@ -79,48 +79,60 @@ enum DebugEvent {
 };
 
 
-/**
- * Debug event callback function.
- *
- * \param event the type of the debug event that triggered the callback
- *   (enum DebugEvent)
- * \param exec_state execution state (JavaScript object)
- * \param event_data event specific data (JavaScript object)
- * \param data value passed by the user to SetDebugEventListener
- */
-typedef void (*DebugEventCallback)(DebugEvent event,
-                                   Handle<Object> exec_state,
-                                   Handle<Object> event_data,
-                                   Handle<Value> data);
-
-
-/**
- * Debug message callback function.
- *
- * \param message the debug message
- * \param length length of the message
- * \param data the data value passed when registering the message handler
- * A DebugMessageHandler does not take posession of the message string,
- * and must not rely on the data persisting after the handler returns.
- */
-typedef void (*DebugMessageHandler)(const uint16_t* message, int length,
-                                    void* data);
-
-/**
- * Debug host dispatch callback function.
- *
- * \param dispatch the dispatch value
- * \param data the data value passed when registering the dispatch handler
- */
-typedef void (*DebugHostDispatchHandler)(void* dispatch,
-                                         void* data);
-
-
-
 class EXPORT Debug {
  public:
+  /**
+   * A client object passed to the v8 debugger whose ownership will be taken by
+   * it. v8 is always responsible for deleting the object.
+   */
+  class ClientData {
+   public:
+    virtual ~ClientData() {}
+  };
+
+
+  /**
+   * Debug event callback function.
+   *
+   * \param event the type of the debug event that triggered the callback
+   *   (enum DebugEvent)
+   * \param exec_state execution state (JavaScript object)
+   * \param event_data event specific data (JavaScript object)
+   * \param data value passed by the user to SetDebugEventListener
+   */
+  typedef void (*EventCallback)(DebugEvent event,
+                                     Handle<Object> exec_state,
+                                     Handle<Object> event_data,
+                                     Handle<Value> data);
+
+
+  /**
+   * Debug message callback function.
+   *
+   * \param message the debug message
+   * \param length length of the message
+   * \param data the data value passed when registering the message handler
+   * \param client_data the data value passed into Debug::SendCommand along
+   *     with the request that led to the message or NULL if the message is an
+   *     asynchronous event. The debugger takes ownership of the data and will
+   *     delete it before dying even if there is no message handler.
+   * A MessageHandler does not take posession of the message string,
+   * and must not rely on the data persisting after the handler returns.
+   */
+  typedef void (*MessageHandler)(const uint16_t* message, int length,
+                                      ClientData* client_data);
+
+  /**
+   * Debug host dispatch callback function.
+   *
+   * \param dispatch the dispatch value
+   * \param data the data value passed when registering the dispatch handler
+   */
+  typedef void (*HostDispatchHandler)(ClientData* dispatch);
+
+
   // Set a C debug event listener.
-  static bool SetDebugEventListener(DebugEventCallback that,
+  static bool SetDebugEventListener(EventCallback that,
                                     Handle<Value> data = Handle<Value>());
 
   // Set a JavaScript debug event listener.
@@ -131,14 +143,14 @@ class EXPORT Debug {
   static void DebugBreak();
 
   // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler(DebugMessageHandler handler, void* data = NULL,
+  static void SetMessageHandler(MessageHandler handler,
                                 bool message_handler_thread = true);
-  static void SendCommand(const uint16_t* command, int length);
+  static void SendCommand(const uint16_t* command, int length,
+                          ClientData* client_data = NULL);
 
   // Dispatch interface.
-  static void SetHostDispatchHandler(DebugHostDispatchHandler handler,
-                                     void* data = NULL);
-  static void SendHostDispatch(void* dispatch);
+  static void SetHostDispatchHandler(HostDispatchHandler handler);
+  static void SendHostDispatch(ClientData* dispatch);
 
  /**
   * Run a JavaScript function in the debugger.

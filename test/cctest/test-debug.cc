@@ -45,10 +45,13 @@ using ::v8::internal::JSGlobalProxy;
 using ::v8::internal::Code;
 using ::v8::internal::Debug;
 using ::v8::internal::Debugger;
+using ::v8::internal::Message;
+using ::v8::internal::MessageQueue;
 using ::v8::internal::StepAction;
 using ::v8::internal::StepIn;  // From StepAction enum
 using ::v8::internal::StepNext;  // From StepAction enum
 using ::v8::internal::StepOut;  // From StepAction enum
+using ::v8::internal::Vector;
 
 
 // Size of temp buffer for formatting small strings.
@@ -3375,7 +3378,8 @@ class MessageQueueDebuggerThread : public v8::internal::Thread {
   void Run();
 };
 
-static void MessageHandler(const uint16_t* message, int length, void *data) {
+static void MessageHandler(const uint16_t* message, int length,
+                           v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
@@ -3389,7 +3393,6 @@ static void MessageHandler(const uint16_t* message, int length, void *data) {
   printf("%s\n", print_buffer);
   fflush(stdout);
 }
-
 
 void MessageQueueDebuggerThread::Run() {
   const int kBufferSize = 1000;
@@ -3481,6 +3484,114 @@ TEST(MessageQueues) {
   fflush(stdout);
 }
 
+
+class TestClientData : public v8::Debug::ClientData {
+ public:
+  TestClientData() {
+    constructor_call_counter++;
+  }
+  virtual ~TestClientData() {
+    destructor_call_counter++;
+  }
+
+  static void ResetCounters() {
+    constructor_call_counter = 0;
+    destructor_call_counter = 0;
+  }
+
+  static int constructor_call_counter;
+  static int destructor_call_counter;
+};
+
+int TestClientData::constructor_call_counter = 0;
+int TestClientData::destructor_call_counter = 0;
+
+
+// Tests that MessageQueue doesn't destroy client data when expands and
+// does destroy when it dies.
+TEST(MessageQueueExpandAndDestroy) {
+  TestClientData::ResetCounters();
+  { // Create a scope for the queue.
+    MessageQueue queue(1);
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewHostDispatch(new TestClientData()));
+    ASSERT_EQ(0, TestClientData::destructor_call_counter);
+    queue.Get().Dispose();
+    ASSERT_EQ(1, TestClientData::destructor_call_counter);
+    queue.Put(Message::NewHostDispatch(new TestClientData()));
+    queue.Put(Message::NewHostDispatch(new TestClientData()));
+    queue.Put(Message::NewHostDispatch(new TestClientData()));
+    queue.Put(Message::NewOutput(v8::Handle<v8::String>(),
+                                 new TestClientData()));
+    queue.Put(Message::NewEmptyMessage());
+    ASSERT_EQ(1, TestClientData::destructor_call_counter);
+    queue.Get().Dispose();
+    ASSERT_EQ(2, TestClientData::destructor_call_counter);
+  }
+  // All the client data should be destroyed when the queue is destroyed.
+  ASSERT_EQ(TestClientData::destructor_call_counter,
+            TestClientData::destructor_call_counter);
+}
+
+
+static int handled_client_data_instances_count = 0;
+static void MessageHandlerCountingClientData(
+    const uint16_t* message,
+    int length,
+    v8::Debug::ClientData* client_data) {
+  if (client_data) {
+    handled_client_data_instances_count++;
+  }
+}
+
+
+// Tests that all client data passed to the debugger are sent to the handler.
+TEST(SendClientDataToHandler) {
+  // Create a V8 environment
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  TestClientData::ResetCounters();
+  handled_client_data_instances_count = 0;
+  v8::Debug::SetMessageHandler(MessageHandlerCountingClientData,
+                               false /* message_handler_thread */);
+  const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5; debugger;";
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+  const char* command_1 =
+      "{\"seq\":117,"
+       "\"type\":\"request\","
+       "\"command\":\"evaluate\","
+       "\"arguments\":{\"expression\":\"1+2\"}}";
+  const char* command_2 =
+    "{\"seq\":118,"
+     "\"type\":\"request\","
+     "\"command\":\"evaluate\","
+     "\"arguments\":{\"expression\":\"1+a\"}}";
+  const char* command_continue =
+    "{\"seq\":106,"
+     "\"type\":\"request\","
+     "\"command\":\"continue\"}";
+
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer),
+                         new TestClientData());
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer), NULL);
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer),
+                         new TestClientData());
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer),
+                         new TestClientData());
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+  CompileRun(source_1);
+  ASSERT_EQ(3, TestClientData::constructor_call_counter);
+  ASSERT_EQ(TestClientData::constructor_call_counter,
+            handled_client_data_instances_count);
+  ASSERT_EQ(TestClientData::constructor_call_counter,
+            TestClientData::destructor_call_counter);
+}
+
+
 /* Test ThreadedDebugging */
 /* This test interrupts a running infinite loop that is
  * occupying the v8 thread by a break command from the
@@ -3508,7 +3619,7 @@ static v8::Handle<v8::Value> ThreadedAtBarrier1(const v8::Arguments& args) {
 
 
 static void ThreadedMessageHandler(const uint16_t* message, int length,
-                                   void *data) {
+                                   v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
@@ -3606,7 +3717,7 @@ Barriers* breakpoints_barriers;
 
 static void BreakpointsMessageHandler(const uint16_t* message,
                                       int length,
-                                      void *data) {
+                                      v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
   printf("%s\n", print_buffer);
@@ -3752,7 +3863,8 @@ TEST(SetDebugEventListenerOnUninitializedVM) {
 
 
 static void DummyMessageHandler(const uint16_t* message,
-                                int length, void *data) {
+                                int length,
+                                v8::Debug::ClientData* client_data) {
 }
 
 
@@ -3978,7 +4090,8 @@ TEST(DebuggerUnload) {
 // Debugger message handler which counts the number of times it is called.
 static int message_handler_hit_count = 0;
 static void MessageHandlerHitCount(const uint16_t* message,
-                                   int length, void* data) {
+                                   int length,
+                                   v8::Debug::ClientData* client_data) {
   message_handler_hit_count++;
 
   const int kBufferSize = 1000;
@@ -4026,9 +4139,10 @@ TEST(DebuggerClearMessageHandler) {
 
 
 // Debugger message handler which clears the message handler while active.
-static void MessageHandlerClearingMessageHandler(const uint16_t* message,
-                                                 int length,
-                                                 void* data) {
+static void MessageHandlerClearingMessageHandler(
+    const uint16_t* message,
+    int length,
+    v8::Debug::ClientData* client_data) {
   message_handler_hit_count++;
 
   // Clear debug message handler.
@@ -4059,7 +4173,7 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 
 
 int host_dispatch_hit_count = 0;
-static void HostDispatchHandlerHitCount(void* dispatch, void *data) {
+static void HostDispatchHandlerHitCount(v8::Debug::ClientData* dispatch) {
   host_dispatch_hit_count++;
 }
 
@@ -4085,8 +4199,7 @@ TEST(DebuggerHostDispatch) {
 
   // Setup message and host dispatch handlers.
   v8::Debug::SetMessageHandler(DummyMessageHandler);
-  v8::Debug::SetHostDispatchHandler(HostDispatchHandlerHitCount,
-                                    NULL);
+  v8::Debug::SetHostDispatchHandler(HostDispatchHandlerHitCount);
 
   // Send a host dispatch by itself.
   v8::Debug::SendHostDispatch(NULL);

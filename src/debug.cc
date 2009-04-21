@@ -1398,11 +1398,9 @@ bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
 bool Debugger::never_unload_debugger_ = false;
 DebugMessageThread* Debugger::message_thread_ = NULL;
-v8::DebugMessageHandler Debugger::message_handler_ = NULL;
+v8::Debug::MessageHandler Debugger::message_handler_ = NULL;
 bool Debugger::message_handler_cleared_ = false;
-void* Debugger::message_handler_data_ = NULL;
-v8::DebugHostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
-void* Debugger::host_dispatch_handler_data_ = NULL;
+v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
 DebuggerAgent* Debugger::agent_ = NULL;
 LockingMessageQueue Debugger::command_queue_(kQueueInitialSize);
 LockingMessageQueue Debugger::message_queue_(kQueueInitialSize);
@@ -1704,8 +1702,8 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
     if (event_listener_->IsProxy()) {
       // C debug event listener.
       Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
-      v8::DebugEventCallback callback =
-            FUNCTION_CAST<v8::DebugEventCallback>(callback_obj->proxy());
+      v8::Debug::EventCallback callback =
+            FUNCTION_CAST<v8::Debug::EventCallback>(callback_obj->proxy());
       callback(event,
                v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
                v8::Utils::ToLocal(Handle<JSObject>::cast(event_data)),
@@ -1813,18 +1811,20 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     StackGuard::Continue(DEBUGCOMMAND);
 
     // Get the command from the queue.
-    Vector<uint16_t> command = command_queue_.Get();
+    Message command = command_queue_.Get();
     Logger::DebugTag("Got request from command queue, in interactive loop.");
     if (!Debugger::IsDebuggerActive()) {
+      // Delete command text and user data.
+      command.Dispose();
       return;
     }
 
     // Check if the command is a host dispatch.
-    if (command[0] == 0) {
+    if (command.IsHostDispatch()) {
       if (Debugger::host_dispatch_handler_) {
-        int32_t dispatch = (command[1] << 16) | command[2];
-        Debugger::host_dispatch_handler_(reinterpret_cast<void*>(dispatch),
-                                         Debugger::host_dispatch_handler_data_);
+        Debugger::host_dispatch_handler_(command.client_data());
+        // Delete the dispatch.
+        command.Dispose();
       }
       if (auto_continue && !HasCommands()) {
         return;
@@ -1839,8 +1839,10 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::TryCatch try_catch;
     fun_name = v8::String::New("processDebugRequest");
     fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
-    request = v8::String::New(reinterpret_cast<uint16_t*>(command.start()),
-                              command.length());
+    
+    request = v8::String::New(command.text().start(),
+                              command.text().length());
+    command.text().Dispose();
     static const int kArgc = 1;
     v8::Handle<Value> argv[kArgc] = { request };
     v8::Local<v8::Value> response_val = fun->Call(cmd_processor, kArgc, argv);
@@ -1876,13 +1878,8 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       response = try_catch.Exception()->ToString();
     }
 
-    // Convert text result to C string.
-    v8::String::Value val(response);
-    Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                        response->Length());
-
     // Return the result.
-    SendMessage(str);
+    SendMessage(Message::NewOutput(response, command.client_data()));
 
     // Return from debug event processing if either the VM is put into the
     // runnning state (through a continue command) or auto continue is active
@@ -1928,12 +1925,11 @@ void Debugger::SetEventListener(Handle<Object> callback,
 }
 
 
-void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler,
                                  bool message_handler_thread) {
   ScopedLock with(debugger_access_);
 
   message_handler_ = handler;
-  message_handler_data_ = data;
   if (handler != NULL) {
     if (!message_thread_ && message_handler_thread) {
       message_thread_ = new DebugMessageThread();
@@ -1952,10 +1948,8 @@ void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
 }
 
 
-void Debugger::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
-                                      void* data) {
+void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler) {
   host_dispatch_handler_ = handler;
-  host_dispatch_handler_data_ = data;
 }
 
 
@@ -1963,26 +1957,28 @@ void Debugger::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
 // public API. Messages are kept internally as Vector<uint16_t> strings, which
 // are allocated in various places and deallocated by the calling function
 // sometime after this call.
-void Debugger::InvokeMessageHandler(Vector<uint16_t> message) {
+void Debugger::InvokeMessageHandler(Message message) {
   ScopedLock with(debugger_access_);
 
   if (message_handler_ != NULL) {
-    message_handler_(message.start(), message.length(), message_handler_data_);
+    message_handler_(message.text().start(),
+                     message.text().length(),
+                     message.client_data());
   }
+  message.Dispose();
 }
 
 
-void Debugger::SendMessage(Vector<uint16_t> message) {
+void Debugger::SendMessage(Message message) {
   if (message_thread_ == NULL) {
     // If there is no message thread just invoke the message handler from the
     // V8 thread.
     InvokeMessageHandler(message);
   } else {
-    // Put a copy of the message coming from V8 on the queue. The new copy of
-    // the event string is destroyed by the message thread.
-    Vector<uint16_t> message_copy = message.Clone();
+    // Put the message coming from V8 on the queue. The text and user data will
+    // be destroyed by the message thread.
     Logger::DebugTag("Put message on event message_queue.");
-    message_queue_.Put(message_copy);
+    message_queue_.Put(message);
     message_received_->Signal();
   }
 }
@@ -2005,12 +2001,11 @@ bool Debugger::SendEventMessage(Handle<Object> event_data) {
       if (FLAG_trace_debug_json) {
         PrintLn(json_event_string);
       }
-      v8::String::Value val(json_event_string);
-      Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                           json_event_string->Length());
-      SendMessage(str);
+      SendMessage(Message::NewOutput(
+          json_event_string,
+          NULL /* no user data since there was no request */));
     } else {
-      SendMessage(Vector<uint16_t>::empty());
+      SendMessage(Message::NewEmptyMessage());
     }
   } else {
     PrintLn(try_catch.Exception());
@@ -2026,13 +2021,15 @@ bool Debugger::SendEventMessage(Handle<Object> event_data) {
 // by the API client thread.  This is where the API client hands off
 // processing of the command to the DebugMessageThread thread.
 // The new copy of the command is destroyed in HandleCommand().
-void Debugger::ProcessCommand(Vector<const uint16_t> command) {
-  // Make a copy of the command. Need to cast away const for Clone to work.
-  Vector<uint16_t> command_copy =
+void Debugger::ProcessCommand(Vector<const uint16_t> command,
+                              v8::Debug::ClientData* client_data) {
+  // Need to cast away const.
+  Message message = Message::NewCommand(
       Vector<uint16_t>(const_cast<uint16_t*>(command.start()),
-                       command.length()).Clone();
+                       command.length()),
+      client_data);
   Logger::DebugTag("Put command on command_queue.");
-  command_queue_.Put(command_copy);
+  command_queue_.Put(message);
   command_received_->Signal();
 
   // Set the debug command break flag to have the command processed.
@@ -2047,14 +2044,10 @@ bool Debugger::HasCommands() {
 }
 
 
-void Debugger::ProcessHostDispatch(void* dispatch) {
+void Debugger::ProcessHostDispatch(v8::Debug::ClientData* dispatch) {
   // Puts a host dispatch comming from the public API on the queue.
-  uint16_t hack[3];
-  hack[0] = 0;
-  hack[1] = reinterpret_cast<uint32_t>(dispatch) >> 16;
-  hack[2] = reinterpret_cast<uint32_t>(dispatch) & 0xFFFF;
   Logger::DebugTag("Put dispatch on command_queue.");
-  command_queue_.Put(Vector<uint16_t>(hack, 3).Clone());
+  command_queue_.Put(Message::NewHostDispatch(dispatch));
   command_received_->Signal();
 
   // Set the debug command break flag to have the host dispatch processed.
@@ -2134,9 +2127,11 @@ void DebugMessageThread::Run() {
     // Wait and Get are paired so that semaphore count equals queue length.
     Debugger::message_received_->Wait();
     Logger::DebugTag("Get message from event message_queue.");
-    Vector<uint16_t> message = Debugger::message_queue_.Get();
-    if (message.length() > 0) {
+    Message message = Debugger::message_queue_.Get();
+    if (message.text().length() > 0) {
       Debugger::InvokeMessageHandler(message);
+    } else {
+      message.Dispose();
     }
   }
 }
@@ -2144,22 +2139,84 @@ void DebugMessageThread::Run() {
 
 void DebugMessageThread::Stop() {
   keep_running_ = false;
-  Debugger::SendMessage(Vector<uint16_t>(NULL, 0));
+  Debugger::SendMessage(Message::NewEmptyMessage());
   Join();
 }
 
 
+Message::Message() : text_(Vector<uint16_t>::empty()),
+                     client_data_(NULL),
+                     is_host_dispatch_(false) {
+}
+
+
+Message::Message(const Vector<uint16_t>& text,
+                 v8::Debug::ClientData* data,
+                 bool is_host_dispatch)
+    : text_(text),
+      client_data_(data),
+      is_host_dispatch_(is_host_dispatch) {
+}
+
+
+Message::~Message() {
+}
+
+
+void Message::Dispose() {
+  text_.Dispose();
+  delete client_data_;
+  client_data_ = NULL;
+}
+
+
+bool Message::IsHostDispatch() const {
+  return is_host_dispatch_;
+}
+
+
+Message Message::NewCommand(const Vector<uint16_t>& command,
+                            v8::Debug::ClientData* data) {
+  return Message(command.Clone(), data, false);
+}
+
+
+Message Message::NewHostDispatch(v8::Debug::ClientData* dispatch) {
+  return Message(Vector<uint16_t>::empty(), dispatch, true);
+}
+
+
+Message Message::NewOutput(v8::Handle<v8::String> output,
+                           v8::Debug::ClientData* data) {
+  Vector<uint16_t> text;
+  if (!output.IsEmpty()) {
+    text = Vector<uint16_t>::New(output->Length() + 1);
+    output->Write(text.start());
+  }
+  return Message(text, data, false);
+}
+
+
+Message Message::NewEmptyMessage() {
+  return Message();
+}
+
+
 MessageQueue::MessageQueue(int size) : start_(0), end_(0), size_(size) {
-  messages_ = NewArray<Vector<uint16_t> >(size);
+  messages_ = NewArray<Message>(size);
 }
 
 
 MessageQueue::~MessageQueue() {
+  while(!IsEmpty()) {
+    Message m = Get();
+    m.Dispose();
+  }
   DeleteArray(messages_);
 }
 
 
-Vector<uint16_t> MessageQueue::Get() {
+Message MessageQueue::Get() {
   ASSERT(!IsEmpty());
   int result = start_;
   start_ = (start_ + 1) % size_;
@@ -2167,7 +2224,7 @@ Vector<uint16_t> MessageQueue::Get() {
 }
 
 
-void MessageQueue::Put(const Vector<uint16_t>& message) {
+void MessageQueue::Put(const Message& message) {
   if ((end_ + 1) % size_ == start_) {
     Expand();
   }
@@ -2181,9 +2238,11 @@ void MessageQueue::Expand() {
   while (!IsEmpty()) {
     new_queue.Put(Get());
   }
-  Vector<uint16_t>* array_to_free = messages_;
+  Message* array_to_free = messages_;
   *this = new_queue;
   new_queue.messages_ = array_to_free;
+  // Make the new_queue empty so that it doesn't call Dispose on any messages.
+  new_queue.start_ = new_queue.end_;
   // Automatic destructor called on new_queue, freeing array_to_free.
 }
 
@@ -2204,18 +2263,18 @@ bool LockingMessageQueue::IsEmpty() const {
 }
 
 
-Vector<uint16_t> LockingMessageQueue::Get() {
+Message LockingMessageQueue::Get() {
   ScopedLock sl(lock_);
-  Vector<uint16_t> result = queue_.Get();
-  Logger::DebugEvent("Get", result);
+  Message result = queue_.Get();
+  Logger::DebugEvent("Get", result.text());
   return result;
 }
 
 
-void LockingMessageQueue::Put(const Vector<uint16_t>& message) {
+void LockingMessageQueue::Put(const Message& message) {
   ScopedLock sl(lock_);
   queue_.Put(message);
-  Logger::DebugEvent("Put", message);
+  Logger::DebugEvent("Put", message.text());
 }
 
 
