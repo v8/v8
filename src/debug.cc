@@ -35,6 +35,8 @@
 #include "debug.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "ic.h"
+#include "ic-inl.h"
 #include "natives.h"
 #include "stub-cache.h"
 #include "log.h"
@@ -289,14 +291,8 @@ void BreakLocationIterator::SetDebugBreak() {
     // Patch the frame exit code with a break point.
     SetDebugBreakAtReturn();
   } else {
-    // Patch the original code with the current address as the current address
-    // might have changed by the inline caching since the code was copied.
-    original_rinfo()->set_target_address(rinfo()->target_address());
-
-    // Patch the code to invoke the builtin debug break function matching the
-    // calling convention used by the call site.
-    Handle<Code> dbgbrk_code(Debug::FindDebugBreak(rinfo()));
-    rinfo()->set_target_address(dbgbrk_code->entry());
+    // Patch the IC call.
+    SetDebugBreakAtIC();
   }
   ASSERT(IsDebugBreak());
 }
@@ -307,8 +303,8 @@ void BreakLocationIterator::ClearDebugBreak() {
     // Restore the frame exit code.
     ClearDebugBreakAtReturn();
   } else {
-    // Patch the code to the original invoke.
-    rinfo()->set_target_address(original_rinfo()->target_address());
+    // Patch the IC call.
+    ClearDebugBreakAtIC();
   }
   ASSERT(!IsDebugBreak());
 }
@@ -358,6 +354,39 @@ bool BreakLocationIterator::IsDebugBreak() {
   } else {
     return Debug::IsDebugBreak(rinfo()->target_address());
   }
+}
+
+
+void BreakLocationIterator::SetDebugBreakAtIC() {
+  // Patch the original code with the current address as the current address
+  // might have changed by the inline caching since the code was copied.
+  original_rinfo()->set_target_address(rinfo()->target_address());
+
+  RelocInfo::Mode mode = rmode();
+  if (RelocInfo::IsCodeTarget(mode)) {
+    Address target = rinfo()->target_address();
+    Handle<Code> code(Code::GetCodeFromTargetAddress(target));
+
+    // Patch the code to invoke the builtin debug break function matching the
+    // calling convention used by the call site.
+    Handle<Code> dbgbrk_code(Debug::FindDebugBreak(code, mode));
+    rinfo()->set_target_address(dbgbrk_code->entry());
+
+    // For stubs that refer back to an inlined version clear the cached map for
+    // the inlined case to always go through the IC. As long as the break point
+    // is set the patching performed by the runtime system will take place in
+    // the code copy and will therefore have no effect on the running code
+    // keeping it from using the inlined code.
+    if (code->is_keyed_load_stub() && KeyedLoadIC::HasInlinedVersion(pc())) {
+      KeyedLoadIC::ClearInlinedVersion(pc());
+    }
+  }
+}
+
+
+void BreakLocationIterator::ClearDebugBreakAtIC() {
+  // Patch the code to the original invoke.
+  rinfo()->set_target_address(original_rinfo()->target_address());
 }
 
 
@@ -1056,47 +1085,41 @@ bool Debug::IsBreakStub(Code* code) {
 
 
 // Find the builtin to use for invoking the debug break
-Handle<Code> Debug::FindDebugBreak(RelocInfo* rinfo) {
+Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
-  RelocInfo::Mode mode = rinfo->rmode();
-
-  if (RelocInfo::IsCodeTarget(mode)) {
-    Address target = rinfo->target_address();
-    Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->is_inline_cache_stub()) {
-      if (code->is_call_stub()) {
-        return ComputeCallDebugBreak(code->arguments_count());
-      }
-      if (code->is_load_stub()) {
-        return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
-      }
-      if (code->is_store_stub()) {
-        return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
-      }
-      if (code->is_keyed_load_stub()) {
-        Handle<Code> result =
-            Handle<Code>(Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
-        return result;
-      }
-      if (code->is_keyed_store_stub()) {
-        Handle<Code> result =
-            Handle<Code>(Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
-        return result;
-      }
+  if (code->is_inline_cache_stub()) {
+    if (code->is_call_stub()) {
+      return ComputeCallDebugBreak(code->arguments_count());
     }
-    if (RelocInfo::IsConstructCall(mode)) {
+    if (code->is_load_stub()) {
+      return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
+    }
+    if (code->is_store_stub()) {
+      return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
+    }
+    if (code->is_keyed_load_stub()) {
       Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::ConstructCall_DebugBreak));
+          Handle<Code>(Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
       return result;
     }
-    if (code->kind() == Code::STUB) {
-      ASSERT(code->major_key() == CodeStub::CallFunction ||
-             code->major_key() == CodeStub::StackCheck);
+    if (code->is_keyed_store_stub()) {
       Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::StubNoRegisters_DebugBreak));
+          Handle<Code>(Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
       return result;
     }
+  }
+  if (RelocInfo::IsConstructCall(mode)) {
+    Handle<Code> result =
+        Handle<Code>(Builtins::builtin(Builtins::ConstructCall_DebugBreak));
+    return result;
+  }
+  if (code->kind() == Code::STUB) {
+    ASSERT(code->major_key() == CodeStub::CallFunction ||
+           code->major_key() == CodeStub::StackCheck);
+    Handle<Code> result =
+        Handle<Code>(Builtins::builtin(Builtins::StubNoRegisters_DebugBreak));
+    return result;
   }
 
   UNREACHABLE();
@@ -1839,7 +1862,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     v8::TryCatch try_catch;
     fun_name = v8::String::New("processDebugRequest");
     fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
-    
+
     request = v8::String::New(command.text().start(),
                               command.text().length());
     command.text().Dispose();
@@ -2208,7 +2231,7 @@ MessageQueue::MessageQueue(int size) : start_(0), end_(0), size_(size) {
 
 
 MessageQueue::~MessageQueue() {
-  while(!IsEmpty()) {
+  while (!IsEmpty()) {
     Message m = Get();
     m.Dispose();
   }

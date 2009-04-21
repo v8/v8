@@ -254,6 +254,12 @@ class KeyedLoadIC: public IC {
   static void GeneratePreMonomorphic(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
 
+  // Check if this IC corresponds to an inlined version.
+  static bool HasInlinedVersion(Address address);
+
+  // Clear the use of the inlined version.
+  static void ClearInlinedVersion(Address address);
+
  private:
   static void Generate(MacroAssembler* masm, const ExternalReference& f);
 

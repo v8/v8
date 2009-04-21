@@ -507,6 +507,8 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 // TODO(181): Implement map patching once loop nesting is tracked on
 // the ARM platform so we can generate inlined fast-case code for
 // array indexing in loops.
+bool KeyedLoadIC::HasInlinedVersion(Address address) { return false; }
+void KeyedLoadIC::ClearInlinedVersion(Address address) { }
 void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) { }
 
 

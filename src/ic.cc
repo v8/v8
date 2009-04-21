@@ -237,7 +237,7 @@ void KeyedLoadIC::Clear(Address address, Code* target) {
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  PatchInlinedMapCheck(address, Heap::null_value());
+  ClearInlinedVersion(address);
   SetTargetAtAddress(address, initialize_stub());
 }
 

@@ -132,6 +132,10 @@ class BreakLocationIterator {
  private:
   void SetDebugBreak();
   void ClearDebugBreak();
+
+  void SetDebugBreakAtIC();
+  void ClearDebugBreakAtIC();
+
   bool IsDebugBreakAtReturn();
   void SetDebugBreakAtReturn();
   void ClearDebugBreakAtReturn();
@@ -205,7 +209,7 @@ class Debug {
   static bool IsBreakStub(Code* code);
 
   // Find the builtin to use for invoking the debug break
-  static Handle<Code> FindDebugBreak(RelocInfo* rinfo);
+  static Handle<Code> FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode);
 
   static Handle<Object> GetSourceBreakLocations(
       Handle<SharedFunctionInfo> shared);
