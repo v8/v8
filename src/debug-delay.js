@@ -1273,11 +1273,12 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
   var ignoreCount = request.arguments.ignoreCount;
 
   // Check for legal arguments.
-  if (!type || !target) {
+  if (!type || IS_UNDEFINED(target)) {
     response.failed('Missing argument "type" or "target"');
     return;
   }
-  if (type != 'function' && type != 'script' && type != 'scriptId') {
+  if (type != 'function' && type != 'handle' &&
+      type != 'script' && type != 'scriptId') {
     response.failed('Illegal type "' + type + '"');
     return;
   }
@@ -1306,6 +1307,20 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
 
     // Set function break point.
     break_point_number = Debug.setBreakPoint(f, line, column, condition);
+  } else if (type == 'handle') {
+    // Find the object pointed by the specified handle.
+    var handle = parseInt(target, 10);
+    var mirror = LookupMirror(handle);
+    if (!mirror) {
+      return response.failed('Object #' + handle + '# not found');
+    }
+    if (!mirror.isFunction()) {
+      return response.failed('Object #' + handle + '# is not a function');
+    }
+
+    // Set function break point.
+    break_point_number = Debug.setBreakPoint(mirror.value(),
+                                             line, column, condition);
   } else if (type == 'script') {
     // set script break point.
     break_point_number =
