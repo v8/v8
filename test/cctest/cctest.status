@@ -34,6 +34,9 @@ test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
 
 test-debug: SKIP
 
+# Bug http://code.google.com/p/v8/issues/detail?id=323
+test-api/ApplyInterruption: SKIP
+
 # BUG(113): Test seems flaky on ARM.
 test-spaces/LargeObjectSpace: PASS || FAIL
 
