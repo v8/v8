@@ -2213,8 +2213,9 @@ Message Message::NewOutput(v8::Handle<v8::String> output,
                            v8::Debug::ClientData* data) {
   Vector<uint16_t> text;
   if (!output.IsEmpty()) {
-    text = Vector<uint16_t>::New(output->Length() + 1);
-    output->Write(text.start());
+    // Do not include trailing '\0'.
+    text = Vector<uint16_t>::New(output->Length());
+    output->Write(text.start(), 0, output->Length());
   }
   return Message(text, data, false);
 }
