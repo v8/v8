@@ -1274,12 +1274,9 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                     smi_value,
                                                     overwrite_mode);
         __ Set(answer.reg(), Immediate(value));
-        if (operand->is_register()) {
-          __ sub(answer.reg(), Operand(operand->reg()));
-        } else {
-          ASSERT(operand->is_constant());
-          __ sub(Operand(answer.reg()), Immediate(operand->handle()));
-        }
+        // We are in the reversed case so they can't both be Smi constants.
+        ASSERT(operand->is_register());
+        __ sub(answer.reg(), Operand(operand->reg()));
       } else {
         operand->ToRegister();
         frame_->Spill(operand->reg());
@@ -1374,23 +1371,28 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         operand->ToRegister();
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->enter()->Branch(not_zero, operand, not_taken);
-        Result answer = allocator()->Allocate();
-        ASSERT(answer.is_valid());
-        __ mov(answer.reg(), operand->reg());
-        ASSERT(kSmiTag == 0);  // adjust code if not the case
-        // We do no shifts, only the Smi conversion, if shift_value is 1.
-        if (shift_value == 0) {
-          __ sar(answer.reg(), kSmiTagSize);
-        } else if (shift_value > 1) {
-          __ shl(answer.reg(), shift_value - 1);
+        if (shift_value != 0) {
+          Result answer = allocator()->Allocate();
+          ASSERT(answer.is_valid());
+          __ mov(answer.reg(), operand->reg());
+          ASSERT(kSmiTag == 0);  // adjust code if not the case
+          // We do no shifts, only the Smi conversion, if shift_value is 1.
+          if (shift_value == 0) {
+            __ sar(answer.reg(), kSmiTagSize);
+          } else if (shift_value > 1) {
+            __ shl(answer.reg(), shift_value - 1);
+          }
+          // Convert int result to Smi, checking that it is in int range.
+          ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+          __ add(answer.reg(), Operand(answer.reg()));
+          deferred->enter()->Branch(overflow, operand, not_taken);
+          operand->Unuse();
+          deferred->BindExit(&answer);
+          frame_->Push(&answer);
+        } else {
+          deferred->BindExit(operand);
+          frame_->Push(operand);
         }
-        // Convert int result to Smi, checking that it is in int range.
-        ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ add(answer.reg(), Operand(answer.reg()));
-        deferred->enter()->Branch(overflow, operand, not_taken);
-        operand->Unuse();
-        deferred->BindExit(&answer);
-        frame_->Push(&answer);
       }
       break;
     }
@@ -1411,11 +1413,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       deferred->enter()->Branch(not_zero, operand, not_taken);
       frame_->Spill(operand->reg());
       if (op == Token::BIT_AND) {
-        if (int_value == 0) {
-          __ xor_(Operand(operand->reg()), operand->reg());
-        } else {
-          __ and_(Operand(operand->reg()), Immediate(value));
-        }
+        __ and_(Operand(operand->reg()), Immediate(value));
       } else if (op == Token::BIT_XOR) {
         if (int_value != 0) {
           __ xor_(Operand(operand->reg()), Immediate(value));
@@ -5278,9 +5276,9 @@ void DeferredReferenceGetKeyedValue::Generate() {
   ASSERT(value.is_register() && value.reg().is(eax));
   // The delta from the start of the map-compare instruction to the
   // test eax instruction.  We use masm_ directly here instead of the
-  // __ macro because the __ macro sometimes uses macro expansion to turn
-  // into something that can't return a value.  This is encountered when
-  // doing generated code coverage tests.
+  // double underscore macro because the macro sometimes uses macro
+  // expansion to turn into something that can't return a value.  This
+  // is encountered when doing generated code coverage tests.
   int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
   __ test(value.reg(), Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
@@ -5381,7 +5379,9 @@ void Reference::GetValue(TypeofState typeof_state) {
         // Initially, use an invalid map. The map is patched in the IC
         // initialization code.
         __ bind(deferred->patch_site());
-        __ cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+        // Use masm-> here instead of the double underscore macro since extra
+        // coverage code can interfere with the patching.
+        masm->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                Immediate(Factory::null_value()));
         deferred->enter()->Branch(not_equal, &receiver, &key, not_taken);
 
