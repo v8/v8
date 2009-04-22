@@ -319,9 +319,11 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   // Clear the buffer in debug mode unless it was provided by the
   // caller in which case we can't be sure it's okay to overwrite
   // existing code in it; see CodePatcher::CodePatcher(...).
-  if (kDebug && own_buffer_) {
+#ifdef DEBUG
+  if (own_buffer_) {
     memset(buffer_, 0xCC, buffer_size);  // int3
   }
+#endif
 
   // setup buffer pointers
   ASSERT(buffer_ != NULL);
@@ -2080,9 +2082,9 @@ void Assembler::GrowBuffer() {
 
   // Clear the buffer in debug mode. Use 'int3' instructions to make
   // sure to get into problems if we ever run uninitialized code.
-  if (kDebug) {
-    memset(desc.buffer, 0xCC, desc.buffer_size);
-  }
+#ifdef DEBUG
+  memset(desc.buffer, 0xCC, desc.buffer_size);
+#endif
 
   // copy the data
   int pc_delta = desc.buffer - buffer_;

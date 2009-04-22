@@ -80,12 +80,6 @@ typedef signed int uc32;
 // -----------------------------------------------------------------------------
 // Constants
 
-#ifdef DEBUG
-const bool kDebug = true;
-#else
-const bool kDebug = false;
-#endif  // DEBUG
-
 const int KB = 1024;
 const int MB = KB * KB;
 const int GB = KB * KB * KB;

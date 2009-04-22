@@ -147,13 +147,13 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->EmitPush(r0);
       frame_->CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
 
-      if (kDebug) {
-        JumpTarget verified_true(this);
-        __ cmp(r0, Operand(cp));
-        verified_true.Branch(eq);
-        __ stop("NewContext: r0 is expected to be the same as cp");
-        verified_true.Bind();
-      }
+#ifdef DEBUG
+      JumpTarget verified_true(this);
+      __ cmp(r0, Operand(cp));
+      verified_true.Branch(eq);
+      __ stop("NewContext: r0 is expected to be the same as cp");
+      verified_true.Bind();
+#endif
       // Update context local.
       __ str(cp, frame_->Context());
     }
@@ -1423,13 +1423,13 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   } else {
     frame_->CallRuntime(Runtime::kPushContext, 1);
   }
-  if (kDebug) {
-    JumpTarget verified_true(this);
-    __ cmp(r0, Operand(cp));
-    verified_true.Branch(eq);
-    __ stop("PushContext: r0 is expected to be the same as cp");
-    verified_true.Bind();
-  }
+#ifdef DEBUG
+  JumpTarget verified_true(this);
+  __ cmp(r0, Operand(cp));
+  verified_true.Branch(eq);
+  __ stop("PushContext: r0 is expected to be the same as cp");
+  verified_true.Bind();
+#endif
   // Update context local.
   __ str(cp, frame_->Context());
   ASSERT(frame_->height() == original_height);
@@ -4656,9 +4656,11 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ mov(cp, Operand(0), LeaveCC, eq);
   // Restore cp otherwise.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-  if (kDebug && FLAG_debug_code) {
+#ifdef DEBUG
+  if (FLAG_debug_code) {
     __ mov(lr, Operand(pc));
   }
+#endif
   __ pop(pc);
 }
 
@@ -4721,9 +4723,11 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   __ mov(cp, Operand(0), LeaveCC, eq);
   // Restore cp otherwise.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-  if (kDebug && FLAG_debug_code) {
+#ifdef DEBUG
+  if (FLAG_debug_code) {
     __ mov(lr, Operand(pc));
   }
+#endif
   __ pop(pc);
 }
 

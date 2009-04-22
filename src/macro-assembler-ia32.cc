@@ -432,9 +432,9 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Top::k_context_address);
   mov(esi, Operand::StaticVariable(context_address));
-  if (kDebug) {
-    mov(Operand::StaticVariable(context_address), Immediate(0));
-  }
+#ifdef DEBUG
+  mov(Operand::StaticVariable(context_address), Immediate(0));
+#endif
 
   // Push the return address to get ready to return.
   push(ecx);

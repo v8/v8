@@ -352,9 +352,9 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
   // Restore current context from top and clear it in debug mode.
   mov(ip, Operand(ExternalReference(Top::k_context_address)));
   ldr(cp, MemOperand(ip));
-  if (kDebug) {
-    str(r3, MemOperand(ip));
-  }
+#ifdef DEBUG
+  str(r3, MemOperand(ip));
+#endif
 
   // Pop the arguments, restore registers, and return.
   mov(sp, Operand(fp));  // respect ABI stack constraint
@@ -679,10 +679,10 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // Load current lexical context from the stack frame.
   ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
   // In debug mode, make sure the lexical context is set.
-  if (kDebug) {
-    cmp(scratch, Operand(0));
-    Check(ne, "we should not have an empty lexical context");
-  }
+#ifdef DEBUG
+  cmp(scratch, Operand(0));
+  Check(ne, "we should not have an empty lexical context");
+#endif
 
   // Load the global context of the current context.
   int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
