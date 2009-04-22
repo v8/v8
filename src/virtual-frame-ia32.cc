@@ -191,7 +191,6 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
     if (elements_[i].is_copy()) {
       elements_[elements_[i].index()].set_copied();
     }
-    elements_[i].set_static_type(target.static_type());
   }
 
   // Adjust the stack pointer downward if necessary.

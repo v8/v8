@@ -297,6 +297,10 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
     if (elements_[i].is_copy()) {
       elements_[elements_[i].index()].set_copied();
     }
+
+    // No code needs to be generated to change the static type of an
+    // element.
+    elements_[i].set_static_type(target.static_type());
   }
 }
 
