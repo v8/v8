@@ -6014,6 +6014,112 @@ TEST(RegExpInterruption) {
 }
 
 
+class ApplyInterruptTest {
+ public:
+  ApplyInterruptTest() : block_(NULL) {}
+  ~ApplyInterruptTest() { delete block_; }
+  void RunTest() {
+    block_ = i::OS::CreateSemaphore(0);
+    gc_count_ = 0;
+    gc_during_apply_ = 0;
+    apply_success_ = false;
+    gc_success_ = false;
+    GCThread gc_thread(this);
+    gc_thread.Start();
+    v8::Locker::StartPreemption(1);
+
+    LongRunningApply();
+    {
+      v8::Unlocker unlock;
+      gc_thread.Join();
+    }
+    v8::Locker::StopPreemption();
+    CHECK(apply_success_);
+    CHECK(gc_success_);
+  }
+ private:
+  // Number of garbage collections required.
+  static const int kRequiredGCs = 2;
+
+  class GCThread : public i::Thread {
+   public:
+    explicit GCThread(ApplyInterruptTest* test)
+        : test_(test) {}
+    virtual void Run() {
+      test_->CollectGarbage();
+    }
+   private:
+     ApplyInterruptTest* test_;
+  };
+
+  void CollectGarbage() {
+    block_->Wait();
+    while (gc_during_apply_ < kRequiredGCs) {
+      {
+        v8::Locker lock;
+        i::Heap::CollectAllGarbage();
+        gc_count_++;
+      }
+      i::OS::Sleep(1);
+    }
+    gc_success_ = true;
+  }
+
+  void LongRunningApply() {
+    block_->Signal();
+    int rounds = 0;
+    while (gc_during_apply_ < kRequiredGCs) {
+      int gc_before = gc_count_;
+      {
+        const char* c_source =
+            "function do_very_little(bar) {"
+            "  this.foo = bar;"
+            "}"
+            "for (var i = 0; i < 100000; i++) {"
+            "  do_very_little.apply(this, ['bar']);"
+            "}";
+        Local<String> source = String::New(c_source);
+        Local<Script> script = Script::Compile(source);
+        Local<Value> result = script->Run();
+      }
+      int gc_after = gc_count_;
+      gc_during_apply_ += gc_after - gc_before;
+      rounds++;
+    }
+    apply_success_ = true;
+  }
+
+  i::Semaphore* block_;
+  int gc_count_;
+  int gc_during_apply_;
+  bool apply_success_;
+  bool gc_success_;
+};
+
+
+// Test that nothing bad happens if we get a preemption just when we were
+// about to do an apply().
+TEST(ApplyInterruption) {
+  v8::Locker lock;
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  Local<Context> local_env;
+  {
+    LocalContext env;
+    local_env = env.local();
+  }
+
+  // Local context should still be live.
+  CHECK(!local_env.IsEmpty());
+  local_env->Enter();
+
+  // Should complete without problems.
+  ApplyInterruptTest().RunTest();
+
+  local_env->Exit();
+}
+
+
 // Verify that we can clone an object
 TEST(ObjectClone) {
   v8::HandleScope scope;
