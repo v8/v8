@@ -3276,16 +3276,11 @@ void Debug::SendCommand(const uint16_t* command, int length,
 }
 
 
-void Debug::SetHostDispatchHandler(HostDispatchHandler handler) {
+void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
+                                   int period) {
   EnsureInitialized("v8::Debug::SetHostDispatchHandler");
   ENTER_V8;
-  i::Debugger::SetHostDispatchHandler(handler);
-}
-
-
-void Debug::SendHostDispatch(ClientData* dispatch) {
-  if (!i::V8::HasBeenSetup()) return;
-  i::Debugger::ProcessHostDispatch(dispatch);
+  i::Debugger::SetHostDispatchHandler(handler, period);
 }
 
 

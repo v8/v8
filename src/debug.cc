@@ -1424,6 +1424,7 @@ DebugMessageThread* Debugger::message_thread_ = NULL;
 v8::Debug::MessageHandler Debugger::message_handler_ = NULL;
 bool Debugger::message_handler_cleared_ = false;
 v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+int Debugger::host_dispatch_micros_ = 100 * 1000;
 DebuggerAgent* Debugger::agent_ = NULL;
 LockingMessageQueue Debugger::command_queue_(kQueueInitialSize);
 LockingMessageQueue Debugger::message_queue_(kQueueInitialSize);
@@ -1827,7 +1828,17 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   // Process requests from the debugger.
   while (true) {
     // Wait for new command in the queue.
-    command_received_->Wait();
+    if (Debugger::host_dispatch_handler_) {
+      // In case there is a host dispatch - do periodic dispatches.
+      if (!command_received_->Wait(host_dispatch_micros_)) {
+        // Timout expired, do the dispatch.
+        Debugger::host_dispatch_handler_();
+        continue;
+      }
+    } else {
+      // In case there is no host dispatch - just wait.
+      command_received_->Wait();
+    }
 
     // The debug command interrupt flag might have been set when the command was
     // added.
@@ -1840,19 +1851,6 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       // Delete command text and user data.
       command.Dispose();
       return;
-    }
-
-    // Check if the command is a host dispatch.
-    if (command.IsHostDispatch()) {
-      if (Debugger::host_dispatch_handler_) {
-        Debugger::host_dispatch_handler_(command.client_data());
-        // Delete the dispatch.
-        command.Dispose();
-      }
-      if (auto_continue && !HasCommands()) {
-        return;
-      }
-      continue;
     }
 
     // Invoke JavaScript to process the debug request.
@@ -1971,8 +1969,10 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler,
 }
 
 
-void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler) {
+void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
+                                      int period) {
   host_dispatch_handler_ = handler;
+  host_dispatch_micros_ = period * 1000;
 }
 
 
@@ -2067,19 +2067,6 @@ bool Debugger::HasCommands() {
 }
 
 
-void Debugger::ProcessHostDispatch(v8::Debug::ClientData* dispatch) {
-  // Puts a host dispatch comming from the public API on the queue.
-  Logger::DebugTag("Put dispatch on command_queue.");
-  command_queue_.Put(Message::NewHostDispatch(dispatch));
-  command_received_->Signal();
-
-  // Set the debug command break flag to have the host dispatch processed.
-  if (!Debug::InDebugger()) {
-    StackGuard::DebugCommand();
-  }
-}
-
-
 bool Debugger::IsDebuggerActive() {
   ScopedLock with(debugger_access_);
 
@@ -2168,17 +2155,14 @@ void DebugMessageThread::Stop() {
 
 
 Message::Message() : text_(Vector<uint16_t>::empty()),
-                     client_data_(NULL),
-                     is_host_dispatch_(false) {
+                     client_data_(NULL) {
 }
 
 
 Message::Message(const Vector<uint16_t>& text,
-                 v8::Debug::ClientData* data,
-                 bool is_host_dispatch)
+                 v8::Debug::ClientData* data)
     : text_(text),
-      client_data_(data),
-      is_host_dispatch_(is_host_dispatch) {
+      client_data_(data) {
 }
 
 
@@ -2193,19 +2177,9 @@ void Message::Dispose() {
 }
 
 
-bool Message::IsHostDispatch() const {
-  return is_host_dispatch_;
-}
-
-
 Message Message::NewCommand(const Vector<uint16_t>& command,
                             v8::Debug::ClientData* data) {
-  return Message(command.Clone(), data, false);
-}
-
-
-Message Message::NewHostDispatch(v8::Debug::ClientData* dispatch) {
-  return Message(Vector<uint16_t>::empty(), dispatch, true);
+  return Message(command.Clone(), data);
 }
 
 
@@ -2217,7 +2191,7 @@ Message Message::NewOutput(v8::Handle<v8::String> output,
     text = Vector<uint16_t>::New(output->Length());
     output->Write(text.start(), 0, output->Length());
   }
-  return Message(text, data, false);
+  return Message(text, data);
 }
 
 

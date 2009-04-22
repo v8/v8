@@ -409,7 +409,6 @@ class Message {
  public:
   static Message NewCommand(const Vector<uint16_t>& command,
                             v8::Debug::ClientData* data);
-  static Message NewHostDispatch(v8::Debug::ClientData* dispatch);
   static Message NewOutput(v8::Handle<v8::String> output,
                            v8::Debug::ClientData* data);
   static Message NewEmptyMessage();
@@ -418,17 +417,14 @@ class Message {
 
   // Deletes user data and disposes of the text.
   void Dispose();
-  bool IsHostDispatch() const;
   Vector<uint16_t> text() const { return text_; }
   v8::Debug::ClientData* client_data() const { return client_data_; }
  private:
   Message(const Vector<uint16_t>& text,
-          v8::Debug::ClientData* data,
-          bool is_host_dispatch);
+          v8::Debug::ClientData* data);
 
   Vector<uint16_t> text_;
   v8::Debug::ClientData* client_data_;
-  bool is_host_dispatch_;
 };
 
 // A Queue of Vector<uint16_t> objects.  A thread-safe version is
@@ -510,7 +506,8 @@ class Debugger {
   static void SetMessageHandler(v8::Debug::MessageHandler handler,
                                 bool message_handler_thread);
   static void TearDown();
-  static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler);
+  static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
+                                     int period);
 
   // Invoke the message handler function.
   static void InvokeMessageHandler(Message message);
@@ -529,7 +526,6 @@ class Debugger {
   // Check whether there are commands in the command queue.
   static bool HasCommands();
 
-  static void ProcessHostDispatch(v8::Debug::ClientData* dispatch);
   static Handle<Object> Call(Handle<JSFunction> fun,
                              Handle<Object> data,
                              bool* pending_exception);
@@ -576,6 +572,7 @@ class Debugger {
   static v8::Debug::MessageHandler message_handler_;
   static bool message_handler_cleared_;  // Was message handler cleared?
   static v8::Debug::HostDispatchHandler host_dispatch_handler_;
+  static int host_dispatch_micros_;
 
   static DebuggerAgent* agent_;
 

@@ -3564,13 +3564,17 @@ TEST(MessageQueueExpandAndDestroy) {
                                   new TestClientData()));
     queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
                                   new TestClientData()));
-    queue.Put(Message::NewHostDispatch(new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
     ASSERT_EQ(0, TestClientData::destructor_call_counter);
     queue.Get().Dispose();
     ASSERT_EQ(1, TestClientData::destructor_call_counter);
-    queue.Put(Message::NewHostDispatch(new TestClientData()));
-    queue.Put(Message::NewHostDispatch(new TestClientData()));
-    queue.Put(Message::NewHostDispatch(new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
     queue.Put(Message::NewOutput(v8::Handle<v8::String>(),
                                  new TestClientData()));
     queue.Put(Message::NewEmptyMessage());
@@ -4219,53 +4223,107 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 }
 
 
-int host_dispatch_hit_count = 0;
-static void HostDispatchHandlerHitCount(v8::Debug::ClientData* dispatch) {
-  host_dispatch_hit_count++;
+/* Test DebuggerHostDispatch */
+/* In this test, the debugger waits for a command on a breakpoint
+ * and is dispatching host commands while in the infinite loop.
+ */
+
+class HostDispatchV8Thread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+class HostDispatchDebuggerThread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+Barriers* host_dispatch_barriers;
+
+static void HostDispatchMessageHandler(const uint16_t* message,
+                                       int length,
+                                       v8::Debug::ClientData* client_data) {
+  static char print_buffer[1000];
+  Utf16ToAscii(message, length, print_buffer);
+  printf("%s\n", print_buffer);
+  fflush(stdout);
 }
 
 
-// Test that clearing the debug event listener actually clears all break points
-// and related information.
-TEST(DebuggerHostDispatch) {
-  i::FLAG_debugger_auto_break = true;
+static void HostDispatchDispatchHandler() {
+  host_dispatch_barriers->semaphore_1->Signal();
+}
+
+
+void HostDispatchV8Thread::Run() {
+  const char* source_1 = "var y_global = 3;\n"
+    "function cat( new_value ) {\n"
+    "  var x = new_value;\n"
+    "  y_global = 4;\n"
+    "  x = 3 * x + 1;\n"
+    "  y_global = 5;\n"
+    "  return x;\n"
+    "}\n"
+    "\n";
+  const char* source_2 = "cat(17);\n";
 
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  const int kBufferSize = 1000;
-  uint16_t buffer[kBufferSize];
-  const char* command_continue =
-    "{\"seq\":0,"
-     "\"type\":\"request\","
-     "\"command\":\"continue\"}";
-
-  // Create an empty function to call for processing debug commands
-  v8::Local<v8::Function> empty =
-      CompileFunction(&env, "function empty(){}", "empty");
-
   // Setup message and host dispatch handlers.
-  v8::Debug::SetMessageHandler(DummyMessageHandler);
-  v8::Debug::SetHostDispatchHandler(HostDispatchHandlerHitCount);
+  v8::Debug::SetMessageHandler(HostDispatchMessageHandler);
+  v8::Debug::SetHostDispatchHandler(HostDispatchDispatchHandler, 10 /* ms */);
 
-  // Send a host dispatch by itself.
-  v8::Debug::SendHostDispatch(NULL);
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
-  CHECK_EQ(1, host_dispatch_hit_count);
+  CompileRun(source_1);
+  host_dispatch_barriers->barrier_1.Wait();
+  host_dispatch_barriers->barrier_2.Wait();
+  CompileRun(source_2);
+}
 
-  // Fill a host dispatch and a continue command on the command queue.
-  v8::Debug::SendHostDispatch(NULL);
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
 
-  // Fill a continue command and a host dispatch on the command queue.
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
-  v8::Debug::SendHostDispatch(NULL);
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
+void HostDispatchDebuggerThread::Run() {
+  const int kBufSize = 1000;
+  uint16_t buffer[kBufSize];
 
-  // All the host dispatch callback should be called.
-  CHECK_EQ(3, host_dispatch_hit_count);
+  const char* command_1 = "{\"seq\":101,"
+      "\"type\":\"request\","
+      "\"command\":\"setbreakpoint\","
+      "\"arguments\":{\"type\":\"function\",\"target\":\"cat\",\"line\":3}}";
+  const char* command_2 = "{\"seq\":102,"
+      "\"type\":\"request\","
+      "\"command\":\"continue\"}";
+
+  // v8 thread initializes, runs source_1
+  host_dispatch_barriers->barrier_1.Wait();
+  // 1: Set breakpoint in cat().
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
+
+  host_dispatch_barriers->barrier_2.Wait();
+  // v8 thread starts compiling source_2.
+  // Break happens, to run queued commands and host dispatches.
+  // Wait for host dispatch to be processed.
+  host_dispatch_barriers->semaphore_1->Wait();
+  // 2: Continue evaluation
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
+}
+
+HostDispatchDebuggerThread host_dispatch_debugger_thread;
+HostDispatchV8Thread host_dispatch_v8_thread;
+
+
+TEST(DebuggerHostDispatch) {
+  i::FLAG_debugger_auto_break = true;
+
+  // Create a V8 environment
+  Barriers stack_allocated_host_dispatch_barriers;
+  stack_allocated_host_dispatch_barriers.Initialize();
+  host_dispatch_barriers = &stack_allocated_host_dispatch_barriers;
+
+  host_dispatch_v8_thread.Start();
+  host_dispatch_debugger_thread.Start();
+
+  host_dispatch_v8_thread.Join();
+  host_dispatch_debugger_thread.Join();
 }
 
 

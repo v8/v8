@@ -124,12 +124,8 @@ class EXPORT Debug {
 
   /**
    * Debug host dispatch callback function.
-   *
-   * \param dispatch the dispatch value
-   * \param data the data value passed when registering the dispatch handler
    */
-  typedef void (*HostDispatchHandler)(ClientData* dispatch);
-
+  typedef void (*HostDispatchHandler)();
 
   // Set a C debug event listener.
   static bool SetDebugEventListener(EventCallback that,
@@ -149,8 +145,8 @@ class EXPORT Debug {
                           ClientData* client_data = NULL);
 
   // Dispatch interface.
-  static void SetHostDispatchHandler(HostDispatchHandler handler);
-  static void SendHostDispatch(ClientData* dispatch);
+  static void SetHostDispatchHandler(HostDispatchHandler handler,
+                                     int period = 100);
 
  /**
   * Run a JavaScript function in the debugger.
