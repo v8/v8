@@ -104,6 +104,15 @@ replaceTest("xax[]xcx", short, /b()/, "[$1]");
 replaceTest("xax[$1]xcx", short, /b/g, "[$1]");
 replaceTest("xax[]xcx", short, /b()/g, "[$1]");
 
+// Bug 317 look-alikes. If "$e" has no meaning, the "$" must be retained.
+replaceTest("xax$excx", short, "b", "$e");
+replaceTest("xax$excx", short, /b/, "$e");
+replaceTest("xax$excx", short, /b/g, "$e");
+
+replaceTest("xaxe$xcx", short, "b", "e$");
+replaceTest("xaxe$xcx", short, /b/, "e$");
+replaceTest("xaxe$xcx", short, /b/g, "e$");
+
 
 replaceTest("[$$$1$$a1abb1bb0$002$3$03][$$$1$$b1bcc1cc0$002$3$03]c", 
             "abc", /(.)(?=(.))/g, "[$$$$$$1$$$$$11$01$2$21$02$020$002$3$03]"); 

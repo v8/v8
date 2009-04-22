@@ -1145,9 +1145,10 @@ Object* JSObject::AddFastPropertyUsingMap(Map* new_map,
 Object* JSObject::AddFastProperty(String* name,
                                   Object* value,
                                   PropertyAttributes attributes) {
-  // Normalize the object if the name is not a real identifier.
+  // Normalize the object if the name is an actual string (not the
+  // hidden symbols) and is not a real identifier.
   StringInputBuffer buffer(name);
-  if (!Scanner::IsIdentifier(&buffer)) {
+  if (!Scanner::IsIdentifier(&buffer) && name != Heap::hidden_symbol()) {
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (obj->IsFailure()) return obj;
     return AddSlowProperty(name, value, attributes);
@@ -5175,19 +5176,15 @@ bool JSObject::HasLocalElement(uint32_t index) {
 Object* JSObject::GetHiddenProperties(bool create_if_needed) {
   String* key = Heap::hidden_symbol();
   if (this->HasFastProperties()) {
-    // If the object has fast properties, check whether the first slot in the
-    // descriptor array matches the hidden symbol. Since the hidden symbols
-    // hash code is zero it will always occupy the first entry if present.
+    // If the object has fast properties, check whether the first slot
+    // in the descriptor array matches the hidden symbol. Since the
+    // hidden symbols hash code is zero (and no other string has hash
+    // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
-    if (descriptors->number_of_descriptors() > 0) {
-      if (descriptors->GetKey(0) == key) {
-#ifdef DEBUG
-        PropertyDetails details(descriptors->GetDetails(0));
-        ASSERT(details.type() == FIELD);
-#endif  // DEBUG
-        Object* value = descriptors->GetValue(0);
-        return FastPropertyAt(Descriptor::IndexFromValue(value));
-      }
+    DescriptorReader r(descriptors);
+    if (!r.eos() && (r.GetKey() == key) && r.IsProperty()) {
+      ASSERT(r.type() == FIELD);
+      return FastPropertyAt(r.GetFieldIndex());
     }
   }
 

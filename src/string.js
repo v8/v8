@@ -304,6 +304,8 @@ function ExpandReplacement(string, subject, matchInfo, builder) {
           builder.add('$');
           --position;
         }
+      } else {
+        builder.add('$');
       }
     } else {
       builder.add('$');
