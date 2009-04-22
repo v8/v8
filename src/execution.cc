@@ -636,7 +636,7 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
 
 v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
   // All allocation spaces other than NEW_SPACE have the same effect.
-  Heap::CollectGarbage(0, OLD_DATA_SPACE);
+  Heap::CollectAllGarbage();
   return v8::Undefined();
 }
 
