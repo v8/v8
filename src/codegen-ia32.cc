@@ -1377,9 +1377,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           __ mov(answer.reg(), operand->reg());
           ASSERT(kSmiTag == 0);  // adjust code if not the case
           // We do no shifts, only the Smi conversion, if shift_value is 1.
-          if (shift_value == 0) {
-            __ sar(answer.reg(), kSmiTagSize);
-          } else if (shift_value > 1) {
+          if (shift_value > 1) {
             __ shl(answer.reg(), shift_value - 1);
           }
           // Convert int result to Smi, checking that it is in int range.
