@@ -37,7 +37,7 @@
 #ifndef V8_ASSEMBLER_ARM_INL_H_
 #define V8_ASSEMBLER_ARM_INL_H_
 
-#include "assembler-arm.h"
+#include "arm/assembler-arm.h"
 #include "cpu.h"
 
 

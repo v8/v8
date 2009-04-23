@@ -83,7 +83,8 @@ ANDROID_LINKFLAGS = ['-nostdlib',
 
 LIBRARY_FLAGS = {
   'all': {
-    'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING']
+    'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
+    'CPPPATH': [join(root_dir, 'src')]
   },
   'gcc': {
     'all': {

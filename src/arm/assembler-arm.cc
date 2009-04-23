@@ -36,7 +36,7 @@
 
 #include "v8.h"
 
-#include "assembler-arm-inl.h"
+#include "arm/assembler-arm-inl.h"
 #include "serialize.h"
 
 namespace v8 { namespace internal {

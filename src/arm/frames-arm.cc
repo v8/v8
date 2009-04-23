@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "frames-inl.h"
-#include "assembler-arm-inl.h"
+#include "arm/assembler-arm-inl.h"
 
 
 namespace v8 { namespace internal {
