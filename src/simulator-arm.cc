@@ -90,12 +90,44 @@ Debugger::~Debugger() {
 }
 
 
+
+#ifdef GENERATED_CODE_COVERAGE
+static FILE* coverage_log = NULL;
+
+
+static void InitializeCoverage() {
+  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
+  if (file_name != NULL) {
+    coverage_log = fopen(file_name, "aw+");
+  }
+}
+
+
+void Debugger::Stop(Instr* instr) {
+  char* str = reinterpret_cast<char*>(instr->InstructionBits() & 0x0fffffff);
+  if (strlen(str) > 0) {
+    if (coverage_log != NULL) {
+      fprintf(coverage_log, "%s\n", str);
+      fflush(coverage_log);
+    }
+    instr->SetInstructionBits(0xe1a00000);  // Overwrite with nop.
+  }
+  sim_->set_pc(sim_->get_pc() + Instr::kInstrSize);
+}
+
+#else  // ndef GENERATED_CODE_COVERAGE
+
+static void InitializeCoverage() {
+}
+
+
 void Debugger::Stop(Instr* instr) {
   const char* str = (const char*)(instr->InstructionBits() & 0x0fffffff);
   PrintF("Simulator hit %s\n", str);
   sim_->set_pc(sim_->get_pc() + Instr::kInstrSize);
   Debug();
 }
+#endif
 
 
 static const char* reg_names[] = {  "r0",  "r1",  "r2",  "r3",
@@ -375,6 +407,7 @@ Simulator::Simulator() {
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_lr;
   registers_[lr] = bad_lr;
+  InitializeCoverage();
 }
 
 
@@ -424,6 +457,37 @@ void Simulator::set_pc(int32_t value) {
 // Raw access to the PC register without the special adjustment when reading.
 int32_t Simulator::get_pc() const {
   return registers_[pc];
+}
+
+
+// For use in calls that take two double values, constructed from r0, r1, r2
+// and r3.
+void Simulator::GetFpArgs(double* x, double* y) {
+  // We use a char buffer to get around the strict-aliasing rules which
+  // otherwise allow the compiler to optimize away the copy.
+  char buffer[2 * sizeof(registers_[0])];
+  // Registers 0 and 1 -> x.
+  memcpy(buffer, registers_, sizeof(buffer));
+  memcpy(x, buffer, sizeof(buffer));
+  // Registers 2 and 3 -> y.
+  memcpy(buffer, registers_ + 2, sizeof(buffer));
+  memcpy(y, buffer, sizeof(buffer));
+}
+
+
+void Simulator::SetFpResult(const double& result) {
+  char buffer[2 * sizeof(registers_[0])];
+  memcpy(buffer, &result, sizeof(buffer));
+  // result -> registers 0 and 1.
+  memcpy(registers_, buffer, sizeof(buffer));
+}
+
+
+void Simulator::TrashCallerSaveRegisters() {
+  // We don't trash the registers with the return value.
+  registers_[2] = 0x50Bad4U;
+  registers_[3] = 0x50Bad4U;
+  registers_[12] = 0x50Bad4U;
 }
 
 
@@ -862,7 +926,8 @@ typedef int64_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1);
 // Software interrupt instructions are used by the simulator to call into the
 // C-based V8 runtime.
 void Simulator::SoftwareInterrupt(Instr* instr) {
-  switch (instr->SwiField()) {
+  int swi = instr->SwiField();
+  switch (swi) {
     case call_rt_r5: {
       SimulatorRuntimeCall target =
           reinterpret_cast<SimulatorRuntimeCall>(get_register(r5));
@@ -892,6 +957,30 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
     case break_point: {
       Debugger dbg(this);
       dbg.Debug();
+      break;
+    }
+    {
+      double x, y, z;
+    case simulator_fp_add:
+      GetFpArgs(&x, &y);
+      z = x + y;
+      SetFpResult(z);
+      TrashCallerSaveRegisters();
+      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
+      break;
+    case simulator_fp_sub:
+      GetFpArgs(&x, &y);
+      z = x - y;
+      SetFpResult(z);
+      TrashCallerSaveRegisters();
+      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
+      break;
+    case simulator_fp_mul:
+      GetFpArgs(&x, &y);
+      z = x * y;
+      SetFpResult(z);
+      TrashCallerSaveRegisters();
+      set_pc(reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
       break;
     }
     default: {

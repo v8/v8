@@ -212,10 +212,20 @@ Handle<Object> SetProperty(Handle<Object> object,
 }
 
 
-Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
-                           Handle<String> key,
-                           Handle<Object> value,
-                           PropertyAttributes attributes) {
+Handle<Object> ForceSetProperty(Handle<JSObject> object,
+                                Handle<Object> key,
+                                Handle<Object> value,
+                                PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(
+      Runtime::ForceSetObjectProperty(object, key, value, attributes), Object);
+}
+
+
+Handle<Object> IgnoreAttributesAndSetLocalProperty(
+    Handle<JSObject> object,
+    Handle<String> key,
+    Handle<Object> value,
+    PropertyAttributes attributes) {
   CALL_HEAP_FUNCTION(object->
       IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
 }
@@ -491,17 +501,6 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
         break;
       }
 
-      // Compute the property keys.
-      content = UnionOfKeys(content, GetEnumPropertyKeys(current));
-
-      // Add the property keys from the interceptor.
-      if (current->HasNamedInterceptor()) {
-        v8::Handle<v8::Array> result =
-            GetKeysForNamedInterceptor(object, current);
-        if (!result.IsEmpty())
-          content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
-      }
-
       // Compute the element keys.
       Handle<FixedArray> element_keys =
           Factory::NewFixedArray(current->NumberOfEnumElements());
@@ -512,6 +511,17 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
       if (current->HasIndexedInterceptor()) {
         v8::Handle<v8::Array> result =
             GetKeysForIndexedInterceptor(object, current);
+        if (!result.IsEmpty())
+          content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
+      }
+
+      // Compute the property keys.
+      content = UnionOfKeys(content, GetEnumPropertyKeys(current));
+
+      // Add the property keys from the interceptor.
+      if (current->HasNamedInterceptor()) {
+        v8::Handle<v8::Array> result =
+            GetKeysForNamedInterceptor(object, current);
         if (!result.IsEmpty())
           content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
       }
@@ -549,7 +559,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object) {
         index++;
       }
     }
-    (*storage)->SortPairs(*sort_array);
+    (*storage)->SortPairs(*sort_array, sort_array->length());
     Handle<FixedArray> bridge_storage =
         Factory::NewFixedArray(DescriptorArray::kEnumCacheBridgeLength);
     DescriptorArray* desc = object->map()->instance_descriptors();
@@ -651,6 +661,7 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
   // We shouldn't get here if compiling the script failed.
   ASSERT(!boilerplate.is_null());
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // When the debugger running in its own context touches lazy loaded
   // functions loading can be triggered. In that case ensure that the
   // execution of the boilerplate is in the correct context.
@@ -659,6 +670,7 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
       Top::context() == *Debug::debug_context()) {
     Top::set_context(*compile_context);
   }
+#endif
 
   // Reset the lazy load data before running the script to make sure
   // not to get recursive lazy loading.

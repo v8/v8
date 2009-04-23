@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,35 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-const SMI_MAX = (1 << 30) - 1;
-const SMI_MIN = -(1 << 30);
+// When invoking functions from within a 'with' statement, we must set
+// the receiver to the object where we found the function.
 
-function testmulneg(a, b) {
-  var base = a * b;
-  assertEquals(-base, a * -b, "a * -b where a = " + a + ", b = " + b);
-  assertEquals(-base, -a * b, "-a * b where a = " + a + ", b = " + b);
-  assertEquals(base, -a * -b, "*-a * -b where a = " + a + ", b = " + b);
-}
+(function () {
+  var x = { get_this: function() { return this; } };
+  assertTrue(x === x.get_this());
+  with (x) assertTrue(x === get_this());
+})();
 
-testmulneg(2, 3);
-testmulneg(SMI_MAX, 3);
-testmulneg(SMI_MIN, 3);
-testmulneg(3.2, 2.3);
 
-var x = { valueOf: function() { return 2; } };
-var y = { valueOf: function() { return 3; } };
+assertTrue({ f: function() {
+  function g() { return this; };
+  return eval("g")();
+} }.f() == this);
 
-testmulneg(x, y);
 
-// The test below depends on the correct evaluation order, which is not
-// implemented by any of the known JS engines.
-var z;
-var v = { valueOf: function() { z+=2; return z; } };
-var w = { valueOf: function() { z+=3; return z; } };
-
-z = 0;
-var base = v * w;
-z = 0;
-assertEquals(-base, -v * w);
-z = 0;
-assertEquals(base, -v * -w);
+assertTrue({ f: function() {
+  function g() { return this; };
+  return eval("g()");
+} }.f() == this);

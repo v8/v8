@@ -29,16 +29,18 @@
 #include "v8.h"
 #include "debug-agent.h"
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 namespace v8 { namespace internal {
-
 
 // Public V8 debugger API message handler function. This function just delegates
 // to the debugger agent through it's data parameter.
 void DebuggerAgentMessageHandler(const uint16_t* message, int length,
-                                 void *data) {
-  reinterpret_cast<DebuggerAgent*>(data)->DebuggerMessage(message, length);
+                                 v8::Debug::ClientData* client_data) {
+  DebuggerAgent::instance_->DebuggerMessage(message, length);
 }
 
+// static
+DebuggerAgent* DebuggerAgent::instance_ = NULL;
 
 // Debugger agent main thread.
 void DebuggerAgent::Run() {
@@ -410,5 +412,6 @@ int DebuggerAgentUtil::ReceiveAll(const Socket* conn, char* data, int len) {
   return total_received;
 }
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_DEBUGGER_SUPPORT

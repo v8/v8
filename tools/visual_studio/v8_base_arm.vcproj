@@ -349,6 +349,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\debug-agent.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\debug-agent.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\debug-arm.cc"
 				>
 			</File>
@@ -590,6 +598,14 @@
 			</File>
 			<File
 				RelativePath="..\..\src\objects.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\oprofile-agent.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\oprofile-agent.h"
 				>
 			</File>
 			<File

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,35 +25,52 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-const SMI_MAX = (1 << 30) - 1;
-const SMI_MIN = -(1 << 30);
+// From within 'eval', the name of the enclosing function should be
+// visible.
 
-function testmulneg(a, b) {
-  var base = a * b;
-  assertEquals(-base, a * -b, "a * -b where a = " + a + ", b = " + b);
-  assertEquals(-base, -a * b, "-a * b where a = " + a + ", b = " + b);
-  assertEquals(base, -a * -b, "*-a * -b where a = " + a + ", b = " + b);
-}
+var f = function y() { return typeof y; };
+assertEquals("function", f());
 
-testmulneg(2, 3);
-testmulneg(SMI_MAX, 3);
-testmulneg(SMI_MIN, 3);
-testmulneg(3.2, 2.3);
 
-var x = { valueOf: function() { return 2; } };
-var y = { valueOf: function() { return 3; } };
+f = function y() { return eval('typeof y'); };
+assertEquals("function", f());
 
-testmulneg(x, y);
 
-// The test below depends on the correct evaluation order, which is not
-// implemented by any of the known JS engines.
-var z;
-var v = { valueOf: function() { z+=2; return z; } };
-var w = { valueOf: function() { z+=3; return z; } };
+f = function y() { y = 3; return typeof y; };
+assertEquals("function", f());
 
-z = 0;
-var base = v * w;
-z = 0;
-assertEquals(-base, -v * w);
-z = 0;
-assertEquals(base, -v * -w);
+
+f = function y() { y += 3; return typeof y; };
+assertEquals("function", f());
+
+
+f = function y() { y &= y; return typeof y; };
+assertEquals("function", f());
+
+
+f = function y() { y = 3; return eval('typeof y'); }
+assertEquals("function", f());
+
+
+f = function y() { var y = 3; return typeof y; }
+assertEquals("number", f());
+
+
+f = function y() { var y = 3; return eval('typeof y'); }
+assertEquals("number", f());
+
+
+f = function y() { eval('y = 3'); return typeof y; }
+assertEquals("function", f());
+
+
+f = function y() { eval('y = 3'); return eval('typeof y'); }
+assertEquals("function", f());
+
+
+f = function y() { eval('var y = 3'); return typeof y; }
+assertEquals("number", f());
+
+
+f = function y() { eval('var y = 3'); return eval('typeof y'); }
+assertEquals("number", f());

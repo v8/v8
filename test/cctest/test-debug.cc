@@ -45,10 +45,13 @@ using ::v8::internal::JSGlobalProxy;
 using ::v8::internal::Code;
 using ::v8::internal::Debug;
 using ::v8::internal::Debugger;
+using ::v8::internal::Message;
+using ::v8::internal::MessageQueue;
 using ::v8::internal::StepAction;
 using ::v8::internal::StepIn;  // From StepAction enum
 using ::v8::internal::StepNext;  // From StepAction enum
 using ::v8::internal::StepOut;  // From StepAction enum
+using ::v8::internal::Vector;
 
 
 // Size of temp buffer for formatting small strings.
@@ -525,6 +528,24 @@ const char* frame_source_column_source =
 v8::Local<v8::Function> frame_source_column;
 
 
+// Source for The JavaScript function which picks out the script name for the
+// top frame.
+const char* frame_script_name_source =
+    "function frame_script_name(exec_state) {"
+    "  return exec_state.frame(0).func().script().name();"
+    "}";
+v8::Local<v8::Function> frame_script_name;
+
+
+// Source for The JavaScript function which picks out the script data for the
+// top frame.
+const char* frame_script_data_source =
+    "function frame_script_data(exec_state) {"
+    "  return exec_state.frame(0).func().script().data();"
+    "}";
+v8::Local<v8::Function> frame_script_data;
+
+
 // Source for The JavaScript function which returns the number of frames.
 static const char* frame_count_source =
     "function frame_count(exec_state) {"
@@ -535,6 +556,11 @@ v8::Handle<v8::Function> frame_count;
 
 // Global variable to store the last function hit - used by some tests.
 char last_function_hit[80];
+
+// Global variable to store the name and data for last script hit - used by some
+// tests.
+char last_script_name_hit[80];
+char last_script_data_hit[80];
 
 // Global variables to store the last source position - used by some tests.
 int last_source_line = -1;
@@ -585,6 +611,37 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
                                                                argc, argv);
       CHECK(result->IsNumber());
       last_source_column = result->Int32Value();
+    }
+
+    if (!frame_script_name.IsEmpty()) {
+      // Get the script name of the function script.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_script_name->Call(exec_state,
+                                                             argc, argv);
+      if (result->IsUndefined()) {
+        last_script_name_hit[0] = '\0';
+      } else {
+        CHECK(result->IsString());
+        v8::Handle<v8::String> script_name(result->ToString());
+        script_name->WriteAscii(last_script_name_hit);
+      }
+    }
+
+    if (!frame_script_data.IsEmpty()) {
+      // Get the script data of the function script.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_script_data->Call(exec_state,
+                                                             argc, argv);
+      if (result->IsUndefined()) {
+        last_script_data_hit[0] = '\0';
+      } else {
+        result = result->ToString();
+        CHECK(result->IsString());
+        v8::Handle<v8::String> script_data(result->ToString());
+        script_data->WriteAscii(last_script_data_hit);
+      }
     }
   }
 }
@@ -2120,6 +2177,53 @@ TEST(DebugStepLinear) {
 }
 
 
+// Test of the stepping mechanism for keyed load in a loop.
+TEST(DebugStepKeyedLoadLoop) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Create a function for testing stepping of keyed load. The statement 'y=1'
+  // is there to have more than one breakable statement in the loop, TODO(315).
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function foo(a) {\n"
+      "  var x;\n"
+      "  var len = a.length;\n"
+      "  for (var i = 0; i < len; i++) {\n"
+      "    y = 1;\n"
+      "    x = a[i];\n"
+      "  }\n"
+      "}\n",
+      "foo");
+
+  // Create array [0,1,2,3,4,5,6,7,8,9]
+  v8::Local<v8::Array> a = v8::Array::New(10);
+  for (int i = 0; i < 10; i++) {
+    a->Set(v8::Number::New(i), v8::Number::New(i));
+  }
+
+  // Call function without any break points to ensure inlining is in place.
+  const int kArgc = 1;
+  v8::Handle<v8::Value> args[kArgc] = { a };
+  foo->Call(env->Global(), kArgc, args);
+
+  // Register a debug event listener which steps and counts.
+  v8::Debug::SetDebugEventListener(DebugEventStep);
+
+  // Setup break point and step through the function.
+  SetBreakPoint(foo, 3);
+  step_action = StepNext;
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), kArgc, args);
+
+  // With stepping all break locations are hit.
+  CHECK_EQ(22, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Test the stepping mechanism with different ICs.
 TEST(DebugStepLinearMixedICs) {
   v8::HandleScope scope;
@@ -3321,7 +3425,8 @@ class MessageQueueDebuggerThread : public v8::internal::Thread {
   void Run();
 };
 
-static void MessageHandler(const uint16_t* message, int length, void *data) {
+static void MessageHandler(const uint16_t* message, int length,
+                           v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
@@ -3335,7 +3440,6 @@ static void MessageHandler(const uint16_t* message, int length, void *data) {
   printf("%s\n", print_buffer);
   fflush(stdout);
 }
-
 
 void MessageQueueDebuggerThread::Run() {
   const int kBufferSize = 1000;
@@ -3427,6 +3531,118 @@ TEST(MessageQueues) {
   fflush(stdout);
 }
 
+
+class TestClientData : public v8::Debug::ClientData {
+ public:
+  TestClientData() {
+    constructor_call_counter++;
+  }
+  virtual ~TestClientData() {
+    destructor_call_counter++;
+  }
+
+  static void ResetCounters() {
+    constructor_call_counter = 0;
+    destructor_call_counter = 0;
+  }
+
+  static int constructor_call_counter;
+  static int destructor_call_counter;
+};
+
+int TestClientData::constructor_call_counter = 0;
+int TestClientData::destructor_call_counter = 0;
+
+
+// Tests that MessageQueue doesn't destroy client data when expands and
+// does destroy when it dies.
+TEST(MessageQueueExpandAndDestroy) {
+  TestClientData::ResetCounters();
+  { // Create a scope for the queue.
+    MessageQueue queue(1);
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    ASSERT_EQ(0, TestClientData::destructor_call_counter);
+    queue.Get().Dispose();
+    ASSERT_EQ(1, TestClientData::destructor_call_counter);
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(Message::NewOutput(v8::Handle<v8::String>(),
+                                 new TestClientData()));
+    queue.Put(Message::NewEmptyMessage());
+    ASSERT_EQ(1, TestClientData::destructor_call_counter);
+    queue.Get().Dispose();
+    ASSERT_EQ(2, TestClientData::destructor_call_counter);
+  }
+  // All the client data should be destroyed when the queue is destroyed.
+  ASSERT_EQ(TestClientData::destructor_call_counter,
+            TestClientData::destructor_call_counter);
+}
+
+
+static int handled_client_data_instances_count = 0;
+static void MessageHandlerCountingClientData(
+    const uint16_t* message,
+    int length,
+    v8::Debug::ClientData* client_data) {
+  if (client_data) {
+    handled_client_data_instances_count++;
+  }
+}
+
+
+// Tests that all client data passed to the debugger are sent to the handler.
+TEST(SendClientDataToHandler) {
+  // Create a V8 environment
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  TestClientData::ResetCounters();
+  handled_client_data_instances_count = 0;
+  v8::Debug::SetMessageHandler(MessageHandlerCountingClientData,
+                               false /* message_handler_thread */);
+  const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5; debugger;";
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+  const char* command_1 =
+      "{\"seq\":117,"
+       "\"type\":\"request\","
+       "\"command\":\"evaluate\","
+       "\"arguments\":{\"expression\":\"1+2\"}}";
+  const char* command_2 =
+    "{\"seq\":118,"
+     "\"type\":\"request\","
+     "\"command\":\"evaluate\","
+     "\"arguments\":{\"expression\":\"1+a\"}}";
+  const char* command_continue =
+    "{\"seq\":106,"
+     "\"type\":\"request\","
+     "\"command\":\"continue\"}";
+
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer),
+                         new TestClientData());
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer), NULL);
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer),
+                         new TestClientData());
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer),
+                         new TestClientData());
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+  CompileRun(source_1);
+  ASSERT_EQ(3, TestClientData::constructor_call_counter);
+  ASSERT_EQ(TestClientData::constructor_call_counter,
+            handled_client_data_instances_count);
+  ASSERT_EQ(TestClientData::constructor_call_counter,
+            TestClientData::destructor_call_counter);
+}
+
+
 /* Test ThreadedDebugging */
 /* This test interrupts a running infinite loop that is
  * occupying the v8 thread by a break command from the
@@ -3454,7 +3670,7 @@ static v8::Handle<v8::Value> ThreadedAtBarrier1(const v8::Arguments& args) {
 
 
 static void ThreadedMessageHandler(const uint16_t* message, int length,
-                                   void *data) {
+                                   v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
@@ -3552,7 +3768,7 @@ Barriers* breakpoints_barriers;
 
 static void BreakpointsMessageHandler(const uint16_t* message,
                                       int length,
-                                      void *data) {
+                                      v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
   printf("%s\n", print_buffer);
@@ -3698,7 +3914,8 @@ TEST(SetDebugEventListenerOnUninitializedVM) {
 
 
 static void DummyMessageHandler(const uint16_t* message,
-                                int length, void *data) {
+                                int length,
+                                v8::Debug::ClientData* client_data) {
 }
 
 
@@ -3924,7 +4141,8 @@ TEST(DebuggerUnload) {
 // Debugger message handler which counts the number of times it is called.
 static int message_handler_hit_count = 0;
 static void MessageHandlerHitCount(const uint16_t* message,
-                                   int length, void* data) {
+                                   int length,
+                                   v8::Debug::ClientData* client_data) {
   message_handler_hit_count++;
 
   const int kBufferSize = 1000;
@@ -3972,9 +4190,10 @@ TEST(DebuggerClearMessageHandler) {
 
 
 // Debugger message handler which clears the message handler while active.
-static void MessageHandlerClearingMessageHandler(const uint16_t* message,
-                                                 int length,
-                                                 void* data) {
+static void MessageHandlerClearingMessageHandler(
+    const uint16_t* message,
+    int length,
+    v8::Debug::ClientData* client_data) {
   message_handler_hit_count++;
 
   // Clear debug message handler.
@@ -4004,54 +4223,107 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 }
 
 
-int host_dispatch_hit_count = 0;
-static void HostDispatchHandlerHitCount(void* dispatch, void *data) {
-  host_dispatch_hit_count++;
+/* Test DebuggerHostDispatch */
+/* In this test, the debugger waits for a command on a breakpoint
+ * and is dispatching host commands while in the infinite loop.
+ */
+
+class HostDispatchV8Thread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+class HostDispatchDebuggerThread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+Barriers* host_dispatch_barriers;
+
+static void HostDispatchMessageHandler(const uint16_t* message,
+                                       int length,
+                                       v8::Debug::ClientData* client_data) {
+  static char print_buffer[1000];
+  Utf16ToAscii(message, length, print_buffer);
+  printf("%s\n", print_buffer);
+  fflush(stdout);
 }
 
 
-// Test that clearing the debug event listener actually clears all break points
-// and related information.
-TEST(DebuggerHostDispatch) {
-  i::FLAG_debugger_auto_break = true;
+static void HostDispatchDispatchHandler() {
+  host_dispatch_barriers->semaphore_1->Signal();
+}
+
+
+void HostDispatchV8Thread::Run() {
+  const char* source_1 = "var y_global = 3;\n"
+    "function cat( new_value ) {\n"
+    "  var x = new_value;\n"
+    "  y_global = 4;\n"
+    "  x = 3 * x + 1;\n"
+    "  y_global = 5;\n"
+    "  return x;\n"
+    "}\n"
+    "\n";
+  const char* source_2 = "cat(17);\n";
 
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  const int kBufferSize = 1000;
-  uint16_t buffer[kBufferSize];
-  const char* command_continue =
-    "{\"seq\":0,"
-     "\"type\":\"request\","
-     "\"command\":\"continue\"}";
-
-  // Create an empty function to call for processing debug commands
-  v8::Local<v8::Function> empty =
-      CompileFunction(&env, "function empty(){}", "empty");
-
   // Setup message and host dispatch handlers.
-  v8::Debug::SetMessageHandler(DummyMessageHandler);
-  v8::Debug::SetHostDispatchHandler(HostDispatchHandlerHitCount,
-                                    NULL);
+  v8::Debug::SetMessageHandler(HostDispatchMessageHandler);
+  v8::Debug::SetHostDispatchHandler(HostDispatchDispatchHandler, 10 /* ms */);
 
-  // Send a host dispatch by itself.
-  v8::Debug::SendHostDispatch(NULL);
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
-  CHECK_EQ(1, host_dispatch_hit_count);
+  CompileRun(source_1);
+  host_dispatch_barriers->barrier_1.Wait();
+  host_dispatch_barriers->barrier_2.Wait();
+  CompileRun(source_2);
+}
 
-  // Fill a host dispatch and a continue command on the command queue.
-  v8::Debug::SendHostDispatch(NULL);
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
 
-  // Fill a continue command and a host dispatch on the command queue.
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
-  v8::Debug::SendHostDispatch(NULL);
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
-  empty->Call(env->Global(), 0, NULL);  // Run JavaScript to activate debugger.
+void HostDispatchDebuggerThread::Run() {
+  const int kBufSize = 1000;
+  uint16_t buffer[kBufSize];
 
-  // All the host dispatch callback should be called.
-  CHECK_EQ(3, host_dispatch_hit_count);
+  const char* command_1 = "{\"seq\":101,"
+      "\"type\":\"request\","
+      "\"command\":\"setbreakpoint\","
+      "\"arguments\":{\"type\":\"function\",\"target\":\"cat\",\"line\":3}}";
+  const char* command_2 = "{\"seq\":102,"
+      "\"type\":\"request\","
+      "\"command\":\"continue\"}";
+
+  // v8 thread initializes, runs source_1
+  host_dispatch_barriers->barrier_1.Wait();
+  // 1: Set breakpoint in cat().
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
+
+  host_dispatch_barriers->barrier_2.Wait();
+  // v8 thread starts compiling source_2.
+  // Break happens, to run queued commands and host dispatches.
+  // Wait for host dispatch to be processed.
+  host_dispatch_barriers->semaphore_1->Wait();
+  // 2: Continue evaluation
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
+}
+
+HostDispatchDebuggerThread host_dispatch_debugger_thread;
+HostDispatchV8Thread host_dispatch_v8_thread;
+
+
+TEST(DebuggerHostDispatch) {
+  i::FLAG_debugger_auto_break = true;
+
+  // Create a V8 environment
+  Barriers stack_allocated_host_dispatch_barriers;
+  stack_allocated_host_dispatch_barriers.Initialize();
+  host_dispatch_barriers = &stack_allocated_host_dispatch_barriers;
+
+  host_dispatch_v8_thread.Start();
+  host_dispatch_debugger_thread.Start();
+
+  host_dispatch_v8_thread.Join();
+  host_dispatch_debugger_thread.Join();
 }
 
 
@@ -4248,4 +4520,59 @@ TEST(DebugGetLoadedScripts) {
       "}");
   // Must not crash while accessing line_ends.
   i::FLAG_allow_natives_syntax = allow_natives_syntax;
+}
+
+
+// Test script break points set on lines.
+TEST(ScriptNameAndData) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Create functions for retrieving script name and data for the function on
+  // the top frame when hitting a break point.
+  frame_script_name = CompileFunction(&env,
+                                      frame_script_name_source,
+                                      "frame_script_name");
+  frame_script_data = CompileFunction(&env,
+                                      frame_script_data_source,
+                                      "frame_script_data");
+
+  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
+                                   v8::Undefined());
+
+  // Test function source.
+  v8::Local<v8::String> script = v8::String::New(
+    "function f() {\n"
+    "  debugger;\n"
+    "}\n");
+
+  v8::ScriptOrigin origin1 = v8::ScriptOrigin(v8::String::New("name"));
+  v8::Handle<v8::Script> script1 = v8::Script::Compile(script, &origin1);
+  script1->SetData(v8::String::New("data"));
+  script1->Run();
+  v8::Script::Compile(script, &origin1)->Run();
+  v8::Local<v8::Function> f;
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(1, break_point_hit_count);
+  CHECK_EQ("name", last_script_name_hit);
+  CHECK_EQ("data", last_script_data_hit);
+
+  v8::Local<v8::String> data_obj_source = v8::String::New(
+    "({ a: 'abc',\n"
+    "  b: 123,\n"
+    "  toString: function() { return this.a + ' ' + this.b; }\n"
+    "})\n");
+  v8::Local<v8::Value> data_obj = v8::Script::Compile(data_obj_source)->Run();
+  v8::ScriptOrigin origin2 = v8::ScriptOrigin(v8::String::New("new name"));
+  v8::Handle<v8::Script> script2 = v8::Script::Compile(script, &origin2);
+  script2->Run();
+  script2->SetData(data_obj);
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ("new name", last_script_name_hit);
+  CHECK_EQ("abc 123", last_script_data_hit);
 }

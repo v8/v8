@@ -261,6 +261,15 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes swi) {
     case break_point:
       Print("break_point");
       return;
+    case simulator_fp_add:
+      Print("simulator_fp_add");
+      return;
+    case simulator_fp_mul:
+      Print("simulator_fp_mul");
+      return;
+    case simulator_fp_sub:
+      Print("simulator_fp_sub");
+      return;
     default:
       out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                            "%d",

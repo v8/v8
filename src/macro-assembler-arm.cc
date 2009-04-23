@@ -168,11 +168,11 @@ void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 
-void MacroAssembler::Ret() {
+void MacroAssembler::Ret(Condition cond) {
 #if USE_BX
-  bx(lr);
+  bx(lr, cond);
 #else
-  mov(pc, Operand(lr));
+  mov(pc, Operand(lr), LeaveCC, cond);
 #endif
 }
 
@@ -320,16 +320,19 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   add(r6, fp, Operand(r4, LSL, kPointerSizeLog2));
   add(r6, r6, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
   // location. This is needed to allow nested break points.
   if (type == StackFrame::EXIT_DEBUG) {
     // Use sp as base to push.
     CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
   }
+#endif
 }
 
 
 void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
   if (type == StackFrame::EXIT_DEBUG) {
@@ -339,6 +342,7 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
     add(r3, fp, Operand(kOffset));
     CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
   }
+#endif
 
   // Clear top frame.
   mov(r3, Operand(0));
@@ -348,9 +352,9 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
   // Restore current context from top and clear it in debug mode.
   mov(ip, Operand(ExternalReference(Top::k_context_address)));
   ldr(cp, MemOperand(ip));
-  if (kDebug) {
-    str(r3, MemOperand(ip));
-  }
+#ifdef DEBUG
+  str(r3, MemOperand(ip));
+#endif
 
   // Pop the arguments, restore registers, and return.
   mov(sp, Operand(fp));  // respect ABI stack constraint
@@ -491,6 +495,7 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::SaveRegistersToMemory(RegList regs) {
   ASSERT((regs & ~kJSCallerSaved) == 0);
   // Copy the content of registers to memory location.
@@ -548,7 +553,7 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
     }
   }
 }
-
+#endif
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
@@ -674,10 +679,10 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // Load current lexical context from the stack frame.
   ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
   // In debug mode, make sure the lexical context is set.
-  if (kDebug) {
-    cmp(scratch, Operand(0));
-    Check(ne, "we should not have an empty lexical context");
-  }
+#ifdef DEBUG
+  cmp(scratch, Operand(0));
+  Check(ne, "we should not have an empty lexical context");
+#endif
 
   // Load the global context of the current context.
   int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;

@@ -157,8 +157,10 @@ class StubCache : public AllStatic {
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
   static Code* FindCallInitialize(int argc);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   static Object* ComputeCallDebugBreak(int argc);
   static Object* ComputeCallDebugPrepareStepIn(int argc);
+#endif
 
   static Object* ComputeLazyCompile(int argc);
 
@@ -288,8 +290,10 @@ class StubCompiler BASE_EMBEDDED {
   Object* CompileCallNormal(Code::Flags flags);
   Object* CompileCallMegamorphic(Code::Flags flags);
   Object* CompileCallMiss(Code::Flags flags);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Object* CompileCallDebugBreak(Code::Flags flags);
   Object* CompileCallDebugPrepareStepIn(Code::Flags flags);
+#endif
   Object* CompileLazyCompile(Code::Flags flags);
 
   // Static functions for generating parts of stubs.

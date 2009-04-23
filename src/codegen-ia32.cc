@@ -37,7 +37,7 @@
 
 namespace v8 { namespace internal {
 
-#define __ masm_->
+#define __ ACCESS_MASM(masm_)
 
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
@@ -1274,12 +1274,9 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                     smi_value,
                                                     overwrite_mode);
         __ Set(answer.reg(), Immediate(value));
-        if (operand->is_register()) {
-          __ sub(answer.reg(), Operand(operand->reg()));
-        } else {
-          ASSERT(operand->is_constant());
-          __ sub(Operand(answer.reg()), Immediate(operand->handle()));
-        }
+        // We are in the reversed case so they can't both be Smi constants.
+        ASSERT(operand->is_register());
+        __ sub(answer.reg(), Operand(operand->reg()));
       } else {
         operand->ToRegister();
         frame_->Spill(operand->reg());
@@ -1374,23 +1371,26 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         operand->ToRegister();
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->enter()->Branch(not_zero, operand, not_taken);
-        Result answer = allocator()->Allocate();
-        ASSERT(answer.is_valid());
-        __ mov(answer.reg(), operand->reg());
-        ASSERT(kSmiTag == 0);  // adjust code if not the case
-        // We do no shifts, only the Smi conversion, if shift_value is 1.
-        if (shift_value == 0) {
-          __ sar(answer.reg(), kSmiTagSize);
-        } else if (shift_value > 1) {
-          __ shl(answer.reg(), shift_value - 1);
+        if (shift_value != 0) {
+          Result answer = allocator()->Allocate();
+          ASSERT(answer.is_valid());
+          __ mov(answer.reg(), operand->reg());
+          ASSERT(kSmiTag == 0);  // adjust code if not the case
+          // We do no shifts, only the Smi conversion, if shift_value is 1.
+          if (shift_value > 1) {
+            __ shl(answer.reg(), shift_value - 1);
+          }
+          // Convert int result to Smi, checking that it is in int range.
+          ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+          __ add(answer.reg(), Operand(answer.reg()));
+          deferred->enter()->Branch(overflow, operand, not_taken);
+          operand->Unuse();
+          deferred->BindExit(&answer);
+          frame_->Push(&answer);
+        } else {
+          deferred->BindExit(operand);
+          frame_->Push(operand);
         }
-        // Convert int result to Smi, checking that it is in int range.
-        ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ add(answer.reg(), Operand(answer.reg()));
-        deferred->enter()->Branch(overflow, operand, not_taken);
-        operand->Unuse();
-        deferred->BindExit(&answer);
-        frame_->Push(&answer);
       }
       break;
     }
@@ -1411,11 +1411,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       deferred->enter()->Branch(not_zero, operand, not_taken);
       frame_->Spill(operand->reg());
       if (op == Token::BIT_AND) {
-        if (int_value == 0) {
-          __ xor_(Operand(operand->reg()), operand->reg());
-        } else {
-          __ and_(Operand(operand->reg()), Immediate(value));
-        }
+        __ and_(Operand(operand->reg()), Immediate(value));
       } else if (op == Token::BIT_XOR) {
         if (int_value != 0) {
           __ xor_(Operand(operand->reg()), Immediate(value));
@@ -2009,18 +2005,18 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
 
   // Add a label for checking the size of the code used for returning.
   Label check_exit_codesize;
-  __ bind(&check_exit_codesize);
+  masm_->bind(&check_exit_codesize);
 
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
-  __ ret((scope_->num_parameters() + 1) * kPointerSize);
+  masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
   DeleteFrame();
 
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
   ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
-            __ SizeOfCodeGeneratedSince(&check_exit_codesize));
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 }
 
 
@@ -2143,7 +2139,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
                  times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
   smi_value.Unuse();
   // Calculate address to overwrite later with actual address of table.
-  int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
+  int32_t jump_table_ref = masm_->pc_offset() - sizeof(int32_t);
   __ Align(4);
   Label table_start;
   __ bind(&table_start);
@@ -3179,10 +3175,12 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ DebuggerStatement");
   CodeForStatementPosition(node);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Spill everything, even constants, to the frame.
   frame_->SpillAll();
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
+#endif
 }
 
 
@@ -3384,7 +3382,9 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
     Label next, fast;
-    if (!context.reg().is(tmp.reg())) __ mov(tmp.reg(), context.reg());
+    if (!context.reg().is(tmp.reg())) {
+      __ mov(tmp.reg(), context.reg());
+    }
     __ bind(&next);
     // Terminate at global context.
     __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
@@ -3933,6 +3933,9 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 
     } else {
       Literal* literal = node->value()->AsLiteral();
+      bool overwrite_value =
+          (node->value()->AsBinaryOperation() != NULL &&
+           node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
       Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
       // There are two cases where the target is not read in the right hand
       // side, that are easy to test for: the right hand side is a literal,
@@ -3945,7 +3948,9 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         target.GetValue(NOT_INSIDE_TYPEOF);
       }
       Load(node->value());
-      GenericBinaryOperation(node->binary_op(), node->type());
+      GenericBinaryOperation(node->binary_op(),
+                             node->type(),
+                             overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
     }
 
     if (var != NULL &&
@@ -5268,8 +5273,11 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // instruction.
   ASSERT(value.is_register() && value.reg().is(eax));
   // The delta from the start of the map-compare instruction to the
-  // test eax instruction.
-  int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
+  // test eax instruction.  We use masm_ directly here instead of the
+  // double underscore macro because the macro sometimes uses macro
+  // expansion to turn into something that can't return a value.  This
+  // is encountered when doing generated code coverage tests.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
   __ test(value.reg(), Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
 
@@ -5284,7 +5292,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
 
 
 #undef __
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 Handle<String> Reference::GetName() {
   ASSERT(type_ == NAMED);
@@ -5369,7 +5377,9 @@ void Reference::GetValue(TypeofState typeof_state) {
         // Initially, use an invalid map. The map is patched in the IC
         // initialization code.
         __ bind(deferred->patch_site());
-        __ cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+        // Use masm-> here instead of the double underscore macro since extra
+        // coverage code can interfere with the patching.
+        masm->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                Immediate(Factory::null_value()));
         deferred->enter()->Branch(not_equal, &receiver, &key, not_taken);
 
@@ -5566,7 +5576,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-#define __ masm_->
+#define __ ACCESS_MASM(masm_)
 
 Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
                                                          Result* right) {
@@ -5900,7 +5910,7 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
 
 
 #undef __
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (eax <op> ebx) and
@@ -6225,7 +6235,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       }
 
       // SHR should return uint32 - go to runtime for non-smi/negative result.
-      if (op_ == Token::SHR) __ bind(&non_smi_result);
+      if (op_ == Token::SHR) {
+        __ bind(&non_smi_result);
+      }
       __ mov(eax, Operand(esp, 1 * kPointerSize));
       __ mov(edx, Operand(esp, 2 * kPointerSize));
       break;

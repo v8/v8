@@ -1021,6 +1021,9 @@ function MakeScriptObject_(script, include_source) {
             columnOffset: script.columnOffset(),
             lineCount: script.lineCount(),
           };
+  if (!IS_UNDEFINED(script.data())) {
+    o.data = script.data();
+  }
   if (include_source) {
     o.source = script.source();
   }
@@ -1270,11 +1273,12 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
   var ignoreCount = request.arguments.ignoreCount;
 
   // Check for legal arguments.
-  if (!type || !target) {
+  if (!type || IS_UNDEFINED(target)) {
     response.failed('Missing argument "type" or "target"');
     return;
   }
-  if (type != 'function' && type != 'script' && type != 'scriptId') {
+  if (type != 'function' && type != 'handle' &&
+      type != 'script' && type != 'scriptId') {
     response.failed('Illegal type "' + type + '"');
     return;
   }
@@ -1303,6 +1307,20 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
 
     // Set function break point.
     break_point_number = Debug.setBreakPoint(f, line, column, condition);
+  } else if (type == 'handle') {
+    // Find the object pointed by the specified handle.
+    var handle = parseInt(target, 10);
+    var mirror = LookupMirror(handle);
+    if (!mirror) {
+      return response.failed('Object #' + handle + '# not found');
+    }
+    if (!mirror.isFunction()) {
+      return response.failed('Object #' + handle + '# is not a function');
+    }
+
+    // Set function break point.
+    break_point_number = Debug.setBreakPoint(mirror.value(),
+                                             line, column, condition);
   } else if (type == 'script') {
     // set script break point.
     break_point_number =
@@ -1547,20 +1565,24 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
   }
 
   // Pull out arguments.
-  var handle = request.arguments.handle;
+  var handles = request.arguments.handles;
 
   // Check for legal arguments.
-  if (IS_UNDEFINED(handle)) {
-    return response.failed('Argument "handle" missing');
+  if (IS_UNDEFINED(handles)) {
+    return response.failed('Argument "handles" missing');
   }
 
-  // Lookup handle.
-  var mirror = LookupMirror(handle);
-  if (mirror) {
-    response.body = mirror;
-  } else {
-    return response.failed('Object #' + handle + '# not found');
+  // Lookup handles.
+  var mirrors = {};
+  for (var i = 0; i < handles.length; i++) {
+    var handle = handles[i];
+    var mirror = LookupMirror(handle);
+    if (!mirror) {
+      return response.failed('Object #' + handle + '# not found');
+    }
+    mirrors[handle] = mirror;
   }
+  response.body = mirrors;
 };
 
 
@@ -1675,6 +1697,9 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
       script.lineOffset = scripts[i].line_offset;
       script.columnOffset = scripts[i].column_offset;
       script.lineCount = scripts[i].lineCount();
+      if (scripts[i].data) {
+        script.data = scripts[i].data;
+      }
       if (includeSource) {
         script.source = scripts[i].source;
       } else {

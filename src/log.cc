@@ -814,35 +814,6 @@ void Logger::CodeDeleteEvent(Address from) {
 }
 
 
-void Logger::BeginCodeRegionEvent(CodeRegion* region,
-                                  Assembler* masm,
-                                  const char* name) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("begin-code-region,0x%x,0x%x,0x%x,%s\n",
-             reinterpret_cast<unsigned int>(region),
-             reinterpret_cast<unsigned int>(masm),
-             masm->pc_offset(),
-             name);
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::EndCodeRegionEvent(CodeRegion* region, Assembler* masm) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("end-code-region,0x%x,0x%x,0x%x\n",
-             reinterpret_cast<unsigned int>(region),
-             reinterpret_cast<unsigned int>(masm),
-             masm->pc_offset());
-  msg.WriteToLogFile();
-#endif
-}
-
-
 void Logger::ResourceEvent(const char* name, const char* tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log) return;

@@ -28,11 +28,11 @@
 #ifndef V8_V8_DEBUG_AGENT_H_
 #define V8_V8_DEBUG_AGENT_H_
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 #include "platform.h"
 
 namespace v8 { namespace internal {
-
 
 // Forward decelrations.
 class DebuggerAgentSession;
@@ -46,8 +46,14 @@ class DebuggerAgent: public Thread {
       : name_(StrDup(name)), port_(port),
         server_(OS::CreateSocket()), terminate_(false),
         session_access_(OS::CreateMutex()), session_(NULL),
-        terminate_now_(OS::CreateSemaphore(0)) {}
-  ~DebuggerAgent() { delete server_; }
+        terminate_now_(OS::CreateSemaphore(0)) {
+    ASSERT(instance_ == NULL);
+    instance_ = this;
+  }
+  ~DebuggerAgent() {
+     instance_ = NULL;
+     delete server_;
+  }
 
   void Shutdown();
 
@@ -66,9 +72,11 @@ class DebuggerAgent: public Thread {
   DebuggerAgentSession* session_;  // Current active session if any.
   Semaphore* terminate_now_;  // Semaphore to signal termination.
 
+  static DebuggerAgent* instance_;
+
   friend class DebuggerAgentSession;
   friend void DebuggerAgentMessageHandler(const uint16_t* message, int length,
-                                          void *data);
+                                          v8::Debug::ClientData* client_data);
 
   DISALLOW_COPY_AND_ASSIGN(DebuggerAgent);
 };
@@ -111,7 +119,8 @@ class DebuggerAgentUtil {
   static int ReceiveAll(const Socket* conn, char* data, int len);
 };
 
-
 } }  // namespace v8::internal
+
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_V8_DEBUG_AGENT_H_

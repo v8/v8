@@ -2688,6 +2688,59 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 }
 
 
+Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
+                                        Handle<Object> key,
+                                        Handle<Object> value,
+                                        PropertyAttributes attr) {
+  HandleScope scope;
+
+  // Check if the given key is an array index.
+  uint32_t index;
+  if (Array::IndexFromObject(*key, &index)) {
+    ASSERT(attr == NONE);
+
+    // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
+    // of a string using [] notation.  We need to support this too in
+    // JavaScript.
+    // In the case of a String object we just need to redirect the assignment to
+    // the underlying string if the index is in range.  Since the underlying
+    // string does nothing with the assignment then we can ignore such
+    // assignments.
+    if (js_object->IsStringObjectWithCharacterAt(index)) {
+      return *value;
+    }
+
+    return js_object->SetElement(index, *value);
+  }
+
+  if (key->IsString()) {
+    if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
+      ASSERT(attr == NONE);
+      return js_object->SetElement(index, *value);
+    } else {
+      Handle<String> key_string = Handle<String>::cast(key);
+      key_string->TryFlattenIfNotFlat();
+      return js_object->IgnoreAttributesAndSetLocalProperty(*key_string,
+                                                            *value,
+                                                            attr);
+    }
+  }
+
+  // Call-back into JavaScript to convert the key to a string.
+  bool has_pending_exception = false;
+  Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+  if (has_pending_exception) return Failure::Exception();
+  Handle<String> name = Handle<String>::cast(converted);
+
+  if (name->AsArrayIndex(&index)) {
+    ASSERT(attr == NONE);
+    return js_object->SetElement(index, *value);
+  } else {
+    return js_object->IgnoreAttributesAndSetLocalProperty(*name, *value, attr);
+  }
+}
+
+
 static Object* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
@@ -3482,6 +3535,7 @@ static Object* Runtime_NumberToSmi(Arguments args) {
   return Heap::nan_value();
 }
 
+
 static Object* Runtime_NumberAdd(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -4158,10 +4212,12 @@ static Object* Runtime_NewObject(Arguments args) {
     JSFunction* function = JSFunction::cast(constructor);
 
     // Handle stepping into constructors if step into is active.
+#ifdef ENABLE_DEBUGGER_SUPPORT
     if (Debug::StepInActive()) {
       HandleScope scope;
       Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
     }
+#endif
 
     if (function->has_initial_map() &&
         function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
@@ -4525,12 +4581,6 @@ static Object* Runtime_StackOverflow(Arguments args) {
 }
 
 
-static Object* Runtime_DebugBreak(Arguments args) {
-  ASSERT(args.length() == 0);
-  return Execution::DebugBreakHelper();
-}
-
-
 static Object* Runtime_StackGuard(Arguments args) {
   ASSERT(args.length() == 1);
 
@@ -4889,26 +4939,6 @@ static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
   call->set(0, *callee);
   call->set(1, *receiver);
   return *call;
-}
-
-
-static Object* Runtime_CompileScript(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 4);
-
-  CONVERT_ARG_CHECKED(String, source, 0);
-  CONVERT_ARG_CHECKED(String, script, 1);
-  CONVERT_CHECKED(Smi, line_attrs, args[2]);
-  int line = line_attrs->value();
-  CONVERT_CHECKED(Smi, col_attrs, args[3]);
-  int col = col_attrs->value();
-  Handle<JSFunction> boilerplate =
-      Compiler::Compile(source, script, line, col, NULL, NULL);
-  if (boilerplate.is_null()) return Failure::Exception();
-  Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate,
-                                          Handle<Context>(Top::context()));
-  return *fun;
 }
 
 
@@ -5313,6 +5343,13 @@ static Object* Runtime_LookupAccessor(Arguments args) {
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag, args[2]);
   return obj->LookupAccessor(name, flag->value() == 0);
+}
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+static Object* Runtime_DebugBreak(Arguments args) {
+  ASSERT(args.length() == 0);
+  return Execution::DebugBreakHelper();
 }
 
 
@@ -5928,8 +5965,8 @@ static Object* Runtime_GetCFrames(Arguments args) {
   if (result->IsFailure()) return result;
 
   static const int kMaxCFramesSize = 200;
-  OS::StackFrame frames[kMaxCFramesSize];
-  int frames_count = OS::StackWalk(frames, kMaxCFramesSize);
+  ScopedVector<OS::StackFrame> frames(kMaxCFramesSize);
+  int frames_count = OS::StackWalk(frames);
   if (frames_count == OS::kStackWalkError) {
     return Heap::undefined_value();
   }
@@ -6796,6 +6833,22 @@ static Object* Runtime_SystemBreak(Arguments args) {
 }
 
 
+static Object* Runtime_FunctionGetAssemblerCode(Arguments args) {
+#ifdef DEBUG
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  // Get the function and make sure it is compiled.
+  CONVERT_ARG_CHECKED(JSFunction, func, 0);
+  if (!func->is_compiled() && !CompileLazy(func, KEEP_EXCEPTION)) {
+    return Failure::Exception();
+  }
+  func->code()->PrintLn();
+#endif  // DEBUG
+  return Heap::undefined_value();
+}
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position
 // for the requested break point. For lazily compiled functions several heap
@@ -6842,21 +6895,6 @@ static Object* Runtime_GetScript(Arguments args) {
   Handle<Object> result =
       Runtime_GetScriptFromScriptName(Handle<String>(script_name));
   return *result;
-}
-
-
-static Object* Runtime_FunctionGetAssemblerCode(Arguments args) {
-#ifdef DEBUG
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  // Get the function and make sure it is compiled.
-  CONVERT_ARG_CHECKED(JSFunction, func, 0);
-  if (!func->is_compiled() && !CompileLazy(func, KEEP_EXCEPTION)) {
-    return Failure::Exception();
-  }
-  func->code()->PrintLn();
-#endif  // DEBUG
-  return Heap::undefined_value();
 }
 
 

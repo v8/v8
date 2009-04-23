@@ -43,22 +43,6 @@
 
 namespace v8 { namespace internal {
 
-#define FIELD_ADDR(p, offset) \
-  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
-
-
-#define WRITE_FIELD(p, offset, value) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
-
-
-#define WRITE_INT_FIELD(p, offset, value) \
-  (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
-
-
-#define WRITE_BARRIER(object, offset) \
-  Heap::RecordWrite(object->address(), offset);
-
-
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
 const int kGetterIndex = 0;
@@ -1800,6 +1784,17 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
+
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return value;
+    ASSERT(proto->IsJSGlobalObject());
+    return JSObject::cast(proto)->IgnoreAttributesAndSetLocalProperty(
+        name,
+        value,
+        attributes);
+  }
+
   // Check for accessor in prototype chain removed here in clone.
   if (result->IsNotFound()) {
     return AddProperty(name, value, attributes);
@@ -1820,20 +1815,16 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
         return AddFastPropertyUsingMap(result->GetTransitionMap(),
                                        name,
                                        value);
-      } else {
-        return ConvertDescriptorToField(name, value, attributes);
       }
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
-      return SetPropertyWithCallback(result->GetCallbackObject(),
-                                     name,
-                                     value,
-                                     result->holder());
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes);
+      // Override callback in clone
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
@@ -4678,6 +4669,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
     it.rinfo()->set_target_object(code);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::has_break_points()) {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
@@ -4691,6 +4683,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
       }
     }
   }
+#endif
   set_ic_flag(IC_TARGET_IS_OBJECT);
 }
 
@@ -4712,10 +4705,12 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
       v->VisitCodeTarget(it.rinfo());
     } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
       v->VisitExternalReference(it.rinfo()->target_reference_address());
+#ifdef ENABLE_DEBUGGER_SUPPORT
     } else if (Debug::has_break_points() &&
                RelocInfo::IsJSReturn(rmode) &&
                it.rinfo()->IsCallInstruction()) {
       v->VisitDebugTarget(it.rinfo());
+#endif
     } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
       v->VisitRuntimeEntry(it.rinfo());
     }
@@ -4740,6 +4735,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
     it.rinfo()->set_target_address(code->instruction_start());
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::has_break_points()) {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
@@ -4751,6 +4747,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
       }
     }
   }
+#endif
   set_ic_flag(IC_TARGET_IS_ADDRESS);
 }
 
@@ -5138,7 +5135,7 @@ bool JSObject::HasElementWithInterceptor(JSObject* receiver, uint32_t index) {
       VMState state(EXTERNAL);
       result = getter(index, info);
     }
-    if (!result.IsEmpty()) return !result->IsUndefined();
+    if (!result.IsEmpty()) return true;
   }
   return holder_handle->HasElementPostInterceptor(*receiver_handle, index);
 }
@@ -5861,43 +5858,46 @@ int JSObject::NumberOfEnumProperties() {
 }
 
 
-void FixedArray::Swap(int i, int j) {
+void FixedArray::SwapPairs(FixedArray* numbers, int i, int j) {
   Object* temp = get(i);
   set(i, get(j));
   set(j, temp);
+  if (this != numbers) {
+    temp = numbers->get(i);
+    numbers->set(i, numbers->get(j));
+    numbers->set(j, temp);
+  }
 }
 
 
-static void InsertionSortPairs(FixedArray* content, FixedArray* smis) {
-  int len = smis->length();
+static void InsertionSortPairs(FixedArray* content,
+                               FixedArray* numbers,
+                               int len) {
   for (int i = 1; i < len; i++) {
     int j = i;
     while (j > 0 &&
-           Smi::cast(smis->get(j-1))->value() >
-               Smi::cast(smis->get(j))->value()) {
-      smis->Swap(j-1, j);
-      content->Swap(j-1, j);
+           (NumberToUint32(numbers->get(j - 1)) >
+            NumberToUint32(numbers->get(j)))) {
+      content->SwapPairs(numbers, j - 1, j);
       j--;
     }
   }
 }
 
 
-void HeapSortPairs(FixedArray* content, FixedArray* smis) {
+void HeapSortPairs(FixedArray* content, FixedArray* numbers, int len) {
   // In-place heap sort.
-  ASSERT(content->length() == smis->length());
-  int len = smis->length();
+  ASSERT(content->length() == numbers->length());
 
   // Bottom-up max-heap construction.
   for (int i = 1; i < len; ++i) {
     int child_index = i;
     while (child_index > 0) {
       int parent_index = ((child_index + 1) >> 1) - 1;
-      int parent_value = Smi::cast(smis->get(parent_index))->value();
-      int child_value = Smi::cast(smis->get(child_index))->value();
+      uint32_t parent_value = NumberToUint32(numbers->get(parent_index));
+      uint32_t child_value = NumberToUint32(numbers->get(child_index));
       if (parent_value < child_value) {
-        content->Swap(parent_index, child_index);
-        smis->Swap(parent_index, child_index);
+        content->SwapPairs(numbers, parent_index, child_index);
       } else {
         break;
       }
@@ -5908,25 +5908,22 @@ void HeapSortPairs(FixedArray* content, FixedArray* smis) {
   // Extract elements and create sorted array.
   for (int i = len - 1; i > 0; --i) {
     // Put max element at the back of the array.
-    content->Swap(0, i);
-    smis->Swap(0, i);
+    content->SwapPairs(numbers, 0, i);
     // Sift down the new top element.
     int parent_index = 0;
     while (true) {
       int child_index = ((parent_index + 1) << 1) - 1;
       if (child_index >= i) break;
-      uint32_t child1_value = Smi::cast(smis->get(child_index))->value();
-      uint32_t child2_value = Smi::cast(smis->get(child_index + 1))->value();
-      uint32_t parent_value = Smi::cast(smis->get(parent_index))->value();
+      uint32_t child1_value = NumberToUint32(numbers->get(child_index));
+      uint32_t child2_value = NumberToUint32(numbers->get(child_index + 1));
+      uint32_t parent_value = NumberToUint32(numbers->get(parent_index));
       if (child_index + 1 >= i || child1_value > child2_value) {
         if (parent_value > child1_value) break;
-        content->Swap(parent_index, child_index);
-        smis->Swap(parent_index, child_index);
+        content->SwapPairs(numbers, parent_index, child_index);
         parent_index = child_index;
       } else {
         if (parent_value > child2_value) break;
-        content->Swap(parent_index, child_index + 1);
-        smis->Swap(parent_index, child_index + 1);
+        content->SwapPairs(numbers, parent_index, child_index + 1);
         parent_index = child_index + 1;
       }
     }
@@ -5934,43 +5931,41 @@ void HeapSortPairs(FixedArray* content, FixedArray* smis) {
 }
 
 
-// Sort this array and the smis as pairs wrt. the (distinct) smis.
-void FixedArray::SortPairs(FixedArray* smis) {
-  ASSERT(this->length() == smis->length());
-  int len = smis->length();
+// Sort this array and the numbers as pairs wrt. the (distinct) numbers.
+void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
+  ASSERT(this->length() == numbers->length());
   // For small arrays, simply use insertion sort.
   if (len <= 10) {
-    InsertionSortPairs(this, smis);
+    InsertionSortPairs(this, numbers, len);
     return;
   }
   // Check the range of indices.
-  int min_index = Smi::cast(smis->get(0))->value();
-  int max_index = min_index;
-  int i;
+  uint32_t min_index = NumberToUint32(numbers->get(0));
+  uint32_t max_index = min_index;
+  uint32_t i;
   for (i = 1; i < len; i++) {
-    if (Smi::cast(smis->get(i))->value() < min_index) {
-      min_index = Smi::cast(smis->get(i))->value();
-    } else if (Smi::cast(smis->get(i))->value() > max_index) {
-      max_index = Smi::cast(smis->get(i))->value();
+    if (NumberToUint32(numbers->get(i)) < min_index) {
+      min_index = NumberToUint32(numbers->get(i));
+    } else if (NumberToUint32(numbers->get(i)) > max_index) {
+      max_index = NumberToUint32(numbers->get(i));
     }
   }
   if (max_index - min_index + 1 == len) {
     // Indices form a contiguous range, unless there are duplicates.
-    // Do an in-place linear time sort assuming distinct smis, but
+    // Do an in-place linear time sort assuming distinct numbers, but
     // avoid hanging in case they are not.
     for (i = 0; i < len; i++) {
-      int p;
-      int j = 0;
+      uint32_t p;
+      uint32_t j = 0;
       // While the current element at i is not at its correct position p,
       // swap the elements at these two positions.
-      while ((p = Smi::cast(smis->get(i))->value() - min_index) != i &&
+      while ((p = NumberToUint32(numbers->get(i)) - min_index) != i &&
              j++ < len) {
-        this->Swap(i, p);
-        smis->Swap(i, p);
+        SwapPairs(numbers, i, p);
       }
     }
   } else {
-    HeapSortPairs(this, smis);
+    HeapSortPairs(this, numbers, len);
     return;
   }
 }
@@ -6758,7 +6753,7 @@ Object* Dictionary::GenerateNewEnumerationIndices() {
   }
 
   // Sort the arrays wrt. enumeration order.
-  iteration_order->SortPairs(enumeration_order);
+  iteration_order->SortPairs(enumeration_order, enumeration_order->length());
 
   // Overwrite the enumeration_order with the enumeration indices.
   for (int i = 0; i < length; i++) {
@@ -7010,6 +7005,7 @@ void Dictionary::CopyKeysTo(FixedArray* storage, PropertyAttributes filter) {
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
+  storage->SortPairs(storage, index);
   ASSERT(storage->length() >= index);
 }
 
@@ -7031,7 +7027,7 @@ void Dictionary::CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array) {
        }
      }
   }
-  storage->SortPairs(sort_array);
+  storage->SortPairs(sort_array, sort_array->length());
   ASSERT(storage->length() >= index);
 }
 
@@ -7176,6 +7172,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 // Check if there is a break point at this code position.
 bool DebugInfo::HasBreakPoint(int code_position) {
   // Get the break point info object for this code position.
@@ -7419,6 +7416,6 @@ int BreakPointInfo::GetBreakPointCount() {
   // Multiple break points.
   return FixedArray::cast(break_point_objects())->length();
 }
-
+#endif
 
 } }  // namespace v8::internal

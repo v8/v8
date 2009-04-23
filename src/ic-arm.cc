@@ -39,7 +39,7 @@ namespace v8 { namespace internal {
 // Static IC stub generators.
 //
 
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 
 // Helper function used from LoadIC/CallIC GenerateNormal.
@@ -96,7 +96,9 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
     // Compute the masked index: (hash + i + i * i) & mask.
     __ ldr(t1, FieldMemOperand(r2, String::kLengthOffset));
     __ mov(t1, Operand(t1, LSR, String::kHashShift));
-    if (i > 0) __ add(t1, t1, Operand(Dictionary::GetProbeOffset(i)));
+    if (i > 0) {
+      __ add(t1, t1, Operand(Dictionary::GetProbeOffset(i)));
+    }
     __ and_(t1, t1, Operand(r3));
 
     // Scale the index by multiplying by the element size.
@@ -505,6 +507,8 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 // TODO(181): Implement map patching once loop nesting is tracked on
 // the ARM platform so we can generate inlined fast-case code for
 // array indexing in loops.
+bool KeyedLoadIC::HasInlinedVersion(Address address) { return false; }
+void KeyedLoadIC::ClearInlinedVersion(Address address) { }
 void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) { }
 
 

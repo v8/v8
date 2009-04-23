@@ -832,12 +832,16 @@ bool Genesis::CompileBuiltin(int index) {
 
 bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
   HandleScope scope;
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger::set_compiling_natives(true);
+#endif
   bool result =
       CompileScriptCached(name, source, &natives_cache, NULL, true);
   ASSERT(Top::has_pending_exception() != result);
   if (!result) Top::clear_pending_exception();
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger::set_compiling_natives(false);
+#endif
   return result;
 }
 
@@ -1015,6 +1019,13 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("column_offset"),
             proxy_column_offset,
             common_attributes);
+    Handle<Proxy> proxy_data = Factory::NewProxy(&Accessors::ScriptData);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("data"),
+            proxy_data,
+            common_attributes);
     Handle<Proxy> proxy_type = Factory::NewProxy(&Accessors::ScriptType);
     script_descriptors =
         Factory::CopyAppendProxyDescriptor(
@@ -1132,6 +1143,7 @@ bool Genesis::InstallSpecialObjects() {
                 Handle<JSObject>(js_global->builtins()), DONT_ENUM);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
     // If loading fails we just bail out without installing the
@@ -1149,6 +1161,7 @@ bool Genesis::InstallSpecialObjects() {
     SetProperty(js_global, debug_string,
         Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
   }
+#endif
 
   return true;
 }

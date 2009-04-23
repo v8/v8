@@ -174,6 +174,12 @@ class Simulator {
   // Executes one instruction.
   void InstructionDecode(Instr* instr);
 
+  // For use in calls that take two double values, constructed from r0, r1, r2
+  // and r3.
+  void GetFpArgs(double* x, double* y);
+  void SetFpResult(const double& result);
+  void TrashCallerSaveRegisters();
+
   // architecture state
   int32_t registers_[16];
   bool n_flag_;

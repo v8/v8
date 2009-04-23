@@ -2679,7 +2679,10 @@ void Heap::IterateStrongRoots(ObjectVisitor* v) {
   SYNCHRONIZE_TAG("bootstrapper");
   Top::Iterate(v);
   SYNCHRONIZE_TAG("top");
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::Iterate(v);
+#endif
   SYNCHRONIZE_TAG("debug");
   CompilationCache::Iterate(v);
   SYNCHRONIZE_TAG("compilationcache");

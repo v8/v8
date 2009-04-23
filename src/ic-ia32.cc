@@ -38,7 +38,7 @@ namespace v8 { namespace internal {
 // Static IC stub generators.
 //
 
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 
 // Helper function used to load a property from a dictionary backing storage.
@@ -91,7 +91,9 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
     __ shr(r1, String::kHashShift);
-    if (i > 0) __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
+    if (i > 0) {
+      __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
+    }
     __ and_(r1, Operand(r2));
 
     // Scale the index by multiplying by the element size.
@@ -727,8 +729,24 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 }
 
 
+// One byte opcode for test eax,0xXXXXXXXX.
+static const byte kTestEaxByte = 0xA9;
+
+
+bool KeyedLoadIC::HasInlinedVersion(Address address) {
+  Address test_instruction_address = address + 4;  // 4 = stub address
+  return *test_instruction_address == kTestEaxByte;
+}
+
+
+void KeyedLoadIC::ClearInlinedVersion(Address address) {
+  // Insert null as the map to check for to make sure the map check fails
+  // sending control flow to the IC instead of the inlined version.
+  PatchInlinedMapCheck(address, Heap::null_value());
+}
+
+
 void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) {
-  static const byte kTestEaxByte = 0xA9;
   Address test_instruction_address = address + 4;  // 4 = stub address
   // The keyed load has a fast inlined case if the IC call instruction
   // is immediately followed by a test instruction.
@@ -742,7 +760,7 @@ void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) {
     // bytes of the 7-byte operand-immediate compare instruction, so
     // we add 3 to the offset to get the map address.
     Address map_address = test_instruction_address + offset_value + 3;
-    // patch the map check.
+    // Patch the map check.
     (*(reinterpret_cast<Object**>(map_address))) = value;
   }
 }

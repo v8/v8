@@ -529,6 +529,13 @@ class V8EXPORT Script {
    * Returns the script id value.
    */
   Local<Value> Id();
+
+  /**
+   * Associate an additional data object with the script. This is mainly used
+   * with the debugger as this data object is only available through the
+   * debugger API.
+   */
+  void SetData(Handle<Value> data);
 };
 
 
@@ -540,7 +547,17 @@ class V8EXPORT Message {
   Local<String> Get() const;
   Local<String> GetSourceLine() const;
 
+  /**
+   * Returns the resource name for the script from where the function causing
+   * the error originates.
+   */
   Handle<Value> GetScriptResourceName() const;
+
+  /**
+   * Returns the resource data for the script from where the function causing
+   * the error originates.
+   */
+  Handle<Value> GetScriptData() const;
 
   /**
    * Returns the number, 1-based, of the line where the error occurred.
@@ -1028,6 +1045,18 @@ class V8EXPORT Object : public Value {
   bool Set(Handle<Value> key,
            Handle<Value> value,
            PropertyAttribute attribs = None);
+
+  // Sets a local property on this object, bypassing interceptors and
+  // overriding accessors or read-only properties.
+  //
+  // Note that if the object has an interceptor the property will be set
+  // locally, but since the interceptor takes precedence the local property
+  // will only be returned if the interceptor doesn't return a value.
+  //
+  // Note also that this only works for named properties.
+  bool ForceSet(Handle<Value> key,
+                Handle<Value> value,
+                PropertyAttribute attribs = None);
   Local<Value> Get(Handle<Value> key);
 
   // TODO(1245389): Replace the type-specific versions of these

@@ -86,7 +86,7 @@ class MacroAssembler: public Assembler {
   void Call(Register target, Condition cond = al);
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
-  void Ret();
+  void Ret(Condition cond = al);
   // Jumps to the label at the index given by the Smi in "index".
   void SmiJumpTable(Register index, Vector<Label*> targets);
 
@@ -138,6 +138,7 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag);
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
@@ -147,7 +148,7 @@ class MacroAssembler: public Assembler {
   void CopyRegistersFromStackToMemory(Register base,
                                       Register scratch,
                                       RegList regs);
-
+#endif
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -296,6 +297,15 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
   return MemOperand(object, offset - kHeapObjectTag);
 }
 
+
+#ifdef GENERATED_CODE_COVERAGE
+#define CODE_COVERAGE_STRINGIFY(x) #x
+#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
+#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
+#define ACCESS_MASM(masm) masm->stop(__FILE_LINE__); masm->
+#else
+#define ACCESS_MASM(masm) masm->
+#endif
 
 
 } }  // namespace v8::internal

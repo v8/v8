@@ -98,6 +98,7 @@ const kMessages = {
   instanceof_function_expected: "Expecting a function in instanceof check, but got %0",
   instanceof_nonobject_proto:   "Function has non-object prototype '%0' in instanceof check",
   null_to_object:               "Cannot convert null to object",
+  reduce_no_initial:            "Reduce of empty array with no initial value",
   // RangeError
   invalid_array_length:         "Invalid array length",
   invalid_array_apply_length:   "Function.prototype.apply supports only up to 1024 arguments",

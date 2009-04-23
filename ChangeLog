@@ -1,3 +1,24 @@
+2009-04-23: Version 1.2.0
+
+        Optimized floating-point operations on ARM.
+
+        Added a number of extensions to the debugger API.
+
+        Changed the enumeration order for unsigned integer keys to always
+        be numerical order.
+
+        Added a "read" extension to the shell sample.
+
+        Added support for Array.prototype.reduce and
+        Array.prototype.reduceRight.
+
+        Added an option to the SCons build to control Microsoft Visual C++
+        link-time code generation.
+
+        Fixed a number of bugs (in particular issue 315, issue 316,
+        issue 317 and issue 318).
+
+
 2009-04-15: Version 1.1.10
 
         Fixed crash bug that occurred when loading a const variable in the
@@ -27,13 +48,13 @@
 
         Changed test-debug/ThreadedDebugging to be non-flaky (issue 96).
 
-        Fixed step-in handling for Function.prototype.apply and call in 
+        Fixed step-in handling for Function.prototype.apply and call in
         the debugger (issue 269).
 
         Fixed v8::Object::DeleteHiddenValue to not bail out when there
         are no hidden properties.
 
-        Added workaround for crash bug, where external symbol table 
+        Added workaround for crash bug, where external symbol table
         entries with deleted resources would lead to NPEs when looking
         up in the symbol table.
 

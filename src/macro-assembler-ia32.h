@@ -73,7 +73,7 @@ class MacroAssembler: public Assembler {
                    Register value,
                    Register scratch);
 
-
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
@@ -84,7 +84,7 @@ class MacroAssembler: public Assembler {
   void CopyRegistersFromStackToMemory(Register base,
                                       Register scratch,
                                       RegList regs);
-
+#endif
 
   // ---------------------------------------------------------------------------
   // Activation frames
@@ -342,6 +342,29 @@ static inline Operand FieldOperand(Register object,
                                    int offset) {
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
+
+
+#ifdef GENERATED_CODE_COVERAGE
+extern void LogGeneratedCodeCoverage(const char* file_line);
+#define CODE_COVERAGE_STRINGIFY(x) #x
+#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
+#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
+#define ACCESS_MASM(masm) {                                               \
+    byte* ia32_coverage_function =                                        \
+        reinterpret_cast<byte*>(FUNCTION_ADDR(LogGeneratedCodeCoverage)); \
+    masm->pushfd();                                                       \
+    masm->pushad();                                                       \
+    masm->push(Immediate(reinterpret_cast<int>(&__FILE_LINE__)));         \
+    masm->call(ia32_coverage_function, RelocInfo::RUNTIME_ENTRY);         \
+    masm->pop(eax);                                                       \
+    masm->popad();                                                        \
+    masm->popfd();                                                        \
+  }                                                                       \
+  masm->
+#else
+#define ACCESS_MASM(masm) masm->
+#endif
+
 
 } }  // namespace v8::internal
 

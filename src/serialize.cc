@@ -548,6 +548,7 @@ void ExternalReferenceTable::PopulateTable() {
     AddFromId(ref_table[i].type, ref_table[i].id, ref_table[i].name);
   }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Debug addresses
   Add(Debug_Address(Debug::k_after_break_target_address).address(),
       DEBUG_ADDRESS,
@@ -567,6 +568,7 @@ void ExternalReferenceTable::PopulateTable() {
         Debug::k_register_address << kDebugIdShift | i,
         name.start());
   }
+#endif
 
   // Stat counters
   struct StatsRefTableEntry {
@@ -659,10 +661,6 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       4,
       "RegExpStack::limit_address()");
-  Add(ExternalReference::debug_break().address(),
-      UNCLASSIFIED,
-      5,
-      "Debug::Break()");
   Add(ExternalReference::new_space_start().address(),
       UNCLASSIFIED,
       6,
@@ -679,10 +677,28 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       9,
       "Heap::NewSpaceAllocationTopAddress()");
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Add(ExternalReference::debug_break().address(),
+      UNCLASSIFIED,
+      5,
+      "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
       10,
       "Debug::step_in_fp_addr()");
+  Add(ExternalReference::double_fp_operation(Token::ADD).address(),
+      UNCLASSIFIED,
+      11,
+      "add_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::SUB).address(),
+      UNCLASSIFIED,
+      12,
+      "sub_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::MUL).address(),
+      UNCLASSIFIED,
+      13,
+      "mul_two_doubles");
+#endif
 }
 
 

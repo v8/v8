@@ -94,6 +94,7 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG'],
       'os:android': {
+        'CPPDEFINES': ['ENABLE_DEBUGGER_SUPPORT'],
         'CCFLAGS':    ['-mthumb']
       }
     },
@@ -102,13 +103,13 @@ LIBRARY_FLAGS = {
                        '-ffunction-sections'],
       'os:android': {
         'CCFLAGS':    ['-mthumb', '-Os'],
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG', 'ENABLE_DEBUGGER_SUPPORT']
       }
     },
     'os:linux': {
       'CCFLAGS':      ['-ansi'],
       'library:shared': {
-        'LIBS': ['pthread', 'rt']
+        'LIBS': ['pthread']
       }
     },
     'os:macos': {
@@ -160,14 +161,18 @@ LIBRARY_FLAGS = {
       }
     },
     'mode:release': {
-      'CCFLAGS':      ['/O2', '/GL'],
-      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF', '/LTCG'],
-      'ARFLAGS':      ['/LTCG'],
+      'CCFLAGS':      ['/O2'],
+      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF'],
       'msvcrt:static': {
         'CCFLAGS': ['/MT']
       },
       'msvcrt:shared': {
         'CCFLAGS': ['/MD']
+      },
+      'msvcltcg:on': {
+        'CCFLAGS':      ['/GL'],
+        'LINKFLAGS':    ['/LTCG'],
+        'ARFLAGS':      ['/LTCG'],
       }
     },
   }
@@ -224,7 +229,7 @@ V8_EXTRA_FLAGS = {
 MKSNAPSHOT_EXTRA_FLAGS = {
   'gcc': {
     'os:linux': {
-      'LIBS': ['pthread', 'rt'],
+      'LIBS': ['pthread'],
     },
     'os:macos': {
       'LIBS': ['pthread'],
@@ -238,6 +243,7 @@ MKSNAPSHOT_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
+      'CPPDEFINES': ['_HAS_EXCEPTIONS=0'],
       'LIBS': ['winmm', 'ws2_32']
     }
   }
@@ -268,7 +274,7 @@ CCTEST_EXTRA_FLAGS = {
       'LIBPATH': [abspath('.')]
     },
     'os:linux': {
-      'LIBS':         ['pthread', 'rt'],
+      'LIBS':         ['pthread'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],
@@ -307,7 +313,7 @@ SAMPLE_FLAGS = {
       'CCFLAGS': ['-fno-rtti', '-fno-exceptions']
     },
     'os:linux': {
-      'LIBS':         ['pthread', 'rt'],
+      'LIBS':         ['pthread'],
     },
     'os:macos': {
       'LIBS':         ['pthread'],
@@ -359,12 +365,16 @@ SAMPLE_FLAGS = {
     },
     'mode:release': {
       'CCFLAGS':   ['/O2'],
-      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF', '/LTCG'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF'],
       'msvcrt:static': {
         'CCFLAGS': ['/MT']
       },
       'msvcrt:shared': {
         'CCFLAGS': ['/MD']
+      },
+      'msvcltcg:on': {
+        'CCFLAGS':      ['/GL'],
+        'LINKFLAGS':    ['/LTCG'],
       }
     },
     'mode:debug': {
@@ -387,7 +397,7 @@ D8_FLAGS = {
       'LIBS': ['readline']
     },
     'os:linux': {
-      'LIBS': ['pthread', 'rt'],
+      'LIBS': ['pthread'],
     },
     'os:macos': {
       'LIBS': ['pthread'],
@@ -473,7 +483,12 @@ SIMPLE_OPTIONS = {
   'msvcrt': {
     'values': ['static', 'shared'],
     'default': 'static',
-    'help': 'the type of MSVCRT library to use'
+    'help': 'the type of Microsoft Visual C++ runtime library to use'
+  },
+  'msvcltcg': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'use Microsoft Visual C++ link-time code generation'
   },
   'wordsize': {
     'values': ['64', '32'],

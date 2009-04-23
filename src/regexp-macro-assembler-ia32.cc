@@ -86,7 +86,7 @@ namespace v8 { namespace internal {
  *              byte* stack_area_top)
  */
 
-#define __ masm_->
+#define __ ACCESS_MASM(masm_)
 
 RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
     Mode mode,

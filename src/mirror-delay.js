@@ -1582,6 +1582,11 @@ ScriptMirror.prototype.columnOffset = function() {
 };
 
 
+ScriptMirror.prototype.data = function() {
+  return this.script_.data;
+};
+
+
 ScriptMirror.prototype.scriptType = function() {
   return this.script_.type;
 };

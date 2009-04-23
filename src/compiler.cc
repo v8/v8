@@ -92,8 +92,10 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   StackGuard guard;
   PostponeInterruptsScope postpone;
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   Debugger::OnBeforeCompile(script);
+#endif
 
   // Only allow non-global compiles for eval.
   ASSERT(is_eval || is_global);
@@ -160,8 +162,10 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(fun, lit->expected_property_count());
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   Debugger::OnAfterCompile(script, fun);
+#endif
 
   return fun;
 }

@@ -34,7 +34,7 @@
 namespace v8 { namespace internal {
 
 
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
@@ -218,8 +218,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ mov(r5, Operand(r4));
   __ mov(r6, Operand(r4));
   __ mov(r7, Operand(r4));
-  if (kR9Available == 1)
+  if (kR9Available == 1) {
     __ mov(r9, Operand(r4));
+  }
 
   // Invoke the code and pass argc as r0.
   __ mov(r0, Operand(r3));

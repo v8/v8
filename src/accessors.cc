@@ -252,6 +252,24 @@ const AccessorDescriptor Accessors::ScriptColumnOffset = {
 
 
 //
+// Accessors::ScriptData
+//
+
+
+Object* Accessors::ScriptGetData(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  return Script::cast(script)->data();
+}
+
+
+const AccessorDescriptor Accessors::ScriptData = {
+  ScriptGetData,
+  IllegalSetter,
+  0
+};
+
+
+//
 // Accessors::ScriptType
 //
 

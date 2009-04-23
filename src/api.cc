@@ -1108,6 +1108,19 @@ Local<Value> Script::Id() {
 }
 
 
+void Script::SetData(v8::Handle<Value> data) {
+  ON_BAILOUT("v8::Script::SetData()", return);
+  LOG_API("Script::SetData");
+  {
+    HandleScope scope;
+    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
+    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+    i::Handle<i::Script> script(i::Script::cast(fun->shared()->script()));
+    script->set_data(*raw_data);
+  }
+}
+
+
 // --- E x c e p t i o n s ---
 
 
@@ -1196,6 +1209,22 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
       i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
   return scope.Close(Utils::ToLocal(resource_name));
+}
+
+
+v8::Handle<Value> Message::GetScriptData() const {
+  if (IsDeadCheck("v8::Message::GetScriptResourceData()")) {
+    return Local<Value>();
+  }
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> obj =
+      i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
+  // Return this.script.data.
+  i::Handle<i::JSValue> script =
+      i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
+  i::Handle<i::Object> data(i::Script::cast(script->value())->data());
+  return scope.Close(Utils::ToLocal(data));
 }
 
 
@@ -1806,6 +1835,26 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
+bool v8::Object::ForceSet(v8::Handle<Value> key,
+                          v8::Handle<Value> value,
+                          v8::PropertyAttribute attribs) {
+  ON_BAILOUT("v8::Object::ForceSet()", return false);
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::ForceSetProperty(
+      self,
+      key_obj,
+      value_obj,
+      static_cast<PropertyAttributes>(attribs));
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
 Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
   ENTER_V8;
@@ -2373,7 +2422,7 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.1.10.4";
+  return "1.2.0";
 }
 
 
@@ -3180,8 +3229,8 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 // --- D e b u g   S u p p o r t ---
 
-
-bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   ENTER_V8;
@@ -3211,31 +3260,27 @@ void Debug::DebugBreak() {
 }
 
 
-void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data,
+void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
-  i::Debugger::SetMessageHandler(handler, data, message_handler_thread);
+  i::Debugger::SetMessageHandler(handler, message_handler_thread);
 }
 
 
-void Debug::SendCommand(const uint16_t* command, int length) {
+void Debug::SendCommand(const uint16_t* command, int length,
+                        ClientData* client_data) {
   if (!i::V8::HasBeenSetup()) return;
-  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length));
+  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length),
+                              client_data);
 }
 
 
-void Debug::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
-                                   void* data) {
+void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
+                                   int period) {
   EnsureInitialized("v8::Debug::SetHostDispatchHandler");
   ENTER_V8;
-  i::Debugger::SetHostDispatchHandler(handler, data);
-}
-
-
-void Debug::SendHostDispatch(void* dispatch) {
-  if (!i::V8::HasBeenSetup()) return;
-  i::Debugger::ProcessHostDispatch(dispatch);
+  i::Debugger::SetHostDispatchHandler(handler, period);
 }
 
 
@@ -3263,7 +3308,7 @@ Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
 bool Debug::EnableAgent(const char* name, int port) {
   return i::Debugger::StartAgent(name, port);
 }
-
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 namespace internal {
 

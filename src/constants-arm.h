@@ -106,7 +106,12 @@ enum SoftwareInterruptCodes {
   call_rt_r5 = 0x10,
   call_rt_r2 = 0x11,
   // break point
-  break_point = 0x20
+  break_point = 0x20,
+  // FP operations.  These simulate calling into C for a moment to do fp ops.
+  // They should trash all caller-save registers.
+  simulator_fp_add = 0x21,
+  simulator_fp_sub = 0x22,
+  simulator_fp_mul = 0x23
 };
 
 

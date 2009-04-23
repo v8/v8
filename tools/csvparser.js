@@ -25,51 +25,74 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
 
-#include "ast.h"
-#include "func-name-inferrer.h"
-
-namespace v8 { namespace internal {
+// Initlialize namespaces.
+var devtools = devtools || {};
+devtools.profiler = devtools.profiler || {};
 
 
-void FuncNameInferrer::PushEnclosingName(Handle<String> name) {
-  // Enclosing name is a name of a constructor function. To check
-  // that it is really a constructor, we check that it is not empty
-  // and starts with a capital letter.
-  if (name->length() > 0 && Runtime::IsUpperCaseChar(name->Get(0))) {
-    names_stack_.Add(name);
+/**
+ * Creates a CSV lines parser.
+ */
+devtools.profiler.CsvParser = function() {
+};
+
+
+/**
+ * A regex for matching a trailing quote.
+ * @private
+ */
+devtools.profiler.CsvParser.TRAILING_QUOTE_RE_ = /\"$/;
+
+
+/**
+ * A regex for matching a double quote.
+ * @private
+ */
+devtools.profiler.CsvParser.DOUBLE_QUOTE_RE_ = /\"\"/g;
+
+
+/**
+ * Parses a line of CSV-encoded values. Returns an array of fields.
+ *
+ * @param {string} line Input line.
+ */
+devtools.profiler.CsvParser.prototype.parseLine = function(line) {
+  var insideQuotes = false;
+  var fields = [];
+  var prevPos = 0;
+  for (var i = 0, n = line.length; i < n; ++i) {
+    switch (line.charAt(i)) {
+      case ',':
+        if (!insideQuotes) {
+          fields.push(line.substring(prevPos, i));
+          prevPos = i + 1;
+        }
+        break;
+      case '"':
+        if (!insideQuotes) {
+          insideQuotes = true;
+          // Skip the leading quote.
+          prevPos++;
+        } else {
+          if (i + 1 < n && line.charAt(i + 1) != '"') {
+            insideQuotes = false;
+          } else {
+            i++;
+          }
+        }
+        break;
+    }
   }
-}
-
-
-Handle<String> FuncNameInferrer::MakeNameFromStack() {
-  if (names_stack_.is_empty()) {
-    return Factory::empty_string();
-  } else {
-    return MakeNameFromStackHelper(1, names_stack_.at(0));
+  if (n > 0) {
+    fields.push(line.substring(prevPos));
   }
-}
 
-
-Handle<String> FuncNameInferrer::MakeNameFromStackHelper(int pos,
-                                                         Handle<String> prev) {
-  if (pos >= names_stack_.length()) {
-    return prev;
-  } else {
-    Handle<String> curr = Factory::NewConsString(dot_, names_stack_.at(pos));
-    return MakeNameFromStackHelper(pos + 1, Factory::NewConsString(prev, curr));
+  for (i = 0; i < fields.length; ++i) {
+    // Eliminate trailing quotes.
+    fields[i] = fields[i].replace(devtools.profiler.CsvParser.TRAILING_QUOTE_RE_, '');
+    // Convert quoted quotes into single ones.
+    fields[i] = fields[i].replace(devtools.profiler.CsvParser.DOUBLE_QUOTE_RE_, '"');
   }
-}
-
-
-void FuncNameInferrer::InferFunctionsNames() {
-  Handle<String> func_name = MakeNameFromStack();
-  for (int i = 0; i < funcs_to_infer_.length(); ++i) {
-    funcs_to_infer_[i]->set_inferred_name(func_name);
-  }
-  funcs_to_infer_.Rewind(0);
-}
-
-
-} }  // namespace v8::internal
+  return fields;
+};

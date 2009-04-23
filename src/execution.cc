@@ -305,6 +305,7 @@ void StackGuard::Preempt() {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 bool StackGuard::IsDebugBreak() {
   ExecutionAccess access;
   return thread_local_.interrupt_flags_ & DEBUGBREAK;
@@ -331,7 +332,7 @@ void StackGuard::DebugCommand() {
     set_limits(kInterruptLimit, access);
   }
 }
-
+#endif
 
 void StackGuard::Continue(InterruptFlag after_what) {
   ExecutionAccess access;
@@ -539,6 +540,7 @@ static Object* RuntimePreempt() {
 
   ContextSwitcher::PreemptionReceived();
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (Debug::InDebugger()) {
     // If currently in the debugger don't do any actual preemption but record
     // that preemption occoured while in the debugger.
@@ -548,11 +550,17 @@ static Object* RuntimePreempt() {
     v8::Unlocker unlocker;
     Thread::YieldCPU();
   }
+#else
+  // Perform preemption.
+  v8::Unlocker unlocker;
+  Thread::YieldCPU();
+#endif
 
   return Heap::undefined_value();
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Object* Execution::DebugBreakHelper() {
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
@@ -598,12 +606,14 @@ Object* Execution::DebugBreakHelper() {
   // Return to continue execution.
   return Heap::undefined_value();
 }
-
+#endif
 
 Object* Execution::HandleStackGuardInterrupt() {
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (StackGuard::IsDebugBreak() || StackGuard::IsDebugCommand()) {
     DebugBreakHelper();
   }
+#endif
   if (StackGuard::IsPreempted()) RuntimePreempt();
   if (StackGuard::IsInterrupted()) {
     // interrupt
@@ -626,7 +636,7 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
 
 v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
   // All allocation spaces other than NEW_SPACE have the same effect.
-  Heap::CollectGarbage(0, OLD_DATA_SPACE);
+  Heap::CollectAllGarbage();
   return v8::Undefined();
 }
 

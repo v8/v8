@@ -173,6 +173,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_id(Heap::last_script_id());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
+  script->set_data(Heap::undefined_value());
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
   script->set_wrapper(*Factory::NewProxy(0, TENURED));
   script->set_line_ends(Heap::undefined_value());
@@ -671,6 +672,7 @@ Handle<Object> Factory::ToObject(Handle<Object> object,
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Get the original code of the function.
   Handle<Code> code(shared->code());
@@ -700,6 +702,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
   return debug_info;
 }
+#endif
 
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,

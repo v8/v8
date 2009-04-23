@@ -71,6 +71,11 @@
 //   CodeForStatementPosition
 //   CodeForSourcePosition
 
+
+// Mode to overwrite BinaryExpression values.
+enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
+
+
 #ifdef ARM
 #include "codegen-arm.h"
 #else

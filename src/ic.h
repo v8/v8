@@ -107,9 +107,11 @@ class IC {
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
   // Computes the address in the original code when the code running is
   // containing break points (calls to DebugBreakXXX builtins).
   Address OriginalCodeAddress();
+#endif
 
   // Set the call-site target.
   void set_target(Code* code) { SetTargetAtAddress(address(), code); }
@@ -251,6 +253,12 @@ class KeyedLoadIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm);
   static void GeneratePreMonomorphic(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
+
+  // Check if this IC corresponds to an inlined version.
+  static bool HasInlinedVersion(Address address);
+
+  // Clear the use of the inlined version.
+  static void ClearInlinedVersion(Address address);
 
  private:
   static void Generate(MacroAssembler* masm, const ExternalReference& f);

@@ -406,6 +406,16 @@ class EmbeddedVector : public Vector<T> {
 };
 
 
+template <typename T>
+class ScopedVector : public Vector<T> {
+ public:
+  explicit ScopedVector(int length) : Vector<T>(NewArray<T>(length), length) { }
+  ~ScopedVector() {
+    DeleteArray(this->start());
+  }
+};
+
+
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, strlen(data));
 }

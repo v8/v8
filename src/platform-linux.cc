@@ -262,9 +262,10 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
-int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
+int OS::StackWalk(Vector<OS::StackFrame> frames) {
   // backtrace is a glibc extension.
 #ifdef __GLIBC__
+  int frames_size = frames.length();
   void** addresses = NewArray<void*>(frames_size);
 
   int frames_count = backtrace(addresses, frames_size);
@@ -506,28 +507,34 @@ void LinuxSemaphore::Wait() {
 }
 
 
+#ifndef TIMEVAL_TO_TIMESPEC
+#define TIMEVAL_TO_TIMESPEC(tv, ts) do {                            \
+    (ts)->tv_sec = (tv)->tv_sec;                                    \
+    (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
+} while (false)
+#endif
+
+
 bool LinuxSemaphore::Wait(int timeout) {
   const long kOneSecondMicros = 1000000;  // NOLINT
-  const long kOneSecondNanos = 1000000000;  // NOLINT
 
   // Split timeout into second and nanosecond parts.
-  long nanos = (timeout % kOneSecondMicros) * 1000;  // NOLINT
-  time_t secs = timeout / kOneSecondMicros;
+  struct timeval delta;
+  delta.tv_usec = timeout % kOneSecondMicros;
+  delta.tv_sec = timeout / kOneSecondMicros;
 
-  // Get the current realtime clock.
-  struct timespec ts;
-  if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
+  struct timeval current_time;
+  // Get the current time.
+  if (gettimeofday(&current_time, NULL) == -1) {
     return false;
   }
 
-  // Calculate real time for end of timeout.
-  ts.tv_nsec += nanos;
-  if (ts.tv_nsec >= kOneSecondNanos) {
-    ts.tv_nsec -= kOneSecondNanos;
-    ts.tv_nsec++;
-  }
-  ts.tv_sec += secs;
+  // Calculate time for end of timeout.
+  struct timeval end_time;
+  timeradd(&current_time, &delta, &end_time);
 
+  struct timespec ts;
+  TIMEVAL_TO_TIMESPEC(&end_time, &ts);
   // Wait for semaphore signalled or timeout.
   while (true) {
     int result = sem_timedwait(&sem_, &ts);

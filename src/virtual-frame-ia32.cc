@@ -33,7 +33,7 @@
 
 namespace v8 { namespace internal {
 
-#define __ masm_->
+#define __ ACCESS_MASM(masm_)
 
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
