@@ -56,7 +56,7 @@
 		89495E480E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		8956B6CF0F5D86730033B5A2 /* debug-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8956B6CD0F5D86570033B5A2 /* debug-agent.cc */; };
-		896FD03A0E78D717003DFB6A /* arm/libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* arm/libv8-arm.a */; };
+		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
 		897F767F0E71B690007ACF34 /* shell.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1B50E719C0900D62E90 /* shell.cc */; };
 		897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
 		898BD20E0EF6CC930068B00A /* ia32/debug-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 898BD20D0EF6CC850068B00A /* ia32/debug-ia32.cc */; };
@@ -196,7 +196,7 @@
 		89F23C980E78D5E7006B2466 /* arm/builtins-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1090E719B8F00D62E90 /* arm/builtins-arm.cc */; };
 		89F23C990E78D5E9006B2466 /* arm/codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1140E719B8F00D62E90 /* arm/codegen-arm.cc */; };
 		89F23C9A0E78D5EC006B2466 /* arm/cpu-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1230E719B8F00D62E90 /* arm/cpu-arm.cc */; };
-		89F23C9B0E78D5EE006B2466 /* arm/diisasm-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF12A0E719B8F00D62E90 /* arm/disasm-arm.cc */; };
+		89F23C9B0E78D5EE006B2466 /* arm/disasm-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF12A0E719B8F00D62E90 /* arm/disasm-arm.cc */; };
 		89F23C9C0E78D5F1006B2466 /* arm/frames-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1370E719B8F00D62E90 /* arm/frames-arm.cc */; };
 		89F23C9D0E78D5FB006B2466 /* arm/ic-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1490E719B8F00D62E90 /* arm/ic-arm.cc */; };
 		89F23C9E0E78D5FD006B2466 /* arm/macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1540E719B8F00D62E90 /* arm/macro-assembler-arm.cc */; };
@@ -269,6 +269,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		58242A1E0FA1F14D00BD6F59 /* json-delay.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = "json-delay.js"; sourceTree = "<group>"; };
 		58950D4E0F55514900F3E8BA /* arm/jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "arm/jump-target-arm.cc"; sourceTree = "<group>"; };
 		58950D4F0F55514900F3E8BA /* ia32/jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "ia32/jump-target-ia32.cc"; sourceTree = "<group>"; };
 		58950D500F55514900F3E8BA /* jump-target.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target.cc"; sourceTree = "<group>"; };
@@ -518,7 +519,7 @@
 		89A15C930EE46A1700B48DEB /* d8.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = d8.h; path = ../src/d8.h; sourceTree = "<group>"; };
 		89A15C940EE46A1700B48DEB /* d8.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; name = d8.js; path = ../src/d8.js; sourceTree = "<group>"; };
 		89B12E8D0E7FF2A40080BA62 /* presubmit.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = presubmit.py; sourceTree = "<group>"; };
-		89F23C870E78D5B2006B2466 /* arm/libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "arm/libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		89F23C870E78D5B2006B2466 /* libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89FB0E360F8E531900B04B3C /* d8-posix.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-posix.cc"; path = "../src/d8-posix.cc"; sourceTree = "<group>"; };
 		89FB0E370F8E531900B04B3C /* d8-windows.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-windows.cc"; path = "../src/d8-windows.cc"; sourceTree = "<group>"; };
@@ -563,7 +564,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				896FD03A0E78D717003DFB6A /* arm/libv8-arm.a in Frameworks */,
+				896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -846,6 +847,7 @@
 				897FF1A70E719BC100D62E90 /* array.js */,
 				897FF1A80E719BC100D62E90 /* date-delay.js */,
 				897FF1A90E719BC100D62E90 /* debug-delay.js */,
+				58242A1E0FA1F14D00BD6F59 /* json-delay.js */,
 				897FF1AA0E719BC100D62E90 /* math.js */,
 				897FF1AB0E719BC100D62E90 /* messages.js */,
 				897FF1AC0E719BC100D62E90 /* mirror-delay.js */,
@@ -906,7 +908,7 @@
 			children = (
 				8970F2F00E719FB2006AE7B5 /* libv8.a */,
 				897F767A0E71B4CC007ACF34 /* v8_shell */,
-				89F23C870E78D5B2006B2466 /* arm/libv8-arm.a */,
+				89F23C870E78D5B2006B2466 /* libv8-arm.a */,
 				89F23C950E78D5B6006B2466 /* v8_shell-arm */,
 				8939880B0F2A35FA007D5254 /* v8_shell */,
 			);
@@ -991,7 +993,7 @@
 			);
 			name = "v8-arm";
 			productName = "v8-arm";
-			productReference = 89F23C870E78D5B2006B2466 /* arm/libv8-arm.a */;
+			productReference = 89F23C870E78D5B2006B2466 /* libv8-arm.a */;
 			productType = "com.apple.product-type.library.static";
 		};
 		89F23C880E78D5B6006B2466 /* v8_shell-arm */ = {
@@ -1059,7 +1061,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" json-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
 		};
 		89F23C3D0E78D5B2006B2466 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1072,7 +1074,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" json-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  \"CORE\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
