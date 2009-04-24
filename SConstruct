@@ -581,13 +581,13 @@ class BuildContext(object):
 
   def AddRelevantFlags(self, initial, flags):
     result = initial.copy()
-    self.AppendFlags(result, flags.get('all'))
     toolchain = self.options['toolchain']
     if toolchain in flags:
       self.AppendFlags(result, flags[toolchain].get('all'))
       for option in sorted(self.options.keys()):
         value = self.options[option]
         self.AppendFlags(result, flags[toolchain].get(option + ':' + value))
+    self.AppendFlags(result, flags.get('all'))
     return result
 
   def AddRelevantSubFlags(self, options, flags):
