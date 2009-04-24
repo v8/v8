@@ -741,6 +741,19 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->set_regexp_function(*regexp_fun);
   }
 
+  {  // -- J S O N
+    Handle<String> name = Factory::NewStringFromAscii(CStrVector("JSON"));
+    Handle<JSFunction> cons = Factory::NewFunction(
+        name,
+        Factory::the_hole_value());
+    cons->SetInstancePrototype(global_context()->initial_object_prototype());
+    cons->SetInstanceClassName(*name);
+    Handle<JSObject> json_object = Factory::NewJSObject(cons, TENURED);
+    ASSERT(json_object->IsJSObject());
+    SetProperty(global, name, json_object, DONT_ENUM);
+    global_context()->set_json_object(*json_object);
+  }
+
   {  // --- arguments_boilerplate_
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
@@ -1066,6 +1079,10 @@ bool Genesis::InstallNatives() {
               Handle<Context>(Top::context()->runtime_context()));
     SetupLazy(Handle<JSFunction>(global_context()->regexp_function()),
               Natives::GetIndex("regexp"),
+              Top::global_context(),
+              Handle<Context>(Top::context()->runtime_context()));
+    SetupLazy(Handle<JSObject>(global_context()->json_object()),
+              Natives::GetIndex("json"),
               Top::global_context(),
               Handle<Context>(Top::context()->runtime_context()));
 

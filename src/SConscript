@@ -123,6 +123,7 @@ debug-delay.js
 mirror-delay.js
 date-delay.js
 regexp-delay.js
+json-delay.js
 '''.split()
 
 

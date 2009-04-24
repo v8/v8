@@ -1242,6 +1242,9 @@ class JSObject: public HeapObject {
                           String* name,
                           PropertyAttributes* attributes);
 
+  // Tells whether this object needs to be loaded.
+  inline bool IsLoaded();
+
   bool HasProperty(String* name) {
     return GetPropertyAttribute(name) != ABSENT;
   }
@@ -2397,6 +2400,10 @@ class Map: public HeapObject {
   inline byte bit_field();
   inline void set_bit_field(byte value);
 
+  // Bit field 2.
+  inline byte bit_field2();
+  inline void set_bit_field2(byte value);
+
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -2445,6 +2452,20 @@ class Map: public HeapObject {
 
   inline bool is_undetectable() {
     return ((1 << kIsUndetectable) & bit_field()) != 0;
+  }
+
+  inline void set_needs_loading(bool value) {
+    if (value) {
+      set_bit_field2(bit_field2() | (1 << kNeedsLoading));
+    } else {
+      set_bit_field2(bit_field2() & ~(1 << kNeedsLoading));
+    }
+  }
+
+  // Does this object or function require a lazily loaded script to be
+  // run before being used?
+  inline bool needs_loading() {
+    return ((1 << kNeedsLoading) & bit_field2()) != 0;
   }
 
   // Tells whether the instance has a call-as-function handler.
@@ -2550,7 +2571,7 @@ class Map: public HeapObject {
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
   static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 1;
   static const int kBitFieldOffset = kInstanceAttributesOffset + 2;
-  // The  byte at position 3 is not in use at the moment.
+  static const int kBitField2Offset = kInstanceAttributesOffset + 3;
 
   // Bit positions for bit field.
   static const int kUnused = 0;  // To be used for marking recently used maps.
@@ -2561,6 +2582,10 @@ class Map: public HeapObject {
   static const int kIsUndetectable = 5;
   static const int kHasInstanceCallHandler = 6;
   static const int kIsAccessCheckNeeded = 7;
+
+  // Bit positions for but field 2
+  static const int kNeedsLoading = 0;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
@@ -2677,10 +2702,6 @@ class SharedFunctionInfo: public HeapObject {
   // on objects.
   DECL_ACCESSORS(function_data, Object)
 
-  // [lazy load data]: If the function has lazy loading, this field
-  // contains contexts and other data needed to load it.
-  DECL_ACCESSORS(lazy_load_data, Object)
-
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
 
@@ -2754,9 +2775,7 @@ class SharedFunctionInfo: public HeapObject {
       kExpectedNofPropertiesOffset + kIntSize;
   static const int kExternalReferenceDataOffset =
       kInstanceClassNameOffset + kPointerSize;
-  static const int kLazyLoadDataOffset =
-      kExternalReferenceDataOffset + kPointerSize;
-  static const int kScriptOffset = kLazyLoadDataOffset + kPointerSize;
+  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
   static const int kStartPositionAndTypeOffset = kScriptOffset + kPointerSize;
   static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
   static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
@@ -2808,9 +2827,6 @@ class JSFunction: public JSObject {
   // Tells whether this function is a context-independent boilerplate
   // function.
   inline bool IsBoilerplate();
-
-  // Tells whether this function needs to be loaded.
-  inline bool IsLoaded();
 
   // [literals]: Fixed array holding the materialized literals.
   //

@@ -812,6 +812,11 @@ ReplaceResultBuilder.prototype.generate = function() {
 }
 
 
+function StringToJSON(key) {
+  return CheckJSONPrimitive(this.valueOf());
+}
+
+
 // -------------------------------------------------------------------
 
 function SetupString() {
@@ -858,7 +863,8 @@ function SetupString() {
     "small", StringSmall,
     "strike", StringStrike,
     "sub", StringSub,
-    "sup", StringSup
+    "sup", StringSup,
+    "toJSON", StringToJSON
   ));
 }
 

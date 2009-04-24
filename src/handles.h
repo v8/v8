@@ -301,11 +301,11 @@ bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
 
 // These deal with lazily loaded properties.
-void SetupLazy(Handle<JSFunction> fun,
+void SetupLazy(Handle<JSObject> obj,
                int index,
                Handle<Context> compile_context,
                Handle<Context> function_context);
-void LoadLazy(Handle<JSFunction> fun, bool* pending_exception);
+void LoadLazy(Handle<JSObject> obj, bool* pending_exception);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

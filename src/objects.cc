@@ -358,7 +358,7 @@ Object* JSObject::GetLazyProperty(Object* receiver,
   Handle<Object> receiver_handle(receiver);
   Handle<String> name_handle(name);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->GetPropertyWithReceiver(*receiver_handle,
@@ -377,7 +377,7 @@ Object* JSObject::SetLazyProperty(LookupResult* result,
   Handle<String> name_handle(name);
   Handle<Object> value_handle(value);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->SetProperty(*name_handle, *value_handle, attributes);
@@ -389,7 +389,7 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->DeleteProperty(*name_handle);
@@ -2715,6 +2715,7 @@ Object* Map::Copy() {
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
   Map::cast(result)->set_bit_field(bit_field());
+  Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->ClearCodeCache();
   return result;
 }

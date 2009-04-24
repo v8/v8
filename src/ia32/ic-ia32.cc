@@ -123,23 +123,19 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
 }
 
 
-// Helper function used to check that a value is either not a function
-// or is loaded if it is a function.
-static void GenerateCheckNonFunctionOrLoaded(MacroAssembler* masm, Label* miss,
-                                             Register value, Register scratch) {
+// Helper function used to check that a value is either not an object
+// or is loaded if it is an object.
+static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
+                                           Register value, Register scratch) {
   Label done;
   // Check if the value is a Smi.
   __ test(value, Immediate(kSmiTagMask));
   __ j(zero, &done, not_taken);
-  // Check if the value is a function.
-  __ CmpObjectType(value, JS_FUNCTION_TYPE, scratch);
-  __ j(not_equal, &done, taken);
-  // Check if the function has been loaded.
-  __ mov(scratch, FieldOperand(value, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(scratch,
-         FieldOperand(scratch, SharedFunctionInfo::kLazyLoadDataOffset));
-  __ cmp(scratch, Factory::undefined_value());
-  __ j(not_equal, miss, not_taken);
+  // Check if the object has been loaded.
+  __ mov(scratch, FieldOperand(value, JSFunction::kMapOffset));
+  __ mov(scratch, FieldOperand(scratch, Map::kBitField2Offset));
+  __ test(scratch, Immediate(1 << Map::kNeedsLoading));
+  __ j(not_zero, miss, not_taken);
   __ bind(&done);
 }
 
@@ -268,7 +264,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(not_zero, &slow, not_taken);
   // Probe the dictionary leaving result in ecx.
   GenerateDictionaryLoad(masm, &slow, ebx, ecx, edx, eax);
-  GenerateCheckNonFunctionOrLoaded(masm, &slow, ecx, edx);
+  GenerateCheckNonObjectOrLoaded(masm, &slow, ecx, edx);
   __ mov(eax, Operand(ecx));
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
@@ -493,10 +489,10 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ j(not_equal, miss, not_taken);
 
   // Check that the function has been loaded.
-  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kLazyLoadDataOffset));
-  __ cmp(edx, Factory::undefined_value());
-  __ j(not_equal, miss, not_taken);
+  __ mov(edx, FieldOperand(edi, JSFunction::kMapOffset));
+  __ mov(edx, FieldOperand(edx, Map::kBitField2Offset));
+  __ test(edx, Immediate(1 << Map::kNeedsLoading));
+  __ j(not_zero, miss, not_taken);
 
   // Patch the receiver with the global proxy if necessary.
   if (is_global_object) {
@@ -683,7 +679,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Search the dictionary placing the result in eax.
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &miss, edx, eax, ebx, ecx);
-  GenerateCheckNonFunctionOrLoaded(masm, &miss, eax, edx);
+  GenerateCheckNonObjectOrLoaded(masm, &miss, eax, edx);
   __ ret(0);
 
   // Global object access: Check access rights.
