@@ -530,7 +530,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->function_instance_map()->set_prototype(*empty_function);
 
     // Allocate the function map first and then patch the prototype later
-    Handle<Map> empty_fm = Factory::CopyMap(fm);
+    Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(fm);
     empty_fm->set_instance_descriptors(*function_map_descriptors);
     empty_fm->set_prototype(global_context()->object_function()->prototype());
     empty_function->set_map(*empty_fm);
@@ -1433,7 +1433,7 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 
   Handle<DescriptorArray> function_map_descriptors =
       ComputeFunctionInstanceDescriptor(false, true);
-  Handle<Map> fm = Factory::CopyMap(Top::function_map());
+  Handle<Map> fm = Factory::CopyMapDropDescriptors(Top::function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
   Top::context()->global_context()->set_function_map(*fm);
 }

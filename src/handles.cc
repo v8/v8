@@ -700,7 +700,7 @@ void SetupLazy(Handle<JSObject> obj,
   arr->set(2, *function_context);  // Set function context to this
   arr->set(3, obj->map()->constructor());  // Remember the constructor
   Handle<Map> old_map(obj->map());
-  Handle<Map> new_map = Factory::CopyMap(old_map);
+  Handle<Map> new_map = Factory::CopyMapDropTransitions(old_map);
   obj->set_map(*new_map);
   new_map->set_needs_loading(true);
   // Store the lazy loading info in the constructor field.  We'll

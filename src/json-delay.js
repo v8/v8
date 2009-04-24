@@ -27,35 +27,10 @@
 
 var $JSON = global.JSON;
 
-function IsValidJSON(s) {
-  // All empty whitespace is not valid.
-  if (/^\s*$/.test(s))
-    return false;
- 
-  // This is taken from http://www.json.org/json2.js which is released to the
-  // public domain.
-
-  var backslashesRe = /\\["\\\/bfnrtu]/g;
-  var simpleValuesRe =
-      /"[^"\\\n\r\x00-\x1f\x7f-\x9f]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
-  var openBracketsRe = /(?:^|:|,)(?:[\s]*\[)+/g;
-  var remainderRe = /^[\],:{}\s]*$/;
-
-  return remainderRe.test(s.replace(backslashesRe, '@').
-      replace(simpleValuesRe, ']').
-      replace(openBracketsRe, ''));  
-}
-
 function ParseJSONUnfiltered(text) {
   var s = $String(text);
-  if (IsValidJSON(s)) {
-    try {
-      return global.eval('(' + s + ')');
-    } catch (e) {
-      // ignore exceptions
-    }
-  }
-  throw MakeSyntaxError('invalid_json', [s]);
+  var f = %CompileString("(" + text + ")", -1, true);
+  return f();
 }
 
 function Revive(holder, name, reviver) {

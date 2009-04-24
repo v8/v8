@@ -153,7 +153,7 @@ class Factory : public AllStatic {
 
   static Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
-  static Handle<Map> CopyMap(Handle<Map> map);
+  static Handle<Map> CopyMapDropDescriptors(Handle<Map> map);
 
   // Copy the map adding more inobject properties if possible without
   // overflowing the instance size.

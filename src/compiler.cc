@@ -80,8 +80,20 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 }
 
 
+static bool IsValidJSON(FunctionLiteral* lit) {
+  if (!lit->body()->length() == 1)
+    return false;
+  Statement* stmt = lit->body()->at(0);
+  if (stmt->AsExpressionStatement() == NULL)
+    return false;
+  Expression *expr = stmt->AsExpressionStatement()->expression();
+  return expr->IsValidJSON();
+}
+
+
 static Handle<JSFunction> MakeFunction(bool is_global,
                                        bool is_eval,
+                                       bool is_json,
                                        Handle<Script> script,
                                        Handle<Context> context,
                                        v8::Extension* extension,
@@ -106,6 +118,19 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
+    return Handle<JSFunction>::null();
+  }
+
+  // When parsing JSON we do an ordinary parse and then afterwards
+  // check the AST to ensure it was well-formed.  If not we give a
+  // syntax error.
+  if (is_json && !IsValidJSON(lit)) {
+    HandleScope scope;
+    Handle<JSArray> args = Factory::NewJSArray(1);
+    Handle<Object> source(script->source());
+    SetElement(args, 0, source);
+    Handle<Object> result = Factory::NewSyntaxError("invalid_json", args);
+    Top::Throw(*result, NULL);
     return Handle<JSFunction>::null();
   }
 
@@ -215,6 +240,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     // Compile the function and add it to the cache.
     result = MakeFunction(true,
                           false,
+                          false,
                           script,
                           Handle<Context>::null(),
                           extension,
@@ -237,7 +263,8 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                                          Handle<Context> context,
                                          int line_offset,
-                                         bool is_global) {
+                                         bool is_global,
+                                         bool is_json) {
   int source_length = source->length();
   Counters::total_eval_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -256,7 +283,13 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
     script->set_line_offset(Smi::FromInt(line_offset));
-    result = MakeFunction(is_global, true, script, context, NULL, NULL);
+    result = MakeFunction(is_global,
+                          true,
+                          is_json,
+                          script,
+                          context,
+                          NULL,
+                          NULL);
     if (!result.is_null()) {
       CompilationCache::PutEval(source, context, entry, result);
     }

@@ -194,7 +194,7 @@ namespace v8 { namespace internal {
   F(NumberIsFinite, 1) \
   \
   /* Globals */ \
-  F(CompileString, 2) \
+  F(CompileString, 3) \
   F(GlobalPrint, 1) \
   \
   /* Eval */ \

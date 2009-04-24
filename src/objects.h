@@ -2495,7 +2495,7 @@ class Map: public HeapObject {
   DECL_ACCESSORS(code_cache, FixedArray)
 
   // Returns a copy of the map.
-  Object* Copy();
+  Object* CopyDropDescriptors();
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.

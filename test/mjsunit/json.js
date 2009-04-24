@@ -136,9 +136,11 @@ function TestInvalid(str) {
   assertThrows(function () { JSON.parse(str); }, SyntaxError);
 }
 
-TestInvalid('"abc\x00def"');
-TestInvalid('"abc\x10def"');
-TestInvalid('"abc\x1fdef"');
+TestInvalid('abcdef');
+TestInvalid('isNaN()');
+TestInvalid('{"x": [1, 2, deepObject]}');
+TestInvalid('[1, [2, [deepObject], 3], 4]');
+TestInvalid('function () { return 0; }');
 
 TestInvalid("[1, 2");
 TestInvalid('{"x": 3');
