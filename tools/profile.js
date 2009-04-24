@@ -56,15 +56,32 @@ devtools.profiler.Profile.prototype.skipThisFunction = function(name) {
 
 
 /**
+ * Enum for profiler operations that involve looking up existing
+ * code entries.
+ *
+ * @enum {number}
+ */
+devtools.profiler.Profile.Operation = {
+  MOVE: 0,
+  DELETE: 1,
+  TICK: 2
+};
+
+
+/**
  * Called whenever the specified operation has failed finding a function
  * containing the specified address. Should be overriden by subclasses.
- * Operation is one of the following: 'move', 'delete', 'tick'.
+ * See the devtools.profiler.Profile.Operation enum for the list of
+ * possible operations.
  *
- * @param {string} operation Operation name.
+ * @param {number} operation Operation.
  * @param {number} addr Address of the unknown code.
+ * @param {number} opt_stackPos If an unknown address is encountered
+ *     during stack strace processing, specifies a position of the frame
+ *     containing the address.
  */
 devtools.profiler.Profile.prototype.handleUnknownCode = function(
-    operation, addr) {
+    operation, addr, opt_stackPos) {
 };
 
 
@@ -77,8 +94,10 @@ devtools.profiler.Profile.prototype.handleUnknownCode = function(
  */
 devtools.profiler.Profile.prototype.addStaticCode = function(
     name, startAddr, endAddr) {
-  this.codeMap_.addStaticCode(startAddr,
-      new devtools.profiler.CodeMap.CodeEntry(endAddr - startAddr, name));
+  var entry = new devtools.profiler.CodeMap.CodeEntry(
+      endAddr - startAddr, name);
+  this.codeMap_.addStaticCode(startAddr, entry);
+  return entry;
 };
 
 
@@ -92,8 +111,9 @@ devtools.profiler.Profile.prototype.addStaticCode = function(
  */
 devtools.profiler.Profile.prototype.addCode = function(
     type, name, start, size) {
-  this.codeMap_.addCode(start,
-      new devtools.profiler.Profile.DynamicCodeEntry(size, type, name));
+  var entry = new devtools.profiler.Profile.DynamicCodeEntry(size, type, name);
+  this.codeMap_.addCode(start, entry);
+  return entry;
 };
 
 
@@ -107,7 +127,7 @@ devtools.profiler.Profile.prototype.moveCode = function(from, to) {
   try {
     this.codeMap_.moveCode(from, to);
   } catch (e) {
-    this.handleUnknownCode('move', from);
+    this.handleUnknownCode(devtools.profiler.Profile.Operation.MOVE, from);
   }
 };
 
@@ -121,7 +141,7 @@ devtools.profiler.Profile.prototype.deleteCode = function(start) {
   try {
     this.codeMap_.deleteCode(start);
   } catch (e) {
-    this.handleUnknownCode('delete', start);
+    this.handleUnknownCode(devtools.profiler.Profile.Operation.DELETE, start);
   }
 };
 
@@ -156,7 +176,8 @@ devtools.profiler.Profile.prototype.resolveAndFilterFuncs_ = function(stack) {
         result.push(name);
       }
     } else {
-      this.handleUnknownCode('tick', stack[i]);
+      this.handleUnknownCode(
+          devtools.profiler.Profile.Operation.TICK, stack[i], i);
     }
   }
   return result;
@@ -168,7 +189,7 @@ devtools.profiler.Profile.prototype.resolveAndFilterFuncs_ = function(stack) {
  */
 devtools.profiler.Profile.prototype.getTopDownTreeRoot = function() {
   this.topDownTree_.computeTotalWeights();
-  return this.topDownTree_.root_;
+  return this.topDownTree_.getRoot();
 };
 
 
@@ -177,7 +198,7 @@ devtools.profiler.Profile.prototype.getTopDownTreeRoot = function() {
  */
 devtools.profiler.Profile.prototype.getBottomUpTreeRoot = function() {
   this.bottomUpTree_.computeTotalWeights();
-  return this.bottomUpTree_.root_;
+  return this.bottomUpTree_.getRoot();
 };
 
 
@@ -202,12 +223,42 @@ devtools.profiler.Profile.prototype.traverseBottomUpTree = function(f) {
 
 
 /**
+ * Calculates a top down profile starting from the specified node.
+ *
+ * @param {devtools.profiler.CallTree.Node} opt_root Starting node.
+ */
+devtools.profiler.Profile.prototype.getTopDownProfile = function(opt_root) {
+  if (!opt_root) {
+    this.topDownTree_.computeTotalWeights();
+    return this.topDownTree_;
+  } else {
+    throw Error('not implemented');
+  }
+};
+
+
+/**
+ * Calculates a bottom up profile starting from the specified node.
+ *
+ * @param {devtools.profiler.CallTree.Node} opt_root Starting node.
+ */
+devtools.profiler.Profile.prototype.getBottomUpProfile = function(opt_root) {
+  if (!opt_root) {
+    this.bottomUpTree_.computeTotalWeights();
+    return this.bottomUpTree_;
+  } else {
+    throw Error('not implemented');
+  }
+};
+
+
+/**
  * Calculates a flat profile of callees starting from the specified node.
  *
  * @param {devtools.profiler.CallTree.Node} opt_root Starting node.
  */
 devtools.profiler.Profile.prototype.getFlatProfile = function(opt_root) {
-  var counters = new devtools.profiler.CallTree.Node('');
+  var counters = new devtools.profiler.CallTree();
   var precs = {};
   this.topDownTree_.computeTotalWeights();
   this.topDownTree_.traverseInDepth(
@@ -226,7 +277,7 @@ devtools.profiler.Profile.prototype.getFlatProfile = function(opt_root) {
       precs[node.label]--;
     },
     opt_root);
-  return counters.exportChildren();
+  return counters;
 };
 
 
@@ -276,6 +327,14 @@ devtools.profiler.CallTree.prototype.totalsComputed_ = false;
 
 
 /**
+ * Returns the tree root.
+ */
+devtools.profiler.CallTree.prototype.getRoot = function() {
+  return this.root_;
+};
+
+
+/**
  * Adds the specified call path, constructing nodes as necessary.
  *
  * @param {Array<string>} path Call path.
@@ -294,6 +353,20 @@ devtools.profiler.CallTree.prototype.addPath = function(path) {
 
 
 /**
+ * Finds an immediate child of the specified parent with the specified
+ * label, creates a child node if necessary. If a parent node isn't
+ * specified, uses tree root.
+ *
+ * @param {string} label Child node label.
+ */
+devtools.profiler.CallTree.prototype.findOrAddChild = function(
+    label, opt_parent) {
+  var parent = opt_parent || this.root_;
+  return parent.findOrAddChild(label);
+};
+
+
+/**
  * Computes total weights in the call graph.
  */
 devtools.profiler.CallTree.prototype.computeTotalWeights = function() {
@@ -306,17 +379,30 @@ devtools.profiler.CallTree.prototype.computeTotalWeights = function() {
 
 
 /**
- * Traverses the call graph in preorder.
+ * Traverses the call graph in preorder. This function can be used for
+ * building optionally modified tree clones. This is the boilerplate code
+ * for this scenario:
  *
- * @param {function(devtools.profiler.CallTree.Node)} f Visitor function.
+ * callTree.traverse(function(node, parentClone) {
+ *   var nodeClone = cloneNode(node);
+ *   if (parentClone)
+ *     parentClone.addChild(nodeClone);
+ *   return nodeClone;
+ * });
+ *
+ * @param {function(devtools.profiler.CallTree.Node, *)} f Visitor function.
+ *    The second parameter is the result of calling 'f' on the parent node.
  * @param {devtools.profiler.CallTree.Node} opt_start Starting node.
  */
 devtools.profiler.CallTree.prototype.traverse = function(f, opt_start) {
-  var nodesToVisit = [opt_start || this.root_];
-  while (nodesToVisit.length > 0) {
-    var node = nodesToVisit.shift();
-    f(node);
-    nodesToVisit = nodesToVisit.concat(node.exportChildren());
+  var pairsToProcess = [{node: opt_start || this.root_, param: null}];
+  while (pairsToProcess.length > 0) {
+    var pair = pairsToProcess.shift();
+    var node = pair.node;
+    var newParam = f(node, pair.param);
+    node.forEachChild(
+      function (child) { pairsToProcess.push({node: child, param: newParam}); }
+    );
   }
 };
 
