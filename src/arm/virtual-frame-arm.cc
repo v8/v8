@@ -71,6 +71,16 @@ void VirtualFrame::SyncElementByPushing(int index) {
 }
 
 
+void VirtualFrame::SyncRange(int begin, int end) {
+  // All elements are in memory on ARM (ie, synced).
+#ifdef DEBUG
+  for (int i = begin; i <= end; i++) {
+    ASSERT(elements_[i].is_synced());
+  }
+#endif
+}
+
+
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   Comment cmnt(masm_, "[ Merge frame");
   // We should always be merging the code generator's current frame to an
