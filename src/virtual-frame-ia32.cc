@@ -158,6 +158,28 @@ void VirtualFrame::SyncElementByPushing(int index) {
 }
 
 
+// Clear the dirty bits for the range of elements in
+// [min(stack_pointer_ + 1,begin), end].
+void VirtualFrame::SyncRange(int begin, int end) {
+  ASSERT(begin >= 0);
+  ASSERT(end < elements_.length());
+  // Sync elements below the range if they have not been materialized
+  // on the stack.
+  int start = Min(begin, stack_pointer_ + 1);
+
+  // If positive we have to adjust the stack pointer.
+  int delta = end - stack_pointer_;
+  if (delta > 0) {
+    stack_pointer_ = end;
+    __ sub(Operand(esp), Immediate(delta * kPointerSize));
+  }
+
+  for (int i = start; i <= end; i++) {
+    if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
+  }
+}
+
+
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   Comment cmnt(masm_, "[ Merge frame");
   // We should always be merging the code generator's current frame to an
@@ -467,7 +489,7 @@ void VirtualFrame::AllocateStackSlots(int count) {
     // we sync them with the actual frame to allocate space for spilling
     // them later.  First sync everything above the stack pointer so we can
     // use pushes to allocate and initialize the locals.
-    SyncRange(stack_pointer_ + 1, elements_.length());
+    SyncRange(stack_pointer_ + 1, elements_.length() - 1);
     Handle<Object> undefined = Factory::undefined_value();
     FrameElement initial_value =
         FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
