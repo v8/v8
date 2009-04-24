@@ -45,8 +45,8 @@ using ::v8::internal::JSGlobalProxy;
 using ::v8::internal::Code;
 using ::v8::internal::Debug;
 using ::v8::internal::Debugger;
-using ::v8::internal::Message;
-using ::v8::internal::MessageQueue;
+using ::v8::internal::CommandMessage;
+using ::v8::internal::CommandMessageQueue;
 using ::v8::internal::StepAction;
 using ::v8::internal::StepIn;  // From StepAction enum
 using ::v8::internal::StepNext;  // From StepAction enum
@@ -3559,25 +3559,26 @@ int TestClientData::destructor_call_counter = 0;
 TEST(MessageQueueExpandAndDestroy) {
   TestClientData::ResetCounters();
   { // Create a scope for the queue.
-    MessageQueue queue(1);
-    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+    CommandMessageQueue queue(1);
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
                                   new TestClientData()));
-    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
                                   new TestClientData()));
-    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
                                   new TestClientData()));
     ASSERT_EQ(0, TestClientData::destructor_call_counter);
     queue.Get().Dispose();
     ASSERT_EQ(1, TestClientData::destructor_call_counter);
-    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
                                   new TestClientData()));
-    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
                                   new TestClientData()));
-    queue.Put(Message::NewCommand(Vector<uint16_t>::empty(),
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
                                   new TestClientData()));
-    queue.Put(Message::NewOutput(v8::Handle<v8::String>(),
-                                 new TestClientData()));
-    queue.Put(Message::NewEmptyMessage());
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
+    queue.Put(CommandMessage::New(Vector<uint16_t>::empty(),
+                                  new TestClientData()));
     ASSERT_EQ(1, TestClientData::destructor_call_counter);
     queue.Get().Dispose();
     ASSERT_EQ(2, TestClientData::destructor_call_counter);
@@ -3606,8 +3607,7 @@ TEST(SendClientDataToHandler) {
   DebugLocalContext env;
   TestClientData::ResetCounters();
   handled_client_data_instances_count = 0;
-  v8::Debug::SetMessageHandler(MessageHandlerCountingClientData,
-                               false /* message_handler_thread */);
+  v8::Debug::SetMessageHandler(MessageHandlerCountingClientData);
   const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5; debugger;";
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
