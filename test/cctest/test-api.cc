@@ -6081,6 +6081,8 @@ class ApplyInterruptTest {
         Local<String> source = String::New(c_source);
         Local<Script> script = Script::Compile(source);
         Local<Value> result = script->Run();
+        // Check that no exception was thrown.
+        CHECK(!result.IsEmpty());
       }
       int gc_after = gc_count_;
       gc_during_apply_ += gc_after - gc_before;

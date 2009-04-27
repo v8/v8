@@ -4596,7 +4596,9 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ ldr(ip, MemOperand(ip));
   __ cmp(sp, Operand(ip));
   __ b(hs, &within_limit);
-  // Do tail-call to runtime routine.
+  // Do tail-call to runtime routine.  Runtime routines expect at least one
+  // argument, so give it a Smi.
+  __ mov(r0, Operand(Smi::FromInt(0)));
   __ push(r0);
   __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
   __ bind(&within_limit);
