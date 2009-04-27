@@ -152,3 +152,60 @@ function TestArraySortingWithUnsoundComparisonFunction() {
 }
 
 TestArraySortingWithUnsoundComparisonFunction();
+
+function TestSparseNonArraySorting(length) {
+  assertTrue(length > 101);
+  var obj = {length: length};
+  obj[0] = 42;
+  obj[10] = 37;
+  obj[100] = undefined;
+  obj[length - 1] = null;
+  Array.prototype.sort.call(obj);
+  assertEquals(length, obj.length, "objsort length unaffected");
+  assertEquals(37, obj[0], "objsort smallest number");
+  assertEquals(42, obj[1], "objsort largest number");
+  assertEquals(null, obj[2], "objsort null");
+  assertEquals(undefined, obj[3], "objsort undefined");
+  assertTrue(3 in obj, "objsort undefined retained");
+  assertFalse(4 in obj, "objsort non-existing retained");
+}
+
+TestSparseNonArraySorting(5000);
+TestSparseNonArraySorting(500000);
+TestSparseNonArraySorting(Math.pow(2, 31) + 1);
+
+function TestArrayLongerLength(length) {
+  var x = new Array(4);
+  x[0] = 42;
+  x[2] = 37;
+  x.length = length;
+  Array.prototype.sort.call(x);
+  assertEquals(length, x.length, "longlength length");
+  assertEquals(37, x[0], "longlength first");
+  assertEquals(42, x[1], "longlength second");
+  assertFalse(2 in x,"longlength third");
+}
+
+TestArrayLongerLength(4);
+TestArrayLongerLength(10);
+TestArrayLongerLength(1000);
+TestArrayLongerLength(500000);
+TestArrayLongerLength(Math.pow(2,32) - 1);
+
+function TestNonArrayLongerLength(length) {
+  var x = {};
+  x[0] = 42;
+  x[2] = 37;
+  x.length = length;
+  Array.prototype.sort.call(x);
+  assertEquals(length, x.length, "longlength length");
+  assertEquals(37, x[0], "longlength first");
+  assertEquals(42, x[1], "longlength second");
+  assertFalse(2 in x,"longlength third");
+}
+
+TestNonArrayLongerLength(4);
+TestNonArrayLongerLength(10);
+TestNonArrayLongerLength(1000);
+TestNonArrayLongerLength(500000);
+TestNonArrayLongerLength(Math.pow(2,32) - 1);

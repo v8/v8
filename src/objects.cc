@@ -2850,22 +2850,26 @@ static bool HasKey(FixedArray* array, Object* key) {
 
 
 Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  // Remove array holes from array if any.
-  Object* object = array->RemoveHoles();
-  if (object->IsFailure()) return object;
-  JSArray* compacted_array = JSArray::cast(object);
+  if (array->HasFastElements()) {
+    return UnionOfKeys(array->elements());
+  }
+  ASSERT(!array->HasFastElements());
+  Dictionary* dict = array->element_dictionary();
+  int size = dict->NumberOfElements();
 
   // Allocate a temporary fixed array.
-  int compacted_array_length = Smi::cast(compacted_array->length())->value();
-  object = Heap::AllocateFixedArray(compacted_array_length);
+  Object* object = Heap::AllocateFixedArray(size);
   if (object->IsFailure()) return object;
   FixedArray* key_array = FixedArray::cast(object);
 
+  int capacity = dict->Capacity();
+  int pos = 0;
   // Copy the elements from the JSArray to the temporary fixed array.
-  for (int i = 0; i < compacted_array_length; i++) {
-    key_array->set(i, compacted_array->GetElement(i));
+  for (int i = 0; i < capacity; i++) {
+    if (dict->IsKey(dict->KeyAt(i))) {
+      key_array->set(pos++, dict->ValueAt(i));
+    }
   }
-
   // Compute the union of this and the temporary fixed array.
   return UnionOfKeys(key_array);
 }
@@ -2881,8 +2885,11 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   // Compute how many elements are not in this.
   int extra = 0;
   for (int y = 0; y < len1; y++) {
-    if (!HasKey(this, other->get(y))) extra++;
+    Object* value = other->get(y);
+    if (!value->IsTheHole() && !HasKey(this, value)) extra++;
   }
+
+  if (extra == 0) return this;
 
   // Allocate the result
   Object* obj = Heap::AllocateFixedArray(len0 + extra);
@@ -2896,7 +2903,8 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   // Fill in the extra keys.
   int index = 0;
   for (int y = 0; y < len1; y++) {
-    if (!HasKey(this, other->get(y))) {
+    Object* value = other->get(y);
+    if (!value->IsTheHole() && !HasKey(this, value)) {
       result->set(len0 + index, other->get(y), mode);
       index++;
     }
@@ -5628,72 +5636,15 @@ bool JSObject::ShouldConvertToFastElements() {
 }
 
 
-Object* Dictionary::RemoveHoles() {
-  int capacity = Capacity();
-  Object* obj = Allocate(NumberOfElements());
-  if (obj->IsFailure()) return obj;
-  Dictionary* dict = Dictionary::cast(obj);
-  uint32_t pos = 0;
-  for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
-      dict->AddNumberEntry(pos++, ValueAt(i), DetailsAt(i));
-    }
-  }
-  return dict;
-}
-
-
 void Dictionary::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
   int capacity = Capacity();
+  WriteBarrierMode mode = elements->GetWriteBarrierMode();
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
-    if (IsKey(k)) elements->set(pos++, ValueAt(i));
+    if (IsKey(k)) elements->set(pos++, ValueAt(i), mode);
   }
   ASSERT(pos == elements->length());
-}
-
-
-Object* JSArray::RemoveHoles() {
-  if (HasFastElements()) {
-    int len = Smi::cast(length())->value();
-    int pos = 0;
-    FixedArray* elms = FixedArray::cast(elements());
-    for (int index = 0; index < len; index++) {
-      Object* e = elms->get(index);
-      if (!e->IsTheHole()) {
-        if (index != pos) elms->set(pos, e);
-        pos++;
-      }
-    }
-    set_length(Smi::FromInt(pos), SKIP_WRITE_BARRIER);
-    for (int index = pos; index < len; index++) {
-      elms->set_the_hole(index);
-    }
-    return this;
-  }
-
-  // Compact the sparse array if possible.
-  Dictionary* dict = element_dictionary();
-  int length = dict->NumberOfElements();
-
-  // Try to make this a fast array again.
-  if (length <= kMaxFastElementsLength) {
-    Object* obj = Heap::AllocateFixedArray(length);
-    if (obj->IsFailure()) return obj;
-    dict->CopyValuesTo(FixedArray::cast(obj));
-    set_length(Smi::FromInt(length), SKIP_WRITE_BARRIER);
-    set_elements(FixedArray::cast(obj));
-    return this;
-  }
-
-  // Make another dictionary with smaller indices.
-  Object* obj = dict->RemoveHoles();
-  if (obj->IsFailure()) return obj;
-  set_length(Smi::FromInt(length), SKIP_WRITE_BARRIER);
-  set_elements(Dictionary::cast(obj));
-  return this;
 }
 
 
@@ -6446,6 +6397,176 @@ template class HashTable<2, 3>;
 
 // Force instantiation of EvalCache's base class
 template class HashTable<0, 2>;
+
+
+// Collates undefined and unexisting elements below limit from position
+// zero of the elements. The object stays in Dictionary mode.
+Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
+  ASSERT(!HasFastElements());
+  // Must stay in dictionary mode, either because of requires_slow_elements,
+  // or because we are not going to sort (and therefore compact) all of the
+  // elements.
+  Dictionary* dict = element_dictionary();
+  HeapNumber* result_double = NULL;
+  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
+    // Allocate space for result before we start mutating the object.
+    Object* new_double = Heap::AllocateHeapNumber(0.0);
+    if (new_double->IsFailure()) return new_double;
+    result_double = HeapNumber::cast(new_double);
+  }
+
+  int capacity = dict->Capacity();
+  Object* obj = Dictionary::Allocate(dict->Capacity());
+  if (obj->IsFailure()) return obj;
+  Dictionary* new_dict = Dictionary::cast(obj);
+
+  AssertNoAllocation no_alloc;
+
+  // Loose all details on properties when moving them around.
+  // Elements do not have special details like properties.
+  PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
+
+  uint32_t pos = 0;
+  uint32_t undefs = 0;
+  for (int i = 0; i < capacity; i++) {
+    Object* k = dict->KeyAt(i);
+    if (dict->IsKey(k)) {
+      ASSERT(k->IsNumber());
+      ASSERT(!k->IsSmi() || Smi::cast(k)->value() >= 0);
+      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
+      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
+      Object* value = dict->ValueAt(i);
+      uint32_t key = NumberToUint32(k);
+      if (key < limit) {
+        if (value->IsUndefined()) {
+          undefs++;
+        } else {
+          new_dict->AddNumberEntry(pos, value, no_details);
+          pos++;
+        }
+      } else {
+        new_dict->AddNumberEntry(key, value, no_details);
+      }
+    }
+  }
+
+  uint32_t result = pos;
+  while (undefs > 0) {
+    new_dict->AddNumberEntry(pos, Heap::undefined_value(), no_details);
+    pos++;
+    undefs--;
+  }
+
+  set_elements(new_dict);
+
+  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
+    return Smi::FromInt(static_cast<int>(result));
+  }
+
+  ASSERT_NE(NULL, result_double);
+  result_double->set_value(static_cast<double>(result));
+  return result_double;
+}
+
+
+// Collects all defined (non-hole) and non-undefined (array) elements at
+// the start of the elements array.
+// If the object is in dictionary mode, it is converted to fast elements
+// mode.
+Object* JSObject::PrepareElementsForSort(uint32_t limit) {
+  if (!HasFastElements()) {
+    // Convert to fast elements containing only the existing properties.
+    // Ordering is irrelevant, since we are going to sort anyway.
+    Dictionary* dict = element_dictionary();
+    if (IsJSArray() || dict->requires_slow_elements() ||
+        dict->max_number_key() >= limit) {
+      return PrepareSlowElementsForSort(limit);
+    }
+    // Convert to fast elements.
+
+    PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED: TENURED;
+    Object* new_array =
+        Heap::AllocateFixedArray(dict->NumberOfElements(), tenure);
+    if (new_array->IsFailure()) {
+      return new_array;
+    }
+    FixedArray* fast_elements = FixedArray::cast(new_array);
+    dict->CopyValuesTo(fast_elements);
+    set_elements(fast_elements);
+  }
+  ASSERT(HasFastElements());
+
+  // Collect holes at the end, undefined before that and the rest at the
+  // start, and return the number of non-hole, non-undefined values.
+
+  FixedArray* elements = this->elements();
+  uint32_t elements_length = static_cast<uint32_t>(elements->length());
+  if (limit > elements_length) {
+    limit = elements_length ;
+  }
+  if (limit == 0) {
+    return Smi::FromInt(0);
+  }
+
+  HeapNumber* result_double = NULL;
+  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
+    // Pessimistically allocate space for return value before
+    // we start mutating the array.
+    Object* new_double = Heap::AllocateHeapNumber(0.0);
+    if (new_double->IsFailure()) return new_double;
+    result_double = HeapNumber::cast(new_double);
+  }
+
+  AssertNoAllocation no_alloc;
+
+  // Split elements into defined, undefined and the_hole, in that order.
+  // Only count locations for undefined and the hole, and fill them afterwards.
+  WriteBarrierMode write_barrier = elements->GetWriteBarrierMode();
+  unsigned int undefs = limit;
+  unsigned int holes = limit;
+  // Assume most arrays contain no holes and undefined values, so minimize the
+  // number of stores of non-undefined, non-the-hole values.
+  for (unsigned int i = 0; i < undefs; i++) {
+    Object* current = elements->get(i);
+    if (current->IsTheHole()) {
+      holes--;
+      undefs--;
+    } else if (current->IsUndefined()) {
+      undefs--;
+    } else {
+      continue;
+    }
+    // Position i needs to be filled.
+    while (undefs > i) {
+      current = elements->get(undefs);
+      if (current->IsTheHole()) {
+        holes--;
+        undefs--;
+      } else if (current->IsUndefined()) {
+        undefs--;
+      } else {
+        elements->set(i, current, write_barrier);
+        break;
+      }
+    }
+  }
+  uint32_t result = undefs;
+  while (undefs < holes) {
+    elements->set_undefined(undefs);
+    undefs++;
+  }
+  while (holes < limit) {
+    elements->set_the_hole(holes);
+    holes++;
+  }
+
+  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
+    return Smi::FromInt(static_cast<int>(result));
+  }
+  ASSERT_NE(NULL, result_double);
+  result_double->set_value(static_cast<double>(result));
+  return result_double;
+}
 
 
 Object* SymbolTable::LookupString(String* string, Object** s) {

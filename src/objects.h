@@ -1178,6 +1178,14 @@ class JSObject: public HeapObject {
   inline bool HasFastElements();
   inline Dictionary* element_dictionary();  // Gets slow elements.
 
+  // Collects elements starting at index 0.
+  // Undefined values are placed after non-undefined values.
+  // Returns the number of non-undefined values.
+  Object* PrepareElementsForSort(uint32_t limit);
+  // As PrepareElementsForSort, but only on objects where elements is
+  // a dictionary, and it will stay a dictionary.
+  Object* PrepareSlowElementsForSort(uint32_t limit);
+
   Object* SetProperty(String* key,
                       Object* value,
                       PropertyAttributes attributes);
@@ -2008,7 +2016,6 @@ class Dictionary: public DictionaryBase {
   void RemoveNumberEntries(uint32_t from, uint32_t to);
 
   // Sorting support
-  Object* RemoveHoles();
   void CopyValuesTo(FixedArray* elements);
 
   // Casting.
@@ -3891,9 +3898,6 @@ class JSArray: public JSObject {
 
   // Set the content of the array to the content of storage.
   inline void SetContent(FixedArray* storage);
-
-  // Support for sorting
-  Object* RemoveHoles();
 
   // Casting.
   static inline JSArray* cast(Object* obj);

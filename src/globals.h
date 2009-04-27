@@ -86,6 +86,8 @@ const int GB = KB * KB * KB;
 const int kMaxInt = 0x7FFFFFFF;
 const int kMinInt = -kMaxInt - 1;
 
+const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
+
 const int kCharSize     = sizeof(char);    // NOLINT
 const int kShortSize    = sizeof(short);   // NOLINT
 const int kIntSize      = sizeof(int);     // NOLINT

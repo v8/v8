@@ -709,33 +709,12 @@ function ArraySort(comparefn) {
     QuickSort(a, high_start, to);
   }
 
-  var old_length = ToUint32(this.length);
-  if (old_length < 2) return this;
-
-  %RemoveArrayHoles(this);
-
   var length = ToUint32(this.length);
+  if (length < 2) return this;
 
-  // Move undefined elements to the end of the array.
-  for (var i = 0; i < length; ) {
-    if (IS_UNDEFINED(this[i])) {
-      length--;
-      this[i] = this[length];
-      this[length] = void 0;
-    } else {
-      i++;
-    }
-  }
+  var num_non_undefined = %RemoveArrayHoles(this, length);
 
-  QuickSort(this, 0, length);
-
-  // We only changed the length of the this object (in
-  // RemoveArrayHoles) if it was an array.  We are not allowed to set
-  // the length of the this object if it is not an array because this
-  // might introduce a new length property.
-  if (IS_ARRAY(this)) {
-    this.length = old_length;
-  }
+  QuickSort(this, 0, num_non_undefined);
 
   return this;
 }

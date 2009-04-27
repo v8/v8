@@ -5244,12 +5244,16 @@ static Object* Runtime_GlobalPrint(Arguments args) {
   return string;
 }
 
-
+// Moves all own elements of an object, that are below a limit, to positions
+// starting at zero. All undefined values are placed after non-undefined values,
+// and are followed by non-existing element. Does not change the length
+// property.
+// Returns the number of non-undefined elements collected.
 static Object* Runtime_RemoveArrayHoles(Arguments args) {
-  ASSERT(args.length() == 1);
-  // Ignore the case if this is not a JSArray.
-  if (!args[0]->IsJSArray()) return args[0];
-  return JSArray::cast(args[0])->RemoveHoles();
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSObject, object, args[0]);
+  CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
+  return object->PrepareElementsForSort(limit);
 }
 
 
