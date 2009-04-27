@@ -2422,7 +2422,7 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.2.1 (candidate)";
+  return "1.2.2 (candidate)";
 }
 
 
