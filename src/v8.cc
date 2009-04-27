@@ -113,10 +113,6 @@ void V8::TearDown() {
   Heap::TearDown();
   Logger::TearDown();
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Debugger::TearDown();
-#endif
-
   has_been_setup_ = false;
   has_been_disposed_ = true;
 }

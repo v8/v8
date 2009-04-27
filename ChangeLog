@@ -1,3 +1,10 @@
+2009-04-27: Version 1.2.1
+
+        Added EcmaScript 5 JSON object.
+
+        Fix bug in preemption support on ARM.
+
+
 2009-04-23: Version 1.2.0
 
         Optimized floating-point operations on ARM.

@@ -198,9 +198,9 @@ class FrameElement BASE_EMBEDDED {
 } }  // namespace v8::internal
 
 #ifdef ARM
-#include "virtual-frame-arm.h"
+#include "arm/virtual-frame-arm.h"
 #else  // ia32
-#include "virtual-frame-ia32.h"
+#include "ia32/virtual-frame-ia32.h"
 #endif
 
 #endif  // V8_VIRTUAL_FRAME_H_

@@ -627,9 +627,9 @@ OptimizedObjectForAddingMultipleProperties::
 }
 
 
-void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
+void LoadLazy(Handle<JSObject> obj, bool* pending_exception) {
   HandleScope scope;
-  Handle<FixedArray> info(FixedArray::cast(fun->shared()->lazy_load_data()));
+  Handle<FixedArray> info(FixedArray::cast(obj->map()->constructor()));
   int index = Smi::cast(info->get(0))->value();
   ASSERT(index >= 0);
   Handle<Context> compile_context(Context::cast(info->get(1)));
@@ -674,27 +674,39 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
 
   // Reset the lazy load data before running the script to make sure
   // not to get recursive lazy loading.
-  fun->shared()->set_lazy_load_data(Heap::undefined_value());
+  obj->map()->set_needs_loading(false);
+  obj->map()->set_constructor(info->get(3));
 
   // Run the script.
   Handle<JSFunction> script_fun(
       Factory::NewFunctionFromBoilerplate(boilerplate, function_context));
   Execution::Call(script_fun, receiver, 0, NULL, pending_exception);
 
-  // If lazy loading failed, restore the unloaded state of fun.
-  if (*pending_exception) fun->shared()->set_lazy_load_data(*info);
+  // If lazy loading failed, restore the unloaded state of obj.
+  if (*pending_exception) {
+    obj->map()->set_needs_loading(true);
+    obj->map()->set_constructor(*info);
+  }
 }
 
 
-void SetupLazy(Handle<JSFunction> fun,
+void SetupLazy(Handle<JSObject> obj,
                int index,
                Handle<Context> compile_context,
                Handle<Context> function_context) {
-  Handle<FixedArray> arr = Factory::NewFixedArray(3);
+  Handle<FixedArray> arr = Factory::NewFixedArray(4);
   arr->set(0, Smi::FromInt(index));
   arr->set(1, *compile_context);  // Compile in this context
   arr->set(2, *function_context);  // Set function context to this
-  fun->shared()->set_lazy_load_data(*arr);
+  arr->set(3, obj->map()->constructor());  // Remember the constructor
+  Handle<Map> old_map(obj->map());
+  Handle<Map> new_map = Factory::CopyMapDropTransitions(old_map);
+  obj->set_map(*new_map);
+  new_map->set_needs_loading(true);
+  // Store the lazy loading info in the constructor field.  We'll
+  // reestablish the constructor from the fixed array after loading.
+  new_map->set_constructor(*arr);
+  ASSERT(!obj->IsLoaded());
 }
 
 } }  // namespace v8::internal

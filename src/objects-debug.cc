@@ -558,8 +558,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint() {
   code()->ShortPrint();
   PrintF("\n - source code = ");
   GetSourceCode()->ShortPrint();
-  PrintF("\n - lazy load: %s",
-         lazy_load_data() == Heap::undefined_value() ? "no" : "yes");
   // Script files are often large, hard to read.
   // PrintF("\n - script =");
   // script()->Print();
@@ -579,7 +577,6 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kCodeOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   VerifyObjectField(kExternalReferenceDataOffset);
-  VerifyObjectField(kLazyLoadDataOffset);
   VerifyObjectField(kScriptOffset);
   VerifyObjectField(kDebugInfoOffset);
 }

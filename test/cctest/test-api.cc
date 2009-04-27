@@ -161,7 +161,7 @@ class RegisterThreadedTest {
   }
   static int count() { return count_; }
   static RegisterThreadedTest* nth(int i) {
-    ASSERT(i < count());
+    CHECK(i < count());
     RegisterThreadedTest* current = first_;
     while (i > 0) {
       i--;
@@ -295,13 +295,13 @@ THREADED_TEST(ArgumentSignature) {
   env->Global()->Set(v8_str("Fun1"), fun->GetFunction());
 
   v8::Handle<Value> value1 = CompileRun("Fun1(4) == '';");
-  ASSERT(value1->IsTrue());
+  CHECK(value1->IsTrue());
 
   v8::Handle<Value> value2 = CompileRun("Fun1(new Cons()) == '[object Cons]';");
-  ASSERT(value2->IsTrue());
+  CHECK(value2->IsTrue());
 
   v8::Handle<Value> value3 = CompileRun("Fun1() == '';");
-  ASSERT(value3->IsTrue());
+  CHECK(value3->IsTrue());
 
   v8::Handle<v8::FunctionTemplate> cons1 = v8::FunctionTemplate::New();
   cons1->SetClassName(v8_str("Cons1"));
@@ -323,24 +323,24 @@ THREADED_TEST(ArgumentSignature) {
   v8::Handle<Value> value4 = CompileRun(
       "Fun2(new Cons1(), new Cons2(), new Cons3()) =="
       "'[object Cons1],[object Cons2],[object Cons3]'");
-  ASSERT(value4->IsTrue());
+  CHECK(value4->IsTrue());
 
   v8::Handle<Value> value5 = CompileRun(
       "Fun2(new Cons1(), new Cons2(), 5) == '[object Cons1],[object Cons2],'");
-  ASSERT(value5->IsTrue());
+  CHECK(value5->IsTrue());
 
   v8::Handle<Value> value6 = CompileRun(
       "Fun2(new Cons3(), new Cons2(), new Cons1()) == ',[object Cons2],'");
-  ASSERT(value6->IsTrue());
+  CHECK(value6->IsTrue());
 
   v8::Handle<Value> value7 = CompileRun(
       "Fun2(new Cons1(), new Cons2(), new Cons3(), 'd') == "
       "'[object Cons1],[object Cons2],[object Cons3],d';");
-  ASSERT(value7->IsTrue());
+  CHECK(value7->IsTrue());
 
   v8::Handle<Value> value8 = CompileRun(
       "Fun2(new Cons1(), new Cons2()) == '[object Cons1],[object Cons2]'");
-  ASSERT(value8->IsTrue());
+  CHECK(value8->IsTrue());
 }
 
 
@@ -6081,6 +6081,8 @@ class ApplyInterruptTest {
         Local<String> source = String::New(c_source);
         Local<Script> script = Script::Compile(source);
         Local<Value> result = script->Run();
+        // Check that no exception was thrown.
+        CHECK(!result.IsEmpty());
       }
       int gc_after = gc_count_;
       gc_during_apply_ += gc_after - gc_before;

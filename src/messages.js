@@ -114,6 +114,9 @@ const kMessages = {
   illegal_return:               "Illegal return statement",
   error_loading_debugger:       "Error loading debugger %0",
   no_input_to_regexp:           "No input to %0",
+  result_not_primitive:         "Result of %0 must be a primitive, was %1",
+  invalid_json:                 "String '%0' is not valid JSON",
+  circular_structure:           "Converting circular structure to JSON"
 };
 
 

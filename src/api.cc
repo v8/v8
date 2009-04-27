@@ -2422,7 +2422,7 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.2.0";
+  return "1.2.1";
 }
 
 
@@ -3264,7 +3264,10 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
   ENTER_V8;
-  i::Debugger::SetMessageHandler(handler, message_handler_thread);
+  // Message handler thread not supported any more. Parameter temporally left in
+  // the API for client compatability reasons.
+  CHECK(!message_handler_thread);
+  i::Debugger::SetMessageHandler(handler);
 }
 
 

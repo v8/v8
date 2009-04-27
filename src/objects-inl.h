@@ -1811,6 +1811,16 @@ void Map::set_bit_field(byte value) {
 }
 
 
+byte Map::bit_field2() {
+  return READ_BYTE_FIELD(this, kBitField2Offset);
+}
+
+
+void Map::set_bit_field2(byte value) {
+  WRITE_BYTE_FIELD(this, kBitField2Offset, value);
+}
+
+
 void Map::set_non_instance_prototype(bool value) {
   if (value) {
     set_bit_field(bit_field() | (1 << kHasNonInstancePrototype));
@@ -2075,7 +2085,6 @@ ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object,
           kExternalReferenceDataOffset)
-ACCESSORS(SharedFunctionInfo, lazy_load_data, Object, kLazyLoadDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
@@ -2141,8 +2150,8 @@ bool JSFunction::IsBoilerplate() {
 }
 
 
-bool JSFunction::IsLoaded() {
-  return shared()->lazy_load_data() == Heap::undefined_value();
+bool JSObject::IsLoaded() {
+  return !map()->needs_loading();
 }
 
 

@@ -30,8 +30,8 @@
 #include "v8.h"
 
 #include "disasm.h"
-#include "constants-arm.h"
-#include "simulator-arm.h"
+#include "arm/constants-arm.h"
+#include "arm/simulator-arm.h"
 
 #if !defined(__arm__)
 

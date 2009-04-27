@@ -28,7 +28,7 @@
 #include "v8.h"
 #include "ast.h"
 #include "regexp-macro-assembler.h"
-#include "regexp-macro-assembler-arm.h"
+#include "arm/regexp-macro-assembler-arm.h"
 
 namespace v8 { namespace internal {
 

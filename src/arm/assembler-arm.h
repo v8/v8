@@ -164,23 +164,23 @@ enum Coprocessor {
 
 // Condition field in instructions
 enum Condition {
-  eq =  0 << 28,
-  ne =  1 << 28,
-  cs =  2 << 28,
-  hs =  2 << 28,
-  cc =  3 << 28,
-  lo =  3 << 28,
-  mi =  4 << 28,
-  pl =  5 << 28,
-  vs =  6 << 28,
-  vc =  7 << 28,
-  hi =  8 << 28,
-  ls =  9 << 28,
-  ge = 10 << 28,
-  lt = 11 << 28,
-  gt = 12 << 28,
-  le = 13 << 28,
-  al = 14 << 28
+  eq =  0 << 28,  // Z set            equal.
+  ne =  1 << 28,  // Z clear          not equal.
+  cs =  2 << 28,  // C set            unsigned higher or same.
+  hs =  2 << 28,  // C set            unsigned higher or same.
+  cc =  3 << 28,  // C clear          unsigned lower.
+  lo =  3 << 28,  // C clear          unsigned lower.
+  mi =  4 << 28,  // N set            negative.
+  pl =  5 << 28,  // N clear          positive or zero.
+  vs =  6 << 28,  // V set            overflow.
+  vc =  7 << 28,  // V clear          no overflow.
+  hi =  8 << 28,  // C set, Z clear   unsigned higher.
+  ls =  9 << 28,  // C clear or Z set unsigned lower or same.
+  ge = 10 << 28,  // N == V           greater or equal.
+  lt = 11 << 28,  // N != V           less than.
+  gt = 12 << 28,  // Z clear, N == V  greater than.
+  le = 13 << 28,  // Z set or N != V  less then or equal
+  al = 14 << 28   //                  always.
 };
 
 

@@ -107,7 +107,7 @@ void DebuggerAgent::CreateSession(Socket* client) {
 
   // Create a new session and hook up the debug message handler.
   session_ = new DebuggerAgentSession(this, client);
-  v8::Debug::SetMessageHandler(DebuggerAgentMessageHandler, this);
+  v8::Debug::SetMessageHandler(DebuggerAgentMessageHandler);
   session_->Start();
 }
 

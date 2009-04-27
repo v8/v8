@@ -64,6 +64,7 @@ enum ContextLookupFlags {
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function) \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function) \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function) \
+  V(JSON_OBJECT_INDEX, JSObject, json_object) \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function) \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype) \
   V(CREATE_DATE_FUN_INDEX, JSFunction,  create_date_fun) \
@@ -186,6 +187,7 @@ class Context: public FixedArray {
     OBJECT_FUNCTION_INDEX,
     ARRAY_FUNCTION_INDEX,
     DATE_FUNCTION_INDEX,
+    JSON_OBJECT_INDEX,
     REGEXP_FUNCTION_INDEX,
     CREATE_DATE_FUN_INDEX,
     TO_NUMBER_FUN_INDEX,

@@ -138,9 +138,10 @@ class EXPORT Debug {
   // Break execution of JavaScript.
   static void DebugBreak();
 
-  // Message based interface. The message protocol is JSON.
+  // Message based interface. The message protocol is JSON. NOTE the message
+  // handler thread is not supported any more parameter must be false.
   static void SetMessageHandler(MessageHandler handler,
-                                bool message_handler_thread = true);
+                                bool message_handler_thread = false);
   static void SendCommand(const uint16_t* command, int length,
                           ClientData* client_data = NULL);
 

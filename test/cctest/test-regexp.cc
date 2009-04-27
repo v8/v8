@@ -40,10 +40,10 @@
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
 #ifdef ARM
-#include "regexp-macro-assembler-arm.h"
+#include "arm/regexp-macro-assembler-arm.h"
 #else  // IA32
-#include "macro-assembler-ia32.h"
-#include "regexp-macro-assembler-ia32.h"
+#include "ia32/macro-assembler-ia32.h"
+#include "ia32/regexp-macro-assembler-ia32.h"
 #endif
 #include "interpreter-irregexp.h"
 

@@ -5273,12 +5273,14 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // instruction.
   ASSERT(value.is_register() && value.reg().is(eax));
   // The delta from the start of the map-compare instruction to the
-  // test eax instruction.  We use masm_ directly here instead of the
+  // test instruction.  We use masm_ directly here instead of the
   // double underscore macro because the macro sometimes uses macro
   // expansion to turn into something that can't return a value.  This
   // is encountered when doing generated code coverage tests.
   int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
-  __ test(value.reg(), Immediate(-delta_to_patch_site));
+  // Here we use masm_-> instead of the double underscore macro because this
+  // is the instruction that gets patched and coverage code gets in the way.
+  masm_->test(value.reg(), Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
 
   // The receiver and key were spilled by the call, so their state as

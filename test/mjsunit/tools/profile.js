@@ -270,7 +270,8 @@ function assertNodeWeights(root, path, selfTicks, totalTicks) {
     counted++;
   }
 
-  var flatProfile = testDriver.profile.getFlatProfile();
+  var flatProfile =
+      testDriver.profile.getFlatProfile().getRoot().exportChildren();
   assertEquals(counted, flatProfile.length, 'counted vs. flatProfile');
   for (var i = 0; i < flatProfile.length; ++i) {
     var rec = flatProfile[i];

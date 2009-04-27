@@ -939,6 +939,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
+  map->set_bit_field2(0);
   return map;
 }
 
@@ -1409,7 +1410,6 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_formal_parameter_count(0);
   share->set_instance_class_name(Object_symbol());
   share->set_function_data(undefined_value());
-  share->set_lazy_load_data(undefined_value());
   share->set_script(undefined_value());
   share->set_start_position_and_type(0);
   share->set_debug_info(undefined_value());

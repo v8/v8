@@ -154,7 +154,7 @@ static Handle<String> ConstructBalancedHelper(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS],
     int from,
     int to) {
-  ASSERT(to > from);
+  CHECK(to > from);
   if (to - from == 1) {
     return building_blocks[from % NUMBER_OF_BUILDING_BLOCKS];
   }
@@ -279,7 +279,7 @@ static Handle<String> ConstructSliceTree(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS],
     int from,
     int to) {
-  ASSERT(to > from);
+  CHECK(to > from);
   if (to - from <= 1)
     return SliceOf(building_blocks[from % NUMBER_OF_BUILDING_BLOCKS]);
   if (to - from == 2) {

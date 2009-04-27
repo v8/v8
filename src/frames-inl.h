@@ -30,9 +30,9 @@
 
 #include "frames.h"
 #ifdef ARM
-#include "frames-arm.h"
+#include "arm/frames-arm.h"
 #else
-#include "frames-ia32.h"
+#include "ia32/frames-ia32.h"
 #endif
 
 

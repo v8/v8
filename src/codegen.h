@@ -77,9 +77,9 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 
 #ifdef ARM
-#include "codegen-arm.h"
+#include "arm/codegen-arm.h"
 #else
-#include "codegen-ia32.h"
+#include "ia32/codegen-ia32.h"
 #endif
 
 namespace v8 { namespace internal {

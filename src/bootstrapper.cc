@@ -530,7 +530,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->function_instance_map()->set_prototype(*empty_function);
 
     // Allocate the function map first and then patch the prototype later
-    Handle<Map> empty_fm = Factory::CopyMap(fm);
+    Handle<Map> empty_fm = Factory::CopyMapDropDescriptors(fm);
     empty_fm->set_instance_descriptors(*function_map_descriptors);
     empty_fm->set_prototype(global_context()->object_function()->prototype());
     empty_function->set_map(*empty_fm);
@@ -739,6 +739,19 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
                         true);
 
     global_context()->set_regexp_function(*regexp_fun);
+  }
+
+  {  // -- J S O N
+    Handle<String> name = Factory::NewStringFromAscii(CStrVector("JSON"));
+    Handle<JSFunction> cons = Factory::NewFunction(
+        name,
+        Factory::the_hole_value());
+    cons->SetInstancePrototype(global_context()->initial_object_prototype());
+    cons->SetInstanceClassName(*name);
+    Handle<JSObject> json_object = Factory::NewJSObject(cons, TENURED);
+    ASSERT(json_object->IsJSObject());
+    SetProperty(global, name, json_object, DONT_ENUM);
+    global_context()->set_json_object(*json_object);
   }
 
   {  // --- arguments_boilerplate_
@@ -1066,6 +1079,10 @@ bool Genesis::InstallNatives() {
               Handle<Context>(Top::context()->runtime_context()));
     SetupLazy(Handle<JSFunction>(global_context()->regexp_function()),
               Natives::GetIndex("regexp"),
+              Top::global_context(),
+              Handle<Context>(Top::context()->runtime_context()));
+    SetupLazy(Handle<JSObject>(global_context()->json_object()),
+              Natives::GetIndex("json"),
               Top::global_context(),
               Handle<Context>(Top::context()->runtime_context()));
 
@@ -1416,7 +1433,7 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 
   Handle<DescriptorArray> function_map_descriptors =
       ComputeFunctionInstanceDescriptor(false, true);
-  Handle<Map> fm = Factory::CopyMap(Top::function_map());
+  Handle<Map> fm = Factory::CopyMapDropDescriptors(Top::function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
   Top::context()->global_context()->set_function_map(*fm);
 }

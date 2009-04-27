@@ -30,20 +30,20 @@
 
 #ifdef ARM
 
-#include "constants-arm.h"
+#include "arm/constants-arm.h"
 #include "assembler.h"
-#include "assembler-arm.h"
-#include "assembler-arm-inl.h"
+#include "arm/assembler-arm.h"
+#include "arm/assembler-arm-inl.h"
 #include "code.h"  // must be after assembler_*.h
-#include "macro-assembler-arm.h"
+#include "arm/macro-assembler-arm.h"
 
 #else  // ia32
 
 #include "assembler.h"
-#include "assembler-ia32.h"
-#include "assembler-ia32-inl.h"
+#include "ia32/assembler-ia32.h"
+#include "ia32/assembler-ia32-inl.h"
 #include "code.h"  // must be after assembler_*.h
-#include "macro-assembler-ia32.h"
+#include "ia32/macro-assembler-ia32.h"
 
 #endif
 

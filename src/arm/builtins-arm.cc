@@ -417,15 +417,35 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(r0);
   __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_JS);
 
-  // Eagerly check for stack-overflow before starting to push the arguments.
-  // r0: number of arguments
-  Label okay;
+  Label no_preemption, retry_preemption;
+  __ bind(&retry_preemption);
   ExternalReference stack_guard_limit_address =
       ExternalReference::address_of_stack_guard_limit();
   __ mov(r2, Operand(stack_guard_limit_address));
   __ ldr(r2, MemOperand(r2));
+  __ cmp(sp, r2);
+  __ b(hi, &no_preemption);
+
+  // We have encountered a preemption or stack overflow already before we push
+  // the array contents.  Save r0 which is the Smi-tagged length of the array.
+  __ push(r0);
+
+  // Runtime routines expect at least one argument, so give it a Smi.
+  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ push(r0);
+  __ CallRuntime(Runtime::kStackGuard, 1);
+
+  // Since we returned, it wasn't a stack overflow.  Restore r0 and try again.
+  __ pop(r0);
+  __ b(&retry_preemption);
+
+  __ bind(&no_preemption);
+
+  // Eagerly check for stack-overflow before starting to push the arguments.
+  // r0: number of arguments.
+  // r2: stack limit.
+  Label okay;
   __ sub(r2, sp, r2);
-  __ sub(r2, r2, Operand(3 * kPointerSize));  // limit, index, receiver
 
   __ cmp(r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ b(hi, &okay);

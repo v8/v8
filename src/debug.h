@@ -405,69 +405,64 @@ class Debug {
 // In addition to command text it may contain a pointer to some user data
 // which are expected to be passed along with the command reponse to message
 // handler.
-class Message {
+class CommandMessage {
  public:
-  static Message NewCommand(const Vector<uint16_t>& command,
+  static CommandMessage New(const Vector<uint16_t>& command,
                             v8::Debug::ClientData* data);
-  static Message NewOutput(v8::Handle<v8::String> output,
-                           v8::Debug::ClientData* data);
-  static Message NewEmptyMessage();
-  Message();
-  ~Message();
+  CommandMessage();
+  ~CommandMessage();
 
   // Deletes user data and disposes of the text.
   void Dispose();
   Vector<uint16_t> text() const { return text_; }
   v8::Debug::ClientData* client_data() const { return client_data_; }
  private:
-  Message(const Vector<uint16_t>& text,
-          v8::Debug::ClientData* data);
+  CommandMessage(const Vector<uint16_t>& text,
+                 v8::Debug::ClientData* data);
 
   Vector<uint16_t> text_;
   v8::Debug::ClientData* client_data_;
 };
 
-// A Queue of Vector<uint16_t> objects.  A thread-safe version is
-// LockingMessageQueue, based on this class.
-class MessageQueue BASE_EMBEDDED {
+// A Queue of CommandMessage objects.  A thread-safe version is
+// LockingCommandMessageQueue, based on this class.
+class CommandMessageQueue BASE_EMBEDDED {
  public:
-  explicit MessageQueue(int size);
-  ~MessageQueue();
+  explicit CommandMessageQueue(int size);
+  ~CommandMessageQueue();
   bool IsEmpty() const { return start_ == end_; }
-  Message Get();
-  void Put(const Message& message);
+  CommandMessage Get();
+  void Put(const CommandMessage& message);
   void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
  private:
   // Doubles the size of the message queue, and copies the messages.
   void Expand();
 
-  Message* messages_;
+  CommandMessage* messages_;
   int start_;
   int end_;
   int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
 };
 
 
-// LockingMessageQueue is a thread-safe circular buffer of Vector<uint16_t>
-// messages.  The message data is not managed by LockingMessageQueue.
+// LockingCommandMessageQueue is a thread-safe circular buffer of CommandMessage
+// messages.  The message data is not managed by LockingCommandMessageQueue.
 // Pointers to the data are passed in and out. Implemented by adding a
-// Mutex to MessageQueue.  Includes logging of all puts and gets.
-class LockingMessageQueue BASE_EMBEDDED {
+// Mutex to CommandMessageQueue.  Includes logging of all puts and gets.
+class LockingCommandMessageQueue BASE_EMBEDDED {
  public:
-  explicit LockingMessageQueue(int size);
-  ~LockingMessageQueue();
+  explicit LockingCommandMessageQueue(int size);
+  ~LockingCommandMessageQueue();
   bool IsEmpty() const;
-  Message Get();
-  void Put(const Message& message);
+  CommandMessage Get();
+  void Put(const CommandMessage& message);
   void Clear();
  private:
-  MessageQueue queue_;
+  CommandMessageQueue queue_;
   Mutex* lock_;
-  DISALLOW_COPY_AND_ASSIGN(LockingMessageQueue);
+  DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
 };
 
-
-class DebugMessageThread;
 
 class Debugger {
  public:
@@ -503,21 +498,16 @@ class Debugger {
                                    Handle<Object> event_data,
                                    bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  static void SetMessageHandler(v8::Debug::MessageHandler handler,
-                                bool message_handler_thread);
-  static void TearDown();
+  static void SetMessageHandler(v8::Debug::MessageHandler handler);
   static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
                                      int period);
 
   // Invoke the message handler function.
-  static void InvokeMessageHandler(Message message);
-
-  // Send a message to the message handler eiher through the message thread or
-  // directly.
-  static void SendMessage(Message message);
+  static void InvokeMessageHandler(v8::Handle<v8::String> output,
+                                   v8::Debug::ClientData* data);
 
   // Send the JSON message for a debug event.
-  static bool SendEventMessage(Handle<Object> event_data);
+  static bool InvokeMessageHandlerWithEvent(Handle<Object> event_data);
 
   // Add a debugger command to the command queue.
   static void ProcessCommand(Vector<const uint16_t> command,
@@ -568,7 +558,6 @@ class Debugger {
   static bool compiling_natives_;  // Are we compiling natives?
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static bool never_unload_debugger_;  // Can we unload the debugger?
-  static DebugMessageThread* message_thread_;
   static v8::Debug::MessageHandler message_handler_;
   static bool message_handler_cleared_;  // Was message handler cleared?
   static v8::Debug::HostDispatchHandler host_dispatch_handler_;
@@ -577,32 +566,10 @@ class Debugger {
   static DebuggerAgent* agent_;
 
   static const int kQueueInitialSize = 4;
-  static LockingMessageQueue command_queue_;
-  static LockingMessageQueue message_queue_;
+  static LockingCommandMessageQueue command_queue_;
   static Semaphore* command_received_;  // Signaled for each command received.
-  static Semaphore* message_received_;  // Signalled for each message send.
 
   friend class EnterDebugger;
-  friend class DebugMessageThread;
-};
-
-
-// Thread to read messages from the message queue and invoke the debug message
-// handler in another thread as the V8 thread. This thread is started if the
-// registration of the debug message handler requested to be called in a thread
-// seperate from the V8 thread.
-class DebugMessageThread: public Thread {
- public:
-  DebugMessageThread() : keep_running_(true) {}
-  virtual ~DebugMessageThread() {}
-
-  // Main function of DebugMessageThread thread.
-  void Run();
-  void Stop();
-
- private:
-  bool keep_running_;
-  DISALLOW_COPY_AND_ASSIGN(DebugMessageThread);
 };
 
 

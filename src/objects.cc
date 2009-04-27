@@ -358,7 +358,7 @@ Object* JSObject::GetLazyProperty(Object* receiver,
   Handle<Object> receiver_handle(receiver);
   Handle<String> name_handle(name);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->GetPropertyWithReceiver(*receiver_handle,
@@ -377,7 +377,7 @@ Object* JSObject::SetLazyProperty(LookupResult* result,
   Handle<String> name_handle(name);
   Handle<Object> value_handle(value);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->SetProperty(*name_handle, *value_handle, attributes);
@@ -389,7 +389,7 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
   bool pending_exception;
-  LoadLazy(Handle<JSFunction>(JSFunction::cast(result->GetValue())),
+  LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
   return this_handle->DeleteProperty(*name_handle);
@@ -1158,7 +1158,7 @@ Object* JSObject::AddFastProperty(String* name,
          (index - map()->inobject_properties()) < properties()->length() ||
          map()->unused_property_fields() == 0);
   // Allocate a new map for the object.
-  Object* r = map()->Copy();
+  Object* r = map()->CopyDropDescriptors();
   if (r->IsFailure()) return r;
   Map* new_map = Map::cast(r);
   if (allow_map_transition) {
@@ -1203,7 +1203,7 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
   if (new_descriptors->IsFailure()) return new_descriptors;
 
   // Allocate a new map for the object.
-  Object* new_map = map()->Copy();
+  Object* new_map = map()->CopyDropDescriptors();
   if (new_map->IsFailure()) return new_map;
 
   DescriptorArray* descriptors = DescriptorArray::cast(new_descriptors);
@@ -1361,7 +1361,7 @@ Object* JSObject::ConvertDescriptorToField(String* name,
       DescriptorArray::cast(descriptors_unchecked);
 
   // Make a new map for the object.
-  Object* new_map_unchecked = map()->Copy();
+  Object* new_map_unchecked = map()->CopyDropDescriptors();
   if (new_map_unchecked->IsFailure()) return new_map_unchecked;
   Map* new_map = Map::cast(new_map_unchecked);
   new_map->set_instance_descriptors(new_descriptors);
@@ -2032,7 +2032,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
   dictionary->SetNextEnumerationIndex(index);
 
   // Allocate new map.
-  obj = map()->Copy();
+  obj = map()->CopyDropDescriptors();
   if (obj->IsFailure()) return obj;
   Map* new_map = Map::cast(obj);
 
@@ -2704,24 +2704,29 @@ Object* JSObject::SlowReverseLookup(Object* value) {
 }
 
 
-Object* Map::Copy() {
+Object* Map::CopyDropDescriptors() {
   Object* result = Heap::AllocateMap(instance_type(), instance_size());
   if (result->IsFailure()) return result;
   Map::cast(result)->set_prototype(prototype());
   Map::cast(result)->set_constructor(constructor());
   // Don't copy descriptors, so map transitions always remain a forest.
+  // If we retained the same descriptors we would have two maps
+  // pointing to the same transition which is bad because the garbage
+  // collector relies on being able to reverse pointers from transitions
+  // to maps.  If properties need to be retained use CopyDropTransitions.
   Map::cast(result)->set_instance_descriptors(Heap::empty_descriptor_array());
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
   Map::cast(result)->set_bit_field(bit_field());
+  Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->ClearCodeCache();
   return result;
 }
 
 
 Object* Map::CopyDropTransitions() {
-  Object* new_map = Copy();
+  Object* new_map = CopyDropDescriptors();
   if (new_map->IsFailure()) return new_map;
   Object* descriptors = instance_descriptors()->RemoveTransitions();
   if (descriptors->IsFailure()) return descriptors;
@@ -7153,7 +7158,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
 
   descriptors->Sort();
   // Allocate new map.
-  Object* new_map = obj->map()->Copy();
+  Object* new_map = obj->map()->CopyDropDescriptors();
   if (new_map->IsFailure()) return new_map;
 
   // Transform the object.

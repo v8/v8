@@ -33,9 +33,9 @@
 #include "codegen-inl.h"
 
 #ifdef ARM
-#include "simulator-arm.h"
+#include "arm/simulator-arm.h"
 #else  // ia32
-#include "simulator-ia32.h"
+#include "ia32/simulator-ia32.h"
 #endif
 
 #include "debug.h"
