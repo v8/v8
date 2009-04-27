@@ -27,7 +27,6 @@
 
 
 #include <stdlib.h>
-#include <set>
 
 #include "v8.h"
 
@@ -499,24 +498,25 @@ const int TestConfig::kNoKey = 0;
 const int TestConfig::kNoValue = 0;
 
 
-static int PseudoRandom(int i, int j) {
+static unsigned PseudoRandom(int i, int j) {
   return ~(~((i * 781) ^ (j * 329)));
 }
 
 
 TEST(SplayTreeSimple) {
-  static const int kLimit = 1000;
+  static const unsigned kLimit = 1000;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   ZoneSplayTree<TestConfig> tree;
-  std::set<int> seen;
+  bool seen[kLimit];
+  for (unsigned i = 0; i < kLimit; i++) seen[i] = false;
 #define CHECK_MAPS_EQUAL() do {                                      \
-    for (int k = 0; k < kLimit; k++)                                 \
-      CHECK_EQ(seen.find(k) != seen.end(), tree.Find(k, &loc));      \
+    for (unsigned k = 0; k < kLimit; k++)                            \
+      CHECK_EQ(seen[k], tree.Find(k, &loc));                         \
   } while (false)
   for (int i = 0; i < 50; i++) {
     for (int j = 0; j < 50; j++) {
-      int next = PseudoRandom(i, j) % kLimit;
-      if (seen.find(next) != seen.end()) {
+      unsigned next = PseudoRandom(i, j) % kLimit;
+      if (seen[next]) {
         // We've already seen this one.  Check the value and remove
         // it.
         ZoneSplayTree<TestConfig>::Locator loc;
@@ -524,7 +524,7 @@ TEST(SplayTreeSimple) {
         CHECK_EQ(next, loc.key());
         CHECK_EQ(3 * next, loc.value());
         tree.Remove(next);
-        seen.erase(next);
+        seen[next] = false;
         CHECK_MAPS_EQUAL();
       } else {
         // Check that it wasn't there already and then add it.
@@ -533,26 +533,22 @@ TEST(SplayTreeSimple) {
         CHECK(tree.Insert(next, &loc));
         CHECK_EQ(next, loc.key());
         loc.set_value(3 * next);
-        seen.insert(next);
+        seen[next] = true;
         CHECK_MAPS_EQUAL();
       }
       int val = PseudoRandom(j, i) % kLimit;
-      for (int k = val; k >= 0; k--) {
-        if (seen.find(val) != seen.end()) {
-          ZoneSplayTree<TestConfig>::Locator loc;
-          CHECK(tree.FindGreatestLessThan(val, &loc));
-          CHECK_EQ(loc.key(), val);
-          break;
-        }
+      if (seen[val]) {
+        ZoneSplayTree<TestConfig>::Locator loc;
+        CHECK(tree.FindGreatestLessThan(val, &loc));
+        CHECK_EQ(loc.key(), val);
+        break;
       }
       val = PseudoRandom(i + j, i - j) % kLimit;
-      for (int k = val; k < kLimit; k++) {
-        if (seen.find(val) != seen.end()) {
-          ZoneSplayTree<TestConfig>::Locator loc;
-          CHECK(tree.FindLeastGreaterThan(val, &loc));
-          CHECK_EQ(loc.key(), val);
-          break;
-        }
+      if (seen[val]) {
+        ZoneSplayTree<TestConfig>::Locator loc;
+        CHECK(tree.FindLeastGreaterThan(val, &loc));
+        CHECK_EQ(loc.key(), val);
+        break;
       }
     }
   }

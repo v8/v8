@@ -286,6 +286,18 @@ CCTEST_EXTRA_FLAGS = {
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32']
     },
+    'os:android': {
+      'CPPDEFINES':   ['ANDROID', '__ARM_ARCH_5__', '__ARM_ARCH_5T__',
+                       '__ARM_ARCH_5E__', '__ARM_ARCH_5TE__'],
+      'CCFLAGS':      ANDROID_FLAGS,
+      'CPPPATH':      ANDROID_INCLUDES,
+      'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
+      'LINKFLAGS':    ANDROID_LINKFLAGS,
+      'LIBS':         ['c', 'stdc++', 'm'],
+      'mode:release': {
+        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+      }
+    },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']

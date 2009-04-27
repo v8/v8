@@ -27,9 +27,6 @@
 
 #include <stdlib.h>
 
-#include <map>
-#include <string>
-
 #include "v8.h"
 
 #include "api.h"
