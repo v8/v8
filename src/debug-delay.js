@@ -977,6 +977,7 @@ CompileEvent.prototype.script = function() {
 
 CompileEvent.prototype.toJSONProtocol = function() {
   var o = new ProtocolMessage();
+  o.running = true;
   if (this.before_) {
     o.event = "beforeCompile";
   } else {

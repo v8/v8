@@ -1612,7 +1612,7 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
   }
 
   // Process debug event
-  ProcessDebugEvent(v8::BeforeCompile, event_data, false);
+  ProcessDebugEvent(v8::BeforeCompile, event_data, true);
 }
 
 
@@ -1673,7 +1673,7 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
     return;
   }
   // Process debug event
-  ProcessDebugEvent(v8::AfterCompile, event_data, false);
+  ProcessDebugEvent(v8::AfterCompile, event_data, true);
 }
 
 
@@ -1698,7 +1698,7 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
     return;
   }
   // Process debug event.
-  ProcessDebugEvent(v8::NewFunction, event_data, false);
+  ProcessDebugEvent(v8::NewFunction, event_data, true);
 }
 
 
@@ -1776,17 +1776,18 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   if (!Debug::Load()) return;
 
   // Process the individual events.
-  bool interactive = false;
+  bool sendEventMessage = false;
   switch (event) {
     case v8::Break:
-      interactive = true;  // Break event is always interactive
+      sendEventMessage = !auto_continue;
       break;
     case v8::Exception:
-      interactive = true;  // Exception event is always interactive
+      sendEventMessage = true;
       break;
     case v8::BeforeCompile:
       break;
     case v8::AfterCompile:
+      sendEventMessage = true;
       break;
     case v8::NewFunction:
       break;
@@ -1794,8 +1795,20 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       UNREACHABLE();
   }
 
-  // Done if not interactive.
-  if (!interactive) return;
+  // The debug command interrupt flag might have been set when the command was
+  // added. It should be enough to clear the flag only once while we are in the
+  // debugger.
+  ASSERT(Debug::InDebugger());
+  StackGuard::Continue(DEBUGCOMMAND);
+
+  // Notify the debugger that a debug event has occurred unless auto continue is
+  // active in which case no event is send.
+  if (sendEventMessage) {
+    InvokeMessageHandlerWithEvent(event_data);
+  }
+  if (auto_continue && !HasCommands()) {
+    return;
+  }
 
   // Get the DebugCommandProcessor.
   v8::Local<v8::Object> api_exec_state =
@@ -1812,16 +1825,6 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     return;
   }
 
-  // Notify the debugger that a debug event has occurred unless auto continue is
-  // active in which case no event is send.
-  if (!auto_continue) {
-    bool success = InvokeMessageHandlerWithEvent(event_data);
-    if (!success) {
-      // If failed to notify debugger just continue running.
-      return;
-    }
-  }
-
   // Process requests from the debugger.
   while (true) {
     // Wait for new command in the queue.
@@ -1836,10 +1839,6 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       // In case there is no host dispatch - just wait.
       command_received_->Wait();
     }
-
-    // The debug command interrupt flag might have been set when the command was
-    // added.
-    StackGuard::Continue(DEBUGCOMMAND);
 
     // Get the command from the queue.
     CommandMessage command = command_queue_.Get();

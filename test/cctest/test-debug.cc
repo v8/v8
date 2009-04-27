@@ -3436,6 +3436,7 @@ static void MessageHandler(const uint16_t* message, int length,
     // Signals when a break is reported.
     message_queue_barriers.semaphore_2->Signal();
   }
+
   // Allow message handler to block on a semaphore, to test queueing of
   // messages while blocked.
   message_queue_barriers.semaphore_1->Wait();
@@ -3474,6 +3475,7 @@ void MessageQueueDebuggerThread::Run() {
 
   /* Interleaved sequence of actions by the two threads:*/
   // Main thread compiles and runs source_1
+  message_queue_barriers.semaphore_1->Signal();
   message_queue_barriers.barrier_1.Wait();
   // Post 6 commands, filling the command queue and making it expand.
   // These calls return immediately, but the commands stay on the queue
@@ -3487,22 +3489,39 @@ void MessageQueueDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   message_queue_barriers.barrier_2.Wait();
   // Main thread compiles and runs source_2.
-  // Queued commands are executed at the start of compilation of source_2.
-  message_queue_barriers.barrier_3.Wait();
-  // Free the message handler to process all the messages from the queue.
-  for (int i = 0; i < 20 ; ++i) {
+  // Queued commands are executed at the start of compilation of source_2(
+  // beforeCompile event).
+  // Free the message handler to process all the messages from the queue. 7
+  // messages are expected: 2 afterCompile events and 5 responses.
+  // All the commands added so far will fail to execute as long as call stack
+  // is empty on beforeCompile event.
+  for (int i = 0; i < 6 ; ++i) {
     message_queue_barriers.semaphore_1->Signal();
   }
+  message_queue_barriers.barrier_3.Wait();
   // Main thread compiles and runs source_3.
+  // Don't stop in the afterCompile handler.
+  message_queue_barriers.semaphore_1->Signal();
   // source_3 includes a debugger statement, which causes a break event.
   // Wait on break event from hitting "debugger" statement
   message_queue_barriers.semaphore_2->Wait();
   // These should execute after the "debugger" statement in source_2
+  v8::Debug::SendCommand(buffer_1, AsciiToUtf16(command_1, buffer_1));
+  v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_2, buffer_2));
+  v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_single_step, buffer_2));
+  // Run after 2 break events, 4 responses.
+  for (int i = 0; i < 6 ; ++i) {
+    message_queue_barriers.semaphore_1->Signal();
+  }
   // Wait on break event after a single step executes.
   message_queue_barriers.semaphore_2->Wait();
   v8::Debug::SendCommand(buffer_1, AsciiToUtf16(command_2, buffer_1));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_continue, buffer_2));
+  // Run after 2 responses.
+  for (int i = 0; i < 2 ; ++i) {
+    message_queue_barriers.semaphore_1->Signal();
+  }
   // Main thread continues running source_3 to end, waits for this thread.
 }
 
@@ -3610,7 +3629,7 @@ TEST(SendClientDataToHandler) {
   TestClientData::ResetCounters();
   handled_client_data_instances_count = 0;
   v8::Debug::SetMessageHandler(MessageHandlerCountingClientData);
-  const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5; debugger;";
+  const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5;";
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
   const char* command_1 =
@@ -3635,8 +3654,9 @@ TEST(SendClientDataToHandler) {
                          new TestClientData());
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer),
                          new TestClientData());
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+  // All the messages will be processed on beforeCompile event.
   CompileRun(source_1);
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
   CHECK_EQ(3, TestClientData::constructor_call_counter);
   CHECK_EQ(TestClientData::constructor_call_counter,
            handled_client_data_instances_count);
