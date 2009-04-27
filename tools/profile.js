@@ -395,14 +395,16 @@ devtools.profiler.CallTree.prototype.computeTotalWeights = function() {
  * @param {devtools.profiler.CallTree.Node} opt_start Starting node.
  */
 devtools.profiler.CallTree.prototype.traverse = function(f, opt_start) {
-  var pairsToProcess = [{node: opt_start || this.root_, param: null}];
-  while (pairsToProcess.length > 0) {
-    var pair = pairsToProcess.shift();
+  var pairsToProcess = new ConsArray();
+  pairsToProcess.concat([{node: opt_start || this.root_, param: null}]);
+  while (!pairsToProcess.atEnd()) {
+    var pair = pairsToProcess.next();
     var node = pair.node;
     var newParam = f(node, pair.param);
-    node.forEachChild(
-      function (child) { pairsToProcess.push({node: child, param: newParam}); }
-    );
+    var morePairsToProcess = [];
+    node.forEachChild(function (child) {
+        morePairsToProcess.push({node: child, param: newParam}); });
+    pairsToProcess.concat(morePairsToProcess);
   }
 };
 

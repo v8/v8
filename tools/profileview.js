@@ -100,11 +100,12 @@ devtools.profiler.ProfileView.prototype.sort = function(sortFunc) {
  * @param {function(devtools.profiler.ProfileView.Node)} f Visitor function.
  */
 devtools.profiler.ProfileView.prototype.traverse = function(f) {
-  var nodesToTraverse = [this.head];
-  while (nodesToTraverse.length > 0) {
-    var node = nodesToTraverse.shift();
+  var nodesToTraverse = new ConsArray();
+  nodesToTraverse.concat([this.head]);
+  while (!nodesToTraverse.atEnd()) {
+    var node = nodesToTraverse.next();
     f(node);
-    nodesToTraverse = nodesToTraverse.concat(node.children);
+    nodesToTraverse.concat(node.children);
   }
 };
 

@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Load source code files from <project root>/tools.
-// Files: tools/splaytree.js tools/codemap.js tools/profile.js
+// Files: tools/splaytree.js tools/codemap.js tools/consarray.js tools/profile.js
 
 
 function stackToString(stack) {

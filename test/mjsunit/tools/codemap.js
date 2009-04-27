@@ -114,3 +114,13 @@ function assertNoEntry(codeMap, addr) {
   assertNoEntry(codeMap, 0x1700);
   assertEntry(codeMap, 'code1', 0x1800);
 })();
+
+
+(function testDynamicNamesDuplicates() {
+  var codeMap = new devtools.profiler.CodeMap();
+  // Code entries with same names but different addresses.
+  codeMap.addCode(0x1500, newCodeEntry(0x200, 'code'));
+  codeMap.addCode(0x1700, newCodeEntry(0x100, 'code'));
+  assertEntry(codeMap, 'code', 0x1500);
+  assertEntry(codeMap, 'code {1}', 0x1700);
+})();
