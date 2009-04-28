@@ -729,36 +729,66 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 static const byte kTestEaxByte = 0xA9;
 
 
-bool KeyedLoadIC::HasInlinedVersion(Address address) {
-  Address test_instruction_address = address + 4;  // 4 = stub address
-  return *test_instruction_address == kTestEaxByte;
+void LoadIC::ClearInlinedVersion(Address address) {
+  // Reset the map check of the inlined inobject property load (if
+  // present) to guarantee failure by holding an invalid map (the null
+  // value).  The offset can be patched to anything.
+  PatchInlinedLoad(address, Heap::null_value(), kMaxInt);
 }
 
 
 void KeyedLoadIC::ClearInlinedVersion(Address address) {
   // Insert null as the map to check for to make sure the map check fails
   // sending control flow to the IC instead of the inlined version.
-  PatchInlinedMapCheck(address, Heap::null_value());
+  PatchInlinedLoad(address, Heap::null_value());
 }
 
 
-void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) {
+bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
+  // The address of the instruction following the call.
+  Address test_instruction_address = address + 4;
+  // If the instruction following the call is not a test eax, nothing
+  // was inlined.
+  if (*test_instruction_address != kTestEaxByte) return false;
+
+  Address delta_address = test_instruction_address + 1;
+  // The delta to the start of the map check instruction.
+  int delta = *reinterpret_cast<int*>(delta_address);
+
+  // The map address is the last 4 bytes of the 7-byte
+  // operand-immediate compare instruction, so we add 3 to get the
+  // offset to the last 4 bytes.
+  Address map_address = test_instruction_address + delta + 3;
+  *(reinterpret_cast<Object**>(map_address)) = map;
+
+  // The offset is in the last 4 bytes of a six byte
+  // memory-to-register move instruction, so we add 2 to get the
+  // offset to the last 4 bytes.
+  Address offset_address =
+      test_instruction_address + delta + kOffsetToLoadInstruction + 2;
+  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
+  return true;
+}
+
+
+bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   Address test_instruction_address = address + 4;  // 4 = stub address
   // The keyed load has a fast inlined case if the IC call instruction
   // is immediately followed by a test instruction.
-  if (*test_instruction_address == kTestEaxByte) {
-    // Fetch the offset from the test instruction to the map cmp
-    // instruction.  This offset is stored in the last 4 bytes of the
-    // 5 byte test instruction.
-    Address offset_address = test_instruction_address + 1;
-    int offset_value = *(reinterpret_cast<int*>(offset_address));
-    // Compute the map address.  The map address is in the last 4
-    // bytes of the 7-byte operand-immediate compare instruction, so
-    // we add 3 to the offset to get the map address.
-    Address map_address = test_instruction_address + offset_value + 3;
-    // Patch the map check.
-    (*(reinterpret_cast<Object**>(map_address))) = value;
-  }
+  if (*test_instruction_address != kTestEaxByte) return false;
+
+  // Fetch the offset from the test instruction to the map cmp
+  // instruction.  This offset is stored in the last 4 bytes of the 5
+  // byte test instruction.
+  Address delta_address = test_instruction_address + 1;
+  int delta = *reinterpret_cast<int*>(delta_address);
+  // Compute the map address.  The map address is in the last 4 bytes
+  // of the 7-byte operand-immediate compare instruction, so we add 3
+  // to the offset to get the map address.
+  Address map_address = test_instruction_address + delta + 3;
+  // Patch the map check.
+  *(reinterpret_cast<Object**>(map_address)) = map;
+  return true;
 }
 
 

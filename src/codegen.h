@@ -116,6 +116,9 @@ class DeferredCode: public ZoneObject {
   JumpTarget* enter() { return &enter_; }
   void BindExit() { exit_.Bind(0); }
   void BindExit(Result* result) { exit_.Bind(result, 1); }
+  void BindExit(Result* result0, Result* result1) {
+    exit_.Bind(result0, result1, 2);
+  }
   void BindExit(Result* result0, Result* result1, Result* result2) {
     exit_.Bind(result0, result1, result2, 3);
   }

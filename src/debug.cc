@@ -377,9 +377,7 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
     // is set the patching performed by the runtime system will take place in
     // the code copy and will therefore have no effect on the running code
     // keeping it from using the inlined code.
-    if (code->is_keyed_load_stub() && KeyedLoadIC::HasInlinedVersion(pc())) {
-      KeyedLoadIC::ClearInlinedVersion(pc());
-    }
+    if (code->is_keyed_load_stub()) KeyedLoadIC::ClearInlinedVersion(pc());
   }
 }
 
