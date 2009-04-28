@@ -315,7 +315,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
     int index = expected->register_locations_[i];
     int use_index = register_locations_[i];
     // Fast check if register is unused in target or already correct
-    if (index != kIllegalIndex 
+    if (index != kIllegalIndex
         && index != use_index
         && elements_[index].is_register()) {
       Register source = elements_[index].reg();
