@@ -191,6 +191,11 @@ class FrameElement BASE_EMBEDDED {
     data_.index_ = new_index;
   }
 
+  void set_reg(Register new_reg) {
+    ASSERT(is_register());
+    data_.reg_ = new_reg;
+  }
+
   friend class VirtualFrame;
 };
 

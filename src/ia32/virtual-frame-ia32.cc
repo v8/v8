@@ -310,64 +310,33 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
   // We have already done X-to-memory moves.
   ASSERT(stack_pointer_ >= expected->stack_pointer_);
 
-  // Perform register-to-register moves.
-  int start = 0;
-  int end = elements_.length() - 1;
-  bool any_moves_blocked;  // Did we fail to make some moves this iteration?
-  bool should_break_cycles = false;
-  bool any_moves_made;  // Did we make any progress this iteration?
-  do {
-    any_moves_blocked = false;
-    any_moves_made = false;
-    int first_move_blocked = kIllegalIndex;
-    int last_move_blocked = kIllegalIndex;
-    for (int i = start; i <= end; i++) {
-      FrameElement source = elements_[i];
-      FrameElement target = expected->elements_[i];
-      if (source.is_register() && target.is_register()) {
-        if (target.reg().is(source.reg())) {
-          if (target.is_synced() && !source.is_synced()) {
-            __ mov(Operand(ebp, fp_relative(i)), source.reg());
-          }
-          elements_[i] = target;
-        } else {
-          // We need to move source to target.
-          if (is_used(target.reg())) {
-            // The move is blocked because the target contains valid data.
-            // If we are stuck with only cycles remaining, then we spill source.
-            // Otherwise, we just need more iterations.
-            if (should_break_cycles) {
-              SpillElementAt(i);
-              should_break_cycles = false;
-            } else {  // Record a blocked move.
-              if (!any_moves_blocked) {
-                first_move_blocked = i;
-              }
-              last_move_blocked = i;
-              any_moves_blocked = true;
-            }
-          } else {
-            // The move is not blocked.  This frame element can be moved from
-            // its source register to its target register.
-            if (target.is_synced() && !source.is_synced()) {
-              SyncElementAt(i);
-            }
-            Use(target.reg(), i);
-            Unuse(source.reg());
-            elements_[i] = target;
-            __ mov(target.reg(), source.reg());
-            any_moves_made = true;
-          }
-        }
+  for (int i = 0; i < kNumRegisters; i++) {
+    // Move the right value into register i if it is currently in a register.
+    int index = expected->register_locations_[i];
+    int use_index = register_locations_[i];
+    // Fast check if register is unused in target or already correct
+    if (index != kIllegalIndex 
+        && index != use_index
+        && elements_[index].is_register()) {
+      Register source = elements_[index].reg();
+      Register target = { i };
+      if (use_index == kIllegalIndex) {  // Target is currently unused.
+        // Copy contents of source from source to target.
+        // Set frame element register to target.
+        elements_[index].set_reg(target);
+        Use(target, index);
+        Unuse(source);
+        __ mov(target, source);
+      } else {
+        // Exchange contents of registers source and target.
+        elements_[use_index].set_reg(source);
+        elements_[index].set_reg(target);
+        register_locations_[target.code()] = index;
+        register_locations_[source.code()] = use_index;
+        __ xchg(source, target);
       }
     }
-    // Update control flags for next iteration.
-    should_break_cycles = (any_moves_blocked && !any_moves_made);
-    if (any_moves_blocked) {
-      start = first_move_blocked;
-      end = last_move_blocked;
-    }
-  } while (any_moves_blocked);
+  }
 }
 
 
@@ -376,19 +345,22 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
   // final step and is done from the bottom up so that the backing
   // elements of copies are in their correct locations when we
   // encounter the copies.
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement source = elements_[i];
-    FrameElement target = expected->elements_[i];
-    if (target.is_register() && !source.is_register()) {
+  for (int i = 0; i < kNumRegisters; i++) {
+    int index = expected->register_locations_[i];
+    if (index != kIllegalIndex) {
+      FrameElement source = elements_[index];
+      FrameElement target = expected->elements_[index];
       switch (source.type()) {
         case FrameElement::INVALID:  // Fall through.
-        case FrameElement::REGISTER:
           UNREACHABLE();
           break;
-
+        case FrameElement::REGISTER:
+          ASSERT(source.reg().is(target.reg()));
+          continue;  // Go to next iteration.  Skips Use(target.reg()) below.
+          break;
         case FrameElement::MEMORY:
-          ASSERT(i <= stack_pointer_);
-          __ mov(target.reg(), Operand(ebp, fp_relative(i)));
+          ASSERT(index <= stack_pointer_);
+          __ mov(target.reg(), Operand(ebp, fp_relative(index)));
           break;
 
         case FrameElement::CONSTANT:
@@ -400,11 +372,25 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
           break;
 
         case FrameElement::COPY: {
-          FrameElement backing = elements_[source.index()];
+          int backing_index = source.index();
+          FrameElement backing = elements_[backing_index];
           ASSERT(backing.is_memory() || backing.is_register());
           if (backing.is_memory()) {
-            ASSERT(source.index() <= stack_pointer_);
-            __ mov(target.reg(), Operand(ebp, fp_relative(source.index())));
+            ASSERT(backing_index <= stack_pointer_);
+            // Code optimization if backing store should also move
+            // to a register: move backing store to its register first.
+            if (expected->elements_[backing_index].is_register()) {
+              FrameElement new_backing = expected->elements_[backing_index];
+              Register new_backing_reg = new_backing.reg();
+              ASSERT(!is_used(new_backing_reg));
+              elements_[backing_index] = new_backing;
+              Use(new_backing_reg, backing_index);
+              __ mov(new_backing_reg,
+                     Operand(ebp, fp_relative(backing_index)));
+              __ mov(target.reg(), new_backing_reg);
+            } else {
+              __ mov(target.reg(), Operand(ebp, fp_relative(backing_index)));
+            }
           } else {
             __ mov(target.reg(), backing.reg());
           }
@@ -412,11 +398,11 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
       }
       // Ensure the proper sync state.  If the source was memory no
       // code needs to be emitted.
-      if (target.is_synced() && !source.is_memory()) {
-        SyncElementAt(i);
+      if (target.is_synced() && !source.is_synced()) {
+        __ mov(Operand(ebp, fp_relative(index)), target.reg());
       }
-      Use(target.reg(), i);
-      elements_[i] = target;
+      Use(target.reg(), index);
+      elements_[index] = target;
     }
   }
 }
