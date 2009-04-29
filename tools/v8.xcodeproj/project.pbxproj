@@ -1369,7 +1369,6 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
-                                        V8_ARCH_IA32,
 					DEBUG,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
@@ -1409,7 +1408,6 @@
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
-                                        V8_ARCH_IA32,
 					NDEBUG,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
@@ -1430,6 +1428,11 @@
 		893988090F2A35FA007D5254 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_ARCH_IA32,
+					DEBUG,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
 			};
@@ -1438,6 +1441,11 @@
 		8939880A0F2A35FA007D5254 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_ARCH_IA32,
+					NDEBUG,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8_shell;
 			};
@@ -1449,8 +1457,8 @@
 				DEPLOYMENT_POSTPROCESSING = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
-                                        V8_ARCH_IA32,
 					ENABLE_DISASSEMBLER,
+					V8_ARCH_IA32,
 					ENABLE_LOGGING_AND_PROFILING,
 				);
 				HEADER_SEARCH_PATHS = ../src;
@@ -1463,6 +1471,11 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				DEPLOYMENT_POSTPROCESSING = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GCC_PREPROCESSOR_DEFINITIONS)",
+					V8_ARCH_IA32,
+					NDEBUG,
+				);
 				HEADER_SEARCH_PATHS = ../src;
 				PRODUCT_NAME = v8;
 				STRIP_STYLE = debugging;
