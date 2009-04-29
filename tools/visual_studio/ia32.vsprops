@@ -2,7 +2,7 @@
 <VisualStudioPropertySheet
 	ProjectType="Visual C++"
 	Version="8.00"
-	Name="arm"
+	Name="ia32"
 	>
 	<Tool
 		Name="VCCLCompilerTool"

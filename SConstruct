@@ -35,6 +35,7 @@ root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c, utils
 
+
 # ANDROID_TOP is the top of the Android checkout, fetched from the environment
 # variable 'TOP'.   You will also need to set the CXX, CC, AR and RANLIB
 # environment variables to the cross-compiling tools.
@@ -132,23 +133,29 @@ LIBRARY_FLAGS = {
       'CPPPATH':      ANDROID_INCLUDES,
     },
     'wordsize:32': {
-      'CCFLAGS':      ['-m32'],
-      'CPPDEFINES':   ['ILP32'],
-      'LINKFLAGS':    ['-m32']
+      'arch:x64': {
+        'CCFLAGS':      ['-m64'],
+        'LINKFLAGS':    ['-m64']
+      }
     },
     'wordsize:64': {
-      'CCFLAGS':      ['-m64'],
-      'CPPDEFINES':   ['LP64'],
-      'LINKFLAGS':    ['-m64']
+      'arch:ia32': {
+        'CCFLAGS':      ['-m32'],
+        'LINKFLAGS':    ['-m32']
+      },
+      'arch:arm': {
+        'CCFLAGS':      ['-m32'],
+        'LINKFLAGS':    ['-m32']
+      }
     },
     'arch:ia32': {
-      'CPPDEFINES':   ['V8_ARCH_IA32']
+      'CPPDEFINES':   ['V8_ARCH_IA32', 'ILP32']
     },
     'arch:arm': {
-      'CPPDEFINES':   ['V8_ARCH_ARM']
+      'CPPDEFINES':   ['V8_ARCH_ARM', 'ILP32']
     },
     'arch:x64': {
-      'CPPDEFINES':   ['V8_ARCH_X64']
+      'CPPDEFINES':   ['V8_ARCH_X64', 'LP64']
     },
     'prof:oprofile': {
       'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
@@ -311,15 +318,21 @@ CCTEST_EXTRA_FLAGS = {
       }
     },
     'wordsize:32': {
-      'CCFLAGS':      ['-m32'],
-      'CPPDEFINES':   ['ILP32'],
-      'LINKFLAGS':    ['-m32']
+      'arch:x64': {
+        'CCFLAGS':      ['-m64'],
+        'LINKFLAGS':    ['-m64']
+      }
     },
     'wordsize:64': {
-      'CCFLAGS':      ['-m64'],
-      'CPPDEFINES':   ['LP64'],
-      'LINKFLAGS':    ['-m64']
-    },
+      'arch:ia32': {
+        'CCFLAGS':      ['-m32'],
+        'LINKFLAGS':    ['-m32']
+      },
+      'arch:arm': {
+        'CCFLAGS':      ['-m32'],
+        'LINKFLAGS':    ['-m32']
+      }
+    }
   },
   'msvc': {
     'all': {
@@ -368,14 +381,20 @@ SAMPLE_FLAGS = {
       }
     },
     'wordsize:32': {
-      'CCFLAGS':      ['-m32'],
-      'CPPDEFINES':   ['ILP32'],
-      'LINKFLAGS':    ['-m32']
+      'arch:x64': {
+        'CCFLAGS':      ['-m64'],
+        'LINKFLAGS':    ['-m64']
+      }
     },
     'wordsize:64': {
-      'CCFLAGS':      ['-m64'],
-      'CPPDEFINES':   ['LP64'],
-      'LINKFLAGS':    ['-m64']
+      'arch:ia32': {
+        'CCFLAGS':      ['-m32'],
+        'LINKFLAGS':    ['-m32']
+      },
+      'arch:arm': {
+        'CCFLAGS':      ['-m32'],
+        'LINKFLAGS':    ['-m32']
+      }
     },
     'mode:release': {
       'CCFLAGS':      ['-O2']
@@ -529,7 +548,7 @@ SIMPLE_OPTIONS = {
   },
   'wordsize': {
     'values': ['64', '32'],
-    'default': '32',   # WORDSIZE_GUESS,
+    'default': WORDSIZE_GUESS,
     'help': 'the word size'
   },
   'simulator': {
@@ -589,8 +608,8 @@ def VerifyOptions(env):
     Abort("Profiling on windows only supported for static library.")
   if env['prof'] == 'oprofile' and env['os'] != 'linux':
     Abort("OProfile is only supported on Linux.")
-  if env['wordsize'] == '64' and (env['os'] != 'linux' or env['arch'] != 'x64'):
-    Abort("64 bit compilation only allowed on Linux OS and x64 architecture.")
+  if env['arch'] == 'x64' and env['os'] != 'linux':
+    Abort("X64 compilation only allowed on Linux OS.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %
