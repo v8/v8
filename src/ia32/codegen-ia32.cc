@@ -5265,9 +5265,10 @@ void DeferredReferenceGetNamedValue::Generate() {
   // The call must be followed by a test eax instruction to indicate
   // that the inobject property case was inlined.
   ASSERT(answer.is_register() && answer.reg().is(eax));
-  // Store the delta to the map check instruction here in the test
-  // instruction.
-  int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
+  // Store the delta to the map check instruction here in the test instruction.
+  // Use masm_-> instead of the double underscore macro since the latter can't
+  // return a value.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
   // Here we use masm_-> instead of the double underscore macro because
   // this is the instruction that gets patched and coverage code gets in
   // the way.
@@ -5415,10 +5416,13 @@ void Reference::GetValue(TypeofState typeof_state) {
         Result value = cgen_->allocator()->Allocate();
         ASSERT(value.is_valid());
         __ bind(deferred->patch_site());
-        // This is the map check instruction that will be patched.
+        // This is the map check instruction that will be patched (so we can't
+        // use the double underscore macro that may insert instructions).
         // Initially use an invalid map to force a failure.
-        __ cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-               Immediate(Factory::null_value()));
+        masm->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                  Immediate(Factory::null_value()));
+        // This branch is always a forwards branch so it's always a fixed
+        // size which allows the assert below to succeed and patching to work.
         deferred->enter()->Branch(not_equal, &receiver, not_taken);
 
         // The delta from the patch label to the load offset must be
@@ -5429,7 +5433,7 @@ void Reference::GetValue(TypeofState typeof_state) {
         // a 32-bit instruction encoding to allow patching with an
         // arbitrary offset.  Use kMaxInt (minus kHeapObjectTag).
         int offset = kMaxInt;
-        __ mov(value.reg(), FieldOperand(receiver.reg(), offset));
+        masm->mov(value.reg(), FieldOperand(receiver.reg(), offset));
 
         __ IncrementCounter(&Counters::named_load_inline, 1);
         deferred->BindExit(&receiver, &value);
