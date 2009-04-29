@@ -92,55 +92,6 @@ class EXPORT Debug {
 
 
   /**
-   * A message object passed to the debug message handler.
-   */
-  class Message {
-   public:
-    /**
-     * Check type of message.
-     */
-    virtual bool IsEvent() const = 0;
-    virtual bool IsResponse() const = 0;
-    virtual DebugEvent GetEvent() const = 0;
-
-    /**
-     * Indicate whether this is a response to a continue command which will
-     * start the VM running after this is processed.
-     */
-    virtual bool WillStartRunning() const = 0;
-
-    /**
-     * Access to execution state and event data. Don't store these cross
-     * callbacks as their content becomes invalid. These objects are from the
-     * debugger event that started the debug message loop.
-     */
-    virtual Handle<Object> GetExecutionState() const = 0;
-    virtual Handle<Object> GetEventData() const = 0;
-	
-    /**
-     * Get the debugger protocol JSON.
-     */
-    virtual Handle<String> GetJSON() const = 0;
-
-    /**
-     * Get the context active when the debug event happened. Note this is not
-     * the current active context as the JavaScript part of the debugger is
-     * running in it's own context which is entered at this point.
-     */
-    virtual Handle<Context> GetEventContext() const = 0;
-
-    /**
-     * Client data passed with the corresponding request if any. This is the
-     * client_data data value passed into Debug::SendCommand along with the
-     * request that led to the message or NULL if the message is an event. The
-     * debugger takes ownership of the data and will delete it even if there is
-     * no message handler.
-     */
-    virtual ClientData* GetClientData() const = 0;
-  };
-  
-
-  /**
    * Debug event callback function.
    *
    * \param event the type of the debug event that triggered the callback
@@ -150,22 +101,26 @@ class EXPORT Debug {
    * \param data value passed by the user to SetDebugEventListener
    */
   typedef void (*EventCallback)(DebugEvent event,
-                                Handle<Object> exec_state,
-                                Handle<Object> event_data,
-                                Handle<Value> data);
+                                     Handle<Object> exec_state,
+                                     Handle<Object> event_data,
+                                     Handle<Value> data);
 
 
   /**
    * Debug message callback function.
    *
-   * \param message the debug message handler message object
+   * \param message the debug message
    * \param length length of the message
    * \param data the data value passed when registering the message handler
-
+   * \param client_data the data value passed into Debug::SendCommand along
+   *     with the request that led to the message or NULL if the message is an
+   *     asynchronous event. The debugger takes ownership of the data and will
+   *     delete it before dying even if there is no message handler.
    * A MessageHandler does not take posession of the message string,
    * and must not rely on the data persisting after the handler returns.
    */
-  typedef void (*MessageHandler)(const Message& message);
+  typedef void (*MessageHandler)(const uint16_t* message, int length,
+                                      ClientData* client_data);
 
   /**
    * Debug host dispatch callback function.

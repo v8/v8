@@ -401,54 +401,6 @@ class Debug {
 };
 
 
-// Message delivered to the message handler callback. This is either a debugger
-// event or the response to a command.
-class MessageImpl: public v8::Debug::Message {
- public:
-  // Create a message object for a debug event.
-  static MessageImpl NewEvent(DebugEvent event,
-                              bool running,
-                              Handle<JSObject> exec_state,
-                              Handle<JSObject> event_data);
-
-  // Create a message object for the response to a debug command.
-  static MessageImpl NewResponse(DebugEvent event,
-                                 bool running,
-                                 Handle<JSObject> exec_state,
-                                 Handle<JSObject> event_data,
-                                 Handle<String> response_json,
-                                 v8::Debug::ClientData* client_data);
-
-  // Implementation of interface v8::Debug::Message.
-  virtual bool IsEvent() const;
-  virtual bool IsResponse() const;
-  virtual DebugEvent GetEvent() const;
-  virtual bool WillStartRunning() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::String> GetJSON() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
-  virtual v8::Debug::ClientData* GetClientData() const;
-
- private:
-  MessageImpl(bool is_event,
-              DebugEvent event,
-              bool running,
-              Handle<JSObject> exec_state,
-              Handle<JSObject> event_data,
-              Handle<String> response_json,
-              v8::Debug::ClientData* client_data);
-
-  bool is_event_;  // Does this message represent a debug event?
-  DebugEvent event_;  // Debug event causing the break.
-  bool running_;  // Will the VM start running after this event?
-  Handle<JSObject> exec_state_;  // Current execution state.
-  Handle<JSObject> event_data_;  // Data associated with the event.
-  Handle<String> response_json_;  // Response JSON if message holds a response.
-  v8::Debug::ClientData* client_data_;  // Client data passed with the request.
-};
-
-
 // Message send by user to v8 debugger or debugger output message.
 // In addition to command text it may contain a pointer to some user data
 // which are expected to be passed along with the command reponse to message
@@ -539,11 +491,11 @@ class Debugger {
                            Handle<JSFunction> fun);
   static void OnNewFunction(Handle<JSFunction> fun);
   static void ProcessDebugEvent(v8::DebugEvent event,
-                                Handle<JSObject> event_data,
+                                Handle<Object> event_data,
                                 bool auto_continue);
   static void NotifyMessageHandler(v8::DebugEvent event,
-                                   Handle<JSObject> exec_state,
-                                   Handle<JSObject> event_data,
+                                   Handle<Object> exec_state,
+                                   Handle<Object> event_data,
                                    bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
   static void SetMessageHandler(v8::Debug::MessageHandler handler);
@@ -551,7 +503,11 @@ class Debugger {
                                      int period);
 
   // Invoke the message handler function.
-  static void InvokeMessageHandler(MessageImpl message);
+  static void InvokeMessageHandler(v8::Handle<v8::String> output,
+                                   v8::Debug::ClientData* data);
+
+  // Send the JSON message for a debug event.
+  static bool InvokeMessageHandlerWithEvent(Handle<Object> event_data);
 
   // Add a debugger command to the command queue.
   static void ProcessCommand(Vector<const uint16_t> command,

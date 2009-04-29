@@ -3427,10 +3427,10 @@ class MessageQueueDebuggerThread : public v8::internal::Thread {
   void Run();
 };
 
-static void MessageHandler(const v8::Debug::Message& message) {
+static void MessageHandler(const uint16_t* message, int length,
+                           v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
-  v8::String::Value json(message.GetJSON());
-  Utf16ToAscii(*json, json.length(), print_buffer);
+  Utf16ToAscii(message, length, print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
     // Lets test script wait until break occurs to send commands.
     // Signals when a break is reported.
@@ -3612,8 +3612,10 @@ TEST(MessageQueueExpandAndDestroy) {
 
 static int handled_client_data_instances_count = 0;
 static void MessageHandlerCountingClientData(
-    const v8::Debug::Message& message) {
-  if (message.GetClientData() != NULL) {
+    const uint16_t* message,
+    int length,
+    v8::Debug::ClientData* client_data) {
+  if (client_data) {
     handled_client_data_instances_count++;
   }
 }
@@ -3689,10 +3691,10 @@ static v8::Handle<v8::Value> ThreadedAtBarrier1(const v8::Arguments& args) {
 }
 
 
-static void ThreadedMessageHandler(const v8::Debug::Message& message) {
+static void ThreadedMessageHandler(const uint16_t* message, int length,
+                                   v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
-  v8::String::Value json(message.GetJSON());
-  Utf16ToAscii(*json, json.length(), print_buffer);
+  Utf16ToAscii(message, length, print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
     threaded_debugging_barriers.barrier_2.Wait();
   }
@@ -3786,10 +3788,11 @@ class BreakpointsDebuggerThread : public v8::internal::Thread {
 
 Barriers* breakpoints_barriers;
 
-static void BreakpointsMessageHandler(const v8::Debug::Message& message) {
+static void BreakpointsMessageHandler(const uint16_t* message,
+                                      int length,
+                                      v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
-  v8::String::Value json(message.GetJSON());
-  Utf16ToAscii(*json, json.length(), print_buffer);
+  Utf16ToAscii(message, length, print_buffer);
   printf("%s\n", print_buffer);
   fflush(stdout);
 
@@ -3932,7 +3935,9 @@ TEST(SetDebugEventListenerOnUninitializedVM) {
 }
 
 
-static void DummyMessageHandler(const v8::Debug::Message& message) {
+static void DummyMessageHandler(const uint16_t* message,
+                                int length,
+                                v8::Debug::ClientData* client_data) {
 }
 
 
@@ -4157,7 +4162,9 @@ TEST(DebuggerUnload) {
 
 // Debugger message handler which counts the number of times it is called.
 static int message_handler_hit_count = 0;
-static void MessageHandlerHitCount(const v8::Debug::Message& message) {
+static void MessageHandlerHitCount(const uint16_t* message,
+                                   int length,
+                                   v8::Debug::ClientData* client_data) {
   message_handler_hit_count++;
 
   const int kBufferSize = 1000;
@@ -4206,7 +4213,9 @@ TEST(DebuggerClearMessageHandler) {
 
 // Debugger message handler which clears the message handler while active.
 static void MessageHandlerClearingMessageHandler(
-    const v8::Debug::Message& message) {
+    const uint16_t* message,
+    int length,
+    v8::Debug::ClientData* client_data) {
   message_handler_hit_count++;
 
   // Clear debug message handler.
@@ -4253,10 +4262,11 @@ class HostDispatchDebuggerThread : public v8::internal::Thread {
 
 Barriers* host_dispatch_barriers;
 
-static void HostDispatchMessageHandler(const v8::Debug::Message& message) {
+static void HostDispatchMessageHandler(const uint16_t* message,
+                                       int length,
+                                       v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
-  v8::String::Value json(message.GetJSON());
-  Utf16ToAscii(*json, json.length(), print_buffer);
+  Utf16ToAscii(message, length, print_buffer);
   printf("%s\n", print_buffer);
   fflush(stdout);
 }

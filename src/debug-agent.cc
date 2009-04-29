@@ -34,8 +34,9 @@ namespace v8 { namespace internal {
 
 // Public V8 debugger API message handler function. This function just delegates
 // to the debugger agent through it's data parameter.
-void DebuggerAgentMessageHandler(const v8::Debug::Message& message) {
-  DebuggerAgent::instance_->DebuggerMessage(message);
+void DebuggerAgentMessageHandler(const uint16_t* message, int length,
+                                 v8::Debug::ClientData* client_data) {
+  DebuggerAgent::instance_->DebuggerMessage(message, length);
 }
 
 // static
@@ -124,14 +125,13 @@ void DebuggerAgent::CloseSession() {
 }
 
 
-void DebuggerAgent::DebuggerMessage(const v8::Debug::Message& message) {
+void DebuggerAgent::DebuggerMessage(const uint16_t* message, int length) {
   ScopedLock with(session_access_);
 
   // Forward the message handling to the session.
   if (session_ != NULL) {
-    v8::String::Value val(message.GetJSON());
-    session_->DebuggerMessage(Vector<uint16_t>(const_cast<uint16_t*>(*val),
-                              val.length()));
+    session_->DebuggerMessage(Vector<uint16_t>(const_cast<uint16_t*>(message),
+                              length));
   }
 }
 

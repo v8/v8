@@ -41,8 +41,6 @@
 #include "stub-cache.h"
 #include "log.h"
 
-#include "../include/v8-debug.h"
-
 namespace v8 { namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -379,9 +377,7 @@ void BreakLocationIterator::SetDebugBreakAtIC() {
     // is set the patching performed by the runtime system will take place in
     // the code copy and will therefore have no effect on the running code
     // keeping it from using the inlined code.
-    if (code->is_keyed_load_stub() && KeyedLoadIC::HasInlinedVersion(pc())) {
-      KeyedLoadIC::ClearInlinedVersion(pc());
-    }
+    if (code->is_keyed_load_stub()) KeyedLoadIC::ClearInlinedVersion(pc());
   }
 }
 
@@ -1556,8 +1552,8 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
     return;
   }
 
-  // Process debug event.
-  ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
+  // Process debug event
+  ProcessDebugEvent(v8::Exception, event_data, false);
   // Return to continue execution from where the exception was thrown.
 }
 
@@ -1588,10 +1584,8 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
     return;
   }
 
-  // Process debug event.
-  ProcessDebugEvent(v8::Break,
-                    Handle<JSObject>::cast(event_data),
-                    auto_continue);
+  // Process debug event
+  ProcessDebugEvent(v8::Break, event_data, auto_continue);
 }
 
 
@@ -1615,10 +1609,8 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
     return;
   }
 
-  // Process debug event.
-  ProcessDebugEvent(v8::BeforeCompile,
-                    Handle<JSObject>::cast(event_data),
-                    true);
+  // Process debug event
+  ProcessDebugEvent(v8::BeforeCompile, event_data, true);
 }
 
 
@@ -1678,10 +1670,8 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   if (caught_exception) {
     return;
   }
-  // Process debug event.
-  ProcessDebugEvent(v8::AfterCompile,
-                    Handle<JSObject>::cast(event_data),
-                    true);
+  // Process debug event
+  ProcessDebugEvent(v8::AfterCompile, event_data, true);
 }
 
 
@@ -1706,12 +1696,12 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
     return;
   }
   // Process debug event.
-  ProcessDebugEvent(v8::NewFunction, Handle<JSObject>::cast(event_data), true);
+  ProcessDebugEvent(v8::NewFunction, event_data, true);
 }
 
 
 void Debugger::ProcessDebugEvent(v8::DebugEvent event,
-                                 Handle<JSObject> event_data,
+                                 Handle<Object> event_data,
                                  bool auto_continue) {
   HandleScope scope;
 
@@ -1723,10 +1713,7 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   }
   // First notify the message handler if any.
   if (message_handler_ != NULL) {
-    NotifyMessageHandler(event,
-                         Handle<JSObject>::cast(exec_state),
-                         event_data,
-                         auto_continue);
+    NotifyMessageHandler(event, exec_state, event_data, auto_continue);
   }
   // Notify registered debug event listener. This can be either a C or a
   // JavaScript function.
@@ -1738,7 +1725,7 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
             FUNCTION_CAST<v8::Debug::EventCallback>(callback_obj->proxy());
       callback(event,
                v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
-               v8::Utils::ToLocal(event_data),
+               v8::Utils::ToLocal(Handle<JSObject>::cast(event_data)),
                v8::Utils::ToLocal(Handle<Object>::cast(event_listener_data_)));
     } else {
       // JavaScript debug event listener.
@@ -1749,7 +1736,7 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
       const int argc = 4;
       Object** argv[argc] = { Handle<Object>(Smi::FromInt(event)).location(),
                               exec_state.location(),
-                              Handle<Object>::cast(event_data).location(),
+                              event_data.location(),
                               event_listener_data_.location() };
       Handle<Object> result = Execution::TryCall(fun, Top::global(),
                                                  argc, argv, &caught_exception);
@@ -1779,8 +1766,8 @@ void Debugger::UnloadDebugger() {
 
 
 void Debugger::NotifyMessageHandler(v8::DebugEvent event,
-                                    Handle<JSObject> exec_state,
-                                    Handle<JSObject> event_data,
+                                    Handle<Object> exec_state,
+                                    Handle<Object> event_data,
                                     bool auto_continue) {
   HandleScope scope;
 
@@ -1815,12 +1802,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   // Notify the debugger that a debug event has occurred unless auto continue is
   // active in which case no event is send.
   if (sendEventMessage) {
-    MessageImpl message = MessageImpl::NewEvent(
-        event,
-        auto_continue,
-        Handle<JSObject>::cast(exec_state),
-        Handle<JSObject>::cast(event_data));
-    InvokeMessageHandler(message);
+    InvokeMessageHandlerWithEvent(event_data);
   }
   if (auto_continue && !HasCommands()) {
     return;
@@ -1875,6 +1857,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
 
     request = v8::String::New(command.text().start(),
                               command.text().length());
+    command.text().Dispose();
     static const int kArgc = 1;
     v8::Handle<Value> argv[kArgc] = { request };
     v8::Local<v8::Value> response_val = fun->Call(cmd_processor, kArgc, argv);
@@ -1911,15 +1894,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     }
 
     // Return the result.
-    MessageImpl message = MessageImpl::NewResponse(
-        event,
-        running,
-        Handle<JSObject>::cast(exec_state),
-        Handle<JSObject>::cast(event_data),
-        Handle<String>(Utils::OpenHandle(*response)),
-        command.client_data());
-    InvokeMessageHandler(message);
-    command.Dispose();
+    InvokeMessageHandler(response, command.client_data());
 
     // Return from debug event processing if either the VM is put into the
     // runnning state (through a continue command) or auto continue is active
@@ -1990,13 +1965,54 @@ void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
 
 
 // Calls the registered debug message handler. This callback is part of the
-// public API.
-void Debugger::InvokeMessageHandler(MessageImpl message) {
+// public API. Messages are kept internally as Vector<uint16_t> strings, which
+// are allocated in various places and deallocated by the calling function
+// sometime after this call.
+void Debugger::InvokeMessageHandler(v8::Handle<v8::String> output,
+                                    v8::Debug::ClientData* data) {
   ScopedLock with(debugger_access_);
 
   if (message_handler_ != NULL) {
-    message_handler_(message);
+    Vector<uint16_t> text = Vector<uint16_t>::New(output->Length());
+    output->Write(text.start(), 0, output->Length());
+
+    message_handler_(text.start(),
+                     text.length(),
+                     data);
+
+    text.Dispose();
   }
+  delete data;
+}
+
+
+bool Debugger::InvokeMessageHandlerWithEvent(Handle<Object> event_data) {
+  v8::HandleScope scope;
+  // Call toJSONProtocol on the debug event object.
+  v8::Local<v8::Object> api_event_data =
+      v8::Utils::ToLocal(Handle<JSObject>::cast(event_data));
+  v8::Local<v8::String> fun_name = v8::String::New("toJSONProtocol");
+  v8::Local<v8::Function> fun =
+      v8::Function::Cast(*api_event_data->Get(fun_name));
+  v8::TryCatch try_catch;
+  v8::Local<v8::Value> json_event = *fun->Call(api_event_data, 0, NULL);
+  v8::Local<v8::String> json_event_string;
+  if (!try_catch.HasCaught()) {
+    if (!json_event->IsUndefined()) {
+      json_event_string = json_event->ToString();
+      if (FLAG_trace_debug_json) {
+        PrintLn(json_event_string);
+      }
+      InvokeMessageHandler(json_event_string,
+                           NULL /* no user data since there was no request */);
+    } else {
+      InvokeMessageHandler(v8::String::Empty(), NULL);
+    }
+  } else {
+    PrintLn(try_catch.Exception());
+    return false;
+  }
+  return true;
 }
 
 
@@ -2079,107 +2095,6 @@ void Debugger::StopAgent() {
     delete agent_;
     agent_ = NULL;
   }
-}
-
-
-MessageImpl MessageImpl::NewEvent(DebugEvent event,
-                                  bool running,
-                                  Handle<JSObject> exec_state,
-                                  Handle<JSObject> event_data) {
-  MessageImpl message(true, event, running,
-                      exec_state, event_data, Handle<String>(), NULL);
-  return message;
-}
-
-
-MessageImpl MessageImpl::NewResponse(DebugEvent event,
-                                     bool running,
-                                     Handle<JSObject> exec_state,
-                                     Handle<JSObject> event_data,
-                                     Handle<String> response_json,
-                                     v8::Debug::ClientData* client_data) {
-  MessageImpl message(false, event, running,
-                      exec_state, event_data, response_json, client_data);
-  return message;
-}
-
-
-MessageImpl::MessageImpl(bool is_event,
-                         DebugEvent event,
-                         bool running,
-                         Handle<JSObject> exec_state,
-                         Handle<JSObject> event_data,
-                         Handle<String> response_json,
-                         v8::Debug::ClientData* client_data)
-    : is_event_(is_event),
-      event_(event),
-      running_(running),
-      exec_state_(exec_state),
-      event_data_(event_data),
-      response_json_(response_json),
-      client_data_(client_data) {}
-
-
-bool MessageImpl::IsEvent() const {
-  return is_event_;
-}
-
-
-bool MessageImpl::IsResponse() const {
-  return !is_event_;
-}
-
-
-DebugEvent MessageImpl::GetEvent() const {
-  return event_;
-}
-
-
-bool MessageImpl::WillStartRunning() const {
-  return running_;
-}
-
-
-v8::Handle<v8::Object> MessageImpl::GetExecutionState() const {
-  return v8::Utils::ToLocal(exec_state_);
-}
-
-
-v8::Handle<v8::Object> MessageImpl::GetEventData() const {
-  return v8::Utils::ToLocal(event_data_);
-}
-
-
-v8::Handle<v8::String> MessageImpl::GetJSON() const {
-  v8::HandleScope scope;
-
-  if (IsEvent()) {
-    // Call toJSONProtocol on the debug event object.
-    Handle<Object> fun = GetProperty(event_data_, "toJSONProtocol");
-    if (!fun->IsJSFunction()) {
-      return v8::Handle<v8::String>();
-    }
-    bool caught_exception;
-    Handle<Object> json = Execution::TryCall(Handle<JSFunction>::cast(fun),
-                                             event_data_,
-                                             0, NULL, &caught_exception);
-    if (caught_exception || !json->IsString()) {
-      return v8::Handle<v8::String>();
-    }
-    return scope.Close(v8::Utils::ToLocal(Handle<String>::cast(json)));
-  } else {
-    return v8::Utils::ToLocal(response_json_);
-  }
-}
-
-
-v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
-  return v8::Handle<v8::Context>();
-}
-
-
-v8::Debug::ClientData* MessageImpl::GetClientData() const {
-  return client_data_;
 }
 
 
