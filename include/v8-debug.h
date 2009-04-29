@@ -162,12 +162,25 @@ class EXPORT Debug {
    *
    * \param message the debug message handler message object
    * \param length length of the message
-   * \param data the data value passed when registering the message handler
+   * \param client_data the data value passed when registering the message handler
 
    * A MessageHandler does not take posession of the message string,
    * and must not rely on the data persisting after the handler returns.
+   *
+   * This message handler is deprecated. Use MessageHandler2 instead.
    */
-  typedef void (*MessageHandler)(const Message& message);
+  typedef void (*MessageHandler)(const uint16_t* message, int length,
+                                 ClientData* client_data);
+
+  /**
+   * Debug message callback function.
+   *
+   * \param message the debug message handler message object
+
+   * A MessageHandler does not take posession of the message data,
+   * and must not rely on the data persisting after the handler returns.
+   */
+  typedef void (*MessageHandler2)(const Message& message);
 
   /**
    * Debug host dispatch callback function.
@@ -189,6 +202,7 @@ class EXPORT Debug {
   // handler thread is not supported any more parameter must be false.
   static void SetMessageHandler(MessageHandler handler,
                                 bool message_handler_thread = false);
+  static void SetMessageHandler2(MessageHandler2 handler);
   static void SendCommand(const uint16_t* command, int length,
                           ClientData* client_data = NULL);
 

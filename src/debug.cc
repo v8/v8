@@ -1420,7 +1420,7 @@ Handle<Object> Debugger::event_listener_data_ = Handle<Object>();
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
 bool Debugger::never_unload_debugger_ = false;
-v8::Debug::MessageHandler Debugger::message_handler_ = NULL;
+v8::Debug::MessageHandler2 Debugger::message_handler_ = NULL;
 bool Debugger::message_handler_cleared_ = false;
 v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
 int Debugger::host_dispatch_micros_ = 100 * 1000;
@@ -1963,7 +1963,7 @@ void Debugger::SetEventListener(Handle<Object> callback,
 }
 
 
-void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler) {
+void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
   ScopedLock with(debugger_access_);
 
   message_handler_ = handler;

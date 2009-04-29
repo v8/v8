@@ -3427,10 +3427,10 @@ class MessageQueueDebuggerThread : public v8::internal::Thread {
   void Run();
 };
 
-static void MessageHandler(const v8::Debug::Message& message) {
+static void MessageHandler(const uint16_t* message, int length,
+                           v8::Debug::ClientData* client_data) {
   static char print_buffer[1000];
-  v8::String::Value json(message.GetJSON());
-  Utf16ToAscii(*json, json.length(), print_buffer);
+  Utf16ToAscii(message, length, print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
     // Lets test script wait until break occurs to send commands.
     // Signals when a break is reported.
@@ -3626,7 +3626,7 @@ TEST(SendClientDataToHandler) {
   DebugLocalContext env;
   TestClientData::ResetCounters();
   handled_client_data_instances_count = 0;
-  v8::Debug::SetMessageHandler(MessageHandlerCountingClientData);
+  v8::Debug::SetMessageHandler2(MessageHandlerCountingClientData);
   const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5;";
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
@@ -3723,7 +3723,7 @@ void V8Thread::Run() {
 
   v8::HandleScope scope;
   DebugLocalContext env;
-  v8::Debug::SetMessageHandler(&ThreadedMessageHandler);
+  v8::Debug::SetMessageHandler2(&ThreadedMessageHandler);
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->Set(v8::String::New("ThreadedAtBarrier1"),
                        v8::FunctionTemplate::New(ThreadedAtBarrier1));
@@ -3823,7 +3823,7 @@ void BreakpointsV8Thread::Run() {
 
   v8::HandleScope scope;
   DebugLocalContext env;
-  v8::Debug::SetMessageHandler(&BreakpointsMessageHandler);
+  v8::Debug::SetMessageHandler2(&BreakpointsMessageHandler);
 
   CompileRun(source_1);
   breakpoints_barriers->barrier_1.Wait();
@@ -3937,7 +3937,7 @@ static void DummyMessageHandler(const v8::Debug::Message& message) {
 
 
 TEST(SetMessageHandlerOnUninitializedVM) {
-  v8::Debug::SetMessageHandler(DummyMessageHandler);
+  v8::Debug::SetMessageHandler2(DummyMessageHandler);
 }
 
 
@@ -4180,7 +4180,7 @@ TEST(DebuggerClearMessageHandler) {
   CheckDebuggerUnloaded();
 
   // Set a debug message handler.
-  v8::Debug::SetMessageHandler(MessageHandlerHitCount);
+  v8::Debug::SetMessageHandler2(MessageHandlerHitCount);
 
   // Run code to throw a unhandled exception. This should end up in the message
   // handler.
@@ -4223,7 +4223,7 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
   CheckDebuggerUnloaded();
 
   // Set a debug message handler.
-  v8::Debug::SetMessageHandler(MessageHandlerClearingMessageHandler);
+  v8::Debug::SetMessageHandler2(MessageHandlerClearingMessageHandler);
 
   // Run code to throw a unhandled exception. This should end up in the message
   // handler.
@@ -4283,7 +4283,7 @@ void HostDispatchV8Thread::Run() {
   DebugLocalContext env;
 
   // Setup message and host dispatch handlers.
-  v8::Debug::SetMessageHandler(HostDispatchMessageHandler);
+  v8::Debug::SetMessageHandler2(HostDispatchMessageHandler);
   v8::Debug::SetHostDispatchHandler(HostDispatchDispatchHandler, 10 /* ms */);
 
   CompileRun(source_1);

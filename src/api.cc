@@ -3260,6 +3260,16 @@ void Debug::DebugBreak() {
 }
 
 
+static v8::Debug::MessageHandler message_handler = NULL;
+
+static void MessageHandlerWrapper(const v8::Debug::Message& message) {
+  if (message_handler) {
+    v8::String::Value json(message.GetJSON());
+    message_handler(*json, json.length(), message.GetClientData());
+  }
+}
+
+
 void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
@@ -3267,6 +3277,20 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
   // Message handler thread not supported any more. Parameter temporally left in
   // the API for client compatability reasons.
   CHECK(!message_handler_thread);
+
+  // TODO(sgjesse) support the old message handler API through a simple wrapper.
+  message_handler = handler;
+  if (message_handler != NULL) {
+    i::Debugger::SetMessageHandler(MessageHandlerWrapper);
+  } else {
+    i::Debugger::SetMessageHandler(NULL);
+  }
+}
+
+
+void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
+  EnsureInitialized("v8::Debug::SetMessageHandler");
+  ENTER_V8;
   i::Debugger::SetMessageHandler(handler);
 }
 

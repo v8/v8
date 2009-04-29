@@ -546,7 +546,7 @@ class Debugger {
                                    Handle<JSObject> event_data,
                                    bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  static void SetMessageHandler(v8::Debug::MessageHandler handler);
+  static void SetMessageHandler(v8::Debug::MessageHandler2 handler);
   static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
                                      int period);
 
@@ -602,7 +602,7 @@ class Debugger {
   static bool compiling_natives_;  // Are we compiling natives?
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static bool never_unload_debugger_;  // Can we unload the debugger?
-  static v8::Debug::MessageHandler message_handler_;
+  static v8::Debug::MessageHandler2 message_handler_;
   static bool message_handler_cleared_;  // Was message handler cleared?
   static v8::Debug::HostDispatchHandler host_dispatch_handler_;
   static int host_dispatch_micros_;
