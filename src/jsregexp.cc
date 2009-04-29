@@ -42,9 +42,16 @@
 #include "regexp-macro-assembler-irregexp.h"
 #include "regexp-stack.h"
 
-#ifdef ARM
+#ifdef V8_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
-#else  // IA32
+#endif
+
+#ifdef V8_ARCH_X64
+#include "x64/macro-assembler-x64.h"
+#include "x64/regexp-macro-assembler-x64.h"
+#endif
+
+#ifdef V8_ARCH_IA32
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 #endif
@@ -424,9 +431,13 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   Handle<String> original_subject = subject;
   Handle<FixedArray> regexp(FixedArray::cast(jsregexp->data()));
   if (UseNativeRegexp()) {
-#ifdef ARM
+#ifdef V8_ARCH_ARM
     UNREACHABLE();
-#else
+#endif
+#ifdef V8_ARCH_X64
+    UNIMPLEMENTED();
+#endif
+#ifdef V8_ARCH_IA32
     RegExpMacroAssemblerIA32::Result res;
     do {
       bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
@@ -4434,9 +4445,13 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
   NodeInfo info = *node->info();
 
   if (RegExpImpl::UseNativeRegexp()) {
-#ifdef ARM
+#ifdef V8_ARCH_ARM
     UNREACHABLE();
-#else  // IA32
+#endif
+#ifdef V8_ARCH_X64
+    UNREACHABLE();
+#endif
+#ifdef V8_ARCH_IA32
     RegExpMacroAssemblerIA32::Mode mode;
     if (is_ascii) {
       mode = RegExpMacroAssemblerIA32::ASCII;

@@ -171,6 +171,8 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
+// TODO(lrn): Introduce processor define for runtime system (!= V8_ARCH_x,
+//  which is the architecture of generated code).
 #if defined(__arm__) || defined(__thumb__)
   asm("bkpt 0");
 #else
@@ -598,7 +600,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // Extracting the sample from the context is extremely machine dependent.
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
-#if defined (__arm__) || defined(__thumb__)
+#if defined(__arm__) || defined(__thumb__)
     sample.pc = mcontext.gregs[R15];
     sample.sp = mcontext.gregs[R13];
     sample.fp = mcontext.gregs[R11];

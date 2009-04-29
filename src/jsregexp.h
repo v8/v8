@@ -37,9 +37,13 @@ class RegExpMacroAssembler;
 class RegExpImpl {
  public:
   static inline bool UseNativeRegexp() {
-#ifdef ARM
+#ifdef V8_ARCH_ARM
     return false;
-#else
+#endif
+#ifdef V8_ARCH_X64
+    return false;
+#endif
+#ifdef V8_ARCH_IA32
     return FLAG_regexp_native;
 #endif
   }

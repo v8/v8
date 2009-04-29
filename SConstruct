@@ -131,9 +131,24 @@ LIBRARY_FLAGS = {
                        '-Wstrict-aliasing=2'],
       'CPPPATH':      ANDROID_INCLUDES,
     },
-    'wordsize:64': {
+    'wordsize:32': {
       'CCFLAGS':      ['-m32'],
+      'CPPDEFINES':   ['ILP32'],
       'LINKFLAGS':    ['-m32']
+    },
+    'wordsize:64': {
+      'CCFLAGS':      ['-m64'],
+      'CPPDEFINES':   ['LP64'],
+      'LINKFLAGS':    ['-m64']
+    },
+    'arch:ia32': {
+      'CPPDEFINES':   ['V8_ARCH_IA32']
+    },
+    'arch:arm': {
+      'CPPDEFINES':   ['V8_ARCH_ARM']
+    },
+    'arch:x64': {
+      'CPPDEFINES':   ['V8_ARCH_X64']
     },
     'prof:oprofile': {
       'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
@@ -175,7 +190,7 @@ LIBRARY_FLAGS = {
         'LINKFLAGS':    ['/LTCG'],
         'ARFLAGS':      ['/LTCG'],
       }
-    },
+    }
   }
 }
 
@@ -188,9 +203,6 @@ V8_EXTRA_FLAGS = {
           '-Wno-unused-parameter']
     },
     'arch:arm': {
-      'CPPDEFINES':   ['ARM']
-    },
-    'arch:android': {
       'CPPDEFINES':   ['ARM']
     },
     'os:win32': {
@@ -298,9 +310,15 @@ CCTEST_EXTRA_FLAGS = {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
-    'wordsize:64': {
+    'wordsize:32': {
       'CCFLAGS':      ['-m32'],
+      'CPPDEFINES':   ['ILP32'],
       'LINKFLAGS':    ['-m32']
+    },
+    'wordsize:64': {
+      'CCFLAGS':      ['-m64'],
+      'CPPDEFINES':   ['LP64'],
+      'LINKFLAGS':    ['-m64']
     },
   },
   'msvc': {
@@ -349,9 +367,15 @@ SAMPLE_FLAGS = {
         'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
       }
     },
-    'wordsize:64': {
+    'wordsize:32': {
       'CCFLAGS':      ['-m32'],
+      'CPPDEFINES':   ['ILP32'],
       'LINKFLAGS':    ['-m32']
+    },
+    'wordsize:64': {
+      'CCFLAGS':      ['-m64'],
+      'CPPDEFINES':   ['LP64'],
+      'LINKFLAGS':    ['-m64']
     },
     'mode:release': {
       'CCFLAGS':      ['-O2']
@@ -466,17 +490,17 @@ SIMPLE_OPTIONS = {
   'toolchain': {
     'values': ['gcc', 'msvc'],
     'default': TOOLCHAIN_GUESS,
-    'help': 'the toolchain to use'
+    'help': 'the toolchain to use (' + TOOLCHAIN_GUESS + ')'
   },
   'os': {
     'values': ['freebsd', 'linux', 'macos', 'win32', 'android'],
     'default': OS_GUESS,
-    'help': 'the os to build for'
+    'help': 'the os to build for (' + OS_GUESS + ')'
   },
   'arch': {
-    'values':['arm', 'ia32'],
+    'values':['arm', 'ia32', 'x64'],
     'default': ARCH_GUESS,
-    'help': 'the architecture to build for'
+    'help': 'the architecture to build for (' + ARCH_GUESS + ')'
   },
   'snapshot': {
     'values': ['on', 'off', 'nobuild'],
@@ -505,7 +529,7 @@ SIMPLE_OPTIONS = {
   },
   'wordsize': {
     'values': ['64', '32'],
-    'default': WORDSIZE_GUESS,
+    'default': '32',   # WORDSIZE_GUESS,
     'help': 'the word size'
   },
   'simulator': {
@@ -565,6 +589,8 @@ def VerifyOptions(env):
     Abort("Profiling on windows only supported for static library.")
   if env['prof'] == 'oprofile' and env['os'] != 'linux':
     Abort("OProfile is only supported on Linux.")
+  if env['wordsize'] == '64' and (env['os'] != 'linux' or env['arch'] != 'x64'):
+    Abort("64 bit compilation only allowed on Linux OS and x64 architecture.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %

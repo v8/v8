@@ -171,7 +171,7 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-#if defined (__arm__) || defined(__thumb__)
+#if defined(__arm__) || defined(__thumb__)
   asm("bkpt 0");
 #else
   asm("int $3");

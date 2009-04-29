@@ -73,7 +73,7 @@ typedef byte* Address;
 typedef uint16_t uc16;
 typedef signed int uc32;
 
-#ifndef ARM
+#if defined(V8_ARCH_IA32) || defined(V8_ARCH_X64)
 #define CAN_READ_UNALIGNED 1
 #endif
 
