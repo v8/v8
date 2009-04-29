@@ -2072,7 +2072,12 @@ int v8::Object::GetIdentityHash() {
   if (hash->IsSmi()) {
     hash_value = i::Smi::cast(*hash)->value();
   } else {
-    hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+    int attempts = 0;
+    do {
+      hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+      attempts++;
+    } while (hash_value == 0 && attempts < 30);
+    hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
     i::SetProperty(hidden_props,
                    hash_symbol,
                    i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
