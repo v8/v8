@@ -116,7 +116,7 @@ class EXPORT Debug {
      */
     virtual Handle<Object> GetExecutionState() const = 0;
     virtual Handle<Object> GetEventData() const = 0;
-	
+
     /**
      * Get the debugger protocol JSON.
      */
