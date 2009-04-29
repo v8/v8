@@ -60,7 +60,7 @@ class DebuggerAgent: public Thread {
  private:
   void Run();
   void CreateSession(Socket* socket);
-  void DebuggerMessage(const uint16_t* message, int length);
+  void DebuggerMessage(const v8::Debug::Message& message);
   void CloseSession();
   void OnSessionClosed(DebuggerAgentSession* session);
 
@@ -75,8 +75,7 @@ class DebuggerAgent: public Thread {
   static DebuggerAgent* instance_;
 
   friend class DebuggerAgentSession;
-  friend void DebuggerAgentMessageHandler(const uint16_t* message, int length,
-                                          v8::Debug::ClientData* client_data);
+  friend void DebuggerAgentMessageHandler(const v8::Debug::Message& message);
 
   DISALLOW_COPY_AND_ASSIGN(DebuggerAgent);
 };
