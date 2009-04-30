@@ -613,7 +613,7 @@ def GetVersionComponents():
               BUILD_NUMBER_PATTERN,
               PATCH_LEVEL_PATTERN]
 
-  source = open(join('src', 'version.cc')).read()
+  source = open(join(root_dir, 'src', 'version.cc')).read()
   version_components = []
   for pattern in patterns:
     match = pattern.search(source)
@@ -636,7 +636,7 @@ def GetVersion():
 def GetSpecificSONAME():
   SONAME_PATTERN = re.compile(r"#define\s+SONAME\s+\"(.*)\"")
   
-  source = open(join('src', 'version.cc')).read()
+  source = open(join(root_dir, 'src', 'version.cc')).read()
   match = SONAME_PATTERN.search(source)
   
   if match:
