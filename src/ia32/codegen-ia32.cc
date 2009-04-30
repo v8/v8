@@ -5902,10 +5902,10 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
       // Right operand must be in register cl because x86 likes it that way.
       if (right->reg().is(ecx)) {
         // Right is already in the right place.  Left may be in the
-        // same register, which causes problems.  Use answer instead.
-        if (left->reg().is(ecx)) {
-          *left = answer;
-        }
+        // same register, which causes problems. Always use answer
+        // instead of left, even if left is not ecx, since this avoids
+        // spilling left.
+        *left = answer;
       } else if (left->reg().is(ecx)) {
         generator()->frame()->Spill(left->reg());
         __ mov(left->reg(), right->reg());
@@ -5919,6 +5919,9 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
         ASSERT(reg_ecx.is_valid());
         __ mov(ecx, right->reg());
         *right = reg_ecx;
+        // Answer and left both contain the left operand.  Use answer, so
+        // left is not spilled.
+        *left = answer;
       }
       ASSERT(left->reg().is_valid());
       ASSERT(!left->reg().is(ecx));
@@ -5968,16 +5971,10 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
         case Token::SHL: {
           __ shl(left->reg());
           // Check that the *signed* result fits in a smi.
-          //
-          // TODO(207): Can reduce registers from 4 to 3 by
-          // preallocating ecx.
           JumpTarget result_ok(generator());
-          Result smi_test_reg = generator()->allocator()->Allocate();
-          ASSERT(smi_test_reg.is_valid());
-          __ lea(smi_test_reg.reg(), Operand(left->reg(), 0x40000000));
-          __ test(smi_test_reg.reg(), Immediate(0x80000000));
-          smi_test_reg.Unuse();
-          result_ok.Branch(zero, left, taken);
+          __ cmp(left->reg(), 0xc0000000);
+          result_ok.Branch(positive, left, taken);
+
           __ shr(left->reg());
           ASSERT(kSmiTag == 0);
           __ shl(left->reg(), kSmiTagSize);
@@ -6277,11 +6274,15 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::SHR: __ shr(eax); break;
         default: UNREACHABLE();
       }
-
-      // Check if result is non-negative and fits in a smi.
-      __ test(eax, Immediate(0xc0000000));
-      __ j(not_zero, &non_smi_result);
-
+      if (op_ == Token::SHR) {
+        // Check if result is non-negative and fits in a smi.
+        __ test(eax, Immediate(0xc0000000));
+        __ j(not_zero, &non_smi_result);
+      } else {
+        // Check if result fits in a smi.
+        __ cmp(eax, 0xc0000000);
+        __ j(negative, &non_smi_result);
+      }
       // Tag smi result and return.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
       __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
