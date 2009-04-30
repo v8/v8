@@ -857,6 +857,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\version.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\version.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\virtual-frame.h"
 				>
 			</File>

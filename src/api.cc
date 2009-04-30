@@ -37,6 +37,7 @@
 #include "serialize.h"
 #include "snapshot.h"
 #include "v8threads.h"
+#include "version.h"
 
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
@@ -2427,7 +2428,9 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.2.2 (candidate)";
+  static v8::internal::EmbeddedVector<char, 128> buffer;
+  v8::internal::Version::GetString(buffer);
+  return buffer.start();
 }
 
 

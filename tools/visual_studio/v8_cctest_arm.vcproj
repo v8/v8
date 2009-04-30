@@ -219,6 +219,10 @@
 			RelativePath="..\..\test\cctest\test-utils.cc"
 			>
 		</File>
+		<File
+			RelativePath="..\..\test\cctest\test-version.cc"
+			>
+		</File>
 	</Files>
 	<Globals>
 	</Globals>

@@ -242,6 +242,8 @@
       '../../src/v8threads.h',
       '../../src/variables.cc',
       '../../src/variables.h',
+      '../../src/version.cc',
+      '../../src/version.h',
       '../../src/virtual-frame.h',
       '../../src/virtual-frame.cc',
       '../../src/zone-inl.h',
