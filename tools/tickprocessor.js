@@ -273,6 +273,10 @@ TickProcessor.prototype.printStatistics = function() {
     this.printCounter(this.ticks_.unaccounted, this.ticks_.total);
   }
 
+  // Disable initialization of 'funcName', 'url', 'lineNumber' as
+  // we don't use it and it just wastes time.
+  devtools.profiler.ProfileView.Node.prototype.initFuncInfo = function() {};
+
   var flatProfile = this.profile_.getFlatProfile();
   var flatView = this.viewBuilder_.buildView(flatProfile);
   // Sort by self time, desc, then by name, desc.
@@ -361,8 +365,7 @@ TickProcessor.prototype.processProfile = function(
     profile, filterP, func) {
   for (var i = 0, n = profile.length; i < n; ++i) {
     var rec = profile[i];
-    // An empty record corresponds to a tree root.
-    if (!rec.internalFuncName || !filterP(rec.internalFuncName)) {
+    if (!filterP(rec.internalFuncName)) {
       continue;
     }
     func(rec);
