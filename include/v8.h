@@ -1121,7 +1121,10 @@ class V8EXPORT Object : public Value {
 
   /**
    * Returns the identity hash for this object. The current implemenation uses
-   * a hidden property on the object to store the identity hash.
+   * a hidden property on the object to store the identity hash. 
+   *
+   * The return value will never be 0. Also, it is not guaranteed to be 
+   * unique.
    */
   int GetIdentityHash();
 
