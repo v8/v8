@@ -50,7 +50,8 @@ SOURCES = {
     'scopeinfo.cc', 'scopes.cc', 'serialize.cc', 'snapshot-common.cc',
     'spaces.cc', 'string-stream.cc', 'stub-cache.cc', 'token.cc', 'top.cc',
     'unicode.cc', 'usage-analyzer.cc', 'utils.cc', 'v8-counters.cc',
-    'v8.cc', 'v8threads.cc', 'variables.cc', 'virtual-frame.cc', 'zone.cc'
+    'v8.cc', 'v8threads.cc', 'variables.cc', 'version.cc',
+    'virtual-frame.cc', 'zone.cc'
   ],
   'arch:arm': [
     'assembler-arm.cc', 'builtins-arm.cc', 'codegen-arm.cc', 'cpu-arm.cc',

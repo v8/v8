@@ -191,7 +191,12 @@ V8_EXTRA_FLAGS = {
       'WARNINGFLAGS': ['-pedantic', '-Wno-long-long']
     },
     'os:linux': {
-      'WARNINGFLAGS': ['-pedantic']
+      'WARNINGFLAGS': ['-pedantic'],
+      'library:shared': {
+        'soname:on': {
+          'LINKFLAGS': ['-Wl,-soname,${SONAME}']
+        }
+      }
     },
     'os:macos': {
       'WARNINGFLAGS': ['-pedantic']
@@ -470,6 +475,11 @@ SIMPLE_OPTIONS = {
     'default': 'static',
     'help': 'the type of library to produce'
   },
+  'soname': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'turn on setting soname for Linux shared library'
+  },
   'msvcrt': {
     'values': ['static', 'shared'],
     'default': 'static',
@@ -515,6 +525,49 @@ def GetOptions():
   return result
 
 
+def GetVersionComponents():
+  MAJOR_VERSION_PATTERN = re.compile(r"#define\s+MAJOR_VERSION\s+(.*)")
+  MINOR_VERSION_PATTERN = re.compile(r"#define\s+MINOR_VERSION\s+(.*)")
+  BUILD_NUMBER_PATTERN = re.compile(r"#define\s+BUILD_NUMBER\s+(.*)")
+  PATCH_LEVEL_PATTERN = re.compile(r"#define\s+PATCH_LEVEL\s+(.*)")
+
+  patterns = [MAJOR_VERSION_PATTERN,
+              MINOR_VERSION_PATTERN,
+              BUILD_NUMBER_PATTERN,
+              PATCH_LEVEL_PATTERN]
+
+  source = open(join(root_dir, 'src', 'version.cc')).read()
+  version_components = []
+  for pattern in patterns:
+    match = pattern.search(source)
+    if match:
+      version_components.append(match.group(1).strip())
+    else:
+      version_components.append('0')
+
+  return version_components
+
+
+def GetVersion():
+  version_components = GetVersionComponents()
+  
+  if version_components[len(version_components) - 1] == '0':
+    version_components.pop()
+  return '.'.join(version_components)
+
+
+def GetSpecificSONAME():
+  SONAME_PATTERN = re.compile(r"#define\s+SONAME\s+\"(.*)\"")
+  
+  source = open(join(root_dir, 'src', 'version.cc')).read()
+  match = SONAME_PATTERN.search(source)
+  
+  if match:
+    return match.group(1).strip()
+  else:
+    return ''
+
+
 def SplitList(str):
   return [ s for s in str.split(",") if len(s) > 0 ]
 
@@ -537,6 +590,10 @@ def VerifyOptions(env):
     Abort("Profiling on windows only supported for static library.")
   if env['prof'] == 'oprofile' and env['os'] != 'linux':
     Abort("OProfile is only supported on Linux.")
+  if env['os'] == 'win32' and env['soname'] == 'on':
+    Abort("Shared Object soname not applicable for Windows.")
+  if env['soname'] == 'on' and env['library'] == 'static':
+    Abort("Shared Object soname not applicable for static library.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %
@@ -667,10 +724,22 @@ def BuildSpecific(env, mode, env_overrides):
     'd8': d8_flags
   }
 
+  # Generate library base name.
   target_id = mode
   suffix = SUFFIXES[target_id]
   library_name = 'v8' + suffix
+  version = GetVersion()
+  if context.options['soname'] == 'on':
+    # When building shared object with SONAME version the library name.
+    library_name += '-' + version
   env['LIBRARY'] = library_name
+
+  # Generate library SONAME if required by the build.
+  if context.options['soname'] == 'on':
+    soname = GetSpecificSONAME()
+    if soname == '':
+      soname = 'lib' + library_name + '.so'
+    env['SONAME'] = soname
 
   # Build the object files by invoking SCons recursively.
   (object_files, shell_files, mksnapshot) = env.SConscript(
