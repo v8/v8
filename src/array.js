@@ -709,12 +709,92 @@ function ArraySort(comparefn) {
     QuickSort(a, high_start, to);
   }
 
+  // Copies elements in the range 0..length from obj's prototype chain
+  // to obj itself, if obj has holes. Returns one more than the maximal index
+  // of a prototype property.
+  function CopyFromPrototype(obj, length) {
+    var max = 0;
+    for (var proto = obj.__proto__; proto; proto = proto.__proto__) {
+      var indices = %GetArrayKeys(proto, length);
+      if (indices.length > 0) {
+        if (indices[0] == -1) {
+          // It's an interval.
+          var proto_length = indices[1];
+          for (var i = 0; i < proto_length; i++) {
+            if (!obj.hasOwnProperty(i) && proto.hasOwnProperty(i)) {
+              obj[i] = proto[i];
+              if (i >= max) { max = i + 1; }
+            }
+          }
+        } else {
+          for (var i = 0; i < indices.length; i++) {
+            var index = indices[i];
+            if (!IS_UNDEFINED(index) &&
+                !obj.hasOwnProperty(index) && proto.hasOwnProperty(index)) {
+              obj[index] = proto[index];
+              if (index >= max) { max = index + 1; }
+            }
+          }
+        }
+      }
+    }
+    return max;
+  }
+
+  // Set a value of "undefined" on all indices in the range from..to
+  // where a prototype of obj has an element. I.e., shadow all prototype
+  // elements in that range.
+  function ShadowPrototypeElements(obj, from, to) {
+    for (var proto = obj.__proto__; proto; proto = proto.__proto__) {
+      var indices = %GetArrayKeys(proto, to);
+      if (indices.length > 0) {
+        if (indices[0] == -1) {
+          // It's an interval.
+          var proto_length = indices[1];
+          for (var i = from; i < proto_length; i++) {
+            if (proto.hasOwnProperty(i)) {
+              obj[i] = void 0;
+            }
+          }
+        } else {
+          for (var i = 0; i < indices.length; i++) {
+            var index = indices[i];
+            if (!IS_UNDEFINED(index) && from <= index &&
+                proto.hasOwnProperty(index)) {
+              obj[index] = void 0;
+            }
+          }
+        }
+      }
+    }
+  }
+
   var length = ToUint32(this.length);
   if (length < 2) return this;
+
+  var is_array = IS_ARRAY(this);
+  var max_prototype_element;
+  if (!is_array) {
+    // For compatibility with JSC, we also sort elements inherited from
+    // the prototype chain on non-Array objects.
+    // We do this by copying them to this object and sorting only
+    // local elements. This is not very efficient, but sorting with
+    // inherited elements happens very, very rarely, if at all.
+    // The specification allows "implementation dependent" behavior
+    // if an element on the prototype chain has an element that
+    // might interact with sorting.
+    max_prototype_element = CopyFromPrototype(this, length);
+  }
 
   var num_non_undefined = %RemoveArrayHoles(this, length);
 
   QuickSort(this, 0, num_non_undefined);
+
+  if (!is_array && (num_non_undefined + 1 < max_prototype_element)) {
+    // For compatibility with JSC, we shadow any elements in the prototype
+    // chain that has become exposed by sort moving a hole to its position.
+    ShadowPrototypeElements(this, num_non_undefined, max_prototype_element);
+  }
 
   return this;
 }

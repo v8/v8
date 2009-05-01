@@ -5289,8 +5289,7 @@ static Object* Runtime_EstimateNumberOfElements(Arguments args) {
 static Object* Runtime_GetArrayKeys(Arguments args) {
   ASSERT(args.length() == 2);
   HandleScope scope;
-  CONVERT_CHECKED(JSArray, raw_array, args[0]);
-  Handle<JSArray> array(raw_array);
+  CONVERT_ARG_CHECKED(JSObject, array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
   if (array->elements()->IsDictionary()) {
     // Create an array and get all the keys into it, then remove all the
@@ -5312,8 +5311,10 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
     single_interval->set(0,
                          Smi::FromInt(-1),
                          SKIP_WRITE_BARRIER);
+    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
+    uint32_t min_length = actual_length < length ? actual_length : length;
     Handle<Object> length_object =
-        Factory::NewNumber(static_cast<double>(length));
+        Factory::NewNumber(static_cast<double>(min_length));
     single_interval->set(1, *length_object);
     return *Factory::NewJSArrayWithElements(single_interval);
   }
