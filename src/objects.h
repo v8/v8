@@ -3207,8 +3207,6 @@ class StringShape BASE_EMBEDDED {
   inline explicit StringShape(String* s);
   inline explicit StringShape(Map* s);
   inline explicit StringShape(InstanceType t);
-  inline bool IsAsciiRepresentation();
-  inline bool IsTwoByteRepresentation();
   inline bool IsSequential();
   inline bool IsExternal();
   inline bool IsCons();
@@ -3259,6 +3257,9 @@ class String: public HeapObject {
   // use the length() and set_length methods.
   inline uint32_t length_field();
   inline void set_length_field(uint32_t value);
+
+  inline bool IsAsciiRepresentation();
+  inline bool IsTwoByteRepresentation();
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);

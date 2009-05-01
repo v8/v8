@@ -1423,8 +1423,8 @@ Object* Heap::AllocateConsString(String* first,
   int first_length = first->length();
   int second_length = second->length();
   int length = first_length + second_length;
-  bool is_ascii = StringShape(first).IsAsciiRepresentation()
-      && StringShape(second).IsAsciiRepresentation();
+  bool is_ascii = first->IsAsciiRepresentation()
+      && second->IsAsciiRepresentation();
 
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
@@ -1484,15 +1484,15 @@ Object* Heap::AllocateSlicedString(String* buffer,
 
   Map* map;
   if (length <= String::kMaxShortStringSize) {
-    map = StringShape(buffer).IsAsciiRepresentation() ?
+    map = buffer->IsAsciiRepresentation() ?
       short_sliced_ascii_string_map() :
       short_sliced_string_map();
   } else if (length <= String::kMaxMediumStringSize) {
-    map = StringShape(buffer).IsAsciiRepresentation() ?
+    map = buffer->IsAsciiRepresentation() ?
       medium_sliced_ascii_string_map() :
       medium_sliced_string_map();
   } else {
-    map = StringShape(buffer).IsAsciiRepresentation() ?
+    map = buffer->IsAsciiRepresentation() ?
       long_sliced_ascii_string_map() :
       long_sliced_string_map();
   }
@@ -1524,7 +1524,7 @@ Object* Heap::AllocateSubString(String* buffer,
     buffer->TryFlatten();
   }
 
-  Object* result = StringShape(buffer).IsAsciiRepresentation()
+  Object* result = buffer->IsAsciiRepresentation()
       ? AllocateRawAsciiString(length)
       : AllocateRawTwoByteString(length);
   if (result->IsFailure()) return result;

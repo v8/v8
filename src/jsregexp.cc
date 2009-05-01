@@ -440,7 +440,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 #ifdef V8_ARCH_IA32
     RegExpMacroAssemblerIA32::Result res;
     do {
-      bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
+      bool is_ascii = subject->IsAsciiRepresentation();
       if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
         return Handle<Object>::null();
       }
@@ -463,7 +463,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
 #endif
   } else {
-    bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
+    bool is_ascii = subject->IsAsciiRepresentation();
     if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
       return Handle<Object>::null();
     }

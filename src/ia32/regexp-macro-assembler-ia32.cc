@@ -974,7 +974,7 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
   int start_offset = previous_index;
   int end_offset = subject_ptr->length();
 
-  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
+  bool is_ascii = subject->IsAsciiRepresentation();
 
   if (StringShape(subject_ptr).IsCons()) {
     subject_ptr = ConsString::cast(subject_ptr)->first();
@@ -985,7 +985,7 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Match(
     subject_ptr = slice->buffer();
   }
   // Ensure that an underlying string has the same ascii-ness.
-  ASSERT(StringShape(subject_ptr).IsAsciiRepresentation() == is_ascii);
+  ASSERT(subject_ptr->IsAsciiRepresentation() == is_ascii);
   ASSERT(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
   // String is now either Sequential or External
   int char_size_shift = is_ascii ? 0 : 1;
@@ -1112,7 +1112,7 @@ const byte* RegExpMacroAssemblerIA32::StringCharacterPosition(String* subject,
   ASSERT(subject->IsExternalString() || subject->IsSeqString());
   ASSERT(start_index >= 0);
   ASSERT(start_index <= subject->length());
-  if (StringShape(subject).IsAsciiRepresentation()) {
+  if (subject->IsAsciiRepresentation()) {
     const byte* address;
     if (StringShape(subject).IsExternal()) {
       const char* data = ExternalAsciiString::cast(subject)->resource()->data();
@@ -1152,7 +1152,7 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
 
   Handle<String> subject(frame_entry<String*>(re_frame, kInputString));
   // Current string.
-  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
+  bool is_ascii = subject->IsAsciiRepresentation();
 
   ASSERT(re_code->instruction_start() <= *return_address);
   ASSERT(*return_address <=
@@ -1171,7 +1171,7 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
   }
 
   // String might have changed.
-  if (StringShape(*subject).IsAsciiRepresentation() != is_ascii) {
+  if (subject->IsAsciiRepresentation() != is_ascii) {
     // If we changed between an ASCII and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).

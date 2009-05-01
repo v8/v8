@@ -366,7 +366,7 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   if (len > 0x1000)
     len = 0x1000;
   if (show_impl_info) {
-    Append(StringShape(str).IsAsciiRepresentation() ? 'a' : '2');
+    Append(str->IsAsciiRepresentation() ? 'a' : '2');
     if (StringShape(str).IsExternal())
       Append('e');
     if (StringShape(str).IsSymbol())

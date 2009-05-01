@@ -144,14 +144,14 @@ bool Object::IsSeqString() {
 bool Object::IsSeqAsciiString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
-         StringShape(String::cast(this)).IsAsciiRepresentation();
+         String::cast(this)->IsAsciiRepresentation();
 }
 
 
 bool Object::IsSeqTwoByteString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
-         StringShape(String::cast(this)).IsTwoByteRepresentation();
+         String::cast(this)->IsTwoByteRepresentation();
 }
 
 
@@ -164,14 +164,14 @@ bool Object::IsExternalString() {
 bool Object::IsExternalAsciiString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
-         StringShape(String::cast(this)).IsAsciiRepresentation();
+         String::cast(this)->IsAsciiRepresentation();
 }
 
 
 bool Object::IsExternalTwoByteString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
-         StringShape(String::cast(this)).IsTwoByteRepresentation();
+         String::cast(this)->IsTwoByteRepresentation();
 }
 
 
@@ -211,13 +211,28 @@ bool StringShape::IsSymbol() {
 }
 
 
-bool StringShape::IsAsciiRepresentation() {
-  return (type_ & kStringEncodingMask) == kAsciiStringTag;
+bool String::IsAsciiRepresentation() {
+  uint32_t type = map()->instance_type();
+  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
+    return SlicedString::cast(this)->buffer()->IsAsciiRepresentation();
+  }
+  if ((type & kStringRepresentationMask) == kConsStringTag &&
+      ConsString::cast(this)->second()->length() == 0) {
+    return ConsString::cast(this)->first()->IsAsciiRepresentation();
+  }
+  return (type & kStringEncodingMask) == kAsciiStringTag;
 }
 
 
-bool StringShape::IsTwoByteRepresentation() {
-  return (type_ & kStringEncodingMask) == kTwoByteStringTag;
+bool String::IsTwoByteRepresentation() {
+  uint32_t type = map()->instance_type();
+  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
+    return SlicedString::cast(this)->buffer()->IsTwoByteRepresentation();
+  } else if ((type & kStringRepresentationMask) == kConsStringTag &&
+             ConsString::cast(this)->second()->length() == 0) {
+    return ConsString::cast(this)->first()->IsTwoByteRepresentation();
+  }
+  return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
 
@@ -1476,7 +1491,7 @@ void String::Set(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length());
   ASSERT(StringShape(this).IsSequential());
 
-  return StringShape(this).IsAsciiRepresentation()
+  return this->IsAsciiRepresentation()
       ? SeqAsciiString::cast(this)->SeqAsciiStringSet(index, value)
       : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
@@ -1576,11 +1591,6 @@ int SeqAsciiString::SeqAsciiStringSize(InstanceType instance_type) {
 
 
 String* ConsString::first() {
-  ASSERT(String::cast(READ_FIELD(this, kSecondOffset))->length() != 0 ||
-      StringShape(
-          String::cast(
-              READ_FIELD(this, kFirstOffset))).IsAsciiRepresentation()
-          == StringShape(this).IsAsciiRepresentation());
   return String::cast(READ_FIELD(this, kFirstOffset));
 }
 
@@ -1613,10 +1623,6 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 
 
 String* SlicedString::buffer() {
-  ASSERT(
-      StringShape(
-          String::cast(READ_FIELD(this, kBufferOffset))).IsAsciiRepresentation()
-      == StringShape(this).IsAsciiRepresentation());
   return String::cast(READ_FIELD(this, kBufferOffset));
 }
 

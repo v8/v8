@@ -1282,7 +1282,7 @@ class ReplacementStringBuilder {
         parts_(Factory::NewFixedArray(estimated_part_count)),
         part_count_(0),
         character_count_(0),
-        is_ascii_(StringShape(*subject).IsAsciiRepresentation()) {
+        is_ascii_(subject->IsAsciiRepresentation()) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     ASSERT(estimated_part_count > 0);
@@ -1326,7 +1326,7 @@ class ReplacementStringBuilder {
     int length = string->length();
     ASSERT(length > 0);
     AddElement(*string);
-    if (!StringShape(*string).IsAsciiRepresentation()) {
+    if (!string->IsAsciiRepresentation()) {
       is_ascii_ = false;
     }
     IncrementCharacterCount(length);
@@ -1583,14 +1583,14 @@ void CompiledReplacement::Compile(Handle<String> replacement,
                                   int capture_count,
                                   int subject_length) {
   ASSERT(replacement->IsFlat());
-  if (StringShape(*replacement).IsAsciiRepresentation()) {
+  if (replacement->IsAsciiRepresentation()) {
     AssertNoAllocation no_alloc;
     ParseReplacementPattern(&parts_,
                             replacement->ToAsciiVector(),
                             capture_count,
                             subject_length);
   } else {
-    ASSERT(StringShape(*replacement).IsTwoByteRepresentation());
+    ASSERT(replacement->IsTwoByteRepresentation());
     AssertNoAllocation no_alloc;
 
     ParseReplacementPattern(&parts_,
@@ -2165,7 +2165,7 @@ int Runtime::StringMatch(Handle<String> sub,
   // algorithm is unnecessary overhead.
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    if (StringShape(*sub).IsAsciiRepresentation()) {
+    if (sub->IsAsciiRepresentation()) {
       uc16 pchar = pat->Get(0);
       if (pchar > String::kMaxAsciiCharCode) {
         return -1;
@@ -2190,15 +2190,15 @@ int Runtime::StringMatch(Handle<String> sub,
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // dispatch on type of strings
-  if (StringShape(*pat).IsAsciiRepresentation()) {
+  if (pat->IsAsciiRepresentation()) {
     Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (StringShape(*sub).IsAsciiRepresentation()) {
+    if (sub->IsAsciiRepresentation()) {
       return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
     }
     return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = pat->ToUC16Vector();
-  if (StringShape(*sub).IsAsciiRepresentation()) {
+  if (sub->IsAsciiRepresentation()) {
     return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
   }
   return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
@@ -3329,7 +3329,7 @@ static Object* ConvertCaseHelper(String* s,
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o = StringShape(s).IsAsciiRepresentation()
+  Object* o = s->IsAsciiRepresentation()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
@@ -3680,7 +3680,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = StringShape(special).IsAsciiRepresentation();
+  bool ascii = special->IsAsciiRepresentation();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
@@ -3700,7 +3700,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !StringShape(element).IsAsciiRepresentation()) {
+      if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
@@ -4757,10 +4757,10 @@ static Object* Runtime_DateParseString(Arguments args) {
   FixedArray* output_array = output->elements();
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
-  if (StringShape(*str).IsAsciiRepresentation()) {
+  if (str->IsAsciiRepresentation()) {
     result = DateParser::Parse(str->ToAsciiVector(), output_array);
   } else {
-    ASSERT(StringShape(*str).IsTwoByteRepresentation());
+    ASSERT(str->IsTwoByteRepresentation());
     result = DateParser::Parse(str->ToUC16Vector(), output_array);
   }
 
@@ -6574,9 +6574,9 @@ static bool IsExternalStringValid(Object* str) {
   if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
     return true;
   }
-  if (StringShape(String::cast(str)).IsAsciiRepresentation()) {
+  if (String::cast(str)->IsAsciiRepresentation()) {
     return ExternalAsciiString::cast(str)->resource() != NULL;
-  } else if (StringShape(String::cast(str)).IsTwoByteRepresentation()) {
+  } else if (String::cast(str)->IsTwoByteRepresentation()) {
     return ExternalTwoByteString::cast(str)->resource() != NULL;
   } else {
     return true;

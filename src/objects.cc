@@ -602,8 +602,6 @@ Object* String::TryFlatten() {
       if (StringShape(String::cast(ok)).IsCons()) {
         ss->set_buffer(ConsString::cast(ok)->first());
       }
-      ASSERT(StringShape(this).IsAsciiRepresentation() ==
-          StringShape(ss->buffer()).IsAsciiRepresentation());
       return this;
     }
     case kConsStringTag: {
@@ -618,7 +616,7 @@ Object* String::TryFlatten() {
       int len = length();
       Object* object;
       String* result;
-      if (StringShape(this).IsAsciiRepresentation()) {
+      if (IsAsciiRepresentation()) {
         object = Heap::AllocateRawAsciiString(len, tenure);
         if (object->IsFailure()) return object;
         result = String::cast(object);
@@ -956,10 +954,11 @@ int HeapObject::SlowSizeFromMap(Map* map) {
   // Avoid calling functions such as FixedArray::cast during GC, which
   // read map pointer of this object again.
   InstanceType instance_type = map->instance_type();
+  uint32_t type = static_cast<uint32_t>(instance_type);
 
   if (instance_type < FIRST_NONSTRING_TYPE
       && (StringShape(instance_type).IsSequential())) {
-    if (StringShape(instance_type).IsAsciiRepresentation()) {
+    if ((type & kStringEncodingMask) == kAsciiStringTag) {
       SeqAsciiString* seq_ascii_this = reinterpret_cast<SeqAsciiString*>(this);
       return seq_ascii_this->SeqAsciiStringSize(instance_type);
     } else {
@@ -3235,7 +3234,7 @@ bool String::LooksValid() {
 
 
 int String::Utf8Length() {
-  if (StringShape(this).IsAsciiRepresentation()) return length();
+  if (IsAsciiRepresentation()) return length();
   // Attempt to flatten before accessing the string.  It probably
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
@@ -3251,7 +3250,7 @@ int String::Utf8Length() {
 
 
 Vector<const char> String::ToAsciiVector() {
-  ASSERT(StringShape(this).IsAsciiRepresentation());
+  ASSERT(IsAsciiRepresentation());
   ASSERT(IsFlat());
 
   int offset = 0;
@@ -3282,7 +3281,7 @@ Vector<const char> String::ToAsciiVector() {
 
 
 Vector<const uc16> String::ToUC16Vector() {
-  ASSERT(StringShape(this).IsTwoByteRepresentation());
+  ASSERT(IsTwoByteRepresentation());
   ASSERT(IsFlat());
 
   int offset = 0;
@@ -3385,7 +3384,7 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  ASSERT(!StringShape(this).IsAsciiRepresentation());
+  ASSERT(!IsAsciiRepresentation());
   switch (StringShape(this).representation_tag()) {
     case kSeqStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
@@ -3680,7 +3679,7 @@ const unibrow::byte* String::ReadBlock(String* input,
   }
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
         SeqAsciiString* str = SeqAsciiString::cast(input);
         return str->SeqAsciiStringReadBlock(&rbb->remaining,
                                             offset_ptr,
@@ -3701,7 +3700,7 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                               offset_ptr,
                                                               max_chars);
     case kExternalStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
             &rbb->remaining,
             offset_ptr,
@@ -3754,7 +3753,7 @@ void FlatStringReader::RefreshState() {
   if (str_ == NULL) return;
   Handle<String> str(str_);
   ASSERT(str->IsFlat());
-  is_ascii_ = StringShape(*str).IsAsciiRepresentation();
+  is_ascii_ = str->IsAsciiRepresentation();
   if (is_ascii_) {
     start_ = str->ToAsciiVector().start();
   } else {
@@ -3795,7 +3794,7 @@ void String::ReadBlockIntoBuffer(String* input,
 
   switch (StringShape(input).representation_tag()) {
     case kSeqStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
         SeqAsciiString::cast(input)->SeqAsciiStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
@@ -3817,7 +3816,7 @@ void String::ReadBlockIntoBuffer(String* input,
                                                                  max_chars);
       return;
     case kExternalStringTag:
-      if (StringShape(input).IsAsciiRepresentation()) {
+      if (input->IsAsciiRepresentation()) {
          ExternalAsciiString::cast(input)->
              ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
        } else {
@@ -4147,7 +4146,7 @@ static StringInputBuffer string_compare_buffer_b;
 template <typename IteratorA>
 static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
   if (b->IsFlat()) {
-    if (StringShape(b).IsAsciiRepresentation()) {
+    if (b->IsAsciiRepresentation()) {
       VectorIterator<char> ib(b->ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
@@ -4187,10 +4186,10 @@ bool String::SlowEquals(String* other) {
   }
 
   if (this->IsFlat()) {
-    if (StringShape(this).IsAsciiRepresentation()) {
+    if (IsAsciiRepresentation()) {
       Vector<const char> vec1 = this->ToAsciiVector();
       if (other->IsFlat()) {
-        if (StringShape(other).IsAsciiRepresentation()) {
+        if (other->IsAsciiRepresentation()) {
           Vector<const char> vec2 = other->ToAsciiVector();
           return CompareRawStringContents(vec1, vec2);
         } else {
@@ -4209,7 +4208,7 @@ bool String::SlowEquals(String* other) {
       Vector<const uc16> vec1 = this->ToUC16Vector();
       if (CheckVectorForBug9746(vec1)) return false;
       if (other->IsFlat()) {
-        if (StringShape(other).IsAsciiRepresentation()) {
+        if (other->IsAsciiRepresentation()) {
           VectorIterator<uc16> buf1(vec1);
           VectorIterator<char> ib(other->ToAsciiVector());
           return CompareStringContents(&buf1, &ib);
