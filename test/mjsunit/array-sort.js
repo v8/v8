@@ -153,6 +153,7 @@ function TestArraySortingWithUnsoundComparisonFunction() {
 
 TestArraySortingWithUnsoundComparisonFunction();
 
+
 function TestSparseNonArraySorting(length) {
   assertTrue(length > 101);
   var obj = {length: length};
@@ -174,6 +175,7 @@ TestSparseNonArraySorting(5000);
 TestSparseNonArraySorting(500000);
 TestSparseNonArraySorting(Math.pow(2, 31) + 1);
 
+
 function TestArrayLongerLength(length) {
   var x = new Array(4);
   x[0] = 42;
@@ -191,6 +193,7 @@ TestArrayLongerLength(10);
 TestArrayLongerLength(1000);
 TestArrayLongerLength(500000);
 TestArrayLongerLength(Math.pow(2,32) - 1);
+
 
 function TestNonArrayLongerLength(length) {
   var x = {};
@@ -258,17 +261,18 @@ function TestSparseInheritedElementSort(scale) {
 
   Array.prototype.sort.call(y);
 
-  assertEquals(length, y.length, name+"length");
+  assertEquals(length, y.length, name +"length");
 
   for (var i = 0; i < 10; i++) {
     assertTrue(y.hasOwnProperty(i), name + "hasvalue" + i);
     assertEquals(i, y[i], name + "value" + i);
   }
   for (var i = 10; i < length; i++) {
-    assertEquals(x.hasOwnProperty(i), y.hasOwnProperty(i), name+"hasundef"+i);
+    assertEquals(x.hasOwnProperty(i), y.hasOwnProperty(i), 
+                 name + "hasundef" + i);
     assertEquals(undefined, y[i], name+"undefined"+i);
     if (x.hasOwnProperty(i)) {
-      assertTrue(0 == i % (2 * scale), name+"new_x"+i);
+      assertTrue(0 == i % (2 * scale), name + "new_x" + i);
     }
   }
 }
@@ -276,7 +280,6 @@ function TestSparseInheritedElementSort(scale) {
 TestSparseInheritedElementSort(10);
 TestSparseInheritedElementSort(100);
 TestSparseInheritedElementSort(1000);
-TestSparseInheritedElementSort(10000);
 
 function TestSpecialCasesInheritedElementSort() {
   
@@ -313,12 +316,11 @@ function TestSpecialCasesInheritedElementSort() {
   var sorted = ["a2", "a3", "b1", "b2", "c1", "c2", "d1", "d2", "e3", 
                 undefined, undefined, undefined];
   for (var i = 0; i < sorted.length; i++) {
-    assertTrue(x[0], x.hasOwnProperty(i) + "has" + i)
+    assertTrue(x.hasOwnProperty(i), name + "has" + i)
     assertEquals(sorted[i], x[i], name + i);
   }
   assertFalse(x.hasOwnProperty(sorted.length), name + "haspost");
   assertFalse(sorted.length in x, name + "haspost2");
-  assertEquals(undefined, x[12000], name + "XX12000");
   
   assertTrue(x.hasOwnProperty(10), name + "hasundefined10");
   assertEquals(undefined, x[10], name + "undefined10");
@@ -331,10 +333,10 @@ function TestSpecialCasesInheritedElementSort() {
   assertTrue(x.hasOwnProperty(8000), name + "hasundefined8000");
   assertEquals(undefined, x[8000], name + "undefined8000");
   
-  assertFalse(x.hasOwnProperty(11), name + "hasundefined11");
-  assertEquals(undefined, x[11], name + "undefined11");
-  
   assertFalse(x.hasOwnProperty(12000), name + "has12000");
   assertEquals("XX", x[12000], name + "XX12000");
 
 }
+
+TestSpecialCasesInheritedElementSort();
+
