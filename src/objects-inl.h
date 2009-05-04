@@ -683,7 +683,7 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
 
 
 int Smi::value() {
-  return reinterpret_cast<int>(this) >> kSmiTagSize;
+  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kSmiTagSize);
 }
 
 
@@ -739,7 +739,7 @@ Failure* Failure::OutOfMemoryException() {
 
 
 int Failure::value() const {
-  return reinterpret_cast<int>(this) >> kFailureTagSize;
+  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kFailureTagSize);
 }
 
 
@@ -757,7 +757,8 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
 Failure* Failure::Construct(Type type, int value) {
   int info = (value << kFailureTypeTagSize) | type;
   ASSERT(Smi::IsValid(info));  // Same validation check as in Smi
-  return reinterpret_cast<Failure*>((info << kFailureTagSize) | kFailureTag);
+  return reinterpret_cast<Failure*>(
+      static_cast<intptr_t>((info << kFailureTagSize) | kFailureTag));
 }
 
 

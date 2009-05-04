@@ -795,9 +795,10 @@ class Smi: public Object {
   void SmiVerify();
 #endif
 
+  static const int kSmiNumBits = 31;
   // Min and max limits for Smi values.
-  static const int kMinValue = -(1 << (kBitsPerPointer - (kSmiTagSize + 1)));
-  static const int kMaxValue = (1 << (kBitsPerPointer - (kSmiTagSize + 1))) - 1;
+  static const int kMinValue = -(1 << (kSmiNumBits - 1));
+  static const int kMaxValue = (1 << (kSmiNumBits - 1)) - 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
@@ -2324,8 +2325,7 @@ class Code: public HeapObject {
   // the layout of the code object into account.
   int ExecutableSize() {
     // Check that the assumptions about the layout of the code object holds.
-    ASSERT_EQ(reinterpret_cast<unsigned int>(instruction_start()) -
-              reinterpret_cast<unsigned int>(address()),
+    ASSERT_EQ(instruction_start() - address(),
               Code::kHeaderSize);
     return instruction_size() + Code::kHeaderSize;
   }
