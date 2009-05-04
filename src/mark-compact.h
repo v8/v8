@@ -142,6 +142,7 @@ class MarkCompactCollector: public AllStatic {
 
   friend class RootMarkingVisitor;
   friend class MarkingVisitor;
+  friend class UnmarkingVisitor;
 
   // Marking operations for objects reachable from roots.
   static void MarkLiveObjects();
@@ -155,9 +156,21 @@ class MarkCompactCollector: public AllStatic {
   static inline void SetMark(HeapObject* obj) {
     tracer_->increment_marked_count();
 #ifdef DEBUG
-    UpdateLiveObjectCount(obj);
+    UpdateLiveObjectCount(obj, 1);
 #endif
     obj->SetMark();
+  }
+
+  // Used to clear mark bits during marking for objects that are not
+  // actually live.  Since it updates bookkeeping state, it is not
+  // used when clearing mark bits on live objects (eg, during
+  // sweeping).
+  static inline void ClearMark(HeapObject* obj) {
+    obj->ClearMark();
+    tracer_->decrement_marked_count();
+#ifdef DEBUG
+    UpdateLiveObjectCount(obj, -1);
+#endif
   }
 
   // Creates back pointers for all map transitions, stores them in
@@ -202,7 +215,10 @@ class MarkCompactCollector: public AllStatic {
   static bool MustBeMarked(Object** p);
 
 #ifdef DEBUG
-  static void UpdateLiveObjectCount(HeapObject* obj);
+  // The scale argument is positive 1 if we are marking an object and
+  // -1 if we are clearing the mark bit of an object that we didn't
+  // actually want marked.
+  static void UpdateLiveObjectCount(HeapObject* obj, int scale);
 #endif
 
   // We sweep the large object space in the same way whether we are
