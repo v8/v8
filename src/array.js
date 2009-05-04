@@ -1011,9 +1011,10 @@ function SetupArray() {
   // object.
   %SetProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
 
-  // Setup non-enumerable functions of the Array.prototype object and
-  // set their names.
-  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
+  // Setup non-enumerable functions of the Array.prototype object and set their
+  // names.  Use DONT_DELETE due to
+  // http://code.google.com/p/chromium/issues/detail?id=1717
+  InstallFunctions($Array.prototype, DONT_ENUM | DONT_DELETE, $Array(
     "toString", ArrayToString,
     "toLocaleString", ArrayToLocaleString,
     "join", ArrayJoin,

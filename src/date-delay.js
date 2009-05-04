@@ -1017,9 +1017,10 @@ function SetupDate() {
   // Setup non-enumerable constructor property of the Date prototype object.
   %SetProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
 
-  // Setup non-enumerable functions of the Date prototype object and
-  // set their names.
-  InstallFunctions($Date.prototype, DONT_ENUM, $Array(
+  // Setup non-enumerable functions of the Date prototype object and set their
+  // names.  Use DONT_DELETE due to
+  // http://code.google.com/p/chromium/issues/detail?id=1717
+  InstallFunctions($Date.prototype, DONT_ENUM | DONT_DELETE, $Array(
     "toString", DateToString,
     "toDateString", DateToDateString,
     "toTimeString", DateToTimeString,
