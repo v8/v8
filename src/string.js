@@ -831,9 +831,7 @@ function SetupString() {
 
 
   // Setup the non-enumerable functions on the String prototype object.
-  // Use DONT_DELETE due to
-  // http://code.google.com/p/chromium/issues/detail?id=1717
-  InstallFunctions($String.prototype, DONT_ENUM | DONT_DELETE, $Array(
+  InstallFunctions($String.prototype, DONT_ENUM, $Array(
     "valueOf", StringValueOf,
     "toString", StringToString,
     "charAt", StringCharAt,

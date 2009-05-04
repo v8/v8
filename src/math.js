@@ -162,9 +162,9 @@ function SetupMath() {
                1.4142135623730951,
                DONT_ENUM |  DONT_DELETE | READ_ONLY);
 
-  // Setup non-enumerable functions of the Math object and set their names.  Use
-  // DONT_DELETE due to  http://code.google.com/p/chromium/issues/detail?id=1717
-  InstallFunctions($Math, DONT_ENUM | DONT_DELETE, $Array(
+  // Setup non-enumerable functions of the Math object and
+  // set their names.
+  InstallFunctions($Math, DONT_ENUM, $Array(
     "random", MathRandom,
     "abs", MathAbs,
     "acos", MathAcos,
