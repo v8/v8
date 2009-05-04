@@ -103,4 +103,4 @@ class RegExpStack {
 
 }}  // namespace v8::internal
 
-#endif // V8_REGEXP_STACK_H_
+#endif  // V8_REGEXP_STACK_H_
