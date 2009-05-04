@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_DEBUG_H_
-#define V8_DEBUG_H_
+#ifndef V8_V8_DEBUG_H_
+#define V8_V8_DEBUG_H_
 
 #include "v8.h"
 
@@ -246,4 +246,4 @@ class EXPORT Debug {
 #undef EXPORT
 
 
-#endif  // V8_DEBUG_H_
+#endif  // V8_V8_DEBUG_H_

@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_DEBUG_H_
-#define V8_V8_DEBUG_H_
+#ifndef V8_DEBUG_H_
+#define V8_DEBUG_H_
 
 #include "assembler.h"
 #include "code-stubs.h"
@@ -762,4 +762,4 @@ class Debug_Address {
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
-#endif  // V8_V8_DEBUG_H_
+#endif  // V8_DEBUG_H_

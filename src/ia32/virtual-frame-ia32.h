@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_IA32_H_
-#define V8_VIRTUAL_FRAME_IA32_H_
+#ifndef V8_IA32_VIRTUAL_FRAME_IA32_H_
+#define V8_IA32_VIRTUAL_FRAME_IA32_H_
 
 #include "register-allocator.h"
 
@@ -490,4 +490,4 @@ class VirtualFrame : public Malloced {
 
 } }  // namespace v8::internal
 
-#endif  // V8_VIRTUAL_FRAME_IA32_H_
+#endif  // V8_IA32_VIRTUAL_FRAME_IA32_H_

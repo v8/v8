@@ -34,8 +34,8 @@
 
 // A light-weight IA32 Assembler.
 
-#ifndef V8_ASSEMBLER_IA32_INL_H_
-#define V8_ASSEMBLER_IA32_INL_H_
+#ifndef V8_IA32_ASSEMBLER_IA32_INL_H_
+#define V8_IA32_ASSEMBLER_IA32_INL_H_
 
 #include "cpu.h"
 
@@ -299,4 +299,4 @@ Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
 
 } }  // namespace v8::internal
 
-#endif  // V8_ASSEMBLER_IA32_INL_H_
+#endif  // V8_IA32_ASSEMBLER_IA32_INL_H_

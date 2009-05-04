@@ -161,4 +161,4 @@ class Counters : AllStatic {
 
 } }  // namespace v8::internal
 
-#endif  // V8_COUNTERS_H_
+#endif  // V8_V8_COUNTERS_H_

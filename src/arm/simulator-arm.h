@@ -33,8 +33,8 @@
 // which will start execution in the Simulator or forwards to the real entry
 // on a ARM HW platform.
 
-#ifndef V8_SIMULATOR_ARM_H_
-#define V8_SIMULATOR_ARM_H_
+#ifndef V8_ARM_SIMULATOR_ARM_H_
+#define V8_ARM_SIMULATOR_ARM_H_
 
 #if defined(__arm__)
 
@@ -201,4 +201,4 @@ class Simulator {
 
 #endif  // defined(__arm__)
 
-#endif  // V8_SIMULATOR_ARM_H_
+#endif  // V8_ARM_SIMULATOR_ARM_H_

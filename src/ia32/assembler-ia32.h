@@ -34,8 +34,8 @@
 
 // A light-weight IA32 Assembler.
 
-#ifndef V8_ASSEMBLER_IA32_H_
-#define V8_ASSEMBLER_IA32_H_
+#ifndef V8_IA32_ASSEMBLER_IA32_H_
+#define V8_IA32_ASSEMBLER_IA32_H_
 
 namespace v8 { namespace internal {
 
@@ -860,4 +860,4 @@ class EnsureSpace BASE_EMBEDDED {
 
 } }  // namespace v8::internal
 
-#endif  // V8_ASSEMBLER_IA32_H_
+#endif  // V8_IA32_ASSEMBLER_IA32_H_
