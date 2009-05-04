@@ -132,8 +132,6 @@
 		89A88E2C0E71A6D20043BA31 /* v8threads.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF19D0E719B8F00D62E90 /* v8threads.cc */; };
 		89A88E2D0E71A6D50043BA31 /* variables.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF19F0E719B8F00D62E90 /* variables.cc */; };
 		89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1A20E719B8F00D62E90 /* zone.cc */; };
-		89B933AF0FAA0F9600201304 /* version.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF32F0FAA0ED200136CF6 /* version.cc */; };
-		89B933B00FAA0F9D00201304 /* version.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF32F0FAA0ED200136CF6 /* version.cc */; };
 		89F23C3F0E78D5B2006B2466 /* accessors.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F60E719B8F00D62E90 /* accessors.cc */; };
 		89F23C400E78D5B2006B2466 /* allocation.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F80E719B8F00D62E90 /* allocation.cc */; };
 		89F23C410E78D5B2006B2466 /* api.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0FA0E719B8F00D62E90 /* api.cc */; };
@@ -497,10 +495,8 @@
 		897FF1B50E719C0900D62E90 /* shell.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = shell.cc; sourceTree = "<group>"; };
 		897FF1B60E719C2300D62E90 /* js2c.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = js2c.py; sourceTree = "<group>"; };
 		897FF1B70E719C2E00D62E90 /* macros.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = macros.py; path = ../src/macros.py; sourceTree = "<group>"; };
-		897FF32F0FAA0ED200136CF6 /* version.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = version.cc; sourceTree = "<group>"; };
-		897FF3300FAA0ED200136CF6 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
-		898BD20C0EF6CC850068B00A /* debug-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "debug-arm.cc"; path = "debug-arm.cc"; sourceTree = "<group>"; };
-		898BD20D0EF6CC850068B00A /* debug-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "debug-ia32.cc"; path = "debug-ia32.cc"; sourceTree = "<group>"; };
+		898BD20C0EF6CC850068B00A /* debug-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-arm.cc"; sourceTree = "<group>"; };
+		898BD20D0EF6CC850068B00A /* debug-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-ia32.cc"; sourceTree = "<group>"; };
 		89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "bytecodes-irregexp.h"; sourceTree = "<group>"; };
 		89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "interpreter-irregexp.cc"; sourceTree = "<group>"; };
 		89A15C670EE4665300B48DEB /* interpreter-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "interpreter-irregexp.h"; sourceTree = "<group>"; };
@@ -830,8 +826,6 @@
 				897FF19E0E719B8F00D62E90 /* v8threads.h */,
 				897FF19F0E719B8F00D62E90 /* variables.cc */,
 				897FF1A00E719B8F00D62E90 /* variables.h */,
-				897FF32F0FAA0ED200136CF6 /* version.cc */,
-				897FF3300FAA0ED200136CF6 /* version.h */,
 				58950D560F55514900F3E8BA /* virtual-frame-arm.cc */,
 				58950D570F55514900F3E8BA /* virtual-frame-arm.h */,
 				58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */,
@@ -1181,7 +1175,6 @@
 				89A88E2B0E71A6D10043BA31 /* v8.cc in Sources */,
 				89A88E2C0E71A6D20043BA31 /* v8threads.cc in Sources */,
 				89A88E2D0E71A6D50043BA31 /* variables.cc in Sources */,
-				89B933AF0FAA0F9600201304 /* version.cc in Sources */,
 				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
 				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
@@ -1284,7 +1277,6 @@
 				89F23C7F0E78D5B2006B2466 /* v8.cc in Sources */,
 				89F23C800E78D5B2006B2466 /* v8threads.cc in Sources */,
 				89F23C810E78D5B2006B2466 /* variables.cc in Sources */,
-				89B933B00FAA0F9D00201304 /* version.cc in Sources */,
 				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
 				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,

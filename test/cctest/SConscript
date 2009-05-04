@@ -54,8 +54,7 @@ SOURCES = {
     'test-spaces.cc',
     'test-strings.cc',
     'test-threads.cc',
-    'test-utils.cc',
-    'test-version.cc'
+    'test-utils.cc'
   ],
   'arch:arm':  ['test-assembler-arm.cc', 'test-disasm-arm.cc'],
   'arch:ia32': [
