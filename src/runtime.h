@@ -205,7 +205,7 @@ namespace v8 { namespace internal {
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */) \
   \
   /* Arrays */ \
-  F(RemoveArrayHoles, 1) \
+  F(RemoveArrayHoles, 2) \
   F(GetArrayKeys, 2) \
   F(MoveArrayContents, 2) \
   F(EstimateNumberOfElements, 1) \

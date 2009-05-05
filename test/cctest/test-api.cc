@@ -27,9 +27,6 @@
 
 #include <stdlib.h>
 
-#include <map>
-#include <string>
-
 #include "v8.h"
 
 #include "api.h"
@@ -423,7 +420,7 @@ class TestAsciiResource: public String::ExternalAsciiStringResource {
  public:
   static int dispose_count;
 
-  explicit TestAsciiResource(char* data)
+  explicit TestAsciiResource(const char* data)
       : data_(data),
         length_(strlen(data)) { }
 
@@ -440,7 +437,7 @@ class TestAsciiResource: public String::ExternalAsciiStringResource {
     return length_;
   }
  private:
-  char* data_;
+  const char* data_;
   size_t length_;
 };
 
@@ -4659,11 +4656,6 @@ THREADED_TEST(CallAsFunction) {
   value = Script::Compile(v8_str(call_17))->Run();
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(17, value->Int32Value());
-
-  // Try something that will cause an exception: Call the object as a
-  // constructor. This should be the last test.
-  value = Script::Compile(v8_str("new obj(42)"))->Run();
-  CHECK(try_catch.HasCaught());
 }
 
 
@@ -6156,6 +6148,117 @@ TEST(ObjectClone) {
 }
 
 
+class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit AsciiVectorResource(i::Vector<const char> vector)
+      : data_(vector) {}
+  virtual ~AsciiVectorResource() {}
+  virtual size_t length() const { return data_.length(); }
+  virtual const char* data() const { return data_.start(); }
+ private:
+  i::Vector<const char> data_;
+};
+
+
+class UC16VectorResource : public v8::String::ExternalStringResource {
+ public:
+  explicit UC16VectorResource(i::Vector<const i::uc16> vector)
+      : data_(vector) {}
+  virtual ~UC16VectorResource() {}
+  virtual size_t length() const { return data_.length(); }
+  virtual const i::uc16* data() const { return data_.start(); }
+ private:
+  i::Vector<const i::uc16> data_;
+};
+
+
+static void MorphAString(i::String* string,
+                         AsciiVectorResource* ascii_resource,
+                         UC16VectorResource* uc16_resource) {
+  CHECK(i::StringShape(string).IsExternal());
+  if (string->IsAsciiRepresentation()) {
+    // Check old map is not symbol or long.
+    CHECK(string->map() == i::Heap::short_external_ascii_string_map() ||
+          string->map() == i::Heap::medium_external_ascii_string_map());
+    // Morph external string to be TwoByte string.
+    if (string->length() <= i::String::kMaxShortStringSize) {
+      string->set_map(i::Heap::short_external_string_map());
+    } else {
+      string->set_map(i::Heap::medium_external_string_map());
+    }
+    i::ExternalTwoByteString* morphed =
+         i::ExternalTwoByteString::cast(string);
+    morphed->set_resource(uc16_resource);
+  } else {
+    // Check old map is not symbol or long.
+    CHECK(string->map() == i::Heap::short_external_string_map() ||
+          string->map() == i::Heap::medium_external_string_map());
+    // Morph external string to be ASCII string.
+    if (string->length() <= i::String::kMaxShortStringSize) {
+      string->set_map(i::Heap::short_external_ascii_string_map());
+    } else {
+      string->set_map(i::Heap::medium_external_ascii_string_map());
+    }
+    i::ExternalAsciiString* morphed =
+         i::ExternalAsciiString::cast(string);
+    morphed->set_resource(ascii_resource);
+  }
+}
+
+
+// Test that we can still flatten a string if the components it is built up
+// from have been turned into 16 bit strings in the mean time.
+THREADED_TEST(MorphCompositeStringTest) {
+  const char* c_string = "Now is the time for all good men"
+                         " to come to the aid of the party";
+  uint16_t* two_byte_string = AsciiToTwoByteString(c_string);
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    AsciiVectorResource ascii_resource(
+        i::Vector<const char>(c_string, strlen(c_string)));
+    UC16VectorResource uc16_resource(
+        i::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
+
+    Local<String> lhs(v8::Utils::ToLocal(
+        i::Factory::NewExternalStringFromAscii(&ascii_resource)));
+    Local<String> rhs(v8::Utils::ToLocal(
+        i::Factory::NewExternalStringFromAscii(&ascii_resource)));
+
+    env->Global()->Set(v8_str("lhs"), lhs);
+    env->Global()->Set(v8_str("rhs"), rhs);
+
+    CompileRun(
+        "var cons = lhs + rhs;"
+        "var slice = lhs.substring(1, lhs.length - 1);"
+        "var slice_on_cons = (lhs + rhs).substring(1, lhs.length *2 - 1);");
+
+    MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
+    MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);
+
+    // Now do some stuff to make sure the strings are flattened, etc.
+    CompileRun(
+        "/[^a-z]/.test(cons);"
+        "/[^a-z]/.test(slice);"
+        "/[^a-z]/.test(slice_on_cons);");
+    const char* expected_cons =
+        "Now is the time for all good men to come to the aid of the party"
+        "Now is the time for all good men to come to the aid of the party";
+    const char* expected_slice =
+        "ow is the time for all good men to come to the aid of the part";
+    const char* expected_slice_on_cons =
+        "ow is the time for all good men to come to the aid of the party"
+        "Now is the time for all good men to come to the aid of the part";
+    CHECK_EQ(String::New(expected_cons),
+             env->Global()->Get(v8_str("cons")));
+    CHECK_EQ(String::New(expected_slice),
+             env->Global()->Get(v8_str("slice")));
+    CHECK_EQ(String::New(expected_slice_on_cons),
+             env->Global()->Get(v8_str("slice_on_cons")));
+  }
+}
+
+
 class RegExpStringModificationTest {
  public:
   RegExpStringModificationTest()
@@ -6200,26 +6303,6 @@ class RegExpStringModificationTest {
   }
  private:
 
-  class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
-   public:
-    explicit AsciiVectorResource(i::Vector<const char> vector)
-        : data_(vector) {}
-    virtual ~AsciiVectorResource() {}
-    virtual size_t length() const { return data_.length(); }
-    virtual const char* data() const { return data_.start(); }
-   private:
-    i::Vector<const char> data_;
-  };
-  class UC16VectorResource : public v8::String::ExternalStringResource {
-   public:
-    explicit UC16VectorResource(i::Vector<const i::uc16> vector)
-        : data_(vector) {}
-    virtual ~UC16VectorResource() {}
-    virtual size_t length() const { return data_.length(); }
-    virtual const i::uc16* data() const { return data_.start(); }
-   private:
-    i::Vector<const i::uc16> data_;
-  };
   // Number of string modifications required.
   static const int kRequiredModifications = 5;
   static const int kMaxModifications = 100;
@@ -6243,25 +6326,7 @@ class RegExpStringModificationTest {
         v8::Locker lock;
         // Swap string between ascii and two-byte representation.
         i::String* string = *input_;
-        CHECK(i::StringShape(string).IsExternal());
-        if (i::StringShape(string).IsAsciiRepresentation()) {
-          // Morph external string to be TwoByte string.
-          i::ExternalAsciiString* ext_string =
-              i::ExternalAsciiString::cast(string);
-          i::ExternalTwoByteString* morphed =
-              reinterpret_cast<i::ExternalTwoByteString*>(ext_string);
-          morphed->map()->set_instance_type(i::SHORT_EXTERNAL_STRING_TYPE);
-          morphed->set_resource(&uc16_resource_);
-        } else {
-          // Morph external string to be ASCII string.
-          i::ExternalTwoByteString* ext_string =
-              i::ExternalTwoByteString::cast(string);
-          i::ExternalAsciiString* morphed =
-              reinterpret_cast<i::ExternalAsciiString*>(ext_string);
-          morphed->map()->set_instance_type(
-              i::SHORT_EXTERNAL_ASCII_STRING_TYPE);
-          morphed->set_resource(&ascii_resource_);
-        }
+        MorphAString(string, &ascii_resource_, &uc16_resource_);
         morphs_++;
       }
       i::OS::Sleep(1);

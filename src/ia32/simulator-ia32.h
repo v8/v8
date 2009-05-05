@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SIMULATOR_IA32_H_
-#define V8_SIMULATOR_IA32_H_
+#ifndef V8_IA32_SIMULATOR_IA32_H_
+#define V8_IA32_SIMULATOR_IA32_H_
 
 
 // Since there is no simulator for the ia32 architecture the only thing we can
@@ -44,4 +44,4 @@
   (reinterpret_cast<uintptr_t>(this) >= limit ? \
       reinterpret_cast<uintptr_t>(this) - limit : 0)
 
-#endif  // V8_SIMULATOR_IA32_H_
+#endif  // V8_IA32_SIMULATOR_IA32_H_

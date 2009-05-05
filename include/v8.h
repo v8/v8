@@ -41,10 +41,15 @@
 #include <stdio.h>
 
 #ifdef _WIN32
+typedef signed char int8_t;
+typedef unsigned char uint8_t;
+typedef short int16_t;  // NOLINT
+typedef unsigned short uint16_t;  // NOLINT
 typedef int int32_t;
 typedef unsigned int uint32_t;
-typedef unsigned short uint16_t;  // NOLINT
-typedef long long int64_t;  // NOLINT
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+// intptr_t is defined in crtdefs.h through stdio.h.
 
 // Setup for Windows DLL export/import. When building the V8 DLL the
 // BUILDING_V8_SHARED needs to be defined. When building a program which uses
@@ -1121,7 +1126,10 @@ class V8EXPORT Object : public Value {
 
   /**
    * Returns the identity hash for this object. The current implemenation uses
-   * a hidden property on the object to store the identity hash.
+   * a hidden property on the object to store the identity hash. 
+   *
+   * The return value will never be 0. Also, it is not guaranteed to be 
+   * unique.
    */
   int GetIdentityHash();
 

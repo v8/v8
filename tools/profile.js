@@ -185,25 +185,7 @@ devtools.profiler.Profile.prototype.resolveAndFilterFuncs_ = function(stack) {
 
 
 /**
- * Returns the root of the top down call graph.
- */
-devtools.profiler.Profile.prototype.getTopDownTreeRoot = function() {
-  this.topDownTree_.computeTotalWeights();
-  return this.topDownTree_.getRoot();
-};
-
-
-/**
- * Returns the root of the bottom up call graph.
- */
-devtools.profiler.Profile.prototype.getBottomUpTreeRoot = function() {
-  this.bottomUpTree_.computeTotalWeights();
-  return this.bottomUpTree_.getRoot();
-};
-
-
-/**
- * Traverses the top down call graph in preorder.
+ * Performs a BF traversal of the top down call graph.
  *
  * @param {function(devtools.profiler.CallTree.Node)} f Visitor function.
  */
@@ -213,7 +195,7 @@ devtools.profiler.Profile.prototype.traverseTopDownTree = function(f) {
 
 
 /**
- * Traverses the bottom up call graph in preorder.
+ * Performs a BF traversal of the bottom up call graph.
  *
  * @param {function(devtools.profiler.CallTree.Node)} f Visitor function.
  */
@@ -223,60 +205,96 @@ devtools.profiler.Profile.prototype.traverseBottomUpTree = function(f) {
 
 
 /**
- * Calculates a top down profile starting from the specified node.
+ * Calculates a top down profile for a node with the specified label.
+ * If no name specified, returns the whole top down calls tree.
  *
- * @param {devtools.profiler.CallTree.Node} opt_root Starting node.
+ * @param {string} opt_label Node label.
  */
-devtools.profiler.Profile.prototype.getTopDownProfile = function(opt_root) {
-  if (!opt_root) {
-    this.topDownTree_.computeTotalWeights();
-    return this.topDownTree_;
+devtools.profiler.Profile.prototype.getTopDownProfile = function(opt_label) {
+  return this.getTreeProfile_(this.topDownTree_, opt_label);
+};
+
+
+/**
+ * Calculates a bottom up profile for a node with the specified label.
+ * If no name specified, returns the whole bottom up calls tree.
+ *
+ * @param {string} opt_label Node label.
+ */
+devtools.profiler.Profile.prototype.getBottomUpProfile = function(opt_label) {
+  return this.getTreeProfile_(this.bottomUpTree_, opt_label);
+};
+
+
+/**
+ * Helper function for calculating a tree profile.
+ *
+ * @param {devtools.profiler.Profile.CallTree} tree Call tree.
+ * @param {string} opt_label Node label.
+ */
+devtools.profiler.Profile.prototype.getTreeProfile_ = function(tree, opt_label) {
+  if (!opt_label) {
+    tree.computeTotalWeights();
+    return tree;
   } else {
-    throw Error('not implemented');
+    var subTree = tree.cloneSubtree(opt_label);
+    subTree.computeTotalWeights();
+    return subTree;
   }
 };
 
 
 /**
- * Calculates a bottom up profile starting from the specified node.
+ * Calculates a flat profile of callees starting from a node with
+ * the specified label. If no name specified, starts from the root.
  *
- * @param {devtools.profiler.CallTree.Node} opt_root Starting node.
+ * @param {string} opt_label Starting node label.
  */
-devtools.profiler.Profile.prototype.getBottomUpProfile = function(opt_root) {
-  if (!opt_root) {
-    this.bottomUpTree_.computeTotalWeights();
-    return this.bottomUpTree_;
-  } else {
-    throw Error('not implemented');
-  }
-};
-
-
-/**
- * Calculates a flat profile of callees starting from the specified node.
- *
- * @param {devtools.profiler.CallTree.Node} opt_root Starting node.
- */
-devtools.profiler.Profile.prototype.getFlatProfile = function(opt_root) {
+devtools.profiler.Profile.prototype.getFlatProfile = function(opt_label) {
   var counters = new devtools.profiler.CallTree();
+  var rootLabel = opt_label || devtools.profiler.CallTree.ROOT_NODE_LABEL;
   var precs = {};
+  precs[rootLabel] = 0;
+  var root = counters.findOrAddChild(rootLabel);
+
   this.topDownTree_.computeTotalWeights();
   this.topDownTree_.traverseInDepth(
     function onEnter(node) {
       if (!(node.label in precs)) {
         precs[node.label] = 0;
       }
-      var rec = counters.findOrAddChild(node.label);
-      rec.selfWeight += node.selfWeight;
-      if (precs[node.label] == 0) {
-        rec.totalWeight += node.totalWeight;
+      var nodeLabelIsRootLabel = node.label == rootLabel;
+      if (nodeLabelIsRootLabel || precs[rootLabel] > 0) {
+        if (precs[rootLabel] == 0) {
+          root.selfWeight += node.selfWeight;
+          root.totalWeight += node.totalWeight;
+        } else {
+          var rec = root.findOrAddChild(node.label);
+          rec.selfWeight += node.selfWeight;
+          if (nodeLabelIsRootLabel || precs[node.label] == 0) {
+            rec.totalWeight += node.totalWeight;
+          }
+        }
+        precs[node.label]++;
       }
-      precs[node.label]++;
     },
     function onExit(node) {
-      precs[node.label]--;
+      if (node.label == rootLabel || precs[rootLabel] > 0) {
+        precs[node.label]--;
+      }
     },
-    opt_root);
+    null);
+
+  if (!opt_label) {
+    // If we have created a flat profile for the whole program, we don't
+    // need an explicit root in it. Thus, replace the counters tree
+    // root with the node corresponding to the whole program.
+    counters.root_ = root;
+  } else {
+    // Propagate weights so percents can be calculated correctly.
+    counters.getRoot().selfWeight = root.selfWeight;
+    counters.getRoot().totalWeight = root.totalWeight;
+  }
   return counters;
 };
 
@@ -316,8 +334,15 @@ devtools.profiler.Profile.DynamicCodeEntry.prototype.getName = function() {
  * @constructor
  */
 devtools.profiler.CallTree = function() {
-  this.root_ = new devtools.profiler.CallTree.Node('');
+  this.root_ = new devtools.profiler.CallTree.Node(
+      devtools.profiler.CallTree.ROOT_NODE_LABEL);
 };
+
+
+/**
+ * The label of the root node.
+ */
+devtools.profiler.CallTree.ROOT_NODE_LABEL = '';
 
 
 /**
@@ -359,10 +384,38 @@ devtools.profiler.CallTree.prototype.addPath = function(path) {
  *
  * @param {string} label Child node label.
  */
-devtools.profiler.CallTree.prototype.findOrAddChild = function(
-    label, opt_parent) {
-  var parent = opt_parent || this.root_;
-  return parent.findOrAddChild(label);
+devtools.profiler.CallTree.prototype.findOrAddChild = function(label) {
+  return this.root_.findOrAddChild(label);
+};
+
+
+/**
+ * Creates a subtree by cloning and merging all subtrees rooted at nodes
+ * with a given label. E.g. cloning the following call tree on label 'A'
+ * will give the following result:
+ *
+ *           <A>--<B>                                     <B>
+ *          /                                            /
+ *     <root>             == clone on 'A' ==>  <root>--<A>
+ *          \                                            \
+ *           <C>--<A>--<D>                                <D>
+ *
+ * And <A>'s selfWeight will be the sum of selfWeights of <A>'s from the
+ * source call tree.
+ *
+ * @param {string} label The label of the new root node.
+ */
+devtools.profiler.CallTree.prototype.cloneSubtree = function(label) {
+  var subTree = new devtools.profiler.CallTree();
+  this.traverse(function(node, parent) {
+    if (!parent && node.label != label) {
+      return null;
+    }
+    var child = (parent ? parent : subTree).findOrAddChild(node.label);
+    child.selfWeight += node.selfWeight;
+    return child;
+  });
+  return subTree;
 };
 
 
@@ -392,17 +445,18 @@ devtools.profiler.CallTree.prototype.computeTotalWeights = function() {
  *
  * @param {function(devtools.profiler.CallTree.Node, *)} f Visitor function.
  *    The second parameter is the result of calling 'f' on the parent node.
- * @param {devtools.profiler.CallTree.Node} opt_start Starting node.
  */
-devtools.profiler.CallTree.prototype.traverse = function(f, opt_start) {
-  var pairsToProcess = [{node: opt_start || this.root_, param: null}];
-  while (pairsToProcess.length > 0) {
-    var pair = pairsToProcess.shift();
+devtools.profiler.CallTree.prototype.traverse = function(f) {
+  var pairsToProcess = new ConsArray();
+  pairsToProcess.concat([{node: this.root_, param: null}]);
+  while (!pairsToProcess.atEnd()) {
+    var pair = pairsToProcess.next();
     var node = pair.node;
     var newParam = f(node, pair.param);
-    node.forEachChild(
-      function (child) { pairsToProcess.push({node: child, param: newParam}); }
-    );
+    var morePairsToProcess = [];
+    node.forEachChild(function (child) {
+        morePairsToProcess.push({node: child, param: newParam}); });
+    pairsToProcess.concat(morePairsToProcess);
   }
 };
 
@@ -414,16 +468,14 @@ devtools.profiler.CallTree.prototype.traverse = function(f, opt_start) {
  *     prior to visiting node's children.
  * @param {function(devtools.profiler.CallTree.Node)} exit A function called
  *     after visiting node's children.
- * @param {devtools.profiler.CallTree.Node} opt_start Starting node.
  */
-devtools.profiler.CallTree.prototype.traverseInDepth = function(
-    enter, exit, opt_start) {
+devtools.profiler.CallTree.prototype.traverseInDepth = function(enter, exit) {
   function traverse(node) {
     enter(node);
     node.forEachChild(traverse);
     exit(node);
   }
-  traverse(opt_start || this.root_);
+  traverse(this.root_);
 };
 
 
@@ -505,8 +557,7 @@ devtools.profiler.CallTree.Node.prototype.findChild = function(label) {
  *
  * @param {string} label Child node label.
  */
-devtools.profiler.CallTree.Node.prototype.findOrAddChild = function(
-    label) {
+devtools.profiler.CallTree.Node.prototype.findOrAddChild = function(label) {
   return this.findChild(label) || this.addChild(label);
 };
 

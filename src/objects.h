@@ -795,9 +795,10 @@ class Smi: public Object {
   void SmiVerify();
 #endif
 
+  static const int kSmiNumBits = 31;
   // Min and max limits for Smi values.
-  static const int kMinValue = -(1 << (kBitsPerPointer - (kSmiTagSize + 1)));
-  static const int kMaxValue = (1 << (kBitsPerPointer - (kSmiTagSize + 1))) - 1;
+  static const int kMinValue = -(1 << (kSmiNumBits - 1));
+  static const int kMaxValue = (1 << (kSmiNumBits - 1)) - 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
@@ -1177,6 +1178,14 @@ class JSObject: public HeapObject {
   inline void initialize_elements();
   inline bool HasFastElements();
   inline Dictionary* element_dictionary();  // Gets slow elements.
+
+  // Collects elements starting at index 0.
+  // Undefined values are placed after non-undefined values.
+  // Returns the number of non-undefined values.
+  Object* PrepareElementsForSort(uint32_t limit);
+  // As PrepareElementsForSort, but only on objects where elements is
+  // a dictionary, and it will stay a dictionary.
+  Object* PrepareSlowElementsForSort(uint32_t limit);
 
   Object* SetProperty(String* key,
                       Object* value,
@@ -2008,7 +2017,6 @@ class Dictionary: public DictionaryBase {
   void RemoveNumberEntries(uint32_t from, uint32_t to);
 
   // Sorting support
-  Object* RemoveHoles();
   void CopyValuesTo(FixedArray* elements);
 
   // Casting.
@@ -2317,8 +2325,7 @@ class Code: public HeapObject {
   // the layout of the code object into account.
   int ExecutableSize() {
     // Check that the assumptions about the layout of the code object holds.
-    ASSERT_EQ(reinterpret_cast<unsigned int>(instruction_start()) -
-              reinterpret_cast<unsigned int>(address()),
+    ASSERT_EQ(instruction_start() - address(),
               Code::kHeaderSize);
     return instruction_size() + Code::kHeaderSize;
   }
@@ -3200,8 +3207,6 @@ class StringShape BASE_EMBEDDED {
   inline explicit StringShape(String* s);
   inline explicit StringShape(Map* s);
   inline explicit StringShape(InstanceType t);
-  inline bool IsAsciiRepresentation();
-  inline bool IsTwoByteRepresentation();
   inline bool IsSequential();
   inline bool IsExternal();
   inline bool IsCons();
@@ -3252,6 +3257,9 @@ class String: public HeapObject {
   // use the length() and set_length methods.
   inline uint32_t length_field();
   inline void set_length_field(uint32_t value);
+
+  inline bool IsAsciiRepresentation();
+  inline bool IsTwoByteRepresentation();
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -3891,9 +3899,6 @@ class JSArray: public JSObject {
 
   // Set the content of the array to the content of storage.
   inline void SetContent(FixedArray* storage);
-
-  // Support for sorting
-  Object* RemoveHoles();
 
   // Casting.
   static inline JSArray* cast(Object* obj);

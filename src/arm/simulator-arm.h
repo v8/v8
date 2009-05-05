@@ -33,14 +33,14 @@
 // which will start execution in the Simulator or forwards to the real entry
 // on a ARM HW platform.
 
-#ifndef V8_SIMULATOR_ARM_H_
-#define V8_SIMULATOR_ARM_H_
+#ifndef V8_ARM_SIMULATOR_ARM_H_
+#define V8_ARM_SIMULATOR_ARM_H_
 
 #if defined(__arm__)
 
 // When running without a simulator we call the entry directly.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  entry(p0, p1, p2, p3, p4)
+  reinterpret_cast<Object*>(entry(p0, p1, p2, p3, p4))
 
 // Calculated the stack limit beyond which we will throw stack overflow errors.
 // This macro must be called from a C++ method. It relies on being able to take
@@ -201,4 +201,4 @@ class Simulator {
 
 #endif  // defined(__arm__)
 
-#endif  // V8_SIMULATOR_ARM_H_
+#endif  // V8_ARM_SIMULATOR_ARM_H_

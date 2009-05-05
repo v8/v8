@@ -870,9 +870,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // If we can't find the function in the cache, we compile a new
   // function and insert it into the cache.
   if (!cache->Lookup(name, &boilerplate)) {
-#ifdef DEBUG
-    ASSERT(StringShape(*source).IsAsciiRepresentation());
-#endif
+    ASSERT(source->IsAsciiRepresentation());
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
     boilerplate =
         Compiler::Compile(source, script_name, 0, 0, extension, NULL);

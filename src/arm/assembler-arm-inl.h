@@ -34,8 +34,8 @@
 // significantly by Google Inc.
 // Copyright 2006-2008 the V8 project authors. All rights reserved.
 
-#ifndef V8_ASSEMBLER_ARM_INL_H_
-#define V8_ASSEMBLER_ARM_INL_H_
+#ifndef V8_ARM_ASSEMBLER_ARM_INL_H_
+#define V8_ARM_ASSEMBLER_ARM_INL_H_
 
 #include "arm/assembler-arm.h"
 #include "cpu.h"
@@ -246,4 +246,4 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
 } }  // namespace v8::internal
 
-#endif  // V8_ASSEMBLER_ARM_INL_H_
+#endif  // V8_ARM_ASSEMBLER_ARM_INL_H_

@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_MACRO_ASSEMBLER_ARM_H_
-#define V8_MACRO_ASSEMBLER_ARM_H_
+#ifndef V8_ARM_MACRO_ASSEMBLER_ARM_H_
+#define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
 #include "assembler.h"
 
@@ -310,4 +310,4 @@ static inline MemOperand FieldMemOperand(Register object, int offset) {
 
 } }  // namespace v8::internal
 
-#endif  // V8_MACRO_ASSEMBLER_ARM_H_
+#endif  // V8_ARM_MACRO_ASSEMBLER_ARM_H_

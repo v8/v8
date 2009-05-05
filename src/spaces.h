@@ -939,14 +939,14 @@ class SemiSpace : public Space {
   // True if the address is in the address range of this semispace (not
   // necessarily below the allocation pointer).
   bool Contains(Address a) {
-    return (reinterpret_cast<uint32_t>(a) & address_mask_)
-           == reinterpret_cast<uint32_t>(start_);
+    return (reinterpret_cast<uintptr_t>(a) & address_mask_)
+           == reinterpret_cast<uintptr_t>(start_);
   }
 
   // True if the object is a heap object in the address range of this
   // semispace (not necessarily below the allocation pointer).
   bool Contains(Object* o) {
-    return (reinterpret_cast<uint32_t>(o) & object_mask_) == object_expected_;
+    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
   }
 
   // The offset of an address from the beginning of the space.
@@ -975,9 +975,9 @@ class SemiSpace : public Space {
   Address age_mark_;
 
   // Masks and comparison values to test for containment in this semispace.
-  uint32_t address_mask_;
-  uint32_t object_mask_;
-  uint32_t object_expected_;
+  uintptr_t address_mask_;
+  uintptr_t object_mask_;
+  uintptr_t object_expected_;
 
  public:
   TRACK_MEMORY("SemiSpace")
@@ -1063,11 +1063,11 @@ class NewSpace : public Space {
   // True if the address or object lies in the address range of either
   // semispace (not necessarily below the allocation pointer).
   bool Contains(Address a) {
-    return (reinterpret_cast<uint32_t>(a) & address_mask_)
-        == reinterpret_cast<uint32_t>(start_);
+    return (reinterpret_cast<uintptr_t>(a) & address_mask_)
+        == reinterpret_cast<uintptr_t>(start_);
   }
   bool Contains(Object* o) {
-    return (reinterpret_cast<uint32_t>(o) & object_mask_) == object_expected_;
+    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
   }
 
   // Return the allocated bytes in the active semispace.

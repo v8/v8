@@ -28,25 +28,6 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-// -----------------------------------------------------------------------------
-// Types
-// Visual Studio C++ is missing the stdint.h header file. Instead we define
-// standard integer types for Windows here.
-
-#ifdef _MSC_VER
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;  // NOLINT
-typedef unsigned short uint16_t;  // NOLINT
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-#else  // _MSC_VER
-#include <stdint.h>  // for intptr_t
-#endif  // _MSC_VER
-
-
 namespace v8 { namespace internal {
 
 // Support for alternative bool type. This is only enabled if the code is
@@ -69,11 +50,20 @@ typedef unsigned int __my_bool__;
 typedef uint8_t byte;
 typedef byte* Address;
 
+// Define macros for writing 64-bit constants and pointer-size constants.
+#ifdef _MSC_VER
+#define UINT64_C(x)  (x ## UI64)
+#define INT64_C(x)   (x ## I64)
+#else
+#define UINT64_C(x)  (x ## ULL)
+#define INT64_C(x)   (x ## LL)
+#endif
+
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
-typedef signed int uc32;
+typedef int32_t uc32;
 
-#ifndef ARM
+#if defined(V8_ARCH_IA32) || defined(V8_ARCH_X64)
 #define CAN_READ_UNALIGNED 1
 #endif
 
@@ -86,35 +76,41 @@ const int GB = KB * KB * KB;
 const int kMaxInt = 0x7FFFFFFF;
 const int kMinInt = -kMaxInt - 1;
 
+const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
+
 const int kCharSize     = sizeof(char);    // NOLINT
 const int kShortSize    = sizeof(short);   // NOLINT
 const int kIntSize      = sizeof(int);     // NOLINT
 const int kDoubleSize   = sizeof(double);  // NOLINT
 const int kPointerSize  = sizeof(void*);   // NOLINT
 
+#ifdef V8_ARCH_X64
+const int kPointerSizeLog2 = 3;
+#else
 const int kPointerSizeLog2 = 2;
+#endif
 
-const int kObjectAlignmentBits = 2;
-const int kObjectAlignmentMask = (1 << kObjectAlignmentBits) - 1;
-const int kObjectAlignment = 1 << kObjectAlignmentBits;
+const int kObjectAlignmentBits = kPointerSizeLog2;
+const intptr_t kObjectAlignmentMask = (1 << kObjectAlignmentBits) - 1;
+const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
 const int kHeapObjectTagSize = 2;
-const int kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
+const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 
 
 // Tag information for Smi.
 const int kSmiTag = 0;
 const int kSmiTagSize = 1;
-const int kSmiTagMask = (1 << kSmiTagSize) - 1;
+const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
 
 
 // Tag information for Failure.
 const int kFailureTag = 3;
 const int kFailureTagSize = 2;
-const int kFailureTagMask = (1 << kFailureTagSize) - 1;
+const intptr_t kFailureTagMask = (1 << kFailureTagSize) - 1;
 
 
 const int kBitsPerByte = 8;
@@ -123,11 +119,21 @@ const int kBitsPerPointer = kPointerSize * kBitsPerByte;
 const int kBitsPerInt = kIntSize * kBitsPerByte;
 
 
-// Zap-value: The value used for zapping dead objects. Should be a recognizable
-// illegal heap object pointer.
+// Zap-value: The value used for zapping dead objects.
+// Should be a recognizable hex value tagged as a heap object pointer.
+#ifdef V8_ARCH_X64
+const Address kZapValue =
+    reinterpret_cast<Address>(UINT64_C(0xdeadbeedbeadbeed));
+const Address kHandleZapValue =
+    reinterpret_cast<Address>(UINT64_C(0x1baddead0baddead));
+const Address kFromSpaceZapValue =
+    reinterpret_cast<Address>(UINT64_C(0x1beefdad0beefdad));
+#else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
+#endif
+
 
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
@@ -370,13 +376,13 @@ enum StateTag {
 // Testers for test.
 
 #define HAS_SMI_TAG(value) \
-  ((reinterpret_cast<int>(value) & kSmiTagMask) == kSmiTag)
+  ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag)
 
 #define HAS_FAILURE_TAG(value) \
-  ((reinterpret_cast<int>(value) & kFailureTagMask) == kFailureTag)
+  ((reinterpret_cast<intptr_t>(value) & kFailureTagMask) == kFailureTag)
 
 #define HAS_HEAP_OBJECT_TAG(value) \
-  ((reinterpret_cast<int>(value) & kHeapObjectTagMask) == kHeapObjectTag)
+  ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) == kHeapObjectTag)
 
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \

@@ -37,9 +37,13 @@ class RegExpMacroAssembler;
 class RegExpImpl {
  public:
   static inline bool UseNativeRegexp() {
-#ifdef ARM
+#ifdef V8_ARCH_ARM
     return false;
-#else
+#endif
+#ifdef V8_ARCH_X64
+    return false;
+#endif
+#ifdef V8_ARCH_IA32
     return FLAG_regexp_native;
 #endif
   }
@@ -1003,14 +1007,14 @@ class ChoiceNode: public RegExpNode {
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return true; }
 
  protected:
-  int GreedyLoopTextLength(GuardedAlternative *alternative);
+  int GreedyLoopTextLength(GuardedAlternative* alternative);
   ZoneList<GuardedAlternative>* alternatives_;
 
  private:
   friend class DispatchTableConstructor;
   friend class Analysis;
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
-                     Guard *guard,
+                     Guard* guard,
                      Trace* trace);
   int CalculatePreloadCharacters(RegExpCompiler* compiler);
   void EmitOutOfLineContinuation(RegExpCompiler* compiler,
@@ -1288,7 +1292,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
   void set_choice_index(int value) { choice_index_ = value; }
 
  protected:
-  DispatchTable *table_;
+  DispatchTable* table_;
   int choice_index_;
   bool ignore_case_;
 };

@@ -507,4 +507,14 @@ bool VirtualFrame::Equals(VirtualFrame* other) {
   return true;
 }
 
+
+// Specialization of List::ResizeAdd to non-inlined version for FrameElements.
+// The function ResizeAdd becomes a real function, whose implementation is the
+// inlined ResizeAddInternal.
+template <>
+void List<FrameElement,
+          FreeStoreAllocationPolicy>::ResizeAdd(const FrameElement& element) {
+  ResizeAddInternal(element);
+}
+
 } }  // namespace v8::internal

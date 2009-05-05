@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_MACRO_ASSEMBLER_IA32_H_
-#define V8_MACRO_ASSEMBLER_IA32_H_
+#ifndef V8_IA32_MACRO_ASSEMBLER_IA32_H_
+#define V8_IA32_MACRO_ASSEMBLER_IA32_H_
 
 #include "assembler.h"
 
@@ -368,4 +368,4 @@ extern void LogGeneratedCodeCoverage(const char* file_line);
 
 } }  // namespace v8::internal
 
-#endif  // V8_MACRO_ASSEMBLER_IA32_H_
+#endif  // V8_IA32_MACRO_ASSEMBLER_IA32_H_

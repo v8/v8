@@ -3436,6 +3436,7 @@ static void MessageHandler(const uint16_t* message, int length,
     // Signals when a break is reported.
     message_queue_barriers.semaphore_2->Signal();
   }
+
   // Allow message handler to block on a semaphore, to test queueing of
   // messages while blocked.
   message_queue_barriers.semaphore_1->Wait();
@@ -3474,6 +3475,7 @@ void MessageQueueDebuggerThread::Run() {
 
   /* Interleaved sequence of actions by the two threads:*/
   // Main thread compiles and runs source_1
+  message_queue_barriers.semaphore_1->Signal();
   message_queue_barriers.barrier_1.Wait();
   // Post 6 commands, filling the command queue and making it expand.
   // These calls return immediately, but the commands stay on the queue
@@ -3487,22 +3489,39 @@ void MessageQueueDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   message_queue_barriers.barrier_2.Wait();
   // Main thread compiles and runs source_2.
-  // Queued commands are executed at the start of compilation of source_2.
-  message_queue_barriers.barrier_3.Wait();
-  // Free the message handler to process all the messages from the queue.
-  for (int i = 0; i < 20 ; ++i) {
+  // Queued commands are executed at the start of compilation of source_2(
+  // beforeCompile event).
+  // Free the message handler to process all the messages from the queue. 7
+  // messages are expected: 2 afterCompile events and 5 responses.
+  // All the commands added so far will fail to execute as long as call stack
+  // is empty on beforeCompile event.
+  for (int i = 0; i < 6 ; ++i) {
     message_queue_barriers.semaphore_1->Signal();
   }
+  message_queue_barriers.barrier_3.Wait();
   // Main thread compiles and runs source_3.
+  // Don't stop in the afterCompile handler.
+  message_queue_barriers.semaphore_1->Signal();
   // source_3 includes a debugger statement, which causes a break event.
   // Wait on break event from hitting "debugger" statement
   message_queue_barriers.semaphore_2->Wait();
   // These should execute after the "debugger" statement in source_2
+  v8::Debug::SendCommand(buffer_1, AsciiToUtf16(command_1, buffer_1));
+  v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_2, buffer_2));
+  v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_3, buffer_2));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_single_step, buffer_2));
+  // Run after 2 break events, 4 responses.
+  for (int i = 0; i < 6 ; ++i) {
+    message_queue_barriers.semaphore_1->Signal();
+  }
   // Wait on break event after a single step executes.
   message_queue_barriers.semaphore_2->Wait();
   v8::Debug::SendCommand(buffer_1, AsciiToUtf16(command_2, buffer_1));
   v8::Debug::SendCommand(buffer_2, AsciiToUtf16(command_continue, buffer_2));
+  // Run after 2 responses.
+  for (int i = 0; i < 2 ; ++i) {
+    message_queue_barriers.semaphore_1->Signal();
+  }
   // Main thread continues running source_3 to end, waits for this thread.
 }
 
@@ -3593,10 +3612,8 @@ TEST(MessageQueueExpandAndDestroy) {
 
 static int handled_client_data_instances_count = 0;
 static void MessageHandlerCountingClientData(
-    const uint16_t* message,
-    int length,
-    v8::Debug::ClientData* client_data) {
-  if (client_data) {
+    const v8::Debug::Message& message) {
+  if (message.GetClientData() != NULL) {
     handled_client_data_instances_count++;
   }
 }
@@ -3609,8 +3626,8 @@ TEST(SendClientDataToHandler) {
   DebugLocalContext env;
   TestClientData::ResetCounters();
   handled_client_data_instances_count = 0;
-  v8::Debug::SetMessageHandler(MessageHandlerCountingClientData);
-  const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5; debugger;";
+  v8::Debug::SetMessageHandler2(MessageHandlerCountingClientData);
+  const char* source_1 = "a = 3; b = 4; c = new Object(); c.d = 5;";
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
   const char* command_1 =
@@ -3635,8 +3652,9 @@ TEST(SendClientDataToHandler) {
                          new TestClientData());
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer),
                          new TestClientData());
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+  // All the messages will be processed on beforeCompile event.
   CompileRun(source_1);
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
   CHECK_EQ(3, TestClientData::constructor_call_counter);
   CHECK_EQ(TestClientData::constructor_call_counter,
            handled_client_data_instances_count);
@@ -3671,10 +3689,10 @@ static v8::Handle<v8::Value> ThreadedAtBarrier1(const v8::Arguments& args) {
 }
 
 
-static void ThreadedMessageHandler(const uint16_t* message, int length,
-                                   v8::Debug::ClientData* client_data) {
+static void ThreadedMessageHandler(const v8::Debug::Message& message) {
   static char print_buffer[1000];
-  Utf16ToAscii(message, length, print_buffer);
+  v8::String::Value json(message.GetJSON());
+  Utf16ToAscii(*json, json.length(), print_buffer);
   if (IsBreakEventMessage(print_buffer)) {
     threaded_debugging_barriers.barrier_2.Wait();
   }
@@ -3705,7 +3723,7 @@ void V8Thread::Run() {
 
   v8::HandleScope scope;
   DebugLocalContext env;
-  v8::Debug::SetMessageHandler(&ThreadedMessageHandler);
+  v8::Debug::SetMessageHandler2(&ThreadedMessageHandler);
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->Set(v8::String::New("ThreadedAtBarrier1"),
                        v8::FunctionTemplate::New(ThreadedAtBarrier1));
@@ -3768,11 +3786,10 @@ class BreakpointsDebuggerThread : public v8::internal::Thread {
 
 Barriers* breakpoints_barriers;
 
-static void BreakpointsMessageHandler(const uint16_t* message,
-                                      int length,
-                                      v8::Debug::ClientData* client_data) {
+static void BreakpointsMessageHandler(const v8::Debug::Message& message) {
   static char print_buffer[1000];
-  Utf16ToAscii(message, length, print_buffer);
+  v8::String::Value json(message.GetJSON());
+  Utf16ToAscii(*json, json.length(), print_buffer);
   printf("%s\n", print_buffer);
   fflush(stdout);
 
@@ -3806,7 +3823,7 @@ void BreakpointsV8Thread::Run() {
 
   v8::HandleScope scope;
   DebugLocalContext env;
-  v8::Debug::SetMessageHandler(&BreakpointsMessageHandler);
+  v8::Debug::SetMessageHandler2(&BreakpointsMessageHandler);
 
   CompileRun(source_1);
   breakpoints_barriers->barrier_1.Wait();
@@ -3915,14 +3932,12 @@ TEST(SetDebugEventListenerOnUninitializedVM) {
 }
 
 
-static void DummyMessageHandler(const uint16_t* message,
-                                int length,
-                                v8::Debug::ClientData* client_data) {
+static void DummyMessageHandler(const v8::Debug::Message& message) {
 }
 
 
 TEST(SetMessageHandlerOnUninitializedVM) {
-  v8::Debug::SetMessageHandler(DummyMessageHandler);
+  v8::Debug::SetMessageHandler2(DummyMessageHandler);
 }
 
 
@@ -4142,9 +4157,7 @@ TEST(DebuggerUnload) {
 
 // Debugger message handler which counts the number of times it is called.
 static int message_handler_hit_count = 0;
-static void MessageHandlerHitCount(const uint16_t* message,
-                                   int length,
-                                   v8::Debug::ClientData* client_data) {
+static void MessageHandlerHitCount(const v8::Debug::Message& message) {
   message_handler_hit_count++;
 
   const int kBufferSize = 1000;
@@ -4167,7 +4180,7 @@ TEST(DebuggerClearMessageHandler) {
   CheckDebuggerUnloaded();
 
   // Set a debug message handler.
-  v8::Debug::SetMessageHandler(MessageHandlerHitCount);
+  v8::Debug::SetMessageHandler2(MessageHandlerHitCount);
 
   // Run code to throw a unhandled exception. This should end up in the message
   // handler.
@@ -4193,9 +4206,7 @@ TEST(DebuggerClearMessageHandler) {
 
 // Debugger message handler which clears the message handler while active.
 static void MessageHandlerClearingMessageHandler(
-    const uint16_t* message,
-    int length,
-    v8::Debug::ClientData* client_data) {
+    const v8::Debug::Message& message) {
   message_handler_hit_count++;
 
   // Clear debug message handler.
@@ -4212,7 +4223,7 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
   CheckDebuggerUnloaded();
 
   // Set a debug message handler.
-  v8::Debug::SetMessageHandler(MessageHandlerClearingMessageHandler);
+  v8::Debug::SetMessageHandler2(MessageHandlerClearingMessageHandler);
 
   // Run code to throw a unhandled exception. This should end up in the message
   // handler.
@@ -4242,11 +4253,10 @@ class HostDispatchDebuggerThread : public v8::internal::Thread {
 
 Barriers* host_dispatch_barriers;
 
-static void HostDispatchMessageHandler(const uint16_t* message,
-                                       int length,
-                                       v8::Debug::ClientData* client_data) {
+static void HostDispatchMessageHandler(const v8::Debug::Message& message) {
   static char print_buffer[1000];
-  Utf16ToAscii(message, length, print_buffer);
+  v8::String::Value json(message.GetJSON());
+  Utf16ToAscii(*json, json.length(), print_buffer);
   printf("%s\n", print_buffer);
   fflush(stdout);
 }
@@ -4273,7 +4283,7 @@ void HostDispatchV8Thread::Run() {
   DebugLocalContext env;
 
   // Setup message and host dispatch handlers.
-  v8::Debug::SetMessageHandler(HostDispatchMessageHandler);
+  v8::Debug::SetMessageHandler2(HostDispatchMessageHandler);
   v8::Debug::SetHostDispatchHandler(HostDispatchDispatchHandler, 10 /* ms */);
 
   CompileRun(source_1);

@@ -32,9 +32,15 @@
 #include "api.h"
 #include "codegen-inl.h"
 
-#ifdef ARM
+#ifdef V8_ARCH_ARM
 #include "arm/simulator-arm.h"
-#else  // ia32
+#endif
+
+#ifdef V8_ARCH_X64
+#include "x64/simulator-x64.h"
+#endif
+
+#ifdef V8_ARCH_IA32
 #include "ia32/simulator-ia32.h"
 #endif
 

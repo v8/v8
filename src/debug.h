@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_DEBUG_H_
-#define V8_V8_DEBUG_H_
+#ifndef V8_DEBUG_H_
+#define V8_DEBUG_H_
 
 #include "assembler.h"
 #include "code-stubs.h"
@@ -401,6 +401,54 @@ class Debug {
 };
 
 
+// Message delivered to the message handler callback. This is either a debugger
+// event or the response to a command.
+class MessageImpl: public v8::Debug::Message {
+ public:
+  // Create a message object for a debug event.
+  static MessageImpl NewEvent(DebugEvent event,
+                              bool running,
+                              Handle<JSObject> exec_state,
+                              Handle<JSObject> event_data);
+
+  // Create a message object for the response to a debug command.
+  static MessageImpl NewResponse(DebugEvent event,
+                                 bool running,
+                                 Handle<JSObject> exec_state,
+                                 Handle<JSObject> event_data,
+                                 Handle<String> response_json,
+                                 v8::Debug::ClientData* client_data);
+
+  // Implementation of interface v8::Debug::Message.
+  virtual bool IsEvent() const;
+  virtual bool IsResponse() const;
+  virtual DebugEvent GetEvent() const;
+  virtual bool WillStartRunning() const;
+  virtual v8::Handle<v8::Object> GetExecutionState() const;
+  virtual v8::Handle<v8::Object> GetEventData() const;
+  virtual v8::Handle<v8::String> GetJSON() const;
+  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Debug::ClientData* GetClientData() const;
+
+ private:
+  MessageImpl(bool is_event,
+              DebugEvent event,
+              bool running,
+              Handle<JSObject> exec_state,
+              Handle<JSObject> event_data,
+              Handle<String> response_json,
+              v8::Debug::ClientData* client_data);
+
+  bool is_event_;  // Does this message represent a debug event?
+  DebugEvent event_;  // Debug event causing the break.
+  bool running_;  // Will the VM start running after this event?
+  Handle<JSObject> exec_state_;  // Current execution state.
+  Handle<JSObject> event_data_;  // Data associated with the event.
+  Handle<String> response_json_;  // Response JSON if message holds a response.
+  v8::Debug::ClientData* client_data_;  // Client data passed with the request.
+};
+
+
 // Message send by user to v8 debugger or debugger output message.
 // In addition to command text it may contain a pointer to some user data
 // which are expected to be passed along with the command reponse to message
@@ -491,23 +539,19 @@ class Debugger {
                            Handle<JSFunction> fun);
   static void OnNewFunction(Handle<JSFunction> fun);
   static void ProcessDebugEvent(v8::DebugEvent event,
-                                Handle<Object> event_data,
+                                Handle<JSObject> event_data,
                                 bool auto_continue);
   static void NotifyMessageHandler(v8::DebugEvent event,
-                                   Handle<Object> exec_state,
-                                   Handle<Object> event_data,
+                                   Handle<JSObject> exec_state,
+                                   Handle<JSObject> event_data,
                                    bool auto_continue);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  static void SetMessageHandler(v8::Debug::MessageHandler handler);
+  static void SetMessageHandler(v8::Debug::MessageHandler2 handler);
   static void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
                                      int period);
 
   // Invoke the message handler function.
-  static void InvokeMessageHandler(v8::Handle<v8::String> output,
-                                   v8::Debug::ClientData* data);
-
-  // Send the JSON message for a debug event.
-  static bool InvokeMessageHandlerWithEvent(Handle<Object> event_data);
+  static void InvokeMessageHandler(MessageImpl message);
 
   // Add a debugger command to the command queue.
   static void ProcessCommand(Vector<const uint16_t> command,
@@ -558,7 +602,7 @@ class Debugger {
   static bool compiling_natives_;  // Are we compiling natives?
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static bool never_unload_debugger_;  // Can we unload the debugger?
-  static v8::Debug::MessageHandler message_handler_;
+  static v8::Debug::MessageHandler2 message_handler_;
   static bool message_handler_cleared_;  // Was message handler cleared?
   static v8::Debug::HostDispatchHandler host_dispatch_handler_;
   static int host_dispatch_micros_;
@@ -718,4 +762,4 @@ class Debug_Address {
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
-#endif  // V8_V8_DEBUG_H_
+#endif  // V8_DEBUG_H_

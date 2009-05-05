@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_V8_DEBUG_AGENT_H_
-#define V8_V8_DEBUG_AGENT_H_
+#ifndef V8_DEBUG_AGENT_H_
+#define V8_DEBUG_AGENT_H_
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
@@ -60,7 +60,7 @@ class DebuggerAgent: public Thread {
  private:
   void Run();
   void CreateSession(Socket* socket);
-  void DebuggerMessage(const uint16_t* message, int length);
+  void DebuggerMessage(const v8::Debug::Message& message);
   void CloseSession();
   void OnSessionClosed(DebuggerAgentSession* session);
 
@@ -75,8 +75,7 @@ class DebuggerAgent: public Thread {
   static DebuggerAgent* instance_;
 
   friend class DebuggerAgentSession;
-  friend void DebuggerAgentMessageHandler(const uint16_t* message, int length,
-                                          v8::Debug::ClientData* client_data);
+  friend void DebuggerAgentMessageHandler(const v8::Debug::Message& message);
 
   DISALLOW_COPY_AND_ASSIGN(DebuggerAgent);
 };
@@ -123,4 +122,4 @@ class DebuggerAgentUtil {
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
-#endif  // V8_V8_DEBUG_AGENT_H_
+#endif  // V8_DEBUG_AGENT_H_

@@ -47,6 +47,8 @@ devtools.profiler.CodeMap = function() {
    */
   this.deleted_ = [];
 
+  this.dynamicsNameGen_ = new devtools.profiler.CodeMap.NameGenerator();
+
   /**
    * Static code entries. Used for libraries code.
    */
@@ -79,6 +81,8 @@ devtools.profiler.CodeMap.PAGE_SIZE =
  * @param {devtools.profiler.CodeMap.CodeEntry} codeEntry Code entry object.
  */
 devtools.profiler.CodeMap.prototype.addCode = function(start, codeEntry) {
+  var entryName = this.dynamicsNameGen_.getName(codeEntry.name);
+  codeEntry.name = entryName;
   this.dynamics_.insert(start, codeEntry);
 };
 
@@ -204,7 +208,22 @@ devtools.profiler.CodeMap.CodeEntry.prototype.getName = function() {
   return this.name;
 };
 
-    
+
 devtools.profiler.CodeMap.CodeEntry.prototype.toString = function() {
   return this.name + ': ' + this.size.toString(16);
+};
+
+
+devtools.profiler.CodeMap.NameGenerator = function() {
+  this.knownNames_ = [];
+};
+
+
+devtools.profiler.CodeMap.NameGenerator.prototype.getName = function(name) {
+  if (!(name in this.knownNames_)) {
+    this.knownNames_[name] = 0;
+    return name;
+  }
+  var count = ++this.knownNames_[name];
+  return name + ' {' + count + '}';
 };

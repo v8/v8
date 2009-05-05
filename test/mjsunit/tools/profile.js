@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Load source code files from <project root>/tools.
-// Files: tools/splaytree.js tools/codemap.js tools/profile.js
+// Files: tools/splaytree.js tools/codemap.js tools/consarray.js tools/profile.js
 
 
 function stackToString(stack) {
@@ -124,6 +124,10 @@ ProfileTestDriver.prototype.execute = function() {
           this.leave();
         this.leave();
       this.leave();
+      this.enter('lib2-f1');
+        this.enter('lib1-f1');
+        this.leave();
+      this.leave();
     this.stay();
   this.leave();
 };
@@ -149,14 +153,14 @@ function Inherits(childCtor, parentCtor) {
   Driver.prototype.enter = function(func) {
     this.namesTopDown.push(func);
     this.namesBottomUp.unshift(func);
-    assertNoPathExists(this.profile.getTopDownTreeRoot(), this.namesTopDown,
+    assertNoPathExists(this.profile.getTopDownProfile().getRoot(), this.namesTopDown,
         'pre enter/topDown');
-    assertNoPathExists(this.profile.getBottomUpTreeRoot(), this.namesBottomUp,
+    assertNoPathExists(this.profile.getBottomUpProfile().getRoot(), this.namesBottomUp,
         'pre enter/bottomUp');
     Driver.superClass_.enter.call(this, func);
-    assertPathExists(this.profile.getTopDownTreeRoot(), this.namesTopDown,
+    assertPathExists(this.profile.getTopDownProfile().getRoot(), this.namesTopDown,
         'post enter/topDown');
-    assertPathExists(this.profile.getBottomUpTreeRoot(), this.namesBottomUp,
+    assertPathExists(this.profile.getBottomUpProfile().getRoot(), this.namesBottomUp,
         'post enter/bottomUp');
   };
 
@@ -196,8 +200,8 @@ function assertNodeWeights(root, path, selfTicks, totalTicks) {
   testDriver.execute();
 
   var pathWeights = [
-    [['lib1-f1'], 1, 14],
-    [['lib1-f1', 'lib1-f2'], 2, 13],
+    [['lib1-f1'], 1, 16],
+    [['lib1-f1', 'lib1-f2'], 2, 15],
     [['lib1-f1', 'lib1-f2', 'T: F1'], 2, 11],
     [['lib1-f1', 'lib1-f2', 'T: F1', 'T: F2'], 1, 1],
     [['lib1-f1', 'lib1-f2', 'T: F1', 'lib2-f1'], 2, 3],
@@ -205,10 +209,12 @@ function assertNodeWeights(root, path, selfTicks, totalTicks) {
     [['lib1-f1', 'lib1-f2', 'T: F1', 'T: F3'], 1, 5],
     [['lib1-f1', 'lib1-f2', 'T: F1', 'T: F3', 'T: F3'], 1, 4],
     [['lib1-f1', 'lib1-f2', 'T: F1', 'T: F3', 'T: F3', 'T: F3'], 1, 1],
-    [['lib1-f1', 'lib1-f2', 'T: F1', 'T: F3', 'T: F3', 'T: F2'], 2, 2]
+    [['lib1-f1', 'lib1-f2', 'T: F1', 'T: F3', 'T: F3', 'T: F2'], 2, 2],
+    [['lib1-f1', 'lib1-f2', 'lib2-f1'], 1, 2],
+    [['lib1-f1', 'lib1-f2', 'lib2-f1', 'lib1-f1'], 1, 1]
   ];
 
-  var root = testDriver.profile.getTopDownTreeRoot();
+  var root = testDriver.profile.getTopDownProfile().getRoot();
   for (var i = 0; i < pathWeights.length; ++i) {
     var data = pathWeights[i];
     assertNodeWeights(root, data[0], data[1], data[2]);
@@ -221,6 +227,7 @@ function assertNodeWeights(root, path, selfTicks, totalTicks) {
     ProfileTestDriver.call(this);
     this.namesTopDown = [''];
     this.counters = {};
+    this.root = null;
   };
   Inherits(Driver, ProfileTestDriver);
 
@@ -262,16 +269,26 @@ function assertNodeWeights(root, path, selfTicks, totalTicks) {
     this.namesTopDown.pop();
   };
 
+  Driver.prototype.extractRoot = function() {
+    assertTrue('' in this.counters);
+    this.root = this.counters[''];
+    delete this.counters[''];
+  };
+
   var testDriver = new Driver();
   testDriver.execute();
+  testDriver.extractRoot();
 
   var counted = 0;
   for (var c in testDriver.counters) {
     counted++;
   }
 
-  var flatProfile =
-      testDriver.profile.getFlatProfile().getRoot().exportChildren();
+  var flatProfileRoot = testDriver.profile.getFlatProfile().getRoot();
+  assertEquals(testDriver.root.self, flatProfileRoot.selfWeight);
+  assertEquals(testDriver.root.total, flatProfileRoot.totalWeight);
+
+  var flatProfile = flatProfileRoot.exportChildren();
   assertEquals(counted, flatProfile.length, 'counted vs. flatProfile');
   for (var i = 0; i < flatProfile.length; ++i) {
     var rec = flatProfile[i];
@@ -282,3 +299,50 @@ function assertNodeWeights(root, path, selfTicks, totalTicks) {
   }
 
 })();
+
+
+(function testFunctionCalleesProfileTicks() {
+  var testDriver = new ProfileTestDriver();
+  testDriver.execute();
+
+  var pathWeights = [
+    [['lib2-f1'], 3, 5],
+    [['lib2-f1', 'lib2-f1'], 1, 1],
+    [['lib2-f1', 'lib1-f1'], 1, 1]
+  ];
+
+  var profile = testDriver.profile.getTopDownProfile('lib2-f1');
+  var root = profile.getRoot();
+  for (var i = 0; i < pathWeights.length; ++i) {
+    var data = pathWeights[i];
+    assertNodeWeights(root, data[0], data[1], data[2]);
+  }
+})();
+
+
+(function testFunctionFlatProfileTicks() {
+  var testDriver = new ProfileTestDriver();
+  testDriver.execute();
+
+  var flatWeights = {
+    'lib2-f1': [1, 1],
+    'lib1-f1': [1, 1]
+  };
+
+  var flatProfileRoot =
+     testDriver.profile.getFlatProfile('lib2-f1').findOrAddChild('lib2-f1');
+  assertEquals(3, flatProfileRoot.selfWeight);
+  assertEquals(5, flatProfileRoot.totalWeight);
+
+  var flatProfile = flatProfileRoot.exportChildren();
+  assertEquals(2, flatProfile.length, 'counted vs. flatProfile');
+  for (var i = 0; i < flatProfile.length; ++i) {
+    var rec = flatProfile[i];
+    assertTrue(rec.label in flatWeights, 'uncounted: ' + rec.label);
+    var reference = flatWeights[rec.label];
+    assertEquals(reference[0], rec.selfWeight, 'self of ' + rec.label);
+    assertEquals(reference[1], rec.totalWeight, 'total of ' + rec.label);
+  }
+
+})();
+

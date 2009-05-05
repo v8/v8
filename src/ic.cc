@@ -42,7 +42,7 @@ static char TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
     case UNINITIALIZED_IN_LOOP: return 'L';
-    case PREMONOMORPHIC: return '0';
+    case PREMONOMORPHIC: return 'P';
     case MONOMORPHIC: return '1';
     case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
     case MEGAMORPHIC: return 'N';
@@ -244,6 +244,7 @@ void KeyedLoadIC::Clear(Address address, Code* target) {
 
 void LoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
+  ClearInlinedVersion(address);
   SetTargetAtAddress(address, initialize_stub());
 }
 
@@ -523,6 +524,31 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     LOG(SuspectReadEvent(*name, *object));
   }
 
+  bool can_be_inlined =
+      FLAG_use_ic &&
+      state == PREMONOMORPHIC &&
+      lookup.IsValid() &&
+      lookup.IsLoaded() &&
+      lookup.IsCacheable() &&
+      lookup.holder() == *object &&
+      lookup.type() == FIELD &&
+      !object->IsAccessCheckNeeded();
+
+  if (can_be_inlined) {
+    Map* map = lookup.holder()->map();
+    // Property's index in the properties array.  If negative we have
+    // an inobject property.
+    int index = lookup.GetFieldIndex() - map->inobject_properties();
+    if (index < 0) {
+      // Index is an offset from the end of the object.
+      int offset = map->instance_size() + (index * kPointerSize);
+      if (PatchInlinedLoad(address(), map, offset)) {
+        set_target(megamorphic_stub());
+        return lookup.holder()->FastPropertyAt(lookup.GetFieldIndex());
+      }
+    }
+  }
+
   // Update inline cache and stub cache.
   if (FLAG_use_ic && lookup.IsLoaded()) {
     UpdateCaches(&lookup, state, object, name);
@@ -734,7 +760,7 @@ Object* KeyedLoadIC::Load(State state,
         !object->IsJSValue() &&
         !JSObject::cast(*object)->HasIndexedInterceptor()) {
       Map* map = JSObject::cast(*object)->map();
-      PatchInlinedMapCheck(address(), map);
+      PatchInlinedLoad(address(), map);
     }
   }
 

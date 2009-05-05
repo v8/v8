@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_FRAMES_IA32_H_
-#define V8_FRAMES_IA32_H_
+#ifndef V8_IA32_FRAMES_IA32_H_
+#define V8_IA32_FRAMES_IA32_H_
 
 namespace v8 { namespace internal {
 
@@ -288,4 +288,4 @@ inline Object* JavaScriptFrame::function_slot_object() const {
 
 } }  // namespace v8::internal
 
-#endif  // V8_FRAMES_IA32_H_
+#endif  // V8_IA32_FRAMES_IA32_H_

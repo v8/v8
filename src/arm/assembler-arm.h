@@ -37,8 +37,8 @@
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
 
-#ifndef V8_ASSEMBLER_ARM_H_
-#define V8_ASSEMBLER_ARM_H_
+#ifndef V8_ARM_ASSEMBLER_ARM_H_
+#define V8_ARM_ASSEMBLER_ARM_H_
 
 #include "assembler.h"
 
@@ -786,4 +786,4 @@ class Assembler : public Malloced {
 
 } }  // namespace v8::internal
 
-#endif  // V8_ASSEMBLER_ARM_H_
+#endif  // V8_ARM_ASSEMBLER_ARM_H_

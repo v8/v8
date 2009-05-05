@@ -28,7 +28,8 @@
 
 // A namespace stub. It will become more clear how to declare it properly
 // during integration of this script into Dev Tools.
-goog = { structs: {} };
+var goog = goog || {};
+goog.structs = goog.structs || {};
 
 
 /**

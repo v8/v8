@@ -1,3 +1,21 @@
+2009-05-04: Version 1.2.2
+
+        Fixed bug in array sorting for sparse arrays (issue 326).
+
+        Added support for adding a soname when building a shared library
+        on Linux (issue 151).
+
+        Fixed bug caused by morphing internal ASCII strings to external
+        two-byte strings.  Slices over ASCII strings have to forward ASCII
+        checks to the underlying buffer string.
+
+        Allowed API call-as-function handlers to be called as
+        constructors.
+
+        Fixed a crash bug where an external string was disposed but a
+        slice of the external string survived as a symbol.
+
+
 2009-04-27: Version 1.2.1
 
         Added EcmaScript 5 JSON object.

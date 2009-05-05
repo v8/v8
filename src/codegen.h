@@ -76,9 +76,15 @@
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 
-#ifdef ARM
+#ifdef V8_ARCH_ARM
 #include "arm/codegen-arm.h"
-#else
+#endif
+
+#ifdef V8_ARCH_X64
+#include "x64/codegen-x64.h"
+#endif
+
+#ifdef V8_ARCH_IA32
 #include "ia32/codegen-ia32.h"
 #endif
 
@@ -116,6 +122,9 @@ class DeferredCode: public ZoneObject {
   JumpTarget* enter() { return &enter_; }
   void BindExit() { exit_.Bind(0); }
   void BindExit(Result* result) { exit_.Bind(result, 1); }
+  void BindExit(Result* result0, Result* result1) {
+    exit_.Bind(result0, result1, 2);
+  }
   void BindExit(Result* result0, Result* result1, Result* result2) {
     exit_.Bind(result0, result1, result2, 3);
   }

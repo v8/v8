@@ -6,7 +6,7 @@
 	>
 	<Tool
 		Name="VCCLCompilerTool"
-		PreprocessorDefinitions="ARM"
+		PreprocessorDefinitions="V8_ARCH_ARM"
 		DisableSpecificWarnings="4996"
 	/>
 </VisualStudioPropertySheet>

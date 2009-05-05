@@ -574,7 +574,7 @@ bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
   uc16 previous_char = '\n';
-  if (StringShape(*subject).IsAsciiRepresentation()) {
+  if (subject->IsAsciiRepresentation()) {
     Vector<const char> subject_vector = subject->ToAsciiVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(code_base,

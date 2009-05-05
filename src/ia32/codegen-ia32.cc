@@ -30,6 +30,7 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "ic-inl.h"
 #include "parser.h"
 #include "register-allocator-inl.h"
 #include "runtime.h"
@@ -3410,7 +3411,10 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
                          ? RelocInfo::CODE_TARGET
                          : RelocInfo::CODE_TARGET_CONTEXT;
   Result answer = frame_->CallLoadIC(mode);
-
+  // A test eax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test eax
+  // instruction here.
+  __ nop();
   // Discard the global object. The result is in answer.
   frame_->Drop();
   return answer;
@@ -5233,6 +5237,48 @@ bool CodeGenerator::HasValidEntryRegisters() {
 #endif
 
 
+class DeferredReferenceGetNamedValue: public DeferredCode {
+ public:
+  DeferredReferenceGetNamedValue(CodeGenerator* cgen, Handle<String> name)
+      : DeferredCode(cgen), name_(name) {
+    set_comment("[ DeferredReferenceGetNamedValue");
+  }
+
+  virtual void Generate();
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Label patch_site_;
+  Handle<String> name_;
+};
+
+
+void DeferredReferenceGetNamedValue::Generate() {
+  CodeGenerator* cgen = generator();
+  Result receiver(cgen);
+  enter()->Bind(&receiver);
+
+  cgen->frame()->Push(&receiver);
+  cgen->frame()->Push(name_);
+  Result answer = cgen->frame()->CallLoadIC(RelocInfo::CODE_TARGET);
+  // The call must be followed by a test eax instruction to indicate
+  // that the inobject property case was inlined.
+  ASSERT(answer.is_register() && answer.reg().is(eax));
+  // Store the delta to the map check instruction here in the test instruction.
+  // Use masm_-> instead of the double underscore macro since the latter can't
+  // return a value.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the double underscore macro because
+  // this is the instruction that gets patched and coverage code gets in
+  // the way.
+  masm_->test(answer.reg(), Immediate(-delta_to_patch_site));
+  __ IncrementCounter(&Counters::named_load_inline_miss, 1);
+  receiver = cgen->frame()->Pop();
+  exit_.Jump(&receiver, &answer);
+}
+
+
 class DeferredReferenceGetKeyedValue: public DeferredCode {
  public:
   DeferredReferenceGetKeyedValue(CodeGenerator* generator, bool is_global)
@@ -5334,16 +5380,66 @@ void Reference::GetValue(TypeofState typeof_state) {
       // thrown below, we must distinguish between the two kinds of
       // loads (typeof expression loads must not throw a reference
       // error).
-      Comment cmnt(masm, "[ Load from named Property");
-      cgen_->frame()->Push(GetName());
-
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      ASSERT(var == NULL || var->is_global());
-      RelocInfo::Mode mode = (var == NULL)
-                             ? RelocInfo::CODE_TARGET
-                             : RelocInfo::CODE_TARGET_CONTEXT;
-      Result answer = cgen_->frame()->CallLoadIC(mode);
-      cgen_->frame()->Push(&answer);
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
+
+      if (is_global || cgen_->scope()->is_global_scope()) {
+        // Do not inline the inobject property case for loads from the
+        // global object or loads in toplevel code.
+        Comment cmnt(masm, "[ Load from named Property");
+        cgen_->frame()->Push(GetName());
+
+        RelocInfo::Mode mode = is_global
+                               ? RelocInfo::CODE_TARGET_CONTEXT
+                               : RelocInfo::CODE_TARGET;
+        Result answer = cgen_->frame()->CallLoadIC(mode);
+        // A test eax instruction following the call signals that the
+        // inobject property case was inlined.  Ensure that there is not
+        // a test eax instruction here.
+        __ nop();
+        cgen_->frame()->Push(&answer);
+      } else {
+        // Inline the inobject property case.
+        Comment cmnt(masm, "[ Inlined named property load");
+        DeferredReferenceGetNamedValue* deferred =
+            new DeferredReferenceGetNamedValue(cgen_, GetName());
+        Result receiver = cgen_->frame()->Pop();
+        receiver.ToRegister();
+        // Check that the receiver is a heap object.
+        __ test(receiver.reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(zero, &receiver, not_taken);
+
+        // Preallocate the value register to ensure that there is no
+        // spill emitted between the patch site label and the offset in
+        // the load instruction.
+        Result value = cgen_->allocator()->Allocate();
+        ASSERT(value.is_valid());
+        __ bind(deferred->patch_site());
+        // This is the map check instruction that will be patched (so we can't
+        // use the double underscore macro that may insert instructions).
+        // Initially use an invalid map to force a failure.
+        masm->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                  Immediate(Factory::null_value()));
+        // This branch is always a forwards branch so it's always a fixed
+        // size which allows the assert below to succeed and patching to work.
+        deferred->enter()->Branch(not_equal, &receiver, not_taken);
+
+        // The delta from the patch label to the load offset must be
+        // statically known.
+        ASSERT(masm->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
+               LoadIC::kOffsetToLoadInstruction);
+        // The initial (invalid) offset has to be large enough to force
+        // a 32-bit instruction encoding to allow patching with an
+        // arbitrary offset.  Use kMaxInt (minus kHeapObjectTag).
+        int offset = kMaxInt;
+        masm->mov(value.reg(), FieldOperand(receiver.reg(), offset));
+
+        __ IncrementCounter(&Counters::named_load_inline, 1);
+        deferred->BindExit(&receiver, &value);
+        cgen_->frame()->Push(&receiver);
+        cgen_->frame()->Push(&value);
+      }
       break;
     }
 
@@ -5806,10 +5902,10 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
       // Right operand must be in register cl because x86 likes it that way.
       if (right->reg().is(ecx)) {
         // Right is already in the right place.  Left may be in the
-        // same register, which causes problems.  Use answer instead.
-        if (left->reg().is(ecx)) {
-          *left = answer;
-        }
+        // same register, which causes problems. Always use answer
+        // instead of left, even if left is not ecx, since this avoids
+        // spilling left.
+        *left = answer;
       } else if (left->reg().is(ecx)) {
         generator()->frame()->Spill(left->reg());
         __ mov(left->reg(), right->reg());
@@ -5823,6 +5919,9 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
         ASSERT(reg_ecx.is_valid());
         __ mov(ecx, right->reg());
         *right = reg_ecx;
+        // Answer and left both contain the left operand.  Use answer, so
+        // left is not spilled.
+        *left = answer;
       }
       ASSERT(left->reg().is_valid());
       ASSERT(!left->reg().is(ecx));
@@ -5872,16 +5971,10 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
         case Token::SHL: {
           __ shl(left->reg());
           // Check that the *signed* result fits in a smi.
-          //
-          // TODO(207): Can reduce registers from 4 to 3 by
-          // preallocating ecx.
           JumpTarget result_ok(generator());
-          Result smi_test_reg = generator()->allocator()->Allocate();
-          ASSERT(smi_test_reg.is_valid());
-          __ lea(smi_test_reg.reg(), Operand(left->reg(), 0x40000000));
-          __ test(smi_test_reg.reg(), Immediate(0x80000000));
-          smi_test_reg.Unuse();
-          result_ok.Branch(zero, left, taken);
+          __ cmp(left->reg(), 0xc0000000);
+          result_ok.Branch(positive, left, taken);
+
           __ shr(left->reg());
           ASSERT(kSmiTag == 0);
           __ shl(left->reg(), kSmiTagSize);
@@ -6181,11 +6274,15 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::SHR: __ shr(eax); break;
         default: UNREACHABLE();
       }
-
-      // Check if result is non-negative and fits in a smi.
-      __ test(eax, Immediate(0xc0000000));
-      __ j(not_zero, &non_smi_result);
-
+      if (op_ == Token::SHR) {
+        // Check if result is non-negative and fits in a smi.
+        __ test(eax, Immediate(0xc0000000));
+        __ j(not_zero, &non_smi_result);
+      } else {
+        // Check if result fits in a smi.
+        __ cmp(eax, 0xc0000000);
+        __ j(negative, &non_smi_result);
+      }
       // Tag smi result and return.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
       __ lea(eax, Operand(eax, eax, times_1, kSmiTag));

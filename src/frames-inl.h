@@ -29,9 +29,15 @@
 #define V8_FRAMES_INL_H_
 
 #include "frames.h"
-#ifdef ARM
+#ifdef V8_ARCH_ARM
 #include "arm/frames-arm.h"
-#else
+#endif
+
+#ifdef V8_ARCH_X64
+#include "x64/frames-x64.h"
+#endif
+
+#ifdef V8_ARCH_IA32
 #include "ia32/frames-ia32.h"
 #endif
 

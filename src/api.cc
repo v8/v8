@@ -37,6 +37,7 @@
 #include "serialize.h"
 #include "snapshot.h"
 #include "v8threads.h"
+#include "version.h"
 
 
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
@@ -2072,7 +2073,12 @@ int v8::Object::GetIdentityHash() {
   if (hash->IsSmi()) {
     hash_value = i::Smi::cast(*hash)->value();
   } else {
-    hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+    int attempts = 0;
+    do {
+      hash_value = random() & i::Smi::kMaxValue;  // Limit range to fit a smi.
+      attempts++;
+    } while (hash_value == 0 && attempts < 30);
+    hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
     i::SetProperty(hidden_props,
                    hash_symbol,
                    i::Handle<i::Object>(i::Smi::FromInt(hash_value)),
@@ -2422,7 +2428,9 @@ bool v8::V8::Dispose() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.2.1";
+  static v8::internal::EmbeddedVector<char, 128> buffer;
+  v8::internal::Version::GetString(buffer);
+  return buffer.start();
 }
 
 
@@ -3260,6 +3268,16 @@ void Debug::DebugBreak() {
 }
 
 
+static v8::Debug::MessageHandler message_handler = NULL;
+
+static void MessageHandlerWrapper(const v8::Debug::Message& message) {
+  if (message_handler) {
+    v8::String::Value json(message.GetJSON());
+    message_handler(*json, json.length(), message.GetClientData());
+  }
+}
+
+
 void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
   EnsureInitialized("v8::Debug::SetMessageHandler");
@@ -3267,6 +3285,20 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
   // Message handler thread not supported any more. Parameter temporally left in
   // the API for client compatability reasons.
   CHECK(!message_handler_thread);
+
+  // TODO(sgjesse) support the old message handler API through a simple wrapper.
+  message_handler = handler;
+  if (message_handler != NULL) {
+    i::Debugger::SetMessageHandler(MessageHandlerWrapper);
+  } else {
+    i::Debugger::SetMessageHandler(NULL);
+  }
+}
+
+
+void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
+  EnsureInitialized("v8::Debug::SetMessageHandler");
+  ENTER_V8;
   i::Debugger::SetMessageHandler(handler);
 }
 

@@ -77,6 +77,26 @@ devtools.profiler.ViewBuilder.prototype.buildView = function(
  */
 devtools.profiler.ProfileView = function(head) {
   this.head = head;
+  this.title = '';
+  this.uid = '';
+  this.heavyProfile = null;
+  this.treeProfile = null;
+  this.flatProfile = null;
+};
+
+
+/**
+ * Updates references between profiles. This is needed for WebKit
+ * ProfileView.
+ */
+devtools.profiler.ProfileView.prototype.updateProfilesRefs = function() {
+  var profileNames = ["treeProfile", "heavyProfile", "flatProfile"];
+  for (var i = 0; i < profileNames.length; ++i) {
+    var destProfile = this[profileNames[i]];
+    for (var j = 0; j < profileNames.length; ++j) {
+      destProfile[profileNames[j]] = this[profileNames[j]];
+    }
+  }
 };
 
 
@@ -95,16 +115,84 @@ devtools.profiler.ProfileView.prototype.sort = function(sortFunc) {
 
 
 /**
+ * Sorts the profile view by self time, ascending.
+ */
+devtools.profiler.ProfileView.prototype.sortSelfTimeAscending = function() {
+  this.sort(function (node1, node2) {
+      return node1.selfTime - node2.selfTime; });
+};
+
+
+/**
+ * Sorts the profile view by self time, descending.
+ */
+devtools.profiler.ProfileView.prototype.sortSelfTimeDescending = function() {
+  this.sort(function (node1, node2) {
+      return node2.selfTime - node1.selfTime; });
+};
+
+
+/**
+ * Sorts the profile view by total time, ascending.
+ */
+devtools.profiler.ProfileView.prototype.sortTotalTimeAscending = function() {
+  this.sort(function (node1, node2) {
+      return node1.totalTime - node2.totalTime; });
+};
+
+
+/**
+ * Sorts the profile view by total time, descending.
+ */
+devtools.profiler.ProfileView.prototype.sortTotalTimeDescending = function() {
+  this.sort(function (node1, node2) {
+      return node2.totalTime - node1.totalTime; });
+};
+
+
+/**
+ * String comparator compatible with Array.sort requirements.
+ *
+ * @param {string} s1 First string.
+ * @param {string} s2 Second string.
+ */
+devtools.profiler.ProfileView.compareStrings = function(s1, s2) {
+  return s1 < s2 ? -1 : (s1 > s2 ? 1 : 0);
+};
+
+
+/**
+ * Sorts the profile view by function name, ascending.
+ */
+devtools.profiler.ProfileView.prototype.sortFunctionNameAscending = function() {
+  this.sort(function (node1, node2) {
+      return devtools.profiler.ProfileView.compareStrings(
+          node1.functionName, node2.functionName); });
+};
+
+
+/**
+ * Sorts the profile view by function name, descending.
+ */
+devtools.profiler.ProfileView.prototype.sortFunctionNameDescending = function() {
+  this.sort(function (node1, node2) {
+      return devtools.profiler.ProfileView.compareStrings(
+          node2.functionName, node1.functionName); });
+};
+
+
+/**
  * Traverses profile view nodes in preorder.
  *
  * @param {function(devtools.profiler.ProfileView.Node)} f Visitor function.
  */
 devtools.profiler.ProfileView.prototype.traverse = function(f) {
-  var nodesToTraverse = [this.head];
-  while (nodesToTraverse.length > 0) {
-    var node = nodesToTraverse.shift();
+  var nodesToTraverse = new ConsArray();
+  nodesToTraverse.concat([this.head]);
+  while (!nodesToTraverse.atEnd()) {
+    var node = nodesToTraverse.next();
     f(node);
-    nodesToTraverse = nodesToTraverse.concat(node.children);
+    nodesToTraverse.concat(node.children);
   }
 };
 
@@ -124,12 +212,63 @@ devtools.profiler.ProfileView.prototype.traverse = function(f) {
  */
 devtools.profiler.ProfileView.Node = function(
     internalFuncName, totalTime, selfTime, head) {
+  this.callIdentifier = 0;
   this.internalFuncName = internalFuncName;
+  this.initFuncInfo();
   this.totalTime = totalTime;
   this.selfTime = selfTime;
   this.head = head;
   this.parent = null;
   this.children = [];
+  this.visible = true;
+};
+
+
+/**
+ * RegEx for stripping V8's prefixes of compiled functions.
+ */
+devtools.profiler.ProfileView.Node.FUNC_NAME_STRIP_RE =
+    /^(?:LazyCompile|Function): (.*)$/;
+
+
+/**
+ * RegEx for extracting script source URL and line number.
+ */
+devtools.profiler.ProfileView.Node.FUNC_NAME_PARSE_RE = /^([^ ]+) (.*):(\d+)$/;
+
+
+/**
+ * RegEx for removing protocol name from URL.
+ */
+devtools.profiler.ProfileView.Node.URL_PARSE_RE = /^(?:http:\/)?.*\/([^/]+)$/;
+
+
+/**
+ * Inits 'functionName', 'url', and 'lineNumber' fields using 'internalFuncName'
+ * field.
+ */
+devtools.profiler.ProfileView.Node.prototype.initFuncInfo = function() {
+  var nodeAlias = devtools.profiler.ProfileView.Node;
+  this.functionName = this.internalFuncName;
+
+  var strippedName = nodeAlias.FUNC_NAME_STRIP_RE.exec(this.functionName);
+  if (strippedName) {
+    this.functionName = strippedName[1];
+  }
+
+  var parsedName = nodeAlias.FUNC_NAME_PARSE_RE.exec(this.functionName);
+  if (parsedName) {
+    this.url = parsedName[2];
+    var parsedUrl = nodeAlias.URL_PARSE_RE.exec(this.url);
+    if (parsedUrl) {
+      this.url = parsedUrl[1];
+    }
+    this.functionName = parsedName[1];
+    this.lineNumber = parsedName[3];
+  } else {
+    this.url = '';
+    this.lineNumber = 0;
+  }
 };
 
 

@@ -115,11 +115,13 @@ void JumpTarget::DoBranch(Condition cc, Hint hint) {
     __ bind(&original_fall_through);
 
   } else {
-    // Forward branch.  A copy of the current frame is added to the end
-    // of the list of frames reaching the target block and a branch to
-    // the merge code is emitted.
+    // Forward branch.  A copy of the current frame is added to the end of the
+    // list of frames reaching the target block and a branch to the merge code
+    // is emitted.  Use masm_-> instead of __ as forward branches are expected
+    // to be a fixed size (no inserted coverage-checking instructions please).
+    // This is used in Reference::GetValue.
     AddReachingFrame(new VirtualFrame(cgen_->frame()));
-    __ j(cc, &merge_labels_.last(), hint);
+    masm_->j(cc, &merge_labels_.last(), hint);
     is_linked_ = true;
   }
 }
