@@ -4656,7 +4656,7 @@ TEST(ContextData) {
   CHECK(context_2->GetData()->StrictEquals(data_2));
 
   // Simple test function which causes a break.
-  char* source = "function f() { debugger; }";
+  const char* source = "function f() { debugger; }";
 
   // Enter and run function in the first context.
   {
