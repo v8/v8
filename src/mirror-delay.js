@@ -756,6 +756,15 @@ FunctionMirror.prototype.name = function() {
 
 
 /**
+ * Returns the inferred name of the function.
+ * @return {string} Name of the function
+ */
+FunctionMirror.prototype.inferredName = function() {
+  return %FunctionGetInferredName(this.value_);
+};
+
+
+/**
  * Returns the source code for the function.
  * @return {string or undefined} The source code for the function. If the
  *     function is not resolved undefined will be returned.
@@ -854,6 +863,11 @@ UnresolvedFunctionMirror.prototype.protoObject = function() {
 
 UnresolvedFunctionMirror.prototype.name = function() {
   return this.value_;
+};
+
+
+UnresolvedFunctionMirror.prototype.inferredName = function() {
+  return undefined;
 };
 
 
@@ -1835,6 +1849,10 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
   if (mirror.isFunction()) {
     // Add function specific properties.
     content.push(MakeJSONPair_('name', StringToJSON_(mirror.name())));
+    if (!IS_UNDEFINED(mirror.inferredName())) {
+      content.push(MakeJSONPair_('inferredName',
+                                 StringToJSON_(mirror.inferredName())));
+    }
     content.push(MakeJSONPair_('resolved', BooleanToJSON_(mirror.resolved())));
     if (mirror.resolved()) {
       content.push(MakeJSONPair_('source', StringToJSON_(mirror.source())));

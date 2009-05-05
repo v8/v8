@@ -6860,6 +6860,15 @@ static Object* Runtime_FunctionGetAssemblerCode(Arguments args) {
 #endif  // DEBUG
   return Heap::undefined_value();
 }
+
+
+static Object* Runtime_FunctionGetInferredName(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  return f->shared()->inferred_name();
+}
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
