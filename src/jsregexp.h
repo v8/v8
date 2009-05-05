@@ -37,14 +37,10 @@ class RegExpMacroAssembler;
 class RegExpImpl {
  public:
   static inline bool UseNativeRegexp() {
-#ifdef V8_ARCH_ARM
-    return false;
-#endif
-#ifdef V8_ARCH_X64
-    return false;
-#endif
-#ifdef V8_ARCH_IA32
+#ifdef V8_TARGET_ARCH_IA32
     return FLAG_regexp_native;
+#else
+  return false;
 #endif
   }
   // Creates a regular expression literal in the old space.

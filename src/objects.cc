@@ -4089,7 +4089,7 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
   const Char* pa = a.start();
   const Char* pb = b.start();
   int i = 0;
-#ifndef CAN_READ_UNALIGNED
+#ifndef V8_HOST_CAN_READ_UNALIGNED
   // If this architecture isn't comfortable reading unaligned ints
   // then we have to check that the strings are aligned before
   // comparing them blockwise.
@@ -4108,7 +4108,7 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
         return false;
       }
     }
-#ifndef CAN_READ_UNALIGNED
+#ifndef V8_HOST_CAN_READ_UNALIGNED
   }
 #endif
   // Compare the remaining characters that didn't fit into a block.

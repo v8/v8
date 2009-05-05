@@ -38,13 +38,13 @@
 #include "jsregexp-inl.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
-#ifdef V8_ARCH_ARM
+#ifdef V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
 #endif
-#ifdef V8_ARCH_X64
+#ifdef V8_TARGET_ARCH_X64
 // No X64-implementation yet.
 #endif
-#ifdef V8_ARCH_IA32
+#ifdef V8_TARGET_ARCH_IA32
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 #endif
@@ -661,7 +661,7 @@ TEST(MacroAssembler) {
 }
 
 
-#ifdef V8_ARCH_IA32  // IA32 only tests.
+#ifdef V8_TARGET_ARCH_IA32  // IA32 only tests.
 
 class ContextInitializer {
  public:

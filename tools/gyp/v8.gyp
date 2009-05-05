@@ -403,7 +403,7 @@
       'target_name': 'v8_base',
       'type': '<(library)',
       'defines': [
-        'V8_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32'
       ],
       'include_dirs+': [
         '../../src',
@@ -461,7 +461,7 @@
       'target_name': 'v8_nosnapshot',
       'type': '<(library)',
       'defines': [
-        'V8_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32'
       ],
       'dependencies': [
         'js2c',
@@ -493,7 +493,7 @@
       'target_name': 'v8',
       'type': '<(library)',
       'defines': [
-        'V8_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32'
       ],
       'dependencies': [
         'js2c',
@@ -533,7 +533,7 @@
       'target_name': 'v8_shell',
       'type': 'executable',
       'defines': [
-        'V8_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32'
       ],
       'dependencies': [
         'v8',
@@ -563,7 +563,7 @@
         'v8',
       ],
       'defines': [
-        'V8_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32'
       ],
       'include_dirs': [
         '../../src',
@@ -602,7 +602,7 @@
         'js2c',
       ],
       'defines': [
-        'V8_ARCH_ARM',
+        'V8_TARGET_ARCH_ARM',
       ],
       'include_dirs+': [
         '../../src',
@@ -660,7 +660,7 @@
         'v8_arm',
       ],
       'defines': [
-        'V8_ARCH_ARM',
+        'V8_TARGET_ARCH_ARM',
       ],
       'sources': [
         '../../samples/shell.cc',
@@ -680,7 +680,7 @@
         'v8_arm',
       ],
       'defines': [
-        'V8_ARCH_ARM',
+        'V8_TARGET_ARCH_ARM',
       ],
       'include_dirs': [
         '../../src',

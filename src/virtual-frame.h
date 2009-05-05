@@ -202,16 +202,12 @@ class FrameElement BASE_EMBEDDED {
 
 } }  // namespace v8::internal
 
-#ifdef V8_ARCH_ARM
-#include "arm/virtual-frame-arm.h"
-#endif
-
-#ifdef V8_ARCH_X64
-#include "x64/virtual-frame-x64.h"
-#endif
-
-#ifdef V8_ARCH_IA32
+#if V8_TARGET_ARCH_IA32
 #include "ia32/virtual-frame-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/virtual-frame-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/virtual-frame-arm.h"
 #endif
 
 #endif  // V8_VIRTUAL_FRAME_H_

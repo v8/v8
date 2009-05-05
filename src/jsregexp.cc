@@ -42,18 +42,14 @@
 #include "regexp-macro-assembler-irregexp.h"
 #include "regexp-stack.h"
 
-#ifdef V8_ARCH_ARM
-#include "arm/regexp-macro-assembler-arm.h"
-#endif
-
-#ifdef V8_ARCH_X64
-#include "x64/macro-assembler-x64.h"
-#include "x64/regexp-macro-assembler-x64.h"
-#endif
-
-#ifdef V8_ARCH_IA32
+#ifdef V8_TARGET_ARCH_IA32
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/macro-assembler-x64.h"
+#include "x64/regexp-macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/regexp-macro-assembler-arm.h"
 #endif
 
 #include "interpreter-irregexp.h"
@@ -431,13 +427,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   Handle<String> original_subject = subject;
   Handle<FixedArray> regexp(FixedArray::cast(jsregexp->data()));
   if (UseNativeRegexp()) {
-#ifdef V8_ARCH_ARM
-    UNREACHABLE();
-#endif
-#ifdef V8_ARCH_X64
-    UNIMPLEMENTED();
-#endif
-#ifdef V8_ARCH_IA32
+#if V8_TARGET_ARCH_IA32
     RegExpMacroAssemblerIA32::Result res;
     do {
       bool is_ascii = subject->IsAsciiRepresentation();
@@ -461,6 +451,8 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
         || res == RegExpMacroAssemblerIA32::FAILURE);
 
     rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
+#else
+    UNREACHABLE();
 #endif
   } else {
     bool is_ascii = subject->IsAsciiRepresentation();
@@ -2521,7 +2513,7 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler) {
   int preload_characters = EatsAtLeast(4, 0);
-#ifdef CAN_READ_UNALIGNED
+#ifdef V8_HOST_CAN_READ_UNALIGNED
   bool ascii = compiler->ascii();
   if (ascii) {
     if (preload_characters > 4) preload_characters = 4;
@@ -4445,13 +4437,13 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
   NodeInfo info = *node->info();
 
   if (RegExpImpl::UseNativeRegexp()) {
-#ifdef V8_ARCH_ARM
+#ifdef V8_TARGET_ARCH_ARM
     UNREACHABLE();
 #endif
-#ifdef V8_ARCH_X64
+#ifdef V8_TARGET_ARCH_X64
     UNREACHABLE();
 #endif
-#ifdef V8_ARCH_IA32
+#ifdef V8_TARGET_ARCH_IA32
     RegExpMacroAssemblerIA32::Mode mode;
     if (is_ascii) {
       mode = RegExpMacroAssemblerIA32::ASCII;

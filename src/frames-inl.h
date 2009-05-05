@@ -29,18 +29,14 @@
 #define V8_FRAMES_INL_H_
 
 #include "frames.h"
-#ifdef V8_ARCH_ARM
+
+#if V8_TARGET_ARCH_IA32
+#include "ia32/frames-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/frames-x64.h"
+#elif V8_TARGET_ARCH_ARM
 #include "arm/frames-arm.h"
 #endif
-
-#ifdef V8_ARCH_X64
-#include "x64/frames-x64.h"
-#endif
-
-#ifdef V8_ARCH_IA32
-#include "ia32/frames-ia32.h"
-#endif
-
 
 namespace v8 { namespace internal {
 

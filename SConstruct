@@ -149,13 +149,13 @@ LIBRARY_FLAGS = {
       }
     },
     'arch:ia32': {
-      'CPPDEFINES':   ['V8_ARCH_IA32', 'ILP32']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_IA32']
     },
     'arch:arm': {
-      'CPPDEFINES':   ['V8_ARCH_ARM', 'ILP32']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_ARM']
     },
     'arch:x64': {
-      'CPPDEFINES':   ['V8_ARCH_X64', 'LP64']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_X64']
     },
     'prof:oprofile': {
       'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
@@ -173,7 +173,7 @@ LIBRARY_FLAGS = {
       'CCPDBFLAGS':   ['/Zi']
     },
     'arch:ia32': {
-      'CPPDEFINES':   ['V8_ARCH_IA32']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_IA32']
     },
     'mode:debug': {
       'CCFLAGS':      ['/Od', '/Gm'],
@@ -239,7 +239,7 @@ V8_EXTRA_FLAGS = {
       'LIBS': ['winmm', 'ws2_32']
     },
     'arch:arm': {
-      'CPPDEFINES':   ['V8_ARCH_ARM'],
+      'CPPDEFINES':   ['V8_TARGET_ARCH_ARM'],
       # /wd4996 is to silence the warning about sscanf
       # used by the arm simulator.
       'WARNINGFLAGS': ['/wd4996']
@@ -348,7 +348,7 @@ CCTEST_EXTRA_FLAGS = {
       'CPPDEFINES': ['USING_V8_SHARED']
     },
     'arch:ia32': {
-      'CPPDEFINES': ['V8_ARCH_IA32']
+      'CPPDEFINES': ['V8_TARGET_ARCH_IA32']
     }
   }
 }
@@ -442,7 +442,7 @@ SAMPLE_FLAGS = {
       }
     },
     'arch:ia32': {
-      'CPPDEFINES':     ['V8_ARCH_IA32']
+      'CPPDEFINES':     ['V8_TARGET_ARCH_IA32']
     },
     'mode:debug': {
       'CCFLAGS':   ['/Od'],
