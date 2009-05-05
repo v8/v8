@@ -34,7 +34,7 @@
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     1
 #define MINOR_VERSION     2
-#define BUILD_NUMBER      2
+#define BUILD_NUMBER      3
 #define PATCH_LEVEL       0
 #define CANDIDATE_VERSION true
 
@@ -85,5 +85,3 @@ void Version::GetSONAME(Vector<char> str) {
 }
 
 } }  // namespace v8::internal
-
-
