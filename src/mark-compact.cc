@@ -555,10 +555,8 @@ static void ScanOverflowedObjects(T* it) {
 }
 
 
-bool MarkCompactCollector::MustBeMarked(Object** p) {
-  // Check whether *p is a HeapObject pointer.
-  if (!(*p)->IsHeapObject()) return false;
-  return !HeapObject::cast(*p)->IsMarked();
+bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
+  return (*p)->IsHeapObject() && !HeapObject::cast(*p)->IsMarked();
 }
 
 
@@ -756,19 +754,20 @@ void MarkCompactCollector::MarkLiveObjects() {
   RootMarkingVisitor root_visitor;
   MarkRoots(&root_visitor);
 
-  // The objects reachable from the roots are marked black, unreachable
-  // objects are white.  Mark objects reachable from object groups with at
-  // least one marked object, and continue until no new objects are
-  // reachable from the object groups.
+  // The objects reachable from the roots are marked, yet unreachable
+  // objects are unmarked.  Mark objects reachable from object groups
+  // containing at least one marked object, and continue until no new
+  // objects are reachable from the object groups.
   ProcessObjectGroups(root_visitor.stack_visitor());
 
-  // The objects reachable from the roots or object groups are marked black,
-  // unreachable objects are white.  Process objects reachable only from
-  // weak global handles.
+  // The objects reachable from the roots or object groups are marked,
+  // yet unreachable objects are unmarked.  Mark objects reachable
+  // only from weak global handles.
   //
-  // First we mark weak pointers not yet reachable.
-  GlobalHandles::MarkWeakRoots(&MustBeMarked);
-  // Then we process weak pointers and process the transitive closure.
+  // First we identify nonlive weak handles and mark them as pending
+  // destruction.
+  GlobalHandles::IdentifyWeakHandles(&IsUnmarkedHeapObject);
+  // Then we mark the objects and process the transitive closure.
   GlobalHandles::IterateWeakRoots(&root_visitor);
   while (marking_stack.overflowed()) {
     RefillMarkingStack();
@@ -801,22 +800,21 @@ static int CountMarkedCallback(HeapObject* obj) {
 
 
 #ifdef DEBUG
-void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj, int scale) {
-  ASSERT(scale == -1 || scale == 1);
-  live_bytes_ += obj->Size() * scale;
+void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
+  live_bytes_ += obj->Size();
   if (Heap::new_space()->Contains(obj)) {
-    live_young_objects_ += scale;
+    live_young_objects_++;
   } else if (Heap::map_space()->Contains(obj)) {
     ASSERT(obj->IsMap());
-    live_map_objects_ += scale;
+    live_map_objects_ ++;
   } else if (Heap::old_pointer_space()->Contains(obj)) {
-    live_old_pointer_objects_ += scale;
+    live_old_pointer_objects_++;
   } else if (Heap::old_data_space()->Contains(obj)) {
-    live_old_data_objects_ += scale;
+    live_old_data_objects_++;
   } else if (Heap::code_space()->Contains(obj)) {
-    live_code_objects_ += scale;
+    live_code_objects_++;
   } else if (Heap::lo_space()->Contains(obj)) {
-    live_lo_objects_ +=scale;
+    live_lo_objects_++;
   } else {
     UNREACHABLE();
   }
