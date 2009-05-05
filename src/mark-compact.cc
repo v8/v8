@@ -806,7 +806,7 @@ void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
     live_young_objects_++;
   } else if (Heap::map_space()->Contains(obj)) {
     ASSERT(obj->IsMap());
-    live_map_objects_ ++;
+    live_map_objects_++;
   } else if (Heap::old_pointer_space()->Contains(obj)) {
     live_old_pointer_objects_++;
   } else if (Heap::old_data_space()->Contains(obj)) {
