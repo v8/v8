@@ -130,13 +130,13 @@ static void TraceInterpreter(const byte* code_base,
 
 
 static int32_t Load32Aligned(const byte* pc) {
-  ASSERT((reinterpret_cast<int>(pc) & 3) == 0);
+  ASSERT((reinterpret_cast<intptr_t>(pc) & 3) == 0);
   return *reinterpret_cast<const int32_t *>(pc);
 }
 
 
 static int32_t Load16Aligned(const byte* pc) {
-  ASSERT((reinterpret_cast<int>(pc) & 1) == 0);
+  ASSERT((reinterpret_cast<intptr_t>(pc) & 1) == 0);
   return *reinterpret_cast<const uint16_t *>(pc);
 }
 
