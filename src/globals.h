@@ -54,9 +54,6 @@ typedef byte* Address;
 #ifdef _MSC_VER
 #define UINT64_C(x)  (x ## UI64)
 #define INT64_C(x)   (x ## I64)
-#else
-#define UINT64_C(x)  (x ## ULL)
-#define INT64_C(x)   (x ## LL)
 #endif
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
