@@ -30,7 +30,7 @@
 
 namespace v8 { namespace internal {
 
-// TODO(port): This is a stub, mostly just a copy of the ia32 bit version.
+// TODO(x64): This is a stub, mostly just a copy of the ia32 bit version.
 // This will all need to change to be correct for x64.
 
 static const int kNumRegs = 8;

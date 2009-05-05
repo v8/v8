@@ -25,3 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
+#include "macro-assembler.h"
+
+namespace v8 { namespace internal {
+
+Register no_reg = { -1 };
+
+} }  // namespace v8::internal
