@@ -47,6 +47,7 @@ SOURCES = {
     'test-heap.cc',
     'test-list.cc',
     'test-lock.cc',
+    'test-log.cc',
     'test-mark-compact.cc',
     'test-regexp.cc',
     'test-serialize.cc',

@@ -3112,6 +3112,11 @@ void V8::ResumeProfiler() {
 #endif
 }
 
+int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  return i::Logger::GetLogLines(from_pos, dest_buf, max_size);
+#endif
+}
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");

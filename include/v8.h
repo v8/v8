@@ -1126,9 +1126,9 @@ class V8EXPORT Object : public Value {
 
   /**
    * Returns the identity hash for this object. The current implemenation uses
-   * a hidden property on the object to store the identity hash. 
+   * a hidden property on the object to store the identity hash.
    *
-   * The return value will never be 0. Also, it is not guaranteed to be 
+   * The return value will never be 0. Also, it is not guaranteed to be
    * unique.
    */
   int GetIdentityHash();
@@ -2078,6 +2078,24 @@ class V8EXPORT V8 {
    * See also PauseProfiler().
    */
   static void ResumeProfiler();
+
+  /**
+   * If logging is performed into a memory buffer (via --logfile=*), allows to
+   * retrieve previously written messages. This can be used for retrieving
+   * profiler log data in the application. This function is thread-safe.
+   *
+   * Caller provides a destination buffer that must exist during GetLogLines
+   * call. Only whole log lines are copied into the buffer.
+   *
+   * \param from_pos specified a point in a buffer to read from, 0 is the
+   *   beginning of a buffer. It is assumed that caller updates its current
+   *   position using returned size value from the previous call.
+   * \param dest_buf destination buffer for log data.
+   * \param max_size size of the destination buffer.
+   * \returns actual size of log data copied into buffer.
+   */
+  static int GetLogLines(int from_pos, char* dest_buf, int max_size);
+
 
   /**
    * Releases any resources used by v8 and stops any utility threads
