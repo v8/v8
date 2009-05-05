@@ -50,10 +50,15 @@ typedef unsigned int __my_bool__;
 typedef uint8_t byte;
 typedef byte* Address;
 
-// Define macros for writing 64-bit constants and pointer-size constants.
+// Define our own macros for writing 64-bit constants.  This is less fragile
+// than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
+// works on compilers that don't have it (like MSVC).
 #ifdef _MSC_VER
-#define UINT64_C(x)  (x ## UI64)
-#define INT64_C(x)   (x ## I64)
+#define V8_UINT64_C(x)  (x ## UI64)
+#define V8_INT64_C(x)   (x ## I64)
+#else
+#define V8_UINT64_C(x)  (x ## ULL)
+#define V8_INT64_C(x)   (x ## LL)
 #endif
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
@@ -120,11 +125,11 @@ const int kBitsPerInt = kIntSize * kBitsPerByte;
 // Should be a recognizable hex value tagged as a heap object pointer.
 #ifdef V8_ARCH_X64
 const Address kZapValue =
-    reinterpret_cast<Address>(UINT64_C(0xdeadbeedbeadbeed));
+    reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeed));
 const Address kHandleZapValue =
-    reinterpret_cast<Address>(UINT64_C(0x1baddead0baddead));
+    reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddead));
 const Address kFromSpaceZapValue =
-    reinterpret_cast<Address>(UINT64_C(0x1beefdad0beefdad));
+    reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdad));
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);

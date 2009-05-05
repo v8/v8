@@ -77,9 +77,7 @@ typedef unsigned __int64 uint64_t;
 #endif  // BUILDING_V8_SHARED
 
 #else  // _WIN32
-#ifndef __STDC_CONSTANT_MACROS
-#define __STDC_CONSTANT_MACROS
-#endif
+
 #include <stdint.h>
 
 // Setup for Linux shared library export. There is no need to destinguish
