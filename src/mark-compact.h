@@ -175,7 +175,8 @@ class MarkCompactCollector: public AllStatic {
   // Mark the heap roots and all objects reachable from them.
   static void MarkRoots(RootMarkingVisitor* visitor);
 
-  // Mark the symbol table specially.  References to symbols are weak.
+  // Mark the symbol table specially.  References to symbols from the
+  // symbol table are weak.
   static void MarkSymbolTable();
 
   // Mark objects in object groups that have at least one object in the
