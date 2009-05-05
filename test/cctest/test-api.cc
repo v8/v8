@@ -4608,11 +4608,6 @@ THREADED_TEST(CallAsFunction) {
   value = Script::Compile(v8_str(call_17))->Run();
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(17, value->Int32Value());
-
-  // Try something that will cause an exception: Call the object as a
-  // constructor. This should be the last test.
-  value = Script::Compile(v8_str("new obj(42)"))->Run();
-  CHECK(try_catch.HasCaught());
 }
 
 

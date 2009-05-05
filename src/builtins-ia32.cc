@@ -54,6 +54,14 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- edi: constructor function
   // -----------------------------------
 
+  Label non_function_call;
+  // Check that function is not a smi.
+  __ test(edi, Immediate(kSmiTagMask));
+  __ j(zero, &non_function_call);
+  // Check that function is a JSFunction.
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &non_function_call);
+
   // Enter a construct frame.
   __ EnterConstructFrame();
 
@@ -72,12 +80,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     ExternalReference debug_step_in_fp =
         ExternalReference::debug_step_in_fp_address();
     __ cmp(Operand::StaticVariable(debug_step_in_fp), Immediate(0));
-    __ j(not_equal, &rt_call);
-    // Check that function is not a Smi.
-    __ test(edi, Immediate(kSmiTagMask));
-    __ j(zero, &rt_call);
-    // Check that function is a JSFunction
-    __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
     __ j(not_equal, &rt_call);
 
     // Verified that the constructor is a JSFunction.
@@ -300,6 +302,16 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ ret(0);
+
+  // edi: called object
+  // eax: number of arguments
+  __ bind(&non_function_call);
+
+  // Set expected number of arguments to zero (not changing eax).
+  __ Set(ebx, Immediate(0));
+  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+  __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+         RelocInfo::CODE_TARGET);
 }
 
 
