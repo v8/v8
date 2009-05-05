@@ -833,6 +833,9 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
   // Initialize the out of memory slot.
   global_context()->set_out_of_memory(Heap::false_value());
+
+  // Initialize the data slot.
+  global_context()->set_data(Heap::undefined_value());
 }
 
 

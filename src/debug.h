@@ -687,6 +687,9 @@ class EnterDebugger BASE_EMBEDDED {
   // Check whether there are any JavaScript frames on the stack.
   inline bool HasJavaScriptFrames() { return has_js_frames_; }
 
+  // Get the active context from before entering the debugger.
+  inline Handle<Context> GetContext() { return save_.context(); }
+
  private:
   EnterDebugger* prev_;  // Previous debugger entry if entered recursively.
   JavaScriptFrameIterator it_;

@@ -94,7 +94,8 @@ enum ContextLookupFlags {
   V(SCRIPT_FUNCTION_INDEX, JSFunction, script_function) \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function) \
   V(OUT_OF_MEMORY_INDEX, Object, out_of_memory) \
-  V(MAP_CACHE_INDEX, Object, map_cache)
+  V(MAP_CACHE_INDEX, Object, map_cache) \
+  V(CONTEXT_DATA_INDEX, Object, data)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -213,6 +214,7 @@ class Context: public FixedArray {
     CONTEXT_EXTENSION_FUNCTION_INDEX,
     OUT_OF_MEMORY_INDEX,
     MAP_CACHE_INDEX,
+    CONTEXT_DATA_INDEX,
     GLOBAL_CONTEXT_SLOTS
   };
 

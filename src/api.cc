@@ -445,6 +445,40 @@ void Context::Exit() {
 }
 
 
+void Context::SetData(v8::Handle<Value> data) {
+  if (IsDeadCheck("v8::Context::SetData()")) return;
+  ENTER_V8;
+  {
+    HandleScope scope;
+    i::Handle<i::Context> env = Utils::OpenHandle(this);
+    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+    ASSERT(env->IsGlobalContext());
+    if (env->IsGlobalContext()) {
+      env->set_data(*raw_data);
+    }
+  }
+}
+
+
+v8::Local<v8::Value> Context::GetData() {
+  if (IsDeadCheck("v8::Context::GetData()")) return v8::Local<Value>();
+  ENTER_V8;
+  i::Object* raw_result = NULL;
+  {
+    HandleScope scope;
+    i::Handle<i::Context> env = Utils::OpenHandle(this);
+    ASSERT(env->IsGlobalContext());
+    if (env->IsGlobalContext()) {
+      raw_result = env->data();
+    } else {
+      return Local<Value>();
+    }
+  }
+  i::Handle<i::Object> result(raw_result);
+  return Utils::ToLocal(result);
+}
+
+
 void** v8::HandleScope::RawClose(void** value) {
   if (!ApiCheck(!is_closed_,
                 "v8::HandleScope::Close()",

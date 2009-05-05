@@ -167,10 +167,21 @@ static v8::Local<v8::Function> CompileFunction(DebugLocalContext* env,
       (*env)->Global()->Get(v8::String::New(function_name)));
 }
 
+
+// Compile and run the supplied source and return the requested function.
+static v8::Local<v8::Function> CompileFunction(const char* source,
+                                               const char* function_name) {
+  v8::Script::Compile(v8::String::New(source))->Run();
+  return v8::Local<v8::Function>::Cast(
+    v8::Context::GetCurrent()->Global()->Get(v8::String::New(function_name)));
+}
+
+
 // Helper function that compiles and runs the source.
 static v8::Local<v8::Value> CompileRun(const char* source) {
   return v8::Script::Compile(v8::String::New(source))->Run();
 }
+
 
 // Is there any debug info for the function?
 static bool HasDebugInfo(v8::Handle<v8::Function> fun) {
@@ -4587,4 +4598,85 @@ TEST(ScriptNameAndData) {
   CHECK_EQ(2, break_point_hit_count);
   CHECK_EQ("new name", last_script_name_hit);
   CHECK_EQ("abc 123", last_script_data_hit);
+}
+
+
+static v8::Persistent<v8::Context> expected_context;
+static v8::Handle<v8::Value> expected_context_data;
+
+
+// Check that the expected context is the one generating the debug event.
+static void ContextCheckMessageHandler(const v8::Debug::Message& message) {
+  CHECK(message.GetEventContext() == expected_context);
+  CHECK(message.GetEventContext()->GetData()->StrictEquals(
+      expected_context_data));
+  message_handler_hit_count++;
+
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+  const char* command_continue =
+    "{\"seq\":0,"
+     "\"type\":\"request\","
+     "\"command\":\"continue\"}";
+
+  // Send a continue command for break events.
+  if (message.GetEvent() == v8::Break) {
+    v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+  }
+}
+
+
+// Test which creates two contexts and sets different embedder data on each.
+// Checks that this data is set correctly and that when the debug message
+// handler is called the expected context is the one active.
+TEST(ContextData) {
+  v8::HandleScope scope;
+
+  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
+
+  // Create two contexts.
+  v8::Persistent<v8::Context> context_1;
+  v8::Persistent<v8::Context> context_2;
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::Handle<v8::ObjectTemplate>();
+  v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
+  context_1 = v8::Context::New(NULL, global_template, global_object);
+  context_2 = v8::Context::New(NULL, global_template, global_object);
+
+  // Default data value is undefined.
+  CHECK(context_1->GetData()->IsUndefined());
+  CHECK(context_2->GetData()->IsUndefined());
+
+  // Set and check different data values.
+  v8::Handle<v8::Value> data_1 = v8::Number::New(1);
+  v8::Handle<v8::Value> data_2 = v8::String::New("2");
+  context_1->SetData(data_1);
+  context_2->SetData(data_2);
+  CHECK(context_1->GetData()->StrictEquals(data_1));
+  CHECK(context_2->GetData()->StrictEquals(data_2));
+
+  // Simple test function which causes a break.
+  char* source = "function f() { debugger; }";
+
+  // Enter and run function in the first context.
+  {
+    v8::Context::Scope context_scope(context_1);
+    expected_context = context_1;
+    expected_context_data = data_1;
+    v8::Local<v8::Function> f = CompileFunction(source, "f");
+    f->Call(context_1->Global(), 0, NULL);
+  }
+
+
+  // Enter and run function in the second context.
+  {
+    v8::Context::Scope context_scope(context_2);
+    expected_context = context_2;
+    expected_context_data = data_2;
+    v8::Local<v8::Function> f = CompileFunction(source, "f");
+    f->Call(context_2->Global(), 0, NULL);
+  }
+
+  // Two times compile event and two times break event.
+  CHECK_GT(message_handler_hit_count, 4);
 }

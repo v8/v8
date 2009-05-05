@@ -2260,6 +2260,14 @@ class V8EXPORT Context {
   static bool InContext();
 
   /**
+   * Associate an additional data object with the context. This is mainly used
+   * with the debugger to provide additional information on the context through
+   * the debugger API.
+   */
+  void SetData(Handle<Value> data);
+  Local<Value> GetData();
+
+  /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
    */
