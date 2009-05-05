@@ -562,47 +562,57 @@ bool MarkCompactCollector::MustBeMarked(Object** p) {
 }
 
 
-// Helper class to unmark marked objects in a range of pointers but
-// not recursively.
-class UnmarkingVisitor : public ObjectVisitor {
+class SymbolMarkingVisitor : public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object** end) {
+    MarkingVisitor marker;
     for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject() && HeapObject::cast(*p)->IsMarked()) {
-        MarkCompactCollector::ClearMark(HeapObject::cast(*p));
-      }
+      if (!(*p)->IsHeapObject()) continue;
+
+      HeapObject* object = HeapObject::cast(*p);
+      // If the object is marked, we have marked or are in the process
+      // of marking subparts.
+      if (object->IsMarked()) continue;
+
+      // The object is unmarked, we do not need to unmark to use its
+      // map.
+      Map* map = object->map();
+      object->IterateBody(map->instance_type(),
+                          object->SizeFromMap(map),
+                          &marker);
     }
   }
 };
 
 
-void MarkCompactCollector::ProcessRoots(RootMarkingVisitor* visitor) {
-  // Handle the symbol table specially.  Mark the prefix and the
-  // symbol table itself.  Do not mark the symbol table entries, but
-  // do explicitly mark all other objects reachable from them.
-  //
+void MarkCompactCollector::MarkSymbolTable() {
   // Objects reachable from symbols are marked as live so as to ensure
   // that if the symbol itself remains alive after GC for any reason,
   // and if it is a sliced string or a cons string backed by an
   // external string (even indirectly), then the external string does
   // not receive a weak reference callback.
   SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
-  // First mark everything reachable from the symbol table, then
-  // unmark just the elements themselves.
-  symbol_table->Iterate(visitor);
-  // There may be overflowed objects in the heap.  Visit them now.
-  while (marking_stack.overflowed()) {
-    RefillMarkingStack();
-    EmptyMarkingStack(visitor->stack_visitor());
-  }
-  UnmarkingVisitor unmarking_visitor;
-  symbol_table->IterateElements(&unmarking_visitor);
   // Mark the symbol table itself.
   SetMark(symbol_table);
+  // Explicitly mark the prefix.
+  MarkingVisitor marker;
+  symbol_table->IteratePrefix(&marker);
+  ProcessMarkingStack(&marker);
+  // Mark subparts of the symbols but not the symbols themselves
+  // (unless reachable from another symbol).
+  SymbolMarkingVisitor symbol_marker;
+  symbol_table->IterateElements(&symbol_marker);
+  ProcessMarkingStack(&marker);
+}
 
+
+void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
   Heap::IterateStrongRoots(visitor);
+
+  // Handle the symbol table specially.
+  MarkSymbolTable();
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_stack.overflowed()) {
@@ -744,7 +754,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   ASSERT(!marking_stack.overflowed());
 
   RootMarkingVisitor root_visitor;
-  ProcessRoots(&root_visitor);
+  MarkRoots(&root_visitor);
 
   // The objects reachable from the roots are marked black, unreachable
   // objects are white.  Mark objects reachable from object groups with at

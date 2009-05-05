@@ -161,18 +161,6 @@ class MarkCompactCollector: public AllStatic {
     obj->SetMark();
   }
 
-  // Used to clear mark bits during marking for objects that are not
-  // actually live.  Since it updates bookkeeping state, it is not
-  // used when clearing mark bits on live objects (eg, during
-  // sweeping).
-  static inline void ClearMark(HeapObject* obj) {
-    obj->ClearMark();
-    tracer_->decrement_marked_count();
-#ifdef DEBUG
-    UpdateLiveObjectCount(obj, -1);
-#endif
-  }
-
   // Creates back pointers for all map transitions, stores them in
   // the prototype field.  The original prototype pointers are restored
   // in ClearNonLiveTransitions().  All JSObject maps
@@ -185,7 +173,10 @@ class MarkCompactCollector: public AllStatic {
   static void MarkDescriptorArray(DescriptorArray* descriptors);
 
   // Mark the heap roots and all objects reachable from them.
-  static void ProcessRoots(RootMarkingVisitor* visitor);
+  static void MarkRoots(RootMarkingVisitor* visitor);
+
+  // Mark the symbol table specially.  References to symbols are weak.
+  static void MarkSymbolTable();
 
   // Mark objects in object groups that have at least one object in the
   // group marked.
