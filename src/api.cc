@@ -2355,9 +2355,12 @@ v8::String::ExternalStringResource*
 v8::String::GetExternalStringResource() const {
   EnsureInitialized("v8::String::GetExternalStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  ASSERT(str->IsExternalTwoByteString());
-  void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
-  return reinterpret_cast<ExternalStringResource*>(resource);
+  if (i::StringShape(*str).IsExternalTwoByte()) {
+    void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+    return reinterpret_cast<ExternalStringResource*>(resource);
+  } else {
+    return NULL;
+  }
 }
 
 
@@ -2365,9 +2368,12 @@ v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
   EnsureInitialized("v8::String::GetExternalAsciiStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  ASSERT(str->IsExternalAsciiString());
-  void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
-  return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+  if (i::StringShape(*str).IsExternalAscii()) {
+    void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
+    return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+  } else {
+    return NULL;
+  }
 }
 
 

@@ -827,14 +827,14 @@ class V8EXPORT String : public Primitive {
   };
 
   /**
-   * Get the ExternalStringResource for an external string.  Only
-   * valid if IsExternal() returns true.
+   * Get the ExternalStringResource for an external string.  Returns
+   * NULL if IsExternal() doesn't return true.
    */
   ExternalStringResource* GetExternalStringResource() const;
 
   /**
    * Get the ExternalAsciiStringResource for an external ascii string.
-   * Only valid if IsExternalAscii() returns true.
+   * Returns NULL if IsExternalAscii() doesn't return true.
    */
   ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
 
