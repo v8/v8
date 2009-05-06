@@ -309,13 +309,13 @@ void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
 
 
 int ThreadManager::CurrentId() {
-  return bit_cast<int, void*>(Thread::GetThreadLocal(thread_id_key));
+  return Thread::GetThreadLocalInt(thread_id_key);
 }
 
 
 void ThreadManager::AssignId() {
-  if (Thread::GetThreadLocal(thread_id_key) == NULL) {
-    Thread::SetThreadLocal(thread_id_key, bit_cast<void*, int>(next_id_++));
+  if (!Thread::HasThreadLocal(thread_id_key)) {
+    Thread::SetThreadLocalInt(thread_id_key, next_id_++);
   }
 }
 

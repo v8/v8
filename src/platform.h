@@ -350,7 +350,16 @@ class Thread: public ThreadHandle {
   static LocalStorageKey CreateThreadLocalKey();
   static void DeleteThreadLocalKey(LocalStorageKey key);
   static void* GetThreadLocal(LocalStorageKey key);
+  static int GetThreadLocalInt(LocalStorageKey key) {
+    return static_cast<int>(reinterpret_cast<intptr_t>(GetThreadLocal(key)));
+  }
   static void SetThreadLocal(LocalStorageKey key, void* value);
+  static void SetThreadLocalInt(LocalStorageKey key, int value) {
+    SetThreadLocal(key, reinterpret_cast<void*>(static_cast<intptr_t>(value)));
+  }
+  static bool HasThreadLocal(LocalStorageKey key) {
+    return GetThreadLocal(key) != NULL;
+  }
 
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
