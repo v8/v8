@@ -782,8 +782,12 @@ class Smi: public Object {
   // Convert a value to a Smi object.
   static inline Smi* FromInt(int value);
 
+  static inline Smi* FromIntptr(intptr_t value);
+
   // Returns whether value can be represented in a Smi.
   static inline bool IsValid(int value);
+
+  static inline bool IsIntptrValid(intptr_t);
 
   // Casting.
   static inline Smi* cast(Object* object);

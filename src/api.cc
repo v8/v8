@@ -2680,10 +2680,13 @@ Local<Value> v8::External::Wrap(void* data) {
   ENTER_V8;
   if ((reinterpret_cast<intptr_t>(data) & kAlignedPointerMask) == 0) {
     uintptr_t data_ptr = reinterpret_cast<uintptr_t>(data);
-    int data_value = static_cast<int>(data_ptr >> kAlignedPointerShift);
+    intptr_t data_value =
+        static_cast<intptr_t>(data_ptr >> kAlignedPointerShift);
     STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
-    i::Handle<i::Object> obj(i::Smi::FromInt(data_value));
-    return Utils::ToLocal(obj);
+    if (i::Smi::IsIntptrValid(data_value)) {
+      i::Handle<i::Object> obj(i::Smi::FromIntptr(data_value));
+      return Utils::ToLocal(obj);
+    }
   }
   return ExternalNewImpl(data);
 }
@@ -2694,7 +2697,8 @@ void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   if (obj->IsSmi()) {
     // The external value was an aligned pointer.
-    uintptr_t result = i::Smi::cast(*obj)->value() << kAlignedPointerShift;
+    uintptr_t result = static_cast<uintptr_t>(
+        i::Smi::cast(*obj)->value()) << kAlignedPointerShift;
     return reinterpret_cast<void*>(result);
   }
   return ExternalValueImpl(obj);

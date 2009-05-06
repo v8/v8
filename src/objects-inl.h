@@ -689,6 +689,14 @@ int Smi::value() {
 
 Smi* Smi::FromInt(int value) {
   ASSERT(Smi::IsValid(value));
+  intptr_t tagged_value =
+      (static_cast<intptr_t>(value) << kSmiTagSize) | kSmiTag;
+  return reinterpret_cast<Smi*>(tagged_value);
+}
+
+
+Smi* Smi::FromIntptr(intptr_t value) {
+  ASSERT(Smi::IsValid(value));
   return reinterpret_cast<Smi*>((value << kSmiTagSize) | kSmiTag);
 }
 
@@ -779,6 +787,18 @@ bool Smi::IsValid(int value) {
   // overflow. The computation must be done w/ unsigned ints.
   bool result =
       ((static_cast<unsigned int>(value) + 0x40000000U) & 0x80000000U) == 0;
+  ASSERT(result == in_range);
+  return result;
+}
+
+
+bool Smi::IsIntptrValid(intptr_t value) {
+#ifdef DEBUG
+  bool in_range = (value >= kMinValue) && (value <= kMaxValue);
+#endif
+  // See Smi::IsValid(int) for description.
+  bool result =
+      ((static_cast<uintptr_t>(value) + 0x40000000U) < 0x80000000U);
   ASSERT(result == in_range);
   return result;
 }
