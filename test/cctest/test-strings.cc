@@ -431,6 +431,7 @@ TEST(Regress9746) {
   for (int i = 0; i < kFullStringLength; i++) source[i] = '1';
   char* key = new char[kSliceStringLength];
   for (int i = 0; i < kSliceStringLength; i++) key[i] = '1';
+  Vector<const char> key_vector(key, kSliceStringLength);
 
   // Allocate an external string resource that keeps track of when it
   // is destructed.
@@ -482,16 +483,33 @@ TEST(Regress9746) {
   Heap::CollectAllGarbage();
   CHECK(!resource_destructed);
 
-  // Make sure the sliced symbol is still in the table.
-  v8::HandleScope scope;
-  Vector<const char> vector(key, kSliceStringLength);
-  Handle<String> symbol = Factory::LookupSymbol(vector);
-  CHECK(StringShape(*symbol).IsSliced());
+  {
+    v8::HandleScope scope;
 
-  // Make sure the buffer is still a two-byte external string.
-  Handle<String> buffer(Handle<SlicedString>::cast(symbol)->buffer());
-  CHECK(StringShape(*buffer).IsExternal());
-  CHECK(buffer->IsTwoByteRepresentation());
+    // Make sure the sliced symbol is still in the table.
+    Handle<String> symbol = Factory::LookupSymbol(key_vector);
+    CHECK(StringShape(*symbol).IsSliced());
+
+    // Make sure the buffer is still a two-byte external string.
+    Handle<String> buffer(Handle<SlicedString>::cast(symbol)->buffer());
+    CHECK(StringShape(*buffer).IsExternal());
+    CHECK(buffer->IsTwoByteRepresentation());
+  }
+
+  // Forcing another garbage collection should let us get rid of the
+  // slice from the symbol table. The external string remains in the
+  // heap until the next GC.
+  Heap::CollectAllGarbage();
+  CHECK(!resource_destructed);
+  v8::HandleScope scope;
+  Handle<String> key_string = Factory::NewStringFromAscii(key_vector);
+  String* out;
+  CHECK(!Heap::LookupSymbolIfExists(*key_string, &out));
+
+  // Forcing yet another garbage collection must allow us to finally
+  // get rid of the external string.
+  Heap::CollectAllGarbage();
+  CHECK(resource_destructed);
 
   delete[] source;
   delete[] key;
