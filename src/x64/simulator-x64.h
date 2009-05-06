@@ -25,3 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_X64_SIMULATOR_X64_H_
+#define V8_X64_SIMULATOR_X64_H_
+
+
+// Since there is no simulator for the ia32 architecture the only thing we can
+// do is to call the entry directly.
+#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
+  entry(p0, p1, p2, p3, p4);
+
+// Calculated the stack limit beyond which we will throw stack overflow errors.
+// This macro must be called from a C++ method. It relies on being able to take
+// the address of "this" to get a value on the current execution stack and then
+// calculates the stack limit based on that value.
+// NOTE: The check for overflow is not safe as there is no guarantee that the
+// running thread has its stack in all memory up to address 0x00000000.
+#define GENERATED_CODE_STACK_LIMIT(limit) \
+  (reinterpret_cast<uintptr_t>(this) >= limit ? \
+      reinterpret_cast<uintptr_t>(this) - limit : 0)
+
+#endif  // V8_X64_SIMULATOR_X64_H_
