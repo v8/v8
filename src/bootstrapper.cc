@@ -1481,16 +1481,16 @@ void Genesis::BuildSpecialFunctionTable() {
   Handle<JSFunction> function =
       Handle<JSFunction>(
           JSFunction::cast(global->GetProperty(Heap::Array_symbol())));
-  Handle<JSObject> hidden_prototype =
+  Handle<JSObject> visible_prototype =
       Handle<JSObject>(JSObject::cast(function->prototype()));
-  ASSERT(hidden_prototype->map()->is_hidden_prototype());
   // Remember to skip the hidden prototype:
-  Handle<JSObject> real_prototype =
-      Handle<JSObject>(JSObject::cast(hidden_prototype->GetPrototype()));
-  AddSpecialFunction(real_prototype, "pop",
+  Handle<JSObject> hidden_prototype =
+      Handle<JSObject>(JSObject::cast(visible_prototype->GetPrototype()));
+  AddSpecialFunction(hidden_prototype, "pop",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
-  AddSpecialFunction(real_prototype, "push",
+  AddSpecialFunction(hidden_prototype, "push",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
+  ASSERT(hidden_prototype->map()->is_hidden_prototype());
 }
 
 
