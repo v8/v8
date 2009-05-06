@@ -1062,6 +1062,14 @@ function ProtocolMessage(request) {
 }
 
 
+ProtocolMessage.prototype.setOption = function(name, value) {
+  if (!this.options_) {
+    this.options_ = {};
+  }
+  this.options_[name] = value;
+}
+
+
 ProtocolMessage.prototype.failed = function(message) {
   this.success = false;
   this.message = message;
@@ -1090,7 +1098,7 @@ ProtocolMessage.prototype.toJSONProtocol = function() {
   if (this.body) {
     json += ',"body":';
     // Encode the body part.
-    var serializer = MakeMirrorSerializer(true);
+    var serializer = MakeMirrorSerializer(true, this.options_);
     if (this.body instanceof Mirror) {
       json += serializer.serializeValue(this.body);
     } else if (this.body instanceof Array) {
@@ -1680,6 +1688,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
     
     if (!IS_UNDEFINED(request.arguments.includeSource)) {
       includeSource = %ToBoolean(request.arguments.includeSource);
+      response.setOption('includeSource', includeSource);
     }
   }
 
@@ -1690,25 +1699,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 
   for (var i = 0; i < scripts.length; i++) {
     if (types & ScriptTypeFlag(scripts[i].type)) {
-      var script = {};
-      if (scripts[i].name) {
-        script.name = scripts[i].name;
-      }
-      script.id = scripts[i].id;
-      script.lineOffset = scripts[i].line_offset;
-      script.columnOffset = scripts[i].column_offset;
-      script.lineCount = scripts[i].lineCount();
-      if (scripts[i].data) {
-        script.data = scripts[i].data;
-      }
-      if (includeSource) {
-        script.source = scripts[i].source;
-      } else {
-        script.sourceStart = scripts[i].source.substring(0, 80);
-      }
-      script.sourceLength = scripts[i].source.length;
-      script.type = scripts[i].type;
-      response.body.push(script);
+      response.body.push(MakeMirror(scripts[i]));
     }
   }
 };

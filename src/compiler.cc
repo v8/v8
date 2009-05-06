@@ -104,6 +104,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   StackGuard guard;
   PostponeInterruptsScope postpone;
 
+  ASSERT(!i::Top::global_context().is_null());
+  script->set_context_data((*i::Top::global_context())->data());
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   Debugger::OnBeforeCompile(script);

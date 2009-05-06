@@ -308,6 +308,25 @@ const AccessorDescriptor Accessors::ScriptLineEnds = {
 
 
 //
+// Accessors::ScriptGetContextData
+//
+
+
+Object* Accessors::ScriptGetContextData(Object* object, void*) {
+  HandleScope scope;
+  Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
+  return script->context_data();
+}
+
+
+const AccessorDescriptor Accessors::ScriptContextData = {
+  ScriptGetContextData,
+  IllegalSetter,
+  0
+};
+
+
+//
 // Accessors::FunctionPrototype
 //
 

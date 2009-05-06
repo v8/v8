@@ -1055,6 +1055,14 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("line_ends"),
             proxy_line_ends,
             common_attributes);
+    Handle<Proxy> proxy_context_data =
+        Factory::NewProxy(&Accessors::ScriptContextData);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("context_data"),
+            proxy_context_data,
+            common_attributes);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
     script_map->set_instance_descriptors(*script_descriptors);

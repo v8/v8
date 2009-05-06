@@ -174,6 +174,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
   script->set_data(Heap::undefined_value());
+  script->set_context_data(Heap::undefined_value());
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
   script->set_wrapper(*Factory::NewProxy(0, TENURED));
   script->set_line_ends(Heap::undefined_value());
