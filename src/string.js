@@ -831,7 +831,7 @@ function SetupString() {
 
 
   // Setup the non-enumerable functions on the String prototype object.
-  InstallFunctions($String.prototype, DONT_ENUM, $Array(
+  InstallFunctionsOnHiddenPrototype($String.prototype, DONT_ENUM, $Array(
     "valueOf", StringValueOf,
     "toString", StringToString,
     "charAt", StringCharAt,

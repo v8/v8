@@ -1005,7 +1005,6 @@ function UpdateFunctionLengths(lengths) {
 
 
 // -------------------------------------------------------------------
-
 function SetupArray() {
   // Setup non-enumerable constructor property on the Array.prototype
   // object.
@@ -1013,7 +1012,7 @@ function SetupArray() {
 
   // Setup non-enumerable functions of the Array.prototype object and
   // set their names.
-  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
+  InstallFunctionsOnHiddenPrototype($Array.prototype, DONT_ENUM, $Array(
     "toString", ArrayToString,
     "toLocaleString", ArrayToLocaleString,
     "join", ArrayJoin,
@@ -1034,8 +1033,7 @@ function SetupArray() {
     "indexOf", ArrayIndexOf,
     "lastIndexOf", ArrayLastIndexOf,
     "reduce", ArrayReduce,
-    "reduceRight", ArrayReduceRight
-  ));
+    "reduceRight", ArrayReduceRight));
 
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.

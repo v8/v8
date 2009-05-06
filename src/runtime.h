@@ -53,6 +53,7 @@ namespace v8 { namespace internal {
   F(ToSlowProperties, 1) \
   \
   F(IsInPrototypeChain, 2) \
+  F(SetHiddenPrototype, 2) \
   \
   F(IsConstructCall, 0) \
   \

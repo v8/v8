@@ -474,6 +474,42 @@ static Object* Runtime_IsInPrototypeChain(Arguments args) {
 }
 
 
+// Inserts an object as the hidden prototype of another object.
+static Object* Runtime_SetHiddenPrototype(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSObject, jsobject, args[0]);
+  CONVERT_CHECKED(JSObject, proto, args[1]);
+
+  // Sanity checks.  The old prototype (that we are replacing) could
+  // theoretically be null, but if it is not null then check that we
+  // didn't already install a hidden prototype here.
+  RUNTIME_ASSERT(!jsobject->GetPrototype()->IsHeapObject() ||
+    !HeapObject::cast(jsobject->GetPrototype())->map()->is_hidden_prototype());
+  RUNTIME_ASSERT(!proto->map()->is_hidden_prototype());
+
+  // Allocate up front before we start altering state in case we get a GC.
+  Object* map_or_failure = proto->map()->CopyDropTransitions();
+  if (map_or_failure->IsFailure()) return map_or_failure;
+  Map* new_proto_map = Map::cast(map_or_failure);
+
+  map_or_failure = jsobject->map()->CopyDropTransitions();
+  if (map_or_failure->IsFailure()) return map_or_failure;
+  Map* new_map = Map::cast(map_or_failure);
+
+  // Set proto's prototype to be the old prototype of the object.
+  new_proto_map->set_prototype(jsobject->GetPrototype());
+  proto->set_map(new_proto_map);
+  new_proto_map->set_is_hidden_prototype();
+
+  // Set the object's prototype to proto.
+  new_map->set_prototype(proto);
+  jsobject->set_map(new_map);
+
+  return Heap::undefined_value();
+}
+
+
 static Object* Runtime_IsConstructCall(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 0);
@@ -2796,25 +2832,38 @@ static Object* Runtime_DeleteProperty(Arguments args) {
 }
 
 
-static Object* Runtime_HasLocalProperty(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_CHECKED(String, key, args[1]);
-
+static Object* HasLocalPropertyImplementation(Object* obj, String* key) {
   // Only JS objects can have properties.
-  if (args[0]->IsJSObject()) {
-    JSObject* object = JSObject::cast(args[0]);
+  if (obj->IsJSObject()) {
+    JSObject* object = JSObject::cast(obj);
     if (object->HasLocalProperty(key)) return Heap::true_value();
-  } else if (args[0]->IsString()) {
+    // Handle hidden prototypes.  If there's a hidden prototype above this thing
+    // then we have to check it for properties, because they are supposed to
+    // look like they are on this object.
+    Object* proto = object->GetPrototype();
+    if (proto->IsJSObject() &&
+        JSObject::cast(proto)->map()->is_hidden_prototype()) {
+      return HasLocalPropertyImplementation(object->GetPrototype(), key);
+    }
+  } else if (obj->IsString()) {
     // Well, there is one exception:  Handle [] on strings.
     uint32_t index;
     if (key->AsArrayIndex(&index)) {
-      String* string = String::cast(args[0]);
+      String* string = String::cast(obj);
       if (index < static_cast<uint32_t>(string->length()))
         return Heap::true_value();
     }
   }
   return Heap::false_value();
+}
+
+
+static Object* Runtime_HasLocalProperty(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(String, key, args[1]);
+
+  return HasLocalPropertyImplementation(args[0], key);
 }
 
 

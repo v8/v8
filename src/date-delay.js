@@ -1019,7 +1019,7 @@ function SetupDate() {
 
   // Setup non-enumerable functions of the Date prototype object and
   // set their names.
-  InstallFunctions($Date.prototype, DONT_ENUM, $Array(
+  InstallFunctionsOnHiddenPrototype($Date.prototype, DONT_ENUM, $Array(
     "toString", DateToString,
     "toDateString", DateToDateString,
     "toTimeString", DateToTimeString,
