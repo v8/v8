@@ -907,7 +907,8 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"%s %s:%d\"\n", tag, code->address(),
+  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"%s %s:%d\"\n",
+             tag, code->address(),
              code->ExecutableSize(),
              *str, *sourcestr, line);
   msg.WriteToLogFile();

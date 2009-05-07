@@ -82,7 +82,7 @@ typedef byte* Address;
 #define V8_INT64_C(x)   (x ## L)
 #define V8_PTR_PREFIX "l"
 #endif
-#else // V8_HOST_ARCH_64_BIT
+#else  // V8_HOST_ARCH_64_BIT
 #define V8_PTR_PREFIX ""
 #endif
 
