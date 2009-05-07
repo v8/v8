@@ -554,24 +554,34 @@ class VerifyNonPointerSpacePointersVisitor: public ObjectVisitor {
     }
   }
 };
+
+
+static void VerifyNonPointerSpacePointers() {
+  // Verify that there are no pointers to new space in spaces where we
+  // do not expect them.
+  VerifyNonPointerSpacePointersVisitor v;
+  HeapObjectIterator code_it(Heap::code_space());
+  while (code_it.has_next()) {
+    HeapObject* object = code_it.next();
+    if (object->IsCode()) {
+      Code::cast(object)->ConvertICTargetsFromAddressToObject();
+      object->Iterate(&v);
+      Code::cast(object)->ConvertICTargetsFromObjectToAddress();
+    } else {
+      // If we find non-code objects in code space (e.g., free list
+      // nodes) we want to verify them as well.
+      object->Iterate(&v);
+    }
+  }
+
+  HeapObjectIterator data_it(Heap::old_data_space());
+  while (data_it.has_next()) data_it.next()->Iterate(&v);
+}
 #endif
 
 void Heap::Scavenge() {
 #ifdef DEBUG
-  if (FLAG_enable_slow_asserts) {
-    VerifyNonPointerSpacePointersVisitor v;
-    HeapObjectIterator it(code_space_);
-    while (it.has_next()) {
-      HeapObject* object = it.next();
-      if (object->IsCode()) {
-        Code::cast(object)->ConvertICTargetsFromAddressToObject();
-      }
-      object->Iterate(&v);
-      if (object->IsCode()) {
-        Code::cast(object)->ConvertICTargetsFromObjectToAddress();
-      }
-    }
-  }
+  if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
 #endif
 
   gc_state_ = SCAVENGE;
