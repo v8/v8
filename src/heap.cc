@@ -538,7 +538,7 @@ class ScavengeVisitor: public ObjectVisitor {
 
 
 // Shared state read by the scavenge collector and set by ScavengeObject.
-static Address promoted_top = NULL;
+static Address promoted_rear = NULL;
 
 
 #ifdef DEBUG
@@ -606,72 +606,70 @@ void Heap::Scavenge() {
   new_space_.Flip();
   new_space_.ResetAllocationInfo();
 
-  // We need to sweep newly copied objects which can be in either the to space
-  // or the old space.  For to space objects, we use a mark.  Newly copied
-  // objects lie between the mark and the allocation top.  For objects
-  // promoted to old space, we write their addresses downward from the top of
-  // the new space.  Sweeping newly promoted objects requires an allocation
-  // pointer and a mark.  Note that the allocation pointer 'top' actually
-  // moves downward from the high address in the to space.
+  // We need to sweep newly copied objects which can be either in the
+  // to space or promoted to the old generation.  For to-space
+  // objects, we treat the bottom of the to space as a queue.  Newly
+  // copied and unswept objects lie between a 'front' mark and the
+  // allocation pointer.
   //
-  // There is guaranteed to be enough room at the top of the to space for the
-  // addresses of promoted objects: every object promoted frees up its size in
-  // bytes from the top of the new space, and objects are at least one pointer
-  // in size.  Using the new space to record promoted addresses makes the
-  // scavenge collector agnostic to the allocation strategy (eg, linear or
-  // free-list) used in old space.
-  Address new_mark = new_space_.ToSpaceLow();
-  Address promoted_mark = new_space_.ToSpaceHigh();
-  promoted_top = new_space_.ToSpaceHigh();
+  // Promoted objects can go into various old-generation spaces, and
+  // can be allocated internally in the spaces (from the free list).
+  // We treat the top of the to space as a queue of addresses of
+  // promoted objects.  The addresses of newly promoted and unswept
+  // objects lie between a 'front' mark and a 'rear' mark that is
+  // updated as a side effect of promoting an object.
+  //
+  // There is guaranteed to be enough room at the top of the to space
+  // for the addresses of promoted objects: every object promoted
+  // frees up its size in bytes from the top of the new space, and
+  // objects are at least one pointer in size.
+  Address new_space_front = new_space_.ToSpaceLow();
+  Address promoted_front = new_space_.ToSpaceHigh();
+  promoted_rear = new_space_.ToSpaceHigh();
 
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
   IterateRoots(&scavenge_visitor);
 
-  // Copy objects reachable from the old generation.  By definition, there
-  // are no intergenerational pointers in code or data spaces.
+  // Copy objects reachable from weak pointers.
+  GlobalHandles::IterateWeakRoots(&scavenge_visitor);
+
+  // Copy objects reachable from the old generation.  By definition,
+  // there are no intergenerational pointers in code or data spaces.
   IterateRSet(old_pointer_space_, &ScavengePointer);
   IterateRSet(map_space_, &ScavengePointer);
   lo_space_->IterateRSet(&ScavengePointer);
 
-  bool has_processed_weak_pointers = false;
+  do {
+    ASSERT(new_space_front <= new_space_.top());
+    ASSERT(promoted_front >= promoted_rear);
 
-  while (true) {
-    ASSERT(new_mark <= new_space_.top());
-    ASSERT(promoted_mark >= promoted_top);
-
-    // Copy objects reachable from newly copied objects.
-    while (new_mark < new_space_.top() || promoted_mark > promoted_top) {
-      // Sweep newly copied objects in the to space.  The allocation pointer
-      // can change during sweeping.
-      Address previous_top = new_space_.top();
-      SemiSpaceIterator new_it(new_space(), new_mark);
-      while (new_it.has_next()) {
-        new_it.next()->Iterate(&scavenge_visitor);
-      }
-      new_mark = previous_top;
-
-      // Sweep newly copied objects in the old space.  The promotion 'top'
-      // pointer could change during sweeping.
-      previous_top = promoted_top;
-      for (Address current = promoted_mark - kPointerSize;
-           current >= previous_top;
-           current -= kPointerSize) {
-        HeapObject* object = HeapObject::cast(Memory::Object_at(current));
-        object->Iterate(&scavenge_visitor);
-        UpdateRSet(object);
-      }
-      promoted_mark = previous_top;
+    // The addresses new_space_front and new_space_.top() define a
+    // queue of unprocessed copied objects.  Process them until the
+    // queue is empty.
+    while (new_space_front < new_space_.top()) {
+      HeapObject* object = HeapObject::FromAddress(new_space_front);
+      object->Iterate(&scavenge_visitor);
+      new_space_front += object->Size();
     }
 
-    if (has_processed_weak_pointers) break;  // We are done.
-    // Copy objects reachable from weak pointers.
-    GlobalHandles::IterateWeakRoots(&scavenge_visitor);
-    has_processed_weak_pointers = true;
-  }
+    // The addresses promoted_front and promoted_rear define a queue
+    // of unprocessed addresses of promoted objects.  Process them
+    // until the queue is empty.
+    while (promoted_front > promoted_rear) {
+      promoted_front -= kPointerSize;
+      HeapObject* object =
+          HeapObject::cast(Memory::Object_at(promoted_front));
+      object->Iterate(&scavenge_visitor);
+      UpdateRSet(object);
+    }
+
+    // Take another spin if there are now unswept objects in new space
+    // (there are currently no more unswept promoted objects).
+  } while (new_space_front < new_space_.top());
 
   // Set age mark.
-  new_space_.set_age_mark(new_mark);
+  new_space_.set_age_mark(new_space_.top());
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -892,8 +890,8 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
       if (target_space == Heap::old_pointer_space_) {
         // Record the object's address at the top of the to space, to allow
         // it to be swept by the scavenger.
-        promoted_top -= kPointerSize;
-        Memory::Object_at(promoted_top) = *p;
+        promoted_rear -= kPointerSize;
+        Memory::Object_at(promoted_rear) = *p;
       } else {
 #ifdef DEBUG
         // Objects promoted to the data space should not have pointers to

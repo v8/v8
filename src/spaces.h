@@ -517,7 +517,7 @@ class ObjectIterator : public Malloced {
 //     allocating new objects), the iterator does not iterate objects
 //     above the original space top. The caller must create a new
 //     iterator starting from the old top in order to visit these new
-//     objects. Heap::Scavenge() is such an example.
+//     objects.
 //
 // (2) If new objects are allocated below the original allocation top
 //     (e.g., free-list allocation in paged spaces), the new objects
