@@ -59,7 +59,9 @@
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations
 //   DeclareGlobals
+//   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
+//   PatchInlineRuntimeEntry
 //   GenerateFastCaseSwitchStatement
 //   GenerateFastCaseSwitchCases
 //   TryGenerateFastCaseSwitchStatement
