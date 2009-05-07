@@ -4627,35 +4627,42 @@ THREADED_TEST(CallAsFunction) {
   Local<Value> value;
   CHECK(!try_catch.HasCaught());
 
-  value = Script::Compile(v8_str("obj(42)"))->Run();
+  value = CompileRun("obj(42)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(42, value->Int32Value());
 
-  value = Script::Compile(v8_str("(function(o){return o(49)})(obj)"))->Run();
+  value = CompileRun("(function(o){return o(49)})(obj)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(49, value->Int32Value());
 
   // test special case of call as function
-  value = Script::Compile(v8_str("[obj]['0'](45)"))->Run();
+  value = CompileRun("[obj]['0'](45)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(45, value->Int32Value());
 
-  value = Script::Compile(v8_str("obj.call = Function.prototype.call;"
-                                 "obj.call(null, 87)"))->Run();
+  value = CompileRun("obj.call = Function.prototype.call;"
+                     "obj.call(null, 87)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(87, value->Int32Value());
 
   // Regression tests for bug #1116356: Calling call through call/apply
   // must work for non-function receivers.
   const char* apply_99 = "Function.prototype.call.apply(obj, [this, 99])";
-  value = Script::Compile(v8_str(apply_99))->Run();
+  value = CompileRun(apply_99);
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(99, value->Int32Value());
 
   const char* call_17 = "Function.prototype.call.call(obj, this, 17)";
-  value = Script::Compile(v8_str(call_17))->Run();
+  value = CompileRun(call_17);
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(17, value->Int32Value());
+
+  // Check that the call-as-function handler can be called through
+  // new.  Currently, there is no way to check in the call-as-function
+  // handler if it has been called through new or not.
+  value = CompileRun("new obj(42)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(42, value->Int32Value());
 }
 
 
