@@ -167,6 +167,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   Heap::SetLastScriptId(Smi::FromInt(id));
 
   // Create and initialize script object.
+  Handle<Proxy> wrapper = Factory::NewProxy(0, TENURED);
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(Heap::undefined_value());
@@ -176,7 +177,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_data(Heap::undefined_value());
   script->set_context_data(Heap::undefined_value());
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
-  script->set_wrapper(*Factory::NewProxy(0, TENURED));
+  script->set_wrapper(*wrapper);
   script->set_line_ends(Heap::undefined_value());
 
   return script;
