@@ -1072,7 +1072,7 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!Log::is_enabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
-  msg.Append("tick,0x%x,0x%x,%d", sample->pc, sample->sp,
+  msg.Append("tick,0x%"V8PRIp",0x%"V8PRIp",%d", sample->pc, sample->sp,
              static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");

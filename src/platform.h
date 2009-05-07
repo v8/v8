@@ -492,9 +492,9 @@ class Socket {
 class TickSample {
  public:
   TickSample() : pc(0), sp(0), fp(0), state(OTHER) {}
-  unsigned int pc;  // Instruction pointer.
-  unsigned int sp;  // Stack pointer.
-  unsigned int fp;  // Frame pointer.
+  uintptr_t pc;  // Instruction pointer.
+  uintptr_t sp;  // Stack pointer.
+  uintptr_t fp;  // Frame pointer.
   StateTag state;   // The state of the VM.
   static const int kMaxFramesCount = 100;
   EmbeddedVector<Address, kMaxFramesCount> stack;  // Call stack.
