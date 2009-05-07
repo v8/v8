@@ -164,7 +164,7 @@ void StackTracer::Trace(TickSample* sample) {
 //
 class Ticker: public Sampler {
  public:
-  explicit Ticker(int interval, unsigned int low_stack_bound):
+  explicit Ticker(int interval, uintptr_t low_stack_bound):
       Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL),
       stack_tracer_(low_stack_bound) {}
 
@@ -630,8 +630,7 @@ void Logger::HandleEvent(const char* name, Object** location) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_handles) return;
   LogMessageBuilder msg;
-  msg.Append("%s,0x%x\n", name,
-             reinterpret_cast<unsigned int>(location));
+  msg.Append("%s,0x%%"V8PRIp"\n", name, location);
   msg.WriteToLogFile();
 #endif
 }
@@ -850,8 +849,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log) return;
   LogMessageBuilder msg;
-  msg.Append("new,%s,0x%x,%u\n", name,
-             reinterpret_cast<unsigned int>(object),
+  msg.Append("new,%s,0x%%"V8PRIp",%u\n", name, object,
              static_cast<unsigned int>(size));
   msg.WriteToLogFile();
 #endif
@@ -862,8 +860,7 @@ void Logger::DeleteEvent(const char* name, void* object) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log) return;
   LogMessageBuilder msg;
-  msg.Append("delete,%s,0x%x\n", name,
-             reinterpret_cast<unsigned int>(object));
+  msg.Append("delete,%s,0x%%"V8PRIp"\n", name, object);
   msg.WriteToLogFile();
 #endif
 }
@@ -873,8 +870,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%x,%d,\"", tag,
-             reinterpret_cast<unsigned int>(code->address()),
+  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"", tag, code->address(),
              code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '"') {
@@ -895,8 +891,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
   LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("code-creation,%s,0x%x,%d,\"%s\"\n", tag,
-             reinterpret_cast<unsigned int>(code->address()),
+  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"%s\"\n", tag, code->address(),
              code->ExecutableSize(), *str);
   msg.WriteToLogFile();
 #endif
@@ -912,8 +907,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
-             reinterpret_cast<unsigned int>(code->address()),
+  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"%s %s:%d\"\n", tag, code->address(),
              code->ExecutableSize(),
              *str, *sourcestr, line);
   msg.WriteToLogFile();
@@ -925,8 +919,8 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%x,%d,\"args_count: %d\"\n", tag,
-             reinterpret_cast<unsigned int>(code->address()),
+  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"args_count: %d\"\n", tag,
+             code->address(),
              code->ExecutableSize(),
              args_count);
   msg.WriteToLogFile();
@@ -938,8 +932,8 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%x,%d,\"", "RegExp",
-             reinterpret_cast<unsigned int>(code->address()),
+  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"", "RegExp",
+             code->address(),
              code->ExecutableSize());
   msg.AppendDetailed(source, false);
   msg.Append("\"\n");
@@ -952,9 +946,7 @@ void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-allocate,0x%x,0x%x\n",
-             reinterpret_cast<unsigned int>(code->address()),
-             reinterpret_cast<unsigned int>(assem));
+  msg.Append("code-allocate,0x%"V8PRIp",0x%"V8PRIp"\n", code->address(), assem);
   msg.WriteToLogFile();
 #endif
 }
@@ -964,9 +956,7 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-move,0x%x,0x%x\n",
-             reinterpret_cast<unsigned int>(from),
-             reinterpret_cast<unsigned int>(to));
+  msg.Append("code-move,0x%"V8PRIp",0x%"V8PRIp"\n", from, to);
   msg.WriteToLogFile();
 #endif
 }
@@ -976,7 +966,7 @@ void Logger::CodeDeleteEvent(Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-delete,0x%x\n", reinterpret_cast<unsigned int>(from));
+  msg.Append("code-delete,0x%"V8PRIp"\n", from);
   msg.WriteToLogFile();
 #endif
 }
@@ -1088,7 +1078,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
     msg.Append(",overflow");
   }
   for (int i = 0; i < sample->frames_count; ++i) {
-    msg.Append(",0x%x", reinterpret_cast<uint32_t>(sample->stack[i]));
+    msg.Append(",0x%"V8PRIp, sample->stack[i]);
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1189,7 +1179,7 @@ bool Logger::Setup() {
   // as log is initialized early with V8, we can assume that JS execution
   // frames can never reach this point on stack
   int stack_var;
-  ticker_ = new Ticker(1, reinterpret_cast<unsigned int>(&stack_var));
+  ticker_ = new Ticker(1, reinterpret_cast<uintptr_t>(&stack_var));
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();

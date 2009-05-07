@@ -76,11 +76,17 @@ typedef byte* Address;
 #ifdef _MSC_VER
 #define V8_UINT64_C(x)  (x ## UI64)
 #define V8_INT64_C(x)   (x ## I64)
+#define V8_PTR_PREFIX "ll"
 #else
 #define V8_UINT64_C(x)  (x ## UL)
 #define V8_INT64_C(x)   (x ## L)
+#define V8_PTR_PREFIX "l"
 #endif
-#endif  // V8_HOST_ARCH_64_BIT
+#else // V8_HOST_ARCH_64_BIT
+#define V8_PTR_PREFIX ""
+#endif
+
+#define V8PRIp V8_PTR_PREFIX "x"
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
