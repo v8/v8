@@ -811,7 +811,7 @@ bool NewSpace::Setup(Address start, int size) {
   start_ = start;
   address_mask_ = ~(size - 1);
   object_mask_ = address_mask_ | kHeapObjectTag;
-  object_expected_ = reinterpret_cast<uint32_t>(start) | kHeapObjectTag;
+  object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
 
   allocation_info_.top = to_space_.low();
   allocation_info_.limit = to_space_.high();
@@ -970,7 +970,7 @@ bool SemiSpace::Setup(Address start,
   start_ = start;
   address_mask_ = ~(maximum_capacity - 1);
   object_mask_ = address_mask_ | kHeapObjectTag;
-  object_expected_ = reinterpret_cast<uint32_t>(start) | kHeapObjectTag;
+  object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
 
   age_mark_ = start_;
   return true;
@@ -1890,7 +1890,7 @@ static void PrintRSetRange(Address start, Address end, Object** object_p,
 
   // If the range starts on on odd numbered word (eg, for large object extra
   // remembered set ranges), print some spaces.
-  if ((reinterpret_cast<uint32_t>(start) / kIntSize) % 2 == 1) {
+  if ((reinterpret_cast<uintptr_t>(start) / kIntSize) % 2 == 1) {
     PrintF("                                    ");
   }
 
@@ -1929,7 +1929,7 @@ static void PrintRSetRange(Address start, Address end, Object** object_p,
     }
 
     // Print a newline after every odd numbered word, otherwise a space.
-    if ((reinterpret_cast<uint32_t>(rset_address) / kIntSize) % 2 == 1) {
+    if ((reinterpret_cast<uintptr_t>(rset_address) / kIntSize) % 2 == 1) {
       PrintF("\n");
     } else {
       PrintF(" ");

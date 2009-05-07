@@ -1183,9 +1183,9 @@ class NewSpace : public Space {
 
   // Start address and bit mask for containment testing.
   Address start_;
-  uint32_t address_mask_;
-  uint32_t object_mask_;
-  uint32_t object_expected_;
+  uintptr_t address_mask_;
+  uintptr_t object_mask_;
+  uintptr_t object_expected_;
 
   // Allocation pointer and limit for normal allocation and allocation during
   // mark-compact collection.
