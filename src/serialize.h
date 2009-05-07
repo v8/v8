@@ -231,6 +231,12 @@ class SnapshotReader {
     return result;
   }
 
+  Address GetAddress() {
+    Address result;
+    GetBytes(reinterpret_cast<Address>(&result), sizeof(result));
+    return result;
+  }
+
   void GetBytes(Address a, int size) {
     ASSERT(str_ + size <= end_);
     memcpy(a, str_, size);
