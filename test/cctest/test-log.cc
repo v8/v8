@@ -23,6 +23,7 @@ static void TearDown() {
   Logger::TearDown();
 }
 
+
 TEST(EmptyLog) {
   SetUp();
   CHECK_EQ(0, Logger::GetLogLines(0, NULL, 0));
@@ -98,5 +99,19 @@ TEST(BeyondWritePosition) {
   CHECK_EQ(0, Logger::GetLogLines(10 * 1024 * 1024, NULL, 100));
   TearDown();
 }
+
+
+TEST(MemoryLoggingTurnedOff) {
+  // Log to stdout
+  v8::internal::FLAG_logfile = "-";
+  v8::internal::FLAG_log = true;
+  Logger::Setup();
+  CHECK_EQ(0, Logger::GetLogLines(0, NULL, 0));
+  CHECK_EQ(0, Logger::GetLogLines(100, NULL, 0));
+  CHECK_EQ(0, Logger::GetLogLines(0, NULL, 100));
+  CHECK_EQ(0, Logger::GetLogLines(100, NULL, 100));
+  Logger::TearDown();
+}
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

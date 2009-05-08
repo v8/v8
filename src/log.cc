@@ -423,6 +423,7 @@ void Log::Close() {
 
 
 int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
+  if (Write != WriteToMemory) return 0;
   ASSERT(output_.buffer != NULL);
   ASSERT(output_buffer_write_pos_ >= output_.buffer);
   ASSERT(from_pos >= 0);
