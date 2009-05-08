@@ -5161,7 +5161,8 @@ Object* JSObject::GetHiddenProperties(bool create_if_needed) {
   }
 
   // Only attempt to find the hidden properties in the local object and not
-  // in the prototype chain.
+  // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
+  // the general case, but in this case we know it won't hit an interceptor.
   if (!this->HasLocalProperty(key)) {
     // Hidden properties object not found. Allocate a new hidden properties
     // object if requested. Otherwise return the undefined value.

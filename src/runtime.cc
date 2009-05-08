@@ -2832,27 +2832,16 @@ static Object* Runtime_DeleteProperty(Arguments args) {
 }
 
 
-static Object* HasLocalPropertyImplementation(Object* obj, String* key) {
-  // Only JS objects can have properties.
-  if (obj->IsJSObject()) {
-    JSObject* object = JSObject::cast(obj);
-    if (object->HasLocalProperty(key)) return Heap::true_value();
-    // Handle hidden prototypes.  If there's a hidden prototype above this thing
-    // then we have to check it for properties, because they are supposed to
-    // look like they are on this object.
-    Object* proto = object->GetPrototype();
-    if (proto->IsJSObject() &&
-        JSObject::cast(proto)->map()->is_hidden_prototype()) {
-      return HasLocalPropertyImplementation(object->GetPrototype(), key);
-    }
-  } else if (obj->IsString()) {
-    // Well, there is one exception:  Handle [] on strings.
-    uint32_t index;
-    if (key->AsArrayIndex(&index)) {
-      String* string = String::cast(obj);
-      if (index < static_cast<uint32_t>(string->length()))
-        return Heap::true_value();
-    }
+static Object* HasLocalPropertyImplementation(Handle<JSObject> object,
+                                              Handle<String> key) {
+  if (object->HasLocalProperty(*key)) return Heap::true_value();
+  // Handle hidden prototypes.  If there's a hidden prototype above this thing
+  // then we have to check it for properties, because they are supposed to
+  // look like they are on this object.
+  Handle<Object> proto(object->GetPrototype());
+  if (proto->IsJSObject() &&
+      Handle<JSObject>::cast(proto)->map()->is_hidden_prototype()) {
+    return HasLocalPropertyImplementation(Handle<JSObject>::cast(proto), key);
   }
   return Heap::false_value();
 }
@@ -2863,7 +2852,27 @@ static Object* Runtime_HasLocalProperty(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[1]);
 
-  return HasLocalPropertyImplementation(args[0], key);
+  Object* obj = args[0];
+  // Only JS objects can have properties.
+  if (obj->IsJSObject()) {
+    JSObject* object = JSObject::cast(obj);
+    // Fast case - no interceptors.
+    if (object->HasRealNamedProperty(key)) return Heap::true_value();
+    // Slow case.  Either it's not there or we have an interceptor.  We should
+    // have handles for this kind of deal.
+    HandleScope scope;
+    return HasLocalPropertyImplementation(Handle<JSObject>(object),
+                                          Handle<String>(key));
+  } else if (obj->IsString()) {
+    // Well, there is one exception:  Handle [] on strings.
+    uint32_t index;
+    if (key->AsArrayIndex(&index)) {
+      String* string = String::cast(obj);
+      if (index < static_cast<uint32_t>(string->length()))
+        return Heap::true_value();
+    }
+  }
+  return Heap::false_value();
 }
 
 

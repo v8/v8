@@ -4739,6 +4739,44 @@ THREADED_TEST(InterceptorHasOwnProperty) {
 }
 
 
+static v8::Handle<Value> InterceptorHasOwnPropertyGetterGC(
+    Local<String> name,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  i::Heap::CollectAllGarbage();
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
+  instance_templ->SetNamedPropertyHandler(InterceptorHasOwnPropertyGetterGC);
+  Local<Function> function = fun_templ->GetFunction();
+  context->Global()->Set(v8_str("constructor"), function);
+  // Let's first make some stuff so we can be sure to get a good GC.
+  CompileRun(
+      "function makestr(size) {"
+      "  switch (size) {"
+      "    case 1: return 'f';"
+      "    case 2: return 'fo';"
+      "    case 3: return 'foo';"
+      "  }"
+      "  return makestr(size >> 1) + makestr((size + 1) >> 1);"
+      "}"
+      "var x = makestr(12345);"
+      "x = makestr(31415);"
+      "x = makestr(23456);");
+  v8::Handle<Value> value = CompileRun(
+      "var o = new constructor();"
+      "o.__proto__ = new String(x);"
+      "o.hasOwnProperty('ostehaps');");
+  CHECK_EQ(false, value->BooleanValue());
+}
+
+
 static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
                                                  const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();

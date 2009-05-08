@@ -1262,6 +1262,7 @@ class JSObject: public HeapObject {
     return GetPropertyAttribute(name) != ABSENT;
   }
 
+  // Can cause a GC if it hits an interceptor.
   bool HasLocalProperty(String* name) {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
