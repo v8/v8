@@ -99,10 +99,11 @@ TickProcessor.VmStates = {
 
 
 TickProcessor.CodeTypes = {
-  JS: 0,
-  CPP: 1,
-  SHARED_LIB: 2
+  CPP: 0,
+  SHARED_LIB: 1
 };
+// Otherwise, this is JS-related code. We are not adding it to
+// codeTypes_ map because there can be zillions of them.
 
 
 TickProcessor.RecordsDispatch = {
@@ -142,7 +143,7 @@ TickProcessor.prototype.isCppCode = function(name) {
 
 
 TickProcessor.prototype.isJsCode = function(name) {
-  return this.codeTypes_[name] == TickProcessor.CodeTypes.JS;
+  return !(name in this.codeTypes_);
 };
 
 
@@ -220,7 +221,6 @@ TickProcessor.prototype.processSharedLibrary = function(
 TickProcessor.prototype.processCodeCreation = function(
     type, start, size, name) {
   var entry = this.profile_.addCode(type, name, start, size);
-  this.setCodeType(entry.getName(), 'JS');
 };
 
 
@@ -415,8 +415,7 @@ function CppEntriesProvider() {
 
 CppEntriesProvider.prototype.parseVmSymbols = function(
     libName, libStart, libEnd, processorFunc) {
-  var syms = this.loadSymbols(libName);
-  if (syms.length == 0) return;
+  this.loadSymbols(libName);
 
   var prevEntry;
 
@@ -428,11 +427,12 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
     }
   }
 
-  for (var i = 0, n = syms.length; i < n; ++i) {
-    var line = syms[i];
-    var funcInfo = this.parseLine(line);
-    if (!funcInfo) {
+  while (true) {
+    var funcInfo = this.parseNextLine();
+    if (funcInfo === null) {
       continue;
+    } else if (funcInfo === false) {
+      break;
     }
     if (funcInfo.start < libStart && funcInfo.start < libEnd - libStart) {
       funcInfo.start += libStart;
@@ -445,12 +445,11 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
 
 
 CppEntriesProvider.prototype.loadSymbols = function(libName) {
-  return [];
 };
 
 
-CppEntriesProvider.prototype.parseLine = function(line) {
-  return { name: '', start: 0 };
+CppEntriesProvider.prototype.parseNextLine = function() {
+  return false;
 };
 
 
@@ -462,6 +461,8 @@ function inherits(childCtor, parentCtor) {
 
 
 function UnixCppEntriesProvider() {
+  this.symbols = [];
+  this.parsePos = 0;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
@@ -470,20 +471,35 @@ UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) . (.*)$/;
 
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
-  var normalSyms = os.system('nm', ['-C', '-n', libName], -1, -1);
-  var dynaSyms = os.system('nm', ['-C', '-n', '-D', libName], -1, -1);
-  var syms = (normalSyms + dynaSyms).split('\n');
-  return syms;
+  this.symbols = [
+    os.system('nm', ['-C', '-n', libName], -1, -1),
+    os.system('nm', ['-C', '-n', '-D', libName], -1, -1)
+  ];
+  this.parsePos = 0;
 };
 
 
-UnixCppEntriesProvider.prototype.parseLine = function(line) {
+UnixCppEntriesProvider.prototype.parseNextLine = function() {
+  if (this.symbols.length == 0) {
+    return false;
+  }
+  var lineEndPos = this.symbols[0].indexOf('\n', this.parsePos);
+  if (lineEndPos == -1) {
+    this.symbols.shift();
+    this.parsePos = 0;
+    return this.parseNextLine();
+  }
+
+  var line = this.symbols[0].substring(this.parsePos, lineEndPos);
+  this.parsePos = lineEndPos + 1;
   var fields = line.match(UnixCppEntriesProvider.FUNC_RE);
   return fields ? { name: fields[2], start: parseInt(fields[1], 16) } : null;
 };
 
 
 function WindowsCppEntriesProvider() {
+  this.symbols = '';
+  this.parsePos = 0;
 };
 inherits(WindowsCppEntriesProvider, CppEntriesProvider);
 
@@ -498,13 +514,20 @@ WindowsCppEntriesProvider.FUNC_RE =
 WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
   var fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
   // Only try to load symbols for the .exe file.
-  if (!fileNameFields) return [];
+  if (!fileNameFields) return;
   var mapFileName = fileNameFields[1] + '.map';
-  return readFile(mapFileName).split('\r\n');
+  this.symbols = readFile(mapFileName);
 };
 
 
-WindowsCppEntriesProvider.prototype.parseLine = function(line) {
+WindowsCppEntriesProvider.prototype.parseNextLine = function() {
+  var lineEndPos = this.symbols.indexOf('\r\n', this.parsePos);
+  if (lineEndPos == -1) {
+    return false;
+  }
+
+  var line = this.symbols.substring(this.parsePos, lineEndPos);
+  this.parsePos = lineEndPos + 2;
   var fields = line.match(WindowsCppEntriesProvider.FUNC_RE);
   return fields ?
       { name: this.unmangleName(fields[1]), start: parseInt(fields[2], 16) } :
