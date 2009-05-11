@@ -637,6 +637,12 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 
   InvalidateFrameSlotAt(index);
 
+  // InvalidateFrameSlotAt can potentially change any frame element, due
+  // to spilling registers to allocate temporaries in order to preserve
+  // the copy-on-write semantics of aliased elements.  Reload top from
+  // the frame.
+  top = elements_[top_index];
+
   if (top.is_copy()) {
     // There are two cases based on the relative positions of the
     // stored-to slot and the backing slot of the top element.
