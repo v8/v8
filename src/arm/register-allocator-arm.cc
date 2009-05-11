@@ -66,6 +66,14 @@ void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
 }
 
 
+bool RegisterAllocator::IsReserved(int reg_code) {
+  return (reg_code == sp.code())
+      || (reg_code == fp.code())
+      || (reg_code == cp.code())
+      || (reg_code == pc.code());
+}
+
+
 void RegisterAllocator::Initialize() {
   Reset();
   // The following registers are live on function entry, saved in the
