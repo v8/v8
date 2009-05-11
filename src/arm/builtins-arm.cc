@@ -58,6 +58,16 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
+  Label non_function_call;
+  // Check that the function is not a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &non_function_call);
+  // Check that the function is a JSFunction.
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+  __ b(ne, &non_function_call);
+
   // Enter a construct frame.
   __ EnterConstructFrame();
 
@@ -169,7 +179,17 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ LeaveConstructFrame();
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
-  __ mov(pc, Operand(lr));
+  __ Jump(lr);
+
+  // r0: number of arguments
+  // r1: called object
+  __ bind(&non_function_call);
+
+  // Set expected number of arguments to zero (not changing r0).
+  __ mov(r2, Operand(0));
+  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+  __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -235,7 +255,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Exit the JS frame and remove the parameters (except function), and return.
   // Respect ABI stack constraint.
   __ LeaveInternalFrame();
-  __ mov(pc, lr);
+  __ Jump(lr);
 
   // r0: result
 }
@@ -544,7 +564,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Tear down the internal frame and remove function, receiver and args.
   __ LeaveInternalFrame();
   __ add(sp, sp, Operand(3 * kPointerSize));
-  __ mov(pc, lr);
+  __ Jump(lr);
 }
 
 
@@ -663,14 +683,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   // Exit frame and return.
   LeaveArgumentsAdaptorFrame(masm);
-  __ mov(pc, lr);
+  __ Jump(lr);
 
 
   // -------------------------------------------
   // Dont adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
-  __ mov(pc, r3);
+  __ Jump(r3);
 }
 
 

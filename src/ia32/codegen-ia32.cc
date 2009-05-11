@@ -4544,6 +4544,17 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
+  Result ebp_as_smi = allocator_->Allocate();
+  ASSERT(ebp_as_smi.is_valid());
+  __ mov(ebp_as_smi.reg(), Operand(ebp));
+  __ shr(ebp_as_smi.reg(), kSmiTagSize);
+  frame_->Push(&ebp_as_smi);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;

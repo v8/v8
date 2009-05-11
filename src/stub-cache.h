@@ -203,14 +203,21 @@ class StubCache : public AllStatic {
     // Compute the hash of the name (use entire length field).
     ASSERT(name->HasHashCode());
     uint32_t field = name->length_field();
+    // Using only the low bits in 64-bit mode is unlikely to increase the
+    // risk of collision even if the heap is spread over an area larger than
+    // 4Gb (and not at all if it isn't).
+    uint32_t map_low32bits =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
     // Base the offset on a simple combination of name, flags, and map.
-    uint32_t key = (reinterpret_cast<uint32_t>(map) + field) ^ flags;
+    uint32_t key = (map_low32bits + field) ^ flags;
     return key & ((kPrimaryTableSize - 1) << kHeapObjectTagSize);
   }
 
   static int SecondaryOffset(String* name, Code::Flags flags, int seed) {
     // Use the seed from the primary cache in the secondary cache.
-    uint32_t key = seed - reinterpret_cast<uint32_t>(name) + flags;
+    uint32_t string_low32bits =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name));
+    uint32_t key = seed - string_low32bits + flags;
     return key & ((kSecondaryTableSize - 1) << kHeapObjectTagSize);
   }
 

@@ -54,6 +54,16 @@ function InstallFunctions(object, attributes, functions) {
   }
 }
 
+// Emulates JSC by installing functions on a hidden prototype that
+// lies above the current object/prototype.  This lets you override
+// functions on String.prototype etc. and then restore the old function
+// with delete.  See http://code.google.com/p/chromium/issues/detail?id=1717
+function InstallFunctionsOnHiddenPrototype(object, attributes, functions) {
+  var hidden_prototype = new $Object();
+  %SetHiddenPrototype(object, hidden_prototype);
+  InstallFunctions(hidden_prototype, attributes, functions);
+}
+
 
 // ----------------------------------------------------------------------------
 

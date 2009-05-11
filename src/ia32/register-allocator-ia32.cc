@@ -97,6 +97,12 @@ void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
 }
 
 
+bool RegisterAllocator::IsReserved(int reg_code) {
+  // Test below relies on the order of register codes.
+  return reg_code >= esp.code() && reg_code <= esi.code();
+}
+
+
 void RegisterAllocator::Initialize() {
   Reset();
   // The following register is live on function entry, saved in the

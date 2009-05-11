@@ -77,9 +77,7 @@ typedef unsigned __int64 uint64_t;
 #endif  // BUILDING_V8_SHARED
 
 #else  // _WIN32
-#ifndef __STDC_CONSTANT_MACROS
-#define __STDC_CONSTANT_MACROS
-#endif
+
 #include <stdint.h>
 
 // Setup for Linux shared library export. There is no need to destinguish
@@ -829,14 +827,14 @@ class V8EXPORT String : public Primitive {
   };
 
   /**
-   * Get the ExternalStringResource for an external string.  Only
-   * valid if IsExternal() returns true.
+   * Get the ExternalStringResource for an external string.  Returns
+   * NULL if IsExternal() doesn't return true.
    */
   ExternalStringResource* GetExternalStringResource() const;
 
   /**
    * Get the ExternalAsciiStringResource for an external ascii string.
-   * Only valid if IsExternalAscii() returns true.
+   * Returns NULL if IsExternalAscii() doesn't return true.
    */
   ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
 
@@ -1128,9 +1126,9 @@ class V8EXPORT Object : public Value {
 
   /**
    * Returns the identity hash for this object. The current implemenation uses
-   * a hidden property on the object to store the identity hash. 
+   * a hidden property on the object to store the identity hash.
    *
-   * The return value will never be 0. Also, it is not guaranteed to be 
+   * The return value will never be 0. Also, it is not guaranteed to be
    * unique.
    */
   int GetIdentityHash();
@@ -2082,6 +2080,24 @@ class V8EXPORT V8 {
   static void ResumeProfiler();
 
   /**
+   * If logging is performed into a memory buffer (via --logfile=*), allows to
+   * retrieve previously written messages. This can be used for retrieving
+   * profiler log data in the application. This function is thread-safe.
+   *
+   * Caller provides a destination buffer that must exist during GetLogLines
+   * call. Only whole log lines are copied into the buffer.
+   *
+   * \param from_pos specified a point in a buffer to read from, 0 is the
+   *   beginning of a buffer. It is assumed that caller updates its current
+   *   position using returned size value from the previous call.
+   * \param dest_buf destination buffer for log data.
+   * \param max_size size of the destination buffer.
+   * \returns actual size of log data copied into buffer.
+   */
+  static int GetLogLines(int from_pos, char* dest_buf, int max_size);
+
+
+  /**
    * Releases any resources used by v8 and stops any utility threads
    * that may be running.  Note that disposing v8 is permanent, it
    * cannot be reinitialized.
@@ -2260,6 +2276,14 @@ class V8EXPORT Context {
 
   /** Returns true if V8 has a current context. */
   static bool InContext();
+
+  /**
+   * Associate an additional data object with the context. This is mainly used
+   * with the debugger to provide additional information on the context through
+   * the debugger API.
+   */
+  void SetData(Handle<Value> data);
+  Local<Value> GetData();
 
   /**
    * Stack-allocated class which sets the execution context for all

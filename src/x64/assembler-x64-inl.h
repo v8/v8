@@ -25,3 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_X64_ASSEMBLER_X64_INL_H_
+#define V8_X64_ASSEMBLER_X64_INL_H_
+
+namespace v8 { namespace internal {
+
+Condition NegateCondition(Condition cc) {
+  return static_cast<Condition>(cc ^ 1);
+}
+
+
+Address RelocInfo::target_address() {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  return Assembler::target_address_at(pc_);
+}
+
+
+Address RelocInfo::target_address_address() {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  return reinterpret_cast<Address>(pc_);
+}
+
+
+void RelocInfo::set_target_address(Address target) {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  Assembler::set_target_address_at(pc_, target);
+}
+
+
+void Assembler::set_target_address_at(byte* location, byte* value) {
+  UNIMPLEMENTED();
+}
+
+
+byte* Assembler::target_address_at(byte* location) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+} }  // namespace v8::internal
+
+#endif  // V8_X64_ASSEMBLER_X64_INL_H_

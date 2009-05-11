@@ -43,10 +43,8 @@ devtools.profiler.CodeMap = function() {
   this.dynamics_ = new goog.structs.SplayTree();
 
   /**
-   * Deleted code entries. Used for code collected by the GC.
+   * Name generator for entries having duplicate names.
    */
-  this.deleted_ = [];
-
   this.dynamicsNameGen_ = new devtools.profiler.CodeMap.NameGenerator();
 
   /**
@@ -81,8 +79,6 @@ devtools.profiler.CodeMap.PAGE_SIZE =
  * @param {devtools.profiler.CodeMap.CodeEntry} codeEntry Code entry object.
  */
 devtools.profiler.CodeMap.prototype.addCode = function(start, codeEntry) {
-  var entryName = this.dynamicsNameGen_.getName(codeEntry.name);
-  codeEntry.name = entryName;
   this.dynamics_.insert(start, codeEntry);
 };
 
@@ -102,14 +98,12 @@ devtools.profiler.CodeMap.prototype.moveCode = function(from, to) {
 
 /**
  * Discards a dynamic code entry. Throws an exception if there is no dynamic
- * code entry with the specified starting address. The entry will still be
- * returned from the 'getAllDynamicEntries' method.
+ * code entry with the specified starting address.
  *
  * @param {number} start The starting address of the entry being deleted.
  */
 devtools.profiler.CodeMap.prototype.deleteCode = function(start) {
   var removedNode = this.dynamics_.remove(start);
-  this.deleted_.push(removedNode.value);
 };
 
 
@@ -168,7 +162,14 @@ devtools.profiler.CodeMap.prototype.findEntry = function(addr) {
   var min = this.dynamics_.findMin();
   var max = this.dynamics_.findMax();
   if (max != null && addr < (max.key + max.value.size) && addr >= min.key) {
-    return this.findInTree_(this.dynamics_, addr);
+    var dynaEntry = this.findInTree_(this.dynamics_, addr);
+    if (dynaEntry == null) return null;
+    // Dedupe entry name.
+    if (!dynaEntry.nameUpdated_) {
+      dynaEntry.name = this.dynamicsNameGen_.getName(dynaEntry.name);
+      dynaEntry.nameUpdated_ = true;
+    }
+    return dynaEntry;
   }
   return null;
 };
@@ -178,8 +179,7 @@ devtools.profiler.CodeMap.prototype.findEntry = function(addr) {
  * Returns an array of all dynamic code entries, including deleted ones.
  */
 devtools.profiler.CodeMap.prototype.getAllDynamicEntries = function() {
-  var dynamicEntries = this.dynamics_.exportValues();
-  return dynamicEntries.concat(this.deleted_);
+  return this.dynamics_.exportValues();
 };
 
 
@@ -201,6 +201,7 @@ devtools.profiler.CodeMap.prototype.getAllStaticEntries = function() {
 devtools.profiler.CodeMap.CodeEntry = function(size, opt_name) {
   this.size = size;
   this.name = opt_name || '';
+  this.nameUpdated_ = false;
 };
 
 

@@ -833,6 +833,9 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
   // Initialize the out of memory slot.
   global_context()->set_out_of_memory(Heap::false_value());
+
+  // Initialize the data slot.
+  global_context()->set_data(Heap::undefined_value());
 }
 
 
@@ -1051,6 +1054,14 @@ bool Genesis::InstallNatives() {
             script_descriptors,
             Factory::LookupAsciiSymbol("line_ends"),
             proxy_line_ends,
+            common_attributes);
+    Handle<Proxy> proxy_context_data =
+        Factory::NewProxy(&Accessors::ScriptContextData);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("context_data"),
+            proxy_context_data,
             common_attributes);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
@@ -1470,11 +1481,20 @@ void Genesis::BuildSpecialFunctionTable() {
   Handle<JSFunction> function =
       Handle<JSFunction>(
           JSFunction::cast(global->GetProperty(Heap::Array_symbol())));
-  Handle<JSObject> prototype =
+  Handle<JSObject> visible_prototype =
       Handle<JSObject>(JSObject::cast(function->prototype()));
-  AddSpecialFunction(prototype, "pop",
+  // Remember to put push and pop on the hidden prototype if it's there.
+  Handle<JSObject> push_and_pop_prototype;
+  Handle<Object> superproto(visible_prototype->GetPrototype());
+  if (superproto->IsJSObject() &&
+      JSObject::cast(*superproto)->map()->is_hidden_prototype()) {
+    push_and_pop_prototype = Handle<JSObject>::cast(superproto);
+  } else {
+    push_and_pop_prototype = visible_prototype;
+  }
+  AddSpecialFunction(push_and_pop_prototype, "pop",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
-  AddSpecialFunction(prototype, "push",
+  AddSpecialFunction(push_and_pop_prototype, "push",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
 }
 

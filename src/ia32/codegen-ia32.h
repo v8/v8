@@ -473,7 +473,17 @@ class CodeGenerator: public AstVisitor {
 
   void CheckStack();
 
+  struct InlineRuntimeLUT {
+    void (CodeGenerator::*method)(ZoneList<Expression*>*);
+    const char* name;
+  };
+
+  static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
   bool CheckForInlineRuntimeCall(CallRuntime* node);
+  static bool PatchInlineRuntimeEntry(Handle<String> name,
+                                      const InlineRuntimeLUT& new_entry,
+                                      InlineRuntimeLUT* old_entry);
+
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
@@ -508,6 +518,7 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateLog(ZoneList<Expression*>* args);
 
+  void GenerateGetFramePointer(ZoneList<Expression*>* args);
 
   // Methods and constants for fast case switch statement support.
   //
@@ -604,10 +615,14 @@ class CodeGenerator: public AstVisitor {
   // in a spilled state.
   bool in_spilled_code_;
 
+  static InlineRuntimeLUT kInlineRuntimeLUT[];
+
   friend class VirtualFrame;
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
+
+  friend class CodeGeneratorPatcher;  // Used in test-log-ia32.cc
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

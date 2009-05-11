@@ -277,7 +277,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     frame_->Exit();
 
     __ add(sp, sp, Operand((scope_->num_parameters() + 1) * kPointerSize));
-    __ mov(pc, lr);
+    __ Jump(lr);
   }
 
   // Code generation state must be reset.
@@ -5034,13 +5034,13 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
 
   // Nothing to do: The formal number of parameters has already been
   // passed in register r0 by calling function. Just return it.
-  __ mov(pc, lr);
+  __ Jump(lr);
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame and return it.
   __ bind(&adaptor);
   __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ mov(pc, lr);
+  __ Jump(lr);
 }
 
 
@@ -5072,7 +5072,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ sub(r3, r0, r1);
   __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ ldr(r0, MemOperand(r3, kDisplacement));
-  __ mov(pc, lr);
+  __ Jump(lr);
 
   // Arguments adaptor case: Check index against actual arguments
   // limit found in the arguments adaptor frame. Use unsigned
@@ -5086,7 +5086,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ sub(r3, r0, r1);
   __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ ldr(r0, MemOperand(r3, kDisplacement));
-  __ mov(pc, lr);
+  __ Jump(lr);
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.

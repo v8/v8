@@ -445,6 +445,40 @@ void Context::Exit() {
 }
 
 
+void Context::SetData(v8::Handle<Value> data) {
+  if (IsDeadCheck("v8::Context::SetData()")) return;
+  ENTER_V8;
+  {
+    HandleScope scope;
+    i::Handle<i::Context> env = Utils::OpenHandle(this);
+    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+    ASSERT(env->IsGlobalContext());
+    if (env->IsGlobalContext()) {
+      env->set_data(*raw_data);
+    }
+  }
+}
+
+
+v8::Local<v8::Value> Context::GetData() {
+  if (IsDeadCheck("v8::Context::GetData()")) return v8::Local<Value>();
+  ENTER_V8;
+  i::Object* raw_result = NULL;
+  {
+    HandleScope scope;
+    i::Handle<i::Context> env = Utils::OpenHandle(this);
+    ASSERT(env->IsGlobalContext());
+    if (env->IsGlobalContext()) {
+      raw_result = env->data();
+    } else {
+      return Local<Value>();
+    }
+  }
+  i::Handle<i::Object> result(raw_result);
+  return Utils::ToLocal(result);
+}
+
+
 void** v8::HandleScope::RawClose(void** value) {
   if (!ApiCheck(!is_closed_,
                 "v8::HandleScope::Close()",
@@ -2321,9 +2355,12 @@ v8::String::ExternalStringResource*
 v8::String::GetExternalStringResource() const {
   EnsureInitialized("v8::String::GetExternalStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  ASSERT(str->IsExternalTwoByteString());
-  void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
-  return reinterpret_cast<ExternalStringResource*>(resource);
+  if (i::StringShape(*str).IsExternalTwoByte()) {
+    void* resource = i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
+    return reinterpret_cast<ExternalStringResource*>(resource);
+  } else {
+    return NULL;
+  }
 }
 
 
@@ -2331,9 +2368,12 @@ v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
   EnsureInitialized("v8::String::GetExternalAsciiStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  ASSERT(str->IsExternalAsciiString());
-  void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
-  return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+  if (i::StringShape(*str).IsExternalAscii()) {
+    void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
+    return reinterpret_cast<ExternalAsciiStringResource*>(resource);
+  } else {
+    return NULL;
+  }
 }
 
 
@@ -2646,10 +2686,13 @@ Local<Value> v8::External::Wrap(void* data) {
   ENTER_V8;
   if ((reinterpret_cast<intptr_t>(data) & kAlignedPointerMask) == 0) {
     uintptr_t data_ptr = reinterpret_cast<uintptr_t>(data);
-    int data_value = static_cast<int>(data_ptr >> kAlignedPointerShift);
+    intptr_t data_value =
+        static_cast<intptr_t>(data_ptr >> kAlignedPointerShift);
     STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
-    i::Handle<i::Object> obj(i::Smi::FromInt(data_value));
-    return Utils::ToLocal(obj);
+    if (i::Smi::IsIntptrValid(data_value)) {
+      i::Handle<i::Object> obj(i::Smi::FromIntptr(data_value));
+      return Utils::ToLocal(obj);
+    }
   }
   return ExternalNewImpl(data);
 }
@@ -2660,7 +2703,8 @@ void* v8::External::Unwrap(v8::Handle<v8::Value> value) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   if (obj->IsSmi()) {
     // The external value was an aligned pointer.
-    uintptr_t result = i::Smi::cast(*obj)->value() << kAlignedPointerShift;
+    uintptr_t result = static_cast<uintptr_t>(
+        i::Smi::cast(*obj)->value()) << kAlignedPointerShift;
     return reinterpret_cast<void*>(result);
   }
   return ExternalValueImpl(obj);
@@ -3078,6 +3122,11 @@ void V8::ResumeProfiler() {
 #endif
 }
 
+int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  return i::Logger::GetLogLines(from_pos, dest_buf, max_size);
+#endif
+}
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");

@@ -30,6 +30,25 @@
 
 namespace v8 { namespace internal {
 
+// Processor architecture detection.  For more info on what's defined, see:
+//   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
+//   http://www.agner.org/optimize/calling_conventions.pdf
+//   or with gcc, run: "echo | gcc -E -dM -"
+#if defined(_M_X64) || defined(__x86_64__)
+#define V8_HOST_ARCH_X64 1
+#define V8_HOST_ARCH_64_BIT 1
+#define V8_HOST_CAN_READ_UNALIGNED 1
+#elif defined(_M_IX86) || defined(__i386__)
+#define V8_HOST_ARCH_IA32 1
+#define V8_HOST_ARCH_32_BIT 1
+#define V8_HOST_CAN_READ_UNALIGNED 1
+#elif defined(__ARMEL__)
+#define V8_HOST_ARCH_ARM 1
+#define V8_HOST_ARCH_32_BIT 1
+#else
+#error Your architecture was not detected as supported by v8
+#endif
+
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
 // For instance, 'bool b = "false";' results in b == true! This is a hidden
@@ -50,19 +69,28 @@ typedef unsigned int __my_bool__;
 typedef uint8_t byte;
 typedef byte* Address;
 
-// Define macros for writing 64-bit constants and pointer-size constants.
+// Define our own macros for writing 64-bit constants.  This is less fragile
+// than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
+// works on compilers that don't have it (like MSVC).
+#if V8_HOST_ARCH_64_BIT
 #ifdef _MSC_VER
-#define UINT64_C(x)  (x ## UI64)
-#define INT64_C(x)   (x ## I64)
+#define V8_UINT64_C(x)  (x ## UI64)
+#define V8_INT64_C(x)   (x ## I64)
+#define V8_PTR_PREFIX "ll"
+#else
+#define V8_UINT64_C(x)  (x ## UL)
+#define V8_INT64_C(x)   (x ## L)
+#define V8_PTR_PREFIX "l"
 #endif
+#else  // V8_HOST_ARCH_64_BIT
+#define V8_PTR_PREFIX ""
+#endif
+
+#define V8PRIp V8_PTR_PREFIX "x"
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
 typedef int32_t uc32;
-
-#if defined(V8_ARCH_IA32) || defined(V8_ARCH_X64)
-#define CAN_READ_UNALIGNED 1
-#endif
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -81,7 +109,7 @@ const int kIntSize      = sizeof(int);     // NOLINT
 const int kDoubleSize   = sizeof(double);  // NOLINT
 const int kPointerSize  = sizeof(void*);   // NOLINT
 
-#ifdef V8_ARCH_X64
+#if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;
 #else
 const int kPointerSizeLog2 = 2;
@@ -118,13 +146,13 @@ const int kBitsPerInt = kIntSize * kBitsPerByte;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a heap object pointer.
-#ifdef V8_ARCH_X64
+#ifdef V8_HOST_ARCH_64_BIT
 const Address kZapValue =
-    reinterpret_cast<Address>(UINT64_C(0xdeadbeedbeadbeed));
+    reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeed));
 const Address kHandleZapValue =
-    reinterpret_cast<Address>(UINT64_C(0x1baddead0baddead));
+    reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddead));
 const Address kFromSpaceZapValue =
-    reinterpret_cast<Address>(UINT64_C(0x1beefdad0beefdad));
+    reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdad));
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeed);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddead);
@@ -488,7 +516,7 @@ F FUNCTION_CAST(Address addr) {
 // exception'.
 //
 // Bit_cast uses the memcpy exception to move the bits from a variable of one
-// type o a variable of another type.  Of course the end result is likely to
+// type of a variable of another type.  Of course the end result is likely to
 // be implementation dependent.  Most compilers (gcc-4.2 and MSVC 2005)
 // will completely optimize bit_cast away.
 //

@@ -4627,35 +4627,42 @@ THREADED_TEST(CallAsFunction) {
   Local<Value> value;
   CHECK(!try_catch.HasCaught());
 
-  value = Script::Compile(v8_str("obj(42)"))->Run();
+  value = CompileRun("obj(42)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(42, value->Int32Value());
 
-  value = Script::Compile(v8_str("(function(o){return o(49)})(obj)"))->Run();
+  value = CompileRun("(function(o){return o(49)})(obj)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(49, value->Int32Value());
 
   // test special case of call as function
-  value = Script::Compile(v8_str("[obj]['0'](45)"))->Run();
+  value = CompileRun("[obj]['0'](45)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(45, value->Int32Value());
 
-  value = Script::Compile(v8_str("obj.call = Function.prototype.call;"
-                                 "obj.call(null, 87)"))->Run();
+  value = CompileRun("obj.call = Function.prototype.call;"
+                     "obj.call(null, 87)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(87, value->Int32Value());
 
   // Regression tests for bug #1116356: Calling call through call/apply
   // must work for non-function receivers.
   const char* apply_99 = "Function.prototype.call.apply(obj, [this, 99])";
-  value = Script::Compile(v8_str(apply_99))->Run();
+  value = CompileRun(apply_99);
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(99, value->Int32Value());
 
   const char* call_17 = "Function.prototype.call.call(obj, this, 17)";
-  value = Script::Compile(v8_str(call_17))->Run();
+  value = CompileRun(call_17);
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(17, value->Int32Value());
+
+  // Check that the call-as-function handler can be called through
+  // new.  Currently, there is no way to check in the call-as-function
+  // handler if it has been called through new or not.
+  value = CompileRun("new obj(42)");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(42, value->Int32Value());
 }
 
 
@@ -4728,6 +4735,44 @@ THREADED_TEST(InterceptorHasOwnProperty) {
   value = CompileRun(
       "var p = new constructor();"
       "p.hasOwnProperty('ostehaps');");
+  CHECK_EQ(false, value->BooleanValue());
+}
+
+
+static v8::Handle<Value> InterceptorHasOwnPropertyGetterGC(
+    Local<String> name,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  i::Heap::CollectAllGarbage();
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
+  instance_templ->SetNamedPropertyHandler(InterceptorHasOwnPropertyGetterGC);
+  Local<Function> function = fun_templ->GetFunction();
+  context->Global()->Set(v8_str("constructor"), function);
+  // Let's first make some stuff so we can be sure to get a good GC.
+  CompileRun(
+      "function makestr(size) {"
+      "  switch (size) {"
+      "    case 1: return 'f';"
+      "    case 2: return 'fo';"
+      "    case 3: return 'foo';"
+      "  }"
+      "  return makestr(size >> 1) + makestr((size + 1) >> 1);"
+      "}"
+      "var x = makestr(12345);"
+      "x = makestr(31415);"
+      "x = makestr(23456);");
+  v8::Handle<Value> value = CompileRun(
+      "var o = new constructor();"
+      "o.__proto__ = new String(x);"
+      "o.hasOwnProperty('ostehaps');");
   CHECK_EQ(false, value->BooleanValue());
 }
 

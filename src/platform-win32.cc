@@ -1775,9 +1775,16 @@ class Sampler::PlatformData : public Malloced {
         context.ContextFlags = CONTEXT_FULL;
         GetThreadContext(profiled_thread_, &context);
         // Invoke tick handler with program counter and stack pointer.
+#if V8_HOST_ARCH_X64
+        UNIMPLEMENTED();
+        sample.pc = context.Rip;
+        sample.sp = context.Rsp;
+        sample.fp = context.Rbp;
+#else
         sample.pc = context.Eip;
         sample.sp = context.Esp;
         sample.fp = context.Ebp;
+#endif
       }
 
       // We always sample the VM state.

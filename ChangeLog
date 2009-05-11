@@ -1,3 +1,15 @@
+2009-05-11: Version 1.2.3
+
+        Fixed bug in reporting of out-of-memory situations.
+
+        Introduced hidden prototypes on certain builtin prototype objects
+        such as String.prototype to emulate JSC's behavior of restoring
+        the original function when deleting functions from those prototype
+        objects.
+
+        Fixed crash bug in the register allocator.
+
+
 2009-05-04: Version 1.2.2
 
         Fixed bug in array sorting for sparse arrays (issue 326).

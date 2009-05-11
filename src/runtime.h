@@ -53,6 +53,7 @@ namespace v8 { namespace internal {
   F(ToSlowProperties, 1) \
   \
   F(IsInPrototypeChain, 2) \
+  F(SetHiddenPrototype, 2) \
   \
   F(IsConstructCall, 0) \
   \
@@ -298,7 +299,8 @@ namespace v8 { namespace internal {
   F(DebugConstructedBy, 2) \
   F(DebugGetPrototype, 1) \
   F(SystemBreak, 0) \
-  F(FunctionGetAssemblerCode, 1)
+  F(FunctionGetAssemblerCode, 1) \
+  F(FunctionGetInferredName, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif

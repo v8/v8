@@ -59,7 +59,9 @@
 //   ComputeCallInitializeInLoop
 //   ProcessDeclarations
 //   DeclareGlobals
+//   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
+//   PatchInlineRuntimeEntry
 //   GenerateFastCaseSwitchStatement
 //   GenerateFastCaseSwitchCases
 //   TryGenerateFastCaseSwitchStatement
@@ -76,16 +78,12 @@
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 
-#ifdef V8_ARCH_ARM
-#include "arm/codegen-arm.h"
-#endif
-
-#ifdef V8_ARCH_X64
-#include "x64/codegen-x64.h"
-#endif
-
-#ifdef V8_ARCH_IA32
+#if V8_TARGET_ARCH_IA32
 #include "ia32/codegen-ia32.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/codegen-x64.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/codegen-arm.h"
 #endif
 
 namespace v8 { namespace internal {
