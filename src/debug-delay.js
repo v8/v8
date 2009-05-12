@@ -984,7 +984,8 @@ CompileEvent.prototype.toJSONProtocol = function() {
     o.event = "afterCompile";
   }
   o.body = {};
-  o.body.script = MakeScriptObject_(this.script_, true);
+  o.body.script = this.script_;
+  o.setOption('includeSource', true);
 
   return o.toJSONProtocol();
 }

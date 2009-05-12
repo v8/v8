@@ -65,6 +65,10 @@ function listener(event, exec_state, event_data, data) {
         // exact source.
         assertEquals(current_source, event_data.script().source());
       }
+      // Check that script context is included into the event message.
+      var json = event_data.toJSONProtocol();
+      var msg = eval('(' + json + ')');
+      assertTrue('context' in msg.body.script);
     }
   } catch (e) {
     exception = e
