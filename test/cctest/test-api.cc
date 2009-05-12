@@ -1327,6 +1327,38 @@ THREADED_TEST(HiddenProperties) {
 }
 
 
+static v8::Handle<Value> InterceptorForHiddenProperties(
+    Local<String> name, const AccessorInfo& info) {
+  // Make sure objects move.
+  bool saved_always_compact = i::FLAG_always_compact;
+  if (!i::FLAG_never_compact) {
+    i::FLAG_always_compact = true;
+  }
+  // The whole goal of this interceptor is to cause a GC during local property
+  // lookup.
+  i::Heap::CollectAllGarbage();
+  i::FLAG_always_compact = saved_always_compact;
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(HiddenPropertiesWithInterceptors) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  v8::Local<v8::String> key = v8_str("api-test::hidden-key");
+
+  // Associate an interceptor with an object and start setting hidden values.
+  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
+  instance_templ->SetNamedPropertyHandler(InterceptorForHiddenProperties);
+  Local<v8::Function> function = fun_templ->GetFunction();
+  Local<v8::Object> obj = function->NewInstance();
+  CHECK(obj->SetHiddenValue(key, v8::Integer::New(2302)));
+  CHECK_EQ(2302, obj->GetHiddenValue(key)->Int32Value());
+}
+
+
 THREADED_TEST(External) {
   v8::HandleScope scope;
   int x = 3;

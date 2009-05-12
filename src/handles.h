@@ -228,6 +228,9 @@ Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
 
 Handle<Object> GetPrototype(Handle<Object> obj);
 
+// Return the object's hidden properties object. If the object has no hidden
+// properties and create_if_needed is true, then a new hidden property object
+// will be allocated. Otherwise the Heap::undefined_value is returned.
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj, bool create_if_needed);
 
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);

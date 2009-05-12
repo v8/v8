@@ -5145,42 +5145,6 @@ bool JSObject::HasLocalElement(uint32_t index) {
 }
 
 
-Object* JSObject::GetHiddenProperties(bool create_if_needed) {
-  String* key = Heap::hidden_symbol();
-  if (this->HasFastProperties()) {
-    // If the object has fast properties, check whether the first slot
-    // in the descriptor array matches the hidden symbol. Since the
-    // hidden symbols hash code is zero (and no other string has hash
-    // code zero) it will always occupy the first entry if present.
-    DescriptorArray* descriptors = this->map()->instance_descriptors();
-    DescriptorReader r(descriptors);
-    if (!r.eos() && (r.GetKey() == key) && r.IsProperty()) {
-      ASSERT(r.type() == FIELD);
-      return FastPropertyAt(r.GetFieldIndex());
-    }
-  }
-
-  // Only attempt to find the hidden properties in the local object and not
-  // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
-  // the general case, but in this case we know it won't hit an interceptor.
-  if (!this->HasLocalProperty(key)) {
-    // Hidden properties object not found. Allocate a new hidden properties
-    // object if requested. Otherwise return the undefined value.
-    if (create_if_needed) {
-      Object* obj = Heap::AllocateJSObject(
-          Top::context()->global_context()->object_function());
-      if (obj->IsFailure()) {
-        return obj;
-      }
-      return this->SetProperty(key, obj, DONT_ENUM);
-    } else {
-      return Heap::undefined_value();
-    }
-  }
-  return this->GetProperty(key);
-}
-
-
 bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
