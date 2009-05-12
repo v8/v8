@@ -7064,7 +7064,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ j(zero, &slow, not_taken);
 
   // Check that the left hand is a JS object.
-  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // ebx - object map
+  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // eax - object map
   __ movzx_b(ecx, FieldOperand(eax, Map::kInstanceTypeOffset));  // ecx - type
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(less, &slow, not_taken);
@@ -7076,6 +7076,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ TryGetFunctionPrototype(edx, ebx, ecx, &slow);
 
   // Check that the function prototype is a JS object.
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(zero, &slow, not_taken);
   __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
