@@ -473,7 +473,15 @@ class CodeGenerator: public AstVisitor {
 
   void CheckStack();
 
+  struct InlineRuntimeLUT {
+    void (CodeGenerator::*method)(ZoneList<Expression*>*);
+    const char* name;
+  };
+  static InlineRuntimeLUT* FindInlineRuntimeLUT(Handle<String> name);
   bool CheckForInlineRuntimeCall(CallRuntime* node);
+  static bool PatchInlineRuntimeEntry(Handle<String> name,
+                                      const InlineRuntimeLUT& new_entry,
+                                      InlineRuntimeLUT* old_entry);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
@@ -603,6 +611,8 @@ class CodeGenerator: public AstVisitor {
   // called from spilled code, because they do not leave the virtual frame
   // in a spilled state.
   bool in_spilled_code_;
+
+  static InlineRuntimeLUT kInlineRuntimeLUT[];
 
   friend class VirtualFrame;
   friend class JumpTarget;

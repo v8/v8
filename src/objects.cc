@@ -6725,7 +6725,10 @@ class MapNameKey : public HashTableKey {
   virtual HashFunction GetHashFunction() { return MapNameHash; }
 
   static uint32_t MapNameHashHelper(Map* map, String* name) {
-    return reinterpret_cast<uint32_t>(map) ^ name->Hash();
+    // Uses only lower 32 bits if pointers are larger.
+    uintptr_t addr_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
+    return addr_hash ^ name->Hash();
   }
 
   static uint32_t MapNameHash(Object* obj) {

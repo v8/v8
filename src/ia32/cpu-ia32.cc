@@ -46,7 +46,7 @@ void CPU::FlushICache(void* start, size_t size) {
   // is patched on an intel CPU the core performing the patching will have its
   // own instruction cache updated automatically.
 
-  // If flushing of the instruction cache becomes necessary Windows have the
+  // If flushing of the instruction cache becomes necessary Windows has the
   // API function FlushInstructionCache.
 }
 

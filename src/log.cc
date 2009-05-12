@@ -631,7 +631,7 @@ void Logger::HandleEvent(const char* name, Object** location) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_handles) return;
   LogMessageBuilder msg;
-  msg.Append("%s,0x%%"V8PRIp"\n", name, location);
+  msg.Append("%s,0x%%" V8PRIxPTR "\n", name, location);
   msg.WriteToLogFile();
 #endif
 }
@@ -850,7 +850,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log) return;
   LogMessageBuilder msg;
-  msg.Append("new,%s,0x%%"V8PRIp",%u\n", name, object,
+  msg.Append("new,%s,0x%%" V8PRIxPTR ",%u\n", name, object,
              static_cast<unsigned int>(size));
   msg.WriteToLogFile();
 #endif
@@ -861,7 +861,7 @@ void Logger::DeleteEvent(const char* name, void* object) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log) return;
   LogMessageBuilder msg;
-  msg.Append("delete,%s,0x%%"V8PRIp"\n", name, object);
+  msg.Append("delete,%s,0x%%" V8PRIxPTR "\n", name, object);
   msg.WriteToLogFile();
 #endif
 }
@@ -871,7 +871,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"", tag, code->address(),
+  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"", tag, code->address(),
              code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '"') {
@@ -892,8 +892,8 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
   LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"%s\"\n", tag, code->address(),
-             code->ExecutableSize(), *str);
+  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"%s\"\n",
+             tag, code->address(), code->ExecutableSize(), *str);
   msg.WriteToLogFile();
 #endif
 }
@@ -908,7 +908,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"%s %s:%d\"\n",
+  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"%s %s:%d\"\n",
              tag, code->address(),
              code->ExecutableSize(),
              *str, *sourcestr, line);
@@ -921,7 +921,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"args_count: %d\"\n", tag,
+  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"args_count: %d\"\n", tag,
              code->address(),
              code->ExecutableSize(),
              args_count);
@@ -934,7 +934,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%"V8PRIp",%d,\"", "RegExp",
+  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"", "RegExp",
              code->address(),
              code->ExecutableSize());
   msg.AppendDetailed(source, false);
@@ -948,7 +948,9 @@ void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-allocate,0x%"V8PRIp",0x%"V8PRIp"\n", code->address(), assem);
+  msg.Append("code-allocate,0x%" V8PRIxPTR ",0x%" V8PRIxPTR "\n",
+             code->address(),
+             assem);
   msg.WriteToLogFile();
 #endif
 }
@@ -958,7 +960,7 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-move,0x%"V8PRIp",0x%"V8PRIp"\n", from, to);
+  msg.Append("code-move,0x%" V8PRIxPTR ",0x%" V8PRIxPTR "\n", from, to);
   msg.WriteToLogFile();
 #endif
 }
@@ -968,7 +970,7 @@ void Logger::CodeDeleteEvent(Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-delete,0x%"V8PRIp"\n", from);
+  msg.Append("code-delete,0x%" V8PRIxPTR "\n", from);
   msg.WriteToLogFile();
 #endif
 }
@@ -1074,13 +1076,13 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!Log::is_enabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
-  msg.Append("tick,0x%"V8PRIp",0x%"V8PRIp",%d", sample->pc, sample->sp,
-             static_cast<int>(sample->state));
+  msg.Append("tick,0x%" V8PRIxPTR ",0x%" V8PRIxPTR ",%d",
+             sample->pc, sample->sp, static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
   }
   for (int i = 0; i < sample->frames_count; ++i) {
-    msg.Append(",0x%"V8PRIp, sample->stack[i]);
+    msg.Append(",0x%" V8PRIxPTR, sample->stack[i]);
   }
   msg.Append('\n');
   msg.WriteToLogFile();

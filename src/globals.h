@@ -86,7 +86,8 @@ typedef byte* Address;
 #define V8_PTR_PREFIX ""
 #endif
 
-#define V8PRIp V8_PTR_PREFIX "x"
+#define V8PRIxPTR V8_PTR_PREFIX "x"
+#define V8PRIdPTR V8_PTR_PREFIX "d"
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;

@@ -4442,10 +4442,16 @@ static Object* Runtime_LookupContext(Arguments args) {
 // compiler to do the right thing.
 //
 // TODO(1236026): This is a non-portable hack that should be removed.
+// TODO(x64): Definitely!
 typedef uint64_t ObjectPair;
 static inline ObjectPair MakePair(Object* x, Object* y) {
+#if V8_HOST_ARCH_64_BIT
+  UNIMPLEMENTED();
+  return 0;
+#else
   return reinterpret_cast<uint32_t>(x) |
       (reinterpret_cast<ObjectPair>(y) << 32);
+#endif
 }
 
 
@@ -6031,6 +6037,11 @@ static Object* Runtime_GetCFrames(Arguments args) {
   Object* result = Runtime_CheckExecutionState(args);
   if (result->IsFailure()) return result;
 
+#if V8_HOST_ARCH_64_BIT
+  UNIMPLEMENTED();
+  return Heap::undefined_value();
+#else
+
   static const int kMaxCFramesSize = 200;
   ScopedVector<OS::StackFrame> frames(kMaxCFramesSize);
   int frames_count = OS::StackWalk(frames);
@@ -6062,6 +6073,7 @@ static Object* Runtime_GetCFrames(Arguments args) {
     frames_array->set(i, *frame_value);
   }
   return *Factory::NewJSArrayWithElements(frames_array);
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
