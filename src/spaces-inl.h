@@ -64,16 +64,15 @@ HeapObject* HeapObjectIterator::next() {
 // PageIterator
 
 bool PageIterator::has_next() {
-  return prev_page_ != stop_page_;
+  return cur_page_ != stop_page_;
 }
 
 
 Page* PageIterator::next() {
   ASSERT(has_next());
-  prev_page_ = (prev_page_ == NULL)
-               ? space_->first_page_
-               : prev_page_->next_page();
-  return prev_page_;
+  Page* result = cur_page_;
+  cur_page_ = cur_page_->next_page();
+  return result;
 }
 
 
