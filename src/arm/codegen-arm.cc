@@ -4335,6 +4335,45 @@ void Reference::SetValue(InitState init_state) {
 }
 
 
+static void AllocateHeapNumber(
+    MacroAssembler* masm,
+    Label* need_gc,       // Jump here if young space is full.
+    Register result_reg,  // The tagged address of the new heap number.
+    Register allocation_top_addr_reg,  // A scratch register.
+    Register scratch2) {  // Another scratch register.
+  ExternalReference allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+  ExternalReference allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+
+  // allocat := the address of the allocation top variable.
+  __ mov(allocation_top_addr_reg, Operand(allocation_top));
+  // result_reg := the old allocation top.
+  __ ldr(result_reg, MemOperand(allocation_top_addr_reg));
+  // scratch2 := the address of the allocation limit.
+  __ mov(scratch2, Operand(allocation_limit));
+  // scratch2 := the allocation limit.
+  __ ldr(scratch2, MemOperand(scratch2));
+  // result_reg := the new allocation top.
+  __ add(result_reg, result_reg, Operand(HeapNumber::kSize));
+  // Compare new new allocation top and limit.
+  __ cmp(result_reg, Operand(scratch2));
+  // Branch if out of space in young generation.
+  __ b(hi, need_gc);
+  // Store new allocation top.
+  __ str(result_reg, MemOperand(allocation_top_addr_reg));  // store new top
+  // Tag and adjust back to start of new object.
+  __ sub(result_reg, result_reg, Operand(HeapNumber::kSize - kHeapObjectTag));
+  // Get heap number map into scratch2.
+  __ mov(scratch2, Operand(Factory::heap_number_map()));
+  // Store heap number map in new object.
+  __ str(scratch2, FieldMemOperand(result_reg, HeapObject::kMapOffset));
+}
+
+
+// We fall into this code if the operands were Smis, but the result was
+// not (eg. overflow).  We branch into this code (to the not_smi label) if
+// the operands were not both Smi.
 static void HandleBinaryOpSlowCases(MacroAssembler* masm,
                                     Label* not_smi,
                                     const Builtins::JavaScript& builtin,
@@ -4342,73 +4381,74 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
                                     int swi_number,
                                     OverwriteMode mode) {
   Label slow;
-  if (mode == NO_OVERWRITE) {
-    __ bind(not_smi);
-  }
   __ bind(&slow);
   __ push(r1);
   __ push(r0);
   __ mov(r0, Operand(1));  // Set number of arguments.
   __ InvokeBuiltin(builtin, JUMP_JS);  // Tail call.
 
-  // Could it be a double-double op?  If we already have a place to put
-  // the answer then we can do the op and skip the builtin and runtime call.
-  if (mode != NO_OVERWRITE) {
-    __ bind(not_smi);
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, &slow);  // We can't handle a Smi-double combination yet.
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &slow);  // We can't handle a Smi-double combination yet.
-    // Get map of r0 into r2.
-    __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
-    // Get type of r0 into r3.
-    __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-    __ cmp(r3, Operand(HEAP_NUMBER_TYPE));
-    __ b(ne, &slow);
-    // Get type of r1 into r3.
-    __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-    // Check they are both the same map (heap number map).
-    __ cmp(r2, r3);
-    __ b(ne, &slow);
-    // Both are doubles.
-    // Calling convention says that second double is in r2 and r3.
-    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kValueOffset));
-    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
+  __ bind(not_smi);
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &slow);  // We can't handle a Smi-double combination yet.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &slow);  // We can't handle a Smi-double combination yet.
+  // Get map of r0 into r2.
+  __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  // Get type of r0 into r3.
+  __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  __ cmp(r3, Operand(HEAP_NUMBER_TYPE));
+  __ b(ne, &slow);
+  // Get type of r1 into r3.
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  // Check they are both the same map (heap number map).
+  __ cmp(r2, r3);
+  __ b(ne, &slow);
+  // Both are doubles.
+  // Calling convention says that second double is in r2 and r3.
+  __ ldr(r2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+  __ ldr(r3, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
+
+  if (mode == NO_OVERWRITE) {
+    // Get address of new heap number into r5.
+    AllocateHeapNumber(masm, &slow, r5, r6, r7);
     __ push(lr);
-    if (mode == OVERWRITE_LEFT) {
-      __ push(r1);
-    } else {
-      __ push(r0);
-    }
-    // Calling convention says that first double is in r0 and r1.
-    __ ldr(r0, FieldMemOperand(r1, HeapNumber::kValueOffset));
-    __ ldr(r1, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
-    // Call C routine that may not cause GC or other trouble.
-    __ mov(r5, Operand(ExternalReference::double_fp_operation(operation)));
-#if !defined(__arm__)
-    // Notify the simulator that we are calling an add routine in C.
-    __ swi(swi_number);
-#else
-    // Actually call the add routine written in C.
-    __ Call(r5);
-#endif
-    // Store answer in the overwritable heap number.
-    __ pop(r4);
-#if !defined(__ARM_EABI__) && defined(__arm__)
-    // Double returned in fp coprocessor register 0 and 1, encoded as register
-    // cr8.  Offsets must be divisible by 4 for coprocessor so we need to
-    // substract the tag from r4.
-    __ sub(r5, r4, Operand(kHeapObjectTag));
-    __ stc(p1, cr8, MemOperand(r5, HeapNumber::kValueOffset));
-#else
-    // Double returned in fp coprocessor register 0 and 1.
-    __ str(r0, FieldMemOperand(r4, HeapNumber::kValueOffset));
-    __ str(r1, FieldMemOperand(r4, HeapNumber::kValueOffset + kPointerSize));
-#endif
-    __ mov(r0, Operand(r4));
-    // And we are done.
-    __ pop(pc);
+    __ push(r5);
+  } else if (mode == OVERWRITE_LEFT) {
+    __ push(lr);
+    __ push(r1);
+  } else {
+    ASSERT(mode == OVERWRITE_RIGHT);
+    __ push(lr);
+    __ push(r0);
   }
+  // Calling convention says that first double is in r0 and r1.
+  __ ldr(r0, FieldMemOperand(r1, HeapNumber::kValueOffset));
+  __ ldr(r1, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
+  // Call C routine that may not cause GC or other trouble.
+  __ mov(r5, Operand(ExternalReference::double_fp_operation(operation)));
+#if !defined(__arm__)
+  // Notify the simulator that we are calling an add routine in C.
+  __ swi(swi_number);
+#else
+  // Actually call the add routine written in C.
+  __ Call(r5);
+#endif
+  // Store answer in the overwritable heap number.
+  __ pop(r4);
+#if !defined(__ARM_EABI__) && defined(__arm__)
+  // Double returned in fp coprocessor register 0 and 1, encoded as register
+  // cr8.  Offsets must be divisible by 4 for coprocessor so we need to
+  // substract the tag from r4.
+  __ sub(r5, r4, Operand(kHeapObjectTag));
+  __ stc(p1, cr8, MemOperand(r5, HeapNumber::kValueOffset));
+#else
+  // Double returned in fp coprocessor register 0 and 1.
+  __ str(r0, FieldMemOperand(r4, HeapNumber::kValueOffset));
+  __ str(r1, FieldMemOperand(r4, HeapNumber::kValueOffset + kPointerSize));
+#endif
+  __ mov(r0, Operand(r4));
+  // And we are done.
+  __ pop(pc);
 }
 
 
