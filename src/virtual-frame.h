@@ -121,14 +121,40 @@ class FrameElement BASE_EMBEDDED {
     return data_.index_;
   }
 
-  bool Equals(FrameElement other);
-
   StaticType static_type() { return static_type_; }
 
   void set_static_type(StaticType static_type) {
     // TODO(lrn): If it's s copy, it would be better to update the real one,
     // but we can't from here. The caller must handle this.
     static_type_ = static_type;
+  }
+
+  // True if the frame elements are identical (all data members).
+  bool Equals(FrameElement other);
+
+  // Given a pair of non-null frame element pointers, return one of them
+  // as an entry frame candidate or null if they are incompatible.
+  FrameElement* Combine(FrameElement* other) {
+    // If either is invalid, the result is.
+    if (!is_valid()) return this;
+    if (!other->is_valid()) return other;
+
+    // If they do not have the exact same location we reallocate.
+    bool not_same_location =
+        (type_ != other->type_) ||
+        (is_register() && !reg().is(other->reg())) ||
+        (is_constant() && !handle().is_identical_to(other->handle())) ||
+        (is_copy() && index() != other->index());
+    if (not_same_location) return NULL;
+
+    // If either is unsynced, the result is.  The result static type is
+    // the merge of the static types.  It's safe to set it on one of the
+    // frame elements, and harmless too (because we are only going to
+    // merge the reaching frames and will ensure that the types are
+    // coherent, and changing the static type does not emit code).
+    FrameElement* result = is_synced() ? other : this;
+    result->set_static_type(static_type().merge(other->static_type()));
+    return result;
   }
 
  private:

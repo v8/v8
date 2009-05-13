@@ -202,10 +202,6 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // jump, and a fresh label for its merge code.
   void AddReachingFrame(VirtualFrame* frame);
 
-  // Choose an element from a pair of frame elements to be in the
-  // expected frame.  Return null if they are incompatible.
-  FrameElement* Combine(FrameElement* left, FrameElement* right);
-
   // Compute a frame to use for entry to this block.  Mergable
   // elements is as described for the Bind function.
   void ComputeEntryFrame(int mergable_elements);

@@ -92,69 +92,6 @@ void JumpTarget::Reset() {
 }
 
 
-FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
-  // Given a pair of non-null frame element pointers, return one of
-  // them as an entry frame candidate or null if they are
-  // incompatible.
-
-  // If either is invalid, the result is.
-  if (!left->is_valid()) return left;
-  if (!right->is_valid()) return right;
-
-  // If they have the exact same location, the result is in that
-  // location, otherwise we reallocate.  If either is unsynced, the
-  // result is.  The result static type is the merge of the static
-  // types.  It's safe to set it on one of the frame elements, and
-  // harmless too (because we are only going to merge the reaching
-  // frames and will ensure that the types are coherent, and changing
-  // the static type does not emit code).
-
-  StaticType type = left->static_type().merge(right->static_type());
-  if (left->is_memory() && right->is_memory()) {
-    left->set_static_type(type);
-    return left;
-  }
-
-  if (left->is_register() && right->is_register() &&
-      left->reg().is(right->reg())) {
-    if (!left->is_synced()) {
-      left->set_static_type(type);
-      return left;
-    } else {
-      right->set_static_type(type);
-      return right;
-    }
-  }
-
-  if (left->is_constant() &&
-      right->is_constant() &&
-      left->handle().is_identical_to(right->handle())) {
-    if (!left->is_synced()) {
-      left->set_static_type(type);
-      return left;
-    } else {
-      right->set_static_type(type);
-      return right;
-    }
-  }
-
-  if (left->is_copy() &&
-      right->is_copy() &&
-      left->index() == right->index()) {
-    if (!left->is_synced()) {
-      left->set_static_type(type);
-      return left;
-    } else {
-      right->set_static_type(type);
-      return right;
-    }
-  }
-
-  // Otherwise they are incompatible and we will reallocate them.
-  return NULL;
-}
-
-
 void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // Given: a collection of frames reaching by forward CFG edges and
   // the directionality of the block.  Compute: an entry frame for the
@@ -198,15 +135,15 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // Compute elements based on the other reaching frames.
   if (reaching_frames_.length() > 1) {
     for (int i = 0; i < length; i++) {
+      FrameElement* element = elements[i];
       for (int j = 1; j < reaching_frames_.length(); j++) {
-        FrameElement* element = elements[i];
-
         // Element computation is monotonic: new information will not
         // change our decision about undetermined or invalid elements.
         if (element == NULL || !element->is_valid()) break;
 
-        elements[i] = Combine(element, &reaching_frames_[j]->elements_[i]);
+        element = element->Combine(&reaching_frames_[j]->elements_[i]);
       }
+      elements[i] = element;
     }
   }
 
@@ -216,33 +153,23 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   entry_frame_ = new VirtualFrame(cgen_);
   int index = 0;
   for (; index < entry_frame_->elements_.length(); index++) {
+    FrameElement* target = elements[index];
     // If the element is determined, set it now.  Count registers.  Mark
     // elements as copied exactly when they have a copy.  Undetermined
     // elements are initially recorded as if in memory.
-    if (elements[index] != NULL) {
-      entry_frame_->elements_[index] = *elements[index];
-      entry_frame_->elements_[index].clear_copied();
-      if (elements[index]->is_register()) {
-        entry_frame_->register_locations_[elements[index]->reg().code()] =
-            index;
-      } else if (elements[index]->is_copy()) {
-        entry_frame_->elements_[elements[index]->index()].set_copied();
-      }
+    if (target != NULL) {
+      entry_frame_->elements_[index] = *target;
+      entry_frame_->InitializeEntryElement(index, target);
     }
   }
   // Then fill in the rest of the frame with new elements.
   for (; index < length; index++) {
-    if (elements[index] == NULL) {
+    FrameElement* target = elements[index];
+    if (target == NULL) {
       entry_frame_->elements_.Add(FrameElement::MemoryElement());
     } else {
-      entry_frame_->elements_.Add(*elements[index]);
-      entry_frame_->elements_[index].clear_copied();
-      if (elements[index]->is_register()) {
-        entry_frame_->register_locations_[elements[index]->reg().code()] =
-            index;
-      } else if (elements[index]->is_copy()) {
-        entry_frame_->elements_[elements[index]->index()].set_copied();
-      }
+      entry_frame_->elements_.Add(*target);
+      entry_frame_->InitializeEntryElement(index, target);
     }
   }
 
