@@ -86,7 +86,7 @@ static bool IsValidJSON(FunctionLiteral* lit) {
   Statement* stmt = lit->body()->at(0);
   if (stmt->AsExpressionStatement() == NULL)
     return false;
-  Expression *expr = stmt->AsExpressionStatement()->expression();
+  Expression* expr = stmt->AsExpressionStatement()->expression();
   return expr->IsValidJSON();
 }
 

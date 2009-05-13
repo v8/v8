@@ -147,7 +147,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
 }
 
 
-void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
+void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
 }
 
 

@@ -466,7 +466,7 @@ class LogMessageBuilder BASE_EMBEDDED {
   void Append(const char* format, ...);
   void Append(const char* format, va_list args);
   void Append(const char c);
-  void Append(String *str);
+  void Append(String* str);
   void AppendDetailed(String* str, bool show_impl_info);
 
   void WriteToLogFile();

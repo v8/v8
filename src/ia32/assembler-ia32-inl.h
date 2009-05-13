@@ -158,7 +158,7 @@ Immediate::Immediate(const char* s) {
 }
 
 
-Immediate::Immediate(Label *internal_offset) {
+Immediate::Immediate(Label* internal_offset) {
   x_ = reinterpret_cast<int32_t>(internal_offset);
   rmode_ = RelocInfo::INTERNAL_REFERENCE;
 }

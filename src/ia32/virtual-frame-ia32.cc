@@ -340,7 +340,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
 }
 
 
-void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
+void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
   // Move memory, constants, and copies to registers.  This is the
   // final step and is done from the bottom up so that the backing
   // elements of copies are in their correct locations when we
