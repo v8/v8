@@ -191,6 +191,163 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
   UNIMPLEMENTED();
 }
 
+void CodeGenerator::VisitStatements(ZoneList<Statement*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitBlock(Block* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitDeclaration(Declaration* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitExpressionStatement(ExpressionStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitEmptyStatement(EmptyStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitIfStatement(IfStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitContinueStatement(ContinueStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitBreakStatement(BreakStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitReturnStatement(ReturnStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitWithExitStatement(WithExitStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitSwitchStatement(SwitchStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitLoopStatement(LoopStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitForInStatement(ForInStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitTryCatch(TryCatch* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitTryFinally(TryFinally* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitConditional(Conditional* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitSlot(Slot* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitVariableProxy(VariableProxy* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitLiteral(Literal* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitObjectLiteral(ObjectLiteral* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitArrayLiteral(ArrayLiteral* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitAssignment(Assignment* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitThrow(Throw* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitProperty(Property* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitCall(Call* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitCallEval(CallEval* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitCallNew(CallNew* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitCallRuntime(CallRuntime* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitUnaryOperation(UnaryOperation* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitCountOperation(CountOperation* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitBinaryOperation(BinaryOperation* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitCompareOperation(CompareOperation* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::VisitThisFunction(ThisFunction* a) {
+  UNIMPLEMENTED();
+}
+
 void CpuFeatures::Probe()  {
   UNIMPLEMENTED();
 }
@@ -524,6 +681,93 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
       stack_pointer_(0),
       frame_pointer_(kIllegalIndex) {
   UNIMPLEMENTED();
+}
+
+byte* ArgumentsAdaptorFrame::GetCallerStackPointer() const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+void Builtins::Generate_Adaptor(MacroAssembler* a, Builtins::CFunctionId b) {
+  UNIMPLEMENTED();
+}
+
+void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void Builtins::Generate_FunctionApply(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void Builtins::Generate_FunctionCall(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void Builtins::Generate_JSConstructCall(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void Builtins::Generate_JSEntryTrampoline(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void ExitFrame::Iterate(ObjectVisitor* a) const {
+  UNIMPLEMENTED();
+}
+
+byte* InternalFrame::GetCallerStackPointer() const {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+byte* JavaScriptFrame::GetCallerStackPointer() const {
+  UNIMPLEMENTED();
+  return NULL;
 }
 
 } }  // namespace v8::internal
