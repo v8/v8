@@ -281,7 +281,7 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     // hidden symbols hash code is zero (and no other string has hash
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = obj->map()->instance_descriptors();
-    DescriptorReader r(descriptors);
+    DescriptorReader r(descriptors, 0);  // Explicitly position reader at zero.
     if (!r.eos() && (r.GetKey() == *key) && r.IsProperty()) {
       ASSERT(r.type() == FIELD);
       return Handle<Object>(obj->FastPropertyAt(r.GetFieldIndex()));
