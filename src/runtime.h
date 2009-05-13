@@ -37,7 +37,10 @@ namespace v8 { namespace internal {
 // release and debug mode.
 // This macro should only be used by the macro RUNTIME_FUNCTION_LIST.
 
-#define RUNTIME_FUNCTION_LIST_ALWAYS(F) \
+// WARNING: RUNTIME_FUNCTION_LIST_ALWAYS_* is a very large macro that caused
+// MSVC Intellisense to crash.  It was broken into two macros to work around
+// this problem. Please avoid large recursive macros whenever possible.
+#define RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   /* Property access */ \
   F(GetProperty, 2) \
   F(KeyedGetProperty, 2) \
@@ -153,8 +156,9 @@ namespace v8 { namespace internal {
   F(NumberToRadixString, 2) \
   F(NumberToFixed, 2) \
   F(NumberToExponential, 2) \
-  F(NumberToPrecision, 2) \
-  \
+  F(NumberToPrecision, 2)
+
+#define RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   /* Reflection */ \
   F(FunctionSetInstanceClassName, 2) \
   F(FunctionSetLength, 2) \
@@ -320,7 +324,8 @@ namespace v8 { namespace internal {
 // via a native call by name (from within JS code).
 
 #define RUNTIME_FUNCTION_LIST(F) \
-  RUNTIME_FUNCTION_LIST_ALWAYS(F) \
+  RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
+  RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
   RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 
