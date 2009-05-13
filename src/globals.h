@@ -92,9 +92,7 @@ typedef byte* Address;
 // Fix for Mac OS X defining uintptr_t as "unsigned long":
 #if defined(__APPLE__) && defined(__MACH__)
 #undef V8PRIxPTR
-#undef V8PRIdPTR
 #define V8PRIxPTR "lx"
-#define V8PRIdPTR "ld"
 #endif
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
