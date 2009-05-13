@@ -481,6 +481,13 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     // Extracting the sample from the context is extremely machine dependent.
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
+#if V8_HOST_ARCH_X64
+    UNIMPLEMENTED();
+    USE(mcontext);
+    sample.pc = 0;
+    sample.sp = 0;
+    sample.fp = 0;
+#elif V8_HOST_ARCH_IA32
 #if __DARWIN_UNIX03
     sample.pc = mcontext->__ss.__eip;
     sample.sp = mcontext->__ss.__esp;
@@ -490,6 +497,9 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     sample.sp = mcontext->ss.esp;
     sample.fp = mcontext->ss.ebp;
 #endif  // __DARWIN_UNIX03
+#else
+#error Unsupported Mac OS X host architecture.
+#endif  // V8_TARGET_ARCH_IA32
   }
 
   // We always sample the VM state.

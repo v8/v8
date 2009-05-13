@@ -671,8 +671,6 @@ def VerifyOptions(env):
     Abort("Shared Object soname not applicable for Windows.")
   if env['soname'] == 'on' and env['library'] == 'static':
     Abort("Shared Object soname not applicable for static library.")
-  if env['arch'] == 'x64' and env['os'] != 'linux':
-    Abort("X64 compilation only allowed on Linux OS.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %

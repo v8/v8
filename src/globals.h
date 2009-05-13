@@ -77,17 +77,25 @@ typedef byte* Address;
 #define V8_UINT64_C(x)  (x ## UI64)
 #define V8_INT64_C(x)   (x ## I64)
 #define V8_PTR_PREFIX "ll"
-#else
+#else  // _MSC_VER
 #define V8_UINT64_C(x)  (x ## UL)
 #define V8_INT64_C(x)   (x ## L)
 #define V8_PTR_PREFIX "l"
-#endif
+#endif  // _MSC_VER
 #else  // V8_HOST_ARCH_64_BIT
 #define V8_PTR_PREFIX ""
-#endif
+#endif  // V8_HOST_ARCH_64_BIT
 
 #define V8PRIxPTR V8_PTR_PREFIX "x"
 #define V8PRIdPTR V8_PTR_PREFIX "d"
+
+// Fix for Mac OS X defining uintptr_t as "unsigned long":
+#if defined(__APPLE__) && defined(__MACH__)
+#undef V8PRIxPTR
+#undef V8PRIdPTR
+#define V8PRIxPTR "lx"
+#define V8PRIdPTR "ld"
+#endif
 
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;
