@@ -101,16 +101,27 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
   if (!left->is_valid()) return left;
   if (!right->is_valid()) return right;
 
-  // If they have the same value, the result is the same.  If either
-  // is unsynced, the result is.
+  // If they have the exact same location, the result is in that
+  // location, otherwise we reallocate.  If either is unsynced, the
+  // result is.  The result static type is the merge of the static
+  // types.  It's safe to set it on one of the frame elements, and
+  // harmless too (because we are only going to merge the reaching
+  // frames and will ensure that the types are coherent, and changing
+  // the static type does not emit code).
 
-  if (left->is_memory() && right->is_memory()) return left;
+  StaticType type = left->static_type().merge(right->static_type());
+  if (left->is_memory() && right->is_memory()) {
+    left->set_static_type(type);
+    return left;
+  }
 
   if (left->is_register() && right->is_register() &&
       left->reg().is(right->reg())) {
     if (!left->is_synced()) {
+      left->set_static_type(type);
       return left;
     } else {
+      right->set_static_type(type);
       return right;
     }
   }
@@ -119,8 +130,10 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
       right->is_constant() &&
       left->handle().is_identical_to(right->handle())) {
     if (!left->is_synced()) {
+      left->set_static_type(type);
       return left;
     } else {
+      right->set_static_type(type);
       return right;
     }
   }
@@ -129,8 +142,10 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
       right->is_copy() &&
       left->index() == right->index()) {
     if (!left->is_synced()) {
+      left->set_static_type(type);
       return left;
     } else {
+      right->set_static_type(type);
       return right;
     }
   }
@@ -165,13 +180,19 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // frame.
   for (int i = 0; i < length; i++) {
     FrameElement element = initial_frame->elements_[i];
-    // We do not allow copies or constants in bidirectional frames.
-    if (direction_ == BIDIRECTIONAL && i > high_water_mark &&
-        (element.is_constant() || element.is_copy())) {
-      elements.Add(NULL);
-    } else {
-      elements.Add(&initial_frame->elements_[i]);
+    // We do not allow copies or constants in bidirectional frames.  All
+    // elements above the water mark on bidirectional frames have
+    // unknown static types.
+    if (direction_ == BIDIRECTIONAL && i > high_water_mark) {
+      if (element.is_constant() || element.is_copy()) {
+        elements.Add(NULL);
+        continue;
+      }
+      // It's safe to change the static type on the initial frame
+      // element, see comment in JumpTarget::Combine.
+      initial_frame->elements_[i].set_static_type(StaticType::unknown());
     }
+    elements.Add(&initial_frame->elements_[i]);
   }
 
   // Compute elements based on the other reaching frames.
@@ -229,36 +250,45 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // memory, from the top down.
   for (int i = length - 1; i >= 0; i--) {
     if (elements[i] == NULL) {
-      // If the value is synced on all frames, put it in memory.  This
-      // costs nothing at the merge code but will incur a
-      // memory-to-register move when the value is needed later.
+      // Loop over all the reaching frames to check whether the element
+      // is synced on all frames, to count the registers it occupies,
+      // and to compute a merged static type.
       bool is_synced = true;
-      for (int j = 0; is_synced && j < reaching_frames_.length(); j++) {
-        is_synced = reaching_frames_[j]->elements_[i].is_synced();
-      }
-
-      // There is nothing to be done if the elements are all synced.
-      // It is already recorded as a memory element.
-      if (is_synced) continue;
-
-      // Choose an available register.  Prefer ones that the element
-      // is already occupying on some reaching frame.
       RegisterFile candidate_registers;
-      int max_count = kMinInt;
+      int best_count = kMinInt;
       int best_reg_code = no_reg.code_;
+
+      StaticType type;  // Initially invalid.
+      if (direction_ != BIDIRECTIONAL || i < high_water_mark) {
+        type = reaching_frames_[0]->elements_[i].static_type();
+      }
 
       for (int j = 0; j < reaching_frames_.length(); j++) {
         FrameElement element = reaching_frames_[j]->elements_[i];
-        if (element.is_register() &&
-            !entry_frame_->is_used(element.reg())) {
+        is_synced = is_synced && element.is_synced();
+        if (element.is_register() && !entry_frame_->is_used(element.reg())) {
+          // Count the register occurrence and remember it if better
+          // than the previous best.
           candidate_registers.Use(element.reg());
-          if (candidate_registers.count(element.reg()) > max_count) {
-            max_count = candidate_registers.count(element.reg());
+          if (candidate_registers.count(element.reg()) > best_count) {
+            best_count = candidate_registers.count(element.reg());
             best_reg_code = element.reg().code();
           }
         }
+        type = type.merge(element.static_type());
       }
-      // If there was no preferred choice consider any free register.
+
+      // If the value is synced on all frames, put it in memory.  This
+      // costs nothing at the merge code but will incur a
+      // memory-to-register move when the value is needed later.
+      if (is_synced) {
+        // Already recorded as a memory element.
+        entry_frame_->elements_[i].set_static_type(type);
+        continue;
+      }
+
+      // Try to put it in a register.  If there was no best choice
+      // consider any free register.
       if (best_reg_code == no_reg.code_) {
         for (int j = 0; j < kNumRegisters; j++) {
           if (!entry_frame_->is_used(j) && !RegisterAllocator::IsReserved(j)) {
@@ -268,36 +298,22 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
         }
       }
 
-      if (best_reg_code != no_reg.code_) {
+      if (best_reg_code == no_reg.code_) {
+        // If there was no register found, the element is already
+        // recorded as in memory.
+        entry_frame_->elements_[i].set_static_type(type);
+      } else {
         // If there was a register choice, use it.  Preserve the copied
-        // flag on the element.
+        // flag on the element.  Set the static type as computed.
         bool is_copied = entry_frame_->elements_[i].is_copied();
         Register reg = { best_reg_code };
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg,
                                           FrameElement::NOT_SYNCED);
         if (is_copied) entry_frame_->elements_[i].set_copied();
+        entry_frame_->elements_[i].set_static_type(type);
         entry_frame_->register_locations_[best_reg_code] = i;
       }
-      // If there was no register found, the element is already
-      // recorded as in memory.
-    }
-  }
-
-  // Set the static type of frame elements.
-  for (int i = 0; i < length; i++) {
-    FrameElement* current = &entry_frame_->elements_[i];
-    if (direction_ == BIDIRECTIONAL && i >= high_water_mark) {
-      current->set_static_type(StaticType::unknown());
-    } else {
-      StaticType merged_type = reaching_frames_[0]->elements_[i].static_type();
-      for (int j = 1, n = reaching_frames_.length();
-           !merged_type.is_unknown() && j < n;
-           j++) {
-        merged_type =
-            merged_type.merge(reaching_frames_[j]->elements_[i].static_type());
-      }
-      current->set_static_type(merged_type);
     }
   }
 
