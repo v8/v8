@@ -1452,12 +1452,18 @@ DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) 
 
   // Get the range from the arguments.
   if (request.arguments) {
-    from_index = request.arguments.fromFrame;
-    if (from_index < 0) {
-      return response.failed('Invalid frame number');
+    if (request.arguments.fromFrame) {
+      from_index = request.arguments.fromFrame;
     }
-    to_index = request.arguments.toFrame;
-    if (to_index < 0) {
+    if (request.arguments.toFrame) {
+      to_index = request.arguments.toFrame;
+    }
+    if (request.arguments.bottom) {
+      var tmp_index = total_frames - from_index;
+      from_index = total_frames - to_index
+      to_index = tmp_index;
+    }
+    if (from_index < 0 || to_index < 0) {
       return response.failed('Invalid frame number');
     }
   }
