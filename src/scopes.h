@@ -278,7 +278,9 @@ class Scope: public ZoneObject {
   // parameter list in source order
   ZoneList<Variable*> params_;
   // variables that must be looked up dynamically
-  ZoneList<Variable*> nonlocals_;
+  LocalsMap dynamics_;
+  LocalsMap dynamics_local_;
+  LocalsMap dynamics_global_;
   // unresolved variables referred to from this scope
   ZoneList<VariableProxy*> unresolved_;
   // declarations
