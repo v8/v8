@@ -611,9 +611,16 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     sample.sp = mcontext.gregs[REG_RSP];
     sample.fp = mcontext.gregs[REG_RBP];
 #elif V8_HOST_ARCH_ARM
+// An undefined macro evaluates to 0, so this applies to Android's Bionic also.
+#if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
     sample.pc = mcontext.gregs[R15];
     sample.sp = mcontext.gregs[R13];
     sample.fp = mcontext.gregs[R11];
+#else
+    sample.pc = mcontext.arm_pc;
+    sample.sp = mcontext.arm_sp;
+    sample.fp = mcontext.arm_fp;
+#endif
 #endif
   }
 
