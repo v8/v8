@@ -1736,8 +1736,10 @@ Object* JSObject::SetProperty(LookupResult* result,
       }
       return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
-      if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
+      if (value == result->GetConstantFunction()) return value;
+      // Preserve the attributes of this existing property.
+      attributes = result->GetAttributes();
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
@@ -1817,8 +1819,10 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
       }
       return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
-      if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
+      if (value == result->GetConstantFunction()) return value;
+      // Preserve the attributes of this existing property.
+      attributes = result->GetAttributes();
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
     case INTERCEPTOR:
