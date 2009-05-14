@@ -116,6 +116,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   JumpTarget::set_compiling_deferred_code(false);
 
   {
+    HistogramTimerScope codegen_timer(&Counters::code_generation);
     CodeGenState state(this);
 
     // Entry:
@@ -318,6 +319,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   if (HasStackOverflow()) {
     ClearDeferred();
   } else {
+    HistogramTimerScope deferred_timer(&Counters::deferred_code_generation);
     JumpTarget::set_compiling_deferred_code(true);
     ProcessDeferred();
     JumpTarget::set_compiling_deferred_code(false);

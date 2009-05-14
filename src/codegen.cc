@@ -161,7 +161,9 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
     return Handle<Code>::null();
   }
 
-  // Allocate and install the code.
+  // Allocate and install the code.  Time the rest of this function as
+  // code creation.
+  HistogramTimerScope timer(&Counters::code_creation);
   CodeDesc desc;
   cgen.masm()->GetCode(&desc);
   ScopeInfo<> sinfo(flit->scope());

@@ -52,12 +52,15 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     return Handle<Code>::null();
   }
 
-  // Compute top scope and allocate variables. For lazy compilation
-  // the top scope only contains the single lazily compiled function,
-  // so this doesn't re-allocate variables repeatedly.
-  Scope* top = literal->scope();
-  while (top->outer_scope() != NULL) top = top->outer_scope();
-  top->AllocateVariables(context);
+  {
+    // Compute top scope and allocate variables. For lazy compilation
+    // the top scope only contains the single lazily compiled function,
+    // so this doesn't re-allocate variables repeatedly.
+    HistogramTimerScope timer(&Counters::variable_allocation);
+    Scope* top = literal->scope();
+    while (top->outer_scope() != NULL) top = top->outer_scope();
+    top->AllocateVariables(context);
+  }
 
 #ifdef DEBUG
   if (Bootstrapper::IsActive() ?
