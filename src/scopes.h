@@ -35,7 +35,6 @@ namespace v8 { namespace internal {
 
 
 // A hash map to support fast local variable declaration and lookup.
-
 class LocalsMap: public HashMap {
  public:
   LocalsMap();
@@ -50,6 +49,23 @@ class LocalsMap: public HashMap {
                     bool is_valid_LHS, bool is_this);
 
   Variable* Lookup(Handle<String> name);
+};
+
+
+// The dynamic scope part holds hash maps for the variables that will
+// be looked up dynamically from within eval and with scopes. The objects
+// are allocated on-demand from Scope::NonLocal to avoid wasting memory
+// and setup time for scopes that don't need them.
+class DynamicScopePart : public ZoneObject {
+ public:
+  LocalsMap* GetMap(Variable::Mode mode) {
+    int index = mode - Variable::DYNAMIC;
+    ASSERT(index >= 0 && index < 3);
+    return &maps_[index];
+  }
+
+ private:
+  LocalsMap maps_[3];
 };
 
 
@@ -278,9 +294,7 @@ class Scope: public ZoneObject {
   // parameter list in source order
   ZoneList<Variable*> params_;
   // variables that must be looked up dynamically
-  LocalsMap dynamics_;
-  LocalsMap dynamics_local_;
-  LocalsMap dynamics_global_;
+  DynamicScopePart* dynamics_;
   // unresolved variables referred to from this scope
   ZoneList<VariableProxy*> unresolved_;
   // declarations

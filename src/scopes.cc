@@ -112,9 +112,7 @@ Scope::Scope()
     locals_(false),
     temps_(0),
     params_(0),
-    dynamics_(false),
-    dynamics_local_(false),
-    dynamics_global_(false),
+    dynamics_(NULL),
     unresolved_(0),
     decls_(0) {
 }
@@ -125,9 +123,9 @@ Scope::Scope(Scope* outer_scope, Type type)
     inner_scopes_(4),
     type_(type),
     scope_name_(Factory::empty_symbol()),
-    locals_(),
     temps_(4),
     params_(4),
+    dynamics_(NULL),
     unresolved_(16),
     decls_(4),
     receiver_(NULL),
@@ -477,9 +475,11 @@ void Scope::Print(int n) {
   PrintMap(&printer, n1, &locals_);
 
   Indent(n1, "// dynamic vars\n");
-  PrintMap(&printer, n1, &dynamics_);
-  PrintMap(&printer, n1, &dynamics_local_);
-  PrintMap(&printer, n1, &dynamics_global_);
+  if (dynamics_ != NULL) {
+    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC));
+    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC_LOCAL));
+    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC_GLOBAL));
+  }
 
   // Print inner scopes (disable by providing negative n).
   if (n >= 0) {
@@ -495,23 +495,8 @@ void Scope::Print(int n) {
 
 
 Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
-  // Space optimization: reuse existing non-local with the same name
-  // and mode.
-  LocalsMap* map = NULL;
-  switch (mode) {
-    case Variable::DYNAMIC:
-      map = &dynamics_;
-      break;
-    case Variable::DYNAMIC_LOCAL:
-      map = &dynamics_local_;
-      break;
-    case Variable::DYNAMIC_GLOBAL:
-      map = &dynamics_global_;
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+  if (dynamics_ == NULL) dynamics_ = new DynamicScopePart();
+  LocalsMap* map = dynamics_->GetMap(mode);
   Variable* var = map->Lookup(name);
   if (var == NULL) {
     // Declare a new non-local.

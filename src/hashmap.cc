@@ -31,13 +31,6 @@
 
 namespace v8 { namespace internal {
 
-
-static inline bool IsPowerOf2(uint32_t x) {
-  ASSERT(x != 0);
-  return (x & (x - 1)) == 0;
-}
-
-
 Allocator HashMap::DefaultAllocator;
 
 

@@ -3437,8 +3437,8 @@ const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
 
 
 void SeqTwoByteString::SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
-                                                     unsigned* offset_ptr,
-                                                     unsigned max_chars) {
+                                                           unsigned* offset_ptr,
+                                                           unsigned max_chars) {
   unsigned chars_read = 0;
   unsigned offset = *offset_ptr;
   while (chars_read < max_chars) {
