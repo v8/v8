@@ -35,7 +35,6 @@ class FrameElement;
 class Result;
 class VirtualFrame;
 
-
 // -------------------------------------------------------------------------
 // Jump targets
 //
@@ -67,6 +66,8 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // label.  This is useful, eg, when break targets are embedded in
   // AST nodes.
   JumpTarget();
+
+  virtual ~JumpTarget() {}
 
   // Supply a code generator and directionality to an already
   // constructed jump target.  This function expects to be given a
@@ -199,8 +200,13 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // and a corresponding merge code label.
   void AddReachingFrame(VirtualFrame* frame);
 
-  // Compute a frame to use for entry to this block.  Mergable elements
-  // is as described for the Bind function.
+  // Perform initialization required during entry frame computation
+  // after setting the virtual frame element at index in frame to be
+  // target.
+  inline void InitializeEntryElement(int index, FrameElement* target);
+
+  // Compute a frame to use for entry to this block.  Mergable
+  // elements is as described for the Bind function.
   void ComputeEntryFrame(int mergable_elements);
 
   DISALLOW_COPY_AND_ASSIGN(JumpTarget);
@@ -224,6 +230,8 @@ class BreakTarget : public JumpTarget {
   // label.  This is useful, eg, when break targets are embedded in AST
   // nodes.
   BreakTarget() {}
+
+  virtual ~BreakTarget() {}
 
   // Supply a code generator, expected expression stack height, and
   // directionality to an already constructed break target.  This
@@ -286,6 +294,8 @@ class ShadowTarget : public BreakTarget {
   // original target is actually a fresh one that intercepts control
   // flow intended for the shadowed one.
   explicit ShadowTarget(BreakTarget* shadowed);
+
+  virtual ~ShadowTarget() {}
 
   // End shadowing.  After shadowing ends, the original jump target
   // again gives access to the formerly shadowed target and the shadow
