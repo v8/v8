@@ -52,7 +52,7 @@ class VirtualFrame;
 // In particular, this means that at least one of the control-flow
 // graph edges reaching the target must be a forward edge.
 
-class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
+class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
  public:
   // Forward-only jump targets can only be reached by forward CFG edges.
   enum Directionality { FORWARD_ONLY, BIDIRECTIONAL };
@@ -75,17 +75,8 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   virtual void Initialize(CodeGenerator* cgen,
                           Directionality direction = FORWARD_ONLY);
 
-  virtual ~JumpTarget() { Unuse(); }
-
-  // Treat the jump target as a fresh one.  The state is reset and
-  // pointed-to virtual frames are deallocated.  There should be no
-  // dangling jumps to the target.
+  // Treat the jump target as a fresh one.  The state is reset.
   void Unuse();
-
-  // Reset the internal state of this jump target.  Pointed-to virtual
-  // frames are not deallocated and dangling jumps to the target are
-  // left dangling.
-  void Reset();
 
   // Accessors.
   CodeGenerator* code_generator() const { return cgen_; }
@@ -175,11 +166,17 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // Directionality flag set at initialization time.
   Directionality direction_;
 
+  // A target is bound if its Bind member function has been called.
+  // It is linked if it is not bound but its Jump, Branch, or Call
+  // member functions have been called.
+  bool is_bound_;
+  bool is_linked_;
+
   // A list of frames reaching this block via forward jumps.
-  List<VirtualFrame*> reaching_frames_;
+  ZoneList<VirtualFrame*> reaching_frames_;
 
   // A parallel list of labels for merge code.
-  List<Label> merge_labels_;
+  ZoneList<Label> merge_labels_;
 
   // The frame used on entry to the block and expected at backward
   // jumps to the block.  Set when the jump target is bound, but may
@@ -188,12 +185,6 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
 
   // The actual entry label of the block.
   Label entry_label_;
-
-  // A target is bound if its Bind member function has been called.
-  // It is linked if it is not bound but its Jump, Branch, or Call
-  // member functions have been called.
-  bool is_bound_;
-  bool is_linked_;
 
   // Implementations of Jump, Branch, and Bind with all arguments and
   // return values using the virtual frame.
@@ -295,10 +286,6 @@ class ShadowTarget : public BreakTarget {
   // original target is actually a fresh one that intercepts control
   // flow intended for the shadowed one.
   explicit ShadowTarget(BreakTarget* shadowed);
-
-  virtual ~ShadowTarget() {
-    ASSERT(!is_shadowing_);
-  }
 
   // End shadowing.  After shadowing ends, the original jump target
   // again gives access to the formerly shadowed target and the shadow

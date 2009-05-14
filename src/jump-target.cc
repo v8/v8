@@ -41,11 +41,11 @@ bool JumpTarget::compiling_deferred_code_ = false;
 JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
     : cgen_(cgen),
       direction_(direction),
+      is_bound_(false),
+      is_linked_(false),
       reaching_frames_(0),
       merge_labels_(0),
-      entry_frame_(NULL),
-      is_bound_(false),
-      is_linked_(false) {
+      entry_frame_(NULL) {
   ASSERT(cgen != NULL);
   masm_ = cgen->masm();
 }
@@ -55,11 +55,11 @@ JumpTarget::JumpTarget()
     : cgen_(NULL),
       masm_(NULL),
       direction_(FORWARD_ONLY),
+      is_bound_(false),
+      is_linked_(false),
       reaching_frames_(0),
       merge_labels_(0),
-      entry_frame_(NULL),
-      is_bound_(false),
-      is_linked_(false) {
+      entry_frame_(NULL) {
 }
 
 
@@ -73,19 +73,6 @@ void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
 
 
 void JumpTarget::Unuse() {
-  // We should not deallocate jump targets that have unresolved jumps
-  // to them.  In the event of a compile-time stack overflow or an
-  // uninitialized jump target, we don't care.
-  ASSERT(!is_linked() || cgen_ == NULL || cgen_->HasStackOverflow());
-  for (int i = 0; i < reaching_frames_.length(); i++) {
-    delete reaching_frames_[i];
-  }
-  delete entry_frame_;
-  Reset();
-}
-
-
-void JumpTarget::Reset() {
   reaching_frames_.Clear();
   merge_labels_.Clear();
   entry_frame_ = NULL;
@@ -662,10 +649,8 @@ ShadowTarget::ShadowTarget(BreakTarget* shadowed) {
   // While shadowing this shadow target saves the state of the original.
   shadowed->CopyTo(this);
 
-  // The original's state is reset.  We do not Unuse it because that
-  // would delete the expected frame and assert that the target is not
-  // linked.
-  shadowed->Reset();
+  // The original's state is reset.
+  shadowed->Unuse();
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
   shadowed->set_expected_height(cgen_->frame()->height());
@@ -691,7 +676,7 @@ void ShadowTarget::StopShadowing() {
   other_target_->CopyTo(&temp);
   CopyTo(other_target_);
   temp.CopyTo(this);
-  temp.Reset();  // So the destructor does not deallocate virtual frames.
+  temp.Unuse();
 
 #ifdef DEBUG
   is_shadowing_ = false;

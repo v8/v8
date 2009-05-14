@@ -244,7 +244,7 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   FrameElement memory_element = FrameElement::MemoryElement();
   // Loop downward from the stack pointer or the top of the frame if
   // the stack pointer is floating above the frame.
-  int start = Min(stack_pointer_, elements_.length() - 1);
+  int start = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
   for (int i = start; i >= 0; i--) {
     FrameElement target = expected->elements_[i];
     if (target.is_memory()) {
