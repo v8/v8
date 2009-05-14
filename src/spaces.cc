@@ -111,17 +111,26 @@ void HeapObjectIterator::Verify() {
 // -----------------------------------------------------------------------------
 // PageIterator
 
-PageIterator::PageIterator(PagedSpace* space, Mode mode) {
-  cur_page_ = space->first_page_;
+PageIterator::PageIterator(PagedSpace* space, Mode mode) : space_(space) {
+  prev_page_ = NULL;
   switch (mode) {
     case PAGES_IN_USE:
-      stop_page_ = space->AllocationTopPage()->next_page();
+      stop_page_ = space->AllocationTopPage();
       break;
     case PAGES_USED_BY_MC:
-      stop_page_ = space->MCRelocationTopPage()->next_page();
+      stop_page_ = space->MCRelocationTopPage();
       break;
     case ALL_PAGES:
-      stop_page_ = Page::FromAddress(NULL);
+#ifdef DEBUG
+      // Verify that the cached last page in the space is actually the
+      // last page.
+      for (Page* p = space->first_page_; p->is_valid(); p = p->next_page()) {
+        if (!p->next_page()->is_valid()) {
+          ASSERT(space->last_page_ == p);
+        }
+      }
+#endif
+      stop_page_ = space->last_page_;
       break;
     default:
       UNREACHABLE();
@@ -496,8 +505,11 @@ bool PagedSpace::Setup(Address start, size_t size) {
   accounting_stats_.ExpandSpace(num_pages * Page::kObjectAreaSize);
   ASSERT(Capacity() <= max_capacity_);
 
+  // Sequentially initialize remembered sets in the newly allocated
+  // pages and cache the current last page in the space.
   for (Page* p = first_page_; p->is_valid(); p = p->next_page()) {
     p->ClearRSet();
+    last_page_ = p;
   }
 
   // Use first_page_ for allocation.
@@ -676,9 +688,11 @@ bool PagedSpace::Expand(Page* last_page) {
 
   MemoryAllocator::SetNextPage(last_page, p);
 
-  // Clear remembered set of new pages.
+  // Sequentially clear remembered set of new pages and and cache the
+  // new last page in the space.
   while (p->is_valid()) {
     p->ClearRSet();
+    last_page_ = p;
     p = p->next_page();
   }
 
@@ -723,10 +737,13 @@ void PagedSpace::Shrink() {
   Page* p = MemoryAllocator::FreePages(last_page_to_keep->next_page());
   MemoryAllocator::SetNextPage(last_page_to_keep, p);
 
-  // Since pages are only freed in whole chunks, we may have kept more than
-  // pages_to_keep.
+  // Since pages are only freed in whole chunks, we may have kept more
+  // than pages_to_keep.  Count the extra pages and cache the new last
+  // page in the space.
+  last_page_ = last_page_to_keep;
   while (p->is_valid()) {
     pages_to_keep++;
+    last_page_ = p;
     p = p->next_page();
   }
 
