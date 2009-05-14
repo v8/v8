@@ -30,6 +30,7 @@
 #include "api.h"
 #include "ast.h"
 #include "bootstrapper.h"
+#include "compiler.h"
 #include "platform.h"
 #include "runtime.h"
 #include "parser.h"
@@ -1096,7 +1097,7 @@ bool Parser::PreParseProgram(unibrow::CharacterStream* stream) {
 FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       unibrow::CharacterStream* stream,
                                       bool in_global_context) {
-  ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(&Counters::parse);
   Counters::total_parse_size.Increment(source->length());
@@ -1149,7 +1150,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    Handle<String> name,
                                    int start_position,
                                    bool is_expression) {
-  ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
   source->TryFlattenIfNotFlat();
   Counters::total_parse_size.Increment(source->length());

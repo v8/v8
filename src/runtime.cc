@@ -1723,7 +1723,7 @@ static Object* StringReplaceRegExpWithString(String* subject,
   int capture_count = regexp_handle->CaptureCount();
 
   // CompiledReplacement uses zone allocation.
-  ZoneScope zone(DELETE_ON_EXIT);
+  CompilationZoneScope zone(DELETE_ON_EXIT);
   CompiledReplacement compiled_replacement;
   compiled_replacement.Compile(replacement_handle,
                                capture_count,
@@ -2376,7 +2376,7 @@ static Object* Runtime_StringMatch(Arguments args) {
   }
   int length = subject->length();
 
-  ZoneScope zone_space(DELETE_ON_EXIT);
+  CompilationZoneScope zone_space(DELETE_ON_EXIT);
   ZoneList<int> offsets(8);
   do {
     int start;

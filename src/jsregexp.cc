@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "compiler.h"
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp-inl.h"
@@ -153,7 +154,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     return re;
   }
   FlattenString(pattern);
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
   RegExpCompileData parse_result;
   FlatStringReader reader(pattern);
   if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
@@ -285,7 +286,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   }
 
   // Compile the RegExp.
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   JSRegExp::Flags flags = re->GetFlags();
 
