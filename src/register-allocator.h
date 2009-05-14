@@ -243,7 +243,11 @@ class RegisterFile BASE_EMBEDDED {
   }
 
   // Copy the reference counts from this register file to the other.
-  void CopyTo(RegisterFile* other);
+  void CopyTo(RegisterFile* other) {
+    for (int i = 0; i < kNumRegisters; i++) {
+      other->ref_counts_[i] = ref_counts_[i];
+    }
+  }
 
  private:
   int ref_counts_[kNumRegisters];

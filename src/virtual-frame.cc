@@ -304,30 +304,6 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
 }
 
 
-void VirtualFrame::DetachFromCodeGenerator() {
-  // Tell the global register allocator that it is free to reallocate all
-  // register references contained in this frame.  The frame elements remain
-  // register references, so the frame-internal reference count is not
-  // decremented.
-  for (int i = 0; i < elements_.length(); i++) {
-    if (elements_[i].is_register()) {
-      cgen_->allocator()->Unuse(elements_[i].reg());
-    }
-  }
-}
-
-
-void VirtualFrame::AttachToCodeGenerator() {
-  // Tell the global register allocator that the frame-internal register
-  // references are live again.
-  for (int i = 0; i < elements_.length(); i++) {
-    if (elements_[i].is_register()) {
-      cgen_->allocator()->Use(elements_[i].reg());
-    }
-  }
-}
-
-
 void VirtualFrame::PrepareForReturn() {
   // Spill all locals. This is necessary to make sure all locals have
   // the right value when breaking at the return site in the debugger.

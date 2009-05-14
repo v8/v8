@@ -72,16 +72,6 @@ void Result::CopyTo(Result* destination) const {
 
 
 // -------------------------------------------------------------------------
-// RegisterFile implementation.
-
-void RegisterFile::CopyTo(RegisterFile* other) {
-  for (int i = 0; i < kNumRegisters; i++) {
-    other->ref_counts_[i] = ref_counts_[i];
-  }
-}
-
-
-// -------------------------------------------------------------------------
 // RegisterAllocator implementation.
 
 
