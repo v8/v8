@@ -161,6 +161,10 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
 
   static const int kAllElements = -1;  // Not a valid number of elements.
 
+  static void set_compiling_deferred_code(bool flag) {
+    compiling_deferred_code_ = flag;
+  }
+
  protected:
   // The code generator gives access to its current frame.
   CodeGenerator* cgen_;
@@ -198,12 +202,14 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   void DoBind(int mergable_elements);
 
  private:
-  // Add a virtual frame reaching this labeled block via a forward
-  // jump, and a fresh label for its merge code.
+  static bool compiling_deferred_code_;
+
+  // Add a virtual frame reaching this labeled block via a forward jump,
+  // and a corresponding merge code label.
   void AddReachingFrame(VirtualFrame* frame);
 
-  // Compute a frame to use for entry to this block.  Mergable
-  // elements is as described for the Bind function.
+  // Compute a frame to use for entry to this block.  Mergable elements
+  // is as described for the Bind function.
   void ComputeEntryFrame(int mergable_elements);
 
   DISALLOW_COPY_AND_ASSIGN(JumpTarget);

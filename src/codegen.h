@@ -117,7 +117,14 @@ class DeferredCode: public ZoneObject {
   MacroAssembler* masm() const { return masm_; }
   CodeGenerator* generator() const { return generator_; }
 
+  // Set the virtual frame for entry to the deferred code as a
+  // snapshot of the code generator's current frame (plus additional
+  // results).  This is optional, but should be done before branching
+  // or jumping to the deferred code.
+  inline void SetEntryFrame(Result* arg);
+
   JumpTarget* enter() { return &enter_; }
+
   void BindExit() { exit_.Bind(0); }
   void BindExit(Result* result) { exit_.Bind(result, 1); }
   void BindExit(Result* result0, Result* result1) {

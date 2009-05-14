@@ -51,10 +51,15 @@ void JumpTarget::DoJump() {
     cgen_->frame()->MergeTo(entry_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
+  } else if (entry_frame_ != NULL) {
+    // Forward jump with a preconfigured entry frame.  Assert the
+    // current frame matches the expected one and jump to the block.
+    ASSERT(cgen_->frame()->Equals(entry_frame_));
+    cgen_->DeleteFrame();
+    __ jmp(&entry_label_);
   } else {
-    // Forward jump.  The current frame is added to the end of the list
-    // of frames reaching the target block and a jump to the merge code
-    // is emitted.
+    // Forward jump.  Remember the current frame and emit a jump to
+    // its merge code.
     AddReachingFrame(cgen_->frame());
     RegisterFile empty;
     cgen_->SetFrame(NULL, &empty);
@@ -114,12 +119,19 @@ void JumpTarget::DoBranch(Condition cc, Hint hint) {
     cgen_->SetFrame(fall_through_frame, &non_frame_registers);
     __ bind(&original_fall_through);
 
+  } else if (entry_frame_ != NULL) {
+    // Forward branch with a preconfigured entry frame.  Assert the
+    // current frame matches the expected one and branch to the block.
+    ASSERT(cgen_->frame()->Equals(entry_frame_));
+    // Use masm_-> instead of __ as forward branches are expected to
+    // be a fixed size (no inserted coverage-checking instructions
+    // please).  This is used in Reference::GetValue.
+    masm_->j(cc, &entry_label_, hint);
+    is_linked_ = true;
+
   } else {
-    // Forward branch.  A copy of the current frame is added to the end of the
-    // list of frames reaching the target block and a branch to the merge code
-    // is emitted.  Use masm_-> instead of __ as forward branches are expected
-    // to be a fixed size (no inserted coverage-checking instructions please).
-    // This is used in Reference::GetValue.
+    // Forward branch.  A copy of the current frame is remembered and
+    // a branch to the merge code is emitted.
     AddReachingFrame(new VirtualFrame(cgen_->frame()));
     masm_->j(cc, &merge_labels_.last(), hint);
     is_linked_ = true;
@@ -143,6 +155,8 @@ void JumpTarget::Call() {
   cgen_->frame()->SpillAll();
   VirtualFrame* target_frame = new VirtualFrame(cgen_->frame());
   target_frame->Adjust(1);
+  // We do not expect a call with a preconfigured entry frame.
+  ASSERT(entry_frame_ == NULL);
   AddReachingFrame(target_frame);
   __ call(&merge_labels_.last());
 
@@ -157,6 +171,29 @@ void JumpTarget::DoBind(int mergable_elements) {
   // Live non-frame registers are not allowed at the start of a basic
   // block.
   ASSERT(!cgen_->has_valid_frame() || cgen_->HasValidEntryRegisters());
+
+  // Fast case: the jump target was manually configured with an entry
+  // frame to use.
+  if (entry_frame_ != NULL) {
+    // Assert no reaching frames to deal with.
+    ASSERT(reaching_frames_.is_empty());
+    ASSERT(!cgen_->has_valid_frame());
+
+    RegisterFile reserved = RegisterAllocator::Reserved();
+    if (direction_ == BIDIRECTIONAL) {
+      // Copy the entry frame so the original can be used for a
+      // possible backward jump.
+      cgen_->SetFrame(new VirtualFrame(entry_frame_), &reserved);
+    } else {
+      // Take ownership of the entry frame.
+      cgen_->SetFrame(entry_frame_, &reserved);
+      entry_frame_ = NULL;
+    }
+    __ bind(&entry_label_);
+    is_linked_ = false;
+    is_bound_ = true;
+    return;
+  }
 
   if (direction_ == FORWARD_ONLY) {
     // A simple case: no forward jumps and no possible backward jumps.
@@ -207,13 +244,15 @@ void JumpTarget::DoBind(int mergable_elements) {
   bool had_fall_through = false;
   if (cgen_->has_valid_frame()) {
     had_fall_through = true;
-    AddReachingFrame(cgen_->frame());
+    AddReachingFrame(cgen_->frame());  // Return value ignored.
     RegisterFile empty;
     cgen_->SetFrame(NULL, &empty);
   }
 
   // Compute the frame to use for entry to the block.
-  ComputeEntryFrame(mergable_elements);
+  if (entry_frame_ == NULL) {
+    ComputeEntryFrame(mergable_elements);
+  }
 
   // Some moves required to merge to an expected frame require purely
   // frame state changes, and do not require any code generation.

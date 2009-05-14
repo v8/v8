@@ -113,6 +113,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   // Adjust for function-level loop nesting.
   loop_nesting_ += fun->loop_nesting();
 
+  JumpTarget::set_compiling_deferred_code(false);
+
   {
     CodeGenState state(this);
 
@@ -316,7 +318,9 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   if (HasStackOverflow()) {
     ClearDeferred();
   } else {
+    JumpTarget::set_compiling_deferred_code(true);
     ProcessDeferred();
+    JumpTarget::set_compiling_deferred_code(false);
   }
 
   // There is no need to delete the register allocator, it is a
@@ -1247,6 +1251,10 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 
   switch (op) {
     case Token::ADD: {
+      operand->ToRegister();
+      frame_->Spill(operand->reg());
+      __ add(Operand(operand->reg()), Immediate(value));
+
       DeferredCode* deferred = NULL;
       if (reversed) {
         deferred = new DeferredInlineSmiAddReversed(this, smi_value,
@@ -1254,9 +1262,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       } else {
         deferred = new DeferredInlineSmiAdd(this, smi_value, overwrite_mode);
       }
-      operand->ToRegister();
-      frame_->Spill(operand->reg());
-      __ add(Operand(operand->reg()), Immediate(value));
+      deferred->SetEntryFrame(operand);
       deferred->enter()->Branch(overflow, operand, not_taken);
       __ test(operand->reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, operand, not_taken);
@@ -1271,8 +1277,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       if (reversed) {
         answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
-        deferred = new DeferredInlineSmiSubReversed(this,
-                                                    smi_value,
+        deferred = new DeferredInlineSmiSubReversed(this, smi_value,
                                                     overwrite_mode);
         __ Set(answer.reg(), Immediate(value));
         // We are in the reversed case so they can't both be Smi constants.
@@ -1281,12 +1286,11 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       } else {
         operand->ToRegister();
         frame_->Spill(operand->reg());
-        deferred = new DeferredInlineSmiSub(this,
-                                            smi_value,
-                                            overwrite_mode);
+        deferred = new DeferredInlineSmiSub(this, smi_value, overwrite_mode);
         __ sub(Operand(operand->reg()), Immediate(value));
         answer = *operand;
       }
+      deferred->SetEntryFrame(operand);
       deferred->enter()->Branch(overflow, operand, not_taken);
       __ test(answer.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, operand, not_taken);
@@ -5413,19 +5417,24 @@ void Reference::GetValue(TypeofState typeof_state) {
       } else {
         // Inline the inobject property case.
         Comment cmnt(masm, "[ Inlined named property load");
-        DeferredReferenceGetNamedValue* deferred =
-            new DeferredReferenceGetNamedValue(cgen_, GetName());
         Result receiver = cgen_->frame()->Pop();
         receiver.ToRegister();
-        // Check that the receiver is a heap object.
-        __ test(receiver.reg(), Immediate(kSmiTagMask));
-        deferred->enter()->Branch(zero, &receiver, not_taken);
 
         // Preallocate the value register to ensure that there is no
         // spill emitted between the patch site label and the offset in
-        // the load instruction.
+        // the load instruction and that all frames reaching the
+        // deferred code are identical.
         Result value = cgen_->allocator()->Allocate();
         ASSERT(value.is_valid());
+
+        // Check that the receiver is a heap object.
+        __ test(receiver.reg(), Immediate(kSmiTagMask));
+
+        DeferredReferenceGetNamedValue* deferred =
+            new DeferredReferenceGetNamedValue(cgen_, GetName());
+        deferred->SetEntryFrame(&receiver);
+        deferred->enter()->Branch(zero, &receiver, not_taken);
+
         __ bind(deferred->patch_site());
         // This is the map check instruction that will be patched (so we can't
         // use the double underscore macro that may insert instructions).

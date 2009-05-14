@@ -52,6 +52,8 @@ void JumpTarget::DoJump() {
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
   } else {
+    // Preconfigured entry frame is not used on ARM.
+    ASSERT(entry_frame_ == NULL);
     // Forward jump.  The current frame is added to the end of the list
     // of frames reaching the target block and a jump to the merge code
     // is emitted.
@@ -115,6 +117,8 @@ void JumpTarget::DoBranch(Condition cc, Hint ignored) {
     __ bind(&original_fall_through);
 
   } else {
+    // Preconfigured entry frame is not used on ARM.
+    ASSERT(entry_frame_ == NULL);
     // Forward branch.  A copy of the current frame is added to the end
     // of the list of frames reaching the target block and a branch to
     // the merge code is emitted.
@@ -141,6 +145,8 @@ void JumpTarget::Call() {
   cgen_->frame()->SpillAll();
   VirtualFrame* target_frame = new VirtualFrame(cgen_->frame());
   target_frame->Adjust(1);
+  // We do not expect a call with a preconfigured entry frame.
+  ASSERT(entry_frame_ == NULL);
   AddReachingFrame(target_frame);
   __ bl(&merge_labels_.last());
 
@@ -205,13 +211,15 @@ void JumpTarget::DoBind(int mergable_elements) {
   bool had_fall_through = false;
   if (cgen_->has_valid_frame()) {
     had_fall_through = true;
-    AddReachingFrame(cgen_->frame());
+    AddReachingFrame(cgen_->frame());  // Return value ignored.
     RegisterFile empty;
     cgen_->SetFrame(NULL, &empty);
   }
 
   // Compute the frame to use for entry to the block.
-  ComputeEntryFrame(mergable_elements);
+  if (entry_frame_ == NULL) {
+    ComputeEntryFrame(mergable_elements);
+  }
 
   // Some moves required to merge to an expected frame require purely
   // frame state changes, and do not require any code generation.

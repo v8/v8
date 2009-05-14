@@ -35,6 +35,9 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // JumpTarget implementation.
 
+bool JumpTarget::compiling_deferred_code_ = false;
+
+
 JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
     : cgen_(cgen),
       direction_(direction),
@@ -96,6 +99,22 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // Given: a collection of frames reaching by forward CFG edges and
   // the directionality of the block.  Compute: an entry frame for the
   // block.
+
+  Counters::compute_entry_frame.Increment();
+#ifdef DEBUG
+  if (compiling_deferred_code_) {
+    ASSERT(reaching_frames_.length() > 1);
+    VirtualFrame* frame = reaching_frames_[0];
+    bool all_identical = true;
+    for (int i = 1; i < reaching_frames_.length(); i++) {
+      if (!frame->Equals(reaching_frames_[i])) {
+        all_identical = false;
+        break;
+      }
+    }
+    ASSERT(!all_identical || all_identical);
+  }
+#endif
 
   // Choose an initial frame.
   VirtualFrame* initial_frame = reaching_frames_[0];
@@ -509,6 +528,7 @@ void JumpTarget::Bind(Result* arg0,
 
 void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
   ASSERT(reaching_frames_.length() == merge_labels_.length());
+  ASSERT(entry_frame_ == NULL);
   Label fresh;
   merge_labels_.Add(fresh);
   reaching_frames_.Add(frame);
