@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,18 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_H_
-#define V8_VIRTUAL_FRAME_H_
+#ifndef V8_JUMP_TARGET_INL_H_
+#define V8_JUMP_TARGET_INL_H_
 
-#include "frame-element.h"
-#include "macro-assembler.h"
+namespace v8 { namespace internal {
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/virtual-frame-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/virtual-frame-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/virtual-frame-arm.h"
-#endif
+void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
+  entry_frame_->elements_[index].clear_copied();
+  if (target->is_register()) {
+    entry_frame_->register_locations_[target->reg().code()] = index;
+  } else if (target->is_copy()) {
+    entry_frame_->elements_[target->index()].set_copied();
+  }
+}
 
-#endif  // V8_VIRTUAL_FRAME_H_
+} }  // namespace v8::internal
+
+#endif  // V8_JUMP_TARGET_INL_H_
