@@ -485,6 +485,18 @@ class VirtualFrame : public ZoneObject {
 
   bool Equals(VirtualFrame* other);
 
+  // Perform initialization required during entry frame computation
+  // after setting the virtual frame element at index in frame to be
+  // target.
+  void InitializeEntryElement(int index, FrameElement* target) {
+    elements_[index].clear_copied();
+    if (target->is_register()) {
+      register_locations_[target->reg().code()] = index;
+    } else if (target->is_copy()) {
+      elements_[target->index()].set_copied();
+    }
+  }
+
   friend class JumpTarget;
 };
 

@@ -409,10 +409,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\frame-element.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\frames.cc"
 				>
 			</File>
@@ -502,10 +498,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\jump-target.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\jump-target-inl.h"
 				>
 			</File>
 			<File

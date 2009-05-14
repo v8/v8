@@ -35,6 +35,7 @@ class FrameElement;
 class Result;
 class VirtualFrame;
 
+
 // -------------------------------------------------------------------------
 // Jump targets
 //
@@ -198,13 +199,8 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // and a corresponding merge code label.
   void AddReachingFrame(VirtualFrame* frame);
 
-  // Perform initialization required during entry frame computation
-  // after setting the virtual frame element at index in frame to be
-  // target.
-  inline void InitializeEntryElement(int index, FrameElement* target);
-
-  // Compute a frame to use for entry to this block.  Mergable
-  // elements is as described for the Bind function.
+  // Compute a frame to use for entry to this block.  Mergable elements
+  // is as described for the Bind function.
   void ComputeEntryFrame(int mergable_elements);
 
   DISALLOW_COPY_AND_ASSIGN(JumpTarget);

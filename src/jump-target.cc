@@ -28,7 +28,6 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
-#include "jump-target-inl.h"
 #include "register-allocator-inl.h"
 
 namespace v8 { namespace internal {
@@ -166,7 +165,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
     // elements are initially recorded as if in memory.
     if (target != NULL) {
       entry_frame_->elements_[index] = *target;
-      InitializeEntryElement(index, target);
+      entry_frame_->InitializeEntryElement(index, target);
     }
   }
   // Then fill in the rest of the frame with new elements.
@@ -176,7 +175,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
       entry_frame_->elements_.Add(FrameElement::MemoryElement());
     } else {
       entry_frame_->elements_.Add(*target);
-      InitializeEntryElement(index, target);
+      entry_frame_->InitializeEntryElement(index, target);
     }
   }
 

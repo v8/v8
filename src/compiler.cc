@@ -101,7 +101,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                        Handle<Context> context,
                                        v8::Extension* extension,
                                        ScriptDataImpl* pre_data) {
-  CompilationZoneScope zone_scope();
+  ZoneScope zone_scope(DELETE_ON_EXIT);
 
   // Make sure we have an initial stack limit.
   StackGuard guard;
@@ -306,7 +306,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
 
 bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
                            int loop_nesting) {
-  CompilationZoneScope zone_scope();
+  ZoneScope zone_scope(DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);

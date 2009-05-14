@@ -28,8 +28,205 @@
 #ifndef V8_VIRTUAL_FRAME_H_
 #define V8_VIRTUAL_FRAME_H_
 
-#include "frame-element.h"
 #include "macro-assembler.h"
+
+namespace v8 { namespace internal {
+
+// -------------------------------------------------------------------------
+// Virtual frame elements
+//
+// The internal elements of the virtual frames.  There are several kinds of
+// elements:
+//   * Invalid: elements that are uninitialized or not actually part
+//     of the virtual frame.  They should not be read.
+//   * Memory: an element that resides in the actual frame.  Its address is
+//     given by its position in the virtual frame.
+//   * Register: an element that resides in a register.
+//   * Constant: an element whose value is known at compile time.
+
+class FrameElement BASE_EMBEDDED {
+ public:
+  enum SyncFlag {
+    NOT_SYNCED,
+    SYNCED
+  };
+
+  // The default constructor creates an invalid frame element.
+  FrameElement()
+      : static_type_(), type_(INVALID), copied_(false), synced_(false) {
+    data_.reg_ = no_reg;
+  }
+
+  // Factory function to construct an invalid frame element.
+  static FrameElement InvalidElement() {
+    FrameElement result;
+    return result;
+  }
+
+  // Factory function to construct an in-memory frame element.
+  static FrameElement MemoryElement() {
+    FrameElement result(MEMORY, no_reg, SYNCED);
+    return result;
+  }
+
+  // Factory function to construct an in-register frame element.
+  static FrameElement RegisterElement(Register reg,
+                                      SyncFlag is_synced,
+                                      StaticType static_type = StaticType()) {
+    return FrameElement(REGISTER, reg, is_synced, static_type);
+  }
+
+  // Factory function to construct a frame element whose value is known at
+  // compile time.
+  static FrameElement ConstantElement(Handle<Object> value,
+                                      SyncFlag is_synced) {
+    FrameElement result(value, is_synced);
+    return result;
+  }
+
+  bool is_synced() const { return synced_; }
+
+  void set_sync() {
+    ASSERT(type() != MEMORY);
+    synced_ = true;
+  }
+
+  void clear_sync() {
+    ASSERT(type() != MEMORY);
+    synced_ = false;
+  }
+
+  bool is_valid() const { return type() != INVALID; }
+  bool is_memory() const { return type() == MEMORY; }
+  bool is_register() const { return type() == REGISTER; }
+  bool is_constant() const { return type() == CONSTANT; }
+  bool is_copy() const { return type() == COPY; }
+
+  bool is_copied() const { return copied_; }
+  void set_copied() { copied_ = true; }
+  void clear_copied() { copied_ = false; }
+
+  Register reg() const {
+    ASSERT(is_register());
+    return data_.reg_;
+  }
+
+  Handle<Object> handle() const {
+    ASSERT(is_constant());
+    return Handle<Object>(data_.handle_);
+  }
+
+  int index() const {
+    ASSERT(is_copy());
+    return data_.index_;
+  }
+
+  StaticType static_type() { return static_type_; }
+
+  void set_static_type(StaticType static_type) {
+    // TODO(lrn): If it's s copy, it would be better to update the real one,
+    // but we can't from here. The caller must handle this.
+    static_type_ = static_type;
+  }
+
+  // True if the frame elements are identical (all data members).
+  bool Equals(FrameElement other);
+
+  // Given a pair of non-null frame element pointers, return one of them
+  // as an entry frame candidate or null if they are incompatible.
+  FrameElement* Combine(FrameElement* other) {
+    // If either is invalid, the result is.
+    if (!is_valid()) return this;
+    if (!other->is_valid()) return other;
+
+    // If they do not have the exact same location we reallocate.
+    bool not_same_location =
+        (type_ != other->type_) ||
+        (is_register() && !reg().is(other->reg())) ||
+        (is_constant() && !handle().is_identical_to(other->handle())) ||
+        (is_copy() && index() != other->index());
+    if (not_same_location) return NULL;
+
+    // If either is unsynced, the result is.  The result static type is
+    // the merge of the static types.  It's safe to set it on one of the
+    // frame elements, and harmless too (because we are only going to
+    // merge the reaching frames and will ensure that the types are
+    // coherent, and changing the static type does not emit code).
+    FrameElement* result = is_synced() ? other : this;
+    result->set_static_type(static_type().merge(other->static_type()));
+    return result;
+  }
+
+ private:
+  enum Type {
+    INVALID,
+    MEMORY,
+    REGISTER,
+    CONSTANT,
+    COPY
+  };
+
+  Type type() const { return static_cast<Type>(type_); }
+
+  StaticType static_type_;
+
+  // The element's type.
+  byte type_;
+
+  bool copied_;
+
+  // The element's dirty-bit. The dirty bit can be cleared
+  // for non-memory elements to indicate that the element agrees with
+  // the value in memory in the actual frame.
+  bool synced_;
+
+  union {
+    Register reg_;
+    Object** handle_;
+    int index_;
+  } data_;
+
+  // Used to construct memory and register elements.
+  FrameElement(Type type, Register reg, SyncFlag is_synced)
+      : static_type_(),
+        type_(type),
+        copied_(false),
+        synced_(is_synced  != NOT_SYNCED) {
+    data_.reg_ = reg;
+  }
+
+  FrameElement(Type type, Register reg, SyncFlag is_synced, StaticType stype)
+      : static_type_(stype),
+        type_(type),
+        copied_(false),
+        synced_(is_synced != NOT_SYNCED) {
+    data_.reg_ = reg;
+  }
+
+  // Used to construct constant elements.
+  FrameElement(Handle<Object> value, SyncFlag is_synced)
+      : static_type_(StaticType::TypeOf(*value)),
+        type_(CONSTANT),
+        copied_(false),
+        synced_(is_synced != NOT_SYNCED) {
+    data_.handle_ = value.location();
+  }
+
+  void set_index(int new_index) {
+    ASSERT(is_copy());
+    data_.index_ = new_index;
+  }
+
+  void set_reg(Register new_reg) {
+    ASSERT(is_register());
+    data_.reg_ = new_reg;
+  }
+
+  friend class VirtualFrame;
+};
+
+
+} }  // namespace v8::internal
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/virtual-frame-ia32.h"

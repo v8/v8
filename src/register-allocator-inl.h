@@ -28,7 +28,6 @@
 #ifndef V8_REGISTER_ALLOCATOR_INL_H_
 #define V8_REGISTER_ALLOCATOR_INL_H_
 
-#include "codegen.h"
 #include "register-allocator.h"
 #include "virtual-frame.h"
 

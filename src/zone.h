@@ -180,13 +180,8 @@ class ZoneScope BASE_EMBEDDED {
     nesting_++;
   }
 
-  virtual ~ZoneScope() {
-    if (ShouldDeleteOnExit()) Zone::DeleteAll();
-    --nesting_;
-  }
-
-  bool ShouldDeleteOnExit() {
-    return nesting_ == 1 && mode_ == DELETE_ON_EXIT;
+  ~ZoneScope() {
+    if (--nesting_ == 0 && mode_ == DELETE_ON_EXIT) Zone::DeleteAll();
   }
 
   // For ZoneScopes that do not delete on exit by default, call this

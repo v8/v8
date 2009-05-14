@@ -100,9 +100,7 @@ class StaticType BASE_EMBEDDED {
   explicit StaticType(StaticTypeEnum static_type) : static_type_(static_type) {}
 
   // StaticTypeEnum static_type_;
-  StaticTypeEnum static_type_;
-
-  friend class FrameElement;
+  byte static_type_;
 };
 
 

@@ -94,10 +94,10 @@ FrameElement VirtualFrame::CopyElementAt(int index) {
     case FrameElement::REGISTER:
       // All copies are backed by memory or register locations.
       result.set_static_type(target.static_type());
-      result.set_type(FrameElement::COPY);
-      result.clear_copied();
-      result.clear_sync();
-      result.set_index(index);
+      result.type_ = FrameElement::COPY;
+      result.copied_ = false;
+      result.synced_ = false;
+      result.data_.index_ = index;
       elements_[index].set_copied();
       break;
 
@@ -462,6 +462,23 @@ void VirtualFrame::Nip(int num_dropped) {
     Drop(num_dropped - 1);
   }
   SetElementAt(0, &tos);
+}
+
+
+bool FrameElement::Equals(FrameElement other) {
+  if (type_ != other.type_ ||
+      copied_ != other.copied_ ||
+      synced_ != other.synced_) return false;
+
+  if (is_register()) {
+    if (!reg().is(other.reg())) return false;
+  } else if (is_constant()) {
+    if (!handle().is_identical_to(other.handle())) return false;
+  } else if (is_copy()) {
+    if (index() != other.index()) return false;
+  }
+
+  return true;
 }
 
 
