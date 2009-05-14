@@ -1529,8 +1529,6 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
-
-  delete start_frame;
 }
 
 
@@ -2132,7 +2130,6 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       }
       shadows[i]->other_target()->Jump();
     }
-    delete shadows[i];
   }
 
   exit.Bind();
@@ -2308,7 +2305,6 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         original->Branch(eq);
       }
     }
-    delete shadows[i];
   }
 
   if (has_valid_frame()) {

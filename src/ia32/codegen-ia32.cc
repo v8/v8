@@ -2183,8 +2183,6 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
       __ WriteInternalReference(entry_pos, *case_targets[i]);
     }
   }
-
-  delete start_frame;
 }
 
 
@@ -2978,7 +2976,6 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
         shadows[i]->other_target()->Jump();
       }
     }
-    delete shadows[i];
   }
 
   exit.Bind();
@@ -3159,7 +3156,6 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         original->Branch(equal);
       }
     }
-    delete shadows[i];
   }
 
   if (has_valid_frame()) {

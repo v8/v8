@@ -104,7 +104,6 @@ void CodeGenerator::SetFrame(VirtualFrame* new_frame,
 void CodeGenerator::DeleteFrame() {
   if (has_valid_frame()) {
     frame_->DetachFromCodeGenerator();
-    delete frame_;
     frame_ = NULL;
   }
 }

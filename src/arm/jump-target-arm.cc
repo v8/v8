@@ -272,7 +272,6 @@ void JumpTarget::DoBind(int mergable_elements) {
             if (other != NULL && other->Equals(cgen_->frame())) {
               // Set the reaching frame element to null to avoid
               // processing it later, and then bind its entry label.
-              delete other;
               reaching_frames_[j] = NULL;
               __ bind(&merge_labels_[j]);
             }
@@ -309,7 +308,6 @@ void JumpTarget::DoBind(int mergable_elements) {
     // them.
     for (int i = 0; i < reaching_frames_.length(); i++) {
       if (!merge_labels_[i].is_bound()) {
-        delete reaching_frames_[i];
         reaching_frames_[i] = NULL;
         __ bind(&merge_labels_[i]);
       }
