@@ -1588,6 +1588,12 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
     return response.failed('Argument "handles" missing');
   }
 
+  // Set 'includeSource' option for script lookup.
+  if (!IS_UNDEFINED(request.arguments.includeSource)) {
+    includeSource = %ToBoolean(request.arguments.includeSource);
+    response.setOption('includeSource', includeSource);
+  }
+
   // Lookup handles.
   var mirrors = {};
   for (var i = 0; i < handles.length; i++) {
@@ -1684,6 +1690,7 @@ DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
 DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   var types = ScriptTypeFlag(Debug.ScriptType.Normal);
   var includeSource = false;
+  var idsToInclude = null;
   if (request.arguments) {
     // Pull out arguments.
     if (!IS_UNDEFINED(request.arguments.types)) {
@@ -1697,6 +1704,14 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
       includeSource = %ToBoolean(request.arguments.includeSource);
       response.setOption('includeSource', includeSource);
     }
+    
+    if (IS_ARRAY(request.arguments.ids)) {
+      idsToInclude = {};
+      var ids = request.arguments.ids;
+      for (var i = 0; i < ids.length; i++) {
+        idsToInclude[ids[i]] = true;
+      }
+    }
   }
 
   // Collect all scripts in the heap.
@@ -1705,6 +1720,9 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   response.body = [];
 
   for (var i = 0; i < scripts.length; i++) {
+    if (idsToInclude && !idsToInclude[scripts[i].id]) {
+      continue;
+    }
     if (types & ScriptTypeFlag(scripts[i].type)) {
       response.body.push(MakeMirror(scripts[i]));
     }
