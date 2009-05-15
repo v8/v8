@@ -104,7 +104,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // A list of pointers to frame elements in the entry frame.  NULL
   // indicates that the element has not yet been determined.
   int length = initial_frame->elements_.length();
-  List<FrameElement*> elements(length);
+  ZoneList<FrameElement*> elements(length);
 
   // Convert the number of mergable elements (counted from the top
   // down) to a frame high-water mark (counted from the bottom up).
