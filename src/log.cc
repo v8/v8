@@ -631,7 +631,7 @@ void Logger::HandleEvent(const char* name, Object** location) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log_handles) return;
   LogMessageBuilder msg;
-  msg.Append("%s,0x%%" V8PRIxPTR "\n", name, location);
+  msg.Append("%s,0x%" V8PRIxPTR "\n", name, location);
   msg.WriteToLogFile();
 #endif
 }
@@ -850,7 +850,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log) return;
   LogMessageBuilder msg;
-  msg.Append("new,%s,0x%%" V8PRIxPTR ",%u\n", name, object,
+  msg.Append("new,%s,0x%" V8PRIxPTR ",%u\n", name, object,
              static_cast<unsigned int>(size));
   msg.WriteToLogFile();
 #endif
@@ -861,7 +861,7 @@ void Logger::DeleteEvent(const char* name, void* object) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::is_enabled() || !FLAG_log) return;
   LogMessageBuilder msg;
-  msg.Append("delete,%s,0x%%" V8PRIxPTR "\n", name, object);
+  msg.Append("delete,%s,0x%" V8PRIxPTR "\n", name, object);
   msg.WriteToLogFile();
 #endif
 }
