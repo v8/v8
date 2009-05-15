@@ -1462,6 +1462,9 @@ DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) 
     if (from_index < 0 || to_index < 0) {
       return response.failed('Invalid frame number');
     }
+    if (request.arguments.compactFormat) {
+      response.setOption('compactFormat', true);
+    }
   }
 
   // Adjust the index.
@@ -1588,6 +1591,10 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
   if (!IS_UNDEFINED(request.arguments.includeSource)) {
     includeSource = %ToBoolean(request.arguments.includeSource);
     response.setOption('includeSource', includeSource);
+  }
+  
+  if (request.arguments.compactFormat) {
+    response.setOption('compactFormat', true);
   }
 
   // Lookup handles.

@@ -1752,6 +1752,11 @@ JSONProtocolSerializer.prototype.includeSource_ = function() {
 }
 
 
+JSONProtocolSerializer.prototype.compactFormat_ = function() {
+  return this.options_ && this.options_.compactFormat;
+}
+
+
 JSONProtocolSerializer.prototype.add_ = function(mirror) {
   // If this mirror is already in the list just return.
   for (var i = 0; i < this.mirrors_.length; i++) {
@@ -1765,14 +1770,58 @@ JSONProtocolSerializer.prototype.add_ = function(mirror) {
 }
 
 
+/**
+ * Formats mirror object to protocol reference object with some data that can
+ * be used to display the value in debugger.
+ * @param {Mirror} mirror Mirror to serialize.
+ * @return {Object} Protocol reference object.
+ */
+JSONProtocolSerializer.prototype.serializeReferenceWithDisplayData_ = 
+    function(mirror) {
+  var o = {};
+  o.ref = mirror.handle();
+  o.type = mirror.type();
+  switch (mirror.type()) {
+    case UNDEFINED_TYPE:
+    case NULL_TYPE:
+    case BOOLEAN_TYPE:
+    case NUMBER_TYPE:
+      o.value = mirror.value();
+      break;
+    case STRING_TYPE:
+      // Limit string length.
+      o.value = mirror.toText();
+      break;
+    case FUNCTION_TYPE:
+      o.name = mirror.name();
+      o.inferredName = mirror.inferredName();
+      if (mirror.script()) {
+        o.scriptId = mirror.script().id();
+      }
+      break;
+    case ERROR_TYPE:
+    case REGEXP_TYPE:
+      o.value = mirror.toText();
+      break;
+    case OBJECT_TYPE:
+      o.className = mirror.className();
+      break;
+  }
+  return o;
+};
+
 JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
                                                        details) {
   // If serializing a reference to a mirror just return the reference and add
   // the mirror to the referenced mirrors.
   if (reference &&
       (mirror.isValue() || mirror.isScript() || mirror.isContext())) {
-    this.add_(mirror);
-    return {'ref' : mirror.handle()};
+    if (this.compactFormat_() && mirror.isValue()) {
+      return this.serializeReferenceWithDisplayData_(mirror);
+    } else {
+      this.add_(mirror);
+      return {'ref' : mirror.handle()};
+    }
   }
   
   // Collect the JSON property/value pairs.
@@ -1965,13 +2014,18 @@ JSONProtocolSerializer.prototype.serializeProperty_ = function(propertyMirror) {
   var result = {};
   
   result.name = propertyMirror.name();
-  if (propertyMirror.attributes() != PropertyAttribute.None) {
-    result.attributes = propertyMirror.attributes();
+  var propertyValue = propertyMirror.value();
+  if (this.compactFormat_() && propertyValue.isValue()) {
+    result.value = this.serializeReferenceWithDisplayData_(propertyValue);
+  } else {
+    if (propertyMirror.attributes() != PropertyAttribute.None) {
+      result.attributes = propertyMirror.attributes();
+    }
+    if (propertyMirror.propertyType() != PropertyType.Normal) {
+      result.propertyType = propertyMirror.propertyType();
+    }
+    result.ref = propertyValue.handle();
   }
-  if (propertyMirror.propertyType() != PropertyType.Normal) {
-    result.propertyType = propertyMirror.propertyType();
-  }
-  result.ref = propertyMirror.value().handle();
   return result;
 }
 
