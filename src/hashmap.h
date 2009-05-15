@@ -75,6 +75,9 @@ class HashMap {
   // Otherwise, NULL is returned.
   Entry* Lookup(void* key, uint32_t hash, bool insert);
 
+  // Removes the entry with matching key.
+  void Remove(void* key, uint32_t hash);
+
   // Empties the hash map (occupancy() == 0).
   void Clear();
 
