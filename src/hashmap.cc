@@ -129,8 +129,8 @@ void HashMap::Remove(void* key, uint32_t hash) {
     // If the entry at position q has its initial position outside the range
     // between p and q it can be moved forward to position p and will still be
     // found. There is now a new candidate entry for clearing.
-    if (q > p && (r <= p || r > q) ||
-        q < p && (r <= p && r > q)) {
+    if ((q > p && (r <= p || r > q)) ||
+        (q < p && (r <= p && r > q))) {
       *p = *q;
       p = q;
     }
