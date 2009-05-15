@@ -424,24 +424,26 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
     if (index != kIllegalIndex) {
       FrameElement source = elements_[index];
       FrameElement target = expected->elements_[index];
+      Register target_reg = { i };
+      ASSERT(expected->elements_[index].reg().is(target_reg));
       switch (source.type()) {
         case FrameElement::INVALID:  // Fall through.
           UNREACHABLE();
           break;
         case FrameElement::REGISTER:
-          ASSERT(source.reg().is(target.reg()));
-          continue;  // Go to next iteration.  Skips Use(target.reg()) below.
+          ASSERT(source.reg().is(target_reg));
+          continue;  // Go to next iteration.  Skips Use(target_reg) below.
           break;
         case FrameElement::MEMORY:
           ASSERT(index <= stack_pointer_);
-          __ mov(target.reg(), Operand(ebp, fp_relative(index)));
+          __ mov(target_reg, Operand(ebp, fp_relative(index)));
           break;
 
         case FrameElement::CONSTANT:
           if (cgen_->IsUnsafeSmi(source.handle())) {
-            cgen_->LoadUnsafeSmi(target.reg(), source.handle());
+            cgen_->LoadUnsafeSmi(target_reg, source.handle());
           } else {
-           __ Set(target.reg(), Immediate(source.handle()));
+           __ Set(target_reg, Immediate(source.handle()));
           }
           break;
 
@@ -461,21 +463,21 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
               Use(new_backing_reg, backing_index);
               __ mov(new_backing_reg,
                      Operand(ebp, fp_relative(backing_index)));
-              __ mov(target.reg(), new_backing_reg);
+              __ mov(target_reg, new_backing_reg);
             } else {
-              __ mov(target.reg(), Operand(ebp, fp_relative(backing_index)));
+              __ mov(target_reg, Operand(ebp, fp_relative(backing_index)));
             }
           } else {
-            __ mov(target.reg(), backing.reg());
+            __ mov(target_reg, backing.reg());
           }
         }
       }
       // Ensure the proper sync state.  If the source was memory no
       // code needs to be emitted.
       if (target.is_synced() && !source.is_synced()) {
-        __ mov(Operand(ebp, fp_relative(index)), target.reg());
+        __ mov(Operand(ebp, fp_relative(index)), target_reg);
       }
-      Use(target.reg(), index);
+      Use(target_reg, index);
       elements_[index] = target;
     }
   }
