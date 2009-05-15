@@ -116,6 +116,13 @@ class VirtualFrame : public ZoneObject {
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
 
+  // Make this frame so that an arbitrary frame of the same height can
+  // be merged to it.  Copies and constants are removed from the
+  // topmost mergable_elements elements of the frame.  A
+  // mergable_elements of JumpTarget::kAllElements indicates constants
+  // and copies are should be removed from the entire frame.
+  void MakeMergable(int mergable_elements);
+
   // Prepare this virtual frame for merging to an expected frame by
   // performing some state changes that do not require generating
   // code.  It is guaranteed that no code will be generated.

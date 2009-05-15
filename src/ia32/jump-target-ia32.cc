@@ -195,12 +195,12 @@ void JumpTarget::DoBind(int mergable_elements) {
     return;
   }
 
-  if (direction_ == FORWARD_ONLY) {
-    // A simple case: no forward jumps and no possible backward jumps.
-    if (!is_linked()) {
+  if (!is_linked()) {
+    ASSERT(cgen_->has_valid_frame());
+    if (direction_ == FORWARD_ONLY) {
+      // Fast case: no forward jumps and no possible backward jumps.
       // The stack pointer can be floating above the top of the
       // virtual frame before the bind.  Afterward, it should not.
-      ASSERT(cgen_->has_valid_frame());
       VirtualFrame* frame = cgen_->frame();
       int difference =
           frame->stack_pointer_ - (frame->elements_.length() - 1);
@@ -209,34 +209,43 @@ void JumpTarget::DoBind(int mergable_elements) {
         __ add(Operand(esp), Immediate(difference * kPointerSize));
       }
 
-      is_bound_ = true;
-      return;
+    } else {
+      ASSERT(direction_ == BIDIRECTIONAL);
+      // Fast case: no forward jumps, possible backward ones.  Remove
+      // constants and copies above the watermark on the fall-through
+      // frame and use it as the entry frame.
+      cgen_->frame()->MakeMergable(mergable_elements);
+      entry_frame_ = new VirtualFrame(cgen_->frame());
+      __ bind(&entry_label_);
+    }
+    is_bound_ = true;
+    return;
+  }
+
+  if (direction_ == FORWARD_ONLY &&
+      !cgen_->has_valid_frame() &&
+      reaching_frames_.length() == 1) {
+    // Fast case: no fall-through, a single forward jump, and no
+    // possible backward jumps.  Pick up the only reaching frame, take
+    // ownership of it, and use it for the block about to be emitted.
+    VirtualFrame* frame = reaching_frames_[0];
+    RegisterFile reserved = RegisterAllocator::Reserved();
+    cgen_->SetFrame(frame, &reserved);
+    reaching_frames_[0] = NULL;
+    __ bind(&merge_labels_[0]);
+
+    // The stack pointer can be floating above the top of the
+    // virtual frame before the bind.  Afterward, it should not.
+    int difference =
+        frame->stack_pointer_ - (frame->elements_.length() - 1);
+    if (difference > 0) {
+      frame->stack_pointer_ -= difference;
+      __ add(Operand(esp), Immediate(difference * kPointerSize));
     }
 
-    // Another simple case: no fall through, a single forward jump,
-    // and no possible backward jumps.
-    if (!cgen_->has_valid_frame() && reaching_frames_.length() == 1) {
-      // Pick up the only reaching frame, take ownership of it, and
-      // use it for the block about to be emitted.
-      VirtualFrame* frame = reaching_frames_[0];
-      RegisterFile reserved = RegisterAllocator::Reserved();
-      cgen_->SetFrame(frame, &reserved);
-      reaching_frames_[0] = NULL;
-      __ bind(&merge_labels_[0]);
-
-      // The stack pointer can be floating above the top of the
-      // virtual frame before the bind.  Afterward, it should not.
-      int difference =
-          frame->stack_pointer_ - (frame->elements_.length() - 1);
-      if (difference > 0) {
-        frame->stack_pointer_ -= difference;
-        __ add(Operand(esp), Immediate(difference * kPointerSize));
-      }
-
-      is_linked_ = false;
-      is_bound_ = true;
-      return;
-    }
+    is_linked_ = false;
+    is_bound_ = true;
+    return;
   }
 
   // If there is a current frame, record it as the fall-through.  It
@@ -250,9 +259,7 @@ void JumpTarget::DoBind(int mergable_elements) {
   }
 
   // Compute the frame to use for entry to the block.
-  if (entry_frame_ == NULL) {
-    ComputeEntryFrame(mergable_elements);
-  }
+  ComputeEntryFrame(mergable_elements);
 
   // Some moves required to merge to an expected frame require purely
   // frame state changes, and do not require any code generation.

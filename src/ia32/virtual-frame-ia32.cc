@@ -180,6 +180,80 @@ void VirtualFrame::SyncRange(int begin, int end) {
 }
 
 
+void VirtualFrame::MakeMergable(int mergable_elements) {
+  if (mergable_elements == JumpTarget::kAllElements) {
+    mergable_elements = elements_.length();
+  }
+  ASSERT(mergable_elements <= elements_.length());
+
+  int start_index = elements_.length() - mergable_elements;
+
+  // The is_copied flags on entry frame elements are expected to be
+  // exact.  Set them for the elements below the water mark.
+  for (int i = 0; i < start_index; i++) {
+    elements_[i].clear_copied();
+    if (elements_[i].is_copy()) {
+      elements_[elements_[i].index()].set_copied();
+    }
+  }
+
+  for (int i = start_index; i < elements_.length(); i++) {
+    FrameElement element = elements_[i];
+
+    if (element.is_constant() || element.is_copy()) {
+      if (element.is_synced()) {
+        // Just spill.
+        elements_[i] = FrameElement::MemoryElement();
+      } else {
+        // Allocate to a register.
+        FrameElement backing_element;  // Invalid if not a copy.
+        if (element.is_copy()) {
+          backing_element = elements_[element.index()];
+        }
+        Result fresh = cgen_->allocator()->Allocate();
+        ASSERT(fresh.is_valid());
+        elements_[i] =
+            FrameElement::RegisterElement(fresh.reg(),
+                                          FrameElement::NOT_SYNCED);
+        Use(fresh.reg(), i);
+
+        // Emit a move.
+        if (element.is_constant()) {
+          if (cgen_->IsUnsafeSmi(element.handle())) {
+            cgen_->LoadUnsafeSmi(fresh.reg(), element.handle());
+          } else {
+            __ Set(fresh.reg(), Immediate(element.handle()));
+          }
+        } else {
+          ASSERT(element.is_copy());
+          // Copies are only backed by register or memory locations.
+          if (backing_element.is_register()) {
+            // The backing store may have been spilled by allocating,
+            // but that's OK.  If it was, the value is right where we
+            // want it.
+            if (!fresh.reg().is(backing_element.reg())) {
+              __ mov(fresh.reg(), backing_element.reg());
+            }
+          } else {
+            ASSERT(backing_element.is_memory());
+            __ mov(fresh.reg(), Operand(ebp, fp_relative(element.index())));
+          }
+        }
+      }
+      // No need to set the copied flag---there are no copies of
+      // copies or constants so the original was not copied.
+      elements_[i].set_static_type(element.static_type());
+    } else {
+      // Clear the copy flag of non-constant, non-copy elements above
+      // the high water mark.  They cannot be copied because copes are
+      // always higher than their backing store and copies are not
+      // allowed above the water mark.
+      elements_[i].clear_copied();
+    }
+  }
+}
+
+
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   Comment cmnt(masm_, "[ Merge frame");
   // We should always be merging the code generator's current frame to an
