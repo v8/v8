@@ -113,7 +113,16 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   // Adjust for function-level loop nesting.
   loop_nesting_ += fun->loop_nesting();
 
-  {
+#ifdef DEBUG
+  if (strlen(FLAG_stop_at) > 0 &&
+      fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+    frame_->SpillAll();
+    __ int3();
+  }
+#endif
+
+  // New scope to get automatic timing calculation.
+  {  // NOLINT
     CodeGenState state(this);
 
     // Entry:
@@ -124,14 +133,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // esi: callee's context
     allocator_->Initialize();
     frame_->Enter();
-
-#ifdef DEBUG
-    if (strlen(FLAG_stop_at) > 0 &&
-        fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-      frame_->SpillAll();
-      __ int3();
-    }
-#endif
 
     // Allocate space for locals and initialize them.
     frame_->AllocateStackSlots(scope_->num_stack_slots());
@@ -4876,9 +4877,9 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // successfully allocate a temporary byte register.
     if (tmp.is_valid()) {
       __ setcc(overflow, tmp.reg());
-      __ or_(Operand(value.reg()), tmp.reg());
+      __ or_(Operand(tmp.reg()), value.reg());
+      __ test(tmp.reg(), Immediate(kSmiTagMask));
       tmp.Unuse();
-      __ test(value.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &value, not_taken);
     } else {  // Otherwise we test separately for overflow and smi check.
       deferred->enter()->Branch(overflow, &value, not_taken);
