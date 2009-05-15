@@ -43,6 +43,16 @@ void DeferredCode::SetEntryFrame(Result* arg) {
 }
 
 
+void DeferredCode::SetEntryFrame(Result* arg0, Result* arg1) {
+  ASSERT(generator()->has_valid_frame());
+  generator()->frame()->Push(arg0);
+  generator()->frame()->Push(arg1);
+  enter()->set_entry_frame(new VirtualFrame(generator()->frame()));
+  *arg1 = generator()->frame()->Pop();
+  *arg0 = generator()->frame()->Pop();
+}
+
+
 // -----------------------------------------------------------------------------
 // Support for "structured" code comments.
 //

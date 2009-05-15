@@ -5415,23 +5415,29 @@ void Reference::GetValue(TypeofState typeof_state) {
       } else {
         // Inline the inobject property case.
         Comment cmnt(masm, "[ Inlined named property load");
+        DeferredReferenceGetNamedValue* deferred =
+            new DeferredReferenceGetNamedValue(cgen_, GetName());
         Result receiver = cgen_->frame()->Pop();
         receiver.ToRegister();
 
-        // Preallocate the value register to ensure that there is no
-        // spill emitted between the patch site label and the offset in
-        // the load instruction and that all frames reaching the
-        // deferred code are identical.
-        Result value = cgen_->allocator()->Allocate();
-        ASSERT(value.is_valid());
+        // Try to preallocate the value register so that all frames
+        // reaching the deferred code are identical.
+        Result value = cgen_->allocator()->AllocateWithoutSpilling();
+        if (value.is_valid()) {
+          deferred->SetEntryFrame(&receiver);
+        }
 
         // Check that the receiver is a heap object.
         __ test(receiver.reg(), Immediate(kSmiTagMask));
-
-        DeferredReferenceGetNamedValue* deferred =
-            new DeferredReferenceGetNamedValue(cgen_, GetName());
-        deferred->SetEntryFrame(&receiver);
         deferred->enter()->Branch(zero, &receiver, not_taken);
+
+        // Do not allocate the value register after binding the patch
+        // site label.  The distance from the patch site to the offset
+        // must be constant.
+        if (!value.is_valid()) {
+          value = cgen_->allocator()->Allocate();
+          ASSERT(value.is_valid());
+        }
 
         __ bind(deferred->patch_site());
         // This is the map check instruction that will be patched (so we can't
@@ -5482,6 +5488,14 @@ void Reference::GetValue(TypeofState typeof_state) {
         key.ToRegister();
         receiver.ToRegister();
 
+        // Try to preallocate the elements and index scratch registers
+        // so that all frames reaching the deferred code are identical.
+        Result elements = cgen_->allocator()->AllocateWithoutSpilling();
+        Result index = cgen_->allocator()->AllocateWithoutSpilling();
+        if (elements.is_valid() && index.is_valid()) {
+          deferred->SetEntryFrame(&receiver, &key);
+        }
+
         // Check that the receiver is not a smi (only needed if this
         // is not a load from the global context) and that it has the
         // expected map.
@@ -5505,8 +5519,10 @@ void Reference::GetValue(TypeofState typeof_state) {
 
         // Get the elements array from the receiver and check that it
         // is not a dictionary.
-        Result elements = cgen_->allocator()->Allocate();
-        ASSERT(elements.is_valid());
+        if (!elements.is_valid()) {
+          elements = cgen_->allocator()->Allocate();
+          ASSERT(elements.is_valid());
+        }
         __ mov(elements.reg(),
                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
         __ cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
@@ -5515,8 +5531,10 @@ void Reference::GetValue(TypeofState typeof_state) {
 
         // Shift the key to get the actual index value and check that
         // it is within bounds.
-        Result index = cgen_->allocator()->Allocate();
-        ASSERT(index.is_valid());
+        if (!index.is_valid()) {
+          index = cgen_->allocator()->Allocate();
+          ASSERT(index.is_valid());
+        }
         __ mov(index.reg(), key.reg());
         __ sar(index.reg(), kSmiTagSize);
         __ cmp(index.reg(),

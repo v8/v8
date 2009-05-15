@@ -148,6 +148,7 @@ class DeferredCode: public ZoneObject {
   // results).  This is optional, but should be done before branching
   // or jumping to the deferred code.
   inline void SetEntryFrame(Result* arg);
+  inline void SetEntryFrame(Result* arg0, Result* arg1);
 
   JumpTarget* enter() { return &enter_; }
 
