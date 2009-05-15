@@ -569,7 +569,7 @@ class PromotionQueue {
 
 
 // Shared state read by the scavenge collector and set by ScavengeObject.
-static Address promoted_rear = NULL;
+static PromotionQueue promotion_queue;
 
 
 #ifdef DEBUG
@@ -655,8 +655,7 @@ void Heap::Scavenge() {
   // frees up its size in bytes from the top of the new space, and
   // objects are at least one pointer in size.
   Address new_space_front = new_space_.ToSpaceLow();
-  Address promoted_front = new_space_.ToSpaceHigh();
-  promoted_rear = new_space_.ToSpaceHigh();
+  promotion_queue.Initialize(new_space_.ToSpaceHigh());
 
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
@@ -673,7 +672,6 @@ void Heap::Scavenge() {
 
   do {
     ASSERT(new_space_front <= new_space_.top());
-    ASSERT(promoted_front >= promoted_rear);
 
     // The addresses new_space_front and new_space_.top() define a
     // queue of unprocessed copied objects.  Process them until the
@@ -684,15 +682,26 @@ void Heap::Scavenge() {
       new_space_front += object->Size();
     }
 
-    // The addresses promoted_front and promoted_rear define a queue
-    // of unprocessed addresses of promoted objects.  Process them
-    // until the queue is empty.
-    while (promoted_front > promoted_rear) {
-      promoted_front -= kPointerSize;
-      HeapObject* object =
-          HeapObject::cast(Memory::Object_at(promoted_front));
-      object->Iterate(&scavenge_visitor);
-      UpdateRSet(object);
+    // Promote and process all the to-be-promoted objects.
+    while (!promotion_queue.is_empty()) {
+      HeapObject* source;
+      Map* map;
+      promotion_queue.remove(&source, &map);
+      // Copy the from-space object to its new location (given by the
+      // forwarding address) and fix its map.
+      HeapObject* target = source->map_word().ToForwardingAddress();
+      CopyBlock(reinterpret_cast<Object**>(target->address()),
+                reinterpret_cast<Object**>(source->address()),
+                source->SizeFromMap(map));
+      target->set_map(map);
+
+#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+      // Update NewSpace stats if necessary.
+      RecordCopiedObject(target);
+#endif
+      // Visit the newly copied object for pointers to new space.
+      target->Iterate(&scavenge_visitor);
+      UpdateRSet(target);
     }
 
     // Take another spin if there are now unswept objects in new space
@@ -849,34 +858,12 @@ HeapObject* Heap::MigrateObject(HeapObject* source,
   // Set the forwarding address.
   source->set_map_word(MapWord::FromForwardingAddress(target));
 
-  // Update NewSpace stats if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+  // Update NewSpace stats if necessary.
   RecordCopiedObject(target);
 #endif
 
   return target;
-}
-
-
-// Inlined function.
-void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(InFromSpace(object));
-
-  // We use the first word (where the map pointer usually is) of a heap
-  // object to record the forwarding pointer.  A forwarding pointer can
-  // point to an old space, the code space, or the to space of the new
-  // generation.
-  MapWord first_word = object->map_word();
-
-  // If the first word is a forwarding address, the object has already been
-  // copied.
-  if (first_word.IsForwardingAddress()) {
-    *p = first_word.ToForwardingAddress();
-    return;
-  }
-
-  // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
 }
 
 
@@ -910,6 +897,11 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   }
 
   int object_size = object->SizeFromMap(first_word.ToMap());
+  // We rely on live objects in new space to be at least two pointers,
+  // so we can store the from-space address and map pointer of promoted
+  // objects in the to space.
+  ASSERT(object_size >= 2 * kPointerSize);
+
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
     OldSpace* target_space = Heap::TargetSpace(object);
@@ -917,16 +909,29 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
            target_space == Heap::old_data_space_);
     Object* result = target_space->AllocateRaw(object_size);
     if (!result->IsFailure()) {
-      *p = MigrateObject(object, HeapObject::cast(result), object_size);
+      HeapObject* target = HeapObject::cast(result);
       if (target_space == Heap::old_pointer_space_) {
-        // Record the object's address at the top of the to space, to allow
-        // it to be swept by the scavenger.
-        promoted_rear -= kPointerSize;
-        Memory::Object_at(promoted_rear) = *p;
+        // Save the from-space object pointer and its map pointer at the
+        // top of the to space to be swept and copied later.  Write the
+        // forwarding address over the map word of the from-space
+        // object.
+        promotion_queue.insert(object, first_word.ToMap());
+        object->set_map_word(MapWord::FromForwardingAddress(target));
+
+        // Give the space allocated for the result a proper map by
+        // treating it as a free list node (not linked into the free
+        // list).
+        FreeListNode* node = FreeListNode::FromAddress(target->address());
+        node->set_size(object_size);
+
+        *p = target;
       } else {
+        // Objects promoted to the data space can be copied immediately
+        // and not revisited---we will never sweep that space for
+        // pointers and the copied objects do not contain pointers to
+        // new space objects.
+        *p = MigrateObject(object, target, object_size);
 #ifdef DEBUG
-        // Objects promoted to the data space should not have pointers to
-        // new space.
         VerifyNonPointerSpacePointersVisitor v;
         (*p)->Iterate(&v);
 #endif
