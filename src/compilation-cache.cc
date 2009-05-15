@@ -32,12 +32,20 @@
 namespace v8 { namespace internal {
 
 enum {
-  NUMBER_OF_ENTRY_KINDS = CompilationCache::LAST_ENTRY + 1
+  // The number of script generations tell how many GCs a script can
+  // survive in the compilation cache, before it will be flushed if it
+  // hasn't been used.
+  NUMBER_OF_SCRIPT_GENERATIONS = 5,
+
+  // The compilation cache consists of tables - one for each entry
+  // kind plus extras for the script generations.
+  NUMBER_OF_TABLE_ENTRIES =
+      CompilationCache::LAST_ENTRY + NUMBER_OF_SCRIPT_GENERATIONS
 };
 
 
 // Keep separate tables for the different entry kinds.
-static Object* tables[NUMBER_OF_ENTRY_KINDS] = { 0, };
+static Object* tables[NUMBER_OF_TABLE_ENTRIES] = { 0, };
 
 
 static Handle<CompilationCacheTable> AllocateTable(int size) {
@@ -121,41 +129,52 @@ static bool HasOrigin(Handle<JSFunction> boilerplate,
 }
 
 
-static Handle<JSFunction> Lookup(Handle<String> source,
-                                 CompilationCache::Entry entry) {
-  // Make sure not to leak the table into the surrounding handle
-  // scope. Otherwise, we risk keeping old tables around even after
-  // having cleared the cache.
-  Object* result;
-  { HandleScope scope;
-    Handle<CompilationCacheTable> table = GetTable(entry);
-    result = table->Lookup(*source);
-  }
-  if (result->IsJSFunction()) {
-    return Handle<JSFunction>(JSFunction::cast(result));
-  } else {
-    return Handle<JSFunction>::null();
-  }
-}
-
-
-// TODO(245): Need to allow identical code from different contexts to be
-// cached. Currently the first use will be cached, but subsequent code
-// from different source / line won't.
+// TODO(245): Need to allow identical code from different contexts to
+// be cached in the same script generation. Currently the first use
+// will be cached, but subsequent code from different source / line
+// won't.
 Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
                                                   Handle<Object> name,
                                                   int line_offset,
                                                   int column_offset) {
-  Handle<JSFunction> result = Lookup(source, SCRIPT);
-  if (result.is_null()) {
-    Counters::compilation_cache_misses.Increment();
-  } else if (HasOrigin(result, name, line_offset, column_offset)) {
-    Counters::compilation_cache_hits.Increment();
-  } else {
-    result = Handle<JSFunction>::null();
-    Counters::compilation_cache_misses.Increment();
+  Object* result = NULL;
+  Entry generation = SCRIPT;  // First generation.
+
+  // Probe the script generation tables. Make sure not to leak handles
+  // into the caller's handle scope.
+  { HandleScope scope;
+    while (generation < SCRIPT + NUMBER_OF_SCRIPT_GENERATIONS) {
+      Handle<CompilationCacheTable> table = GetTable(generation);
+      Handle<Object> probe(table->Lookup(*source));
+      if (probe->IsJSFunction()) {
+        Handle<JSFunction> boilerplate = Handle<JSFunction>::cast(probe);
+        // Break when we've found a suitable boilerplate function that
+        // matches the origin.
+        if (HasOrigin(boilerplate, name, line_offset, column_offset)) {
+          result = *boilerplate;
+          break;
+        }
+      }
+      // Go to the next generation.
+      generation = static_cast<Entry>(generation + 1);
+    }
   }
-  return result;
+
+  // Once outside the menacles of the handle scope, we need to recheck
+  // to see if we actually found a cached script. If so, we return a
+  // handle created in the caller's handle scope.
+  if (result != NULL) {
+    Handle<JSFunction> boilerplate(JSFunction::cast(result));
+    ASSERT(HasOrigin(boilerplate, name, line_offset, column_offset));
+    // If the script was found in a later generation, we promote it to
+    // the first generation to let it survive longer in the cache.
+    if (generation != SCRIPT) PutScript(source, boilerplate);
+    Counters::compilation_cache_hits.Increment();
+    return boilerplate;
+  } else {
+    Counters::compilation_cache_misses.Increment();
+    return Handle<JSFunction>::null();
+  }
 }
 
 
@@ -216,14 +235,25 @@ void CompilationCache::PutRegExp(Handle<String> source,
 
 
 void CompilationCache::Clear() {
-  for (int i = 0; i < NUMBER_OF_ENTRY_KINDS; i++) {
+  for (int i = 0; i < NUMBER_OF_TABLE_ENTRIES; i++) {
     tables[i] = Heap::undefined_value();
   }
 }
 
 
 void CompilationCache::Iterate(ObjectVisitor* v) {
-  v->VisitPointers(&tables[0], &tables[NUMBER_OF_ENTRY_KINDS]);
+  v->VisitPointers(&tables[0], &tables[NUMBER_OF_TABLE_ENTRIES]);
+}
+
+
+void CompilationCache::MarkCompactPrologue() {
+  ASSERT(LAST_ENTRY == SCRIPT);
+  for (int i = NUMBER_OF_TABLE_ENTRIES - 1; i > SCRIPT; i--) {
+    tables[i] = tables[i - 1];
+  }
+  for (int j = 0; j <= LAST_ENTRY; j++) {
+    tables[j] = Heap::undefined_value();
+  }
 }
 
 

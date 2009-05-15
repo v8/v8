@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "compilation-cache.h"
 #include "snapshot.h"
 #include "platform.h"
 #include "top.h"
@@ -464,6 +465,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -484,6 +486,7 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -505,6 +508,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -527,6 +531,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
