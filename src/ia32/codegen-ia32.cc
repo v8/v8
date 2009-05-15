@@ -122,8 +122,9 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     __ int3();
   }
 #endif
-  
-  {
+
+  // New scope to get automatic timing calculation.
+  {  // NOLINT
     HistogramTimerScope codegen_timer(&Counters::code_generation);
     CodeGenState state(this);
 
