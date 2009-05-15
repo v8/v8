@@ -103,6 +103,7 @@ class StaticType BASE_EMBEDDED {
   StaticTypeEnum static_type_;
 
   friend class FrameElement;
+  friend class Result;
 };
 
 
@@ -121,26 +122,20 @@ class Result BASE_EMBEDDED {
   };
 
   // Construct an invalid result.
-  explicit Result(CodeGenerator* cgen)
-      : static_type_(),
-        type_(INVALID),
-        cgen_(cgen) {}
+  Result() { invalidate(); }
 
   // Construct a register Result.
-  Result(Register reg,
-         CodeGenerator* cgen);
+  explicit Result(Register reg);
 
   // Construct a register Result with a known static type.
-  Result(Register reg,
-         CodeGenerator* cgen,
-         StaticType static_type);
+  Result(Register reg, StaticType static_type);
 
   // Construct a Result whose value is a compile-time constant.
-  Result(Handle<Object> value, CodeGenerator * cgen)
-      : static_type_(StaticType::TypeOf(*value)),
-        type_(CONSTANT),
-        cgen_(cgen) {
-    data_.handle_ = value.location();
+  explicit Result(Handle<Object> value) {
+    value_ = StaticTypeField::encode(StaticType::TypeOf(*value).static_type_)
+        | TypeField::encode(CONSTANT)
+        | DataField::encode(ConstantList()->length());
+    ConstantList()->Add(value);
   }
 
   // The copy constructor and assignment operators could each create a new
@@ -159,25 +154,51 @@ class Result BASE_EMBEDDED {
 
   inline ~Result();
 
+  // Static indirection table for handles to constants.  If a Result
+  // represents a constant, the data contains an index into this table
+  // of handles to the actual constants.
+  typedef ZoneList<Handle<Object> > ZoneObjectList;
+
+  static ZoneObjectList* ConstantList() {
+    static ZoneObjectList list(10);
+    return &list;
+  }
+
+  // Clear the constants indirection table.
+  static void ClearConstantList() {
+    ConstantList()->Clear();
+  }
+
   inline void Unuse();
 
-  StaticType static_type() const { return static_type_; }
-  void set_static_type(StaticType static_type) { static_type_ = static_type; }
+  StaticType static_type() const {
+    return StaticType(StaticTypeField::decode(value_));
+  }
 
-  Type type() const { return static_cast<Type>(type_); }
+  void set_static_type(StaticType type) {
+    value_ = value_ & ~StaticTypeField::mask();
+    value_ = value_ | StaticTypeField::encode(type.static_type_);
+  }
+
+  Type type() const { return TypeField::decode(value_); }
+
+  void invalidate() { value_ = TypeField::encode(INVALID); }
 
   bool is_valid() const { return type() != INVALID; }
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
 
   Register reg() const {
-    ASSERT(type() == REGISTER);
-    return data_.reg_;
+    ASSERT(is_register());
+    uint32_t reg = DataField::decode(value_);
+    Register result;
+    result.code_ = reg;
+    return result;
   }
 
   Handle<Object> handle() const {
     ASSERT(type() == CONSTANT);
-    return Handle<Object>(data_.handle_);
+    return ConstantList()->at(DataField::decode(value_));
   }
 
   // Move this result to an arbitrary register.  The register is not
@@ -191,17 +212,15 @@ class Result BASE_EMBEDDED {
   void ToRegister(Register reg);
 
  private:
-  StaticType static_type_;
-  byte type_;
+  uint32_t value_;
 
-  union {
-    Register reg_;
-    Object** handle_;
-  } data_;
+  class StaticTypeField: public BitField<StaticType::StaticTypeEnum, 0, 3> {};
+  class TypeField: public BitField<Type, 3, 2> {};
+  class DataField: public BitField<uint32_t, 5, 32 - 6> {};
 
-  CodeGenerator* cgen_;
+  inline void CopyTo(Result* destination) const;
 
-  void CopyTo(Result* destination) const;
+  friend class CodeGeneratorScope;
 };
 
 

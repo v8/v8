@@ -86,7 +86,33 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 #include "arm/codegen-arm.h"
 #endif
 
+#include "register-allocator.h"
+
 namespace v8 { namespace internal {
+
+
+// Code generation can be nested.  Code generation scopes form a stack
+// of active code generators.
+class CodeGeneratorScope BASE_EMBEDDED {
+ public:
+  explicit CodeGeneratorScope(CodeGenerator* cgen) {
+    previous_ = top_;
+    top_ = cgen;
+  }
+
+  ~CodeGeneratorScope() {
+    top_ = previous_;
+  }
+
+  static CodeGenerator* Current() {
+    ASSERT(top_ != NULL);
+    return top_;
+  }
+
+ private:
+  static CodeGenerator* top_;
+  CodeGenerator* previous_;
+};
 
 
 // Use lazy compilation; defaults to true.

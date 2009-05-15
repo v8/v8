@@ -1075,12 +1075,12 @@ Result VirtualFrame::Pop() {
     new_element.set_static_type(element.static_type());
     elements_[index] = new_element;
     __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
-    return Result(temp.reg(), cgen_, element.static_type());
+    return Result(temp.reg(), element.static_type());
   } else if (element.is_register()) {
-    return Result(element.reg(), cgen_, element.static_type());
+    return Result(element.reg(), element.static_type());
   } else {
     ASSERT(element.is_constant());
-    return Result(element.handle(), cgen_);
+    return Result(element.handle());
   }
 }
 

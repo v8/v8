@@ -38,12 +38,13 @@ namespace v8 { namespace internal {
 void Result::ToRegister() {
   ASSERT(is_valid());
   if (is_constant()) {
-    Result fresh = cgen_->allocator()->Allocate();
+    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate();
     ASSERT(fresh.is_valid());
-    if (cgen_->IsUnsafeSmi(handle())) {
-      cgen_->LoadUnsafeSmi(fresh.reg(), handle());
+    if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+      CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
     } else {
-      cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+      CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
+                                                 Immediate(handle()));
     }
     // This result becomes a copy of the fresh one.
     *this = fresh;
@@ -55,23 +56,24 @@ void Result::ToRegister() {
 void Result::ToRegister(Register target) {
   ASSERT(is_valid());
   if (!is_register() || !reg().is(target)) {
-    Result fresh = cgen_->allocator()->Allocate(target);
+    Result fresh = CodeGeneratorScope::Current()->allocator()->Allocate(target);
     ASSERT(fresh.is_valid());
     if (is_register()) {
-      cgen_->masm()->mov(fresh.reg(), reg());
+      CodeGeneratorScope::Current()->masm()->mov(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
-      if (cgen_->IsUnsafeSmi(handle())) {
-        cgen_->LoadUnsafeSmi(fresh.reg(), handle());
+      if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+        CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
       } else {
-        cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+        CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
+                                                   Immediate(handle()));
       }
     }
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
-    ASSERT(cgen_->has_valid_frame());
-    cgen_->frame()->Spill(target);
-    ASSERT(cgen_->allocator()->count(target) == 1);
+    ASSERT(CodeGeneratorScope::Current()->has_valid_frame());
+    CodeGeneratorScope::Current()->frame()->Spill(target);
+    ASSERT(CodeGeneratorScope::Current()->allocator()->count(target) == 1);
   }
   ASSERT(is_register());
   ASSERT(reg().is(target));
@@ -127,7 +129,7 @@ Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
   // register if valid and return an invalid result.
   if (result.is_valid() && !result.reg().is_byte_register()) {
     result.Unuse();
-    return Result(cgen_);
+    return Result();
   }
   return result;
 }

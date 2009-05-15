@@ -79,7 +79,10 @@ class CompilationZoneScope : public ZoneScope {
  public:
   explicit CompilationZoneScope(ZoneScopeMode mode) : ZoneScope(mode) { }
   virtual ~CompilationZoneScope() {
-    if (ShouldDeleteOnExit()) FrameElement::ClearConstantList();
+    if (ShouldDeleteOnExit()) {
+      FrameElement::ClearConstantList();
+      Result::ClearConstantList();
+    }
   }
 };
 

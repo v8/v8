@@ -324,11 +324,11 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
 
   // Early exit if the element is the same as the one being set.
   bool same_register = original.is_register()
-                    && value->is_register()
-                    && original.reg().is(value->reg());
+      && value->is_register()
+      && original.reg().is(value->reg());
   bool same_constant = original.is_constant()
-                    && value->is_constant()
-                    && original.handle().is_identical_to(value->handle());
+      && value->is_constant()
+      && original.handle().is_identical_to(value->handle());
   if (same_register || same_constant) {
     value->Unuse();
     return;
