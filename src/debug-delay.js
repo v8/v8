@@ -833,7 +833,7 @@ BreakEvent.prototype.toJSONProtocol = function() {
             event: "break",
             body: { invocationText: this.exec_state_.frame(0).invocationText(),
                   }
-          }
+          };
 
   // Add script related information to the event if available.
   var script = this.func().script();
@@ -861,8 +861,7 @@ BreakEvent.prototype.toJSONProtocol = function() {
       o.body.breakpoints.push(number);
     }
   }
-
-  return SimpleObjectToJSON_(o);
+  return JSON.stringify(ObjectToProtocolObject_(o));
 };
 
 
@@ -923,7 +922,7 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
   o.event = "exception";
   o.body = { uncaught: this.uncaught_,
              exception: MakeMirror(this.exception_)
-           }
+           };
            
   // Exceptions might happen whithout any JavaScript frames.
   if (this.exec_state_.frameCount() > 0) {
@@ -1079,56 +1078,53 @@ ProtocolMessage.prototype.failed = function(message) {
 
 ProtocolMessage.prototype.toJSONProtocol = function() {
   // Encode the protocol header.
-  var json = '{';
-  json += '"seq":' + this.seq;
+  var json = {};
+  json.seq= this.seq;
   if (this.request_seq) {
-    json += ',"request_seq":' + this.request_seq;
+    json.request_seq = this.request_seq;
   }
-  json += ',"type":"' + this.type + '"';
+  json.type = this.type;
   if (this.event) {
-    json += ',"event":' + StringToJSON_(this.event);
+    json.event = this.event;
   }
   if (this.command) {
-    json += ',"command":' + StringToJSON_(this.command);
+    json.command = this.command;
   }
   if (this.success) {
-    json += ',"success":' + this.success;
+    json.success = this.success;
   } else {
-    json += ',"success":false';
+    json.success = false;
   }
   if (this.body) {
-    json += ',"body":';
     // Encode the body part.
+    var bodyJson;
     var serializer = MakeMirrorSerializer(true, this.options_);
     if (this.body instanceof Mirror) {
-      json += serializer.serializeValue(this.body);
+      bodyJson = serializer.serializeValue(this.body);
     } else if (this.body instanceof Array) {
-      json += '[';
+      bodyJson = [];
       for (var i = 0; i < this.body.length; i++) {
-        if (i != 0) json += ',';
         if (this.body[i] instanceof Mirror) {
-          json += serializer.serializeValue(this.body[i]);
+          bodyJson.push(serializer.serializeValue(this.body[i]));
         } else {
-          json += SimpleObjectToJSON_(this.body[i], serializer);
+          bodyJson.push(ObjectToProtocolObject_(this.body[i], serializer));
         }
       }
-      json += ']';
     } else {
-      json += SimpleObjectToJSON_(this.body, serializer);
+      bodyJson = ObjectToProtocolObject_(this.body, serializer);
     }
-    json += ',"refs":';
-    json += serializer.serializeReferencedObjects();
+    json.body = bodyJson;
+    json.refs = serializer.serializeReferencedObjects();
   }
   if (this.message) {
-    json += ',"message":' + StringToJSON_(this.message) ;
+    json.message = this.message;
   }
   if (this.running) {
-    json += ',"running":true';
+    json.running = true;
   } else {
-    json += ',"running":false';
+    json.running = false;
   }
-  json += '}';
-  return json;
+  return JSON.stringify(json);
 }
 
 
@@ -1799,97 +1795,82 @@ DebugCommandProcessor.prototype.formatCFrame = function(cframe_value) {
 
 
 /**
- * Convert an Object to its JSON representation (see http://www.json.org/).
- * This implementation simply runs through all string property names and adds
- * each property to the JSON representation for some predefined types. For type
- * "object" the function calls itself recursively unless the object has the
- * function property "toJSONProtocol" in which case that is used. This is not
- * a general implementation but sufficient for the debugger. Note that circular
- * structures will cause infinite recursion.
- * @param {Object} object The object to format as JSON
+ * Convert an Object to its debugger protocol representation. The representation
+ * may be serilized to a JSON object using JSON.stringify().
+ * This implementation simply runs through all string property names, converts
+ * each property value to a protocol value and adds the property to the result
+ * object. For type "object" the function will be called recursively. Note that
+ * circular structures will cause infinite recursion.
+ * @param {Object} object The object to format as protocol object.
  * @param {MirrorSerializer} mirror_serializer The serializer to use if any
  *     mirror objects are encountered.
- * @return {string} JSON formatted object value
+ * @return {Object} Protocol object value.
  */
-function SimpleObjectToJSON_(object, mirror_serializer) {
-  var content = [];
+function ObjectToProtocolObject_(object, mirror_serializer) {
+  var content = {};
   for (var key in object) {
     // Only consider string keys.
     if (typeof key == 'string') {
-      var property_value = object[key];
-
       // Format the value based on its type.
-      var property_value_json;
-      switch (typeof property_value) {
-        case 'object':
-          if (property_value instanceof Mirror) {
-            property_value_json = mirror_serializer.serializeValue(property_value);
-          } else if (typeof property_value.toJSONProtocol == 'function') {
-            property_value_json = property_value.toJSONProtocol(true)
-          } else if (IS_ARRAY(property_value)){
-            property_value_json = SimpleArrayToJSON_(property_value, mirror_serializer);
-          } else {
-            property_value_json = SimpleObjectToJSON_(property_value, mirror_serializer);
-          }
-          break;
-
-        case 'boolean':
-          property_value_json = BooleanToJSON_(property_value);
-          break;
-
-        case 'number':
-          property_value_json = NumberToJSON_(property_value);
-          break;
-
-        case 'string':
-          property_value_json = StringToJSON_(property_value);
-          break;
-
-        default:
-          property_value_json = null;
-      }
-
+      var property_value_json = ValueToProtocolValue_(object[key],
+                                                      mirror_serializer);
       // Add the property if relevant.
-      if (property_value_json) {
-        content.push(StringToJSON_(key) + ':' + property_value_json);
+      if (!IS_UNDEFINED(property_value_json)) {
+        content[key] = property_value_json;
       }
     }
   }
-
-  // Make JSON object representation.
-  return '{' + content.join(',') + '}';
+  
+  return content;
 }
 
+
 /**
- * Convert an array to its JSON representation. This is a VERY simple
- * implementation just to support what is needed for the debugger.
- * @param {Array} array The array to format as JSON
+ * Convert an array to its debugger protocol representation. It will convert
+ * each array element to a protocol value.
+ * @param {Array} array The array to format as protocol array.
  * @param {MirrorSerializer} mirror_serializer The serializer to use if any
  *     mirror objects are encountered.
- * @return {string} JSON formatted array value
+ * @return {Array} Protocol array value.
  */
-function SimpleArrayToJSON_(array, mirror_serializer) {
-  // Make JSON array representation.
-  var json = '[';
+function ArrayToProtocolArray_(array, mirror_serializer) {
+  var json = [];
   for (var i = 0; i < array.length; i++) {
-    if (i != 0) {
-      json += ',';
-    }
-    var elem = array[i];
-    if (elem instanceof Mirror) {
-      json += mirror_serializer.serializeValue(elem);
-    } else if (IS_OBJECT(elem))  {
-      json += SimpleObjectToJSON_(elem);
-    } else if (IS_BOOLEAN(elem)) {
-      json += BooleanToJSON_(elem);
-    } else if (IS_NUMBER(elem)) {
-      json += NumberToJSON_(elem);
-    } else if (IS_STRING(elem)) {
-      json += StringToJSON_(elem);
-    } else {
-      json += elem;
-    }
+    json.push(ValueToProtocolValue_(array[i], mirror_serializer));
   }
-  json += ']';
+  return json;
+}
+
+
+/**
+ * Convert a value to its debugger protocol representation. 
+ * @param {*} value The value to format as protocol value.
+ * @param {MirrorSerializer} mirror_serializer The serializer to use if any
+ *     mirror objects are encountered.
+ * @return {*} Protocol value.
+ */
+function ValueToProtocolValue_(value, mirror_serializer) {
+  // Format the value based on its type.
+  var json;
+  switch (typeof value) {
+    case 'object':
+      if (value instanceof Mirror) {
+        json = mirror_serializer.serializeValue(value);
+      } else if (IS_ARRAY(value)){
+        json = ArrayToProtocolArray_(value, mirror_serializer);
+      } else {
+        json = ObjectToProtocolObject_(value, mirror_serializer);
+      }
+      break;
+
+    case 'boolean':
+    case 'string':
+    case 'number':
+      json = value;
+      break
+
+    default:
+      json = null;
+  }
   return json;
 }

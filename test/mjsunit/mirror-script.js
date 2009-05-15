@@ -32,7 +32,7 @@ function testScriptMirror(f, file_name, file_lines, script_type, script_source) 
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(f).script();
   var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
+  var json = JSON.stringify(serializer.serializeValue(mirror));
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
