@@ -80,8 +80,8 @@ class IntSet {
   }
 
  private:
-  HashMap map_;
   IntKeyHash hash_;
+  HashMap map_;
 };
 
 
