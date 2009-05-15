@@ -92,19 +92,20 @@ void HashMap::Remove(void* key, uint32_t hash) {
     return;
   }
 
-  // To remove the entry we need to ensure that it does not create an empty
-  // entry that will cause search for an entry to stop to soon. If all the
-  // entries between the entry to remove and the next empty slot have their
-  // initial position inside this interval clearing the entry to remove will not
-  // break the search. If while searching for the next empty entry an entry is
-  // encountered which does not have its initial position between the entry to
-  // remove and the position looked at this entry can be moved to the place of
-  // the entry to remove without breaking the search for it and the new entry to
-  // remove will be its previous position.
+  // To remove an entry we need to ensure that it does not create an empty
+  // entry that will cause the search for another entry to stop too soon. If all
+  // the entries between the entry to remove and the next empty slot have their
+  // initial position inside this interval, clearing the entry to remove will
+  // not break the search. If, while searching for the next empty entry, an
+  // entry is encountered which does not have its initial position between the
+  // entry to remove and the position looked at, then this entry can be moved to
+  // the place of the entry to remove without breaking the search for it. The
+  // entry made vacant by this move is now the entry to remove and the process
+  // starts over.
   // Algorithm from http://en.wikipedia.org/wiki/Open_addressing.
 
   // This guarantees loop termination as there is at least one empty entry so
-  // eventually the removed entyr will have an empty entry after it.
+  // eventually the removed entry will have an empty entry after it.
   ASSERT(occupancy_ < capacity_);
 
   // p is the candidate entry to clear. q is used to scan forwards.
