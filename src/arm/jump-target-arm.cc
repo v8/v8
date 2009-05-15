@@ -62,8 +62,6 @@ void JumpTarget::DoJump() {
     cgen_->SetFrame(NULL, &empty);
     __ jmp(&merge_labels_.last());
   }
-
-  is_linked_ = !is_bound_;
 }
 
 
@@ -124,7 +122,6 @@ void JumpTarget::DoBranch(Condition cc, Hint ignored) {
     // the merge code is emitted.
     AddReachingFrame(new VirtualFrame(cgen_->frame()));
     __ b(cc, &merge_labels_.last());
-    is_linked_ = true;
   }
 }
 
@@ -149,8 +146,6 @@ void JumpTarget::Call() {
   ASSERT(entry_frame_ == NULL);
   AddReachingFrame(target_frame);
   __ bl(&merge_labels_.last());
-
-  is_linked_ = !is_bound_;
 }
 
 
@@ -175,8 +170,7 @@ void JumpTarget::DoBind(int mergable_elements) {
         frame->stack_pointer_ -= difference;
         __ add(sp, sp, Operand(difference * kPointerSize));
       }
-
-      is_bound_ = true;
+      __ bind(&entry_label_);
       return;
     }
 
@@ -199,9 +193,7 @@ void JumpTarget::DoBind(int mergable_elements) {
         frame->stack_pointer_ -= difference;
         __ add(sp, sp, Operand(difference * kPointerSize));
       }
-
-      is_linked_ = false;
-      is_bound_ = true;
+      __ bind(&entry_label_);
       return;
     }
   }
@@ -298,10 +290,6 @@ void JumpTarget::DoBind(int mergable_elements) {
       cgen_->SetFrame(new VirtualFrame(entry_frame_), &reserved_registers);
     }
 
-    // There is certainly a current frame equal to the entry frame.
-    // Bind the entry frame label.
-    __ bind(&entry_label_);
-
     // There may be unprocessed reaching frames that did not need
     // merge code.  They will have unbound merge labels.  Bind their
     // merge labels to be the same as the entry label and deallocate
@@ -328,11 +316,9 @@ void JumpTarget::DoBind(int mergable_elements) {
     cgen_->SetFrame(new VirtualFrame(reaching_frames_[0]), &reserved);
     __ bind(&merge_labels_[0]);
     cgen_->frame()->MergeTo(entry_frame_);
-    __ bind(&entry_label_);
   }
 
-  is_linked_ = false;
-  is_bound_ = true;
+  __ bind(&entry_label_);
 }
 
 #undef __

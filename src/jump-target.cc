@@ -42,8 +42,6 @@ bool JumpTarget::compiling_deferred_code_ = false;
 JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
     : cgen_(cgen),
       direction_(direction),
-      is_bound_(false),
-      is_linked_(false),
       reaching_frames_(0),
       merge_labels_(0),
       entry_frame_(NULL) {
@@ -56,8 +54,6 @@ JumpTarget::JumpTarget()
     : cgen_(NULL),
       masm_(NULL),
       direction_(FORWARD_ONLY),
-      is_bound_(false),
-      is_linked_(false),
       reaching_frames_(0),
       merge_labels_(0),
       entry_frame_(NULL) {
@@ -78,8 +74,6 @@ void JumpTarget::Unuse() {
   merge_labels_.Clear();
   entry_frame_ = NULL;
   entry_label_.Unuse();
-  is_bound_ = false;
-  is_linked_ = false;
 }
 
 
@@ -547,8 +541,6 @@ void BreakTarget::CopyTo(BreakTarget* destination) {
   }
   destination->entry_frame_ = entry_frame_;
   destination->entry_label_ = entry_label_;
-  destination->is_bound_ = is_bound_;
-  destination->is_linked_ = is_linked_;
   destination->expected_height_ = expected_height_;
 }
 

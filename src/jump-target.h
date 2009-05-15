@@ -90,9 +90,14 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   }
 
   // Predicates testing the state of the encapsulated label.
-  bool is_bound() const { return is_bound_; }
-  bool is_linked() const { return is_linked_; }
-  bool is_unused() const { return !is_bound() && !is_linked(); }
+  bool is_bound() const { return entry_label_.is_bound(); }
+  bool is_linked() const {
+    return !is_bound() && !reaching_frames_.is_empty();
+  }
+  bool is_unused() const {
+    // This is !is_bound() && !is_linked().
+    return !is_bound() && reaching_frames_.is_empty();
+  }
 
   // Emit a jump to the target.  There must be a current frame at the
   // jump and there will be no current frame after the jump.
@@ -166,12 +171,6 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
   // Directionality flag set at initialization time.
   Directionality direction_;
-
-  // A target is bound if its Bind member function has been called.
-  // It is linked if it is not bound but its Jump, Branch, or Call
-  // member functions have been called.
-  bool is_bound_;
-  bool is_linked_;
 
   // A list of frames reaching this block via forward jumps.
   ZoneList<VirtualFrame*> reaching_frames_;
