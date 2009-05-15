@@ -537,6 +537,37 @@ class ScavengeVisitor: public ObjectVisitor {
 };
 
 
+// A queue of pointers and maps of to-be-promoted objects during a
+// scavenge collection.
+class PromotionQueue {
+ public:
+  void Initialize(Address start_address) {
+    front_ = rear_ = reinterpret_cast<HeapObject**>(start_address);
+  }
+
+  bool is_empty() { return front_ <= rear_; }
+
+  void insert(HeapObject* object, Map* map) {
+    *(--rear_) = object;
+    *(--rear_) = map;
+    // Assert no overflow into live objects.
+    ASSERT(reinterpret_cast<Address>(rear_) >= Heap::new_space()->top());
+  }
+
+  void remove(HeapObject** object, Map** map) {
+    *object = *(--front_);
+    *map = Map::cast(*(--front_));
+    // Assert no underflow.
+    ASSERT(front_ >= rear_);
+  }
+
+ private:
+  // The front of the queue is higher in memory than the rear.
+  HeapObject** front_;
+  HeapObject** rear_;
+};
+
+
 // Shared state read by the scavenge collector and set by ScavengeObject.
 static Address promoted_rear = NULL;
 
