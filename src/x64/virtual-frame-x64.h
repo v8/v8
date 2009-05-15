@@ -179,7 +179,7 @@ class VirtualFrame : public Malloced {
 
   // Set a frame element to a constant.  The index is frame-top relative.
   void SetElementAt(int index, Handle<Object> value) {
-    Result temp(value, cgen_);
+    Result temp(value);
     SetElementAt(index, &temp);
   }
 

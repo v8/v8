@@ -422,8 +422,7 @@ void VirtualFrame::Drop(int count) {
 
 Result VirtualFrame::Pop() {
   UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  return Result();
 }
 
 
