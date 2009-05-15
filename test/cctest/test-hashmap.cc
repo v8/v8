@@ -171,6 +171,6 @@ void TestSet(IntKeyHash hash, int size) {
 
 
 TEST(Set) {
-  TestSet(Hash, 1000);
-  TestSet(CollisionHash, 100);
+  TestSet(Hash, 100);
+  TestSet(CollisionHash, 50);
 }
