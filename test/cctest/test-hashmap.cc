@@ -43,7 +43,7 @@ typedef uint32_t (*IntKeyHash)(uint32_t key);
 
 class IntSet {
  public:
-  IntSet(IntKeyHash hash) : hash_(hash), map_(DefaultMatchFun)  {}
+  explicit IntSet(IntKeyHash hash) : hash_(hash), map_(DefaultMatchFun)  {}
 
   void Insert(int x) {
     CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
@@ -59,7 +59,8 @@ class IntSet {
   }
 
   bool Present(int x) {
-    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), hash_(x), false);
+    HashMap::Entry* p =
+        map_.Lookup(reinterpret_cast<void*>(x), hash_(x), false);
     if (p != NULL) {
       CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     }
@@ -164,7 +165,6 @@ void TestSet(IntKeyHash hash, int size) {
       }
       y = y * factor + offset;
     }
-
   }
   CHECK_EQ(0, set.occupancy());
 }
