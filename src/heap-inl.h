@@ -191,27 +191,6 @@ void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
 }
 
 
-void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(InFromSpace(object));
-
-  // We use the first word (where the map pointer usually is) of a heap
-  // object to record the forwarding pointer.  A forwarding pointer can
-  // point to an old space, the code space, or the to space of the new
-  // generation.
-  MapWord first_word = object->map_word();
-
-  // If the first word is a forwarding address, the object has already been
-  // copied.
-  if (first_word.IsForwardingAddress()) {
-    *p = first_word.ToForwardingAddress();
-    return;
-  }
-
-  // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
-}
-
-
 Object* Heap::GetKeyedLookupCache() {
   if (keyed_lookup_cache()->IsUndefined()) {
     Object* obj = LookupCache::Allocate(4);
