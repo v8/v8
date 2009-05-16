@@ -4856,9 +4856,9 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // successfully allocate a temporary byte register.
     if (tmp.is_valid()) {
       __ setcc(overflow, tmp.reg());
-      __ or_(Operand(value.reg()), tmp.reg());
+      __ or_(Operand(tmp.reg()), value.reg());
+      __ test(tmp.reg(), Immediate(kSmiTagMask));
       tmp.Unuse();
-      __ test(value.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &value, not_taken);
     } else {  // Otherwise we test separately for overflow and smi check.
       deferred->enter()->Branch(overflow, &value, not_taken);
