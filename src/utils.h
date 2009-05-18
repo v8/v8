@@ -205,6 +205,12 @@ inline byte* DecodeUnsignedIntBackward(byte* p, unsigned int* x) {
 
 
 // ----------------------------------------------------------------------------
+// Hash function.
+
+uint32_t ComputeIntegerHash(uint32_t key);
+
+
+// ----------------------------------------------------------------------------
 // I/O support.
 
 // Our version of printf(). Avoids compilation errors that we get

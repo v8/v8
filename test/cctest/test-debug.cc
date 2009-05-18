@@ -4531,6 +4531,8 @@ class EmptyExternalStringResource : public v8::String::ExternalStringResource {
 TEST(DebugGetLoadedScripts) {
   v8::HandleScope scope;
   DebugLocalContext env;
+  env.ExposeDebug();
+
   EmptyExternalStringResource source_ext_str;
   v8::Local<v8::String> source = v8::String::NewExternal(&source_ext_str);
   v8::Handle<v8::Script> evil_script = v8::Script::Compile(source);
@@ -4544,11 +4546,15 @@ TEST(DebugGetLoadedScripts) {
   i::FLAG_allow_natives_syntax = true;
   CompileRun(
       "var scripts = %DebugGetLoadedScripts();"
-      "for (var i = 0; i < scripts.length; ++i) {"
-      "    scripts[i].line_ends;"
+      "var count = scripts.length;"
+      "for (var i = 0; i < count; ++i) {"
+      "  scripts[i].line_ends;"
       "}");
   // Must not crash while accessing line_ends.
   i::FLAG_allow_natives_syntax = allow_natives_syntax;
+
+  // Some scripts are retrieved - at least the number of native scripts.
+  CHECK_GT((*env)->Global()->Get(v8::String::New("count"))->Int32Value(), 8);
 }
 
 
@@ -4685,4 +4691,49 @@ TEST(ContextData) {
 
   // Two times compile event and two times break event.
   CHECK_GT(message_handler_hit_count, 4);
+}
+
+
+// Debug event listener which counts the script collected events.
+int script_collected_count = 0;
+static void DebugEventScriptCollectedEvent(v8::DebugEvent event,
+                                           v8::Handle<v8::Object> exec_state,
+                                           v8::Handle<v8::Object> event_data,
+                                           v8::Handle<v8::Value> data) {
+  // Count the number of breaks.
+  if (event == v8::ScriptCollected) {
+    script_collected_count++;
+  }
+}
+
+
+// Test that scripts collected are reported through the debug event listener.
+TEST(ScriptCollectedEvent) {
+  break_point_hit_count = 0;
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Request the loaded scripte to initialize the debugger script cache.
+  Debug::GetLoadedScripts();
+
+  // Do garbage collection to ensure that only the script in this test will be
+  // collected afterwards.
+  Heap::CollectAllGarbage();
+
+  script_collected_count = 0;
+  v8::Debug::SetDebugEventListener(DebugEventScriptCollectedEvent,
+                                   v8::Undefined());
+  {
+    v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
+    v8::Script::Compile(v8::String::New("eval('a=2')"))->Run();
+  }
+
+  // Do garbage collection to collect the script above which is no longer
+  // referenced.
+  Heap::CollectAllGarbage();
+
+  CHECK_EQ(2, script_collected_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
 }

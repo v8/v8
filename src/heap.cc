@@ -283,6 +283,9 @@ void Heap::GarbageCollectionEpilogue() {
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   ReportStatisticsAfterGC();
 #endif
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug::AfterGarbageCollection();
+#endif
 }
 
 

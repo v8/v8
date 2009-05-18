@@ -6638,67 +6638,15 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
 }
 
 
-// If an object given is an external string, check that the underlying
-// resource is accessible. For other kinds of objects, always return true.
-static bool IsExternalStringValid(Object* str) {
-  if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
-    return true;
-  }
-  if (String::cast(str)->IsAsciiRepresentation()) {
-    return ExternalAsciiString::cast(str)->resource() != NULL;
-  } else if (String::cast(str)->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(str)->resource() != NULL;
-  } else {
-    return true;
-  }
-}
-
-
-// Helper function used by Runtime_DebugGetLoadedScripts below.
-static int DebugGetLoadedScripts(FixedArray* instances, int instances_size) {
-  NoHandleAllocation ha;
-  AssertNoAllocation no_alloc;
-
-  // Scan heap for Script objects.
-  int count = 0;
-  HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    ASSERT(obj != NULL);
-    if (obj->IsScript() && IsExternalStringValid(Script::cast(obj)->source())) {
-      if (instances != NULL && count < instances_size) {
-        instances->set(count, obj);
-      }
-      count++;
-    }
-  }
-
-  return count;
-}
-
-
 static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 0);
 
-  // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
-  // rid of all the cached script wrappers and the second gets rid of the
-  // scripts which is no longer referenced.
-  Heap::CollectAllGarbage();
-  Heap::CollectAllGarbage();
-
-  // Get the number of scripts.
-  int count;
-  count = DebugGetLoadedScripts(NULL, 0);
-
-  // Allocate an array to hold the result.
-  Handle<FixedArray> instances = Factory::NewFixedArray(count);
-
   // Fill the script objects.
-  count = DebugGetLoadedScripts(*instances, count);
+  Handle<FixedArray> instances = Debug::GetLoadedScripts();
 
   // Convert the script objects to proper JS objects.
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < instances->length(); i++) {
     Handle<Script> script = Handle<Script>(Script::cast(instances->get(i)));
     // Get the script wrapper in a local handle before calling GetScriptWrapper,
     // because using

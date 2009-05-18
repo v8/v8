@@ -941,6 +941,8 @@ void Script::ScriptPrint() {
   column_offset()->ShortPrint();
   PrintF("\n - type: ");
   type()->ShortPrint();
+  PrintF("\n - id: ");
+  id()->ShortPrint();
   PrintF("\n");
 }
 

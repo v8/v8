@@ -425,6 +425,7 @@ void BreakLocationIterator::RinfoNext() {
 
 
 bool Debug::has_break_points_ = false;
+ScriptCache* Debug::script_cache_ = NULL;
 DebugInfoListNode* Debug::debug_info_list_ = NULL;
 
 
@@ -486,6 +487,96 @@ Code* Debug::debug_break_return_entry_ = NULL;
 Code* Debug::debug_break_return_ = NULL;
 
 
+void ScriptCache::Add(Handle<Script> script) {
+  // Create an entry in the hash map for the script.
+  int id = Smi::cast(script->id())->value();
+  HashMap::Entry* entry =
+      HashMap::Lookup(reinterpret_cast<void*>(id), Hash(id), true);
+  if (entry->value != NULL) {
+    ASSERT(*script == *reinterpret_cast<Script**>(entry->value));
+    return;
+  }
+
+  // Globalize the script object, make it weak and use the location of the
+  // global handle as the value in the hash map.
+  Handle<Script> script_ =
+      Handle<Script>::cast((GlobalHandles::Create(*script)));
+  GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()),
+                          this, ScriptCache::HandleWeakScript);
+  entry->value = script_.location();
+}
+
+
+Handle<FixedArray> ScriptCache::GetScripts() {
+  Handle<FixedArray> instances = Factory::NewFixedArray(occupancy());
+  int count = 0;
+  for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
+    ASSERT(entry->value != NULL);
+    if (entry->value != NULL) {
+      instances->set(count, *reinterpret_cast<Script**>(entry->value));
+      count++;
+    }
+  }
+  return instances;
+}
+
+
+void ScriptCache::ProcessCollectedScripts() {
+  for (int i = 0; i < collected_scripts_.length(); i++) {
+    Debugger::OnScriptCollected(collected_scripts_[i]);
+  }
+  collected_scripts_.Clear();
+}
+
+
+void ScriptCache::Clear() {
+  // Iterate the script cache to get rid of all the weak handles.
+  for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
+    ASSERT(entry != NULL);
+    Object** location = reinterpret_cast<Object**>(entry->value);
+    ASSERT((*location)->IsScript());
+    GlobalHandles::ClearWeakness(location);
+    GlobalHandles::Destroy(location);
+  }
+  // Clear the content of the hash map.
+  HashMap::Clear();
+}
+
+
+void ScriptCache::HandleWeakScript(v8::Persistent<v8::Value> obj, void* data) {
+  ScriptCache* script_cache = reinterpret_cast<ScriptCache*>(data);
+  // Find the location of the global handle.
+  Script** location =
+      reinterpret_cast<Script**>(Utils::OpenHandle(*obj).location());
+  ASSERT((*location)->IsScript());
+
+  // Remove the entry from the cache.
+  int id = Smi::cast((*location)->id())->value();
+  script_cache->Remove(reinterpret_cast<void*>(id), Hash(id));
+  script_cache->collected_scripts_.Add(id);
+
+  // Clear the weak handle.
+  obj.Dispose();
+  obj.Clear();
+}
+
+
+void Debug::Setup(bool create_heap_objects) {
+  ThreadInit();
+  if (create_heap_objects) {
+    // Get code to handle entry to debug break on return.
+    debug_break_return_entry_ =
+        Builtins::builtin(Builtins::Return_DebugBreakEntry);
+    ASSERT(debug_break_return_entry_->IsCode());
+
+    // Get code to handle debug break on return.
+    debug_break_return_ =
+        Builtins::builtin(Builtins::Return_DebugBreak);
+    ASSERT(debug_break_return_->IsCode());
+  }
+}
+
+
 void Debug::HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data) {
   DebugInfoListNode* node = reinterpret_cast<DebugInfoListNode*>(data);
   RemoveDebugInfo(node->debug_info());
@@ -509,22 +600,6 @@ DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
 
 DebugInfoListNode::~DebugInfoListNode() {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_info_.location()));
-}
-
-
-void Debug::Setup(bool create_heap_objects) {
-  ThreadInit();
-  if (create_heap_objects) {
-    // Get code to handle entry to debug break on return.
-    debug_break_return_entry_ =
-        Builtins::builtin(Builtins::Return_DebugBreakEntry);
-    ASSERT(debug_break_return_entry_->IsCode());
-
-    // Get code to handle debug break on return.
-    debug_break_return_ =
-        Builtins::builtin(Builtins::Return_DebugBreak);
-    ASSERT(debug_break_return_->IsCode());
-  }
 }
 
 
@@ -627,6 +702,7 @@ bool Debug::Load() {
 
   // Debugger loaded.
   debug_context_ = Handle<Context>::cast(GlobalHandles::Create(*context));
+
   return true;
 }
 
@@ -636,6 +712,9 @@ void Debug::Unload() {
   if (!IsLoaded()) {
     return;
   }
+
+  // Clear the script cache.
+  DestroyScriptCache();
 
   // Clear debugger context global handle.
   GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
@@ -1414,6 +1493,94 @@ void Debug::ClearMirrorCache() {
 }
 
 
+// If an object given is an external string, check that the underlying
+// resource is accessible. For other kinds of objects, always return true.
+static bool IsExternalStringValid(Object* str) {
+  if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
+    return true;
+  }
+  if (String::cast(str)->IsAsciiRepresentation()) {
+    return ExternalAsciiString::cast(str)->resource() != NULL;
+  } else if (String::cast(str)->IsTwoByteRepresentation()) {
+    return ExternalTwoByteString::cast(str)->resource() != NULL;
+  } else {
+    return true;
+  }
+}
+
+
+void Debug::CreateScriptCache() {
+  HandleScope scope;
+
+  // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
+  // rid of all the cached script wrappers and the second gets rid of the
+  // scripts which is no longer referenced.
+  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage();
+
+  ASSERT(script_cache_ == NULL);
+  script_cache_ = new ScriptCache();
+
+  // Scan heap for Script objects.
+  int count = 0;
+  HeapIterator iterator;
+  while (iterator.has_next()) {
+    HeapObject* obj = iterator.next();
+    ASSERT(obj != NULL);
+    if (obj->IsScript() && IsExternalStringValid(Script::cast(obj)->source())) {
+      script_cache_->Add(Handle<Script>(Script::cast(obj)));
+      count++;
+    }
+  }
+}
+
+
+void Debug::DestroyScriptCache() {
+  // Get rid of the script cache if it was created.
+  if (script_cache_ != NULL) {
+    delete script_cache_;
+    script_cache_ = NULL;
+  }
+}
+
+
+void Debug::AddScriptToScriptCache(Handle<Script> script) {
+  if (script_cache_ != NULL) {
+    script_cache_->Add(script);
+  }
+}
+
+
+Handle<FixedArray> Debug::GetLoadedScripts() {
+  // Create and fill the script cache when the loaded scripts is requested for
+  // the first time.
+  if (script_cache_ == NULL) {
+    CreateScriptCache();
+  }
+
+  // If the script cache is not active just return an empty array.
+  ASSERT(script_cache_ != NULL);
+  if (script_cache_ == NULL) {
+    Factory::NewFixedArray(0);
+  }
+
+  // Perform GC to get unreferenced scripts evicted from the cache before
+  // returning the content.
+  Heap::CollectAllGarbage();
+
+  // Get the scripts from the cache.
+  return script_cache_->GetScripts();
+}
+
+
+void Debug::AfterGarbageCollection() {
+  // Generate events for collected scripts.
+  if (script_cache_ != NULL) {
+    script_cache_->ProcessCollectedScripts();
+  }
+}
+
+
 Mutex* Debugger::debugger_access_ = OS::CreateMutex();
 Handle<Object> Debugger::event_listener_ = Handle<Object>();
 Handle<Object> Debugger::event_listener_data_ = Handle<Object>();
@@ -1512,6 +1679,21 @@ Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
                                    Factory::false_value().location() };
 
   return MakeJSObject(CStrVector("MakeCompileEvent"),
+                      argc,
+                      argv,
+                      caught_exception);
+}
+
+
+Handle<Object> Debugger::MakeScriptCollectedEvent(int id,
+                                                  bool* caught_exception) {
+  // Create the script collected event object.
+  Handle<Object> exec_state = MakeExecutionState(caught_exception);
+  Handle<Object> id_object = Handle<Smi>(Smi::FromInt(id));
+  const int argc = 2;
+  Object** argv[argc] = { exec_state.location(), id_object.location() };
+
+  return MakeJSObject(CStrVector("MakeScriptCollectedEvent"),
                       argc,
                       argv,
                       caught_exception);
@@ -1624,11 +1806,14 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   HandleScope scope;
 
-  // No compile events while compiling natives.
-  if (compiling_natives()) return;
+  // Add the newly compiled script to the script cache.
+  Debug::AddScriptToScriptCache(script);
 
   // No more to do if not debugging.
   if (!IsDebuggerActive()) return;
+
+  // No compile events while compiling natives.
+  if (compiling_natives()) return;
 
   // Store whether in debugger before entering debugger.
   bool in_debugger = Debug::InDebugger();
@@ -1708,6 +1893,33 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
 }
 
 
+void Debugger::OnScriptCollected(int id) {
+  HandleScope scope;
+
+  // No more to do if not debugging.
+  if (!IsDebuggerActive()) return;
+  if (!Debugger::EventActive(v8::ScriptCollected)) return;
+
+  // Enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) return;
+
+  // Create the script collected state object.
+  bool caught_exception = false;
+  Handle<Object> event_data = MakeScriptCollectedEvent(id,
+                                                       &caught_exception);
+  // Bail out and don't call debugger if exception.
+  if (caught_exception) {
+    return;
+  }
+
+  // Process debug event.
+  ProcessDebugEvent(v8::ScriptCollected,
+                    Handle<JSObject>::cast(event_data),
+                    true);
+}
+
+
 void Debugger::ProcessDebugEvent(v8::DebugEvent event,
                                  Handle<JSObject> event_data,
                                  bool auto_continue) {
@@ -1756,9 +1968,6 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
       }
     }
   }
-
-  // Clear the mirror cache.
-  Debug::ClearMirrorCache();
 }
 
 
@@ -1796,6 +2005,9 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     case v8::BeforeCompile:
       break;
     case v8::AfterCompile:
+      sendEventMessage = true;
+      break;
+    case v8::ScriptCollected:
       sendEventMessage = true;
       break;
     case v8::NewFunction:
