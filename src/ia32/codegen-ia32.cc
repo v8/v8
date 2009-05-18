@@ -4884,6 +4884,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       tmp.Unuse();
       deferred->enter()->Branch(not_zero, &value, not_taken);
     } else {  // Otherwise we test separately for overflow and smi check.
+      deferred->SetEntryFrame(&value);
       deferred->enter()->Branch(overflow, &value, not_taken);
       __ test(value.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &value, not_taken);
@@ -5740,22 +5741,27 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
     ASSERT(kSmiTag == 0);  // adjust zero check if not the case
     __ test(answer.reg(), Immediate(kSmiTagMask));
   }
-  enter()->Branch(not_zero, left, right, not_taken);
-
-  // All operations start by copying the left argument into answer.
-  __ mov(answer.reg(), left->reg());
   switch (op_) {
     case Token::ADD:
+      SetEntryFrame(left, right);
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       __ add(answer.reg(), Operand(right->reg()));  // add optimistically
       enter()->Branch(overflow, left, right, not_taken);
       break;
 
     case Token::SUB:
+      SetEntryFrame(left, right);
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       __ sub(answer.reg(), Operand(right->reg()));  // subtract optimistically
       enter()->Branch(overflow, left, right, not_taken);
       break;
 
     case Token::MUL: {
+      SetEntryFrame(left, right);
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       // If the smi tag is 0 we can just leave the tag on one operand.
       ASSERT(kSmiTag == 0);  // adjust code below if not the case
       // Remove tag from the left operand (but keep sign).
@@ -5782,6 +5788,8 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
 
     case Token::DIV:  // Fall through.
     case Token::MOD: {
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       // Div and mod use the registers eax and edx.  Left and right must
       // be preserved, because the original operands are needed if we switch
       // to the slow case.  Move them if either is in eax or edx.
@@ -5919,20 +5927,28 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
       break;
     }
     case Token::BIT_OR:
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       __ or_(answer.reg(), Operand(right->reg()));
       break;
 
     case Token::BIT_AND:
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       __ and_(answer.reg(), Operand(right->reg()));
       break;
 
     case Token::BIT_XOR:
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       __ xor_(answer.reg(), Operand(right->reg()));
       break;
 
     case Token::SHL:
     case Token::SHR:
     case Token::SAR:
+      enter()->Branch(not_zero, left, right, not_taken);
+      __ mov(answer.reg(), left->reg());
       // Move right into ecx.
       // Left is in two registers already, so even if left or answer is ecx,
       // we can move right to it, and use the other one.
