@@ -61,7 +61,6 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for Eval.
   static Handle<JSFunction> CompileEval(Handle<String> source,
                                         Handle<Context> context,
-                                        int line_offset,
                                         bool is_global,
                                         bool is_json);
 

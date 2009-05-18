@@ -267,7 +267,6 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 
 Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                                          Handle<Context> context,
-                                         int line_offset,
                                          bool is_global,
                                          bool is_json) {
   int source_length = source->length();
@@ -287,7 +286,6 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
-    script->set_line_offset(Smi::FromInt(line_offset));
     result = MakeFunction(is_global,
                           true,
                           is_json,

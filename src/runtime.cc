@@ -4888,16 +4888,14 @@ static Object* Runtime_GlobalReceiver(Arguments args) {
 
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
-  ASSERT_EQ(3, args.length());
+  ASSERT_EQ(2, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
-  CONVERT_ARG_CHECKED(Smi, line_offset, 1);
-  CONVERT_ARG_CHECKED(Oddball, is_json, 2)
+  CONVERT_ARG_CHECKED(Oddball, is_json, 1)
 
   // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
   Handle<JSFunction> boilerplate = Compiler::CompileEval(source,
                                                          context,
-                                                         line_offset->value(),
                                                          true,
                                                          is_json->IsTrue());
   if (boilerplate.is_null()) return Failure::Exception();
@@ -4924,7 +4922,7 @@ static Object* CompileDirectEval(Handle<String> source) {
 
   // Compile source string in the current context.
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, context, 0, is_global, false);
+      Compiler::CompileEval(source, context, is_global, false);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -6557,7 +6555,6 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   Handle<JSFunction> boilerplate =
       Compiler::CompileEval(function_source,
                             context,
-                            0,
                             context->IsGlobalContext(),
                             false);
   if (boilerplate.is_null()) return Failure::Exception();
@@ -6619,7 +6616,6 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<JSFunction> boilerplate =
       Handle<JSFunction>(Compiler::CompileEval(source,
                                                context,
-                                               0,
                                                true,
                                                false));
   if (boilerplate.is_null()) return Failure::Exception();
