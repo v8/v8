@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "compilation-cache.h"
 #include "debug.h"
 #include "platform.h"
 #include "stub-cache.h"
@@ -1609,6 +1610,11 @@ TEST(ScriptBreakPointIgnoreCount) {
     f->Call(env->Global(), 0, NULL);
   }
   CHECK_EQ(5, break_point_hit_count);
+
+  // BUG(343): It should not really be necessary to clear the
+  // compilation cache here, but right now the debugger relies on the
+  // script being recompiled, not just fetched from the cache.
+  i::CompilationCache::Clear();
 
   // Reload the script and get f again checking that the ignore survives.
   v8::Script::Compile(script, &origin)->Run();

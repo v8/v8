@@ -1,8 +1,16 @@
+2009-05-18: Version 1.1.10.13
+
+        Added multiple generations to the script compilation cache to
+        allow scripts that are used alot to survive a number of garbage
+        collections in the compilation cache.
+
+
 2009-05-15: Version 1.1.10.12
 
-        Fix http://crbug.com/12054. Fix numeric overflow handling when compiling
-        count operations in CodeGenerator::VisitCountOperation.
-        
+        Fixed http://crbug.com/12054. Fix numeric overflow handling when
+        compiling count operations in CodeGenerator::VisitCountOperation.
+
+
 2009-04-15: Version 1.1.10
 
         Fixed crash bug that occurred when loading a const variable in the
