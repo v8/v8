@@ -180,6 +180,80 @@ void VirtualFrame::SyncRange(int begin, int end) {
 }
 
 
+void VirtualFrame::MakeMergable(int mergable_elements) {
+  if (mergable_elements == JumpTarget::kAllElements) {
+    mergable_elements = elements_.length();
+  }
+  ASSERT(mergable_elements <= elements_.length());
+
+  int start_index = elements_.length() - mergable_elements;
+
+  // The is_copied flags on entry frame elements are expected to be
+  // exact.  Set them for the elements below the water mark.
+  for (int i = 0; i < start_index; i++) {
+    elements_[i].clear_copied();
+    if (elements_[i].is_copy()) {
+      elements_[elements_[i].index()].set_copied();
+    }
+  }
+
+  for (int i = start_index; i < elements_.length(); i++) {
+    FrameElement element = elements_[i];
+
+    if (element.is_constant() || element.is_copy()) {
+      if (element.is_synced()) {
+        // Just spill.
+        elements_[i] = FrameElement::MemoryElement();
+      } else {
+        // Allocate to a register.
+        FrameElement backing_element;  // Invalid if not a copy.
+        if (element.is_copy()) {
+          backing_element = elements_[element.index()];
+        }
+        Result fresh = cgen_->allocator()->Allocate();
+        ASSERT(fresh.is_valid());
+        elements_[i] =
+            FrameElement::RegisterElement(fresh.reg(),
+                                          FrameElement::NOT_SYNCED);
+        Use(fresh.reg(), i);
+
+        // Emit a move.
+        if (element.is_constant()) {
+          if (cgen_->IsUnsafeSmi(element.handle())) {
+            cgen_->LoadUnsafeSmi(fresh.reg(), element.handle());
+          } else {
+            __ Set(fresh.reg(), Immediate(element.handle()));
+          }
+        } else {
+          ASSERT(element.is_copy());
+          // Copies are only backed by register or memory locations.
+          if (backing_element.is_register()) {
+            // The backing store may have been spilled by allocating,
+            // but that's OK.  If it was, the value is right where we
+            // want it.
+            if (!fresh.reg().is(backing_element.reg())) {
+              __ mov(fresh.reg(), backing_element.reg());
+            }
+          } else {
+            ASSERT(backing_element.is_memory());
+            __ mov(fresh.reg(), Operand(ebp, fp_relative(element.index())));
+          }
+        }
+      }
+      // No need to set the copied flag---there are no copies of
+      // copies or constants so the original was not copied.
+      elements_[i].set_static_type(element.static_type());
+    } else {
+      // Clear the copy flag of non-constant, non-copy elements above
+      // the high water mark.  They cannot be copied because copes are
+      // always higher than their backing store and copies are not
+      // allowed above the water mark.
+      elements_[i].clear_copied();
+    }
+  }
+}
+
+
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   Comment cmnt(masm_, "[ Merge frame");
   // We should always be merging the code generator's current frame to an
@@ -244,7 +318,7 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   FrameElement memory_element = FrameElement::MemoryElement();
   // Loop downward from the stack pointer or the top of the frame if
   // the stack pointer is floating above the frame.
-  int start = Min(stack_pointer_, elements_.length() - 1);
+  int start = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
   for (int i = start; i >= 0; i--) {
     FrameElement target = expected->elements_[i];
     if (target.is_memory()) {
@@ -340,7 +414,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
 }
 
 
-void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
+void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
   // Move memory, constants, and copies to registers.  This is the
   // final step and is done from the bottom up so that the backing
   // elements of copies are in their correct locations when we
@@ -350,24 +424,26 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
     if (index != kIllegalIndex) {
       FrameElement source = elements_[index];
       FrameElement target = expected->elements_[index];
+      Register target_reg = { i };
+      ASSERT(expected->elements_[index].reg().is(target_reg));
       switch (source.type()) {
         case FrameElement::INVALID:  // Fall through.
           UNREACHABLE();
           break;
         case FrameElement::REGISTER:
-          ASSERT(source.reg().is(target.reg()));
-          continue;  // Go to next iteration.  Skips Use(target.reg()) below.
+          ASSERT(source.reg().is(target_reg));
+          continue;  // Go to next iteration.  Skips Use(target_reg) below.
           break;
         case FrameElement::MEMORY:
           ASSERT(index <= stack_pointer_);
-          __ mov(target.reg(), Operand(ebp, fp_relative(index)));
+          __ mov(target_reg, Operand(ebp, fp_relative(index)));
           break;
 
         case FrameElement::CONSTANT:
           if (cgen_->IsUnsafeSmi(source.handle())) {
-            cgen_->LoadUnsafeSmi(target.reg(), source.handle());
+            cgen_->LoadUnsafeSmi(target_reg, source.handle());
           } else {
-           __ Set(target.reg(), Immediate(source.handle()));
+           __ Set(target_reg, Immediate(source.handle()));
           }
           break;
 
@@ -387,21 +463,21 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
               Use(new_backing_reg, backing_index);
               __ mov(new_backing_reg,
                      Operand(ebp, fp_relative(backing_index)));
-              __ mov(target.reg(), new_backing_reg);
+              __ mov(target_reg, new_backing_reg);
             } else {
-              __ mov(target.reg(), Operand(ebp, fp_relative(backing_index)));
+              __ mov(target_reg, Operand(ebp, fp_relative(backing_index)));
             }
           } else {
-            __ mov(target.reg(), backing.reg());
+            __ mov(target_reg, backing.reg());
           }
         }
       }
       // Ensure the proper sync state.  If the source was memory no
       // code needs to be emitted.
       if (target.is_synced() && !source.is_synced()) {
-        __ mov(Operand(ebp, fp_relative(index)), target.reg());
+        __ mov(Operand(ebp, fp_relative(index)), target_reg);
       }
-      Use(target.reg(), index);
+      Use(target_reg, index);
       elements_[index] = target;
     }
   }
@@ -999,12 +1075,12 @@ Result VirtualFrame::Pop() {
     new_element.set_static_type(element.static_type());
     elements_[index] = new_element;
     __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
-    return Result(temp.reg(), cgen_, element.static_type());
+    return Result(temp.reg(), element.static_type());
   } else if (element.is_register()) {
-    return Result(element.reg(), cgen_, element.static_type());
+    return Result(element.reg(), element.static_type());
   } else {
     ASSERT(element.is_constant());
-    return Result(element.handle(), cgen_);
+    return Result(element.handle());
   }
 }
 

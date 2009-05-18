@@ -96,8 +96,7 @@ void RegisterAllocator::Reset() {
 
 Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
   UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  return Result();
 }
 
 

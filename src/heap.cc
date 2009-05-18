@@ -537,8 +537,39 @@ class ScavengeVisitor: public ObjectVisitor {
 };
 
 
+// A queue of pointers and maps of to-be-promoted objects during a
+// scavenge collection.
+class PromotionQueue {
+ public:
+  void Initialize(Address start_address) {
+    front_ = rear_ = reinterpret_cast<HeapObject**>(start_address);
+  }
+
+  bool is_empty() { return front_ <= rear_; }
+
+  void insert(HeapObject* object, Map* map) {
+    *(--rear_) = object;
+    *(--rear_) = map;
+    // Assert no overflow into live objects.
+    ASSERT(reinterpret_cast<Address>(rear_) >= Heap::new_space()->top());
+  }
+
+  void remove(HeapObject** object, Map** map) {
+    *object = *(--front_);
+    *map = Map::cast(*(--front_));
+    // Assert no underflow.
+    ASSERT(front_ >= rear_);
+  }
+
+ private:
+  // The front of the queue is higher in memory than the rear.
+  HeapObject** front_;
+  HeapObject** rear_;
+};
+
+
 // Shared state read by the scavenge collector and set by ScavengeObject.
-static Address promoted_top = NULL;
+static PromotionQueue promotion_queue;
 
 
 #ifdef DEBUG
@@ -554,24 +585,34 @@ class VerifyNonPointerSpacePointersVisitor: public ObjectVisitor {
     }
   }
 };
+
+
+static void VerifyNonPointerSpacePointers() {
+  // Verify that there are no pointers to new space in spaces where we
+  // do not expect them.
+  VerifyNonPointerSpacePointersVisitor v;
+  HeapObjectIterator code_it(Heap::code_space());
+  while (code_it.has_next()) {
+    HeapObject* object = code_it.next();
+    if (object->IsCode()) {
+      Code::cast(object)->ConvertICTargetsFromAddressToObject();
+      object->Iterate(&v);
+      Code::cast(object)->ConvertICTargetsFromObjectToAddress();
+    } else {
+      // If we find non-code objects in code space (e.g., free list
+      // nodes) we want to verify them as well.
+      object->Iterate(&v);
+    }
+  }
+
+  HeapObjectIterator data_it(Heap::old_data_space());
+  while (data_it.has_next()) data_it.next()->Iterate(&v);
+}
 #endif
 
 void Heap::Scavenge() {
 #ifdef DEBUG
-  if (FLAG_enable_slow_asserts) {
-    VerifyNonPointerSpacePointersVisitor v;
-    HeapObjectIterator it(code_space_);
-    while (it.has_next()) {
-      HeapObject* object = it.next();
-      if (object->IsCode()) {
-        Code::cast(object)->ConvertICTargetsFromAddressToObject();
-      }
-      object->Iterate(&v);
-      if (object->IsCode()) {
-        Code::cast(object)->ConvertICTargetsFromObjectToAddress();
-      }
-    }
-  }
+  if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
 #endif
 
   gc_state_ = SCAVENGE;
@@ -596,72 +637,79 @@ void Heap::Scavenge() {
   new_space_.Flip();
   new_space_.ResetAllocationInfo();
 
-  // We need to sweep newly copied objects which can be in either the to space
-  // or the old space.  For to space objects, we use a mark.  Newly copied
-  // objects lie between the mark and the allocation top.  For objects
-  // promoted to old space, we write their addresses downward from the top of
-  // the new space.  Sweeping newly promoted objects requires an allocation
-  // pointer and a mark.  Note that the allocation pointer 'top' actually
-  // moves downward from the high address in the to space.
+  // We need to sweep newly copied objects which can be either in the
+  // to space or promoted to the old generation.  For to-space
+  // objects, we treat the bottom of the to space as a queue.  Newly
+  // copied and unswept objects lie between a 'front' mark and the
+  // allocation pointer.
   //
-  // There is guaranteed to be enough room at the top of the to space for the
-  // addresses of promoted objects: every object promoted frees up its size in
-  // bytes from the top of the new space, and objects are at least one pointer
-  // in size.  Using the new space to record promoted addresses makes the
-  // scavenge collector agnostic to the allocation strategy (eg, linear or
-  // free-list) used in old space.
-  Address new_mark = new_space_.ToSpaceLow();
-  Address promoted_mark = new_space_.ToSpaceHigh();
-  promoted_top = new_space_.ToSpaceHigh();
+  // Promoted objects can go into various old-generation spaces, and
+  // can be allocated internally in the spaces (from the free list).
+  // We treat the top of the to space as a queue of addresses of
+  // promoted objects.  The addresses of newly promoted and unswept
+  // objects lie between a 'front' mark and a 'rear' mark that is
+  // updated as a side effect of promoting an object.
+  //
+  // There is guaranteed to be enough room at the top of the to space
+  // for the addresses of promoted objects: every object promoted
+  // frees up its size in bytes from the top of the new space, and
+  // objects are at least one pointer in size.
+  Address new_space_front = new_space_.ToSpaceLow();
+  promotion_queue.Initialize(new_space_.ToSpaceHigh());
 
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
   IterateRoots(&scavenge_visitor);
 
-  // Copy objects reachable from the old generation.  By definition, there
-  // are no intergenerational pointers in code or data spaces.
+  // Copy objects reachable from weak pointers.
+  GlobalHandles::IterateWeakRoots(&scavenge_visitor);
+
+  // Copy objects reachable from the old generation.  By definition,
+  // there are no intergenerational pointers in code or data spaces.
   IterateRSet(old_pointer_space_, &ScavengePointer);
   IterateRSet(map_space_, &ScavengePointer);
   lo_space_->IterateRSet(&ScavengePointer);
 
-  bool has_processed_weak_pointers = false;
+  do {
+    ASSERT(new_space_front <= new_space_.top());
 
-  while (true) {
-    ASSERT(new_mark <= new_space_.top());
-    ASSERT(promoted_mark >= promoted_top);
-
-    // Copy objects reachable from newly copied objects.
-    while (new_mark < new_space_.top() || promoted_mark > promoted_top) {
-      // Sweep newly copied objects in the to space.  The allocation pointer
-      // can change during sweeping.
-      Address previous_top = new_space_.top();
-      SemiSpaceIterator new_it(new_space(), new_mark);
-      while (new_it.has_next()) {
-        new_it.next()->Iterate(&scavenge_visitor);
-      }
-      new_mark = previous_top;
-
-      // Sweep newly copied objects in the old space.  The promotion 'top'
-      // pointer could change during sweeping.
-      previous_top = promoted_top;
-      for (Address current = promoted_mark - kPointerSize;
-           current >= previous_top;
-           current -= kPointerSize) {
-        HeapObject* object = HeapObject::cast(Memory::Object_at(current));
-        object->Iterate(&scavenge_visitor);
-        UpdateRSet(object);
-      }
-      promoted_mark = previous_top;
+    // The addresses new_space_front and new_space_.top() define a
+    // queue of unprocessed copied objects.  Process them until the
+    // queue is empty.
+    while (new_space_front < new_space_.top()) {
+      HeapObject* object = HeapObject::FromAddress(new_space_front);
+      object->Iterate(&scavenge_visitor);
+      new_space_front += object->Size();
     }
 
-    if (has_processed_weak_pointers) break;  // We are done.
-    // Copy objects reachable from weak pointers.
-    GlobalHandles::IterateWeakRoots(&scavenge_visitor);
-    has_processed_weak_pointers = true;
-  }
+    // Promote and process all the to-be-promoted objects.
+    while (!promotion_queue.is_empty()) {
+      HeapObject* source;
+      Map* map;
+      promotion_queue.remove(&source, &map);
+      // Copy the from-space object to its new location (given by the
+      // forwarding address) and fix its map.
+      HeapObject* target = source->map_word().ToForwardingAddress();
+      CopyBlock(reinterpret_cast<Object**>(target->address()),
+                reinterpret_cast<Object**>(source->address()),
+                source->SizeFromMap(map));
+      target->set_map(map);
+
+#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+      // Update NewSpace stats if necessary.
+      RecordCopiedObject(target);
+#endif
+      // Visit the newly copied object for pointers to new space.
+      target->Iterate(&scavenge_visitor);
+      UpdateRSet(target);
+    }
+
+    // Take another spin if there are now unswept objects in new space
+    // (there are currently no more unswept promoted objects).
+  } while (new_space_front < new_space_.top());
 
   // Set age mark.
-  new_space_.set_age_mark(new_mark);
+  new_space_.set_age_mark(new_space_.top());
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -810,34 +858,12 @@ HeapObject* Heap::MigrateObject(HeapObject* source,
   // Set the forwarding address.
   source->set_map_word(MapWord::FromForwardingAddress(target));
 
-  // Update NewSpace stats if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
+  // Update NewSpace stats if necessary.
   RecordCopiedObject(target);
 #endif
 
   return target;
-}
-
-
-// Inlined function.
-void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(InFromSpace(object));
-
-  // We use the first word (where the map pointer usually is) of a heap
-  // object to record the forwarding pointer.  A forwarding pointer can
-  // point to an old space, the code space, or the to space of the new
-  // generation.
-  MapWord first_word = object->map_word();
-
-  // If the first word is a forwarding address, the object has already been
-  // copied.
-  if (first_word.IsForwardingAddress()) {
-    *p = first_word.ToForwardingAddress();
-    return;
-  }
-
-  // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
 }
 
 
@@ -871,6 +897,11 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
   }
 
   int object_size = object->SizeFromMap(first_word.ToMap());
+  // We rely on live objects in new space to be at least two pointers,
+  // so we can store the from-space address and map pointer of promoted
+  // objects in the to space.
+  ASSERT(object_size >= 2 * kPointerSize);
+
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
     OldSpace* target_space = Heap::TargetSpace(object);
@@ -878,16 +909,29 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
            target_space == Heap::old_data_space_);
     Object* result = target_space->AllocateRaw(object_size);
     if (!result->IsFailure()) {
-      *p = MigrateObject(object, HeapObject::cast(result), object_size);
+      HeapObject* target = HeapObject::cast(result);
       if (target_space == Heap::old_pointer_space_) {
-        // Record the object's address at the top of the to space, to allow
-        // it to be swept by the scavenger.
-        promoted_top -= kPointerSize;
-        Memory::Object_at(promoted_top) = *p;
+        // Save the from-space object pointer and its map pointer at the
+        // top of the to space to be swept and copied later.  Write the
+        // forwarding address over the map word of the from-space
+        // object.
+        promotion_queue.insert(object, first_word.ToMap());
+        object->set_map_word(MapWord::FromForwardingAddress(target));
+
+        // Give the space allocated for the result a proper map by
+        // treating it as a free list node (not linked into the free
+        // list).
+        FreeListNode* node = FreeListNode::FromAddress(target->address());
+        node->set_size(object_size);
+
+        *p = target;
       } else {
+        // Objects promoted to the data space can be copied immediately
+        // and not revisited---we will never sweep that space for
+        // pointers and the copied objects do not contain pointers to
+        // new space objects.
+        *p = MigrateObject(object, target, object_size);
 #ifdef DEBUG
-        // Objects promoted to the data space should not have pointers to
-        // new space.
         VerifyNonPointerSpacePointersVisitor v;
         (*p)->Iterate(&v);
 #endif

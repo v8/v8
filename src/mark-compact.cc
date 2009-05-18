@@ -471,7 +471,7 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
 
 
 void MarkCompactCollector::MarkDescriptorArray(
-    DescriptorArray *descriptors) {
+    DescriptorArray* descriptors) {
   if (descriptors->IsMarked()) return;
   // Empty descriptor array is marked as a root before any maps are marked.
   ASSERT(descriptors != Heap::empty_descriptor_array());
@@ -871,7 +871,7 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
     // clearing map transitions when necessary.
     current = map;
     bool on_dead_path = !current->IsMarked();
-    Object *next;
+    Object* next;
     while (SafeIsMap(current)) {
       next = current->prototype();
       // There should never be a dead map above a live map.

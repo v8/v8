@@ -197,7 +197,7 @@ namespace v8 { namespace internal {
   T(ILLEGAL, "ILLEGAL", 0)                                              \
                                                                         \
   /* Scanner-internal use only. */                                      \
-  T(COMMENT, NULL, 0)
+  T(WHITESPACE, NULL, 0)
 
 
 class Token {

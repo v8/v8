@@ -102,7 +102,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   // Fix any sync bit problems from the bottom-up, stopping when we
   // hit the stack pointer or the top of the frame if the stack
   // pointer is floating above the frame.
-  int limit = Min(stack_pointer_, elements_.length() - 1);
+  int limit = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
   for (int i = 0; i <= limit; i++) {
     FrameElement source = elements_[i];
     FrameElement target = expected->elements_[i];
@@ -134,7 +134,7 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   // On ARM, all elements are in memory.
 
 #ifdef DEBUG
-  int start = Min(stack_pointer_, elements_.length() - 1);
+  int start = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
   for (int i = start; i >= 0; i--) {
     ASSERT(elements_[i].is_memory());
     ASSERT(expected->elements_[i].is_memory());
@@ -147,7 +147,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
 }
 
 
-void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
+void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
 }
 
 
@@ -422,8 +422,7 @@ void VirtualFrame::Drop(int count) {
 
 Result VirtualFrame::Pop() {
   UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  return Result();
 }
 
 

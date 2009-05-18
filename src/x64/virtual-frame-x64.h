@@ -130,13 +130,28 @@ class VirtualFrame : public Malloced {
   // tells the register allocator that it is free to use frame-internal
   // registers.  Used when the code generator's frame is switched from this
   // one to NULL by an unconditional jump.
-  void DetachFromCodeGenerator();
-
+  void DetachFromCodeGenerator() {
+    RegisterAllocator* cgen_allocator = cgen_->allocator();
+    for (int i = 0; i < kNumRegisters; i++) {
+      if (is_used(i)) {
+        Register temp = { i };
+        cgen_allocator->Unuse(temp);
+      }
+    }
+  }
   // (Re)attach a frame to its code generator.  This informs the register
   // allocator that the frame-internal register references are active again.
   // Used when a code generator's frame is switched from NULL to this one by
   // binding a label.
-  void AttachToCodeGenerator();
+  void AttachToCodeGenerator() {
+    RegisterAllocator* cgen_allocator = cgen_->allocator();
+    for (int i = 0; i < kNumRegisters; i++) {
+      if (is_used(i)) {
+        Register temp = { i };
+        cgen_allocator->Use(temp);
+      }
+    }
+  }
 
   // Emit code for the physical JS entry and exit frame sequences.  After
   // calling Enter, the virtual frame is ready for use; and after calling
@@ -164,7 +179,7 @@ class VirtualFrame : public Malloced {
 
   // Set a frame element to a constant.  The index is frame-top relative.
   void SetElementAt(int index, Handle<Object> value) {
-    Result temp(value, cgen_);
+    Result temp(value);
     SetElementAt(index, &temp);
   }
 

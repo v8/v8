@@ -30,8 +30,27 @@
 #define V8_CODEGEN_INL_H_
 
 #include "codegen.h"
+#include "register-allocator-inl.h"
 
 namespace v8 { namespace internal {
+
+
+void DeferredCode::SetEntryFrame(Result* arg) {
+  ASSERT(generator()->has_valid_frame());
+  generator()->frame()->Push(arg);
+  enter()->set_entry_frame(new VirtualFrame(generator()->frame()));
+  *arg = generator()->frame()->Pop();
+}
+
+
+void DeferredCode::SetEntryFrame(Result* arg0, Result* arg1) {
+  ASSERT(generator()->has_valid_frame());
+  generator()->frame()->Push(arg0);
+  generator()->frame()->Push(arg1);
+  enter()->set_entry_frame(new VirtualFrame(generator()->frame()));
+  *arg1 = generator()->frame()->Pop();
+  *arg0 = generator()->frame()->Pop();
+}
 
 
 // -----------------------------------------------------------------------------

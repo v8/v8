@@ -40,6 +40,10 @@
 
 namespace v8 { namespace internal {
 
+
+CodeGenerator* CodeGeneratorScope::top_ = NULL;
+
+
 DeferredCode::DeferredCode(CodeGenerator* generator)
   : generator_(generator),
     masm_(generator->masm()),
@@ -104,7 +108,6 @@ void CodeGenerator::SetFrame(VirtualFrame* new_frame,
 void CodeGenerator::DeleteFrame() {
   if (has_valid_frame()) {
     frame_->DetachFromCodeGenerator();
-    delete frame_;
     frame_ = NULL;
   }
 }
@@ -155,13 +158,16 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
   // Generate code.
   const int initial_buffer_size = 4 * KB;
   CodeGenerator cgen(initial_buffer_size, script, is_eval);
+  CodeGeneratorScope scope(&cgen);
   cgen.GenCode(flit);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
 
-  // Allocate and install the code.
+  // Allocate and install the code.  Time the rest of this function as
+  // code creation.
+  HistogramTimerScope timer(&Counters::code_creation);
   CodeDesc desc;
   cgen.masm()->GetCode(&desc);
   ScopeInfo<> sinfo(flit->scope());

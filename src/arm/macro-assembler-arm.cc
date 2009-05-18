@@ -291,12 +291,29 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+
+  // Compute the argv pointer and keep it in a callee-saved register.
+  // r0 is argc.
+  add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
+  sub(r6, r6, Operand(kPointerSize));
+
   // Compute parameter pointer before making changes and save it as ip
   // register so that it is restored as sp register on exit, thereby
   // popping the args.
 
   // ip = sp + kPointerSize * #args;
   add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
+
+  // Align the stack at this point.  After this point we have 5 pushes,
+  // so in fact we have to unalign here!  See also the assert on the
+  // alignment immediately below.
+  if (OS::ActivationFrameAlignment() != kPointerSize) {
+    // This code needs to be made more general if this assert doesn't hold.
+    ASSERT(OS::ActivationFrameAlignment() == 2 * kPointerSize);
+    mov(r7, Operand(Smi::FromInt(0)));
+    tst(sp, Operand(OS::ActivationFrameAlignment() - 1));
+    push(r7, eq);  // Conditional push instruction.
+  }
 
   // Push in reverse order: caller_fp, sp_on_exit, and caller_pc.
   stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
@@ -316,9 +333,6 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   mov(r4, Operand(r0));
   mov(r5, Operand(r1));
 
-  // Compute the argv pointer and keep it in a callee-saved register.
-  add(r6, fp, Operand(r4, LSL, kPointerSizeLog2));
-  add(r6, r6, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory

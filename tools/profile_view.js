@@ -46,15 +46,25 @@ devtools.profiler.ViewBuilder = function(samplingRate) {
  * Builds a profile view for the specified call tree.
  *
  * @param {devtools.profiler.CallTree} callTree A call tree.
+ * @param {boolean} opt_bottomUpViewWeights Whether remapping
+ *     of self weights for a bottom up view is needed.
  */
 devtools.profiler.ViewBuilder.prototype.buildView = function(
-    callTree) {
+    callTree, opt_bottomUpViewWeights) {
   var head;
   var samplingRate = this.samplingRate;
   callTree.traverse(function(node, viewParent) {
+    var totalWeight = node.totalWeight * samplingRate;
+    var selfWeight = node.selfWeight * samplingRate;
+    if (opt_bottomUpViewWeights === true) {
+      if (viewParent === head) {
+        selfWeight = totalWeight;
+      } else {
+        selfWeight = 0;
+      }
+    }
     var viewNode = new devtools.profiler.ProfileView.Node(
-        node.label, node.totalWeight * samplingRate,
-        node.selfWeight * samplingRate, head);
+        node.label, totalWeight, selfWeight, head);
     if (viewParent) {
       viewParent.addChild(viewNode);
     } else {
@@ -86,21 +96,6 @@ devtools.profiler.ProfileView = function(head) {
 
 
 /**
- * Updates references between profiles. This is needed for WebKit
- * ProfileView.
- */
-devtools.profiler.ProfileView.prototype.updateProfilesRefs = function() {
-  var profileNames = ["treeProfile", "heavyProfile", "flatProfile"];
-  for (var i = 0; i < profileNames.length; ++i) {
-    var destProfile = this[profileNames[i]];
-    for (var j = 0; j < profileNames.length; ++j) {
-      destProfile[profileNames[j]] = this[profileNames[j]];
-    }
-  }
-};
-
-
-/**
  * Sorts the profile view using the specified sort function.
  *
  * @param {function(devtools.profiler.ProfileView.Node,
@@ -111,73 +106,6 @@ devtools.profiler.ProfileView.prototype.sort = function(sortFunc) {
   this.traverse(function (node) {
     node.sortChildren(sortFunc);
   });
-};
-
-
-/**
- * Sorts the profile view by self time, ascending.
- */
-devtools.profiler.ProfileView.prototype.sortSelfTimeAscending = function() {
-  this.sort(function (node1, node2) {
-      return node1.selfTime - node2.selfTime; });
-};
-
-
-/**
- * Sorts the profile view by self time, descending.
- */
-devtools.profiler.ProfileView.prototype.sortSelfTimeDescending = function() {
-  this.sort(function (node1, node2) {
-      return node2.selfTime - node1.selfTime; });
-};
-
-
-/**
- * Sorts the profile view by total time, ascending.
- */
-devtools.profiler.ProfileView.prototype.sortTotalTimeAscending = function() {
-  this.sort(function (node1, node2) {
-      return node1.totalTime - node2.totalTime; });
-};
-
-
-/**
- * Sorts the profile view by total time, descending.
- */
-devtools.profiler.ProfileView.prototype.sortTotalTimeDescending = function() {
-  this.sort(function (node1, node2) {
-      return node2.totalTime - node1.totalTime; });
-};
-
-
-/**
- * String comparator compatible with Array.sort requirements.
- *
- * @param {string} s1 First string.
- * @param {string} s2 Second string.
- */
-devtools.profiler.ProfileView.compareStrings = function(s1, s2) {
-  return s1 < s2 ? -1 : (s1 > s2 ? 1 : 0);
-};
-
-
-/**
- * Sorts the profile view by function name, ascending.
- */
-devtools.profiler.ProfileView.prototype.sortFunctionNameAscending = function() {
-  this.sort(function (node1, node2) {
-      return devtools.profiler.ProfileView.compareStrings(
-          node1.functionName, node2.functionName); });
-};
-
-
-/**
- * Sorts the profile view by function name, descending.
- */
-devtools.profiler.ProfileView.prototype.sortFunctionNameDescending = function() {
-  this.sort(function (node1, node2) {
-      return devtools.profiler.ProfileView.compareStrings(
-          node2.functionName, node1.functionName); });
 };
 
 

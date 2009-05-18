@@ -94,10 +94,10 @@ FrameElement VirtualFrame::CopyElementAt(int index) {
     case FrameElement::REGISTER:
       // All copies are backed by memory or register locations.
       result.set_static_type(target.static_type());
-      result.type_ = FrameElement::COPY;
-      result.copied_ = false;
-      result.synced_ = false;
-      result.data_.index_ = index;
+      result.set_type(FrameElement::COPY);
+      result.clear_copied();
+      result.clear_sync();
+      result.set_index(index);
       elements_[index].set_copied();
       break;
 
@@ -304,30 +304,6 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
 }
 
 
-void VirtualFrame::DetachFromCodeGenerator() {
-  // Tell the global register allocator that it is free to reallocate all
-  // register references contained in this frame.  The frame elements remain
-  // register references, so the frame-internal reference count is not
-  // decremented.
-  for (int i = 0; i < elements_.length(); i++) {
-    if (elements_[i].is_register()) {
-      cgen_->allocator()->Unuse(elements_[i].reg());
-    }
-  }
-}
-
-
-void VirtualFrame::AttachToCodeGenerator() {
-  // Tell the global register allocator that the frame-internal register
-  // references are live again.
-  for (int i = 0; i < elements_.length(); i++) {
-    if (elements_[i].is_register()) {
-      cgen_->allocator()->Use(elements_[i].reg());
-    }
-  }
-}
-
-
 void VirtualFrame::PrepareForReturn() {
   // Spill all locals. This is necessary to make sure all locals have
   // the right value when breaking at the return site in the debugger.
@@ -348,11 +324,11 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
 
   // Early exit if the element is the same as the one being set.
   bool same_register = original.is_register()
-                    && value->is_register()
-                    && original.reg().is(value->reg());
+      && value->is_register()
+      && original.reg().is(value->reg());
   bool same_constant = original.is_constant()
-                    && value->is_constant()
-                    && original.handle().is_identical_to(value->handle());
+      && value->is_constant()
+      && original.handle().is_identical_to(value->handle());
   if (same_register || same_constant) {
     value->Unuse();
     return;
@@ -462,23 +438,6 @@ void VirtualFrame::Nip(int num_dropped) {
     Drop(num_dropped - 1);
   }
   SetElementAt(0, &tos);
-}
-
-
-bool FrameElement::Equals(FrameElement other) {
-  if (type_ != other.type_ ||
-      copied_ != other.copied_ ||
-      synced_ != other.synced_) return false;
-
-  if (is_register()) {
-    if (!reg().is(other.reg())) return false;
-  } else if (is_constant()) {
-    if (!handle().is_identical_to(other.handle())) return false;
-  } else if (is_copy()) {
-    if (index() != other.index()) return false;
-  }
-
-  return true;
 }
 
 

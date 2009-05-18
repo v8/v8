@@ -42,8 +42,6 @@ static inline bool IsPowerOf2(T x) {
 }
 
 
-
-
 // The C++ standard leaves the semantics of '>>' undefined for
 // negative signed operands. Most implementations do the right thing,
 // though.

@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
+#include "jump-target-inl.h"
 #include "register-allocator-inl.h"
 
 namespace v8 { namespace internal {
@@ -35,14 +36,15 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // JumpTarget implementation.
 
+bool JumpTarget::compiling_deferred_code_ = false;
+
+
 JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
     : cgen_(cgen),
       direction_(direction),
       reaching_frames_(0),
       merge_labels_(0),
-      entry_frame_(NULL),
-      is_bound_(false),
-      is_linked_(false) {
+      entry_frame_(NULL) {
   ASSERT(cgen != NULL);
   masm_ = cgen->masm();
 }
@@ -54,9 +56,7 @@ JumpTarget::JumpTarget()
       direction_(FORWARD_ONLY),
       reaching_frames_(0),
       merge_labels_(0),
-      entry_frame_(NULL),
-      is_bound_(false),
-      is_linked_(false) {
+      entry_frame_(NULL) {
 }
 
 
@@ -70,73 +70,10 @@ void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
 
 
 void JumpTarget::Unuse() {
-  // We should not deallocate jump targets that have unresolved jumps
-  // to them.  In the event of a compile-time stack overflow or an
-  // uninitialized jump target, we don't care.
-  ASSERT(!is_linked() || cgen_ == NULL || cgen_->HasStackOverflow());
-  for (int i = 0; i < reaching_frames_.length(); i++) {
-    delete reaching_frames_[i];
-  }
-  delete entry_frame_;
-  Reset();
-}
-
-
-void JumpTarget::Reset() {
   reaching_frames_.Clear();
   merge_labels_.Clear();
   entry_frame_ = NULL;
   entry_label_.Unuse();
-  is_bound_ = false;
-  is_linked_ = false;
-}
-
-
-FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
-  // Given a pair of non-null frame element pointers, return one of
-  // them as an entry frame candidate or null if they are
-  // incompatible.
-
-  // If either is invalid, the result is.
-  if (!left->is_valid()) return left;
-  if (!right->is_valid()) return right;
-
-  // If they have the same value, the result is the same.  If either
-  // is unsynced, the result is.
-
-  if (left->is_memory() && right->is_memory()) return left;
-
-  if (left->is_register() && right->is_register() &&
-      left->reg().is(right->reg())) {
-    if (!left->is_synced()) {
-      return left;
-    } else {
-      return right;
-    }
-  }
-
-  if (left->is_constant() &&
-      right->is_constant() &&
-      left->handle().is_identical_to(right->handle())) {
-    if (!left->is_synced()) {
-      return left;
-    } else {
-      return right;
-    }
-  }
-
-  if (left->is_copy() &&
-      right->is_copy() &&
-      left->index() == right->index()) {
-    if (!left->is_synced()) {
-      return left;
-    } else {
-      return right;
-    }
-  }
-
-  // Otherwise they are incompatible and we will reallocate them.
-  return NULL;
 }
 
 
@@ -145,13 +82,29 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // the directionality of the block.  Compute: an entry frame for the
   // block.
 
+  Counters::compute_entry_frame.Increment();
+#ifdef DEBUG
+  if (compiling_deferred_code_) {
+    ASSERT(reaching_frames_.length() > 1);
+    VirtualFrame* frame = reaching_frames_[0];
+    bool all_identical = true;
+    for (int i = 1; i < reaching_frames_.length(); i++) {
+      if (!frame->Equals(reaching_frames_[i])) {
+        all_identical = false;
+        break;
+      }
+    }
+    ASSERT(!all_identical || all_identical);
+  }
+#endif
+
   // Choose an initial frame.
   VirtualFrame* initial_frame = reaching_frames_[0];
 
   // A list of pointers to frame elements in the entry frame.  NULL
   // indicates that the element has not yet been determined.
   int length = initial_frame->elements_.length();
-  List<FrameElement*> elements(length);
+  ZoneList<FrameElement*> elements(length);
 
   // Convert the number of mergable elements (counted from the top
   // down) to a frame high-water mark (counted from the bottom up).
@@ -165,27 +118,33 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // frame.
   for (int i = 0; i < length; i++) {
     FrameElement element = initial_frame->elements_[i];
-    // We do not allow copies or constants in bidirectional frames.
-    if (direction_ == BIDIRECTIONAL && i > high_water_mark &&
-        (element.is_constant() || element.is_copy())) {
-      elements.Add(NULL);
-    } else {
-      elements.Add(&initial_frame->elements_[i]);
+    // We do not allow copies or constants in bidirectional frames.  All
+    // elements above the water mark on bidirectional frames have
+    // unknown static types.
+    if (direction_ == BIDIRECTIONAL && i > high_water_mark) {
+      if (element.is_constant() || element.is_copy()) {
+        elements.Add(NULL);
+        continue;
+      }
+      // It's safe to change the static type on the initial frame
+      // element, see comment in JumpTarget::Combine.
+      initial_frame->elements_[i].set_static_type(StaticType::unknown());
     }
+    elements.Add(&initial_frame->elements_[i]);
   }
 
   // Compute elements based on the other reaching frames.
   if (reaching_frames_.length() > 1) {
     for (int i = 0; i < length; i++) {
+      FrameElement* element = elements[i];
       for (int j = 1; j < reaching_frames_.length(); j++) {
-        FrameElement* element = elements[i];
-
         // Element computation is monotonic: new information will not
         // change our decision about undetermined or invalid elements.
         if (element == NULL || !element->is_valid()) break;
 
-        elements[i] = Combine(element, &reaching_frames_[j]->elements_[i]);
+        element = element->Combine(&reaching_frames_[j]->elements_[i]);
       }
+      elements[i] = element;
     }
   }
 
@@ -195,33 +154,23 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   entry_frame_ = new VirtualFrame(cgen_);
   int index = 0;
   for (; index < entry_frame_->elements_.length(); index++) {
+    FrameElement* target = elements[index];
     // If the element is determined, set it now.  Count registers.  Mark
     // elements as copied exactly when they have a copy.  Undetermined
     // elements are initially recorded as if in memory.
-    if (elements[index] != NULL) {
-      entry_frame_->elements_[index] = *elements[index];
-      entry_frame_->elements_[index].clear_copied();
-      if (elements[index]->is_register()) {
-        entry_frame_->register_locations_[elements[index]->reg().code()] =
-            index;
-      } else if (elements[index]->is_copy()) {
-        entry_frame_->elements_[elements[index]->index()].set_copied();
-      }
+    if (target != NULL) {
+      entry_frame_->elements_[index] = *target;
+      InitializeEntryElement(index, target);
     }
   }
   // Then fill in the rest of the frame with new elements.
   for (; index < length; index++) {
-    if (elements[index] == NULL) {
+    FrameElement* target = elements[index];
+    if (target == NULL) {
       entry_frame_->elements_.Add(FrameElement::MemoryElement());
     } else {
-      entry_frame_->elements_.Add(*elements[index]);
-      entry_frame_->elements_[index].clear_copied();
-      if (elements[index]->is_register()) {
-        entry_frame_->register_locations_[elements[index]->reg().code()] =
-            index;
-      } else if (elements[index]->is_copy()) {
-        entry_frame_->elements_[elements[index]->index()].set_copied();
-      }
+      entry_frame_->elements_.Add(*target);
+      InitializeEntryElement(index, target);
     }
   }
 
@@ -229,36 +178,45 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // memory, from the top down.
   for (int i = length - 1; i >= 0; i--) {
     if (elements[i] == NULL) {
-      // If the value is synced on all frames, put it in memory.  This
-      // costs nothing at the merge code but will incur a
-      // memory-to-register move when the value is needed later.
+      // Loop over all the reaching frames to check whether the element
+      // is synced on all frames, to count the registers it occupies,
+      // and to compute a merged static type.
       bool is_synced = true;
-      for (int j = 0; is_synced && j < reaching_frames_.length(); j++) {
-        is_synced = reaching_frames_[j]->elements_[i].is_synced();
-      }
-
-      // There is nothing to be done if the elements are all synced.
-      // It is already recorded as a memory element.
-      if (is_synced) continue;
-
-      // Choose an available register.  Prefer ones that the element
-      // is already occupying on some reaching frame.
       RegisterFile candidate_registers;
-      int max_count = kMinInt;
+      int best_count = kMinInt;
       int best_reg_code = no_reg.code_;
+
+      StaticType type;  // Initially invalid.
+      if (direction_ != BIDIRECTIONAL || i < high_water_mark) {
+        type = reaching_frames_[0]->elements_[i].static_type();
+      }
 
       for (int j = 0; j < reaching_frames_.length(); j++) {
         FrameElement element = reaching_frames_[j]->elements_[i];
-        if (element.is_register() &&
-            !entry_frame_->is_used(element.reg())) {
+        is_synced = is_synced && element.is_synced();
+        if (element.is_register() && !entry_frame_->is_used(element.reg())) {
+          // Count the register occurrence and remember it if better
+          // than the previous best.
           candidate_registers.Use(element.reg());
-          if (candidate_registers.count(element.reg()) > max_count) {
-            max_count = candidate_registers.count(element.reg());
+          if (candidate_registers.count(element.reg()) > best_count) {
+            best_count = candidate_registers.count(element.reg());
             best_reg_code = element.reg().code();
           }
         }
+        type = type.merge(element.static_type());
       }
-      // If there was no preferred choice consider any free register.
+
+      // If the value is synced on all frames, put it in memory.  This
+      // costs nothing at the merge code but will incur a
+      // memory-to-register move when the value is needed later.
+      if (is_synced) {
+        // Already recorded as a memory element.
+        entry_frame_->elements_[i].set_static_type(type);
+        continue;
+      }
+
+      // Try to put it in a register.  If there was no best choice
+      // consider any free register.
       if (best_reg_code == no_reg.code_) {
         for (int j = 0; j < kNumRegisters; j++) {
           if (!entry_frame_->is_used(j) && !RegisterAllocator::IsReserved(j)) {
@@ -268,36 +226,22 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
         }
       }
 
-      if (best_reg_code != no_reg.code_) {
+      if (best_reg_code == no_reg.code_) {
+        // If there was no register found, the element is already
+        // recorded as in memory.
+        entry_frame_->elements_[i].set_static_type(type);
+      } else {
         // If there was a register choice, use it.  Preserve the copied
-        // flag on the element.
+        // flag on the element.  Set the static type as computed.
         bool is_copied = entry_frame_->elements_[i].is_copied();
         Register reg = { best_reg_code };
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg,
                                           FrameElement::NOT_SYNCED);
         if (is_copied) entry_frame_->elements_[i].set_copied();
+        entry_frame_->elements_[i].set_static_type(type);
         entry_frame_->register_locations_[best_reg_code] = i;
       }
-      // If there was no register found, the element is already
-      // recorded as in memory.
-    }
-  }
-
-  // Set the static type of frame elements.
-  for (int i = 0; i < length; i++) {
-    FrameElement* current = &entry_frame_->elements_[i];
-    if (direction_ == BIDIRECTIONAL && i >= high_water_mark) {
-      current->set_static_type(StaticType::unknown());
-    } else {
-      StaticType merged_type = reaching_frames_[0]->elements_[i].static_type();
-      for (int j = 1, n = reaching_frames_.length();
-           !merged_type.is_unknown() && j < n;
-           j++) {
-        merged_type =
-            merged_type.merge(reaching_frames_[j]->elements_[i].static_type());
-      }
-      current->set_static_type(merged_type);
     }
   }
 
@@ -566,6 +510,7 @@ void JumpTarget::Bind(Result* arg0,
 
 void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
   ASSERT(reaching_frames_.length() == merge_labels_.length());
+  ASSERT(entry_frame_ == NULL);
   Label fresh;
   merge_labels_.Add(fresh);
   reaching_frames_.Add(frame);
@@ -596,8 +541,6 @@ void BreakTarget::CopyTo(BreakTarget* destination) {
   }
   destination->entry_frame_ = entry_frame_;
   destination->entry_label_ = entry_label_;
-  destination->is_bound_ = is_bound_;
-  destination->is_linked_ = is_linked_;
   destination->expected_height_ = expected_height_;
 }
 
@@ -699,10 +642,8 @@ ShadowTarget::ShadowTarget(BreakTarget* shadowed) {
   // While shadowing this shadow target saves the state of the original.
   shadowed->CopyTo(this);
 
-  // The original's state is reset.  We do not Unuse it because that
-  // would delete the expected frame and assert that the target is not
-  // linked.
-  shadowed->Reset();
+  // The original's state is reset.
+  shadowed->Unuse();
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
   shadowed->set_expected_height(cgen_->frame()->height());
@@ -728,7 +669,7 @@ void ShadowTarget::StopShadowing() {
   other_target_->CopyTo(&temp);
   CopyTo(other_target_);
   temp.CopyTo(this);
-  temp.Reset();  // So the destructor does not deallocate virtual frames.
+  temp.Unuse();
 
 #ifdef DEBUG
   is_shadowing_ = false;

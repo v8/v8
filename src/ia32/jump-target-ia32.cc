@@ -51,17 +51,20 @@ void JumpTarget::DoJump() {
     cgen_->frame()->MergeTo(entry_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
+  } else if (entry_frame_ != NULL) {
+    // Forward jump with a preconfigured entry frame.  Assert the
+    // current frame matches the expected one and jump to the block.
+    ASSERT(cgen_->frame()->Equals(entry_frame_));
+    cgen_->DeleteFrame();
+    __ jmp(&entry_label_);
   } else {
-    // Forward jump.  The current frame is added to the end of the list
-    // of frames reaching the target block and a jump to the merge code
-    // is emitted.
+    // Forward jump.  Remember the current frame and emit a jump to
+    // its merge code.
     AddReachingFrame(cgen_->frame());
     RegisterFile empty;
     cgen_->SetFrame(NULL, &empty);
     __ jmp(&merge_labels_.last());
   }
-
-  is_linked_ = !is_bound_;
 }
 
 
@@ -114,15 +117,24 @@ void JumpTarget::DoBranch(Condition cc, Hint hint) {
     cgen_->SetFrame(fall_through_frame, &non_frame_registers);
     __ bind(&original_fall_through);
 
+  } else if (entry_frame_ != NULL) {
+    // Forward branch with a preconfigured entry frame.  Assert the
+    // current frame matches the expected one and branch to the block.
+    ASSERT(cgen_->frame()->Equals(entry_frame_));
+    // Explicitly use the macro assembler instead of __ as forward
+    // branches are expected to be a fixed size (no inserted
+    // coverage-checking instructions please).  This is used in
+    // Reference::GetValue.
+    masm_->j(cc, &entry_label_, hint);
+
   } else {
-    // Forward branch.  A copy of the current frame is added to the end of the
-    // list of frames reaching the target block and a branch to the merge code
-    // is emitted.  Use masm_-> instead of __ as forward branches are expected
-    // to be a fixed size (no inserted coverage-checking instructions please).
-    // This is used in Reference::GetValue.
+    // Forward branch.  A copy of the current frame is remembered and
+    // a branch to the merge code is emitted.  Explicitly use the
+    // macro assembler instead of __ as forward branches are expected
+    // to be a fixed size (no inserted coverage-checking instructions
+    // please).  This is used in Reference::GetValue.
     AddReachingFrame(new VirtualFrame(cgen_->frame()));
     masm_->j(cc, &merge_labels_.last(), hint);
-    is_linked_ = true;
   }
 }
 
@@ -143,10 +155,10 @@ void JumpTarget::Call() {
   cgen_->frame()->SpillAll();
   VirtualFrame* target_frame = new VirtualFrame(cgen_->frame());
   target_frame->Adjust(1);
+  // We do not expect a call with a preconfigured entry frame.
+  ASSERT(entry_frame_ == NULL);
   AddReachingFrame(target_frame);
   __ call(&merge_labels_.last());
-
-  is_linked_ = !is_bound_;
 }
 
 
@@ -158,12 +170,33 @@ void JumpTarget::DoBind(int mergable_elements) {
   // block.
   ASSERT(!cgen_->has_valid_frame() || cgen_->HasValidEntryRegisters());
 
-  if (direction_ == FORWARD_ONLY) {
-    // A simple case: no forward jumps and no possible backward jumps.
-    if (!is_linked()) {
+  // Fast case: the jump target was manually configured with an entry
+  // frame to use.
+  if (entry_frame_ != NULL) {
+    // Assert no reaching frames to deal with.
+    ASSERT(reaching_frames_.is_empty());
+    ASSERT(!cgen_->has_valid_frame());
+
+    RegisterFile reserved = RegisterAllocator::Reserved();
+    if (direction_ == BIDIRECTIONAL) {
+      // Copy the entry frame so the original can be used for a
+      // possible backward jump.
+      cgen_->SetFrame(new VirtualFrame(entry_frame_), &reserved);
+    } else {
+      // Take ownership of the entry frame.
+      cgen_->SetFrame(entry_frame_, &reserved);
+      entry_frame_ = NULL;
+    }
+    __ bind(&entry_label_);
+    return;
+  }
+
+  if (!is_linked()) {
+    ASSERT(cgen_->has_valid_frame());
+    if (direction_ == FORWARD_ONLY) {
+      // Fast case: no forward jumps and no possible backward jumps.
       // The stack pointer can be floating above the top of the
       // virtual frame before the bind.  Afterward, it should not.
-      ASSERT(cgen_->has_valid_frame());
       VirtualFrame* frame = cgen_->frame();
       int difference =
           frame->stack_pointer_ - (frame->elements_.length() - 1);
@@ -171,35 +204,41 @@ void JumpTarget::DoBind(int mergable_elements) {
         frame->stack_pointer_ -= difference;
         __ add(Operand(esp), Immediate(difference * kPointerSize));
       }
+    } else {
+      ASSERT(direction_ == BIDIRECTIONAL);
+      // Fast case: no forward jumps, possible backward ones.  Remove
+      // constants and copies above the watermark on the fall-through
+      // frame and use it as the entry frame.
+      cgen_->frame()->MakeMergable(mergable_elements);
+      entry_frame_ = new VirtualFrame(cgen_->frame());
+    }
+    __ bind(&entry_label_);
+    return;
+  }
 
-      is_bound_ = true;
-      return;
+  if (direction_ == FORWARD_ONLY &&
+      !cgen_->has_valid_frame() &&
+      reaching_frames_.length() == 1) {
+    // Fast case: no fall-through, a single forward jump, and no
+    // possible backward jumps.  Pick up the only reaching frame, take
+    // ownership of it, and use it for the block about to be emitted.
+    VirtualFrame* frame = reaching_frames_[0];
+    RegisterFile reserved = RegisterAllocator::Reserved();
+    cgen_->SetFrame(frame, &reserved);
+    reaching_frames_[0] = NULL;
+    __ bind(&merge_labels_[0]);
+
+    // The stack pointer can be floating above the top of the
+    // virtual frame before the bind.  Afterward, it should not.
+    int difference =
+        frame->stack_pointer_ - (frame->elements_.length() - 1);
+    if (difference > 0) {
+      frame->stack_pointer_ -= difference;
+      __ add(Operand(esp), Immediate(difference * kPointerSize));
     }
 
-    // Another simple case: no fall through, a single forward jump,
-    // and no possible backward jumps.
-    if (!cgen_->has_valid_frame() && reaching_frames_.length() == 1) {
-      // Pick up the only reaching frame, take ownership of it, and
-      // use it for the block about to be emitted.
-      VirtualFrame* frame = reaching_frames_[0];
-      RegisterFile reserved = RegisterAllocator::Reserved();
-      cgen_->SetFrame(frame, &reserved);
-      reaching_frames_[0] = NULL;
-      __ bind(&merge_labels_[0]);
-
-      // The stack pointer can be floating above the top of the
-      // virtual frame before the bind.  Afterward, it should not.
-      int difference =
-          frame->stack_pointer_ - (frame->elements_.length() - 1);
-      if (difference > 0) {
-        frame->stack_pointer_ -= difference;
-        __ add(Operand(esp), Immediate(difference * kPointerSize));
-      }
-
-      is_linked_ = false;
-      is_bound_ = true;
-      return;
-    }
+    __ bind(&entry_label_);
+    return;
   }
 
   // If there is a current frame, record it as the fall-through.  It
@@ -207,7 +246,7 @@ void JumpTarget::DoBind(int mergable_elements) {
   bool had_fall_through = false;
   if (cgen_->has_valid_frame()) {
     had_fall_through = true;
-    AddReachingFrame(cgen_->frame());
+    AddReachingFrame(cgen_->frame());  // Return value ignored.
     RegisterFile empty;
     cgen_->SetFrame(NULL, &empty);
   }
@@ -266,7 +305,6 @@ void JumpTarget::DoBind(int mergable_elements) {
             if (other != NULL && other->Equals(cgen_->frame())) {
               // Set the reaching frame element to null to avoid
               // processing it later, and then bind its entry label.
-              delete other;
               reaching_frames_[j] = NULL;
               __ bind(&merge_labels_[j]);
             }
@@ -293,17 +331,12 @@ void JumpTarget::DoBind(int mergable_elements) {
       cgen_->SetFrame(new VirtualFrame(entry_frame_), &reserved_registers);
     }
 
-    // There is certainly a current frame equal to the entry frame.
-    // Bind the entry frame label.
-    __ bind(&entry_label_);
-
     // There may be unprocessed reaching frames that did not need
     // merge code.  They will have unbound merge labels.  Bind their
     // merge labels to be the same as the entry label and deallocate
     // them.
     for (int i = 0; i < reaching_frames_.length(); i++) {
       if (!merge_labels_[i].is_bound()) {
-        delete reaching_frames_[i];
         reaching_frames_[i] = NULL;
         __ bind(&merge_labels_[i]);
       }
@@ -324,11 +357,9 @@ void JumpTarget::DoBind(int mergable_elements) {
     cgen_->SetFrame(new VirtualFrame(reaching_frames_[0]), &reserved);
     __ bind(&merge_labels_[0]);
     cgen_->frame()->MergeTo(entry_frame_);
-    __ bind(&entry_label_);
   }
 
-  is_linked_ = false;
-  is_bound_ = true;
+  __ bind(&entry_label_);
 }
 
 #undef __

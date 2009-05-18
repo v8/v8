@@ -13,6 +13,7 @@
 #include "top.h"
 #include "cctest.h"
 #include "disassembler.h"
+#include "register-allocator-inl.h"
 
 using v8::Function;
 using v8::Local;

@@ -52,12 +52,15 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     return Handle<Code>::null();
   }
 
-  // Compute top scope and allocate variables. For lazy compilation
-  // the top scope only contains the single lazily compiled function,
-  // so this doesn't re-allocate variables repeatedly.
-  Scope* top = literal->scope();
-  while (top->outer_scope() != NULL) top = top->outer_scope();
-  top->AllocateVariables(context);
+  {
+    // Compute top scope and allocate variables. For lazy compilation
+    // the top scope only contains the single lazily compiled function,
+    // so this doesn't re-allocate variables repeatedly.
+    HistogramTimerScope timer(&Counters::variable_allocation);
+    Scope* top = literal->scope();
+    while (top->outer_scope() != NULL) top = top->outer_scope();
+    top->AllocateVariables(context);
+  }
 
 #ifdef DEBUG
   if (Bootstrapper::IsActive() ?
@@ -86,7 +89,7 @@ static bool IsValidJSON(FunctionLiteral* lit) {
   Statement* stmt = lit->body()->at(0);
   if (stmt->AsExpressionStatement() == NULL)
     return false;
-  Expression *expr = stmt->AsExpressionStatement()->expression();
+  Expression* expr = stmt->AsExpressionStatement()->expression();
   return expr->IsValidJSON();
 }
 
@@ -98,7 +101,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                        Handle<Context> context,
                                        v8::Extension* extension,
                                        ScriptDataImpl* pre_data) {
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   // Make sure we have an initial stack limit.
   StackGuard guard;
@@ -303,7 +306,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
 
 bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
                            int loop_nesting) {
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);

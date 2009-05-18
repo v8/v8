@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,26 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Test the mirror object for null
+#ifndef V8_JUMP_TARGET_INL_H_
+#define V8_JUMP_TARGET_INL_H_
 
-// Create mirror and JSON representation.
-var mirror = debug.MakeMirror(null);
-var serializer = debug.MakeMirrorSerializer();
-var json = JSON.stringify(serializer.serializeValue(mirror));
+namespace v8 { namespace internal {
 
-// Check the mirror hierachy.
-assertTrue(mirror instanceof debug.Mirror);
-assertTrue(mirror instanceof debug.NullMirror);
+void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
+  entry_frame_->elements_[index].clear_copied();
+  if (target->is_register()) {
+    entry_frame_->register_locations_[target->reg().code()] = index;
+  } else if (target->is_copy()) {
+    entry_frame_->elements_[target->index()].set_copied();
+  }
+}
 
-// Check the mirror properties.
-assertTrue(mirror.isNull());
-assertEquals('null', mirror.type());
-assertTrue(mirror.isPrimitive());
+} }  // namespace v8::internal
 
-// Test text representation
-assertEquals('null', mirror.toText());
-
-// Parse JSON representation and check.
-var fromJSON = eval('(' + json + ')');
-assertEquals('null', fromJSON.type);
+#endif  // V8_JUMP_TARGET_INL_H_

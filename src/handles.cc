@@ -273,7 +273,35 @@ Handle<Object> GetPrototype(Handle<Object> obj) {
 
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
                                    bool create_if_needed) {
-  CALL_HEAP_FUNCTION(obj->GetHiddenProperties(create_if_needed), Object);
+  Handle<String> key = Factory::hidden_symbol();
+
+  if (obj->HasFastProperties()) {
+    // If the object has fast properties, check whether the first slot
+    // in the descriptor array matches the hidden symbol. Since the
+    // hidden symbols hash code is zero (and no other string has hash
+    // code zero) it will always occupy the first entry if present.
+    DescriptorArray* descriptors = obj->map()->instance_descriptors();
+    DescriptorReader r(descriptors, 0);  // Explicitly position reader at zero.
+    if (!r.eos() && (r.GetKey() == *key) && r.IsProperty()) {
+      ASSERT(r.type() == FIELD);
+      return Handle<Object>(obj->FastPropertyAt(r.GetFieldIndex()));
+    }
+  }
+
+  // Only attempt to find the hidden properties in the local object and not
+  // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
+  // the general case in the presence of interceptors.
+  if (!obj->HasLocalProperty(*key)) {
+    // Hidden properties object not found. Allocate a new hidden properties
+    // object if requested. Otherwise return the undefined value.
+    if (create_if_needed) {
+      Handle<Object> hidden_obj = Factory::NewJSObject(Top::object_function());
+      return SetProperty(obj, key, hidden_obj, DONT_ENUM);
+    } else {
+      return Factory::undefined_value();
+    }
+  }
+  return GetProperty(obj, key);
 }
 
 

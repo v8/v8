@@ -30,6 +30,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "compilation-cache.h"
 #include "snapshot.h"
 #include "platform.h"
 #include "top.h"
@@ -464,6 +465,7 @@ THREADED_TEST(ScriptUsingStringResource) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -484,6 +486,7 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -505,6 +508,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
@@ -527,6 +531,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
+  v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
@@ -1324,6 +1329,38 @@ THREADED_TEST(HiddenProperties) {
 
   CHECK(obj->DeleteHiddenValue(key));
   CHECK(obj->GetHiddenValue(key).IsEmpty());
+}
+
+
+static v8::Handle<Value> InterceptorForHiddenProperties(
+    Local<String> name, const AccessorInfo& info) {
+  // Make sure objects move.
+  bool saved_always_compact = i::FLAG_always_compact;
+  if (!i::FLAG_never_compact) {
+    i::FLAG_always_compact = true;
+  }
+  // The whole goal of this interceptor is to cause a GC during local property
+  // lookup.
+  i::Heap::CollectAllGarbage();
+  i::FLAG_always_compact = saved_always_compact;
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(HiddenPropertiesWithInterceptors) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  v8::Local<v8::String> key = v8_str("api-test::hidden-key");
+
+  // Associate an interceptor with an object and start setting hidden values.
+  Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
+  instance_templ->SetNamedPropertyHandler(InterceptorForHiddenProperties);
+  Local<v8::Function> function = fun_templ->GetFunction();
+  Local<v8::Object> obj = function->NewInstance();
+  CHECK(obj->SetHiddenValue(key, v8::Integer::New(2302)));
+  CHECK_EQ(2302, obj->GetHiddenValue(key)->Int32Value());
 }
 
 

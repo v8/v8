@@ -35,7 +35,6 @@ class FrameElement;
 class Result;
 class VirtualFrame;
 
-
 // -------------------------------------------------------------------------
 // Jump targets
 //
@@ -52,7 +51,7 @@ class VirtualFrame;
 // In particular, this means that at least one of the control-flow
 // graph edges reaching the target must be a forward edge.
 
-class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
+class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
  public:
   // Forward-only jump targets can only be reached by forward CFG edges.
   enum Directionality { FORWARD_ONLY, BIDIRECTIONAL };
@@ -68,6 +67,8 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // AST nodes.
   JumpTarget();
 
+  virtual ~JumpTarget() {}
+
   // Supply a code generator and directionality to an already
   // constructed jump target.  This function expects to be given a
   // non-null code generator, and to be called only when the code
@@ -75,17 +76,8 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   virtual void Initialize(CodeGenerator* cgen,
                           Directionality direction = FORWARD_ONLY);
 
-  virtual ~JumpTarget() { Unuse(); }
-
-  // Treat the jump target as a fresh one.  The state is reset and
-  // pointed-to virtual frames are deallocated.  There should be no
-  // dangling jumps to the target.
+  // Treat the jump target as a fresh one.  The state is reset.
   void Unuse();
-
-  // Reset the internal state of this jump target.  Pointed-to virtual
-  // frames are not deallocated and dangling jumps to the target are
-  // left dangling.
-  void Reset();
 
   // Accessors.
   CodeGenerator* code_generator() const { return cgen_; }
@@ -98,9 +90,14 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   }
 
   // Predicates testing the state of the encapsulated label.
-  bool is_bound() const { return is_bound_; }
-  bool is_linked() const { return is_linked_; }
-  bool is_unused() const { return !is_bound() && !is_linked(); }
+  bool is_bound() const { return entry_label_.is_bound(); }
+  bool is_linked() const {
+    return !is_bound() && !reaching_frames_.is_empty();
+  }
+  bool is_unused() const {
+    // This is !is_bound() && !is_linked().
+    return !is_bound() && reaching_frames_.is_empty();
+  }
 
   // Emit a jump to the target.  There must be a current frame at the
   // jump and there will be no current frame after the jump.
@@ -161,6 +158,10 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
 
   static const int kAllElements = -1;  // Not a valid number of elements.
 
+  static void set_compiling_deferred_code(bool flag) {
+    compiling_deferred_code_ = flag;
+  }
+
  protected:
   // The code generator gives access to its current frame.
   CodeGenerator* cgen_;
@@ -172,10 +173,10 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   Directionality direction_;
 
   // A list of frames reaching this block via forward jumps.
-  List<VirtualFrame*> reaching_frames_;
+  ZoneList<VirtualFrame*> reaching_frames_;
 
   // A parallel list of labels for merge code.
-  List<Label> merge_labels_;
+  ZoneList<Label> merge_labels_;
 
   // The frame used on entry to the block and expected at backward
   // jumps to the block.  Set when the jump target is bound, but may
@@ -185,12 +186,6 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   // The actual entry label of the block.
   Label entry_label_;
 
-  // A target is bound if its Bind member function has been called.
-  // It is linked if it is not bound but its Jump, Branch, or Call
-  // member functions have been called.
-  bool is_bound_;
-  bool is_linked_;
-
   // Implementations of Jump, Branch, and Bind with all arguments and
   // return values using the virtual frame.
   void DoJump();
@@ -198,13 +193,16 @@ class JumpTarget : public Malloced {  // Shadows are dynamically allocated.
   void DoBind(int mergable_elements);
 
  private:
-  // Add a virtual frame reaching this labeled block via a forward
-  // jump, and a fresh label for its merge code.
+  static bool compiling_deferred_code_;
+
+  // Add a virtual frame reaching this labeled block via a forward jump,
+  // and a corresponding merge code label.
   void AddReachingFrame(VirtualFrame* frame);
 
-  // Choose an element from a pair of frame elements to be in the
-  // expected frame.  Return null if they are incompatible.
-  FrameElement* Combine(FrameElement* left, FrameElement* right);
+  // Perform initialization required during entry frame computation
+  // after setting the virtual frame element at index in frame to be
+  // target.
+  inline void InitializeEntryElement(int index, FrameElement* target);
 
   // Compute a frame to use for entry to this block.  Mergable
   // elements is as described for the Bind function.
@@ -231,6 +229,8 @@ class BreakTarget : public JumpTarget {
   // label.  This is useful, eg, when break targets are embedded in AST
   // nodes.
   BreakTarget() {}
+
+  virtual ~BreakTarget() {}
 
   // Supply a code generator, expected expression stack height, and
   // directionality to an already constructed break target.  This
@@ -294,9 +294,7 @@ class ShadowTarget : public BreakTarget {
   // flow intended for the shadowed one.
   explicit ShadowTarget(BreakTarget* shadowed);
 
-  virtual ~ShadowTarget() {
-    ASSERT(!is_shadowing_);
-  }
+  virtual ~ShadowTarget() {}
 
   // End shadowing.  After shadowing ends, the original jump target
   // again gives access to the formerly shadowed target and the shadow

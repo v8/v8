@@ -28,19 +28,32 @@
 #ifndef V8_REGISTER_ALLOCATOR_INL_H_
 #define V8_REGISTER_ALLOCATOR_INL_H_
 
+#include "codegen.h"
 #include "register-allocator.h"
 #include "virtual-frame.h"
 
 namespace v8 { namespace internal {
 
 Result::~Result() {
-  if (is_register()) cgen_->allocator()->Unuse(reg());
+  if (is_register()) {
+    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
+  }
 }
 
 
 void Result::Unuse() {
-  if (is_register()) cgen_->allocator()->Unuse(reg());
-  type_ = INVALID;
+  if (is_register()) {
+    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
+  }
+  invalidate();
+}
+
+
+void Result::CopyTo(Result* destination) const {
+  destination->value_ = value_;
+  if (is_register()) {
+    CodeGeneratorScope::Current()->allocator()->Use(reg());
+  }
 }
 
 
