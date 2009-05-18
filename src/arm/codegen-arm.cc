@@ -148,7 +148,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
 
 #ifdef DEBUG
-      JumpTarget verified_true(this);
+      JumpTarget verified_true;
       __ cmp(r0, Operand(cp));
       verified_true.Branch(eq);
       __ stop("NewContext: r0 is expected to be the same as cp");
