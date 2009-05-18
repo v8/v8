@@ -301,6 +301,8 @@ template void Scope::CollectUsedVariables(
     List<Variable*, FreeStoreAllocationPolicy>* locals);
 template void Scope::CollectUsedVariables(
     List<Variable*, PreallocatedStorage>* locals);
+template void Scope::CollectUsedVariables(
+    List<Variable*, ZoneListAllocationPolicy>* locals);
 
 
 void Scope::AllocateVariables(Handle<Context> context) {

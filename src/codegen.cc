@@ -170,7 +170,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
   HistogramTimerScope timer(&Counters::code_creation);
   CodeDesc desc;
   cgen.masm()->GetCode(&desc);
-  ScopeInfo<> sinfo(flit->scope());
+  ZoneScopeInfo sinfo(flit->scope());
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = Factory::NewCode(desc,
                                        &sinfo,

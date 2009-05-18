@@ -28,6 +28,8 @@
 #ifndef V8_HEAP_H_
 #define V8_HEAP_H_
 
+#include "zone-inl.h"
+
 namespace v8 { namespace internal {
 
 // Defines all the roots in Heap.
@@ -570,7 +572,7 @@ class Heap : public AllStatic {
   // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
   static Object* CreateCode(const CodeDesc& desc,
-                            ScopeInfo<>* sinfo,
+                            ZoneScopeInfo* sinfo,
                             Code::Flags flags,
                             Handle<Object> self_reference);
 

@@ -150,6 +150,18 @@ class ScopeInfo BASE_EMBEDDED {
   List<Variable::Mode, Allocator > context_modes_;
 };
 
+class ZoneScopeInfo: public ScopeInfo<ZoneListAllocationPolicy> {
+ public:
+  // Create a ZoneScopeInfo instance from a scope.
+  explicit ZoneScopeInfo(Scope* scope)
+      : ScopeInfo<ZoneListAllocationPolicy>(scope) {}
+
+  // Create a ZoneScopeInfo instance from a Code object.
+  explicit ZoneScopeInfo(Code* code)
+      :  ScopeInfo<ZoneListAllocationPolicy>(code) {}
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_SCOPEINFO_H_

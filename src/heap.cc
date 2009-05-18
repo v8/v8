@@ -1699,7 +1699,7 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 
 
 Object* Heap::CreateCode(const CodeDesc& desc,
-                         ScopeInfo<>* sinfo,
+                         ZoneScopeInfo* sinfo,
                          Code::Flags flags,
                          Handle<Object> self_reference) {
   // Compute size

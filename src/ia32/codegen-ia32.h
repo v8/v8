@@ -588,7 +588,7 @@ class CodeGenerator: public AstVisitor {
 
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
-  List<DeferredCode*> deferred_;
+  ZoneList<DeferredCode*> deferred_;
 
   // Assembler
   MacroAssembler* masm_;  // to generate code

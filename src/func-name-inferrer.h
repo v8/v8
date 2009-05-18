@@ -82,9 +82,9 @@ class FuncNameInferrer BASE_EMBEDDED {
   Handle<String> MakeNameFromStackHelper(int pos, Handle<String> prev);
   void InferFunctionsNames();
 
-  List<int> entries_stack_;
-  List<Handle<String> > names_stack_;
-  List<FunctionLiteral*> funcs_to_infer_;
+  ZoneList<int> entries_stack_;
+  ZoneList<Handle<String> > names_stack_;
+  ZoneList<FunctionLiteral*> funcs_to_infer_;
   Handle<String> dot_;
 
   DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);

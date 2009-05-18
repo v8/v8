@@ -566,5 +566,6 @@ void ScopeInfo<Allocator>::Print() {
 // Make sure the classes get instantiated by the template system.
 template class ScopeInfo<FreeStoreAllocationPolicy>;
 template class ScopeInfo<PreallocatedStorage>;
+template class ScopeInfo<ZoneListAllocationPolicy>;
 
 } }  // namespace v8::internal

@@ -509,8 +509,10 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 }
 
 
-Handle<Code> Factory::NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
-                              Code::Flags flags, Handle<Object> self_ref) {
+Handle<Code> Factory::NewCode(const CodeDesc& desc,
+                              ZoneScopeInfo* sinfo,
+                              Code::Flags flags,
+                              Handle<Object> self_ref) {
   CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags, self_ref), Code);
 }
 
