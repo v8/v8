@@ -50,9 +50,17 @@ class VirtualFrame : public ZoneObject {
   // generator is being transformed.
   class SpilledScope BASE_EMBEDDED {
    public:
-    explicit SpilledScope(CodeGenerator* cgen);
+    explicit SpilledScope(CodeGenerator* cgen)
+        : cgen_(cgen),
+          previous_state_(cgen->in_spilled_code()) {
+      ASSERT(cgen->has_valid_frame());
+      cgen->frame()->SpillAll();
+      cgen->set_in_spilled_code(true);
+    }
 
-    ~SpilledScope();
+    ~SpilledScope() {
+      cgen_->set_in_spilled_code(previous_state_);
+    }
 
    private:
     CodeGenerator* cgen_;
@@ -95,7 +103,12 @@ class VirtualFrame : public ZoneObject {
 
   // Forget elements from the top of the frame to match an actual frame (eg,
   // the frame after a runtime call).  No code is emitted.
-  void Forget(int count);
+  void Forget(int count) {
+    ASSERT(count >= 0);
+    ASSERT(stack_pointer_ == elements_.length() - 1);
+    stack_pointer_ -= count;
+    ForgetElements(count);
+  }
 
   // Forget count elements from the top of the frame without adjusting
   // the stack pointer downward.  This is used, for example, before
@@ -106,7 +119,9 @@ class VirtualFrame : public ZoneObject {
   void SpillAll();
 
   // Spill all occurrences of a specific register from the frame.
-  void Spill(Register reg);
+  void Spill(Register reg) {
+    if (is_used(reg)) SpillElementAt(register_index(reg));
+  }
 
   // Spill all occurrences of an arbitrary register if possible.  Return the
   // register spilled or no_reg if it was not possible to free any register
@@ -266,7 +281,10 @@ class VirtualFrame : public ZoneObject {
 
   // Call stub given the number of arguments it expects on (and
   // removes from) the stack.
-  Result CallStub(CodeStub* stub, int arg_count);
+  Result CallStub(CodeStub* stub, int arg_count) {
+    PrepareForCall(arg_count, arg_count);
+    return RawCallStub(stub);
+  }
 
   // Call stub that expects its argument in r0.  The argument is given
   // as a result which must be the register r0.
@@ -333,7 +351,15 @@ class VirtualFrame : public ZoneObject {
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 
   // Pushing a result invalidates it (its contents become owned by the frame).
-  void Push(Result* result);
+  void Push(Result* result) {
+    if (result->is_register()) {
+      Push(result->reg(), result->static_type());
+    } else {
+      ASSERT(result->is_constant());
+      Push(result->handle());
+    }
+    result->Unuse();
+  }
 
   // Nip removes zero or more elements from immediately below the top
   // of the frame, leaving the previous top-of-frame value on top of
@@ -406,12 +432,20 @@ class VirtualFrame : public ZoneObject {
   // Record an occurrence of a register in the virtual frame.  This has the
   // effect of incrementing the register's external reference count and
   // of updating the index of the register's location in the frame.
-  void Use(Register reg, int index);
+  void Use(Register reg, int index) {
+    ASSERT(!is_used(reg));
+    register_locations_[reg.code()] = index;
+    cgen_->allocator()->Use(reg);
+  }
 
   // Record that a register reference has been dropped from the frame.  This
   // decrements the register's external reference count and invalidates the
   // index of the register's location in the frame.
-  void Unuse(Register reg);
+  void Unuse(Register reg) {
+    ASSERT(register_locations_[reg.code()] != kIllegalIndex);
+    register_locations_[reg.code()] = kIllegalIndex;
+    cgen_->allocator()->Unuse(reg);
+  }
 
   // Spill the element at a particular index---write it to memory if
   // necessary, free any associated register, and forget its value if

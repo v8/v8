@@ -35,20 +35,6 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
 
-VirtualFrame::SpilledScope::SpilledScope(CodeGenerator* cgen)
-    : cgen_(cgen),
-      previous_state_(cgen->in_spilled_code()) {
-  ASSERT(cgen->has_valid_frame());
-  cgen->frame()->SpillAll();
-  cgen->set_in_spilled_code(true);
-}
-
-
-VirtualFrame::SpilledScope::~SpilledScope() {
-  cgen_->set_in_spilled_code(previous_state_);
-}
-
-
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : cgen_(original->cgen_),
@@ -125,19 +111,6 @@ void VirtualFrame::Adjust(int count) {
 }
 
 
-// Modify the state of the virtual frame to match the actual frame by
-// removing elements from the top of the virtual frame.  The elements will
-// be externally popped from the actual frame (eg, by a runtime call).  No
-// code is emitted.
-void VirtualFrame::Forget(int count) {
-  ASSERT(count >= 0);
-  ASSERT(stack_pointer_ == elements_.length() - 1);
-
-  stack_pointer_ -= count;
-  ForgetElements(count);
-}
-
-
 void VirtualFrame::ForgetElements(int count) {
   ASSERT(count >= 0);
   ASSERT(elements_.length() >= count);
@@ -154,27 +127,6 @@ void VirtualFrame::ForgetElements(int count) {
         register_locations_[last.reg().code()] = kIllegalIndex;
       }
     }
-  }
-}
-
-
-void VirtualFrame::Use(Register reg, int index) {
-  ASSERT(register_locations_[reg.code()] == kIllegalIndex);
-  register_locations_[reg.code()] = index;
-  cgen_->allocator()->Use(reg);
-}
-
-
-void VirtualFrame::Unuse(Register reg) {
-  ASSERT(register_locations_[reg.code()] != kIllegalIndex);
-  register_locations_[reg.code()] = kIllegalIndex;
-  cgen_->allocator()->Unuse(reg);
-}
-
-
-void VirtualFrame::Spill(Register target) {
-  if (is_used(target)) {
-    SpillElementAt(register_index(target));
   }
 }
 
@@ -385,14 +337,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
 
 
 void VirtualFrame::PushFrameSlotAt(int index) {
-  FrameElement new_element = CopyElementAt(index);
-  elements_.Add(new_element);
-}
-
-
-Result VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
-  PrepareForCall(arg_count, arg_count);
-  return RawCallStub(stub);
+  elements_.Add(CopyElementAt(index));
 }
 
 
@@ -417,17 +362,6 @@ void VirtualFrame::Push(Handle<Object> value) {
   FrameElement element =
       FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
   elements_.Add(element);
-}
-
-
-void VirtualFrame::Push(Result* result) {
-  if (result->is_register()) {
-    Push(result->reg(), result->static_type());
-  } else {
-    ASSERT(result->is_constant());
-    Push(result->handle());
-  }
-  result->Unuse();
 }
 
 

@@ -41,7 +41,7 @@ namespace v8 { namespace internal {
 // as random access to the expression stack elements, locals, and
 // parameters.
 
-class VirtualFrame : public Malloced {
+class VirtualFrame : public ZoneObject {
  public:
   // A utility class to introduce a scope where the virtual frame is
   // expected to remain spilled.  The constructor spills the code
@@ -50,9 +50,17 @@ class VirtualFrame : public Malloced {
   // generator is being transformed.
   class SpilledScope BASE_EMBEDDED {
    public:
-    explicit SpilledScope(CodeGenerator* cgen);
+    explicit SpilledScope(CodeGenerator* cgen)
+        : cgen_(cgen),
+          previous_state_(cgen->in_spilled_code()) {
+      ASSERT(cgen->has_valid_frame());
+      cgen->frame()->SpillAll();
+      cgen->set_in_spilled_code(true);
+    }
 
-    ~SpilledScope();
+    ~SpilledScope() {
+      cgen_->set_in_spilled_code(previous_state_);
+    }
 
    private:
     CodeGenerator* cgen_;
@@ -98,7 +106,12 @@ class VirtualFrame : public Malloced {
   // match an external frame effect (examples include a call removing
   // its arguments, and exiting a try/catch removing an exception
   // handler).  No code will be emitted.
-  void Forget(int count);
+  void Forget(int count) {
+    ASSERT(count >= 0);
+    ASSERT(stack_pointer_ == elements_.length() - 1);
+    stack_pointer_ -= count;
+    ForgetElements(count);
+  }
 
   // Forget count elements from the top of the frame without adjusting
   // the stack pointer downward.  This is used, for example, before
@@ -109,12 +122,21 @@ class VirtualFrame : public Malloced {
   void SpillAll();
 
   // Spill all occurrences of a specific register from the frame.
-  void Spill(Register reg);
+  void Spill(Register reg) {
+    if (is_used(reg)) SpillElementAt(register_index(reg));
+  }
 
   // Spill all occurrences of an arbitrary register if possible.  Return the
   // register spilled or no_reg if it was not possible to free any register
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
+
+  // Make this frame so that an arbitrary frame of the same height can
+  // be merged to it.  Copies and constants are removed from the
+  // topmost mergable_elements elements of the frame.  A
+  // mergable_elements of JumpTarget::kAllElements indicates constants
+  // and copies are should be removed from the entire frame.
+  void MakeMergable(int mergable_elements);
 
   // Prepare this virtual frame for merging to an expected frame by
   // performing some state changes that do not require generating
@@ -139,6 +161,7 @@ class VirtualFrame : public Malloced {
       }
     }
   }
+
   // (Re)attach a frame to its code generator.  This informs the register
   // allocator that the frame-internal register references are active again.
   // Used when a code generator's frame is switched from NULL to this one by
@@ -262,7 +285,10 @@ class VirtualFrame : public Malloced {
 
   // Call stub given the number of arguments it expects on (and
   // removes from) the stack.
-  Result CallStub(CodeStub* stub, int arg_count);
+  Result CallStub(CodeStub* stub, int arg_count) {
+    PrepareForCall(arg_count, arg_count);
+    return RawCallStub(stub);
+  }
 
   // Call stub that takes a single argument passed in eax.  The
   // argument is given as a result which does not have to be eax or
@@ -346,7 +372,15 @@ class VirtualFrame : public Malloced {
 
   // Pushing a result invalidates it (its contents become owned by the
   // frame).
-  void Push(Result* result);
+  void Push(Result* result) {
+    if (result->is_register()) {
+      Push(result->reg(), result->static_type());
+    } else {
+      ASSERT(result->is_constant());
+      Push(result->handle());
+    }
+    result->Unuse();
+  }
 
   // Nip removes zero or more elements from immediately below the top
   // of the frame, leaving the previous top-of-frame value on top of
@@ -364,23 +398,23 @@ class VirtualFrame : public Malloced {
   CodeGenerator* cgen_;
   MacroAssembler* masm_;
 
-  List<FrameElement> elements_;
+  ZoneList<FrameElement> elements_;
 
   // The number of frame-allocated locals and parameters respectively.
-  int parameter_count_;
-  int local_count_;
+  int16_t parameter_count_;
+  int16_t local_count_;
 
   // The index of the element that is at the processor's stack pointer
   // (the esp register).
-  int stack_pointer_;
+  int16_t stack_pointer_;
 
   // The index of the element that is at the processor's frame pointer
   // (the ebp register).
-  int frame_pointer_;
+  int16_t frame_pointer_;
 
   // The index of the register frame element using each register, or
   // kIllegalIndex if a register is not on the frame.
-  int register_locations_[kNumRegisters];
+  int16_t register_locations_[kNumRegisters];
 
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
@@ -419,12 +453,20 @@ class VirtualFrame : public Malloced {
   // Record an occurrence of a register in the virtual frame.  This has the
   // effect of incrementing the register's external reference count and
   // of updating the index of the register's location in the frame.
-  void Use(Register reg, int index);
+  void Use(Register reg, int index) {
+    ASSERT(!is_used(reg));
+    register_locations_[reg.code()] = index;
+    cgen_->allocator()->Use(reg);
+  }
 
   // Record that a register reference has been dropped from the frame.  This
   // decrements the register's external reference count and invalidates the
   // index of the register's location in the frame.
-  void Unuse(Register reg);
+  void Unuse(Register reg) {
+    ASSERT(register_locations_[reg.code()] != kIllegalIndex);
+    register_locations_[reg.code()] = kIllegalIndex;
+    cgen_->allocator()->Unuse(reg);
+  }
 
   // Spill the element at a particular index---write it to memory if
   // necessary, free any associated register, and forget its value if
