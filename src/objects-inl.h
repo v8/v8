@@ -1794,7 +1794,7 @@ int HeapObject::SizeFromMap(Map* map) {
 
 
 void Map::set_instance_size(int value) {
-  ASSERT((value & ~(kPointerSize - 1)) == value);
+  ASSERT_EQ(0, value & (kPointerSize - 1));
   value >>= kPointerSizeLog2;
   ASSERT(0 <= value && value < 256);
   WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));

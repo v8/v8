@@ -1266,7 +1266,7 @@ static const char* StateToString(StateTag state) {
 VMState::VMState(StateTag state) {
 #if !defined(ENABLE_HEAP_PROTECTION)
   // When not protecting the heap, there is no difference between
-  // EXTERNAL and OTHER.  As an optimizatin in that case, we will not
+  // EXTERNAL and OTHER.  As an optimization in that case, we will not
   // perform EXTERNAL->OTHER transitions through the API.  We thus
   // compress the two states into one.
   if (state == EXTERNAL) state = OTHER;

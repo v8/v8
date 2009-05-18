@@ -123,9 +123,12 @@ const int kPointerSizeLog2 = 2;
 #endif
 
 const int kObjectAlignmentBits = kPointerSizeLog2;
-const intptr_t kObjectAlignmentMask = (1 << kObjectAlignmentBits) - 1;
 const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
+const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
+// Desired alignment for pointers.
+const intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
+const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -419,7 +422,11 @@ enum StateTag {
 
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \
-  ((value + kObjectAlignmentMask) & ~kObjectAlignmentMask)
+  (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
+
+// POINTER_SIZE_ALIGN returns the value aligned as a pointer.
+#define POINTER_SIZE_ALIGN(value)                               \
+  (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
 
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This
