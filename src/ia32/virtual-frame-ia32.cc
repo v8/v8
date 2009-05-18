@@ -314,8 +314,6 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   // of the index of the frame element esi is caching or kIllegalIndex
   // if esi has not been disturbed.
   int esi_caches = kIllegalIndex;
-  // A "singleton" memory element.
-  FrameElement memory_element = FrameElement::MemoryElement();
   // Loop downward from the stack pointer or the top of the frame if
   // the stack pointer is floating above the frame.
   int start = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
@@ -370,7 +368,7 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
           }
           break;
       }
-      elements_[i] = memory_element;
+      elements_[i] = target;
     }
   }
 
@@ -388,28 +386,35 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
     // Move the right value into register i if it is currently in a register.
     int index = expected->register_locations_[i];
     int use_index = register_locations_[i];
-    // Fast check if register is unused in target or already correct
-    if (index != kIllegalIndex
-        && index != use_index
-        && elements_[index].is_register()) {
-      Register source = elements_[index].reg();
-      Register target = { i };
+    // Skip if register i is unused in the target or else if source is
+    // not a register (this is not a register-to-register move).
+    if (index == kIllegalIndex || !elements_[index].is_register()) continue;
+
+    Register target = { i };
+    Register source = elements_[index].reg();
+
+    if (index != use_index) {
       if (use_index == kIllegalIndex) {  // Target is currently unused.
         // Copy contents of source from source to target.
         // Set frame element register to target.
-        elements_[index].set_reg(target);
         Use(target, index);
         Unuse(source);
         __ mov(target, source);
       } else {
         // Exchange contents of registers source and target.
+        // Nothing except the register backing use_index has changed.
         elements_[use_index].set_reg(source);
-        elements_[index].set_reg(target);
         register_locations_[target.code()] = index;
         register_locations_[source.code()] = use_index;
         __ xchg(source, target);
       }
     }
+
+    if (!elements_[index].is_synced() &&
+        expected->elements_[index].is_synced()) {
+      __ mov(Operand(ebp, fp_relative(index)), target);
+    }
+    elements_[index] = expected->elements_[index];
   }
 }
 

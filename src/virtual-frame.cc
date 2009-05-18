@@ -307,11 +307,12 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
 void VirtualFrame::PrepareForReturn() {
   // Spill all locals. This is necessary to make sure all locals have
   // the right value when breaking at the return site in the debugger.
-  //
-  // TODO(203): It is also necessary to ensure that merging at the
-  // return site does not generate code to overwrite eax, where the
-  // return value is kept in a non-refcounted register reference.
-  for (int i = 0; i < expression_base_index(); i++) SpillElementAt(i);
+  // Set their static type to unknown so that they will match the known
+  // return frame.
+  for (int i = 0; i < expression_base_index(); i++) {
+    SpillElementAt(i);
+    elements_[i].set_static_type(StaticType::unknown());
+  }
 }
 
 

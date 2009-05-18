@@ -48,6 +48,7 @@ void JumpTarget::DoJump() {
   if (is_bound()) {
     // Backward jump.  There is an expected frame to merge to.
     ASSERT(direction_ == BIDIRECTIONAL);
+    cgen()->frame()->PrepareMergeTo(entry_frame_);
     cgen()->frame()->MergeTo(entry_frame_);
     cgen()->DeleteFrame();
     __ jmp(&entry_label_);

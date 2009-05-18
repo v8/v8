@@ -156,7 +156,10 @@ class FrameElement BASE_EMBEDDED {
 
     if (type() != other.type() ||
         is_copied() != other.is_copied() ||
-        is_synced() != other.is_synced()) return false;
+        is_synced() != other.is_synced() ||
+        !(static_type() == other.static_type())) {
+      return false;
+    }
 
     if (is_register()) {
       if (!reg().is(other.reg())) return false;
