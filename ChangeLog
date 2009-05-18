@@ -1,3 +1,30 @@
+2009-05-18: Version 1.2.4
+
+        Improved performance of floating point number allocation for ARM
+        platforms.
+
+        Fixed crash when using the instanceof operator on functions with
+        number values in their prototype chain (issue 341).
+
+        Optimized virtual frame operations in the code generator to speed
+        up compilation time and allocated the frames in the zone.
+
+        Made the representation of virtual frames and jump targets in the
+        code generator much more compact.
+
+        Avoided linear search for non-locals in scope code when resolving
+        variables inside with and eval scopes.
+
+        Optimized lexical scanner by dealing with whitespace as part of
+        the token scanning instead of as a separate step before it.
+
+        Changed the scavenging collector so that promoted objects do not
+        reside in the old generation while their remembered set is being
+        swept for pointers into the young generation.
+
+        Fixed numeric overflow handling when compiling count operations.
+
+
 2009-05-11: Version 1.2.3
 
         Fixed bug in reporting of out-of-memory situations.
