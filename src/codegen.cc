@@ -47,8 +47,7 @@ CodeGenerator* CodeGeneratorScope::top_ = NULL;
 DeferredCode::DeferredCode(CodeGenerator* generator)
   : generator_(generator),
     masm_(generator->masm()),
-    enter_(generator),
-    exit_(generator, JumpTarget::BIDIRECTIONAL),
+    exit_(JumpTarget::BIDIRECTIONAL),
     statement_position_(masm_->current_statement_position()),
     position_(masm_->current_position()) {
   generator->AddDeferred(this);

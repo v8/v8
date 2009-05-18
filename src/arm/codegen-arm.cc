@@ -136,7 +136,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     frame_->AllocateStackSlots(scope_->num_stack_slots());
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
-    function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
+    function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
     function_return_is_shadowed_ = false;
 
     VirtualFrame::SpilledScope spilled_scope(this);
@@ -456,14 +456,14 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   int original_height = frame_->height();
 #endif
   ASSERT(!in_spilled_code());
-  JumpTarget true_target(this);
-  JumpTarget false_target(this);
+  JumpTarget true_target;
+  JumpTarget false_target;
   LoadCondition(x, typeof_state, &true_target, &false_target, false);
 
   if (has_cc()) {
     // Convert cc_reg_ into a boolean value.
-    JumpTarget loaded(this);
-    JumpTarget materialize_true(this);
+    JumpTarget loaded;
+    JumpTarget materialize_true;
     materialize_true.Branch(cc_reg_);
     __ mov(r0, Operand(Factory::false_value()));
     frame_->EmitPush(r0);
@@ -478,7 +478,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   if (true_target.is_linked() || false_target.is_linked()) {
     // We have at least one condition value that has been "translated"
     // into a branch, thus it needs to be loaded explicitly.
-    JumpTarget loaded(this);
+    JumpTarget loaded;
     if (frame_ != NULL) {
       loaded.Jump();  // Don't lose the current TOS.
     }
@@ -865,7 +865,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
   int int_value = Smi::cast(*value)->value();
 
-  JumpTarget exit(this);
+  JumpTarget exit;
   frame_->EmitPop(r0);
 
   switch (op) {
@@ -995,8 +995,8 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == eq);
 
-  JumpTarget exit(this);
-  JumpTarget smi(this);
+  JumpTarget exit;
+  JumpTarget smi;
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == gt || cc == le) {
     cc = ReverseCondition(cc);
@@ -1156,7 +1156,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Block");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
   VisitStatementsAndSpill(node->statements());
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
@@ -1290,11 +1290,11 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 
   CodeForStatementPosition(node);
 
-  JumpTarget exit(this);
+  JumpTarget exit;
   if (has_then_stm && has_else_stm) {
     Comment cmnt(masm_, "[ IfThenElse");
-    JumpTarget then(this);
-    JumpTarget else_(this);
+    JumpTarget then;
+    JumpTarget else_;
     // if (cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &then, &else_, true);
@@ -1318,7 +1318,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   } else if (has_then_stm) {
     Comment cmnt(masm_, "[ IfThen");
     ASSERT(!has_else_stm);
-    JumpTarget then(this);
+    JumpTarget then;
     // if (cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &then, &exit, true);
@@ -1334,7 +1334,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   } else if (has_else_stm) {
     Comment cmnt(masm_, "[ IfElse");
     ASSERT(!has_then_stm);
-    JumpTarget else_(this);
+    JumpTarget else_;
     // if (!cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &exit, &else_, true);
@@ -1424,7 +1424,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
     frame_->CallRuntime(Runtime::kPushContext, 1);
   }
 #ifdef DEBUG
-  JumpTarget verified_true(this);
+  JumpTarget verified_true;
   __ cmp(r0, Operand(cp));
   verified_true.Branch(eq);
   __ stop("PushContext: r0 is expected to be the same as cp");
@@ -1468,8 +1468,8 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     Vector<Label*> case_targets,
     Vector<Label> case_labels) {
   VirtualFrame::SpilledScope spilled_scope(this);
-  JumpTarget setup_default(this);
-  JumpTarget is_smi(this);
+  JumpTarget setup_default;
+  JumpTarget is_smi;
 
   // A non-null default label pointer indicates a default case among
   // the case labels.  Otherwise we use the break target as a
@@ -1539,7 +1539,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   LoadAndSpill(node->tag());
   if (TryGenerateFastCaseSwitchStatement(node)) {
@@ -1547,10 +1547,10 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     return;
   }
 
-  JumpTarget next_test(this);
-  JumpTarget fall_through(this);
-  JumpTarget default_entry(this);
-  JumpTarget default_exit(this, JumpTarget::BIDIRECTIONAL);
+  JumpTarget next_test;
+  JumpTarget fall_through;
+  JumpTarget default_entry;
+  JumpTarget default_exit(JumpTarget::BIDIRECTIONAL);
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
   CaseClause* default_clause = NULL;
@@ -1633,7 +1633,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ LoopStatement");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
   // known result for the test expression, with no side effects.
@@ -1654,19 +1654,19 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   switch (node->type()) {
     case LoopStatement::DO_LOOP: {
-      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
+      JumpTarget body(JumpTarget::BIDIRECTIONAL);
 
       // Label the top of the loop for the backward CFG edge.  If the test
       // is always true we can use the continue target, and if the test is
       // always false there is no need.
       if (info == ALWAYS_TRUE) {
-        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else if (info == ALWAYS_FALSE) {
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
       } else {
         ASSERT(info == DONT_KNOW);
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         body.Bind();
       }
 
@@ -1713,11 +1713,11 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
       // Label the top of the loop with the continue target for the backward
       // CFG edge.
-      node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+      node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
       node->continue_target()->Bind();
 
       if (info == DONT_KNOW) {
-        JumpTarget body(this);
+        JumpTarget body;
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
         if (has_valid_frame()) {
@@ -1743,7 +1743,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::FOR_LOOP: {
-      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
+      JumpTarget loop(JumpTarget::BIDIRECTIONAL);
 
       if (node->init() != NULL) {
         VisitAndSpill(node->init());
@@ -1755,16 +1755,16 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // If there is no update statement, label the top of the loop with the
       // continue target, otherwise with the loop target.
       if (node->next() == NULL) {
-        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else {
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         loop.Bind();
       }
 
       // If the test is always true, there is no need to compile it.
       if (info == DONT_KNOW) {
-        JumpTarget body(this);
+        JumpTarget body;
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
         if (has_valid_frame()) {
@@ -1824,12 +1824,12 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
   CodeForStatementPosition(node);
 
-  JumpTarget primitive(this);
-  JumpTarget jsobject(this);
-  JumpTarget fixed_array(this);
-  JumpTarget entry(this, JumpTarget::BIDIRECTIONAL);
-  JumpTarget end_del_check(this);
-  JumpTarget exit(this);
+  JumpTarget primitive;
+  JumpTarget jsobject;
+  JumpTarget fixed_array;
+  JumpTarget entry(JumpTarget::BIDIRECTIONAL);
+  JumpTarget end_del_check;
+  JumpTarget exit;
 
   // Get the object to enumerate over (converted to JSObject).
   LoadAndSpill(node->enumerable());
@@ -1914,8 +1914,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // sp[4] : enumerable
   // Grab the current frame's height for the break and continue
   // targets only after all the state is pushed on the frame.
-  node->break_target()->Initialize(this);
-  node->continue_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   __ ldr(r0, frame_->ElementAt(0));  // load the current count
   __ ldr(r1, frame_->ElementAt(1));  // load the length
@@ -2018,8 +2018,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   Comment cmnt(masm_, "[ TryCatch");
   CodeForStatementPosition(node);
 
-  JumpTarget try_block(this);
-  JumpTarget exit(this);
+  JumpTarget try_block;
+  JumpTarget exit;
 
   try_block.Call();
   // --- Catch block ---
@@ -2150,8 +2150,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // break/continue from within the try block.
   enum { FALLING, THROWING, JUMPING };
 
-  JumpTarget try_block(this);
-  JumpTarget finally_block(this);
+  JumpTarget try_block;
+  JumpTarget finally_block;
 
   try_block.Call();
 
@@ -2296,7 +2296,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
       JumpTarget* original = shadows[i]->other_target();
       __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
       if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
-        JumpTarget skip(this);
+        JumpTarget skip;
         skip.Branch(ne);
         frame_->PrepareForReturn();
         original->Jump();
@@ -2309,7 +2309,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   if (has_valid_frame()) {
     // Check if we need to rethrow the exception.
-    JumpTarget exit(this);
+    JumpTarget exit;
     __ cmp(r2, Operand(Smi::FromInt(THROWING)));
     exit.Branch(ne);
 
@@ -2391,9 +2391,9 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 #endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Conditional");
-  JumpTarget then(this);
-  JumpTarget else_(this);
-  JumpTarget exit(this);
+  JumpTarget then;
+  JumpTarget else_;
+  JumpTarget exit;
   LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                         &then, &else_, true);
   Branch(false, &else_);
@@ -2412,8 +2412,8 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
-    JumpTarget slow(this);
-    JumpTarget done(this);
+    JumpTarget slow;
+    JumpTarget done;
 
     // Generate fast-case code for variables that might be shadowed by
     // eval-introduced variables.  Eval is used a lot without
@@ -2620,7 +2620,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
       FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   __ ldr(r2, FieldMemOperand(r1, literal_offset));
 
-  JumpTarget done(this);
+  JumpTarget done;
   __ cmp(r2, Operand(Factory::undefined_value()));
   done.Branch(ne);
 
@@ -3266,7 +3266,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 1);
-  JumpTarget leave(this);
+  JumpTarget leave;
   LoadAndSpill(args->at(0));
   frame_->EmitPop(r0);  // r0 contains object.
   // if (object->IsSmi()) return the object.
@@ -3288,7 +3288,7 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
-  JumpTarget leave(this);
+  JumpTarget leave;
   LoadAndSpill(args->at(0));  // Load the object.
   LoadAndSpill(args->at(1));  // Load the value.
   frame_->EmitPop(r0);  // r0 contains value
@@ -3364,7 +3364,7 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 1);
   LoadAndSpill(args->at(0));
-  JumpTarget answer(this);
+  JumpTarget answer;
   // We need the CC bits to come out as not_equal in the case where the
   // object is a smi.  This can't be done with the usual test opcode so
   // we use XOR to get the right CC bits.
@@ -3568,8 +3568,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::BIT_NOT: {
         // smi check
-        JumpTarget smi_label(this);
-        JumpTarget continue_label(this);
+        JumpTarget smi_label;
+        JumpTarget continue_label;
         __ tst(r0, Operand(kSmiTagMask));
         smi_label.Branch(eq);
 
@@ -3595,7 +3595,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::ADD: {
         // Smi check.
-        JumpTarget continue_label(this);
+        JumpTarget continue_label;
         __ tst(r0, Operand(kSmiTagMask));
         continue_label.Branch(eq);
         frame_->EmitPush(r0);
@@ -3649,8 +3649,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
     frame_->EmitPop(r0);
 
-    JumpTarget slow(this);
-    JumpTarget exit(this);
+    JumpTarget slow;
+    JumpTarget exit;
 
     // Load the value (1) into register r1.
     __ mov(r1, Operand(Smi::FromInt(1)));
@@ -3739,7 +3739,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // of compiling the binary operation is materialized or not.
 
   if (op == Token::AND) {
-    JumpTarget is_true(this);
+    JumpTarget is_true;
     LoadConditionAndSpill(node->left(),
                           NOT_INSIDE_TYPEOF,
                           &is_true,
@@ -3757,8 +3757,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                             false);
 
     } else {
-      JumpTarget pop_and_continue(this);
-      JumpTarget exit(this);
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
 
       __ ldr(r0, frame_->Top());  // dup the stack top
       frame_->EmitPush(r0);
@@ -3781,7 +3781,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     }
 
   } else if (op == Token::OR) {
-    JumpTarget is_false(this);
+    JumpTarget is_false;
     LoadConditionAndSpill(node->left(),
                           NOT_INSIDE_TYPEOF,
                           true_target(),
@@ -3799,8 +3799,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                             false);
 
     } else {
-      JumpTarget pop_and_continue(this);
-      JumpTarget exit(this);
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
 
       __ ldr(r0, frame_->Top());
       frame_->EmitPush(r0);
@@ -4241,7 +4241,7 @@ void Reference::SetValue(InitState init_state) {
       } else {
         ASSERT(!slot->var()->is_dynamic());
 
-        JumpTarget exit(cgen_);
+        JumpTarget exit;
         if (init_state == CONST_INIT) {
           ASSERT(slot->var()->mode() == Variable::CONST);
           // Only the first const initialization must be executed (the slot

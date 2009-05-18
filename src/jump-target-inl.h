@@ -30,6 +30,10 @@
 
 namespace v8 { namespace internal {
 
+CodeGenerator* JumpTarget::cgen() {
+  return CodeGeneratorScope::Current();
+}
+
 void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
   entry_frame_->elements_[index].clear_copied();
   if (target->is_register()) {

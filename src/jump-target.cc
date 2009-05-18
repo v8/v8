@@ -39,36 +39,6 @@ namespace v8 { namespace internal {
 bool JumpTarget::compiling_deferred_code_ = false;
 
 
-JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
-    : cgen_(cgen),
-      direction_(direction),
-      reaching_frames_(0),
-      merge_labels_(0),
-      entry_frame_(NULL) {
-  ASSERT(cgen != NULL);
-  masm_ = cgen->masm();
-}
-
-
-JumpTarget::JumpTarget()
-    : cgen_(NULL),
-      masm_(NULL),
-      direction_(FORWARD_ONLY),
-      reaching_frames_(0),
-      merge_labels_(0),
-      entry_frame_(NULL) {
-}
-
-
-void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
-  ASSERT(cgen != NULL);
-  ASSERT(cgen_ == NULL);
-  cgen_ = cgen;
-  masm_ = cgen->masm();
-  direction_ = direction;
-}
-
-
 void JumpTarget::Unuse() {
   reaching_frames_.Clear();
   merge_labels_.Clear();
@@ -151,7 +121,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // Build the new frame.  A freshly allocated frame has memory elements
   // for the parameters and some platform-dependent elements (e.g.,
   // return address).  Replace those first.
-  entry_frame_ = new VirtualFrame(cgen_);
+  entry_frame_ = new VirtualFrame(cgen());
   int index = 0;
   for (; index < entry_frame_->elements_.length(); index++) {
     FrameElement* target = elements[index];
@@ -266,31 +236,28 @@ void JumpTarget::Jump() {
 
 
 void JumpTarget::Jump(Result* arg) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
-  cgen_->frame()->Push(arg);
+  cgen()->frame()->Push(arg);
   DoJump();
 }
 
 
 void JumpTarget::Jump(Result* arg0, Result* arg1) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
-  cgen_->frame()->Push(arg0);
-  cgen_->frame()->Push(arg1);
+  cgen()->frame()->Push(arg0);
+  cgen()->frame()->Push(arg1);
   DoJump();
 }
 
 
 void JumpTarget::Jump(Result* arg0, Result* arg1, Result* arg2) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
-  cgen_->frame()->Push(arg0);
-  cgen_->frame()->Push(arg1);
-  cgen_->frame()->Push(arg2);
+  cgen()->frame()->Push(arg0);
+  cgen()->frame()->Push(arg1);
+  cgen()->frame()->Push(arg2);
   DoJump();
 }
 
@@ -316,35 +283,33 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
 #endif
 
 void JumpTarget::Branch(Condition cc, Result* arg, Hint hint) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
   // We want to check that non-frame registers at the call site stay in
   // the same registers on the fall-through branch.
   DECLARE_ARGCHECK_VARS(arg);
 
-  cgen_->frame()->Push(arg);
+  cgen()->frame()->Push(arg);
   DoBranch(cc, hint);
-  *arg = cgen_->frame()->Pop();
+  *arg = cgen()->frame()->Pop();
 
   ASSERT_ARGCHECK(arg);
 }
 
 
 void JumpTarget::Branch(Condition cc, Result* arg0, Result* arg1, Hint hint) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->frame() != NULL);
+  ASSERT(cgen()->frame() != NULL);
 
   // We want to check that non-frame registers at the call site stay in
   // the same registers on the fall-through branch.
   DECLARE_ARGCHECK_VARS(arg0);
   DECLARE_ARGCHECK_VARS(arg1);
 
-  cgen_->frame()->Push(arg0);
-  cgen_->frame()->Push(arg1);
+  cgen()->frame()->Push(arg0);
+  cgen()->frame()->Push(arg1);
   DoBranch(cc, hint);
-  *arg1 = cgen_->frame()->Pop();
-  *arg0 = cgen_->frame()->Pop();
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 
   ASSERT_ARGCHECK(arg0);
   ASSERT_ARGCHECK(arg1);
@@ -356,8 +321,7 @@ void JumpTarget::Branch(Condition cc,
                         Result* arg1,
                         Result* arg2,
                         Hint hint) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->frame() != NULL);
+  ASSERT(cgen()->frame() != NULL);
 
   // We want to check that non-frame registers at the call site stay in
   // the same registers on the fall-through branch.
@@ -365,13 +329,13 @@ void JumpTarget::Branch(Condition cc,
   DECLARE_ARGCHECK_VARS(arg1);
   DECLARE_ARGCHECK_VARS(arg2);
 
-  cgen_->frame()->Push(arg0);
-  cgen_->frame()->Push(arg1);
-  cgen_->frame()->Push(arg2);
+  cgen()->frame()->Push(arg0);
+  cgen()->frame()->Push(arg1);
+  cgen()->frame()->Push(arg2);
   DoBranch(cc, hint);
-  *arg2 = cgen_->frame()->Pop();
-  *arg1 = cgen_->frame()->Pop();
-  *arg0 = cgen_->frame()->Pop();
+  *arg2 = cgen()->frame()->Pop();
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 
   ASSERT_ARGCHECK(arg0);
   ASSERT_ARGCHECK(arg1);
@@ -385,8 +349,7 @@ void JumpTarget::Branch(Condition cc,
                         Result* arg2,
                         Result* arg3,
                         Hint hint) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->frame() != NULL);
+  ASSERT(cgen()->frame() != NULL);
 
   // We want to check that non-frame registers at the call site stay in
   // the same registers on the fall-through branch.
@@ -395,15 +358,15 @@ void JumpTarget::Branch(Condition cc,
   DECLARE_ARGCHECK_VARS(arg2);
   DECLARE_ARGCHECK_VARS(arg3);
 
-  cgen_->frame()->Push(arg0);
-  cgen_->frame()->Push(arg1);
-  cgen_->frame()->Push(arg2);
-  cgen_->frame()->Push(arg3);
+  cgen()->frame()->Push(arg0);
+  cgen()->frame()->Push(arg1);
+  cgen()->frame()->Push(arg2);
+  cgen()->frame()->Push(arg3);
   DoBranch(cc, hint);
-  *arg3 = cgen_->frame()->Pop();
-  *arg2 = cgen_->frame()->Pop();
-  *arg1 = cgen_->frame()->Pop();
-  *arg0 = cgen_->frame()->Pop();
+  *arg3 = cgen()->frame()->Pop();
+  *arg2 = cgen()->frame()->Pop();
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 
   ASSERT_ARGCHECK(arg0);
   ASSERT_ARGCHECK(arg1);
@@ -413,15 +376,14 @@ void JumpTarget::Branch(Condition cc,
 
 
 void BreakTarget::Branch(Condition cc, Result* arg, Hint hint) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
-  int count = cgen_->frame()->height() - expected_height_;
+  int count = cgen()->frame()->height() - expected_height_;
   if (count > 0) {
     // We negate and branch here rather than using DoBranch's negate
     // and branch.  This gives us a hook to remove statement state
     // from the frame.
-    JumpTarget fall_through(cgen_);
+    JumpTarget fall_through;
     // Branch to fall through will not negate, because it is a
     // forward-only target.
     fall_through.Branch(NegateCondition(cc), NegateHint(hint));
@@ -429,9 +391,9 @@ void BreakTarget::Branch(Condition cc, Result* arg, Hint hint) {
     fall_through.Bind();
   } else {
     DECLARE_ARGCHECK_VARS(arg);
-    cgen_->frame()->Push(arg);
+    cgen()->frame()->Push(arg);
     DoBranch(cc, hint);
-    *arg = cgen_->frame()->Pop();
+    *arg = cgen()->frame()->Pop();
     ASSERT_ARGCHECK(arg);
   }
 }
@@ -446,26 +408,22 @@ void JumpTarget::Bind(int mergable_elements) {
 
 
 void JumpTarget::Bind(Result* arg, int mergable_elements) {
-  ASSERT(cgen_ != NULL);
-
-  if (cgen_->has_valid_frame()) {
-    cgen_->frame()->Push(arg);
+  if (cgen()->has_valid_frame()) {
+    cgen()->frame()->Push(arg);
   }
   DoBind(mergable_elements);
-  *arg = cgen_->frame()->Pop();
+  *arg = cgen()->frame()->Pop();
 }
 
 
 void JumpTarget::Bind(Result* arg0, Result* arg1, int mergable_elements) {
-  ASSERT(cgen_ != NULL);
-
-  if (cgen_->has_valid_frame()) {
-    cgen_->frame()->Push(arg0);
-    cgen_->frame()->Push(arg1);
+  if (cgen()->has_valid_frame()) {
+    cgen()->frame()->Push(arg0);
+    cgen()->frame()->Push(arg1);
   }
   DoBind(mergable_elements);
-  *arg1 = cgen_->frame()->Pop();
-  *arg0 = cgen_->frame()->Pop();
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 }
 
 
@@ -473,17 +431,15 @@ void JumpTarget::Bind(Result* arg0,
                       Result* arg1,
                       Result* arg2,
                       int mergable_elements) {
-  ASSERT(cgen_ != NULL);
-
-  if (cgen_->has_valid_frame()) {
-    cgen_->frame()->Push(arg0);
-    cgen_->frame()->Push(arg1);
-    cgen_->frame()->Push(arg2);
+  if (cgen()->has_valid_frame()) {
+    cgen()->frame()->Push(arg0);
+    cgen()->frame()->Push(arg1);
+    cgen()->frame()->Push(arg2);
   }
   DoBind(mergable_elements);
-  *arg2 = cgen_->frame()->Pop();
-  *arg1 = cgen_->frame()->Pop();
-  *arg0 = cgen_->frame()->Pop();
+  *arg2 = cgen()->frame()->Pop();
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 }
 
 
@@ -492,19 +448,17 @@ void JumpTarget::Bind(Result* arg0,
                       Result* arg2,
                       Result* arg3,
                       int mergable_elements) {
-  ASSERT(cgen_ != NULL);
-
-  if (cgen_->has_valid_frame()) {
-    cgen_->frame()->Push(arg0);
-    cgen_->frame()->Push(arg1);
-    cgen_->frame()->Push(arg2);
-    cgen_->frame()->Push(arg3);
+  if (cgen()->has_valid_frame()) {
+    cgen()->frame()->Push(arg0);
+    cgen()->frame()->Push(arg1);
+    cgen()->frame()->Push(arg2);
+    cgen()->frame()->Push(arg3);
   }
   DoBind(mergable_elements);
-  *arg3 = cgen_->frame()->Pop();
-  *arg2 = cgen_->frame()->Pop();
-  *arg1 = cgen_->frame()->Pop();
-  *arg0 = cgen_->frame()->Pop();
+  *arg3 = cgen()->frame()->Pop();
+  *arg2 = cgen()->frame()->Pop();
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 }
 
 
@@ -520,17 +474,15 @@ void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
 // -------------------------------------------------------------------------
 // BreakTarget implementation.
 
-void BreakTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
-  JumpTarget::Initialize(cgen, direction);
-  ASSERT(cgen_->has_valid_frame());
-  expected_height_ = cgen_->frame()->height();
+void BreakTarget::set_direction(Directionality direction) {
+  JumpTarget::set_direction(direction);
+  ASSERT(cgen()->has_valid_frame());
+  expected_height_ = cgen()->frame()->height();
 }
 
 
 void BreakTarget::CopyTo(BreakTarget* destination) {
   ASSERT(destination != NULL);
-  destination->cgen_ = cgen_;
-  destination->masm_ = masm_;
   destination->direction_ = direction_;
   destination->reaching_frames_.Clear();
   destination->merge_labels_.Clear();
@@ -546,36 +498,33 @@ void BreakTarget::CopyTo(BreakTarget* destination) {
 
 
 void BreakTarget::Jump() {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
   // Drop leftover statement state from the frame before merging.
-  cgen_->frame()->ForgetElements(cgen_->frame()->height() - expected_height_);
+  cgen()->frame()->ForgetElements(cgen()->frame()->height() - expected_height_);
   DoJump();
 }
 
 
 void BreakTarget::Jump(Result* arg) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
   // Drop leftover statement state from the frame before merging.
-  cgen_->frame()->ForgetElements(cgen_->frame()->height() - expected_height_);
-  cgen_->frame()->Push(arg);
+  cgen()->frame()->ForgetElements(cgen()->frame()->height() - expected_height_);
+  cgen()->frame()->Push(arg);
   DoJump();
 }
 
 
 void BreakTarget::Branch(Condition cc, Hint hint) {
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
+  ASSERT(cgen()->has_valid_frame());
 
-  int count = cgen_->frame()->height() - expected_height_;
+  int count = cgen()->frame()->height() - expected_height_;
   if (count > 0) {
     // We negate and branch here rather than using DoBranch's negate
     // and branch.  This gives us a hook to remove statement state
     // from the frame.
-    JumpTarget fall_through(cgen_);
+    JumpTarget fall_through;
     // Branch to fall through will not negate, because it is a
     // forward-only target.
     fall_through.Branch(NegateCondition(cc), NegateHint(hint));
@@ -589,7 +538,6 @@ void BreakTarget::Branch(Condition cc, Hint hint) {
 
 void BreakTarget::Bind(int mergable_elements) {
 #ifdef DEBUG
-  ASSERT(cgen_ != NULL);
   // All the forward-reaching frames should have been adjusted at the
   // jumps to this target.
   for (int i = 0; i < reaching_frames_.length(); i++) {
@@ -600,8 +548,9 @@ void BreakTarget::Bind(int mergable_elements) {
   // Drop leftover statement state from the frame before merging, even
   // on the fall through.  This is so we can bind the return target
   // with state on the frame.
-  if (cgen_->has_valid_frame()) {
-    cgen_->frame()->ForgetElements(cgen_->frame()->height() - expected_height_);
+  if (cgen()->has_valid_frame()) {
+    int count = cgen()->frame()->height() - expected_height_;
+    cgen()->frame()->ForgetElements(count);
   }
   DoBind(mergable_elements);
 }
@@ -609,7 +558,6 @@ void BreakTarget::Bind(int mergable_elements) {
 
 void BreakTarget::Bind(Result* arg, int mergable_elements) {
 #ifdef DEBUG
-  ASSERT(cgen_ != NULL);
   // All the forward-reaching frames should have been adjusted at the
   // jumps to this target.
   for (int i = 0; i < reaching_frames_.length(); i++) {
@@ -620,12 +568,13 @@ void BreakTarget::Bind(Result* arg, int mergable_elements) {
   // Drop leftover statement state from the frame before merging, even
   // on the fall through.  This is so we can bind the return target
   // with state on the frame.
-  if (cgen_->has_valid_frame()) {
-    cgen_->frame()->ForgetElements(cgen_->frame()->height() - expected_height_);
-    cgen_->frame()->Push(arg);
+  if (cgen()->has_valid_frame()) {
+    int count = cgen()->frame()->height() - expected_height_;
+    cgen()->frame()->ForgetElements(count);
+    cgen()->frame()->Push(arg);
   }
   DoBind(mergable_elements);
-  *arg = cgen_->frame()->Pop();
+  *arg = cgen()->frame()->Pop();
 }
 
 
@@ -644,24 +593,13 @@ ShadowTarget::ShadowTarget(BreakTarget* shadowed) {
 
   // The original's state is reset.
   shadowed->Unuse();
-  ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->has_valid_frame());
-  shadowed->set_expected_height(cgen_->frame()->height());
-
-  // Setting the code generator to null prevents the shadow target from
-  // being used until shadowing stops.
-  cgen_ = NULL;
-  masm_ = NULL;
+  ASSERT(cgen()->has_valid_frame());
+  shadowed->set_expected_height(cgen()->frame()->height());
 }
 
 
 void ShadowTarget::StopShadowing() {
   ASSERT(is_shadowing_);
-
-  // This target does not have a valid code generator yet.
-  cgen_ = other_target_->code_generator();
-  ASSERT(cgen_ != NULL);
-  masm_ = cgen_->masm();
 
   // The states of this target, which was shadowed, and the original
   // target, which was shadowing, are swapped.
