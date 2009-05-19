@@ -39,18 +39,15 @@ namespace v8 { namespace internal {
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : cgen_(original->cgen_),
       masm_(original->masm_),
-      elements_(original->elements_.capacity()),
+      elements_(original->elements_),
       parameter_count_(original->parameter_count_),
       local_count_(original->local_count_),
       stack_pointer_(original->stack_pointer_),
       frame_pointer_(original->frame_pointer_) {
-  // Copy all the elements from the original.
-  for (int i = 0; i < original->elements_.length(); i++) {
-    elements_.Add(original->elements_[i]);
-  }
-  for (int i = 0; i < kNumRegisters; i++) {
-    register_locations_[i] = original->register_locations_[i];
-  }
+  // Copy register locations from original.
+  memcpy(&register_locations_,
+         original->register_locations_,
+         sizeof(register_locations_));
 }
 
 

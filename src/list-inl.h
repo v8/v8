@@ -34,6 +34,26 @@ namespace v8 { namespace internal {
 
 
 template<typename T, class P>
+List<T, P>::List(const List<T, P>& other) {
+  ASSERT(other.capacity() >= 0);
+  capacity_ = other.capacity();
+  length_ = other.length();
+  if (capacity_ > 0) {
+    data_ = NewData(capacity_);
+    int copy_size = length_ * sizeof(T);
+    const int kMinMemCpySize = 64;
+    if (copy_size < kMinMemCpySize) {
+      for (int i = 0; i < length_; i++) data_[i] = other.data_[i];
+    } else {
+      memcpy(data_, other.data_, copy_size);
+    }
+  } else {
+    data_ = NULL;
+  }
+}
+
+
+template<typename T, class P>
 void List<T, P>::Add(const T& element) {
   if (length_ < capacity_) {
     data_[length_++] = element;
