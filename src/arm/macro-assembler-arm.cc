@@ -58,7 +58,10 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 // We do not support thumb inter-working with an arm architecture not supporting
 // the blx instruction (below v5t)
 #if defined(__THUMB_INTERWORK__)
-#if !defined(__ARM_ARCH_5T__) && !defined(__ARM_ARCH_5TE__)
+#if !defined(__ARM_ARCH_5T__) && \
+  !defined(__ARM_ARCH_5TE__) &&  \
+  !defined(__ARM_ARCH_7A__) &&   \
+  !defined(__ARM_ARCH_7__)
 // add tests for other versions above v5t as required
 #error "for thumb inter-working we require architecture v5t or above"
 #endif
