@@ -1420,6 +1420,7 @@ class ReplacementStringBuilder {
 
   void AddElement(Object* element) {
     ASSERT(element->IsSmi() || element->IsString());
+    ASSERT(parts_->length() > part_count_);
     parts_->set(part_count_, element);
     part_count_++;
   }
@@ -1589,6 +1590,7 @@ class CompiledReplacement {
             if (i > last) {
               parts->Add(ReplacementPart::ReplacementSubString(last, i));
             }
+            ASSERT(capture_ref <= capture_count);
             parts->Add(ReplacementPart::SubjectCapture(capture_ref));
             last = next_index + 1;
           }
