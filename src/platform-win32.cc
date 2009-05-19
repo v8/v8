@@ -58,6 +58,12 @@
 
 #include <time.h>  // For LocalOffset() implementation.
 #include <mmsystem.h>  // For timeGetTime().
+#ifdef __MINGW32__
+// Require Windows XP or higher when compiling with MinGW. This is for MinGW
+// header files to expose getaddrinfo.
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x501
+#endif  // __MINGW32__
 #ifndef __MINGW32__
 #include <dbghelp.h>  // For SymLoadModule64 and al.
 #endif  // __MINGW32__

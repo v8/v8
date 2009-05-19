@@ -41,6 +41,10 @@
 #include <stdio.h>
 
 #ifdef _WIN32
+// When compiling on MinGW stdint.h is available.
+#ifdef __MINGW32__
+#include <stdint.h>
+#else  // __MINGW32__
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
 typedef short int16_t;  // NOLINT
@@ -49,7 +53,8 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-// intptr_t is defined in crtdefs.h through stdio.h.
+// intptr_t and friends are defined in crtdefs.h through stdio.h.
+#endif  // __MINGW32__
 
 // Setup for Windows DLL export/import. When building the V8 DLL the
 // BUILDING_V8_SHARED needs to be defined. When building a program which uses
