@@ -354,20 +354,20 @@ class VirtualFrame : public ZoneObject {
   ZoneList<FrameElement> elements_;
 
   // The number of frame-allocated locals and parameters respectively.
-  int16_t parameter_count_;
-  int16_t local_count_;
+  int parameter_count_;
+  int local_count_;
 
   // The index of the element that is at the processor's stack pointer
   // (the sp register).
-  int16_t stack_pointer_;
+  int stack_pointer_;
 
   // The index of the element that is at the processor's frame pointer
   // (the fp register).
-  int16_t frame_pointer_;
+  int frame_pointer_;
 
   // The index of the register frame element using each register, or
   // kIllegalIndex if a register is not on the frame.
-  int16_t register_locations_[kNumRegisters];
+  int register_locations_[kNumRegisters];
 
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
