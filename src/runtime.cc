@@ -2035,7 +2035,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
   BoyerMoorePopulateGoodSuffixTable(pattern, start);
   pchar last_char = pattern[m - 1];
   // Continue search from i.
-  do {
+  while (idx <= n - m) {
     int j = m - 1;
     schar c;
     while (last_char != (c = subject[idx + j])) {
@@ -2061,7 +2061,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
       }
       idx += shift;
     }
-  } while (idx <= n - m);
+  }
 
   return -1;
 }
