@@ -152,24 +152,27 @@ class FrameElement BASE_EMBEDDED {
   }
 
   bool Equals(FrameElement other) {
-    if (value_ == other.value_) return true;
-
-    if (type() != other.type() ||
-        is_copied() != other.is_copied() ||
-        is_synced() != other.is_synced() ||
-        !(static_type() == other.static_type())) {
-      return false;
+    uint32_t masked_difference = (value_ ^ other.value_) & ~CopiedField::mask();
+    if (!masked_difference) {
+      // The elements are equal if they agree exactly except on copied field.
+      return true;
+    } else {
+      // If two constants have the same value, and agree otherwise, return true.
+       return !(masked_difference & ~DataField::mask()) &&
+              is_constant() &&
+              handle().is_identical_to(other.handle());
     }
+  }
 
-    if (is_register()) {
-      if (!reg().is(other.reg())) return false;
-    } else if (is_constant()) {
-      if (!handle().is_identical_to(other.handle())) return false;
-    } else if (is_copy()) {
-      if (index() != other.index()) return false;
+  // Test if two FrameElements refer to the same memory or register location.
+  bool SameLocation(FrameElement* other) {
+    if (type() == other->type()) {
+      if (value_ == other->value_) return true;
+      if (is_constant() && handle().is_identical_to(other->handle())) {
+        return true;
+      }
     }
-
-    return true;
+    return false;
   }
 
   // Given a pair of non-null frame element pointers, return one of them
@@ -179,14 +182,7 @@ class FrameElement BASE_EMBEDDED {
     if (!is_valid()) return this;
     if (!other->is_valid()) return other;
 
-    // If they do not have the exact same location we reallocate.
-    bool not_same_location =
-        (type() != other->type()) ||
-        (is_register() && !reg().is(other->reg())) ||
-        (is_constant() && !handle().is_identical_to(other->handle())) ||
-        (is_copy() && index() != other->index());
-    if (not_same_location) return NULL;
-
+    if (!SameLocation(other)) return NULL;
     // If either is unsynced, the result is.  The result static type is
     // the merge of the static types.  It's safe to set it on one of the
     // frame elements, and harmless too (because we are only going to

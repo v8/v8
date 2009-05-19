@@ -187,16 +187,6 @@ void VirtualFrame::MakeMergable(int mergable_elements) {
   ASSERT(mergable_elements <= elements_.length());
 
   int start_index = elements_.length() - mergable_elements;
-
-  // The is_copied flags on entry frame elements are expected to be
-  // exact.  Set them for the elements below the water mark.
-  for (int i = 0; i < start_index; i++) {
-    elements_[i].clear_copied();
-    if (elements_[i].is_copy()) {
-      elements_[elements_[i].index()].set_copied();
-    }
-  }
-
   for (int i = start_index; i < elements_.length(); i++) {
     FrameElement element = elements_[i];
 
@@ -272,23 +262,6 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   MergeMoveRegistersToRegisters(expected);
   MergeMoveMemoryToRegisters(expected);
 
-  // Fix any sync flag problems from the bottom-up and make the copied
-  // flags exact.  This assumes that the backing store of copies is
-  // always lower in the frame.
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement source = elements_[i];
-    FrameElement target = expected->elements_[i];
-    if (source.is_synced() && !target.is_synced()) {
-      elements_[i].clear_sync();
-    } else if (!source.is_synced() && target.is_synced()) {
-      SyncElementAt(i);
-    }
-    elements_[i].clear_copied();
-    if (elements_[i].is_copy()) {
-      elements_[elements_[i].index()].set_copied();
-    }
-  }
-
   // Adjust the stack pointer downward if necessary.
   if (stack_pointer_ > expected->stack_pointer_) {
     int difference = stack_pointer_ - expected->stack_pointer_;
@@ -314,11 +287,9 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   // of the index of the frame element esi is caching or kIllegalIndex
   // if esi has not been disturbed.
   int esi_caches = kIllegalIndex;
-  // Loop downward from the stack pointer or the top of the frame if
-  // the stack pointer is floating above the frame.
-  int start = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
-  for (int i = start; i >= 0; i--) {
+  for (int i = elements_.length() - 1; i >= 0; i--) {
     FrameElement target = expected->elements_[i];
+    if (target.is_register()) continue;  // Handle registers later.
     if (target.is_memory()) {
       FrameElement source = elements_[i];
       switch (source.type()) {
@@ -368,8 +339,8 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
           }
           break;
       }
-      elements_[i] = target;
     }
+    elements_[i] = target;
   }
 
   if (esi_caches != kIllegalIndex) {
@@ -421,7 +392,8 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
 
 void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
   // Move memory, constants, and copies to registers.  This is the
-  // final step and is done from the bottom up so that the backing
+  // final step and since it is not done from the bottom up, but in
+  // register code order, we have special code to ensure that the backing
   // elements of copies are in their correct locations when we
   // encounter the copies.
   for (int i = 0; i < kNumRegisters; i++) {
@@ -430,7 +402,7 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
       FrameElement source = elements_[index];
       FrameElement target = expected->elements_[index];
       Register target_reg = { i };
-      ASSERT(expected->elements_[index].reg().is(target_reg));
+      ASSERT(target.reg().is(target_reg));
       switch (source.type()) {
         case FrameElement::INVALID:  // Fall through.
           UNREACHABLE();
