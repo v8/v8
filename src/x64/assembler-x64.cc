@@ -105,6 +105,12 @@ Assembler::~Assembler()  {
   UNIMPLEMENTED();
 }
 
+
+void Assembler::nop() {
+  UNIMPLEMENTED();
+}
+
+
 void BreakLocationIterator::ClearDebugBreakAtReturn() {
   UNIMPLEMENTED();
 }
@@ -350,6 +356,12 @@ void CodeGenerator::VisitThisFunction(ThisFunction* a) {
 
 void CpuFeatures::Probe()  {
   UNIMPLEMENTED();
+}
+
+
+bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo*) {
+  UNIMPLEMENTED();
+  return false;
 }
 
 void Debug::GenerateCallICDebugBreak(MacroAssembler* a) {

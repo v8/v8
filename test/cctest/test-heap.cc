@@ -315,7 +315,7 @@ static bool WeakPointerCleared = false;
 static void TestWeakGlobalHandleCallback(v8::Persistent<v8::Value> handle,
                                          void* id) {
   USE(handle);
-  if (1234 == reinterpret_cast<int>(id)) WeakPointerCleared = true;
+  if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
 }
 
 
@@ -385,7 +385,7 @@ TEST(WeakGlobalHandlesMark) {
 static void TestDeleteWeakGlobalHandleCallback(
     v8::Persistent<v8::Value> handle,
     void* id) {
-  if (1234 == reinterpret_cast<int>(id)) WeakPointerCleared = true;
+  if (1234 == reinterpret_cast<intptr_t>(id)) WeakPointerCleared = true;
   handle.Dispose();
 }
 
