@@ -31,6 +31,7 @@
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
 #include "execution.h"
@@ -2172,6 +2173,13 @@ void Debugger::SetEventListener(Handle<Object> callback,
   if (callback->IsUndefined()) {
     UnloadDebugger();
   }
+
+  // Disable the compilation cache when the debugger is active.
+  if (IsDebuggerActive()) {
+    CompilationCache::Disable();
+  } else {
+    CompilationCache::Enable();
+  }
 }
 
 
@@ -2188,6 +2196,13 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
     if (Debug::InDebugger()) {
       ProcessCommand(Vector<const uint16_t>::empty());
     }
+  }
+
+  // Disable the compilation cache when the debugger is active.
+  if (IsDebuggerActive()) {
+    CompilationCache::Disable();
+  } else {
+    CompilationCache::Enable();
   }
 }
 

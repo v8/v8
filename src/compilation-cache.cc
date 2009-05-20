@@ -44,6 +44,12 @@ enum {
 };
 
 
+// Current enable state of the compilation cache.
+static bool enabled = true;
+static inline bool IsEnabled() {
+  return FLAG_compilation_cache && enabled;
+}
+
 // Keep separate tables for the different entry kinds.
 static Object* tables[NUMBER_OF_TABLE_ENTRIES] = { 0, };
 
@@ -138,6 +144,10 @@ Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
                                                   Handle<Object> name,
                                                   int line_offset,
                                                   int column_offset) {
+  if (!IsEnabled()) {
+    return Handle<JSFunction>::null();
+  }
+
   // Use an int for the generation index, so value range propagation
   // in gcc 4.3+ won't assume it can only go up to LAST_ENTRY when in
   // fact it can go up to SCRIPT + NUMBER_OF_SCRIPT_GENERATIONS.
@@ -185,6 +195,10 @@ Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
 Handle<JSFunction> CompilationCache::LookupEval(Handle<String> source,
                                                 Handle<Context> context,
                                                 Entry entry) {
+  if (!IsEnabled()) {
+    return Handle<JSFunction>::null();
+  }
+
   ASSERT(entry == EVAL_GLOBAL || entry == EVAL_CONTEXTUAL);
   Handle<JSFunction> result = Lookup(source, context, entry);
   if (result.is_null()) {
@@ -198,6 +212,10 @@ Handle<JSFunction> CompilationCache::LookupEval(Handle<String> source,
 
 Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
                                                   JSRegExp::Flags flags) {
+  if (!IsEnabled()) {
+    return Handle<FixedArray>::null();
+  }
+
   Handle<FixedArray> result = Lookup(source, flags);
   if (result.is_null()) {
     Counters::compilation_cache_misses.Increment();
@@ -210,6 +228,10 @@ Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 
 void CompilationCache::PutScript(Handle<String> source,
                                  Handle<JSFunction> boilerplate) {
+  if (!IsEnabled()) {
+    return;
+  }
+
   HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
   Handle<CompilationCacheTable> table = GetTable(SCRIPT);
@@ -221,6 +243,10 @@ void CompilationCache::PutEval(Handle<String> source,
                                Handle<Context> context,
                                Entry entry,
                                Handle<JSFunction> boilerplate) {
+  if (!IsEnabled()) {
+    return;
+  }
+
   HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
   Handle<CompilationCacheTable> table = GetTable(entry);
@@ -232,6 +258,10 @@ void CompilationCache::PutEval(Handle<String> source,
 void CompilationCache::PutRegExp(Handle<String> source,
                                  JSRegExp::Flags flags,
                                  Handle<FixedArray> data) {
+  if (!IsEnabled()) {
+    return;
+  }
+
   HandleScope scope;
   Handle<CompilationCacheTable> table = GetTable(REGEXP);
   CALL_HEAP_FUNCTION_VOID(table->PutRegExp(*source, flags, *data));
@@ -258,6 +288,17 @@ void CompilationCache::MarkCompactPrologue() {
   for (int j = 0; j <= LAST_ENTRY; j++) {
     tables[j] = Heap::undefined_value();
   }
+}
+
+
+void CompilationCache::Enable() {
+  enabled = true;
+}
+
+
+void CompilationCache::Disable() {
+  enabled = false;
+  Clear();
 }
 
 

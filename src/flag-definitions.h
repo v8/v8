@@ -133,6 +133,9 @@ DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "Minimum length for automatic enable preparsing")
 
+// compilation-cache.cc
+DEFINE_bool(compilation_cache, true, "enable compilation cache")
+
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")

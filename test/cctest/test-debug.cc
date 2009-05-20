@@ -1679,11 +1679,6 @@ TEST(ScriptBreakPointIgnoreCount) {
   }
   CHECK_EQ(5, break_point_hit_count);
 
-  // BUG(343): It should not really be necessary to clear the
-  // compilation cache here, but right now the debugger relies on the
-  // script being recompiled, not just fetched from the cache.
-  i::CompilationCache::Clear();
-
   // Reload the script and get f again checking that the ignore survives.
   v8::Script::Compile(script, &origin)->Run();
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
@@ -4592,7 +4587,6 @@ TEST(ScriptNameAndData) {
   v8::Handle<v8::Script> script1 = v8::Script::Compile(script, &origin1);
   script1->SetData(v8::String::New("data"));
   script1->Run();
-  v8::Script::Compile(script, &origin1)->Run();
   v8::Local<v8::Function> f;
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
 
@@ -4600,6 +4594,15 @@ TEST(ScriptNameAndData) {
   CHECK_EQ(1, break_point_hit_count);
   CHECK_EQ("name", last_script_name_hit);
   CHECK_EQ("data", last_script_data_hit);
+
+  // Compile the same script again without setting data. As the compilation
+  // cache is disabled when debugging expect the data to be missing.
+  v8::Script::Compile(script, &origin1)->Run();
+  f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ("name", last_script_name_hit);
+  CHECK_EQ("", last_script_data_hit);  // Undefined results in empty string.
 
   v8::Local<v8::String> data_obj_source = v8::String::New(
     "({ a: 'abc',\n"
@@ -4613,7 +4616,7 @@ TEST(ScriptNameAndData) {
   script2->SetData(data_obj);
   f = v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
   f->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
   CHECK_EQ("new name", last_script_name_hit);
   CHECK_EQ("abc 123", last_script_data_hit);
 }

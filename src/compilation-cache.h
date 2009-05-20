@@ -95,6 +95,11 @@ class CompilationCache {
   // take place. This is used to retire entries from the cache to
   // avoid keeping them alive too long without using them.
   static void MarkCompactPrologue();
+
+  // Enable/disable compilation cache. Used by debugger to disable compilation
+  // cache during debugging to make sure new scripts are always compiled.
+  static void Enable();
+  static void Disable();
 };
 
 
