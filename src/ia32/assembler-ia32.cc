@@ -354,7 +354,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 }
 
 
-void Assembler::Align(intptr_t m) {
+void Assembler::Align(int m) {
   ASSERT(IsPowerOf2(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
