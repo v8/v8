@@ -131,7 +131,7 @@ static bool Consume(const char* str, char** buf) {
 
 
 static void ParseAddress(char* start, Address* min_addr, Address* max_addr) {
-  Address addr = reinterpret_cast<Address>(strtoll(start, NULL, 16));
+  Address addr = reinterpret_cast<Address>(strtoul(start, NULL, 16));  // NOLINT
   if (addr < *min_addr) *min_addr = addr;
   if (addr > *max_addr) *max_addr = addr;
 }
@@ -140,7 +140,8 @@ static void ParseAddress(char* start, Address* min_addr, Address* max_addr) {
 static Address ConsumeAddress(
     char** start, Address min_addr, Address max_addr) {
   char* end_ptr;
-  Address addr = reinterpret_cast<Address>(strtoll(*start, &end_ptr, 16));
+  Address addr =
+      reinterpret_cast<Address>(strtoul(*start, &end_ptr, 16));  // NOLINT
   CHECK_GE(addr, min_addr);
   CHECK_GE(max_addr, addr);
   *start = end_ptr;
@@ -162,7 +163,7 @@ class ParseLogResult {
       : min_addr(reinterpret_cast<Address>(-1)),
         max_addr(reinterpret_cast<Address>(0)),
         entities_map(NULL), entities(NULL),
-        max_entities(0) {};
+        max_entities(0) {}
 
   ~ParseLogResult() {
     // See allocation code below.
@@ -184,12 +185,12 @@ class ParseLogResult {
     }
     // We're adding fake items at [-1] and [size + 1] to simplify
     // comparison code.
-    const int map_length = max_addr - min_addr + 1 + 2; // 2 fakes.
+    const int map_length = max_addr - min_addr + 1 + 2;  // 2 fakes.
     entities_map = i::NewArray<int>(map_length);
     for (int i = 0; i < map_length; ++i) {
       entities_map[i] = -1;
     }
-    entities_map += 1; // Hide the -1 item, this is compensated on delete.
+    entities_map += 1;  // Hide the -1 item, this is compensated on delete.
   }
 
   // Minimal code entity address.
@@ -205,7 +206,7 @@ class ParseLogResult {
   int max_entities;
 };
 
-} // namespace
+}  // namespace
 
 
 typedef void (*ParserBlock)(char* start, char* end, ParseLogResult* result);
@@ -256,7 +257,7 @@ static void Pass1CodeMove(char* start, char* end, ParseLogResult* result) {
   // Skip old address.
   while (start < end && *start != ',') ++start;
   CHECK_GT(end, start);
-  ++start; // Skip ','.
+  ++start;  // Skip ','.
   ParseAddress(start, &result->min_addr, &result->max_addr);
 }
 
@@ -264,7 +265,7 @@ static void Pass1CodeMove(char* start, char* end, ParseLogResult* result) {
 static void Pass2CodeCreation(char* start, char* end, ParseLogResult* result) {
   Address addr = ConsumeAddress(&start, result->min_addr, result->max_addr);
   CHECK_GT(end, start);
-  ++start; // Skip ','.
+  ++start;  // Skip ','.
 
   int idx = addr - result->min_addr;
   result->entities_map[idx] = -1;
@@ -296,7 +297,7 @@ static void Pass2CodeMove(char* start, char* end, ParseLogResult* result) {
   Address from_addr = ConsumeAddress(
       &start, result->min_addr, result->max_addr);
   CHECK_GT(end, start);
-  ++start; // Skip ','.
+  ++start;  // Skip ','.
   Address to_addr = ConsumeAddress(&start, result->min_addr, result->max_addr);
   CHECK_GT(end, start);
 
@@ -377,6 +378,16 @@ static bool AreFuncNamesEqual(CodeEntityInfo ref_s, CodeEntityInfo new_s) {
       && IsStringEqualTo(error_prototype, new_s)) {
     return true;
   }
+  // Built-in objects have problems too.
+  const char* built_ins[] = {
+      "\"Boolean\"", "\"Function\"", "\"Number\"",
+      "\"Object\"", "\"Script\"", "\"String\""
+  };
+  for (size_t i = 0; i < sizeof(built_ins) / sizeof(*built_ins); ++i) {
+    if (IsStringEqualTo(built_ins[i], new_s)) {
+      return true;
+    }
+  }
   return ref_len == new_len && strncmp(ref_s, new_s, ref_len) == 0;
 }
 
@@ -410,21 +421,22 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     i::FLAG_always_compact = true;
   }
 
-  v8::Persistent<v8::Context> env = v8::Context::New();
   v8::HandleScope scope;
+  v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
+  v8::Persistent<v8::Context> env = v8::Context::New(
+      0, v8::Handle<v8::ObjectTemplate>(), global_object);
   env->Enter();
 
   // Compile and run a function that creates other functions.
-  v8::Script::Compile(v8::String::New(
-      "(function f() {\n"
-      "  var rets = [];\n"
-      "  for (var i = 0; i < 100; ++i) {\n"
-      "    rets.push((function inc(n) { return n + 1; })(i));\n"
-      "  }\n"
-      "})();"))->Run();
+  v8::Local<v8::Script> script = v8::Script::Compile(v8::String::New(
+      "(function f(obj) {\n"
+      "  obj.test =\n"
+      "    (function a(j) { return function b() { return j; } })(100);\n"
+      "})(this);"));
+  script->Run();
   i::Heap::CollectAllGarbage();
 
-  i::EmbeddedVector<char,204800> buffer;
+  i::EmbeddedVector<char, 204800> buffer;
   int log_size;
   ParseLogResult ref_result;
 
@@ -477,6 +489,8 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     ref_idx += ref_inc;
     new_idx += new_inc;
   }
+  // Make sure that all log data is written prior crash due to CHECK failure.
+  fflush(stdout);
   CHECK(results_equal);
 
   env->Exit();
