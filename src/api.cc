@@ -2612,6 +2612,13 @@ v8::Local<v8::Context> Context::GetCurrent() {
 }
 
 
+v8::Local<v8::Context> Context::GetCalling() {
+  if (IsDeadCheck("v8::Context::GetCalling()")) return Local<Context>();
+  i::Handle<i::Context> context(i::Top::GetCallingGlobalContext());
+  return Utils::ToLocal(context);
+}
+
+
 v8::Local<v8::Object> Context::Global() {
   if (IsDeadCheck("v8::Context::Global()")) return Local<v8::Object>();
   i::Object** ctx = reinterpret_cast<i::Object**>(this);

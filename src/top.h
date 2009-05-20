@@ -255,7 +255,12 @@ class Top {
     return context()->global_proxy();
   }
 
+  // Returns the current global context.
   static Handle<Context> global_context();
+
+  // Returns the global context of the calling JavaScript code.  That
+  // is, the global context of the top-most JavaScript frame.
+  static Handle<Context> GetCallingGlobalContext();
 
   static Handle<JSBuiltinsObject> builtins() {
     return Handle<JSBuiltinsObject>(thread_local_.context_->builtins());

@@ -2246,6 +2246,13 @@ class V8EXPORT Context {
   static Local<Context> GetCurrent();
 
   /**
+   * Returns the context of the calling JavaScript code.  That is the
+   * context of the top-most JavaScript frame.  If there are no
+   * JavaScript frames an empty handle is returned.
+   */
+  static Local<Context> GetCalling();
+
+  /**
    * Sets the security token for the context.  To access an object in
    * another context, the security tokens must match.
    */
