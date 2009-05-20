@@ -296,12 +296,14 @@ enum PropertyNormalizationMode {
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
-  V(SHORT_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, short_symbol)            \
-  V(MEDIUM_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, medium_symbol)          \
-  V(LONG_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, long_symbol)              \
-  V(SHORT_ASCII_SYMBOL_TYPE, SeqAsciiString::kAlignedSize, short_ascii_symbol)  \
-  V(MEDIUM_ASCII_SYMBOL_TYPE, SeqAsciiString::kAlignedSize, medium_ascii_symbol)\
-  V(LONG_ASCII_SYMBOL_TYPE, SeqAsciiString::kAlignedSize, long_ascii_symbol)    \
+  V(SHORT_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, short_symbol)           \
+  V(MEDIUM_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, medium_symbol)         \
+  V(LONG_SYMBOL_TYPE, SeqTwoByteString::kAlignedSize, long_symbol)             \
+  V(SHORT_ASCII_SYMBOL_TYPE, SeqAsciiString::kAlignedSize, short_ascii_symbol) \
+  V(MEDIUM_ASCII_SYMBOL_TYPE,                                                  \
+    SeqAsciiString::kAlignedSize,                                              \
+    medium_ascii_symbol)                                                       \
+  V(LONG_ASCII_SYMBOL_TYPE, SeqAsciiString::kAlignedSize, long_ascii_symbol)   \
   V(SHORT_CONS_SYMBOL_TYPE, ConsString::kSize, short_cons_symbol)              \
   V(MEDIUM_CONS_SYMBOL_TYPE, ConsString::kSize, medium_cons_symbol)            \
   V(LONG_CONS_SYMBOL_TYPE, ConsString::kSize, long_cons_symbol)                \
@@ -338,12 +340,14 @@ enum PropertyNormalizationMode {
   V(LONG_EXTERNAL_ASCII_SYMBOL_TYPE,                                           \
     ExternalAsciiString::kSize,                                                \
     long_external_ascii_symbol)                                                \
-  V(SHORT_STRING_TYPE, SeqTwoByteString::kAlignedSize, short_string)            \
-  V(MEDIUM_STRING_TYPE, SeqTwoByteString::kAlignedSize, medium_string)          \
-  V(LONG_STRING_TYPE, SeqTwoByteString::kAlignedSize, long_string)              \
-  V(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize, short_ascii_string)  \
-  V(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize, medium_ascii_string)\
-  V(LONG_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize, long_ascii_string)    \
+  V(SHORT_STRING_TYPE, SeqTwoByteString::kAlignedSize, short_string)           \
+  V(MEDIUM_STRING_TYPE, SeqTwoByteString::kAlignedSize, medium_string)         \
+  V(LONG_STRING_TYPE, SeqTwoByteString::kAlignedSize, long_string)             \
+  V(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize, short_ascii_string) \
+  V(MEDIUM_ASCII_STRING_TYPE,                                                  \
+    SeqAsciiString::kAlignedSize,                                              \
+    medium_ascii_string)                                                       \
+  V(LONG_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize, long_ascii_string)   \
   V(SHORT_CONS_STRING_TYPE, ConsString::kSize, short_cons_string)              \
   V(MEDIUM_CONS_STRING_TYPE, ConsString::kSize, medium_cons_string)            \
   V(LONG_CONS_STRING_TYPE, ConsString::kSize, long_cons_string)                \
