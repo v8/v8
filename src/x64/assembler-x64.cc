@@ -34,48 +34,24 @@ namespace v8 { namespace internal {
 Register no_reg = { -1 };
 
 
-} }  // namespace v8::internal
+// Safe default is no features.
+uint64_t CpuFeatures::supported_ = 0;
+uint64_t CpuFeatures::enabled_ = 0;
 
-
-// TODO(x64): Implement and move these to their correct cc-files:
-#include "assembler.h"
-#include "ast.h"
-#include "bootstrapper.h"
-#include "codegen-inl.h"
-#include "cpu.h"
-#include "debug.h"
-#include "disasm.h"
-#include "disassembler.h"
-#include "frames-inl.h"
-#include "x64/macro-assembler-x64.h"
-#include "x64/regexp-macro-assembler-x64.h"
-#include "ic-inl.h"
-#include "log.h"
-#include "macro-assembler.h"
-#include "parser.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-stack.h"
-#include "register-allocator-inl.h"
-#include "register-allocator.h"
-#include "runtime.h"
-#include "scopes.h"
-#include "serialize.h"
-#include "stub-cache.h"
-#include "unicode.h"
-
-namespace v8 { namespace internal {
-
-void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* a) {
-  UNIMPLEMENTED();
+void CpuFeatures::Probe()  {
+  // TODO(X64): UNIMPLEMENTED
 }
 
-void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
+// -----------------------------------------------------------------------------
+// Implementation of Assembler
 
-void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
+// Emit a single byte. Must always be inlined.
+#define EMIT(x)                                 \
+  *pc_++ = (x)
+
+#ifdef GENERATED_CODE_COVERAGE
+static void InitCoverageLog();
+#endif
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
@@ -167,7 +143,6 @@ void Assembler::Align(int m) {
   }
 }
 
-
 void Assembler::RecordComment(char const* a) {
   UNIMPLEMENTED();
 }
@@ -184,8 +159,124 @@ void Assembler::bind(Label* a) {
   UNIMPLEMENTED();
 }
 
-
 void Assembler::nop() {
+  UNIMPLEMENTED();
+}
+
+void Assembler::GrowBuffer() {
+  ASSERT(overflow());  // should not call this otherwise
+  if (!own_buffer_) FATAL("external code buffer is too small");
+
+  // compute new buffer size
+  CodeDesc desc;  // the new buffer
+  if (buffer_size_ < 4*KB) {
+    desc.buffer_size = 4*KB;
+  } else {
+    desc.buffer_size = 2*buffer_size_;
+  }
+  // Some internal data structures overflow for very large buffers,
+  // they must ensure that kMaximalBufferSize is not too large.
+  if ((desc.buffer_size > kMaximalBufferSize) ||
+      (desc.buffer_size > Heap::OldGenerationSize())) {
+    V8::FatalProcessOutOfMemory("Assembler::GrowBuffer");
+  }
+
+  // setup new buffer
+  desc.buffer = NewArray<byte>(desc.buffer_size);
+  desc.instr_size = pc_offset();
+  desc.reloc_size = (buffer_ + buffer_size_) - (reloc_info_writer.pos());
+
+  // Clear the buffer in debug mode. Use 'int3' instructions to make
+  // sure to get into problems if we ever run uninitialized code.
+#ifdef DEBUG
+  memset(desc.buffer, 0xCC, desc.buffer_size);
+#endif
+
+  // copy the data
+  int pc_delta = desc.buffer - buffer_;
+  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
+  memmove(desc.buffer, buffer_, desc.instr_size);
+  memmove(rc_delta + reloc_info_writer.pos(),
+          reloc_info_writer.pos(), desc.reloc_size);
+
+  // switch buffers
+  if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
+    spare_buffer_ = buffer_;
+  } else {
+    DeleteArray(buffer_);
+  }
+  buffer_ = desc.buffer;
+  buffer_size_ = desc.buffer_size;
+  pc_ += pc_delta;
+  if (last_pc_ != NULL) {
+    last_pc_ += pc_delta;
+  }
+  reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
+                               reloc_info_writer.last_pc() + pc_delta);
+
+  // relocate runtime entries
+  for (RelocIterator it(desc); !it.done(); it.next()) {
+    RelocInfo::Mode rmode = it.rinfo()->rmode();
+    if (rmode == RelocInfo::RUNTIME_ENTRY) {
+      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+      *p -= pc_delta;  // relocate entry
+    } else if (rmode == RelocInfo::INTERNAL_REFERENCE) {
+      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+      if (*p != 0) {  // 0 means uninitialized.
+        *p += pc_delta;
+      }
+    }
+  }
+
+  ASSERT(!overflow());
+}
+
+
+void Assembler::int3() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xCC);
+}
+
+} }  // namespace v8::internal
+
+
+// TODO(x64): Implement and move these to their correct cc-files:
+#include "ast.h"
+#include "bootstrapper.h"
+#include "codegen-inl.h"
+#include "cpu.h"
+#include "debug.h"
+#include "disasm.h"
+#include "disassembler.h"
+#include "frames-inl.h"
+#include "x64/macro-assembler-x64.h"
+#include "x64/regexp-macro-assembler-x64.h"
+#include "ic-inl.h"
+#include "log.h"
+#include "macro-assembler.h"
+#include "parser.h"
+#include "regexp-macro-assembler.h"
+#include "regexp-stack.h"
+#include "register-allocator-inl.h"
+#include "register-allocator.h"
+#include "runtime.h"
+#include "scopes.h"
+#include "serialize.h"
+#include "stub-cache.h"
+#include "unicode.h"
+
+namespace v8 { namespace internal {
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* a) {
+  UNIMPLEMENTED();
+}
+
+void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* a) {
   UNIMPLEMENTED();
 }
 
@@ -200,10 +291,6 @@ bool BreakLocationIterator::IsDebugBreakAtReturn()  {
 }
 
 void BreakLocationIterator::SetDebugBreakAtReturn()  {
-  UNIMPLEMENTED();
-}
-
-void CEntryStub::GenerateBody(MacroAssembler* a, bool b) {
   UNIMPLEMENTED();
 }
 
@@ -242,251 +329,11 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
   return NULL;
 }
 
-CodeGenerator::CodeGenerator(int buffer_size,
-                             Handle<Script> script,
-                             bool is_eval)
-    : is_eval_(is_eval),
-      script_(script),
-      deferred_(8),
-      masm_(new MacroAssembler(NULL, buffer_size)),
-      scope_(NULL),
-      frame_(NULL),
-      allocator_(NULL),
-      state_(NULL),
-      loop_nesting_(0),
-      function_return_is_shadowed_(false),
-      in_spilled_code_(false) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenCode(FunctionLiteral* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
-                                                    int b,
-                                                    int c,
-                                                    Label* d,
-                                                    Vector<Label*> e,
-                                                    Vector<Label> f) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitStatements(ZoneList<Statement*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitBlock(Block* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitDeclaration(Declaration* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitExpressionStatement(ExpressionStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitEmptyStatement(EmptyStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitIfStatement(IfStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitContinueStatement(ContinueStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitBreakStatement(BreakStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitReturnStatement(ReturnStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitWithExitStatement(WithExitStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitSwitchStatement(SwitchStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitLoopStatement(LoopStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitForInStatement(ForInStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitTryCatch(TryCatch* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitTryFinally(TryFinally* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitConditional(Conditional* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitSlot(Slot* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitVariableProxy(VariableProxy* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitLiteral(Literal* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitObjectLiteral(ObjectLiteral* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitArrayLiteral(ArrayLiteral* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitAssignment(Assignment* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitThrow(Throw* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitProperty(Property* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitCall(Call* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitCallEval(CallEval* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitCallNew(CallNew* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitCallRuntime(CallRuntime* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitUnaryOperation(UnaryOperation* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitCountOperation(CountOperation* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitBinaryOperation(BinaryOperation* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitCompareOperation(CompareOperation* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::VisitThisFunction(ThisFunction* a) {
-  UNIMPLEMENTED();
-}
-
-void CpuFeatures::Probe()  {
-  UNIMPLEMENTED();
-}
-
-
-bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo*) {
-  UNIMPLEMENTED();
-  return false;
-}
-
-void Debug::GenerateCallICDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateConstructCallDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateLoadICDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateReturnDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateReturnDebugBreakEntry(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateStoreICDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
 
 StackFrame::Type ExitFrame::GetStateForFramePointer(unsigned char* a,
                                                     StackFrame::State* b) {
-  UNIMPLEMENTED();
+  // TODO(X64): UNIMPLEMENTED
   return NONE;
-}
-
-void JSEntryStub::GenerateBody(MacroAssembler* a, bool b) {
-  UNIMPLEMENTED();
 }
 
 int JavaScriptFrame::GetProvidedParametersCount() const {
@@ -506,129 +353,6 @@ void JumpTarget::DoJump() {
   UNIMPLEMENTED();
 }
 
-void KeyedLoadIC::ClearInlinedVersion(unsigned char* a) {
-  UNIMPLEMENTED();
-}
-
-void KeyedLoadIC::Generate(MacroAssembler* a, ExternalReference const& b) {
-  UNIMPLEMENTED();
-}
-
-void KeyedLoadIC::GenerateGeneric(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void KeyedLoadIC::GenerateMiss(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-bool KeyedLoadIC::PatchInlinedLoad(unsigned char* a, Object* b) {
-  UNIMPLEMENTED();
-  return false;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* a) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadCallback(String* a,
-                                                   JSObject* b,
-                                                   JSObject* c,
-                                                   AccessorInfo* d) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadConstant(String* a,
-                                                   JSObject* b,
-                                                   JSObject* c,
-                                                   Object* d) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadField(String* a,
-                                                JSObject* b,
-                                                JSObject* c,
-                                                int d) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* a) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* a,
-                                                      JSObject* b,
-                                                      String* c) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* a) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-void KeyedStoreIC::Generate(MacroAssembler* a, ExternalReference const& b) {
-  UNIMPLEMENTED();
-}
-
-void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void KeyedStoreIC::GenerateGeneric(MacroAssembler*a) {
-  UNIMPLEMENTED();
-}
-
-Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* a,
-                                                  int b,
-                                                  Map* c,
-                                                  String* d) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-void LoadIC::ClearInlinedVersion(unsigned char* a) {
-  UNIMPLEMENTED();
-}
-
-void LoadIC::Generate(MacroAssembler* a, ExternalReference const& b) {
-  UNIMPLEMENTED();
-}
-
-void LoadIC::GenerateArrayLength(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void LoadIC::GenerateFunctionPrototype(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void LoadIC::GenerateMegamorphic(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void LoadIC::GenerateMiss(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void LoadIC::GenerateNormal(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void LoadIC::GenerateStringLength(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-bool LoadIC::PatchInlinedLoad(unsigned char* a, Object* b, int c) {
-  UNIMPLEMENTED();
-  return false;
-}
 
 Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
                                               JSObject* b,
@@ -661,19 +385,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
   return NULL;
 }
 
-MacroAssembler::MacroAssembler(void* buffer, int size)
-  : Assembler(buffer, size),
-    unresolved_(0),
-    generating_stub_(false),
-    allow_stub_calls_(true),
-    code_object_(Heap::undefined_value()) {
-  UNIMPLEMENTED();
-}
-
-void MacroAssembler::TailCallRuntime(ExternalReference const& a, int b) {
-  UNIMPLEMENTED();
-}
-
 bool RegisterAllocator::IsReserved(int a) {
   UNIMPLEMENTED();
   return false;
@@ -689,18 +400,6 @@ const int RelocInfo::kApplyMask = -1;
 StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {
   UNIMPLEMENTED();
   return NONE;
-}
-
-void StoreIC::Generate(MacroAssembler* a, ExternalReference const& b) {
-  UNIMPLEMENTED();
-}
-
-void StoreIC::GenerateExtendStorage(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void StoreIC::GenerateMegamorphic(MacroAssembler* a) {
-  UNIMPLEMENTED();
 }
 
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
@@ -770,34 +469,6 @@ VirtualFrame::VirtualFrame() : elements_(0) {
 byte* ArgumentsAdaptorFrame::GetCallerStackPointer() const {
   UNIMPLEMENTED();
   return NULL;
-}
-
-void Builtins::Generate_Adaptor(MacroAssembler* a, Builtins::CFunctionId b) {
-  UNIMPLEMENTED();
-}
-
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Builtins::Generate_FunctionApply(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Builtins::Generate_FunctionCall(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Builtins::Generate_JSConstructCall(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* a) {
-  UNIMPLEMENTED();
-}
-
-void Builtins::Generate_JSEntryTrampoline(MacroAssembler* a) {
-  UNIMPLEMENTED();
 }
 
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* a) {
