@@ -6608,3 +6608,67 @@ TEST(ForceSetWithInterceptor) {
   CHECK_EQ(1, force_set_set_count);
   CHECK_EQ(6, force_set_get_count);
 }
+
+
+v8::Persistent<Context> calling_context0;
+v8::Persistent<Context> calling_context1;
+v8::Persistent<Context> calling_context2;
+
+
+// Check that the call to the callback is initiated in
+// calling_context2, the directly calling context is calling_context1
+// and the callback itself is in calling_context0.
+static v8::Handle<Value> GetCallingContextCallback(const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(Context::GetCurrent() == calling_context0);
+  CHECK(Context::GetCalling() == calling_context1);
+  CHECK(Context::GetEntered() == calling_context2);
+  return v8::Integer::New(42);
+}
+
+
+THREADED_TEST(GetCallingContext) {
+  v8::HandleScope scope;
+
+  calling_context0 = Context::New();
+  calling_context1 = Context::New();
+  calling_context2 = Context::New();
+
+  // Allow cross-domain access.
+  Local<String> token = v8_str("<security token>");
+  calling_context0->SetSecurityToken(token);
+  calling_context1->SetSecurityToken(token);
+  calling_context2->SetSecurityToken(token);
+
+  // Create an object with a C++ callback in context0.
+  calling_context0->Enter();
+  Local<v8::FunctionTemplate> callback_templ =
+      v8::FunctionTemplate::New(GetCallingContextCallback);
+  calling_context0->Global()->Set(v8_str("callback"),
+                                  callback_templ->GetFunction());
+  calling_context0->Exit();
+
+  // Expose context0 in context1 and setup a function that calls the
+  // callback function.
+  calling_context1->Enter();
+  calling_context1->Global()->Set(v8_str("context0"),
+                                  calling_context0->Global());
+  CompileRun("function f() { context0.callback() }");
+  calling_context1->Exit();
+
+  // Expose context1 in context2 and call the callback function in
+  // context0 indirectly through f in context1.
+  calling_context2->Enter();
+  calling_context2->Global()->Set(v8_str("context1"),
+                                  calling_context1->Global());
+  CompileRun("context1.f()");
+  calling_context2->Exit();
+
+  // Dispose the contexts to allow them to be garbage collected.
+  calling_context0.Dispose();
+  calling_context1.Dispose();
+  calling_context2.Dispose();
+  calling_context0.Clear();
+  calling_context1.Clear();
+  calling_context2.Clear();
+}

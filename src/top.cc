@@ -881,6 +881,15 @@ Handle<Context> Top::global_context() {
 }
 
 
+Handle<Context> Top::GetCallingGlobalContext() {
+  JavaScriptFrameIterator it;
+  if (it.done()) return Handle<Context>::null();
+  JavaScriptFrame* frame = it.frame();
+  Context* context = Context::cast(frame->context());
+  return Handle<Context>(context->global_context());
+}
+
+
 Object* Top::LookupSpecialFunction(JSObject* receiver,
                                    JSObject* prototype,
                                    JSFunction* function) {
