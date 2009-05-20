@@ -63,6 +63,7 @@ namespace v8 { namespace internal {
   /* Utilities */ \
   F(GetCalledFunction, 0) \
   F(GetFunctionDelegate, 1) \
+  F(GetConstructorDelegate, 1) \
   F(NewArguments, 1) \
   F(NewArgumentsFast, 3) \
   F(LazyCompile, 1) \

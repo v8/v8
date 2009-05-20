@@ -4644,6 +4644,12 @@ THREADED_TEST(CrossLazyLoad) {
 
 static v8::Handle<Value> call_as_function(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  if (args.IsConstructCall()) {
+    if (args[0]->IsInt32()) {
+       return v8_num(-args[0]->Int32Value());
+    }
+  }
+
   return args[0];
 }
 
@@ -4697,9 +4703,9 @@ THREADED_TEST(CallAsFunction) {
   // Check that the call-as-function handler can be called through
   // new.  Currently, there is no way to check in the call-as-function
   // handler if it has been called through new or not.
-  value = CompileRun("new obj(42)");
+  value = CompileRun("new obj(43)");
   CHECK(!try_catch.HasCaught());
-  CHECK_EQ(42, value->Int32Value());
+  CHECK_EQ(-43, value->Int32Value());
 }
 
 

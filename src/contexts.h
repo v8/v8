@@ -90,6 +90,8 @@ enum ContextLookupFlags {
   V(FUNCTION_CACHE_INDEX, JSObject, function_cache) \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context) \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate) \
+  V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction, \
+    call_as_constructor_delegate) \
   V(EMPTY_SCRIPT_INDEX, Script, empty_script) \
   V(SCRIPT_FUNCTION_INDEX, JSFunction, script_function) \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function) \
@@ -209,6 +211,7 @@ class Context: public FixedArray {
     FUNCTION_CACHE_INDEX,
     RUNTIME_CONTEXT_INDEX,
     CALL_AS_FUNCTION_DELEGATE_INDEX,
+    CALL_AS_CONSTRUCTOR_DELEGATE_INDEX,
     EMPTY_SCRIPT_INDEX,
     SCRIPT_FUNCTION_INDEX,
     CONTEXT_EXTENSION_FUNCTION_INDEX,

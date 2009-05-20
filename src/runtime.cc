@@ -4358,6 +4358,14 @@ static Object* Runtime_GetFunctionDelegate(Arguments args) {
 }
 
 
+static Object* Runtime_GetConstructorDelegate(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(!args[0]->IsJSFunction());
+  return *Execution::GetConstructorDelegate(args.at<Object>(0));
+}
+
+
 static Object* Runtime_NewContext(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);

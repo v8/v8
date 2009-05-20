@@ -188,6 +188,24 @@ Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
 }
 
 
+Handle<Object> Execution::GetConstructorDelegate(Handle<Object> object) {
+  ASSERT(!object->IsJSFunction());
+
+  // If you return a function from here, it will be called when an
+  // attempt is made to call the given object as a constructor.
+
+  // Objects created through the API can have an instance-call handler
+  // that should be used when calling the object as a function.
+  if (object->IsHeapObject() &&
+      HeapObject::cast(*object)->map()->has_instance_call_handler()) {
+    return Handle<JSFunction>(
+        Top::global_context()->call_as_constructor_delegate());
+  }
+
+  return Factory::undefined_value();
+}
+
+
 // Static state for stack guards.
 StackGuard::ThreadLocal StackGuard::thread_local_;
 
