@@ -256,20 +256,6 @@ Operand::Operand(Register index,
 }
 
 
-void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
-  ASSERT(len_ == 1);
-  ASSERT((scale & -4) == 0);
-  buf_[1] = scale << 6 | index.code() << 3 | base.code();
-  len_ = 2;
-}
-
-
-void Operand::set_disp8(int8_t disp) {
-  ASSERT(len_ == 1 || len_ == 2);
-  *reinterpret_cast<int8_t*>(&buf_[len_++]) = disp;
-}
-
-
 bool Operand::is_reg(Register reg) const {
   return ((buf_[0] & 0xF8) == 0xC0)  // addressing mode is register only.
       && ((buf_[0] & 0x07) == reg.code());  // register codes match.

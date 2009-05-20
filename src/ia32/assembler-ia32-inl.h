@@ -277,6 +277,22 @@ void Operand::set_modrm(int mod, Register rm) {
 }
 
 
+void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
+  ASSERT(len_ == 1);
+  ASSERT((scale & -4) == 0);
+  // Use SIB with no index register only for base esp.
+  ASSERT(!index.is(esp) || base.is(esp));
+  buf_[1] = scale << 6 | index.code() << 3 | base.code();
+  len_ = 2;
+}
+
+
+void Operand::set_disp8(int8_t disp) {
+  ASSERT(len_ == 1 || len_ == 2);
+  *reinterpret_cast<int8_t*>(&buf_[len_++]) = disp;
+}
+
+
 void Operand::set_dispr(int32_t disp, RelocInfo::Mode rmode) {
   ASSERT(len_ == 1 || len_ == 2);
   int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);

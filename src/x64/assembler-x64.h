@@ -264,33 +264,21 @@ class Operand BASE_EMBEDDED {
   // disp only must always be relocated
 
   // [base + disp/r]
-  explicit Operand(Register base, intptr_t disp,
+  explicit Operand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [base + index*scale + disp/r]
   explicit Operand(Register base,
                    Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [index*scale + disp/r]
   explicit Operand(Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  static Operand StaticVariable(const ExternalReference& ext) {
-    return Operand(reinterpret_cast<intptr_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static Operand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr) {
-    return Operand(index, scale, reinterpret_cast<intptr_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
 
   // End of constructors and methods that have been moved to MemOperand.
 
@@ -317,40 +305,28 @@ class Operand BASE_EMBEDDED {
 class MemOperand : public Operand {
  public:
   // [disp/r]
-  INLINE(explicit MemOperand(intptr_t disp, RelocInfo::Mode rmode)) :
+  INLINE(explicit MemOperand(int32_t disp, RelocInfo::Mode rmode)) :
       Operand() {
     UNIMPLEMENTED();
   }
   // disp only must always be relocated
 
   // [base + disp/r]
-  explicit MemOperand(Register base, intptr_t disp,
+  explicit MemOperand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [base + index*scale + disp/r]
   explicit MemOperand(Register base,
                    Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [index*scale + disp/r]
   explicit MemOperand(Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  static MemOperand StaticVariable(const ExternalReference& ext) {
-    return MemOperand(reinterpret_cast<intptr_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static MemOperand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr) {
-    return MemOperand(index, scale, reinterpret_cast<intptr_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
 };
 
 // -----------------------------------------------------------------------------

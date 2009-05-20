@@ -148,6 +148,48 @@ Object** RelocInfo::call_object_address() {
   return reinterpret_cast<Object**>(pc_ + 1);
 }
 
+
+void Operand::set_modrm(int mod, Register rm) {
+  ASSERT((mod & -4) == 0);
+  buf_[0] = mod << 6 | (rm.code() & 0x7);
+  // Set REX.B to the high bit of rm.code().
+  rex_ |= (rm.code() >> 3);
+  len_ = 1;
+}
+
+
+void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
+  ASSERT(len_ == 1);
+  ASSERT((scale & -4) == 0);
+  // Use SIB with no index register only for base rsp or r12.
+  ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));
+  buf_[1] = scale << 6 | (index.code() & 0x7) << 3 | (base.code() & 0x7);
+  rex_ |= (index.code() >> 3) << 1 | base.code() >> 3;
+  len_ = 2;
+}
+
+
+void Operand::set_disp32(int32_t disp) {
+  ASSERT(len_ == 1 || len_ == 2);
+  int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
+  *p = disp;
+  len_ += sizeof(int32_t);
+}
+
+
+void Operand::set_dispr(intptr_t disp, RelocInfo::Mode rmode) {
+  // This cannot be used in 64-bit mode.  A 64-bit displacement
+  // cannot be encoded, so relocatable 64-bit values must be
+  // loaded as immediates.
+  UNIMPLEMENTED();
+}
+
+
+Operand::Operand(Register reg) {
+  // reg
+  set_modrm(3, reg);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_X64_ASSEMBLER_X64_INL_H_
