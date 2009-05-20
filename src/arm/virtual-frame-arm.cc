@@ -36,23 +36,16 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
 
-#define __ ACCESS_MASM(masm_)
+#define __ ACCESS_MASM(masm())
 
 
 // On entry to a function, the virtual frame already contains the
 // receiver and the parameters.  All initial frame elements are in
 // memory.
-VirtualFrame::VirtualFrame(CodeGenerator* cgen)
-    : cgen_(cgen),
-      masm_(cgen->masm()),
-      elements_(cgen->scope()->num_parameters()
-                + cgen->scope()->num_stack_slots()
-                + kPreallocatedElements),
-      parameter_count_(cgen->scope()->num_parameters()),
-      local_count_(0),
-      stack_pointer_(parameter_count_),  // 0-based index of TOS.
-      frame_pointer_(kIllegalIndex) {
-  for (int i = 0; i < parameter_count_ + 1; i++) {
+VirtualFrame::VirtualFrame()
+    : elements_(parameter_count() + local_count() + kPreallocatedElements),
+      stack_pointer_(parameter_count()) {  // 0-based index of TOS.
+  for (int i = 0; i <= stack_pointer_; i++) {
     elements_.Add(FrameElement::MemoryElement());
   }
   for (int i = 0; i < kNumRegisters; i++) {
@@ -82,10 +75,10 @@ void VirtualFrame::SyncRange(int begin, int end) {
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
-  Comment cmnt(masm_, "[ Merge frame");
+  Comment cmnt(masm(), "[ Merge frame");
   // We should always be merging the code generator's current frame to an
   // expected frame.
-  ASSERT(cgen_->frame() == this);
+  ASSERT(cgen()->frame() == this);
 
   // Adjust the stack pointer upward (toward the top of the virtual
   // frame) if necessary.
@@ -152,7 +145,7 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
 
 
 void VirtualFrame::Enter() {
-  Comment cmnt(masm_, "[ Enter JS frame");
+  Comment cmnt(masm(), "[ Enter JS frame");
 
 #ifdef DEBUG
   // Verify that r1 contains a JS function.  The following code relies
@@ -175,15 +168,14 @@ void VirtualFrame::Enter() {
   Adjust(4);
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
   // Adjust FP to point to saved FP.
-  frame_pointer_ = elements_.length() - 2;
   __ add(fp, sp, Operand(2 * kPointerSize));
-  cgen_->allocator()->Unuse(r1);
-  cgen_->allocator()->Unuse(lr);
+  cgen()->allocator()->Unuse(r1);
+  cgen()->allocator()->Unuse(lr);
 }
 
 
 void VirtualFrame::Exit() {
-  Comment cmnt(masm_, "[ Exit JS frame");
+  Comment cmnt(masm(), "[ Exit JS frame");
   // Drop the execution stack down to the frame pointer and restore the caller
   // frame pointer and return address.
   __ mov(sp, fp);
@@ -191,12 +183,11 @@ void VirtualFrame::Exit() {
 }
 
 
-void VirtualFrame::AllocateStackSlots(int count) {
-  ASSERT(height() == 0);
-  local_count_ = count;
-  Adjust(count);
+void VirtualFrame::AllocateStackSlots() {
+  int count = local_count();
   if (count > 0) {
-    Comment cmnt(masm_, "[ Allocate space for locals");
+    Comment cmnt(masm(), "[ Allocate space for locals");
+    Adjust(count);
       // Initialize stack slots with 'undefined' value.
     __ mov(ip, Operand(Factory::undefined_value()));
     for (int i = 0; i < count; i++) {
@@ -246,9 +237,9 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 
 
 Result VirtualFrame::RawCallStub(CodeStub* stub) {
-  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(cgen()->HasValidEntryRegisters());
   __ CallStub(stub);
-  Result result = cgen_->allocator()->Allocate(r0);
+  Result result = cgen()->allocator()->Allocate(r0);
   ASSERT(result.is_valid());
   return result;
 }
@@ -271,9 +262,9 @@ Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
 
 Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
-  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
-  Result result = cgen_->allocator()->Allocate(r0);
+  Result result = cgen()->allocator()->Allocate(r0);
   ASSERT(result.is_valid());
   return result;
 }
@@ -281,9 +272,9 @@ Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
 
 Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
   PrepareForCall(arg_count, arg_count);
-  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(id, arg_count);
-  Result result = cgen_->allocator()->Allocate(r0);
+  Result result = cgen()->allocator()->Allocate(r0);
   ASSERT(result.is_valid());
   return result;
 }
@@ -297,16 +288,16 @@ Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
   PrepareForCall(arg_count, arg_count);
   arg_count_register->Unuse();
   __ InvokeBuiltin(id, flags);
-  Result result = cgen_->allocator()->Allocate(r0);
+  Result result = cgen()->allocator()->Allocate(r0);
   return result;
 }
 
 
 Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
                                        RelocInfo::Mode rmode) {
-  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(cgen()->HasValidEntryRegisters());
   __ Call(code, rmode);
-  Result result = cgen_->allocator()->Allocate(r0);
+  Result result = cgen()->allocator()->Allocate(r0);
   ASSERT(result.is_valid());
   return result;
 }

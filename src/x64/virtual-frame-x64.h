@@ -29,6 +29,7 @@
 #define V8_X64_VIRTUAL_FRAME_X64_H_
 
 #include "register-allocator.h"
+#include "scopes.h"
 
 namespace v8 { namespace internal {
 
@@ -50,37 +51,39 @@ class VirtualFrame : public ZoneObject {
   // generator is being transformed.
   class SpilledScope BASE_EMBEDDED {
    public:
-    explicit SpilledScope(CodeGenerator* cgen)
-        : cgen_(cgen),
-          previous_state_(cgen->in_spilled_code()) {
-      ASSERT(cgen->has_valid_frame());
-      cgen->frame()->SpillAll();
-      cgen->set_in_spilled_code(true);
+    SpilledScope() : previous_state_(cgen()->in_spilled_code()) {
+      ASSERT(cgen()->has_valid_frame());
+      cgen()->frame()->SpillAll();
+      cgen()->set_in_spilled_code(true);
     }
 
     ~SpilledScope() {
-      cgen_->set_in_spilled_code(previous_state_);
+      cgen()->set_in_spilled_code(previous_state_);
     }
 
    private:
-    CodeGenerator* cgen_;
     bool previous_state_;
+
+    CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
   };
 
   // An illegal index into the virtual frame.
   static const int kIllegalIndex = -1;
 
   // Construct an initial virtual frame on entry to a JS function.
-  explicit VirtualFrame(CodeGenerator* cgen);
+  VirtualFrame();
 
   // Construct a virtual frame as a clone of an existing one.
   explicit VirtualFrame(VirtualFrame* original);
+
+  CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
+  MacroAssembler* masm() { return cgen()->masm(); }
 
   // Create a duplicate of an existing valid frame element.
   FrameElement CopyElementAt(int index);
 
   // The height of the virtual expression stack.
-  int height() const {
+  int height() {
     return elements_.length() - expression_base_index();
   }
 
@@ -153,7 +156,7 @@ class VirtualFrame : public ZoneObject {
   // registers.  Used when the code generator's frame is switched from this
   // one to NULL by an unconditional jump.
   void DetachFromCodeGenerator() {
-    RegisterAllocator* cgen_allocator = cgen_->allocator();
+    RegisterAllocator* cgen_allocator = cgen()->allocator();
     for (int i = 0; i < kNumRegisters; i++) {
       if (is_used(i)) {
         Register temp = { i };
@@ -167,7 +170,7 @@ class VirtualFrame : public ZoneObject {
   // Used when a code generator's frame is switched from NULL to this one by
   // binding a label.
   void AttachToCodeGenerator() {
-    RegisterAllocator* cgen_allocator = cgen_->allocator();
+    RegisterAllocator* cgen_allocator = cgen()->allocator();
     for (int i = 0; i < kNumRegisters; i++) {
       if (is_used(i)) {
         Register temp = { i };
@@ -189,7 +192,7 @@ class VirtualFrame : public ZoneObject {
   void PrepareForReturn();
 
   // Allocate and initialize the frame-allocated locals.
-  void AllocateStackSlots(int count);
+  void AllocateStackSlots();
 
   // An element of the expression stack as an assembly operand.
   Operand ElementAt(int index) const {
@@ -215,9 +218,9 @@ class VirtualFrame : public ZoneObject {
   }
 
   // A frame-allocated local as an assembly operand.
-  Operand LocalAt(int index) const {
+  Operand LocalAt(int index) {
     ASSERT(0 <= index);
-    ASSERT(index < local_count_);
+    ASSERT(index < local_count());
     return Operand(rbp, kLocal0Offset - index * kPointerSize);
   }
 
@@ -253,10 +256,10 @@ class VirtualFrame : public ZoneObject {
   void RestoreContextRegister();
 
   // A parameter as an assembly operand.
-  Operand ParameterAt(int index) const {
+  Operand ParameterAt(int index) {
     ASSERT(-1 <= index);  // -1 is the receiver.
-    ASSERT(index < parameter_count_);
-    return Operand(rbp, (1 + parameter_count_ - index) * kPointerSize);
+    ASSERT(index < parameter_count());
+    return Operand(rbp, (1 + parameter_count() - index) * kPointerSize);
   }
 
   // Push a copy of the value of a parameter frame slot on top of the frame.
@@ -278,7 +281,7 @@ class VirtualFrame : public ZoneObject {
   }
 
   // The receiver frame slot.
-  Operand Receiver() const { return ParameterAt(-1); }
+  Operand Receiver() { return ParameterAt(-1); }
 
   // Push a try-catch or try-finally handler on top of the virtual frame.
   void PushTryHandler(HandlerType type);
@@ -395,59 +398,50 @@ class VirtualFrame : public ZoneObject {
   static const int kHandlerSize = StackHandlerConstants::kSize / kPointerSize;
   static const int kPreallocatedElements = 5 + 8;  // 8 expression stack slots.
 
-  CodeGenerator* cgen_;
-  MacroAssembler* masm_;
-
   ZoneList<FrameElement> elements_;
-
-  // The number of frame-allocated locals and parameters respectively.
-  int parameter_count_;
-  int local_count_;
 
   // The index of the element that is at the processor's stack pointer
   // (the esp register).
   int stack_pointer_;
 
-  // The index of the element that is at the processor's frame pointer
-  // (the ebp register).
-  int frame_pointer_;
-
   // The index of the register frame element using each register, or
   // kIllegalIndex if a register is not on the frame.
   int register_locations_[kNumRegisters];
+
+  // The number of frame-allocated locals and parameters respectively.
+  int parameter_count() { return cgen()->scope()->num_parameters(); }
+  int local_count() { return cgen()->scope()->num_stack_slots(); }
+
+  // The index of the element that is at the processor's frame pointer
+  // (the ebp register).  The parameters, receiver, and return address
+  // are below the frame pointer.
+  int frame_pointer() { return parameter_count() + 2; }
 
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
   int param0_index() const { return 1; }
 
-  // The index of the context slot in the frame.
-  int context_index() const {
-    ASSERT(frame_pointer_ != kIllegalIndex);
-    return frame_pointer_ + 1;
-  }
+  // The index of the context slot in the frame.  It is immediately
+  // above the frame pointer.
+  int context_index() { return frame_pointer() + 1; }
 
-  // The index of the function slot in the frame.  It lies above the context
-  // slot.
-  int function_index() const {
-    ASSERT(frame_pointer_ != kIllegalIndex);
-    return frame_pointer_ + 2;
-  }
+  // The index of the function slot in the frame.  It is above the frame
+  // pointer and the context slot.
+  int function_index() { return frame_pointer() + 2; }
 
-  // The index of the first local.  Between the parameters and the locals
-  // lie the return address, the saved frame pointer, the context, and the
-  // function.
-  int local0_index() const {
-    ASSERT(frame_pointer_ != kIllegalIndex);
-    return frame_pointer_ + 3;
-  }
+  // The index of the first local.  Between the frame pointer and the
+  // locals lie the context and the function.
+  int local0_index() { return frame_pointer() + 3; }
 
   // The index of the base of the expression stack.
-  int expression_base_index() const { return local0_index() + local_count_; }
+  int expression_base_index() { return local0_index() + local_count(); }
 
   // Convert a frame index into a frame pointer relative offset into the
   // actual stack.
-  int fp_relative(int index) const {
-    return (frame_pointer_ - index) * kPointerSize;
+  int fp_relative(int index) {
+    ASSERT(index < elements_.length());
+    ASSERT(frame_pointer() < elements_.length());  // FP is on the frame.
+    return (frame_pointer() - index) * kPointerSize;
   }
 
   // Record an occurrence of a register in the virtual frame.  This has the
@@ -456,7 +450,7 @@ class VirtualFrame : public ZoneObject {
   void Use(Register reg, int index) {
     ASSERT(!is_used(reg));
     register_locations_[reg.code()] = index;
-    cgen_->allocator()->Use(reg);
+    cgen()->allocator()->Use(reg);
   }
 
   // Record that a register reference has been dropped from the frame.  This
@@ -465,7 +459,7 @@ class VirtualFrame : public ZoneObject {
   void Unuse(Register reg) {
     ASSERT(register_locations_[reg.code()] != kIllegalIndex);
     register_locations_[reg.code()] = kIllegalIndex;
-    cgen_->allocator()->Unuse(reg);
+    cgen()->allocator()->Unuse(reg);
   }
 
   // Spill the element at a particular index---write it to memory if
@@ -544,6 +538,7 @@ class VirtualFrame : public ZoneObject {
 
   friend class JumpTarget;
 };
+
 
 } }  // namespace v8::internal
 

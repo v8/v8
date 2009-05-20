@@ -121,7 +121,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // Build the new frame.  A freshly allocated frame has memory elements
   // for the parameters and some platform-dependent elements (e.g.,
   // return address).  Replace those first.
-  entry_frame_ = new VirtualFrame(cgen());
+  entry_frame_ = new VirtualFrame();
   int index = 0;
   for (; index < entry_frame_->elements_.length(); index++) {
     FrameElement* target = elements[index];
@@ -214,10 +214,6 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
       }
     }
   }
-
-  // Fill in the other fields of the entry frame.
-  entry_frame_->local_count_ = initial_frame->local_count_;
-  entry_frame_->frame_pointer_ = initial_frame->frame_pointer_;
 
   // The stack pointer is at the highest synced element or the base of
   // the expression stack.

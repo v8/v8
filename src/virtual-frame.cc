@@ -37,13 +37,8 @@ namespace v8 { namespace internal {
 
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
-    : cgen_(original->cgen_),
-      masm_(original->masm_),
-      elements_(original->elements_),
-      parameter_count_(original->parameter_count_),
-      local_count_(original->local_count_),
-      stack_pointer_(original->stack_pointer_),
-      frame_pointer_(original->frame_pointer_) {
+    : elements_(original->elements_),
+      stack_pointer_(original->stack_pointer_) {
   // Copy register locations from original.
   memcpy(&register_locations_,
          original->register_locations_,
@@ -118,7 +113,7 @@ void VirtualFrame::ForgetElements(int count) {
       // A hack to properly count register references for the code
       // generator's current frame and also for other frames.  The
       // same code appears in PrepareMergeTo.
-      if (cgen_->frame() == this) {
+      if (cgen()->frame() == this) {
         Unuse(last.reg());
       } else {
         register_locations_[last.reg().code()] = kIllegalIndex;
@@ -133,10 +128,10 @@ Register VirtualFrame::SpillAnyRegister() {
   // Find the leftmost (ordered by register code) register whose only
   // reference is in the frame.
   for (int i = 0; i < kNumRegisters; i++) {
-    if (is_used(i) && cgen_->allocator()->count(i) == 1) {
+    if (is_used(i) && cgen()->allocator()->count(i) == 1) {
       Register result = { i };
       Spill(result);
-      ASSERT(!cgen_->allocator()->is_used(result));
+      ASSERT(!cgen()->allocator()->is_used(result));
       return result;
     }
   }
@@ -200,7 +195,7 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
         // If the frame is the code generator's current frame, we have
         // to decrement both the frame-internal and global register
         // counts.
-        if (cgen_->frame() == this) {
+        if (cgen()->frame() == this) {
           Unuse(source.reg());
         } else {
           register_locations_[source.reg().code()] = kIllegalIndex;
@@ -369,14 +364,6 @@ void VirtualFrame::Nip(int num_dropped) {
 
 bool VirtualFrame::Equals(VirtualFrame* other) {
 #ifdef DEBUG
-  // These are sanity checks in debug builds, but we do not need to
-  // use them to distinguish frames at merge points.
-  if (cgen_ != other->cgen_) return false;
-  if (masm_ != other->masm_) return false;
-  if (parameter_count_ != other->parameter_count_) return false;
-  if (local_count_ != other->local_count_) return false;
-  if (frame_pointer_ != other->frame_pointer_) return false;
-
   for (int i = 0; i < kNumRegisters; i++) {
     if (register_locations_[i] != other->register_locations_[i]) {
       return false;

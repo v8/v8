@@ -107,7 +107,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   RegisterAllocator register_allocator(this);
   allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
-  frame_ = new VirtualFrame(this);
+  frame_ = new VirtualFrame();
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
@@ -138,7 +138,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     frame_->Enter();
 
     // Allocate space for locals and initialize them.
-    frame_->AllocateStackSlots(scope_->num_stack_slots());
+    frame_->AllocateStackSlots();
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
     function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
@@ -2651,7 +2651,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ForInStatement");
   CodeForStatementPosition(node);
 
@@ -2841,7 +2841,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ TryCatch");
   CodeForStatementPosition(node);
 
@@ -2980,7 +2980,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ TryFinally");
   CodeForStatementPosition(node);
 
@@ -3315,7 +3315,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     //
     // We currently spill the virtual frame because constants use the
     // potentially unsafe direct-frame access of SlotOperand.
-    VirtualFrame::SpilledScope spilled_scope(this);
+    VirtualFrame::SpilledScope spilled_scope;
     Comment cmnt(masm_, "[ Load const");
     JumpTarget exit;
     __ mov(ecx, SlotOperand(slot, ecx));
@@ -3465,7 +3465,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // We spill the frame in the code below because the direct-frame
       // access of SlotOperand is potentially unsafe with an unspilled
       // frame.
-      VirtualFrame::SpilledScope spilled_scope(this);
+      VirtualFrame::SpilledScope spilled_scope;
       Comment cmnt(masm_, "[ Init const");
       __ mov(ecx, SlotOperand(slot, ecx));
       __ cmp(ecx, Factory::the_hole_value());
