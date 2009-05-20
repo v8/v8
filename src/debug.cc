@@ -2384,7 +2384,9 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 
 
 v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
-  return v8::Utils::ToLocal(Debug::debugger_entry()->GetContext());
+  Handle<Context> context = Debug::debugger_entry()->GetContext();
+  Handle<Context> global_context(context->global_context());
+  return v8::Utils::ToLocal(global_context);
 }
 
 

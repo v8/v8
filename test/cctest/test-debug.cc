@@ -4172,11 +4172,8 @@ TEST(DebuggerUnload) {
 }
 
 
-// Debugger message handler which counts the number of times it is called.
-static int message_handler_hit_count = 0;
-static void MessageHandlerHitCount(const v8::Debug::Message& message) {
-  message_handler_hit_count++;
-
+// Sends continue command to the debugger.
+static void SendContinueCommand() {
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
   const char* command_continue =
@@ -4185,6 +4182,15 @@ static void MessageHandlerHitCount(const v8::Debug::Message& message) {
      "\"command\":\"continue\"}";
 
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+}
+
+
+// Debugger message handler which counts the number of times it is called.
+static int message_handler_hit_count = 0;
+static void MessageHandlerHitCount(const v8::Debug::Message& message) {
+  message_handler_hit_count++;
+
+  SendContinueCommand();
 }
 
 
@@ -4624,16 +4630,9 @@ static void ContextCheckMessageHandler(const v8::Debug::Message& message) {
       expected_context_data));
   message_handler_hit_count++;
 
-  const int kBufferSize = 1000;
-  uint16_t buffer[kBufferSize];
-  const char* command_continue =
-    "{\"seq\":0,"
-     "\"type\":\"request\","
-     "\"command\":\"continue\"}";
-
   // Send a continue command for break events.
   if (message.GetEvent() == v8::Break) {
-    v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+    SendContinueCommand();
   }
 }
 
@@ -4691,6 +4690,108 @@ TEST(ContextData) {
 
   // Two times compile event and two times break event.
   CHECK_GT(message_handler_hit_count, 4);
+}
+
+
+// Common part of EvalContextData and NestedBreakEventContextData tests.
+static void ExecuteScriptForContextCheck() {
+  // Create a context.
+  v8::Persistent<v8::Context> context_1;
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::Handle<v8::ObjectTemplate>();
+  v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
+  context_1 = v8::Context::New(NULL, global_template, global_object);
+
+  // Default data value is undefined.
+  CHECK(context_1->GetData()->IsUndefined());
+
+  // Set and check a data value.
+  v8::Handle<v8::Value> data_1 = v8::Number::New(1);
+  context_1->SetData(data_1);
+  CHECK(context_1->GetData()->StrictEquals(data_1));
+
+  // Simple test function with eval that causes a break.
+  const char* source = "function f() { eval('debugger;'); }";
+
+  // Enter and run function in the context.
+  {
+    v8::Context::Scope context_scope(context_1);
+    expected_context = context_1;
+    expected_context_data = data_1;
+    v8::Local<v8::Function> f = CompileFunction(source, "f");
+    f->Call(context_1->Global(), 0, NULL);
+  }
+}
+
+
+// Test which creates a context and sets embedder data on it. Checks that this
+// data is set correctly and that when the debug message handler is called for
+// break event in an eval statement the expected context is the one returned by
+// Message.GetEventContext.
+TEST(EvalContextData) {
+  v8::HandleScope scope;
+  v8::Debug::SetMessageHandler2(ContextCheckMessageHandler);
+
+  ExecuteScriptForContextCheck();
+
+  // One time compile event and one time break event.
+  CHECK_GT(message_handler_hit_count, 2);
+}
+
+
+static bool sent_eval = false;
+static int break_count = 0;
+// Check that the expected context is the one generating the debug event
+// including the case of nested break event.
+static void DebugEvalContextCheckMessageHandler(
+    const v8::Debug::Message& message) {
+  CHECK(message.GetEventContext() == expected_context);
+  CHECK(message.GetEventContext()->GetData()->StrictEquals(
+      expected_context_data));
+  message_handler_hit_count++;
+
+  if (message.IsEvent() && message.GetEvent() == v8::Break) {
+    break_count++;
+    if (!sent_eval) {
+      sent_eval = true;
+
+      const int kBufferSize = 1000;
+      uint16_t buffer[kBufferSize];
+      const char* eval_command =
+        "{\"seq\":0,"
+         "\"type\":\"request\","
+         "\"command\":\"evaluate\","
+         "arguments:{\"expression\":\"debugger;\","
+         "\"global\":true,\"disable_break\":false}}";
+
+      // Send evaluate command.
+      v8::Debug::SendCommand(buffer, AsciiToUtf16(eval_command, buffer));
+      return;
+    } else {
+      // It's a break event caused by the evaluation request above.
+      SendContinueCommand();
+    }
+  } else if (message.IsResponse()) {
+    // Response to the evaluation request. We're still on the breakpoint so
+    // send continue.
+    SendContinueCommand();
+  }
+}
+
+
+// Tests that context returned for break event is correct when the event occurs
+// in 'evaluate' debugger request.
+TEST(NestedBreakEventContextData) {
+  v8::HandleScope scope;
+  v8::Debug::SetMessageHandler2(DebugEvalContextCheckMessageHandler);
+
+  ExecuteScriptForContextCheck();
+
+  // One time compile event and two times break event.
+  CHECK_GT(message_handler_hit_count, 3);
+
+  // One break from the source and another from the evaluate request.
+  CHECK_EQ(break_count, 2);
 }
 
 
