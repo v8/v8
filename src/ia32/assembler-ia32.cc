@@ -288,7 +288,7 @@ static void InitCoverageLog();
 #endif
 
 // spare_buffer_
-static byte* spare_buffer_ = NULL;
+byte* Assembler::spare_buffer_ = NULL;
 
 Assembler::Assembler(void* buffer, int buffer_size) {
   if (buffer == NULL) {
@@ -368,7 +368,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 }
 
 
-void Assembler::Align(int m) {
+void Assembler::Align(intptr_t m) {
   ASSERT(IsPowerOf2(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();

@@ -77,13 +77,96 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* a) {
   UNIMPLEMENTED();
 }
 
-Assembler::Assembler(void* a, int b) {
-  UNIMPLEMENTED();
+// -----------------------------------------------------------------------------
+// Implementation of Assembler
+
+byte* Assembler::spare_buffer_ = NULL;
+
+Assembler::Assembler(void* buffer, int buffer_size) {
+  if (buffer == NULL) {
+    // do our own buffer management
+    if (buffer_size <= kMinimalBufferSize) {
+      buffer_size = kMinimalBufferSize;
+
+      if (spare_buffer_ != NULL) {
+        buffer = spare_buffer_;
+        spare_buffer_ = NULL;
+      }
+    }
+    if (buffer == NULL) {
+      buffer_ = NewArray<byte>(buffer_size);
+    } else {
+      buffer_ = static_cast<byte*>(buffer);
+    }
+    buffer_size_ = buffer_size;
+    own_buffer_ = true;
+  } else {
+    // use externally provided buffer instead
+    ASSERT(buffer_size > 0);
+    buffer_ = static_cast<byte*>(buffer);
+    buffer_size_ = buffer_size;
+    own_buffer_ = false;
+  }
+
+  // Clear the buffer in debug mode unless it was provided by the
+  // caller in which case we can't be sure it's okay to overwrite
+  // existing code in it; see CodePatcher::CodePatcher(...).
+#ifdef DEBUG
+  if (own_buffer_) {
+    memset(buffer_, 0xCC, buffer_size);  // int3
+  }
+#endif
+
+  // setup buffer pointers
+  ASSERT(buffer_ != NULL);
+  pc_ = buffer_;
+  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
+
+  last_pc_ = NULL;
+  current_statement_position_ = RelocInfo::kNoPosition;
+  current_position_ = RelocInfo::kNoPosition;
+  written_statement_position_ = current_statement_position_;
+  written_position_ = current_position_;
+#ifdef GENERATED_CODE_COVERAGE
+  InitCoverageLog();
+#endif
 }
 
-void Assembler::GetCode(CodeDesc* a) {
-  UNIMPLEMENTED();
+
+Assembler::~Assembler() {
+  if (own_buffer_) {
+    if (spare_buffer_ == NULL && buffer_size_ == kMinimalBufferSize) {
+      spare_buffer_ = buffer_;
+    } else {
+      DeleteArray(buffer_);
+    }
+  }
 }
+
+
+void Assembler::GetCode(CodeDesc* desc) {
+  // finalize code
+  // (at this point overflow() may be true, but the gap ensures that
+  // we are still not overlapping instructions and relocation info)
+  ASSERT(pc_ <= reloc_info_writer.pos());  // no overlap
+  // setup desc
+  desc->buffer = buffer_;
+  desc->buffer_size = buffer_size_;
+  desc->instr_size = pc_offset();
+  desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->origin = this;
+
+  Counters::reloc_info_size.Increment(desc->reloc_size);
+}
+
+
+void Assembler::Align(int m) {
+  ASSERT(IsPowerOf2(m));
+  while ((pc_offset() & (m - 1)) != 0) {
+    nop();
+  }
+}
+
 
 void Assembler::RecordComment(char const* a) {
   UNIMPLEMENTED();
@@ -98,10 +181,6 @@ void Assembler::RecordStatementPosition(int a) {
 }
 
 void Assembler::bind(Label* a) {
-  UNIMPLEMENTED();
-}
-
-Assembler::~Assembler()  {
   UNIMPLEMENTED();
 }
 

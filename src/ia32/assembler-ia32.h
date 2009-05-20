@@ -815,6 +815,8 @@ class Assembler : public Malloced {
   int buffer_size_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
+  // A previously allocated buffer of kMinimalBufferSize bytes, or NULL.
+  static byte* spare_buffer_;
 
   // code generation
   byte* pc_;  // the program counter; moves forward
