@@ -130,25 +130,6 @@ static bool Consume(const char* str, char** buf) {
 }
 
 
-static void ParseAddress(char* start, Address* min_addr, Address* max_addr) {
-  Address addr = reinterpret_cast<Address>(strtoul(start, NULL, 16));  // NOLINT
-  if (addr < *min_addr) *min_addr = addr;
-  if (addr > *max_addr) *max_addr = addr;
-}
-
-
-static Address ConsumeAddress(
-    char** start, Address min_addr, Address max_addr) {
-  char* end_ptr;
-  Address addr =
-      reinterpret_cast<Address>(strtoul(*start, &end_ptr, 16));  // NOLINT
-  CHECK_GE(addr, min_addr);
-  CHECK_GE(max_addr, addr);
-  *start = end_ptr;
-  return addr;
-}
-
-
 namespace {
 
 // A code entity is a pointer to a position of code-creation event in buffer log
@@ -156,48 +137,142 @@ namespace {
 // comparing code entities pretty easy.
 typedef char* CodeEntityInfo;
 
+class Interval {
+ public:
+  Interval()
+      : min_addr(reinterpret_cast<Address>(-1)),
+        max_addr(reinterpret_cast<Address>(0)), next(NULL) {}
+
+  ~Interval() { delete next; }
+
+  size_t Length() {
+    size_t result = max_addr - min_addr + 1;
+    if (next != NULL) result += next->Length();
+    return result;
+  }
+
+  void CloneFrom(Interval* src) {
+    while (src != NULL) {
+      RegisterAddress(src->min_addr);
+      RegisterAddress(src->max_addr);
+      src = src->next;
+    }
+  }
+
+  bool Contains(Address addr) {
+    if (min_addr <= addr && addr <= max_addr) {
+      return true;
+    }
+    if (next != NULL) return next->Contains(addr);
+    return false;
+  }
+
+  size_t GetIndex(Address addr) {
+    if (min_addr <= addr && addr <= max_addr) {
+      return addr - min_addr;
+    }
+    CHECK_NE(NULL, next);
+    return (max_addr - min_addr + 1) + next->GetIndex(addr);
+  }
+
+  Address GetMinAddr() {
+    return next == NULL ? min_addr : i::Min(min_addr, next->GetMinAddr());
+  }
+
+  Address GetMaxAddr() {
+    return next == NULL ? max_addr : i::Max(max_addr, next->GetMaxAddr());
+  }
+
+  void RegisterAddress(Address addr) {
+    if (min_addr == reinterpret_cast<Address>(-1)
+        || (size_t)(addr > min_addr ?
+           addr - min_addr : min_addr - addr) < MAX_DELTA) {
+      if (addr < min_addr) min_addr = addr;
+      if (addr > max_addr) max_addr = addr;
+    } else {
+      if (next == NULL) next = new Interval();
+      next->RegisterAddress(addr);
+    }
+  }
+
+  Address raw_min_addr() { return min_addr; }
+
+  Address raw_max_addr() { return max_addr; }
+
+  Interval* get_next() { return next; }
+
+ private:
+  static const size_t MAX_DELTA = 0x100000;
+  Address min_addr;
+  Address max_addr;
+  Interval* next;
+};
+
+
 // A structure used to return log parsing results.
 class ParseLogResult {
  public:
   ParseLogResult()
-      : min_addr(reinterpret_cast<Address>(-1)),
-        max_addr(reinterpret_cast<Address>(0)),
-        entities_map(NULL), entities(NULL),
+      : entities_map(NULL), entities(NULL),
         max_entities(0) {}
 
   ~ParseLogResult() {
-    // See allocation code below.
-    if (entities_map != NULL) {
-      i::DeleteArray(entities_map - 1);
-    }
+    i::DeleteArray(entities_map);
     i::DeleteArray(entities);
   }
 
   void AllocateEntities() {
     // Make sure that the test doesn't operate on a bogus log.
     CHECK_GT(max_entities, 0);
-    CHECK_GT(min_addr, 0);
-    CHECK_GT(max_addr, min_addr);
+    CHECK_GT(bounds.GetMinAddr(), 0);
+    CHECK_GT(bounds.GetMaxAddr(), bounds.GetMinAddr());
 
     entities = i::NewArray<CodeEntityInfo>(max_entities);
     for (int i = 0; i < max_entities; ++i) {
       entities[i] = NULL;
     }
-    // We're adding fake items at [-1] and [size + 1] to simplify
-    // comparison code.
-    const int map_length = max_addr - min_addr + 1 + 2;  // 2 fakes.
+    const size_t map_length = bounds.Length();
     entities_map = i::NewArray<int>(map_length);
-    for (int i = 0; i < map_length; ++i) {
+    for (size_t i = 0; i < map_length; ++i) {
       entities_map[i] = -1;
     }
-    entities_map += 1;  // Hide the -1 item, this is compensated on delete.
   }
 
-  // Minimal code entity address.
-  Address min_addr;
-  // Maximal code entity address.
-  Address max_addr;
-  // Memory map of entities start addresses. Biased by min_addr.
+  bool HasIndexForAddress(Address addr) {
+    return bounds.Contains(addr);
+  }
+
+  size_t GetIndexForAddress(Address addr) {
+    CHECK(HasIndexForAddress(addr));
+    return bounds.GetIndex(addr);
+  }
+
+  CodeEntityInfo GetEntity(Address addr) {
+    if (HasIndexForAddress(addr)) {
+      size_t idx = GetIndexForAddress(addr);
+      int item = entities_map[idx];
+      return item != -1 ? entities[item] : NULL;
+    }
+    return NULL;
+  }
+
+  void ParseAddress(char* start) {
+    Address addr =
+        reinterpret_cast<Address>(strtoul(start, NULL, 16));  // NOLINT
+    bounds.RegisterAddress(addr);
+  }
+
+  Address ConsumeAddress(char** start) {
+    char* end_ptr;
+    Address addr =
+        reinterpret_cast<Address>(strtoul(*start, &end_ptr, 16));  // NOLINT
+    CHECK(HasIndexForAddress(addr));
+    *start = end_ptr;
+    return addr;
+  }
+
+  Interval bounds;
+  // Memory map of entities start addresses. Biased by bounds.min_addr.
   int* entities_map;
   // An array of code entities.
   CodeEntityInfo* entities;
@@ -243,31 +318,32 @@ static void ParserCycle(
 
 
 static void Pass1CodeCreation(char* start, char* end, ParseLogResult* result) {
-  ParseAddress(start, &result->min_addr, &result->max_addr);
+  result->ParseAddress(start);
   ++result->max_entities;
 }
 
 
 static void Pass1CodeDelete(char* start, char* end, ParseLogResult* result) {
-  ParseAddress(start, &result->min_addr, &result->max_addr);
+  result->ParseAddress(start);
 }
 
 
 static void Pass1CodeMove(char* start, char* end, ParseLogResult* result) {
+  result->ParseAddress(start);
   // Skip old address.
   while (start < end && *start != ',') ++start;
   CHECK_GT(end, start);
   ++start;  // Skip ','.
-  ParseAddress(start, &result->min_addr, &result->max_addr);
+  result->ParseAddress(start);
 }
 
 
 static void Pass2CodeCreation(char* start, char* end, ParseLogResult* result) {
-  Address addr = ConsumeAddress(&start, result->min_addr, result->max_addr);
+  Address addr = result->ConsumeAddress(&start);
   CHECK_GT(end, start);
   ++start;  // Skip ','.
 
-  int idx = addr - result->min_addr;
+  size_t idx = result->GetIndexForAddress(addr);
   result->entities_map[idx] = -1;
   for (int i = 0; i < result->max_entities; ++i) {
     // Find an empty slot and fill it.
@@ -283,8 +359,8 @@ static void Pass2CodeCreation(char* start, char* end, ParseLogResult* result) {
 
 
 static void Pass2CodeDelete(char* start, char* end, ParseLogResult* result) {
-  Address addr = ConsumeAddress(&start, result->min_addr, result->max_addr);
-  int idx = addr - result->min_addr;
+  Address addr = result->ConsumeAddress(&start);
+  size_t idx = result->GetIndexForAddress(addr);
   // There can be code deletes that are not related to JS code.
   if (result->entities_map[idx] >= 0) {
     result->entities[result->entities_map[idx]] = NULL;
@@ -294,15 +370,14 @@ static void Pass2CodeDelete(char* start, char* end, ParseLogResult* result) {
 
 
 static void Pass2CodeMove(char* start, char* end, ParseLogResult* result) {
-  Address from_addr = ConsumeAddress(
-      &start, result->min_addr, result->max_addr);
+  Address from_addr = result->ConsumeAddress(&start);
   CHECK_GT(end, start);
   ++start;  // Skip ','.
-  Address to_addr = ConsumeAddress(&start, result->min_addr, result->max_addr);
+  Address to_addr = result->ConsumeAddress(&start);
   CHECK_GT(end, start);
 
-  int from_idx = from_addr - result->min_addr;
-  int to_idx = to_addr - result->min_addr;
+  size_t from_idx = result->GetIndexForAddress(from_addr);
+  size_t to_idx = result->GetIndexForAddress(to_addr);
   // There can be code moves that are not related to JS code.
   if (from_idx != to_idx && result->entities_map[from_idx] >= 0) {
     CHECK_EQ(-1, result->entities_map[to_idx]);
@@ -318,7 +393,8 @@ static void ParseLog(char* start, char* end, ParseLogResult* result) {
               Pass1CodeCreation, Pass1CodeDelete, Pass1CodeMove);
 
   printf("min_addr: %p, max_addr: %p, entities: %d\n",
-         result->min_addr, result->max_addr, result->max_entities);
+         result->bounds.GetMinAddr(), result->bounds.GetMaxAddr(),
+         result->max_entities);
 
   result->AllocateEntities();
 
@@ -466,28 +542,24 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   ParseLog(new_log_start, new_log_start + new_log_size, &new_result);
 
   // Test their actual equivalence.
+  Interval combined;
+  combined.CloneFrom(&ref_result.bounds);
+  combined.CloneFrom(&new_result.bounds);
+  Interval* iter = &combined;
   bool results_equal = true;
-  int ref_idx = -1, new_idx = -1, ref_inc = 1, new_inc = 1;
-  while (ref_inc > 0 || new_inc > 0) {
-    const Address ref_addr = ref_result.min_addr + ref_idx;
-    const Address new_addr = new_result.min_addr + new_idx;
-    ref_inc = ref_addr <= ref_result.max_addr && ref_addr <= new_addr ? 1 : 0;
-    new_inc = new_addr <= new_result.max_addr && new_addr <= ref_addr ? 1 : 0;
-    const int ref_item = ref_result.entities_map[ref_idx];
-    const int new_item = new_result.entities_map[new_idx];
-    if (ref_item != -1 || new_item != -1) {
-      CodeEntityInfo ref_entity =
-          ref_item != -1 ? ref_result.entities[ref_item] : NULL;
-      CodeEntityInfo new_entity =
-          new_item != -1 ? new_result.entities[new_item] : NULL;
-      const bool equal = AreEntitiesEqual(ref_entity, new_entity);
-      if (!equal) results_equal = false;
-      PrintCodeEntitiesInfo(
-          equal, ref_inc != 0 ? ref_addr : new_addr,
-          ref_entity, new_entity);
+
+  while (iter != NULL) {
+    for (Address addr = iter->raw_min_addr();
+         addr <= iter->raw_max_addr(); ++addr) {
+      CodeEntityInfo ref_entity = ref_result.GetEntity(addr);
+      CodeEntityInfo new_entity = new_result.GetEntity(addr);
+      if (ref_entity != NULL || new_entity != NULL) {
+        const bool equal = AreEntitiesEqual(ref_entity, new_entity);
+        if (!equal) results_equal = false;
+        PrintCodeEntitiesInfo(equal, addr, ref_entity, new_entity);
+      }
     }
-    ref_idx += ref_inc;
-    new_idx += new_inc;
+    iter = iter->get_next();
   }
   // Make sure that all log data is written prior crash due to CHECK failure.
   fflush(stdout);
