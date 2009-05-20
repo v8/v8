@@ -684,14 +684,7 @@ void VirtualFrame::SyncRange(int a, int b) {
   UNIMPLEMENTED();
 }
 
-VirtualFrame::VirtualFrame(CodeGenerator* cgen)
-    : cgen_(cgen),
-      masm_(NULL),
-      elements_(0),
-      parameter_count_(0),
-      local_count_(0),
-      stack_pointer_(0),
-      frame_pointer_(kIllegalIndex) {
+VirtualFrame::VirtualFrame() : elements_(0) {
   UNIMPLEMENTED();
 }
 
