@@ -214,6 +214,9 @@ class Logger {
   // retrieve previously written messages. See v8.h.
   static int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
+  // Logs all compiled functions found in the heap.
+  static void LogCompiledFunctions();
+
  private:
 
   // Emits the source code of a regexp. Used by regexp events.

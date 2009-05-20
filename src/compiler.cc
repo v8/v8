@@ -357,8 +357,8 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // name and line number. Check explicit whether logging is enabled as finding
   // the line number is not for free.
   if (Logger::is_enabled() || OProfileAgent::is_enabled()) {
-    Handle<String> func_name(lit->name()->length() > 0 ?
-                             *lit->name() : shared->inferred_name());
+    Handle<String> func_name(name->length() > 0 ?
+                             *name : shared->inferred_name());
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, start_position);
       if (line_num > 0) {

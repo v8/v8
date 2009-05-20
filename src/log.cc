@@ -1108,6 +1108,69 @@ int Logger::GetLogLines(int from_pos, char* dest_buf, int max_size) {
   return Log::GetLogLines(from_pos, dest_buf, max_size);
 }
 
+
+void Logger::LogCompiledFunctions() {
+  HandleScope scope;
+  Handle<SharedFunctionInfo>* sfis = NULL;
+  int compiled_funcs_count = 0;
+
+  {
+    AssertNoAllocation no_alloc;
+
+    HeapIterator iterator;
+    while (iterator.has_next()) {
+      HeapObject* obj = iterator.next();
+      ASSERT(obj != NULL);
+      if (obj->IsSharedFunctionInfo()
+          && SharedFunctionInfo::cast(obj)->is_compiled()) {
+        ++compiled_funcs_count;
+      }
+    }
+
+    sfis = NewArray< Handle<SharedFunctionInfo> >(compiled_funcs_count);
+    iterator.reset();
+
+    int i = 0;
+    while (iterator.has_next()) {
+      HeapObject* obj = iterator.next();
+      ASSERT(obj != NULL);
+      if (obj->IsSharedFunctionInfo()
+          && SharedFunctionInfo::cast(obj)->is_compiled()) {
+        sfis[i++] = Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(obj));
+      }
+    }
+  }
+
+  // During iteration, there can be heap allocation due to
+  // GetScriptLineNumber call.
+  for (int i = 0; i < compiled_funcs_count; ++i) {
+    Handle<SharedFunctionInfo> shared = sfis[i];
+    Handle<String> name(String::cast(shared->name()));
+    Handle<String> func_name(name->length() > 0 ?
+                             *name : shared->inferred_name());
+    if (shared->script()->IsScript()) {
+      Handle<Script> script(Script::cast(shared->script()));
+      if (script->name()->IsString()) {
+        Handle<String> script_name(String::cast(script->name()));
+        int line_num = GetScriptLineNumber(script, shared->start_position());
+        if (line_num > 0) {
+          line_num += script->line_offset()->value() + 1;
+          LOG(CodeCreateEvent("LazyCompile", shared->code(), *func_name,
+                              *script_name, line_num));
+        } else {
+          // Can't distinguish enum and script here, so always use Script.
+          LOG(CodeCreateEvent("Script", shared->code(), *script_name));
+        }
+        continue;
+      }
+    }
+    // If no script or script has no name.
+    LOG(CodeCreateEvent("LazyCompile", shared->code(), *func_name));
+  }
+
+  DeleteArray(sfis);
+}
+
 #endif
 
 
