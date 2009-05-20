@@ -98,6 +98,7 @@ class AllocationInfo;
 // its page offset by 32. Therefore, the object area in a page starts at the
 // 256th byte (8K/32). Bytes 0 to 255 do not need the remembered set, so that
 // the first two words (64 bits) in a page can be used for other purposes.
+// TODO(X64): This description only represents the 32-bit layout.
 //
 // The mark-compact collector transforms a map pointer into a page index and a
 // page offset. The map space can have up to 1024 pages, and 8M bytes (1024 *
@@ -213,7 +214,7 @@ class Page {
   static const int kPageSize = 1 << kPageSizeBits;
 
   // Page size mask.
-  static const int kPageAlignmentMask = (1 << kPageSizeBits) - 1;
+  static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
 
   // The end offset of the remembered set in a page
   // (heaps are aligned to pointer size).
@@ -242,7 +243,7 @@ class Page {
   // in the current page.  If a page is in the large object space, the first
   // word *may* (if the page start and large object chunk start are the
   // same) contain the address of the next large object chunk.
-  int opaque_header;
+  intptr_t opaque_header;
 
   // If the page is not in the large object space, the low-order bit of the
   // second word is set. If the page is in the large object space, the

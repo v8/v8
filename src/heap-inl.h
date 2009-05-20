@@ -145,7 +145,9 @@ void Heap::RecordWrite(Address address, int offset) {
   if (new_space_.Contains(address)) return;
   ASSERT(!new_space_.FromSpaceContains(address));
   SLOW_ASSERT(Contains(address + offset));
+#ifndef V8_HOST_ARCH_64_BIT
   Page::SetRSet(address, offset);
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 

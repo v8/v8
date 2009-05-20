@@ -5428,7 +5428,7 @@ static Object* Runtime_DebugBreak(Arguments args) {
 
 // Helper functions for wrapping and unwrapping stack frame ids.
 static Smi* WrapFrameId(StackFrame::Id id) {
-  ASSERT(IsAligned(OffsetFrom(id), 4));
+  ASSERT(IsAligned(OffsetFrom(id), static_cast<intptr_t>(4)));
   return Smi::FromInt(id >> 2);
 }
 

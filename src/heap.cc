@@ -667,11 +667,33 @@ void Heap::Scavenge() {
   // Copy objects reachable from weak pointers.
   GlobalHandles::IterateWeakRoots(&scavenge_visitor);
 
+#if V8_HOST_ARCH_64_BIT
+  // TODO(X64): Make this go away again. We currently disable RSets for
+  // 64-bit-mode.
+  HeapObjectIterator old_pointer_iterator(old_pointer_space_);
+  while (old_pointer_iterator.has_next()) {
+    HeapObject* heap_object = old_pointer_iterator.next();
+    heap_object->Iterate(&scavenge_visitor);
+  }
+  HeapObjectIterator map_iterator(map_space_);
+  while (map_iterator.has_next()) {
+    HeapObject* heap_object = map_iterator.next();
+    heap_object->Iterate(&scavenge_visitor);
+  }
+  LargeObjectIterator lo_iterator(lo_space_);
+  while (lo_iterator.has_next()) {
+    HeapObject* heap_object = lo_iterator.next();
+    if (heap_object->IsFixedArray()) {
+      heap_object->Iterate(&scavenge_visitor);
+    }
+  }
+#else  // V8_HOST_ARCH_64_BIT
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
   IterateRSet(old_pointer_space_, &ScavengePointer);
   IterateRSet(map_space_, &ScavengePointer);
   lo_space_->IterateRSet(&ScavengePointer);
+#endif   // V8_HOST_ARCH_64_BIT
 
   do {
     ASSERT(new_space_front <= new_space_.top());
@@ -999,7 +1021,7 @@ bool Heap::CreateInitialMaps() {
   meta_map_ = reinterpret_cast<Map*>(obj);
   meta_map()->set_map(meta_map());
 
-  obj = AllocatePartialMap(FIXED_ARRAY_TYPE, Array::kHeaderSize);
+  obj = AllocatePartialMap(FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
   if (obj->IsFailure()) return false;
   fixed_array_map_ = Map::cast(obj);
 
@@ -1056,37 +1078,37 @@ bool Heap::CreateInitialMaps() {
   STRING_TYPE_LIST(ALLOCATE_STRING_MAP);
 #undef ALLOCATE_STRING_MAP
 
-  obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kHeaderSize);
+  obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_short_string_map_ = Map::cast(obj);
   undetectable_short_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_string_map_ = Map::cast(obj);
   undetectable_medium_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kHeaderSize);
+  obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_long_string_map_ = Map::cast(obj);
   undetectable_long_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
+  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_short_ascii_string_map_ = Map::cast(obj);
   undetectable_short_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_ascii_string_map_ = Map::cast(obj);
   undetectable_medium_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
+  obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
   undetectable_long_ascii_string_map_ = Map::cast(obj);
   undetectable_long_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kHeaderSize);
+  obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kAlignedSize);
   if (obj->IsFailure()) return false;
   byte_array_map_ = Map::cast(obj);
 
