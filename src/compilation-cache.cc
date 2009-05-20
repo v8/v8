@@ -54,14 +54,15 @@ static Handle<CompilationCacheTable> AllocateTable(int size) {
 }
 
 
-static Handle<CompilationCacheTable> GetTable(CompilationCache::Entry entry) {
+static Handle<CompilationCacheTable> GetTable(int index) {
+  ASSERT(index >= 0 && index < NUMBER_OF_TABLE_ENTRIES);
   Handle<CompilationCacheTable> result;
-  if (tables[entry]->IsUndefined()) {
+  if (tables[index]->IsUndefined()) {
     static const int kInitialCacheSize = 64;
     result = AllocateTable(kInitialCacheSize);
-    tables[entry] = *result;
+    tables[index] = *result;
   } else {
-    CompilationCacheTable* table = CompilationCacheTable::cast(tables[entry]);
+    CompilationCacheTable* table = CompilationCacheTable::cast(tables[index]);
     result = Handle<CompilationCacheTable>(table);
   }
   return result;
@@ -137,8 +138,11 @@ Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
                                                   Handle<Object> name,
                                                   int line_offset,
                                                   int column_offset) {
+  // Use an int for the generation index, so value range propagation
+  // in gcc 4.3+ won't assume it can only go up to LAST_ENTRY when in
+  // fact it can go up to SCRIPT + NUMBER_OF_SCRIPT_GENERATIONS.
+  int generation = SCRIPT;
   Object* result = NULL;
-  Entry generation = SCRIPT;  // First generation.
 
   // Probe the script generation tables. Make sure not to leak handles
   // into the caller's handle scope.
@@ -156,7 +160,7 @@ Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
         }
       }
       // Go to the next generation.
-      generation = static_cast<Entry>(generation + 1);
+      generation++;
     }
   }
 
