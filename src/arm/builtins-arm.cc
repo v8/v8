@@ -187,7 +187,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   // Set expected number of arguments to zero (not changing r0).
   __ mov(r2, Operand(0));
-  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
           RelocInfo::CODE_TARGET);
 }

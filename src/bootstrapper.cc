@@ -820,14 +820,28 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     global_context()->set_context_extension_function(*context_extension_fun);
   }
 
-  // Setup the call-as-function delegate.
-  Handle<Code> code =
-      Handle<Code>(Builtins::builtin(Builtins::HandleApiCallAsFunction));
-  Handle<JSFunction> delegate =
-      Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
-                           JSObject::kHeaderSize, code, true);
-  global_context()->set_call_as_function_delegate(*delegate);
-  delegate->shared()->DontAdaptArguments();
+
+  {
+    // Setup the call-as-function delegate.
+    Handle<Code> code =
+        Handle<Code>(Builtins::builtin(Builtins::HandleApiCallAsFunction));
+    Handle<JSFunction> delegate =
+        Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
+                             JSObject::kHeaderSize, code, true);
+    global_context()->set_call_as_function_delegate(*delegate);
+    delegate->shared()->DontAdaptArguments();
+  }
+
+  {
+    // Setup the call-as-constructor delegate.
+    Handle<Code> code =
+        Handle<Code>(Builtins::builtin(Builtins::HandleApiCallAsConstructor));
+    Handle<JSFunction> delegate =
+        Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
+                             JSObject::kHeaderSize, code, true);
+    global_context()->set_call_as_constructor_delegate(*delegate);
+    delegate->shared()->DontAdaptArguments();
+  }
 
   global_context()->set_special_function_table(Heap::empty_fixed_array());
 

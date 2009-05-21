@@ -394,11 +394,17 @@ BUILTIN(HandleApiCall) {
 BUILTIN_END
 
 
-// Handle calls to non-function objects created through the API that
-// support calls.
-BUILTIN(HandleApiCallAsFunction) {
-  // Non-functions are never called as constructors.
+// Helper function to handle calls to non-function objects created through the
+// API. The object can be called as either a constructor (using new) or just as
+// a function (without new).
+static Object* HandleApiCallAsFunctionOrConstructor(bool is_construct_call,
+                                                    int __argc__,
+                                                    Object** __argv__) {
+  // Non-functions are never called as constructors. Even if this is an object
+  // called as a constructor the delegate call is not a construct call.
   ASSERT(!CalledAsConstructor());
+
+  Handle<Object> receiver(&__argv__[0]);
 
   // Get the object called.
   JSObject* obj = JSObject::cast(*receiver);
@@ -431,7 +437,7 @@ BUILTIN(HandleApiCallAsFunction) {
         data,
         self,
         callee,
-        false,
+        is_construct_call,
         reinterpret_cast<void**>(__argv__ - 1),
         __argc__ - 1);
     v8::Handle<v8::Value> value;
@@ -449,6 +455,21 @@ BUILTIN(HandleApiCallAsFunction) {
   // Check for exceptions and return result.
   RETURN_IF_SCHEDULED_EXCEPTION();
   return result;
+}
+
+
+// Handle calls to non-function objects created through the API. This delegate
+// function is used when the call is a normal function call.
+BUILTIN(HandleApiCallAsFunction) {
+  return HandleApiCallAsFunctionOrConstructor(false, __argc__, __argv__);
+}
+BUILTIN_END
+
+
+// Handle calls to non-function objects created through the API. This delegate
+// function is used when the call is a construct call.
+BUILTIN(HandleApiCallAsConstructor) {
+  return HandleApiCallAsFunctionOrConstructor(true, __argc__, __argv__);
 }
 BUILTIN_END
 

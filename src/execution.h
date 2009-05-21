@@ -129,6 +129,10 @@ class Execution : public AllStatic {
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Handle<Object> object);
+
+  // Get a function delegate (or undefined) for the given non-function
+  // object. Used for support calling objects as constructors.
+  static Handle<Object> GetConstructorDelegate(Handle<Object> object);
 };
 
 
