@@ -2400,6 +2400,11 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 
 v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
   Handle<Context> context = Debug::debugger_entry()->GetContext();
+  // Top::context() may have been NULL when "script collected" event occured.
+  if (*context == NULL) {
+    ASSERT(event_ == v8::ScriptCollected);
+    return v8::Local<v8::Context>();
+  }
   Handle<Context> global_context(context->global_context());
   return v8::Utils::ToLocal(global_context);
 }

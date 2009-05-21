@@ -4817,7 +4817,7 @@ TEST(ScriptCollectedEvent) {
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  // Request the loaded scripte to initialize the debugger script cache.
+  // Request the loaded scripts to initialize the debugger script cache.
   Debug::GetLoadedScripts();
 
   // Do garbage collection to ensure that only the script in this test will be
@@ -4840,4 +4840,50 @@ TEST(ScriptCollectedEvent) {
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
+}
+
+
+// Debug event listener which counts the script collected events.
+int script_collected_message_count = 0;
+static void ScriptCollectedMessageHandler(const v8::Debug::Message& message) {
+  // Count the number of scripts collected.
+  if (message.IsEvent() && message.GetEvent() == v8::ScriptCollected) {
+    script_collected_message_count++;
+    v8::Handle<v8::Context> context = message.GetEventContext();
+    CHECK(context.IsEmpty());
+  }
+}
+
+
+// Test that GetEventContext doesn't fail and return empty handle for
+// ScriptCollected events.
+TEST(ScriptCollectedEventContext) {
+  break_point_hit_count = 0;
+  v8::HandleScope scope;
+
+  { // Scope for the DebugLocalContext.
+    DebugLocalContext env;
+
+    // Request the loaded scripts to initialize the debugger script cache.
+    Debug::GetLoadedScripts();
+
+    // Do garbage collection to ensure that only the script in this test will be
+    // collected afterwards.
+    Heap::CollectAllGarbage();
+
+    script_collected_count = 0;
+    v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
+    {
+      v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
+      v8::Script::Compile(v8::String::New("eval('a=2')"))->Run();
+    }
+  }
+
+  // Do garbage collection to collect the script above which is no longer
+  // referenced.
+  Heap::CollectAllGarbage();
+
+  CHECK_EQ(2, script_collected_message_count);
+
+  v8::Debug::SetMessageHandler2(NULL);
 }
