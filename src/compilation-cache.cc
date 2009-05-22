@@ -174,7 +174,7 @@ Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
     }
   }
 
-  // Once outside the menacles of the handle scope, we need to recheck
+  // Once outside the manacles of the handle scope, we need to recheck
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
   if (result != NULL) {
