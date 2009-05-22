@@ -815,6 +815,14 @@ class Assembler : public Malloced {
   inline void emit(const Immediate& x);
   inline void emit_w(const Immediate& x);
 
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of both register codes.
+  inline void emit_rex_64(Register reg, Register rm_reg);
+
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of the destination, index, and base register codes.
+  inline void emit_rex_64(Register reg, const Operand& op);
+
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
 

@@ -53,9 +53,6 @@ void CpuFeatures::Probe()  {
 static void InitCoverageLog();
 #endif
 
-// -----------------------------------------------------------------------------
-// Implementation of Assembler
-
 byte* Assembler::spare_buffer_ = NULL;
 
 Assembler::Assembler(void* buffer, int buffer_size) {
@@ -159,10 +156,6 @@ void Assembler::bind(Label* a) {
   UNIMPLEMENTED();
 }
 
-void Assembler::nop() {
-  UNIMPLEMENTED();
-}
-
 void Assembler::GrowBuffer() {
   ASSERT(overflow());  // should not call this otherwise
   if (!own_buffer_) FATAL("external code buffer is too small");
@@ -232,10 +225,69 @@ void Assembler::GrowBuffer() {
 }
 
 
+void Assembler::emit_operand(Register reg, const Operand& adr) {
+  const unsigned length = adr.len_;
+  ASSERT(length > 0);
+
+  // Emit updated ModRM byte containing the given register.
+  pc_[0] = (adr.buf_[0] & ~0x38) | ((reg.code() && 0x7) << 3);
+
+  // Emit the rest of the encoded operand.
+  for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
+  pc_ += length;
+}
+
+
 void Assembler::int3() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xCC);
+}
+
+
+void Assembler::hlt() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF4);
+}
+
+
+void Assembler::nop() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x90);
+}
+
+
+void Assembler::ret(int imm16) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint16(imm16));
+  if (imm16 == 0) {
+    EMIT(0xC3);
+  } else {
+    EMIT(0xC2);
+    EMIT(imm16 & 0xFF);
+    EMIT((imm16 >> 8) & 0xFF);
+  }
+}
+
+
+void Assembler::mov(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  EMIT(0x8B);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::mov(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  EMIT(0x89);
+  EMIT(0xC0 | (src.code() & 0x7) << 3 | (dst.code() & 0x7));
 }
 
 } }  // namespace v8::internal
