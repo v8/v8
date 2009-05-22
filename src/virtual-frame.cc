@@ -37,8 +37,9 @@ namespace v8 { namespace internal {
 
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
-    : elements_(original->elements_),
+    : elements_(original->elements_.length()),
       stack_pointer_(original->stack_pointer_) {
+  elements_.AddAll(original->elements_);
   // Copy register locations from original.
   memcpy(&register_locations_,
          original->register_locations_,

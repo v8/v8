@@ -48,7 +48,6 @@ class List {
  public:
 
   INLINE(explicit List(int capacity)) { Initialize(capacity); }
-  INLINE(explicit List(const List<T, P>& other));
   INLINE(~List()) { DeleteData(data_); }
 
   INLINE(void* operator new(size_t size)) { return P::New(size); }
@@ -77,6 +76,9 @@ class List {
   // Adds a copy of the given 'element' to the end of the list,
   // expanding the list if necessary.
   void Add(const T& element);
+
+  // Add all the elements from the argument list to this list.
+  void AddAll(const List<T, P>& other);
 
   // Added 'count' elements with the value 'value' and returns a
   // vector that allows access to the elements.  The vector is valid
@@ -126,6 +128,11 @@ class List {
   // Inlined implementation of ResizeAdd, shared by inlined and
   // non-inlined versions of ResizeAdd.
   void ResizeAddInternal(const T& element);
+
+  // Resize the list.
+  void Resize(int new_capacity);
+
+  DISALLOW_COPY_AND_ASSIGN(List);
 };
 
 class FrameElement;

@@ -480,8 +480,10 @@ void BreakTarget::set_direction(Directionality direction) {
 void BreakTarget::CopyTo(BreakTarget* destination) {
   ASSERT(destination != NULL);
   destination->direction_ = direction_;
-  destination->reaching_frames_ = reaching_frames_;
-  destination->merge_labels_ = merge_labels_;
+  destination->reaching_frames_.Rewind(0);
+  destination->reaching_frames_.AddAll(reaching_frames_);
+  destination->merge_labels_.Rewind(0);
+  destination->merge_labels_.AddAll(merge_labels_);
   destination->entry_frame_ = entry_frame_;
   destination->entry_label_ = entry_label_;
   destination->expected_height_ = expected_height_;
