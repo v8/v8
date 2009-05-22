@@ -43,6 +43,16 @@ ANDROID_TOP = os.environ.get('TOP')
 if ANDROID_TOP is None:
   ANDROID_TOP=""
 
+# TODO: Sort these issues out properly but as a temporary solution for gcc 4.4
+# on linux we need these compiler flags to avoid a mksnapshot segfault, avoid
+# crashes in the v8 test suite and avoid dtoa.c strict aliasing issues
+if os.environ.get('GCC_VERSION') == "44":
+    GCC_EXTRA_CCFLAGS = ['-fno-tree-vectorize', '-fno-tree-vrp']
+    GCC_DTOA_EXTRA_CCFLAGS = ['-fno-strict-aliasing']
+else:
+    GCC_EXTRA_CCFLAGS = []
+    GCC_DTOA_EXTRA_CCFLAGS = []
+
 ANDROID_FLAGS = ['-march=armv5te',
                  '-mtune=xscale',
                  '-msoft-float',
@@ -109,7 +119,7 @@ LIBRARY_FLAGS = {
       }
     },
     'os:linux': {
-      'CCFLAGS':      ['-ansi'],
+      'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
       'library:shared': {
         'LIBS': ['pthread']
       }
@@ -278,7 +288,8 @@ MKSNAPSHOT_EXTRA_FLAGS = {
 DTOA_EXTRA_FLAGS = {
   'gcc': {
     'all': {
-      'WARNINGFLAGS': ['-Werror', '-Wno-uninitialized']
+      'WARNINGFLAGS': ['-Werror', '-Wno-uninitialized'],
+      'CCFLAGS': GCC_DTOA_EXTRA_CCFLAGS
     }
   },
   'msvc': {
