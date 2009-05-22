@@ -37,6 +37,39 @@ Condition NegateCondition(Condition cc) {
 }
 
 
+// -----------------------------------------------------------------------------
+// Implementation of Assembler
+
+#define EMIT(x)                                 \
+  *pc_++ = (x)
+
+
+void Assembler::emit_rex_64(Register reg, Register rm_reg) {
+  EMIT(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+}
+
+
+void Assembler::emit_rex_64(Register reg, const Operand& op) {
+  EMIT(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
+}
+
+
+void Assembler::set_target_address_at(byte* location, byte* value) {
+  UNIMPLEMENTED();
+}
+
+
+byte* Assembler::target_address_at(byte* location) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+#undef EMIT
+
+
+// -----------------------------------------------------------------------------
+// Implementation of RelocInfo
+
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(int delta) {
   if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
@@ -71,19 +104,6 @@ void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);
 }
-
-
-void Assembler::set_target_address_at(byte* location, byte* value) {
-  UNIMPLEMENTED();
-}
-
-
-byte* Assembler::target_address_at(byte* location) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return *reinterpret_cast<Object**>(pc_);
