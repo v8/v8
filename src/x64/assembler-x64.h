@@ -297,7 +297,6 @@ class Operand BASE_EMBEDDED {
   inline void set_sib(ScaleFactor scale, Register index, Register base);
   inline void set_disp8(int8_t disp);
   inline void set_disp32(int32_t disp);
-  inline void set_dispr(intptr_t disp, RelocInfo::Mode rmode);
 
   friend class Assembler;
 };

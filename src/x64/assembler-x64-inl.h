@@ -197,14 +197,6 @@ void Operand::set_disp32(int32_t disp) {
 }
 
 
-void Operand::set_dispr(intptr_t disp, RelocInfo::Mode rmode) {
-  // This cannot be used in 64-bit mode.  A 64-bit displacement
-  // cannot be encoded, so relocatable 64-bit values must be
-  // loaded as immediates.
-  UNIMPLEMENTED();
-}
-
-
 Operand::Operand(Register reg) {
   // reg
   set_modrm(3, reg);
