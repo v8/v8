@@ -764,9 +764,11 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
 
 Failure* Failure::Construct(Type type, int value) {
   int info = (value << kFailureTypeTagSize) | type;
+  // TODO(X64): Stop using Smi validation for non-smi checks, even if they
+  // happen to be identical at the moment.
   ASSERT(Smi::IsValid(info));  // Same validation check as in Smi
   return reinterpret_cast<Failure*>(
-      static_cast<intptr_t>((info << kFailureTagSize) | kFailureTag));
+      (static_cast<intptr_t>(info) << kFailureTagSize) | kFailureTag);
 }
 
 

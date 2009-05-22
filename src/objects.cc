@@ -536,6 +536,9 @@ void Failure::FailurePrint() {
 
 Failure* Failure::RetryAfterGC(int requested_bytes, AllocationSpace space) {
   ASSERT((space & ~kSpaceTagMask) == 0);
+  // TODO(X64): Stop using Smi validation for non-smi checks, even if they
+  // happen to be identical at the moment.
+
   int requested = requested_bytes >> kObjectAlignmentBits;
   int value = (requested << kSpaceTagSize) | space;
   // We can't very well allocate a heap number in this situation, and if the

@@ -1087,6 +1087,12 @@ bool Genesis::InstallNatives() {
     global_context()->set_empty_script(*script);
   }
 
+#ifdef V8_HOST_ARCH_64_BIT
+  // TODO(X64): Reenable remaining initialization when code generation works.
+  return true;
+#endif  // V8_HOST_ARCH_64_BIT
+
+
   if (FLAG_natives_file == NULL) {
     // Without natives file, install default natives.
     for (int i = Natives::GetDelayCount();
@@ -1532,6 +1538,7 @@ Genesis::Genesis(Handle<Object> global_object,
   SaveContext context;
 
   CreateRoots(global_template, global_object);
+
   if (!InstallNatives()) return;
 
   MakeFunctionInstancePrototypeWritable();

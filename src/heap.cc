@@ -800,6 +800,8 @@ class UpdateRSetVisitor: public ObjectVisitor {
 
 
 int Heap::UpdateRSet(HeapObject* obj) {
+#ifndef V8_HOST_ARCH_64_BIT
+  // TODO(X64) Reenable RSet when we have a working 64-bit layout of Page.
   ASSERT(!InNewSpace(obj));
   // Special handling of fixed arrays to iterate the body based on the start
   // address and offset.  Just iterating the pointers as in UpdateRSetVisitor
@@ -821,6 +823,7 @@ int Heap::UpdateRSet(HeapObject* obj) {
     UpdateRSetVisitor v;
     obj->Iterate(&v);
   }
+#endif  // V8_HOST_ARCH_64_BIT
   return obj->Size();
 }
 

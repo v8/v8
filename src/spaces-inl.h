@@ -159,9 +159,14 @@ void Page::UnsetRSet(Address address, int offset) {
 
 
 bool Page::IsRSetSet(Address address, int offset) {
+#ifdef V8_HOST_ARCH_64_BIT
+  // TODO(X64): Reenable when RSet works.
+  return true;
+#else  // V8_HOST_ARCH_64_BIT
   uint32_t bitmask = 0;
   Address rset_address = ComputeRSetBitPosition(address, offset, &bitmask);
   return (Memory::uint32_at(rset_address) & bitmask) != 0;
+#endif  // V8_HOST_ARCH_64_BIT
 }
 
 
