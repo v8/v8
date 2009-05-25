@@ -4693,6 +4693,9 @@ TEST(ContextData) {
 
   // Two times compile event and two times break event.
   CHECK_GT(message_handler_hit_count, 4);
+
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -4739,11 +4742,14 @@ TEST(EvalContextData) {
 
   // One time compile event and one time break event.
   CHECK_GT(message_handler_hit_count, 2);
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
 }
 
 
 static bool sent_eval = false;
 static int break_count = 0;
+static int continue_command_send_count = 0;
 // Check that the expected context is the one generating the debug event
 // including the case of nested break event.
 static void DebugEvalContextCheckMessageHandler(
@@ -4773,11 +4779,13 @@ static void DebugEvalContextCheckMessageHandler(
     } else {
       // It's a break event caused by the evaluation request above.
       SendContinueCommand();
+      continue_command_send_count++;
     }
-  } else if (message.IsResponse()) {
+  } else if (message.IsResponse() && continue_command_send_count < 2) {
     // Response to the evaluation request. We're still on the breakpoint so
     // send continue.
     SendContinueCommand();
+    continue_command_send_count++;
   }
 }
 
@@ -4786,6 +4794,8 @@ static void DebugEvalContextCheckMessageHandler(
 // in 'evaluate' debugger request.
 TEST(NestedBreakEventContextData) {
   v8::HandleScope scope;
+  break_count = 0;
+  message_handler_hit_count = 0;
   v8::Debug::SetMessageHandler2(DebugEvalContextCheckMessageHandler);
 
   ExecuteScriptForContextCheck();
@@ -4795,6 +4805,8 @@ TEST(NestedBreakEventContextData) {
 
   // One break from the source and another from the evaluate request.
   CHECK_EQ(break_count, 2);
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
 }
 
 
@@ -4814,6 +4826,7 @@ static void DebugEventScriptCollectedEvent(v8::DebugEvent event,
 // Test that scripts collected are reported through the debug event listener.
 TEST(ScriptCollectedEvent) {
   break_point_hit_count = 0;
+  script_collected_count = 0;
   v8::HandleScope scope;
   DebugLocalContext env;
 
@@ -4858,7 +4871,7 @@ static void ScriptCollectedMessageHandler(const v8::Debug::Message& message) {
 // Test that GetEventContext doesn't fail and return empty handle for
 // ScriptCollected events.
 TEST(ScriptCollectedEventContext) {
-  break_point_hit_count = 0;
+  script_collected_message_count = 0;
   v8::HandleScope scope;
 
   { // Scope for the DebugLocalContext.
@@ -4871,7 +4884,6 @@ TEST(ScriptCollectedEventContext) {
     // collected afterwards.
     Heap::CollectAllGarbage();
 
-    script_collected_count = 0;
     v8::Debug::SetMessageHandler2(ScriptCollectedMessageHandler);
     {
       v8::Script::Compile(v8::String::New("eval('a=1')"))->Run();
@@ -4886,4 +4898,102 @@ TEST(ScriptCollectedEventContext) {
   CHECK_EQ(2, script_collected_message_count);
 
   v8::Debug::SetMessageHandler2(NULL);
+}
+
+
+// Debug event listener which counts the after compile events.
+int after_compile_message_count = 0;
+static void AfterCompileMessageHandler(const v8::Debug::Message& message) {
+  // Count the number of scripts collected.
+  if (message.IsEvent()) {
+    if (message.GetEvent() == v8::AfterCompile) {
+      after_compile_message_count++;
+    } else if (message.GetEvent() == v8::Break) {
+      SendContinueCommand();
+    }
+  }
+}
+
+
+// Tests that after compile event is sent as many times as there are scripts
+// compiled.
+TEST(AfterCompileMessageWhenMessageHandlerIsReset) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  after_compile_message_count = 0;
+  const char* script = "var a=1";
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Script::Compile(v8::String::New(script))->Run();
+  v8::Debug::SetMessageHandler2(NULL);
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Debug::DebugBreak();
+  v8::Script::Compile(v8::String::New(script))->Run();
+
+  // Setting listener to NULL should cause debugger unload.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+
+  // Compilation cache should be disabled when debugger is active.
+  CHECK_EQ(2, after_compile_message_count);
+}
+
+
+// Tests that break event is sent when message handler is reset.
+TEST(BreakMessageWhenMessageHandlerIsReset) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  after_compile_message_count = 0;
+  const char* script = "function f() {};";
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Script::Compile(v8::String::New(script))->Run();
+  v8::Debug::SetMessageHandler2(NULL);
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Debug::DebugBreak();
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+
+  // Setting message handler to NULL should cause debugger unload.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+
+  // Compilation cache should be disabled when debugger is active.
+  CHECK_EQ(1, after_compile_message_count);
+}
+
+
+static int exception_event_count = 0;
+static void ExceptionMessageHandler(const v8::Debug::Message& message) {
+  if (message.IsEvent() && message.GetEvent() == v8::Exception) {
+    exception_event_count++;
+    SendContinueCommand();
+  }
+}
+
+
+// Tests that exception event is sent when message handler is reset.
+TEST(ExceptionMessageWhenMessageHandlerIsReset) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  exception_event_count = 0;
+  const char* script = "function f() {throw new Error()};";
+
+  v8::Debug::SetMessageHandler2(AfterCompileMessageHandler);
+  v8::Script::Compile(v8::String::New(script))->Run();
+  v8::Debug::SetMessageHandler2(NULL);
+
+  v8::Debug::SetMessageHandler2(ExceptionMessageHandler);
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  f->Call(env->Global(), 0, NULL);
+
+  // Setting message handler to NULL should cause debugger unload.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+
+  CHECK_EQ(1, exception_event_count);
 }

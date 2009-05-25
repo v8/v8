@@ -1589,7 +1589,7 @@ bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
 bool Debugger::never_unload_debugger_ = false;
 v8::Debug::MessageHandler2 Debugger::message_handler_ = NULL;
-bool Debugger::message_handler_cleared_ = false;
+bool Debugger::debugger_unload_pending_ = false;
 v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
 int Debugger::host_dispatch_micros_ = 100 * 1000;
 DebuggerAgent* Debugger::agent_ = NULL;
@@ -1981,8 +1981,8 @@ void Debugger::UnloadDebugger() {
     Debug::Unload();
   }
 
-  // Clear the flag indicating that the message handler was recently cleared.
-  message_handler_cleared_ = false;
+  // Clear the flag indicating that the debugger should be unloaded.
+  debugger_unload_pending_ = false;
 }
 
 
@@ -2169,17 +2169,7 @@ void Debugger::SetEventListener(Handle<Object> callback,
     event_listener_data_ = Handle<Object>::cast(GlobalHandles::Create(*data));
   }
 
-  // Unload the debugger if event listener cleared.
-  if (callback->IsUndefined()) {
-    UnloadDebugger();
-  }
-
-  // Disable the compilation cache when the debugger is active.
-  if (IsDebuggerActive()) {
-    CompilationCache::Disable();
-  } else {
-    CompilationCache::Enable();
-  }
+  ListenersChanged();
 }
 
 
@@ -2187,22 +2177,32 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
   ScopedLock with(debugger_access_);
 
   message_handler_ = handler;
+  ListenersChanged();
   if (handler == NULL) {
-    // Indicate that the message handler was recently cleared.
-    message_handler_cleared_ = true;
-
     // Send an empty command to the debugger if in a break to make JavaScript
     // run again if the debugger is closed.
     if (Debug::InDebugger()) {
       ProcessCommand(Vector<const uint16_t>::empty());
     }
   }
+}
 
-  // Disable the compilation cache when the debugger is active.
+
+void Debugger::ListenersChanged() {
   if (IsDebuggerActive()) {
+    // Disable the compilation cache when the debugger is active.
     CompilationCache::Disable();
   } else {
     CompilationCache::Enable();
+
+    // Unload the debugger if event listener and message handler cleared.
+    if (Debug::InDebugger()) {
+      // If we are in debugger set the flag to unload the debugger when last
+      // EnterDebugger on the current stack is destroyed.
+      debugger_unload_pending_ = true;
+    } else {
+      UnloadDebugger();
+    }
   }
 }
 

@@ -629,7 +629,7 @@ class Debugger {
     ScopedLock with(debugger_access_);
 
     // Check whether the message handler was been cleared.
-    if (message_handler_cleared_) {
+    if (debugger_unload_pending_) {
       UnloadDebugger();
     }
 
@@ -646,6 +646,7 @@ class Debugger {
 
  private:
   static bool IsDebuggerActive();
+  static void ListenersChanged();
 
   static Mutex* debugger_access_;  // Mutex guarding debugger variables.
   static Handle<Object> event_listener_;  // Global handle to listener.
@@ -654,7 +655,7 @@ class Debugger {
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static bool never_unload_debugger_;  // Can we unload the debugger?
   static v8::Debug::MessageHandler2 message_handler_;
-  static bool message_handler_cleared_;  // Was message handler cleared?
+  static bool debugger_unload_pending_;  // Was message handler cleared?
   static v8::Debug::HostDispatchHandler host_dispatch_handler_;
   static int host_dispatch_micros_;
 
