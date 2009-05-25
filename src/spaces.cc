@@ -2423,6 +2423,13 @@ void LargeObjectSpace::ClearRSet() {
 void LargeObjectSpace::IterateRSet(ObjectSlotCallback copy_object_func) {
   ASSERT(Page::is_rset_in_use());
 
+  static void* lo_rset_histogram = StatsTable::CreateHistogram(
+      "V8.RSetLO",
+      0,
+      // Keeping this histogram's buckets the same as the paged space histogram.
+      Page::kObjectAreaSize / kPointerSize,
+      30);
+
   LargeObjectIterator it(this);
   while (it.has_next()) {
     // We only have code, sequential strings, or fixed arrays in large
@@ -2433,15 +2440,18 @@ void LargeObjectSpace::IterateRSet(ObjectSlotCallback copy_object_func) {
       // Iterate the normal page remembered set range.
       Page* page = Page::FromAddress(object->address());
       Address object_end = object->address() + object->Size();
-      Heap::IterateRSetRange(page->ObjectAreaStart(),
-                             Min(page->ObjectAreaEnd(), object_end),
-                             page->RSetStart(),
-                             copy_object_func);
+      int count = Heap::IterateRSetRange(page->ObjectAreaStart(),
+                                         Min(page->ObjectAreaEnd(), object_end),
+                                         page->RSetStart(),
+                                         copy_object_func);
 
       // Iterate the extra array elements.
       if (object_end > page->ObjectAreaEnd()) {
-        Heap::IterateRSetRange(page->ObjectAreaEnd(), object_end,
-                               object_end, copy_object_func);
+        count += Heap::IterateRSetRange(page->ObjectAreaEnd(), object_end,
+                                        object_end, copy_object_func);
+      }
+      if (lo_rset_histogram != NULL) {
+        StatsTable::AddHistogramSample(lo_rset_histogram, count);
       }
     }
   }

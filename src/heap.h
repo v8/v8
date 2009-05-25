@@ -667,10 +667,11 @@ class Heap : public AllStatic {
   // Iterates a range of remembered set addresses starting with rset_start
   // corresponding to the range of allocated pointers
   // [object_start, object_end).
-  static void IterateRSetRange(Address object_start,
-                               Address object_end,
-                               Address rset_start,
-                               ObjectSlotCallback copy_object_func);
+  // Returns the number of bits that were set.
+  static int IterateRSetRange(Address object_start,
+                              Address object_end,
+                              Address rset_start,
+                              ObjectSlotCallback copy_object_func);
 
   // Returns whether the object resides in new space.
   static inline bool InNewSpace(Object* object);

@@ -2664,12 +2664,13 @@ void Heap::ZapFromSpace() {
 #endif  // DEBUG
 
 
-void Heap::IterateRSetRange(Address object_start,
-                            Address object_end,
-                            Address rset_start,
-                            ObjectSlotCallback copy_object_func) {
+int Heap::IterateRSetRange(Address object_start,
+                           Address object_end,
+                           Address rset_start,
+                           ObjectSlotCallback copy_object_func) {
   Address object_address = object_start;
   Address rset_address = rset_start;
+  int set_bits_count = 0;
 
   // Loop over all the pointers in [object_start, object_end).
   while (object_address < object_end) {
@@ -2686,6 +2687,7 @@ void Heap::IterateRSetRange(Address object_start,
           // If this pointer does not need to be remembered anymore, clear
           // the remembered set bit.
           if (!Heap::InNewSpace(*object_p)) result_rset &= ~bitmask;
+          set_bits_count++;
         }
         object_address += kPointerSize;
       }
@@ -2699,6 +2701,7 @@ void Heap::IterateRSetRange(Address object_start,
     }
     rset_address += kIntSize;
   }
+  return set_bits_count;
 }
 
 
@@ -2706,11 +2709,20 @@ void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
   ASSERT(Page::is_rset_in_use());
   ASSERT(space == old_pointer_space_ || space == map_space_);
 
+  static void* paged_rset_histogram = StatsTable::CreateHistogram(
+      "V8.RSetPaged",
+      0,
+      Page::kObjectAreaSize / kPointerSize,
+      30);
+
   PageIterator it(space, PageIterator::PAGES_IN_USE);
   while (it.has_next()) {
     Page* page = it.next();
-    IterateRSetRange(page->ObjectAreaStart(), page->AllocationTop(),
-                     page->RSetStart(), copy_object_func);
+    int count = IterateRSetRange(page->ObjectAreaStart(), page->AllocationTop(),
+                                 page->RSetStart(), copy_object_func);
+    if (paged_rset_histogram != NULL) {
+      StatsTable::AddHistogramSample(paged_rset_histogram, count);
+    }
   }
 }
 
