@@ -263,72 +263,75 @@ typedef char* CodeEntityInfo;
 class Interval {
  public:
   Interval()
-      : min_addr(reinterpret_cast<Address>(-1)),
-        max_addr(reinterpret_cast<Address>(0)), next(NULL) {}
+      : min_addr_(reinterpret_cast<Address>(-1)),
+        max_addr_(reinterpret_cast<Address>(0)), next_(NULL) {}
 
-  ~Interval() { delete next; }
+  ~Interval() { delete next_; }
 
   size_t Length() {
-    size_t result = max_addr - min_addr + 1;
-    if (next != NULL) result += next->Length();
+    size_t result = max_addr_ - min_addr_ + 1;
+    if (next_ != NULL) result += next_->Length();
     return result;
   }
 
   void CloneFrom(Interval* src) {
     while (src != NULL) {
-      RegisterAddress(src->min_addr);
-      RegisterAddress(src->max_addr);
-      src = src->next;
+      RegisterAddress(src->min_addr_);
+      RegisterAddress(src->max_addr_);
+      src = src->next_;
     }
   }
 
   bool Contains(Address addr) {
-    if (min_addr <= addr && addr <= max_addr) {
+    if (min_addr_ <= addr && addr <= max_addr_) {
       return true;
     }
-    if (next != NULL) return next->Contains(addr);
-    return false;
+    if (next_ != NULL) {
+      return next_->Contains(addr);
+    } else {
+      return false;
+    }
   }
 
   size_t GetIndex(Address addr) {
-    if (min_addr <= addr && addr <= max_addr) {
-      return addr - min_addr;
+    if (min_addr_ <= addr && addr <= max_addr_) {
+      return addr - min_addr_;
     }
-    CHECK_NE(NULL, next);
-    return (max_addr - min_addr + 1) + next->GetIndex(addr);
+    CHECK_NE(NULL, next_);
+    return (max_addr_ - min_addr_ + 1) + next_->GetIndex(addr);
   }
 
   Address GetMinAddr() {
-    return next == NULL ? min_addr : i::Min(min_addr, next->GetMinAddr());
+    return next_ == NULL ? min_addr_ : i::Min(min_addr_, next_->GetMinAddr());
   }
 
   Address GetMaxAddr() {
-    return next == NULL ? max_addr : i::Max(max_addr, next->GetMaxAddr());
+    return next_ == NULL ? max_addr_ : i::Max(max_addr_, next_->GetMaxAddr());
   }
 
   void RegisterAddress(Address addr) {
-    if (min_addr == reinterpret_cast<Address>(-1)
-        || (size_t)(addr > min_addr ?
-           addr - min_addr : min_addr - addr) < MAX_DELTA) {
-      if (addr < min_addr) min_addr = addr;
-      if (addr > max_addr) max_addr = addr;
+    if (min_addr_ == reinterpret_cast<Address>(-1)
+        || (size_t)(addr > min_addr_ ?
+           addr - min_addr_ : min_addr_ - addr) < MAX_DELTA) {
+      if (addr < min_addr_) min_addr_ = addr;
+      if (addr > max_addr_) max_addr_ = addr;
     } else {
-      if (next == NULL) next = new Interval();
-      next->RegisterAddress(addr);
+      if (next_ == NULL) next_ = new Interval();
+      next_->RegisterAddress(addr);
     }
   }
 
-  Address raw_min_addr() { return min_addr; }
+  Address raw_min_addr() { return min_addr_; }
 
-  Address raw_max_addr() { return max_addr; }
+  Address raw_max_addr() { return max_addr_; }
 
-  Interval* get_next() { return next; }
+  Interval* get_next() { return next_; }
 
  private:
   static const size_t MAX_DELTA = 0x100000;
-  Address min_addr;
-  Address max_addr;
-  Interval* next;
+  Address min_addr_;
+  Address max_addr_;
+  Interval* next_;
 };
 
 
@@ -395,7 +398,7 @@ class ParseLogResult {
   }
 
   Interval bounds;
-  // Memory map of entities start addresses. Biased by bounds.min_addr.
+  // Memory map of entities start addresses.
   int* entities_map;
   // An array of code entities.
   CodeEntityInfo* entities;
