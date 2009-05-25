@@ -1530,8 +1530,8 @@ Genesis::Genesis(Handle<Object> global_object,
   current_  = this;
   result_ = NULL;
 
-  // If V8 hasn't been and cannot be initialized, just return.
-  if (!V8::HasBeenSetup() && !V8::Initialize(NULL)) return;
+  // If V8 isn't running and cannot be initialized, just return.
+  if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.

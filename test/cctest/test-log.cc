@@ -201,7 +201,7 @@ TEST(ProfLazyMode) {
 
   // If tests are being run manually, V8 will be already initialized
   // by the test below.
-  const bool need_to_set_up_logger = i::V8::HasBeenSetup();
+  const bool need_to_set_up_logger = i::V8::IsRunning();
   v8::HandleScope scope;
   v8::Handle<v8::Context> env = v8::Context::New();
   if (need_to_set_up_logger) Logger::Setup();
@@ -620,7 +620,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   // are using V8.
   //
   // P.S. No, V8 can't be re-initialized after disposal, see include/v8.h.
-  CHECK(!i::V8::HasBeenSetup());
+  CHECK(!i::V8::IsRunning());
 
   i::FLAG_logfile = "*";
   i::FLAG_log = true;

@@ -99,7 +99,6 @@ static i::HandleScopeImplementer thread_local;
 // --- E x c e p t i o n   B e h a v i o r ---
 
 
-static bool has_shut_down = false;
 static FatalErrorCallback exception_behavior = NULL;
 
 
@@ -123,7 +122,7 @@ static FatalErrorCallback& GetFatalErrorHandler() {
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
 // The default fatal error handler is called and execution is stopped.
 void i::V8::FatalProcessOutOfMemory(const char* location) {
-  has_shut_down = true;
+  i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   {
     LEAVE_V8;
@@ -142,13 +141,13 @@ void V8::SetFatalErrorHandler(FatalErrorCallback that) {
 bool Utils::ReportApiFailure(const char* location, const char* message) {
   FatalErrorCallback callback = GetFatalErrorHandler();
   callback(location, message);
-  has_shut_down = true;
+  i::V8::SetFatalError();
   return false;
 }
 
 
 bool V8::IsDead() {
-  return has_shut_down;
+  return i::V8::IsDead();
 }
 
 
@@ -186,7 +185,8 @@ static bool ReportEmptyHandle(const char* location) {
  * yet been done.
  */
 static inline bool IsDeadCheck(const char* location) {
-  return has_shut_down ? ReportV8Dead(location) : false;
+  return !i::V8::IsRunning()
+      && i::V8::IsDead() ? ReportV8Dead(location) : false;
 }
 
 
@@ -205,9 +205,14 @@ static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
 static i::StringInputBuffer write_input_buffer;
 
 
-static void EnsureInitialized(const char* location) {
-  if (IsDeadCheck(location)) return;
-  ApiCheck(v8::V8::Initialize(), location, "Error initializing V8");
+static inline bool EnsureInitialized(const char* location) {
+  if (i::V8::IsRunning()) {
+    return true;
+  }
+  if (IsDeadCheck(location)) {
+    return false;
+  }
+  return ApiCheck(v8::V8::Initialize(), location, "Error initializing V8");
 }
 
 
@@ -225,29 +230,25 @@ void ImplementationUtilities::ZapHandleRange(void** begin, void** end) {
 
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
-  if (IsDeadCheck("v8::Undefined()")) return v8::Handle<v8::Primitive>();
-  EnsureInitialized("v8::Undefined()");
+  if (!EnsureInitialized("v8::Undefined()")) return v8::Handle<v8::Primitive>();
   return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::undefined_value()));
 }
 
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Null() {
-  if (IsDeadCheck("v8::Null()")) return v8::Handle<v8::Primitive>();
-  EnsureInitialized("v8::Null()");
+  if (!EnsureInitialized("v8::Null()")) return v8::Handle<v8::Primitive>();
   return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::null_value()));
 }
 
 
 v8::Handle<v8::Boolean> ImplementationUtilities::True() {
-  if (IsDeadCheck("v8::True()")) return v8::Handle<v8::Boolean>();
-  EnsureInitialized("v8::True()");
+  if (!EnsureInitialized("v8::True()")) return v8::Handle<v8::Boolean>();
   return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::true_value()));
 }
 
 
 v8::Handle<v8::Boolean> ImplementationUtilities::False() {
-  if (IsDeadCheck("v8::False()")) return v8::Handle<v8::Boolean>();
-  EnsureInitialized("v8::False()");
+  if (!EnsureInitialized("v8::False()")) return v8::Handle<v8::Boolean>();
   return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::false_value()));
 }
 
@@ -373,21 +374,21 @@ void V8::ClearWeak(void** obj) {
 
 bool V8::IsGlobalNearDeath(void** obj) {
   LOG_API("IsGlobalNearDeath");
-  if (has_shut_down) return false;
+  if (!i::V8::IsRunning()) return false;
   return i::GlobalHandles::IsNearDeath(reinterpret_cast<i::Object**>(obj));
 }
 
 
 bool V8::IsGlobalWeak(void** obj) {
   LOG_API("IsGlobalWeak");
-  if (has_shut_down) return false;
+  if (!i::V8::IsRunning()) return false;
   return i::GlobalHandles::IsWeak(reinterpret_cast<i::Object**>(obj));
 }
 
 
 void V8::DisposeGlobal(void** obj) {
   LOG_API("DisposeGlobal");
-  if (has_shut_down) return;
+  if (!i::V8::IsRunning()) return;
   i::Object** ptr = reinterpret_cast<i::Object**>(obj);
   if ((*ptr)->IsGlobalContext()) i::Heap::NotifyContextDisposed();
   i::GlobalHandles::Destroy(ptr);
@@ -431,7 +432,7 @@ void Context::Enter() {
 
 
 void Context::Exit() {
-  if (has_shut_down) return;
+  if (!i::V8::IsRunning()) return;
   if (!ApiCheck(thread_local.LeaveLastContext(),
                 "v8::Context::Exit()",
                 "Cannot exit non-entered context")) {
@@ -2450,7 +2451,7 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 // --- E n v i r o n m e n t ---
 
 bool v8::V8::Initialize() {
-  if (i::V8::HasBeenSetup()) return true;
+  if (i::V8::IsRunning()) return true;
   ENTER_V8;
   HandleScope scope;
   if (i::Snapshot::Initialize()) {
@@ -3331,7 +3332,7 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
 
 
 void Debug::DebugBreak() {
-  if (!i::V8::HasBeenSetup()) return;
+  if (!i::V8::IsRunning()) return;
   i::StackGuard::DebugBreak();
 }
 
@@ -3373,7 +3374,7 @@ void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
 
 void Debug::SendCommand(const uint16_t* command, int length,
                         ClientData* client_data) {
-  if (!i::V8::HasBeenSetup()) return;
+  if (!i::V8::IsRunning()) return;
   i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length),
                               client_data);
 }
@@ -3389,7 +3390,7 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
 
 Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
                           v8::Handle<v8::Value> data) {
-  if (!i::V8::HasBeenSetup()) return Handle<Value>();
+  if (!i::V8::IsRunning()) return Handle<Value>();
   ON_BAILOUT("v8::Debug::Call()", return Handle<Value>());
   ENTER_V8;
   i::Handle<i::Object> result;
