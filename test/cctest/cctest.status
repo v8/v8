@@ -46,6 +46,9 @@ test-api/RegExpInterruption: SKIP
 test-api/OutOfMemory: SKIP
 test-api/OutOfMemoryNested: SKIP
 
+# BUG(355): Test crashes on ARM.
+test-log/ProfLazyMode: SKIP
+
 [ $simulator == arm ]
 
 # BUG(271): During exception propagation, we compare pointers into the
