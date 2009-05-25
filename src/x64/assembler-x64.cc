@@ -457,7 +457,8 @@ void CallIC::GenerateNormal(MacroAssembler* a, int b) {
 Object* CallStubCompiler::CompileCallConstant(Object* a,
                                               JSObject* b,
                                               JSFunction* c,
-                                              StubCompiler::CheckType d) {
+                                              StubCompiler::CheckType d,
+                                              Code::Flags flags) {
   UNIMPLEMENTED();
   return NULL;
 }
@@ -465,7 +466,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* a,
 Object* CallStubCompiler::CompileCallField(Object* a,
                                            JSObject* b,
                                            int c,
-                                           String* d) {
+                                           String* d,
+                                           Code::Flags flags) {
   UNIMPLEMENTED();
   return NULL;
 }
