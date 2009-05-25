@@ -211,7 +211,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
-  if (!Logger::is_enabled()) return false;
+  if (!Logger::IsEnabled()) return false;
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
     static Vector<const char> kRegexp = CStrVector("regexp");

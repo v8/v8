@@ -303,30 +303,37 @@ class Log : public AllStatic {
   // Frees all resources acquired in Open... functions.
   static void Close();
 
-  // See description in v8.h.
+  // See description in include/v8.h.
   static int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
-  static bool is_enabled() { return output_.handle != NULL; }
+  // Returns whether logging is enabled.
+  static bool IsEnabled() {
+    return output_handle_ != NULL || output_buffer_ != NULL;
+  }
 
-  typedef int (*WritePtr)(const char* msg, int length);
  private:
+  typedef int (*WritePtr)(const char* msg, int length);
+
+  // Initialization function called from Open... functions.
   static void Init();
 
   // Write functions assume that mutex_ is acquired by the caller.
   static WritePtr Write;
 
+  // Implementation of writing to a log file.
   static int WriteToFile(const char* msg, int length) {
-    ASSERT(output_.handle != NULL);
-    int rv = fwrite(msg, 1, length, output_.handle);
+    ASSERT(output_handle_ != NULL);
+    int rv = fwrite(msg, 1, length, output_handle_);
     ASSERT(length == rv);
     return rv;
   }
 
+  // Implementation of writing to a memory buffer.
   static int WriteToMemory(const char* msg, int length) {
-    ASSERT(output_.buffer != NULL);
-    ASSERT(output_buffer_write_pos_ >= output_.buffer);
+    ASSERT(output_buffer_ != NULL);
+    ASSERT(output_buffer_write_pos_ >= output_buffer_);
     if (output_buffer_write_pos_ + length
-        <= output_.buffer + kOutputBufferSize) {
+        <= output_buffer_ + kOutputBufferSize) {
       memcpy(output_buffer_write_pos_, msg, length);
       output_buffer_write_pos_ += length;
       return length;
@@ -336,14 +343,14 @@ class Log : public AllStatic {
     }
   }
 
-  // When logging is active, output_ refers the file or memory buffer
-  // events are written to.
-  // mutex_ should be acquired before using output_.
-  union Output {
-    FILE* handle;
-    char* buffer;
-  };
-  static Output output_;
+  // When logging is active, either output_handle_ or output_buffer_ is used
+  // to store a pointer to log destination. If logging was opened via OpenStdout
+  // or OpenFile, then output_handle_ is used. If logging was opened
+  // via OpenMemoryBuffer, then output_buffer_ is used.
+  // mutex_ should be acquired before using output_handle_ or output_buffer_.
+  static FILE* output_handle_;
+
+  static char* output_buffer_;
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
@@ -367,7 +374,8 @@ class Log : public AllStatic {
 
 
 Log::WritePtr Log::Write = NULL;
-Log::Output Log::output_ = {NULL};
+FILE* Log::output_handle_ = NULL;
+char* Log::output_buffer_ = NULL;
 Mutex* Log::mutex_ = NULL;
 char* Log::output_buffer_write_pos_ = NULL;
 char* Log::message_buffer_ = NULL;
@@ -380,25 +388,25 @@ void Log::Init() {
 
 
 void Log::OpenStdout() {
-  ASSERT(output_.handle == NULL);
-  output_.handle = stdout;
+  ASSERT(!IsEnabled());
+  output_handle_ = stdout;
   Write = WriteToFile;
   Init();
 }
 
 
 void Log::OpenFile(const char* name) {
-  ASSERT(output_.handle == NULL);
-  output_.handle = OS::FOpen(name, OS::LogFileOpenMode);
+  ASSERT(!IsEnabled());
+  output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
   Write = WriteToFile;
   Init();
 }
 
 
 void Log::OpenMemoryBuffer() {
-  ASSERT(output_.buffer == NULL);
-  output_.buffer = NewArray<char>(kOutputBufferSize);
-  output_buffer_write_pos_ = output_.buffer;
+  ASSERT(!IsEnabled());
+  output_buffer_ = NewArray<char>(kOutputBufferSize);
+  output_buffer_write_pos_ = output_buffer_;
   Write = WriteToMemory;
   Init();
 }
@@ -406,11 +414,11 @@ void Log::OpenMemoryBuffer() {
 
 void Log::Close() {
   if (Write == WriteToFile) {
-    fclose(output_.handle);
-    output_.handle = NULL;
+    fclose(output_handle_);
+    output_handle_ = NULL;
   } else if (Write == WriteToMemory) {
-    DeleteArray(output_.buffer);
-    output_.buffer = NULL;
+    DeleteArray(output_buffer_);
+    output_buffer_ = NULL;
   } else {
     ASSERT(Write == NULL);
   }
@@ -426,15 +434,15 @@ void Log::Close() {
 
 int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
   if (Write != WriteToMemory) return 0;
-  ASSERT(output_.buffer != NULL);
-  ASSERT(output_buffer_write_pos_ >= output_.buffer);
+  ASSERT(output_buffer_ != NULL);
+  ASSERT(output_buffer_write_pos_ >= output_buffer_);
   ASSERT(from_pos >= 0);
   ASSERT(max_size >= 0);
   int actual_size = max_size;
-  char* buffer_read_pos = output_.buffer + from_pos;
+  char* buffer_read_pos = output_buffer_ + from_pos;
   ScopedLock sl(mutex_);
   if (actual_size == 0
-      || output_buffer_write_pos_ == output_.buffer
+      || output_buffer_write_pos_ == output_buffer_
       || buffer_read_pos >= output_buffer_write_pos_) {
     // No data requested or can be returned.
     return 0;
@@ -586,8 +594,8 @@ VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 
-bool Logger::is_enabled() {
-  return Log::is_enabled();
+bool Logger::IsEnabled() {
+  return Log::IsEnabled();
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
@@ -595,7 +603,7 @@ bool Logger::is_enabled() {
 
 void Logger::Preamble(const char* content) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.WriteCStringToLogFile(content);
 #endif
@@ -611,7 +619,7 @@ void Logger::StringEvent(const char* name, const char* value) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::UncheckedStringEvent(const char* name, const char* value) {
-  if (!Log::is_enabled()) return;
+  if (!Log::IsEnabled()) return;
   LogMessageBuilder msg;
   msg.Append("%s,\"%s\"\n", name, value);
   msg.WriteToLogFile();
@@ -621,7 +629,7 @@ void Logger::UncheckedStringEvent(const char* name, const char* value) {
 
 void Logger::IntEvent(const char* name, int value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log) return;
+  if (!Log::IsEnabled() || !FLAG_log) return;
   LogMessageBuilder msg;
   msg.Append("%s,%d\n", name, value);
   msg.WriteToLogFile();
@@ -631,7 +639,7 @@ void Logger::IntEvent(const char* name, int value) {
 
 void Logger::HandleEvent(const char* name, Object** location) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_handles) return;
+  if (!Log::IsEnabled() || !FLAG_log_handles) return;
   LogMessageBuilder msg;
   msg.Append("%s,0x%" V8PRIxPTR "\n", name, location);
   msg.WriteToLogFile();
@@ -644,7 +652,7 @@ void Logger::HandleEvent(const char* name, Object** location) {
 // caller's responsibility to ensure that log is enabled and that
 // FLAG_log_api is true.
 void Logger::ApiEvent(const char* format, ...) {
-  ASSERT(Log::is_enabled() && FLAG_log_api);
+  ASSERT(Log::IsEnabled() && FLAG_log_api);
   LogMessageBuilder msg;
   va_list ap;
   va_start(ap, format);
@@ -657,7 +665,7 @@ void Logger::ApiEvent(const char* format, ...) {
 
 void Logger::ApiNamedSecurityCheck(Object* key) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_api) return;
+  if (!Log::IsEnabled() || !FLAG_log_api) return;
   if (key->IsString()) {
     SmartPointer<char> str =
         String::cast(key)->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -675,7 +683,7 @@ void Logger::SharedLibraryEvent(const char* library_path,
                                 unsigned start,
                                 unsigned end) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_prof) return;
+  if (!Log::IsEnabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
   msg.Append("shared-library,\"%s\",0x%08x,0x%08x\n", library_path,
              start, end);
@@ -688,7 +696,7 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
                                 unsigned start,
                                 unsigned end) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_prof) return;
+  if (!Log::IsEnabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
   msg.Append("shared-library,\"%ls\",0x%08x,0x%08x\n", library_path,
              start, end);
@@ -743,7 +751,7 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
 
 void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_regexp) return;
+  if (!Log::IsEnabled() || !FLAG_log_regexp) return;
   LogMessageBuilder msg;
   msg.Append("regexp-compile,");
   LogRegExpSource(regexp);
@@ -755,7 +763,7 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 
 void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_runtime) return;
+  if (!Log::IsEnabled() || !FLAG_log_runtime) return;
   HandleScope scope;
   LogMessageBuilder msg;
   for (int i = 0; i < format.length(); i++) {
@@ -796,7 +804,7 @@ void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
 
 void Logger::ApiIndexedSecurityCheck(uint32_t index) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_api) return;
+  if (!Log::IsEnabled() || !FLAG_log_api) return;
   ApiEvent("api,check-security,%u\n", index);
 #endif
 }
@@ -807,7 +815,7 @@ void Logger::ApiNamedPropertyAccess(const char* tag,
                                     Object* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   ASSERT(name->IsString());
-  if (!Log::is_enabled() || !FLAG_log_api) return;
+  if (!Log::IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
   SmartPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -821,7 +829,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
                                       JSObject* holder,
                                       uint32_t index) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_api) return;
+  if (!Log::IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = holder->class_name();
   SmartPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -831,7 +839,7 @@ void Logger::ApiIndexedPropertyAccess(const char* tag,
 
 void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_api) return;
+  if (!Log::IsEnabled() || !FLAG_log_api) return;
   String* class_name_obj = object->class_name();
   SmartPointer<char> class_name =
       class_name_obj->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -842,7 +850,7 @@ void Logger::ApiObjectAccess(const char* tag, JSObject* object) {
 
 void Logger::ApiEntryCall(const char* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_api) return;
+  if (!Log::IsEnabled() || !FLAG_log_api) return;
   Logger::ApiEvent("api,%s\n", name);
 #endif
 }
@@ -850,7 +858,7 @@ void Logger::ApiEntryCall(const char* name) {
 
 void Logger::NewEvent(const char* name, void* object, size_t size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log) return;
+  if (!Log::IsEnabled() || !FLAG_log) return;
   LogMessageBuilder msg;
   msg.Append("new,%s,0x%" V8PRIxPTR ",%u\n", name, object,
              static_cast<unsigned int>(size));
@@ -861,7 +869,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 
 void Logger::DeleteEvent(const char* name, void* object) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log) return;
+  if (!Log::IsEnabled() || !FLAG_log) return;
   LogMessageBuilder msg;
   msg.Append("delete,%s,0x%" V8PRIxPTR "\n", name, object);
   msg.WriteToLogFile();
@@ -871,7 +879,7 @@ void Logger::DeleteEvent(const char* name, void* object) {
 
 void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"", tag, code->address(),
              code->ExecutableSize());
@@ -890,7 +898,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 
 void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -904,7 +912,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
                              String* source, int line) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -921,7 +929,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
 
 void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"args_count: %d\"\n", tag,
              code->address(),
@@ -934,7 +942,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 
 void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"", "RegExp",
              code->address(),
@@ -948,7 +956,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 
 void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-allocate,0x%" V8PRIxPTR ",0x%" V8PRIxPTR "\n",
              code->address(),
@@ -960,7 +968,7 @@ void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
 
 void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-move,0x%" V8PRIxPTR ",0x%" V8PRIxPTR "\n", from, to);
   msg.WriteToLogFile();
@@ -970,7 +978,7 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 
 void Logger::CodeDeleteEvent(Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_code) return;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-delete,0x%" V8PRIxPTR "\n", from);
   msg.WriteToLogFile();
@@ -980,7 +988,7 @@ void Logger::CodeDeleteEvent(Address from) {
 
 void Logger::ResourceEvent(const char* name, const char* tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log) return;
+  if (!Log::IsEnabled() || !FLAG_log) return;
   LogMessageBuilder msg;
   msg.Append("%s,%s,", name, tag);
 
@@ -998,7 +1006,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
 
 void Logger::SuspectReadEvent(String* name, Object* obj) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_suspect) return;
+  if (!Log::IsEnabled() || !FLAG_log_suspect) return;
   LogMessageBuilder msg;
   String* class_name = obj->IsJSObject()
                        ? JSObject::cast(obj)->class_name()
@@ -1017,7 +1025,7 @@ void Logger::SuspectReadEvent(String* name, Object* obj) {
 
 void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_gc) return;
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
   msg.Append("heap-sample-begin,\"%s\",\"%s\"\n", space, kind);
   msg.WriteToLogFile();
@@ -1027,7 +1035,7 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 
 void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_gc) return;
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
   msg.Append("heap-sample-end,\"%s\",\"%s\"\n", space, kind);
   msg.WriteToLogFile();
@@ -1037,7 +1045,7 @@ void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
 
 void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log_gc) return;
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
   msg.Append("heap-sample-item,%s,%d,%d\n", type, number, bytes);
   msg.WriteToLogFile();
@@ -1047,7 +1055,7 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 
 void Logger::DebugTag(const char* call_site_tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log) return;
+  if (!Log::IsEnabled() || !FLAG_log) return;
   LogMessageBuilder msg;
   msg.Append("debug-tag,%s\n", call_site_tag);
   msg.WriteToLogFile();
@@ -1057,7 +1065,7 @@ void Logger::DebugTag(const char* call_site_tag) {
 
 void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::is_enabled() || !FLAG_log) return;
+  if (!Log::IsEnabled() || !FLAG_log) return;
   StringBuilder s(parameter.length() + 1);
   for (int i = 0; i < parameter.length(); ++i) {
     s.AddCharacter(static_cast<char>(parameter[i]));
@@ -1076,7 +1084,7 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::TickEvent(TickSample* sample, bool overflow) {
-  if (!Log::is_enabled() || !FLAG_prof) return;
+  if (!Log::IsEnabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
   msg.Append("tick,0x%" V8PRIxPTR ",0x%" V8PRIxPTR ",%d",
              sample->pc, sample->sp, static_cast<int>(sample->state));

@@ -75,7 +75,7 @@ class LogMessageBuilder;
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define LOG(Call)                           \
   do {                                      \
-    if (v8::internal::Logger::is_enabled()) \
+    if (v8::internal::Logger::IsEnabled()) \
       v8::internal::Logger::Call;           \
   } while (false)
 #else
@@ -201,7 +201,7 @@ class Logger {
     return current_state_ ? current_state_->state() : OTHER;
   }
 
-  static bool is_enabled();
+  static bool IsEnabled();
 
   // Pause/Resume collection of profiling data.
   // When data collection is paused, Tick events are discarded until
