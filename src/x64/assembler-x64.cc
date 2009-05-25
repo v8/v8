@@ -33,6 +33,9 @@ namespace v8 {
 namespace internal {
 
 Register no_reg = { -1 };
+Register rax = { 0 };
+Register rcx = { 1 };
+Register rsi = { 7 };
 
 
 // Safe default is no features.
@@ -239,10 +242,39 @@ void Assembler::emit_operand(Register reg, const Operand& adr) {
 }
 
 
-void Assembler::int3() {
+void Assembler::add(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xCC);
+  emit_rex_64(dst, src);
+  EMIT(0x03);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::add(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  EMIT(0x03);
+  EMIT(0xC0 | (src.code() & 0x7) << 3 | (dst.code() & 0x7));
+}
+
+
+void Assembler::dec(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(rcx, dst);
+  EMIT(0xFF);
+  EMIT(0xC8 | (dst.code() & 0x7));
+}
+
+
+void Assembler::dec(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(rax, dst);
+  EMIT(0xFF);
+  emit_operand(rcx, dst);
 }
 
 
@@ -253,24 +285,28 @@ void Assembler::hlt() {
 }
 
 
-void Assembler::nop() {
+void Assembler::inc(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0x90);
+  emit_rex_64(rax, dst);
+  EMIT(0xFF);
+  EMIT(0xC0 | (dst.code() & 0x7));
 }
 
 
-void Assembler::ret(int imm16) {
+void Assembler::inc(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(is_uint16(imm16));
-  if (imm16 == 0) {
-    EMIT(0xC3);
-  } else {
-    EMIT(0xC2);
-    EMIT(imm16 & 0xFF);
-    EMIT((imm16 >> 8) & 0xFF);
-  }
+  emit_rex_64(rax, dst);
+  EMIT(0xFF);
+  emit_operand(rax, dst);
+}
+
+
+void Assembler::int3() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xCC);
 }
 
 
@@ -289,6 +325,64 @@ void Assembler::mov(Register dst, Register src) {
   emit_rex_64(dst, src);
   EMIT(0x89);
   EMIT(0xC0 | (src.code() & 0x7) << 3 | (dst.code() & 0x7));
+}
+
+
+void Assembler::nop() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x90);
+}
+
+void Assembler::pop(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.code() & 0x8) {
+    emit_rex_64(rax, dst);
+  }
+  EMIT(0x58 | (dst.code() & 0x7));
+}
+
+
+void Assembler::pop(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(rax, dst);  // Could be omitted in some cases.
+  EMIT(0x8F);
+  emit_operand(rax, dst);
+}
+
+
+void Assembler::push(Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (src.code() & 0x8) {
+    emit_rex_64(rax, src);
+  }
+  EMIT(0x50 | (src.code() & 0x7));
+}
+
+
+void Assembler::push(const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(rsi, src);  // Could be omitted in some cases.
+  EMIT(0xFF);
+  emit_operand(rsi, src);
+}
+
+
+void Assembler::ret(int imm16) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint16(imm16));
+  if (imm16 == 0) {
+    EMIT(0xC3);
+  } else {
+    EMIT(0xC2);
+    EMIT(imm16 & 0xFF);
+    EMIT((imm16 >> 8) & 0xFF);
+  }
 }
 
 } }  // namespace v8::internal

@@ -437,7 +437,8 @@ class Assembler : public Malloced {
  private:
   // The relocation writer's position is kGap bytes below the end of
   // the generated instructions. This leaves enough space for the
-  // longest possible ia32 instruction (17 bytes as of 9/26/06) and
+  // longest possible x64 instruction (There is a 15 byte limit on
+  // instruction length, ruling out some otherwise valid instructions) and
   // allows for a single, fast space check per instruction.
   static const int kGap = 32;
 
@@ -475,22 +476,20 @@ class Assembler : public Malloced {
   // ---------------------------------------------------------------------------
   // Code generation
   //
-  // - function names correspond one-to-one to ia32 instruction mnemonics
-  // - unless specified otherwise, instructions operate on 32bit operands
-  // - instructions on 8bit (byte) operands/registers have a trailing '_b'
-  // - instructions on 16bit (word) operands/registers have a trailing '_w'
-  // - naming conflicts with C++ keywords are resolved via a trailing '_'
-
-  // NOTE ON INTERFACE: Currently, the interface is not very consistent
-  // in the sense that some operations (e.g. mov()) can be called in more
-  // the one way to generate the same instruction: The Register argument
-  // can in some cases be replaced with an Operand(Register) argument.
-  // This should be cleaned up and made more orthogonal. The questions
-  // is: should we always use Operands instead of Registers where an
-  // Operand is possible, or should we have a Register (overloaded) form
-  // instead? We must be careful to make sure that the selected instruction
-  // is obvious from the parameters to avoid hard-to-find code generation
-  // bugs.
+  // Function names correspond one-to-one to x64 instruction mnemonics.
+  // Unless specified otherwise, instructions operate on 64-bit operands.
+  //
+  // If we need versions of an assembly instruction that operate on different
+  // width arguments, we add a single-letter suffix specifying the width.
+  // This is done for the following instructions: mov, cmp.
+  // There are no versions of these instructions without the suffix.
+  // - Instructions on 8-bit (byte) operands/registers have a trailing 'b'.
+  // - Instructions on 16-bit (word) operands/registers have a trailing 'w'.
+  // - Instructions on 32-bit (doubleword) operands/registers use 'l'.
+  // - Instructions on 64-bit (quadword) operands/registers use 'q'.
+  //
+  // Some mnemonics, such as "and", are the same as C++ keywords.
+  // Naming conflicts with C++ keywords are resolved by adding a trailing '_'.
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -552,6 +551,7 @@ class Assembler : public Malloced {
   void adc(Register dst, int32_t imm32);
   void adc(Register dst, const Operand& src);
 
+  void add(Register dst, Register src);
   void add(Register dst, const Operand& src);
   void add(const Operand& dst, const Immediate& x);
 
