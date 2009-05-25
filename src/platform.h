@@ -518,9 +518,10 @@ class Sampler {
   // Is the sampler used for profiling.
   inline bool IsProfiling() { return profiling_; }
 
-  class PlatformData;
- protected:
+  // Whether the sampler is running (that is, consumes resources).
   inline bool IsActive() { return active_; }
+
+  class PlatformData;
 
  private:
   int interval_;

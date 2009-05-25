@@ -10,6 +10,7 @@
 #include "cctest.h"
 
 using v8::internal::Address;
+using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
 
 namespace i = v8::internal;
@@ -84,6 +85,11 @@ TEST(GetMessages) {
 }
 
 
+static int GetLogLines(int start_pos, i::Vector<char>* buffer) {
+  return Logger::GetLogLines(start_pos, buffer->start(), buffer->length());
+}
+
+
 TEST(BeyondWritePosition) {
   SetUp();
   Logger::StringEvent("aaa", "bbb");
@@ -91,14 +97,16 @@ TEST(BeyondWritePosition) {
   // See Logger::StringEvent.
   const char* all_lines = "aaa,\"bbb\"\ncccc,\"dddd\"\n";
   const int all_lines_len = strlen(all_lines);
-  CHECK_EQ(0, Logger::GetLogLines(all_lines_len, NULL, 1));
-  CHECK_EQ(0, Logger::GetLogLines(all_lines_len, NULL, 100));
-  CHECK_EQ(0, Logger::GetLogLines(all_lines_len + 1, NULL, 1));
-  CHECK_EQ(0, Logger::GetLogLines(all_lines_len + 1, NULL, 100));
-  CHECK_EQ(0, Logger::GetLogLines(all_lines_len + 100, NULL, 1));
-  CHECK_EQ(0, Logger::GetLogLines(all_lines_len + 100, NULL, 100));
-  CHECK_EQ(0, Logger::GetLogLines(10 * 1024 * 1024, NULL, 1));
-  CHECK_EQ(0, Logger::GetLogLines(10 * 1024 * 1024, NULL, 100));
+  EmbeddedVector<char, 100> buffer;
+  const int beyond_write_pos = all_lines_len;
+  CHECK_EQ(0, Logger::GetLogLines(beyond_write_pos, buffer.start(), 1));
+  CHECK_EQ(0, GetLogLines(beyond_write_pos, &buffer));
+  CHECK_EQ(0, Logger::GetLogLines(beyond_write_pos + 1, buffer.start(), 1));
+  CHECK_EQ(0, GetLogLines(beyond_write_pos + 1, &buffer));
+  CHECK_EQ(0, Logger::GetLogLines(beyond_write_pos + 100, buffer.start(), 1));
+  CHECK_EQ(0, GetLogLines(beyond_write_pos + 100, &buffer));
+  CHECK_EQ(0, Logger::GetLogLines(10 * 1024 * 1024, buffer.start(), 1));
+  CHECK_EQ(0, GetLogLines(10 * 1024 * 1024, &buffer));
   TearDown();
 }
 
@@ -113,6 +121,121 @@ TEST(MemoryLoggingTurnedOff) {
   CHECK_EQ(0, Logger::GetLogLines(0, NULL, 100));
   CHECK_EQ(0, Logger::GetLogLines(100, NULL, 100));
   Logger::TearDown();
+}
+
+
+static void CompileAndRunScript(const char *src) {
+  v8::Script::Compile(v8::String::New(src))->Run();
+}
+
+
+namespace v8 {
+namespace internal {
+
+class LoggerTestHelper : public AllStatic {
+ public:
+  static bool IsSamplerActive() { return Logger::IsProfilerSamplerActive(); }
+};
+
+}  // namespace v8::internal
+}  // namespace v8
+
+using v8::internal::LoggerTestHelper;
+
+
+static int CheckThatProfilerWorks(int log_pos) {
+  Logger::ResumeProfiler();
+  CHECK(LoggerTestHelper::IsSamplerActive());
+
+  // Verify that the current map of compiled functions has been logged.
+  EmbeddedVector<char, 102400> buffer;
+  int map_log_size = GetLogLines(log_pos, &buffer);
+  printf("map_log_size: %d\n", map_log_size);
+  CHECK_GT(map_log_size, 0);
+  CHECK_GT(buffer.length(), map_log_size);
+  log_pos += map_log_size;
+  // Check buffer contents.
+  buffer[map_log_size] = '\0';
+  const char* code_creation = "\ncode-creation,";  // eq. to /^code-creation,/
+  CHECK_NE(NULL, strstr(buffer.start(), code_creation));
+
+  // Force compiler to generate new code by parametrizing source.
+  EmbeddedVector<char, 100> script_src;
+  i::OS::SNPrintF(script_src,
+                  "for (var i = 0; i < 1000; ++i) { "
+                  "(function(x) { return %d * x; })(i); }",
+                  log_pos);
+  // Run code for 100 msecs to get some ticks.
+  const int64_t started_us = i::OS::Ticks();
+  while (i::OS::Ticks() - started_us < 100 * 1000) {
+    CompileAndRunScript(script_src.start());
+  }
+
+  Logger::PauseProfiler();
+  CHECK(!LoggerTestHelper::IsSamplerActive());
+
+  // Now we must have compiler and tick records.
+  int log_size = GetLogLines(log_pos, &buffer);
+  printf("log_size: %d\n", log_size);
+  CHECK_GT(log_size, 0);
+  CHECK_GT(buffer.length(), log_size);
+  log_pos += log_size;
+  // Check buffer contents.
+  buffer[log_size] = '\0';
+  const char* tick = "\ntick,";
+  CHECK_NE(NULL, strstr(buffer.start(), code_creation));
+  CHECK_NE(NULL, strstr(buffer.start(), tick));
+
+  return log_pos;
+}
+
+
+TEST(ProfLazyMode) {
+  const bool saved_prof_lazy = i::FLAG_prof_lazy;
+  const bool saved_prof = i::FLAG_prof;
+  const bool saved_prof_auto = i::FLAG_prof_auto;
+  i::FLAG_prof = true;
+  i::FLAG_prof_lazy = true;
+  i::FLAG_prof_auto = false;
+  i::FLAG_logfile = "*";
+
+  // If tests are being run manually, V8 will be already initialized
+  // by the test below.
+  const bool need_to_set_up_logger = i::V8::HasBeenSetup();
+  v8::HandleScope scope;
+  v8::Handle<v8::Context> env = v8::Context::New();
+  if (need_to_set_up_logger) Logger::Setup();
+  env->Enter();
+
+  // No sampling should happen prior to resuming profiler.
+  CHECK(!LoggerTestHelper::IsSamplerActive());
+
+  // Read initial logged data (static libs map).
+  EmbeddedVector<char, 102400> buffer;
+  int log_pos = GetLogLines(0, &buffer);
+  CHECK_GT(log_pos, 0);
+  CHECK_GT(buffer.length(), log_pos);
+
+  CompileAndRunScript("var a = (function(x) { return x + 1; })(10);");
+
+  // Nothing must be logged while profiling is suspended.
+  CHECK_EQ(0, GetLogLines(log_pos, &buffer));
+
+  log_pos = CheckThatProfilerWorks(log_pos);
+
+  CompileAndRunScript("var a = (function(x) { return x + 1; })(10);");
+
+  // No new data beyond last retrieved position.
+  CHECK_EQ(0, GetLogLines(log_pos, &buffer));
+
+  // Check that profiling can be resumed again.
+  CheckThatProfilerWorks(log_pos);
+
+  env->Exit();
+  Logger::TearDown();
+  i::FLAG_prof_lazy = saved_prof_lazy;
+  i::FLAG_prof = saved_prof;
+  i::FLAG_prof_auto = saved_prof_auto;
 }
 
 
@@ -487,6 +610,15 @@ static bool AreEntitiesEqual(CodeEntityInfo ref_e, CodeEntityInfo new_e) {
 // Test that logging of code create / move / delete events
 // is equivalent to traversal of a resulting heap.
 TEST(EquivalenceOfLoggingAndTraversal) {
+  // This test needs to be run on a "clean" V8 to ensure that snapshot log
+  // is loaded. This is always true when running using tools/test.py because
+  // it launches a new cctest instance for every test. To be sure that launching
+  // cctest manually also works, please be sure that no tests below
+  // are using V8.
+  //
+  // P.S. No, V8 can't be re-initialized after disposal, see include/v8.h.
+  CHECK(!i::V8::HasBeenSetup());
+
   i::FLAG_logfile = "*";
   i::FLAG_log = true;
   i::FLAG_log_code = true;
@@ -499,20 +631,19 @@ TEST(EquivalenceOfLoggingAndTraversal) {
 
   v8::HandleScope scope;
   v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>();
-  v8::Persistent<v8::Context> env = v8::Context::New(
+  v8::Handle<v8::Context> env = v8::Context::New(
       0, v8::Handle<v8::ObjectTemplate>(), global_object);
   env->Enter();
 
   // Compile and run a function that creates other functions.
-  v8::Local<v8::Script> script = v8::Script::Compile(v8::String::New(
+  CompileAndRunScript(
       "(function f(obj) {\n"
       "  obj.test =\n"
       "    (function a(j) { return function b() { return j; } })(100);\n"
-      "})(this);"));
-  script->Run();
+      "})(this);");
   i::Heap::CollectAllGarbage();
 
-  i::EmbeddedVector<char, 204800> buffer;
+  EmbeddedVector<char, 204800> buffer;
   int log_size;
   ParseLogResult ref_result;
 
@@ -521,7 +652,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
     // Make sure that no GCs occur prior to LogCompiledFunctions call.
     i::AssertNoAllocation no_alloc;
 
-    log_size = Logger::GetLogLines(0, buffer.start(), buffer.length());
+    log_size = GetLogLines(0, &buffer);
     CHECK_GT(log_size, 0);
     CHECK_GT(buffer.length(), log_size);
 
@@ -566,7 +697,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   CHECK(results_equal);
 
   env->Exit();
-  v8::V8::Dispose();
+  Logger::TearDown();
   i::FLAG_always_compact = saved_always_compact;
 }
 

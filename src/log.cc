@@ -188,7 +188,7 @@ class Ticker: public Sampler {
 
   void SetProfiler(Profiler* profiler) {
     profiler_ = profiler;
-    if (!IsActive()) Start();
+    if (!FLAG_prof_lazy && !IsActive()) Start();
   }
 
   void ClearProfiler() {
@@ -267,6 +267,8 @@ void Profiler::Disengage() {
   // the thread to terminate.
   running_ = false;
   TickSample sample;
+  // Reset 'paused_' flag, otherwise semaphore may not be signalled.
+  resume();
   Insert(&sample);
   Join();
 
@@ -1096,11 +1098,27 @@ bool Logger::IsProfilerPaused() {
 
 void Logger::PauseProfiler() {
   profiler_->pause();
+  if (FLAG_prof_lazy) {
+    if (!FLAG_sliding_state_window) ticker_->Stop();
+    FLAG_log_code = false;
+    LOG(UncheckedStringEvent("profiler", "pause"));
+  }
 }
 
 
 void Logger::ResumeProfiler() {
+  if (FLAG_prof_lazy) {
+    LOG(UncheckedStringEvent("profiler", "resume"));
+    FLAG_log_code = true;
+    LogCompiledFunctions();
+    if (!FLAG_sliding_state_window) ticker_->Start();
+  }
   profiler_->resume();
+}
+
+
+bool Logger::IsProfilerSamplerActive() {
+  return ticker_->IsActive();
 }
 
 
@@ -1190,9 +1208,15 @@ bool Logger::Setup() {
   // --prof implies --log-code.
   if (FLAG_prof) FLAG_log_code = true;
 
+  // --prof_lazy controls --log-code, implies --noprof_auto.
+  if (FLAG_prof_lazy) {
+    FLAG_log_code = false;
+    FLAG_prof_auto = false;
+  }
+
   bool open_log_file = FLAG_log || FLAG_log_runtime || FLAG_log_api
       || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-      || FLAG_log_regexp || FLAG_log_state_changes;
+      || FLAG_log_regexp || FLAG_log_state_changes || FLAG_prof_lazy;
 
   // If we're logging anything, we need to open the log file.
   if (open_log_file) {
@@ -1277,8 +1301,10 @@ void Logger::TearDown() {
   }
 
   delete sliding_state_window_;
+  sliding_state_window_ = NULL;
 
   delete ticker_;
+  ticker_ = NULL;
 
   Log::Close();
 #endif

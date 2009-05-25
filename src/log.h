@@ -230,6 +230,9 @@ class Logger {
   // Logs a StringEvent regardless of whether FLAG_log is true.
   static void UncheckedStringEvent(const char* name, const char* value);
 
+  // Returns whether profiler's sampler is active.
+  static bool IsProfilerSamplerActive();
+
   // The sampler used by the profiler and the sliding state window.
   static Ticker* ticker_;
 
@@ -255,6 +258,8 @@ class Logger {
   friend class Profiler;
   friend class SlidingStateWindow;
   friend class VMState;
+
+  friend class LoggerTestHelper;
 #else
   static bool is_enabled() { return false; }
 #endif
