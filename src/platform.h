@@ -60,7 +60,8 @@ enum {
 
 #define INFINITY HUGE_VAL
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 int isfinite(double x);
 } }
 int isnan(double x);
@@ -105,7 +106,8 @@ int random();
 
 #endif  // __GNUC__
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 double ceiling(double x);
 

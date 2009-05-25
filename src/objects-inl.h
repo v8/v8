@@ -40,7 +40,8 @@
 #include "conversions-inl.h"
 #include "property.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 PropertyDetails::PropertyDetails(Smi* smi) {
   value_ = smi->value();

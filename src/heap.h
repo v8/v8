@@ -30,7 +30,8 @@
 
 #include "zone-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                             \

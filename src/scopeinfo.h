@@ -30,7 +30,8 @@
 
 #include "variables.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Scope information represents information about a functions's
 // scopes (currently only one, because we don't do any inlining)

@@ -33,7 +33,8 @@
 #include "factory.h"
 #include "macro-assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {

@@ -73,7 +73,8 @@
 #include "heap-inl.h"
 #include "messages.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class V8 : public AllStatic {
  public:

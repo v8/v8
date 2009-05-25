@@ -31,7 +31,8 @@
 #include "heap.h"
 #include "zone-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Interface for handle based allocation.

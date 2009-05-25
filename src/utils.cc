@@ -33,7 +33,8 @@
 
 #include "sys/stat.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,

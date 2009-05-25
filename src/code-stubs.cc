@@ -32,7 +32,8 @@
 #include "factory.h"
 #include "macro-assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 Handle<Code> CodeStub::GetCode() {
   uint32_t key = GetKey();

@@ -31,7 +31,8 @@
 #include "register-allocator-inl.h"
 #include "codegen.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 CodeGenerator::CodeGenerator(int buffer_size,
                              Handle<Script> script,

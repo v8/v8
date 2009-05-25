@@ -30,7 +30,8 @@
 
 #include "macro-assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // The stub cache is used for megamorphic calls and property accesses.

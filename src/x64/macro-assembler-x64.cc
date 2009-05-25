@@ -30,7 +30,8 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
   : Assembler(buffer, size),

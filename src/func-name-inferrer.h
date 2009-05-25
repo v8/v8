@@ -28,7 +28,8 @@
 #ifndef V8_FUNC_NAME_INFERRER_H_
 #define V8_FUNC_NAME_INFERRER_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.

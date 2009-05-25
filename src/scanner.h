@@ -31,7 +31,8 @@
 #include "token.h"
 #include "char-predicates-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 class UTF8Buffer {

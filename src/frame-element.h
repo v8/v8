@@ -30,7 +30,8 @@
 
 #include "register-allocator-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // Virtual frame elements

@@ -37,7 +37,8 @@
 #ifndef V8_X64_ASSEMBLER_X64_H_
 #define V8_X64_ASSEMBLER_X64_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // CPU Registers.
 //

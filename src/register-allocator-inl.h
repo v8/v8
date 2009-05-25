@@ -32,7 +32,8 @@
 #include "register-allocator.h"
 #include "virtual-frame.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 Result::~Result() {
   if (is_register()) {

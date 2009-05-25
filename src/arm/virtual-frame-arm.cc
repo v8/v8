@@ -31,7 +31,8 @@
 #include "register-allocator-inl.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.

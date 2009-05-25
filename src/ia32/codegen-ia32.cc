@@ -36,7 +36,8 @@
 #include "runtime.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 

@@ -216,7 +216,8 @@ int random() {
 }
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 double ceiling(double x) {
   return ceil(x);

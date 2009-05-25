@@ -33,7 +33,8 @@
 #include "runtime.h"
 #include "serialize.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // MacroAssembler implementation.

@@ -30,7 +30,8 @@
 
 #include "assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // IC_UTIL_LIST defines all utility functions called from generated
 // inline caching code. The argument for the macro, ICU, is the function name.

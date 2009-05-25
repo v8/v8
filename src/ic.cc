@@ -35,7 +35,8 @@
 #include "runtime.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef DEBUG
 static char TransitionMarkFromState(IC::State state) {

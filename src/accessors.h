@@ -28,7 +28,8 @@
 #ifndef V8_ACCESSORS_H_
 #define V8_ACCESSORS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.

@@ -28,7 +28,8 @@
 #include "v8.h"
 #include "codegen-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 Builtins::CFunctionId id) {

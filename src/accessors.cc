@@ -34,7 +34,8 @@
 #include "top.h"
 #include "zone-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 template <class C>

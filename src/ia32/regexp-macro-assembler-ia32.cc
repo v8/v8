@@ -35,7 +35,8 @@
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 /*
  * This assembler uses the following register assignment convention

@@ -37,7 +37,8 @@
 #ifndef V8_IA32_ASSEMBLER_IA32_H_
 #define V8_IA32_ASSEMBLER_IA32_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // CPU Registers.
 //

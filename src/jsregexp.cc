@@ -56,7 +56,8 @@
 #include "interpreter-irregexp.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,

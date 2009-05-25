@@ -32,7 +32,8 @@
 #include "builtins.h"
 #include "ic-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // Support macros for defining builtins in C.

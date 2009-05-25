@@ -46,7 +46,8 @@
 #include "smart-pointer.h"
 #include "parser.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 #define RUNTIME_ASSERT(value) do {                                   \

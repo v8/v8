@@ -28,7 +28,8 @@
 #ifndef V8_TOKEN_H_
 #define V8_TOKEN_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // TOKEN_LIST takes a list of 3 macros M, all of which satisfy the
 // same signature M(name, string, precedence), where name is the

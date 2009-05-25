@@ -28,7 +28,8 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Stub is base classes of all stubs.

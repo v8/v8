@@ -32,7 +32,8 @@
 #include "parser.h"
 #include "zone.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The V8 compiler
 //

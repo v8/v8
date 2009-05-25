@@ -33,7 +33,8 @@
 #include "stub-cache.h"
 #include "oprofile-agent.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;

@@ -28,7 +28,8 @@
 #ifndef V8_JUMP_TARGET_H_
 #define V8_JUMP_TARGET_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Forward declarations.
 class FrameElement;

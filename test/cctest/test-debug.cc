@@ -371,7 +371,8 @@ static void PrepareStep(StepAction step_action) {
 
 // This function is in namespace v8::internal to be friend with class
 // v8::internal::Debug.
-namespace v8 { namespace internal {  // NOLINT
+namespace v8 {
+namespace internal {
 
 // Collect the currently debugged functions.
 Handle<FixedArray> GetDebuggedFunctions() {

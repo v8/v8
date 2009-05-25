@@ -31,7 +31,8 @@
 #include "mark-compact.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.

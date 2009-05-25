@@ -109,7 +109,8 @@ enum PropertyAttributes {
   // a non-existent property.
 };
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // PropertyDetails captures type and attributes for a property.

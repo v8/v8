@@ -44,7 +44,8 @@
 
 #include "../include/v8-debug.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 static void PrintLn(v8::Local<v8::Value> value) {

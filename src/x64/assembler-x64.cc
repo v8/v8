@@ -29,7 +29,8 @@
 
 #include "macro-assembler.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 Register no_reg = { -1 };
 
@@ -318,7 +319,8 @@ void Assembler::mov(Register dst, Register src) {
 #include "stub-cache.h"
 #include "unicode.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* a) {
   UNIMPLEMENTED();

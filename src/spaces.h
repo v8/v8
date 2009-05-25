@@ -31,7 +31,8 @@
 #include "list-inl.h"
 #include "log.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -----------------------------------------------------------------------------
 // Heap structures:

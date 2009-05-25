@@ -29,7 +29,8 @@
 
 #include "compilation-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 enum {
   // The number of script generations tell how many GCs a script can

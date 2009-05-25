@@ -28,7 +28,8 @@
 #ifndef V8_COMPILATION_CACHE_H_
 #define V8_COMPILATION_CACHE_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // The compilation cache keeps function boilerplates for compiled

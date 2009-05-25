@@ -199,7 +199,8 @@ static Handle<v8::internal::String> NewString(const char* s) {
 }
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 class CodeGeneratorPatcher {
  public:

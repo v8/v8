@@ -28,7 +28,8 @@
 #ifndef V8_COUNTERS_H_
 #define V8_COUNTERS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // StatsCounters is an interface for plugging into external
 // counters for monitoring.  Counters can be looked up and

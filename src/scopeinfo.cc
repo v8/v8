@@ -32,7 +32,8 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 static int CompareLocal(Variable* const* v, Variable* const* w) {

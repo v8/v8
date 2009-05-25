@@ -31,7 +31,8 @@
 #include "jump-target-inl.h"
 #include "register-allocator-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // JumpTarget implementation.

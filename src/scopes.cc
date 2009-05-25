@@ -31,7 +31,8 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // A Zone allocator for use with LocalsMap.

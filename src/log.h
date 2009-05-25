@@ -28,7 +28,8 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Logger is used for collecting logging information from V8 during
 // execution. The result is dumped to a file.

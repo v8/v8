@@ -37,7 +37,8 @@
 #include "macro-assembler.h"
 #include "natives.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // A SourceCodeCache uses a FixedArray to store pairs of
 // (AsciiString*, JSFunction*), mapping names of native code files

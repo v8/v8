@@ -41,7 +41,8 @@
 #include "disassembler.h"
 #endif
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.

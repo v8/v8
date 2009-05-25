@@ -30,7 +30,8 @@
 
 #include "counters.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define HISTOGRAM_TIMER_LIST(HT)                                      \
   /* Garbage collection timers. */                                    \

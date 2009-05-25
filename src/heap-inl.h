@@ -31,7 +31,8 @@
 #include "log.h"
 #include "v8-counters.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 int Heap::MaxHeapObjectSize() {
   return Page::kMaxHeapObjectSize;

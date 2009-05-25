@@ -28,7 +28,8 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Processor architecture detection.  For more info on what's defined, see:
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx

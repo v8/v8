@@ -32,7 +32,8 @@
 #include "debug.h"
 #include "runtime.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Give alias names to registers
 Register cp = {  8 };  // JavaScript context pointer

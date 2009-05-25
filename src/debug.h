@@ -41,7 +41,8 @@
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Forward declarations.

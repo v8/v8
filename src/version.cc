@@ -43,7 +43,8 @@
 // number. This define is mainly used by the SCons build script.
 #define SONAME            ""
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 int Version::major_ = MAJOR_VERSION;
 int Version::minor_ = MINOR_VERSION;

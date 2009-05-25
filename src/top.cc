@@ -34,7 +34,8 @@
 #include "string-stream.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();

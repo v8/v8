@@ -36,7 +36,8 @@
 #include "serialize.h"
 #include "string-stream.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef ENABLE_DISASSEMBLER
 

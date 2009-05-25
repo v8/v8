@@ -37,7 +37,8 @@
 #include "scopes.h"
 #include "usage-analyzer.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 static Handle<Code> MakeCode(FunctionLiteral* literal,
                              Handle<Script> script,

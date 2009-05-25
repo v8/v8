@@ -31,7 +31,8 @@
 #include "scopes.h"
 #include "usage-analyzer.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Weight boundaries
 static const int MinWeight = 1;

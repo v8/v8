@@ -33,7 +33,8 @@
 #include "mark-compact.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // MarkCompactCollector

@@ -40,7 +40,8 @@
 #include "scopeinfo.h"
 #include "v8threads.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define ROOT_ALLOCATION(type, name) type* Heap::name##_;
   ROOT_LIST(ROOT_ALLOCATION)
