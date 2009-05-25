@@ -2085,6 +2085,11 @@ class V8EXPORT V8 {
   static void ResumeProfiler();
 
   /**
+   * Return whether profiler is currently paused.
+   */
+  static bool IsProfilerPaused();
+
+  /**
    * If logging is performed into a memory buffer (via --logfile=*), allows to
    * retrieve previously written messages. This can be used for retrieving
    * profiler log data in the application. This function is thread-safe.

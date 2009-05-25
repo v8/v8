@@ -3123,11 +3123,22 @@ void V8::PauseProfiler() {
 #endif
 }
 
+
 void V8::ResumeProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   i::Logger::ResumeProfiler();
 #endif
 }
+
+
+bool V8::IsProfilerPaused() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  return i::Logger::IsProfilerPaused();
+#else
+  return true;
+#endif
+}
+
 
 int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
