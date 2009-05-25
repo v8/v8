@@ -1653,12 +1653,14 @@ void CodeGenerator::Comparison(Condition cc,
 
 class CallFunctionStub: public CodeStub {
  public:
-  explicit CallFunctionStub(int argc) : argc_(argc) { }
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
 
   void Generate(MacroAssembler* masm);
 
  private:
   int argc_;
+  InLoopFlag in_loop_;
 
 #ifdef DEBUG
   void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
@@ -1666,6 +1668,7 @@ class CallFunctionStub: public CodeStub {
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
 };
 
 
@@ -1683,7 +1686,8 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   CodeForSourcePosition(position);
 
   // Use the shared code stub to call the function.
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   Result answer = frame_->CallStub(&call_function, arg_count + 1);
   // Restore context and replace function on the stack with the
   // result of the stub invocation.
@@ -4217,7 +4221,8 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
   // Call the function.
   CodeForSourcePosition(node->position());
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   result = frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore the context and overwrite the function on the stack with
@@ -4581,9 +4586,10 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   }
 
   if (function == NULL) {
-    // Call the JS runtime function.  Pass 0 as the loop nesting depth
-    // because we do not handle runtime calls specially in loops.
-    Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, 0);
+    // Call the JS runtime function.
+    Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET,
+                                       arg_count,
+                                       loop_nesting_);
     frame_->RestoreContextRegister();
     frame_->SetElementAt(0, &answer);
   } else {
@@ -5395,9 +5401,13 @@ void Reference::GetValue(TypeofState typeof_state) {
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
 
-      if (is_global || cgen_->scope()->is_global_scope()) {
-        // Do not inline the inobject property case for loads from the
-        // global object or loads in toplevel code.
+      // Do not inline the inobject property case for loads from the global
+      // object.  Also do not inline for unoptimized code.  This saves time
+      // in the code generator.  Unoptimized code is toplevel code or code
+      // that is not in a loop.
+      if (is_global ||
+          cgen_->scope()->is_global_scope() ||
+          cgen_->loop_nesting() == 0) {
         Comment cmnt(masm, "[ Load from named Property");
         cgen_->frame()->Push(GetName());
 

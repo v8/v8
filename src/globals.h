@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -326,8 +326,6 @@ typedef void (*InlineCacheCallback)(Code* code, Address ic);
 enum InlineCacheState {
   // Has never been executed.
   UNINITIALIZED,
-  // Has never been executed, but is in a loop.
-  UNINITIALIZED_IN_LOOP,
   // Has been executed but monomorhic state has been delayed.
   PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.
@@ -339,6 +337,12 @@ enum InlineCacheState {
   // Special states for debug break or step in prepare stubs.
   DEBUG_BREAK,
   DEBUG_PREPARE_STEP_IN
+};
+
+
+enum InLoopFlag {
+  NOT_IN_LOOP,
+  IN_LOOP
 };
 
 

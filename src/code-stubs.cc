@@ -59,7 +59,7 @@ Handle<Code> CodeStub::GetCode() {
     masm.GetCode(&desc);
 
     // Copy the generated code into a heap object, and store the major key.
-    Code::Flags flags = Code::ComputeFlags(Code::STUB);
+    Code::Flags flags = Code::ComputeFlags(Code::STUB, InLoop());
     Handle<Code> code = Factory::NewCode(desc, NULL, flags, masm.CodeObject());
     code->set_major_key(MajorKey());
 

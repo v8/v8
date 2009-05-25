@@ -1898,6 +1898,11 @@ Code::Kind Code::kind() {
 }
 
 
+InLoopFlag Code::ic_in_loop() {
+  return ExtractICInLoopFromFlags(flags());
+}
+
+
 InlineCacheState Code::ic_state() {
   InlineCacheState result = ExtractICStateFromFlags(flags());
   // Only allow uninitialized or debugger states for non-IC code
@@ -1944,11 +1949,13 @@ bool Code::is_inline_cache_stub() {
 
 
 Code::Flags Code::ComputeFlags(Kind kind,
+                               InLoopFlag in_loop,
                                InlineCacheState ic_state,
                                PropertyType type,
                                int argc) {
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
+  if (in_loop) bits |= kFlagsICInLoopMask;
   bits |= ic_state << kFlagsICStateShift;
   bits |= type << kFlagsTypeShift;
   bits |= argc << kFlagsArgumentsCountShift;
@@ -1956,6 +1963,7 @@ Code::Flags Code::ComputeFlags(Kind kind,
   Flags result = static_cast<Flags>(bits);
   ASSERT(ExtractKindFromFlags(result) == kind);
   ASSERT(ExtractICStateFromFlags(result) == ic_state);
+  ASSERT(ExtractICInLoopFromFlags(result) == in_loop);
   ASSERT(ExtractTypeFromFlags(result) == type);
   ASSERT(ExtractArgumentsCountFromFlags(result) == argc);
   return result;
@@ -1964,8 +1972,9 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           PropertyType type,
+                                          InLoopFlag in_loop,
                                           int argc) {
-  return ComputeFlags(kind, MONOMORPHIC, type, argc);
+  return ComputeFlags(kind, in_loop, MONOMORPHIC, type, argc);
 }
 
 
@@ -1978,6 +1987,12 @@ Code::Kind Code::ExtractKindFromFlags(Flags flags) {
 InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
   int bits = (flags & kFlagsICStateMask) >> kFlagsICStateShift;
   return static_cast<InlineCacheState>(bits);
+}
+
+
+InLoopFlag Code::ExtractICInLoopFromFlags(Flags flags) {
+  int bits = (flags & kFlagsICInLoopMask);
+  return bits != 0 ? IN_LOOP : NOT_IN_LOOP;
 }
 
 

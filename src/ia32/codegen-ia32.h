@@ -348,7 +348,6 @@ class CodeGenerator: public AstVisitor {
   void IncrementLoopNesting() { loop_nesting_++; }
   void DecrementLoopNesting() { loop_nesting_--; }
 
-
   // Node visitors.
   void VisitStatements(ZoneList<Statement*>* statements);
 
@@ -488,8 +487,7 @@ class CodeGenerator: public AstVisitor {
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  Handle<Code> ComputeCallInitialize(int argc);
-  Handle<Code> ComputeCallInitializeInLoop(int argc);
+  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.

@@ -171,7 +171,8 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
   CodeDesc desc;
   cgen.masm()->GetCode(&desc);
   ZoneScopeInfo sinfo(flit->scope());
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
+  InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
   Handle<Code> code = Factory::NewCode(desc,
                                        &sinfo,
                                        flags,
@@ -323,17 +324,18 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
 }
 
 
-Handle<Code> CodeGenerator::ComputeCallInitialize(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc), Code);
-}
-
-
-Handle<Code> CodeGenerator::ComputeCallInitializeInLoop(int argc) {
-  // Force the creation of the corresponding stub outside loops,
-  // because it will be used when clearing the ICs later - when we
-  // don't know if we're inside a loop or not.
-  ComputeCallInitialize(argc);
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitializeInLoop(argc), Code);
+Handle<Code> CodeGenerator::ComputeCallInitialize(
+    int argc,
+    InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc, in_loop), Code);
 }
 
 

@@ -1058,12 +1058,14 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
 
 class CallFunctionStub: public CodeStub {
  public:
-  explicit CallFunctionStub(int argc) : argc_(argc) {}
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) {}
 
   void Generate(MacroAssembler* masm);
 
  private:
   int argc_;
+  InLoopFlag in_loop_;
 
 #if defined(DEBUG)
   void Print() { PrintF("CallFunctionStub (argc %d)\n", argc_); }
@@ -1071,6 +1073,7 @@ class CallFunctionStub: public CodeStub {
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
 };
 
 
@@ -1088,7 +1091,8 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   CodeForSourcePosition(position);
 
   // Use the shared code stub to call the function.
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore context and pop function from the stack.
@@ -3051,7 +3055,8 @@ void CodeGenerator::VisitCall(Call* node) {
     }
 
     // Setup the receiver register and call the IC initialization code.
-    Handle<Code> stub = ComputeCallInitialize(arg_count);
+    InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
@@ -3102,7 +3107,8 @@ void CodeGenerator::VisitCall(Call* node) {
       }
 
       // Set the receiver register and call the IC initialization code.
-      Handle<Code> stub = ComputeCallInitialize(arg_count);
+      InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+      Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
       CodeForSourcePosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
       __ ldr(cp, frame_->Context());
@@ -3200,7 +3206,8 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   // Call the function.
   CodeForSourcePosition(node->position());
 
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   frame_->CallStub(&call_function, arg_count + 1);
 
   __ ldr(cp, frame_->Context());
@@ -3462,7 +3469,8 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Call the JS runtime function.
-    Handle<Code> stub = ComputeCallInitialize(arg_count);
+    InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
     frame_->Drop();

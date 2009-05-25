@@ -941,9 +941,8 @@ Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
   // Arguments, receiver, and function name are on top of the frame.
   // The IC expects them on the stack.  It does not drop the function
   // name slot (but it does drop the rest).
-  Handle<Code> ic = (loop_nesting > 0)
-      ? cgen()->ComputeCallInitializeInLoop(arg_count)
-      : cgen()->ComputeCallInitialize(arg_count);
+  InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic = cgen()->ComputeCallInitialize(arg_count, in_loop);
   // Spill args, receiver, and function.  The call will drop args and
   // receiver.
   PrepareForCall(arg_count + 2, arg_count + 1);

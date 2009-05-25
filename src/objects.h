@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2253,9 +2253,10 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind();
-  inline InlineCacheState ic_state();  // only valid for IC stubs
-  inline PropertyType type();  // only valid for monomorphic IC stubs
-  inline int arguments_count();  // only valid for call IC stubs
+  inline InlineCacheState ic_state();  // Only valid for IC stubs.
+  inline InLoopFlag ic_in_loop();  // Only valid for IC stubs..
+  inline PropertyType type();  // Only valid for monomorphic IC stubs.
+  inline int arguments_count();  // Only valid for call IC stubs.
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
@@ -2277,16 +2278,20 @@ class Code: public HeapObject {
 
   // Flags operations.
   static inline Flags ComputeFlags(Kind kind,
+                                   InLoopFlag in_loop = NOT_IN_LOOP,
                                    InlineCacheState ic_state = UNINITIALIZED,
                                    PropertyType type = NORMAL,
                                    int argc = -1);
 
-  static inline Flags ComputeMonomorphicFlags(Kind kind,
-                                              PropertyType type,
-                                              int argc = -1);
+  static inline Flags ComputeMonomorphicFlags(
+      Kind kind,
+      PropertyType type,
+      InLoopFlag in_loop = NOT_IN_LOOP,
+      int argc = -1);
 
   static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
+  static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
   static inline Flags RemoveTypeFromFlags(Flags flags);
@@ -2378,14 +2383,19 @@ class Code: public HeapObject {
 
   // Flags layout.
   static const int kFlagsICStateShift        = 0;
-  static const int kFlagsKindShift           = 3;
-  static const int kFlagsTypeShift           = 6;
-  static const int kFlagsArgumentsCountShift = 9;
+  static const int kFlagsICInLoopShift       = 3;
+  static const int kFlagsKindShift           = 4;
+  static const int kFlagsTypeShift           = 7;
+  static const int kFlagsArgumentsCountShift = 10;
 
-  static const int kFlagsICStateMask        = 0x00000007;  // 000000111
-  static const int kFlagsKindMask           = 0x00000038;  // 000111000
-  static const int kFlagsTypeMask           = 0x000001C0;  // 111000000
-  static const int kFlagsArgumentsCountMask = 0xFFFFFE00;
+  static const int kFlagsICStateMask        = 0x00000007;  // 0000000111
+  static const int kFlagsICInLoopMask       = 0x00000008;  // 0000001000
+  static const int kFlagsKindMask           = 0x00000070;  // 0001110000
+  static const int kFlagsTypeMask           = 0x00000380;  // 1110000000
+  static const int kFlagsArgumentsCountMask = 0xFFFFFC00;
+
+  static const int kFlagsNotUsedInLookup =
+      (kFlagsICInLoopMask | kFlagsTypeMask);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);

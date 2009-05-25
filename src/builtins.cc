@@ -666,12 +666,12 @@ void Builtins::Setup(bool create_heap_objects) {
       Code::ComputeFlags(Code::BUILTIN)  \
     },
 
-#define DEF_FUNCTION_PTR_A(name, kind, state) \
-    { FUNCTION_ADDR(Generate_##name),         \
-      NULL,                                   \
-      #name,                                  \
-      name,                                   \
-      Code::ComputeFlags(Code::kind, state)   \
+#define DEF_FUNCTION_PTR_A(name, kind, state)              \
+    { FUNCTION_ADDR(Generate_##name),                      \
+      NULL,                                                \
+      #name,                                               \
+      name,                                                \
+      Code::ComputeFlags(Code::kind, NOT_IN_LOOP, state)   \
     },
 
   // Define array of pointers to generators and C builtin functions.

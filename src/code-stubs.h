@@ -83,6 +83,10 @@ class CodeStub BASE_EMBEDDED {
   virtual Major MajorKey() = 0;
   virtual int MinorKey() = 0;
 
+  // The CallFunctionStub needs to override this so it can encode whether a
+  // lazily generated function should be fully optimized or not.
+  virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
+
   // Returns a name for logging/debugging purposes.
   virtual const char* GetName() { return MajorName(MajorKey()); }
 
