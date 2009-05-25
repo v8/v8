@@ -5486,7 +5486,8 @@ static int LocalPrototypeChainLength(JSObject* obj) {
 }
 
 
-static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
+static Object* DebugLookupResultValue(Object* receiver, String* name,
+                                      LookupResult* result,
                                       bool* caught_exception) {
   Object* value;
   switch (result->type()) {
@@ -5511,11 +5512,18 @@ static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
       return result->GetConstantFunction();
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
-      if (structure->IsProxy()) {
-        AccessorDescriptor* callback =
-            reinterpret_cast<AccessorDescriptor*>(
-                Proxy::cast(structure)->proxy());
-        value = (callback->getter)(receiver, callback->data);
+      if (structure->IsProxy() || structure->IsAccessorInfo()) {
+        if (Debug::debugger_entry()) {
+          // SaveContext scope. It will restore debugger context after the
+          // getter execution.
+          SaveContext save;
+          Top::set_context(*Debug::debugger_entry()->GetContext());
+          value = receiver->GetPropertyWithCallback(
+              receiver, structure, name, result->holder());
+        } else {
+          value = receiver->GetPropertyWithCallback(
+              receiver, structure, name, result->holder());
+        }
         if (value->IsException()) {
           value = Top::pending_exception();
           Top::clear_pending_exception();
@@ -5596,7 +5604,7 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
 
   if (result.IsProperty()) {
     bool caught_exception = false;
-    Object* value = DebugLookupResultValue(*obj, &result,
+    Object* value = DebugLookupResultValue(*obj, *name, &result,
                                            &caught_exception);
     if (value->IsFailure()) return value;
     Handle<Object> value_handle(value);
@@ -5632,7 +5640,7 @@ static Object* Runtime_DebugGetProperty(Arguments args) {
   LookupResult result;
   obj->Lookup(*name, &result);
   if (result.IsProperty()) {
-    return DebugLookupResultValue(*obj, &result, NULL);
+    return DebugLookupResultValue(*obj, *name, &result, NULL);
   }
   return Heap::undefined_value();
 }

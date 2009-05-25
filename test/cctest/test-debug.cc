@@ -3313,6 +3313,82 @@ TEST(HiddenPrototypePropertyMirror) {
 }
 
 
+static v8::Handle<v8::Value> ProtperyXNativeGetter(
+    v8::Local<v8::String> property, const v8::AccessorInfo& info) {
+  return v8::Integer::New(10);
+}
+
+
+TEST(NativeGetterPropertyMirror) {
+  // Create a V8 environment with debug access.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Handle<v8::String> name = v8::String::New("x");
+  // Create object with named accessor.
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  named->SetAccessor(name, &ProtperyXNativeGetter, NULL,
+      v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
+
+  // Create object with named property getter.
+  env->Global()->Set(v8::String::New("instance"), named->NewInstance());
+  CHECK_EQ(10, CompileRun("instance.x")->Int32Value());
+
+  // Get mirror for the object with property getter.
+  CompileRun("instance_mirror = debug.MakeMirror(instance);");
+  CHECK(CompileRun(
+      "instance_mirror instanceof debug.ObjectMirror")->BooleanValue());
+
+  CompileRun("named_names = instance_mirror.propertyNames();");
+  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names[0] == 'x'")->BooleanValue());
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().isNumber()")->BooleanValue());
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().value() == 10")->BooleanValue());
+}
+
+
+static v8::Handle<v8::Value> ProtperyXNativeGetterThrowingError(
+    v8::Local<v8::String> property, const v8::AccessorInfo& info) {
+  return CompileRun("throw new Error('Error message');");
+}
+
+
+TEST(NativeGetterThrowingErrorPropertyMirror) {
+  // Create a V8 environment with debug access.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  v8::Handle<v8::String> name = v8::String::New("x");
+  // Create object with named accessor.
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  named->SetAccessor(name, &ProtperyXNativeGetterThrowingError, NULL,
+      v8::Handle<v8::Value>(), v8::DEFAULT, v8::None);
+
+  // Create object with named property getter.
+  env->Global()->Set(v8::String::New("instance"), named->NewInstance());
+
+  // Get mirror for the object with property getter.
+  CompileRun("instance_mirror = debug.MakeMirror(instance);");
+  CHECK(CompileRun(
+      "instance_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CompileRun("named_names = instance_mirror.propertyNames();");
+  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names[0] == 'x'")->BooleanValue());
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().isError()")->BooleanValue());
+
+  // Check that the message is that passed to the Error constructor.
+  CHECK(CompileRun(
+      "instance_mirror.property('x').value().message() == 'Error message'")->
+          BooleanValue());
+}
+
+
+
 // Multithreaded tests of JSON debugger protocol
 
 // Support classes
