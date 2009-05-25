@@ -129,6 +129,11 @@ static void CompileAndRunScript(const char *src) {
 }
 
 
+// Exclude the following test from ARM because profiling can
+// malfunction there.
+// TODO(mikhail.naganov): Fix it.
+#ifndef V8_TARGET_ARCH_ARM
+
 namespace v8 {
 namespace internal {
 
@@ -237,6 +242,8 @@ TEST(ProfLazyMode) {
   i::FLAG_prof = saved_prof;
   i::FLAG_prof_auto = saved_prof_auto;
 }
+
+#endif  // V8_TARGET_ARCH_ARM
 
 
 static inline bool IsStringEqualTo(const char* r, const char* s) {
@@ -703,6 +710,5 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   Logger::TearDown();
   i::FLAG_always_compact = saved_always_compact;
 }
-
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
