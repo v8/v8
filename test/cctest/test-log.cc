@@ -165,9 +165,9 @@ static int CheckThatProfilerWorks(int log_pos) {
                   "for (var i = 0; i < 1000; ++i) { "
                   "(function(x) { return %d * x; })(i); }",
                   log_pos);
-  // Run code for 100 msecs to get some ticks.
+  // Run code for 200 msecs to get some ticks.
   const int64_t started_us = i::OS::Ticks();
-  while (i::OS::Ticks() - started_us < 100 * 1000) {
+  while (i::OS::Ticks() - started_us < 200 * 1000) {
     CompileAndRunScript(script_src.start());
   }
 
