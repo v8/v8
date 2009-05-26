@@ -99,7 +99,6 @@ extern Register r14;
 extern Register r15;
 extern Register no_reg;
 
-
 struct XMMRegister {
   bool is_valid() const  { return 0 <= code_ && code_ < 2; }
   int code() const  {
@@ -118,6 +117,14 @@ extern XMMRegister xmm4;
 extern XMMRegister xmm5;
 extern XMMRegister xmm6;
 extern XMMRegister xmm7;
+extern XMMRegister xmm8;
+extern XMMRegister xmm9;
+extern XMMRegister xmm10;
+extern XMMRegister xmm11;
+extern XMMRegister xmm12;
+extern XMMRegister xmm13;
+extern XMMRegister xmm14;
+extern XMMRegister xmm15;
 
 enum Condition {
   // any value < 0 is considered no_condition
