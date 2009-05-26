@@ -38,8 +38,13 @@
 using v8::internal::byte;
 using v8::internal::OS;
 using v8::internal::Assembler;
+using v8::internal::Operand;
+using v8::internal::Label;
 using v8::internal::rax;
 using v8::internal::rsi;
+using v8::internal::rdi;
+using v8::internal::rbp;
+using v8::internal::rsp;
 using v8::internal::FUNCTION_CAST;
 using v8::internal::CodeDesc;
 
@@ -60,7 +65,7 @@ typedef int (*F2)(int x, int y);
 #define __ assm.
 
 
-TEST(AssemblerX640) {
+TEST(AssemblerX64ReturnOperation) {
   // Allocate an executable page of memory.
   size_t actual_size;
   byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
@@ -79,6 +84,116 @@ TEST(AssemblerX640) {
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(2, result);
+}
+
+TEST(AssemblerX64StackOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(buffer, actual_size);
+
+  // Assemble a simple function that copies argument 2 and returns it.
+  // We compile without stack frame pointers, so the gdb debugger shows
+  // incorrect stack frames when debugging this function (which has them).
+  __ push(rbp);
+  __ mov(rbp, rsp);
+  __ push(rsi);  // Value at (rbp - 8)
+  __ push(rsi);  // Value at (rbp - 16)
+  __ push(rdi);  // Value at (rbp - 24)
+  __ pop(rax);
+  __ pop(rax);
+  __ pop(rax);
+  __ pop(rbp);
+  __ nop();
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  CHECK_EQ(2, result);
+}
+
+TEST(AssemblerX64ArithmeticOperations) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(buffer, actual_size);
+
+  // Assemble a simple function that copies argument 2 and returns it.
+  __ mov(rax, rsi);
+  __ add(rax, rdi);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  CHECK_EQ(5, result);
+}
+
+TEST(AssemblerX64MemoryOperands) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(buffer, actual_size);
+
+  // Assemble a simple function that copies argument 2 and returns it.
+  __ push(rbp);
+  __ mov(rbp, rsp);
+  __ push(rsi);  // Value at (rbp - 8)
+  __ push(rsi);  // Value at (rbp - 16)
+  __ push(rdi);  // Value at (rbp - 24)
+  // const int kStackElementSize = 8;
+  //  __ mov(rax, Operand(rbp,-3 * kStackElementSize));
+  __ pop(rax);
+  __ pop(rax);
+  __ pop(rax);
+  __ pop(rbp);
+  __ nop();
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  CHECK_EQ(2, result);
+}
+
+TEST(AssemblerX64ControlFlow) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(buffer, actual_size);
+
+  // Assemble a simple function that copies argument 2 and returns it.
+  __ push(rbp);
+  __ mov(rbp, rsp);
+  __ mov(rax, rdi);
+  Label target;
+  __ jmp(&target);
+  __ mov(rax, rsi);
+  __ bind(&target);
+  __ pop(rbp);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
+  CHECK_EQ(3, result);
 }
 
 #undef __

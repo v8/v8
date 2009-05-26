@@ -189,9 +189,33 @@ void Assembler::RecordStatementPosition(int a) {
   UNIMPLEMENTED();
 }
 
-void Assembler::bind(Label* a) {
-  UNIMPLEMENTED();
+
+void Assembler::bind_to(Label* L, int pos) {
+  ASSERT(!L->is_bound());  // Label may only be bound once.
+  last_pc_ = NULL;
+  ASSERT(0 <= pos && pos <= pc_offset());  // Position must be valid.
+  if (L->is_linked()) {
+    int current = L->pos();
+    int next = long_at(current);
+    while (next != current) {
+      // relative address, relative to point after address
+      int imm32 = pos - (current + sizeof(int32_t));
+      long_at_put(current, imm32);
+      current = next;
+      next = long_at(next);
+    }
+    // Fix up last fixup on linked list.
+    int last_imm32 = pos - (current + sizeof(int32_t));
+    long_at_put(current, last_imm32);
+  }
+  L->bind_to(pos);
 }
+
+
+void Assembler::bind(Label* L) {
+  bind_to(L, pc_offset());
+}
+
 
 void Assembler::GrowBuffer() {
   ASSERT(overflow());  // should not call this otherwise
@@ -275,6 +299,8 @@ void Assembler::emit_operand(Register reg, const Operand& adr) {
 }
 
 
+// Assembler Instruction implementations
+
 void Assembler::add(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -289,7 +315,28 @@ void Assembler::add(Register dst, Register src) {
   last_pc_ = pc_;
   emit_rex_64(dst, src);
   EMIT(0x03);
-  EMIT(0xC0 | (src.code() & 0x7) << 3 | (dst.code() & 0x7));
+  EMIT(0xC0 | (dst.code() & 0x7) << 3 | (src.code() & 0x7));
+}
+
+
+void Assembler::call(Label* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // 1110 1000 #32-bit disp
+  EMIT(0xE8);
+  if (L->is_bound()) {
+    int offset = L->pos() - pc_offset() - sizeof(int32_t);
+    ASSERT(offset <= 0);
+    emit(offset);
+  } else if (L->is_linked()) {
+    emit(L->pos());
+    L->link_to(pc_offset() - sizeof(int32_t));
+  } else {
+    ASSERT(L->is_unused());
+    int32_t current = pc_offset();
+    emit(current);
+    L->link_to(current);
+  }
 }
 
 
@@ -343,6 +390,73 @@ void Assembler::int3() {
 }
 
 
+void Assembler::j(Condition cc, Label* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(0 <= cc && cc < 16);
+  if (L->is_bound()) {
+    const int short_size = 2;
+    const int long_size  = 6;
+    int offs = L->pos() - pc_offset();
+    ASSERT(offs <= 0);
+    if (is_int8(offs - short_size)) {
+      // 0111 tttn #8-bit disp
+      EMIT(0x70 | cc);
+      EMIT((offs - short_size) & 0xFF);
+    } else {
+      // 0000 1111 1000 tttn #32-bit disp
+      EMIT(0x0F);
+      EMIT(0x80 | cc);
+      emit(offs - long_size);
+    }
+  } else if (L->is_linked()) {
+    // 0000 1111 1000 tttn #32-bit disp
+    EMIT(0x0F);
+    EMIT(0x80 | cc);
+    emit(L->pos());
+    L->link_to(pc_offset() - sizeof(int32_t));
+  } else {
+    ASSERT(L->is_unused());
+    EMIT(0x0F);
+    EMIT(0x80 | cc);
+    int32_t current = pc_offset();
+    emit(current);
+    L->link_to(current);
+  }
+}
+
+
+void Assembler::jmp(Label* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (L->is_bound()) {
+    int offs = L->pos() - pc_offset() - 1;
+    ASSERT(offs <= 0);
+    if (is_int8(offs - sizeof(int8_t))) {
+      // 1110 1011 #8-bit disp
+      EMIT(0xEB);
+      EMIT((offs - sizeof(int8_t)) & 0xFF);
+    } else {
+      // 1110 1001 #32-bit disp
+      EMIT(0xE9);
+      emit(offs - sizeof(int32_t));
+    }
+  } else  if (L->is_linked()) {
+    // 1110 1001 #32-bit disp
+    EMIT(0xE9);
+    emit(L->pos());
+    L->link_to(pc_offset() - sizeof(int32_t));
+  } else {
+    // 1110 1001 #32-bit disp
+    ASSERT(L->is_unused());
+    EMIT(0xE9);
+    int32_t current = pc_offset();
+    emit(current);
+    L->link_to(current);
+  }
+}
+
+
 void Assembler::mov(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -356,8 +470,8 @@ void Assembler::mov(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst, src);
-  EMIT(0x89);
-  EMIT(0xC0 | (src.code() & 0x7) << 3 | (dst.code() & 0x7));
+  EMIT(0x8B);
+  EMIT(0xC0 | (dst.code() & 0x7) << 3 | (src.code() & 0x7));
 }
 
 

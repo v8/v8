@@ -676,9 +676,9 @@ class Assembler : public Malloced {
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Conditional jumps
-  void j(Condition cc, Label* L, Hint hint = no_hint);
-  void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
-  void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
+  void j(Condition cc, Label* L);
+  void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
+  void j(Condition cc, Handle<Code> code);
 
   // Floating-point operations
   void fld(int i);

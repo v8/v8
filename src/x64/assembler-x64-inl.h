@@ -44,6 +44,10 @@ Condition NegateCondition(Condition cc) {
 #define EMIT(x)                                 \
   *pc_++ = (x)
 
+void Assembler::emit(uint32_t x) {
+  *reinterpret_cast<uint32_t*>(pc_) = x;
+  pc_ += sizeof(uint32_t);
+}
 
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   EMIT(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
