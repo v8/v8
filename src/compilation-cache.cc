@@ -36,7 +36,7 @@ enum {
   // The number of script generations tell how many GCs a script can
   // survive in the compilation cache, before it will be flushed if it
   // hasn't been used.
-  NUMBER_OF_SCRIPT_GENERATIONS = 5,
+  NUMBER_OF_SCRIPT_GENERATIONS = 8,
 
   // The compilation cache consists of tables - one for each entry
   // kind plus extras for the script generations.
@@ -173,6 +173,17 @@ Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
       // Go to the next generation.
       generation++;
     }
+  }
+
+  static void* script_histogram = StatsTable::CreateHistogram(
+      "V8.ScriptCache",
+      0,
+      NUMBER_OF_SCRIPT_GENERATIONS,
+      NUMBER_OF_SCRIPT_GENERATIONS + 1);
+
+  if (script_histogram != NULL) {
+    // The level NUMBER_OF_SCRIPT_GENERATIONS is equivalent to a cache miss.
+    StatsTable::AddHistogramSample(script_histogram, generation - SCRIPT);
   }
 
   // Once outside the manacles of the handle scope, we need to recheck

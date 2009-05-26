@@ -75,7 +75,7 @@ class StatsTable : public AllStatic {
   // function. min and max define the expected minimum and maximum
   // sample values. buckets is the maximum number of buckets
   // that the samples will be grouped into.
-  static void *CreateHistogram(const char* name,
+  static void* CreateHistogram(const char* name,
                                int min,
                                int max,
                                size_t buckets) {
