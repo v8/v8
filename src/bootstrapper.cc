@@ -37,7 +37,8 @@
 #include "macro-assembler.h"
 #include "natives.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // A SourceCodeCache uses a FixedArray to store pairs of
 // (AsciiString*, JSFunction*), mapping names of native code files
@@ -1087,6 +1088,12 @@ bool Genesis::InstallNatives() {
     global_context()->set_empty_script(*script);
   }
 
+#ifdef V8_HOST_ARCH_64_BIT
+  // TODO(X64): Reenable remaining initialization when code generation works.
+  return true;
+#endif  // V8_HOST_ARCH_64_BIT
+
+
   if (FLAG_natives_file == NULL) {
     // Without natives file, install default natives.
     for (int i = Natives::GetDelayCount();
@@ -1523,8 +1530,8 @@ Genesis::Genesis(Handle<Object> global_object,
   current_  = this;
   result_ = NULL;
 
-  // If V8 hasn't been and cannot be initialized, just return.
-  if (!V8::HasBeenSetup() && !V8::Initialize(NULL)) return;
+  // If V8 isn't running and cannot be initialized, just return.
+  if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
@@ -1532,6 +1539,7 @@ Genesis::Genesis(Handle<Object> global_object,
   SaveContext context;
 
   CreateRoots(global_template, global_object);
+
   if (!InstallNatives()) return;
 
   MakeFunctionInstancePrototypeWritable();

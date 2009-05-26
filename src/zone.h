@@ -28,7 +28,8 @@
 #ifndef V8_ZONE_H_
 #define V8_ZONE_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Zone scopes are in one of two modes.  Either they delete the zone

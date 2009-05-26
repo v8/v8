@@ -32,7 +32,8 @@
 #include "codegen.h"
 #include "register-allocator-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 void DeferredCode::SetEntryFrame(Result* arg) {

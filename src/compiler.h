@@ -32,7 +32,8 @@
 #include "parser.h"
 #include "zone.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The V8 compiler
 //
@@ -61,7 +62,6 @@ class Compiler : public AllStatic {
   // Compile a String source within a context for Eval.
   static Handle<JSFunction> CompileEval(Handle<String> source,
                                         Handle<Context> context,
-                                        int line_offset,
                                         bool is_global,
                                         bool is_json);
 

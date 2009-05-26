@@ -30,12 +30,46 @@
 
 #include "cpu.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
 
+
+// -----------------------------------------------------------------------------
+// Implementation of Assembler
+
+#define EMIT(x)                                 \
+  *pc_++ = (x)
+
+
+void Assembler::emit_rex_64(Register reg, Register rm_reg) {
+  EMIT(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+}
+
+
+void Assembler::emit_rex_64(Register reg, const Operand& op) {
+  EMIT(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
+}
+
+
+void Assembler::set_target_address_at(byte* location, byte* value) {
+  UNIMPLEMENTED();
+}
+
+
+byte* Assembler::target_address_at(byte* location) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+#undef EMIT
+
+
+// -----------------------------------------------------------------------------
+// Implementation of RelocInfo
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(int delta) {
@@ -71,19 +105,6 @@ void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);
 }
-
-
-void Assembler::set_target_address_at(byte* location, byte* value) {
-  UNIMPLEMENTED();
-}
-
-
-byte* Assembler::target_address_at(byte* location) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return *reinterpret_cast<Object**>(pc_);
@@ -146,6 +167,40 @@ Object** RelocInfo::call_object_address() {
   UNIMPLEMENTED();  // IA32 code below.
   ASSERT(IsCallInstruction());
   return reinterpret_cast<Object**>(pc_ + 1);
+}
+
+
+void Operand::set_modrm(int mod, Register rm) {
+  ASSERT((mod & -4) == 0);
+  buf_[0] = mod << 6 | (rm.code() & 0x7);
+  // Set REX.B to the high bit of rm.code().
+  rex_ |= (rm.code() >> 3);
+  len_ = 1;
+}
+
+
+void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
+  ASSERT(len_ == 1);
+  ASSERT((scale & -4) == 0);
+  // Use SIB with no index register only for base rsp or r12.
+  ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));
+  buf_[1] = scale << 6 | (index.code() & 0x7) << 3 | (base.code() & 0x7);
+  rex_ |= (index.code() >> 3) << 1 | base.code() >> 3;
+  len_ = 2;
+}
+
+
+void Operand::set_disp32(int32_t disp) {
+  ASSERT(len_ == 1 || len_ == 2);
+  int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
+  *p = disp;
+  len_ += sizeof(int32_t);
+}
+
+
+Operand::Operand(Register reg) {
+  // reg
+  set_modrm(3, reg);
 }
 
 } }  // namespace v8::internal

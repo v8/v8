@@ -33,7 +33,8 @@
 #include "scopes.h"
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #ifdef DEBUG
 

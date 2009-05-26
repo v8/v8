@@ -31,7 +31,8 @@
 #include "ast.h"
 #include "hashmap.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // A hash map to support fast local variable declaration and lookup.

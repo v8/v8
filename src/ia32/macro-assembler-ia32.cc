@@ -33,7 +33,8 @@
 #include "runtime.h"
 #include "serialize.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // MacroAssembler implementation.
@@ -631,7 +632,7 @@ void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
                                       Register result,
                                       Register op,
                                       JumpTarget* then_target) {
-  JumpTarget ok(cgen);
+  JumpTarget ok;
   test(result, Operand(result));
   ok.Branch(not_zero, taken);
   test(op, Operand(op));

@@ -37,7 +37,8 @@
 #ifndef V8_X64_ASSEMBLER_X64_H_
 #define V8_X64_ASSEMBLER_X64_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // CPU Registers.
 //
@@ -264,33 +265,21 @@ class Operand BASE_EMBEDDED {
   // disp only must always be relocated
 
   // [base + disp/r]
-  explicit Operand(Register base, intptr_t disp,
+  explicit Operand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [base + index*scale + disp/r]
   explicit Operand(Register base,
                    Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [index*scale + disp/r]
   explicit Operand(Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  static Operand StaticVariable(const ExternalReference& ext) {
-    return Operand(reinterpret_cast<intptr_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static Operand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr) {
-    return Operand(index, scale, reinterpret_cast<intptr_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
 
   // End of constructors and methods that have been moved to MemOperand.
 
@@ -309,7 +298,6 @@ class Operand BASE_EMBEDDED {
   inline void set_sib(ScaleFactor scale, Register index, Register base);
   inline void set_disp8(int8_t disp);
   inline void set_disp32(int32_t disp);
-  inline void set_dispr(intptr_t disp, RelocInfo::Mode rmode);
 
   friend class Assembler;
 };
@@ -317,40 +305,28 @@ class Operand BASE_EMBEDDED {
 class MemOperand : public Operand {
  public:
   // [disp/r]
-  INLINE(explicit MemOperand(intptr_t disp, RelocInfo::Mode rmode)) :
+  INLINE(explicit MemOperand(int32_t disp, RelocInfo::Mode rmode)) :
       Operand() {
     UNIMPLEMENTED();
   }
   // disp only must always be relocated
 
   // [base + disp/r]
-  explicit MemOperand(Register base, intptr_t disp,
+  explicit MemOperand(Register base, int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [base + index*scale + disp/r]
   explicit MemOperand(Register base,
                    Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [index*scale + disp/r]
   explicit MemOperand(Register index,
                    ScaleFactor scale,
-                   intptr_t disp,
+                   int32_t disp,
                    RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  static MemOperand StaticVariable(const ExternalReference& ext) {
-    return MemOperand(reinterpret_cast<intptr_t>(ext.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
-  static MemOperand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr) {
-    return MemOperand(index, scale, reinterpret_cast<intptr_t>(arr.address()),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
 };
 
 // -----------------------------------------------------------------------------
@@ -461,7 +437,8 @@ class Assembler : public Malloced {
  private:
   // The relocation writer's position is kGap bytes below the end of
   // the generated instructions. This leaves enough space for the
-  // longest possible ia32 instruction (17 bytes as of 9/26/06) and
+  // longest possible x64 instruction (There is a 15 byte limit on
+  // instruction length, ruling out some otherwise valid instructions) and
   // allows for a single, fast space check per instruction.
   static const int kGap = 32;
 
@@ -499,22 +476,20 @@ class Assembler : public Malloced {
   // ---------------------------------------------------------------------------
   // Code generation
   //
-  // - function names correspond one-to-one to ia32 instruction mnemonics
-  // - unless specified otherwise, instructions operate on 32bit operands
-  // - instructions on 8bit (byte) operands/registers have a trailing '_b'
-  // - instructions on 16bit (word) operands/registers have a trailing '_w'
-  // - naming conflicts with C++ keywords are resolved via a trailing '_'
-
-  // NOTE ON INTERFACE: Currently, the interface is not very consistent
-  // in the sense that some operations (e.g. mov()) can be called in more
-  // the one way to generate the same instruction: The Register argument
-  // can in some cases be replaced with an Operand(Register) argument.
-  // This should be cleaned up and made more orthogonal. The questions
-  // is: should we always use Operands instead of Registers where an
-  // Operand is possible, or should we have a Register (overloaded) form
-  // instead? We must be careful to make sure that the selected instruction
-  // is obvious from the parameters to avoid hard-to-find code generation
-  // bugs.
+  // Function names correspond one-to-one to x64 instruction mnemonics.
+  // Unless specified otherwise, instructions operate on 64-bit operands.
+  //
+  // If we need versions of an assembly instruction that operate on different
+  // width arguments, we add a single-letter suffix specifying the width.
+  // This is done for the following instructions: mov, cmp.
+  // There are no versions of these instructions without the suffix.
+  // - Instructions on 8-bit (byte) operands/registers have a trailing 'b'.
+  // - Instructions on 16-bit (word) operands/registers have a trailing 'w'.
+  // - Instructions on 32-bit (doubleword) operands/registers use 'l'.
+  // - Instructions on 64-bit (quadword) operands/registers use 'q'.
+  //
+  // Some mnemonics, such as "and", are the same as C++ keywords.
+  // Naming conflicts with C++ keywords are resolved by adding a trailing '_'.
 
   // Insert the smallest number of nop instructions
   // possible to align the pc offset to a multiple
@@ -576,6 +551,7 @@ class Assembler : public Malloced {
   void adc(Register dst, int32_t imm32);
   void adc(Register dst, const Operand& src);
 
+  void add(Register dst, Register src);
   void add(Register dst, const Operand& src);
   void add(const Operand& dst, const Immediate& x);
 
@@ -839,6 +815,14 @@ class Assembler : public Malloced {
   inline void emit(const Immediate& x);
   inline void emit_w(const Immediate& x);
 
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of both register codes.
+  inline void emit_rex_64(Register reg, Register rm_reg);
+
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of the destination, index, and base register codes.
+  inline void emit_rex_64(Register reg, const Operand& op);
+
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
 
@@ -877,6 +861,8 @@ class Assembler : public Malloced {
   int buffer_size_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
+  // A previously allocated buffer of kMinimalBufferSize bytes, or NULL.
+  static byte* spare_buffer_;
 
   // code generation
   byte* pc_;  // the program counter; moves forward

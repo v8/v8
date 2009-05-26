@@ -35,7 +35,8 @@
 #include "string-stream.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE

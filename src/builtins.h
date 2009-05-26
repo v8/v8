@@ -28,7 +28,8 @@
 #ifndef V8_BUILTINS_H_
 #define V8_BUILTINS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Define list of builtins implemented in C.
 #define BUILTIN_LIST_C(V)                          \

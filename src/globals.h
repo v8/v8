@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,7 +28,8 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Processor architecture detection.  For more info on what's defined, see:
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
@@ -123,9 +124,12 @@ const int kPointerSizeLog2 = 2;
 #endif
 
 const int kObjectAlignmentBits = kPointerSizeLog2;
-const intptr_t kObjectAlignmentMask = (1 << kObjectAlignmentBits) - 1;
 const intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
+const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
+// Desired alignment for pointers.
+const intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
+const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -239,6 +243,7 @@ class ObjectGroup;
 class TickSample;
 class VirtualMemory;
 class Mutex;
+class ZoneScopeInfo;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 
@@ -321,8 +326,6 @@ typedef void (*InlineCacheCallback)(Code* code, Address ic);
 enum InlineCacheState {
   // Has never been executed.
   UNINITIALIZED,
-  // Has never been executed, but is in a loop.
-  UNINITIALIZED_IN_LOOP,
   // Has been executed but monomorhic state has been delayed.
   PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.
@@ -334,6 +337,12 @@ enum InlineCacheState {
   // Special states for debug break or step in prepare stubs.
   DEBUG_BREAK,
   DEBUG_PREPARE_STEP_IN
+};
+
+
+enum InLoopFlag {
+  NOT_IN_LOOP,
+  IN_LOOP
 };
 
 
@@ -418,7 +427,11 @@ enum StateTag {
 
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \
-  ((value + kObjectAlignmentMask) & ~kObjectAlignmentMask)
+  (((value) + kObjectAlignmentMask) & ~kObjectAlignmentMask)
+
+// POINTER_SIZE_ALIGN returns the value aligned as a pointer.
+#define POINTER_SIZE_ALIGN(value)                               \
+  (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
 
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This

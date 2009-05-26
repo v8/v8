@@ -1,3 +1,22 @@
+2009-05-26: Version 1.2.5
+
+        Fixed bug in initial boundary check for Boyer-Moore text
+        search (issue 349).
+
+        Fixed compilation issues with MinGW and gcc 4.3+ and added support
+        for armv7 and cortex-a8 architectures.  Patches by Lei Zhang and
+        Craig Schlenter.
+
+        Added a script cache to the debugger.
+
+        Optimized compilation performance by improving internal data
+        structures and avoiding expensive property load optimizations for
+        code that's infrequently executed.
+
+        Exposed the calling JavaScript context through the static API
+        function Context::GetCalling().
+
+
 2009-05-18: Version 1.2.4
 
         Improved performance of floating point number allocation for ARM

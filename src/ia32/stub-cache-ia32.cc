@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,7 +31,8 @@
 #include "codegen-inl.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
@@ -58,7 +59,7 @@ static void ProbeTable(MacroAssembler* masm,
 
   // Check that the flags match what we're looking for.
   __ mov(offset, FieldOperand(offset, Code::kFlagsOffset));
-  __ and_(offset, ~Code::kFlagsTypeMask);
+  __ and_(offset, ~Code::kFlagsNotUsedInLookup);
   __ cmp(offset, flags);
   __ j(not_equal, &miss);
 
@@ -470,7 +471,9 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 Object* CallStubCompiler::CompileCallField(Object* object,
                                            JSObject* holder,
                                            int index,
-                                           String* name) {
+                                           String* name,
+                                           Code::Flags flags) {
+  ASSERT_EQ(FIELD, Code::ExtractTypeFromFlags(flags));
   // ----------- S t a t e -------------
   // -----------------------------------
   Label miss;
@@ -511,14 +514,16 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(FIELD, name);
+  return GetCodeWithFlags(flags, name);
 }
 
 
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
-                                              CheckType check) {
+                                              CheckType check,
+                                              Code::Flags flags) {
+  ASSERT_EQ(CONSTANT_FUNCTION, Code::ExtractTypeFromFlags(flags));
   // ----------- S t a t e -------------
   // -----------------------------------
   Label miss;
@@ -633,7 +638,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   if (function->shared()->name()->IsString()) {
     function_name = String::cast(function->shared()->name());
   }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCodeWithFlags(flags, function_name);
 }
 
 

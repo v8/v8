@@ -28,7 +28,8 @@
 #ifndef V8_IA32_CODEGEN_IA32_H_
 #define V8_IA32_CODEGEN_IA32_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Forward declarations
 class DeferredCode;
@@ -347,7 +348,6 @@ class CodeGenerator: public AstVisitor {
   void IncrementLoopNesting() { loop_nesting_++; }
   void DecrementLoopNesting() { loop_nesting_--; }
 
-
   // Node visitors.
   void VisitStatements(ZoneList<Statement*>* statements);
 
@@ -487,8 +487,7 @@ class CodeGenerator: public AstVisitor {
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  Handle<Code> ComputeCallInitialize(int argc);
-  Handle<Code> ComputeCallInitializeInLoop(int argc);
+  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.
@@ -588,7 +587,7 @@ class CodeGenerator: public AstVisitor {
 
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
-  List<DeferredCode*> deferred_;
+  ZoneList<DeferredCode*> deferred_;
 
   // Assembler
   MacroAssembler* masm_;  // to generate code

@@ -43,7 +43,8 @@
 #include "stub-cache.h"
 #include "regexp-stack.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // -----------------------------------------------------------------------------

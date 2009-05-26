@@ -58,7 +58,8 @@
 
 #include "platform.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // 0 is never a valid thread id on MacOSX since a ptread_t is
 // a pointer.

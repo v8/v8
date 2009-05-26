@@ -31,7 +31,8 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // A Zone allocator for use with LocalsMap.
@@ -301,6 +302,8 @@ template void Scope::CollectUsedVariables(
     List<Variable*, FreeStoreAllocationPolicy>* locals);
 template void Scope::CollectUsedVariables(
     List<Variable*, PreallocatedStorage>* locals);
+template void Scope::CollectUsedVariables(
+    List<Variable*, ZoneListAllocationPolicy>* locals);
 
 
 void Scope::AllocateVariables(Handle<Context> context) {

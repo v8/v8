@@ -28,7 +28,8 @@
 #ifndef V8_MEMORY_H_
 #define V8_MEMORY_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Memory provides an interface to 'raw' memory. It encapsulates the casts
 // that typically are needed when incompatible pointer types are used.

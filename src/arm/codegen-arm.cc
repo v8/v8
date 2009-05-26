@@ -36,7 +36,8 @@
 #include "scopes.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
@@ -108,7 +109,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   RegisterAllocator register_allocator(this);
   allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
-  frame_ = new VirtualFrame(this);
+  frame_ = new VirtualFrame();
   cc_reg_ = al;
   set_in_spilled_code(false);
   {
@@ -133,13 +134,13 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
 #endif
 
     // Allocate space for locals and initialize them.
-    frame_->AllocateStackSlots(scope_->num_stack_slots());
+    frame_->AllocateStackSlots();
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
-    function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
+    function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
     function_return_is_shadowed_ = false;
 
-    VirtualFrame::SpilledScope spilled_scope(this);
+    VirtualFrame::SpilledScope spilled_scope;
     if (scope_->num_heap_slots() > 0) {
       // Allocate local context.
       // Get outer context and create a new context based on it.
@@ -148,7 +149,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
 
 #ifdef DEBUG
-      JumpTarget verified_true(this);
+      JumpTarget verified_true;
       __ cmp(r0, Operand(cp));
       verified_true.Branch(eq);
       __ stop("NewContext: r0 is expected to be the same as cp");
@@ -456,14 +457,14 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   int original_height = frame_->height();
 #endif
   ASSERT(!in_spilled_code());
-  JumpTarget true_target(this);
-  JumpTarget false_target(this);
+  JumpTarget true_target;
+  JumpTarget false_target;
   LoadCondition(x, typeof_state, &true_target, &false_target, false);
 
   if (has_cc()) {
     // Convert cc_reg_ into a boolean value.
-    JumpTarget loaded(this);
-    JumpTarget materialize_true(this);
+    JumpTarget loaded;
+    JumpTarget materialize_true;
     materialize_true.Branch(cc_reg_);
     __ mov(r0, Operand(Factory::false_value()));
     frame_->EmitPush(r0);
@@ -478,7 +479,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   if (true_target.is_linked() || false_target.is_linked()) {
     // We have at least one condition value that has been "translated"
     // into a branch, thus it needs to be loaded explicitly.
-    JumpTarget loaded(this);
+    JumpTarget loaded;
     if (frame_ != NULL) {
       loaded.Jump();  // Don't lose the current TOS.
     }
@@ -510,14 +511,14 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 
 
 void CodeGenerator::LoadGlobal() {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   __ ldr(r0, GlobalObject());
   frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::LoadGlobalReceiver(Register scratch) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   __ ldr(scratch, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ ldr(scratch,
          FieldMemOperand(scratch, GlobalObject::kGlobalReceiverOffset));
@@ -529,7 +530,7 @@ void CodeGenerator::LoadGlobalReceiver(Register scratch) {
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
 void CodeGenerator::LoadTypeofExpression(Expression* x) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Variable* variable = x->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
     // NOTE: This is somewhat nasty. We force the compiler to load
@@ -559,7 +560,7 @@ Reference::~Reference() {
 
 
 void CodeGenerator::LoadReference(Reference* ref) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ LoadReference");
   Expression* e = ref->expression();
   Property* property = e->AsProperty();
@@ -602,7 +603,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
 
 
 void CodeGenerator::UnloadReference(Reference* ref) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // Pop a reference from the stack while preserving TOS.
   Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
@@ -619,7 +620,7 @@ void CodeGenerator::UnloadReference(Reference* ref) {
 // may jump to 'false_target' in case the register converts to 'false'.
 void CodeGenerator::ToBoolean(JumpTarget* true_target,
                               JumpTarget* false_target) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // Note: The generated code snippet does not change stack variables.
   //       Only the condition code should be set.
   frame_->EmitPop(r0);
@@ -701,7 +702,7 @@ class GenericBinaryOpStub : public CodeStub {
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
                                            OverwriteMode overwrite_mode) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // sp[0] : y
   // sp[1] : x
   // result : r0
@@ -781,7 +782,7 @@ class DeferredInlineSmiOperation: public DeferredCode {
 
 void DeferredInlineSmiOperation::Generate() {
   enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
+  VirtualFrame::SpilledScope spilled_scope;
 
   switch (op_) {
     case Token::ADD: {
@@ -853,7 +854,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
                                  Handle<Object> value,
                                  bool reversed,
                                  OverwriteMode mode) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
   // of the operands is a literal smi. With this optimization, the
@@ -865,7 +866,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
   int int_value = Smi::cast(*value)->value();
 
-  JumpTarget exit(this);
+  JumpTarget exit;
   frame_->EmitPop(r0);
 
   switch (op) {
@@ -987,7 +988,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
 
 void CodeGenerator::Comparison(Condition cc, bool strict) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // sp[0] : y
   // sp[1] : x
   // result : cc register
@@ -995,8 +996,8 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == eq);
 
-  JumpTarget exit(this);
-  JumpTarget smi(this);
+  JumpTarget exit;
+  JumpTarget smi;
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == gt || cc == le) {
     cc = ReverseCondition(cc);
@@ -1057,12 +1058,14 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
 
 class CallFunctionStub: public CodeStub {
  public:
-  explicit CallFunctionStub(int argc) : argc_(argc) {}
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) {}
 
   void Generate(MacroAssembler* masm);
 
  private:
   int argc_;
+  InLoopFlag in_loop_;
 
 #if defined(DEBUG)
   void Print() { PrintF("CallFunctionStub (argc %d)\n", argc_); }
@@ -1070,13 +1073,14 @@ class CallFunctionStub: public CodeStub {
 
   Major MajorKey() { return CallFunction; }
   int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
 };
 
 
 // Call the function on the stack with the given arguments.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
                                          int position) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // Push the arguments ("left-to-right") on the stack.
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
@@ -1087,7 +1091,8 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   CodeForSourcePosition(position);
 
   // Use the shared code stub to call the function.
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore context and pop function from the stack.
@@ -1097,7 +1102,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
 
 void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(has_cc());
   Condition cc = if_true ? cc_reg_ : NegateCondition(cc_reg_);
   target->Branch(cc);
@@ -1106,7 +1111,7 @@ void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
 
 
 void CodeGenerator::CheckStack() {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   if (FLAG_check_stack) {
     Comment cmnt(masm_, "[ check stack");
     StackCheckStub stub;
@@ -1141,7 +1146,7 @@ void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   for (int i = 0; frame_ != NULL && i < statements->length(); i++) {
     VisitAndSpill(statements->at(i));
   }
@@ -1153,10 +1158,10 @@ void CodeGenerator::VisitBlock(Block* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Block");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
   VisitStatementsAndSpill(node->statements());
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
@@ -1167,7 +1172,7 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   __ mov(r0, Operand(pairs));
   frame_->EmitPush(r0);
   frame_->EmitPush(cp);
@@ -1182,7 +1187,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Declaration");
   CodeForStatementPosition(node);
   Variable* var = node->proxy()->var();
@@ -1254,7 +1259,7 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ExpressionStatement");
   CodeForStatementPosition(node);
   Expression* expression = node->expression();
@@ -1269,7 +1274,7 @@ void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "// EmptyStatement");
   CodeForStatementPosition(node);
   // nothing to do
@@ -1281,7 +1286,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ IfStatement");
   // Generate different code depending on which parts of the if statement
   // are present or not.
@@ -1290,11 +1295,11 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 
   CodeForStatementPosition(node);
 
-  JumpTarget exit(this);
+  JumpTarget exit;
   if (has_then_stm && has_else_stm) {
     Comment cmnt(masm_, "[ IfThenElse");
-    JumpTarget then(this);
-    JumpTarget else_(this);
+    JumpTarget then;
+    JumpTarget else_;
     // if (cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &then, &else_, true);
@@ -1318,7 +1323,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   } else if (has_then_stm) {
     Comment cmnt(masm_, "[ IfThen");
     ASSERT(!has_else_stm);
-    JumpTarget then(this);
+    JumpTarget then;
     // if (cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &then, &exit, true);
@@ -1334,7 +1339,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   } else if (has_else_stm) {
     Comment cmnt(masm_, "[ IfElse");
     ASSERT(!has_then_stm);
-    JumpTarget else_(this);
+    JumpTarget else_;
     // if (!cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &exit, &else_, true);
@@ -1371,7 +1376,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ContinueStatement");
   CodeForStatementPosition(node);
   node->target()->continue_target()->Jump();
@@ -1379,7 +1384,7 @@ void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 
 
 void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ BreakStatement");
   CodeForStatementPosition(node);
   node->target()->break_target()->Jump();
@@ -1387,7 +1392,7 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ReturnStatement");
 
   if (function_return_is_shadowed_) {
@@ -1414,7 +1419,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ WithEnterStatement");
   CodeForStatementPosition(node);
   LoadAndSpill(node->expression());
@@ -1424,7 +1429,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
     frame_->CallRuntime(Runtime::kPushContext, 1);
   }
 #ifdef DEBUG
-  JumpTarget verified_true(this);
+  JumpTarget verified_true;
   __ cmp(r0, Operand(cp));
   verified_true.Branch(eq);
   __ stop("PushContext: r0 is expected to be the same as cp");
@@ -1440,7 +1445,7 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ WithExitStatement");
   CodeForStatementPosition(node);
   // Pop context.
@@ -1467,9 +1472,9 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     Label* default_label,
     Vector<Label*> case_targets,
     Vector<Label> case_labels) {
-  VirtualFrame::SpilledScope spilled_scope(this);
-  JumpTarget setup_default(this);
-  JumpTarget is_smi(this);
+  VirtualFrame::SpilledScope spilled_scope;
+  JumpTarget setup_default;
+  JumpTarget is_smi;
 
   // A non-null default label pointer indicates a default case among
   // the case labels.  Otherwise we use the break target as a
@@ -1536,10 +1541,10 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   LoadAndSpill(node->tag());
   if (TryGenerateFastCaseSwitchStatement(node)) {
@@ -1547,10 +1552,10 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     return;
   }
 
-  JumpTarget next_test(this);
-  JumpTarget fall_through(this);
-  JumpTarget default_entry(this);
-  JumpTarget default_exit(this, JumpTarget::BIDIRECTIONAL);
+  JumpTarget next_test;
+  JumpTarget fall_through;
+  JumpTarget default_entry;
+  JumpTarget default_exit(JumpTarget::BIDIRECTIONAL);
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
   CaseClause* default_clause = NULL;
@@ -1630,10 +1635,10 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ LoopStatement");
   CodeForStatementPosition(node);
-  node->break_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
   // known result for the test expression, with no side effects.
@@ -1654,19 +1659,19 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   switch (node->type()) {
     case LoopStatement::DO_LOOP: {
-      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
+      JumpTarget body(JumpTarget::BIDIRECTIONAL);
 
       // Label the top of the loop for the backward CFG edge.  If the test
       // is always true we can use the continue target, and if the test is
       // always false there is no need.
       if (info == ALWAYS_TRUE) {
-        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else if (info == ALWAYS_FALSE) {
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
       } else {
         ASSERT(info == DONT_KNOW);
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         body.Bind();
       }
 
@@ -1713,11 +1718,11 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
       // Label the top of the loop with the continue target for the backward
       // CFG edge.
-      node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+      node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
       node->continue_target()->Bind();
 
       if (info == DONT_KNOW) {
-        JumpTarget body(this);
+        JumpTarget body;
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
         if (has_valid_frame()) {
@@ -1743,7 +1748,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::FOR_LOOP: {
-      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
+      JumpTarget loop(JumpTarget::BIDIRECTIONAL);
 
       if (node->init() != NULL) {
         VisitAndSpill(node->init());
@@ -1755,16 +1760,16 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // If there is no update statement, label the top of the loop with the
       // continue target, otherwise with the loop target.
       if (node->next() == NULL) {
-        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else {
-        node->continue_target()->Initialize(this);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
         loop.Bind();
       }
 
       // If the test is always true, there is no need to compile it.
       if (info == DONT_KNOW) {
-        JumpTarget body(this);
+        JumpTarget body;
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
         if (has_valid_frame()) {
@@ -1820,16 +1825,16 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   int original_height = frame_->height();
 #endif
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ForInStatement");
   CodeForStatementPosition(node);
 
-  JumpTarget primitive(this);
-  JumpTarget jsobject(this);
-  JumpTarget fixed_array(this);
-  JumpTarget entry(this, JumpTarget::BIDIRECTIONAL);
-  JumpTarget end_del_check(this);
-  JumpTarget exit(this);
+  JumpTarget primitive;
+  JumpTarget jsobject;
+  JumpTarget fixed_array;
+  JumpTarget entry(JumpTarget::BIDIRECTIONAL);
+  JumpTarget end_del_check;
+  JumpTarget exit;
 
   // Get the object to enumerate over (converted to JSObject).
   LoadAndSpill(node->enumerable());
@@ -1914,8 +1919,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // sp[4] : enumerable
   // Grab the current frame's height for the break and continue
   // targets only after all the state is pushed on the frame.
-  node->break_target()->Initialize(this);
-  node->continue_target()->Initialize(this);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   __ ldr(r0, frame_->ElementAt(0));  // load the current count
   __ ldr(r1, frame_->ElementAt(1));  // load the length
@@ -2014,12 +2019,12 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ TryCatch");
   CodeForStatementPosition(node);
 
-  JumpTarget try_block(this);
-  JumpTarget exit(this);
+  JumpTarget try_block;
+  JumpTarget exit;
 
   try_block.Call();
   // --- Catch block ---
@@ -2141,7 +2146,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ TryFinally");
   CodeForStatementPosition(node);
 
@@ -2150,8 +2155,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // break/continue from within the try block.
   enum { FALLING, THROWING, JUMPING };
 
-  JumpTarget try_block(this);
-  JumpTarget finally_block(this);
+  JumpTarget try_block;
+  JumpTarget finally_block;
 
   try_block.Call();
 
@@ -2296,7 +2301,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
       JumpTarget* original = shadows[i]->other_target();
       __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
       if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
-        JumpTarget skip(this);
+        JumpTarget skip;
         skip.Branch(ne);
         frame_->PrepareForReturn();
         original->Jump();
@@ -2309,7 +2314,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   if (has_valid_frame()) {
     // Check if we need to rethrow the exception.
-    JumpTarget exit(this);
+    JumpTarget exit;
     __ cmp(r2, Operand(Smi::FromInt(THROWING)));
     exit.Branch(ne);
 
@@ -2328,7 +2333,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ DebuggerStatament");
   CodeForStatementPosition(node);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2340,7 +2345,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(boilerplate->IsBoilerplate());
 
   // Push the boilerplate on the stack.
@@ -2358,7 +2363,7 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
@@ -2378,7 +2383,7 @@ void CodeGenerator::VisitFunctionBoilerplateLiteral(
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   InstantiateBoilerplate(node->boilerplate());
   ASSERT(frame_->height() == original_height + 1);
@@ -2389,11 +2394,11 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Conditional");
-  JumpTarget then(this);
-  JumpTarget else_(this);
-  JumpTarget exit(this);
+  JumpTarget then;
+  JumpTarget else_;
+  JumpTarget exit;
   LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                         &then, &else_, true);
   Branch(false, &else_);
@@ -2408,12 +2413,12 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 
 void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
-    JumpTarget slow(this);
-    JumpTarget done(this);
+    JumpTarget slow;
+    JumpTarget done;
 
     // Generate fast-case code for variables that might be shadowed by
     // eval-introduced variables.  Eval is used a lot without
@@ -2561,7 +2566,7 @@ void CodeGenerator::VisitSlot(Slot* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlot(node, typeof_state());
   ASSERT(frame_->height() == original_height + 1);
@@ -2572,7 +2577,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ VariableProxy");
 
   Variable* var = node->var();
@@ -2592,7 +2597,7 @@ void CodeGenerator::VisitLiteral(Literal* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Literal");
   __ mov(r0, Operand(node->handle()));
   frame_->EmitPush(r0);
@@ -2604,7 +2609,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ RexExp Literal");
 
   // Retrieve the literal array and check the allocated entry.
@@ -2620,7 +2625,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
       FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   __ ldr(r2, FieldMemOperand(r1, literal_offset));
 
-  JumpTarget done(this);
+  JumpTarget done;
   __ cmp(r2, Operand(Factory::undefined_value()));
   done.Branch(ne);
 
@@ -2664,7 +2669,7 @@ class DeferredObjectLiteral: public DeferredCode {
 void DeferredObjectLiteral::Generate() {
   // Argument is passed in r1.
   enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
+  VirtualFrame::SpilledScope spilled_scope;
 
   // If the entry is undefined we call the runtime system to compute
   // the literal.
@@ -2690,7 +2695,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ObjectLiteral");
 
   DeferredObjectLiteral* deferred = new DeferredObjectLiteral(this, node);
@@ -2793,7 +2798,7 @@ class DeferredArrayLiteral: public DeferredCode {
 void DeferredArrayLiteral::Generate() {
   // Argument is passed in r1.
   enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
+  VirtualFrame::SpilledScope spilled_scope;
 
   // If the entry is undefined we call the runtime system to computed
   // the literal.
@@ -2819,7 +2824,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   DeferredArrayLiteral* deferred = new DeferredArrayLiteral(this, node);
@@ -2893,7 +2898,7 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
   int original_height = frame_->height();
 #endif
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
   Comment cmnt(masm_, "[ CatchExtensionObject");
@@ -2910,7 +2915,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Assignment");
   CodeForStatementPosition(node);
 
@@ -2978,7 +2983,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Throw");
 
   LoadAndSpill(node->exception());
@@ -2993,7 +2998,7 @@ void CodeGenerator::VisitProperty(Property* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Property");
 
   { Reference property(this, node);
@@ -3007,7 +3012,7 @@ void CodeGenerator::VisitCall(Call* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Call");
 
   ZoneList<Expression*>* args = node->arguments();
@@ -3050,7 +3055,8 @@ void CodeGenerator::VisitCall(Call* node) {
     }
 
     // Setup the receiver register and call the IC initialization code.
-    Handle<Code> stub = ComputeCallInitialize(arg_count);
+    InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
@@ -3101,7 +3107,8 @@ void CodeGenerator::VisitCall(Call* node) {
       }
 
       // Set the receiver register and call the IC initialization code.
-      Handle<Code> stub = ComputeCallInitialize(arg_count);
+      InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+      Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
       CodeForSourcePosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
       __ ldr(cp, frame_->Context());
@@ -3156,7 +3163,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ CallEval");
 
   // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
@@ -3199,7 +3206,8 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   // Call the function.
   CodeForSourcePosition(node->position());
 
-  CallFunctionStub call_function(arg_count);
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
   frame_->CallStub(&call_function, arg_count + 1);
 
   __ ldr(cp, frame_->Context());
@@ -3214,7 +3222,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ CallNew");
   CodeForStatementPosition(node);
 
@@ -3264,9 +3272,9 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
-  JumpTarget leave(this);
+  JumpTarget leave;
   LoadAndSpill(args->at(0));
   frame_->EmitPop(r0);  // r0 contains object.
   // if (object->IsSmi()) return the object.
@@ -3286,9 +3294,9 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);
-  JumpTarget leave(this);
+  JumpTarget leave;
   LoadAndSpill(args->at(0));  // Load the object.
   LoadAndSpill(args->at(1));  // Load the value.
   frame_->EmitPop(r0);  // r0 contains value
@@ -3314,7 +3322,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
   LoadAndSpill(args->at(0));
   frame_->EmitPop(r0);
@@ -3324,7 +3332,7 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   // See comment in CodeGenerator::GenerateLog in codegen-ia32.cc.
   ASSERT_EQ(args->length(), 3);
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -3340,7 +3348,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
   LoadAndSpill(args->at(0));
   frame_->EmitPop(r0);
@@ -3353,7 +3361,7 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
 // It is not yet implemented on ARM, so it always goes to the slow case.
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);
   __ mov(r0, Operand(Factory::undefined_value()));
   frame_->EmitPush(r0);
@@ -3361,10 +3369,10 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
   LoadAndSpill(args->at(0));
-  JumpTarget answer(this);
+  JumpTarget answer;
   // We need the CC bits to come out as not_equal in the case where the
   // object is a smi.  This can't be done with the usual test opcode so
   // we use XOR to get the right CC bits.
@@ -3383,7 +3391,7 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 0);
 
   // Seed the result with the formal parameters count, which will be used
@@ -3398,7 +3406,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
 
   // Satisfy contract with ArgumentsAccessStub:
@@ -3415,7 +3423,7 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);
 
   // Load the two objects into registers and perform the comparison.
@@ -3432,7 +3440,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   if (CheckForInlineRuntimeCall(node)) {
     ASSERT((has_cc() && frame_->height() == original_height) ||
            (!has_cc() && frame_->height() == original_height + 1));
@@ -3461,7 +3469,8 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Call the JS runtime function.
-    Handle<Code> stub = ComputeCallInitialize(arg_count);
+    InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+    Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
     frame_->Drop();
@@ -3479,7 +3488,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ UnaryOperation");
 
   Token::Value op = node->op();
@@ -3568,8 +3577,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::BIT_NOT: {
         // smi check
-        JumpTarget smi_label(this);
-        JumpTarget continue_label(this);
+        JumpTarget smi_label;
+        JumpTarget continue_label;
         __ tst(r0, Operand(kSmiTagMask));
         smi_label.Branch(eq);
 
@@ -3595,7 +3604,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::ADD: {
         // Smi check.
-        JumpTarget continue_label(this);
+        JumpTarget continue_label;
         __ tst(r0, Operand(kSmiTagMask));
         continue_label.Branch(eq);
         frame_->EmitPush(r0);
@@ -3620,7 +3629,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -3649,8 +3658,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
     frame_->EmitPop(r0);
 
-    JumpTarget slow(this);
-    JumpTarget exit(this);
+    JumpTarget slow;
+    JumpTarget exit;
 
     // Load the value (1) into register r1.
     __ mov(r1, Operand(Smi::FromInt(1)));
@@ -3722,7 +3731,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
 
@@ -3739,7 +3748,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // of compiling the binary operation is materialized or not.
 
   if (op == Token::AND) {
-    JumpTarget is_true(this);
+    JumpTarget is_true;
     LoadConditionAndSpill(node->left(),
                           NOT_INSIDE_TYPEOF,
                           &is_true,
@@ -3757,8 +3766,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                             false);
 
     } else {
-      JumpTarget pop_and_continue(this);
-      JumpTarget exit(this);
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
 
       __ ldr(r0, frame_->Top());  // dup the stack top
       frame_->EmitPush(r0);
@@ -3781,7 +3790,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     }
 
   } else if (op == Token::OR) {
-    JumpTarget is_false(this);
+    JumpTarget is_false;
     LoadConditionAndSpill(node->left(),
                           NOT_INSIDE_TYPEOF,
                           true_target(),
@@ -3799,8 +3808,8 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                             false);
 
     } else {
-      JumpTarget pop_and_continue(this);
-      JumpTarget exit(this);
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
 
       __ ldr(r0, frame_->Top());
       frame_->EmitPush(r0);
@@ -3872,7 +3881,7 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   __ ldr(r0, frame_->Function());
   frame_->EmitPush(r0);
   ASSERT(frame_->height() == original_height + 1);
@@ -3883,7 +3892,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
-  VirtualFrame::SpilledScope spilled_scope(this);
+  VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ CompareOperation");
 
   // Get the expressions from the node.
@@ -4241,7 +4250,7 @@ void Reference::SetValue(InitState init_state) {
       } else {
         ASSERT(!slot->var()->is_dynamic());
 
-        JumpTarget exit(cgen_);
+        JumpTarget exit;
         if (init_state == CONST_INIT) {
           ASSERT(slot->var()->mode() == Variable::CONST);
           // Only the first const initialization must be executed (the slot

@@ -43,7 +43,7 @@
 #include "regexp-macro-assembler-irregexp.h"
 #include "regexp-stack.h"
 
-#ifdef V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
@@ -56,7 +56,8 @@
 #include "interpreter-irregexp.h"
 
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,

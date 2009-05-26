@@ -30,7 +30,8 @@
 
 #include "apiutils.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by

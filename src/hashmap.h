@@ -28,7 +28,8 @@
 #ifndef V8_HASHMAP_H_
 #define V8_HASHMAP_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Allocator defines the memory allocator interface

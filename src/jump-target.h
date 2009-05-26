@@ -28,7 +28,8 @@
 #ifndef V8_JUMP_TARGET_H_
 #define V8_JUMP_TARGET_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Forward declarations.
 class FrameElement;
@@ -56,31 +57,34 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // Forward-only jump targets can only be reached by forward CFG edges.
   enum Directionality { FORWARD_ONLY, BIDIRECTIONAL };
 
-  // Construct a jump target with a given code generator used to generate
-  // code and to provide access to a current frame.
-  explicit JumpTarget(CodeGenerator* cgen,
-                      Directionality direction = FORWARD_ONLY);
+  // Construct a jump target used to generate code and to provide
+  // access to a current frame.
+  explicit JumpTarget(Directionality direction)
+      : direction_(direction),
+        reaching_frames_(0),
+        merge_labels_(0),
+        entry_frame_(NULL) {
+  }
 
-  // Construct a jump target without a code generator.  A code
-  // generator must be supplied before using the jump target as a
-  // label.  This is useful, eg, when break targets are embedded in
-  // AST nodes.
-  JumpTarget();
+  // Construct a jump target.
+  JumpTarget()
+      : direction_(FORWARD_ONLY),
+        reaching_frames_(0),
+        merge_labels_(0),
+        entry_frame_(NULL) {
+  }
 
   virtual ~JumpTarget() {}
 
-  // Supply a code generator and directionality to an already
-  // constructed jump target.  This function expects to be given a
-  // non-null code generator, and to be called only when the code
-  // generator is not yet set.
-  virtual void Initialize(CodeGenerator* cgen,
-                          Directionality direction = FORWARD_ONLY);
+  // Set the direction of the jump target.
+  virtual void set_direction(Directionality direction) {
+    direction_ = direction;
+  }
 
   // Treat the jump target as a fresh one.  The state is reset.
   void Unuse();
 
-  // Accessors.
-  CodeGenerator* code_generator() const { return cgen_; }
+  inline CodeGenerator* cgen();
 
   Label* entry_label() { return &entry_label_; }
 
@@ -163,12 +167,6 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   }
 
  protected:
-  // The code generator gives access to its current frame.
-  CodeGenerator* cgen_;
-
-  // Used to emit code.
-  MacroAssembler* masm_;
-
   // Directionality flag set at initialization time.
   Directionality direction_;
 
@@ -224,20 +222,13 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
 class BreakTarget : public JumpTarget {
  public:
-  // Construct a break target without a code generator.  A code
-  // generator must be supplied before using the break target as a
-  // label.  This is useful, eg, when break targets are embedded in AST
-  // nodes.
+  // Construct a break target.
   BreakTarget() {}
 
   virtual ~BreakTarget() {}
 
-  // Supply a code generator, expected expression stack height, and
-  // directionality to an already constructed break target.  This
-  // function expects to be given a non-null code generator, and to be
-  // called only when the code generator is not yet set.
-  virtual void Initialize(CodeGenerator* cgen,
-                          Directionality direction = FORWARD_ONLY);
+  // Set the direction of the break target.
+  virtual void set_direction(Directionality direction);
 
   // Copy the state of this break target to the destination.  The
   // lists of forward-reaching frames and merge-point labels are

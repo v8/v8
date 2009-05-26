@@ -34,8 +34,8 @@
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     1
 #define MINOR_VERSION     2
-#define BUILD_NUMBER      4
-#define PATCH_LEVEL       3
+#define BUILD_NUMBER      5
+#define PATCH_LEVEL       0
 #define CANDIDATE_VERSION false
 
 // Define SONAME to have the SCons build the put a specific SONAME into the
@@ -43,7 +43,8 @@
 // number. This define is mainly used by the SCons build script.
 #define SONAME            ""
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 int Version::major_ = MAJOR_VERSION;
 int Version::minor_ = MINOR_VERSION;

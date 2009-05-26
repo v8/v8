@@ -28,7 +28,8 @@
 #ifndef V8_X64_FRAMES_X64_H_
 #define V8_X64_FRAMES_X64_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // TODO(x64): This is a stub, mostly just a copy of the ia32 bit version.
 // This will all need to change to be correct for x64.

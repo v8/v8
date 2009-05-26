@@ -30,7 +30,8 @@
 #include "ast.h"
 #include "scanner.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // Character predicates

@@ -37,7 +37,8 @@
 #include "natives.h"
 #include "runtime.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =

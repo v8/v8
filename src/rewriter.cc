@@ -32,7 +32,8 @@
 #include "scopes.h"
 #include "rewriter.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 class AstOptimizer: public AstVisitor {

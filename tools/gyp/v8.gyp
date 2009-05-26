@@ -29,6 +29,7 @@
   'variables': {
     'chromium_code': 1,
     'msvs_use_common_release': 0,
+    'gcc_version%': 'unknown',
     'base_source_files': [
       '../../src/arm/assembler-arm-inl.h',
       '../../src/arm/assembler-arm.cc',
@@ -298,6 +299,18 @@
             'cflags': [
               '-fomit-frame-pointer',
               '-O3',
+            ],
+            'conditions': [
+              [ 'gcc_version=="44"', {
+                'cflags': [
+                    # Avoid gcc 4.4 strict aliasing issues in dtoa.c
+                    '-fno-strict-aliasing',
+                    # Avoid gcc 4.4 mksnapshot segfault.
+                    '-fno-tree-vectorize',
+                    # Avoid crashes with gcc 4.4 in the v8 test suite.
+                    '-fno-tree-vrp',
+                ],
+              }],
             ],
             'cflags_cc': [
               '-fno-rtti',

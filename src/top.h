@@ -30,7 +30,8 @@
 
 #include "frames-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 #define RETURN_IF_SCHEDULED_EXCEPTION() \

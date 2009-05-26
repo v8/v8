@@ -41,7 +41,8 @@
 #include "disassembler.h"
 #endif
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
@@ -536,6 +537,9 @@ void Failure::FailurePrint() {
 
 Failure* Failure::RetryAfterGC(int requested_bytes, AllocationSpace space) {
   ASSERT((space & ~kSpaceTagMask) == 0);
+  // TODO(X64): Stop using Smi validation for non-smi checks, even if they
+  // happen to be identical at the moment.
+
   int requested = requested_bytes >> kObjectAlignmentBits;
   int value = (requested << kSpaceTagSize) | space;
   // We can't very well allocate a heap number in this situation, and if the
@@ -4856,7 +4860,6 @@ const char* Code::Kind2String(Kind kind) {
 const char* Code::ICState2String(InlineCacheState state) {
   switch (state) {
     case UNINITIALIZED: return "UNINITIALIZED";
-    case UNINITIALIZED_IN_LOOP: return "UNINITIALIZED_IN_LOOP";
     case PREMONOMORPHIC: return "PREMONOMORPHIC";
     case MONOMORPHIC: return "MONOMORPHIC";
     case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
@@ -5933,20 +5936,6 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
 int JSObject::GetEnumElementKeys(FixedArray* storage) {
   return GetLocalElementKeys(storage,
                              static_cast<PropertyAttributes>(DONT_ENUM));
-}
-
-
-// Thomas Wang, Integer Hash Functions.
-// http://www.concentric.net/~Ttwang/tech/inthash.htm
-static uint32_t ComputeIntegerHash(uint32_t key) {
-  uint32_t hash = key;
-  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
-  hash = hash ^ (hash >> 12);
-  hash = hash + (hash << 2);
-  hash = hash ^ (hash >> 4);
-  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
-  hash = hash ^ (hash >> 16);
-  return hash;
 }
 
 

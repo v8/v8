@@ -37,7 +37,8 @@
 #ifndef V8_IA32_ASSEMBLER_IA32_H_
 #define V8_IA32_ASSEMBLER_IA32_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // CPU Registers.
 //
@@ -815,6 +816,8 @@ class Assembler : public Malloced {
   int buffer_size_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
+  // A previously allocated buffer of kMinimalBufferSize bytes, or NULL.
+  static byte* spare_buffer_;
 
   // code generation
   byte* pc_;  // the program counter; moves forward

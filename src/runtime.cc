@@ -46,7 +46,8 @@
 #include "smart-pointer.h"
 #include "parser.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 #define RUNTIME_ASSERT(value) do {                                   \
@@ -1420,6 +1421,7 @@ class ReplacementStringBuilder {
 
   void AddElement(Object* element) {
     ASSERT(element->IsSmi() || element->IsString());
+    ASSERT(parts_->length() > part_count_);
     parts_->set(part_count_, element);
     part_count_++;
   }
@@ -1589,6 +1591,7 @@ class CompiledReplacement {
             if (i > last) {
               parts->Add(ReplacementPart::ReplacementSubString(last, i));
             }
+            ASSERT(capture_ref <= capture_count);
             parts->Add(ReplacementPart::SubjectCapture(capture_ref));
             last = next_index + 1;
           }
@@ -2035,7 +2038,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
   BoyerMoorePopulateGoodSuffixTable(pattern, start);
   pchar last_char = pattern[m - 1];
   // Continue search from i.
-  do {
+  while (idx <= n - m) {
     int j = m - 1;
     schar c;
     while (last_char != (c = subject[idx + j])) {
@@ -2061,7 +2064,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
       }
       idx += shift;
     }
-  } while (idx <= n - m);
+  }
 
   return -1;
 }
@@ -4316,9 +4319,15 @@ static Object* Runtime_LazyCompile(Arguments args) {
   }
 #endif
 
-  // Compile the target function.
+  // Compile the target function.  Here we compile using CompileLazyInLoop in
+  // order to get the optimized version.  This helps code like delta-blue
+  // that calls performance-critical routines through constructors.  A
+  // constructor call doesn't use a CallIC, it uses a LoadIC followed by a
+  // direct call.  Since the in-loop tracking takes place through CallICs
+  // this means that things called through constructors are never known to
+  // be in loops.  We compile them as if they are in loops here just in case.
   ASSERT(!function->is_compiled());
-  if (!CompileLazy(function, KEEP_EXCEPTION)) {
+  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -4896,16 +4905,14 @@ static Object* Runtime_GlobalReceiver(Arguments args) {
 
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
-  ASSERT_EQ(3, args.length());
+  ASSERT_EQ(2, args.length());
   CONVERT_ARG_CHECKED(String, source, 0);
-  CONVERT_ARG_CHECKED(Smi, line_offset, 1);
-  CONVERT_ARG_CHECKED(Oddball, is_json, 2)
+  CONVERT_ARG_CHECKED(Oddball, is_json, 1)
 
   // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
   Handle<JSFunction> boilerplate = Compiler::CompileEval(source,
                                                          context,
-                                                         line_offset->value(),
                                                          true,
                                                          is_json->IsTrue());
   if (boilerplate.is_null()) return Failure::Exception();
@@ -4932,7 +4939,7 @@ static Object* CompileDirectEval(Handle<String> source) {
 
   // Compile source string in the current context.
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, context, 0, is_global, false);
+      Compiler::CompileEval(source, context, is_global, false);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5436,7 +5443,7 @@ static Object* Runtime_DebugBreak(Arguments args) {
 
 // Helper functions for wrapping and unwrapping stack frame ids.
 static Smi* WrapFrameId(StackFrame::Id id) {
-  ASSERT(IsAligned(OffsetFrom(id), 4));
+  ASSERT(IsAligned(OffsetFrom(id), static_cast<intptr_t>(4)));
   return Smi::FromInt(id >> 2);
 }
 
@@ -5485,7 +5492,8 @@ static int LocalPrototypeChainLength(JSObject* obj) {
 }
 
 
-static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
+static Object* DebugLookupResultValue(Object* receiver, String* name,
+                                      LookupResult* result,
                                       bool* caught_exception) {
   Object* value;
   switch (result->type()) {
@@ -5510,11 +5518,18 @@ static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
       return result->GetConstantFunction();
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
-      if (structure->IsProxy()) {
-        AccessorDescriptor* callback =
-            reinterpret_cast<AccessorDescriptor*>(
-                Proxy::cast(structure)->proxy());
-        value = (callback->getter)(receiver, callback->data);
+      if (structure->IsProxy() || structure->IsAccessorInfo()) {
+        if (Debug::debugger_entry()) {
+          // SaveContext scope. It will restore debugger context after the
+          // getter execution.
+          SaveContext save;
+          Top::set_context(*Debug::debugger_entry()->GetContext());
+          value = receiver->GetPropertyWithCallback(
+              receiver, structure, name, result->holder());
+        } else {
+          value = receiver->GetPropertyWithCallback(
+              receiver, structure, name, result->holder());
+        }
         if (value->IsException()) {
           value = Top::pending_exception();
           Top::clear_pending_exception();
@@ -5595,7 +5610,7 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
 
   if (result.IsProperty()) {
     bool caught_exception = false;
-    Object* value = DebugLookupResultValue(*obj, &result,
+    Object* value = DebugLookupResultValue(*obj, *name, &result,
                                            &caught_exception);
     if (value->IsFailure()) return value;
     Handle<Object> value_handle(value);
@@ -5631,7 +5646,7 @@ static Object* Runtime_DebugGetProperty(Arguments args) {
   LookupResult result;
   obj->Lookup(*name, &result);
   if (result.IsProperty()) {
-    return DebugLookupResultValue(*obj, &result, NULL);
+    return DebugLookupResultValue(*obj, *name, &result, NULL);
   }
   return Heap::undefined_value();
 }
@@ -6565,7 +6580,6 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   Handle<JSFunction> boilerplate =
       Compiler::CompileEval(function_source,
                             context,
-                            0,
                             context->IsGlobalContext(),
                             false);
   if (boilerplate.is_null()) return Failure::Exception();
@@ -6627,7 +6641,6 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<JSFunction> boilerplate =
       Handle<JSFunction>(Compiler::CompileEval(source,
                                                context,
-                                               0,
                                                true,
                                                false));
   if (boilerplate.is_null()) return Failure::Exception();
@@ -6646,67 +6659,15 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
 }
 
 
-// If an object given is an external string, check that the underlying
-// resource is accessible. For other kinds of objects, always return true.
-static bool IsExternalStringValid(Object* str) {
-  if (!str->IsString() || !StringShape(String::cast(str)).IsExternal()) {
-    return true;
-  }
-  if (String::cast(str)->IsAsciiRepresentation()) {
-    return ExternalAsciiString::cast(str)->resource() != NULL;
-  } else if (String::cast(str)->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(str)->resource() != NULL;
-  } else {
-    return true;
-  }
-}
-
-
-// Helper function used by Runtime_DebugGetLoadedScripts below.
-static int DebugGetLoadedScripts(FixedArray* instances, int instances_size) {
-  NoHandleAllocation ha;
-  AssertNoAllocation no_alloc;
-
-  // Scan heap for Script objects.
-  int count = 0;
-  HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    ASSERT(obj != NULL);
-    if (obj->IsScript() && IsExternalStringValid(Script::cast(obj)->source())) {
-      if (instances != NULL && count < instances_size) {
-        instances->set(count, obj);
-      }
-      count++;
-    }
-  }
-
-  return count;
-}
-
-
 static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 0);
 
-  // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
-  // rid of all the cached script wrappers and the second gets rid of the
-  // scripts which is no longer referenced.
-  Heap::CollectAllGarbage();
-  Heap::CollectAllGarbage();
-
-  // Get the number of scripts.
-  int count;
-  count = DebugGetLoadedScripts(NULL, 0);
-
-  // Allocate an array to hold the result.
-  Handle<FixedArray> instances = Factory::NewFixedArray(count);
-
   // Fill the script objects.
-  count = DebugGetLoadedScripts(*instances, count);
+  Handle<FixedArray> instances = Debug::GetLoadedScripts();
 
   // Convert the script objects to proper JS objects.
-  for (int i = 0; i < count; i++) {
+  for (int i = 0; i < instances->length(); i++) {
     Handle<Script> script = Handle<Script>(Script::cast(instances->get(i)));
     // Get the script wrapper in a local handle before calling GetScriptWrapper,
     // because using

@@ -28,7 +28,8 @@
 #ifndef V8_X64_CODEGEN_X64_H_
 #define V8_X64_CODEGEN_X64_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // Forward declarations
 class DeferredCode;
@@ -485,8 +486,7 @@ class CodeGenerator: public AstVisitor {
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  Handle<Code> ComputeCallInitialize(int argc);
-  Handle<Code> ComputeCallInitializeInLoop(int argc);
+  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.

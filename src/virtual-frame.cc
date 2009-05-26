@@ -30,41 +30,21 @@
 #include "codegen-inl.h"
 #include "register-allocator-inl.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
 
-VirtualFrame::SpilledScope::SpilledScope(CodeGenerator* cgen)
-    : cgen_(cgen),
-      previous_state_(cgen->in_spilled_code()) {
-  ASSERT(cgen->has_valid_frame());
-  cgen->frame()->SpillAll();
-  cgen->set_in_spilled_code(true);
-}
-
-
-VirtualFrame::SpilledScope::~SpilledScope() {
-  cgen_->set_in_spilled_code(previous_state_);
-}
-
-
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
-    : cgen_(original->cgen_),
-      masm_(original->masm_),
-      elements_(original->elements_.capacity()),
-      parameter_count_(original->parameter_count_),
-      local_count_(original->local_count_),
-      stack_pointer_(original->stack_pointer_),
-      frame_pointer_(original->frame_pointer_) {
-  // Copy all the elements from the original.
-  for (int i = 0; i < original->elements_.length(); i++) {
-    elements_.Add(original->elements_[i]);
-  }
-  for (int i = 0; i < kNumRegisters; i++) {
-    register_locations_[i] = original->register_locations_[i];
-  }
+    : elements_(original->elements_.length()),
+      stack_pointer_(original->stack_pointer_) {
+  elements_.AddAll(original->elements_);
+  // Copy register locations from original.
+  memcpy(&register_locations_,
+         original->register_locations_,
+         sizeof(register_locations_));
 }
 
 
@@ -125,19 +105,6 @@ void VirtualFrame::Adjust(int count) {
 }
 
 
-// Modify the state of the virtual frame to match the actual frame by
-// removing elements from the top of the virtual frame.  The elements will
-// be externally popped from the actual frame (eg, by a runtime call).  No
-// code is emitted.
-void VirtualFrame::Forget(int count) {
-  ASSERT(count >= 0);
-  ASSERT(stack_pointer_ == elements_.length() - 1);
-
-  stack_pointer_ -= count;
-  ForgetElements(count);
-}
-
-
 void VirtualFrame::ForgetElements(int count) {
   ASSERT(count >= 0);
   ASSERT(elements_.length() >= count);
@@ -148,7 +115,7 @@ void VirtualFrame::ForgetElements(int count) {
       // A hack to properly count register references for the code
       // generator's current frame and also for other frames.  The
       // same code appears in PrepareMergeTo.
-      if (cgen_->frame() == this) {
+      if (cgen()->frame() == this) {
         Unuse(last.reg());
       } else {
         register_locations_[last.reg().code()] = kIllegalIndex;
@@ -158,36 +125,15 @@ void VirtualFrame::ForgetElements(int count) {
 }
 
 
-void VirtualFrame::Use(Register reg, int index) {
-  ASSERT(register_locations_[reg.code()] == kIllegalIndex);
-  register_locations_[reg.code()] = index;
-  cgen_->allocator()->Use(reg);
-}
-
-
-void VirtualFrame::Unuse(Register reg) {
-  ASSERT(register_locations_[reg.code()] != kIllegalIndex);
-  register_locations_[reg.code()] = kIllegalIndex;
-  cgen_->allocator()->Unuse(reg);
-}
-
-
-void VirtualFrame::Spill(Register target) {
-  if (is_used(target)) {
-    SpillElementAt(register_index(target));
-  }
-}
-
-
 // If there are any registers referenced only by the frame, spill one.
 Register VirtualFrame::SpillAnyRegister() {
   // Find the leftmost (ordered by register code) register whose only
   // reference is in the frame.
   for (int i = 0; i < kNumRegisters; i++) {
-    if (is_used(i) && cgen_->allocator()->count(i) == 1) {
+    if (is_used(i) && cgen()->allocator()->count(i) == 1) {
       Register result = { i };
       Spill(result);
-      ASSERT(!cgen_->allocator()->is_used(result));
+      ASSERT(!cgen()->allocator()->is_used(result));
       return result;
     }
   }
@@ -251,7 +197,7 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
         // If the frame is the code generator's current frame, we have
         // to decrement both the frame-internal and global register
         // counts.
-        if (cgen_->frame() == this) {
+        if (cgen()->frame() == this) {
           Unuse(source.reg());
         } else {
           register_locations_[source.reg().code()] = kIllegalIndex;
@@ -266,12 +212,6 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
       ASSERT(source.is_valid());
       elements_[i].clear_sync();
     }
-
-    elements_[i].clear_copied();
-    if (elements_[i].is_copy()) {
-      elements_[elements_[i].index()].set_copied();
-    }
-
     // No code needs to be generated to change the static type of an
     // element.
     elements_[i].set_static_type(target.static_type());
@@ -307,11 +247,12 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
 void VirtualFrame::PrepareForReturn() {
   // Spill all locals. This is necessary to make sure all locals have
   // the right value when breaking at the return site in the debugger.
-  //
-  // TODO(203): It is also necessary to ensure that merging at the
-  // return site does not generate code to overwrite eax, where the
-  // return value is kept in a non-refcounted register reference.
-  for (int i = 0; i < expression_base_index(); i++) SpillElementAt(i);
+  // Set their static type to unknown so that they will match the known
+  // return frame.
+  for (int i = 0; i < expression_base_index(); i++) {
+    SpillElementAt(i);
+    elements_[i].set_static_type(StaticType::unknown());
+  }
 }
 
 
@@ -384,14 +325,7 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
 
 
 void VirtualFrame::PushFrameSlotAt(int index) {
-  FrameElement new_element = CopyElementAt(index);
-  elements_.Add(new_element);
-}
-
-
-Result VirtualFrame::CallStub(CodeStub* stub, int arg_count) {
-  PrepareForCall(arg_count, arg_count);
-  return RawCallStub(stub);
+  elements_.Add(CopyElementAt(index));
 }
 
 
@@ -419,17 +353,6 @@ void VirtualFrame::Push(Handle<Object> value) {
 }
 
 
-void VirtualFrame::Push(Result* result) {
-  if (result->is_register()) {
-    Push(result->reg(), result->static_type());
-  } else {
-    ASSERT(result->is_constant());
-    Push(result->handle());
-  }
-  result->Unuse();
-}
-
-
 void VirtualFrame::Nip(int num_dropped) {
   ASSERT(num_dropped >= 0);
   if (num_dropped == 0) return;
@@ -443,14 +366,6 @@ void VirtualFrame::Nip(int num_dropped) {
 
 bool VirtualFrame::Equals(VirtualFrame* other) {
 #ifdef DEBUG
-  // These are sanity checks in debug builds, but we do not need to
-  // use them to distinguish frames at merge points.
-  if (cgen_ != other->cgen_) return false;
-  if (masm_ != other->masm_) return false;
-  if (parameter_count_ != other->parameter_count_) return false;
-  if (local_count_ != other->local_count_) return false;
-  if (frame_pointer_ != other->frame_pointer_) return false;
-
   for (int i = 0; i < kNumRegisters; i++) {
     if (register_locations_[i] != other->register_locations_[i]) {
       return false;

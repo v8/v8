@@ -30,7 +30,8 @@
 
 #include <stdlib.h>
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // ----------------------------------------------------------------------------
 // General helper functions
@@ -54,7 +55,7 @@ static inline int ArithmeticShiftRight(int x, int s) {
 // This allows conversion of Addresses and integral types into
 // 0-relative int offsets.
 template <typename T>
-static inline int OffsetFrom(T x) {
+static inline intptr_t OffsetFrom(T x) {
   return x - static_cast<T>(0);
 }
 
@@ -63,7 +64,7 @@ static inline int OffsetFrom(T x) {
 // This allows conversion of 0-relative int offsets into Addresses and
 // integral types.
 template <typename T>
-static inline T AddressFrom(int x) {
+static inline T AddressFrom(intptr_t x) {
   return static_cast<T>(0) + x;
 }
 
@@ -202,6 +203,12 @@ inline byte* DecodeUnsignedIntBackward(byte* p, unsigned int* x) {
   *x = r | ((static_cast<unsigned int>(b) - 128) << s);
   return p;
 }
+
+
+// ----------------------------------------------------------------------------
+// Hash function.
+
+uint32_t ComputeIntegerHash(uint32_t key);
 
 
 // ----------------------------------------------------------------------------

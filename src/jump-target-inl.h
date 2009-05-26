@@ -28,7 +28,12 @@
 #ifndef V8_JUMP_TARGET_INL_H_
 #define V8_JUMP_TARGET_INL_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
+
+CodeGenerator* JumpTarget::cgen() {
+  return CodeGeneratorScope::Current();
+}
 
 void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
   entry_frame_->elements_[index].clear_copied();

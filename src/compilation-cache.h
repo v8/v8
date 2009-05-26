@@ -28,7 +28,8 @@
 #ifndef V8_COMPILATION_CACHE_H_
 #define V8_COMPILATION_CACHE_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // The compilation cache keeps function boilerplates for compiled
@@ -95,6 +96,11 @@ class CompilationCache {
   // take place. This is used to retire entries from the cache to
   // avoid keeping them alive too long without using them.
   static void MarkCompactPrologue();
+
+  // Enable/disable compilation cache. Used by debugger to disable compilation
+  // cache during debugging to make sure new scripts are always compiled.
+  static void Enable();
+  static void Disable();
 };
 
 

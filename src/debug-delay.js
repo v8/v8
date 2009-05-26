@@ -43,7 +43,8 @@ Debug.DebugEvent = { Break: 1,
                      Exception: 2,
                      NewFunction: 3,
                      BeforeCompile: 4,
-                     AfterCompile: 5 };
+                     AfterCompile: 5,
+                     ScriptCollected: 6 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { All : 0,
@@ -1015,6 +1016,37 @@ NewFunctionEvent.prototype.setBreakPoint = function(p) {
 };
 
 
+function MakeScriptCollectedEvent(exec_state, id) {
+  return new ScriptCollectedEvent(exec_state, id);
+}
+
+
+function ScriptCollectedEvent(exec_state, id) {
+  this.exec_state_ = exec_state;
+  this.id_ = id;
+}
+
+
+ScriptCollectedEvent.prototype.id = function() {
+  return this.id_;
+};
+
+
+ScriptCollectedEvent.prototype.executionState = function() {
+  return this.exec_state_;
+};
+
+
+ScriptCollectedEvent.prototype.toJSONProtocol = function() {
+  var o = new ProtocolMessage();
+  o.running = true;
+  o.event = "scriptCollected";
+  o.body = {};
+  o.body.script = { id: this.id() };
+  return o.toJSONProtocol();
+}
+
+
 function MakeScriptObject_(script, include_source) {
   var o = { id: script.id(),
             name: script.name(),
@@ -1139,7 +1171,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
   try {
     try {
       // Convert the JSON string to an object.
-      request = %CompileString('(' + json_request + ')', 0, false)();
+      request = %CompileString('(' + json_request + ')', false)();
 
       // Create an initial response.
       response = this.createResponse(request);

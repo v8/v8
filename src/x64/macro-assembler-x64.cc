@@ -25,3 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
+
+#include "bootstrapper.h"
+#include "codegen-inl.h"
+
+namespace v8 {
+namespace internal {
+
+MacroAssembler::MacroAssembler(void* buffer, int size)
+  : Assembler(buffer, size),
+    unresolved_(0),
+    generating_stub_(false),
+    allow_stub_calls_(true),
+    code_object_(Heap::undefined_value()) {
+}
+
+void MacroAssembler::TailCallRuntime(ExternalReference const& a, int b) {
+  UNIMPLEMENTED();
+}
+
+} }  // namespace v8::internal

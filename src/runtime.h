@@ -28,7 +28,8 @@
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 // The interface to C++ runtime functions.
 
@@ -200,7 +201,7 @@ namespace v8 { namespace internal {
   F(NumberIsFinite, 1) \
   \
   /* Globals */ \
-  F(CompileString, 3) \
+  F(CompileString, 2) \
   F(GlobalPrint, 1) \
   \
   /* Eval */ \

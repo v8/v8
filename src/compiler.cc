@@ -37,7 +37,8 @@
 #include "scopes.h"
 #include "usage-analyzer.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 static Handle<Code> MakeCode(FunctionLiteral* literal,
                              Handle<Script> script,
@@ -159,7 +160,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
 #if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
   // Log the code generation for the script. Check explicit whether logging is
   // to avoid allocating when not required.
-  if (Logger::is_enabled() || OProfileAgent::is_enabled()) {
+  if (Logger::IsEnabled() || OProfileAgent::is_enabled()) {
     if (script->name()->IsString()) {
       SmartPointer<char> data =
           String::cast(script->name())->ToCString(DISALLOW_NULLS);
@@ -267,7 +268,6 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 
 Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                                          Handle<Context> context,
-                                         int line_offset,
                                          bool is_global,
                                          bool is_json) {
   int source_length = source->length();
@@ -287,7 +287,6 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
-    script->set_line_offset(Smi::FromInt(line_offset));
     result = MakeFunction(is_global,
                           true,
                           is_json,
@@ -358,9 +357,9 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Log the code generation. If source information is available include script
   // name and line number. Check explicit whether logging is enabled as finding
   // the line number is not for free.
-  if (Logger::is_enabled() || OProfileAgent::is_enabled()) {
-    Handle<String> func_name(lit->name()->length() > 0 ?
-                             *lit->name() : shared->inferred_name());
+  if (Logger::IsEnabled() || OProfileAgent::is_enabled()) {
+    Handle<String> func_name(name->length() > 0 ?
+                             *name : shared->inferred_name());
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, start_position);
       if (line_num > 0) {

@@ -38,7 +38,8 @@
 #include "scopeinfo.h"
 #include "stub-cache.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 CodeGenerator* CodeGeneratorScope::top_ = NULL;
@@ -47,8 +48,7 @@ CodeGenerator* CodeGeneratorScope::top_ = NULL;
 DeferredCode::DeferredCode(CodeGenerator* generator)
   : generator_(generator),
     masm_(generator->masm()),
-    enter_(generator),
-    exit_(generator, JumpTarget::BIDIRECTIONAL),
+    exit_(JumpTarget::BIDIRECTIONAL),
     statement_position_(masm_->current_statement_position()),
     position_(masm_->current_position()) {
   generator->AddDeferred(this);
@@ -170,8 +170,9 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
   HistogramTimerScope timer(&Counters::code_creation);
   CodeDesc desc;
   cgen.masm()->GetCode(&desc);
-  ScopeInfo<> sinfo(flit->scope());
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
+  ZoneScopeInfo sinfo(flit->scope());
+  InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
   Handle<Code> code = Factory::NewCode(desc,
                                        &sinfo,
                                        flags,
@@ -212,7 +213,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
-  if (!Logger::is_enabled()) return false;
+  if (!Logger::IsEnabled()) return false;
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
     static Vector<const char> kRegexp = CStrVector("regexp");
@@ -323,17 +324,18 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
 }
 
 
-Handle<Code> CodeGenerator::ComputeCallInitialize(int argc) {
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc), Code);
-}
-
-
-Handle<Code> CodeGenerator::ComputeCallInitializeInLoop(int argc) {
-  // Force the creation of the corresponding stub outside loops,
-  // because it will be used when clearing the ICs later - when we
-  // don't know if we're inside a loop or not.
-  ComputeCallInitialize(argc);
-  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitializeInLoop(argc), Code);
+Handle<Code> CodeGenerator::ComputeCallInitialize(
+    int argc,
+    InLoopFlag in_loop) {
+  if (in_loop == IN_LOOP) {
+    // Force the creation of the corresponding stub outside loops,
+    // because it may be used when clearing the ICs later - it is
+    // possible for a series of IC transitions to lose the in-loop
+    // information, and the IC clearing code can't generate a stub
+    // that it needs so we need to ensure it is generated already.
+    ComputeCallInitialize(argc, NOT_IN_LOOP);
+  }
+  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitialize(argc, in_loop), Code);
 }
 
 

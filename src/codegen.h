@@ -88,7 +88,8 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 #include "register-allocator.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 // Code generation can be nested.  Code generation scopes form a stack

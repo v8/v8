@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,44 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CODE_H_
-#define V8_CODE_H_
+// Should not crash.
+// See http://code.google.com/p/v8/issues/detail?id=349
 
-namespace v8 {
-namespace internal {
-
-
-// Wrapper class for passing expected and actual parameter counts as
-// either registers or immediate values. Used to make sure that the
-// caller provides exactly the expected number of parameters to the
-// callee.
-class ParameterCount BASE_EMBEDDED {
- public:
-  explicit ParameterCount(Register reg)
-      : reg_(reg), immediate_(0) { }
-  explicit ParameterCount(int immediate)
-      : reg_(no_reg), immediate_(immediate) { }
-
-  bool is_reg() const { return !reg_.is(no_reg); }
-  bool is_immediate() const { return !is_reg(); }
-
-  Register reg() const {
-    ASSERT(is_reg());
-    return reg_;
-  }
-  int immediate() const {
-    ASSERT(is_immediate());
-    return immediate_;
-  }
-
- private:
-  const Register reg_;
-  const int immediate_;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_CODE_H_
+var str = "bbaabbbbbbbbabbaaaabbaaabbbaaaabbaaabbabaaabb";
+assertEquals(str, str.replace(/aabab/g, "foo"));

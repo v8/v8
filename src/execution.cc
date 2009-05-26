@@ -43,7 +43,8 @@
 #include "debug.h"
 #include "v8threads.h"
 
-namespace v8 { namespace internal {
+namespace v8 {
+namespace internal {
 
 
 static Handle<Object> Invoke(bool construct,
