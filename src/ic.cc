@@ -39,7 +39,7 @@ namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
-static const char TransitionMarkFromState(IC::State state) {
+static char TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
     case PREMONOMORPHIC: return 'P';
