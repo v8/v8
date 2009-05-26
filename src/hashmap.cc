@@ -87,7 +87,7 @@ HashMap::Entry* HashMap::Lookup(void* key, uint32_t hash, bool insert) {
 
 void HashMap::Remove(void* key, uint32_t hash) {
   // Lookup the entry for the key to remove.
-  Entry *p = Probe(key, hash);
+  Entry* p = Probe(key, hash);
   if (p->key == NULL) {
     // Key not found nothing to remove.
     return;
