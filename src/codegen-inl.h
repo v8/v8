@@ -37,20 +37,20 @@ namespace internal {
 
 
 void DeferredCode::SetEntryFrame(Result* arg) {
-  ASSERT(generator()->has_valid_frame());
-  generator()->frame()->Push(arg);
-  enter()->set_entry_frame(new VirtualFrame(generator()->frame()));
-  *arg = generator()->frame()->Pop();
+  ASSERT(cgen()->has_valid_frame());
+  cgen()->frame()->Push(arg);
+  enter()->set_entry_frame(new VirtualFrame(cgen()->frame()));
+  *arg = cgen()->frame()->Pop();
 }
 
 
 void DeferredCode::SetEntryFrame(Result* arg0, Result* arg1) {
-  ASSERT(generator()->has_valid_frame());
-  generator()->frame()->Push(arg0);
-  generator()->frame()->Push(arg1);
-  enter()->set_entry_frame(new VirtualFrame(generator()->frame()));
-  *arg1 = generator()->frame()->Pop();
-  *arg0 = generator()->frame()->Pop();
+  ASSERT(cgen()->has_valid_frame());
+  cgen()->frame()->Push(arg0);
+  cgen()->frame()->Push(arg1);
+  enter()->set_entry_frame(new VirtualFrame(cgen()->frame()));
+  *arg1 = cgen()->frame()->Pop();
+  *arg0 = cgen()->frame()->Pop();
 }
 
 

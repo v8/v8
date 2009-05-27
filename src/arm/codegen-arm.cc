@@ -289,9 +289,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   DeleteFrame();
 
   // Process any deferred code using the register allocator.
-  if (HasStackOverflow()) {
-    ClearDeferred();
-  } else {
+  if (!HasStackOverflow()) {
     ProcessDeferred();
   }
 
@@ -757,13 +755,11 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
 class DeferredInlineSmiOperation: public DeferredCode {
  public:
-  DeferredInlineSmiOperation(CodeGenerator* generator,
-                             Token::Value op,
+  DeferredInlineSmiOperation(Token::Value op,
                              int value,
                              bool reversed,
                              OverwriteMode overwrite_mode)
-      : DeferredCode(generator),
-        op_(op),
+      : op_(op),
         value_(value),
         reversed_(reversed),
         overwrite_mode_(overwrite_mode) {
@@ -780,7 +776,12 @@ class DeferredInlineSmiOperation: public DeferredCode {
 };
 
 
+#undef __
+#define __ ACCESS_MASM(masm)
+
+
 void DeferredInlineSmiOperation::Generate() {
+  MacroAssembler* masm = cgen()->masm();
   enter()->Bind();
   VirtualFrame::SpilledScope spilled_scope;
 
@@ -841,13 +842,17 @@ void DeferredInlineSmiOperation::Generate() {
   }
 
   GenericBinaryOpStub igostub(op_, overwrite_mode_);
-  Result arg0 = generator()->allocator()->Allocate(r1);
+  Result arg0 = cgen()->allocator()->Allocate(r1);
   ASSERT(arg0.is_valid());
-  Result arg1 = generator()->allocator()->Allocate(r0);
+  Result arg1 = cgen()->allocator()->Allocate(r0);
   ASSERT(arg1.is_valid());
-  generator()->frame()->CallStub(&igostub, &arg0, &arg1);
+  cgen()->frame()->CallStub(&igostub, &arg0, &arg1);
   exit_.Jump();
 }
+
+
+#undef __
+#define __ ACCESS_MASM(masm_)
 
 
 void CodeGenerator::SmiOperation(Token::Value op,
@@ -872,7 +877,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, op, int_value, reversed, mode);
+        new DeferredInlineSmiOperation(op, int_value, reversed, mode);
 
       __ add(r0, r0, Operand(value), SetCC);
       deferred->enter()->Branch(vs);
@@ -884,7 +889,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SUB: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, op, int_value, reversed, mode);
+        new DeferredInlineSmiOperation(op, int_value, reversed, mode);
 
       if (!reversed) {
         __ sub(r0, r0, Operand(value), SetCC);
@@ -902,7 +907,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, op, int_value, reversed, mode);
+        new DeferredInlineSmiOperation(op, int_value, reversed, mode);
       __ tst(r0, Operand(kSmiTagMask));
       deferred->enter()->Branch(ne);
       switch (op) {
@@ -927,7 +932,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       } else {
         int shift_value = int_value & 0x1f;  // least significant 5 bits
         DeferredCode* deferred =
-          new DeferredInlineSmiOperation(this, op, shift_value, false, mode);
+          new DeferredInlineSmiOperation(op, shift_value, false, mode);
         __ tst(r0, Operand(kSmiTagMask));
         deferred->enter()->Branch(ne);
         __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
@@ -2654,8 +2659,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 // therefore context dependent.
 class DeferredObjectLiteral: public DeferredCode {
  public:
-  DeferredObjectLiteral(CodeGenerator* generator, ObjectLiteral* node)
-      : DeferredCode(generator), node_(node) {
+  explicit DeferredObjectLiteral(ObjectLiteral* node) : node_(node) {
     set_comment("[ DeferredObjectLiteral");
   }
 
@@ -2666,7 +2670,12 @@ class DeferredObjectLiteral: public DeferredCode {
 };
 
 
+#undef __
+#define __ ACCESS_MASM(masm)
+
+
 void DeferredObjectLiteral::Generate() {
+  MacroAssembler* masm = cgen()->masm();
   // Argument is passed in r1.
   enter()->Bind();
   VirtualFrame::SpilledScope spilled_scope;
@@ -2674,7 +2683,7 @@ void DeferredObjectLiteral::Generate() {
   // If the entry is undefined we call the runtime system to compute
   // the literal.
 
-  VirtualFrame* frame = generator()->frame();
+  VirtualFrame* frame = cgen()->frame();
   // Literal array (0).
   frame->EmitPush(r1);
   // Literal index (1).
@@ -2691,6 +2700,10 @@ void DeferredObjectLiteral::Generate() {
 }
 
 
+#undef __
+#define __ ACCESS_MASM(masm_)
+
+
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -2698,7 +2711,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  DeferredObjectLiteral* deferred = new DeferredObjectLiteral(this, node);
+  DeferredObjectLiteral* deferred = new DeferredObjectLiteral(node);
 
   // Retrieve the literal array and check the allocated entry.
 
@@ -2783,8 +2796,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 // therefore context dependent.
 class DeferredArrayLiteral: public DeferredCode {
  public:
-  DeferredArrayLiteral(CodeGenerator* generator, ArrayLiteral* node)
-      : DeferredCode(generator), node_(node) {
+  explicit DeferredArrayLiteral(ArrayLiteral* node) : node_(node) {
     set_comment("[ DeferredArrayLiteral");
   }
 
@@ -2795,7 +2807,12 @@ class DeferredArrayLiteral: public DeferredCode {
 };
 
 
+#undef __
+#define __ ACCESS_MASM(masm)
+
+
 void DeferredArrayLiteral::Generate() {
+  MacroAssembler* masm = cgen()->masm();
   // Argument is passed in r1.
   enter()->Bind();
   VirtualFrame::SpilledScope spilled_scope;
@@ -2803,7 +2820,7 @@ void DeferredArrayLiteral::Generate() {
   // If the entry is undefined we call the runtime system to computed
   // the literal.
 
-  VirtualFrame* frame = generator()->frame();
+  VirtualFrame* frame = cgen()->frame();
   // Literal array (0).
   frame->EmitPush(r1);
   // Literal index (1).
@@ -2820,6 +2837,10 @@ void DeferredArrayLiteral::Generate() {
 }
 
 
+#undef __
+#define __ ACCESS_MASM(masm_)
+
+
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -2827,7 +2848,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  DeferredArrayLiteral* deferred = new DeferredArrayLiteral(this, node);
+  DeferredArrayLiteral* deferred = new DeferredArrayLiteral(node);
 
   // Retrieve the literal array and check the allocated entry.
 

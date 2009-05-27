@@ -194,8 +194,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   Scope* scope() const { return scope_; }
 
-  // Clearing and generating deferred code.
-  void ClearDeferred();
+  // Generating deferred code.
   void ProcessDeferred();
 
   bool is_eval() { return is_eval_; }
