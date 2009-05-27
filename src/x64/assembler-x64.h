@@ -253,141 +253,42 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
-  // reg
-  INLINE(explicit Operand(Register reg));
-
-  // MemoryOperand
-  INLINE(explicit Operand()) { UNIMPLEMENTED(); }
-
-  // Returns true if this Operand is a wrapper for the specified register.
-  bool is_reg(Register reg) const;
-
-  // These constructors have been moved to MemOperand, and should
-  // be removed from Operand as soon as all their uses use MemOperands instead.
-    // [disp/r]
-  INLINE(explicit Operand(intptr_t disp, RelocInfo::Mode rmode)) {
-    UNIMPLEMENTED();
-  }
-  // disp only must always be relocated
-
   // [base + disp/r]
-  explicit Operand(Register base, int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
+  INLINE(Operand(Register base, int32_t disp));
 
   // [base + index*scale + disp/r]
-  explicit Operand(Register base,
-                   Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
+  Operand(Register base,
+          Register index,
+          ScaleFactor scale,
+          int32_t disp);
 
   // [index*scale + disp/r]
-  explicit Operand(Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  // End of constructors and methods that have been moved to MemOperand.
+  Operand(Register index,
+          ScaleFactor scale,
+          int32_t disp);
 
  private:
   byte rex_;
   byte buf_[10];
   // The number of bytes in buf_.
   unsigned int len_;
-  // Only valid if len_ > 4.
   RelocInfo::Mode rmode_;
 
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
+  // set_modrm can be called before or after set_sib and set_disp*.
   inline void set_modrm(int mod, Register rm);
 
+  // Set the SIB byte if one is needed. Sets the length to 2 rather than 1.
   inline void set_sib(ScaleFactor scale, Register index, Register base);
-  inline void set_disp8(int8_t disp);
-  inline void set_disp32(int32_t disp);
+
+  // Adds operand displacement fields (offsets added to the memory address).
+  // Needs to be called after set_sib, not before it.
+  inline void set_disp8(int disp);
+  inline void set_disp32(int disp);
 
   friend class Assembler;
 };
-
-class MemOperand : public Operand {
- public:
-  // [disp/r]
-  INLINE(explicit MemOperand(int32_t disp, RelocInfo::Mode rmode)) :
-      Operand() {
-    UNIMPLEMENTED();
-  }
-  // disp only must always be relocated
-
-  // [base + disp/r]
-  explicit MemOperand(Register base, int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  // [base + index*scale + disp/r]
-  explicit MemOperand(Register base,
-                   Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
-
-  // [index*scale + disp/r]
-  explicit MemOperand(Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE);
-};
-
-// -----------------------------------------------------------------------------
-// A Displacement describes the 32bit immediate field of an instruction which
-// may be used together with a Label in order to refer to a yet unknown code
-// position. Displacements stored in the instruction stream are used to describe
-// the instruction and to chain a list of instructions using the same Label.
-// A Displacement contains 2 different fields:
-//
-// next field: position of next displacement in the chain (0 = end of list)
-// type field: instruction type
-//
-// A next value of null (0) indicates the end of a chain (note that there can
-// be no displacement at position zero, because there is always at least one
-// instruction byte before the displacement).
-//
-// Displacement _data field layout
-//
-// |31.....2|1......0|
-// [  next  |  type  |
-
-class Displacement BASE_EMBEDDED {
- public:
-  enum Type {
-    UNCONDITIONAL_JUMP,
-    CODE_RELATIVE,
-    OTHER
-  };
-
-  int data() const { return data_; }
-  Type type() const { return TypeField::decode(data_); }
-  void next(Label* L) const {
-    int n = NextField::decode(data_);
-    n > 0 ? L->link_to(n) : L->Unuse();
-  }
-  void link_to(Label* L) { init(L, type()); }
-
-  explicit Displacement(int data) { data_ = data; }
-
-  Displacement(Label* L, Type type) { init(L, type); }
-
-  void print() {
-    PrintF("%s (%x) ", (type() == UNCONDITIONAL_JUMP ? "jmp" : "[other]"),
-                       NextField::decode(data_));
-  }
-
- private:
-  int data_;
-
-  class TypeField: public BitField<Type, 0, 2> {};
-  class NextField: public BitField<int,  2, 32-2> {};
-
-  void init(Label* L, Type type);
-};
-
 
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
@@ -849,11 +750,6 @@ class Assembler : public Malloced {
   void print(Label* L);
   void bind_to(Label* L, int pos);
   void link_to(Label* L, Label* appendix);
-
-  // displacements
-  inline Displacement disp_at(Label* L);
-  inline void disp_at_put(Label* L, Displacement disp);
-  inline void emit_disp(Label* L, Displacement::Type type);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);

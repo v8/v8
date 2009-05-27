@@ -153,11 +153,11 @@ TEST(AssemblerX64MemoryOperands) {
   __ push(rsi);  // Value at (rbp - 8)
   __ push(rsi);  // Value at (rbp - 16)
   __ push(rdi);  // Value at (rbp - 24)
-  // const int kStackElementSize = 8;
-  //  __ mov(rax, Operand(rbp,-3 * kStackElementSize));
-  __ pop(rax);
-  __ pop(rax);
-  __ pop(rax);
+  const int kStackElementSize = 8;
+  __ mov(rax, Operand(rbp, -3 * kStackElementSize));
+  __ pop(rsi);
+  __ pop(rsi);
+  __ pop(rsi);
   __ pop(rbp);
   __ nop();
   __ ret(0);
@@ -166,7 +166,7 @@ TEST(AssemblerX64MemoryOperands) {
   assm.GetCode(&desc);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
-  CHECK_EQ(2, result);
+  CHECK_EQ(3, result);
 }
 
 TEST(AssemblerX64ControlFlow) {
