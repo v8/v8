@@ -390,26 +390,25 @@ Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
                                                          JumpTarget* slow) {
   ASSERT(slot->type() == Slot::CONTEXT);
   ASSERT(tmp.is_register());
-  Result context(esi);
+  Register context = esi;
 
   for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
-        __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
                Immediate(0));
         slow->Branch(not_equal, not_taken);
       }
-      __ mov(tmp.reg(), ContextOperand(context.reg(), Context::CLOSURE_INDEX));
+      __ mov(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
       __ mov(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
-      context = tmp;
+      context = tmp.reg();
     }
   }
   // Check that last extension is NULL.
-  __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
-         Immediate(0));
+  __ cmp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
   slow->Branch(not_equal, not_taken);
-  __ mov(tmp.reg(), ContextOperand(context.reg(), Context::FCONTEXT_INDEX));
+  __ mov(tmp.reg(), ContextOperand(context, Context::FCONTEXT_INDEX));
   return ContextOperand(tmp.reg(), slot->index());
 }
 
@@ -1772,13 +1771,14 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  frame_->Push(pairs);
+  // Call the runtime to declare the globals.  The inevitable call
+  // will sync frame elements to memory anyway, so we do it eagerly to
+  // allow us to push the arguments directly into place.
+  frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Duplicate the context register.
-  Result context(esi);
-  frame_->Push(&context);
-
-  frame_->Push(Smi::FromInt(is_eval() ? 1 : 0));
+  frame_->EmitPush(Immediate(pairs));
+  frame_->EmitPush(esi);  // The context is the second argument.
+  frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
@@ -1798,24 +1798,25 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // Variables with a "LOOKUP" slot were introduced as non-locals
     // during variable resolution and must have mode DYNAMIC.
     ASSERT(var->is_dynamic());
-    // For now, just do a runtime call.  Duplicate the context register.
-    Result context(esi);
-    frame_->Push(&context);
-    frame_->Push(var->name());
+    // For now, just do a runtime call.  Sync the virtual frame eagerly
+    // so we can simply push the arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
     // Declaration nodes are always introduced in one of two modes.
     ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
     PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
-    frame_->Push(Smi::FromInt(attr));
+    frame_->EmitPush(Immediate(Smi::FromInt(attr)));
     // Push initial value, if any.
     // Note: For variables we must not push an initial value (such as
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      frame_->Push(Factory::the_hole_value());
+      frame_->EmitPush(Immediate(Factory::the_hole_value()));
     } else if (node->fun() != NULL) {
       Load(node->fun());
     } else {
-      frame_->Push(Smi::FromInt(0));  // no initial value!
+      frame_->EmitPush(Immediate(Smi::FromInt(0)));  // no initial value!
     }
     Result ignored = frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
     // Ignore the return value (declarations are statements).
@@ -3189,13 +3190,18 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+  // Call the runtime to instantiate the function boilerplate object.
+  // The inevitable call will sync frame elements to memory anyway, so
+  // we do it eagerly to allow us to push the arguments directly into
+  // place.
   ASSERT(boilerplate->IsBoilerplate());
+  frame_->SyncRange(0, frame_->element_count() - 1);
 
   // Push the boilerplate on the stack.
-  frame_->Push(boilerplate);
+  frame_->EmitPush(Immediate(boilerplate));
 
   // Create a new closure.
-  frame_->Push(esi);
+  frame_->EmitPush(esi);
   Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->Push(&result);
 }
@@ -3301,8 +3307,12 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     }
 
     slow.Bind();
-    frame_->Push(esi);
-    frame_->Push(slot->var()->name());
+    // A runtime call is inevitable.  We eagerly sync frame elements
+    // to memory so that we can push the arguments directly into place
+    // on top of the frame.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(slot->var()->name()));
     if (typeof_state == INSIDE_TYPEOF) {
       value =
           frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
@@ -3357,7 +3367,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     JumpTarget* slow) {
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
-  Result context(esi);
+  Register context = esi;
   Result tmp = allocator_->Allocate();
   ASSERT(tmp.is_valid());  // All non-reserved registers were available.
 
@@ -3366,14 +3376,14 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
-        __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
                Immediate(0));
         slow->Branch(not_equal, not_taken);
       }
       // Load next context in chain.
-      __ mov(tmp.reg(), ContextOperand(context.reg(), Context::CLOSURE_INDEX));
+      __ mov(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
       __ mov(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
-      context = tmp;
+      context = tmp.reg();
     }
     // If no outer scope calls eval, we do not need to check more
     // context extensions.  If we have reached an eval scope, we check
@@ -3386,8 +3396,8 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
     Label next, fast;
-    if (!context.reg().is(tmp.reg())) {
-      __ mov(tmp.reg(), context.reg());
+    if (!context.is(tmp.reg())) {
+      __ mov(tmp.reg(), context);
     }
     __ bind(&next);
     // Terminate at global context.
@@ -3403,7 +3413,6 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     __ jmp(&next);
     __ bind(&fast);
   }
-  context.Unuse();
   tmp.Unuse();
 
   // All extension objects were empty and it is safe to use a global
@@ -3428,9 +3437,13 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
-    // For now, just do a runtime call.
-    frame_->Push(esi);
-    frame_->Push(slot->var()->name());
+    // For now, just do a runtime call.  Since the call is inevitable,
+    // we eagerly sync the virtual frame so we can directly push the
+    // arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(slot->var()->name()));
 
     Result value;
     if (init_state == CONST_INIT) {
@@ -4061,15 +4074,23 @@ void CodeGenerator::VisitCall(Call* node) {
     // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
     // ----------------------------------
 
-    // Load the function
-    frame_->Push(esi);
-    frame_->Push(var->name());
+    // Load the function from the context.  Sync the frame so we can
+    // push the arguments directly into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
-    // eax: slot value; edx: receiver
+    // The runtime call returns a pair of values in eax and edx.  The
+    // looked-up function is in eax and the receiver is in edx.  These
+    // register references are not ref counted here.  We spill them
+    // eagerly since they are arguments to an inevitable call (and are
+    // not sharable by the arguments).
+    ASSERT(!allocator()->is_used(eax));
+    frame_->EmitPush(eax);
 
     // Load the receiver.
-    frame_->Push(eax);
-    frame_->Push(edx);
+    ASSERT(!allocator()->is_used(edx));
+    frame_->EmitPush(edx);
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -4638,12 +4659,17 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         return;
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
-        // lookup the context holding the named variable
-        frame_->Push(esi);
-        frame_->Push(variable->name());
+        // Call the runtime to look up the context holding the named
+        // variable.  Sync the virtual frame eagerly so we can push the
+        // arguments directly into place.
+        frame_->SyncRange(0, frame_->element_count() - 1);
+        frame_->EmitPush(esi);
+        frame_->EmitPush(Immediate(variable->name()));
         Result context = frame_->CallRuntime(Runtime::kLookupContext, 2);
-        frame_->Push(&context);
-        frame_->Push(variable->name());
+        ASSERT(context.is_register());
+        frame_->EmitPush(context.reg());
+        context.Unuse();
+        frame_->EmitPush(Immediate(variable->name()));
         Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
                                               CALL_FUNCTION, 2);
         frame_->Push(&answer);

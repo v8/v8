@@ -74,7 +74,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
 
   // A list of pointers to frame elements in the entry frame.  NULL
   // indicates that the element has not yet been determined.
-  int length = initial_frame->elements_.length();
+  int length = initial_frame->element_count();
   ZoneList<FrameElement*> elements(length);
 
   // Convert the number of mergable elements (counted from the top
@@ -124,7 +124,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // return address).  Replace those first.
   entry_frame_ = new VirtualFrame();
   int index = 0;
-  for (; index < entry_frame_->elements_.length(); index++) {
+  for (; index < entry_frame_->element_count(); index++) {
     FrameElement* target = elements[index];
     // If the element is determined, set it now.  Count registers.  Mark
     // elements as copied exactly when they have a copy.  Undetermined
@@ -155,7 +155,7 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
       bool is_synced = true;
       RegisterFile candidate_registers;
       int best_count = kMinInt;
-      int best_reg_code = no_reg.code_;
+      int best_reg_num = RegisterAllocator::kInvalidRegister;
 
       StaticType type;  // Initially invalid.
       if (direction_ != BIDIRECTIONAL || i < high_water_mark) {
@@ -168,10 +168,11 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
         if (element.is_register() && !entry_frame_->is_used(element.reg())) {
           // Count the register occurrence and remember it if better
           // than the previous best.
-          candidate_registers.Use(element.reg());
-          if (candidate_registers.count(element.reg()) > best_count) {
-            best_count = candidate_registers.count(element.reg());
-            best_reg_code = element.reg().code();
+          int num = RegisterAllocator::ToNumber(element.reg());
+          candidate_registers.Use(num);
+          if (candidate_registers.count(num) > best_count) {
+            best_count = candidate_registers.count(num);
+            best_reg_num = num;
           }
         }
         type = type.merge(element.static_type());
@@ -188,16 +189,16 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
 
       // Try to put it in a register.  If there was no best choice
       // consider any free register.
-      if (best_reg_code == no_reg.code_) {
-        for (int j = 0; j < kNumRegisters; j++) {
-          if (!entry_frame_->is_used(j) && !RegisterAllocator::IsReserved(j)) {
-            best_reg_code = j;
+      if (best_reg_num == RegisterAllocator::kInvalidRegister) {
+        for (int j = 0; j < RegisterAllocator::kNumRegisters; j++) {
+          if (!entry_frame_->is_used(j)) {
+            best_reg_num = j;
             break;
           }
         }
       }
 
-      if (best_reg_code == no_reg.code_) {
+      if (best_reg_num == RegisterAllocator::kInvalidRegister) {
         // If there was no register found, the element is already
         // recorded as in memory.
         entry_frame_->elements_[i].set_static_type(type);
@@ -205,13 +206,13 @@ void JumpTarget::ComputeEntryFrame(int mergable_elements) {
         // If there was a register choice, use it.  Preserve the copied
         // flag on the element.  Set the static type as computed.
         bool is_copied = entry_frame_->elements_[i].is_copied();
-        Register reg = { best_reg_code };
+        Register reg = RegisterAllocator::ToRegister(best_reg_num);
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg,
                                           FrameElement::NOT_SYNCED);
         if (is_copied) entry_frame_->elements_[i].set_copied();
         entry_frame_->elements_[i].set_static_type(type);
-        entry_frame_->register_locations_[best_reg_code] = i;
+        entry_frame_->set_register_location(reg, i);
       }
     }
   }

@@ -25,25 +25,58 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_INL_H_
-#define V8_JUMP_TARGET_INL_H_
+#ifndef V8_IA32_REGISTER_ALLOCATOR_IA32_INL_H_
+#define V8_IA32_REGISTER_ALLOCATOR_IA32_INL_H_
+
+#include "v8.h"
 
 namespace v8 {
 namespace internal {
 
-CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
+// -------------------------------------------------------------------------
+// RegisterAllocator implementation.
+
+bool RegisterAllocator::IsReserved(Register reg) {
+  // The code for this test relies on the order of register codes.
+  return reg.code() >= esp.code() && reg.code() <= esi.code();
 }
 
-void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
-  entry_frame_->elements_[index].clear_copied();
-  if (target->is_register()) {
-    entry_frame_->set_register_location(target->reg(), index);
-  } else if (target->is_copy()) {
-    entry_frame_->elements_[target->index()].set_copied();
-  }
+
+// The register allocator uses small integers to represent the
+// non-reserved assembler registers.  The mapping is:
+
+// eax <-> 0, ebx <-> 1, ecx <-> 2, edx <-> 3, edi <-> 4.
+
+int RegisterAllocator::ToNumber(Register reg) {
+  ASSERT(reg.is_valid() && !IsReserved(reg));
+  static int numbers[] = {
+    0,   // eax
+    2,   // ecx
+    3,   // edx
+    1,   // ebx
+    -1,  // esp
+    -1,  // ebp
+    -1,  // esi
+    4    // edi
+  };
+  return numbers[reg.code()];
 }
+
+
+Register RegisterAllocator::ToRegister(int num) {
+  ASSERT(num >= 0 && num < kNumRegisters);
+  static Register registers[] = { eax, ebx, ecx, edx, edi };
+  return registers[num];
+}
+
+
+void RegisterAllocator::Initialize() {
+  Reset();
+  // The non-reserved edi register is live on JS function entry.
+  Use(edi);  // JS function.
+}
+
 
 } }  // namespace v8::internal
 
-#endif  // V8_JUMP_TARGET_INL_H_
+#endif  // V8_IA32_REGISTER_ALLOCATOR_IA32_INL_H_

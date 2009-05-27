@@ -84,46 +84,6 @@ void Result::ToRegister(Register target) {
 // -------------------------------------------------------------------------
 // RegisterAllocator implementation.
 
-RegisterFile RegisterAllocator::Reserved() {
-  RegisterFile reserved;
-  reserved.Use(esp);
-  reserved.Use(ebp);
-  reserved.Use(esi);
-  return reserved;
-}
-
-
-void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
-  register_file->ref_counts_[esp.code()] = 0;
-  register_file->ref_counts_[ebp.code()] = 0;
-  register_file->ref_counts_[esi.code()] = 0;
-}
-
-
-bool RegisterAllocator::IsReserved(int reg_code) {
-  // Test below relies on the order of register codes.
-  return reg_code >= esp.code() && reg_code <= esi.code();
-}
-
-
-void RegisterAllocator::Initialize() {
-  Reset();
-  // The following register is live on function entry, saved in the
-  // frame, and available for allocation during execution.
-  Use(edi);  // JS function.
-}
-
-
-void RegisterAllocator::Reset() {
-  registers_.Reset();
-  // The following registers are live on function entry and reserved
-  // during execution.
-  Use(esp);  // Stack pointer.
-  Use(ebp);  // Frame pointer (caller's frame pointer on entry).
-  Use(esi);  // Context (callee's context on entry).
-}
-
-
 Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
   Result result = AllocateWithoutSpilling();
   // Check that the register is a byte register.  If not, unuse the

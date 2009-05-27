@@ -580,8 +580,8 @@ class CodeGenerator: public AstVisitor {
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG
-  // True if the registers are valid for entry to a block.  There should be
-  // no frame-external references to eax, ebx, ecx, edx, or edi.
+  // True if the registers are valid for entry to a block.  There should
+  // be no frame-external references to (non-reserved) registers.
   bool HasValidEntryRegisters();
 #endif
 

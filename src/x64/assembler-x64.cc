@@ -682,16 +682,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
   return NULL;
 }
 
-bool RegisterAllocator::IsReserved(int a) {
-  UNIMPLEMENTED();
-  return false;
-}
-
-RegisterFile RegisterAllocator::Reserved() {
-  UNIMPLEMENTED();
-  return RegisterFile();
-}
-
 const int RelocInfo::kApplyMask = -1;
 
 StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {

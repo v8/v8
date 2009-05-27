@@ -578,14 +578,14 @@ class CodeGenerator: public AstVisitor {
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG
-  // True if the registers are valid for entry to a block.  There should be
-  // no frame-external references to eax, ebx, ecx, edx, or edi.
+  // True if the registers are valid for entry to a block.  There should
+  // be no frame-external references to (non-reserved) registers.
   bool HasValidEntryRegisters();
 #endif
 
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
-  List<DeferredCode*> deferred_;
+  ZoneList<DeferredCode*> deferred_;
 
   // Assembler
   MacroAssembler* masm_;  // to generate code

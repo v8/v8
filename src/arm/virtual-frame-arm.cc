@@ -49,7 +49,7 @@ VirtualFrame::VirtualFrame()
   for (int i = 0; i <= stack_pointer_; i++) {
     elements_.Add(FrameElement::MemoryElement());
   }
-  for (int i = 0; i < kNumRegisters; i++) {
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
     register_locations_[i] = kIllegalIndex;
   }
 }
@@ -96,7 +96,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   // Fix any sync bit problems from the bottom-up, stopping when we
   // hit the stack pointer or the top of the frame if the stack
   // pointer is floating above the frame.
-  int limit = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
+  int limit = Min(static_cast<int>(stack_pointer_), element_count() - 1);
   for (int i = 0; i <= limit; i++) {
     FrameElement source = elements_[i];
     FrameElement target = expected->elements_[i];
@@ -128,7 +128,7 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   // On ARM, all elements are in memory.
 
 #ifdef DEBUG
-  int start = Min(static_cast<int>(stack_pointer_), elements_.length() - 1);
+  int start = Min(static_cast<int>(stack_pointer_), element_count() - 1);
   for (int i = start; i >= 0; i--) {
     ASSERT(elements_[i].is_memory());
     ASSERT(expected->elements_[i].is_memory());
@@ -393,7 +393,7 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
 
 void VirtualFrame::Drop(int count) {
   ASSERT(height() >= count);
-  int num_virtual_elements = (elements_.length() - 1) - stack_pointer_;
+  int num_virtual_elements = (element_count() - 1) - stack_pointer_;
 
   // Emit code to lower the stack pointer if necessary.
   if (num_virtual_elements < count) {
@@ -419,7 +419,7 @@ Result VirtualFrame::Pop() {
 
 
 void VirtualFrame::EmitPop(Register reg) {
-  ASSERT(stack_pointer_ == elements_.length() - 1);
+  ASSERT(stack_pointer_ == element_count() - 1);
   stack_pointer_--;
   elements_.RemoveLast();
   __ pop(reg);
@@ -427,7 +427,7 @@ void VirtualFrame::EmitPop(Register reg) {
 
 
 void VirtualFrame::EmitPush(Register reg) {
-  ASSERT(stack_pointer_ == elements_.length() - 1);
+  ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement());
   stack_pointer_++;
   __ push(reg);

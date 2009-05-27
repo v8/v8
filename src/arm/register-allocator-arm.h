@@ -25,25 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_JUMP_TARGET_INL_H_
-#define V8_JUMP_TARGET_INL_H_
+#ifndef V8_ARM_REGISTER_ALLOCATOR_ARM_H_
+#define V8_ARM_REGISTER_ALLOCATOR_ARM_H_
 
 namespace v8 {
 namespace internal {
 
-CodeGenerator* JumpTarget::cgen() {
-  return CodeGeneratorScope::Current();
-}
+class RegisterAllocatorConstants : public AllStatic {
+ public:
+  static const int kNumRegisters = 12;
+  static const int kInvalidRegister = -1;
+};
 
-void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
-  entry_frame_->elements_[index].clear_copied();
-  if (target->is_register()) {
-    entry_frame_->set_register_location(target->reg(), index);
-  } else if (target->is_copy()) {
-    entry_frame_->elements_[target->index()].set_copied();
-  }
-}
 
 } }  // namespace v8::internal
 
-#endif  // V8_JUMP_TARGET_INL_H_
+#endif  // V8_ARM_REGISTER_ALLOCATOR_ARM_H_

@@ -83,21 +83,35 @@ class VirtualFrame : public ZoneObject {
   // Create a duplicate of an existing valid frame element.
   FrameElement CopyElementAt(int index);
 
+  // The number of elements on the virtual frame.
+  int element_count() { return elements_.length(); }
+
   // The height of the virtual expression stack.
   int height() {
-    return elements_.length() - expression_base_index();
+    return element_count() - expression_base_index();
   }
 
-  int register_index(Register reg) {
-    return register_locations_[reg.code()];
+  int register_location(int num) {
+    ASSERT(num >= 0 && num < RegisterAllocator::kNumRegisters);
+    return register_locations_[num];
   }
 
-  bool is_used(int reg_code) {
-    return register_locations_[reg_code] != kIllegalIndex;
+  int register_location(Register reg) {
+    return register_locations_[RegisterAllocator::ToNumber(reg)];
+  }
+
+  void set_register_location(Register reg, int index) {
+    register_locations_[RegisterAllocator::ToNumber(reg)] = index;
+  }
+
+  bool is_used(int num) {
+    ASSERT(num >= 0 && num < RegisterAllocator::kNumRegisters);
+    return register_locations_[num] != kIllegalIndex;
   }
 
   bool is_used(Register reg) {
-    return is_used(reg.code());
+    return register_locations_[RegisterAllocator::ToNumber(reg)]
+        != kIllegalIndex;
   }
 
   // Add extra in-memory elements to the top of the frame to match an actual
@@ -112,7 +126,7 @@ class VirtualFrame : public ZoneObject {
   // handler).  No code will be emitted.
   void Forget(int count) {
     ASSERT(count >= 0);
-    ASSERT(stack_pointer_ == elements_.length() - 1);
+    ASSERT(stack_pointer_ == element_count() - 1);
     stack_pointer_ -= count;
     ForgetElements(count);
   }
@@ -127,13 +141,16 @@ class VirtualFrame : public ZoneObject {
 
   // Spill all occurrences of a specific register from the frame.
   void Spill(Register reg) {
-    if (is_used(reg)) SpillElementAt(register_index(reg));
+    if (is_used(reg)) SpillElementAt(register_location(reg));
   }
 
   // Spill all occurrences of an arbitrary register if possible.  Return the
   // register spilled or no_reg if it was not possible to free any register
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
+
+  // Sync the range of elements in [begin, end] with memory.
+  void SyncRange(int begin, int end);
 
   // Make this frame so that an arbitrary frame of the same height can
   // be merged to it.  Copies and constants are removed from the
@@ -158,11 +175,8 @@ class VirtualFrame : public ZoneObject {
   // one to NULL by an unconditional jump.
   void DetachFromCodeGenerator() {
     RegisterAllocator* cgen_allocator = cgen()->allocator();
-    for (int i = 0; i < kNumRegisters; i++) {
-      if (is_used(i)) {
-        Register temp = { i };
-        cgen_allocator->Unuse(temp);
-      }
+    for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+      if (is_used(i)) cgen_allocator->Unuse(i);
     }
   }
 
@@ -172,11 +186,8 @@ class VirtualFrame : public ZoneObject {
   // binding a label.
   void AttachToCodeGenerator() {
     RegisterAllocator* cgen_allocator = cgen()->allocator();
-    for (int i = 0; i < kNumRegisters; i++) {
-      if (is_used(i)) {
-        Register temp = { i };
-        cgen_allocator->Use(temp);
-      }
+    for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+      if (is_used(i)) cgen_allocator->Use(i);
     }
   }
 
@@ -211,11 +222,11 @@ class VirtualFrame : public ZoneObject {
   }
 
   void PushElementAt(int index) {
-    PushFrameSlotAt(elements_.length() - index - 1);
+    PushFrameSlotAt(element_count() - index - 1);
   }
 
   void StoreToElementAt(int index) {
-    StoreToFrameSlotAt(elements_.length() - index - 1);
+    StoreToFrameSlotAt(element_count() - index - 1);
   }
 
   // A frame-allocated local as an assembly operand.
@@ -259,7 +270,7 @@ class VirtualFrame : public ZoneObject {
   // A parameter as an assembly operand.
   Operand ParameterAt(int index) {
     ASSERT(-1 <= index);  // -1 is the receiver.
-    ASSERT(index <= parameter_count());
+    ASSERT(index < parameter_count());
     return Operand(ebp, (1 + parameter_count() - index) * kPointerSize);
   }
 
@@ -352,7 +363,7 @@ class VirtualFrame : public ZoneObject {
   void Drop() { Drop(1); }
 
   // Duplicate the top element of the frame.
-  void Dup() { PushFrameSlotAt(elements_.length() - 1); }
+  void Dup() { PushFrameSlotAt(element_count() - 1); }
 
   // Pop an element from the top of the expression stack.  Returns a
   // Result, which may be a constant or a register.
@@ -407,7 +418,7 @@ class VirtualFrame : public ZoneObject {
 
   // The index of the register frame element using each register, or
   // kIllegalIndex if a register is not on the frame.
-  int register_locations_[kNumRegisters];
+  int register_locations_[RegisterAllocator::kNumRegisters];
 
   // The number of frame-allocated locals and parameters respectively.
   int parameter_count() { return cgen()->scope()->num_parameters(); }
@@ -440,8 +451,8 @@ class VirtualFrame : public ZoneObject {
   // Convert a frame index into a frame pointer relative offset into the
   // actual stack.
   int fp_relative(int index) {
-    ASSERT(index < elements_.length());
-    ASSERT(frame_pointer() < elements_.length());  // FP is on the frame.
+    ASSERT(index < element_count());
+    ASSERT(frame_pointer() < element_count());  // FP is on the frame.
     return (frame_pointer() - index) * kPointerSize;
   }
 
@@ -450,7 +461,7 @@ class VirtualFrame : public ZoneObject {
   // of updating the index of the register's location in the frame.
   void Use(Register reg, int index) {
     ASSERT(!is_used(reg));
-    register_locations_[reg.code()] = index;
+    set_register_location(reg, index);
     cgen()->allocator()->Use(reg);
   }
 
@@ -458,8 +469,8 @@ class VirtualFrame : public ZoneObject {
   // decrements the register's external reference count and invalidates the
   // index of the register's location in the frame.
   void Unuse(Register reg) {
-    ASSERT(register_locations_[reg.code()] != kIllegalIndex);
-    register_locations_[reg.code()] = kIllegalIndex;
+    ASSERT(is_used(reg));
+    set_register_location(reg, kIllegalIndex);
     cgen()->allocator()->Unuse(reg);
   }
 
@@ -472,9 +483,6 @@ class VirtualFrame : public ZoneObject {
   // constant that disagrees with the value on the stack, write it to memory.
   // Keep the element type as register or constant, and clear the dirty bit.
   void SyncElementAt(int index);
-
-  // Sync the range of elements in [begin, end).
-  void SyncRange(int begin, int end);
 
   // Sync a single unsynced element that lies beneath or at the stack pointer.
   void SyncElementBelowStackPointer(int index);

@@ -61,10 +61,9 @@ namespace internal {
 // mode. This way we get the compile-time error checking in debug mode
 // and best performance in optimized code.
 //
-const int kNumRegisters = 16;
 
 struct Register {
-  bool is_valid() const  { return 0 <= code_ && code_ < kNumRegisters; }
+  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
   bool is(Register reg) const  { return code_ == reg.code_; }
   // The byte-register distinction of ai32 has dissapeared.
   bool is_byte_register() const  { return false; }

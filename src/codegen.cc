@@ -515,8 +515,8 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
     // frame.  Otherwise, we have to merge the existing one to the
     // start frame as part of the previous case.
     if (!has_valid_frame()) {
-      RegisterFile non_frame_registers = RegisterAllocator::Reserved();
-      SetFrame(new VirtualFrame(start_frame), &non_frame_registers);
+      RegisterFile empty;
+      SetFrame(new VirtualFrame(start_frame), &empty);
     } else {
       frame_->MergeTo(start_frame);
     }
