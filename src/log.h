@@ -231,6 +231,9 @@ class Logger {
   // Logs a StringEvent regardless of whether FLAG_log is true.
   static void UncheckedStringEvent(const char* name, const char* value);
 
+  // Stops logging and profiling in case of insufficient resources.
+  static void StopLoggingAndProfiling();
+
   // Returns whether profiler's sampler is active.
   static bool IsProfilerSamplerActive();
 

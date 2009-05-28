@@ -37,12 +37,14 @@ static int ReadData(
 }
 
 
-// Helper function used by CHECK_EQ to compare Vectors.
+// Helper function used by CHECK_EQ to compare Vectors. Templatized to
+// accept both "char" and "const char" vector contents.
+template <typename E, typename V>
 static inline void CheckEqualsHelper(const char* file, int line,
                                      const char* expected_source,
-                                     const Vector<char>& expected,
+                                     const Vector<E>& expected,
                                      const char* value_source,
-                                     const Vector<char>& value) {
+                                     const Vector<V>& value) {
   if (expected.length() != value.length()) {
     V8_Fatal(file, line, "CHECK_EQ(%s, %s) failed\n"
              "#   Vectors lengths differ: %d expected, %d found",
@@ -62,7 +64,7 @@ static inline void CheckEqualsHelper(const char* file, int line,
 
 
 TEST(DynaBufSingleBlock) {
-  LogDynamicBuffer dynabuf(32, 32);
+  LogDynamicBuffer dynabuf(32, 32, "", 0);
   EmbeddedVector<char, 32> ref_buf;
   WriteData(&dynabuf, &ref_buf);
   EmbeddedVector<char, 32> buf;
@@ -77,7 +79,7 @@ TEST(DynaBufSingleBlock) {
 
 
 TEST(DynaBufCrossBlocks) {
-  LogDynamicBuffer dynabuf(32, 128);
+  LogDynamicBuffer dynabuf(32, 128, "", 0);
   EmbeddedVector<char, 48> ref_buf;
   WriteData(&dynabuf, &ref_buf);
   CHECK_EQ(48, dynabuf.Write(ref_buf.start(), ref_buf.length()));
@@ -93,7 +95,7 @@ TEST(DynaBufCrossBlocks) {
 
 
 TEST(DynaBufReadTruncation) {
-  LogDynamicBuffer dynabuf(32, 128);
+  LogDynamicBuffer dynabuf(32, 128, "", 0);
   EmbeddedVector<char, 128> ref_buf;
   WriteData(&dynabuf, &ref_buf);
   EmbeddedVector<char, 128> buf;
@@ -103,6 +105,28 @@ TEST(DynaBufReadTruncation) {
   EmbeddedVector<char, 48> tail_buf;
   CHECK_EQ(32, ReadData(&dynabuf, 128 - 32, &tail_buf));
   CHECK_EQ(ref_buf.SubVector(128 - 32, 128), tail_buf.SubVector(0, 32));
+}
+
+
+TEST(DynaBufSealing) {
+  const char* seal = "Sealed";
+  const int seal_size = strlen(seal);
+  LogDynamicBuffer dynabuf(32, 128, seal, seal_size);
+  EmbeddedVector<char, 100> ref_buf;
+  WriteData(&dynabuf, &ref_buf);
+  // Try to write data that will not fit in the buffer.
+  CHECK_EQ(0, dynabuf.Write(ref_buf.start(), 128 - 100 - seal_size + 1));
+  // Now the buffer is sealed, writing of any amount of data is forbidden.
+  CHECK_EQ(0, dynabuf.Write(ref_buf.start(), 1));
+  EmbeddedVector<char, 100> buf;
+  CHECK_EQ(100, ReadData(&dynabuf, 0, &buf));
+  CHECK_EQ(ref_buf, buf);
+  // Check the seal.
+  EmbeddedVector<char, 50> seal_buf;
+  CHECK_EQ(seal_size, ReadData(&dynabuf, 100, &seal_buf));
+  CHECK_EQ(v8::internal::CStrVector(seal), seal_buf.SubVector(0, seal_size));
+  // Verify that there's no data beyond the seal.
+  CHECK_EQ(0, ReadData(&dynabuf, 100 + seal_size, &buf));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

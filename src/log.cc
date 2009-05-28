@@ -813,12 +813,14 @@ void Logger::PauseProfiler() {
   if (FLAG_prof_lazy) {
     if (!FLAG_sliding_state_window) ticker_->Stop();
     FLAG_log_code = false;
+    // Must be the same message as Log::kDynamicBufferSeal.
     LOG(UncheckedStringEvent("profiler", "pause"));
   }
 }
 
 
 void Logger::ResumeProfiler() {
+  if (!Log::IsEnabled()) return;
   if (FLAG_prof_lazy) {
     LOG(UncheckedStringEvent("profiler", "resume"));
     FLAG_log_code = true;
@@ -826,6 +828,14 @@ void Logger::ResumeProfiler() {
     if (!FLAG_sliding_state_window) ticker_->Start();
   }
   profiler_->resume();
+}
+
+
+// This function can be called when Log's mutex is acquired,
+// either from main or Profiler's thread.
+void Logger::StopLoggingAndProfiling() {
+  Log::stop();
+  PauseProfiler();
 }
 
 
@@ -995,6 +1005,8 @@ bool Logger::Setup() {
     profiler_->Engage();
   }
 
+  LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);
+
   return true;
 
 #else
@@ -1005,6 +1017,8 @@ bool Logger::Setup() {
 
 void Logger::TearDown() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  LogMessageBuilder::set_write_failure_handler(NULL);
+
   // Stop the profiler before closing the file.
   if (profiler_ != NULL) {
     profiler_->Disengage();

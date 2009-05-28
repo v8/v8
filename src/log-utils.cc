@@ -34,11 +34,14 @@ namespace internal {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-LogDynamicBuffer::LogDynamicBuffer(int block_size, int max_size)
+LogDynamicBuffer::LogDynamicBuffer(
+    int block_size, int max_size, const char* seal, int seal_size)
     : block_size_(block_size),
       max_size_(max_size - (max_size % block_size_)),
+      seal_(seal),
+      seal_size_(seal_size),
       blocks_(max_size_ / block_size_ + 1),
-      write_pos_(0), block_index_(0), block_write_pos_(0) {
+      write_pos_(0), block_index_(0), block_write_pos_(0), is_sealed_(false) {
   ASSERT(BlocksCount() > 0);
   AllocateBlock(0);
   for (int i = 1; i < BlocksCount(); ++i) {
@@ -78,8 +81,26 @@ int LogDynamicBuffer::Read(int from_pos, char* dest_buf, int buf_size) {
 }
 
 
+int LogDynamicBuffer::Seal() {
+  WriteInternal(seal_, seal_size_);
+  is_sealed_ = true;
+  return 0;
+}
+
+
 int LogDynamicBuffer::Write(const char* data, int data_size) {
-  if ((write_pos_ + data_size) > max_size_) return 0;
+  if (is_sealed_) {
+    return 0;
+  }
+  if ((write_pos_ + data_size) <= (max_size_ - seal_size_)) {
+    return WriteInternal(data, data_size);
+  } else {
+    return Seal();
+  }
+}
+
+
+int LogDynamicBuffer::WriteInternal(const char* data, int data_size) {
   int data_pos = 0;
   while (data_pos < data_size) {
     const int write_size =
@@ -98,9 +119,12 @@ int LogDynamicBuffer::Write(const char* data, int data_size) {
 }
 
 
+bool Log::is_stopped_ = false;
 Log::WritePtr Log::Write = NULL;
 FILE* Log::output_handle_ = NULL;
 LogDynamicBuffer* Log::output_buffer_ = NULL;
+// Must be the same message as in Logger::PauseProfiler
+const char* Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
 Mutex* Log::mutex_ = NULL;
 char* Log::message_buffer_ = NULL;
 
@@ -130,7 +154,8 @@ void Log::OpenFile(const char* name) {
 void Log::OpenMemoryBuffer() {
   ASSERT(!IsEnabled());
   output_buffer_ = new LogDynamicBuffer(
-      kDynamicBufferBlockSize, kMaxDynamicBufferSize);
+      kDynamicBufferBlockSize, kMaxDynamicBufferSize,
+      kDynamicBufferSeal, strlen(kDynamicBufferSeal));
   Write = WriteToMemory;
   Init();
 }
@@ -150,6 +175,8 @@ void Log::Close() {
 
   delete mutex_;
   mutex_ = NULL;
+
+  is_stopped_ = false;
 }
 
 
@@ -169,6 +196,10 @@ int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
   ASSERT(actual_size <= max_size);
   return actual_size;
 }
+
+
+LogMessageBuilder::WriteFailureHandler
+    LogMessageBuilder::write_failure_handler = NULL;
 
 
 LogMessageBuilder::LogMessageBuilder(): sl(Log::mutex_), pos_(0) {
@@ -251,13 +282,19 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
 
 void LogMessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Log::kMessageBufferSize);
-  Log::Write(Log::message_buffer_, pos_);
+  const int written = Log::Write(Log::message_buffer_, pos_);
+  if (written != pos_ && write_failure_handler != NULL) {
+    write_failure_handler();
+  }
 }
 
 
 void LogMessageBuilder::WriteCStringToLogFile(const char* str) {
-  int len = strlen(str);
-  Log::Write(str, len);
+  const int len = strlen(str);
+  const int written = Log::Write(str, len);
+  if (written != len && write_failure_handler != NULL) {
+    write_failure_handler();
+  }
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

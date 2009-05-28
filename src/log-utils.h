@@ -35,12 +35,17 @@ namespace internal {
 
 // A memory buffer that increments its size as you write in it.  Size
 // is incremented with 'block_size' steps, never exceeding 'max_size'.
-// During growth, memory contents are never copied.
+// During growth, memory contents are never copied.  At the end of the
+// buffer an amount of memory specified in 'seal_size' is reserved.
+// When writing position reaches max_size - seal_size, buffer auto-seals
+// itself with 'seal' and allows no further writes. Data pointed by
+// 'seal' must be available during entire LogDynamicBuffer lifetime.
 //
 // An instance of this class is created dynamically by Log.
 class LogDynamicBuffer {
  public:
-  LogDynamicBuffer(int block_size, int max_size);
+  LogDynamicBuffer(
+      int block_size, int max_size, const char* seal, int seal_size);
 
   ~LogDynamicBuffer();
 
@@ -51,8 +56,9 @@ class LogDynamicBuffer {
 
   // Writes 'data' to the buffer, making it larger if necessary.  If
   // data is too big to fit in the buffer, it doesn't get written at
-  // all. Returns amount of data written (it is either 'data_size', or
-  // 0, if 'data' is too big).
+  // all. In that case, buffer auto-seals itself and stops to accept
+  // any incoming writes. Returns amount of data written (it is either
+  // 'data_size', or 0, if 'data' is too big).
   int Write(const char* data, int data_size);
 
  private:
@@ -66,12 +72,19 @@ class LogDynamicBuffer {
 
   int PosInBlock(int pos) const { return pos % block_size_; }
 
+  int Seal();
+
+  int WriteInternal(const char* data, int data_size);
+
   const int block_size_;
   const int max_size_;
+  const char* seal_;
+  const int seal_size_;
   ScopedVector<char*> blocks_;
   int write_pos_;
   int block_index_;
   int block_write_pos_;
+  bool is_sealed_;
 };
 
 
@@ -87,6 +100,9 @@ class Log : public AllStatic {
   // Opens memory buffer for logging.
   static void OpenMemoryBuffer();
 
+  // Disables logging, but preserves acquired resources.
+  static void stop() { is_stopped_ = true; }
+
   // Frees all resources acquired in Open... functions.
   static void Close();
 
@@ -95,7 +111,7 @@ class Log : public AllStatic {
 
   // Returns whether logging is enabled.
   static bool IsEnabled() {
-    return output_handle_ != NULL || output_buffer_ != NULL;
+    return !is_stopped_ && (output_handle_ != NULL || output_buffer_ != NULL);
   }
 
  private:
@@ -121,6 +137,9 @@ class Log : public AllStatic {
     return output_buffer_->Write(msg, length);
   }
 
+  // Whether logging is stopped (e.g. due to insufficient resources).
+  static bool is_stopped_;
+
   // When logging is active, either output_handle_ or output_buffer_ is used
   // to store a pointer to log destination. If logging was opened via OpenStdout
   // or OpenFile, then output_handle_ is used. If logging was opened
@@ -135,6 +154,9 @@ class Log : public AllStatic {
 
   // Maximum size of dynamic buffer.
   static const int kMaxDynamicBufferSize = 50 * 1024 * 1024;
+
+  // Message to "seal" dynamic buffer with.
+  static const char* kDynamicBufferSeal;
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
@@ -180,7 +202,16 @@ class LogMessageBuilder BASE_EMBEDDED {
   // Write a null-terminated string to to the log file currently opened.
   void WriteCStringToLogFile(const char* str);
 
+  // A handler that is called when Log::Write fails.
+  typedef void (*WriteFailureHandler)();
+
+  static void set_write_failure_handler(WriteFailureHandler handler) {
+    write_failure_handler = handler;
+  }
+
  private:
+  static WriteFailureHandler write_failure_handler;
+
   ScopedLock sl;
   int pos_;
 };
