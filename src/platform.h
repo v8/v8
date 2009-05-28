@@ -493,7 +493,7 @@ class Socket {
 // TickSample captures the information collected for each sample.
 class TickSample {
  public:
-  TickSample() : pc(0), sp(0), fp(0), state(OTHER) {}
+  TickSample() : pc(0), sp(0), fp(0), state(OTHER), frames_count(0) {}
   uintptr_t pc;  // Instruction pointer.
   uintptr_t sp;  // Stack pointer.
   uintptr_t fp;  // Frame pointer.
