@@ -57,6 +57,7 @@ TEST(GetMessages) {
   memset(log_lines, 0, sizeof(log_lines));
   // A bit more than the first line length.
   CHECK_EQ(line_1_len, Logger::GetLogLines(0, log_lines, line_1_len + 3));
+  log_lines[line_1_len] = '\0';
   CHECK_EQ(line_1, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   const char* line_2 = "cccc,\"dddd\"\n";
