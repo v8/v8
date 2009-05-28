@@ -44,16 +44,29 @@ Condition NegateCondition(Condition cc) {
 #define EMIT(x)                                 \
   *pc_++ = (x)
 
-void Assembler::emit(uint32_t x) {
-  *reinterpret_cast<uint32_t*>(pc_) = x;
+
+void Assembler::emitl(uint32_t x) {
+  Memory::uint32_at(pc_) = x;
   pc_ += sizeof(uint32_t);
 }
 
+
+void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
+  Memory::uint64_at(pc_) = x;
+  RecordRelocInfo(rmode, x);
+}
+
+
+// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+// REX.W is set.
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   EMIT(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
 
+// The high bit of reg is used for REX.R, the high bit of op's base
+// register is used for REX.B, and the high bit of op's index register
+// is used for REX.X.  REX.W is set.
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
   EMIT(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
 }

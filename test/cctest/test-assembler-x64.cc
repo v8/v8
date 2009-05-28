@@ -39,6 +39,7 @@ using v8::internal::byte;
 using v8::internal::OS;
 using v8::internal::Assembler;
 using v8::internal::Operand;
+using v8::internal::Immediate;
 using v8::internal::Label;
 using v8::internal::rax;
 using v8::internal::rsi;
@@ -47,6 +48,9 @@ using v8::internal::rbp;
 using v8::internal::rsp;
 using v8::internal::FUNCTION_CAST;
 using v8::internal::CodeDesc;
+using v8::internal::less_equal;
+using v8::internal::not_equal;
+using v8::internal::greater;
 
 
 // Test the x64 assembler by compiling some simple functions into
@@ -75,7 +79,7 @@ TEST(AssemblerX64ReturnOperation) {
   Assembler assm(buffer, actual_size);
 
   // Assemble a simple function that copies argument 2 and returns it.
-  __ mov(rax, rsi);
+  __ movq(rax, rsi);
   __ nop();
   __ ret(0);
 
@@ -99,7 +103,7 @@ TEST(AssemblerX64StackOperations) {
   // We compile without stack frame pointers, so the gdb debugger shows
   // incorrect stack frames when debugging this function (which has them).
   __ push(rbp);
-  __ mov(rbp, rsp);
+  __ movq(rbp, rsp);
   __ push(rsi);  // Value at (rbp - 8)
   __ push(rsi);  // Value at (rbp - 16)
   __ push(rdi);  // Value at (rbp - 24)
@@ -127,7 +131,7 @@ TEST(AssemblerX64ArithmeticOperations) {
   Assembler assm(buffer, actual_size);
 
   // Assemble a simple function that copies argument 2 and returns it.
-  __ mov(rax, rsi);
+  __ movq(rax, rsi);
   __ add(rax, rdi);
   __ ret(0);
 
@@ -149,12 +153,12 @@ TEST(AssemblerX64MemoryOperands) {
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ push(rbp);
-  __ mov(rbp, rsp);
+  __ movq(rbp, rsp);
   __ push(rsi);  // Value at (rbp - 8)
   __ push(rsi);  // Value at (rbp - 16)
   __ push(rdi);  // Value at (rbp - 24)
   const int kStackElementSize = 8;
-  __ mov(rax, Operand(rbp, -3 * kStackElementSize));
+  __ movq(rax, Operand(rbp, -3 * kStackElementSize));
   __ pop(rsi);
   __ pop(rsi);
   __ pop(rsi);
@@ -180,11 +184,11 @@ TEST(AssemblerX64ControlFlow) {
 
   // Assemble a simple function that copies argument 2 and returns it.
   __ push(rbp);
-  __ mov(rbp, rsp);
-  __ mov(rax, rdi);
+  __ movq(rbp, rsp);
+  __ movq(rax, rdi);
   Label target;
   __ jmp(&target);
-  __ mov(rax, rsi);
+  __ movq(rax, rsi);
   __ bind(&target);
   __ pop(rbp);
   __ ret(0);
@@ -196,4 +200,52 @@ TEST(AssemblerX64ControlFlow) {
   CHECK_EQ(3, result);
 }
 
+TEST(AssemblerX64LoopImmediates) {
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler assm(buffer, actual_size);
+  // Assemble two loops using rax as counter, and verify the ending counts.
+  Label Fail;
+  __ movq(rax, Immediate(-3));
+  Label Loop1_test;
+  Label Loop1_body;
+  __ jmp(&Loop1_test);
+  __ bind(&Loop1_body);
+  __ add(rax, Immediate(7));
+  __ bind(&Loop1_test);
+  __ cmp(rax, Immediate(20));
+  __ j(less_equal, &Loop1_body);
+  // Did the loop terminate with the expected value?
+  __ cmp(rax, Immediate(25));
+  __ j(not_equal, &Fail);
+
+  Label Loop2_test;
+  Label Loop2_body;
+  __ movq(rax, Immediate(0x11FEED00));
+  __ jmp(&Loop2_test);
+  __ bind(&Loop2_body);
+  __ add(rax, Immediate(-0x1100));
+  __ bind(&Loop2_test);
+  __ cmp(rax, Immediate(0x11FE8000));
+  __ j(greater, &Loop2_body);
+  // Did the loop terminate with the expected value?
+  __ cmp(rax, Immediate(0x11FE7600));
+  __ j(not_equal, &Fail);
+
+  __ movq(rax, Immediate(1));
+  __ ret(0);
+  __ bind(&Fail);
+  __ movq(rax, Immediate(0));
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result =  FUNCTION_CAST<F0>(buffer)();
+  CHECK_EQ(1, result);
+}
 #undef __
