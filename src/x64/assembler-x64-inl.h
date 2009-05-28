@@ -41,8 +41,6 @@ Condition NegateCondition(Condition cc) {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
 
-#define EMIT(x)                                 \
-  *pc_++ = (x)
 
 
 void Assembler::emitl(uint32_t x) {
@@ -60,7 +58,7 @@ void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
 // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
 // REX.W is set.
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
-  EMIT(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+  emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
 
@@ -68,7 +66,7 @@ void Assembler::emit_rex_64(Register reg, Register rm_reg) {
 // register is used for REX.B, and the high bit of op's index register
 // is used for REX.X.  REX.W is set.
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
-  EMIT(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
+  emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
 }
 
 
@@ -81,8 +79,6 @@ byte* Assembler::target_address_at(byte* location) {
   UNIMPLEMENTED();
   return NULL;
 }
-
-#undef EMIT
 
 
 // -----------------------------------------------------------------------------

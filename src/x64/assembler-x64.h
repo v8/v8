@@ -450,6 +450,7 @@ class Assembler : public Malloced {
     arithmetic_op(0x03, dst, src);
   }
 
+
   void add(const Operand& dst, Register src) {
     arithmetic_op(0x01, src, dst);
   }
@@ -482,11 +483,25 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x7, dst, src);
   }
 
+  void and_(Register dst, Register src) {
+    arithmetic_op(0x23, dst, src);
+  }
 
-  void and_(Register dst, int32_t imm32);
-  void and_(Register dst, const Operand& src);
-  void and_(const Operand& src, Register dst);
-  void and_(const Operand& dst, const Immediate& x);
+  void and_(Register dst, const Operand& src) {
+    arithmetic_op(0x23, dst, src);
+  }
+
+  void and_(const Operand& dst, Register src) {
+    arithmetic_op(0x21, src, dst);
+  }
+
+  void and_(Register dst, Immediate src) {
+    immediate_arithmetic_op(0x4, dst, src);
+  }
+
+  void and_(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op(0x4, dst, src);
+  }
 
   void cmpb(const Operand& op, int8_t imm8);
   void cmpb_al(const Operand& op);
@@ -516,10 +531,26 @@ class Assembler : public Malloced {
 
   void not_(Register dst);
 
-  void or_(Register dst, int32_t imm32);
-  void or_(Register dst, const Operand& src);
-  void or_(const Operand& dst, Register src);
-  void or_(const Operand& dst, const Immediate& x);
+  void or_(Register dst, Register src) {
+    arithmetic_op(0x0B, dst, src);
+  }
+
+  void or_(Register dst, const Operand& src) {
+    arithmetic_op(0x0B, dst, src);
+  }
+
+  void or_(const Operand& dst, Register src) {
+    arithmetic_op(0x09, src, dst);
+  }
+
+  void or_(Register dst, Immediate src) {
+    immediate_arithmetic_op(0x1, dst, src);
+  }
+
+  void or_(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op(0x1, dst, src);
+  }
+
 
   void rcl(Register dst, uint8_t imm8);
 
@@ -539,18 +570,51 @@ class Assembler : public Malloced {
   void shr(Register dst);
   void shr_cl(Register dst);
 
-  void sub(const Operand& dst, const Immediate& x);
-  void sub(Register dst, const Operand& src);
-  void sub(const Operand& dst, Register src);
+  void sub(Register dst, Register src) {
+    arithmetic_op(0x2B, dst, src);
+  }
+
+  void sub(Register dst, const Operand& src) {
+    arithmetic_op(0x2B, dst, src);
+  }
+
+  void sub(const Operand& dst, Register src) {
+    arithmetic_op(0x29, src, dst);
+  }
+
+  void sub(Register dst, Immediate src) {
+    immediate_arithmetic_op(0x5, dst, src);
+  }
+
+  void sub(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op(0x5, dst, src);
+  }
+
 
   void test(Register reg, const Immediate& imm);
   void test(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
 
-  void xor_(Register dst, int32_t imm32);
-  void xor_(Register dst, const Operand& src);
-  void xor_(const Operand& src, Register dst);
-  void xor_(const Operand& dst, const Immediate& x);
+  void xor_(Register dst, Register src) {
+    arithmetic_op(0x33, dst, src);
+  }
+
+  void xor_(Register dst, const Operand& src) {
+    arithmetic_op(0x33, dst, src);
+  }
+
+  void xor_(const Operand& dst, Register src) {
+    arithmetic_op(0x31, src, dst);
+  }
+
+  void xor_(Register dst, Immediate src) {
+    immediate_arithmetic_op(0x6, dst, src);
+  }
+
+  void xor_(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op(0x6, dst, src);
+  }
+
 
   // Bit operations.
   void bt(const Operand& dst, Register src);
@@ -733,6 +797,8 @@ class Assembler : public Malloced {
 
   // code emission
   void GrowBuffer();
+
+  void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
   inline void emit(Handle<Object> handle);
   inline void emitq(uint64_t x, RelocInfo::Mode rmode);
@@ -751,24 +817,22 @@ class Assembler : public Malloced {
   // is used for REX.X.  REX.W is set.
   inline void emit_rex_64(Register reg, const Operand& op);
 
+  // Emit the Mod/RM byte, and optionally the SIB byte and
+  // 1- or 4-byte offset for a memory operand.  Also encodes
+  // the second operand of the operation, a register, into the Mod/RM byte.
+  void emit_operand(Register reg, const Operand& adr);
+
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
 
-  // instruction generation
-  void emit_arith_b(int op1, int op2, Register dst, int imm8);
-
-  // Emit a basic arithmetic instruction (i.e. first byte of the family is 0x81)
-  // with a given destination expression and an immediate operand.  It attempts
-  // to use the shortest encoding possible.
-  // sel specifies the /n in the modrm byte (see the Intel PRM).
+  // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
+  // AND, OR, XOR, or CMP.  The encodings of these operations are all
+  // similar, differing just in the opcode or in the reg field of the
+  // Mod/RM byte.
   void arithmetic_op(byte opcode, Register dst, Register src);
   void arithmetic_op(byte opcode, Register reg, const Operand& op);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
   void immediate_arithmetic_op(byte subcode, const Operand& dst, Immediate src);
-
-  void emit_arith(int sel, Operand dst, const Immediate& x);
-
-  void emit_operand(Register reg, const Operand& adr);
 
   void emit_farith(int b1, int b2, int i);
 
