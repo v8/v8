@@ -5519,17 +5519,8 @@ static Object* DebugLookupResultValue(Object* receiver, String* name,
     case CALLBACKS: {
       Object* structure = result->GetCallbackObject();
       if (structure->IsProxy() || structure->IsAccessorInfo()) {
-        if (Debug::debugger_entry()) {
-          // SaveContext scope. It will restore debugger context after the
-          // getter execution.
-          SaveContext save;
-          Top::set_context(*Debug::debugger_entry()->GetContext());
-          value = receiver->GetPropertyWithCallback(
-              receiver, structure, name, result->holder());
-        } else {
-          value = receiver->GetPropertyWithCallback(
-              receiver, structure, name, result->holder());
-        }
+        value = receiver->GetPropertyWithCallback(
+            receiver, structure, name, result->holder());
         if (value->IsException()) {
           value = Top::pending_exception();
           Top::clear_pending_exception();
@@ -5575,6 +5566,17 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
 
+  // Make sure to set the current context to the context before the debugger was
+  // entered (if the debugger is entered). The reason for switching context here
+  // is that for some property lookups (accessors and interceptors) callbacks
+  // into the embedding application can occour, and the embedding application
+  // could have the assumption that its own global context is the current
+  // context and not some internal debugger context.
+  SaveContext save;
+  if (Debug::InDebugger()) {
+    Top::set_context(*Debug::debugger_entry()->GetContext());
+  }
+
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
   if (obj->IsJSGlobalProxy()) {
@@ -5609,15 +5611,29 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   }
 
   if (result.IsProperty()) {
+    // LookupResult is not GC safe as all its members are raw object pointers.
+    // When calling DebugLookupResultValue GC can happen as this might invoke
+    // callbacks. After the call to DebugLookupResultValue the callback object
+    // in the LookupResult might still be needed. Put it into a handle for later
+    // use.
+    PropertyType result_type = result.type();
+    Handle<Object> result_callback_obj;
+    if (result_type == CALLBACKS) {
+      result_callback_obj = Handle<Object>(result.GetCallbackObject());
+    }
+
+    // Find the actual value. Don't use result after this call as it's content
+    // can be invalid.
     bool caught_exception = false;
     Object* value = DebugLookupResultValue(*obj, *name, &result,
                                            &caught_exception);
     if (value->IsFailure()) return value;
     Handle<Object> value_handle(value);
+
     // If the callback object is a fixed array then it contains JavaScript
     // getter and/or setter.
-    bool hasJavaScriptAccessors = result.type() == CALLBACKS &&
-                                  result.GetCallbackObject()->IsFixedArray();
+    bool hasJavaScriptAccessors = result_type == CALLBACKS &&
+                                  result_callback_obj->IsFixedArray();
     Handle<FixedArray> details =
         Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
     details->set(0, *value_handle);
