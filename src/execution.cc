@@ -591,7 +591,6 @@ Object* Execution::DebugBreakHelper() {
   // Collect the break state before clearing the flags.
   bool debug_command_only =
       StackGuard::IsDebugCommand() && !StackGuard::IsDebugBreak();
-  bool is_debug_break = StackGuard::IsDebugBreak();
 
   // Clear the debug request flags.
   StackGuard::Continue(DEBUGBREAK);
