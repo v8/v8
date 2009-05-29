@@ -166,16 +166,18 @@ static int CheckThatProfilerWorks(int log_pos) {
                   "for (var i = 0; i < 1000; ++i) { "
                   "(function(x) { return %d * x; })(i); }",
                   log_pos);
-  // Run code for 200 msecs to get some ticks. Use uint to always have
-  // non-negative delta.
-  const uint64_t started_us = i::OS::Ticks();
-  uint64_t delta;
-  while ((delta = i::OS::Ticks() - started_us) < 200 * 1000) {
+  // Run code for 200 msecs to get some ticks.
+  const double end_time = i::OS::TimeCurrentMillis() + 200;
+  while (i::OS::TimeCurrentMillis() < end_time) {
     CompileAndRunScript(script_src.start());
   }
 
   Logger::PauseProfiler();
   CHECK(!LoggerTestHelper::IsSamplerActive());
+
+  // Wait 50 msecs to allow Profiler thread to process the last
+  // tick sample it has got.
+  i::OS::Sleep(50);
 
   // Now we must have compiler and tick records.
   int log_size = GetLogLines(log_pos, &buffer);
