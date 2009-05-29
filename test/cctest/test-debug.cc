@@ -4776,6 +4776,117 @@ TEST(ContextData) {
 }
 
 
+// Debug message handler which issues a debug break when it hits a break event.
+static int message_handler_break_hit_count = 0;
+static void DebugBreakMessageHandler(const v8::Debug::Message& message) {
+  // Schedule a debug break for break events.
+  if (message.IsEvent() && message.GetEvent() == v8::Break) {
+    message_handler_break_hit_count++;
+    if (message_handler_break_hit_count == 1) {
+      v8::Debug::DebugBreak();
+    }
+  }
+
+  // Issue a continue command if this event will not cause the VM to start
+  // running.
+  if (!message.WillStartRunning()) {
+    SendContinueCommand();
+  }
+}
+
+
+// Test that a debug break can be scheduled while in a message handler.
+TEST(DebugBreakInMessageHandler) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  v8::Debug::SetMessageHandler2(DebugBreakMessageHandler);
+
+  // Test functions.
+  const char* script = "function f() { debugger; } function g() { }";
+  CompileRun(script);
+  v8::Local<v8::Function> f =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
+  v8::Local<v8::Function> g =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("g")));
+
+  // Call f then g. The debugger statement in f will casue a break which will
+  // cause another break.
+  f->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, message_handler_break_hit_count);
+  // Calling g will not cause any additional breaks.
+  g->Call(env->Global(), 0, NULL);
+  CHECK_EQ(2, message_handler_break_hit_count);
+}
+
+
+// Debug event handler which gets the function on the top frame and schedules a
+// break a number of times.
+static void DebugEventDebugBreak(
+    v8::DebugEvent event,
+    v8::Handle<v8::Object> exec_state,
+    v8::Handle<v8::Object> event_data,
+    v8::Handle<v8::Value> data) {
+
+  if (event == v8::Break) {
+    break_point_hit_count++;
+
+    // Get the name of the top frame function.
+    if (!frame_function_name.IsEmpty()) {
+      // Get the name of the function.
+      const int argc = 1;
+      v8::Handle<v8::Value> argv[argc] = { exec_state };
+      v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
+                                                               argc, argv);
+      if (result->IsUndefined()) {
+        last_function_hit[0] = '\0';
+      } else {
+        CHECK(result->IsString());
+        v8::Handle<v8::String> function_name(result->ToString());
+        function_name->WriteAscii(last_function_hit);
+      }
+    }
+
+    // Keep forcing breaks.
+    if (break_point_hit_count < 20) {
+      v8::Debug::DebugBreak();
+    }
+  }
+}
+
+
+TEST(RegExpDebugBreak) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  i::FLAG_regexp_native = true;
+
+  // Create a function for checking the function when hitting a break point.
+  frame_function_name = CompileFunction(&env,
+                                        frame_function_name_source,
+                                        "frame_function_name");
+
+  // Test RegExp which matches white spaces and comments at the begining of a
+  // source line.
+  const char* script =
+    "var sourceLineBeginningSkip = /^(?:[ \\v\\h]*(?:\\/\\*.*?\\*\\/)*)*/;\n"
+    "function f(s) { return s.match(sourceLineBeginningSkip)[0].length; }";
+
+  v8::Local<v8::Function> f = CompileFunction(script, "f");
+  const int argc = 1;
+  v8::Handle<v8::Value> argv[argc] = { v8::String::New("  /* xxx */ a=0;") };
+  v8::Local<v8::Value> result = f->Call(env->Global(), argc, argv);
+  CHECK_EQ(12, result->Int32Value());
+
+  v8::Debug::SetDebugEventListener(DebugEventDebugBreak);
+  v8::Debug::DebugBreak();
+  result = f->Call(env->Global(), argc, argv);
+
+  CHECK_EQ(20, break_point_hit_count);
+  CHECK_EQ("exec", last_function_hit);
+}
+
+
 // Common part of EvalContextData and NestedBreakEventContextData tests.
 static void ExecuteScriptForContextCheck() {
   // Create a context.

@@ -282,11 +282,19 @@ class Debug {
     thread_local_.debugger_entry_ = entry;
   }
 
-  static bool preemption_pending() {
-    return thread_local_.preemption_pending_;
+  // Check whether any of the specified interrupts are pending.
+  static bool is_interrupt_pending(InterruptFlag what) {
+    return (thread_local_.pending_interrupts_ & what) != 0;
   }
-  static void set_preemption_pending(bool preemption_pending) {
-    thread_local_.preemption_pending_ = preemption_pending;
+
+  // Set specified interrupts as pending.
+  static void set_interrupts_pending(InterruptFlag what) {
+    thread_local_.pending_interrupts_ |= what;
+  }
+
+  // Clear specified interrupts from pending.
+  static void clear_interrupt_pending(InterruptFlag what) {
+    thread_local_.pending_interrupts_ &= ~static_cast<int>(what);
   }
 
   // Getter and setter for the disable break state.
@@ -431,8 +439,8 @@ class Debug {
     // Top debugger entry.
     EnterDebugger* debugger_entry_;
 
-    // Preemption happened while debugging.
-    bool preemption_pending_;
+    // Pending interrupts scheduled while debugging.
+    int pending_interrupts_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -679,7 +687,8 @@ class EnterDebugger BASE_EMBEDDED {
   EnterDebugger()
       : prev_(Debug::debugger_entry()),
         has_js_frames_(!it_.done()) {
-    ASSERT(prev_ == NULL ? !Debug::preemption_pending() : true);
+    ASSERT(prev_ != NULL || !Debug::is_interrupt_pending(PREEMPT));
+    ASSERT(prev_ != NULL || !Debug::is_interrupt_pending(DEBUGBREAK));
 
     // Link recursive debugger entry.
     Debug::set_debugger_entry(this);
@@ -709,28 +718,41 @@ class EnterDebugger BASE_EMBEDDED {
     // Restore to the previous break state.
     Debug::SetBreak(break_frame_id_, break_id_);
 
-    // Request preemption when leaving the last debugger entry and a preemption
-    // had been recorded while debugging. This is to avoid starvation in some
-    // debugging scenarios.
-    if (prev_ == NULL && Debug::preemption_pending()) {
-      StackGuard::Preempt();
-      Debug::set_preemption_pending(false);
-    }
-
-    // If there are commands in the queue when leaving the debugger request that
-    // these commands are processed.
-    if (prev_ == NULL && Debugger::HasCommands()) {
-      StackGuard::DebugCommand();
-    }
-
+    // Check for leaving the debugger.
     if (prev_ == NULL) {
       // Clear mirror cache when leaving the debugger. Skip this if there is a
       // pending exception as clearing the mirror cache calls back into
       // JavaScript. This can happen if the v8::Debug::Call is used in which
       // case the exception should end up in the calling code.
       if (!Top::has_pending_exception()) {
+        // Try to avoid any pending debug break breaking in the clear mirror
+        // cache JavaScript code.
+        if (StackGuard::IsDebugBreak()) {
+          Debug::set_interrupts_pending(DEBUGBREAK);
+          StackGuard::Continue(DEBUGBREAK);
+        }
         Debug::ClearMirrorCache();
       }
+
+      // Request preemption and debug break when leaving the last debugger entry
+      // if any of these where recorded while debugging.
+      if (Debug::is_interrupt_pending(PREEMPT)) {
+        // This re-scheduling of preemption is to avoid starvation in some
+        // debugging scenarios.
+        Debug::clear_interrupt_pending(PREEMPT);
+        StackGuard::Preempt();
+      }
+      if (Debug::is_interrupt_pending(DEBUGBREAK)) {
+        Debug::clear_interrupt_pending(DEBUGBREAK);
+        StackGuard::DebugBreak();
+      }
+
+      // If there are commands in the queue when leaving the debugger request
+      // that these commands are processed.
+      if (Debugger::HasCommands()) {
+        StackGuard::DebugCommand();
+      }
+
       // If leaving the debugger with the debugger no longer active unload it.
       if (!Debugger::IsDebuggerActive()) {
         Debugger::UnloadDebugger();
