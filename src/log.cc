@@ -256,7 +256,7 @@ void Profiler::Engage() {
   // Register to get ticks.
   Logger::ticker_->SetProfiler(this);
 
-  LOG(UncheckedStringEvent("profiler", "begin"));
+  Logger::ProfilerBeginEvent();
 }
 
 
@@ -300,6 +300,14 @@ SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 bool Logger::IsEnabled() {
   return Log::IsEnabled();
+}
+
+
+void Logger::ProfilerBeginEvent() {
+  if (!Log::IsEnabled()) return;
+  LogMessageBuilder msg;
+  msg.Append("profiler,\"begin\",%d\n", kSamplingIntervalMs);
+  msg.WriteToLogFile();
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
@@ -809,6 +817,9 @@ bool Logger::IsProfilerPaused() {
 
 
 void Logger::PauseProfiler() {
+  if (profiler_->paused()) {
+    return;
+  }
   profiler_->pause();
   if (FLAG_prof_lazy) {
     if (!FLAG_sliding_state_window) ticker_->Stop();
@@ -820,7 +831,9 @@ void Logger::PauseProfiler() {
 
 
 void Logger::ResumeProfiler() {
-  if (!Log::IsEnabled()) return;
+  if (!profiler_->paused() || !Log::IsEnabled()) {
+    return;
+  }
   if (FLAG_prof_lazy) {
     LOG(UncheckedStringEvent("profiler", "resume"));
     FLAG_log_code = true;
@@ -992,7 +1005,8 @@ bool Logger::Setup() {
   // as log is initialized early with V8, we can assume that JS execution
   // frames can never reach this point on stack
   int stack_var;
-  ticker_ = new Ticker(1, reinterpret_cast<uintptr_t>(&stack_var));
+  ticker_ = new Ticker(
+      kSamplingIntervalMs, reinterpret_cast<uintptr_t>(&stack_var));
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();
