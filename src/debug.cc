@@ -2044,7 +2044,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   // in the queue if any. For script collected events don't even process
   // messages in the queue as the execution state might not be what is expected
   // by the client.
-  if (auto_continue && !HasCommands() || event == v8::ScriptCollected) {
+  if ((auto_continue && !HasCommands()) || event == v8::ScriptCollected) {
     return;
   }
 
