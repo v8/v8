@@ -152,6 +152,13 @@ TEST(Utils1) {
   CHECK_EQ(0, FastD2I(0.345));
   CHECK_EQ(1, FastD2I(1.234));
   CHECK_EQ(1000000, FastD2I(1000000.123));
+  // Check that >> is implemented as arithmetic shift right.
+  // If this is not true, then ArithmeticShiftRight() must be changed,
+  // There are also documented right shifts in assembler.cc of
+  // int8_t and intptr_t signed integers.
+  CHECK_EQ(-2, -8 >> 2);
+  CHECK_EQ(-2, static_cast<int8_t>(-8) >> 2);
+  CHECK_EQ(-2, static_cast<intptr_t>(-8) >> 2);
 }
 
 
@@ -176,33 +183,4 @@ TEST(SNPrintF) {
     }
     buffer.Dispose();
   }
-}
-
-
-// Issue 358: When copying EmbeddedVector, Vector::start_ must point
-// to the buffer in the copy, not in the source.
-TEST(EmbeddedVectorCopy) {
-  EmbeddedVector<int, 1> src;
-  src[0] = 100;
-  EmbeddedVector<int, 1> dst = src;
-  CHECK_NE(src.start(), dst.start());
-  CHECK_EQ(src[0], dst[0]);
-  src[0] = 200;
-  CHECK_NE(src[0], dst[0]);
-}
-
-
-// Also Issue 358, assignment case.
-TEST(EmbeddedVectorAssign) {
-  EmbeddedVector<int, 1> src;
-  src[0] = 100;
-  EmbeddedVector<int, 1> dst;
-  dst[0] = 200;
-  CHECK_NE(src.start(), dst.start());
-  CHECK_NE(src[0], dst[0]);
-  dst = src;
-  CHECK_NE(src.start(), dst.start());
-  CHECK_EQ(src[0], dst[0]);
-  src[0] = 200;
-  CHECK_NE(src[0], dst[0]);
 }

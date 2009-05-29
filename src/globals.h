@@ -111,11 +111,12 @@ const int kMinInt = -kMaxInt - 1;
 
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 
-const int kCharSize     = sizeof(char);    // NOLINT
-const int kShortSize    = sizeof(short);   // NOLINT
-const int kIntSize      = sizeof(int);     // NOLINT
-const int kDoubleSize   = sizeof(double);  // NOLINT
-const int kPointerSize  = sizeof(void*);   // NOLINT
+const int kCharSize     = sizeof(char);      // NOLINT
+const int kShortSize    = sizeof(short);     // NOLINT
+const int kIntSize      = sizeof(int);       // NOLINT
+const int kDoubleSize   = sizeof(double);    // NOLINT
+const int kPointerSize  = sizeof(void*);     // NOLINT
+const int kIntptrSize   = sizeof(intptr_t);  // NOLINT
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;

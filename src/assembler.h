@@ -272,8 +272,8 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline uint32_t WriteVariableLengthPCJump(uint32_t pc_delta);
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
-  inline void WriteExtraTaggedData(int32_t data_delta, int top_tag);
-  inline void WriteTaggedData(int32_t data_delta, int tag);
+  inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
+  inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
 
   byte* pos_;
