@@ -177,3 +177,32 @@ TEST(SNPrintF) {
     buffer.Dispose();
   }
 }
+
+
+// Issue 358: When copying EmbeddedVector, Vector::start_ must point
+// to the buffer in the copy, not in the source.
+TEST(EmbeddedVectorCopy) {
+  EmbeddedVector<int, 1> src;
+  src[0] = 100;
+  EmbeddedVector<int, 1> dst = src;
+  CHECK_NE(src.start(), dst.start());
+  CHECK_EQ(src[0], dst[0]);
+  src[0] = 200;
+  CHECK_NE(src[0], dst[0]);
+}
+
+
+// Also Issue 358, assignment case.
+TEST(EmbeddedVectorAssign) {
+  EmbeddedVector<int, 1> src;
+  src[0] = 100;
+  EmbeddedVector<int, 1> dst;
+  dst[0] = 200;
+  CHECK_NE(src.start(), dst.start());
+  CHECK_NE(src[0], dst[0]);
+  dst = src;
+  CHECK_NE(src.start(), dst.start());
+  CHECK_EQ(src[0], dst[0]);
+  src[0] = 200;
+  CHECK_NE(src[0], dst[0]);
+}

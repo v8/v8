@@ -379,6 +379,9 @@ class Vector {
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }
 
+ protected:
+  void set_start(T* start) { start_ = start; }
+
  private:
   T* start_;
   int length_;
@@ -406,6 +409,22 @@ template <typename T, int kSize>
 class EmbeddedVector : public Vector<T> {
  public:
   EmbeddedVector() : Vector<T>(buffer_, kSize) { }
+
+  // When copying, make underlying Vector to reference our buffer.
+  EmbeddedVector(const EmbeddedVector& rhs)
+      : Vector<T>(rhs) {
+    memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    set_start(buffer_);
+  }
+
+  EmbeddedVector& operator=(const EmbeddedVector& rhs) {
+    if (this == &rhs) return *this;
+    Vector<T>::operator=(rhs);
+    memcpy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    set_start(buffer_);
+    return *this;
+  }
+
  private:
   T buffer_[kSize];
 };
