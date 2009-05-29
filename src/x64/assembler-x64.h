@@ -528,8 +528,10 @@ class Assembler : public Malloced {
   void mul(Register src);
 
   void neg(Register dst);
+  void neg(const Operand& dst);
 
   void not_(Register dst);
+  void not_(const Operand& dst);
 
   void or_(Register dst, Register src) {
     arithmetic_op(0x0B, dst, src);
@@ -590,10 +592,10 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x5, dst, src);
   }
 
-
-  void test(Register reg, const Immediate& imm);
-  void test(Register reg, const Operand& op);
-  void test(const Operand& op, const Immediate& imm);
+  void testb(Register reg, Immediate mask);
+  void testb(const Operand& op, Immediate mask);
+  void testl(Register reg, Immediate mask);
+  void testl(const Operand& op, Immediate mask);
 
   void xor_(Register dst, Register src) {
     arithmetic_op(0x33, dst, src);
@@ -752,9 +754,13 @@ class Assembler : public Malloced {
   void RecordStatementPosition(int pos);
   void WriteRecordedPositions();
 
-  // Writes a single word of data in the code stream.
+  // Writes a doubleword of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
-  void dd(uint32_t data, RelocInfo::Mode reloc_info);
+  void dd(uint32_t data);
+
+  // Writes a quadword of data in the code stream.
+  // Used for inline tables, e.g., jump-tables.
+  void dd(uint64_t data, RelocInfo::Mode reloc_info);
 
   // Writes the absolute address of a bound label at the given position in
   // the generated code. That positions should have the relocation mode
@@ -809,6 +815,7 @@ class Assembler : public Malloced {
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is set.
   inline void emit_rex_64(Register reg, Register rm_reg);
+  void emit_rex_64(Register rm_reg) { emit_rex_64(rax, rm_reg); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of the destination, index, and base register codes.
@@ -816,11 +823,35 @@ class Assembler : public Malloced {
   // register is used for REX.B, and the high bit of op's index register
   // is used for REX.X.  REX.W is set.
   inline void emit_rex_64(Register reg, const Operand& op);
+  void emit_rex_64(const Operand& op) { emit_rex_64(rax, op); }
+
+  // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+  // REX.W is set.
+  inline void emit_rex_32(Register reg, Register rm_reg);
+
+  // The high bit of reg is used for REX.R, the high bit of op's base
+  // register is used for REX.B, and the high bit of op's index register
+  // is used for REX.X.  REX.W is cleared.
+  inline void emit_rex_32(Register reg, const Operand& op);
+
+  // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+  // REX.W is cleared.  If no REX bits are set, no byte is emitted.
+  inline void emit_optional_rex_32(Register reg, Register rm_reg);
+
+  // The high bit of reg is used for REX.R, the high bit of op's base
+  // register is used for REX.B, and the high bit of op's index register
+  // is used for REX.X.  REX.W is cleared.  If no REX bits are set, nothing
+  // is emitted.
+  inline void emit_optional_rex_32(Register reg, const Operand& op);
 
   // Emit the Mod/RM byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes
-  // the second operand of the operation, a register, into the Mod/RM byte.
+  // the second operand of the operation, a register or operation
+  // subcode, into the Mod/RM byte.
   void emit_operand(Register reg, const Operand& adr);
+  void emit_operand(int op_subcode, const Operand& adr) {
+    emit_operand(Register::toRegister(op_subcode), adr);
+  }
 
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
@@ -842,9 +873,7 @@ class Assembler : public Malloced {
   void link_to(Label* L, Label* appendix);
 
   // record reloc info for current pc_
-  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0) {
-    UNIMPLEMENTED();
-  }
+  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
   friend class CodePatcher;
   friend class EnsureSpace;

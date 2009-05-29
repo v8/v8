@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "macro-assembler.h"
+#include "serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -173,18 +174,6 @@ void Assembler::Align(int m) {
   }
 }
 
-void Assembler::RecordComment(char const* a) {
-  UNIMPLEMENTED();
-}
-
-void Assembler::RecordPosition(int a) {
-  UNIMPLEMENTED();
-}
-
-void Assembler::RecordStatementPosition(int a) {
-  UNIMPLEMENTED();
-}
-
 
 void Assembler::bind_to(Label* L, int pos) {
   ASSERT(!L->is_bound());  // Label may only be bound once.
@@ -319,11 +308,14 @@ void Assembler::immediate_arithmetic_op(byte subcode,
                                         Immediate src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
+  emit_rex_64(dst);
   if (is_int8(src.value_)) {
     emit(0x83);
     emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
     emit(src.value_);
+  } else if (dst.is(rax)) {
+    emit(0x05 | (subcode << 3));
+    emitl(src.value_);
   } else {
     emit(0x81);
     emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
@@ -336,7 +328,7 @@ void Assembler::immediate_arithmetic_op(byte subcode,
                                         Immediate src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
+  emit_rex_64(dst);
   if (is_int8(src.value_)) {
     emit(0x83);
     emit_operand(Register::toRegister(subcode), dst);
@@ -373,7 +365,7 @@ void Assembler::call(Label* L) {
 void Assembler::dec(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rcx, dst);
+  emit_rex_64(dst);
   emit(0xFF);
   emit(0xC8 | (dst.code() & 0x7));
 }
@@ -382,9 +374,9 @@ void Assembler::dec(Register dst) {
 void Assembler::dec(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
+  emit_rex_64(dst);
   emit(0xFF);
-  emit_operand(rcx, dst);
+  emit_operand(1, dst);
 }
 
 
@@ -398,7 +390,7 @@ void Assembler::hlt() {
 void Assembler::inc(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
+  emit_rex_64(dst);
   emit(0xFF);
   emit(0xC0 | (dst.code() & 0x7));
 }
@@ -407,9 +399,9 @@ void Assembler::inc(Register dst) {
 void Assembler::inc(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
+  emit_rex_64(dst);
   emit(0xFF);
-  emit_operand(rax, dst);
+  emit_operand(0, dst);
 }
 
 
@@ -508,7 +500,7 @@ void Assembler::movq(Register dst, Register src) {
 void Assembler::movq(Register dst, Immediate value) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
+  emit_rex_64(dst);
   emit(0xC7);
   emit(0xC0 | (dst.code() & 0x7));
   emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
@@ -518,9 +510,27 @@ void Assembler::movq(Register dst, Immediate value) {
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
+  emit_rex_64(dst);
   emit(0xB8 | (dst.code() & 0x7));
   emitq(value, rmode);
+}
+
+
+void Assembler::neg(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit(0xC0 | (0x3 << 3) | (dst.code() & 0x7));
+}
+
+
+void Assembler::neg(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit_operand(3, dst);
 }
 
 
@@ -531,11 +541,29 @@ void Assembler::nop() {
 }
 
 
+void Assembler::not_(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit(0xC0 | (0x2 << 3) | (dst.code() & 0x7));
+}
+
+
+void Assembler::not_(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit_operand(2, dst);
+}
+
+
 void Assembler::pop(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (dst.code() & 0x8) {
-    emit_rex_64(rax, dst);
+    emit_rex_64(dst);
   }
   emit(0x58 | (dst.code() & 0x7));
 }
@@ -544,9 +572,9 @@ void Assembler::pop(Register dst) {
 void Assembler::pop(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);  // Could be omitted in some cases.
+  emit_rex_64(dst);  // Could be omitted in some cases.
   emit(0x8F);
-  emit_operand(rax, dst);
+  emit_operand(0, dst);
 }
 
 
@@ -554,7 +582,7 @@ void Assembler::push(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (src.code() & 0x8) {
-    emit_rex_64(rax, src);
+    emit_rex_64(src);
   }
   emit(0x50 | (src.code() & 0x7));
 }
@@ -563,9 +591,9 @@ void Assembler::push(Register src) {
 void Assembler::push(const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rsi, src);  // Could be omitted in some cases.
+  emit_rex_64(src);  // Could be omitted in some cases.
   emit(0xFF);
-  emit_operand(rsi, src);
+  emit_operand(6, src);
 }
 
 
@@ -581,6 +609,127 @@ void Assembler::ret(int imm16) {
     emit((imm16 >> 8) & 0xFF);
   }
 }
+
+
+void Assembler::testb(Register reg, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (reg.is(rax)) {
+    emit(0xA8);
+    emit(mask);
+  } else {
+    if (reg.code() & 0x8) {
+      emit_rex_32(rax, reg);
+    }
+    emit(0xF6);
+    emit(0xC0 | (reg.code() & 0x3));
+    emit(mask.value_);  // Low byte emitted.
+  }
+}
+
+
+void Assembler::testb(const Operand& op, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(rax, op);
+  emit(0xF6);
+  emit_operand(rax, op);  // Operation code 0
+  emit(mask.value_);  // Low byte emitted.
+}
+
+
+void Assembler::testl(Register reg, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (reg.is(rax)) {
+    emit(0xA9);
+    emit(mask);
+  } else {
+    emit_optional_rex_32(rax, reg);
+    emit(0xF7);
+    emit(0xC0 | (reg.code() & 0x3));
+    emit(mask);
+  }
+}
+
+
+void Assembler::testl(const Operand& op, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(rax, op);
+  emit(0xF7);
+  emit_operand(rax, op);  // Operation code 0
+  emit(mask);
+}
+
+
+// Relocation information implementations
+
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  ASSERT(rmode != RelocInfo::NONE);
+  // Don't record external references unless the heap will be serialized.
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+      !Serializer::enabled() &&
+      !FLAG_debug_code) {
+    return;
+  }
+  RelocInfo rinfo(pc_, rmode, data);
+  reloc_info_writer.Write(&rinfo);
+}
+
+void Assembler::RecordJSReturn() {
+  WriteRecordedPositions();
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(RelocInfo::JS_RETURN);
+}
+
+
+void Assembler::RecordComment(const char* msg) {
+  if (FLAG_debug_code) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
+  }
+}
+
+
+void Assembler::RecordPosition(int pos) {
+  ASSERT(pos != RelocInfo::kNoPosition);
+  ASSERT(pos >= 0);
+  current_position_ = pos;
+}
+
+
+void Assembler::RecordStatementPosition(int pos) {
+  ASSERT(pos != RelocInfo::kNoPosition);
+  ASSERT(pos >= 0);
+  current_statement_position_ = pos;
+}
+
+
+void Assembler::WriteRecordedPositions() {
+  // Write the statement position if it is different from what was written last
+  // time.
+  if (current_statement_position_ != written_statement_position_) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
+    written_statement_position_ = current_statement_position_;
+  }
+
+  // Write the position if it is different from what was written last time and
+  // also different from the written statement position.
+  if (current_position_ != written_position_ &&
+      current_position_ != written_statement_position_) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, current_position_);
+    written_position_ = current_position_;
+  }
+}
+
+
+const int RelocInfo::kApplyMask =
+  RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
+    1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE;
+
 
 } }  // namespace v8::internal
 
@@ -731,8 +880,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
   UNIMPLEMENTED();
   return NULL;
 }
-
-const int RelocInfo::kApplyMask = -1;
 
 StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {
   UNIMPLEMENTED();

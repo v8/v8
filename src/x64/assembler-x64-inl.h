@@ -56,7 +56,7 @@ void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
 
 
 // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W is set.
+// REX.W is set.  REX.X is cleared.
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
@@ -67,6 +67,39 @@ void Assembler::emit_rex_64(Register reg, Register rm_reg) {
 // is used for REX.X.  REX.W is set.
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
+}
+
+
+// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+// REX.W is set.  REX.X is cleared.
+void Assembler::emit_rex_32(Register reg, Register rm_reg) {
+  emit(0x40 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+}
+
+
+// The high bit of reg is used for REX.R, the high bit of op's base
+// register is used for REX.B, and the high bit of op's index register
+// is used for REX.X.  REX.W is cleared.
+void Assembler::emit_rex_32(Register reg, const Operand& op) {
+  emit(0x40 | (reg.code() & 0x8) >> 1 | op.rex_);
+}
+
+
+// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+// REX.W and REX.X are cleared.  If no REX bits are set, no byte is emitted.
+void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
+  byte rex_bits = (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3;
+  if (rex_bits) emit(0x40 | rex_bits);
+}
+
+
+// The high bit of reg is used for REX.R, the high bit of op's base
+// register is used for REX.B, and the high bit of op's index register
+// is used for REX.X.  REX.W is cleared.  If no REX bits are set, nothing
+// is emitted.
+void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
+  byte rex_bits =  (reg.code() & 0x8) >> 1 | op.rex_;
+  if (rex_bits) emit(0x40 | rex_bits);
 }
 
 
