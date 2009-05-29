@@ -588,31 +588,13 @@ Object* Execution::DebugBreakHelper() {
     return Heap::undefined_value();
   }
 
-  // Don't break in system functions. If the current function is
-  // either in the builtins object of some context or is in the debug
-  // context just return with the debug break stack guard active.
-  JavaScriptFrameIterator it;
-  JavaScriptFrame* frame = it.frame();
-  Object* fun = frame->function();
-  if (fun->IsJSFunction()) {
-    GlobalObject* global = JSFunction::cast(fun)->context()->global();
-    if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
-      return Heap::undefined_value();
-    }
-  }
-
-  // Check for debug command break only.
+  // Collect the break state before clearing the flags.
   bool debug_command_only =
       StackGuard::IsDebugCommand() && !StackGuard::IsDebugBreak();
 
   // Clear the debug request flags.
   StackGuard::Continue(DEBUGBREAK);
   StackGuard::Continue(DEBUGCOMMAND);
-
-  // If debug command only and already in debugger ignore it.
-  if (debug_command_only && Debug::InDebugger()) {
-    return Heap::undefined_value();
-  }
 
   HandleScope scope;
   // Enter the debugger. Just continue if we fail to enter the debugger.
@@ -621,7 +603,8 @@ Object* Execution::DebugBreakHelper() {
     return Heap::undefined_value();
   }
 
-  // Notify the debug event listeners.
+  // Notify the debug event listeners. Indicate auto continue if the break was
+  // a debug command break.
   Debugger::OnDebugBreak(Factory::undefined_value(), debug_command_only);
 
   // Return to continue execution.

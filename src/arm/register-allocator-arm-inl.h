@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,71 +25,79 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
+#define V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
 
-#ifndef V8_CODEGEN_INL_H_
-#define V8_CODEGEN_INL_H_
-
-#include "codegen.h"
-#include "register-allocator-inl.h"
+#include "v8.h"
 
 namespace v8 {
 namespace internal {
 
+// -------------------------------------------------------------------------
+// RegisterAllocator implementation.
 
-void DeferredCode::SetEntryFrame(Result* arg) {
-  ASSERT(cgen()->has_valid_frame());
-  cgen()->frame()->Push(arg);
-  enter()->set_entry_frame(new VirtualFrame(cgen()->frame()));
-  *arg = cgen()->frame()->Pop();
+bool RegisterAllocator::IsReserved(Register reg) {
+  return reg.is(cp) || reg.is(fp) || reg.is(sp) || reg.is(pc);
 }
 
 
-void DeferredCode::SetEntryFrame(Result* arg0, Result* arg1) {
-  ASSERT(cgen()->has_valid_frame());
-  cgen()->frame()->Push(arg0);
-  cgen()->frame()->Push(arg1);
-  enter()->set_entry_frame(new VirtualFrame(cgen()->frame()));
-  *arg1 = cgen()->frame()->Pop();
-  *arg0 = cgen()->frame()->Pop();
-}
 
-
-// -----------------------------------------------------------------------------
-// Support for "structured" code comments.
+// The register allocator uses small integers to represent the
+// non-reserved assembler registers.  The mapping is:
 //
-// By selecting matching brackets in disassembler output,
-// code segments can be identified more easily.
+// r0 <-> 0
+// r1 <-> 1
+// r2 <-> 2
+// r3 <-> 3
+// r4 <-> 4
+// r5 <-> 5
+// r6 <-> 6
+// r7 <-> 7
+// r9 <-> 8
+// r10 <-> 9
+// ip <-> 10
+// lr <-> 11
 
-#ifdef DEBUG
+int RegisterAllocator::ToNumber(Register reg) {
+  ASSERT(reg.is_valid() && !IsReserved(reg));
+  static int numbers[] = {
+    0,   // r0
+    1,   // r1
+    2,   // r2
+    3,   // r3
+    4,   // r4
+    5,   // r5
+    6,   // r6
+    7,   // r7
+    -1,  // cp
+    8,   // r9
+    9,   // r10
+    -1,  // fp
+    10,  // ip
+    -1,  // sp
+    11,  // lr
+    -1   // pc
+  };
+  return numbers[reg.code()];
+}
 
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler* masm, const char* msg)
-    : masm_(masm),
-      msg_(msg) {
-    masm_->RecordComment(msg);
-  }
 
-  ~Comment() {
-    if (msg_[0] == '[')
-      masm_->RecordComment("]");
-  }
+Register RegisterAllocator::ToRegister(int num) {
+  ASSERT(num >= 0 && num < kNumRegisters);
+  static Register registers[] =
+      { r0, r1, r2, r3, r4, r5, r6, r7, r9, r10, ip, lr };
+  return registers[num];
+}
 
- private:
-  MacroAssembler* masm_;
-  const char* msg_;
-};
 
-#else
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler*, const char*)  {}
-};
-
-#endif  // DEBUG
+void RegisterAllocator::Initialize() {
+  Reset();
+  // The non-reserved r1 and lr registers are live on JS function entry.
+  Use(r1);  // JS function.
+  Use(lr);  // Return address.
+}
 
 
 } }  // namespace v8::internal
 
-#endif  // V8_CODEGEN_INL_H_
+#endif  // V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_

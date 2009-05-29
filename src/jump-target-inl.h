@@ -38,7 +38,7 @@ CodeGenerator* JumpTarget::cgen() {
 void JumpTarget::InitializeEntryElement(int index, FrameElement* target) {
   entry_frame_->elements_[index].clear_copied();
   if (target->is_register()) {
-    entry_frame_->register_locations_[target->reg().code()] = index;
+    entry_frame_->set_register_location(target->reg(), index);
   } else if (target->is_copy()) {
     entry_frame_->elements_[target->index()].set_copied();
   }

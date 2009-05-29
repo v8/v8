@@ -38,7 +38,7 @@ namespace internal {
 
 
 Result::Result(Register reg) {
-  ASSERT(reg.is_valid());
+  ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
   CodeGeneratorScope::Current()->allocator()->Use(reg);
   value_ = StaticTypeField::encode(StaticType::UNKNOWN_TYPE)
       | TypeField::encode(REGISTER)
@@ -47,7 +47,7 @@ Result::Result(Register reg) {
 
 
 Result::Result(Register reg, StaticType type) {
-  ASSERT(reg.is_valid());
+  ASSERT(reg.is_valid() && !RegisterAllocator::IsReserved(reg));
   CodeGeneratorScope::Current()->allocator()->Use(reg);
   value_ = StaticTypeField::encode(type.static_type_)
       | TypeField::encode(REGISTER)
@@ -61,12 +61,11 @@ Result::Result(Register reg, StaticType type) {
 
 Result RegisterAllocator::AllocateWithoutSpilling() {
   // Return the first free register, if any.
-  int free_reg = registers_.ScanForFreeRegister();
-  if (free_reg < kNumRegisters) {
-    Register free_result = { free_reg };
-    return Result(free_result);
+  int num = registers_.ScanForFreeRegister();
+  if (num == RegisterAllocator::kInvalidRegister) {
+    return Result();
   }
-  return Result();
+  return Result(RegisterAllocator::ToRegister(num));
 }
 
 

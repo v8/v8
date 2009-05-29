@@ -80,7 +80,7 @@ void JumpTarget::DoBranch(Condition cc, Hint ignored) {
     // branch.
     VirtualFrame* fall_through_frame = cgen()->frame();
     VirtualFrame* branch_frame = new VirtualFrame(fall_through_frame);
-    RegisterFile non_frame_registers = RegisterAllocator::Reserved();
+    RegisterFile non_frame_registers;
     cgen()->SetFrame(branch_frame, &non_frame_registers);
 
     // Check if we can avoid merge code.
@@ -163,8 +163,7 @@ void JumpTarget::DoBind(int mergable_elements) {
       // virtual frame before the bind.  Afterward, it should not.
       ASSERT(cgen()->has_valid_frame());
       VirtualFrame* frame = cgen()->frame();
-      int difference =
-          frame->stack_pointer_ - (frame->elements_.length() - 1);
+      int difference = frame->stack_pointer_ - (frame->element_count() - 1);
       if (difference > 0) {
         frame->stack_pointer_ -= difference;
         __ add(sp, sp, Operand(difference * kPointerSize));
@@ -179,15 +178,14 @@ void JumpTarget::DoBind(int mergable_elements) {
       // Pick up the only reaching frame, take ownership of it, and
       // use it for the block about to be emitted.
       VirtualFrame* frame = reaching_frames_[0];
-      RegisterFile reserved = RegisterAllocator::Reserved();
-      cgen()->SetFrame(frame, &reserved);
+      RegisterFile empty;
+      cgen()->SetFrame(frame, &empty);
       reaching_frames_[0] = NULL;
       __ bind(&merge_labels_[0]);
 
       // The stack pointer can be floating above the top of the
       // virtual frame before the bind.  Afterward, it should not.
-      int difference =
-          frame->stack_pointer_ - (frame->elements_.length() - 1);
+      int difference = frame->stack_pointer_ - (frame->element_count() - 1);
       if (difference > 0) {
         frame->stack_pointer_ -= difference;
         __ add(sp, sp, Operand(difference * kPointerSize));
@@ -247,11 +245,11 @@ void JumpTarget::DoBind(int mergable_elements) {
           }
           // Pick up the frame for this block.  Assume ownership if
           // there cannot be backward jumps.
-          RegisterFile reserved = RegisterAllocator::Reserved();
+          RegisterFile empty;
           if (direction_ == BIDIRECTIONAL) {
-            cgen()->SetFrame(new VirtualFrame(frame), &reserved);
+            cgen()->SetFrame(new VirtualFrame(frame), &empty);
           } else {
-            cgen()->SetFrame(frame, &reserved);
+            cgen()->SetFrame(frame, &empty);
             reaching_frames_[i] = NULL;
           }
           __ bind(&merge_labels_[i]);
@@ -274,8 +272,8 @@ void JumpTarget::DoBind(int mergable_elements) {
           // If this is the fall through, and it didn't need merge
           // code, we need to pick up the frame so we can jump around
           // subsequent merge blocks if necessary.
-          RegisterFile reserved = RegisterAllocator::Reserved();
-          cgen()->SetFrame(frame, &reserved);
+          RegisterFile empty;
+          cgen()->SetFrame(frame, &empty);
           reaching_frames_[i] = NULL;
         }
       }
@@ -285,8 +283,8 @@ void JumpTarget::DoBind(int mergable_elements) {
     // fall through and none of the reaching frames needed merging.
     // In that case, clone the entry frame as the current frame.
     if (!cgen()->has_valid_frame()) {
-      RegisterFile reserved_registers = RegisterAllocator::Reserved();
-      cgen()->SetFrame(new VirtualFrame(entry_frame_), &reserved_registers);
+      RegisterFile empty;
+      cgen()->SetFrame(new VirtualFrame(entry_frame_), &empty);
     }
 
     // There may be unprocessed reaching frames that did not need
@@ -311,8 +309,8 @@ void JumpTarget::DoBind(int mergable_elements) {
 
     // Use a copy of the reaching frame so the original can be saved
     // for possible reuse as a backward merge block.
-    RegisterFile reserved = RegisterAllocator::Reserved();
-    cgen()->SetFrame(new VirtualFrame(reaching_frames_[0]), &reserved);
+    RegisterFile empty;
+    cgen()->SetFrame(new VirtualFrame(reaching_frames_[0]), &empty);
     __ bind(&merge_labels_[0]);
     cgen()->frame()->MergeTo(entry_frame_);
   }

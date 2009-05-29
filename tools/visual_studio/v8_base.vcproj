@@ -545,6 +545,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\log-utils.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\log-utils.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\ia32\macro-assembler-ia32.cc"
 				>
 			</File>

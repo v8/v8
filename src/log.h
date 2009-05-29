@@ -220,6 +220,12 @@ class Logger {
 
  private:
 
+  // Profiler's sampling interval (in milliseconds).
+  static const int kSamplingIntervalMs = 1;
+
+  // Emits the profiler's first message.
+  static void ProfilerBeginEvent();
+
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
 
@@ -230,6 +236,9 @@ class Logger {
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
   static void UncheckedStringEvent(const char* name, const char* value);
+
+  // Stops logging and profiling in case of insufficient resources.
+  static void StopLoggingAndProfiling();
 
   // Returns whether profiler's sampler is active.
   static bool IsProfilerSamplerActive();

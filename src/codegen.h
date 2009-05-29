@@ -52,7 +52,6 @@
 //   CodeGenerator
 //   ~CodeGenerator
 //   ProcessDeferred
-//   ClearDeferred
 //   GenCode
 //   BuildBoilerplate
 //   ComputeCallInitialize
@@ -116,33 +115,17 @@ class CodeGeneratorScope BASE_EMBEDDED {
 };
 
 
-// Use lazy compilation; defaults to true.
-// NOTE: Do not remove non-lazy compilation until we can properly
-//       install extensions with lazy compilation enabled. At the
-//       moment, this doesn't work for the extensions in Google3,
-//       and we can only run the tests with --nolazy.
-
-
 // Deferred code objects are small pieces of code that are compiled
 // out of line. They are used to defer the compilation of uncommon
 // paths thereby avoiding expensive jumps around uncommon code parts.
 class DeferredCode: public ZoneObject {
  public:
-  explicit DeferredCode(CodeGenerator* generator);
+  DeferredCode();
   virtual ~DeferredCode() { }
 
   virtual void Generate() = 0;
 
-  // Unuse the entry and exit targets, deallocating all virtual frames
-  // held by them.  It will be impossible to emit a (correct) jump
-  // into or out of the deferred code after clearing.
-  void Clear() {
-    enter_.Unuse();
-    exit_.Unuse();
-  }
-
-  MacroAssembler* masm() const { return masm_; }
-  CodeGenerator* generator() const { return generator_; }
+  CodeGenerator* cgen() const { return CodeGeneratorScope::Current(); }
 
   // Set the virtual frame for entry to the deferred code as a
   // snapshot of the code generator's current frame (plus additional
@@ -169,13 +152,11 @@ class DeferredCode: public ZoneObject {
   void set_comment(const char* comment) { comment_ = comment; }
   const char* comment() const { return comment_; }
 #else
-  inline void set_comment(const char* comment) { }
+  void set_comment(const char* comment) { }
   const char* comment() const { return ""; }
 #endif
 
  protected:
-  CodeGenerator* const generator_;
-  MacroAssembler* const masm_;
   JumpTarget enter_;
   JumpTarget exit_;
 

@@ -57,6 +57,7 @@ TEST(GetMessages) {
   memset(log_lines, 0, sizeof(log_lines));
   // A bit more than the first line length.
   CHECK_EQ(line_1_len, Logger::GetLogLines(0, log_lines, line_1_len + 3));
+  log_lines[line_1_len] = '\0';
   CHECK_EQ(line_1, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   const char* line_2 = "cccc,\"dddd\"\n";
@@ -165,9 +166,11 @@ static int CheckThatProfilerWorks(int log_pos) {
                   "for (var i = 0; i < 1000; ++i) { "
                   "(function(x) { return %d * x; })(i); }",
                   log_pos);
-  // Run code for 100 msecs to get some ticks.
-  const int64_t started_us = i::OS::Ticks();
-  while (i::OS::Ticks() - started_us < 100 * 1000) {
+  // Run code for 200 msecs to get some ticks. Use uint to always have
+  // non-negative delta.
+  const uint64_t started_us = i::OS::Ticks();
+  uint64_t delta;
+  while ((delta = i::OS::Ticks() - started_us) < 200 * 1000) {
     CompileAndRunScript(script_src.start());
   }
 

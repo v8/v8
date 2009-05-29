@@ -28,15 +28,49 @@
 #include "v8.h"
 
 #include "macro-assembler.h"
+#include "serialize.h"
 
 namespace v8 {
 namespace internal {
 
-Register no_reg = { -1 };
+// -----------------------------------------------------------------------------
+// Implementation of Register
+
 Register rax = { 0 };
 Register rcx = { 1 };
-Register rsi = { 7 };
+Register rdx = { 2 };
+Register rbx = { 3 };
+Register rsp = { 4 };
+Register rbp = { 5 };
+Register rsi = { 6 };
+Register rdi = { 7 };
+Register r8 = { 8 };
+Register r9 = { 9 };
+Register r10 = { 10 };
+Register r11 = { 11 };
+Register r12 = { 12 };
+Register r13 = { 13 };
+Register r14 = { 14 };
+Register r15 = { 15 };
 
+Register no_reg = { -1 };
+
+XMMRegister xmm0 = { 0 };
+XMMRegister xmm1 = { 1 };
+XMMRegister xmm2 = { 2 };
+XMMRegister xmm3 = { 3 };
+XMMRegister xmm4 = { 4 };
+XMMRegister xmm5 = { 5 };
+XMMRegister xmm6 = { 6 };
+XMMRegister xmm7 = { 7 };
+XMMRegister xmm8 = { 8 };
+XMMRegister xmm9 = { 9 };
+XMMRegister xmm10 = { 10 };
+XMMRegister xmm11 = { 11 };
+XMMRegister xmm12 = { 12 };
+XMMRegister xmm13 = { 13 };
+XMMRegister xmm14 = { 14 };
+XMMRegister xmm15 = { 15 };
 
 // Safe default is no features.
 uint64_t CpuFeatures::supported_ = 0;
@@ -48,10 +82,6 @@ void CpuFeatures::Probe()  {
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
-
-// Emit a single byte. Must always be inlined.
-#define EMIT(x)                                 \
-  *pc_++ = (x)
 
 #ifdef GENERATED_CODE_COVERAGE
 static void InitCoverageLog();
@@ -144,21 +174,33 @@ void Assembler::Align(int m) {
   }
 }
 
-void Assembler::RecordComment(char const* a) {
-  UNIMPLEMENTED();
+
+void Assembler::bind_to(Label* L, int pos) {
+  ASSERT(!L->is_bound());  // Label may only be bound once.
+  last_pc_ = NULL;
+  ASSERT(0 <= pos && pos <= pc_offset());  // Position must be valid.
+  if (L->is_linked()) {
+    int current = L->pos();
+    int next = long_at(current);
+    while (next != current) {
+      // relative address, relative to point after address
+      int imm32 = pos - (current + sizeof(int32_t));
+      long_at_put(current, imm32);
+      current = next;
+      next = long_at(next);
+    }
+    // Fix up last fixup on linked list.
+    int last_imm32 = pos - (current + sizeof(int32_t));
+    long_at_put(current, last_imm32);
+  }
+  L->bind_to(pos);
 }
 
-void Assembler::RecordPosition(int a) {
-  UNIMPLEMENTED();
+
+void Assembler::bind(Label* L) {
+  bind_to(L, pc_offset());
 }
 
-void Assembler::RecordStatementPosition(int a) {
-  UNIMPLEMENTED();
-}
-
-void Assembler::bind(Label* a) {
-  UNIMPLEMENTED();
-}
 
 void Assembler::GrowBuffer() {
   ASSERT(overflow());  // should not call this otherwise
@@ -242,114 +284,297 @@ void Assembler::emit_operand(Register reg, const Operand& adr) {
 }
 
 
-void Assembler::add(Register dst, const Operand& src) {
+// Assembler Instruction implementations
+
+void Assembler::arithmetic_op(byte opcode, Register reg, const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(dst, src);
-  EMIT(0x03);
-  emit_operand(dst, src);
+  emit_rex_64(reg, op);
+  emit(opcode);
+  emit_operand(reg, op);
 }
 
 
-void Assembler::add(Register dst, Register src) {
+void Assembler::arithmetic_op(byte opcode, Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst, src);
-  EMIT(0x03);
-  EMIT(0xC0 | (src.code() & 0x7) << 3 | (dst.code() & 0x7));
+  emit(opcode);
+  emit(0xC0 | (dst.code() & 0x7) << 3 | (src.code() & 0x7));
+}
+
+void Assembler::immediate_arithmetic_op(byte subcode,
+                                        Register dst,
+                                        Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  if (is_int8(src.value_)) {
+    emit(0x83);
+    emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
+    emit(src.value_);
+  } else if (dst.is(rax)) {
+    emit(0x05 | (subcode << 3));
+    emitl(src.value_);
+  } else {
+    emit(0x81);
+    emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
+    emitl(src.value_);
+  }
+}
+
+void Assembler::immediate_arithmetic_op(byte subcode,
+                                        const Operand& dst,
+                                        Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  if (is_int8(src.value_)) {
+    emit(0x83);
+    emit_operand(Register::toRegister(subcode), dst);
+    emit(src.value_);
+  } else {
+    emit(0x81);
+    emit_operand(Register::toRegister(subcode), dst);
+    emitl(src.value_);
+  }
+}
+
+
+void Assembler::call(Label* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // 1110 1000 #32-bit disp
+  emit(0xE8);
+  if (L->is_bound()) {
+    int offset = L->pos() - pc_offset() - sizeof(int32_t);
+    ASSERT(offset <= 0);
+    emitl(offset);
+  } else if (L->is_linked()) {
+    emitl(L->pos());
+    L->link_to(pc_offset() - sizeof(int32_t));
+  } else {
+    ASSERT(L->is_unused());
+    int32_t current = pc_offset();
+    emitl(current);
+    L->link_to(current);
+  }
 }
 
 
 void Assembler::dec(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rcx, dst);
-  EMIT(0xFF);
-  EMIT(0xC8 | (dst.code() & 0x7));
+  emit_rex_64(dst);
+  emit(0xFF);
+  emit(0xC8 | (dst.code() & 0x7));
 }
 
 
 void Assembler::dec(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
-  EMIT(0xFF);
-  emit_operand(rcx, dst);
+  emit_rex_64(dst);
+  emit(0xFF);
+  emit_operand(1, dst);
 }
 
 
 void Assembler::hlt() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xF4);
+  emit(0xF4);
 }
 
 
 void Assembler::inc(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
-  EMIT(0xFF);
-  EMIT(0xC0 | (dst.code() & 0x7));
+  emit_rex_64(dst);
+  emit(0xFF);
+  emit(0xC0 | (dst.code() & 0x7));
 }
 
 
 void Assembler::inc(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);
-  EMIT(0xFF);
-  emit_operand(rax, dst);
+  emit_rex_64(dst);
+  emit(0xFF);
+  emit_operand(0, dst);
 }
 
 
 void Assembler::int3() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xCC);
+  emit(0xCC);
 }
 
 
-void Assembler::mov(Register dst, const Operand& src) {
+void Assembler::j(Condition cc, Label* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(0 <= cc && cc < 16);
+  if (L->is_bound()) {
+    const int short_size = 2;
+    const int long_size  = 6;
+    int offs = L->pos() - pc_offset();
+    ASSERT(offs <= 0);
+    if (is_int8(offs - short_size)) {
+      // 0111 tttn #8-bit disp
+      emit(0x70 | cc);
+      emit((offs - short_size) & 0xFF);
+    } else {
+      // 0000 1111 1000 tttn #32-bit disp
+      emit(0x0F);
+      emit(0x80 | cc);
+      emitl(offs - long_size);
+    }
+  } else if (L->is_linked()) {
+    // 0000 1111 1000 tttn #32-bit disp
+    emit(0x0F);
+    emit(0x80 | cc);
+    emitl(L->pos());
+    L->link_to(pc_offset() - sizeof(int32_t));
+  } else {
+    ASSERT(L->is_unused());
+    emit(0x0F);
+    emit(0x80 | cc);
+    int32_t current = pc_offset();
+    emitl(current);
+    L->link_to(current);
+  }
+}
+
+
+void Assembler::jmp(Label* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (L->is_bound()) {
+    int offs = L->pos() - pc_offset() - 1;
+    ASSERT(offs <= 0);
+    if (is_int8(offs - sizeof(int8_t))) {
+      // 1110 1011 #8-bit disp
+      emit(0xEB);
+      emit((offs - sizeof(int8_t)) & 0xFF);
+    } else {
+      // 1110 1001 #32-bit disp
+      emit(0xE9);
+      emitl(offs - sizeof(int32_t));
+    }
+  } else  if (L->is_linked()) {
+    // 1110 1001 #32-bit disp
+    emit(0xE9);
+    emitl(L->pos());
+    L->link_to(pc_offset() - sizeof(int32_t));
+  } else {
+    // 1110 1001 #32-bit disp
+    ASSERT(L->is_unused());
+    emit(0xE9);
+    int32_t current = pc_offset();
+    emitl(current);
+    L->link_to(current);
+  }
+}
+
+
+void Assembler::movq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst, src);
-  EMIT(0x8B);
+  emit(0x8B);
   emit_operand(dst, src);
 }
 
 
-void Assembler::mov(Register dst, Register src) {
+void Assembler::movq(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst, src);
-  EMIT(0x89);
-  EMIT(0xC0 | (src.code() & 0x7) << 3 | (dst.code() & 0x7));
+  emit(0x8B);
+  emit(0xC0 | (dst.code() & 0x7) << 3 | (src.code() & 0x7));
+}
+
+
+void Assembler::movq(Register dst, Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xC7);
+  emit(0xC0 | (dst.code() & 0x7));
+  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
+}
+
+
+void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xB8 | (dst.code() & 0x7));
+  emitq(value, rmode);
+}
+
+
+void Assembler::neg(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit(0xC0 | (0x3 << 3) | (dst.code() & 0x7));
+}
+
+
+void Assembler::neg(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit_operand(3, dst);
 }
 
 
 void Assembler::nop() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0x90);
+  emit(0x90);
 }
+
+
+void Assembler::not_(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit(0xC0 | (0x2 << 3) | (dst.code() & 0x7));
+}
+
+
+void Assembler::not_(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xF7);
+  emit_operand(2, dst);
+}
+
 
 void Assembler::pop(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (dst.code() & 0x8) {
-    emit_rex_64(rax, dst);
+    emit_rex_64(dst);
   }
-  EMIT(0x58 | (dst.code() & 0x7));
+  emit(0x58 | (dst.code() & 0x7));
 }
 
 
 void Assembler::pop(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rax, dst);  // Could be omitted in some cases.
-  EMIT(0x8F);
-  emit_operand(rax, dst);
+  emit_rex_64(dst);  // Could be omitted in some cases.
+  emit(0x8F);
+  emit_operand(0, dst);
 }
 
 
@@ -357,18 +582,18 @@ void Assembler::push(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (src.code() & 0x8) {
-    emit_rex_64(rax, src);
+    emit_rex_64(src);
   }
-  EMIT(0x50 | (src.code() & 0x7));
+  emit(0x50 | (src.code() & 0x7));
 }
 
 
 void Assembler::push(const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(rsi, src);  // Could be omitted in some cases.
-  EMIT(0xFF);
-  emit_operand(rsi, src);
+  emit_rex_64(src);  // Could be omitted in some cases.
+  emit(0xFF);
+  emit_operand(6, src);
 }
 
 
@@ -377,13 +602,134 @@ void Assembler::ret(int imm16) {
   last_pc_ = pc_;
   ASSERT(is_uint16(imm16));
   if (imm16 == 0) {
-    EMIT(0xC3);
+    emit(0xC3);
   } else {
-    EMIT(0xC2);
-    EMIT(imm16 & 0xFF);
-    EMIT((imm16 >> 8) & 0xFF);
+    emit(0xC2);
+    emit(imm16 & 0xFF);
+    emit((imm16 >> 8) & 0xFF);
   }
 }
+
+
+void Assembler::testb(Register reg, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (reg.is(rax)) {
+    emit(0xA8);
+    emit(mask);
+  } else {
+    if (reg.code() & 0x8) {
+      emit_rex_32(rax, reg);
+    }
+    emit(0xF6);
+    emit(0xC0 | (reg.code() & 0x3));
+    emit(mask.value_);  // Low byte emitted.
+  }
+}
+
+
+void Assembler::testb(const Operand& op, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(rax, op);
+  emit(0xF6);
+  emit_operand(rax, op);  // Operation code 0
+  emit(mask.value_);  // Low byte emitted.
+}
+
+
+void Assembler::testl(Register reg, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (reg.is(rax)) {
+    emit(0xA9);
+    emit(mask);
+  } else {
+    emit_optional_rex_32(rax, reg);
+    emit(0xF7);
+    emit(0xC0 | (reg.code() & 0x3));
+    emit(mask);
+  }
+}
+
+
+void Assembler::testl(const Operand& op, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(rax, op);
+  emit(0xF7);
+  emit_operand(rax, op);  // Operation code 0
+  emit(mask);
+}
+
+
+// Relocation information implementations
+
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  ASSERT(rmode != RelocInfo::NONE);
+  // Don't record external references unless the heap will be serialized.
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+      !Serializer::enabled() &&
+      !FLAG_debug_code) {
+    return;
+  }
+  RelocInfo rinfo(pc_, rmode, data);
+  reloc_info_writer.Write(&rinfo);
+}
+
+void Assembler::RecordJSReturn() {
+  WriteRecordedPositions();
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(RelocInfo::JS_RETURN);
+}
+
+
+void Assembler::RecordComment(const char* msg) {
+  if (FLAG_debug_code) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
+  }
+}
+
+
+void Assembler::RecordPosition(int pos) {
+  ASSERT(pos != RelocInfo::kNoPosition);
+  ASSERT(pos >= 0);
+  current_position_ = pos;
+}
+
+
+void Assembler::RecordStatementPosition(int pos) {
+  ASSERT(pos != RelocInfo::kNoPosition);
+  ASSERT(pos >= 0);
+  current_statement_position_ = pos;
+}
+
+
+void Assembler::WriteRecordedPositions() {
+  // Write the statement position if it is different from what was written last
+  // time.
+  if (current_statement_position_ != written_statement_position_) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
+    written_statement_position_ = current_statement_position_;
+  }
+
+  // Write the position if it is different from what was written last time and
+  // also different from the written statement position.
+  if (current_position_ != written_position_ &&
+      current_position_ != written_statement_position_) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, current_position_);
+    written_position_ = current_position_;
+  }
+}
+
+
+const int RelocInfo::kApplyMask =
+  RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
+    1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE;
+
 
 } }  // namespace v8::internal
 
@@ -534,18 +880,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
   UNIMPLEMENTED();
   return NULL;
 }
-
-bool RegisterAllocator::IsReserved(int a) {
-  UNIMPLEMENTED();
-  return false;
-}
-
-RegisterFile RegisterAllocator::Reserved() {
-  UNIMPLEMENTED();
-  return RegisterFile();
-}
-
-const int RelocInfo::kApplyMask = -1;
 
 StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {
   UNIMPLEMENTED();

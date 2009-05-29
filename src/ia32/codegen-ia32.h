@@ -333,8 +333,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   Scope* scope() const { return scope_; }
 
-  // Clearing and generating deferred code.
-  void ClearDeferred();
+  // Generating deferred code.
   void ProcessDeferred();
 
   bool is_eval() { return is_eval_; }
@@ -580,8 +579,8 @@ class CodeGenerator: public AstVisitor {
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG
-  // True if the registers are valid for entry to a block.  There should be
-  // no frame-external references to eax, ebx, ecx, edx, or edi.
+  // True if the registers are valid for entry to a block.  There should
+  // be no frame-external references to (non-reserved) registers.
   bool HasValidEntryRegisters();
 #endif
 

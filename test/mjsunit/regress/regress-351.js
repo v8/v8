@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,71 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Should use index of 0 if provided index is negative.
+// See http://code.google.com/p/v8/issues/detail?id=351
 
-#ifndef V8_CODEGEN_INL_H_
-#define V8_CODEGEN_INL_H_
-
-#include "codegen.h"
-#include "register-allocator-inl.h"
-
-namespace v8 {
-namespace internal {
-
-
-void DeferredCode::SetEntryFrame(Result* arg) {
-  ASSERT(cgen()->has_valid_frame());
-  cgen()->frame()->Push(arg);
-  enter()->set_entry_frame(new VirtualFrame(cgen()->frame()));
-  *arg = cgen()->frame()->Pop();
-}
-
-
-void DeferredCode::SetEntryFrame(Result* arg0, Result* arg1) {
-  ASSERT(cgen()->has_valid_frame());
-  cgen()->frame()->Push(arg0);
-  cgen()->frame()->Push(arg1);
-  enter()->set_entry_frame(new VirtualFrame(cgen()->frame()));
-  *arg1 = cgen()->frame()->Pop();
-  *arg0 = cgen()->frame()->Pop();
-}
-
-
-// -----------------------------------------------------------------------------
-// Support for "structured" code comments.
-//
-// By selecting matching brackets in disassembler output,
-// code segments can be identified more easily.
-
-#ifdef DEBUG
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler* masm, const char* msg)
-    : masm_(masm),
-      msg_(msg) {
-    masm_->RecordComment(msg);
-  }
-
-  ~Comment() {
-    if (msg_[0] == '[')
-      masm_->RecordComment("]");
-  }
-
- private:
-  MacroAssembler* masm_;
-  const char* msg_;
-};
-
-#else
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler*, const char*)  {}
-};
-
-#endif  // DEBUG
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_CODEGEN_INL_H_
+assertEquals(0, "test".lastIndexOf("test", -1));

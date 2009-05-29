@@ -45,32 +45,24 @@ namespace internal {
 CodeGenerator* CodeGeneratorScope::top_ = NULL;
 
 
-DeferredCode::DeferredCode(CodeGenerator* generator)
-  : generator_(generator),
-    masm_(generator->masm()),
-    exit_(JumpTarget::BIDIRECTIONAL),
-    statement_position_(masm_->current_statement_position()),
-    position_(masm_->current_position()) {
-  generator->AddDeferred(this);
+DeferredCode::DeferredCode() : exit_(JumpTarget::BIDIRECTIONAL) {
+  MacroAssembler* masm = cgen()->masm();
+  statement_position_ = masm->current_statement_position();
+  position_ = masm->current_position();
   ASSERT(statement_position_ != RelocInfo::kNoPosition);
   ASSERT(position_ != RelocInfo::kNoPosition);
+
+  cgen()->AddDeferred(this);
 #ifdef DEBUG
   comment_ = "";
 #endif
 }
 
 
-void CodeGenerator::ClearDeferred() {
-  for (int i = 0; i < deferred_.length(); i++) {
-    deferred_[i]->Clear();
-  }
-}
-
-
 void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
-    MacroAssembler* masm = code->masm();
+    MacroAssembler* masm = code->cgen()->masm();
     // Record position of deferred code stub.
     masm->RecordStatementPosition(code->statement_position());
     if (code->position() != RelocInfo::kNoPosition) {
@@ -80,7 +72,6 @@ void CodeGenerator::ProcessDeferred() {
     Comment cmnt(masm, code->comment());
     code->Generate();
     ASSERT(code->enter()->is_bound());
-    code->Clear();
   }
 }
 
@@ -515,8 +506,8 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
     // frame.  Otherwise, we have to merge the existing one to the
     // start frame as part of the previous case.
     if (!has_valid_frame()) {
-      RegisterFile non_frame_registers = RegisterAllocator::Reserved();
-      SetFrame(new VirtualFrame(start_frame), &non_frame_registers);
+      RegisterFile empty;
+      SetFrame(new VirtualFrame(start_frame), &empty);
     } else {
       frame_->MergeTo(start_frame);
     }

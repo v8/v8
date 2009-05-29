@@ -32,6 +32,17 @@
 #include "register-allocator.h"
 #include "virtual-frame.h"
 
+#if V8_TARGET_ARCH_IA32
+#include "ia32/register-allocator-ia32-inl.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/register-allocator-x64-inl.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/register-allocator-arm-inl.h"
+#else
+#error Unsupported target architecture.
+#endif
+
+
 namespace v8 {
 namespace internal {
 

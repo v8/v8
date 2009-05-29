@@ -443,7 +443,7 @@ void Debug::ThreadInit() {
   thread_local_.step_into_fp_ = 0;
   thread_local_.after_break_target_ = 0;
   thread_local_.debugger_entry_ = NULL;
-  thread_local_.preemption_pending_ = false;
+  thread_local_.pending_interrupts_ = 0;
 }
 
 
@@ -727,7 +727,7 @@ void Debug::Unload() {
 // Set the flag indicating that preemption happened during debugging.
 void Debug::PreemptionWhileInDebugger() {
   ASSERT(InDebugger());
-  Debug::set_preemption_pending(true);
+  Debug::set_interrupts_pending(PREEMPT);
 }
 
 
@@ -1927,6 +1927,11 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
                                  bool auto_continue) {
   HandleScope scope;
 
+  // Clear any pending debug break if this is a real break.
+  if (!auto_continue) {
+    Debug::clear_interrupt_pending(DEBUGBREAK);
+  }
+
   // Create the execution state.
   bool caught_exception = false;
   Handle<Object> exec_state = MakeExecutionState(&caught_exception);
@@ -2034,7 +2039,12 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
         Handle<JSObject>::cast(event_data));
     InvokeMessageHandler(message);
   }
-  if (auto_continue && !HasCommands()) {
+
+  // If auto continue don't make the event cause a break, but process messages
+  // in the queue if any. For script collected events don't even process
+  // messages in the queue as the execution state might not be what is expected
+  // by the client.
+  if (auto_continue && !HasCommands() || event == v8::ScriptCollected) {
     return;
   }
 

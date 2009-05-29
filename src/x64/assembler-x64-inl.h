@@ -41,17 +41,65 @@ Condition NegateCondition(Condition cc) {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
 
-#define EMIT(x)                                 \
-  *pc_++ = (x)
 
 
-void Assembler::emit_rex_64(Register reg, Register rm_reg) {
-  EMIT(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+void Assembler::emitl(uint32_t x) {
+  Memory::uint32_at(pc_) = x;
+  pc_ += sizeof(uint32_t);
 }
 
 
+void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
+  Memory::uint64_at(pc_) = x;
+  RecordRelocInfo(rmode, x);
+}
+
+
+// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+// REX.W is set.  REX.X is cleared.
+void Assembler::emit_rex_64(Register reg, Register rm_reg) {
+  emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+}
+
+
+// The high bit of reg is used for REX.R, the high bit of op's base
+// register is used for REX.B, and the high bit of op's index register
+// is used for REX.X.  REX.W is set.
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
-  EMIT(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
+  emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
+}
+
+
+// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+// REX.W is set.  REX.X is cleared.
+void Assembler::emit_rex_32(Register reg, Register rm_reg) {
+  emit(0x40 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+}
+
+
+// The high bit of reg is used for REX.R, the high bit of op's base
+// register is used for REX.B, and the high bit of op's index register
+// is used for REX.X.  REX.W is cleared.
+void Assembler::emit_rex_32(Register reg, const Operand& op) {
+  emit(0x40 | (reg.code() & 0x8) >> 1 | op.rex_);
+}
+
+
+// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
+// REX.W and REX.X are cleared.  If no REX bits are set, no byte is emitted.
+void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
+  byte rex_bits = (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3;
+  if (rex_bits) emit(0x40 | rex_bits);
+}
+
+
+// The high bit of reg is used for REX.R, the high bit of op's base
+// register is used for REX.B, and the high bit of op's index register
+// is used for REX.X.  REX.W is cleared.  If no REX bits are set, nothing
+// is emitted.
+void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
+  byte rex_bits =  (reg.code() & 0x8) >> 1 | op.rex_;
+  if (rex_bits) emit(0x40 | rex_bits);
 }
 
 
@@ -64,8 +112,6 @@ byte* Assembler::target_address_at(byte* location) {
   UNIMPLEMENTED();
   return NULL;
 }
-
-#undef EMIT
 
 
 // -----------------------------------------------------------------------------
@@ -169,13 +215,32 @@ Object** RelocInfo::call_object_address() {
   return reinterpret_cast<Object**>(pc_ + 1);
 }
 
+// -----------------------------------------------------------------------------
+// Implementation of Operand
+
+Operand::Operand(Register base, int32_t disp) {
+  len_ = 1;
+  if (base.is(rsp) || base.is(r12)) {
+    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+    set_sib(times_1, rsp, base);
+  }
+
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    set_modrm(0, rsp);
+  } else if (is_int8(disp)) {
+    set_modrm(1, base);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, base);
+    set_disp32(disp);
+  }
+}
 
 void Operand::set_modrm(int mod, Register rm) {
   ASSERT((mod & -4) == 0);
   buf_[0] = mod << 6 | (rm.code() & 0x7);
   // Set REX.B to the high bit of rm.code().
   rex_ |= (rm.code() >> 3);
-  len_ = 1;
 }
 
 
@@ -189,19 +254,21 @@ void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   len_ = 2;
 }
 
+void Operand::set_disp8(int disp) {
+  ASSERT(is_int8(disp));
+  ASSERT(len_ == 1 || len_ == 2);
+  int8_t* p = reinterpret_cast<int8_t*>(&buf_[len_]);
+  *p = disp;
+  len_ += sizeof(int8_t);
+}
 
-void Operand::set_disp32(int32_t disp) {
+void Operand::set_disp32(int disp) {
   ASSERT(len_ == 1 || len_ == 2);
   int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
   *p = disp;
   len_ += sizeof(int32_t);
 }
 
-
-Operand::Operand(Register reg) {
-  // reg
-  set_modrm(3, reg);
-}
 
 } }  // namespace v8::internal
 

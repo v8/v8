@@ -1332,6 +1332,13 @@ int OldSpaceFreeList::Free(Address start, int size_in_bytes) {
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(size_in_bytes);
 
+  // We don't use the freelists in compacting mode.  This makes it more like a
+  // GC that only has mark-sweep-compact and doesn't have a mark-sweep
+  // collector.
+  if (FLAG_always_compact) {
+    return size_in_bytes;
+  }
+
   // Early return to drop too-small blocks on the floor (one or two word
   // blocks cannot hold a map pointer, a size field, and a pointer to the
   // next block in the free list).
@@ -1363,6 +1370,7 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
     if ((free_[index].head_node_ = node->next()) == NULL) RemoveSize(index);
     available_ -= size_in_bytes;
     *wasted_bytes = 0;
+    ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
     return node;
   }
   // Search the size list for the best fit.
@@ -1374,6 +1382,7 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
     *wasted_bytes = 0;
     return Failure::RetryAfterGC(size_in_bytes, owner_);
   }
+  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   int rem = cur - index;
   int rem_bytes = rem << kPointerSizeLog2;
   FreeListNode* cur_node = FreeListNode::FromAddress(free_[cur].head_node_);
@@ -1454,6 +1463,7 @@ void MapSpaceFreeList::Free(Address start) {
     Memory::Address_at(start + i) = kZapValue;
   }
 #endif
+  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(Map::kSize);
   node->set_next(head_);
@@ -1467,6 +1477,7 @@ Object* MapSpaceFreeList::Allocate() {
     return Failure::RetryAfterGC(Map::kSize, owner_);
   }
 
+  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
   FreeListNode* node = FreeListNode::FromAddress(head_);
   head_ = node->next();
   available_ -= Map::kSize;

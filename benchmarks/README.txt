@@ -52,3 +52,9 @@ memory management subsystem of the JavaScript engine.
 Furthermore, all the unused parts of the Prototype library were
 removed from the RayTrace benchmark. This does not affect the running
 of the benchmark.
+
+
+Changes from Version 4 to Version 5
+===================================
+
+Removed duplicate line in random seed code.

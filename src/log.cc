@@ -31,6 +31,7 @@
 
 #include "bootstrapper.h"
 #include "log.h"
+#include "log-utils.h"
 #include "macro-assembler.h"
 #include "platform.h"
 #include "serialize.h"
@@ -255,7 +256,7 @@ void Profiler::Engage() {
   // Register to get ticks.
   Logger::ticker_->SetProfiler(this);
 
-  LOG(UncheckedStringEvent("profiler", "begin"));
+  Logger::ProfilerBeginEvent();
 }
 
 
@@ -287,304 +288,6 @@ void Profiler::Run() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
-// Functions and data for performing output of log messages.
-class Log : public AllStatic {
- public:
-  // Opens stdout for logging.
-  static void OpenStdout();
-
-  // Opens file for logging.
-  static void OpenFile(const char* name);
-
-  // Opens memory buffer for logging.
-  static void OpenMemoryBuffer();
-
-  // Frees all resources acquired in Open... functions.
-  static void Close();
-
-  // See description in include/v8.h.
-  static int GetLogLines(int from_pos, char* dest_buf, int max_size);
-
-  // Returns whether logging is enabled.
-  static bool IsEnabled() {
-    return output_handle_ != NULL || output_buffer_ != NULL;
-  }
-
- private:
-  typedef int (*WritePtr)(const char* msg, int length);
-
-  // Initialization function called from Open... functions.
-  static void Init();
-
-  // Write functions assume that mutex_ is acquired by the caller.
-  static WritePtr Write;
-
-  // Implementation of writing to a log file.
-  static int WriteToFile(const char* msg, int length) {
-    ASSERT(output_handle_ != NULL);
-    int rv = fwrite(msg, 1, length, output_handle_);
-    ASSERT(length == rv);
-    return rv;
-  }
-
-  // Implementation of writing to a memory buffer.
-  static int WriteToMemory(const char* msg, int length) {
-    ASSERT(output_buffer_ != NULL);
-    ASSERT(output_buffer_write_pos_ >= output_buffer_);
-    if (output_buffer_write_pos_ + length
-        <= output_buffer_ + kOutputBufferSize) {
-      memcpy(output_buffer_write_pos_, msg, length);
-      output_buffer_write_pos_ += length;
-      return length;
-    } else {
-      // Memory buffer is full, ignore write.
-      return 0;
-    }
-  }
-
-  // When logging is active, either output_handle_ or output_buffer_ is used
-  // to store a pointer to log destination. If logging was opened via OpenStdout
-  // or OpenFile, then output_handle_ is used. If logging was opened
-  // via OpenMemoryBuffer, then output_buffer_ is used.
-  // mutex_ should be acquired before using output_handle_ or output_buffer_.
-  static FILE* output_handle_;
-
-  static char* output_buffer_;
-
-  // mutex_ is a Mutex used for enforcing exclusive
-  // access to the formatting buffer and the log file or log memory buffer.
-  static Mutex* mutex_;
-
-  // Size of buffer used for memory logging.
-  static const int kOutputBufferSize = 2 * 1024 * 1024;
-
-  // Writing position in a memory buffer.
-  static char* output_buffer_write_pos_;
-
-  // Size of buffer used for formatting log messages.
-  static const int kMessageBufferSize = 2048;
-
-  // Buffer used for formatting log messages. This is a singleton buffer and
-  // mutex_ should be acquired before using it.
-  static char* message_buffer_;
-
-  friend class LogMessageBuilder;
-};
-
-
-Log::WritePtr Log::Write = NULL;
-FILE* Log::output_handle_ = NULL;
-char* Log::output_buffer_ = NULL;
-Mutex* Log::mutex_ = NULL;
-char* Log::output_buffer_write_pos_ = NULL;
-char* Log::message_buffer_ = NULL;
-
-
-void Log::Init() {
-  mutex_ = OS::CreateMutex();
-  message_buffer_ = NewArray<char>(kMessageBufferSize);
-}
-
-
-void Log::OpenStdout() {
-  ASSERT(!IsEnabled());
-  output_handle_ = stdout;
-  Write = WriteToFile;
-  Init();
-}
-
-
-void Log::OpenFile(const char* name) {
-  ASSERT(!IsEnabled());
-  output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
-  Write = WriteToFile;
-  Init();
-}
-
-
-void Log::OpenMemoryBuffer() {
-  ASSERT(!IsEnabled());
-  output_buffer_ = NewArray<char>(kOutputBufferSize);
-  output_buffer_write_pos_ = output_buffer_;
-  Write = WriteToMemory;
-  Init();
-}
-
-
-void Log::Close() {
-  if (Write == WriteToFile) {
-    fclose(output_handle_);
-    output_handle_ = NULL;
-  } else if (Write == WriteToMemory) {
-    DeleteArray(output_buffer_);
-    output_buffer_ = NULL;
-  } else {
-    ASSERT(Write == NULL);
-  }
-  Write = NULL;
-
-  delete mutex_;
-  mutex_ = NULL;
-
-  DeleteArray(message_buffer_);
-  message_buffer_ = NULL;
-}
-
-
-int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
-  if (Write != WriteToMemory) return 0;
-  ASSERT(output_buffer_ != NULL);
-  ASSERT(output_buffer_write_pos_ >= output_buffer_);
-  ASSERT(from_pos >= 0);
-  ASSERT(max_size >= 0);
-  int actual_size = max_size;
-  char* buffer_read_pos = output_buffer_ + from_pos;
-  ScopedLock sl(mutex_);
-  if (actual_size == 0
-      || output_buffer_write_pos_ == output_buffer_
-      || buffer_read_pos >= output_buffer_write_pos_) {
-    // No data requested or can be returned.
-    return 0;
-  }
-  if (buffer_read_pos + actual_size > output_buffer_write_pos_) {
-    // Requested size overlaps with current writing position and
-    // needs to be truncated.
-    actual_size = output_buffer_write_pos_ - buffer_read_pos;
-    ASSERT(actual_size == 0 || buffer_read_pos[actual_size - 1] == '\n');
-  } else {
-    // Find previous log line boundary.
-    char* end_pos = buffer_read_pos + actual_size - 1;
-    while (end_pos >= buffer_read_pos && *end_pos != '\n') --end_pos;
-    actual_size = end_pos - buffer_read_pos + 1;
-  }
-  ASSERT(actual_size <= max_size);
-  if (actual_size > 0) {
-    memcpy(dest_buf, buffer_read_pos, actual_size);
-  }
-  return actual_size;
-}
-
-
-// Utility class for formatting log messages. It fills the message into the
-// static buffer in Log.
-class LogMessageBuilder BASE_EMBEDDED {
- public:
-  explicit LogMessageBuilder();
-  ~LogMessageBuilder() { }
-
-  void Append(const char* format, ...);
-  void Append(const char* format, va_list args);
-  void Append(const char c);
-  void Append(String* str);
-  void AppendDetailed(String* str, bool show_impl_info);
-
-  void WriteToLogFile();
-  void WriteCStringToLogFile(const char* str);
-
- private:
-  ScopedLock sl;
-  int pos_;
-};
-
-
-// Create a message builder starting from position 0. This acquires the mutex
-// in the logger as well.
-LogMessageBuilder::LogMessageBuilder(): sl(Log::mutex_), pos_(0) {
-  ASSERT(Log::message_buffer_ != NULL);
-}
-
-
-// Append string data to the log message.
-void LogMessageBuilder::Append(const char* format, ...) {
-  Vector<char> buf(Log::message_buffer_ + pos_,
-                   Log::kMessageBufferSize - pos_);
-  va_list args;
-  va_start(args, format);
-  Append(format, args);
-  va_end(args);
-  ASSERT(pos_ <= Log::kMessageBufferSize);
-}
-
-
-// Append string data to the log message.
-void LogMessageBuilder::Append(const char* format, va_list args) {
-  Vector<char> buf(Log::message_buffer_ + pos_,
-                   Log::kMessageBufferSize - pos_);
-  int result = v8::internal::OS::VSNPrintF(buf, format, args);
-
-  // Result is -1 if output was truncated.
-  if (result >= 0) {
-    pos_ += result;
-  } else {
-    pos_ = Log::kMessageBufferSize;
-  }
-  ASSERT(pos_ <= Log::kMessageBufferSize);
-}
-
-
-// Append a character to the log message.
-void LogMessageBuilder::Append(const char c) {
-  if (pos_ < Log::kMessageBufferSize) {
-    Log::message_buffer_[pos_++] = c;
-  }
-  ASSERT(pos_ <= Log::kMessageBufferSize);
-}
-
-
-// Append a heap string.
-void LogMessageBuilder::Append(String* str) {
-  AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
-  int length = str->length();
-  for (int i = 0; i < length; i++) {
-    Append(static_cast<char>(str->Get(i)));
-  }
-}
-
-void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
-  AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
-  int len = str->length();
-  if (len > 0x1000)
-    len = 0x1000;
-  if (show_impl_info) {
-    Append(str->IsAsciiRepresentation() ? 'a' : '2');
-    if (StringShape(str).IsExternal())
-      Append('e');
-    if (StringShape(str).IsSymbol())
-      Append('#');
-    Append(":%i:", str->length());
-  }
-  for (int i = 0; i < len; i++) {
-    uc32 c = str->Get(i);
-    if (c > 0xff) {
-      Append("\\u%04x", c);
-    } else if (c < 32 || c > 126) {
-      Append("\\x%02x", c);
-    } else if (c == ',') {
-      Append("\\,");
-    } else if (c == '\\') {
-      Append("\\\\");
-    } else {
-      Append("%lc", c);
-    }
-  }
-}
-
-// Write the log message to the log file currently opened.
-void LogMessageBuilder::WriteToLogFile() {
-  ASSERT(pos_ <= Log::kMessageBufferSize);
-  Log::Write(Log::message_buffer_, pos_);
-}
-
-// Write a null-terminated string to to the log file currently opened.
-void LogMessageBuilder::WriteCStringToLogFile(const char* str) {
-  int len = strlen(str);
-  Log::Write(str, len);
-}
-#endif
-
-
 //
 // Logger class implementation.
 //
@@ -597,6 +300,14 @@ SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 bool Logger::IsEnabled() {
   return Log::IsEnabled();
+}
+
+
+void Logger::ProfilerBeginEvent() {
+  if (!Log::IsEnabled()) return;
+  LogMessageBuilder msg;
+  msg.Append("profiler,\"begin\",%d\n", kSamplingIntervalMs);
+  msg.WriteToLogFile();
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
@@ -1106,16 +817,23 @@ bool Logger::IsProfilerPaused() {
 
 
 void Logger::PauseProfiler() {
+  if (profiler_->paused()) {
+    return;
+  }
   profiler_->pause();
   if (FLAG_prof_lazy) {
     if (!FLAG_sliding_state_window) ticker_->Stop();
     FLAG_log_code = false;
+    // Must be the same message as Log::kDynamicBufferSeal.
     LOG(UncheckedStringEvent("profiler", "pause"));
   }
 }
 
 
 void Logger::ResumeProfiler() {
+  if (!profiler_->paused() || !Log::IsEnabled()) {
+    return;
+  }
   if (FLAG_prof_lazy) {
     LOG(UncheckedStringEvent("profiler", "resume"));
     FLAG_log_code = true;
@@ -1123,6 +841,14 @@ void Logger::ResumeProfiler() {
     if (!FLAG_sliding_state_window) ticker_->Start();
   }
   profiler_->resume();
+}
+
+
+// This function can be called when Log's mutex is acquired,
+// either from main or Profiler's thread.
+void Logger::StopLoggingAndProfiling() {
+  Log::stop();
+  PauseProfiler();
 }
 
 
@@ -1279,7 +1005,8 @@ bool Logger::Setup() {
   // as log is initialized early with V8, we can assume that JS execution
   // frames can never reach this point on stack
   int stack_var;
-  ticker_ = new Ticker(1, reinterpret_cast<uintptr_t>(&stack_var));
+  ticker_ = new Ticker(
+      kSamplingIntervalMs, reinterpret_cast<uintptr_t>(&stack_var));
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();
@@ -1292,6 +1019,8 @@ bool Logger::Setup() {
     profiler_->Engage();
   }
 
+  LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);
+
   return true;
 
 #else
@@ -1302,6 +1031,8 @@ bool Logger::Setup() {
 
 void Logger::TearDown() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  LogMessageBuilder::set_write_failure_handler(NULL);
+
   // Stop the profiler before closing the file.
   if (profiler_ != NULL) {
     profiler_->Disengage();

@@ -4189,6 +4189,11 @@ OutSet* DispatchTable::Get(uc16 value) {
 
 
 void Analysis::EnsureAnalyzed(RegExpNode* that) {
+  StackLimitCheck check;
+  if (check.HasOverflowed()) {
+    fail("Stack overflow");
+    return;
+  }
   if (that->info()->been_analyzed || that->info()->being_analyzed)
     return;
   that->info()->being_analyzed = true;
@@ -4226,16 +4231,20 @@ void Analysis::VisitText(TextNode* that) {
     that->MakeCaseIndependent();
   }
   EnsureAnalyzed(that->on_success());
-  that->CalculateOffsets();
+  if (!has_failed()) {
+    that->CalculateOffsets();
+  }
 }
 
 
 void Analysis::VisitAction(ActionNode* that) {
   RegExpNode* target = that->on_success();
   EnsureAnalyzed(target);
-  // If the next node is interested in what it follows then this node
-  // has to be interested too so it can pass the information on.
-  that->info()->AddFromFollowing(target->info());
+  if (!has_failed()) {
+    // If the next node is interested in what it follows then this node
+    // has to be interested too so it can pass the information on.
+    that->info()->AddFromFollowing(target->info());
+  }
 }
 
 
@@ -4244,6 +4253,7 @@ void Analysis::VisitChoice(ChoiceNode* that) {
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
     EnsureAnalyzed(node);
+    if (has_failed()) return;
     // Anything the following nodes need to know has to be known by
     // this node also, so it can pass it on.
     info->AddFromFollowing(node->info());
@@ -4257,13 +4267,16 @@ void Analysis::VisitLoopChoice(LoopChoiceNode* that) {
     RegExpNode* node = that->alternatives()->at(i).node();
     if (node != that->loop_node()) {
       EnsureAnalyzed(node);
+      if (has_failed()) return;
       info->AddFromFollowing(node->info());
     }
   }
   // Check the loop last since it may need the value of this node
   // to get a correct result.
   EnsureAnalyzed(that->loop_node());
-  info->AddFromFollowing(that->loop_node()->info());
+  if (!has_failed()) {
+    info->AddFromFollowing(that->loop_node()->info());
+  }
 }
 
 
@@ -4435,6 +4448,10 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
   data->node = node;
   Analysis analysis(ignore_case);
   analysis.EnsureAnalyzed(node);
+  if (analysis.has_failed()) {
+    const char* error_message = analysis.error_message();
+    return CompilationResult(error_message);
+  }
 
   NodeInfo info = *node->info();
 

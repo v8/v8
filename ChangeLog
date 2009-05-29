@@ -1,3 +1,25 @@
+2009-05-29: Version 1.2.6
+
+        Added a histogram recording hit rates at different levels of the
+        compilation cache.
+
+        Added stack overflow check for the RegExp analysis phase. Previously a
+        very long regexp graph could overflow the stack with recursive calls.
+
+        Use a dynamic buffer when collecting log events in memory.
+
+        Added start/stop events to the profiler log.
+
+        Fixed infinite loop which could happen when setting a debug break while
+        executing a RegExp compiled to native code.
+
+        Fixed handling of lastIndexOf called with negative index (issue 351).
+
+        Fixed irregular crash in profiler test (issue 358).
+
+        Fixed compilation issues with some versions of gcc.
+
+
 2009-05-26: Version 1.2.5
 
         Fixed bug in initial boundary check for Boyer-Moore text
