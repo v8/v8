@@ -437,6 +437,7 @@ static inline bool is_uintn(int x, int n) {
   return (x & -(1 << n)) == 0;
 }
 
+static inline bool is_uint2(int x)  { return is_uintn(x, 2); }
 static inline bool is_uint3(int x)  { return is_uintn(x, 3); }
 static inline bool is_uint4(int x)  { return is_uintn(x, 4); }
 static inline bool is_uint5(int x)  { return is_uintn(x, 5); }

@@ -271,12 +271,13 @@ void Assembler::GrowBuffer() {
 }
 
 
-void Assembler::emit_operand(Register reg, const Operand& adr) {
+void Assembler::emit_operand(int rm, const Operand& adr) {
+  ASSERT_EQ(rm & 0x07, rm);
   const unsigned length = adr.len_;
   ASSERT(length > 0);
 
   // Emit updated ModRM byte containing the given register.
-  pc_[0] = (adr.buf_[0] & ~0x38) | ((reg.code() && 0x7) << 3);
+  pc_[0] = (adr.buf_[0] & ~0x38) | (rm << 3);
 
   // Emit the rest of the encoded operand.
   for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
@@ -359,6 +360,18 @@ void Assembler::call(Label* L) {
     emitl(current);
     L->link_to(current);
   }
+}
+
+
+void Assembler::call(Register adr) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: FF /2 r64
+  if (!is_uint3(adr.code())) {
+    emit_rex_64(adr);
+  }
+  emit(0xFF);
+  emit(0xD0 | (adr.code() & 0x07));
 }
 
 
@@ -479,6 +492,18 @@ void Assembler::jmp(Label* L) {
 }
 
 
+void Assembler::jmp(Register target) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode FF/4 r64
+  if (!is_uint3(target.code())) {
+    emit_rex_64(target);
+  }
+  emit(0xFF);
+  emit(0xE0 | target.code() & 0x07);
+}
+
+
 void Assembler::movq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -556,6 +581,93 @@ void Assembler::not_(const Operand& dst) {
   emit_rex_64(dst);
   emit(0xF7);
   emit_operand(2, dst);
+}
+
+
+void Assembler::nop(int n) {
+  // The recommended muti-byte sequences of NOP instructions from the Intel 64
+  // and IA-32 Architectures Software Developer's Manual.
+  //
+  // Length   Assembly                                Byte Sequence
+  // 2 bytes  66 NOP                                  66 90H
+  // 3 bytes  NOP DWORD ptr [EAX]                     0F 1F 00H
+  // 4 bytes  NOP DWORD ptr [EAX + 00H]               0F 1F 40 00H
+  // 5 bytes  NOP DWORD ptr [EAX + EAX*1 + 00H]       0F 1F 44 00 00H
+  // 6 bytes  66 NOP DWORD ptr [EAX + EAX*1 + 00H]    66 0F 1F 44 00 00H
+  // 7 bytes  NOP DWORD ptr [EAX + 00000000H]         0F 1F 80 00 00 00 00H
+  // 8 bytes  NOP DWORD ptr [EAX + EAX*1 + 00000000H] 0F 1F 84 00 00 00 00 00H
+  // 9 bytes  66 NOP DWORD ptr [EAX + EAX*1 +         66 0F 1F 84 00 00 00 00
+  //          00000000H]                              00H
+
+  ASSERT(1 <= n);
+  ASSERT(n <= 9);
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  switch (n) {
+  case 1:
+    emit(0x90);
+    return;
+  case 2:
+    emit(0x66);
+    emit(0x90);
+    return;
+  case 3:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x00);
+    return;
+  case 4:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x40);
+    emit(0x00);
+    return;
+  case 5:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x44);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 6:
+    emit(0x66);
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x44);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 7:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x80);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 8:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x84);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 9:
+    emit(0x66);
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x84);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    return;
+  }
 }
 
 

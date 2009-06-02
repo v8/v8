@@ -225,10 +225,12 @@ class Immediate BASE_EMBEDDED {
 // Machine instruction Operands
 
 enum ScaleFactor {
-  times_1 = 0,
-  times_2 = 1,
-  times_4 = 2,
-  times_8 = 3
+  kTimes1 = 0,
+  kTimes2 = 1,
+  kTimes4 = 2,
+  kTimes8 = 3,
+  kTimesIntSize = kTimes4,
+  kTimesPointerSize = kTimes8
 };
 
 
@@ -626,6 +628,7 @@ class Assembler : public Malloced {
   void hlt();
   void int3();
   void nop();
+  void nop(int n);
   void rdtsc();
   void ret(int imm16);
 
@@ -647,16 +650,18 @@ class Assembler : public Malloced {
   void bind(Label* L);  // binds an unbound label L to the current code position
 
   // Calls
+  // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
-  void call(byte* entry, RelocInfo::Mode rmode);
-  void call(const Operand& adr);
-  void call(Handle<Code> code, RelocInfo::Mode rmode);
+
+  // Call near absolute indirect, address in register
+  void call(Register adr);
 
   // Jumps
+  // Jump short or near relative.
   void jmp(Label* L);  // unconditional jump to L
-  void jmp(byte* entry, RelocInfo::Mode rmode);
-  void jmp(const Operand& adr);
-  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+
+  // Jump near absolute indirect (r64)
+  void jmp(Register adr);
 
   // Conditional jumps
   void j(Condition cc, Label* L);
@@ -815,7 +820,6 @@ class Assembler : public Malloced {
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is set.
   inline void emit_rex_64(Register reg, Register rm_reg);
-  void emit_rex_64(Register rm_reg) { emit_rex_64(rax, rm_reg); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of the destination, index, and base register codes.
@@ -823,10 +827,22 @@ class Assembler : public Malloced {
   // register is used for REX.B, and the high bit of op's index register
   // is used for REX.X.  REX.W is set.
   inline void emit_rex_64(Register reg, const Operand& op);
-  void emit_rex_64(const Operand& op) { emit_rex_64(rax, op); }
+
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of the register code.
+  // The high bit of register is used for REX.B.
+  // REX.W is set and REX.R and REX.X are clear.
+  inline void emit_rex_64(Register rm_reg);
+
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of the index and base register codes.
+  // The high bit of op's base register is used for REX.B, and the high
+  // bit of op's index register is used for REX.X.
+  // REX.W is set and REX.R clear.
+  inline void emit_rex_64(const Operand& op);
 
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-  // REX.W is set.
+  // REX.W is clear.
   inline void emit_rex_32(Register reg, Register rm_reg);
 
   // The high bit of reg is used for REX.R, the high bit of op's base
@@ -848,10 +864,14 @@ class Assembler : public Malloced {
   // 1- or 4-byte offset for a memory operand.  Also encodes
   // the second operand of the operation, a register or operation
   // subcode, into the Mod/RM byte.
-  void emit_operand(Register reg, const Operand& adr);
-  void emit_operand(int op_subcode, const Operand& adr) {
-    emit_operand(Register::toRegister(op_subcode), adr);
+  void emit_operand(Register reg, const Operand& adr) {
+    emit_operand(reg.code() & 0x07, adr);
   }
+
+  // Emit the Mod/RM byte, and optionally the SIB byte and
+  // 1- or 4-byte offset for a memory operand.  Also used to encode
+  // a three-byte opcode extension into the Mod/RM byte.
+  void emit_operand(int rm, const Operand& adr);
 
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);

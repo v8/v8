@@ -70,8 +70,23 @@ void Assembler::emit_rex_64(Register reg, const Operand& op) {
 }
 
 
+// The high bit of the register is used for REX.B.
+// REX.W is set and REX.R and REX.X are clear.
+void Assembler::emit_rex_64(Register rm_reg) {
+  ASSERT_EQ(rm_reg.code() & 0x0f, rm_reg.code());
+  emit(0x48 | (rm_reg.code() >> 3));
+}
+
+
+// The high bit of op's base register is used for REX.B, and the high
+// bit of op's index register is used for REX.X.  REX.W is set and REX.R clear.
+void Assembler::emit_rex_64(const Operand& op) {
+  emit(0x48 | op.rex_);
+}
+
+
 // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W is set.  REX.X is cleared.
+// REX.W and REX.X are clear.
 void Assembler::emit_rex_32(Register reg, Register rm_reg) {
   emit(0x40 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
@@ -222,7 +237,7 @@ Operand::Operand(Register base, int32_t disp) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(times_1, rsp, base);
+    set_sib(kTimes1, rsp, base);
   }
 
   if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
@@ -246,7 +261,7 @@ void Operand::set_modrm(int mod, Register rm) {
 
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   ASSERT(len_ == 1);
-  ASSERT((scale & -4) == 0);
+  ASSERT(is_uint2(scale));
   // Use SIB with no index register only for base rsp or r12.
   ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));
   buf_[1] = scale << 6 | (index.code() & 0x7) << 3 | (base.code() & 0x7);
