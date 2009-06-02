@@ -294,11 +294,11 @@ class CpuFeatures : public AllStatic {
   static void Probe();
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(Feature f) {
-    return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return (supported_ & (V8_UINT64_C(1) << f)) != 0;
   }
   // Check whether a feature is currently enabled.
   static bool IsEnabled(Feature f) {
-    return (enabled_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return (enabled_ & (V8_UINT64_C(1) << f)) != 0;
   }
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
@@ -307,7 +307,7 @@ class CpuFeatures : public AllStatic {
     explicit Scope(Feature f) {
       ASSERT(CpuFeatures::IsSupported(f));
       old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= (static_cast<uint64_t>(1) << f);
+      CpuFeatures::enabled_ |= (V8_UINT64_C(1) << f);
     }
     ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
    private:
@@ -355,8 +355,9 @@ class Assembler : public Malloced {
   void GetCode(CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc);
-  inline static void set_target_address_at(Address pc, Address target);
+  // On the x64 architecture, the address is absolute, not relative.
+  static inline Address target_address_at(Address pc);
+  static inline void set_target_address_at(Address pc, Address target);
 
   // Distance between the address of the code target in the call instruction
   // and the return address
@@ -387,13 +388,10 @@ class Assembler : public Malloced {
   void Align(int m);
 
   // Stack
-  void pushad();
-  void popad();
+  void pushfq();
+  void popfq();
 
-  void pushfd();
-  void popfd();
-
-  void push(const Immediate& x);
+  void push(Immediate value);
   void push(Register src);
   void push(const Operand& src);
   void push(Label* label, RelocInfo::Mode relocation_mode);
@@ -401,13 +399,17 @@ class Assembler : public Malloced {
   void pop(Register dst);
   void pop(const Operand& dst);
 
-  void enter(const Immediate& size);
+  void enter(Immediate size);
   void leave();
 
   // Moves
   void movb(Register dst, const Operand& src);
   void movb(const Operand& dst, int8_t imm8);
   void movb(const Operand& dst, Register src);
+
+  void movl(Register dst, Register src);
+  void movl(Register dst, const Operand& src);
+  void movl(const Operand& dst, Register src);
 
   void movq(Register dst, int32_t imm32);
   void movq(Register dst, Immediate x);
@@ -515,7 +517,8 @@ class Assembler : public Malloced {
   void dec(Register dst);
   void dec(const Operand& dst);
 
-  void cdq();
+  // Sign-extends rax into rdx:rax.
+  void cqo();
 
   void idiv(Register src);
 
@@ -830,6 +833,7 @@ class Assembler : public Malloced {
   inline void emitl(uint32_t x);
   inline void emit(Handle<Object> handle);
   inline void emitq(uint64_t x, RelocInfo::Mode rmode);
+  inline void emitw(uint16_t x);
   void emit(Immediate x) { emitl(x.value_); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
@@ -857,6 +861,9 @@ class Assembler : public Malloced {
   // bit of op's index register is used for REX.X.
   // REX.W is set and REX.R clear.
   inline void emit_rex_64(const Operand& op);
+
+  // Emit a REX prefix that only sets REX.W to choose a 64-bit operand size.
+  void emit_rex_64() { emit(0x48); }
 
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is clear.

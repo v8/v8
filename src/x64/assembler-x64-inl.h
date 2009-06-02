@@ -55,6 +55,12 @@ void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
 }
 
 
+void Assembler::emitw(uint16_t x) {
+  Memory::uint16_at(pc_) = x;
+  pc_ += sizeof(uint16_t);
+}
+
+
 // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
 // REX.W is set.  REX.X is cleared.
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
@@ -118,14 +124,14 @@ void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
 }
 
 
-void Assembler::set_target_address_at(byte* location, byte* value) {
-  UNIMPLEMENTED();
+Address Assembler::target_address_at(Address pc) {
+  return Memory::Address_at(pc);
 }
 
 
-byte* Assembler::target_address_at(byte* location) {
-  UNIMPLEMENTED();
-  return NULL;
+void Assembler::set_target_address_at(Address pc, Address target) {
+  Memory::Address_at(pc) = target;
+  CPU::FlushICache(pc, sizeof(intptr_t));
 }
 
 
@@ -166,6 +172,8 @@ void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);
 }
+
+
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return *reinterpret_cast<Object**>(pc_);
