@@ -45,6 +45,7 @@ NoAllocationStringAllocator* preallocated_message_space = NULL;
 Address top_addresses[] = {
 #define C(name) reinterpret_cast<Address>(Top::name()),
     TOP_ADDRESS_LIST(C)
+    TOP_ADDRESS_LIST_PROF(C)
 #undef C
     NULL
 };
@@ -91,6 +92,9 @@ void Top::Iterate(ObjectVisitor* v) {
 void Top::InitializeThreadLocal() {
   thread_local_.c_entry_fp_ = 0;
   thread_local_.handler_ = 0;
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  thread_local_.js_entry_sp_ = 0;
+#endif
   thread_local_.stack_is_cooked_ = false;
   thread_local_.try_catch_handler_ = NULL;
   thread_local_.context_ = NULL;

@@ -7159,6 +7159,9 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, exit;
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Label not_outermost_js, not_outermost_js_2;
+#endif
 
   // Setup frame.
   __ push(ebp);
@@ -7176,6 +7179,15 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save copies of the top frame descriptor on the stack.
   ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
   __ push(Operand::StaticVariable(c_entry_fp));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If this is the outermost JS call, set js_entry_sp value.
+  ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
+  __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
+  __ j(NegateCondition(equal), &not_outermost_js);
+  __ mov(Operand::StaticVariable(js_entry_sp), ebp);
+  __ bind(&not_outermost_js);
+#endif
 
   // Call a faked try-block that does the invoke.
   __ call(&invoke);
@@ -7219,6 +7231,15 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
   // Pop next_sp.
   __ add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If current EBP value is the same as js_entry_sp value, it means that
+  // the current function is the outermost.
+  __ cmp(ebp, Operand::StaticVariable(js_entry_sp));
+  __ j(NegateCondition(equal), &not_outermost_js_2);
+  __ mov(Operand::StaticVariable(js_entry_sp), Immediate(0));
+  __ bind(&not_outermost_js_2);
+#endif
 
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);

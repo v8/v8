@@ -277,14 +277,9 @@ class Logger {
 
 
 // Class that extracts stack trace, used for profiling.
-class StackTracer BASE_EMBEDDED {
+class StackTracer : public AllStatic {
  public:
-  explicit StackTracer(uintptr_t low_stack_bound)
-      : low_stack_bound_(low_stack_bound) { }
-  void Trace(TickSample* sample);
- private:
-
-  uintptr_t low_stack_bound_;
+  static void Trace(TickSample* sample);
 };
 
 

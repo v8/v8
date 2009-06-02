@@ -146,11 +146,18 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
+  const Address js_entry_sp = Top::js_entry_sp(Top::GetCurrentThread());
+  if (js_entry_sp == 0) {
+    // Not executing JS now.
+    sample->frames_count = 0;
+    return;
+  }
+
   SafeStackTraceFrameIterator it(
       reinterpret_cast<Address>(sample->fp),
       reinterpret_cast<Address>(sample->sp),
       reinterpret_cast<Address>(sample->sp),
-      reinterpret_cast<Address>(low_stack_bound_));
+      js_entry_sp);
   int i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     sample->stack[i++] = it.frame()->pc();
@@ -166,14 +173,13 @@ void StackTracer::Trace(TickSample* sample) {
 //
 class Ticker: public Sampler {
  public:
-  explicit Ticker(int interval, uintptr_t low_stack_bound):
-      Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL),
-      stack_tracer_(low_stack_bound) {}
+  explicit Ticker(int interval):
+      Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL) {}
 
   ~Ticker() { if (IsActive()) Stop(); }
 
   void Tick(TickSample* sample) {
-    if (IsProfiling()) stack_tracer_.Trace(sample);
+    if (IsProfiling()) StackTracer::Trace(sample);
     if (profiler_) profiler_->Insert(sample);
     if (window_) window_->AddState(sample->state);
   }
@@ -201,7 +207,6 @@ class Ticker: public Sampler {
  private:
   SlidingStateWindow* window_;
   Profiler* profiler_;
-  StackTracer stack_tracer_;
 };
 
 
@@ -1002,11 +1007,7 @@ bool Logger::Setup() {
 
   current_state_ = &bottom_state_;
 
-  // as log is initialized early with V8, we can assume that JS execution
-  // frames can never reach this point on stack
-  int stack_var;
-  ticker_ = new Ticker(
-      kSamplingIntervalMs, reinterpret_cast<uintptr_t>(&stack_var));
+  ticker_ = new Ticker(kSamplingIntervalMs);
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();
