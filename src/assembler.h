@@ -441,6 +441,7 @@ static inline bool is_uint2(int x)  { return is_uintn(x, 2); }
 static inline bool is_uint3(int x)  { return is_uintn(x, 3); }
 static inline bool is_uint4(int x)  { return is_uintn(x, 4); }
 static inline bool is_uint5(int x)  { return is_uintn(x, 5); }
+static inline bool is_uint6(int x)  { return is_uintn(x, 6); }
 static inline bool is_uint8(int x)  { return is_uintn(x, 8); }
 static inline bool is_uint12(int x)  { return is_uintn(x, 12); }
 static inline bool is_uint16(int x)  { return is_uintn(x, 16); }

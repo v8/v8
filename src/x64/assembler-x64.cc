@@ -342,6 +342,32 @@ void Assembler::immediate_arithmetic_op(byte subcode,
 }
 
 
+void Assembler::shift(Register dst, Immediate shift_amount, int subcode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint6(shift_amount.value_));  // illegal shift count
+  if (shift_amount.value_ == 1) {
+    emit_rex_64(dst);
+    emit(0xD1);
+    emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
+  } else {
+    emit_rex_64(dst);
+    emit(0xC1);
+    emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
+    emit(shift_amount.value_);
+  }
+}
+
+
+void Assembler::shift(Register dst, int subcode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xD3);
+  emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
+}
+
+
 void Assembler::call(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
