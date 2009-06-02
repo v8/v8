@@ -5735,29 +5735,160 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
                                                          Result* right) {
   MacroAssembler* masm = cgen()->masm();
-  // Perform fast-case smi code for the operation (left <op> right) and
-  // returns the result in a Result.
-  // If any fast-case tests fail, it jumps to the slow-case deferred code,
-  // which calls the binary operation stub, with the arguments (in registers)
-  // on top of the frame.
-  // Consumes its arguments (sets left and right to invalid and frees their
-  // registers).
 
+  // Special handling of div and mod because they use fixed registers.
+  if (op_ == Token::DIV || op_ == Token::MOD) {
+    // We need eax as the quotient register, edx as the remainder
+    // register, neither left nor right in eax or edx, and left copied
+    // to eax.
+    Result quotient;
+    Result remainder;
+    bool left_is_in_eax = false;
+    // Step 1: get eax for quotient.
+    if ((left->is_register() && left->reg().is(eax)) ||
+        (right->is_register() && right->reg().is(eax))) {
+      // One or both is in eax.  Use a fresh non-edx register for
+      // them.
+      Result fresh = cgen()->allocator()->Allocate();
+      ASSERT(fresh.is_valid());
+      if (fresh.reg().is(edx)) {
+        remainder = fresh;
+        fresh = cgen()->allocator()->Allocate();
+        ASSERT(fresh.is_valid());
+      }
+      if (left->is_register() && left->reg().is(eax)) {
+        quotient = *left;
+        *left = fresh;
+        left_is_in_eax = true;
+      }
+      if (right->is_register() && right->reg().is(eax)) {
+        quotient = *right;
+        *right = fresh;
+      }
+      __ mov(fresh.reg(), eax);
+    } else {
+      // Neither left nor right is in eax.
+      quotient = cgen()->allocator()->Allocate(eax);
+    }
+    ASSERT(quotient.is_register() && quotient.reg().is(eax));
+    ASSERT(!(left->is_register() && left->reg().is(eax)));
+    ASSERT(!(right->is_register() && right->reg().is(eax)));
+
+    // Step 2: get edx for remainder if necessary.
+    if (!remainder.is_valid()) {
+      if ((left->is_register() && left->reg().is(edx)) ||
+          (right->is_register() && right->reg().is(edx))) {
+        Result fresh = cgen()->allocator()->Allocate();
+        ASSERT(fresh.is_valid());
+        if (left->is_register() && left->reg().is(edx)) {
+          remainder = *left;
+          *left = fresh;
+        }
+        if (right->is_register() && right->reg().is(edx)) {
+          remainder = *right;
+          *right = fresh;
+        }
+        __ mov(fresh.reg(), edx);
+      } else {
+        // Neither left nor right is in edx.
+        remainder = cgen()->allocator()->Allocate(edx);
+      }
+    }
+    ASSERT(remainder.is_register() && remainder.reg().is(edx));
+    ASSERT(!(left->is_register() && left->reg().is(edx)));
+    ASSERT(!(right->is_register() && right->reg().is(edx)));
+
+    left->ToRegister();
+    right->ToRegister();
+    cgen()->frame()->Spill(quotient.reg());
+    cgen()->frame()->Spill(remainder.reg());
+
+    // Check that left and right are smi tagged.
+    if (left->reg().is(right->reg())) {
+      __ test(left->reg(), Immediate(kSmiTagMask));
+    } else {
+      // Use the quotient register as a scratch for the tag check.
+      if (!left_is_in_eax) __ mov(quotient.reg(), left->reg());
+      left_is_in_eax = false;
+      __ or_(quotient.reg(), Operand(right->reg()));
+      ASSERT(kSmiTag == 0);  // Adjust test if not the case.
+      __ test(quotient.reg(), Immediate(kSmiTagMask));
+    }
+    SetEntryFrame(left, right);
+    enter()->Branch(not_zero, left, right);
+
+    if (!left_is_in_eax) __ mov(quotient.reg(), left->reg());
+
+    // Sign extend eax into edx:eax.
+    __ cdq();
+    // Check for 0 divisor.
+    __ test(right->reg(), Operand(right->reg()));
+    enter()->Branch(zero, left, right);
+    // Divide edx:eax by the right operand.
+    __ idiv(right->reg());
+
+    // Complete the operation.
+    if (op_ == Token::DIV) {
+      // Check for negative zero result.  If result is zero, and divisor
+      // is negative, return a floating point negative zero.  The
+      // virtual frame is unchanged in this block, so local control flow
+      // can use a Label rather than a JumpTarget.
+      Label non_zero_result;
+      __ test(left->reg(), Operand(left->reg()));
+      __ j(not_zero, &non_zero_result);
+      __ test(right->reg(), Operand(right->reg()));
+      enter()->Branch(negative, left, right);
+      __ bind(&non_zero_result);
+      // Check for the corner case of dividing the most negative smi by
+      // -1. We cannot use the overflow flag, since it is not set by
+      // idiv instruction.
+      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+      __ cmp(quotient.reg(), 0x40000000);
+      enter()->Branch(equal, left, right);
+      // Check that the remainder is zero.
+      __ test(remainder.reg(), Operand(remainder.reg()));
+      enter()->Branch(not_zero, left, right);
+      left->Unuse();
+      right->Unuse();
+      // Tag the result and store it in the quotient register.
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(quotient.reg(),
+             Operand(quotient.reg(), quotient.reg(), times_1, kSmiTag));
+      return quotient;
+    } else {
+      ASSERT(op_ == Token::MOD);
+      // Check for a negative zero result.  If the result is zero, and
+      // the dividend is negative, return a floating point negative
+      // zero.  The frame is unchanged in this block, so local control
+      // flow can use a Label rather than a JumpTarget.
+      Label non_zero_result;
+      __ test(remainder.reg(), Operand(remainder.reg()));
+      __ j(not_zero, &non_zero_result, taken);
+      __ test(left->reg(), Operand(left->reg()));
+      enter()->Branch(negative, left, right);
+      left->Unuse();
+      right->Unuse();
+      __ bind(&non_zero_result);
+      return remainder;
+    }
+  }
+
+  // Handle the other binary operations.
   left->ToRegister();
   right->ToRegister();
-  // A newly allocated register answer is used to hold the answer.
-  // The registers containing left and right are not modified in
-  // most cases, so they usually don't need to be spilled in the fast case.
+  // A newly allocated register answer is used to hold the answer.  The
+  // registers containing left and right are not modified in most cases,
+  // so they usually don't need to be spilled in the fast case.
   Result answer = cgen()->allocator()->Allocate();
 
   ASSERT(answer.is_valid());
-  // Perform the smi check.
+  // Perform the smi tag check.
   if (left->reg().is(right->reg())) {
     __ test(left->reg(), Immediate(kSmiTagMask));
   } else {
     __ mov(answer.reg(), left->reg());
     __ or_(answer.reg(), Operand(right->reg()));
-    ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+    ASSERT(kSmiTag == 0);  // Adjust test if not the case.
     __ test(answer.reg(), Immediate(kSmiTagMask));
   }
   switch (op_) {
@@ -5765,7 +5896,7 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
       SetEntryFrame(left, right);
       enter()->Branch(not_zero, left, right, not_taken);
       __ mov(answer.reg(), left->reg());
-      __ add(answer.reg(), Operand(right->reg()));  // add optimistically
+      __ add(answer.reg(), Operand(right->reg()));  // Add optimistically.
       enter()->Branch(overflow, left, right, not_taken);
       break;
 
@@ -5773,7 +5904,7 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
       SetEntryFrame(left, right);
       enter()->Branch(not_zero, left, right, not_taken);
       __ mov(answer.reg(), left->reg());
-      __ sub(answer.reg(), Operand(right->reg()));  // subtract optimistically
+      __ sub(answer.reg(), Operand(right->reg()));  // Subtract optimistically.
       enter()->Branch(overflow, left, right, not_taken);
       break;
 
@@ -5782,18 +5913,18 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
       enter()->Branch(not_zero, left, right, not_taken);
       __ mov(answer.reg(), left->reg());
       // If the smi tag is 0 we can just leave the tag on one operand.
-      ASSERT(kSmiTag == 0);  // adjust code below if not the case
-      // Remove tag from the left operand (but keep sign).
-      // Left hand operand has been copied into answer.
+      ASSERT(kSmiTag == 0);  // Adjust code below if not the case.
+      // Remove smi tag from the left operand (but keep sign).
+      // Left-hand operand has been copied into answer.
       __ sar(answer.reg(), kSmiTagSize);
       // Do multiplication of smis, leaving result in answer.
       __ imul(answer.reg(), Operand(right->reg()));
       // Go slow on overflows.
       enter()->Branch(overflow, left, right, not_taken);
-      // Check for negative zero result.  If product is zero,
-      // and one argument is negative, go to slow case.
-      // The frame is unchanged in this block, so local control flow can
-      // use a Label rather than a JumpTarget.
+      // Check for negative zero result.  If product is zero, and one
+      // argument is negative, go to slow case.  The frame is unchanged
+      // in this block, so local control flow can use a Label rather
+      // than a JumpTarget.
       Label non_zero_result;
       __ test(answer.reg(), Operand(answer.reg()));
       __ j(not_zero, &non_zero_result, taken);
@@ -5805,146 +5936,6 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode(Result* left,
       break;
     }
 
-    case Token::DIV:  // Fall through.
-    case Token::MOD: {
-      enter()->Branch(not_zero, left, right, not_taken);
-      __ mov(answer.reg(), left->reg());
-      // Div and mod use the registers eax and edx.  Left and right must
-      // be preserved, because the original operands are needed if we switch
-      // to the slow case.  Move them if either is in eax or edx.
-      // The Result answer should be changed into an alias for eax.
-      // Precondition:
-      // The Results left and right are valid.  They may be the same register,
-      // and may be unspilled.  The Result answer is valid and is distinct
-      // from left and right, and is spilled.
-      // The value in left is copied to answer.
-
-      Result reg_eax = cgen()->allocator()->Allocate(eax);
-      Result reg_edx = cgen()->allocator()->Allocate(edx);
-      // These allocations may have failed, if one of left, right, or answer
-      // is in register eax or edx.
-      bool left_copied_to_eax = false;  // We will make sure this becomes true.
-
-      // Part 1: Get eax
-      if (answer.reg().is(eax)) {
-        reg_eax = answer;
-        left_copied_to_eax = true;
-      } else if (right->reg().is(eax) || left->reg().is(eax)) {
-        // We need a non-edx register to move one or both of left and right to.
-        // We use answer if it is not edx, otherwise we allocate one.
-        if (answer.reg().is(edx)) {
-          reg_edx = answer;
-          answer = cgen()->allocator()->Allocate();
-          ASSERT(answer.is_valid());
-        }
-
-        if (left->reg().is(eax)) {
-          reg_eax = *left;
-          left_copied_to_eax = true;
-          *left = answer;
-        }
-        if (right->reg().is(eax)) {
-          reg_eax = *right;
-          *right = answer;
-        }
-        __ mov(answer.reg(), eax);
-      }
-      // End of Part 1.
-      // reg_eax is valid, and neither left nor right is in eax.
-      ASSERT(reg_eax.is_valid());
-      ASSERT(!left->reg().is(eax));
-      ASSERT(!right->reg().is(eax));
-
-      // Part 2: Get edx
-      // reg_edx is invalid if and only if either left, right,
-      // or answer is in edx.  If edx is valid, then either edx
-      // was free, or it was answer, but answer was reallocated.
-      if (answer.reg().is(edx)) {
-        reg_edx = answer;
-      } else if (right->reg().is(edx) || left->reg().is(edx)) {
-        // Is answer used?
-        if (answer.reg().is(eax) || answer.reg().is(left->reg()) ||
-            answer.reg().is(right->reg())) {
-          answer = cgen()->allocator()->Allocate();
-          ASSERT(answer.is_valid());  // We cannot hit both Allocate() calls.
-        }
-        if (left->reg().is(edx)) {
-          reg_edx = *left;
-          *left = answer;
-        }
-        if (right->reg().is(edx)) {
-          reg_edx = *right;
-          *right = answer;
-        }
-        __ mov(answer.reg(), edx);
-      }
-      // End of Part 2
-      ASSERT(reg_edx.is_valid());
-      ASSERT(!left->reg().is(eax));
-      ASSERT(!right->reg().is(eax));
-
-      answer = reg_eax;  // May free answer, if it was never used.
-      cgen()->frame()->Spill(eax);
-      if (!left_copied_to_eax) {
-        __ mov(eax, left->reg());
-        left_copied_to_eax = true;
-      }
-      cgen()->frame()->Spill(edx);
-
-      // Postcondition:
-      // reg_eax, reg_edx are valid, correct, and spilled.
-      // reg_eax contains the value originally in left
-      // left and right are not eax or edx.  They may or may not be
-      // spilled or distinct.
-      // answer is an alias for reg_eax.
-
-      // Sign extend eax into edx:eax.
-      __ cdq();
-      // Check for 0 divisor.
-      __ test(right->reg(), Operand(right->reg()));
-      enter()->Branch(zero, left, right, not_taken);
-      // Divide edx:eax by the right operand.
-      __ idiv(right->reg());
-      if (op_ == Token::DIV) {
-        // Check for negative zero result.  If result is zero, and divisor
-        // is negative, return a floating point negative zero.
-        // The frame is unchanged in this block, so local control flow can
-        // use a Label rather than a JumpTarget.
-        Label non_zero_result;
-        __ test(left->reg(), Operand(left->reg()));
-        __ j(not_zero, &non_zero_result, taken);
-        __ test(right->reg(), Operand(right->reg()));
-        enter()->Branch(negative, left, right, not_taken);
-        __ bind(&non_zero_result);
-        // Check for the corner case of dividing the most negative smi
-        // by -1. We cannot use the overflow flag, since it is not set
-        // by idiv instruction.
-        ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-        __ cmp(eax, 0x40000000);
-        enter()->Branch(equal, left, right, not_taken);
-        // Check that the remainder is zero.
-        __ test(edx, Operand(edx));
-        enter()->Branch(not_zero, left, right, not_taken);
-        // Tag the result and store it in register temp.
-        ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(answer.reg(), Operand(eax, eax, times_1, kSmiTag));
-      } else {
-        ASSERT(op_ == Token::MOD);
-        // Check for a negative zero result.  If the result is zero, and the
-        // dividend is negative, return a floating point negative zero.
-        // The frame is unchanged in this block, so local control flow can
-        // use a Label rather than a JumpTarget.
-        Label non_zero_result;
-        __ test(edx, Operand(edx));
-        __ j(not_zero, &non_zero_result, taken);
-        __ test(left->reg(), Operand(left->reg()));
-        enter()->Branch(negative, left, right, not_taken);
-        __ bind(&non_zero_result);
-        // The answer is in edx.
-        answer = reg_edx;
-      }
-      break;
-    }
     case Token::BIT_OR:
       enter()->Branch(not_zero, left, right, not_taken);
       __ mov(answer.reg(), left->reg());
