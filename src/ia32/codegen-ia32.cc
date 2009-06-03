@@ -779,8 +779,7 @@ const char* GenericBinaryOpStub::GetName() {
 // Call the specialized stub for a binary operation.
 class DeferredInlineBinaryOperation: public DeferredCode {
  public:
-  DeferredInlineBinaryOperation(Token::Value op,
-                                OverwriteMode mode)
+  DeferredInlineBinaryOperation(Token::Value op, OverwriteMode mode)
       : op_(op), mode_(mode) {
     set_comment("[ DeferredInlineBinaryOperation");
   }
@@ -1001,8 +1000,8 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                              Result* left,
                                              Result* right,
                                              OverwriteMode overwrite_mode) {
-  // Implements a binary operation using a deferred code object and
-  // some inline code to operate on smis quickly.
+  // Implements a binary operation using a deferred code object and some
+  // inline code to operate on smis quickly.
   DeferredInlineBinaryOperation* deferred =
       new DeferredInlineBinaryOperation(op, overwrite_mode);
 
@@ -1148,12 +1147,98 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     return;
   }
 
+  // Special handling of shift operations because they use fixed
+  // registers.
+  if (op == Token::SHL || op == Token::SHR || op == Token::SAR) {
+    // Move left out of ecx if necessary.
+    if (left->is_register() && left->reg().is(ecx)) {
+      *left = allocator_->Allocate();
+      ASSERT(left->is_valid());
+      __ mov(left->reg(), ecx);
+    }
+    right->ToRegister(ecx);
+    left->ToRegister();
+    ASSERT(left->is_register() && !left->reg().is(ecx));
+    ASSERT(right->is_register() && right->reg().is(ecx));
+
+    // We will modify right, it must be spilled.
+    frame_->Spill(ecx);
+
+    // Use a fresh answer register to avoid spilling the left operand.
+    Result answer = allocator_->Allocate();
+    ASSERT(answer.is_valid());
+    // Check that both operands are smis using the answer register as a
+    // temporary.
+    __ mov(answer.reg(), left->reg());
+    __ or_(answer.reg(), Operand(ecx));
+    __ test(answer.reg(), Immediate(kSmiTagMask));
+    deferred->enter()->Branch(not_zero, left, right);
+
+    // Untag both operands.
+    __ mov(answer.reg(), left->reg());
+    __ sar(answer.reg(), kSmiTagSize);
+    __ sar(ecx, kSmiTagSize);
+    // Perform the operation.
+    switch (op) {
+      case Token::SAR:
+        __ sar(answer.reg());
+        // No checks of result necessary
+        break;
+      case Token::SHR: {
+        JumpTarget result_ok;
+        __ shr(answer.reg());
+        // Check that the *unsigned* result fits in a smi.  Neither of
+        // the two high-order bits can be set:
+        //  * 0x80000000: high bit would be lost when smi tagging.
+        //  * 0x40000000: this number would convert to negative when smi
+        //    tagging.
+        // These two cases can only happen with shifts by 0 or 1 when
+        // handed a valid smi.  If the answer cannot be represented by a
+        // smi, restore the left and right arguments, and jump to slow
+        // case.  The low bit of the left argument may be lost, but only
+        // in a case where it is dropped anyway.
+        __ test(answer.reg(), Immediate(0xc0000000));
+        result_ok.Branch(zero, &answer);
+        ASSERT(kSmiTag == 0);
+        __ shl(ecx, kSmiTagSize);
+        answer.Unuse();
+        deferred->enter()->Jump(left, right);
+        result_ok.Bind(&answer);
+        break;
+      }
+      case Token::SHL: {
+        JumpTarget result_ok;
+        __ shl(answer.reg());
+        // Check that the *signed* result fits in a smi.
+        __ cmp(answer.reg(), 0xc0000000);
+        result_ok.Branch(positive, &answer);
+        ASSERT(kSmiTag == 0);
+        __ shl(ecx, kSmiTagSize);
+        answer.Unuse();
+        deferred->enter()->Jump(left, right);
+        result_ok.Bind(&answer);
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+    left->Unuse();
+    right->Unuse();
+    // Smi-tag the result in answer.
+    ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
+    __ lea(answer.reg(),
+           Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
+    deferred->BindExit(&answer);
+    frame_->Push(&answer);
+    return;
+  }
+
   // Handle the other binary operations.
   left->ToRegister();
   right->ToRegister();
   // A newly allocated register answer is used to hold the answer.  The
-  // registers containing left and right are not modified in most cases,
-  // so they usually don't need to be spilled in the fast case.
+  // registers containing left and right are not modified so they don't
+  // need to be spilled in the fast case.
   Result answer = allocator_->Allocate();
 
   ASSERT(answer.is_valid());
@@ -1227,109 +1312,6 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       deferred->enter()->Branch(not_zero, left, right, not_taken);
       __ mov(answer.reg(), left->reg());
       __ xor_(answer.reg(), Operand(right->reg()));
-      break;
-
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      deferred->enter()->Branch(not_zero, left, right, not_taken);
-      __ mov(answer.reg(), left->reg());
-      // Move right into ecx.
-      // Left is in two registers already, so even if left or answer is ecx,
-      // we can move right to it, and use the other one.
-      // Right operand must be in register cl because x86 likes it that way.
-      if (right->reg().is(ecx)) {
-        // Right is already in the right place.  Left may be in the
-        // same register, which causes problems. Always use answer
-        // instead of left, even if left is not ecx, since this avoids
-        // spilling left.
-        *left = answer;
-      } else if (left->reg().is(ecx)) {
-        frame_->Spill(left->reg());
-        __ mov(left->reg(), right->reg());
-        *right = *left;
-        *left = answer;  // Use copy of left in answer as left.
-      } else if (answer.reg().is(ecx)) {
-        __ mov(answer.reg(), right->reg());
-        *right = answer;
-      } else {
-        Result reg_ecx = allocator_->Allocate(ecx);
-        ASSERT(reg_ecx.is_valid());
-        __ mov(ecx, right->reg());
-        *right = reg_ecx;
-        // Answer and left both contain the left operand.  Use answer, so
-        // left is not spilled.
-        *left = answer;
-      }
-      ASSERT(left->reg().is_valid());
-      ASSERT(!left->reg().is(ecx));
-      ASSERT(right->reg().is(ecx));
-      answer.Unuse();  // Answer may now be being used for left or right.
-      // We will modify left and right, which we do not do in any other
-      // binary operation.  The exits to slow code need to restore the
-      // original values of left and right, or at least values that give
-      // the same answer.
-
-      // We are modifying left and right.  They must be spilled!
-      frame_->Spill(left->reg());
-      frame_->Spill(right->reg());
-
-      // Remove tags from operands (but keep sign).
-      __ sar(left->reg(), kSmiTagSize);
-      __ sar(ecx, kSmiTagSize);
-      // Perform the operation.
-      switch (op) {
-        case Token::SAR:
-          __ sar(left->reg());
-          // No checks of result necessary
-          break;
-        case Token::SHR: {
-          __ shr(left->reg());
-          // Check that the *unsigned* result fits in a smi.
-          // Neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging.
-          // - 0x40000000: this number would convert to negative when
-          // Smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi.
-          // If the answer cannot be represented by a SMI, restore
-          // the left and right arguments, and jump to slow case.
-          // The low bit of the left argument may be lost, but only
-          // in a case where it is dropped anyway.
-          JumpTarget result_ok;
-          __ test(left->reg(), Immediate(0xc0000000));
-          result_ok.Branch(zero, left, taken);
-          __ shl(left->reg());
-          ASSERT(kSmiTag == 0);
-          __ shl(left->reg(), kSmiTagSize);
-          __ shl(right->reg(), kSmiTagSize);
-          deferred->enter()->Jump(left, right);
-          result_ok.Bind(left);
-          break;
-        }
-        case Token::SHL: {
-          __ shl(left->reg());
-          // Check that the *signed* result fits in a smi.
-          JumpTarget result_ok;
-          __ cmp(left->reg(), 0xc0000000);
-          result_ok.Branch(positive, left, taken);
-
-          __ shr(left->reg());
-          ASSERT(kSmiTag == 0);
-          __ shl(left->reg(), kSmiTagSize);
-          __ shl(right->reg(), kSmiTagSize);
-          deferred->enter()->Jump(left, right);
-          result_ok.Bind(left);
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
-      // Smi-tag the result, in left, and make answer an alias for left->
-      answer = *left;
-      answer.ToRegister();
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(answer.reg(),
-             Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
       break;
 
     default:
