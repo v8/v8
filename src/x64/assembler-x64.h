@@ -270,7 +270,7 @@ class Operand BASE_EMBEDDED {
   unsigned int len_;
   RelocInfo::Mode rmode_;
 
-  // Set the ModRM byte without an encoded 'reg' register. The
+  // Set the ModR/M byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
   // set_modrm can be called before or after set_sib and set_disp*.
   inline void set_modrm(int mod, Register rm);
@@ -417,7 +417,7 @@ class Assembler : public Malloced {
 
   // Moves
   void movb(Register dst, const Operand& src);
-  void movb(const Operand& dst, int8_t imm8);
+  void movb(Register dst, Immediate imm);
   void movb(const Operand& dst, Register src);
 
   void movl(Register dst, Register src);
@@ -538,16 +538,20 @@ class Assembler : public Malloced {
   // Sign-extends rax into rdx:rax.
   void cqo();
 
+  // Divide rdx:rax by src.  Quotient in rax, remainder in rdx.
   void idiv(Register src);
 
+  void imul(Register dst, Register src);
   void imul(Register dst, const Operand& src);
-  void imul(Register dst, Register src, int32_t imm32);
+  // Performs the operation dst = src * imm.
+  void imul(Register dst, Register src, Immediate imm);
 
   void inc(Register dst);
   void inc(const Operand& dst);
 
   void lea(Register dst, const Operand& src);
 
+  // Multiply rax by src, put the result in rdx:rax.
   void mul(Register src);
 
   void neg(Register dst);
@@ -579,11 +583,11 @@ class Assembler : public Malloced {
 
   void rcl(Register dst, uint8_t imm8);
 
-  void sbb(Register dst, const Operand& src);
+  // Shifts dst:src left by cl bits, affecting only dst.
+  void shld(Register dst, Register src);
 
-  void shld(Register dst, const Operand& src);
-
-  void shrd(Register dst, const Operand& src);
+  // Shifts src:dst right by cl bits, affecting only dst.
+  void shrd(Register dst, Register src);
 
   // Shifts dst right, duplicating sign bit, by shift_amount bits.
   // Shifting by 1 is handled efficiently.
@@ -636,6 +640,8 @@ class Assembler : public Malloced {
   void testb(const Operand& op, Immediate mask);
   void testl(Register reg, Immediate mask);
   void testl(const Operand& op, Immediate mask);
+  void testq(const Operand& op, Register reg);
+  void testq(Register dst, Register src);
 
   void xor_(Register dst, Register src) {
     arithmetic_op(0x33, dst, src);
@@ -898,7 +904,7 @@ class Assembler : public Malloced {
 
   // High bit of base goes to REX.B and high bit of index to REX.X.
   // REX.W and REX.R are clear.
-  inline void emit_rex_32(const Operand &);
+  inline void emit_rex_32(const Operand& op);
 
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is cleared.  If no REX bits are set, no byte is emitted.
@@ -919,18 +925,30 @@ class Assembler : public Malloced {
   inline void emit_optional_rex_32(const Operand& op);
 
 
-  // Emit the Mod/RM byte, and optionally the SIB byte and
+  // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes
   // the second operand of the operation, a register or operation
-  // subcode, into the Mod/RM byte.
+  // subcode, into the reg field of the ModR/M byte.
   void emit_operand(Register reg, const Operand& adr) {
     emit_operand(reg.code() & 0x07, adr);
   }
 
-  // Emit the Mod/RM byte, and optionally the SIB byte and
+  // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also used to encode
-  // a three-byte opcode extension into the Mod/RM byte.
+  // a three-bit opcode extension into the ModR/M byte.
   void emit_operand(int rm, const Operand& adr);
+
+  // Emit a ModR/M byte with registers coded in the reg and rm_reg fields.
+  void emit_modrm(Register reg, Register rm_reg) {
+    emit(0xC0 | (reg.code() & 0x7) << 3 | (rm_reg.code() & 0x7));
+  }
+
+  // Emit a ModR/M byte with an operation subcode in the reg field and
+  // a register in the rm_reg field.
+  void emit_modrm(int code, Register rm_reg) {
+    ASSERT((code & ~0x7) == 0);
+    emit(0xC0 | (code & 0x7) << 3 | (rm_reg.code() & 0x7));
+  }
 
   // Emit the code-object-relative offset of the label's position
   inline void emit_code_relative_offset(Label* label);
@@ -938,7 +956,7 @@ class Assembler : public Malloced {
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all
   // similar, differing just in the opcode or in the reg field of the
-  // Mod/RM byte.
+  // ModR/M byte.
   void arithmetic_op(byte opcode, Register dst, Register src);
   void arithmetic_op(byte opcode, Register reg, const Operand& op);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
