@@ -4844,6 +4844,90 @@ THREADED_TEST(InterceptorLoadIC) {
 }
 
 
+// Below go several tests which verify that JITing for various
+// configurations of interceptor and explicit fields works fine
+// (those cases are special cased to get better performance).
+
+static v8::Handle<Value> InterceptorLoadXICGetter(Local<String> name,
+                                                 const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8_str("x")->Equals(name)
+      ? v8::Integer::New(42) : v8::Handle<v8::Value>();
+}
+
+
+static void CheckInterceptorLoadIC(const char* source, int expected) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(source);
+  CHECK_EQ(expected, value->Int32Value());
+}
+
+
+THREADED_TEST(InterceptorLoadICWithFieldOnHolder) {
+  CheckInterceptorLoadIC(
+    "var result = 0;"
+    "o.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y;"
+    "}",
+    239);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithSubstitutedProto) {
+  CheckInterceptorLoadIC(
+    "var result = 0;"
+    "o.__proto__ = { 'y': 239 };"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y + o.x;"
+    "}",
+    239 + 42);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithPropertyOnProto) {
+  CheckInterceptorLoadIC(
+    "var result = 0;"
+    "o.__proto__.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y + o.x;"
+    "}",
+    239 + 42);
+}
+
+
+THREADED_TEST(InterceptorLoadICUndefined) {
+  CheckInterceptorLoadIC(
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = (o.y == undefined) ? 239 : 42;"
+    "}",
+    239);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithOverride) {
+  CheckInterceptorLoadIC(
+    "fst = new Object();  fst.__proto__ = o;"
+    "snd = new Object();  snd.__proto__ = fst;"
+    "var result1 = 0;"
+    "for (var i = 0; i < 1000;  i++) {"
+    "  result1 = snd.x;"
+    "}"
+    "fst.x = 239;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = snd.x;"
+    "}"
+    "result + result1",
+    239 + 42);
+}
+
+
 static v8::Handle<Value> InterceptorStoreICSetter(
     Local<String> key, Local<Value> value, const AccessorInfo&) {
   CHECK(v8_str("x")->Equals(key));
