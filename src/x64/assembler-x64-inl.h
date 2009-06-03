@@ -61,66 +61,66 @@ void Assembler::emitw(uint16_t x) {
 }
 
 
-// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W is set.  REX.X is cleared.
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
 
-// The high bit of reg is used for REX.R, the high bit of op's base
-// register is used for REX.B, and the high bit of op's index register
-// is used for REX.X.  REX.W is set.
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
 }
 
 
-// The high bit of the register is used for REX.B.
-// REX.W is set and REX.R and REX.X are clear.
 void Assembler::emit_rex_64(Register rm_reg) {
-  ASSERT_EQ(rm_reg.code() & 0x0f, rm_reg.code());
+  ASSERT_EQ(rm_reg.code() & 0xf, rm_reg.code());
   emit(0x48 | (rm_reg.code() >> 3));
 }
 
 
-// The high bit of op's base register is used for REX.B, and the high
-// bit of op's index register is used for REX.X.  REX.W is set and REX.R clear.
 void Assembler::emit_rex_64(const Operand& op) {
   emit(0x48 | op.rex_);
 }
 
 
-// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W and REX.X are clear.
 void Assembler::emit_rex_32(Register reg, Register rm_reg) {
   emit(0x40 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
 
-// The high bit of reg is used for REX.R, the high bit of op's base
-// register is used for REX.B, and the high bit of op's index register
-// is used for REX.X.  REX.W is cleared.
 void Assembler::emit_rex_32(Register reg, const Operand& op) {
   emit(0x40 | (reg.code() & 0x8) >> 1 | op.rex_);
 }
 
 
-// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W and REX.X are cleared.  If no REX bits are set, no byte is emitted.
-void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
-  byte rex_bits = (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3;
-  if (rex_bits) emit(0x40 | rex_bits);
+void Assembler::emit_rex_32(Register rm_reg) {
+  emit(0x40 | (rm_reg.code() & 0x8) >> 3);
 }
 
 
-// The high bit of reg is used for REX.R, the high bit of op's base
-// register is used for REX.B, and the high bit of op's index register
-// is used for REX.X.  REX.W is cleared.  If no REX bits are set, nothing
-// is emitted.
+void Assembler::emit_rex_32(const Operand& op) {
+  emit(0x40 | op.rex_);
+}
+
+
+void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
+  byte rex_bits = (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3;
+  if (rex_bits != 0) emit(0x40 | rex_bits);
+}
+
+
 void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
   byte rex_bits =  (reg.code() & 0x8) >> 1 | op.rex_;
-  if (rex_bits) emit(0x40 | rex_bits);
+  if (rex_bits != 0) emit(0x40 | rex_bits);
+}
+
+
+void Assembler::emit_optional_rex_32(Register rm_reg) {
+  if (rm_reg.code() & 0x8 != 0) emit(0x41);
+}
+
+
+void Assembler::emit_optional_rex_32(const Operand& op) {
+  if (op.rex_ != 0) emit(0x40 | op.rex_);
 }
 
 

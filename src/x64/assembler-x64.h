@@ -40,6 +40,19 @@
 namespace v8 {
 namespace internal {
 
+// Utility functions
+
+// Test whether a 64-bit value is in a specific range.
+static inline bool is_uint32(int64_t x) {
+  const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
+  return x == x & kUInt32Mask;
+}
+
+static inline bool is_int32(int64_t x) {
+  const int64_t kMinIntValue = V8_INT64_C(-0x80000000);
+  return is_uint32(x - kMinIntValue);
+}
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -410,12 +423,16 @@ class Assembler : public Malloced {
   void movl(Register dst, Register src);
   void movl(Register dst, const Operand& src);
   void movl(const Operand& dst, Register src);
+  // Load a 32-bit immediate value, zero-extended to 64 bits.
+  void movl(Register dst, Immediate imm32);
 
   void movq(Register dst, int32_t imm32);
-  void movq(Register dst, Immediate x);
   void movq(Register dst, const Operand& src);
+  // Sign extends immediate 32-bit value to 64 bits.
+  void movq(Register dst, Immediate x);
   void movq(Register dst, Register src);
-  void movq(const Operand& dst, const Immediate& x);
+
+  // Move 64 bit register value to 64-bit memory location.
   void movq(const Operand& dst, Register src);
 
   // New x64 instructions to load a 64-bit immediate into a register.
@@ -425,6 +442,7 @@ class Assembler : public Malloced {
   void movq(Register dst, const char* s, RelocInfo::Mode rmode);
   void movq(Register dst, const ExternalReference& ext, RelocInfo::Mode rmode);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
+
 
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
@@ -874,6 +892,14 @@ class Assembler : public Malloced {
   // is used for REX.X.  REX.W is cleared.
   inline void emit_rex_32(Register reg, const Operand& op);
 
+  // High bit of rm_reg goes to REX.B.
+  // REX.W, REX.R and REX.X are clear.
+  inline void emit_rex_32(Register rm_reg);
+
+  // High bit of base goes to REX.B and high bit of index to REX.X.
+  // REX.W and REX.R are clear.
+  inline void emit_rex_32(const Operand &);
+
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is cleared.  If no REX bits are set, no byte is emitted.
   inline void emit_optional_rex_32(Register reg, Register rm_reg);
@@ -883,6 +909,15 @@ class Assembler : public Malloced {
   // is used for REX.X.  REX.W is cleared.  If no REX bits are set, nothing
   // is emitted.
   inline void emit_optional_rex_32(Register reg, const Operand& op);
+
+  // Optionally do as emit_rex_32(Register) if the register number has
+  // the high bit set.
+  inline void emit_optional_rex_32(Register rm_reg);
+
+  // Optionally do as emit_rex_32(const Operand&) if the operand register
+  // numbers have a high bit set.
+  inline void emit_optional_rex_32(const Operand& op);
+
 
   // Emit the Mod/RM byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes

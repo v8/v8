@@ -685,6 +685,16 @@ void Assembler::movl(const Operand& dst, Register src) {
 }
 
 
+void Assembler::movl(Register dst, Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit(0xC0 | (dst.code() & 0x7));
+  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
+}
+
+
 void Assembler::movq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -700,15 +710,6 @@ void Assembler::movq(Register dst, Register src) {
   emit_rex_64(dst, src);
   emit(0x8B);
   emit(0xC0 | (dst.code() & 0x7) << 3 | (src.code() & 0x7));
-}
-
-
-void Assembler::movq(const Operand& dst, Register src) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit_rex_64(src, dst);
-  emit(0x89);
-  emit_operand(src, dst);
 }
 
 
@@ -728,6 +729,15 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   emit_rex_64(dst);
   emit(0xB8 | (dst.code() & 0x7));
   emitq(value, rmode);
+}
+
+
+void Assembler::movq(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src, dst);
+  emit(0x89);
+  emit_operand(src, dst);
 }
 
 

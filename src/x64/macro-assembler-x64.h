@@ -33,6 +33,8 @@
 namespace v8 {
 namespace internal {
 
+static const Register kScratchRegister = r10;
+
 // Forward declaration.
 class JumpTarget;
 
@@ -137,8 +139,8 @@ class MacroAssembler: public Assembler {
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
   // Expression support
-  void Set(Register dst, const Immediate& x);
-  void Set(const Operand& dst, const Immediate& x);
+  void Set(Register dst, int64_t x);
+  void Set(const Operand& dst, int64_t x);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.

@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "codegen-inl.h"
+#include "macro-assembler-x64.h"
 
 namespace v8 {
 namespace internal {
@@ -44,5 +45,29 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 void MacroAssembler::TailCallRuntime(ExternalReference const& a, int b) {
   UNIMPLEMENTED();
 }
+
+
+void MacroAssembler::Set(Register dst, int64_t x) {
+  if (is_int32(x)) {
+    movq(dst, Immediate(x));
+  } else if (is_uint32(x)) {
+    movl(dst, Immediate(x));
+  } else {
+    movq(dst, x, RelocInfo::NONE);
+  }
+}
+
+
+void MacroAssembler::Set(const Operand& dst, int64_t x) {
+  if (is_int32(x)) {
+    movq(kScratchRegister, Immediate(x));
+  } else if (is_uint32(x)) {
+    movl(kScratchRegister, Immediate(x));
+  } else {
+    movq(kScratchRegister, x, RelocInfo::NONE);
+  }
+  movq(dst, kScratchRegister);
+}
+
 
 } }  // namespace v8::internal

@@ -424,8 +424,6 @@ class ExternalReference BASE_EMBEDDED {
 // -----------------------------------------------------------------------------
 // Utility functions
 
-// Move these into inline file?
-
 static inline bool is_intn(int x, int n)  {
   return -(1 << (n-1)) <= x && x < (1 << (n-1));
 }
