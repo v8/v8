@@ -538,29 +538,36 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
 
 
 THREADED_TEST(UsingExternalString) {
-  v8::HandleScope scope;
-  uint16_t* two_byte_string = AsciiToTwoByteString("test string");
-  Local<String> string = String::NewExternal(new TestResource(two_byte_string));
-  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-  // Trigger GCs so that the newly allocated string moves to old gen.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
-  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
-  CHECK(isymbol->IsSymbol());
+  {
+    v8::HandleScope scope;
+    uint16_t* two_byte_string = AsciiToTwoByteString("test string");
+    Local<String> string =
+        String::NewExternal(new TestResource(two_byte_string));
+    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+    CHECK(isymbol->IsSymbol());
+  }
+  i::Heap::CollectAllGarbage();
 }
 
 
 THREADED_TEST(UsingExternalAsciiString) {
-  v8::HandleScope scope;
-  const char* one_byte_string = "test string";
-  Local<String> string = String::NewExternal(
-      new TestAsciiResource(i::StrDup(one_byte_string)));
-  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-  // Trigger GCs so that the newly allocated string moves to old gen.
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
-  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
-  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
-  CHECK(isymbol->IsSymbol());
+  {
+    v8::HandleScope scope;
+    const char* one_byte_string = "test string";
+    Local<String> string = String::NewExternal(
+        new TestAsciiResource(i::StrDup(one_byte_string)));
+    i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+    i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+    CHECK(isymbol->IsSymbol());
+  }
+  i::Heap::CollectAllGarbage();
 }
 
 
