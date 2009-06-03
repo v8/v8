@@ -322,25 +322,6 @@ void StubCompiler::GenerateLoadConstant(MacroAssembler* masm,
 void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
                                            JSObject* object,
                                            JSObject* holder,
-                                           Register receiver,
-                                           Register name,
-                                           Register scratch1,
-                                           Register scratch2,
-                                           Label* miss_label) {
-  GenerateLoadInterceptor(masm,
-                          object,
-                          holder,
-                          Smi::FromInt(JSObject::kLookupInHolder),
-                          receiver,
-                          name,
-                          scratch1,
-                          scratch2,
-                          miss_label);
-}
-
-void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
-                                           JSObject* object,
-                                           JSObject* holder,
                                            Smi* lookup_hint,
                                            Register receiver,
                                            Register name,
@@ -1124,7 +1105,15 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadInterceptor(masm(), receiver, holder, ecx, eax, edx, ebx, &miss);
+  GenerateLoadInterceptor(masm(),
+                          receiver,
+                          holder,
+                          Smi::FromInt(JSObject::kLookupInHolder),
+                          ecx,
+                          eax,
+                          edx,
+                          ebx,
+                          &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_interceptor, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);

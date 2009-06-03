@@ -246,6 +246,7 @@ void StubCompiler::GenerateLoadCallback(MacroAssembler* masm,
 void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
                                            JSObject* object,
                                            JSObject* holder,
+                                           Smi* lookup_hint,
                                            Register receiver,
                                            Register name,
                                            Register scratch1,
@@ -263,11 +264,13 @@ void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   __ push(name);  // name
+  __ mov(scratch1, Operand(lookup_hint));
+  __ push(scratch1);
 
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 3);
+  __ TailCallRuntime(load_ic_property, 4);
 }
 
 
@@ -909,7 +912,15 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  GenerateLoadInterceptor(masm(), object, holder, r0, r2, r3, r1, &miss);
+  GenerateLoadInterceptor(masm(),
+                          object,
+                          holder,
+                          holder->InterceptorPropertyLookupHint(name),
+                          r0,
+                          r2,
+                          r3,
+                          r1,
+                          &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -1015,7 +1026,15 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(r2, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  GenerateLoadInterceptor(masm(), receiver, holder, r0, r2, r3, r1, &miss);
+  GenerateLoadInterceptor(masm(),
+                          receiver,
+                          holder,
+                          Smi::FromInt(JSObject::kLookupInHolder),
+                          r0,
+                          r2,
+                          r3,
+                          r1,
+                          &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
