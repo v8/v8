@@ -719,10 +719,12 @@ Object* LoadInterceptorProperty(Arguments args) {
   JSObject* recv = JSObject::cast(args[0]);
   JSObject* holder = JSObject::cast(args[1]);
   String* name = String::cast(args[2]);
+  Smi* lookup_hint = Smi::cast(args[3]);
   ASSERT(holder->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  Object* result = holder->GetPropertyWithInterceptor(recv, name, &attr);
 
+  Object* result = holder->GetInterceptorPropertyWithLookupHint(
+      recv, lookup_hint, name, &attr);
   if (result->IsFailure()) return result;
 
   // If the property is present, return it.
