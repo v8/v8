@@ -109,19 +109,13 @@ devtools.profiler.ViewBuilder.prototype.createViewNode = function(
 
 /**
  * Creates a Profile View object. It allows to perform sorting
- * and filtering actions on the profile. Profile View mimicks
- * the Profile object from WebKit's JSC profiler.
+ * and filtering actions on the profile.
  *
  * @param {devtools.profiler.ProfileView.Node} head Head (root) node.
  * @constructor
  */
 devtools.profiler.ProfileView = function(head) {
   this.head = head;
-  this.title = '';
-  this.uid = '';
-  this.heavyProfile = null;
-  this.treeProfile = null;
-  this.flatProfile = null;
 };
 
 
