@@ -1548,9 +1548,13 @@ class JSObject: public HeapObject {
 
   void LookupInDescriptor(String* name, LookupResult* result);
 
-  Object* GetPropertyWithInterceptorProper(JSObject* receiver,
-                                           String* name,
-                                           PropertyAttributes* attributes);
+  // Attempts to get property with a named interceptor getter.  Returns
+  // |true| and stores result into |result| if succesful, otherwise
+  // returns |false|
+  bool GetPropertyWithInterceptorProper(JSObject* receiver,
+                                        String* name,
+                                        PropertyAttributes* attributes,
+                                        Object** result);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };

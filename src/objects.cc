@@ -5617,10 +5617,11 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
 }
 
 
-Object* JSObject::GetPropertyWithInterceptorProper(
+bool JSObject::GetPropertyWithInterceptorProper(
     JSObject* receiver,
     String* name,
-    PropertyAttributes* attributes) {
+    PropertyAttributes* attributes,
+    Object** result_object) {
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
@@ -5641,14 +5642,17 @@ Object* JSObject::GetPropertyWithInterceptorProper(
       VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    RETURN_IF_SCHEDULED_EXCEPTION();
+    if (Top::has_scheduled_exception()) {
+      return false;
+    }
     if (!result.IsEmpty()) {
       *attributes = NONE;
-      return *v8::Utils::OpenHandle(*result);
+      *result_object = *v8::Utils::OpenHandle(*result);
+      return true;
     }
   }
 
-  return NULL;
+  return false;
 }
 
 
@@ -5662,8 +5666,12 @@ Object* JSObject::GetInterceptorPropertyWithLookupHint(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = GetPropertyWithInterceptorProper(receiver, name, attributes);
-  if (result) return result;
+  Object* result = NULL;
+  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+    return result;
+  } else {
+    RETURN_IF_SCHEDULED_EXCEPTION();
+  }
 
   int property_index = lookup_hint->value();
   if (property_index >= 0) {
@@ -5708,8 +5716,12 @@ Object* JSObject::GetPropertyWithInterceptor(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = GetPropertyWithInterceptorProper(receiver, name, attributes);
-  if (result) return result;
+  Object* result = NULL;
+  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+    return result;
+  } else {
+    RETURN_IF_SCHEDULED_EXCEPTION();
+  }
 
   result = holder_handle->GetPropertyPostInterceptor(
       *receiver_handle,
