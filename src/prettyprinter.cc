@@ -693,10 +693,10 @@ void AstPrinter::PrintLabelsIndented(const char* info, ZoneStringList* labels) {
       Print(" ");
     }
     PrintLabels(labels);
-    Print("\n");
   } else if (info != NULL) {
     PrintIndented(info);
   }
+  Print("\n");
 }
 
 
@@ -918,9 +918,8 @@ void AstPrinter::VisitLiteral(Literal* node) {
 
 void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   IndentedScope indent("REGEXP LITERAL");
-  PrintLiteral(node->pattern(), false);
-  Print(",");
-  PrintLiteral(node->flags(), false);
+  PrintLiteralIndented("PATTERN", node->pattern(), false);
+  PrintLiteralIndented("FLAGS", node->flags(), false);
 }
 
 
