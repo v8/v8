@@ -79,7 +79,7 @@ struct Register {
   int code_;
 };
 
-const Register eax = {0};
+const Register eax = { 0 };
 const Register ecx = { 1 };
 const Register edx = { 2 };
 const Register ebx = { 3 };
