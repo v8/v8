@@ -443,7 +443,8 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   // the sentinel as its context, it is an arguments adaptor frame. It
   // must be tagged as a small integer to avoid GC issues. Crud.
   enum {
-    SENTINEL = (1 << kSmiTagSize) | kSmiTag
+    SENTINEL = (1 << kSmiTagSize) | kSmiTag,
+    NON_SENTINEL = ~SENTINEL
   };
 
   virtual Type type() const { return ARGUMENTS_ADAPTOR; }

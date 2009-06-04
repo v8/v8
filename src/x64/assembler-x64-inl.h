@@ -37,6 +37,11 @@ Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
 
+// -----------------------------------------------------------------------------
+
+Immediate::Immediate(Smi* value) {
+  value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
@@ -51,7 +56,10 @@ void Assembler::emitl(uint32_t x) {
 
 void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
   Memory::uint64_at(pc_) = x;
-  RecordRelocInfo(rmode, x);
+  if (rmode != RelocInfo::NONE) {
+    RecordRelocInfo(rmode, x);
+  }
+  pc_ += sizeof(uint64_t);
 }
 
 

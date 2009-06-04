@@ -486,13 +486,22 @@ void Assembler::call(Register adr) {
   emit_modrm(0x2, adr);
 }
 
-
 void Assembler::cpuid() {
   ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x0F);
   emit(0xA2);
+}
+
+
+void Assembler::call(const Operand& op) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: FF /2 m64
+  emit_rex_64(op);
+  emit(0xFF);
+  emit_operand(2, op);
 }
 
 
@@ -686,6 +695,20 @@ void Assembler::lea(Register dst, const Operand& src) {
 }
 
 
+void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x48);  // REX.W
+  emit(0xA1);
+  emitq(reinterpret_cast<uintptr_t>(value), mode);
+}
+
+
+void Assembler::load_rax(ExternalReference ref) {
+  load_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
+}
+
+
 void Assembler::leave() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -783,6 +806,24 @@ void Assembler::movq(Register dst, Immediate value) {
 }
 
 
+void Assembler::movq(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src, dst);
+  emit(0x89);
+  emit_operand(src, dst);
+}
+
+
+void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xB8 | (dst.code() & 0x7));
+  emitq(reinterpret_cast<uintptr_t>(value), rmode);
+}
+
+
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -792,12 +833,13 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
 }
 
 
-void Assembler::movq(const Operand& dst, Register src) {
+void Assembler::movq(Register dst, ExternalReference ref) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_rex_64(src, dst);
-  emit(0x89);
-  emit_operand(src, dst);
+  emit_rex_64(dst);
+  emit(0xB8 | (dst.code() & 0x7));
+  emitq(reinterpret_cast<uintptr_t>(ref.address()),
+        RelocInfo::EXTERNAL_REFERENCE);
 }
 
 
@@ -1068,6 +1110,20 @@ void Assembler::xchg(Register dst, Register src) {
     emit(0x87);
     emit_modrm(src, dst);
   }
+}
+
+
+void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x48);  // REX.W
+  emit(0xA3);
+  emitq(reinterpret_cast<uintptr_t>(dst), mode);
+}
+
+
+void Assembler::store_rax(ExternalReference ref) {
+  store_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
 }
 
 

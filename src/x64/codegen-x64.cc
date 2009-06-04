@@ -50,6 +50,9 @@ CodeGenerator::CodeGenerator(int buffer_size,
       in_spilled_code_(false) {
 }
 
+#define __ masm->
+
+
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
   UNIMPLEMENTED();
 }
@@ -229,10 +232,97 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   masm->int3();  // TODO(X64): UNIMPLEMENTED.
 }
 
+
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  masm->int3();  // TODO(X64): UNIMPLEMENTED.
+  Label invoke, exit;
+
+  // Setup frame.
+  __ push(rbp);
+  __ movq(rbp, rsp);
+
+  // Save callee-saved registers (X64 calling conventions).
+  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  // Push something that is not an arguments adaptor.
+  __ push(Immediate(ArgumentsAdaptorFrame::NON_SENTINEL));
+  __ push(Immediate(Smi::FromInt(marker)));  // @ function offset
+  __ push(r12);
+  __ push(r13);
+  __ push(r14);
+  __ push(r15);
+  __ push(rdi);
+  __ push(rsi);
+  __ push(rbx);
+  // TODO(X64): Push XMM6-XMM15 (low 64 bits) as well, or make them
+  // callee-save in JS code as well.
+
+  // Save copies of the top frame descriptor on the stack.
+  ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
+  __ load_rax(c_entry_fp);
+  __ push(rax);
+
+  // Call a faked try-block that does the invoke.
+  __ call(&invoke);
+
+  // Caught exception: Store result (exception) in the pending
+  // exception field in the JSEnv and return a failure sentinel.
+  ExternalReference pending_exception(Top::k_pending_exception_address);
+  __ store_rax(pending_exception);
+  __ movq(rax, Failure::Exception(), RelocInfo::NONE);
+  __ jmp(&exit);
+
+  // Invoke: Link this frame into the handler chain.
+  __ bind(&invoke);
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
+  __ push(rax);  // flush TOS
+
+  // Clear any pending exceptions.
+  __ load_rax(ExternalReference::the_hole_value_location());
+  __ store_rax(pending_exception);
+
+  // Fake a receiver (NULL).
+  __ push(Immediate(0));  // receiver
+
+  // Invoke the function by calling through JS entry trampoline
+  // builtin and pop the faked function when we return. We load the address
+  // from an external reference instead of inlining the call target address
+  // directly in the code, because the builtin stubs may not have been
+  // generated yet at the time this code is generated.
+  if (is_construct) {
+    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
+    __ load_rax(construct_entry);
+  } else {
+    ExternalReference entry(Builtins::JSEntryTrampoline);
+    __ load_rax(entry);
+  }
+  __ call(FieldOperand(rax, Code::kHeaderSize));
+
+  // Unlink this frame from the handler chain.
+  __ movq(kScratchRegister, ExternalReference(Top::k_handler_address));
+  __ pop(Operand(kScratchRegister, 0));
+  // Pop next_sp.
+  __ add(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+
+  // Restore the top frame descriptor from the stack.
+  __ bind(&exit);
+  __ movq(kScratchRegister, ExternalReference(Top::k_c_entry_fp_address));
+  __ pop(Operand(kScratchRegister, 0));
+
+  // Restore callee-saved registers (X64 conventions).
+  __ pop(rbx);
+  __ pop(rsi);
+  __ pop(rdi);
+  __ pop(r15);
+  __ pop(r14);
+  __ pop(r13);
+  __ pop(r12);
+  __ add(rsp, Immediate(2 * kPointerSize));  // remove markers
+
+  // Restore frame pointer and return.
+  __ pop(rbp);
+  __ ret(0);
 }
 
 
+#undef __
 
 } }  // namespace v8::internal

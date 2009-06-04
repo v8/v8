@@ -440,12 +440,14 @@ class Assembler : public Malloced {
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
   void movq(Register dst, const char* s, RelocInfo::Mode rmode);
-  void movq(Register dst, const ExternalReference& ext, RelocInfo::Mode rmode);
+  // Moves the address of the external reference into the register.
+  void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
 
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
+  void load_rax(ExternalReference ext);
 
   void movsx_b(Register dst, const Operand& src);
 
@@ -616,6 +618,9 @@ class Assembler : public Malloced {
     shift(dst, 0x5);
   }
 
+  void store_rax(void* dst, RelocInfo::Mode mode);
+  void store_rax(ExternalReference ref);
+
   void sub(Register dst, Register src) {
     arithmetic_op(0x2B, dst, src);
   }
@@ -699,6 +704,9 @@ class Assembler : public Malloced {
 
   // Call near absolute indirect, address in register
   void call(Register adr);
+
+  // Call near indirect
+  void call(const Operand& operand);
 
   // Jumps
   // Jump short or near relative.
