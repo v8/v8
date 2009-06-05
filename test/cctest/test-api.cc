@@ -4827,6 +4827,23 @@ THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
 }
 
 
+typedef v8::Handle<Value> (*NamedPropertyGetter)(Local<String> property,
+                                                 const AccessorInfo& info);
+
+
+static void CheckInterceptorLoadIC(NamedPropertyGetter getter,
+                                   const char* source,
+                                   int expected) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(getter);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(source);
+  CHECK_EQ(expected, value->Int32Value());
+}
+
+
 static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
                                                  const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
@@ -4837,17 +4854,100 @@ static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
 
 // This test should hit the load IC for the interceptor case.
 THREADED_TEST(InterceptorLoadIC) {
-  v8::HandleScope scope;
-  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
-  templ->SetNamedPropertyHandler(InterceptorLoadICGetter);
-  LocalContext context;
-  context->Global()->Set(v8_str("o"), templ->NewInstance());
-  v8::Handle<Value> value = CompileRun(
+  CheckInterceptorLoadIC(InterceptorLoadICGetter,
     "var result = 0;"
     "for (var i = 0; i < 1000; i++) {"
     "  result = o.x;"
-    "}");
-  CHECK_EQ(42, value->Int32Value());
+    "}",
+    42);
+}
+
+
+// Below go several tests which verify that JITing for various
+// configurations of interceptor and explicit fields works fine
+// (those cases are special cased to get better performance).
+
+static v8::Handle<Value> InterceptorLoadXICGetter(Local<String> name,
+                                                 const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8_str("x")->Equals(name)
+      ? v8::Integer::New(42) : v8::Handle<v8::Value>();
+}
+
+
+THREADED_TEST(InterceptorLoadICWithFieldOnHolder) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "o.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y;"
+    "}",
+    239);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithSubstitutedProto) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "o.__proto__ = { 'y': 239 };"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y + o.x;"
+    "}",
+    239 + 42);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithPropertyOnProto) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "o.__proto__.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.y + o.x;"
+    "}",
+    239 + 42);
+}
+
+
+THREADED_TEST(InterceptorLoadICUndefined) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = (o.y == undefined) ? 239 : 42;"
+    "}",
+    239);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithOverride) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "fst = new Object();  fst.__proto__ = o;"
+    "snd = new Object();  snd.__proto__ = fst;"
+    "var result1 = 0;"
+    "for (var i = 0; i < 1000;  i++) {"
+    "  result1 = snd.x;"
+    "}"
+    "fst.x = 239;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = snd.x;"
+    "}"
+    "result + result1",
+    239 + 42);
+}
+
+
+static v8::Handle<Value> InterceptorLoadICGetter0(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(v8_str("x")->Equals(name));
+  return v8::Integer::New(0);
+}
+
+
+THREADED_TEST(InterceptorReturningZero) {
+  CheckInterceptorLoadIC(InterceptorLoadICGetter0,
+     "o.x == undefined ? 1 : 0",
+     0);
 }
 
 

@@ -1349,6 +1349,14 @@ class JSObject: public HeapObject {
   Object* LookupCallbackSetterInPrototypes(uint32_t index);
   void LookupCallback(String* name, LookupResult* result);
 
+  inline Smi* InterceptorPropertyLookupHint(String* name);
+  Object* GetInterceptorPropertyWithLookupHint(JSObject* receiver,
+                                               Smi* lookup_hint,
+                                               String* name,
+                                               PropertyAttributes* attributes);
+  static const int kLookupInHolder = -1;
+  static const int kLookupInPrototype = -2;
+
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
   int NumberOfLocalProperties(PropertyAttributes filter);
@@ -1539,6 +1547,14 @@ class JSObject: public HeapObject {
   Object* DefineGetterSetter(String* name, PropertyAttributes attributes);
 
   void LookupInDescriptor(String* name, LookupResult* result);
+
+  // Attempts to get property with a named interceptor getter.  Returns
+  // |true| and stores result into |result| if succesful, otherwise
+  // returns |false|
+  bool GetPropertyWithInterceptorProper(JSObject* receiver,
+                                        String* name,
+                                        PropertyAttributes* attributes,
+                                        Object** result);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
