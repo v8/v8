@@ -34,6 +34,14 @@
 namespace v8 {
 namespace internal {
 
+// -------------------------------------------------------------------------
+// Platform-specific DeferredCode functions.
+
+void DeferredCode::SaveRegisters() { UNIMPLEMENTED(); }
+
+void DeferredCode::RestoreRegisters() { UNIMPLEMENTED(); }
+
+
 CodeGenerator::CodeGenerator(int buffer_size,
                              Handle<Script> script,
                              bool is_eval)
