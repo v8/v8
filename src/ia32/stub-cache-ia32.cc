@@ -322,7 +322,6 @@ void StubCompiler::GenerateLoadConstant(MacroAssembler* masm,
 void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
                                            JSObject* object,
                                            JSObject* holder,
-                                           Smi* lookup_hint,
                                            Register receiver,
                                            Register name,
                                            Register scratch1,
@@ -341,15 +340,12 @@ void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   __ push(name);  // name
-  // TODO(367): Maybe don't push lookup_hint for LOOKUP_IN_HOLDER and/or
-  // LOOKUP_IN_PROTOTYPE, but use a special version of lookup method?
-  __ push(Immediate(lookup_hint));
   __ push(scratch2);  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 4);
+  __ TailCallRuntime(load_ic_property, 3);
 }
 
 
@@ -674,12 +670,11 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ push(edx);  // receiver
   __ push(reg);  // holder
   __ push(Operand(ebp, (argc + 3) * kPointerSize));  // name
-  __ push(Immediate(holder->InterceptorPropertyLookupHint(name)));
 
   // Perform call.
   ExternalReference load_interceptor =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ mov(eax, Immediate(4));
+  __ mov(eax, Immediate(3));
   __ mov(ebx, Immediate(load_interceptor));
 
   CEntryStub stub;
@@ -979,18 +974,7 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
-  // TODO(368): Compile in the whole chain: all the interceptors in
-  // prototypes and ultimate answer.
-  GenerateLoadInterceptor(masm(),
-                          receiver,
-                          holder,
-                          holder->InterceptorPropertyLookupHint(name),
-                          eax,
-                          ecx,
-                          edx,
-                          ebx,
-                          &miss);
-
+  GenerateLoadInterceptor(masm(), receiver, holder, eax, ecx, edx, ebx, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -1105,15 +1089,7 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadInterceptor(masm(),
-                          receiver,
-                          holder,
-                          Smi::FromInt(JSObject::kLookupInHolder),
-                          ecx,
-                          eax,
-                          edx,
-                          ebx,
-                          &miss);
+  GenerateLoadInterceptor(masm(), receiver, holder, ecx, eax, edx, ebx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_interceptor, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);

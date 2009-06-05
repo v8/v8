@@ -2554,24 +2554,6 @@ bool JSObject::HasElement(uint32_t index) {
 }
 
 
-Smi* JSObject::InterceptorPropertyLookupHint(String* name) {
-  // TODO(antonm): Do we want to do any shortcuts for global object?
-  if (HasFastProperties()) {
-    LookupResult lookup;
-    LocalLookupRealNamedProperty(name, &lookup);
-    if (lookup.IsValid()) {
-      if (lookup.type() == FIELD && lookup.IsCacheable()) {
-        return Smi::FromInt(lookup.GetFieldIndex());
-      }
-    } else {
-      return Smi::FromInt(kLookupInPrototype);
-    }
-  }
-
-  return Smi::FromInt(kLookupInHolder);
-}
-
-
 bool AccessorInfo::all_can_read() {
   return BooleanBit::get(flag(), kAllCanReadBit);
 }

@@ -351,7 +351,6 @@ class StubCompiler BASE_EMBEDDED {
   static void GenerateLoadInterceptor(MacroAssembler* masm,
                                       JSObject* object,
                                       JSObject* holder,
-                                      Smi* lookup_hint,
                                       Register receiver,
                                       Register name,
                                       Register scratch1,
