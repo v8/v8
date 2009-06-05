@@ -307,8 +307,6 @@
                 'cflags': [
                     # Avoid gcc 4.4 strict aliasing issues in dtoa.c
                     '-fno-strict-aliasing',
-                    # Avoid gcc 4.4 mksnapshot segfault.
-                    '-fno-tree-vectorize',
                     # Avoid crashes with gcc 4.4 in the v8 test suite.
                     '-fno-tree-vrp',
                 ],
