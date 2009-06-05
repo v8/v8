@@ -525,6 +525,8 @@ class VirtualFrame : public ZoneObject {
 
   bool Equals(VirtualFrame* other);
 
+  // Classes that need raw access to the elements_ array.
+  friend class DeferredCode;
   friend class JumpTarget;
 };
 

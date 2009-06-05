@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -26,63 +26,17 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#ifndef V8_CODEGEN_INL_H_
-#define V8_CODEGEN_INL_H_
-
-#include "codegen.h"
-#include "register-allocator-inl.h"
-
-#if V8_TARGET_ARCH_IA32
-#include "ia32/codegen-ia32-inl.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/codegen-x64-inl.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/codegen-arm-inl.h"
-#else
-#error Unsupported target architecture.
-#endif
-
+#ifndef V8_X64_CODEGEN_X64_INL_H_
+#define V8_X64_CODEGEN_X64_INL_H_
 
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
+// Platform-specific inline functions.
 
-// -----------------------------------------------------------------------------
-// Support for "structured" code comments.
-//
-// By selecting matching brackets in disassembler output,
-// code segments can be identified more easily.
-
-#ifdef DEBUG
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler* masm, const char* msg) : masm_(masm), msg_(msg) {
-    __ RecordComment(msg);
-  }
-
-  ~Comment() {
-    if (msg_[0] == '[') __ RecordComment("]");
-  }
-
- private:
-  MacroAssembler* masm_;
-  const char* msg_;
-};
-
-#else
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler*, const char*)  {}
-};
-
-#endif  // DEBUG
-
-#undef __
-
+void DeferredCode::Jump() { UNIMPLEMENTED(); }
+void DeferredCode::Branch(Condition cc) { UNIMPLEMENTED(); }
 
 } }  // namespace v8::internal
 
-#endif  // V8_CODEGEN_INL_H_
+#endif  // V8_X64_CODEGEN_X64_INL_H_
