@@ -1275,9 +1275,12 @@ class JSObject: public HeapObject {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
 
-  Object* DeleteProperty(String* name);
-  Object* DeleteElement(uint32_t index);
-  Object* DeleteLazyProperty(LookupResult* result, String* name);
+  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+  Object* DeleteProperty(String* name, DeleteMode mode);
+  Object* DeleteElement(uint32_t index, DeleteMode mode);
+  Object* DeleteLazyProperty(LookupResult* result,
+                             String* name,
+                             DeleteMode mode);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -1348,6 +1351,14 @@ class JSObject: public HeapObject {
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
   Object* LookupCallbackSetterInPrototypes(uint32_t index);
   void LookupCallback(String* name, LookupResult* result);
+
+  inline Smi* InterceptorPropertyLookupHint(String* name);
+  Object* GetInterceptorPropertyWithLookupHint(JSObject* receiver,
+                                               Smi* lookup_hint,
+                                               String* name,
+                                               PropertyAttributes* attributes);
+  static const int kLookupInHolder = -1;
+  static const int kLookupInPrototype = -2;
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -1511,10 +1522,10 @@ class JSObject: public HeapObject {
 
   Object* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 
-  Object* DeletePropertyPostInterceptor(String* name);
+  Object* DeletePropertyPostInterceptor(String* name, DeleteMode mode);
   Object* DeletePropertyWithInterceptor(String* name);
 
-  Object* DeleteElementPostInterceptor(uint32_t index);
+  Object* DeleteElementPostInterceptor(uint32_t index, DeleteMode mode);
   Object* DeleteElementWithInterceptor(uint32_t index);
 
   PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
@@ -1539,6 +1550,14 @@ class JSObject: public HeapObject {
   Object* DefineGetterSetter(String* name, PropertyAttributes attributes);
 
   void LookupInDescriptor(String* name, LookupResult* result);
+
+  // Attempts to get property with a named interceptor getter.  Returns
+  // |true| and stores result into |result| if succesful, otherwise
+  // returns |false|
+  bool GetPropertyWithInterceptorProper(JSObject* receiver,
+                                        String* name,
+                                        PropertyAttributes* attributes,
+                                        Object** result);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
@@ -2041,7 +2060,7 @@ class Dictionary: public DictionaryBase {
   int FindNumberEntry(uint32_t index);
 
   // Delete a property from the dictionary.
-  Object* DeleteProperty(int entry);
+  Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
 
   // Type specific at put (default NONE attributes is used when adding).
   Object* AtStringPut(String* key, Object* value);
@@ -2612,7 +2631,7 @@ class Map: public HeapObject {
   static const int kHasInstanceCallHandler = 6;
   static const int kIsAccessCheckNeeded = 7;
 
-  // Bit positions for but field 2
+  // Bit positions for bit field 2
   static const int kNeedsLoading = 0;
 
  private:
@@ -2630,17 +2649,23 @@ class Struct: public HeapObject {
 };
 
 
-// Script types.
-enum ScriptType {
-  SCRIPT_TYPE_NATIVE,
-  SCRIPT_TYPE_EXTENSION,
-  SCRIPT_TYPE_NORMAL
-};
-
-
 // Script describes a script which has been added to the VM.
 class Script: public Struct {
  public:
+  // Script types.
+  enum Type {
+    TYPE_NATIVE,
+    TYPE_EXTENSION,
+    TYPE_NORMAL
+  };
+
+  // Script compilation types.
+  enum CompilationType {
+    COMPILATION_TYPE_HOST,
+    COMPILATION_TYPE_EVAL,
+    COMPILATION_TYPE_JSON
+  };
+
   // [source]: the script source.
   DECL_ACCESSORS(source, Object)
 
@@ -2669,8 +2694,19 @@ class Script: public Struct {
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
 
-  // [line_ends]: array of line ends positions
+  // [compilation]: how the the script was compiled.
+  DECL_ACCESSORS(compilation_type, Smi)
+
+  // [line_ends]: array of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
+
+  // [eval_from_function]: for eval scripts the funcion from which eval was
+  // called.
+  DECL_ACCESSORS(eval_from_function, Object)
+
+  // [eval_from_instructions_offset]: the instruction offset in the code for the
+  // function from which eval was called where eval was called.
+  DECL_ACCESSORS(eval_from_instructions_offset, Smi)
 
   static inline Script* cast(Object* obj);
 
@@ -2687,9 +2723,13 @@ class Script: public Struct {
   static const int kContextOffset = kDataOffset + kPointerSize;
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
-  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
+  static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
+  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kSize = kIdOffset + kPointerSize;
+  static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
+  static const int kEvalFrominstructionsOffsetOffset =
+      kEvalFromFunctionOffset + kPointerSize;
+  static const int kSize = kEvalFrominstructionsOffsetOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);

@@ -125,28 +125,13 @@ class DeferredCode: public ZoneObject {
 
   virtual void Generate() = 0;
 
-  CodeGenerator* cgen() const { return CodeGeneratorScope::Current(); }
-
-  // Set the virtual frame for entry to the deferred code as a
-  // snapshot of the code generator's current frame (plus additional
-  // results).  This is optional, but should be done before branching
-  // or jumping to the deferred code.
-  inline void SetEntryFrame(Result* arg);
-  inline void SetEntryFrame(Result* arg0, Result* arg1);
-
-  JumpTarget* enter() { return &enter_; }
-
-  void BindExit() { exit_.Bind(0); }
-  void BindExit(Result* result) { exit_.Bind(result, 1); }
-  void BindExit(Result* result0, Result* result1) {
-    exit_.Bind(result0, result1, 2);
-  }
-  void BindExit(Result* result0, Result* result1, Result* result2) {
-    exit_.Bind(result0, result1, result2, 3);
-  }
+  MacroAssembler* masm() { return masm_; }
 
   int statement_position() const { return statement_position_; }
   int position() const { return position_; }
+
+  Label* entry_label() { return &entry_label_; }
+  Label* exit_label() { return &exit_label_; }
 
 #ifdef DEBUG
   void set_comment(const char* comment) { comment_ = comment; }
@@ -156,13 +141,35 @@ class DeferredCode: public ZoneObject {
   const char* comment() const { return ""; }
 #endif
 
+  inline void Jump();
+  inline void Branch(Condition cc);
+  void BindExit() { masm_->bind(&exit_label_); }
+
+  void SaveRegisters();
+  void RestoreRegisters();
+
  protected:
-  JumpTarget enter_;
-  JumpTarget exit_;
+  MacroAssembler* masm_;
 
  private:
+  // Constants indicating special actions.  They should not be multiples
+  // of kPointerSize so they will not collide with valid offsets from
+  // the frame pointer.
+  static const int kIgnore = -1;
+  static const int kPush = 1;
+
+  // This flag is ored with a valid offset from the frame pointer, so
+  // it should fit in the low zero bits of a valid offset.
+  static const int kSyncedFlag = 2;
+
   int statement_position_;
   int position_;
+
+  Label entry_label_;
+  Label exit_label_;
+
+  int registers_[RegisterAllocator::kNumRegisters];
+
 #ifdef DEBUG
   const char* comment_;
 #endif

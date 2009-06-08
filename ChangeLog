@@ -1,3 +1,24 @@
+2009-06-08: Version 1.2.7
+
+        Improved debugger and profiler support.
+
+        Reduced compilation time by improving the handling of deferred
+        code.
+
+        Optimized interceptor accesses where the property is on the object
+        on which the interceptors is attached.
+
+        Fixed compilation problem on GCC 4.4 by changing the stack
+        alignment to 16 bytes.
+
+        Fixed handle creation to follow stric aliasing rules.
+
+        Fixed compilation on FreeBSD.
+
+        Introduced API for forcing the deletion of a property ignoring
+        interceptors and attributes.
+
+
 2009-05-29: Version 1.2.6
 
         Added a histogram recording hit rates at different levels of the

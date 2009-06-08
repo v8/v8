@@ -77,7 +77,73 @@ uint64_t CpuFeatures::supported_ = 0;
 uint64_t CpuFeatures::enabled_ = 0;
 
 void CpuFeatures::Probe()  {
-  // TODO(X64): UNIMPLEMENTED
+  ASSERT(Heap::HasBeenSetup());
+  ASSERT(supported_ == 0);
+  if (Serializer::enabled()) return;  // No features if we might serialize.
+
+  Assembler assm(NULL, 0);
+  Label cpuid, done;
+#define __ assm.
+  // Save old esp, since we are going to modify the stack.
+  __ push(rbp);
+  __ pushfq();
+  __ push(rcx);
+  __ push(rbx);
+  __ movq(rbp, rsp);
+
+  // If we can modify bit 21 of the EFLAGS register, then CPUID is supported.
+  __ pushfq();
+  __ pop(rax);
+  __ movq(rdx, rax);
+  __ xor_(rax, Immediate(0x200000));  // Flip bit 21.
+  __ push(rax);
+  __ popfq();
+  __ pushfq();
+  __ pop(rax);
+  __ xor_(rax, rdx);  // Different if CPUID is supported.
+  __ j(not_zero, &cpuid);
+
+  // CPUID not supported. Clear the supported features in edx:eax.
+  __ xor_(rax, rax);
+  __ jmp(&done);
+
+  // Invoke CPUID with 1 in eax to get feature information in
+  // ecx:edx. Temporarily enable CPUID support because we know it's
+  // safe here.
+  __ bind(&cpuid);
+  __ movq(rax, Immediate(1));
+  supported_ = (1 << CPUID);
+  { Scope fscope(CPUID);
+    __ cpuid();
+  }
+  supported_ = 0;
+
+  // Move the result from ecx:edx to rax and make sure to mark the
+  // CPUID feature as supported.
+  __ movl(rax, rdx);  // Zero-extended to 64 bits.
+  __ shl(rcx, Immediate(32));
+  __ or_(rax, rcx);
+  __ or_(rax, Immediate(1 << CPUID));
+
+  // Done.
+  __ bind(&done);
+  __ movq(rsp, rbp);
+  __ pop(rbx);
+  __ pop(rcx);
+  __ popfq();
+  __ pop(rbp);
+  __ ret(0);
+#undef __
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Object* code =
+      Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
+  if (!code->IsCode()) return;
+  LOG(CodeCreateEvent("Builtin", Code::cast(code), "CpuFeatures::Probe"));
+  typedef uint64_t (*F0)();
+  F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  supported_ = probe();
 }
 
 // -----------------------------------------------------------------------------
@@ -271,12 +337,13 @@ void Assembler::GrowBuffer() {
 }
 
 
-void Assembler::emit_operand(Register reg, const Operand& adr) {
+void Assembler::emit_operand(int rm, const Operand& adr) {
+  ASSERT_EQ(rm & 0x07, rm);
   const unsigned length = adr.len_;
   ASSERT(length > 0);
 
-  // Emit updated ModRM byte containing the given register.
-  pc_[0] = (adr.buf_[0] & ~0x38) | ((reg.code() && 0x7) << 3);
+  // Emit updated ModR/M byte containing the given register.
+  pc_[0] = (adr.buf_[0] & ~0x38) | (rm << 3);
 
   // Emit the rest of the encoded operand.
   for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
@@ -300,7 +367,7 @@ void Assembler::arithmetic_op(byte opcode, Register dst, Register src) {
   last_pc_ = pc_;
   emit_rex_64(dst, src);
   emit(opcode);
-  emit(0xC0 | (dst.code() & 0x7) << 3 | (src.code() & 0x7));
+  emit_modrm(dst, src);
 }
 
 void Assembler::immediate_arithmetic_op(byte subcode,
@@ -311,14 +378,14 @@ void Assembler::immediate_arithmetic_op(byte subcode,
   emit_rex_64(dst);
   if (is_int8(src.value_)) {
     emit(0x83);
-    emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
+    emit_modrm(subcode, dst);
     emit(src.value_);
   } else if (dst.is(rax)) {
     emit(0x05 | (subcode << 3));
     emitl(src.value_);
   } else {
     emit(0x81);
-    emit(0xC0 | (subcode << 3) | (dst.code() & 0x7));
+    emit_modrm(subcode, dst);
     emitl(src.value_);
   }
 }
@@ -338,6 +405,52 @@ void Assembler::immediate_arithmetic_op(byte subcode,
     emit_operand(Register::toRegister(subcode), dst);
     emitl(src.value_);
   }
+}
+
+
+void Assembler::shift(Register dst, Immediate shift_amount, int subcode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint6(shift_amount.value_));  // illegal shift count
+  if (shift_amount.value_ == 1) {
+    emit_rex_64(dst);
+    emit(0xD1);
+    emit_modrm(subcode, dst);
+  } else {
+    emit_rex_64(dst);
+    emit(0xC1);
+    emit_modrm(subcode, dst);
+    emit(shift_amount.value_);
+  }
+}
+
+
+void Assembler::shift(Register dst, int subcode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xD3);
+  emit_modrm(subcode, dst);
+}
+
+
+void Assembler::bt(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0xA3);
+  emit_operand(src, dst);
+}
+
+
+void Assembler::bts(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0xAB);
+  emit_operand(src, dst);
 }
 
 
@@ -362,12 +475,50 @@ void Assembler::call(Label* L) {
 }
 
 
+void Assembler::call(Register adr) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: FF /2 r64
+  if (adr.code() > 7) {
+    emit_rex_64(adr);
+  }
+  emit(0xFF);
+  emit_modrm(0x2, adr);
+}
+
+void Assembler::cpuid() {
+  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x0F);
+  emit(0xA2);
+}
+
+
+void Assembler::call(const Operand& op) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: FF /2 m64
+  emit_rex_64(op);
+  emit(0xFF);
+  emit_operand(2, op);
+}
+
+
+void Assembler::cqo() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64();
+  emit(0x99);
+}
+
+
 void Assembler::dec(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
   emit(0xFF);
-  emit(0xC8 | (dst.code() & 0x7));
+  emit_modrm(0x1, dst);
 }
 
 
@@ -380,10 +531,54 @@ void Assembler::dec(const Operand& dst) {
 }
 
 
+void Assembler::enter(Immediate size) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xC8);
+  emitw(size.value_);  // 16 bit operand, always.
+  emit(0);
+}
+
+
 void Assembler::hlt() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0xF4);
+}
+
+
+void Assembler::idiv(Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src);
+  emit(0xF7);
+  emit_modrm(0x7, src);
+}
+
+
+void Assembler::imul(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xAF);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::imul(Register dst, Register src, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  if (is_int8(imm.value_)) {
+    emit(0x6B);
+    emit_modrm(dst, src);
+    emit(imm.value_);
+  } else {
+    emit(0x69);
+    emit_modrm(dst, src);
+    emitl(imm.value_);
+  }
 }
 
 
@@ -392,7 +587,7 @@ void Assembler::inc(Register dst) {
   last_pc_ = pc_;
   emit_rex_64(dst);
   emit(0xFF);
-  emit(0xC0 | (dst.code() & 0x7));
+  emit_modrm(0x0, dst);
 }
 
 
@@ -479,6 +674,110 @@ void Assembler::jmp(Label* L) {
 }
 
 
+void Assembler::jmp(Register target) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode FF/4 r64
+  if (target.code() > 7) {
+    emit_rex_64(target);
+  }
+  emit(0xFF);
+  emit_modrm(0x4, target);
+}
+
+
+void Assembler::lea(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x8D);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x48);  // REX.W
+  emit(0xA1);
+  emitq(reinterpret_cast<uintptr_t>(value), mode);
+}
+
+
+void Assembler::load_rax(ExternalReference ref) {
+  load_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
+}
+
+
+void Assembler::leave() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xC9);
+}
+
+
+void Assembler::movb(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_32(dst, src);
+  emit(0x8A);
+  emit_operand(dst, src);
+}
+
+void Assembler::movb(Register dst, Immediate imm) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_32(dst);
+  emit(0xC6);
+  emit_modrm(0x0, dst);
+  emit(imm.value_);
+}
+
+void Assembler::movb(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_32(src, dst);
+  emit(0x88);
+  emit_operand(src, dst);
+}
+
+void Assembler::movl(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x8B);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x8B);
+  emit_modrm(dst, src);
+}
+
+
+void Assembler::movl(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(src, dst);
+  emit(0x89);
+  emit_operand(src, dst);
+}
+
+
+void Assembler::movl(Register dst, Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit_modrm(0x0, dst);
+  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
+}
+
+
 void Assembler::movq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -493,7 +792,7 @@ void Assembler::movq(Register dst, Register src) {
   last_pc_ = pc_;
   emit_rex_64(dst, src);
   emit(0x8B);
-  emit(0xC0 | (dst.code() & 0x7) << 3 | (src.code() & 0x7));
+  emit_modrm(dst, src);
 }
 
 
@@ -502,8 +801,26 @@ void Assembler::movq(Register dst, Immediate value) {
   last_pc_ = pc_;
   emit_rex_64(dst);
   emit(0xC7);
-  emit(0xC0 | (dst.code() & 0x7));
+  emit_modrm(0x0, dst);
   emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
+}
+
+
+void Assembler::movq(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src, dst);
+  emit(0x89);
+  emit_operand(src, dst);
+}
+
+
+void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xB8 | (dst.code() & 0x7));
+  emitq(reinterpret_cast<uintptr_t>(value), rmode);
 }
 
 
@@ -511,8 +828,27 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
-  emit(0xB8 | (dst.code() & 0x7));
+  emit(0xB8 | (dst.code() & 0x7));  // Not a ModR/M byte.
   emitq(value, rmode);
+}
+
+
+void Assembler::movq(Register dst, ExternalReference ref) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xB8 | (dst.code() & 0x7));
+  emitq(reinterpret_cast<uintptr_t>(ref.address()),
+        RelocInfo::EXTERNAL_REFERENCE);
+}
+
+
+void Assembler::mul(Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src);
+  emit(0xF7);
+  emit_modrm(0x4, src);
 }
 
 
@@ -521,7 +857,7 @@ void Assembler::neg(Register dst) {
   last_pc_ = pc_;
   emit_rex_64(dst);
   emit(0xF7);
-  emit(0xC0 | (0x3 << 3) | (dst.code() & 0x7));
+  emit_modrm(0x3, dst);
 }
 
 
@@ -546,7 +882,7 @@ void Assembler::not_(Register dst) {
   last_pc_ = pc_;
   emit_rex_64(dst);
   emit(0xF7);
-  emit(0xC0 | (0x2 << 3) | (dst.code() & 0x7));
+  emit_modrm(0x2, dst);
 }
 
 
@@ -559,10 +895,97 @@ void Assembler::not_(const Operand& dst) {
 }
 
 
+void Assembler::nop(int n) {
+  // The recommended muti-byte sequences of NOP instructions from the Intel 64
+  // and IA-32 Architectures Software Developer's Manual.
+  //
+  // Length   Assembly                                Byte Sequence
+  // 2 bytes  66 NOP                                  66 90H
+  // 3 bytes  NOP DWORD ptr [EAX]                     0F 1F 00H
+  // 4 bytes  NOP DWORD ptr [EAX + 00H]               0F 1F 40 00H
+  // 5 bytes  NOP DWORD ptr [EAX + EAX*1 + 00H]       0F 1F 44 00 00H
+  // 6 bytes  66 NOP DWORD ptr [EAX + EAX*1 + 00H]    66 0F 1F 44 00 00H
+  // 7 bytes  NOP DWORD ptr [EAX + 00000000H]         0F 1F 80 00 00 00 00H
+  // 8 bytes  NOP DWORD ptr [EAX + EAX*1 + 00000000H] 0F 1F 84 00 00 00 00 00H
+  // 9 bytes  66 NOP DWORD ptr [EAX + EAX*1 +         66 0F 1F 84 00 00 00 00
+  //          00000000H]                              00H
+
+  ASSERT(1 <= n);
+  ASSERT(n <= 9);
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  switch (n) {
+  case 1:
+    emit(0x90);
+    return;
+  case 2:
+    emit(0x66);
+    emit(0x90);
+    return;
+  case 3:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x00);
+    return;
+  case 4:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x40);
+    emit(0x00);
+    return;
+  case 5:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x44);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 6:
+    emit(0x66);
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x44);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 7:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x80);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 8:
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x84);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    return;
+  case 9:
+    emit(0x66);
+    emit(0x0f);
+    emit(0x1f);
+    emit(0x84);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    emit(0x00);
+    return;
+  }
+}
+
+
 void Assembler::pop(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (dst.code() & 0x8) {
+  if (dst.code() > 7) {
     emit_rex_64(dst);
   }
   emit(0x58 | (dst.code() & 0x7));
@@ -578,10 +1001,17 @@ void Assembler::pop(const Operand& dst) {
 }
 
 
+void Assembler::popfq() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x9D);
+}
+
+
 void Assembler::push(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (src.code() & 0x8) {
+  if (src.code() > 7) {
     emit_rex_64(src);
   }
   emit(0x50 | (src.code() & 0x7));
@@ -594,6 +1024,43 @@ void Assembler::push(const Operand& src) {
   emit_rex_64(src);  // Could be omitted in some cases.
   emit(0xFF);
   emit_operand(6, src);
+}
+
+
+void Assembler::push(Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (is_int8(value.value_)) {
+    emit(0x6A);
+    emit(value.value_);  // Emit low byte of value.
+  } else {
+    emit(0x68);
+    emitl(value.value_);
+  }
+}
+
+
+void Assembler::pushfq() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x9C);
+}
+
+
+void Assembler::rcl(Register dst, uint8_t imm8) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint6(imm8));  // illegal shift count
+  if (imm8 == 1) {
+    emit_rex_64(dst);
+    emit(0xD1);
+    emit_modrm(0x2, dst);
+  } else {
+    emit_rex_64(dst);
+    emit(0xC1);
+    emit_modrm(0x2, dst);
+    emit(imm8);
+  }
 }
 
 
@@ -611,6 +1078,55 @@ void Assembler::ret(int imm16) {
 }
 
 
+void Assembler::shld(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0xA5);
+  emit_modrm(src, dst);
+}
+
+
+void Assembler::shrd(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src, dst);
+  emit(0x0F);
+  emit(0xAD);
+  emit_modrm(src, dst);
+}
+
+
+void Assembler::xchg(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (src.is(rax) || dst.is(rax)) {  // Single-byte encoding
+    Register other = src.is(rax) ? dst : src;
+    emit_rex_64(other);
+    emit(0x90 | (other.code() & 0x7));
+  } else {
+    emit_rex_64(src, dst);
+    emit(0x87);
+    emit_modrm(src, dst);
+  }
+}
+
+
+void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x48);  // REX.W
+  emit(0xA3);
+  emitq(reinterpret_cast<uintptr_t>(dst), mode);
+}
+
+
+void Assembler::store_rax(ExternalReference ref) {
+  store_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
+}
+
+
 void Assembler::testb(Register reg, Immediate mask) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -618,11 +1134,12 @@ void Assembler::testb(Register reg, Immediate mask) {
     emit(0xA8);
     emit(mask);
   } else {
-    if (reg.code() & 0x8) {
-      emit_rex_32(rax, reg);
+    if (reg.code() > 3) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(reg);
     }
     emit(0xF6);
-    emit(0xC0 | (reg.code() & 0x3));
+    emit_modrm(0x0, reg);
     emit(mask.value_);  // Low byte emitted.
   }
 }
@@ -647,7 +1164,7 @@ void Assembler::testl(Register reg, Immediate mask) {
   } else {
     emit_optional_rex_32(rax, reg);
     emit(0xF7);
-    emit(0xC0 | (reg.code() & 0x3));
+    emit_modrm(0x0, reg);
     emit(mask);
   }
 }
@@ -660,6 +1177,24 @@ void Assembler::testl(const Operand& op, Immediate mask) {
   emit(0xF7);
   emit_operand(rax, op);  // Operation code 0
   emit(mask);
+}
+
+
+void Assembler::testq(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(reg, op);
+  emit(0x85);
+  emit_operand(reg, op);
+}
+
+
+void Assembler::testq(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x85);
+  emit_modrm(dst, src);
 }
 
 

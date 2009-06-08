@@ -40,6 +40,19 @@
 namespace v8 {
 namespace internal {
 
+// Utility functions
+
+// Test whether a 64-bit value is in a specific range.
+static inline bool is_uint32(int64_t x) {
+  const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
+  return x == x & kUInt32Mask;
+}
+
+static inline bool is_int32(int64_t x) {
+  const int64_t kMinIntValue = V8_INT64_C(-0x80000000);
+  return is_uint32(x - kMinIntValue);
+}
+
 // CPU Registers.
 //
 // 1) We would prefer to use an enum, but enum values are assignment-
@@ -225,10 +238,12 @@ class Immediate BASE_EMBEDDED {
 // Machine instruction Operands
 
 enum ScaleFactor {
-  times_1 = 0,
-  times_2 = 1,
-  times_4 = 2,
-  times_8 = 3
+  kTimes1 = 0,
+  kTimes2 = 1,
+  kTimes4 = 2,
+  kTimes8 = 3,
+  kTimesIntSize = kTimes4,
+  kTimesPointerSize = kTimes8
 };
 
 
@@ -255,7 +270,7 @@ class Operand BASE_EMBEDDED {
   unsigned int len_;
   RelocInfo::Mode rmode_;
 
-  // Set the ModRM byte without an encoded 'reg' register. The
+  // Set the ModR/M byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
   // set_modrm can be called before or after set_sib and set_disp*.
   inline void set_modrm(int mod, Register rm);
@@ -292,11 +307,11 @@ class CpuFeatures : public AllStatic {
   static void Probe();
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(Feature f) {
-    return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return (supported_ & (V8_UINT64_C(1) << f)) != 0;
   }
   // Check whether a feature is currently enabled.
   static bool IsEnabled(Feature f) {
-    return (enabled_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return (enabled_ & (V8_UINT64_C(1) << f)) != 0;
   }
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
@@ -305,7 +320,7 @@ class CpuFeatures : public AllStatic {
     explicit Scope(Feature f) {
       ASSERT(CpuFeatures::IsSupported(f));
       old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= (static_cast<uint64_t>(1) << f);
+      CpuFeatures::enabled_ |= (V8_UINT64_C(1) << f);
     }
     ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
    private:
@@ -353,8 +368,9 @@ class Assembler : public Malloced {
   void GetCode(CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
-  inline static Address target_address_at(Address pc);
-  inline static void set_target_address_at(Address pc, Address target);
+  // On the x64 architecture, the address is absolute, not relative.
+  static inline Address target_address_at(Address pc);
+  static inline void set_target_address_at(Address pc, Address target);
 
   // Distance between the address of the code target in the call instruction
   // and the return address
@@ -385,13 +401,10 @@ class Assembler : public Malloced {
   void Align(int m);
 
   // Stack
-  void pushad();
-  void popad();
+  void pushfq();
+  void popfq();
 
-  void pushfd();
-  void popfd();
-
-  void push(const Immediate& x);
+  void push(Immediate value);
   void push(Register src);
   void push(const Operand& src);
   void push(Label* label, RelocInfo::Mode relocation_mode);
@@ -399,19 +412,27 @@ class Assembler : public Malloced {
   void pop(Register dst);
   void pop(const Operand& dst);
 
-  void enter(const Immediate& size);
+  void enter(Immediate size);
   void leave();
 
   // Moves
   void movb(Register dst, const Operand& src);
-  void movb(const Operand& dst, int8_t imm8);
+  void movb(Register dst, Immediate imm);
   void movb(const Operand& dst, Register src);
 
+  void movl(Register dst, Register src);
+  void movl(Register dst, const Operand& src);
+  void movl(const Operand& dst, Register src);
+  // Load a 32-bit immediate value, zero-extended to 64 bits.
+  void movl(Register dst, Immediate imm32);
+
   void movq(Register dst, int32_t imm32);
-  void movq(Register dst, Immediate x);
   void movq(Register dst, const Operand& src);
+  // Sign extends immediate 32-bit value to 64 bits.
+  void movq(Register dst, Immediate x);
   void movq(Register dst, Register src);
-  void movq(const Operand& dst, const Immediate& x);
+
+  // Move 64 bit register value to 64-bit memory location.
   void movq(const Operand& dst, Register src);
 
   // New x64 instructions to load a 64-bit immediate into a register.
@@ -419,11 +440,14 @@ class Assembler : public Malloced {
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
   void movq(Register dst, int64_t value, RelocInfo::Mode rmode);
   void movq(Register dst, const char* s, RelocInfo::Mode rmode);
-  void movq(Register dst, const ExternalReference& ext, RelocInfo::Mode rmode);
+  // Moves the address of the external reference into the register.
+  void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
+
 
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
+  void load_rax(ExternalReference ext);
 
   void movsx_b(Register dst, const Operand& src);
 
@@ -513,18 +537,23 @@ class Assembler : public Malloced {
   void dec(Register dst);
   void dec(const Operand& dst);
 
-  void cdq();
+  // Sign-extends rax into rdx:rax.
+  void cqo();
 
+  // Divide rdx:rax by src.  Quotient in rax, remainder in rdx.
   void idiv(Register src);
 
+  void imul(Register dst, Register src);
   void imul(Register dst, const Operand& src);
-  void imul(Register dst, Register src, int32_t imm32);
+  // Performs the operation dst = src * imm.
+  void imul(Register dst, Register src, Immediate imm);
 
   void inc(Register dst);
   void inc(const Operand& dst);
 
   void lea(Register dst, const Operand& src);
 
+  // Multiply rax by src, put the result in rdx:rax.
   void mul(Register src);
 
   void neg(Register dst);
@@ -556,21 +585,41 @@ class Assembler : public Malloced {
 
   void rcl(Register dst, uint8_t imm8);
 
-  void sar(Register dst, uint8_t imm8);
-  void sar(Register dst);
+  // Shifts dst:src left by cl bits, affecting only dst.
+  void shld(Register dst, Register src);
 
-  void sbb(Register dst, const Operand& src);
+  // Shifts src:dst right by cl bits, affecting only dst.
+  void shrd(Register dst, Register src);
 
-  void shld(Register dst, const Operand& src);
+  // Shifts dst right, duplicating sign bit, by shift_amount bits.
+  // Shifting by 1 is handled efficiently.
+  void sar(Register dst, Immediate shift_amount) {
+    shift(dst, shift_amount, 0x7);
+  }
 
-  void shl(Register dst, uint8_t imm8);
-  void shl(Register dst);
+  // Shifts dst right, duplicating sign bit, by cl % 64 bits.
+  void sar(Register dst) {
+    shift(dst, 0x7);
+  }
 
-  void shrd(Register dst, const Operand& src);
+  void shl(Register dst, Immediate shift_amount) {
+    shift(dst, shift_amount, 0x4);
+  }
 
-  void shr(Register dst, uint8_t imm8);
-  void shr(Register dst);
-  void shr_cl(Register dst);
+  void shl(Register dst) {
+    shift(dst, 0x4);
+  }
+
+  void shr(Register dst, Immediate shift_amount) {
+    shift(dst, shift_amount, 0x5);
+  }
+
+  void shr(Register dst) {
+    shift(dst, 0x5);
+  }
+
+  void store_rax(void* dst, RelocInfo::Mode mode);
+  void store_rax(ExternalReference ref);
 
   void sub(Register dst, Register src) {
     arithmetic_op(0x2B, dst, src);
@@ -596,6 +645,8 @@ class Assembler : public Malloced {
   void testb(const Operand& op, Immediate mask);
   void testl(Register reg, Immediate mask);
   void testl(const Operand& op, Immediate mask);
+  void testq(const Operand& op, Register reg);
+  void testq(Register dst, Register src);
 
   void xor_(Register dst, Register src) {
     arithmetic_op(0x33, dst, src);
@@ -626,6 +677,7 @@ class Assembler : public Malloced {
   void hlt();
   void int3();
   void nop();
+  void nop(int n);
   void rdtsc();
   void ret(int imm16);
 
@@ -647,16 +699,21 @@ class Assembler : public Malloced {
   void bind(Label* L);  // binds an unbound label L to the current code position
 
   // Calls
+  // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
-  void call(byte* entry, RelocInfo::Mode rmode);
-  void call(const Operand& adr);
-  void call(Handle<Code> code, RelocInfo::Mode rmode);
+
+  // Call near absolute indirect, address in register
+  void call(Register adr);
+
+  // Call near indirect
+  void call(const Operand& operand);
 
   // Jumps
+  // Jump short or near relative.
   void jmp(Label* L);  // unconditional jump to L
-  void jmp(byte* entry, RelocInfo::Mode rmode);
-  void jmp(const Operand& adr);
-  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
+
+  // Jump near absolute indirect (r64)
+  void jmp(Register adr);
 
   // Conditional jumps
   void j(Condition cc, Label* L);
@@ -808,6 +865,7 @@ class Assembler : public Malloced {
   inline void emitl(uint32_t x);
   inline void emit(Handle<Object> handle);
   inline void emitq(uint64_t x, RelocInfo::Mode rmode);
+  inline void emitw(uint16_t x);
   void emit(Immediate x) { emitl(x.value_); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
@@ -815,7 +873,6 @@ class Assembler : public Malloced {
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is set.
   inline void emit_rex_64(Register reg, Register rm_reg);
-  void emit_rex_64(Register rm_reg) { emit_rex_64(rax, rm_reg); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of the destination, index, and base register codes.
@@ -823,16 +880,39 @@ class Assembler : public Malloced {
   // register is used for REX.B, and the high bit of op's index register
   // is used for REX.X.  REX.W is set.
   inline void emit_rex_64(Register reg, const Operand& op);
-  void emit_rex_64(const Operand& op) { emit_rex_64(rax, op); }
+
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of the register code.
+  // The high bit of register is used for REX.B.
+  // REX.W is set and REX.R and REX.X are clear.
+  inline void emit_rex_64(Register rm_reg);
+
+  // Emits a REX prefix that encodes a 64-bit operand size and
+  // the top bit of the index and base register codes.
+  // The high bit of op's base register is used for REX.B, and the high
+  // bit of op's index register is used for REX.X.
+  // REX.W is set and REX.R clear.
+  inline void emit_rex_64(const Operand& op);
+
+  // Emit a REX prefix that only sets REX.W to choose a 64-bit operand size.
+  void emit_rex_64() { emit(0x48); }
 
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-  // REX.W is set.
+  // REX.W is clear.
   inline void emit_rex_32(Register reg, Register rm_reg);
 
   // The high bit of reg is used for REX.R, the high bit of op's base
   // register is used for REX.B, and the high bit of op's index register
   // is used for REX.X.  REX.W is cleared.
   inline void emit_rex_32(Register reg, const Operand& op);
+
+  // High bit of rm_reg goes to REX.B.
+  // REX.W, REX.R and REX.X are clear.
+  inline void emit_rex_32(Register rm_reg);
+
+  // High bit of base goes to REX.B and high bit of index to REX.X.
+  // REX.W and REX.R are clear.
+  inline void emit_rex_32(const Operand& op);
 
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is cleared.  If no REX bits are set, no byte is emitted.
@@ -844,13 +924,38 @@ class Assembler : public Malloced {
   // is emitted.
   inline void emit_optional_rex_32(Register reg, const Operand& op);
 
-  // Emit the Mod/RM byte, and optionally the SIB byte and
+  // Optionally do as emit_rex_32(Register) if the register number has
+  // the high bit set.
+  inline void emit_optional_rex_32(Register rm_reg);
+
+  // Optionally do as emit_rex_32(const Operand&) if the operand register
+  // numbers have a high bit set.
+  inline void emit_optional_rex_32(const Operand& op);
+
+
+  // Emit the ModR/M byte, and optionally the SIB byte and
   // 1- or 4-byte offset for a memory operand.  Also encodes
   // the second operand of the operation, a register or operation
-  // subcode, into the Mod/RM byte.
-  void emit_operand(Register reg, const Operand& adr);
-  void emit_operand(int op_subcode, const Operand& adr) {
-    emit_operand(Register::toRegister(op_subcode), adr);
+  // subcode, into the reg field of the ModR/M byte.
+  void emit_operand(Register reg, const Operand& adr) {
+    emit_operand(reg.code() & 0x07, adr);
+  }
+
+  // Emit the ModR/M byte, and optionally the SIB byte and
+  // 1- or 4-byte offset for a memory operand.  Also used to encode
+  // a three-bit opcode extension into the ModR/M byte.
+  void emit_operand(int rm, const Operand& adr);
+
+  // Emit a ModR/M byte with registers coded in the reg and rm_reg fields.
+  void emit_modrm(Register reg, Register rm_reg) {
+    emit(0xC0 | (reg.code() & 0x7) << 3 | (rm_reg.code() & 0x7));
+  }
+
+  // Emit a ModR/M byte with an operation subcode in the reg field and
+  // a register in the rm_reg field.
+  void emit_modrm(int code, Register rm_reg) {
+    ASSERT((code & ~0x7) == 0);
+    emit(0xC0 | (code & 0x7) << 3 | (rm_reg.code() & 0x7));
   }
 
   // Emit the code-object-relative offset of the label's position
@@ -859,11 +964,15 @@ class Assembler : public Malloced {
   // Emit machine code for one of the operations ADD, ADC, SUB, SBC,
   // AND, OR, XOR, or CMP.  The encodings of these operations are all
   // similar, differing just in the opcode or in the reg field of the
-  // Mod/RM byte.
+  // ModR/M byte.
   void arithmetic_op(byte opcode, Register dst, Register src);
   void arithmetic_op(byte opcode, Register reg, const Operand& op);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
   void immediate_arithmetic_op(byte subcode, const Operand& dst, Immediate src);
+  // Emit machine code for a shift operation.
+  void shift(Register dst, Immediate shift_amount, int subcode);
+  // Shift dst by cl % 64 bits.
+  void shift(Register dst, int subcode);
 
   void emit_farith(int b1, int b2, int i);
 

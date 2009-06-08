@@ -88,10 +88,15 @@ double OS::nan_value() {
 
 
 int OS::ActivationFrameAlignment() {
-  // Floating point code runs faster if the stack is 8-byte aligned.
+#ifdef V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
   // runtime system.
   return 8;
+#else
+  // With gcc 4.4 the tree vectorization optimiser can generate code
+  // that requires 16 byte alignment such as movdqa on x86.
+  return 16;
+#endif
 }
 
 

@@ -37,6 +37,11 @@ Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
 
+// -----------------------------------------------------------------------------
+
+Immediate::Immediate(Smi* value) {
+  value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler
@@ -51,66 +56,90 @@ void Assembler::emitl(uint32_t x) {
 
 void Assembler::emitq(uint64_t x, RelocInfo::Mode rmode) {
   Memory::uint64_at(pc_) = x;
-  RecordRelocInfo(rmode, x);
+  if (rmode != RelocInfo::NONE) {
+    RecordRelocInfo(rmode, x);
+  }
+  pc_ += sizeof(uint64_t);
 }
 
 
-// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W is set.  REX.X is cleared.
+void Assembler::emitw(uint16_t x) {
+  Memory::uint16_at(pc_) = x;
+  pc_ += sizeof(uint16_t);
+}
+
+
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
 
-// The high bit of reg is used for REX.R, the high bit of op's base
-// register is used for REX.B, and the high bit of op's index register
-// is used for REX.X.  REX.W is set.
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
 }
 
 
-// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W is set.  REX.X is cleared.
+void Assembler::emit_rex_64(Register rm_reg) {
+  ASSERT_EQ(rm_reg.code() & 0xf, rm_reg.code());
+  emit(0x48 | (rm_reg.code() >> 3));
+}
+
+
+void Assembler::emit_rex_64(const Operand& op) {
+  emit(0x48 | op.rex_);
+}
+
+
 void Assembler::emit_rex_32(Register reg, Register rm_reg) {
   emit(0x40 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
 
-// The high bit of reg is used for REX.R, the high bit of op's base
-// register is used for REX.B, and the high bit of op's index register
-// is used for REX.X.  REX.W is cleared.
 void Assembler::emit_rex_32(Register reg, const Operand& op) {
   emit(0x40 | (reg.code() & 0x8) >> 1 | op.rex_);
 }
 
 
-// High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
-// REX.W and REX.X are cleared.  If no REX bits are set, no byte is emitted.
+void Assembler::emit_rex_32(Register rm_reg) {
+  emit(0x40 | (rm_reg.code() & 0x8) >> 3);
+}
+
+
+void Assembler::emit_rex_32(const Operand& op) {
+  emit(0x40 | op.rex_);
+}
+
+
 void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
   byte rex_bits = (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3;
-  if (rex_bits) emit(0x40 | rex_bits);
+  if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
 
-// The high bit of reg is used for REX.R, the high bit of op's base
-// register is used for REX.B, and the high bit of op's index register
-// is used for REX.X.  REX.W is cleared.  If no REX bits are set, nothing
-// is emitted.
 void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
   byte rex_bits =  (reg.code() & 0x8) >> 1 | op.rex_;
-  if (rex_bits) emit(0x40 | rex_bits);
+  if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
 
-void Assembler::set_target_address_at(byte* location, byte* value) {
-  UNIMPLEMENTED();
+void Assembler::emit_optional_rex_32(Register rm_reg) {
+  if (rm_reg.code() & 0x8 != 0) emit(0x41);
 }
 
 
-byte* Assembler::target_address_at(byte* location) {
-  UNIMPLEMENTED();
-  return NULL;
+void Assembler::emit_optional_rex_32(const Operand& op) {
+  if (op.rex_ != 0) emit(0x40 | op.rex_);
+}
+
+
+Address Assembler::target_address_at(Address pc) {
+  return Memory::Address_at(pc);
+}
+
+
+void Assembler::set_target_address_at(Address pc, Address target) {
+  Memory::Address_at(pc) = target;
+  CPU::FlushICache(pc, sizeof(intptr_t));
 }
 
 
@@ -151,6 +180,8 @@ void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);
 }
+
+
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return *reinterpret_cast<Object**>(pc_);
@@ -222,7 +253,7 @@ Operand::Operand(Register base, int32_t disp) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(times_1, rsp, base);
+    set_sib(kTimes1, rsp, base);
   }
 
   if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
@@ -246,7 +277,7 @@ void Operand::set_modrm(int mod, Register rm) {
 
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   ASSERT(len_ == 1);
-  ASSERT((scale & -4) == 0);
+  ASSERT(is_uint2(scale));
   // Use SIB with no index register only for base rsp or r12.
   ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));
   buf_[1] = scale << 6 | (index.code() & 0x7) << 3 | (base.code() & 0x7);

@@ -41,6 +41,34 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+// -------------------------------------------------------------------------
+// Platform-specific DeferredCode functions.
+
+void DeferredCode::SaveRegisters() {
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ push(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore && (action & kSyncedFlag) == 0) {
+      __ str(RegisterAllocator::ToRegister(i), MemOperand(fp, action));
+    }
+  }
+}
+
+
+void DeferredCode::RestoreRegisters() {
+  // Restore registers in reverse order due to the stack.
+  for (int i = RegisterAllocator::kNumRegisters - 1; i >= 0; i--) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ pop(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore) {
+      action &= ~kSyncedFlag;
+      __ ldr(RegisterAllocator::ToRegister(i), MemOperand(fp, action));
+    }
+  }
+}
+
 
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
@@ -776,23 +804,14 @@ class DeferredInlineSmiOperation: public DeferredCode {
 };
 
 
-#undef __
-#define __ ACCESS_MASM(masm)
-
-
 void DeferredInlineSmiOperation::Generate() {
-  MacroAssembler* masm = cgen()->masm();
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope;
-
   switch (op_) {
     case Token::ADD: {
+      // Revert optimistic add.
       if (reversed_) {
-        // revert optimistic add
         __ sub(r0, r0, Operand(Smi::FromInt(value_)));
         __ mov(r1, Operand(Smi::FromInt(value_)));
       } else {
-        // revert optimistic add
         __ sub(r1, r0, Operand(Smi::FromInt(value_)));
         __ mov(r0, Operand(Smi::FromInt(value_)));
       }
@@ -800,8 +819,8 @@ void DeferredInlineSmiOperation::Generate() {
     }
 
     case Token::SUB: {
+      // Revert optimistic sub.
       if (reversed_) {
-        // revert optimistic sub
         __ rsb(r0, r0, Operand(Smi::FromInt(value_)));
         __ mov(r1, Operand(Smi::FromInt(value_)));
       } else {
@@ -830,29 +849,20 @@ void DeferredInlineSmiOperation::Generate() {
         __ mov(r1, Operand(r0));
         __ mov(r0, Operand(Smi::FromInt(value_)));
       } else {
-        UNREACHABLE();  // should have been handled in SmiOperation
+        UNREACHABLE();  // Should have been handled in SmiOperation.
       }
       break;
     }
 
     default:
-      // other cases should have been handled before this point.
+      // Other cases should have been handled before this point.
       UNREACHABLE();
       break;
   }
 
-  GenericBinaryOpStub igostub(op_, overwrite_mode_);
-  Result arg0 = cgen()->allocator()->Allocate(r1);
-  ASSERT(arg0.is_valid());
-  Result arg1 = cgen()->allocator()->Allocate(r0);
-  ASSERT(arg1.is_valid());
-  cgen()->frame()->CallStub(&igostub, &arg0, &arg1);
-  exit_.Jump();
+  GenericBinaryOpStub stub(op_, overwrite_mode_);
+  __ CallStub(&stub);
 }
-
-
-#undef __
-#define __ ACCESS_MASM(masm_)
 
 
 void CodeGenerator::SmiOperation(Token::Value op,
@@ -877,28 +887,28 @@ void CodeGenerator::SmiOperation(Token::Value op,
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(op, int_value, reversed, mode);
+          new DeferredInlineSmiOperation(op, int_value, reversed, mode);
 
       __ add(r0, r0, Operand(value), SetCC);
-      deferred->enter()->Branch(vs);
+      deferred->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
-      deferred->enter()->Branch(ne);
+      deferred->Branch(ne);
       deferred->BindExit();
       break;
     }
 
     case Token::SUB: {
       DeferredCode* deferred =
-        new DeferredInlineSmiOperation(op, int_value, reversed, mode);
+          new DeferredInlineSmiOperation(op, int_value, reversed, mode);
 
-      if (!reversed) {
-        __ sub(r0, r0, Operand(value), SetCC);
-      } else {
+      if (reversed) {
         __ rsb(r0, r0, Operand(value), SetCC);
+      } else {
+        __ sub(r0, r0, Operand(value), SetCC);
       }
-      deferred->enter()->Branch(vs);
+      deferred->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
-      deferred->enter()->Branch(ne);
+      deferred->Branch(ne);
       deferred->BindExit();
       break;
     }
@@ -909,7 +919,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       DeferredCode* deferred =
         new DeferredInlineSmiOperation(op, int_value, reversed, mode);
       __ tst(r0, Operand(kSmiTagMask));
-      deferred->enter()->Branch(ne);
+      deferred->Branch(ne);
       switch (op) {
         case Token::BIT_OR:  __ orr(r0, r0, Operand(value)); break;
         case Token::BIT_XOR: __ eor(r0, r0, Operand(value)); break;
@@ -934,14 +944,14 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
           new DeferredInlineSmiOperation(op, shift_value, false, mode);
         __ tst(r0, Operand(kSmiTagMask));
-        deferred->enter()->Branch(ne);
+        deferred->Branch(ne);
         __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
         switch (op) {
           case Token::SHL: {
             __ mov(r2, Operand(r2, LSL, shift_value));
             // check that the *unsigned* result fits in a smi
             __ add(r3, r2, Operand(0x40000000), SetCC);
-            deferred->enter()->Branch(mi);
+            deferred->Branch(mi);
             break;
           }
           case Token::SHR: {
@@ -956,7 +966,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
             // smi tagging these two cases can only happen with shifts
             // by 0 or 1 when handed a valid smi
             __ and_(r3, r2, Operand(0xc0000000), SetCC);
-            deferred->enter()->Branch(ne);
+            deferred->Branch(ne);
             break;
           }
           case Token::SAR: {
@@ -2670,38 +2680,23 @@ class DeferredObjectLiteral: public DeferredCode {
 };
 
 
-#undef __
-#define __ ACCESS_MASM(masm)
-
-
 void DeferredObjectLiteral::Generate() {
-  MacroAssembler* masm = cgen()->masm();
   // Argument is passed in r1.
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope;
 
   // If the entry is undefined we call the runtime system to compute
   // the literal.
-
-  VirtualFrame* frame = cgen()->frame();
   // Literal array (0).
-  frame->EmitPush(r1);
+  __ push(r1);
   // Literal index (1).
   __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
-  frame->EmitPush(r0);
+  __ push(r0);
   // Constant properties (2).
   __ mov(r0, Operand(node_->constant_properties()));
-  frame->EmitPush(r0);
-  Result boilerplate =
-      frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  __ mov(r2, Operand(boilerplate.reg()));
+  __ push(r0);
+  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  __ mov(r2, Operand(r0));
   // Result is returned in r2.
-  exit_.Jump();
 }
-
-
-#undef __
-#define __ ACCESS_MASM(masm_)
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
@@ -2729,7 +2724,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code.
   __ cmp(r2, Operand(Factory::undefined_value()));
-  deferred->enter()->Branch(eq);
+  deferred->Branch(eq);
   deferred->BindExit();
 
   // Push the object literal boilerplate.
@@ -2807,38 +2802,23 @@ class DeferredArrayLiteral: public DeferredCode {
 };
 
 
-#undef __
-#define __ ACCESS_MASM(masm)
-
-
 void DeferredArrayLiteral::Generate() {
-  MacroAssembler* masm = cgen()->masm();
   // Argument is passed in r1.
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope;
 
   // If the entry is undefined we call the runtime system to computed
   // the literal.
-
-  VirtualFrame* frame = cgen()->frame();
   // Literal array (0).
-  frame->EmitPush(r1);
+  __ push(r1);
   // Literal index (1).
   __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
-  frame->EmitPush(r0);
+  __ push(r0);
   // Constant properties (2).
   __ mov(r0, Operand(node_->literals()));
-  frame->EmitPush(r0);
-  Result boilerplate =
-      frame->CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
-  __ mov(r2, Operand(boilerplate.reg()));
+  __ push(r0);
+  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+  __ mov(r2, Operand(r0));
   // Result is returned in r2.
-  exit_.Jump();
 }
-
-
-#undef __
-#define __ ACCESS_MASM(masm_)
 
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
@@ -2866,7 +2846,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code.
   __ cmp(r2, Operand(Factory::undefined_value()));
-  deferred->enter()->Branch(eq);
+  deferred->Branch(eq);
   deferred->BindExit();
 
   // Push the object literal boilerplate.

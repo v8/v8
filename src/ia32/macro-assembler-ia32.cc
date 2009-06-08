@@ -561,8 +561,8 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
 
 
 void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
-                                          Register scratch,
-                                          Label* miss) {
+                                            Register scratch,
+                                            Label* miss) {
   Label same_contexts;
 
   ASSERT(!holder_reg.is(scratch));

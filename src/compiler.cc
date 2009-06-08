@@ -110,7 +110,22 @@ static Handle<JSFunction> MakeFunction(bool is_global,
 
   ASSERT(!i::Top::global_context().is_null());
   script->set_context_data((*i::Top::global_context())->data());
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  if (is_eval || is_json) {
+    script->set_compilation_type(
+        is_json ? Smi::FromInt(Script::COMPILATION_TYPE_JSON) :
+                               Smi::FromInt(Script::COMPILATION_TYPE_EVAL));
+    // For eval scripts add information on the function from which eval was
+    // called.
+    if (is_eval) {
+      JavaScriptFrameIterator it;
+      script->set_eval_from_function(it.frame()->function());
+      int offset = it.frame()->pc() - it.frame()->code()->instruction_start();
+      script->set_eval_from_instructions_offset(Smi::FromInt(offset));
+    }
+  }
+
   // Notify debugger
   Debugger::OnBeforeCompile(script);
 #endif

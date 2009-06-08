@@ -416,7 +416,8 @@ int HandleScope::NumberOfHandles() {
 
 
 void** v8::HandleScope::CreateHandle(void* value) {
-  return i::HandleScope::CreateHandle(value);
+  return reinterpret_cast<void**>(
+      i::HandleScope::CreateHandle(reinterpret_cast<i::Object*>(value)));
 }
 
 
@@ -1888,6 +1889,19 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(false);
   return true;
+}
+
+
+bool v8::Object::ForceDelete(v8::Handle<Value> key) {
+  ON_BAILOUT("v8::Object::ForceDelete()", return false);
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return obj->IsTrue();
 }
 
 

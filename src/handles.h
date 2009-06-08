@@ -119,15 +119,15 @@ class HandleScope {
   static int NumberOfHandles();
 
   // Creates a new handle with the given value.
-  static inline void** CreateHandle(void* value) {
+  static inline Object** CreateHandle(Object* value) {
     void** result = current_.next;
     if (result == current_.limit) result = Extend();
     // Update the current next field, set the value in the created
     // handle, and return the result.
     ASSERT(result < current_.limit);
     current_.next = result + 1;
-    *result = value;
-    return result;
+    *reinterpret_cast<Object**>(result) = value;
+    return reinterpret_cast<Object**>(result);
   }
 
  private:
@@ -201,6 +201,9 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
+
+Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
+                                   Handle<Object> key);
 
 Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
                                                    Handle<String> key,

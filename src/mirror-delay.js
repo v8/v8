@@ -1617,6 +1617,11 @@ ScriptMirror.prototype.scriptType = function() {
 };
 
 
+ScriptMirror.prototype.compilationType = function() {
+  return this.script_.compilation_type;
+};
+
+
 ScriptMirror.prototype.lineCount = function() {
   return this.script_.lineCount();
 };
@@ -1635,6 +1640,20 @@ ScriptMirror.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
 
 ScriptMirror.prototype.context = function() {
   return this.context_;
+};
+
+
+ScriptMirror.prototype.evalFromFunction = function() {
+  return MakeMirror(this.script_.eval_from_function);
+};
+
+
+ScriptMirror.prototype.evalFromLocation = function() {
+  var eval_from_function = this.evalFromFunction();
+  if (!eval_from_function.isUndefined()) {
+    var position = this.script_.eval_from_position;
+    return eval_from_function.script().locationFromPosition(position, true);
+  }
 };
 
 
@@ -1901,6 +1920,14 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
       }
       content.sourceLength = mirror.source().length;
       content.scriptType = mirror.scriptType();
+      content.compilationType = mirror.compilationType();
+      if (mirror.compilationType() == 1) {  // Compilation type eval.
+        content.evalFromScript =
+            this.serializeReference(mirror.evalFromFunction().script());
+        var evalFromLocation = mirror.evalFromLocation()
+        content.evalFromLocation = { line: evalFromLocation.line,
+                                     column: evalFromLocation.column}
+      }
       if (mirror.context()) {
         content.context = this.serializeReference(mirror.context());
       }

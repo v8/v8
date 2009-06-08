@@ -45,33 +45,54 @@ namespace internal {
 CodeGenerator* CodeGeneratorScope::top_ = NULL;
 
 
-DeferredCode::DeferredCode() : exit_(JumpTarget::BIDIRECTIONAL) {
-  MacroAssembler* masm = cgen()->masm();
-  statement_position_ = masm->current_statement_position();
-  position_ = masm->current_position();
+DeferredCode::DeferredCode()
+    : masm_(CodeGeneratorScope::Current()->masm()),
+      statement_position_(masm_->current_statement_position()),
+      position_(masm_->current_position()) {
   ASSERT(statement_position_ != RelocInfo::kNoPosition);
   ASSERT(position_ != RelocInfo::kNoPosition);
 
-  cgen()->AddDeferred(this);
+  CodeGeneratorScope::Current()->AddDeferred(this);
 #ifdef DEBUG
   comment_ = "";
 #endif
+
+  // Copy the register locations from the code generator's frame.
+  // These are the registers that will be spilled on entry to the
+  // deferred code and restored on exit.
+  VirtualFrame* frame = CodeGeneratorScope::Current()->frame();
+  int sp_offset = frame->fp_relative(frame->stack_pointer_);
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    int loc = frame->register_location(i);
+    if (loc == VirtualFrame::kIllegalIndex) {
+      registers_[i] = kIgnore;
+    } else if (frame->elements_[loc].is_synced()) {
+      // Needs to be restored on exit but not saved on entry.
+      registers_[i] = frame->fp_relative(loc) | kSyncedFlag;
+    } else {
+      int offset = frame->fp_relative(loc);
+      registers_[i] = (offset < sp_offset) ? kPush : offset;
+    }
+  }
 }
 
 
 void CodeGenerator::ProcessDeferred() {
   while (!deferred_.is_empty()) {
     DeferredCode* code = deferred_.RemoveLast();
-    MacroAssembler* masm = code->cgen()->masm();
+    ASSERT(masm_ == code->masm());
     // Record position of deferred code stub.
-    masm->RecordStatementPosition(code->statement_position());
+    masm_->RecordStatementPosition(code->statement_position());
     if (code->position() != RelocInfo::kNoPosition) {
-      masm->RecordPosition(code->position());
+      masm_->RecordPosition(code->position());
     }
     // Generate the code.
-    Comment cmnt(masm, code->comment());
+    Comment cmnt(masm_, code->comment());
+    masm_->bind(code->entry_label());
+    code->SaveRegisters();
     code->Generate();
-    ASSERT(code->enter()->is_bound());
+    code->RestoreRegisters();
+    masm_->jmp(code->exit_label());
   }
 }
 

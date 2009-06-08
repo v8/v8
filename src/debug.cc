@@ -652,7 +652,7 @@ bool Debug::CompileDebuggerScript(int index) {
 
   // Mark this script as native and return successfully.
   Handle<Script> script(Script::cast(function->shared()->script()));
-  script->set_type(Smi::FromInt(SCRIPT_TYPE_NATIVE));
+  script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
   return true;
 }
 

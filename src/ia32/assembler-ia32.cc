@@ -44,29 +44,6 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// Implementation of Register
-
-Register eax = { 0 };
-Register ecx = { 1 };
-Register edx = { 2 };
-Register ebx = { 3 };
-Register esp = { 4 };
-Register ebp = { 5 };
-Register esi = { 6 };
-Register edi = { 7 };
-Register no_reg = { -1 };
-
-XMMRegister xmm0 = { 0 };
-XMMRegister xmm1 = { 1 };
-XMMRegister xmm2 = { 2 };
-XMMRegister xmm3 = { 3 };
-XMMRegister xmm4 = { 4 };
-XMMRegister xmm5 = { 5 };
-XMMRegister xmm6 = { 6 };
-XMMRegister xmm7 = { 7 };
-
-
-// -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
 // Safe default is no features.

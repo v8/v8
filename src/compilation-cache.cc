@@ -36,7 +36,7 @@ enum {
   // The number of script generations tell how many GCs a script can
   // survive in the compilation cache, before it will be flushed if it
   // hasn't been used.
-  NUMBER_OF_SCRIPT_GENERATIONS = 8,
+  NUMBER_OF_SCRIPT_GENERATIONS = 5,
 
   // The compilation cache consists of tables - one for each entry
   // kind plus extras for the script generations.

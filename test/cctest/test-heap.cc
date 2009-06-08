@@ -553,7 +553,7 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(first));
 
   // delete first
-  CHECK(obj->DeleteProperty(first));
+  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
   CHECK(!obj->HasLocalProperty(first));
 
   // add first and then second
@@ -563,9 +563,9 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(second));
 
   // delete first and then second
-  CHECK(obj->DeleteProperty(first));
+  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
   CHECK(obj->HasLocalProperty(second));
-  CHECK(obj->DeleteProperty(second));
+  CHECK(obj->DeleteProperty(second, JSObject::NORMAL_DELETION));
   CHECK(!obj->HasLocalProperty(first));
   CHECK(!obj->HasLocalProperty(second));
 
@@ -576,9 +576,9 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(second));
 
   // delete second and then first
-  CHECK(obj->DeleteProperty(second));
+  CHECK(obj->DeleteProperty(second, JSObject::NORMAL_DELETION));
   CHECK(obj->HasLocalProperty(first));
-  CHECK(obj->DeleteProperty(first));
+  CHECK(obj->DeleteProperty(first, JSObject::NORMAL_DELETION));
   CHECK(!obj->HasLocalProperty(first));
   CHECK(!obj->HasLocalProperty(second));
 

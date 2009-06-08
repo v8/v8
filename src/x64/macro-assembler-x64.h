@@ -33,6 +33,11 @@
 namespace v8 {
 namespace internal {
 
+// Default scratch register used by MacroAssembler (and other code that needs
+// a spare register). The register isn't callee save, and not used by the
+// function calling convention.
+static const Register kScratchRegister = r10;
+
 // Forward declaration.
 class JumpTarget;
 
@@ -137,8 +142,8 @@ class MacroAssembler: public Assembler {
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
   // Expression support
-  void Set(Register dst, const Immediate& x);
-  void Set(const Operand& dst, const Immediate& x);
+  void Set(Register dst, int64_t x);
+  void Set(const Operand& dst, int64_t x);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
@@ -156,7 +161,7 @@ class MacroAssembler: public Assembler {
 
   // Push a new try handler and link into try handler chain.
   // The return address must be pushed before calling this helper.
-  // On exit, eax contains TOS (next_sp).
+  // On exit, rax contains TOS (next_sp).
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
 

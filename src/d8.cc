@@ -451,7 +451,7 @@ void Shell::Initialize() {
   i::Handle<i::JSFunction> script_fun = Utils::OpenHandle(*script);
   i::Handle<i::Script> script_object =
       i::Handle<i::Script>(i::Script::cast(script_fun->shared()->script()));
-  script_object->set_type(i::Smi::FromInt(i::SCRIPT_TYPE_NATIVE));
+  script_object->set_type(i::Smi::FromInt(i::Script::TYPE_NATIVE));
 
   // Create the evaluation context
   evaluation_context_ = Context::New(NULL, global_template);
