@@ -47,7 +47,7 @@ namespace internal {
 // generate an index for each native JS file.
 class SourceCodeCache BASE_EMBEDDED {
  public:
-  explicit SourceCodeCache(ScriptType type): type_(type) { }
+  explicit SourceCodeCache(Script::Type type): type_(type) { }
 
   void Initialize(bool create_heap_objects) {
     if (create_heap_objects) {
@@ -89,13 +89,13 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
  private:
-  ScriptType type_;
+  Script::Type type_;
   FixedArray* cache_;
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
-static SourceCodeCache natives_cache(SCRIPT_TYPE_NATIVE);
-static SourceCodeCache extensions_cache(SCRIPT_TYPE_EXTENSION);
+static SourceCodeCache natives_cache(Script::TYPE_NATIVE);
+static SourceCodeCache extensions_cache(Script::TYPE_EXTENSION);
 
 
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
@@ -522,7 +522,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     empty_function->set_code(*code);
     Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
     Handle<Script> script = Factory::NewScript(source);
-    script->set_type(Smi::FromInt(SCRIPT_TYPE_NATIVE));
+    script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     empty_function->shared()->set_script(*script);
     empty_function->shared()->set_start_position(0);
     empty_function->shared()->set_end_position(source->length());
@@ -1062,6 +1062,14 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("type"),
             proxy_type,
             common_attributes);
+    Handle<Proxy> proxy_compilation_type =
+        Factory::NewProxy(&Accessors::ScriptCompilationType);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("compilation_type"),
+            proxy_compilation_type,
+            common_attributes);
     Handle<Proxy> proxy_line_ends =
         Factory::NewProxy(&Accessors::ScriptLineEnds);
     script_descriptors =
@@ -1078,13 +1086,29 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("context_data"),
             proxy_context_data,
             common_attributes);
+    Handle<Proxy> proxy_eval_from_function =
+        Factory::NewProxy(&Accessors::ScriptEvalFromFunction);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("eval_from_function"),
+            proxy_eval_from_function,
+            common_attributes);
+    Handle<Proxy> proxy_eval_from_position =
+        Factory::NewProxy(&Accessors::ScriptEvalFromPosition);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("eval_from_position"),
+            proxy_eval_from_position,
+            common_attributes);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
     script_map->set_instance_descriptors(*script_descriptors);
 
     // Allocate the empty script.
     Handle<Script> script = Factory::NewScript(Factory::empty_string());
-    script->set_type(Smi::FromInt(SCRIPT_TYPE_NATIVE));
+    script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
     global_context()->set_empty_script(*script);
   }
 

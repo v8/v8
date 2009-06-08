@@ -2649,17 +2649,23 @@ class Struct: public HeapObject {
 };
 
 
-// Script types.
-enum ScriptType {
-  SCRIPT_TYPE_NATIVE,
-  SCRIPT_TYPE_EXTENSION,
-  SCRIPT_TYPE_NORMAL
-};
-
-
 // Script describes a script which has been added to the VM.
 class Script: public Struct {
  public:
+  // Script types.
+  enum Type {
+    TYPE_NATIVE,
+    TYPE_EXTENSION,
+    TYPE_NORMAL
+  };
+
+  // Script compilation types.
+  enum CompilationType {
+    COMPILATION_TYPE_HOST,
+    COMPILATION_TYPE_EVAL,
+    COMPILATION_TYPE_JSON
+  };
+
   // [source]: the script source.
   DECL_ACCESSORS(source, Object)
 
@@ -2688,8 +2694,19 @@ class Script: public Struct {
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
 
-  // [line_ends]: array of line ends positions
+  // [compilation]: how the the script was compiled.
+  DECL_ACCESSORS(compilation_type, Smi)
+
+  // [line_ends]: array of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
+
+  // [eval_from_function]: for eval scripts the funcion from which eval was
+  // called.
+  DECL_ACCESSORS(eval_from_function, Object)
+
+  // [eval_from_instructions_offset]: the instruction offset in the code for the
+  // function from which eval was called where eval was called.
+  DECL_ACCESSORS(eval_from_instructions_offset, Smi)
 
   static inline Script* cast(Object* obj);
 
@@ -2706,9 +2723,13 @@ class Script: public Struct {
   static const int kContextOffset = kDataOffset + kPointerSize;
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
-  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
+  static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
+  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kSize = kIdOffset + kPointerSize;
+  static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
+  static const int kEvalFrominstructionsOffsetOffset =
+      kEvalFromFunctionOffset + kPointerSize;
+  static const int kSize = kEvalFrominstructionsOffsetOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);

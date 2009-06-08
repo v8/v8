@@ -93,6 +93,13 @@ Debug.ScriptType = { Native: 0,
                      Normal: 2 };
 
 
+// The different types of script compilations matching enum
+// Script::CompilationType in objects.h.
+Debug.ScriptCompilationType = { Host: 0,
+                                Eval: 1,
+                                JSON: 2 };
+
+
 // Current debug state.
 const kNoFrame = -1;
 Debug.State = {
@@ -963,7 +970,18 @@ function DebugResponseDetails(response) {
           if (body[i].name) {
             result += body[i].name;
           } else {
-            result += '[unnamed] ';
+            if (body[i].compilationType == Debug.ScriptCompilationType.Eval) {
+              result += 'eval from ';
+              var script_value = response.lookup(body[i].evalFromScript.ref);
+              result += ' ' + script_value.field('name');
+              result += ':' + (body[i].evalFromLocation.line + 1);
+              result += ':' + body[i].evalFromLocation.column;
+            } else if (body[i].compilationType ==
+                       Debug.ScriptCompilationType.JSON) {
+              result += 'JSON ';
+            } else {  // body[i].compilation == Debug.ScriptCompilationType.Host
+              result += '[unnamed] ';
+            }
           }
           result += ' (lines: ';
           result += body[i].lineCount;
@@ -1122,6 +1140,15 @@ function ProtocolValue(value, packet) {
  */
 ProtocolValue.prototype.type = function() {
   return this.value_.type;
+}
+
+
+/**
+ * Get a metadata field from a protocol value. 
+ * @return {Object} the metadata field value
+ */
+ProtocolValue.prototype.field = function(name) {
+  return this.value_[name];
 }
 
 

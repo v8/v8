@@ -62,6 +62,12 @@ Debug.ScriptType = { Native: 0,
                      Extension: 1,
                      Normal: 2 };
 
+// The different types of script compilations matching enum
+// Script::CompilationType in objects.h.
+Debug.ScriptCompilationType = { Host: 0,
+                                Eval: 1,
+                                JSON: 2 };
+
 // The different script break point types.
 Debug.ScriptBreakPointType = { ScriptId: 0,
                                ScriptName: 1 };
