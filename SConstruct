@@ -128,6 +128,8 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-ansi'],
     },
     'os:freebsd': {
+      'CPPPATH' : ['/usr/local/include'],
+      'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
     },
     'os:win32': {
@@ -270,7 +272,7 @@ MKSNAPSHOT_EXTRA_FLAGS = {
       'LIBS': ['pthread'],
     },
     'os:freebsd': {
-      'LIBS': ['pthread'],
+      'LIBS': ['execinfo', 'pthread']
     },
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],
@@ -382,6 +384,7 @@ SAMPLE_FLAGS = {
       'LIBS':         ['pthread'],
     },
     'os:freebsd': {
+      'LIBPATH' : ['/usr/local/lib'],
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:win32': {
