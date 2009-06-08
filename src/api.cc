@@ -416,7 +416,8 @@ int HandleScope::NumberOfHandles() {
 
 
 void** v8::HandleScope::CreateHandle(void* value) {
-  return i::HandleScope::CreateHandle(value);
+  return reinterpret_cast<void**>(
+      i::HandleScope::CreateHandle(reinterpret_cast<i::Object*>(value)));
 }
 
 
