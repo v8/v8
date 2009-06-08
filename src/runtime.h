@@ -387,6 +387,9 @@ class Runtime : public AllStatic {
                                         Handle<Object> value,
                                         PropertyAttributes attr);
 
+  static Object* ForceDeleteObjectProperty(Handle<JSObject> object,
+                                           Handle<Object> key);
+
   static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
 
   // This function is used in FunctionNameUsing* tests.

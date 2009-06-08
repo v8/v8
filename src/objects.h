@@ -1275,9 +1275,12 @@ class JSObject: public HeapObject {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
 
-  Object* DeleteProperty(String* name);
-  Object* DeleteElement(uint32_t index);
-  Object* DeleteLazyProperty(LookupResult* result, String* name);
+  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+  Object* DeleteProperty(String* name, DeleteMode mode);
+  Object* DeleteElement(uint32_t index, DeleteMode mode);
+  Object* DeleteLazyProperty(LookupResult* result,
+                             String* name,
+                             DeleteMode mode);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -1519,10 +1522,10 @@ class JSObject: public HeapObject {
 
   Object* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 
-  Object* DeletePropertyPostInterceptor(String* name);
+  Object* DeletePropertyPostInterceptor(String* name, DeleteMode mode);
   Object* DeletePropertyWithInterceptor(String* name);
 
-  Object* DeleteElementPostInterceptor(uint32_t index);
+  Object* DeleteElementPostInterceptor(uint32_t index, DeleteMode mode);
   Object* DeleteElementWithInterceptor(uint32_t index);
 
   PropertyAttributes GetPropertyAttributePostInterceptor(JSObject* receiver,
@@ -2057,7 +2060,7 @@ class Dictionary: public DictionaryBase {
   int FindNumberEntry(uint32_t index);
 
   // Delete a property from the dictionary.
-  Object* DeleteProperty(int entry);
+  Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
 
   // Type specific at put (default NONE attributes is used when adding).
   Object* AtStringPut(String* key, Object* value);
@@ -2628,7 +2631,7 @@ class Map: public HeapObject {
   static const int kHasInstanceCallHandler = 6;
   static const int kIsAccessCheckNeeded = 7;
 
-  // Bit positions for but field 2
+  // Bit positions for bit field 2
   static const int kNeedsLoading = 0;
 
  private:

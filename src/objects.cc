@@ -385,7 +385,9 @@ Object* JSObject::SetLazyProperty(LookupResult* result,
 }
 
 
-Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
+Object* JSObject::DeleteLazyProperty(LookupResult* result,
+                                     String* name,
+                                     DeleteMode mode) {
   HandleScope scope;
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
@@ -393,7 +395,7 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
   LoadLazy(Handle<JSObject>(JSObject::cast(result->GetLazyValue())),
            &pending_exception);
   if (pending_exception) return Failure::Exception();
-  return this_handle->DeleteProperty(*name_handle);
+  return this_handle->DeleteProperty(*name_handle, mode);
 }
 
 
@@ -2120,7 +2122,7 @@ Object* JSObject::NormalizeElements() {
 }
 
 
-Object* JSObject::DeletePropertyPostInterceptor(String* name) {
+Object* JSObject::DeletePropertyPostInterceptor(String* name, DeleteMode mode) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
@@ -2134,7 +2136,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name) {
   // Attempt to remove the property from the property dictionary.
   Dictionary* dictionary = property_dictionary();
   int entry = dictionary->FindStringEntry(name);
-  if (entry != -1) return dictionary->DeleteProperty(entry);
+  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
   return Heap::true_value();
 }
 
@@ -2164,13 +2166,15 @@ Object* JSObject::DeletePropertyWithInterceptor(String* name) {
       return *v8::Utils::OpenHandle(*result);
     }
   }
-  Object* raw_result = this_handle->DeletePropertyPostInterceptor(*name_handle);
+  Object* raw_result =
+      this_handle->DeletePropertyPostInterceptor(*name_handle, NORMAL_DELETION);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
 
 
-Object* JSObject::DeleteElementPostInterceptor(uint32_t index) {
+Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
+                                               DeleteMode mode) {
   if (HasFastElements()) {
     uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
@@ -2183,7 +2187,7 @@ Object* JSObject::DeleteElementPostInterceptor(uint32_t index) {
   ASSERT(!HasFastElements());
   Dictionary* dictionary = element_dictionary();
   int entry = dictionary->FindNumberEntry(index);
-  if (entry != -1) return dictionary->DeleteProperty(entry);
+  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
   return Heap::true_value();
 }
 
@@ -2214,13 +2218,14 @@ Object* JSObject::DeleteElementWithInterceptor(uint32_t index) {
     ASSERT(result->IsBoolean());
     return *v8::Utils::OpenHandle(*result);
   }
-  Object* raw_result = this_handle->DeleteElementPostInterceptor(index);
+  Object* raw_result =
+      this_handle->DeleteElementPostInterceptor(index, NORMAL_DELETION);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
 
 
-Object* JSObject::DeleteElement(uint32_t index) {
+Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
@@ -2232,10 +2237,14 @@ Object* JSObject::DeleteElement(uint32_t index) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return Heap::false_value();
     ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteElement(index);
+    return JSGlobalObject::cast(proto)->DeleteElement(index, mode);
   }
 
   if (HasIndexedInterceptor()) {
+    // Skip interceptor if forcing deletion.
+    if (mode == FORCE_DELETION) {
+      return DeleteElementPostInterceptor(index, mode);
+    }
     return DeleteElementWithInterceptor(index);
   }
 
@@ -2250,13 +2259,13 @@ Object* JSObject::DeleteElement(uint32_t index) {
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) return dictionary->DeleteProperty(entry);
+    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
   }
   return Heap::true_value();
 }
 
 
-Object* JSObject::DeleteProperty(String* name) {
+Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
   // ECMA-262, 3rd, 8.6.2.5
   ASSERT(name->IsString());
 
@@ -2271,23 +2280,32 @@ Object* JSObject::DeleteProperty(String* name) {
     Object* proto = GetPrototype();
     if (proto->IsNull()) return Heap::false_value();
     ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteProperty(name);
+    return JSGlobalObject::cast(proto)->DeleteProperty(name, mode);
   }
 
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    return DeleteElement(index);
+    return DeleteElement(index, mode);
   } else {
     LookupResult result;
     LocalLookup(name, &result);
     if (!result.IsValid()) return Heap::true_value();
-    if (result.IsDontDelete()) return Heap::false_value();
+    // Ignore attributes if forcing a deletion.
+    if (result.IsDontDelete() && mode != FORCE_DELETION) {
+      return Heap::false_value();
+    }
     // Check for interceptor.
     if (result.type() == INTERCEPTOR) {
+      // Skip interceptor if forcing a deletion.
+      if (mode == FORCE_DELETION) {
+        return DeletePropertyPostInterceptor(name, mode);
+      }
       return DeletePropertyWithInterceptor(name);
     }
     if (!result.IsLoaded()) {
-      return JSObject::cast(this)->DeleteLazyProperty(&result, name);
+      return JSObject::cast(this)->DeleteLazyProperty(&result,
+                                                      name,
+                                                      mode);
     }
     // Normalize object if needed.
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
@@ -2295,7 +2313,7 @@ Object* JSObject::DeleteProperty(String* name) {
     // Make sure the properties are normalized before removing the entry.
     Dictionary* dictionary = property_dictionary();
     int entry = dictionary->FindStringEntry(name);
-    if (entry != -1) return dictionary->DeleteProperty(entry);
+    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
     return Heap::true_value();
   }
 }
@@ -6943,9 +6961,12 @@ void Dictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
 }
 
 
-Object* Dictionary::DeleteProperty(int entry) {
+Object* Dictionary::DeleteProperty(int entry, JSObject::DeleteMode mode) {
   PropertyDetails details = DetailsAt(entry);
-  if (details.IsDontDelete()) return Heap::false_value();
+  // Ignore attributes if forcing a deletion.
+  if (details.IsDontDelete() && mode == JSObject::NORMAL_DELETION) {
+    return Heap::false_value();
+  }
   SetEntry(entry, Heap::null_value(), Heap::null_value(), Smi::FromInt(0));
   ElementRemoved();
   return Heap::true_value();

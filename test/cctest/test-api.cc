@@ -4515,10 +4515,6 @@ THREADED_TEST(EvalAliasedDynamic) {
   v8::HandleScope scope;
   LocalContext current;
 
-  // This sets 'global' to the real global object (as opposed to the
-  // proxy). It is highly implementation dependent, so take care.
-  current->Global()->Set(v8_str("global"), current->Global()->GetPrototype());
-
   // Tests where aliased eval can only be resolved dynamically.
   Local<Script> script =
       Script::Compile(v8_str("function f(x) { "
@@ -4527,7 +4523,7 @@ THREADED_TEST(EvalAliasedDynamic) {
                              "}"
                              "foo = 0;"
                              "result1 = f(new Object());"
-                             "result2 = f(global);"
+                             "result2 = f(this);"
                              "var x = new Object();"
                              "x.eval = function(x) { return 1; };"
                              "result3 = f(x);"));
@@ -4542,7 +4538,7 @@ THREADED_TEST(EvalAliasedDynamic) {
                            "  var bar = 2;"
                            "  with (x) { return eval('bar'); }"
                            "}"
-                           "f(global)"));
+                           "f(this)"));
   script->Run();
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
@@ -4626,6 +4622,44 @@ THREADED_TEST(CrossEval) {
       Script::Compile(v8_str("other.y = 1; eval.call(other, 'y')"));
   result = script->Run();
   CHECK(try_catch.HasCaught());
+}
+
+
+// Test that calling eval in a context which has been detached from
+// its global throws an exception.  This behavior is consistent with
+// other JavaScript implementations.
+THREADED_TEST(EvalInDetachedGlobal) {
+  v8::HandleScope scope;
+
+  v8::Persistent<Context> context0 = Context::New();
+  v8::Persistent<Context> context1 = Context::New();
+
+  // Setup function in context0 that uses eval from context0.
+  context0->Enter();
+  v8::Handle<v8::Value> fun =
+      CompileRun("var x = 42;"
+                 "(function() {"
+                 "  var e = eval;"
+                 "  return function(s) { return e(s); }"
+                 "})()");
+  context0->Exit();
+
+  // Put the function into context1 and call it before and after
+  // detaching the global.  Before detaching, the call succeeds and
+  // after detaching and exception is thrown.
+  context1->Enter();
+  context1->Global()->Set(v8_str("fun"), fun);
+  v8::Handle<v8::Value> x_value = CompileRun("fun('x')");
+  CHECK_EQ(42, x_value->Int32Value());
+  context0->DetachGlobal();
+  v8::TryCatch catcher;
+  x_value = CompileRun("fun('x')");
+  CHECK(x_value.IsEmpty());
+  CHECK(catcher.HasCaught());
+  context1->Exit();
+
+  context1.Dispose();
+  context0.Dispose();
 }
 
 
@@ -6720,6 +6754,74 @@ TEST(ForceSetWithInterceptor) {
   CHECK_EQ(3, global->Get(v8::String::New("b"))->Int32Value());
   CHECK_EQ(1, force_set_set_count);
   CHECK_EQ(6, force_set_get_count);
+}
+
+
+THREADED_TEST(ForceDelete) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  // Ordinary properties
+  v8::Handle<v8::String> simple_property = v8::String::New("p");
+  global->Set(simple_property, v8::Int32::New(4), v8::DontDelete);
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should fail because the property is dont-delete.
+  CHECK(!global->Delete(simple_property));
+  CHECK_EQ(4, global->Get(simple_property)->Int32Value());
+  // This should succeed even though the property is dont-delete.
+  CHECK(global->ForceDelete(simple_property));
+  CHECK(global->Get(simple_property)->IsUndefined());
+}
+
+
+static int force_delete_interceptor_count = 0;
+static bool pass_on_delete = false;
+
+
+static v8::Handle<v8::Boolean> ForceDeleteDeleter(
+    v8::Local<v8::String> name,
+    const v8::AccessorInfo& info) {
+  force_delete_interceptor_count++;
+  if (pass_on_delete) {
+    return v8::Handle<v8::Boolean>();
+  } else {
+    return v8::True();
+  }
+}
+
+
+THREADED_TEST(ForceDeleteWithInterceptor) {
+  force_delete_interceptor_count = 0;
+  pass_on_delete = false;
+
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(0, 0, 0, ForceDeleteDeleter);
+  LocalContext context(NULL, templ);
+  v8::Handle<v8::Object> global = context->Global();
+
+  v8::Handle<v8::String> some_property = v8::String::New("a");
+  global->Set(some_property, v8::Integer::New(42), v8::DontDelete);
+
+  // Deleting a property should get intercepted and nothing should
+  // happen.
+  CHECK_EQ(0, force_delete_interceptor_count);
+  CHECK(global->Delete(some_property));
+  CHECK_EQ(1, force_delete_interceptor_count);
+  CHECK_EQ(42, global->Get(some_property)->Int32Value());
+  // Deleting the property when the interceptor returns an empty
+  // handle should not delete the property since it is DontDelete.
+  pass_on_delete = true;
+  CHECK(!global->Delete(some_property));
+  CHECK_EQ(2, force_delete_interceptor_count);
+  CHECK_EQ(42, global->Get(some_property)->Int32Value());
+  // Forcing the property to be deleted should delete the value
+  // without calling the interceptor.
+  CHECK(global->ForceDelete(some_property));
+  CHECK(global->Get(some_property)->IsUndefined());
+  CHECK_EQ(2, force_delete_interceptor_count);
 }
 
 

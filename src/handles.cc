@@ -222,6 +222,12 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
 }
 
 
+Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
+                                   Handle<Object> key) {
+  CALL_HEAP_FUNCTION(Runtime::ForceDeleteObjectProperty(object, key), Object);
+}
+
+
 Handle<Object> IgnoreAttributesAndSetLocalProperty(
     Handle<JSObject> object,
     Handle<String> key,
@@ -230,6 +236,7 @@ Handle<Object> IgnoreAttributesAndSetLocalProperty(
   CALL_HEAP_FUNCTION(object->
       IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
 }
+
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
@@ -308,13 +315,15 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
 
 Handle<Object> DeleteElement(Handle<JSObject> obj,
                              uint32_t index) {
-  CALL_HEAP_FUNCTION(obj->DeleteElement(index), Object);
+  CALL_HEAP_FUNCTION(obj->DeleteElement(index, JSObject::NORMAL_DELETION),
+                     Object);
 }
 
 
 Handle<Object> DeleteProperty(Handle<JSObject> obj,
                               Handle<String> prop) {
-  CALL_HEAP_FUNCTION(obj->DeleteProperty(*prop), Object);
+  CALL_HEAP_FUNCTION(obj->DeleteProperty(*prop, JSObject::NORMAL_DELETION),
+                     Object);
 }
 
 

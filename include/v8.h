@@ -1056,7 +1056,7 @@ class V8EXPORT Object : public Value {
            Handle<Value> value,
            PropertyAttribute attribs = None);
 
-  // Sets a local property on this object, bypassing interceptors and
+  // Sets a local property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
   // Note that if the object has an interceptor the property will be set
@@ -1067,13 +1067,21 @@ class V8EXPORT Object : public Value {
   bool ForceSet(Handle<Value> key,
                 Handle<Value> value,
                 PropertyAttribute attribs = None);
+
   Local<Value> Get(Handle<Value> key);
 
   // TODO(1245389): Replace the type-specific versions of these
   // functions with generic ones that accept a Handle<Value> key.
   bool Has(Handle<String> key);
+
   bool Delete(Handle<String> key);
+
+  // Delete a property on this object bypassing interceptors and
+  // ignoring dont-delete attributes.
+  bool ForceDelete(Handle<Value> key);
+
   bool Has(uint32_t index);
+
   bool Delete(uint32_t index);
 
   /**

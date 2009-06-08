@@ -2780,6 +2780,42 @@ Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
 }
 
 
+Object* Runtime::ForceDeleteObjectProperty(Handle<JSObject> js_object,
+                                           Handle<Object> key) {
+  HandleScope scope;
+
+  // Check if the given key is an array index.
+  uint32_t index;
+  if (Array::IndexFromObject(*key, &index)) {
+    // In Firefox/SpiderMonkey, Safari and Opera you can access the
+    // characters of a string using [] notation.  In the case of a
+    // String object we just need to redirect the deletion to the
+    // underlying string if the index is in range.  Since the
+    // underlying string does nothing with the deletion, we can ignore
+    // such deletions.
+    if (js_object->IsStringObjectWithCharacterAt(index)) {
+      return Heap::true_value();
+    }
+
+    return js_object->DeleteElement(index, JSObject::FORCE_DELETION);
+  }
+
+  Handle<String> key_string;
+  if (key->IsString()) {
+    key_string = Handle<String>::cast(key);
+  } else {
+    // Call-back into JavaScript to convert the key to a string.
+    bool has_pending_exception = false;
+    Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
+    if (has_pending_exception) return Failure::Exception();
+    key_string = Handle<String>::cast(converted);
+  }
+
+  key_string->TryFlattenIfNotFlat();
+  return js_object->DeleteProperty(*key_string, JSObject::FORCE_DELETION);
+}
+
+
 static Object* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
@@ -2831,7 +2867,7 @@ static Object* Runtime_DeleteProperty(Arguments args) {
 
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
-  return object->DeleteProperty(key);
+  return object->DeleteProperty(key, JSObject::NORMAL_DELETION);
 }
 
 

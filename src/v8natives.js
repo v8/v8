@@ -115,11 +115,15 @@ function GlobalParseFloat(string) {
 function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
-  if (this !== global && this !== %GlobalReceiver(global)) {
-    throw new $EvalError('The "this" object passed to eval must ' + 
+  var global_receiver = %GlobalReceiver(global);
+  var this_is_global_receiver = (this === global_receiver);
+  var global_is_detached = (global === global_receiver);
+
+  if (!this_is_global_receiver || global_is_detached) {
+    throw new $EvalError('The "this" object passed to eval must ' +
                          'be the global object from which eval originated');
   }
-  
+
   var f = %CompileString(x, false);
   if (!IS_FUNCTION(f)) return f;
 

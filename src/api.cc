@@ -1892,6 +1892,19 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
 }
 
 
+bool v8::Object::ForceDelete(v8::Handle<Value> key) {
+  ON_BAILOUT("v8::Object::ForceDelete()", return false);
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return obj->IsTrue();
+}
+
+
 Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
   ENTER_V8;

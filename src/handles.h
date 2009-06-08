@@ -202,6 +202,9 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
+Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
+                                   Handle<Object> key);
+
 Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
                                                    Handle<String> key,
                                                    Handle<Object> value,
