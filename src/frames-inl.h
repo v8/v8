@@ -68,13 +68,7 @@ inline bool StackHandler::includes(Address address) const {
 
 inline void StackHandler::Iterate(ObjectVisitor* v) const {
   // Stack handlers do not contain any pointers that need to be
-  // traversed. The only field that have to worry about is the code
-  // field which is unused and should always be uninitialized.
-#ifdef DEBUG
-  const int offset = StackHandlerConstants::kCodeOffset;
-  Object* code = Memory::Object_at(address() + offset);
-  ASSERT(Smi::cast(code)->value() == StackHandler::kCodeNotPresent);
-#endif
+  // traversed.
 }
 
 

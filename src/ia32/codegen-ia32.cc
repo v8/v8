@@ -6935,16 +6935,16 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
   ExternalReference handler_address(Top::k_handler_address);
   __ mov(edx, Operand::StaticVariable(handler_address));
-  __ mov(ecx, Operand(edx, -1 * kPointerSize));  // get next in chain
+  // Get next in chain.
+  __ mov(ecx, Operand(edx, StackHandlerConstants::kAddressDisplacement));
   __ mov(Operand::StaticVariable(handler_address), ecx);
   __ mov(esp, Operand(edx));
-  __ pop(edi);
   __ pop(ebp);
-  __ pop(edx);  // remove code pointer
-  __ pop(edx);  // remove state
+  __ pop(edx);  // Remove state.
 
   // Before returning we restore the context from the frame pointer if not NULL.
   // The frame pointer is NULL in the exception handler of a JS entry frame.
@@ -7040,6 +7040,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
 
 void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
   // Fetch top stack handler.
   ExternalReference handler_address(Top::k_handler_address);
   __ mov(edx, Operand::StaticVariable(handler_address));
@@ -7080,9 +7083,7 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   __ xor_(esi, Operand(esi));
 
   // Restore registers from handler.
-  __ pop(edi);  // PP
   __ pop(ebp);  // FP
-  __ pop(edx);  // Code
   __ pop(edx);  // State
 
   __ ret(0);

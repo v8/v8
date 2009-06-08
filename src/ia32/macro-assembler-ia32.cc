@@ -448,7 +448,8 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
-  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
   // The pc (return address) is already on TOS.
   if (try_location == IN_JAVASCRIPT) {
     if (type == TRY_CATCH_HANDLER) {
@@ -456,9 +457,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     } else {
       push(Immediate(StackHandler::TRY_FINALLY));
     }
-    push(Immediate(Smi::FromInt(StackHandler::kCodeNotPresent)));
     push(ebp);
-    push(edi);
   } else {
     ASSERT(try_location == IN_JS_ENTRY);
     // The parameter pointer is meaningless here and ebp does not
@@ -466,9 +465,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     // expect the code throwing an exception to check ebp before
     // dereferencing it to restore the context.
     push(Immediate(StackHandler::ENTRY));
-    push(Immediate(Smi::FromInt(StackHandler::kCodeNotPresent)));
     push(Immediate(0));  // NULL frame pointer
-    push(Immediate(0));  // NULL parameter pointer
   }
   // Cached TOS.
   mov(eax, Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
