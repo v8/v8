@@ -302,7 +302,7 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
     }
 
     // Function compilation complete.
-    LOG(CodeCreateEvent("Function", *code, *node->name()));
+    LOG(CodeCreateEvent(Logger::FUNCTION_TAG, *code, *node->name()));
 
 #ifdef ENABLE_OPROFILE_AGENT
     OProfileAgent::CreateNativeCodeRegion(*node->name(),

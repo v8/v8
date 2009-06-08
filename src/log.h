@@ -102,8 +102,40 @@ class VMState BASE_EMBEDDED {
 };
 
 
+#define LOG_EVENTS_AND_TAGS_LIST(V) \
+  V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
+  V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
+  V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
+  V(TICK_EVENT,                     "tick",                   "t")        \
+  V(BUILTIN_TAG,                    "Builtin",                "bi")       \
+  V(CALL_DEBUG_BREAK_TAG,           "CallDebugBreak",         "cdb")      \
+  V(CALL_DEBUG_PREPARE_STEP_IN_TAG, "CallDebugPrepareStepIn", "cdbsi")    \
+  V(CALL_IC_TAG,                    "CallIC",                 "cic")      \
+  V(CALL_INITIALIZE_TAG,            "CallInitialize",         "ci")       \
+  V(CALL_MEGAMORPHIC_TAG,           "CallMegamorphic",        "cmm")      \
+  V(CALL_MISS_TAG,                  "CallMiss",               "cm")       \
+  V(CALL_NORMAL_TAG,                "CallNormal",             "cn")       \
+  V(CALL_PRE_MONOMORPHIC_TAG,       "CallPreMonomorphic",     "cpm")      \
+  V(EVAL_TAG,                       "Eval",                   "e")        \
+  V(FUNCTION_TAG,                   "Function",               "f")        \
+  V(KEYED_LOAD_IC_TAG,              "KeyedLoadIC",            "klic")     \
+  V(KEYED_STORE_IC_TAG,             "KeyedStoreIC",           "ksic")     \
+  V(LAZY_COMPILE_TAG,               "LazyCompile",            "lc")       \
+  V(LOAD_IC_TAG,                    "LoadIC",                 "lic")      \
+  V(REG_EXP_TAG,                    "RegExp",                 "re")       \
+  V(SCRIPT_TAG,                     "Script",                 "sc")       \
+  V(STORE_IC_TAG,                   "StoreIC",                "sic")      \
+  V(STUB_TAG,                       "Stub",                   "s")
+
 class Logger {
  public:
+#define DECLARE_ENUM(enum_item, ignore1, ignore2) enum_item,
+  enum LogEventsAndTags {
+    LOG_EVENTS_AND_TAGS_LIST(DECLARE_ENUM)
+    NUMBER_OF_LOG_EVENTS
+  };
+#undef DECLARE_ENUM
+
   // Acquires resources for logging if the right flags are set.
   static bool Setup();
 
@@ -163,14 +195,14 @@ class Logger {
 
   // ==== Events logged by --log-code. ====
   // Emits a code create event.
-  static void CodeCreateEvent(const char* tag, Code* code, const char* source);
-  static void CodeCreateEvent(const char* tag, Code* code, String* name);
-  static void CodeCreateEvent(const char* tag, Code* code, String* name,
+  static void CodeCreateEvent(LogEventsAndTags tag,
+                              Code* code, const char* source);
+  static void CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name);
+  static void CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name,
                               String* source, int line);
-  static void CodeCreateEvent(const char* tag, Code* code, int args_count);
+  static void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
   // Emits a code create event for a RegExp.
   static void RegExpCodeCreateEvent(Code* code, String* source);
-  static void CodeAllocateEvent(Code* code, Assembler* assem);
   // Emits a code move event.
   static void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
@@ -226,6 +258,9 @@ class Logger {
   // Emits the profiler's first message.
   static void ProfilerBeginEvent();
 
+  // Emits aliases for compressed messages.
+  static void LogAliases();
+
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
 
@@ -260,6 +295,9 @@ class Logger {
   // SlidingStateWindow instance keeping a sliding window of the most
   // recent VM states.
   static SlidingStateWindow* sliding_state_window_;
+
+  // An array of log events names.
+  static const char** log_events_;
 
   // Internal implementation classes with access to
   // private members.

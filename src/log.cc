@@ -262,6 +262,7 @@ void Profiler::Engage() {
   Logger::ticker_->SetProfiler(this);
 
   Logger::ProfilerBeginEvent();
+  Logger::LogAliases();
 }
 
 
@@ -301,6 +302,19 @@ Profiler* Logger::profiler_ = NULL;
 VMState* Logger::current_state_ = NULL;
 VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
+const char** Logger::log_events_ = NULL;
+
+#define DECLARE_LONG_EVENT(ignore1, long_name, ignore2) long_name,
+const char* kLongLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
+  LOG_EVENTS_AND_TAGS_LIST(DECLARE_LONG_EVENT)
+};
+#undef DECLARE_LONG_EVENT
+
+#define DECLARE_SHORT_EVENT(ignore1, ignore2, short_name) short_name,
+const char* kCompressedLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
+  LOG_EVENTS_AND_TAGS_LIST(DECLARE_SHORT_EVENT)
+};
+#undef DECLARE_SHORT_EVENT
 
 
 bool Logger::IsEnabled() {
@@ -312,6 +326,17 @@ void Logger::ProfilerBeginEvent() {
   if (!Log::IsEnabled()) return;
   LogMessageBuilder msg;
   msg.Append("profiler,\"begin\",%d\n", kSamplingIntervalMs);
+  msg.WriteToLogFile();
+}
+
+
+void Logger::LogAliases() {
+  if (!Log::IsEnabled() || !FLAG_compress_log) return;
+  LogMessageBuilder msg;
+  for (int i = 0; i < NUMBER_OF_LOG_EVENTS; ++i) {
+    msg.Append("alias,%s,%s\n",
+               kCompressedLogEventsNames[i], kLongLogEventsNames[i]);
+  }
   msg.WriteToLogFile();
 }
 
@@ -594,12 +619,15 @@ void Logger::DeleteEvent(const char* name, void* object) {
 }
 
 
-void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code,
+                             const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"", tag, code->address(),
-             code->ExecutableSize());
+  msg.Append("%s,%s,0x%" V8PRIxPTR ",%d,\"",
+             log_events_[CODE_CREATION_EVENT], log_events_[tag],
+             code->address(), code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '"') {
       msg.Append('\\');
@@ -613,20 +641,22 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 }
 
 
-void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
+void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"%s\"\n",
-             tag, code->address(), code->ExecutableSize(), *str);
+  msg.Append("%s,%s,0x%" V8PRIxPTR ",%d,\"%s\"\n",
+             log_events_[CODE_CREATION_EVENT], log_events_[tag],
+             code->address(), code->ExecutableSize(), *str);
   msg.WriteToLogFile();
 #endif
 }
 
 
-void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code, String* name,
                              String* source, int line) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
@@ -635,8 +665,9 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"%s %s:%d\"\n",
-             tag, code->address(),
+  msg.Append("%s,%s,0x%" V8PRIxPTR ",%d,\"%s %s:%d\"\n",
+             log_events_[CODE_CREATION_EVENT],
+             log_events_[tag], code->address(),
              code->ExecutableSize(),
              *str, *sourcestr, line);
   msg.WriteToLogFile();
@@ -644,11 +675,13 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
 }
 
 
-void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
+void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"args_count: %d\"\n", tag,
+  msg.Append("%s,%s,0x%" V8PRIxPTR ",%d,\"args_count: %d\"\n",
+             log_events_[CODE_CREATION_EVENT],
+             log_events_[tag],
              code->address(),
              code->ExecutableSize(),
              args_count);
@@ -661,7 +694,9 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-creation,%s,0x%" V8PRIxPTR ",%d,\"", "RegExp",
+  msg.Append("%s,%s,0x%" V8PRIxPTR ",%d,\"",
+             log_events_[CODE_CREATION_EVENT],
+             log_events_[REG_EXP_TAG],
              code->address(),
              code->ExecutableSize());
   msg.AppendDetailed(source, false);
@@ -671,23 +706,12 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 }
 
 
-void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("code-allocate,0x%" V8PRIxPTR ",0x%" V8PRIxPTR "\n",
-             code->address(),
-             assem);
-  msg.WriteToLogFile();
-#endif
-}
-
-
 void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-move,0x%" V8PRIxPTR ",0x%" V8PRIxPTR "\n", from, to);
+  msg.Append("%s,0x%" V8PRIxPTR ",0x%" V8PRIxPTR "\n",
+             log_events_[CODE_MOVE_EVENT], from, to);
   msg.WriteToLogFile();
 #endif
 }
@@ -697,7 +721,7 @@ void Logger::CodeDeleteEvent(Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("code-delete,0x%" V8PRIxPTR "\n", from);
+  msg.Append("%s,0x%" V8PRIxPTR "\n", log_events_[CODE_DELETE_EVENT], from);
   msg.WriteToLogFile();
 #endif
 }
@@ -803,13 +827,26 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!Log::IsEnabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
-  msg.Append("tick,0x%" V8PRIxPTR ",0x%" V8PRIxPTR ",%d",
+  msg.Append("%s,0x%" V8PRIxPTR ",0x%" V8PRIxPTR ",%d",
+             log_events_[TICK_EVENT],
              sample->pc, sample->sp, static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
   }
+  uintptr_t prev_ptr = sample->pc;
   for (int i = 0; i < sample->frames_count; ++i) {
-    msg.Append(",0x%" V8PRIxPTR, sample->stack[i]);
+    if (FLAG_compress_log) {
+      const uintptr_t ptr = OffsetFrom(sample->stack[i]);
+      intptr_t delta = ptr - prev_ptr;
+      prev_ptr = ptr;
+      // To avoid printing negative offsets in an unsigned form,
+      // we are printing an absolute value with a sign.
+      const char sign = delta >= 0 ? '+' : '-';
+      if (sign == '-') { delta = -delta; }
+      msg.Append(",%c0x%" V8PRIxPTR, sign, delta);
+    } else {
+      msg.Append(",0x%" V8PRIxPTR, sample->stack[i]);
+    }
   }
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -913,17 +950,19 @@ void Logger::LogCompiledFunctions() {
         int line_num = GetScriptLineNumber(script, shared->start_position());
         if (line_num > 0) {
           line_num += script->line_offset()->value() + 1;
-          LOG(CodeCreateEvent("LazyCompile", shared->code(), *func_name,
+          LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
+                              shared->code(), *func_name,
                               *script_name, line_num));
         } else {
           // Can't distinguish enum and script here, so always use Script.
-          LOG(CodeCreateEvent("Script", shared->code(), *script_name));
+          LOG(CodeCreateEvent(Logger::SCRIPT_TAG,
+                              shared->code(), *script_name));
         }
         continue;
       }
     }
     // If no script or script has no name.
-    LOG(CodeCreateEvent("LazyCompile", shared->code(), *func_name));
+    LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
   }
 
   DeleteArray(sfis);
@@ -1021,6 +1060,9 @@ bool Logger::Setup() {
   }
 
   LogMessageBuilder::set_write_failure_handler(StopLoggingAndProfiling);
+
+  log_events_ = FLAG_compress_log ?
+      kCompressedLogEventsNames : kLongLogEventsNames;
 
   return true;
 
