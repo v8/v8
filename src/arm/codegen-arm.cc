@@ -4384,7 +4384,6 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
                                     Label* not_smi,
                                     const Builtins::JavaScript& builtin,
                                     Token::Value operation,
-                                    int swi_number,
                                     OverwriteMode mode) {
   Label slow;
   __ bind(&slow);
@@ -4432,23 +4431,17 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   __ ldr(r1, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
   // Call C routine that may not cause GC or other trouble.
   __ mov(r5, Operand(ExternalReference::double_fp_operation(operation)));
-#if !defined(__arm__)
-  // Notify the simulator that we are calling an add routine in C.
-  __ swi(swi_number);
-#else
-  // Actually call the add routine written in C.
   __ Call(r5);
-#endif
   // Store answer in the overwritable heap number.
   __ pop(r4);
-#if !defined(__ARM_EABI__) && defined(__arm__)
+#if !defined(USE_ARM_EABI)
   // Double returned in fp coprocessor register 0 and 1, encoded as register
   // cr8.  Offsets must be divisible by 4 for coprocessor so we need to
   // substract the tag from r4.
   __ sub(r5, r4, Operand(kHeapObjectTag));
   __ stc(p1, cr8, MemOperand(r5, HeapNumber::kValueOffset));
 #else
-  // Double returned in fp coprocessor register 0 and 1.
+  // Double returned in registers 0 and 1.
   __ str(r0, FieldMemOperand(r4, HeapNumber::kValueOffset));
   __ str(r1, FieldMemOperand(r4, HeapNumber::kValueOffset + kPointerSize));
 #endif
@@ -4483,7 +4476,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
                               &not_smi,
                               Builtins::ADD,
                               Token::ADD,
-                              assembler::arm::simulator_fp_add,
                               mode_);
       break;
     }
@@ -4503,7 +4495,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
                               &not_smi,
                               Builtins::SUB,
                               Token::SUB,
-                              assembler::arm::simulator_fp_sub,
                               mode_);
       break;
     }
@@ -4532,7 +4523,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
                               &not_smi,
                               Builtins::MUL,
                               Token::MUL,
-                              assembler::arm::simulator_fp_mul,
                               mode_);
       break;
     }
@@ -4793,7 +4783,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Passing r0.
-    __ Call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
+    ExternalReference gc_reference = ExternalReference::perform_gc_function();
+    __ Call(gc_reference.address(), RelocInfo::RUNTIME_ENTRY);
   }
 
   ExternalReference scope_depth =
@@ -4819,12 +4810,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // sequence that it is not moving ever.
   __ add(lr, pc, Operand(4));  // compute return address: (pc + 8) + 4
   __ push(lr);
-#if !defined(__arm__)
-  // Notify the simulator of the transition to C code.
-  __ swi(assembler::arm::call_rt_r5);
-#else /* !defined(__arm__) */
   __ Jump(r5);
-#endif /* !defined(__arm__) */
 
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -33,6 +33,10 @@
 #include "stub-cache.h"
 #include "oprofile-agent.h"
 
+#if V8_TARGET_ARCH_ARM
+#include "arm/simulator-arm.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -62,6 +66,11 @@ bool V8::Initialize(Deserializer *des) {
   // Setup the platform OS support.
   OS::Setup();
 
+  // Initialize other runtime facilities
+#if !V8_HOST_ARCH_ARM && V8_TARGET_ARCH_ARM
+  ::assembler::arm::Simulator::Initialize();
+#endif
+
   // Setup the object heap
   ASSERT(!Heap::HasBeenSetup());
   if (!Heap::Setup(create_heap_objects)) {
@@ -69,7 +78,6 @@ bool V8::Initialize(Deserializer *des) {
     return false;
   }
 
-  // Initialize other runtime facilities
   Bootstrapper::Initialize(create_heap_objects);
   Builtins::Setup(create_heap_objects);
   Top::Initialize();

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -128,26 +128,10 @@ void MacroAssembler::Call(Register target, Condition cond) {
 
 void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
-#if !defined(__arm__)
-  if (rmode == RelocInfo::RUNTIME_ENTRY) {
-    mov(r2, Operand(target, rmode), LeaveCC, cond);
-    // Set lr for return at current pc + 8.
-    mov(lr, Operand(pc), LeaveCC, cond);
-    // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
-    // Notify the simulator of the transition to C code.
-    swi(assembler::arm::call_rt_r2);
-  } else {
-    // set lr for return at current pc + 8
-    mov(lr, Operand(pc), LeaveCC, cond);
-    // emit a ldr<cond> pc, [pc + offset of target in constant pool]
-    mov(pc, Operand(target, rmode), LeaveCC, cond);
-  }
-#else
   // Set lr for return at current pc + 8.
   mov(lr, Operand(pc), LeaveCC, cond);
   // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
   mov(pc, Operand(target, rmode), LeaveCC, cond);
-#endif  // !defined(__arm__)
   // If USE_BLX is defined, we could emit a 'mov ip, target', followed by a
   // 'blx ip'; however, the code would not be shorter than the above sequence
   // and the target address of the call would be referenced by the first
