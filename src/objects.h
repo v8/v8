@@ -1163,10 +1163,17 @@ class HeapNumber: public HeapObject {
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
   // IEEE doubles are two 32 bit words.  The first is just mantissa, the second
-  // is a mixture of sign, exponent and mantissa.  This is the ordering on a
-  // little endian machine with little endian double word ordering.
+  // is a mixture of sign, exponent and mantissa.  Our current platforms are all
+  // little endian apart from non-EABI arm which is little endian with big
+  // endian floating point word ordering!
+#if !defined(V8_HOST_ARCH_ARM) || __ARM_EABI__
   static const int kMantissaOffset = kValueOffset;
   static const int kExponentOffset = kValueOffset + 4;
+#else
+  static const int kMantissaOffset = kValueOffset + 4;
+  static const int kExponentOffset = kValueOffset;
+# define BIG_ENDIAN_FLOATING_POINT 1
+#endif
   static const int kSize = kValueOffset + kDoubleSize;
 
   static const uint32_t kSignMask = 0x80000000u;

@@ -4402,14 +4402,21 @@ class ConvertToDoubleStub : public CodeStub {
 
 
 void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
-  Label not_special, done;
+#ifndef BIG_ENDIAN_FLOATING_POINT
+  Register exponent = result1_;
+  Register mantissa = result2_;
+#else
+  Register exponent = result2_;
+  Register mantissa = result1_;
+#endif
+  Label not_special;
   // Convert from Smi to integer.
   __ mov(source_, Operand(source_, ASR, kSmiTagSize));
   // Move sign bit from source to destination.  This works because the sign bit
   // in the exponent word of the double has the same position and polarity as
   // the 2's complement sign bit in a Smi.
   ASSERT(HeapNumber::kSignMask == 0x80000000u);
-  __ and_(result1_, source_, Operand(HeapNumber::kSignMask), SetCC);
+  __ and_(exponent, source_, Operand(HeapNumber::kSignMask), SetCC);
   // Subtract from 0 if source was negative.
   __ rsb(source_, source_, Operand(0), LeaveCC, ne);
   __ cmp(source_, Operand(1));
@@ -4420,32 +4427,31 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   // For 1 or -1 we need to or in the 0 exponent (biased to 1023).
   static const uint32_t exponent_word_for_1 =
       HeapNumber::kExponentBias << HeapNumber::kExponentShift;
-  __ orr(result1_, result1_, Operand(exponent_word_for_1), LeaveCC, ne);
+  __ orr(exponent, exponent, Operand(exponent_word_for_1), LeaveCC, ne);
   // 1, 0 and -1 all have 0 for the second word.
-  __ mov(result2_, Operand(0));
-  __ jmp(&done);
+  __ mov(mantissa, Operand(0));
+  __ Ret();
 
   __ bind(&not_special);
   // Count leading zeros.  Uses result2 for a scratch register on pre-ARM5.
   // Gets the wrong answer for 0, but we already checked for that case above.
-  CountLeadingZeros(masm, source_, result2_, zeros_);
+  CountLeadingZeros(masm, source_, mantissa, zeros_);
   // Compute exponent and or it into the exponent register.
   // We use result2 as a scratch register here.
-  __ rsb(result2_, zeros_, Operand(31 + HeapNumber::kExponentBias));
-  __ orr(result1_,
-         result1_,
-         Operand(result2_, LSL, HeapNumber::kExponentShift));
+  __ rsb(mantissa, zeros_, Operand(31 + HeapNumber::kExponentBias));
+  __ orr(exponent,
+         exponent,
+         Operand(mantissa, LSL, HeapNumber::kExponentShift));
   // Shift up the source chopping the top bit off.
   __ add(zeros_, zeros_, Operand(1));
   // This wouldn't work for 1.0 or -1.0 as the shift would be 32 which means 0.
   __ mov(source_, Operand(source_, LSL, zeros_));
   // Compute lower part of fraction (last 12 bits).
-  __ mov(result2_, Operand(source_, LSL, HeapNumber::kMantissaBitsInTopWord));
+  __ mov(mantissa, Operand(source_, LSL, HeapNumber::kMantissaBitsInTopWord));
   // And the top (top 20 bits).
-  __ orr(result1_,
-         result1_,
+  __ orr(exponent,
+         exponent,
          Operand(source_, LSR, 32 - HeapNumber::kMantissaBitsInTopWord));
-  __ bind(&done);
   __ Ret();
 }
 
@@ -4626,8 +4632,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     __ mov(r5, Operand(r0));  // Overwrite this heap number.
   }
   // Calling convention says that second double is in r2 and r3.
-  __ ldr(r2, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-  __ ldr(r3, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+  __ ldr(r2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+  __ ldr(r3, FieldMemOperand(r0, HeapNumber::kValueOffset + 4));
   __ jmp(&finished_loading_r0);
   __ bind(&r0_is_smi);
   if (mode == OVERWRITE_RIGHT) {
@@ -4651,8 +4657,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     __ mov(r5, Operand(r1));  // Overwrite this heap number.
   }
   // Calling convention says that first double is in r0 and r1.
-  __ ldr(r0, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
-  __ ldr(r1, FieldMemOperand(r1, HeapNumber::kExponentOffset));
+  __ ldr(r0, FieldMemOperand(r1, HeapNumber::kValueOffset));
+  __ ldr(r1, FieldMemOperand(r1, HeapNumber::kValueOffset + 4));
   __ jmp(&finished_loading_r1);
   __ bind(&r1_is_smi);
   if (mode == OVERWRITE_LEFT) {
@@ -4688,8 +4694,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   __ stc(p1, cr8, MemOperand(r5, HeapNumber::kValueOffset));
 #else
   // Double returned in registers 0 and 1.
-  __ str(r0, FieldMemOperand(r4, HeapNumber::kMantissaOffset));
-  __ str(r1, FieldMemOperand(r4, HeapNumber::kExponentOffset));
+  __ str(r0, FieldMemOperand(r4, HeapNumber::kValueOffset));
+  __ str(r1, FieldMemOperand(r4, HeapNumber::kValueOffset + 4));
 #endif
   __ mov(r0, Operand(r4));
   // And we are done.
