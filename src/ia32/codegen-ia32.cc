@@ -1691,6 +1691,8 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         int shift_value = int_value & 0x1f;
         operand->ToRegister();
         if (shift_value == 0) {
+          // Spill operand so it can be overwritten in the slow case.
+          frame_->Spill(operand->reg());
           DeferredInlineSmiOperation* deferred =
               new DeferredInlineSmiOperation(op,
                                              operand->reg(),
