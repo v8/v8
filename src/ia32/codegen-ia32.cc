@@ -5466,18 +5466,6 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
 }
 
 
-class InstanceofStub: public CodeStub {
- public:
-  InstanceofStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return Instanceof; }
-  int MinorKey() { return 0; }
-};
-
-
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Comment cmnt(masm_, "[ CompareOperation");
 

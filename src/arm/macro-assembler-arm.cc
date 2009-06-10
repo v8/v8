@@ -750,6 +750,62 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::CompareObjectType(Register function,
+                                       Register map,
+                                       Register type_reg,
+                                       InstanceType type) {
+  ldr(map, FieldMemOperand(function, HeapObject::kMapOffset));
+  ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  cmp(type_reg, Operand(type));
+}
+
+
+void MacroAssembler::TryGetFunctionPrototype(Register function,
+                                             Register result,
+                                             Register scratch,
+                                             Label* miss) {
+  // Check that the receiver isn't a smi.
+  BranchOnSmi(function, miss);
+
+  // Check that the function really is a function.  Load map into result reg.
+  CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
+  b(ne, miss);
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
+  tst(scratch, Operand(1 << Map::kHasNonInstancePrototype));
+  b(ne, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  ldr(result,
+      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // If the prototype or initial map is the hole, don't return it and
+  // simply miss the cache instead. This will allow us to allocate a
+  // prototype object on-demand in the runtime system.
+  cmp(result, Operand(Factory::the_hole_value()));
+  b(eq, miss);
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  CompareObjectType(result, scratch, scratch, MAP_TYPE);
+  b(ne, &done);
+
+  // Get the prototype from the initial map.
+  ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
+  jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  bind(&non_instance);
+  ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  bind(&done);
+}
+
+
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
   Call(stub->GetCode(), RelocInfo::CODE_TARGET);

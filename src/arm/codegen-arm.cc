@@ -1504,9 +1504,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // Test for a Smi value in a HeapNumber.
   __ tst(r0, Operand(kSmiTagMask));
   is_smi.Branch(eq);
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
+  __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
   default_target->Branch(ne);
   frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kNumberToSmi, 1);
@@ -1873,9 +1871,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Check if enumerable is already a JSObject
   __ tst(r0, Operand(kSmiTagMask));
   primitive.Branch(eq);
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
+  __ CompareObjectType(r0, r1, r1, FIRST_JS_OBJECT_TYPE);
   jsobject.Branch(hs);
 
   primitive.Bind();
@@ -3277,11 +3273,8 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   // if (object->IsSmi()) return the object.
   __ tst(r0, Operand(kSmiTagMask));
   leave.Branch(eq);
-  // It is a heap object - get map.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  // if (!object->IsJSValue()) return the object.
-  __ cmp(r1, Operand(JS_VALUE_TYPE));
+  // It is a heap object - get map. If (!object->IsJSValue()) return the object.
+  __ CompareObjectType(r0, r1, r1, JS_VALUE_TYPE);
   leave.Branch(ne);
   // Load the value.
   __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
@@ -3301,11 +3294,8 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // if (object->IsSmi()) return object.
   __ tst(r1, Operand(kSmiTagMask));
   leave.Branch(eq);
-  // It is a heap object - get map.
-  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  // if (!object->IsJSValue()) return object.
-  __ cmp(r2, Operand(JS_VALUE_TYPE));
+  // It is a heap object - get map. If (!object->IsJSValue()) return the object.
+  __ CompareObjectType(r1, r2, r2, JS_VALUE_TYPE);
   leave.Branch(ne);
   // Store the value.
   __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
@@ -3377,11 +3367,8 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   __ and_(r1, r0, Operand(kSmiTagMask));
   __ eor(r1, r1, Operand(kSmiTagMask), SetCC);
   answer.Branch(ne);
-  // It is a heap object - get the map.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  // Check if the object is a JS array or not.
-  __ cmp(r1, Operand(JS_ARRAY_TYPE));
+  // It is a heap object - get the map. Check if the object is a JS array.
+  __ CompareObjectType(r0, r1, r1, JS_ARRAY_TYPE);
   answer.Bind();
   cc_reg_ = eq;
 }
@@ -4000,9 +3987,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     } else if (check->Equals(Heap::function_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
       false_target()->Branch(eq);
-      __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
-      __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-      __ cmp(r1, Operand(JS_FUNCTION_TYPE));
+      __ CompareObjectType(r1, r1, r1, JS_FUNCTION_TYPE);
       cc_reg_ = eq;
 
     } else if (check->Equals(Heap::object_symbol())) {
@@ -4075,13 +4060,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     }
 
     case Token::INSTANCEOF: {
-      Result arg_count = allocator_->Allocate(r0);
-      ASSERT(arg_count.is_valid());
-      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
-      Result result = frame_->InvokeBuiltin(Builtins::INSTANCE_OF,
-                                            CALL_JS,
-                                            &arg_count,
-                                            2);
+      InstanceofStub stub;
+      Result result = frame_->CallStub(&stub, 2);
+      // At this point if instanceof succeeded then r0 == 0.
       __ tst(result.reg(), Operand(result.reg()));
       cc_reg_ = eq;
       break;
@@ -4593,21 +4574,6 @@ static void AllocateHeapNumber(
 }
 
 
-// Checks that the object register (which is assumed not to be a Smi) points to
-// a heap number.  Jumps to the label if it is not.
-void CheckForHeapNumber(MacroAssembler* masm,
-                        Register object,
-                        Register scratch,
-                        Label* slow) {
-  // Get map of object into scratch.
-  __ ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-  // Get type of object into scratch.
-  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, Operand(HEAP_NUMBER_TYPE));
-  __ b(ne, slow);
-}
-
-
 // We fall into this code if the operands were Smis, but the result was
 // not (eg. overflow).  We branch into this code (to the not_smi label) if
 // the operands were not both Smi.  The operands are in r0 and r1.  In order
@@ -4655,7 +4621,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // Move r0 to a double in r2-r3.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &r0_is_smi);  // It's a Smi so don't check it's a heap number.
-  CheckForHeapNumber(masm, r0, r4, &slow);
+  __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+  __ b(ne, &slow);
   if (mode == OVERWRITE_RIGHT) {
     __ mov(r5, Operand(r0));  // Overwrite this heap number.
   }
@@ -4679,7 +4646,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // Move r1 to a double in r0-r1.
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &r1_is_smi);  // It's a Smi so don't check it's a heap number.
-  CheckForHeapNumber(masm, r1, r4, &slow);
+  __ CompareObjectType(r1, r4, r4, HEAP_NUMBER_TYPE);
+  __ b(ne, &slow);
   if (mode == OVERWRITE_LEFT) {
     __ mov(r5, Operand(r1));  // Overwrite this heap number.
   }
@@ -4786,7 +4754,8 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
 
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &r1_is_smi);  // It's a Smi so don't check it's a heap number.
-  CheckForHeapNumber(masm, r1, r4, &slow);
+  __ CompareObjectType(r1, r4, r4, HEAP_NUMBER_TYPE);
+  __ b(ne, &slow);
   GetInt32(masm, r1, r3, r4, &slow);
   __ jmp(&done_checking_r1);
   __ bind(&r1_is_smi);
@@ -4795,7 +4764,8 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
 
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &r0_is_smi);  // It's a Smi so don't check it's a heap number.
-  CheckForHeapNumber(masm, r0, r4, &slow);
+  __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+  __ b(ne, &slow);
   GetInt32(masm, r0, r2, r4, &slow);
   __ jmp(&done_checking_r0);
   __ bind(&r0_is_smi);
@@ -5098,7 +5068,8 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   __ StubReturn(1);
 
   __ bind(&not_smi);
-  CheckForHeapNumber(masm, r0, r1, &slow);
+  __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
+  __ b(ne, &slow);
   // r0 is a heap number.  Get a new heap number in r1.
   if (overwrite_) {
     __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
@@ -5503,6 +5474,66 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 }
 
 
+// This stub performs an instanceof, calling the builtin function if
+// necessary.  Uses r1 for the object, r0 for the function that it may
+// be an instance of (these are fetched from the stack).
+void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Get the object - slow case for smis (we may need to throw an exception
+  // depending on the rhs).
+  Label slow, loop, is_instance, is_not_instance;
+  __ ldr(r0, MemOperand(sp, 1 * kPointerSize));
+  __ BranchOnSmi(r0, &slow);
+
+  // Check that the left hand is a JS object and put map in r3.
+  __ CompareObjectType(r0, r3, r2, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, &slow);
+  __ cmp(r2, Operand(LAST_JS_OBJECT_TYPE));
+  __ b(gt, &slow);
+
+  // Get the prototype of the function (r4 is result, r2 is scratch).
+  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
+  __ TryGetFunctionPrototype(r1, r4, r2, &slow);
+
+  // Check that the function prototype is a JS object.
+  __ BranchOnSmi(r4, &slow);
+  __ CompareObjectType(r4, r5, r5, FIRST_JS_OBJECT_TYPE);
+  __ b(lt, &slow);
+  __ cmp(r5, Operand(LAST_JS_OBJECT_TYPE));
+  __ b(gt, &slow);
+
+  // Register mapping: r3 is object map and r4 is function prototype.
+  // Get prototype of object into r2.
+  __ ldr(r2, FieldMemOperand(r3, Map::kPrototypeOffset));
+
+  // Loop through the prototype chain looking for the function prototype.
+  __ bind(&loop);
+  __ cmp(r2, Operand(r4));
+  __ b(eq, &is_instance);
+  __ cmp(r2, Operand(Factory::null_value()));
+  __ b(eq, &is_not_instance);
+  __ ldr(r2, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ ldr(r2, FieldMemOperand(r2, Map::kPrototypeOffset));
+  __ jmp(&loop);
+
+  __ bind(&is_instance);
+  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ pop();
+  __ pop();
+  __ mov(pc, Operand(lr));  // Return.
+
+  __ bind(&is_not_instance);
+  __ mov(r0, Operand(Smi::FromInt(1)));
+  __ pop();
+  __ pop();
+  __ mov(pc, Operand(lr));  // Return.
+
+  // Slow-case.  Tail call builtin.
+  __ bind(&slow);
+  __ mov(r0, Operand(1));  // Arg count without receiver.
+  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_JS);
+}
+
+
 void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
@@ -5531,8 +5562,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   Label slow;
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(ne, &slow);
+  __ BranchOnNotSmi(r1, &slow);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
@@ -5604,12 +5634,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Check that the function is really a JavaScript function.
   // r1: pushed function (to be verified)
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &slow);
+  __ BranchOnSmi(r1, &slow);
   // Get the map of the function object.
-  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
   __ b(ne, &slow);
 
   // Fast-case: Invoke the function now.

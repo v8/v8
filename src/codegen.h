@@ -228,6 +228,18 @@ class StackCheckStub : public CodeStub {
 };
 
 
+class InstanceofStub: public CodeStub {
+ public:
+  InstanceofStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return Instanceof; }
+  int MinorKey() { return 0; }
+};
+
+
 class UnarySubStub : public CodeStub {
  public:
   explicit UnarySubStub(bool overwrite)
