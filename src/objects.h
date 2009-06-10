@@ -2483,7 +2483,7 @@ class Map: public HeapObject {
     return ((1 << kIsHiddenPrototype) & bit_field()) != 0;
   }
 
-  // Tells whether the instance has a named interceptor.
+  // Records and queries whether the instance has a named interceptor.
   inline void set_has_named_interceptor() {
     set_bit_field(bit_field() | (1 << kHasNamedInterceptor));
   }
@@ -2492,7 +2492,7 @@ class Map: public HeapObject {
     return ((1 << kHasNamedInterceptor) & bit_field()) != 0;
   }
 
-  // Tells whether the instance has a named interceptor.
+  // Records and queries whether the instance has an indexed interceptor.
   inline void set_has_indexed_interceptor() {
     set_bit_field(bit_field() | (1 << kHasIndexedInterceptor));
   }
@@ -4021,10 +4021,9 @@ class JSArray: public JSObject {
 // If an accessor was found and it does not have a setter,
 // the request is ignored.
 //
-// To allow shadow an accessor property, the accessor can
-// have READ_ONLY property attribute so that a new value
-// is added to the local object to shadow the accessor
-// in prototypes.
+// If the accessor in the prototype has the READ_ONLY property attribute, then
+// a new value is added to the local object when the property is set.
+// This shadows the accessor in the prototype.
 class AccessorInfo: public Struct {
  public:
   DECL_ACCESSORS(getter, Object)

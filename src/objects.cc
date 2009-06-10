@@ -6436,10 +6436,6 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 
   AssertNoAllocation no_alloc;
 
-  // Loose all details on properties when moving them around.
-  // Elements do not have special details like properties.
-  PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
-
   uint32_t pos = 0;
   uint32_t undefs = 0;
   for (int i = 0; i < capacity; i++) {
@@ -6450,21 +6446,27 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
       ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
       ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
       Object* value = dict->ValueAt(i);
+      PropertyDetails details = dict->DetailsAt(i);
+      if (details.type() == CALLBACKS) {
+        // Bail out and do the sorting of undefineds and array holes in JS.
+        return Smi::FromInt(-1);
+      }
       uint32_t key = NumberToUint32(k);
       if (key < limit) {
         if (value->IsUndefined()) {
           undefs++;
         } else {
-          new_dict->AddNumberEntry(pos, value, no_details);
+          new_dict->AddNumberEntry(pos, value, details);
           pos++;
         }
       } else {
-        new_dict->AddNumberEntry(key, value, no_details);
+        new_dict->AddNumberEntry(key, value, details);
       }
     }
   }
 
   uint32_t result = pos;
+  PropertyDetails no_details = PropertyDetails(NONE, NORMAL);
   while (undefs > 0) {
     new_dict->AddNumberEntry(pos, Heap::undefined_value(), no_details);
     pos++;
