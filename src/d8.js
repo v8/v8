@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// How crappy is it that I have to implement completely basic stuff
-// like this myself?  Answer: very.
 String.prototype.startsWith = function (str) {
   if (str.length > this.length)
     return false;

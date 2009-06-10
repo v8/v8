@@ -1162,7 +1162,20 @@ class HeapNumber: public HeapObject {
 
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
+  // IEEE doubles are two 32 bit words.  The first is just mantissa, the second
+  // is a mixture of sign, exponent and mantissa.  This is the ordering on a
+  // little endian machine with little endian double word ordering.
+  static const int kMantissaOffset = kValueOffset;
+  static const int kExponentOffset = kValueOffset + 4;
   static const int kSize = kValueOffset + kDoubleSize;
+
+  static const uint32_t kSignMask = 0x80000000u;
+  static const uint32_t kExponentMask = 0x7ff00000u;
+  static const uint32_t kMantissaMask = 0xfffffu;
+  static const int kExponentBias = 1023;
+  static const int kExponentShift = 20;
+  static const int kMantissaBitsInTopWord = 20;
+  static const int kNonMantissaBitsInTopWord = 12;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);

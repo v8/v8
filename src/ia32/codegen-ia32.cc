@@ -5057,7 +5057,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
-        UnarySubStub stub;
+        bool overwrite =
+            (node->AsBinaryOperation() != NULL &&
+             node->AsBinaryOperation()->ResultOverwriteAllowed());
+        UnarySubStub stub(overwrite);
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
@@ -6594,13 +6597,21 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(edx, Factory::heap_number_map());
   __ j(not_equal, &slow);
-  __ mov(edx, Operand(eax));
-  // edx: operand
-  FloatingPointHelper::AllocateHeapNumber(masm, &undo, ebx, ecx);
-  // eax: allocated 'empty' number
-  __ fld_d(FieldOperand(edx, HeapNumber::kValueOffset));
-  __ fchs();
-  __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+  if (overwrite_) {
+    __ mov(edx, FieldOperand(eax, HeapNumber::kExponentOffset));
+    __ xor_(edx, HeapNumber::kSignMask);  // Flip sign.
+    __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), edx);
+  } else {
+    __ mov(edx, Operand(eax));
+    // edx: operand
+    FloatingPointHelper::AllocateHeapNumber(masm, &undo, ebx, ecx);
+    // eax: allocated 'empty' number
+    __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
+    __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
+    __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), ecx);
+    __ mov(ecx, FieldOperand(edx, HeapNumber::kMantissaOffset));
+    __ mov(FieldOperand(eax, HeapNumber::kMantissaOffset), ecx);
+  }
 
   __ bind(&done);
 
@@ -6744,7 +6755,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
       // Read top bits of double representation (second word of value).
-      __ mov(eax, FieldOperand(edx, HeapNumber::kValueOffset + kPointerSize));
+      __ mov(eax, FieldOperand(edx, HeapNumber::kExponentOffset));
       // Test that exponent bits are all set.
       __ not_(eax);
       __ test(eax, Immediate(0x7ff00000));
@@ -6754,7 +6765,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // Shift out flag and all exponent bits, retaining only mantissa.
       __ shl(eax, 12);
       // Or with all low-bits of mantissa.
-      __ or_(eax, FieldOperand(edx, HeapNumber::kValueOffset));
+      __ or_(eax, FieldOperand(edx, HeapNumber::kMantissaOffset));
       // Return zero equal if all bits in mantissa is zero (it's an Infinity)
       // and non-zero if not (it's a NaN).
       __ ret(0);
