@@ -1531,7 +1531,7 @@ class JSObject: public HeapObject {
 
  private:
   Object* SetElementWithInterceptor(uint32_t index, Object* value);
-  Object* SetElementPostInterceptor(uint32_t index, Object* value);
+  Object* SetElementWithoutInterceptor(uint32_t index, Object* value);
 
   Object* GetElementPostInterceptor(JSObject* receiver, uint32_t index);
 
