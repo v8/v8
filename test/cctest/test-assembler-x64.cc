@@ -248,4 +248,5 @@ TEST(AssemblerX64LoopImmediates) {
   int result =  FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(1, result);
 }
+
 #undef __

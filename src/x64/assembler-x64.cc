@@ -72,7 +72,49 @@ XMMRegister xmm13 = { 13 };
 XMMRegister xmm14 = { 14 };
 XMMRegister xmm15 = { 15 };
 
+
+Operand::Operand(Register base, int32_t disp) {
+  len_ = 1;
+  if (base.is(rsp) || base.is(r12)) {
+    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+    set_sib(kTimes1, rsp, base);
+  }
+
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    set_modrm(0, rsp);
+  } else if (is_int8(disp)) {
+    set_modrm(1, base);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, base);
+    set_disp32(disp);
+  }
+}
+
+
+Operand::Operand(Register base,
+                 Register index,
+                 ScaleFactor scale,
+                 int32_t disp) {
+  ASSERT(!index.is(rsp) && !index.is(r12));
+  len_ = 1;
+  set_sib(scale, index, base);
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    // The call to set_modrm doesn't overwrite the REX.B bit possibly set
+    // by set_sib.
+    set_modrm(0, rsp);
+  } else if (is_int8(disp)) {
+    set_modrm(1, rsp);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, rsp);
+    set_disp32(disp);
+  }
+}
+
+
 // Safe default is no features.
+// TODO(X64): Safe defaults include SSE2 for X64.
 uint64_t CpuFeatures::supported_ = 0;
 uint64_t CpuFeatures::enabled_ = 0;
 
@@ -487,6 +529,7 @@ void Assembler::call(Register adr) {
   emit_modrm(0x2, adr);
 }
 
+
 void Assembler::cpuid() {
   ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
   EnsureSpace ensure_space(this);
@@ -844,6 +887,31 @@ void Assembler::movq(Register dst, ExternalReference ref) {
 }
 
 
+void Assembler::movq(const Operand& dst, Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xC7);
+  emit_operand(0, dst);
+  emit(value);
+}
+
+
+void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(!Heap::InNewSpace(*value));
+  emit_rex_64(dst);
+  emit(0xB8 | dst.code() & 0x7);
+  if (value->IsHeapObject()) {
+    emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
+  } else {
+    ASSERT_EQ(RelocInfo::NONE, mode);
+    emitq(reinterpret_cast<uintptr_t>(*value), RelocInfo::NONE);
+  }
+}
+
+
 void Assembler::mul(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1129,6 +1197,7 @@ void Assembler::store_rax(ExternalReference ref) {
 
 
 void Assembler::testb(Register reg, Immediate mask) {
+  ASSERT(is_int8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (reg.is(rax)) {
@@ -1147,6 +1216,7 @@ void Assembler::testb(Register reg, Immediate mask) {
 
 
 void Assembler::testb(const Operand& op, Immediate mask) {
+  ASSERT(is_int8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(rax, op);
@@ -1196,6 +1266,22 @@ void Assembler::testq(Register dst, Register src) {
   emit_rex_64(dst, src);
   emit(0x85);
   emit_modrm(dst, src);
+}
+
+
+void Assembler::testq(Register dst, Immediate mask) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.is(rax)) {
+    emit_rex_64();
+    emit(0xA9);
+    emit(mask);
+  } else {
+    emit_rex_64(dst);
+    emit(0xF7);
+    emit_modrm(0, dst);
+    emit(mask);
+  }
 }
 
 

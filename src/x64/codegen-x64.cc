@@ -58,7 +58,7 @@ CodeGenerator::CodeGenerator(int buffer_size,
       in_spilled_code_(false) {
 }
 
-#define __ masm->
+#define __ ACCESS_MASM(masm)
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
@@ -236,8 +236,250 @@ void CodeGenerator::VisitThisFunction(ThisFunction* a) {
 }
 
 
+void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
+  // Check that stack should contain frame pointer, code pointer, state and
+  // return address in that order.
+  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+            StackHandlerConstants::kStateOffset);
+  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+            StackHandlerConstants::kPCOffset);
+
+  ExternalReference handler_address(Top::k_handler_address);
+  __ movq(kScratchRegister, handler_address);
+  __ movq(rdx, Operand(kScratchRegister, 0));
+  // get next in chain
+  __ movq(rcx, Operand(rdx, 0));
+  __ movq(Operand(kScratchRegister, 0), rcx);
+  __ movq(rsp, rdx);
+  __ pop(rbp);  // pop frame pointer
+  __ pop(rdx);  // remove code pointer
+  __ pop(rdx);  // remove state
+
+  // Before returning we restore the context from the frame pointer if not NULL.
+  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  __ xor_(rsi, rsi);  // tentatively set context pointer to NULL
+  Label skip;
+  __ cmp(rbp, Immediate(0));
+  __ j(equal, &skip);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ bind(&skip);
+
+  __ ret(0);
+}
+
+
+
+void CEntryStub::GenerateCore(MacroAssembler* masm,
+                              Label* throw_normal_exception,
+                              Label* throw_out_of_memory_exception,
+                              StackFrame::Type frame_type,
+                              bool do_gc,
+                              bool always_allocate_scope) {
+  // rax: result parameter for PerformGC, if any
+  // rbx: pointer to C function  (C callee-saved)
+  // rbp: frame pointer  (restored after C call)
+  // rsp: stack pointer  (restored after C call)
+  // rdi: number of arguments including receiver  (C callee-saved)
+  // rsi: pointer to the first argument (C callee-saved)
+
+  if (do_gc) {
+    __ movq(Operand(rsp, 0), rax);  // Result.
+    __ movq(kScratchRegister,
+            FUNCTION_ADDR(Runtime::PerformGC),
+            RelocInfo::RUNTIME_ENTRY);
+    __ call(kScratchRegister);
+  }
+
+  ExternalReference scope_depth =
+      ExternalReference::heap_always_allocate_scope_depth();
+  if (always_allocate_scope) {
+    __ movq(kScratchRegister, scope_depth);
+    __ inc(Operand(kScratchRegister, 0));
+  }
+
+  // Call C function.
+#ifdef __MSVC__
+  // MSVC passes arguments in rcx, rdx, r8, r9
+  __ movq(rcx, rdi);  // argc.
+  __ movq(rdx, rsi);  // argv.
+#else  // ! defined(__MSVC__)
+  // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
+  // First two arguments are already in rdi, rsi.
+#endif
+  __ call(rbx);
+  // Result is in rax - do not destroy this register!
+
+  if (always_allocate_scope) {
+    __ movq(kScratchRegister, scope_depth);
+    __ dec(Operand(kScratchRegister, 0));
+  }
+
+  // Check for failure result.
+  Label failure_returned;
+  ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+  __ lea(rcx, Operand(rax, 1));
+  // Lower 2 bits of rcx are 0 iff rax has failure tag.
+  __ testl(rcx, Immediate(kFailureTagMask));
+  __ j(zero, &failure_returned);
+
+  // Exit the JavaScript to C++ exit frame.
+  __ LeaveExitFrame(frame_type);
+  __ ret(0);
+
+  // Handling of failure.
+  __ bind(&failure_returned);
+
+  Label retry;
+  // If the returned exception is RETRY_AFTER_GC continue at retry label
+  ASSERT(Failure::RETRY_AFTER_GC == 0);
+  __ testq(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
+  __ j(zero, &retry);
+
+  Label continue_exception;
+  // If the returned failure is EXCEPTION then promote Top::pending_exception().
+  __ movq(kScratchRegister, Failure::Exception(), RelocInfo::NONE);
+  __ cmp(rax, kScratchRegister);
+  __ j(not_equal, &continue_exception);
+
+  // Retrieve the pending exception and clear the variable.
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  __ movq(kScratchRegister, pending_exception_address);
+  __ movq(rax, Operand(kScratchRegister, 0));
+  __ movq(rdx, ExternalReference::the_hole_value_location());
+  __ movq(rdx, Operand(rdx, 0));
+  __ movq(Operand(kScratchRegister, 0), rdx);
+
+  __ bind(&continue_exception);
+  // Special handling of out of memory exception.
+  __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
+  __ cmp(rax, kScratchRegister);
+  __ j(equal, throw_out_of_memory_exception);
+
+  // Handle normal exception.
+  __ jmp(throw_normal_exception);
+
+  // Retry.
+  __ bind(&retry);
+}
+
+
+void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
+  // Fetch top stack handler.
+  ExternalReference handler_address(Top::k_handler_address);
+  __ movq(kScratchRegister, handler_address);
+  __ movq(rdx, Operand(kScratchRegister, 0));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  Label loop, done;
+  __ bind(&loop);
+  // Load the type of the current stack handler.
+  __ cmp(Operand(rdx, StackHandlerConstants::kStateOffset),
+         Immediate(StackHandler::ENTRY));
+  __ j(equal, &done);
+  // Fetch the next handler in the list.
+  __ movq(rdx, Operand(rdx, StackHandlerConstants::kNextOffset));
+  __ jmp(&loop);
+  __ bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  __ movq(rax, Operand(rdx, StackHandlerConstants::kNextOffset));
+  __ store_rax(handler_address);
+
+  // Set external caught exception to false.
+  __ movq(rax, Immediate(false));
+  ExternalReference external_caught(Top::k_external_caught_exception_address);
+  __ store_rax(external_caught);
+
+  // Set pending exception and rax to out of memory exception.
+  __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
+  ExternalReference pending_exception(Top::k_pending_exception_address);
+  __ store_rax(pending_exception);
+
+  // Restore the stack to the address of the ENTRY handler
+  __ movq(rsp, rdx);
+
+  // Clear the context pointer;
+  __ xor_(rsi, rsi);
+
+  // Restore registers from handler.
+
+  __ pop(rbp);  // FP
+  ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
+            StackHandlerConstants::kStateOffset);
+  __ pop(rdx);  // State
+
+  ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
+            StackHandlerConstants::kPCOffset);
+  __ ret(0);
+}
+
+
 void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
-  masm->int3();  // TODO(X64): UNIMPLEMENTED.
+  // rax: number of arguments including receiver
+  // rbx: pointer to C function  (C callee-saved)
+  // rbp: frame pointer  (restored after C call)
+  // rsp: stack pointer  (restored after C call)
+  // rsi: current context (C callee-saved)
+  // rdi: caller's parameter pointer pp  (C callee-saved)
+
+  // NOTE: Invocations of builtins may return failure objects
+  // instead of a proper result. The builtin entry handles
+  // this by performing a garbage collection and retrying the
+  // builtin once.
+
+  StackFrame::Type frame_type = is_debug_break ?
+      StackFrame::EXIT_DEBUG :
+      StackFrame::EXIT;
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  __ EnterExitFrame(frame_type);
+
+  // rax: result parameter for PerformGC, if any (setup below)
+  // rbx: pointer to builtin function  (C callee-saved)
+  // rbp: frame pointer  (restored after C call)
+  // rsp: stack pointer  (restored after C call)
+  // rdi: number of arguments including receiver (C callee-saved)
+  // rsi: argv pointer (C callee-saved)
+
+  Label throw_out_of_memory_exception;
+  Label throw_normal_exception;
+
+  // Call into the runtime system. Collect garbage before the call if
+  // running with --gc-greedy set.
+  if (FLAG_gc_greedy) {
+    Failure* failure = Failure::RetryAfterGC(0);
+    __ movq(rax, failure, RelocInfo::NONE);
+  }
+  GenerateCore(masm, &throw_normal_exception,
+               &throw_out_of_memory_exception,
+               frame_type,
+               FLAG_gc_greedy,
+               false);
+
+  // Do space-specific GC and retry runtime call.
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_out_of_memory_exception,
+               frame_type,
+               true,
+               false);
+
+  // Do full GC and retry runtime call one final time.
+  Failure* failure = Failure::InternalError();
+  __ movq(rax, failure, RelocInfo::NONE);
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_out_of_memory_exception,
+               frame_type,
+               true,
+               true);
+
+  __ bind(&throw_out_of_memory_exception);
+  GenerateThrowOutOfMemory(masm);
+  // control flow for generated will not return.
+
+  __ bind(&throw_normal_exception);
+  GenerateThrowTOS(masm);
 }
 
 

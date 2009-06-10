@@ -249,24 +249,6 @@ Object** RelocInfo::call_object_address() {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-Operand::Operand(Register base, int32_t disp) {
-  len_ = 1;
-  if (base.is(rsp) || base.is(r12)) {
-    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(kTimes1, rsp, base);
-  }
-
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    set_modrm(0, rsp);
-  } else if (is_int8(disp)) {
-    set_modrm(1, base);
-    set_disp8(disp);
-  } else {
-    set_modrm(2, base);
-    set_disp32(disp);
-  }
-}
-
 void Operand::set_modrm(int mod, Register rm) {
   ASSERT((mod & -4) == 0);
   buf_[0] = mod << 6 | (rm.code() & 0x7);

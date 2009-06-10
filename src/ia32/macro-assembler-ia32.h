@@ -285,7 +285,7 @@ class MacroAssembler: public Assembler {
   List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
-  Handle<Object> code_object_;  // This handle will be patched with the code
+  Handle<Object> code_object_;  // This handle will be patched with the
                                 // code object on installation.
 
   // Helper functions for generating invokes.

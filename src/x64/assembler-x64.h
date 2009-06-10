@@ -77,7 +77,7 @@ static inline bool is_int32(int64_t x) {
 
 struct Register {
   static Register toRegister(int code) {
-    Register r = {code};
+    Register r = { code };
     return r;
   }
   bool is_valid() const  { return 0 <= code_ && code_ < 16; }
@@ -89,11 +89,11 @@ struct Register {
     return code_;
   }
   int bit() const  {
-    UNIMPLEMENTED();
-    return 0;
+    return 1 << code_;
   }
 
-  // (unfortunately we can't make this private in a struct)
+  // (unfortunately we can't make this private in a struct when initializing
+  // by assignment.)
   int code_;
 };
 
@@ -250,7 +250,7 @@ enum ScaleFactor {
 class Operand BASE_EMBEDDED {
  public:
   // [base + disp/r]
-  INLINE(Operand(Register base, int32_t disp));
+  Operand(Register base, int32_t disp);
 
   // [base + index*scale + disp/r]
   Operand(Register base,
@@ -434,7 +434,8 @@ class Assembler : public Malloced {
 
   // Move 64 bit register value to 64-bit memory location.
   void movq(const Operand& dst, Register src);
-
+  // Move sign extended immediate to memory location.
+  void movq(const Operand& dst, Immediate value);
   // New x64 instructions to load a 64-bit immediate into a register.
   // All 64-bit immediates must have a relocation mode.
   void movq(Register dst, void* ptr, RelocInfo::Mode rmode);
@@ -443,7 +444,6 @@ class Assembler : public Malloced {
   // Moves the address of the external reference into the register.
   void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
-
 
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
@@ -647,6 +647,7 @@ class Assembler : public Malloced {
   void testl(const Operand& op, Immediate mask);
   void testq(const Operand& op, Register reg);
   void testq(Register dst, Register src);
+  void testq(Register dst, Immediate mask);
 
   void xor_(Register dst, Register src) {
     arithmetic_op(0x33, dst, src);

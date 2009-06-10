@@ -32,11 +32,18 @@ namespace v8 {
 namespace internal {
 
 // TODO(x64): This is a stub, mostly just a copy of the ia32 bit version.
-// This will all need to change to be correct for x64.
+// This might all need to change to be correct for x64.
 
 static const int kNumRegs = 8;
-static const RegList kJSCallerSaved = 0;
+static const RegList kJSCallerSaved =
+    1 << 0 |  // rax
+    1 << 1 |  // rcx
+    1 << 2 |  // rdx
+    1 << 3 |  // rbx - used as a caller-saved register in JavaScript code
+    1 << 7;   // rdi - callee function
+
 static const int kNumJSCallerSaved = 5;
+
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
 class StackHandlerConstants : public AllStatic {
@@ -52,24 +59,26 @@ class StackHandlerConstants : public AllStatic {
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static const int kCallerFPOffset      = -1 * kPointerSize;
+  static const int kCallerFPOffset      = 0 * kPointerSize;
 
-  static const int kFunctionArgOffset   = -1 * kPointerSize;
-  static const int kReceiverArgOffset   = -1 * kPointerSize;
-  static const int kArgcOffset          = -1 * kPointerSize;
-  static const int kArgvOffset          = -1 * kPointerSize;
+  static const int kFunctionArgOffset   = 1 * kPointerSize;
+  static const int kReceiverArgOffset   = 2 * kPointerSize;
+  static const int kArgcOffset          = 3 * kPointerSize;
+  static const int kArgvOffset          = 4 * kPointerSize;
 };
 
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kDebugMarkOffset = -1 * kPointerSize;
+  static const int kDebugMarkOffset = -2 * kPointerSize;
   static const int kSPOffset        = -1 * kPointerSize;
 
-  static const int kPPDisplacement = -1 * kPointerSize;
+  // TODO(X64): Remove usage of PP in exit frames?
+  // Still used though StackFrame::pp()
+  static const int kPPDisplacement  = +2 * kPointerSize;
 
-  static const int kCallerFPOffset = -1 * kPointerSize;
-  static const int kCallerPCOffset = -1 * kPointerSize;
+  static const int kCallerFPOffset  = +0 * kPointerSize;
+  static const int kCallerPCOffset  = +1 * kPointerSize;
 };
 
 

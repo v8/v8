@@ -29,7 +29,9 @@
 
 #include "bootstrapper.h"
 #include "codegen-inl.h"
+#include "assembler-x64.h"
 #include "macro-assembler-x64.h"
+#include "debug.h"
 
 namespace v8 {
 namespace internal {
@@ -40,6 +42,53 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
     generating_stub_(false),
     allow_stub_calls_(true),
     code_object_(Heap::undefined_value()) {
+}
+
+
+void MacroAssembler::Assert(Condition cc, const char* msg) {
+  if (FLAG_debug_code) Check(cc, msg);
+}
+
+
+void MacroAssembler::Check(Condition cc, const char* msg) {
+  Label L;
+  j(cc, &L);
+  Abort(msg);
+  // will not return here
+  bind(&L);
+}
+
+
+void MacroAssembler::Abort(const char* msg) {
+  // We want to pass the msg string like a smi to avoid GC
+  // problems, however msg is not guaranteed to be aligned
+  // properly. Instead, we pass an aligned pointer that is
+  // a proper v8 smi, but also pass the alignment difference
+  // from the real pointer as a smi.
+  intptr_t p1 = reinterpret_cast<intptr_t>(msg);
+  intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
+  // Note: p0 might not be a valid Smi *value*, but it has a valid Smi tag.
+  ASSERT(reinterpret_cast<Object*>(p0)->IsSmi());
+#ifdef DEBUG
+  if (msg != NULL) {
+    RecordComment("Abort message: ");
+    RecordComment(msg);
+  }
+#endif
+  push(rax);
+  movq(kScratchRegister, p0, RelocInfo::NONE);
+  push(kScratchRegister);
+  movq(kScratchRegister,
+       reinterpret_cast<intptr_t>(Smi::FromInt(p1 - p0)),
+       RelocInfo::NONE);
+  push(kScratchRegister);
+  CallRuntime(Runtime::kAbort, 2);
+  // will not return here
+}
+
+
+void MacroAssembler::CallRuntime(Runtime::FunctionId id, int argc) {
+  UNIMPLEMENTED();
 }
 
 
@@ -106,6 +155,230 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
   push(Operand(kScratchRegister, 0));
   // Link this handler.
   movq(Operand(kScratchRegister, 0), rsp);
+}
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+
+void MacroAssembler::PushRegistersFromMemory(RegList regs) {
+  ASSERT((regs & ~kJSCallerSaved) == 0);
+  // Push the content of the memory location to the stack.
+  for (int i = 0; i < kNumJSCallerSaved; i++) {
+    int r = JSCallerSavedCode(i);
+    if ((regs & (1 << r)) != 0) {
+      ExternalReference reg_addr =
+          ExternalReference(Debug_Address::Register(i));
+      movq(kScratchRegister, reg_addr);
+      push(Operand(kScratchRegister, 0));
+    }
+  }
+}
+
+void MacroAssembler::SaveRegistersToMemory(RegList regs) {
+  ASSERT((regs & ~kJSCallerSaved) == 0);
+  // Copy the content of registers to memory location.
+  for (int i = 0; i < kNumJSCallerSaved; i++) {
+    int r = JSCallerSavedCode(i);
+    if ((regs & (1 << r)) != 0) {
+      Register reg = { r };
+      ExternalReference reg_addr =
+          ExternalReference(Debug_Address::Register(i));
+      movq(kScratchRegister, reg_addr);
+      movq(Operand(kScratchRegister, 0), reg);
+    }
+  }
+}
+
+
+void MacroAssembler::RestoreRegistersFromMemory(RegList regs) {
+  ASSERT((regs & ~kJSCallerSaved) == 0);
+  // Copy the content of memory location to registers.
+  for (int i = kNumJSCallerSaved - 1; i >= 0; i--) {
+    int r = JSCallerSavedCode(i);
+    if ((regs & (1 << r)) != 0) {
+      Register reg = { r };
+      ExternalReference reg_addr =
+          ExternalReference(Debug_Address::Register(i));
+      movq(kScratchRegister, reg_addr);
+      movq(reg, Operand(kScratchRegister, 0));
+    }
+  }
+}
+
+
+void MacroAssembler::PopRegistersToMemory(RegList regs) {
+  ASSERT((regs & ~kJSCallerSaved) == 0);
+  // Pop the content from the stack to the memory location.
+  for (int i = kNumJSCallerSaved - 1; i >= 0; i--) {
+    int r = JSCallerSavedCode(i);
+    if ((regs & (1 << r)) != 0) {
+      ExternalReference reg_addr =
+          ExternalReference(Debug_Address::Register(i));
+      movq(kScratchRegister, reg_addr);
+      pop(Operand(kScratchRegister, 0));
+    }
+  }
+}
+
+
+void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
+                                                    Register scratch,
+                                                    RegList regs) {
+  ASSERT(!scratch.is(kScratchRegister));
+  ASSERT(!base.is(kScratchRegister));
+  ASSERT(!base.is(scratch));
+  ASSERT((regs & ~kJSCallerSaved) == 0);
+  // Copy the content of the stack to the memory location and adjust base.
+  for (int i = kNumJSCallerSaved - 1; i >= 0; i--) {
+    int r = JSCallerSavedCode(i);
+    if ((regs & (1 << r)) != 0) {
+      movq(scratch, Operand(base, 0));
+      ExternalReference reg_addr =
+          ExternalReference(Debug_Address::Register(i));
+      movq(kScratchRegister, reg_addr);
+      movq(Operand(kScratchRegister, 0), scratch);
+      lea(base, Operand(base, kPointerSize));
+    }
+  }
+}
+
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+
+
+
+void MacroAssembler::InvokeFunction(Register fun,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::EnterFrame(StackFrame::Type type) {
+  push(rbp);
+  movq(rbp, rsp);
+  push(rsi);  // Context.
+  push(Immediate(Smi::FromInt(type)));
+  movq(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
+  push(kScratchRegister);
+  if (FLAG_debug_code) {
+    movq(kScratchRegister,
+         Factory::undefined_value(),
+         RelocInfo::EMBEDDED_OBJECT);
+    cmp(Operand(rsp, 0), kScratchRegister);
+    Check(not_equal, "code object not properly patched");
+  }
+}
+
+
+void MacroAssembler::LeaveFrame(StackFrame::Type type) {
+  if (FLAG_debug_code) {
+    movq(kScratchRegister, Immediate(Smi::FromInt(type)));
+    cmp(Operand(rbp, StandardFrameConstants::kMarkerOffset), kScratchRegister);
+    Check(equal, "stack frame types must match");
+  }
+  movq(rsp, rbp);
+  pop(rbp);
+}
+
+
+
+void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
+  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+
+  // Setup the frame structure on the stack.
+  ASSERT(ExitFrameConstants::kPPDisplacement == +2 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
+  push(rbp);
+  movq(rbp, rsp);
+
+  // Reserve room for entry stack pointer and push the debug marker.
+  ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
+  push(Immediate(0));  // saved entry sp, patched before call
+  push(Immediate(type == StackFrame::EXIT_DEBUG ? 1 : 0));
+
+  // Save the frame pointer and the context in top.
+  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  ExternalReference context_address(Top::k_context_address);
+  movq(kScratchRegister, rax);
+  movq(rax, rbp);
+  store_rax(c_entry_fp_address);
+  movq(rax, rsi);
+  store_rax(context_address);
+  movq(rax, kScratchRegister);
+
+  // Setup argc and argv in callee-saved registers.
+  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  movq(rdi, rax);
+  lea(rsi, Operand(rbp, rax, kTimesPointerSize, offset));
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Save the state of all registers to the stack from the memory
+  // location. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // TODO(1243899): This should be symmetric to
+    // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
+    // correct here, but computed for the other call. Very error
+    // prone! FIX THIS.  Actually there are deeper problems with
+    // register saving than this asymmetry (see the bug report
+    // associated with this issue).
+    PushRegistersFromMemory(kJSCallerSaved);
+  }
+#endif
+
+  // Reserve space for two arguments: argc and argv.
+  sub(rsp, Immediate(2 * kPointerSize));
+
+  // Get the required frame alignment for the OS.
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    movq(r10, Immediate(-kFrameAlignment));
+    and_(rsp, r10);
+  }
+
+  // Patch the saved entry sp.
+  movq(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);
+}
+
+
+void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Restore the memory copy of the registers by digging them out from
+  // the stack. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // It's okay to clobber register ebx below because we don't need
+    // the function pointer after this.
+    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
+    int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
+    lea(rbx, Operand(rbp, kOffset));
+    CopyRegistersFromStackToMemory(rbx, rcx, kJSCallerSaved);
+  }
+#endif
+
+  // Get the return address from the stack and restore the frame pointer.
+  movq(rcx, Operand(rbp, 1 * kPointerSize));
+  movq(rbp, Operand(rbp, 0 * kPointerSize));
+
+  // Pop the arguments and the receiver from the caller stack.
+  lea(rsp, Operand(rsi, 1 * kPointerSize));
+
+  // Restore current context from top and clear it in debug mode.
+  ExternalReference context_address(Top::k_context_address);
+  movq(kScratchRegister, context_address);
+  movq(rsi, Operand(kScratchRegister, 0));
+#ifdef DEBUG
+  movq(Operand(kScratchRegister, 0), Immediate(0));
+#endif
+
+  // Push the return address to get ready to return.
+  push(rcx);
+
+  // Clear the top frame.
+  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  movq(kScratchRegister, c_entry_fp_address);
+  movq(Operand(kScratchRegister, 0), Immediate(0));
 }
 
 
