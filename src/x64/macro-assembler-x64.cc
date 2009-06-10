@@ -73,16 +73,17 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
 
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
-  // The pc (return address) is already on TOS.
-  // This code pushes state, code, frame pointer and parameter pointer.
-  // Check that they are expected next on the stack, int that order.
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // The pc (return address) is already on TOS.  This code pushes state,
+  // frame pointer and current handler.  Check that they are expected
+  // next on the stack, in that order.
   ASSERT_EQ(StackHandlerConstants::kStateOffset,
             StackHandlerConstants::kPCOffset - kPointerSize);
-  ASSERT_EQ(StackHandlerConstants::kCodeOffset,
-            StackHandlerConstants::kStateOffset - kPointerSize);
   ASSERT_EQ(StackHandlerConstants::kFPOffset,
-            StackHandlerConstants::kCodeOffset - kPointerSize);
-  ASSERT_EQ(StackHandlerConstants::kPPOffset,
+            StackHandlerConstants::kStateOffset - kPointerSize);
+  ASSERT_EQ(StackHandlerConstants::kNextOffset,
             StackHandlerConstants::kFPOffset - kPointerSize);
 
   if (try_location == IN_JAVASCRIPT) {
@@ -91,23 +92,18 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     } else {
       push(Immediate(StackHandler::TRY_FINALLY));
     }
-    push(Immediate(Smi::FromInt(StackHandler::kCodeNotPresent)));
     push(rbp);
-    push(rdi);
   } else {
     ASSERT(try_location == IN_JS_ENTRY);
-    // The parameter pointer is meaningless here and ebp does not
-    // point to a JS frame. So we save NULL for both pp and ebp. We
-    // expect the code throwing an exception to check ebp before
-    // dereferencing it to restore the context.
+    // The frame pointer does not point to a JS frame so we save NULL
+    // for rbp. We expect the code throwing an exception to check rbp
+    // before dereferencing it to restore the context.
     push(Immediate(StackHandler::ENTRY));
-    push(Immediate(Smi::FromInt(StackHandler::kCodeNotPresent)));
-    push(Immediate(0));  // NULL frame pointer
-    push(Immediate(0));  // NULL parameter pointer
+    push(Immediate(0));  // NULL frame pointer.
   }
+  // Save the current handler.
   movq(kScratchRegister, ExternalReference(Top::k_handler_address));
-  // Cached TOS.
-  movq(rax, Operand(kScratchRegister, 0));
+  push(Operand(kScratchRegister, 0));
   // Link this handler.
   movq(Operand(kScratchRegister, 0), rsp);
 }

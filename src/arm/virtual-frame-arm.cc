@@ -230,8 +230,8 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 
 
 void VirtualFrame::PushTryHandler(HandlerType type) {
-  // Grow the expression stack by handler size less one (the return address
-  // is already pushed by a call instruction).
+  // Grow the expression stack by handler size less one (the return
+  // address in lr is already counted by a call instruction).
   Adjust(kHandlerSize - 1);
   __ PushTryHandler(IN_JAVASCRIPT, type);
 }

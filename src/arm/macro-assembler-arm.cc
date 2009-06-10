@@ -557,41 +557,48 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
 }
 #endif
 
+
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
-  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
   // The pc (return address) is passed in register lr.
   if (try_location == IN_JAVASCRIPT) {
-    stm(db_w, sp, pp.bit() | fp.bit() | lr.bit());
     if (type == TRY_CATCH_HANDLER) {
       mov(r3, Operand(StackHandler::TRY_CATCH));
     } else {
       mov(r3, Operand(StackHandler::TRY_FINALLY));
     }
-    push(r3);  // state
+    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
+           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
+           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+    stm(db_w, sp, r3.bit() | fp.bit() | lr.bit());
+    // Save the current handler as the next handler.
     mov(r3, Operand(ExternalReference(Top::k_handler_address)));
     ldr(r1, MemOperand(r3));
-    push(r1);  // next sp
-    str(sp, MemOperand(r3));  // chain handler
-    mov(r0, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
-    push(r0);
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    push(r1);
+    // Link this handler as the new current one.
+    str(sp, MemOperand(r3));
   } else {
     // Must preserve r0-r4, r5-r7 are available.
     ASSERT(try_location == IN_JS_ENTRY);
-    // The parameter pointer is meaningless here and fp does not point to a JS
-    // frame. So we save NULL for both pp and fp. We expect the code throwing an
-    // exception to check fp before dereferencing it to restore the context.
-    mov(pp, Operand(0));  // set pp to NULL
-    mov(ip, Operand(0));  // to save a NULL fp
-    stm(db_w, sp, pp.bit() | ip.bit() | lr.bit());
+    // The frame pointer does not point to a JS frame so we save NULL
+    // for fp. We expect the code throwing an exception to check fp
+    // before dereferencing it to restore the context.
+    mov(ip, Operand(0));  // To save a NULL frame pointer.
     mov(r6, Operand(StackHandler::ENTRY));
-    push(r6);  // state
+    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
+           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
+           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
+    stm(db_w, sp, r6.bit() | ip.bit() | lr.bit());
+    // Save the current handler as the next handler.
     mov(r7, Operand(ExternalReference(Top::k_handler_address)));
     ldr(r6, MemOperand(r7));
-    push(r6);  // next sp
-    str(sp, MemOperand(r7));  // chain handler
-    mov(r5, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
-    push(r5);  // flush TOS
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    push(r6);
+    // Link this handler as the new current one.
+    str(sp, MemOperand(r7));
   }
 }
 

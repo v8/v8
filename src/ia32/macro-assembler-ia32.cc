@@ -460,12 +460,11 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     push(ebp);
   } else {
     ASSERT(try_location == IN_JS_ENTRY);
-    // The parameter pointer is meaningless here and ebp does not
-    // point to a JS frame. So we save NULL for both pp and ebp. We
-    // expect the code throwing an exception to check ebp before
-    // dereferencing it to restore the context.
+    // The frame pointer does not point to a JS frame so we save NULL
+    // for ebp. We expect the code throwing an exception to check ebp
+    // before dereferencing it to restore the context.
     push(Immediate(StackHandler::ENTRY));
-    push(Immediate(0));  // NULL frame pointer
+    push(Immediate(0));  // NULL frame pointer.
   }
   // Save the current handler as the next handler.
   push(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));

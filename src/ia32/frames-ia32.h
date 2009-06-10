@@ -59,7 +59,6 @@ class StackHandlerConstants : public AllStatic {
   static const int kStateOffset = 2 * kPointerSize;
   static const int kPCOffset    = 3 * kPointerSize;
 
-  static const int kAddressDisplacement = 0;
   static const int kSize = kPCOffset + kPointerSize;
 };
 

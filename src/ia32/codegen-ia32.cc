@@ -3252,7 +3252,6 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // Make sure that there's nothing left on the stack above the
   // handler structure.
   if (FLAG_debug_code) {
-    ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
     __ mov(eax, Operand::StaticVariable(handler_address));
     __ cmp(esp, Operand(eax));
     __ Assert(equal, "stack pointer should point to top handler");
@@ -3291,7 +3290,6 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
       // Reload sp from the top handler, because some statements that we
       // break from (eg, for...in) may have left stuff on the stack.
-      ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
       __ mov(esp, Operand::StaticVariable(handler_address));
       frame_->Forget(frame_->height() - handler_height);
 
@@ -3416,7 +3414,6 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
       // Reload sp from the top handler, because some statements that
       // we break from (eg, for...in) may have left stuff on the
       // stack.
-      ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
       __ mov(esp, Operand::StaticVariable(handler_address));
       frame_->Forget(frame_->height() - handler_height);
 
@@ -6955,11 +6952,12 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
+  // eax holds the exception.
+
   // Adjust this code if not the case.
   ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
 
   // Drop the sp to the top of the handler.
-  ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
   ExternalReference handler_address(Top::k_handler_address);
   __ mov(esp, Operand::StaticVariable(handler_address));
 
@@ -6970,9 +6968,10 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ pop(ebp);
   __ pop(edx);  // Remove state.
 
-  // Before returning we restore the context from the frame pointer if not NULL.
-  // The frame pointer is NULL in the exception handler of a JS entry frame.
-  __ xor_(esi, Operand(esi));  // tentatively set context pointer to NULL
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of
+  // a JS entry frame.
+  __ xor_(esi, Operand(esi));  // Tentatively set context pointer to NULL.
   Label skip;
   __ cmp(ebp, 0);
   __ j(equal, &skip, not_taken);
@@ -7069,7 +7068,6 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
 
   // Drop sp to the top stack handler.
-  ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
   ExternalReference handler_address(Top::k_handler_address);
   __ mov(esp, Operand::StaticVariable(handler_address));
 

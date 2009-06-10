@@ -43,13 +43,7 @@ namespace internal {
 
 
 inline Address StackHandler::address() const {
-  // NOTE: There's an obvious problem with the address of the NULL
-  // stack handler. Right now, it benefits us that the subtraction
-  // leads to a very high address (above everything else on the
-  // stack), but maybe we should stop relying on it?
-  const int displacement = StackHandlerConstants::kAddressDisplacement;
-  Address address = reinterpret_cast<Address>(const_cast<StackHandler*>(this));
-  return address + displacement;
+  return reinterpret_cast<Address>(const_cast<StackHandler*>(this));
 }
 
 

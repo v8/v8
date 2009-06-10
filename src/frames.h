@@ -78,9 +78,6 @@ class StackHandler BASE_EMBEDDED {
   void Cook(Code* code);
   void Uncook(Code* code);
 
-  // TODO(1233780): Get rid of the code slot in stack handlers.
-  static const int kCodeNotPresent = 0;
-
  private:
   // Accessors.
   inline State state() const;

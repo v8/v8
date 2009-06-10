@@ -159,9 +159,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Exception handling
 
-  // Push a new try handler and link into try handler chain.
-  // The return address must be pushed before calling this helper.
-  // On exit, rax contains TOS (next_sp).
+  // Push a new try handler and link into try handler chain.  The return
+  // address must be pushed before calling this helper.
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
 

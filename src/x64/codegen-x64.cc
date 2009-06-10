@@ -281,7 +281,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
-  __ push(rax);  // flush TOS
 
   // Clear any pending exceptions.
   __ load_rax(ExternalReference::the_hole_value_location());

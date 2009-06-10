@@ -2107,14 +2107,16 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // Get an external reference to the handler address.
   ExternalReference handler_address(Top::k_handler_address);
 
-  // The next handler address is at kNextIndex in the stack.
-  const int kNextIndex = StackHandlerConstants::kNextOffset / kPointerSize;
   // If we can fall off the end of the try block, unlink from try chain.
   if (has_valid_frame()) {
-    __ ldr(r1, frame_->ElementAt(kNextIndex));
+    // The next handler address is on top of the frame.  Unlink from
+    // the handler list and drop the rest of this handler from the
+    // frame.
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    frame_->EmitPop(r1);
     __ mov(r3, Operand(handler_address));
     __ str(r1, MemOperand(r3));
-    frame_->Drop(StackHandlerConstants::kSize / kPointerSize);
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
     if (has_unlinks) {
       exit.Jump();
     }
@@ -2134,15 +2136,11 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       // break from (eg, for...in) may have left stuff on the stack.
       __ mov(r3, Operand(handler_address));
       __ ldr(sp, MemOperand(r3));
-      // The stack pointer was restored to just below the code slot
-      // (the topmost slot) in the handler.
-      frame_->Forget(frame_->height() - handler_height + 1);
+      frame_->Forget(frame_->height() - handler_height);
 
-      // kNextIndex is off by one because the code slot has already
-      // been dropped.
-      __ ldr(r1, frame_->ElementAt(kNextIndex - 1));
+      ASSERT(StackHandlerConstants::kNextOffset == 0);
+      frame_->EmitPop(r1);
       __ str(r1, MemOperand(r3));
-      // The code slot has already been dropped from the handler.
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
       if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
@@ -2223,15 +2221,15 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // Get an external reference to the handler address.
   ExternalReference handler_address(Top::k_handler_address);
 
-  // The next handler address is at kNextIndex in the stack.
-  const int kNextIndex = StackHandlerConstants::kNextOffset / kPointerSize;
   // If we can fall off the end of the try block, unlink from the try
   // chain and set the state on the frame to FALLING.
   if (has_valid_frame()) {
-    __ ldr(r1, frame_->ElementAt(kNextIndex));
+    // The next handler address is on top of the frame.
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    frame_->EmitPop(r1);
     __ mov(r3, Operand(handler_address));
     __ str(r1, MemOperand(r3));
-    frame_->Drop(StackHandlerConstants::kSize / kPointerSize);
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
     // Fake a top of stack value (unneeded when FALLING) and set the
     // state in r2, then jump around the unlink blocks if any.
@@ -2262,17 +2260,14 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
       // stack.
       __ mov(r3, Operand(handler_address));
       __ ldr(sp, MemOperand(r3));
-      // The stack pointer was restored to the address slot in the handler.
-      ASSERT(StackHandlerConstants::kNextOffset == 1 * kPointerSize);
-      frame_->Forget(frame_->height() - handler_height + 1);
+      frame_->Forget(frame_->height() - handler_height);
 
       // Unlink this handler and drop it from the frame.  The next
-      // handler address is now on top of the frame.
+      // handler address is currently on top of the frame.
+      ASSERT(StackHandlerConstants::kNextOffset == 0);
       frame_->EmitPop(r1);
       __ str(r1, MemOperand(r3));
-      // The top (code) and the second (handler) slot have both been
-      // dropped already.
-      frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 2);
+      frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
       if (i == kReturnShadowIndex) {
         // If this label shadowed the function return, materialize the
@@ -4679,16 +4674,25 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // r0 holds exception
-  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
+  // r0 holds the exception.
+
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // Drop the sp to the top of the handler.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
   __ ldr(sp, MemOperand(r3));
-  __ pop(r2);  // pop next in chain
+
+  // Restore the next handler and frame pointer, discard handler state.
+  ASSERT(StackHandlerConstants::kNextOffset == 0);
+  __ pop(r2);
   __ str(r2, MemOperand(r3));
-  // restore parameter- and frame-pointer and pop state.
-  __ ldm(ia_w, sp, r3.bit() | pp.bit() | fp.bit());
-  // Before returning we restore the context from the frame pointer if not NULL.
-  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  __ ldm(ia_w, sp, r3.bit() | fp.bit());  // r3: discarded state.
+
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
   __ cmp(fp, Operand(0));
   // Set cp to NULL if fp is NULL.
   __ mov(cp, Operand(0), LeaveCC, eq);
@@ -4699,39 +4703,41 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
     __ mov(lr, Operand(pc));
   }
 #endif
+  ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   __ pop(pc);
 }
 
 
 void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
-  // Fetch top stack handler.
+  // Adjust this code if not the case.
+  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // Drop sp to the top stack handler.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(r3, MemOperand(r3));
+  __ ldr(sp, MemOperand(r3));
 
   // Unwind the handlers until the ENTRY handler is found.
   Label loop, done;
   __ bind(&loop);
   // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kAddressDisplacement +
-      StackHandlerConstants::kStateOffset;
-  __ ldr(r2, MemOperand(r3, kStateOffset));
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  __ ldr(r2, MemOperand(sp, kStateOffset));
   __ cmp(r2, Operand(StackHandler::ENTRY));
   __ b(eq, &done);
   // Fetch the next handler in the list.
-  const int kNextOffset =  StackHandlerConstants::kAddressDisplacement +
-      StackHandlerConstants::kNextOffset;
-  __ ldr(r3, MemOperand(r3, kNextOffset));
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  __ ldr(sp, MemOperand(sp, kNextOffset));
   __ jmp(&loop);
   __ bind(&done);
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  __ ldr(r0, MemOperand(r3, kNextOffset));
-  __ mov(r2, Operand(ExternalReference(Top::k_handler_address)));
-  __ str(r0, MemOperand(r2));
+  ASSERT(StackHandlerConstants::kNextOffset == 0);
+  __ pop(r0);
+  __ str(r0, MemOperand(r3));
 
   // Set external caught exception to false.
-  __ mov(r0, Operand(false));
   ExternalReference external_caught(Top::k_external_caught_exception_address);
+  __ mov(r0, Operand(false));
   __ mov(r2, Operand(external_caught));
   __ str(r0, MemOperand(r2));
 
@@ -4741,21 +4747,17 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
   __ str(r0, MemOperand(r2));
 
-  // Restore the stack to the address of the ENTRY handler
-  __ mov(sp, Operand(r3));
+  // Stack layout at this point. See also StackHandlerConstants.
+  // sp ->   state (ENTRY)
+  //         fp
+  //         lr
 
-  // Stack layout at this point. See also PushTryHandler
-  // r3, sp ->   next handler
-  //             state (ENTRY)
-  //             pp
-  //             fp
-  //             lr
-
-  // Discard ENTRY state (r2 is not used), and restore parameter-
-  // and frame-pointer and pop state.
-  __ ldm(ia_w, sp, r2.bit() | r3.bit() | pp.bit() | fp.bit());
-  // Before returning we restore the context from the frame pointer if not NULL.
-  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  // Discard handler state (r2 is not used) and restore frame pointer.
+  ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
+  __ ldm(ia_w, sp, r2.bit() | fp.bit());  // r2: discarded state.
+  // Before returning we restore the context from the frame pointer if
+  // not NULL.  The frame pointer is NULL in the exception handler of a
+  // JS entry frame.
   __ cmp(fp, Operand(0));
   // Set cp to NULL if fp is NULL.
   __ mov(cp, Operand(0), LeaveCC, eq);
@@ -4766,6 +4768,7 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
     __ mov(lr, Operand(pc));
   }
 #endif
+  ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   __ pop(pc);
 }
 
