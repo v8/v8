@@ -467,9 +467,9 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     push(Immediate(StackHandler::ENTRY));
     push(Immediate(0));  // NULL frame pointer
   }
-  // Cached TOS.
-  mov(eax, Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
-  // Link this handler.
+  // Save the current handler as the next handler.
+  push(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
+  // Link this handler as the new current one.
   mov(Operand::StaticVariable(ExternalReference(Top::k_handler_address)), esp);
 }
 

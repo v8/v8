@@ -775,14 +775,10 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 
 void VirtualFrame::PushTryHandler(HandlerType type) {
   ASSERT(cgen()->HasValidEntryRegisters());
-  // Grow the expression stack by handler size less two (the return address
-  // is already pushed by a call instruction, and PushTryHandler from the
-  // macro assembler will leave the top of stack in the eax register to be
-  // pushed separately).
-  Adjust(kHandlerSize - 2);
+  // Grow the expression stack by handler size less one (the return
+  // address is already pushed by a call instruction).
+  Adjust(kHandlerSize - 1);
   __ PushTryHandler(IN_JAVASCRIPT, type);
-  // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
-  EmitPush(eax);
 }
 
 

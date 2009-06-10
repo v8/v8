@@ -49,7 +49,9 @@ class StackHandlerIterator BASE_EMBEDDED {
 
   StackHandler* handler() const { return handler_; }
 
-  bool done() { return handler_->address() > limit_; }
+  bool done() {
+    return handler_ == NULL || handler_->address() > limit_;
+  }
   void Advance() {
     ASSERT(!done());
     handler_ = handler_->next();

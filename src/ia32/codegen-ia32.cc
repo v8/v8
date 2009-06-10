@@ -3252,8 +3252,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // Make sure that there's nothing left on the stack above the
   // handler structure.
   if (FLAG_debug_code) {
+    ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
     __ mov(eax, Operand::StaticVariable(handler_address));
-    __ lea(eax, Operand(eax, StackHandlerConstants::kAddressDisplacement));
     __ cmp(esp, Operand(eax));
     __ Assert(equal, "stack pointer should point to top handler");
   }
@@ -3263,6 +3263,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
     // The next handler address is on top of the frame.  Unlink from
     // the handler list and drop the rest of this handler from the
     // frame.
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
     frame_->EmitPop(Operand::StaticVariable(handler_address));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
     if (has_unlinks) {
@@ -3290,15 +3291,13 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
       // Reload sp from the top handler, because some statements that we
       // break from (eg, for...in) may have left stuff on the stack.
-      __ mov(edx, Operand::StaticVariable(handler_address));
-      const int kNextOffset = StackHandlerConstants::kNextOffset +
-          StackHandlerConstants::kAddressDisplacement;
-      __ lea(esp, Operand(edx, kNextOffset));
+      ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
+      __ mov(esp, Operand::StaticVariable(handler_address));
       frame_->Forget(frame_->height() - handler_height);
 
+      ASSERT(StackHandlerConstants::kNextOffset == 0);
       frame_->EmitPop(Operand::StaticVariable(handler_address));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-      // next_sp popped.
 
       if (i == kReturnShadowIndex) {
         if (!function_return_is_shadowed_) frame_->PrepareForReturn();
@@ -3383,8 +3382,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   if (has_valid_frame()) {
     // The next handler address is on top of the frame.
     ASSERT(StackHandlerConstants::kNextOffset == 0);
-    frame_->EmitPop(eax);
-    __ mov(Operand::StaticVariable(handler_address), eax);
+    frame_->EmitPop(Operand::StaticVariable(handler_address));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
     // Fake a top of stack value (unneeded when FALLING) and set the
@@ -3418,13 +3416,12 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
       // Reload sp from the top handler, because some statements that
       // we break from (eg, for...in) may have left stuff on the
       // stack.
-      __ mov(edx, Operand::StaticVariable(handler_address));
-      const int kNextOffset = StackHandlerConstants::kNextOffset +
-          StackHandlerConstants::kAddressDisplacement;
-      __ lea(esp, Operand(edx, kNextOffset));
+      ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
+      __ mov(esp, Operand::StaticVariable(handler_address));
       frame_->Forget(frame_->height() - handler_height);
 
       // Unlink this handler and drop it from the frame.
+      ASSERT(StackHandlerConstants::kNextOffset == 0);
       frame_->EmitPop(Operand::StaticVariable(handler_address));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
@@ -6960,12 +6957,16 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Adjust this code if not the case.
   ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+
+  // Drop the sp to the top of the handler.
+  ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
   ExternalReference handler_address(Top::k_handler_address);
-  __ mov(edx, Operand::StaticVariable(handler_address));
-  // Get next in chain.
-  __ mov(ecx, Operand(edx, StackHandlerConstants::kAddressDisplacement));
-  __ mov(Operand::StaticVariable(handler_address), ecx);
-  __ mov(esp, Operand(edx));
+  __ mov(esp, Operand::StaticVariable(handler_address));
+
+  // Restore next handler and frame pointer, discard handler state.
+  ASSERT(StackHandlerConstants::kNextOffset == 0);
+  __ pop(Operand::StaticVariable(handler_address));
+  ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);
   __ pop(ebp);
   __ pop(edx);  // Remove state.
 
@@ -6978,6 +6979,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ bind(&skip);
 
+  ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   __ ret(0);
 }
 
@@ -7066,49 +7068,47 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   // Adjust this code if not the case.
   ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
 
-  // Fetch top stack handler.
+  // Drop sp to the top stack handler.
+  ASSERT(StackHandlerConstants::kAddressDisplacement == 0);
   ExternalReference handler_address(Top::k_handler_address);
-  __ mov(edx, Operand::StaticVariable(handler_address));
+  __ mov(esp, Operand::StaticVariable(handler_address));
 
   // Unwind the handlers until the ENTRY handler is found.
   Label loop, done;
   __ bind(&loop);
   // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kAddressDisplacement +
-      StackHandlerConstants::kStateOffset;
-  __ cmp(Operand(edx, kStateOffset), Immediate(StackHandler::ENTRY));
+  const int kStateOffset = StackHandlerConstants::kStateOffset;
+  __ cmp(Operand(esp, kStateOffset), Immediate(StackHandler::ENTRY));
   __ j(equal, &done);
   // Fetch the next handler in the list.
-  const int kNextOffset = StackHandlerConstants::kAddressDisplacement +
-      StackHandlerConstants::kNextOffset;
-  __ mov(edx, Operand(edx, kNextOffset));
+  const int kNextOffset = StackHandlerConstants::kNextOffset;
+  __ mov(esp, Operand(esp, kNextOffset));
   __ jmp(&loop);
   __ bind(&done);
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  __ mov(eax, Operand(edx, kNextOffset));
-  __ mov(Operand::StaticVariable(handler_address), eax);
+  ASSERT(StackHandlerConstants::kNextOffset == 0);
+  __ pop(Operand::StaticVariable(handler_address));
 
   // Set external caught exception to false.
-  __ mov(eax, false);
   ExternalReference external_caught(Top::k_external_caught_exception_address);
+  __ mov(eax, false);
   __ mov(Operand::StaticVariable(external_caught), eax);
 
   // Set pending exception and eax to out of memory exception.
-  __ mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
   ExternalReference pending_exception(Top::k_pending_exception_address);
+  __ mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
   __ mov(Operand::StaticVariable(pending_exception), eax);
-
-  // Restore the stack to the address of the ENTRY handler
-  __ mov(esp, Operand(edx));
 
   // Clear the context pointer;
   __ xor_(esi, Operand(esi));
 
-  // Restore registers from handler.
-  __ pop(ebp);  // FP
-  __ pop(edx);  // State
+  // Restore fp from handler and discard handler state.
+  ASSERT(StackHandlerConstants::kFPOffset == 1 * kPointerSize);
+  __ pop(ebp);
+  __ pop(edx);  // State.
 
+  ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   __ ret(0);
 }
 
@@ -7227,7 +7227,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
-  __ push(eax);  // flush TOS
 
   // Clear any pending exceptions.
   __ mov(edx,
