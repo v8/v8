@@ -5008,6 +5008,22 @@ THREADED_TEST(InterceptorStoreIC) {
 }
 
 
+THREADED_TEST(InterceptorStoreICWithNoSetter) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "for (var i = 0; i < 1000; i++) {"
+    "  o.y = 239;"
+    "}"
+    "42 + o.y");
+  CHECK_EQ(239 + 42, value->Int32Value());
+}
+
+
+
 
 v8::Handle<Value> call_ic_function;
 v8::Handle<Value> call_ic_function2;
