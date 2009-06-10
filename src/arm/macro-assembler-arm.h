@@ -35,8 +35,7 @@ namespace internal {
 
 
 // Give alias names to registers
-extern Register cp;  // JavaScript context pointer
-extern Register pp;  // parameter pointer
+const Register cp = { 8 };  // JavaScript context pointer
 
 
 // Helper types to make boolean flag easier to read at call-site.

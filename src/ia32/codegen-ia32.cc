@@ -7118,12 +7118,11 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
   // esi: current context (C callee-saved)
-  // edi: caller's parameter pointer pp  (C callee-saved)
+  // edi: JS function of the caller (C callee-saved)
 
-  // NOTE: Invocations of builtins may return failure objects
-  // instead of a proper result. The builtin entry handles
-  // this by performing a garbage collection and retrying the
-  // builtin once.
+  // NOTE: Invocations of builtins may return failure objects instead
+  // of a proper result. The builtin entry handles this by performing
+  // a garbage collection and retrying the builtin (twice).
 
   StackFrame::Type frame_type = is_debug_break ?
       StackFrame::EXIT_DEBUG :

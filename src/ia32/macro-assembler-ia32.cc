@@ -358,7 +358,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
 
   // Setup the frame structure on the stack.
-  ASSERT(ExitFrameConstants::kPPDisplacement == +2 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
   push(ebp);

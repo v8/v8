@@ -129,7 +129,7 @@ class StackFrame BASE_EMBEDDED {
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
-  Address pp() const { return GetCallerStackPointer(); }
+  Address caller_sp() const { return GetCallerStackPointer(); }
 
   Address pc() const { return *pc_address(); }
   void set_pc(Address pc) { *pc_address() = pc; }
@@ -137,7 +137,7 @@ class StackFrame BASE_EMBEDDED {
   Address* pc_address() const { return state_.pc_address; }
 
   // Get the id of this stack frame.
-  Id id() const { return static_cast<Id>(OffsetFrom(pp())); }
+  Id id() const { return static_cast<Id>(OffsetFrom(caller_sp())); }
 
   // Checks if this frame includes any stack handlers.
   bool HasHandler() const;
@@ -334,7 +334,6 @@ class StandardFrame: public StackFrame {
   virtual void ComputeCallerState(State* state) const;
 
   // Accessors.
-  inline Address caller_sp() const;
   inline Address caller_fp() const;
   inline Address caller_pc() const;
 

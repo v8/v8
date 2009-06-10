@@ -68,7 +68,7 @@ static const RegList kCalleeSaved =
   1 <<  8 |  //  r8 v5 (cp in JavaScript code)
   kR9Available
     <<  9 |  //  r9 v6
-  1 << 10 |  // r10 v7 (pp in JavaScript code)
+  1 << 10 |  // r10 v7
   1 << 11;   // r11 v8 (fp in JavaScript code)
 
 static const int kNumCalleeSaved = 7 + kR9Available;
@@ -104,14 +104,14 @@ class ExitFrameConstants : public AllStatic {
 
   static const int kSavedRegistersOffset = 0 * kPointerSize;
 
-  // Let the parameters pointer for exit frames point just below the
-  // frame structure on the stack.
-  static const int kPPDisplacement = 3 * kPointerSize;
-
   // The caller fields are below the frame pointer on the stack.
   static const int kCallerFPOffset = +0 * kPointerSize;
-  static const int kCallerPPOffset = +1 * kPointerSize;
+  // The calling JS function is between FP and PC.
   static const int kCallerPCOffset = +2 * kPointerSize;
+
+  // FP-relative displacement of the caller's SP.  It points just
+  // below the saved PC.
+  static const int kCallerSPDisplacement = +3 * kPointerSize;
 };
 
 
@@ -133,7 +133,7 @@ class JavaScriptFrameConstants : public AllStatic {
   static const int kSavedRegistersOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
-  // PP-relative.
+  // Caller SP-relative.
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };

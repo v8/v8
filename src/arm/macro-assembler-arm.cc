@@ -35,11 +35,6 @@
 namespace v8 {
 namespace internal {
 
-// Give alias names to registers
-Register cp = {  8 };  // JavaScript context pointer
-Register pp = { 10 };  // parameter pointer
-
-
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
@@ -285,8 +280,8 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
   sub(r6, r6, Operand(kPointerSize));
 
-  // Compute parameter pointer before making changes and save it as ip
-  // register so that it is restored as sp register on exit, thereby
+  // Compute callee's stack pointer before making changes and save it as
+  // ip register so that it is restored as sp register on exit, thereby
   // popping the args.
 
   // ip = sp + kPointerSize * #args;

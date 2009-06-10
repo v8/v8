@@ -4821,8 +4821,8 @@ static Object* Runtime_DebugPrint(Arguments args) {
     // and print some interesting cpu debugging info.
     JavaScriptFrameIterator it;
     JavaScriptFrame* frame = it.frame();
-    PrintF("fp = %p, sp = %p, pp = %p: ",
-           frame->fp(), frame->sp(), frame->pp());
+    PrintF("fp = %p, sp = %p, caller_sp = %p: ",
+           frame->fp(), frame->sp(), frame->caller_sp());
   } else {
     PrintF("DebugPrint: ");
   }

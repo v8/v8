@@ -73,12 +73,12 @@ class ExitFrameConstants : public AllStatic {
   static const int kDebugMarkOffset = -2 * kPointerSize;
   static const int kSPOffset        = -1 * kPointerSize;
 
-  // TODO(X64): Remove usage of PP in exit frames?
-  // Still used though StackFrame::pp()
-  static const int kPPDisplacement  = +2 * kPointerSize;
-
   static const int kCallerFPOffset  = +0 * kPointerSize;
   static const int kCallerPCOffset  = +1 * kPointerSize;
+
+  // FP-relative displacement of the caller's SP.  It points just
+  // below the saved PC.
+  static const int kCallerSPDisplacement = +2 * kPointerSize;
 };
 
 

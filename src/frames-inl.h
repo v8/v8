@@ -110,11 +110,6 @@ inline Object* StandardFrame::context() const {
 }
 
 
-inline Address StandardFrame::caller_sp() const {
-  return pp();
-}
-
-
 inline Address StandardFrame::caller_fp() const {
   return Memory::Address_at(fp() + StandardFrameConstants::kCallerFPOffset);
 }
@@ -145,13 +140,13 @@ inline bool StandardFrame::IsConstructFrame(Address fp) {
 
 inline Object* JavaScriptFrame::receiver() const {
   const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  return Memory::Object_at(pp() + offset);
+  return Memory::Object_at(caller_sp() + offset);
 }
 
 
 inline void JavaScriptFrame::set_receiver(Object* value) {
   const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  Memory::Object_at(pp() + offset) = value;
+  Memory::Object_at(caller_sp() + offset) = value;
 }
 
 

@@ -289,7 +289,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // r0: result
     // sp: stack pointer
     // fp: frame pointer
-    // pp: parameter pointer
     // cp: callee's context
     __ mov(r0, Operand(Factory::undefined_value()));
 
@@ -5251,7 +5250,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  // pp: caller's parameter pointer pp  (restored as C callee-saved)
   __ LeaveExitFrame(frame_type);
 
   // check if we should retry or throw exception
@@ -5291,9 +5289,8 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // r0: number of arguments including receiver
   // r1: pointer to builtin function
   // fp: frame pointer  (restored after C call)
-  // sp: stack pointer  (restored as callee's pp after C call)
+  // sp: stack pointer  (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
-  // pp: caller's parameter pointer pp  (C callee-saved)
 
   // NOTE: Invocations of builtins may return failure objects
   // instead of a proper result. The builtin entry handles
@@ -5364,7 +5361,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Called from C, so do not pop argc and args on exit (preserve sp)
   // No need to save register-passed args
-  // Save callee-saved registers (incl. cp, pp, and fp), sp, and lr
+  // Save callee-saved registers (incl. cp and fp), sp, and lr
   __ stm(db_w, sp, kCalleeSaved | lr.bit());
 
   // Get address of argv, see stm above.
@@ -5408,10 +5405,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ bind(&invoke);
   // Must preserve r0-r4, r5-r7 are available.
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
-  // If an exception not caught by another handler occurs, this handler returns
-  // control to the code after the bl(&invoke) above, which restores all
-  // kCalleeSaved registers (including cp, pp and fp) to their saved values
-  // before returning a failure to C.
+  // If an exception not caught by another handler occurs, this handler
+  // returns control to the code after the bl(&invoke) above, which
+  // restores all kCalleeSaved registers (including cp and fp) to their
+  // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
