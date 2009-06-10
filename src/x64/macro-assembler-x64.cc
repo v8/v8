@@ -120,6 +120,30 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
 }
 
 
+void MacroAssembler::Jump(ExternalReference ext) {
+  movq(kScratchRegister, ext);
+  jmp(kScratchRegister);
+}
+
+
+void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
+  movq(kScratchRegister, destination, rmode);
+  jmp(kScratchRegister);
+}
+
+
+void MacroAssembler::Call(ExternalReference ext) {
+  movq(kScratchRegister, ext);
+  call(kScratchRegister);
+}
+
+
+void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
+  movq(kScratchRegister, destination, rmode);
+  call(kScratchRegister);
+}
+
+
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
   // Adjust this code if not the case.
@@ -155,6 +179,47 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
   push(Operand(kScratchRegister, 0));
   // Link this handler.
   movq(Operand(kScratchRegister, 0), rsp);
+}
+
+
+void MacroAssembler::Ret() {
+  ret(0);
+}
+
+
+void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    movq(kScratchRegister, ExternalReference(counter));
+    movl(Operand(kScratchRegister, 0), Immediate(value));
+  }
+}
+
+
+void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    movq(kScratchRegister, ExternalReference(counter));
+    Operand operand(kScratchRegister, 0);
+    if (value == 1) {
+      incl(operand);
+    } else {
+      addl(operand, Immediate(value));
+    }
+  }
+}
+
+
+void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    movq(kScratchRegister, ExternalReference(counter));
+    Operand operand(kScratchRegister, 0);
+    if (value == 1) {
+      decl(operand);
+    } else {
+      subl(operand, Immediate(value));
+    }
+  }
 }
 
 
@@ -265,7 +330,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     movq(kScratchRegister,
          Factory::undefined_value(),
          RelocInfo::EMBEDDED_OBJECT);
-    cmp(Operand(rsp, 0), kScratchRegister);
+    cmpq(Operand(rsp, 0), kScratchRegister);
     Check(not_equal, "code object not properly patched");
   }
 }
@@ -274,7 +339,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (FLAG_debug_code) {
     movq(kScratchRegister, Immediate(Smi::FromInt(type)));
-    cmp(Operand(rbp, StandardFrameConstants::kMarkerOffset), kScratchRegister);
+    cmpq(Operand(rbp, StandardFrameConstants::kMarkerOffset), kScratchRegister);
     Check(equal, "stack frame types must match");
   }
   movq(rsp, rbp);
@@ -328,7 +393,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
 #endif
 
   // Reserve space for two arguments: argc and argv.
-  sub(rsp, Immediate(2 * kPointerSize));
+  subq(rsp, Immediate(2 * kPointerSize));
 
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();

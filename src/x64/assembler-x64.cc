@@ -451,6 +451,24 @@ void Assembler::immediate_arithmetic_op(byte subcode,
 }
 
 
+void Assembler::immediate_arithmetic_op_32(byte subcode,
+                                           const Operand& dst,
+                                           Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  if (is_int8(src.value_)) {
+    emit(0x83);
+    emit_operand(Register::toRegister(subcode), dst);
+    emit(src.value_);
+  } else {
+    emit(0x81);
+    emit_operand(Register::toRegister(subcode), dst);
+    emitl(src.value_);
+  }
+}
+
+
 void Assembler::shift(Register dst, Immediate shift_amount, int subcode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -530,15 +548,6 @@ void Assembler::call(Register adr) {
 }
 
 
-void Assembler::cpuid() {
-  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit(0x0F);
-  emit(0xA2);
-}
-
-
 void Assembler::call(const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -546,6 +555,15 @@ void Assembler::call(const Operand& op) {
   emit_rex_64(op);
   emit(0xFF);
   emit_operand(2, op);
+}
+
+
+void Assembler::cpuid() {
+  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x0F);
+  emit(0xA2);
 }
 
 
@@ -557,7 +575,7 @@ void Assembler::cqo() {
 }
 
 
-void Assembler::dec(Register dst) {
+void Assembler::decq(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
@@ -566,10 +584,19 @@ void Assembler::dec(Register dst) {
 }
 
 
-void Assembler::dec(const Operand& dst) {
+void Assembler::decq(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
+  emit(0xFF);
+  emit_operand(1, dst);
+}
+
+
+void Assembler::decl(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
   emit(0xFF);
   emit_operand(1, dst);
 }
@@ -626,7 +653,7 @@ void Assembler::imul(Register dst, Register src, Immediate imm) {
 }
 
 
-void Assembler::inc(Register dst) {
+void Assembler::incq(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
@@ -635,10 +662,19 @@ void Assembler::inc(Register dst) {
 }
 
 
-void Assembler::inc(const Operand& dst) {
+void Assembler::incq(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
+  emit(0xFF);
+  emit_operand(0, dst);
+}
+
+
+void Assembler::incl(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
   emit(0xFF);
   emit_operand(0, dst);
 }
@@ -809,6 +845,16 @@ void Assembler::movl(const Operand& dst, Register src) {
   emit_optional_rex_32(src, dst);
   emit(0x89);
   emit_operand(src, dst);
+}
+
+
+void Assembler::movl(const Operand& dst, Immediate value) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xC7);
+  emit_operand(0x0, dst);
+  emit(value);  // Only 32-bit immediates are possible, not 8-bit immediates.
 }
 
 
@@ -1132,6 +1178,13 @@ void Assembler::rcl(Register dst, uint8_t imm8) {
   }
 }
 
+void Assembler::rdtsc() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x0F);
+  emit(0x31);
+}
+
 
 void Assembler::ret(int imm16) {
   EnsureSpace ensure_space(this);
@@ -1144,6 +1197,19 @@ void Assembler::ret(int imm16) {
     emit(imm16 & 0xFF);
     emit((imm16 >> 8) & 0xFF);
   }
+}
+
+
+void Assembler::setcc(Condition cc, Register reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(0 <= cc && cc < 16);
+  if (reg.code() > 3) {  // Use x64 byte registers, where different.
+    emit_rex_32(reg);
+  }
+  emit(0x0F);
+  emit(0x90 | cc);
+  emit_modrm(0x0, reg);
 }
 
 

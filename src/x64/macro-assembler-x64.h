@@ -141,9 +141,18 @@ class MacroAssembler: public Assembler {
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
+  // ---------------------------------------------------------------------------
+  // Macro instructions
+
   // Expression support
   void Set(Register dst, int64_t x);
   void Set(const Operand& dst, int64_t x);
+
+  // Control Flow
+  void Jump(Address destination, RelocInfo::Mode rmode);
+  void Jump(ExternalReference ext);
+  void Call(Address destination, RelocInfo::Mode rmode);
+  void Call(ExternalReference ext);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.

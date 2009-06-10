@@ -259,7 +259,7 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // The frame pointer is NULL in the exception handler of a JS entry frame.
   __ xor_(rsi, rsi);  // tentatively set context pointer to NULL
   Label skip;
-  __ cmp(rbp, Immediate(0));
+  __ cmpq(rbp, Immediate(0));
   __ j(equal, &skip);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ bind(&skip);
@@ -294,7 +294,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
       ExternalReference::heap_always_allocate_scope_depth();
   if (always_allocate_scope) {
     __ movq(kScratchRegister, scope_depth);
-    __ inc(Operand(kScratchRegister, 0));
+    __ incl(Operand(kScratchRegister, 0));
   }
 
   // Call C function.
@@ -311,7 +311,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (always_allocate_scope) {
     __ movq(kScratchRegister, scope_depth);
-    __ dec(Operand(kScratchRegister, 0));
+    __ decl(Operand(kScratchRegister, 0));
   }
 
   // Check for failure result.
@@ -338,7 +338,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   Label continue_exception;
   // If the returned failure is EXCEPTION then promote Top::pending_exception().
   __ movq(kScratchRegister, Failure::Exception(), RelocInfo::NONE);
-  __ cmp(rax, kScratchRegister);
+  __ cmpq(rax, kScratchRegister);
   __ j(not_equal, &continue_exception);
 
   // Retrieve the pending exception and clear the variable.
@@ -352,7 +352,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ bind(&continue_exception);
   // Special handling of out of memory exception.
   __ movq(kScratchRegister, Failure::OutOfMemoryException(), RelocInfo::NONE);
-  __ cmp(rax, kScratchRegister);
+  __ cmpq(rax, kScratchRegister);
   __ j(equal, throw_out_of_memory_exception);
 
   // Handle normal exception.
@@ -373,7 +373,7 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   Label loop, done;
   __ bind(&loop);
   // Load the type of the current stack handler.
-  __ cmp(Operand(rdx, StackHandlerConstants::kStateOffset),
+  __ cmpq(Operand(rdx, StackHandlerConstants::kStateOffset),
          Immediate(StackHandler::ENTRY));
   __ j(equal, &done);
   // Fetch the next handler in the list.
@@ -549,7 +549,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ movq(kScratchRegister, ExternalReference(Top::k_handler_address));
   __ pop(Operand(kScratchRegister, 0));
   // Pop next_sp.
-  __ add(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+  __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);
@@ -564,7 +564,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(r14);
   __ pop(r13);
   __ pop(r12);
-  __ add(rsp, Immediate(2 * kPointerSize));  // remove markers
+  __ addq(rsp, Immediate(2 * kPointerSize));  // remove markers
 
   // Restore frame pointer and return.
   __ pop(rbp);

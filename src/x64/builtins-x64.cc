@@ -141,9 +141,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ bind(&loop);
   __ movq(kScratchRegister, Operand(rbx, rcx, kTimesPointerSize, 0));
   __ push(Operand(kScratchRegister, 0));  // dereference handle
-  __ add(rcx, Immediate(1));
+  __ addq(rcx, Immediate(1));
   __ bind(&entry);
-  __ cmp(rcx, rax);
+  __ cmpq(rcx, rax);
   __ j(not_equal, &loop);
 
   // Invoke the code.
@@ -177,5 +177,3 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 } }  // namespace v8::internal
-
-

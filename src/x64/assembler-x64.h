@@ -385,7 +385,8 @@ class Assembler : public Malloced {
   //
   // If we need versions of an assembly instruction that operate on different
   // width arguments, we add a single-letter suffix specifying the width.
-  // This is done for the following instructions: mov, cmp.
+  // This is done for the following instructions: mov, cmp, inc, dec,
+  // add, sub, and test.
   // There are no versions of these instructions without the suffix.
   // - Instructions on 8-bit (byte) operands/registers have a trailing 'b'.
   // - Instructions on 16-bit (word) operands/registers have a trailing 'w'.
@@ -423,6 +424,7 @@ class Assembler : public Malloced {
   void movl(Register dst, Register src);
   void movl(Register dst, const Operand& src);
   void movl(const Operand& dst, Register src);
+  void movl(const Operand& dst, Immediate imm);
   // Load a 32-bit immediate value, zero-extended to 64 bits.
   void movl(Register dst, Immediate imm32);
 
@@ -449,61 +451,55 @@ class Assembler : public Malloced {
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
 
-  void movsx_b(Register dst, const Operand& src);
-
-  void movsx_w(Register dst, const Operand& src);
-
-  void movzx_b(Register dst, const Operand& src);
-
-  void movzx_w(Register dst, const Operand& src);
-
   // Conditional moves
-  void cmov(Condition cc, Register dst, int32_t imm32);
-  void cmov(Condition cc, Register dst, Handle<Object> handle);
-  void cmov(Condition cc, Register dst, const Operand& src);
+  // Implement conditional moves here.
 
   // Exchange two registers
   void xchg(Register dst, Register src);
 
   // Arithmetics
-  void add(Register dst, Register src) {
+  void addq(Register dst, Register src) {
     arithmetic_op(0x03, dst, src);
   }
 
-  void add(Register dst, const Operand& src) {
+  void addq(Register dst, const Operand& src) {
     arithmetic_op(0x03, dst, src);
   }
 
 
-  void add(const Operand& dst, Register src) {
+  void addq(const Operand& dst, Register src) {
     arithmetic_op(0x01, src, dst);
   }
 
-  void add(Register dst, Immediate src) {
+  void addq(Register dst, Immediate src) {
     immediate_arithmetic_op(0x0, dst, src);
   }
 
-  void add(const Operand& dst, Immediate src) {
+  void addq(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x0, dst, src);
   }
 
-  void cmp(Register dst, Register src) {
+  void addl(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_32(0x0, dst, src);
+  }
+
+  void cmpq(Register dst, Register src) {
     arithmetic_op(0x3B, dst, src);
   }
 
-  void cmp(Register dst, const Operand& src) {
+  void cmpq(Register dst, const Operand& src) {
     arithmetic_op(0x3B, dst, src);
   }
 
-  void cmp(const Operand& dst, Register src) {
+  void cmpq(const Operand& dst, Register src) {
     arithmetic_op(0x39, src, dst);
   }
 
-  void cmp(Register dst, Immediate src) {
+  void cmpq(Register dst, Immediate src) {
     immediate_arithmetic_op(0x7, dst, src);
   }
 
-  void cmp(const Operand& dst, Immediate src) {
+  void cmpq(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x7, dst, src);
   }
 
@@ -527,15 +523,9 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x4, dst, src);
   }
 
-  void cmpb(const Operand& op, int8_t imm8);
-  void cmpb_al(const Operand& op);
-  void cmpw_ax(const Operand& op);
-  void cmpw(const Operand& op, Immediate imm16);
-
-  void dec_b(Register dst);
-
-  void dec(Register dst);
-  void dec(const Operand& dst);
+  void decq(Register dst);
+  void decq(const Operand& dst);
+  void decl(const Operand& dst);
 
   // Sign-extends rax into rdx:rax.
   void cqo();
@@ -548,8 +538,9 @@ class Assembler : public Malloced {
   // Performs the operation dst = src * imm.
   void imul(Register dst, Register src, Immediate imm);
 
-  void inc(Register dst);
-  void inc(const Operand& dst);
+  void incq(Register dst);
+  void incq(const Operand& dst);
+  void incl(const Operand& dst);
 
   void lea(Register dst, const Operand& src);
 
@@ -621,24 +612,28 @@ class Assembler : public Malloced {
   void store_rax(void* dst, RelocInfo::Mode mode);
   void store_rax(ExternalReference ref);
 
-  void sub(Register dst, Register src) {
+  void subq(Register dst, Register src) {
     arithmetic_op(0x2B, dst, src);
   }
 
-  void sub(Register dst, const Operand& src) {
+  void subq(Register dst, const Operand& src) {
     arithmetic_op(0x2B, dst, src);
   }
 
-  void sub(const Operand& dst, Register src) {
+  void subq(const Operand& dst, Register src) {
     arithmetic_op(0x29, src, dst);
   }
 
-  void sub(Register dst, Immediate src) {
+  void subq(Register dst, Immediate src) {
     immediate_arithmetic_op(0x5, dst, src);
   }
 
-  void sub(const Operand& dst, Immediate src) {
+  void subq(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x5, dst, src);
+  }
+
+  void subl(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_32(0x5, dst, src);
   }
 
   void testb(Register reg, Immediate mask);
@@ -669,18 +664,19 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x6, dst, src);
   }
 
-
   // Bit operations.
   void bt(const Operand& dst, Register src);
   void bts(const Operand& dst, Register src);
 
   // Miscellaneous
+  void cpuid();
   void hlt();
   void int3();
   void nop();
   void nop(int n);
   void rdtsc();
   void ret(int imm16);
+  void setcc(Condition cc, Register reg);
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -718,8 +714,6 @@ class Assembler : public Malloced {
 
   // Conditional jumps
   void j(Condition cc, Label* L);
-  void j(Condition cc, byte* entry, RelocInfo::Mode rmode);
-  void j(Condition cc, Handle<Code> code);
 
   // Floating-point operations
   void fld(int i);
@@ -775,11 +769,6 @@ class Assembler : public Malloced {
 
   void frndint();
 
-  void sahf();
-  void setcc(Condition cc, Register reg);
-
-  void cpuid();
-
   // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
@@ -792,8 +781,8 @@ class Assembler : public Malloced {
   void divsd(XMMRegister dst, XMMRegister src);
 
   // Use either movsd or movlpd.
-  void movdbl(XMMRegister dst, const Operand& src);
-  void movdbl(const Operand& dst, XMMRegister src);
+  // void movdbl(XMMRegister dst, const Operand& src);
+  // void movdbl(const Operand& dst, XMMRegister src);
 
   // Debugging
   void Print();
@@ -814,11 +803,11 @@ class Assembler : public Malloced {
 
   // Writes a doubleword of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
-  void dd(uint32_t data);
+  // void dd(uint32_t data);
 
   // Writes a quadword of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
-  void dd(uint64_t data, RelocInfo::Mode reloc_info);
+  // void dd(uint64_t data, RelocInfo::Mode reloc_info);
 
   // Writes the absolute address of a bound label at the given position in
   // the generated code. That positions should have the relocation mode
@@ -842,11 +831,11 @@ class Assembler : public Malloced {
   static const int kMinimalBufferSize = 4*KB;
 
  protected:
-  void movsd(XMMRegister dst, const Operand& src);
-  void movsd(const Operand& dst, XMMRegister src);
+  // void movsd(XMMRegister dst, const Operand& src);
+  // void movsd(const Operand& dst, XMMRegister src);
 
-  void emit_sse_operand(XMMRegister reg, const Operand& adr);
-  void emit_sse_operand(XMMRegister dst, XMMRegister src);
+  // void emit_sse_operand(XMMRegister reg, const Operand& adr);
+  // void emit_sse_operand(XMMRegister dst, XMMRegister src);
 
 
  private:
@@ -970,15 +959,18 @@ class Assembler : public Malloced {
   void arithmetic_op(byte opcode, Register reg, const Operand& op);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
   void immediate_arithmetic_op(byte subcode, const Operand& dst, Immediate src);
+  void immediate_arithmetic_op_32(byte subcode,
+                                  const Operand& dst,
+                                  Immediate src);
   // Emit machine code for a shift operation.
   void shift(Register dst, Immediate shift_amount, int subcode);
   // Shift dst by cl % 64 bits.
   void shift(Register dst, int subcode);
 
-  void emit_farith(int b1, int b2, int i);
+  // void emit_farith(int b1, int b2, int i);
 
   // labels
-  void print(Label* L);
+  // void print(Label* L);
   void bind_to(Label* L, int pos);
   void link_to(Label* L, Label* appendix);
 
