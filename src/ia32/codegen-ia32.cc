@@ -5738,8 +5738,45 @@ void DeferredReferenceGetKeyedValue::Generate() {
 }
 
 
+class DeferredReferenceSetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceSetKeyedValue(Register value,
+                                 Register key,
+                                 Register receiver)
+      : value_(value), key_(key), receiver_(receiver) {
+    set_comment("[ DeferredReferenceSetKeyedValue");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register value_;
+  Register key_;
+  Register receiver_;
+};
+
+
+void DeferredReferenceSetKeyedValue::Generate() {
+  __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
+  // Push receiver and key arguments on the stack.
+  __ push(receiver_);
+  __ push(key_);
+  // Move value argument to eax as expected by the IC stub.
+  if (!value_.is(eax)) __ mov(eax, value_);
+  // Call the IC stub.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  __ call(ic, RelocInfo::CODE_TARGET);
+  // Restore value (returned from store IC), key and receiver
+  // registers.
+  if (!value_.is(eax)) __ mov(value_, eax);
+  __ pop(key_);
+  __ pop(receiver_);
+}
+
+
 #undef __
 #define __ ACCESS_MASM(masm)
+
 
 Handle<String> Reference::GetName() {
   ASSERT(type_ == NAMED);
@@ -5859,7 +5896,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       // a check against an invalid map.  In the inline cache code, we
       // patch the map check if appropriate.
       if (cgen_->loop_nesting() > 0) {
-        Comment cmnt(masm, "[ Inlined array index load");
+        Comment cmnt(masm, "[ Inlined load from keyed Property");
 
         Result key = cgen_->frame()->Pop();
         Result receiver = cgen_->frame()->Pop();
@@ -6000,9 +6037,10 @@ void Reference::TakeValue(TypeofState typeof_state) {
 void Reference::SetValue(InitState init_state) {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
+  MacroAssembler* masm = cgen_->masm();
   switch (type_) {
     case SLOT: {
-      Comment cmnt(cgen_->masm(), "[ Store to Slot");
+      Comment cmnt(masm, "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
@@ -6010,7 +6048,7 @@ void Reference::SetValue(InitState init_state) {
     }
 
     case NAMED: {
-      Comment cmnt(cgen_->masm(), "[ Store to named Property");
+      Comment cmnt(masm, "[ Store to named Property");
       cgen_->frame()->Push(GetName());
       Result answer = cgen_->frame()->CallStoreIC();
       cgen_->frame()->Push(&answer);
@@ -6018,9 +6056,93 @@ void Reference::SetValue(InitState init_state) {
     }
 
     case KEYED: {
-      Comment cmnt(cgen_->masm(), "[ Store to keyed Property");
-      Result answer = cgen_->frame()->CallKeyedStoreIC();
-      cgen_->frame()->Push(&answer);
+      Comment cmnt(masm, "[ Store to keyed Property");
+
+      // Generate inlined version of the keyed store if the code is in
+      // a loop and the key is likely to be a smi.
+      Property* property = expression()->AsProperty();
+      ASSERT(property != NULL);
+      SmiAnalysis* key_smi_analysis = property->key()->type();
+
+      if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
+        Comment cmnt(masm, "[ Inlined store to keyed Property");
+
+        // Get the receiver, key and value into registers.
+        Result value = cgen_->frame()->Pop();
+        Result key = cgen_->frame()->Pop();
+        Result receiver = cgen_->frame()->Pop();
+
+        Result tmp = cgen_->allocator_->Allocate();
+        ASSERT(tmp.is_valid());
+
+        // Determine whether the value is a constant before putting it
+        // in a register.
+        bool value_is_constant = value.is_constant();
+
+        // Make sure that value, key and receiver are in registers.
+        value.ToRegister();
+        key.ToRegister();
+        receiver.ToRegister();
+
+        DeferredReferenceSetKeyedValue* deferred =
+            new DeferredReferenceSetKeyedValue(value.reg(),
+                                               key.reg(),
+                                               receiver.reg());
+
+        // Check that the value is a smi if it is not a constant.  We
+        // can skip the write barrier for smis and constants.
+        if (!value_is_constant) {
+          __ test(value.reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
+        }
+
+        // Check that the key is a non-negative smi.
+        __ test(key.reg(), Immediate(kSmiTagMask | 0x80000000));
+        deferred->Branch(not_zero);
+
+        // Check that the receiver is not a smi.
+        __ test(receiver.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(zero);
+
+        // Check that the receiver is a JSArray.
+        __ mov(tmp.reg(),
+               FieldOperand(receiver.reg(), HeapObject::kMapOffset));
+        __ movzx_b(tmp.reg(),
+                   FieldOperand(tmp.reg(), Map::kInstanceTypeOffset));
+        __ cmp(tmp.reg(), JS_ARRAY_TYPE);
+        deferred->Branch(not_equal);
+
+        // Check that the key is within bounds.  Both the key and the
+        // length of the JSArray are smis.
+        __ cmp(key.reg(),
+               FieldOperand(receiver.reg(), JSArray::kLengthOffset));
+        deferred->Branch(greater_equal);
+
+        // Get the elements array from the receiver and check that it
+        // is not a dictionary.
+        __ mov(tmp.reg(),
+               FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+        __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
+                           Immediate(Factory::hash_table_map()));
+        deferred->Branch(equal);
+
+        // Store the value.
+        __ mov(Operand(tmp.reg(),
+                       key.reg(),
+                       times_2,
+                       Array::kHeaderSize - kHeapObjectTag),
+               value.reg());
+        __ IncrementCounter(&Counters::keyed_store_inline, 1);
+
+        deferred->BindExit();
+
+        cgen_->frame()->Push(&receiver);
+        cgen_->frame()->Push(&key);
+        cgen_->frame()->Push(&value);
+      } else {
+        Result answer = cgen_->frame()->CallKeyedStoreIC();
+        cgen_->frame()->Push(&answer);
+      }
       break;
     }
 
