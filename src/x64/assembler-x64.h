@@ -482,6 +482,10 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_32(0x0, dst, src);
   }
 
+  void cmpb(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_8(0x7, dst, src);
+  }
+
   void cmpq(Register dst, Register src) {
     arithmetic_op(0x3B, dst, src);
   }
@@ -958,7 +962,12 @@ class Assembler : public Malloced {
   void arithmetic_op(byte opcode, Register reg, const Operand& op);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
   void immediate_arithmetic_op(byte subcode, const Operand& dst, Immediate src);
+  // Operate on a 32-bit word in memory.
   void immediate_arithmetic_op_32(byte subcode,
+                                  const Operand& dst,
+                                  Immediate src);
+  // Operate on a byte in memory.
+  void immediate_arithmetic_op_8(byte subcode,
                                   const Operand& dst,
                                   Immediate src);
   // Emit machine code for a shift operation.

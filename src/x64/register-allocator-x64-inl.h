@@ -37,8 +37,7 @@ namespace internal {
 // RegisterAllocator implementation.
 
 bool RegisterAllocator::IsReserved(Register reg) {
-  // All registers are reserved for now.
-  return true;
+  return reg.is(rsp) || reg.is(rbp) || reg.is(rsi) || reg.is(r10);
 }
 
 
@@ -47,20 +46,19 @@ bool RegisterAllocator::IsReserved(Register reg) {
 
 int RegisterAllocator::ToNumber(Register reg) {
   ASSERT(reg.is_valid() && !IsReserved(reg));
-  UNIMPLEMENTED();
-  return -1;
+  return reg.code();
 }
 
 
 Register RegisterAllocator::ToRegister(int num) {
   ASSERT(num >= 0 && num < kNumRegisters);
-  UNIMPLEMENTED();
-  return no_reg;
+  Register result = {num};
+  return result;
 }
 
 
 void RegisterAllocator::Initialize() {
-  UNIMPLEMENTED();
+  // TODO(X64): Implement.
 }
 
 

@@ -278,6 +278,21 @@ void MacroAssembler::Ret() {
 }
 
 
+void MacroAssembler::CmpObjectType(Register heap_object,
+                                   InstanceType type,
+                                   Register map) {
+  movq(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  CmpInstanceType(map, type);
+}
+
+
+void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
+  cmpb(FieldOperand(map, Map::kInstanceTypeOffset),
+       Immediate(static_cast<int8_t>(type)));
+}
+
+
+
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     movq(kScratchRegister, ExternalReference(counter));

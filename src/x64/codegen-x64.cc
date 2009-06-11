@@ -41,6 +41,37 @@ void DeferredCode::SaveRegisters() { UNIMPLEMENTED(); }
 
 void DeferredCode::RestoreRegisters() { UNIMPLEMENTED(); }
 
+// -------------------------------------------------------------------------
+// CodeGenState implementation.
+
+CodeGenState::CodeGenState(CodeGenerator* owner)
+    : owner_(owner),
+      typeof_state_(NOT_INSIDE_TYPEOF),
+      destination_(NULL),
+      previous_(NULL) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::CodeGenState(CodeGenerator* owner,
+                           TypeofState typeof_state,
+                           ControlDestination* destination)
+    : owner_(owner),
+      typeof_state_(typeof_state),
+      destination_(destination),
+      previous_(owner->state()) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::~CodeGenState() {
+  ASSERT(owner_->state() == this);
+  owner_->set_state(previous_);
+}
+
+
+// -----------------------------------------------------------------------------
+// CodeGenerator implementation.
 
 CodeGenerator::CodeGenerator(int buffer_size,
                              Handle<Script> script,
@@ -71,6 +102,8 @@ void CodeGenerator::TestCodeGenerator() {
   const int initial_buffer_size = 4 * KB;
   CodeGenerator cgen(initial_buffer_size, NULL, false);
   CodeGeneratorScope scope(&cgen);
+  Scope dummy_scope;
+  cgen.scope_ = &dummy_scope;
   cgen.GenCode(NULL);
 
   CodeDesc desc;
@@ -78,14 +111,67 @@ void CodeGenerator::TestCodeGenerator() {
 }
 
 
-void CodeGenerator::GenCode(FunctionLiteral* a) {
-  if (a != NULL) {
+void CodeGenerator::GenCode(FunctionLiteral* function) {
+  if (function != NULL) {
+    CodeForFunctionPosition(function);
+    // ASSERT(scope_ == NULL);
+    // scope_ = function->scope();
     __ int3();  // UNIMPLEMENTED
   } else {
     // GenCode Implementation under construction.  Run by TestCodeGenerator
     // with a == NULL.
-    __ movq(rax, Immediate(0x2a));
-    __ Ret();
+    // Everything guarded by if (function) should be run, unguarded,
+    // once testing is over.
+    // Record the position for debugging purposes.
+    if (function) {
+      CodeForFunctionPosition(function);
+    }
+    // ZoneList<Statement*>* body = fun->body();
+
+    // Initialize state.
+    // While testing, scope is set in cgen before calling GenCode().
+    if (function) {
+      ASSERT(scope_ == NULL);
+      scope_ = function->scope();
+    }
+    ASSERT(allocator_ == NULL);
+    RegisterAllocator register_allocator(this);
+    allocator_ = &register_allocator;
+    ASSERT(frame_ == NULL);
+    frame_ = new VirtualFrame();
+    set_in_spilled_code(false);
+
+    // Adjust for function-level loop nesting.
+    // loop_nesting_ += fun->loop_nesting();
+
+    JumpTarget::set_compiling_deferred_code(false);
+
+#ifdef DEBUG
+    if (strlen(FLAG_stop_at) > 0 &&
+        //    fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+        false) {
+      frame_->SpillAll();
+      __ int3();
+    }
+#endif
+
+    // New scope to get automatic timing calculation.
+    {  // NOLINT
+      HistogramTimerScope codegen_timer(&Counters::code_generation);
+      CodeGenState state(this);
+
+      // Entry:
+      // Stack: receiver, arguments, return address.
+      // ebp: caller's frame pointer
+      // esp: stack pointer
+      // edi: called JS function
+      // esi: callee's context
+      allocator_->Initialize();
+      frame_->Enter();
+
+      __ movq(rax, Immediate(0x2a));
+      __ Ret();
+    }
   }
 }
 
@@ -252,6 +338,46 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* a) {
 }
 
 void CodeGenerator::VisitThisFunction(ThisFunction* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
+void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 

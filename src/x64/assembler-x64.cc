@@ -441,11 +441,11 @@ void Assembler::immediate_arithmetic_op(byte subcode,
   emit_rex_64(dst);
   if (is_int8(src.value_)) {
     emit(0x83);
-    emit_operand(Register::toRegister(subcode), dst);
+    emit_operand(subcode, dst);
     emit(src.value_);
   } else {
     emit(0x81);
-    emit_operand(Register::toRegister(subcode), dst);
+    emit_operand(subcode, dst);
     emitl(src.value_);
   }
 }
@@ -459,13 +459,26 @@ void Assembler::immediate_arithmetic_op_32(byte subcode,
   emit_optional_rex_32(dst);
   if (is_int8(src.value_)) {
     emit(0x83);
-    emit_operand(Register::toRegister(subcode), dst);
+    emit_operand(subcode, dst);
     emit(src.value_);
   } else {
     emit(0x81);
-    emit_operand(Register::toRegister(subcode), dst);
+    emit_operand(subcode, dst);
     emitl(src.value_);
   }
+}
+
+
+void Assembler::immediate_arithmetic_op_8(byte subcode,
+                                           const Operand& dst,
+                                           Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  ASSERT(is_int8(src.value_));
+  emit(0x80);
+  emit_operand(subcode, dst);
+  emit(src.value_);
 }
 
 
@@ -1513,18 +1526,6 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
   return NULL;
 }
 
-
-StackFrame::Type ExitFrame::GetStateForFramePointer(unsigned char* a,
-                                                    StackFrame::State* b) {
-  // TODO(X64): UNIMPLEMENTED
-  return NONE;
-}
-
-int JavaScriptFrame::GetProvidedParametersCount() const {
-  UNIMPLEMENTED();
-  return 0;
-}
-
 void JumpTarget::DoBind(int a) {
   UNIMPLEMENTED();
 }
@@ -1536,7 +1537,6 @@ void JumpTarget::DoBranch(Condition a, Hint b) {
 void JumpTarget::DoJump() {
   UNIMPLEMENTED();
 }
-
 
 Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
                                               JSObject* b,
@@ -1569,11 +1569,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
   return NULL;
 }
 
-StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {
-  UNIMPLEMENTED();
-  return NONE;
-}
-
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
                                                 AccessorInfo* b,
                                                 String* c) {
@@ -1595,104 +1590,6 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
 }
 
 Object* StubCompiler::CompileLazyCompile(Code::Flags a) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-void VirtualFrame::Drop(int a) {
-  UNIMPLEMENTED();
-}
-
-int VirtualFrame::InvalidateFrameSlotAt(int a) {
-  UNIMPLEMENTED();
-  return -1;
-}
-
-void VirtualFrame::MergeTo(VirtualFrame* a) {
-  UNIMPLEMENTED();
-}
-
-Result VirtualFrame::Pop() {
-  UNIMPLEMENTED();
-  return Result(NULL);
-}
-
-Result VirtualFrame::RawCallStub(CodeStub* a) {
-  UNIMPLEMENTED();
-  return Result(NULL);
-}
-
-void VirtualFrame::SyncElementBelowStackPointer(int a) {
-  UNIMPLEMENTED();
-}
-
-void VirtualFrame::SyncElementByPushing(int a) {
-  UNIMPLEMENTED();
-}
-
-void VirtualFrame::SyncRange(int a, int b) {
-  UNIMPLEMENTED();
-}
-
-VirtualFrame::VirtualFrame() : elements_(0) {
-  UNIMPLEMENTED();
-}
-
-byte* ArgumentsAdaptorFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
-
-void ExitFrame::Iterate(ObjectVisitor* a) const {
-  UNIMPLEMENTED();
-}
-
-byte* InternalFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-byte* JavaScriptFrame::GetCallerStackPointer() const {
   UNIMPLEMENTED();
   return NULL;
 }
