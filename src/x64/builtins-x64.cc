@@ -39,9 +39,125 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   masm->int3();  // UNIMPLEMENTED.
 }
 
-void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
+static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
+  __ push(rbp);
+  __ movq(rbp, rsp);
+
+  // Store the arguments adaptor context sentinel.
+  __ push(Immediate(ArgumentsAdaptorFrame::SENTINEL));
+
+  // Push the function on the stack.
+  __ push(rdi);
+
+  // Preserve the number of arguments on the stack. Must preserve both
+  // eax and ebx because these registers are used when copying the
+  // arguments and the receiver.
+  ASSERT(kSmiTagSize == 1);
+  __ lea(rcx, Operand(rax, rax, kTimes1, kSmiTag));
+  __ push(rcx);
 }
+
+
+static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
+  // Retrieve the number of arguments from the stack. Number is a Smi.
+  __ movq(rbx, Operand(rbp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  // Leave the frame.
+  __ movq(rsp, rbp);
+  __ pop(rbp);
+
+  // Remove caller arguments from the stack.
+  // rbx holds a Smi, so we convery to dword offset by multiplying by 4.
+  ASSERT_EQ(kSmiTagSize, 1 && kSmiTag == 0);
+  ASSERT_EQ(kPointerSize, (1 << kSmiTagSize) * 4);
+  __ pop(rcx);
+  __ lea(rsp, Operand(rsp, rbx, kTimes4, 1 * kPointerSize));  // 1 ~ receiver
+  __ push(rcx);
+}
+
+
+void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : actual number of arguments
+  //  -- rbx : expected number of arguments
+  //  -- rdx : code entry to call
+  // -----------------------------------
+
+  Label invoke, dont_adapt_arguments;
+  __ IncrementCounter(&Counters::arguments_adaptors, 1);
+
+  Label enough, too_few;
+  __ cmpq(rax, rbx);
+  __ j(less, &too_few);
+  __ cmpq(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ j(equal, &dont_adapt_arguments);
+
+  {  // Enough parameters: Actual >= expected.
+    __ bind(&enough);
+    EnterArgumentsAdaptorFrame(masm);
+
+    // Copy receiver and all expected arguments.
+    const int offset = StandardFrameConstants::kCallerSPOffset;
+    __ lea(rax, Operand(rbp, rax, kTimesPointerSize, offset));
+    __ movq(rcx, Immediate(-1));  // account for receiver
+
+    Label copy;
+    __ bind(&copy);
+    __ incq(rcx);
+    __ push(Operand(rax, 0));
+    __ subq(rax, Immediate(kPointerSize));
+    __ cmpq(rcx, rbx);
+    __ j(less, &copy);
+    __ jmp(&invoke);
+  }
+
+  {  // Too few parameters: Actual < expected.
+    __ bind(&too_few);
+    EnterArgumentsAdaptorFrame(masm);
+
+    // Copy receiver and all actual arguments.
+    const int offset = StandardFrameConstants::kCallerSPOffset;
+    __ lea(rdi, Operand(rbp, rax, kTimesPointerSize, offset));
+    __ movq(rcx, Immediate(-1));  // account for receiver
+
+    Label copy;
+    __ bind(&copy);
+    __ incq(rcx);
+    __ push(Operand(rdi, 0));
+    __ subq(rdi, Immediate(kPointerSize));
+    __ cmpq(rcx, rax);
+    __ j(less, &copy);
+
+    // Fill remaining expected arguments with undefined values.
+    Label fill;
+    __ movq(kScratchRegister,
+            Factory::undefined_value(),
+            RelocInfo::EMBEDDED_OBJECT);
+    __ bind(&fill);
+    __ incq(rcx);
+    __ push(kScratchRegister);
+    __ cmpq(rcx, rbx);
+    __ j(less, &fill);
+
+    // Restore function pointer.
+    __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  }
+
+  // Call the entry point.
+  __ bind(&invoke);
+  __ call(rdx);
+
+  // Leave frame and return.
+  LeaveArgumentsAdaptorFrame(masm);
+  __ ret(0);
+
+  // -------------------------------------------
+  // Dont adapt arguments.
+  // -------------------------------------------
+  __ bind(&dont_adapt_arguments);
+  __ jmp(rdx);
+}
+
 
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
@@ -81,7 +197,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ xor_(rsi, rsi);
   // Enter an internal frame.
   __ EnterInternalFrame();
-
 
   // Load the function context into rsi.
   __ movq(rsi, FieldOperand(rdx, JSFunction::kContextOffset));
@@ -155,6 +270,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ call(kScratchRegister);
   } else {
     ParameterCount actual(rax);
+    // Function must be in rdi.
     __ InvokeFunction(rdi, actual, CALL_FUNCTION);
   }
 

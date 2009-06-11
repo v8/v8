@@ -102,13 +102,65 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
-void MacroAssembler::CallRuntime(Runtime::FunctionId id, int argc) {
-  UNIMPLEMENTED();
+void MacroAssembler::CallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  movq(kScratchRegister, stub->GetCode(), RelocInfo::CODE_TARGET);
+  call(kScratchRegister);
 }
 
 
-void MacroAssembler::TailCallRuntime(ExternalReference const& a, int b) {
-  UNIMPLEMENTED();
+void MacroAssembler::StubReturn(int argc) {
+  ASSERT(argc >= 1 && generating_stub());
+  ret((argc - 1) * kPointerSize);
+}
+
+
+void MacroAssembler::IllegalOperation(int num_arguments) {
+  if (num_arguments > 0) {
+    addq(rsp, Immediate(num_arguments * kPointerSize));
+  }
+  movq(rax, Factory::undefined_value(), RelocInfo::EMBEDDED_OBJECT);
+}
+
+
+void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
+  CallRuntime(Runtime::FunctionForId(id), num_arguments);
+}
+
+
+void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
+  // If the expected number of arguments of the runtime function is
+  // constant, we check that the actual number of arguments match the
+  // expectation.
+  if (f->nargs >= 0 && f->nargs != num_arguments) {
+    IllegalOperation(num_arguments);
+    return;
+  }
+
+  Runtime::FunctionId function_id =
+      static_cast<Runtime::FunctionId>(f->stub_id);
+  RuntimeStub stub(function_id, num_arguments);
+  CallStub(&stub);
+}
+
+
+void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
+                                     int num_arguments) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  movq(rax, Immediate(num_arguments));
+  JumpToBuiltin(ext);
+}
+
+
+void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
+  // Set the entry point and jump to the C entry runtime stub.
+  movq(rbx, ext);
+  CEntryStub ces;
+  movq(kScratchRegister, ces.GetCode(), RelocInfo::CODE_TARGET);
+  jmp(kScratchRegister);
 }
 
 
@@ -325,12 +377,121 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
+void MacroAssembler::InvokePrologue(const ParameterCount& expected,
+                                    const ParameterCount& actual,
+                                    Handle<Code> code_constant,
+                                    Register code_register,
+                                    Label* done,
+                                    InvokeFlag flag) {
+  bool definitely_matches = false;
+  Label invoke;
+  if (expected.is_immediate()) {
+    ASSERT(actual.is_immediate());
+    if (expected.immediate() == actual.immediate()) {
+      definitely_matches = true;
+    } else {
+      movq(rax, Immediate(actual.immediate()));
+      if (expected.immediate() ==
+          SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
+        // Don't worry about adapting arguments for built-ins that
+        // don't want that done. Skip adaption code by making it look
+        // like we have a match between expected and actual number of
+        // arguments.
+        definitely_matches = true;
+      } else {
+        movq(rbx, Immediate(expected.immediate()));
+      }
+    }
+  } else {
+    if (actual.is_immediate()) {
+      // Expected is in register, actual is immediate. This is the
+      // case when we invoke function values without going through the
+      // IC mechanism.
+      cmpq(expected.reg(), Immediate(actual.immediate()));
+      j(equal, &invoke);
+      ASSERT(expected.reg().is(rbx));
+      movq(rax, Immediate(actual.immediate()));
+    } else if (!expected.reg().is(actual.reg())) {
+      // Both expected and actual are in (different) registers. This
+      // is the case when we invoke functions using call and apply.
+      cmpq(expected.reg(), actual.reg());
+      j(equal, &invoke);
+      ASSERT(actual.reg().is(rax));
+      ASSERT(expected.reg().is(rbx));
+    }
+  }
+
+  if (!definitely_matches) {
+    Handle<Code> adaptor =
+        Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+    if (!code_constant.is_null()) {
+      movq(rdx, code_constant, RelocInfo::EMBEDDED_OBJECT);
+      addq(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    } else if (!code_register.is(rdx)) {
+      movq(rdx, code_register);
+    }
+
+    movq(kScratchRegister, adaptor, RelocInfo::CODE_TARGET);
+    if (flag == CALL_FUNCTION) {
+      call(kScratchRegister);
+      jmp(done);
+    } else {
+      jmp(kScratchRegister);
+    }
+    bind(&invoke);
+  }
+}
 
 
-void MacroAssembler::InvokeFunction(Register fun,
+
+
+void MacroAssembler::InvokeCode(Register code,
+                                const ParameterCount& expected,
+                                const ParameterCount& actual,
+                                InvokeFlag flag) {
+  Label done;
+  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag);
+  if (flag == CALL_FUNCTION) {
+    call(code);
+  } else {
+    ASSERT(flag == JUMP_FUNCTION);
+    jmp(code);
+  }
+  bind(&done);
+}
+
+
+void MacroAssembler::InvokeCode(Handle<Code> code,
+                                const ParameterCount& expected,
+                                const ParameterCount& actual,
+                                RelocInfo::Mode rmode,
+                                InvokeFlag flag) {
+  Label done;
+  Register dummy = rax;
+  InvokePrologue(expected, actual, code, dummy, &done, flag);
+  movq(kScratchRegister, code, rmode);
+  if (flag == CALL_FUNCTION) {
+    call(kScratchRegister);
+  } else {
+    ASSERT(flag == JUMP_FUNCTION);
+    jmp(kScratchRegister);
+  }
+  bind(&done);
+}
+
+
+void MacroAssembler::InvokeFunction(Register function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag) {
-  UNIMPLEMENTED();
+  ASSERT(function.is(rdi));
+  movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
+  movq(rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+  movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+
+  ParameterCount expected(rbx);
+  InvokeCode(rdx, expected, actual, flag);
 }
 
 

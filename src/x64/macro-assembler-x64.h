@@ -127,7 +127,7 @@ class MacroAssembler: public Assembler {
   // JavaScript invokes
 
   // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeCode(const Operand& code,
+  void InvokeCode(Register code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag);
@@ -310,13 +310,13 @@ class MacroAssembler: public Assembler {
   bool generating_stub_;
   bool allow_stub_calls_;
   Handle<Object> code_object_;  // This handle will be patched with the code
-                                // code object on installation.
+                                // object on installation.
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual,
                       Handle<Code> code_constant,
-                      const Operand& code_operand,
+                      Register code_register,
                       Label* done,
                       InvokeFlag flag);
 

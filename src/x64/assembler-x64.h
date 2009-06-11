@@ -428,7 +428,6 @@ class Assembler : public Malloced {
   // Load a 32-bit immediate value, zero-extended to 64 bits.
   void movl(Register dst, Immediate imm32);
 
-  void movq(Register dst, int32_t imm32);
   void movq(Register dst, const Operand& src);
   // Sign extends immediate 32-bit value to 64 bits.
   void movq(Register dst, Immediate x);

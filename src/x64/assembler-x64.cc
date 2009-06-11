@@ -73,7 +73,7 @@ XMMRegister xmm14 = { 14 };
 XMMRegister xmm15 = { 15 };
 
 
-Operand::Operand(Register base, int32_t disp) {
+Operand::Operand(Register base, int32_t disp): rex_(0) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
@@ -95,7 +95,7 @@ Operand::Operand(Register base, int32_t disp) {
 Operand::Operand(Register base,
                  Register index,
                  ScaleFactor scale,
-                 int32_t disp) {
+                 int32_t disp): rex_(0) {
   ASSERT(!index.is(rsp) && !index.is(r12));
   len_ = 1;
   set_sib(scale, index, base);

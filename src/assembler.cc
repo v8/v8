@@ -363,7 +363,7 @@ void RelocIterator::next() {
           if (SetMode(DebugInfoModeFromTag(top_tag))) return;
         } else {
           // Otherwise, just skip over the data.
-          Advance(kIntSize);
+          Advance(kIntptrSize);
         }
       } else {
         AdvanceReadPC();
