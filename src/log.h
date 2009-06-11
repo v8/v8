@@ -107,6 +107,7 @@ class VMState BASE_EMBEDDED {
   V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
   V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
   V(TICK_EVENT,                     "tick",                   "t")        \
+  V(REPEAT_META_EVENT,              "repeat",                 "r")        \
   V(BUILTIN_TAG,                    "Builtin",                "bi")       \
   V(CALL_DEBUG_BREAK_TAG,           "CallDebugBreak",         "cdb")      \
   V(CALL_DEBUG_PREPARE_STEP_IN_TAG, "CallDebugPrepareStepIn", "cdbsi")    \
@@ -298,6 +299,9 @@ class Logger {
 
   // An array of log events names.
   static const char** log_events_;
+
+  // Counter for repeated tick events.
+  static int tick_repeat_count_;
 
   // Internal implementation classes with access to
   // private members.

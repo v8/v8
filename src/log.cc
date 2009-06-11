@@ -303,6 +303,7 @@ VMState* Logger::current_state_ = NULL;
 VMState Logger::bottom_state_(EXTERNAL);
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 const char** Logger::log_events_ = NULL;
+int Logger::tick_repeat_count_ = 0;
 
 #define DECLARE_LONG_EVENT(ignore1, long_name, ignore2) long_name,
 const char* kLongLogEventsNames[Logger::NUMBER_OF_LOG_EVENTS] = {
@@ -326,6 +327,9 @@ void Logger::ProfilerBeginEvent() {
   if (!Log::IsEnabled()) return;
   LogMessageBuilder msg;
   msg.Append("profiler,\"begin\",%d\n", kSamplingIntervalMs);
+  if (FLAG_compress_log) {
+    msg.Append("profiler,\"compression\",%d\n", Log::kRecordCompressorWindow);
+  }
   msg.WriteToLogFile();
 }
 
@@ -848,6 +852,28 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
       msg.Append(",0x%" V8PRIxPTR, sample->stack[i]);
     }
   }
+  // In case if log compression is disabled, the flow is straightforward,
+  // because both StoreInCompressor and RetrieveCompressedPrevious do nothing
+  // and just return 'true'. Otherwise, to perform compression of repeated
+  // tick events, instead of the current event, the previous one is written.
+  if (!msg.StoreInCompressor()) {
+    // Current message repeats the previous one, don't write it.
+    ++tick_repeat_count_;
+    return;
+  }
+
+  bool has_previous_message;
+  if (tick_repeat_count_ > 0) {
+    EmbeddedVector<char, 20> prefix;
+    OS::SNPrintF(prefix, "%s,%d,",
+                 log_events_[REPEAT_META_EVENT],
+                 tick_repeat_count_ + 1);
+    tick_repeat_count_ = 0;
+    has_previous_message = msg.RetrieveCompressedPrevious(prefix.start());
+  } else {
+    has_previous_message = msg.RetrieveCompressedPrevious();
+  }
+  if (!has_previous_message) return;
   msg.Append('\n');
   msg.WriteToLogFile();
 }

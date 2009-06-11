@@ -123,15 +123,22 @@ bool Log::is_stopped_ = false;
 Log::WritePtr Log::Write = NULL;
 FILE* Log::output_handle_ = NULL;
 LogDynamicBuffer* Log::output_buffer_ = NULL;
-// Must be the same message as in Logger::PauseProfiler
+// Must be the same message as in Logger::PauseProfiler.
 const char* Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
 Mutex* Log::mutex_ = NULL;
 char* Log::message_buffer_ = NULL;
+LogRecordCompressor* Log::record_compressor_ = NULL;
+// Must be the same as compressed tick event name from Logger.
+const char* Log::kCompressedTickEventName = "t,";
 
 
 void Log::Init() {
   mutex_ = OS::CreateMutex();
   message_buffer_ = NewArray<char>(kMessageBufferSize);
+  if (FLAG_compress_log) {
+    record_compressor_ = new LogRecordCompressor(
+        kRecordCompressorWindow, strlen(kCompressedTickEventName));
+  }
 }
 
 
@@ -172,6 +179,12 @@ void Log::Close() {
     ASSERT(Write == NULL);
   }
   Write = NULL;
+
+  delete record_compressor_;
+  record_compressor_ = NULL;
+
+  DeleteArray(message_buffer_);
+  message_buffer_ = NULL;
 
   delete mutex_;
   mutex_ = NULL;
@@ -280,6 +293,29 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
 }
 
 
+bool LogMessageBuilder::StoreInCompressor() {
+  if (!FLAG_compress_log) return true;
+  ASSERT(Log::record_compressor_ != NULL);
+  return Log::record_compressor_->Store(
+      Vector<const char>(Log::message_buffer_, pos_));
+}
+
+
+bool LogMessageBuilder::RetrieveCompressedPrevious(const char* prefix) {
+  if (!FLAG_compress_log) return true;
+  ASSERT(Log::record_compressor_ != NULL);
+  pos_ = 0;
+  if (prefix[0] != '\0') Append(prefix);
+  Vector<char> prev_record(Log::message_buffer_ + pos_,
+                           Log::kMessageBufferSize - pos_);
+  const bool has_previous =
+      Log::record_compressor_->RetrievePreviousCompressed(&prev_record);
+  if (!has_previous) return false;
+  pos_ += prev_record.length();
+  return true;
+}
+
+
 void LogMessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Log::kMessageBufferSize);
   const int written = Log::Write(Log::message_buffer_, pos_);
@@ -295,6 +331,105 @@ void LogMessageBuilder::WriteCStringToLogFile(const char* str) {
   if (written != len && write_failure_handler != NULL) {
     write_failure_handler();
   }
+}
+
+
+// Formatting string for back references. E.g. "#2:10" means
+// "the second line above, start from char 10 (0-based)".
+const char* LogRecordCompressor::kBackwardReferenceFormat = "#%d:%d";
+
+
+LogRecordCompressor::~LogRecordCompressor() {
+  for (int i = 0; i < buffer_.length(); ++i) {
+    buffer_[i].Dispose();
+  }
+}
+
+
+bool LogRecordCompressor::Store(const Vector<const char>& record) {
+  // Check if the record is the same as the last stored one.
+  if (curr_ != -1) {
+    Vector<const char>& curr = buffer_[curr_];
+    if (record.length() == curr.length()
+        && strncmp(record.start(), curr.start(), record.length()) == 0) {
+      return false;
+    }
+  }
+  // buffer_ is circular.
+  prev_ = curr_++;
+  curr_ %= buffer_.length();
+  Vector<char> record_copy = Vector<char>::New(record.length());
+  memcpy(record_copy.start(), record.start(), record.length());
+  buffer_[curr_].Dispose();
+  buffer_[curr_] =
+      Vector<const char>(record_copy.start(), record_copy.length());
+  return true;
+}
+
+
+bool LogRecordCompressor::RetrievePreviousCompressed(
+    Vector<char>* prev_record) {
+  if (prev_ == -1) return false;
+
+  int index = prev_;
+  // Distance from prev_.
+  int distance = 0;
+  // Best compression result among records in the buffer.
+  struct {
+    intptr_t truncated_len;
+    int distance;
+    int copy_from_pos;
+  } best = {-1, 0, 0};
+  Vector<const char>& prev = buffer_[prev_];
+  const char* const prev_start = prev.start() + start_pos_;
+  const char* const prev_end = prev.start() + prev.length();
+  do {
+    // We're moving backwards until we reach the current record.
+    // Remember that buffer_ is circular.
+    if (--index == -1) index = buffer_.length() - 1;
+    ++distance;
+    if (index == curr_) break;
+
+    Vector<const char>& data = buffer_[index];
+    if (data.start() == NULL) break;
+    const char* const data_end = data.start() + data.length();
+    const char* prev_ptr = prev_end;
+    const char* data_ptr = data_end;
+    // Compare strings backwards, stop on the last matching character.
+    while (prev_ptr != prev_start && data_ptr != data.start()
+          && *(prev_ptr - 1) == *(data_ptr - 1)) {
+      --prev_ptr;
+      --data_ptr;
+    }
+    const intptr_t truncated_len = prev_end - prev_ptr;
+    if (truncated_len < kUncompressibleBound) continue;
+
+    // Record compression results.
+    if (truncated_len > best.truncated_len) {
+      best.truncated_len = truncated_len;
+      best.distance = distance;
+      best.copy_from_pos = data_ptr - data.start();
+    }
+  } while (true);
+
+  if (best.distance == 0) {
+    // Can't compress the previous record. Return as is.
+    ASSERT(prev_record->length() >= prev.length());
+    memcpy(prev_record->start(), prev.start(), prev.length());
+    prev_record->Truncate(prev.length());
+  } else {
+    // Copy the uncompressible part unchanged.
+    const intptr_t unchanged_len = prev.length() - best.truncated_len;
+    ASSERT(prev_record->length() >= unchanged_len + kUncompressibleBound);
+    memcpy(prev_record->start(), prev.start(), unchanged_len);
+    // Append the backward reference.
+    Vector<char> patch(prev_record->start() + unchanged_len,
+                       kUncompressibleBound);
+    OS::SNPrintF(patch, kBackwardReferenceFormat,
+                 best.distance, best.copy_from_pos);
+    prev_record->Truncate(unchanged_len + strlen(patch.start()));
+  }
+  return true;
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

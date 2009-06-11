@@ -88,6 +88,48 @@ class LogDynamicBuffer {
 };
 
 
+// An utility class for performing backward reference compression
+// of string ends. It operates using a window of previous strings.
+class LogRecordCompressor {
+ public:
+  // 'window_size' is the size of backward lookup window.
+  // 'start_pos' is the length of string prefix that must be left uncompressed.
+  LogRecordCompressor(int window_size, int start_pos)
+      : buffer_(window_size), start_pos_(start_pos), curr_(-1), prev_(-1) {
+    // Must have place for the current record and the previous.
+    ASSERT(window_size >= 2);
+  }
+  ~LogRecordCompressor();
+
+  // Fills vector with a compressed version of the previous record.
+  // Returns false if there is no previous record.
+  bool RetrievePreviousCompressed(Vector<char>* prev_record);
+
+  // Stores a record if it differs from a previous one (or there's no previous).
+  // Returns true, if the record has been stored.
+  bool Store(const Vector<const char>& record);
+
+ private:
+  // Record field separator. It is assumed that it can't appear
+  // inside a field (a simplified version of CSV format).
+  static const char kFieldSeparator = ',';
+
+  // Formatting string for back references.
+  static const char* kBackwardReferenceFormat;
+
+  // A boundary value. If current record only differs in
+  // kUncompressibleBound chars, don't compress it.
+  // The value must be greater than the length of maximum
+  // projected backward reference length.
+  static const intptr_t kUncompressibleBound = 10;
+
+  ScopedVector< Vector<const char> > buffer_;
+  const int start_pos_;
+  int curr_;
+  int prev_;
+};
+
+
 // Functions and data for performing output of log messages.
 class Log : public AllStatic {
  public:
@@ -113,6 +155,9 @@ class Log : public AllStatic {
   static bool IsEnabled() {
     return !is_stopped_ && (output_handle_ != NULL || output_buffer_ != NULL);
   }
+
+  // Size of buffer used for record compression.
+  static const int kRecordCompressorWindow = 6;
 
  private:
   typedef int (*WritePtr)(const char* msg, int length);
@@ -169,6 +214,11 @@ class Log : public AllStatic {
   // mutex_ should be acquired before using it.
   static char* message_buffer_;
 
+  // An utility object for compressing repeated parts of records.
+  static LogRecordCompressor* record_compressor_;
+
+  static const char* kCompressedTickEventName;
+
   friend class LogMessageBuilder;
 };
 
@@ -195,6 +245,19 @@ class LogMessageBuilder BASE_EMBEDDED {
   void Append(String* str);
 
   void AppendDetailed(String* str, bool show_impl_info);
+
+  // Stores log message into compressor, returns true if the message
+  // was stored (i.e. doesn't repeat the previous one). If log compression is
+  // disabled, does nothing and returns true.
+  bool StoreInCompressor();
+
+  // Sets log message to a previous version of compressed message.
+  // Returns false, if there is no previous message. If log compression
+  // is disabled, does nothing and retuns true.
+  bool RetrieveCompressedPrevious() { return RetrieveCompressedPrevious(""); }
+
+  // Does the same at the version without arguments, and sets a prefix.
+  bool RetrieveCompressedPrevious(const char* prefix);
 
   // Write the log message to the log file currently opened.
   void WriteToLogFile();
