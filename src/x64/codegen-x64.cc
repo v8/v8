@@ -58,15 +58,34 @@ CodeGenerator::CodeGenerator(int buffer_size,
       in_spilled_code_(false) {
 }
 
-#define __ ACCESS_MASM(masm)
+#define __ ACCESS_MASM(masm_)
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
   UNIMPLEMENTED();
 }
 
+void CodeGenerator::TestCodeGenerator() {
+  // Generate code.
+  const int initial_buffer_size = 4 * KB;
+  CodeGenerator cgen(initial_buffer_size, NULL, false);
+  CodeGeneratorScope scope(&cgen);
+  cgen.GenCode(NULL);
+
+  CodeDesc desc;
+  cgen.masm()->GetCode(&desc);
+}
+
+
 void CodeGenerator::GenCode(FunctionLiteral* a) {
-  masm_->int3();  // UNIMPLEMENTED
+  if (a != NULL) {
+    __ int3();  // UNIMPLEMENTED
+  } else {
+    // GenCode Implementation under construction.  Run by TestCodeGenerator
+    // with a == NULL.
+    __ movq(rax, Immediate(0x2a));
+    __ Ret();
+  }
 }
 
 void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
@@ -235,6 +254,14 @@ void CodeGenerator::VisitThisFunction(ThisFunction* a) {
   UNIMPLEMENTED();
 }
 
+#undef __
+// End of CodeGenerator implementation.
+
+// -----------------------------------------------------------------------------
+// Implementation of stubs.
+
+//  Stub classes have public member named masm, not masm_.
+#define __ ACCESS_MASM(masm)
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Check that stack should contain frame pointer, code pointer, state and

@@ -67,6 +67,16 @@ class MacroAssembler: public Assembler {
   MacroAssembler(void* buffer, int size);
 
   // ---------------------------------------------------------------------------
+  // x64 Implementation Support
+
+  // Test the MacroAssembler by constructing and calling a simple JSFunction.
+  // Cannot be done using API because this must be done in the middle of the
+  // bootstrapping process.
+  // TODO(X64): Remove once we can get through the bootstrapping process.
+
+  static void ConstructAndTestJSFunction();
+
+  // ---------------------------------------------------------------------------
   // GC Support
 
   // Set the remembered set bit for [object+offset].

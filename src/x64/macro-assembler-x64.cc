@@ -59,6 +59,21 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::ConstructAndTestJSFunction() {
+  const int initial_buffer_size = 4 * KB;
+  char* buffer = new char[initial_buffer_size];
+  MacroAssembler masm(buffer, initial_buffer_size);
+#define __ ACCESS_MASM((&masm))
+  // Construct a simple JSfunction here, using Assembler and MacroAssembler
+  // commands.
+  __ int3();
+#undef __
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  // TODO(X64): Create the function object and call it.
+}
+
+
 void MacroAssembler::Abort(const char* msg) {
   // We want to pass the msg string like a smi to avoid GC
   // problems, however msg is not guaranteed to be aligned

@@ -286,6 +286,15 @@ class CodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
+  // During implementation of CodeGenerator, this call creates a
+  // CodeGenerator instance, and calls GenCode on it with a null
+  // function literal.  CodeGenerator will then construct and return
+  // a simple dummy function.  Call this during bootstrapping before
+  // trying to compile any real functions, to get CodeGenerator up
+  // and running.
+  // TODO(X64): Remove once we can get through the bootstrapping process.
+  static void TestCodeGenerator();
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
 #endif
