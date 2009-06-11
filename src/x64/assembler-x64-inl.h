@@ -251,7 +251,7 @@ Object** RelocInfo::call_object_address() {
 
 void Operand::set_modrm(int mod, Register rm) {
   ASSERT((mod & -4) == 0);
-  buf_[0] = mod << 6 | (rm.code() & 0x7);
+  buf_[0] = (mod << 6) | (rm.code() & 0x7);
   // Set REX.B to the high bit of rm.code().
   rex_ |= (rm.code() >> 3);
 }

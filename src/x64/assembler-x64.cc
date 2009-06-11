@@ -81,7 +81,7 @@ Operand::Operand(Register base, int32_t disp): rex_(0) {
   }
 
   if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    set_modrm(0, rsp);
+    set_modrm(0, base);
   } else if (is_int8(disp)) {
     set_modrm(1, base);
     set_disp8(disp);

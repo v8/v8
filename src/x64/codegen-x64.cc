@@ -571,7 +571,8 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     ExternalReference entry(Builtins::JSEntryTrampoline);
     __ load_rax(entry);
   }
-  __ call(FieldOperand(rax, Code::kHeaderSize));
+  __ lea(kScratchRegister, FieldOperand(rax, Code::kHeaderSize));
+  __ call(kScratchRegister);
 
   // Unlink this frame from the handler chain.
   __ movq(kScratchRegister, ExternalReference(Top::k_handler_address));

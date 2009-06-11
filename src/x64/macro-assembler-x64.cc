@@ -63,14 +63,38 @@ void MacroAssembler::ConstructAndTestJSFunction() {
   const int initial_buffer_size = 4 * KB;
   char* buffer = new char[initial_buffer_size];
   MacroAssembler masm(buffer, initial_buffer_size);
+
+  const uint64_t secret = V8_INT64_C(0xdeadbeefcafebabe);
 #define __ ACCESS_MASM((&masm))
   // Construct a simple JSfunction here, using Assembler and MacroAssembler
   // commands.
-  __ int3();
+  __ movq(rax, secret, RelocInfo::NONE);
+  __ ret(0);
 #undef __
   CodeDesc desc;
   masm.GetCode(&desc);
-  // TODO(X64): Create the function object and call it.
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
+  Object* code = Heap::CreateCode(desc, NULL, flags, Handle<Object>::null());
+  if (!code->IsFailure()) {
+    Handle<Code> code_handle(Code::cast(code));
+    Handle<String> name =
+        Factory::NewStringFromAscii(Vector<const char>("foo", 3), NOT_TENURED);
+    Handle<JSFunction> function =
+        Factory::NewFunction(name,
+                             JS_FUNCTION_TYPE,
+                             JSObject::kHeaderSize,
+                             code_handle,
+                             true);
+    bool pending_exceptions;
+    Handle<Object> result =
+        Execution::Call(function,
+                        Handle<Object>::cast(function),
+                        0,
+                        NULL,
+                        &pending_exceptions);
+    CHECK(result->IsSmi());
+    CHECK(secret == reinterpret_cast<uint64_t>(*result));
+  }
 }
 
 
