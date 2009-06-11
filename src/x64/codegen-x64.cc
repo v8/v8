@@ -67,6 +67,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
 
 void CodeGenerator::TestCodeGenerator() {
   // Generate code.
+  ZoneScope zone_scope(DELETE_ON_EXIT);
   const int initial_buffer_size = 4 * KB;
   CodeGenerator cgen(initial_buffer_size, NULL, false);
   CodeGeneratorScope scope(&cgen);
