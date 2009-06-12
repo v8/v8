@@ -65,10 +65,16 @@ void MacroAssembler::ConstructAndTestJSFunction() {
   MacroAssembler masm(buffer, initial_buffer_size);
 
   const uint64_t secret = V8_INT64_C(0xdeadbeefcafebabe);
+  Handle<String> constant =
+      Factory::NewStringFromAscii(Vector<const char>("451", 3), TENURED);
 #define __ ACCESS_MASM((&masm))
   // Construct a simple JSfunction here, using Assembler and MacroAssembler
   // commands.
-  __ movq(rax, secret, RelocInfo::NONE);
+  __ movq(rax, constant, RelocInfo::EMBEDDED_OBJECT);
+  __ push(rax);
+  __ CallRuntime(Runtime::kStringParseFloat, 1);
+  __ movq(kScratchRegister, secret, RelocInfo::NONE);
+  __ addq(rax, kScratchRegister);
   __ ret(0);
 #undef __
   CodeDesc desc;
@@ -93,7 +99,7 @@ void MacroAssembler::ConstructAndTestJSFunction() {
                         NULL,
                         &pending_exceptions);
     CHECK(result->IsSmi());
-    CHECK(secret == reinterpret_cast<uint64_t>(*result));
+    CHECK(secret + (451 << kSmiTagSize) == reinterpret_cast<uint64_t>(*result));
   }
 }
 
@@ -581,17 +587,17 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
   ExternalReference context_address(Top::k_context_address);
-  movq(kScratchRegister, rax);
+  movq(rdi, rax);  // Backup rax before we use it.
+
   movq(rax, rbp);
   store_rax(c_entry_fp_address);
   movq(rax, rsi);
   store_rax(context_address);
-  movq(rax, kScratchRegister);
 
-  // Setup argc and argv in callee-saved registers.
+  // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
+  // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  movq(rdi, rax);
-  lea(rsi, Operand(rbp, rax, kTimesPointerSize, offset));
+  lea(r15, Operand(rbp, rdi, kTimesPointerSize, offset));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
@@ -607,15 +613,15 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   }
 #endif
 
-  // Reserve space for two arguments: argc and argv.
+  // Reserve space for two arguments: argc and argv
   subq(rsp, Immediate(2 * kPointerSize));
 
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
     ASSERT(IsPowerOf2(kFrameAlignment));
-    movq(r10, Immediate(-kFrameAlignment));
-    and_(rsp, r10);
+    movq(kScratchRegister, Immediate(-kFrameAlignment));
+    and_(rsp, kScratchRegister);
   }
 
   // Patch the saved entry sp.
@@ -624,6 +630,8 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+  // Registers:
+  // r15 : argv
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
@@ -642,7 +650,7 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
   movq(rbp, Operand(rbp, 0 * kPointerSize));
 
   // Pop the arguments and the receiver from the caller stack.
-  lea(rsp, Operand(rsi, 1 * kPointerSize));
+  lea(rsp, Operand(r15, 1 * kPointerSize));
 
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(Top::k_context_address);

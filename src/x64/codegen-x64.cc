@@ -429,12 +429,14 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               StackFrame::Type frame_type,
                               bool do_gc,
                               bool always_allocate_scope) {
-  // rax: result parameter for PerformGC, if any
-  // rbx: pointer to C function  (C callee-saved)
-  // rbp: frame pointer  (restored after C call)
-  // rsp: stack pointer  (restored after C call)
-  // rdi: number of arguments including receiver  (C callee-saved)
-  // rsi: pointer to the first argument (C callee-saved)
+  // rax: result parameter for PerformGC, if any.
+  // rbx: pointer to C function  (C callee-saved).
+  // rbp: frame pointer  (restored after C call).
+  // rsp: stack pointer  (restored after C call).
+  // rdi: number of arguments including receiver.
+  // r15: pointer to the first argument (C callee-saved).
+  //      This pointer is reused in LeaveExitFrame(), so it is stored in a
+  //      callee-saved register.
 
   if (do_gc) {
     __ movq(Operand(rsp, 0), rax);  // Result.
@@ -455,10 +457,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 #ifdef __MSVC__
   // MSVC passes arguments in rcx, rdx, r8, r9
   __ movq(rcx, rdi);  // argc.
-  __ movq(rdx, rsi);  // argv.
+  __ movq(rdx, r15);  // argv.
 #else  // ! defined(__MSVC__)
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
-  // First two arguments are already in rdi, rsi.
+  // First argument is already in rdi.
+  __ movq(rsi, r15);  // argv.
 #endif
   __ call(rbx);
   // Result is in rax - do not destroy this register!
@@ -588,12 +591,17 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(frame_type);
 
-  // rax: result parameter for PerformGC, if any (setup below)
-  // rbx: pointer to builtin function  (C callee-saved)
-  // rbp: frame pointer  (restored after C call)
-  // rsp: stack pointer  (restored after C call)
-  // rdi: number of arguments including receiver (C callee-saved)
-  // rsi: argv pointer (C callee-saved)
+  // rax: result parameter for PerformGC, if any (setup below).
+  //      Holds the result of a previous call to GenerateCore that
+  //      returned a failure. On next call, it's used as parameter
+  //      to Runtime::PerformGC.
+  // rbx: pointer to builtin function  (C callee-saved).
+  // rbp: frame pointer  (restored after C call).
+  // rsp: stack pointer  (restored after C call).
+  // rdi: number of arguments including receiver (destroyed by C call).
+  //      The rdi register is not callee-save in Unix 64-bit ABI, so
+  //      we must treat it as volatile.
+  // r15: argv pointer (C callee-saved).
 
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
@@ -604,7 +612,8 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
     Failure* failure = Failure::RetryAfterGC(0);
     __ movq(rax, failure, RelocInfo::NONE);
   }
-  GenerateCore(masm, &throw_normal_exception,
+  GenerateCore(masm,
+               &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
                FLAG_gc_greedy,

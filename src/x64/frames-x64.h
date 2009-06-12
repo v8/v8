@@ -84,22 +84,22 @@ class ExitFrameConstants : public AllStatic {
 
 class StandardFrameConstants : public AllStatic {
  public:
-  static const int kExpressionsOffset = -1 * kPointerSize;
-  static const int kMarkerOffset      = -1 * kPointerSize;
+  static const int kExpressionsOffset = -3 * kPointerSize;
+  static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;
-  static const int kCallerFPOffset    = -1 * kPointerSize;
-  static const int kCallerPCOffset    = -1 * kPointerSize;
-  static const int kCallerSPOffset    = -1 * kPointerSize;
+  static const int kCallerFPOffset    =  0 * kPointerSize;
+  static const int kCallerPCOffset    = +1 * kPointerSize;
+  static const int kCallerSPOffset    = +2 * kPointerSize;
 };
 
 
 class JavaScriptFrameConstants : public AllStatic {
  public:
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
-  static const int kSavedRegistersOffset = -1 * kPointerSize;
+  static const int kSavedRegistersOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
-  static const int kParam0Offset   = -1 * kPointerSize;
+  static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };
 
