@@ -96,12 +96,12 @@ Operand::Operand(Register base,
                  Register index,
                  ScaleFactor scale,
                  int32_t disp): rex_(0) {
-  ASSERT(!index.is(rsp) && !index.is(r12));
+  ASSERT(!index.is(rsp));
   len_ = 1;
   set_sib(scale, index, base);
   if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    // The call to set_modrm doesn't overwrite the REX.B bit possibly set
-    // by set_sib.
+    // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
+    // possibly set by set_sib.
     set_modrm(0, rsp);
   } else if (is_int8(disp)) {
     set_modrm(1, rsp);

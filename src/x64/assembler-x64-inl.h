@@ -260,7 +260,8 @@ void Operand::set_modrm(int mod, Register rm) {
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   ASSERT(len_ == 1);
   ASSERT(is_uint2(scale));
-  // Use SIB with no index register only for base rsp or r12.
+  // Use SIB with no index register only for base rsp or r12. Otherwise we
+  // would skip the SIB byte entirely.
   ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));
   buf_[1] = scale << 6 | (index.code() & 0x7) << 3 | (base.code() & 0x7);
   rex_ |= (index.code() >> 3) << 1 | base.code() >> 3;
