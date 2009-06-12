@@ -288,6 +288,9 @@ namespace internal {
   F(CheckExecutionState, 1) \
   F(GetFrameCount, 1) \
   F(GetFrameDetails, 2) \
+  F(GetScopeCount, 2) \
+  F(GetScopeDetails, 3) \
+  F(DebugPrintScopes, 0) \
   F(GetCFrames, 1) \
   F(GetThreadCount, 1) \
   F(GetThreadDetails, 2) \
