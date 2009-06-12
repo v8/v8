@@ -37,31 +37,50 @@ namespace internal {
 // RegisterAllocator implementation.
 
 bool RegisterAllocator::IsReserved(Register reg) {
-  return reg.is(rsp) || reg.is(rbp) || reg.is(rsi) || reg.is(r10);
+  return reg.is(rsp) || reg.is(rbp) || reg.is(rsi) ||
+      reg.is(kScratchRegister);
 }
 
 
 // The register allocator uses small integers to represent the
 // non-reserved assembler registers.
-
 int RegisterAllocator::ToNumber(Register reg) {
   ASSERT(reg.is_valid() && !IsReserved(reg));
-  return reg.code();
+  static const int numbers[] = {
+    0,   // rax
+    2,   // rcx
+    3,   // rdx
+    1,   // rbx
+    -1,  // rsp
+    -1,  // rbp
+    -1,  // rsi
+    4,   // rdi
+    5,   // r8
+    6,   // r9
+    -1,  // r10
+    7,   // r11
+    11,  // r12
+    10,   // r13
+    8,   // r14
+    9   // r15
+  };
+  return numbers[reg.code()];
 }
 
 
 Register RegisterAllocator::ToRegister(int num) {
   ASSERT(num >= 0 && num < kNumRegisters);
-  Register result = {num};
-  return result;
+  static Register registers[] =
+      { rax, rbx, rcx, rdx, rdi, r8, r9, r11, r14, r15, r13, r12 };
+  return registers[num];
 }
 
 
 void RegisterAllocator::Initialize() {
-  // TODO(X64): Implement.
+  Reset();
+  // The non-reserved rdi register is live on JS function entry.
+  Use(rdi);  // JS function.
 }
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_X64_REGISTER_ALLOCATOR_X64_INL_H_
