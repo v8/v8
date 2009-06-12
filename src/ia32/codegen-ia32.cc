@@ -5749,10 +5749,13 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
 
   virtual void Generate();
 
+  Label* patch_site() { return &patch_site_; }
+
  private:
   Register value_;
   Register key_;
   Register receiver_;
+  Label patch_site_;
 };
 
 
@@ -5766,6 +5769,15 @@ void DeferredReferenceSetKeyedValue::Generate() {
   // Call the IC stub.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
+  // The delta from the start of the map-compare instruction to the
+  // test instruction.  We use masm_-> directly here instead of the
+  // __ macro because the macro sometimes uses macro expansion to turn
+  // into something that can't return a value.  This is encountered
+  // when doing generated code coverage tests.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  masm_->test(eax, Immediate(-delta_to_patch_site));
   // Restore value (returned from store IC), key and receiver
   // registers.
   if (!value_.is(eax)) __ mov(value_, eax);
@@ -6122,9 +6134,15 @@ void Reference::SetValue(InitState init_state) {
         // is not a dictionary.
         __ mov(tmp.reg(),
                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+        // Bind the deferred code patch site to be able to locate the
+        // fixed array map comparison.  When debugging, we patch this
+        // comparison to always fail so that we will hit the IC call
+        // in the deferred code which will allow the debugger to
+        // break for fast case stores.
+        __ bind(deferred->patch_site());
         __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
-                           Immediate(Factory::hash_table_map()));
-        deferred->Branch(equal);
+               Immediate(Factory::fixed_array_map()));
+        deferred->Branch(not_equal);
 
         // Store the value.
         __ mov(Operand(tmp.reg(),
@@ -6141,6 +6159,11 @@ void Reference::SetValue(InitState init_state) {
         cgen_->frame()->Push(&value);
       } else {
         Result answer = cgen_->frame()->CallKeyedStoreIC();
+        // Make sure that we do not have a test instruction after the
+        // call.  A test instruction after the call is used to
+        // indicate that we have generated an inline version of the
+        // keyed store.
+        __ nop();
         cgen_->frame()->Push(&answer);
       }
       break;

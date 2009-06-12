@@ -503,6 +503,12 @@ bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   return false;
 }
 
+void KeyedStoreIC::ClearInlinedVersion(Address address) {}
+void KeyedStoreIC::RestoreInlinedVersion(Address address) {}
+bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
+  return false;
+}
+
 
 Object* KeyedLoadIC_Miss(Arguments args);
 
