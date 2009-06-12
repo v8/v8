@@ -317,9 +317,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         if (function_return_.is_bound()) {
           function_return_.Jump(&undefined);
         } else {
-          // Though this is a (possibly) backward block, the frames
-          // can only differ on their top element.
-          function_return_.Bind(&undefined, 1);
+          function_return_.Bind(&undefined);
           GenerateReturnSequence(&undefined);
         }
       } else if (function_return_.is_linked()) {
@@ -329,9 +327,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         // compile an artificial return statement just above, and (b) there
         // are return statements in the body but (c) they are all shadowed.
         Result return_value;
-        // Though this is a (possibly) backward block, the frames can
-        // only differ on their top element.
-        function_return_.Bind(&return_value, 1);
+        function_return_.Bind(&return_value);
         GenerateReturnSequence(&return_value);
       }
     }
@@ -2328,9 +2324,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
       // code by jumping to the return site.
       function_return_.Jump(&return_value);
     } else {
-      // Though this is a (possibly) backward block, the frames can
-      // only differ on their top element.
-      function_return_.Bind(&return_value, 1);
+      function_return_.Bind(&return_value);
       GenerateReturnSequence(&return_value);
     }
   }

@@ -1526,7 +1526,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
   return NULL;
 }
 
-void JumpTarget::DoBind(int a) {
+void JumpTarget::DoBind() {
   UNIMPLEMENTED();
 }
 
