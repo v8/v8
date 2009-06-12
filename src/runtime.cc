@@ -6336,10 +6336,9 @@ class ScopeIterator {
         // Materialize the content of the closure scope into a JSObject.
         return MaterializeClosure(CurrentContext());
         break;
-      default:
-        UNREACHABLE();
-        return Handle<JSObject>();
     }
+    UNREACHABLE();
+    return Handle<JSObject>();
   }
 
   // Return the context for this scope. For the local context there might not
