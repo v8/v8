@@ -1871,13 +1871,19 @@ void CodeGenerator::Comparison(Condition cc,
       // Implement comparison against a constant Smi, inlining the case
       // where both sides are Smis.
       left_side.ToRegister();
-      ASSERT(left_side.is_valid());
-      JumpTarget is_smi;
-      __ test(left_side.reg(), Immediate(kSmiTagMask));
-      is_smi.Branch(zero, &left_side, &right_side, taken);
 
-      // Setup and call the compare stub, which expects its arguments
-      // in registers.
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_smi;
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+      __ test(left_side.reg(), Immediate(kSmiTagMask));
+      is_smi.Branch(zero, taken);
+
+      // Setup and call the compare stub.
       CompareStub stub(cc, strict);
       Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
@@ -1886,12 +1892,12 @@ void CodeGenerator::Comparison(Condition cc,
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
 
-      is_smi.Bind(&left_side, &right_side);
-      left_side.ToRegister();
+      is_smi.Bind();
+      left_side = Result(left_reg);
+      right_side = Result(right_val);
       // Test smi equality and comparison by signed int comparison.
       if (IsUnsafeSmi(right_side.handle())) {
         right_side.ToRegister();
-        ASSERT(right_side.is_valid());
         __ cmp(left_side.reg(), Operand(right_side.reg()));
       } else {
         __ cmp(Operand(left_side.reg()), Immediate(right_side.handle()));
@@ -1943,35 +1949,50 @@ void CodeGenerator::Comparison(Condition cc,
         (right_side.is_constant() && !right_side.handle()->IsSmi());
     left_side.ToRegister();
     right_side.ToRegister();
-    JumpTarget is_smi;
-    if (!known_non_smi) {
-      // Check for the smi case.
+
+    if (known_non_smi) {
+      // When non-smi, call out to the compare stub.
+      CompareStub stub(cc, strict);
+      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+      if (cc == equal) {
+        __ test(answer.reg(), Operand(answer.reg()));
+      } else {
+        __ cmp(answer.reg(), 0);
+      }
+      answer.Unuse();
+      dest->Split(cc);
+    } else {
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_smi;
+      Register left_reg = left_side.reg();
+      Register right_reg = right_side.reg();
+
       Result temp = allocator_->Allocate();
       ASSERT(temp.is_valid());
       __ mov(temp.reg(), left_side.reg());
       __ or_(temp.reg(), Operand(right_side.reg()));
       __ test(temp.reg(), Immediate(kSmiTagMask));
       temp.Unuse();
-      is_smi.Branch(zero, &left_side, &right_side, taken);
-    }
-    // When non-smi, call out to the compare stub, which expects its
-    // arguments in registers.
-    CompareStub stub(cc, strict);
-    Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-    if (cc == equal) {
-      __ test(answer.reg(), Operand(answer.reg()));
-    } else {
-      __ cmp(answer.reg(), 0);
-    }
-    answer.Unuse();
-    if (known_non_smi) {
-      dest->Split(cc);
-    } else {
+      is_smi.Branch(zero, taken);
+      // When non-smi, call out to the compare stub.
+      CompareStub stub(cc, strict);
+      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+      if (cc == equal) {
+        __ test(answer.reg(), Operand(answer.reg()));
+      } else {
+        __ cmp(answer.reg(), 0);
+      }
+      answer.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
-      is_smi.Bind(&left_side, &right_side);
-      left_side.ToRegister();
-      right_side.ToRegister();
+
+      is_smi.Bind();
+      left_side = Result(left_reg);
+      right_side = Result(right_reg);
       __ cmp(left_side.reg(), Operand(right_side.reg()));
       right_side.Unuse();
       left_side.Unuse();
