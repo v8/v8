@@ -79,9 +79,15 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
+#if V8_HOST_ARCH_ARM
+int Heap::semispace_size_  = 512*KB;
+int Heap::old_generation_size_ = 128*MB;
+int Heap::initial_semispace_size_ = 128*KB;
+#else
 int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
+#endif
 
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
