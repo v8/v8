@@ -4943,7 +4943,23 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
+
+  // Make sure the frame is aligned like the OS expects.
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    __ mov(edi, Operand(esp));  // Save in callee-saved register.
+    __ and_(esp, -kFrameAlignment);
+  }
+
+  // Call V8::RandomPositiveSmi().
   __ call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
+
+  // Restore stack pointer from callee-saved register edi.
+  if (kFrameAlignment > 0) {
+    __ mov(esp, Operand(edi));
+  }
+
   Result result = allocator_->Allocate(eax);
   frame_->Push(&result);
 }
