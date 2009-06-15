@@ -230,7 +230,7 @@ class LogMessageBuilder BASE_EMBEDDED {
   void Append(const char* format, ...);
 
   // Append string data to the log message.
-  void Append(const char* format, va_list args);
+  void AppendVA(const char* format, va_list args);
 
   // Append a character to the log message.
   void Append(const char c);

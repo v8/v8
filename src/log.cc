@@ -402,7 +402,7 @@ void Logger::ApiEvent(const char* format, ...) {
   LogMessageBuilder msg;
   va_list ap;
   va_start(ap, format);
-  msg.Append(format, ap);
+  msg.AppendVA(format, ap);
   va_end(ap);
   msg.WriteToLogFile();
 }

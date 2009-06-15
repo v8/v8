@@ -215,13 +215,13 @@ void LogMessageBuilder::Append(const char* format, ...) {
                    Log::kMessageBufferSize - pos_);
   va_list args;
   va_start(args, format);
-  Append(format, args);
+  AppendVA(format, args);
   va_end(args);
   ASSERT(pos_ <= Log::kMessageBufferSize);
 }
 
 
-void LogMessageBuilder::Append(const char* format, va_list args) {
+void LogMessageBuilder::AppendVA(const char* format, va_list args) {
   Vector<char> buf(Log::message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
   int result = v8::internal::OS::VSNPrintF(buf, format, args);
