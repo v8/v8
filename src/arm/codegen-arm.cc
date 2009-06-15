@@ -3416,7 +3416,7 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
-  Load(args->at(0));
+  LoadAndSpill(args->at(0));
   switch (op) {
     case SIN:
       __ CallRuntime(Runtime::kMath_sin, 1);

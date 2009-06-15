@@ -4995,11 +4995,8 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
 
   // Store the result in the allocated heap number.
   __ fstp_d(FieldOperand(heap_number.reg(), HeapNumber::kValueOffset));
-  // Pop the extra copy of the argument.
-  frame_->Pop();
-  // Push the result on the frame.
-  frame_->Push(&heap_number);
-  heap_number.Unuse();
+  // Replace the extra copy of the argument with the result.
+  frame_->SetElementAt(0, &heap_number);
   done.Jump();
 
   call_runtime.Bind();
