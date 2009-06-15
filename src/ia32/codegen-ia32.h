@@ -518,6 +518,9 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateGetFramePointer(ZoneList<Expression*>* args);
 
+  // Fast support for Math.random().
+  void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
+
   // Methods and constants for fast case switch statement support.
   //
   // Only allow fast-case switch if the range of labels is at most

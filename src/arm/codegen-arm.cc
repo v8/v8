@@ -3405,6 +3405,15 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 0);
+  __ Call(ExternalReference::random_positive_smi_function().address(),
+          RelocInfo::RUNTIME_ENTRY);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);

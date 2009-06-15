@@ -388,8 +388,8 @@ class ExternalReference BASE_EMBEDDED {
   // ExternalReferenceTable in serialize.cc manually.
 
   static ExternalReference perform_gc_function();
-
   static ExternalReference builtin_passed_function();
+  static ExternalReference random_positive_smi_function();
 
   // Static variable Factory::the_hole_value.location()
   static ExternalReference the_hole_value_location();

@@ -652,6 +652,10 @@ void ExternalReferenceTable::PopulateTable() {
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
+  Add(ExternalReference::random_positive_smi_function().address(),
+      RUNTIME_ENTRY,
+      2,
+      "V8::RandomPositiveSmi");
 
   // Miscellaneous
   Add(ExternalReference::builtin_passed_function().address(),

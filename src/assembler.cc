@@ -553,6 +553,11 @@ ExternalReference ExternalReference::builtin_passed_function() {
 }
 
 
+ExternalReference ExternalReference::random_positive_smi_function() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(V8::RandomPositiveSmi)));
+}
+
+
 ExternalReference ExternalReference::the_hole_value_location() {
   return ExternalReference(Factory::the_hole_value().location());
 }

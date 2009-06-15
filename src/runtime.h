@@ -135,7 +135,6 @@ namespace internal {
   F(Math_floor, 1) \
   F(Math_log, 1) \
   F(Math_pow, 2) \
-  F(Math_random, 0) \
   F(Math_round, 1) \
   F(Math_sin, 1) \
   F(Math_sqrt, 1) \
