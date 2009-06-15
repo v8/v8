@@ -3419,10 +3419,10 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   LoadAndSpill(args->at(0));
   switch (op) {
     case SIN:
-      __ CallRuntime(Runtime::kMath_sin, 1);
+      frame_->CallRuntime(Runtime::kMath_sin, 1);
       break;
     case COS:
-      __ CallRuntime(Runtime::kMath_cos, 1);
+      frame_->CallRuntime(Runtime::kMath_cos, 1);
       break;
   }
   frame_->EmitPush(r0);
