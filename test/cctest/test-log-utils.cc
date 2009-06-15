@@ -139,7 +139,7 @@ TEST(DynaBufSealing) {
 
 
 TEST(CompressorStore) {
-  LogRecordCompressor comp(2, 0);
+  LogRecordCompressor comp(2);
   const Vector<const char> empty = CStrVector("");
   CHECK(comp.Store(empty));
   CHECK(!comp.Store(empty));
@@ -169,7 +169,7 @@ void CheckCompression(LogRecordCompressor* comp,
 
 
 TEST(CompressorNonCompressed) {
-  LogRecordCompressor comp(2, 0);
+  LogRecordCompressor comp(0);
   CHECK(!comp.RetrievePreviousCompressed(NULL));
   const Vector<const char> empty = CStrVector("");
   CHECK(comp.Store(empty));
@@ -185,7 +185,7 @@ TEST(CompressorNonCompressed) {
 
 
 TEST(CompressorSingleLine) {
-  LogRecordCompressor comp(3, strlen("xxx,"));
+  LogRecordCompressor comp(1);
   const Vector<const char> string_1 = CStrVector("eee,ddd,ccc,bbb,aaa");
   CHECK(comp.Store(string_1));
   const Vector<const char> string_2 = CStrVector("fff,ddd,ccc,bbb,aaa");
@@ -196,14 +196,14 @@ TEST(CompressorSingleLine) {
   const Vector<const char> string_3 = CStrVector("hhh,ggg,ccc,bbb,aaa");
   CHECK(comp.Store(string_3));
   // string_2 compressed using string_1.
-  CheckCompression(&comp, "fff,#1:4");
-  CheckCompression(&comp, "fff,#1:4");
+  CheckCompression(&comp, "fff#1:3");
+  CheckCompression(&comp, "fff#1:3");
   CHECK(!comp.Store(string_3));
   // Expecting no changes.
-  CheckCompression(&comp, "fff,#1:4");
+  CheckCompression(&comp, "fff#1:3");
   CHECK(!comp.Store(string_3));
   // Expecting no changes.
-  CheckCompression(&comp, "fff,#1:4");
+  CheckCompression(&comp, "fff#1:3");
   const Vector<const char> string_4 = CStrVector("iii,hhh,ggg,ccc,bbb,aaa");
   CHECK(comp.Store(string_4));
   // string_3 compressed using string_2.
@@ -211,7 +211,7 @@ TEST(CompressorSingleLine) {
   const Vector<const char> string_5 = CStrVector("nnn,mmm,lll,kkk,jjj");
   CHECK(comp.Store(string_5));
   // string_4 compressed using string_3.
-  CheckCompression(&comp, "iii,#1:0");
+  CheckCompression(&comp, "iii,#1");
   const Vector<const char> string_6 = CStrVector("nnn,mmmmmm,lll,kkk,jjj");
   CHECK(comp.Store(string_6));
   // string_5 hasn't been compressed.
@@ -226,12 +226,12 @@ TEST(CompressorSingleLine) {
   const Vector<const char> string_8 = CStrVector("xxn,mmm,lll,kkk,jjj");
   CHECK(comp.Store(string_8));
   // string_7 compressed using string_5.
-  CheckCompression(&comp, "nnnn#1:1");
+  CheckCompression(&comp, "nnn#1");
   const Vector<const char> string_9 =
       CStrVector("aaaaaaaaaaaaa,bbbbbbbbbbbbbbbbb");
   CHECK(comp.Store(string_9));
   // string_8 compressed using string_7.
-  CheckCompression(&comp, "xxn,#1:7");
+  CheckCompression(&comp, "xx#1:5");
   const Vector<const char> string_10 =
       CStrVector("aaaaaaaaaaaaa,cccccccbbbbbbbbbb");
   CHECK(comp.Store(string_10));
@@ -245,8 +245,8 @@ TEST(CompressorSingleLine) {
 
 
 TEST(CompressorMultiLines) {
-  const int kWindowSize = 5;
-  LogRecordCompressor comp(kWindowSize, strlen("xxx,"));
+  const int kWindowSize = 3;
+  LogRecordCompressor comp(kWindowSize);
   const Vector<const char> string_1 = CStrVector("eee,ddd,ccc,bbb,aaa");
   CHECK(comp.Store(string_1));
   const Vector<const char> string_2 = CStrVector("iii,hhh,ggg,fff,aaa");
@@ -258,22 +258,22 @@ TEST(CompressorMultiLines) {
   const Vector<const char> string_5 = CStrVector("ooo,lll,kkk,jjj,aaa");
   CHECK(comp.Store(string_5));
   // string_4 compressed using string_2.
-  CheckCompression(&comp, "nnn,#2:4");
+  CheckCompression(&comp, "nnn#2:3");
   CHECK(comp.Store(string_1));
   // string_5 compressed using string_3.
-  CheckCompression(&comp, "ooo,#2:4");
+  CheckCompression(&comp, "ooo#2:3");
   CHECK(comp.Store(string_4));
   // string_1 is out of buffer by now, so it shouldn't be compressed.
-  CHECK_GE(5, kWindowSize);
+  CHECK_GE(3, kWindowSize);
   CheckCompression(&comp, string_1);
   CHECK(comp.Store(string_2));
   // string_4 compressed using itself.
-  CheckCompression(&comp, "nnn,#3:4");
+  CheckCompression(&comp, "#3");
 }
 
 
 TEST(CompressorBestSelection) {
-  LogRecordCompressor comp(5, strlen("xxx,"));
+  LogRecordCompressor comp(3);
   const Vector<const char> string_1 = CStrVector("eee,ddd,ccc,bbb,aaa");
   CHECK(comp.Store(string_1));
   const Vector<const char> string_2 = CStrVector("ddd,ccc,bbb,aaa");
@@ -281,12 +281,29 @@ TEST(CompressorBestSelection) {
   const Vector<const char> string_3 = CStrVector("fff,eee,ddd,ccc,bbb,aaa");
   CHECK(comp.Store(string_3));
   // string_2 compressed using string_1.
-  CheckCompression(&comp, "ddd,#1:8");
+  CheckCompression(&comp, "#1:4");
   const Vector<const char> string_4 = CStrVector("nnn,hhh,ggg,fff,aaa");
   CHECK(comp.Store(string_4));
   // Compressing string_3 using string_1 gives a better compression than
   // using string_2.
-  CheckCompression(&comp, "fff,#2:0");
+  CheckCompression(&comp, "fff,#2");
+}
+
+
+TEST(CompressorCompressibility) {
+  LogRecordCompressor comp(2);
+  const Vector<const char> string_1 = CStrVector("eee,ddd,ccc,bbb,aaa");
+  CHECK(comp.Store(string_1));
+  const Vector<const char> string_2 = CStrVector("ccc,bbb,aaa");
+  CHECK(comp.Store(string_2));
+  const Vector<const char> string_3 = CStrVector("aaa");
+  CHECK(comp.Store(string_3));
+  // string_2 compressed using string_1.
+  CheckCompression(&comp, "#1:8");
+  const Vector<const char> string_4 = CStrVector("xxx");
+  CHECK(comp.Store(string_4));
+  // string_3 can't be compressed using string_2 --- too short.
+  CheckCompression(&comp, string_3);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

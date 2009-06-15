@@ -71,6 +71,7 @@ class Profiler;
 class Semaphore;
 class SlidingStateWindow;
 class LogMessageBuilder;
+class CompressionHelper;
 
 #undef LOG
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -256,6 +257,9 @@ class Logger {
   // Profiler's sampling interval (in milliseconds).
   static const int kSamplingIntervalMs = 1;
 
+  // Size of window used for log records compression.
+  static const int kCompressionWindowSize = 4;
+
   // Emits the profiler's first message.
   static void ProfilerBeginEvent();
 
@@ -300,11 +304,12 @@ class Logger {
   // An array of log events names.
   static const char** log_events_;
 
-  // Counter for repeated tick events.
-  static int tick_repeat_count_;
+  // An instance of helper created if log compression is enabled.
+  static CompressionHelper* compression_helper_;
 
   // Internal implementation classes with access to
   // private members.
+  friend class CompressionHelper;
   friend class EventLog;
   friend class TimeLog;
   friend class Profiler;
