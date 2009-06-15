@@ -524,6 +524,8 @@ class CodeGenerator: public AstVisitor {
 
   void GenerateLog(ZoneList<Expression*>* args);
 
+  // Fast support for Math.random().
+  void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
 
   // Methods and constants for fast case switch statement support.
   //

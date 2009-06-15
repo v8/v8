@@ -373,6 +373,10 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
+void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* a) {
+  UNIMPLEMENTED();
+}
+
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
