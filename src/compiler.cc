@@ -181,13 +181,15 @@ static Handle<JSFunction> MakeFunction(bool is_global,
           String::cast(script->name())->ToCString(DISALLOW_NULLS);
       LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
                           *code, *data));
-      OProfileAgent::CreateNativeCodeRegion(*data, code->address(),
-                                            code->ExecutableSize());
+      OProfileAgent::CreateNativeCodeRegion(*data,
+                                            code->instruction_start(),
+                                            code->instruction_size());
     } else {
       LOG(CodeCreateEvent(is_eval ? Logger::EVAL_TAG : Logger::SCRIPT_TAG,
                           *code, ""));
       OProfileAgent::CreateNativeCodeRegion(is_eval ? "Eval" : "Script",
-          code->address(), code->ExecutableSize());
+                                            code->instruction_start(),
+                                            code->instruction_size());
     }
   }
 #endif
@@ -386,12 +388,14 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
                           String::cast(script->name()), line_num));
       OProfileAgent::CreateNativeCodeRegion(*func_name,
                                             String::cast(script->name()),
-                                            line_num, code->address(),
-                                            code->ExecutableSize());
+                                            line_num,
+                                            code->instruction_start(),
+                                            code->instruction_size());
     } else {
       LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, *code, *func_name));
-      OProfileAgent::CreateNativeCodeRegion(*func_name, code->address(),
-                                            code->ExecutableSize());
+      OProfileAgent::CreateNativeCodeRegion(*func_name,
+                                            code->instruction_start(),
+                                            code->instruction_size());
     }
   }
 #endif

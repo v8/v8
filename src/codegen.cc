@@ -306,8 +306,8 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
 
 #ifdef ENABLE_OPROFILE_AGENT
     OProfileAgent::CreateNativeCodeRegion(*node->name(),
-                                          code->address(),
-                                          code->ExecutableSize());
+                                          code->instruction_start(),
+                                          code->instruction_size());
 #endif
   }
 
