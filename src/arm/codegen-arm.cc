@@ -3414,6 +3414,21 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  Load(args->at(0));
+  switch (op) {
+    case SIN:
+      __ CallRuntime(Runtime::kMath_sin, 1);
+      break;
+    case COS:
+      __ CallRuntime(Runtime::kMath_cos, 1);
+      break;
+  }
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);

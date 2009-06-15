@@ -25,32 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test Math.sin and Math.cos.
 
-#ifndef V8_IA32_CODEGEN_IA32_INL_H_
-#define V8_IA32_CODEGEN_IA32_INL_H_
+var input_sin = [0, Math.PI, Math.PI / 6, Math.PI / 2, Math.pow(2, 70)];
+var input_cos = [0, Math.PI, Math.PI / 6, Math.PI / 2, Math.pow(2, 70)];
 
-namespace v8 {
-namespace internal {
+var output_sin = input_sin.map(Math.sin);
+var output_cos = input_sin.map(Math.cos);
 
-#define __ ACCESS_MASM(masm_)
+var expected_sin = [0,
+                    1.2246063538223773e-16,
+                    0.49999999999999994,
+                    1,
+                    -0.9983193022079332];
 
-// Platform-specific inline functions.
+var expected_cos = [1,
+                    -1,
+                    0.8660254037844387,
+                    6.123031769111886e-17,
+                    0.05795317798935058];
 
-void DeferredCode::Jump() { __ jmp(&entry_label_); }
-void DeferredCode::Branch(Condition cc) { __ j(cc, &entry_label_); }
-
-void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(SIN, args);
-}
-
-
-void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
-  GenerateFastMathOp(COS, args);
-}
-
-
-#undef __
-
-} }  // namespace v8::internal
-
-#endif  // V8_IA32_CODEGEN_IA32_INL_H_
+assertArrayEquals(expected_sin, output_sin, "sine");
+assertArrayEquals(expected_cos, output_cos, "cosine");

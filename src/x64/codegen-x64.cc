@@ -377,6 +377,10 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
+void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
+  UNIMPLEMENTED();
+}
+
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }

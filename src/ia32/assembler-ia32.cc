@@ -1656,6 +1656,22 @@ void Assembler::fchs() {
 }
 
 
+void Assembler::fcos() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD9);
+  EMIT(0xFF);
+}
+
+
+void Assembler::fsin() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD9);
+  EMIT(0xFE);
+}
+
+
 void Assembler::fadd(int i) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

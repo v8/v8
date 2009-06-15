@@ -714,6 +714,11 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
 
 class FloatingPointHelper : public AllStatic {
  public:
+  // Code pattern for loading a floating point value. Input value must
+  // be either a smi or a heap number object (fp value). Requirements:
+  // operand on TOS+1. Returns operand as floating point number on FPU
+  // stack.
+  static void LoadFloatOperand(MacroAssembler* masm, Register scratch);
   // Code pattern for loading floating point values. Input values must
   // be either smi or heap number objects (fp values). Requirements:
   // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
@@ -730,7 +735,8 @@ class FloatingPointHelper : public AllStatic {
   static void AllocateHeapNumber(MacroAssembler* masm,
                                  Label* need_gc,
                                  Register scratch1,
-                                 Register scratch2);
+                                 Register scratch2,
+                                 Register result);
 };
 
 
@@ -4943,6 +4949,76 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
+  JumpTarget done;
+  JumpTarget call_runtime;
+  ASSERT(args->length() == 1);
+
+  // Load number and duplicate it.
+  Load(args->at(0));
+  frame_->Dup();
+
+  // Get the number into an unaliased register and load it onto the
+  // floating point stack still leaving one copy on the frame.
+  Result number = frame_->Pop();
+  number.ToRegister();
+  frame_->Spill(number.reg());
+  FloatingPointHelper::LoadFloatOperand(masm_, number.reg());
+  number.Unuse();
+
+  // Perform the operation on the number.
+  switch (op) {
+    case SIN:
+      __ fsin();
+      break;
+    case COS:
+      __ fcos();
+      break;
+  }
+
+  // Go slow case if argument to operation is out of range.
+  __ fnstsw_ax();
+  __ sahf();
+  call_runtime.Branch(parity_even, not_taken);
+
+  // Allocate heap number for result if possible.
+  Result scratch1 = allocator()->Allocate();
+  Result scratch2 = allocator()->Allocate();
+  Result heap_number = allocator()->Allocate();
+  FloatingPointHelper::AllocateHeapNumber(masm_,
+                                          call_runtime.entry_label(),
+                                          scratch1.reg(),
+                                          scratch2.reg(),
+                                          heap_number.reg());
+  scratch1.Unuse();
+  scratch2.Unuse();
+
+  // Store the result in the allocated heap number.
+  __ fstp_d(FieldOperand(heap_number.reg(), HeapNumber::kValueOffset));
+  // Pop the extra copy of the argument.
+  frame_->Pop();
+  // Push the result on the frame.
+  frame_->Push(&heap_number);
+  heap_number.Unuse();
+  done.Jump();
+
+  call_runtime.Bind();
+  // Free ST(0) which was not popped before calling into the runtime.
+  __ ffree(0);
+  Result answer;
+  switch (op) {
+    case SIN:
+      answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
+      break;
+    case COS:
+      answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
+      break;
+  }
+  frame_->Push(&answer);
+  done.Bind();
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
@@ -6446,7 +6522,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           FloatingPointHelper::AllocateHeapNumber(masm,
                                                   &call_runtime,
                                                   ecx,
-                                                  edx);
+                                                  edx,
+                                                  eax);
           __ bind(&skip_allocation);
           break;
         default: UNREACHABLE();
@@ -6554,7 +6631,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             // Fall through!
           case NO_OVERWRITE:
             FloatingPointHelper::AllocateHeapNumber(masm, &call_runtime,
-                                                    ecx, edx);
+                                                    ecx, edx, eax);
             __ bind(&skip_allocation);
             break;
           default: UNREACHABLE();
@@ -6639,22 +6716,42 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
                                              Label* need_gc,
                                              Register scratch1,
-                                             Register scratch2) {
+                                             Register scratch2,
+                                             Register result) {
   ExternalReference allocation_top =
       ExternalReference::new_space_allocation_top_address();
   ExternalReference allocation_limit =
       ExternalReference::new_space_allocation_limit_address();
   __ mov(Operand(scratch1), Immediate(allocation_top));
-  __ mov(eax, Operand(scratch1, 0));
-  __ lea(scratch2, Operand(eax, HeapNumber::kSize));  // scratch2: new top
+  __ mov(result, Operand(scratch1, 0));
+  __ lea(scratch2, Operand(result, HeapNumber::kSize));  // scratch2: new top
   __ cmp(scratch2, Operand::StaticVariable(allocation_limit));
   __ j(above, need_gc, not_taken);
 
   __ mov(Operand(scratch1, 0), scratch2);  // store new top
-  __ mov(Operand(eax, HeapObject::kMapOffset),
+  __ mov(Operand(result, HeapObject::kMapOffset),
          Immediate(Factory::heap_number_map()));
   // Tag old top and use as result.
-  __ add(Operand(eax), Immediate(kHeapObjectTag));
+  __ add(Operand(result), Immediate(kHeapObjectTag));
+}
+
+
+void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
+                                           Register scratch) {
+  Label load_smi, done;
+
+  __ test(scratch, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi, not_taken);
+  __ fld_d(FieldOperand(scratch, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi);
+  __ sar(scratch, kSmiTagSize);
+  __ push(scratch);
+  __ fild_s(Operand(esp, 0));
+  __ pop(scratch);
+
+  __ bind(&done);
 }
 
 
@@ -6763,7 +6860,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   } else {
     __ mov(edx, Operand(eax));
     // edx: operand
-    FloatingPointHelper::AllocateHeapNumber(masm, &undo, ebx, ecx);
+    FloatingPointHelper::AllocateHeapNumber(masm, &undo, ebx, ecx, eax);
     // eax: allocated 'empty' number
     __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
     __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
