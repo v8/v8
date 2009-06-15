@@ -95,8 +95,8 @@ function MathExp(x) {
 // ECMA 262 - 15.8.2.9
 function MathFloor(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  if (0 < x && x <= 0xFFFFFFFF) {
-    // Numbers in the range [0, 2^32) can be floored by converting
+  if (0 < x && x <= 0x7FFFFFFF) {
+    // Numbers in the range [0, 2^31) can be floored by converting
     // them to an unsigned 32-bit value using the shift operator.
     // We avoid doing so for -0, because the result of Math.floor(-0)
     // has to be -0, which wouldn't be the case with the shift.
