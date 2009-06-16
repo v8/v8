@@ -1786,10 +1786,16 @@ int Map::inobject_properties() {
 
 int HeapObject::SizeFromMap(Map* map) {
   InstanceType instance_type = map->instance_type();
-  // Only inline the two most frequent cases.
-  if (instance_type == JS_OBJECT_TYPE) return  map->instance_size();
+  // Only inline the most frequent cases.
+  if (instance_type == JS_OBJECT_TYPE ||
+      (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+      (kStringTag | kConsStringTag) ||
+      instance_type == JS_ARRAY_TYPE) return map->instance_size();
   if (instance_type == FIXED_ARRAY_TYPE) {
     return reinterpret_cast<FixedArray*>(this)->FixedArraySize();
+  }
+  if (instance_type == BYTE_ARRAY_TYPE) {
+    return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
   }
   // Otherwise do the general size computation.
   return SlowSizeFromMap(map);
