@@ -157,18 +157,13 @@ TickProcessor.prototype.processLogFile = function(fileName) {
 
 TickProcessor.prototype.processLog = function(lines) {
   var csvParser = new devtools.profiler.CsvParser();
-  try {
-    for (var i = 0, n = lines.length; i < n; ++i) {
-      var line = lines[i];
-      if (!line) {
-        continue;
-      }
-      var fields = csvParser.parseLine(line);
-      this.dispatchLogRow(fields);
+  for (var i = 0, n = lines.length; i < n; ++i) {
+    var line = lines[i];
+    if (!line) {
+      continue;
     }
-  } catch (e) {
-    print('line ' + (i + 1) + ': ' + (e.message || e));
-    throw e;
+    var fields = csvParser.parseLine(line);
+    this.dispatchLogRow(fields);
   }
 };
 
@@ -487,11 +482,16 @@ UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) . (.*)$/;
 
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
-  this.symbols = [
-    os.system('nm', ['-C', '-n', libName], -1, -1),
-    os.system('nm', ['-C', '-n', '-D', libName], -1, -1)
-  ];
   this.parsePos = 0;
+  try {
+    this.symbols = [
+      os.system('nm', ['-C', '-n', libName], -1, -1),
+      os.system('nm', ['-C', '-n', '-D', libName], -1, -1)
+    ];
+  } catch (e) {
+    // If the library cannot be found on this system let's not panic.
+    this.symbols = [ '', '' ];
+  }
 };
 
 
