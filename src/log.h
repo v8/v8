@@ -217,11 +217,11 @@ class Logger {
   static void HeapSampleItemEvent(const char* type, int number, int bytes);
 
   static void SharedLibraryEvent(const char* library_path,
-                                 unsigned start,
-                                 unsigned end);
+                                 uintptr_t start,
+                                 uintptr_t end);
   static void SharedLibraryEvent(const wchar_t* library_path,
-                                 unsigned start,
-                                 unsigned end);
+                                 uintptr_t start,
+                                 uintptr_t end);
 
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.

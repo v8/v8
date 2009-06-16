@@ -426,26 +426,30 @@ void Logger::ApiNamedSecurityCheck(Object* key) {
 
 
 void Logger::SharedLibraryEvent(const char* library_path,
-                                unsigned start,
-                                unsigned end) {
+                                uintptr_t start,
+                                uintptr_t end) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
-  msg.Append("shared-library,\"%s\",0x%08x,0x%08x\n", library_path,
-             start, end);
+  msg.Append("shared-library,\"%s\",0x%08" V8PRIxPTR ",0x%08" V8PRIxPTR "\n",
+             library_path,
+             start,
+             end);
   msg.WriteToLogFile();
 #endif
 }
 
 
 void Logger::SharedLibraryEvent(const wchar_t* library_path,
-                                unsigned start,
-                                unsigned end) {
+                                uintptr_t start,
+                                uintptr_t end) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_prof) return;
   LogMessageBuilder msg;
-  msg.Append("shared-library,\"%ls\",0x%08x,0x%08x\n", library_path,
-             start, end);
+  msg.Append("shared-library,\"%ls\",0x%08" V8PRIxPTR ",0x%08" V8PRIxPTR "\n",
+             library_path,
+             start,
+             end);
   msg.WriteToLogFile();
 #endif
 }
