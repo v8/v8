@@ -433,7 +433,7 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
   function addPrevEntry(end) {
     // Several functions can be mapped onto the same address. To avoid
     // creating zero-sized entries, skip such duplicates.
-    if (prevEntry && prevEntry.start != end) {
+    if (prevEntry && prevEntry.start < end) {
       processorFunc(prevEntry.name, prevEntry.start, end);
     }
   }
@@ -478,7 +478,7 @@ function UnixCppEntriesProvider() {
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
 
-UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) . (.*)$/;
+UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) [tT] (.*)$/;
 
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
