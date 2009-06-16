@@ -2416,6 +2416,19 @@ static Object* Runtime_NumberToRadixString(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
+  // Fast case where the result is a one character string.
+  if (args[0]->IsSmi() && args[1]->IsSmi()) {
+    int value = Smi::cast(args[0])->value();
+    int radix = Smi::cast(args[1])->value();
+    if (value >= 0 && value < radix) {
+      RUNTIME_ASSERT(radix <= 36);
+      // Character array used for conversion.
+      static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+      return Heap::LookupSingleCharacterStringFromCode(kCharTable[value]);
+    }
+  }
+
+  // Slow case.
   CONVERT_DOUBLE_CHECKED(value, args[0]);
   if (isnan(value)) {
     return Heap::AllocateStringFromAscii(CStrVector("NaN"));
