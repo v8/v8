@@ -1806,6 +1806,12 @@ class CompareStub: public CodeStub {
     return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
   }
 
+  // Branch to the label if the given object isn't a symbol.
+  void BranchIfNonSymbol(MacroAssembler* masm,
+                         Label* label,
+                         Register object,
+                         Register scratch);
+
 #ifdef DEBUG
   void Print() {
     PrintF("CompareStub (cc %d), (strict %s)\n",
@@ -6992,17 +6998,16 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Save the return address (and get it off the stack).
+  // Push arguments below the return address.
   __ pop(ecx);
-
-  // Push arguments.
   __ push(eax);
   __ push(edx);
   __ push(ecx);
 
   // Inlined floating point compare.
   // Call builtin if operands are not floating point or smi.
-  FloatingPointHelper::CheckFloatOperands(masm, &call_builtin, ebx);
+  Label check_for_symbols;
+  FloatingPointHelper::CheckFloatOperands(masm, &check_for_symbols, ebx);
   FloatingPointHelper::LoadFloatOperands(masm, ecx);
   __ FCmp();
 
@@ -7025,6 +7030,18 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ bind(&above_lbl);
   __ mov(eax, 1);
   __ ret(2 * kPointerSize);  // eax, edx were pushed
+
+  // Fast negative check for symbol-to-symbol equality.
+  __ bind(&check_for_symbols);
+  if (cc_ == equal) {
+    BranchIfNonSymbol(masm, &call_builtin, eax, ecx);
+    BranchIfNonSymbol(masm, &call_builtin, edx, ecx);
+
+    // We've already checked for object identity, so if both operands
+    // are symbols they aren't equal. Register eax already holds a
+    // non-zero value, which indicates not equal, so just return.
+    __ ret(2 * kPointerSize);
+  }
 
   __ bind(&call_builtin);
   // must swap argument order
@@ -7056,6 +7073,20 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ InvokeBuiltin(builtin, JUMP_FUNCTION);
+}
+
+
+void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
+                                    Label* label,
+                                    Register object,
+                                    Register scratch) {
+  __ test(object, Immediate(kSmiTagMask));
+  __ j(zero, label);
+  __ mov(scratch, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, kIsSymbolMask | kIsNotStringMask);
+  __ cmp(scratch, kSymbolTag | kStringTag);
+  __ j(not_equal, label);
 }
 
 
