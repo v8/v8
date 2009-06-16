@@ -224,14 +224,19 @@ function BIT_AND(y) {
   var x;
   if (IS_NUMBER(this)) {
     x = this;
+    if (!IS_NUMBER(y)) y = %ToNumber(y);
   } else {
     x = %ToNumber(this);
+    // Make sure to convert the right operand to a number before
+    // bailing out in the fast case, but after converting the
+    // left operand. This ensures that valueOf methods on the right
+    // operand are always executed.
+    if (!IS_NUMBER(y)) y = %ToNumber(y);
     // Optimize for the case where we end up AND'ing a value
     // that doesn't convert to a number. This is common in
     // certain benchmarks.
     if (NUMBER_IS_NAN(x)) return 0;
   }
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
   return %NumberAnd(x, y);
 }
 
@@ -271,14 +276,19 @@ function SAR(y) {
   var x;
   if (IS_NUMBER(this)) {
     x = this;
+    if (!IS_NUMBER(y)) y = %ToNumber(y);
   } else {
     x = %ToNumber(this);
+    // Make sure to convert the right operand to a number before
+    // bailing out in the fast case, but after converting the
+    // left operand. This ensures that valueOf methods on the right
+    // operand are always executed.
+    if (!IS_NUMBER(y)) y = %ToNumber(y);
     // Optimize for the case where we end up shifting a value
     // that doesn't convert to a number. This is common in
     // certain benchmarks.
     if (NUMBER_IS_NAN(x)) return 0;
   }
-  if (!IS_NUMBER(y)) y = %ToNumber(y);
   return %NumberSar(x, y);
 }
 
