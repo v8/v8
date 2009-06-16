@@ -2237,6 +2237,52 @@ TEST(DebugStepKeyedLoadLoop) {
 }
 
 
+// Test of the stepping mechanism for keyed store in a loop.
+TEST(DebugStepKeyedStoreLoop) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Create a function for testing stepping of keyed store. The statement 'y=1'
+  // is there to have more than one breakable statement in the loop, TODO(315).
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function foo(a) {\n"
+      "  var len = a.length;\n"
+      "  for (var i = 0; i < len; i++) {\n"
+      "    y = 1;\n"
+      "    a[i] = 42;\n"
+      "  }\n"
+      "}\n",
+      "foo");
+
+  // Create array [0,1,2,3,4,5,6,7,8,9]
+  v8::Local<v8::Array> a = v8::Array::New(10);
+  for (int i = 0; i < 10; i++) {
+    a->Set(v8::Number::New(i), v8::Number::New(i));
+  }
+
+  // Call function without any break points to ensure inlining is in place.
+  const int kArgc = 1;
+  v8::Handle<v8::Value> args[kArgc] = { a };
+  foo->Call(env->Global(), kArgc, args);
+
+  // Register a debug event listener which steps and counts.
+  v8::Debug::SetDebugEventListener(DebugEventStep);
+
+  // Setup break point and step through the function.
+  SetBreakPoint(foo, 3);
+  step_action = StepNext;
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), kArgc, args);
+
+  // With stepping all break locations are hit.
+  CHECK_EQ(22, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Test the stepping mechanism with different ICs.
 TEST(DebugStepLinearMixedICs) {
   v8::HandleScope scope;
