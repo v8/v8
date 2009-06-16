@@ -1471,85 +1471,6 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 }
 
 
-int CodeGenerator::FastCaseSwitchMaxOverheadFactor() {
-  return kFastSwitchMaxOverheadFactor;
-}
-
-int CodeGenerator::FastCaseSwitchMinCaseCount() {
-  return kFastSwitchMinCaseCount;
-}
-
-
-void CodeGenerator::GenerateFastCaseSwitchJumpTable(
-    SwitchStatement* node,
-    int min_index,
-    int range,
-    Label* default_label,
-    Vector<Label*> case_targets,
-    Vector<Label> case_labels) {
-  VirtualFrame::SpilledScope spilled_scope;
-  JumpTarget setup_default;
-  JumpTarget is_smi;
-
-  // A non-null default label pointer indicates a default case among
-  // the case labels.  Otherwise we use the break target as a
-  // "default" for failure to hit the jump table.
-  JumpTarget* default_target =
-      (default_label == NULL) ? node->break_target() : &setup_default;
-
-  ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
-  frame_->EmitPop(r0);
-
-  // Test for a Smi value in a HeapNumber.
-  __ tst(r0, Operand(kSmiTagMask));
-  is_smi.Branch(eq);
-  __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
-  default_target->Branch(ne);
-  frame_->EmitPush(r0);
-  frame_->CallRuntime(Runtime::kNumberToSmi, 1);
-  is_smi.Bind();
-
-  if (min_index != 0) {
-    // Small positive numbers can be immediate operands.
-    if (min_index < 0) {
-      // If min_index is Smi::kMinValue, -min_index is not a Smi.
-      if (Smi::IsValid(-min_index)) {
-        __ add(r0, r0, Operand(Smi::FromInt(-min_index)));
-      } else {
-        __ add(r0, r0, Operand(Smi::FromInt(-min_index - 1)));
-        __ add(r0, r0, Operand(Smi::FromInt(1)));
-      }
-    } else {
-      __ sub(r0, r0, Operand(Smi::FromInt(min_index)));
-    }
-  }
-  __ tst(r0, Operand(0x80000000 | kSmiTagMask));
-  default_target->Branch(ne);
-  __ cmp(r0, Operand(Smi::FromInt(range)));
-  default_target->Branch(ge);
-  VirtualFrame* start_frame = new VirtualFrame(frame_);
-  __ SmiJumpTable(r0, case_targets);
-
-  GenerateFastCaseSwitchCases(node, case_labels, start_frame);
-
-  // If there was a default case among the case labels, we need to
-  // emit code to jump to it from the default target used for failure
-  // to hit the jump table.
-  if (default_label != NULL) {
-    if (has_valid_frame()) {
-      node->break_target()->Jump();
-    }
-    setup_default.Bind();
-    frame_->MergeTo(start_frame);
-    __ b(default_label);
-    DeleteFrame();
-  }
-  if (node->break_target()->is_linked()) {
-    node->break_target()->Bind();
-  }
-}
-
-
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 #ifdef DEBUG
   int original_height = frame_->height();
@@ -1560,10 +1481,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   LoadAndSpill(node->tag());
-  if (TryGenerateFastCaseSwitchStatement(node)) {
-    ASSERT(!has_valid_frame() || frame_->height() == original_height);
-    return;
-  }
 
   JumpTarget next_test;
   JumpTarget fall_through;

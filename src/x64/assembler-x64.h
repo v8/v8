@@ -812,11 +812,6 @@ class Assembler : public Malloced {
   // Used for inline tables, e.g., jump-tables.
   // void dd(uint64_t data, RelocInfo::Mode reloc_info);
 
-  // Writes the absolute address of a bound label at the given position in
-  // the generated code. That positions should have the relocation mode
-  // internal_reference!
-  void WriteInternalReference(int position, const Label& bound_label);
-
   int pc_offset() const  { return pc_ - buffer_; }
   int current_statement_position() const { return current_statement_position_; }
   int current_position() const  { return current_position_; }
