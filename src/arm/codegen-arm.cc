@@ -4728,27 +4728,53 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
 
 
 // Tries to get a signed int32 out of a double precision floating point heap
-// number.  Rounds towards 0.  Only succeeds for doubles that are in the ranges
+// number.  Rounds towards 0.  Fastest for doubles that are in the ranges
 // -0x7fffffff to -0x40000000 or 0x40000000 to 0x7fffffff.  This corresponds
 // almost to the range of signed int32 values that are not Smis.  Jumps to the
-// label if the double isn't in the range it can cope with.
+// label 'slow' if the double isn't in the range -0x80000000.0 to 0x80000000.0
+// (excluding the endpoints).
 static void GetInt32(MacroAssembler* masm,
                      Register source,
                      Register dest,
                      Register scratch,
+                     Register scratch2,
                      Label* slow) {
-  Register scratch2 = dest;
+  Label right_exponent, done;
   // Get exponent word.
   __ ldr(scratch, FieldMemOperand(source, HeapNumber::kExponentOffset));
   // Get exponent alone in scratch2.
   __ and_(scratch2, scratch, Operand(HeapNumber::kExponentMask));
+  // Load dest with zero.  We use this either for the final shift or
+  // for the answer.
+  __ mov(dest, Operand(0));
   // Check whether the exponent matches a 32 bit signed int that is not a Smi.
-  // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased).
+  // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased).  This is
+  // the exponent that we are fastest at and also the highest exponent we can
+  // handle here.
   const uint32_t non_smi_exponent =
       (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
   __ cmp(scratch2, Operand(non_smi_exponent));
-  // If not, then we go slow.
-  __ b(ne, slow);
+  // If we have a match of the int32-but-not-Smi exponent then skip some logic.
+  __ b(eq, &right_exponent);
+  // If the exponent is higher than that then go to slow case.  This catches
+  // numbers that don't fit in a signed int32, infinities and NaNs.
+  __ b(gt, slow);
+
+  // We know the exponent is smaller than 30 (biased).  If it is less than
+  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+  // it rounds to zero.
+  const uint32_t zero_exponent =
+      (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
+  __ sub(scratch2, scratch2, Operand(zero_exponent), SetCC);
+  // Dest already has a Smi zero.
+  __ b(lt, &done);
+  // We have a shifted exponent between 0 and 30 in scratch2.
+  __ mov(dest, Operand(scratch2, LSR, HeapNumber::kExponentShift));
+  // We now have the exponent in dest.  Subtract from 30 to get
+  // how much to shift down.
+  __ rsb(dest, dest, Operand(30));
+
+  __ bind(&right_exponent);
   // Get the top bits of the mantissa.
   __ and_(scratch2, scratch, Operand(HeapNumber::kMantissaMask));
   // Put back the implicit 1.
@@ -4760,12 +4786,17 @@ static void GetInt32(MacroAssembler* masm,
   __ mov(scratch2, Operand(scratch2, LSL, shift_distance));
   // Put sign in zero flag.
   __ tst(scratch, Operand(HeapNumber::kSignMask));
-  // Get the second half of the double.
+  // Get the second half of the double.  For some exponents we don't actually
+  // need this because the bits get shifted out again, but it's probably slower
+  // to test than just to do it.
   __ ldr(scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
   // Shift down 22 bits to get the last 10 bits.
-  __ orr(dest, scratch2, Operand(scratch, LSR, 32 - shift_distance));
+  __ orr(scratch, scratch2, Operand(scratch, LSR, 32 - shift_distance));
+  // Move down according to the exponent.
+  __ mov(dest, Operand(scratch, LSR, dest));
   // Fix sign if sign bit was set.
   __ rsb(dest, dest, Operand(0), LeaveCC, ne);
+  __ bind(&done);
 }
 
 
@@ -4785,7 +4816,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
   __ b(eq, &r1_is_smi);  // It's a Smi so don't check it's a heap number.
   __ CompareObjectType(r1, r4, r4, HEAP_NUMBER_TYPE);
   __ b(ne, &slow);
-  GetInt32(masm, r1, r3, r4, &slow);
+  GetInt32(masm, r1, r3, r4, r5, &slow);
   __ jmp(&done_checking_r1);
   __ bind(&r1_is_smi);
   __ mov(r3, Operand(r1, ASR, 1));
@@ -4795,7 +4826,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
   __ b(eq, &r0_is_smi);  // It's a Smi so don't check it's a heap number.
   __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
   __ b(ne, &slow);
-  GetInt32(masm, r0, r2, r4, &slow);
+  GetInt32(masm, r0, r2, r4, r5, &slow);
   __ jmp(&done_checking_r0);
   __ bind(&r0_is_smi);
   __ mov(r2, Operand(r0, ASR, 1));
