@@ -531,8 +531,10 @@ void MacroAssembler::InvokeFunction(Register function,
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
-  movq(rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+  movl(rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  // Advances rdx to the end of the Code object headers, to the start of
+  // the executable code.
   lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
 
   ParameterCount expected(rbx);

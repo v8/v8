@@ -100,6 +100,8 @@ void VirtualFrame::Exit() {
   // short. We need the return sequence to be a least the size of a
   // call instruction to support patching the exit code in the
   // debugger. See VisitReturnStatement for the full return sequence.
+  // TODO(X64): A patched call will be very long now.  Make sure we
+  // have enough room.
   __ movq(rsp, rbp);
   stack_pointer_ = frame_pointer();
   for (int i = element_count() - 1; i > stack_pointer_; i--) {

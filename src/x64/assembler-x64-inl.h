@@ -151,11 +151,6 @@ void RelocInfo::apply(int delta) {
   if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
     intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
     *p -= delta;  // relocate entry
-  } else if (rmode_ == JS_RETURN && IsCallInstruction()) {
-    // Special handling of js_return when a break point is set (call
-    // instruction has been inserted).
-    intptr_t* p = reinterpret_cast<intptr_t*>(pc_ + 1);
-    *p -= delta;  // relocate entry
   } else if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
