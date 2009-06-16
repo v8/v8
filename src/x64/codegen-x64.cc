@@ -30,6 +30,8 @@
 #include "macro-assembler.h"
 #include "register-allocator-inl.h"
 #include "codegen.h"
+// TEST
+#include "compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -97,83 +99,118 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
 }
 
 void CodeGenerator::TestCodeGenerator() {
-  // Generate code.
-  ZoneScope zone_scope(DELETE_ON_EXIT);
-  const int initial_buffer_size = 4 * KB;
-  CodeGenerator cgen(initial_buffer_size, NULL, false);
-  CodeGeneratorScope scope(&cgen);
-  Scope dummy_scope;
-  cgen.scope_ = &dummy_scope;
-  cgen.GenCode(NULL);
+  // Compile a function from a string, and run it.
+  Handle<JSFunction> test_function = Compiler::Compile(
+      Factory::NewStringFromAscii(CStrVector("42")),
+      Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
+      0,
+      0,
+      NULL,
+      NULL);
 
-  CodeDesc desc;
-  cgen.masm()->GetCode(&desc);
+  Code* code_object = test_function->code();  // Local for debugging ease.
+  USE(code_object);
+
+  // Create a dummy function and context.
+  Handle<JSFunction> bridge =
+      Factory::NewFunction(Factory::empty_symbol(), Factory::undefined_value());
+  Handle<Context> context =
+    Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
+
+  test_function = Factory::NewFunctionFromBoilerplate(
+      test_function,
+      context);
+
+  bool pending_exceptions;
+  Handle<Object> result =
+      Execution::Call(test_function,
+                      Handle<Object>::cast(test_function),
+                      0,
+                      NULL,
+                      &pending_exceptions);
+  CHECK(result->IsSmi());
+  CHECK_EQ(42, Smi::cast(*result)->value());
 }
 
 
 void CodeGenerator::GenCode(FunctionLiteral* function) {
-  if (function != NULL) {
-    CodeForFunctionPosition(function);
-    // ASSERT(scope_ == NULL);
-    // scope_ = function->scope();
-    __ int3();  // UNIMPLEMENTED
-  } else {
-    // GenCode Implementation under construction.  Run by TestCodeGenerator
-    // with a == NULL.
-    // Everything guarded by if (function) should be run, unguarded,
-    // once testing is over.
-    // Record the position for debugging purposes.
-    if (function) {
-      CodeForFunctionPosition(function);
-    }
-    // ZoneList<Statement*>* body = fun->body();
+  // Record the position for debugging purposes.
+  CodeForFunctionPosition(function);
+  // ZoneList<Statement*>* body = fun->body();
 
-    // Initialize state.
-    // While testing, scope is set in cgen before calling GenCode().
-    if (function) {
-      ASSERT(scope_ == NULL);
-      scope_ = function->scope();
-    }
-    ASSERT(allocator_ == NULL);
-    RegisterAllocator register_allocator(this);
-    allocator_ = &register_allocator;
-    ASSERT(frame_ == NULL);
-    frame_ = new VirtualFrame();
-    set_in_spilled_code(false);
+  // Initialize state.
+  ASSERT(scope_ == NULL);
+  scope_ = function->scope();
+  ASSERT(allocator_ == NULL);
+  RegisterAllocator register_allocator(this);
+  allocator_ = &register_allocator;
+  ASSERT(frame_ == NULL);
+  frame_ = new VirtualFrame();
+  set_in_spilled_code(false);
 
-    // Adjust for function-level loop nesting.
-    // loop_nesting_ += fun->loop_nesting();
+  // Adjust for function-level loop nesting.
+  loop_nesting_ += function->loop_nesting();
 
-    JumpTarget::set_compiling_deferred_code(false);
+  JumpTarget::set_compiling_deferred_code(false);
 
 #ifdef DEBUG
-    if (strlen(FLAG_stop_at) > 0 &&
-        //    fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-        false) {
-      frame_->SpillAll();
-      __ int3();
-    }
+  if (strlen(FLAG_stop_at) > 0 &&
+      //    fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      false) {
+    frame_->SpillAll();
+    __ int3();
+  }
 #endif
 
-    // New scope to get automatic timing calculation.
-    {  // NOLINT
-      HistogramTimerScope codegen_timer(&Counters::code_generation);
-      CodeGenState state(this);
+  // New scope to get automatic timing calculation.
+  {  // NOLINT
+    HistogramTimerScope codegen_timer(&Counters::code_generation);
+    CodeGenState state(this);
 
-      // Entry:
-      // Stack: receiver, arguments, return address.
-      // ebp: caller's frame pointer
-      // esp: stack pointer
-      // edi: called JS function
-      // esi: callee's context
-      allocator_->Initialize();
-      frame_->Enter();
+    // Entry:
+    // Stack: receiver, arguments, return address.
+    // ebp: caller's frame pointer
+    // esp: stack pointer
+    // edi: called JS function
+    // esi: callee's context
+    allocator_->Initialize();
+    frame_->Enter();
 
-      __ movq(rax, Immediate(0x2a));
-      __ Ret();
-    }
+    Result return_register = allocator_->Allocate(rax);
+
+    __ movq(return_register.reg(), Immediate(0x54));  // Smi 42
+
+    GenerateReturnSequence(&return_register);
   }
 }
+
+void CodeGenerator::GenerateReturnSequence(Result* return_value) {
+  // The return value is a live (but not currently reference counted)
+  // reference to rax.  This is safe because the current frame does not
+  // contain a reference to rax (it is prepared for the return by spilling
+  // all registers).
+  if (FLAG_trace) {
+    frame_->Push(return_value);
+    // *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
+  }
+  return_value->ToRegister(rax);
+
+  // Add a label for checking the size of the code used for returning.
+  Label check_exit_codesize;
+  masm_->bind(&check_exit_codesize);
+
+  // Leave the frame and return popping the arguments and the
+  // receiver.
+  frame_->Exit();
+  masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
+  DeleteFrame();
+
+  // Check that the size of the code used for returning matches what is
+  // expected by the debugger.
+  // ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
+  //          masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+}
+
 
 void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
                                                     int b,
