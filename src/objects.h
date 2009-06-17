@@ -59,7 +59,6 @@
 //             - SymbolTable
 //             - CompilationCacheTable
 //             - MapCache
-//             - LookupCache
 //           - Context
 //           - GlobalContext
 //       - String
@@ -678,7 +677,6 @@ class Object BASE_EMBEDDED {
   inline bool IsSymbolTable();
   inline bool IsCompilationCacheTable();
   inline bool IsMapCache();
-  inline bool IsLookupCache();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
   inline bool IsJSGlobalObject();
@@ -2009,27 +2007,6 @@ class MapCache: public HashTable<0, 2> {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(MapCache);
-};
-
-
-// LookupCache.
-//
-// Maps a key consisting of a map and a name to an index within a
-// fast-case properties array.
-//
-// LookupCaches are used to avoid repeatedly searching instance
-// descriptors.
-class LookupCache: public HashTable<0, 2> {
- public:
-  int Lookup(Map* map, String* name);
-  Object* Put(Map* map, String* name, int offset);
-  static inline LookupCache* cast(Object* obj);
-
-  // Constant returned by Lookup when the key was not found.
-  static const int kNotFound = -1;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(LookupCache);
 };
 
 

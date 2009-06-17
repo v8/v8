@@ -215,26 +215,6 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-Object* Heap::GetKeyedLookupCache() {
-  if (keyed_lookup_cache()->IsUndefined()) {
-    Object* obj = LookupCache::Allocate(4);
-    if (obj->IsFailure()) return obj;
-    keyed_lookup_cache_ = obj;
-  }
-  return keyed_lookup_cache();
-}
-
-
-void Heap::SetKeyedLookupCache(LookupCache* cache) {
-  keyed_lookup_cache_ = cache;
-}
-
-
-void Heap::ClearKeyedLookupCache() {
-  keyed_lookup_cache_ = undefined_value();
-}
-
-
 void Heap::SetLastScriptId(Object* last_script_id) {
   last_script_id_ = last_script_id;
 }

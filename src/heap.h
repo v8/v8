@@ -126,7 +126,6 @@ namespace internal {
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
   V(FixedArray, natives_source_cache)                   \
-  V(Object, keyed_lookup_cache)                         \
   V(Object, last_script_id)
 
 
@@ -700,11 +699,6 @@ class Heap : public AllStatic {
     non_monomorphic_cache_ = value;
   }
 
-  // Gets, sets and clears the lookup cache used for keyed access.
-  static inline Object* GetKeyedLookupCache();
-  static inline void SetKeyedLookupCache(LookupCache* cache);
-  static inline void ClearKeyedLookupCache();
-
   // Update the next script id.
   static inline void SetLastScriptId(Object* last_script_id);
 
@@ -1137,6 +1131,30 @@ class HeapIterator BASE_EMBEDDED {
   SpaceIterator* space_iterator_;
   // Object iterator for the space currently being iterated.
   ObjectIterator* object_iterator_;
+};
+
+
+// Cache for mapping (map, property name) into field offset.
+// Cleared at startup and prior to mark sweep collection.
+class KeyedLookupCache {
+ public:
+  // Lookup field offset for (map, name). If absent, -1 is returned.
+  static int Lookup(Map* map, String* name);
+
+  // Update an element in the cache.
+  static void Update(Map* map, String* name, int field_offset);
+
+  // Clear the cache.
+  static void Clear();
+ private:
+  inline static int Hash(Map* map, String* name);
+  static const int kLength = 128;
+  struct Key {
+    Map* map;
+    String* name;
+  };
+  static Key keys_[kLength];
+  static int field_offsets_[kLength];
 };
 
 

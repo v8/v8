@@ -6756,60 +6756,6 @@ class SymbolsKey : public HashTableKey {
 };
 
 
-// MapNameKeys are used as keys in lookup caches.
-class MapNameKey : public HashTableKey {
- public:
-  MapNameKey(Map* map, String* name)
-      : map_(map), name_(name) { }
-
-  bool IsMatch(Object* other) {
-    if (!other->IsFixedArray()) return false;
-    FixedArray* pair = FixedArray::cast(other);
-    Map* map = Map::cast(pair->get(0));
-    if (map != map_) return false;
-    String* name = String::cast(pair->get(1));
-    return name->Equals(name_);
-  }
-
-  typedef uint32_t (*HashFunction)(Object* obj);
-
-  virtual HashFunction GetHashFunction() { return MapNameHash; }
-
-  static uint32_t MapNameHashHelper(Map* map, String* name) {
-    // Uses only lower 32 bits if pointers are larger.
-    uintptr_t addr_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
-    return addr_hash ^ name->Hash();
-  }
-
-  static uint32_t MapNameHash(Object* obj) {
-    FixedArray* pair = FixedArray::cast(obj);
-    Map* map = Map::cast(pair->get(0));
-    String* name = String::cast(pair->get(1));
-    return MapNameHashHelper(map, name);
-  }
-
-  virtual uint32_t Hash() {
-    return MapNameHashHelper(map_, name_);
-  }
-
-  virtual Object* GetObject() {
-    Object* obj = Heap::AllocateFixedArray(2);
-    if (obj->IsFailure()) return obj;
-    FixedArray* pair = FixedArray::cast(obj);
-    pair->set(0, map_);
-    pair->set(1, name_);
-    return pair;
-  }
-
-  virtual bool IsStringKey() { return false; }
-
- private:
-  Map* map_;
-  String* name_;
-};
-
-
 Object* MapCache::Lookup(FixedArray* array) {
   SymbolsKey key(array);
   int entry = FindEntry(&key);
@@ -6827,31 +6773,6 @@ Object* MapCache::Put(FixedArray* array, Map* value) {
   int entry = cache->FindInsertionEntry(array, key.Hash());
   cache->set(EntryToIndex(entry), array);
   cache->set(EntryToIndex(entry) + 1, value);
-  cache->ElementAdded();
-  return cache;
-}
-
-
-int LookupCache::Lookup(Map* map, String* name) {
-  MapNameKey key(map, name);
-  int entry = FindEntry(&key);
-  if (entry == -1) return kNotFound;
-  return Smi::cast(get(EntryToIndex(entry) + 1))->value();
-}
-
-
-Object* LookupCache::Put(Map* map, String* name, int value) {
-  MapNameKey key(map, name);
-  Object* obj = EnsureCapacity(1, &key);
-  if (obj->IsFailure()) return obj;
-  Object* k = key.GetObject();
-  if (k->IsFailure()) return k;
-
-  LookupCache* cache = reinterpret_cast<LookupCache*>(obj);
-  int entry = cache->FindInsertionEntry(k, key.Hash());
-  int index = EntryToIndex(entry);
-  cache->set(index, k);
-  cache->set(index + 1, Smi::FromInt(value), SKIP_WRITE_BARRIER);
   cache->ElementAdded();
   return cache;
 }

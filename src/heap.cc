@@ -500,7 +500,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 void Heap::MarkCompactPrologue(bool is_compacting) {
   // At any old GC clear the keyed lookup cache to enable collection of unused
   // maps.
-  ClearKeyedLookupCache();
+  KeyedLookupCache::Clear();
 
   CompilationCache::MarkCompactPrologue();
 
@@ -1364,7 +1364,7 @@ bool Heap::CreateInitialObjects() {
   last_script_id_ = undefined_value();
 
   // Initialize keyed lookup cache.
-  ClearKeyedLookupCache();
+  KeyedLookupCache::Clear();
 
   // Initialize compilation cache.
   CompilationCache::Clear();
@@ -3476,6 +3476,45 @@ const char* GCTracer::CollectorString() {
   }
   return "Unknown GC";
 }
+
+
+int KeyedLookupCache::Hash(Map* map, String* name) {
+  // Uses only lower 32 bits if pointers are larger.
+  uintptr_t addr_hash =
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> 2;
+  return (addr_hash ^ name->Hash()) % kLength;
+}
+
+
+int KeyedLookupCache::Lookup(Map* map, String* name) {
+  int index = Hash(map, name);
+  Key& key = keys_[index];
+  if ((key.map == map) && key.name->Equals(name)) {
+    return field_offsets_[index];
+  }
+  return -1;
+}
+
+
+void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
+  String* symbol;
+  if (Heap::LookupSymbolIfExists(name, &symbol)) {
+    int index = Hash(map, symbol);
+    Key& key = keys_[index];
+    key.map = map;
+    key.name = symbol;
+    field_offsets_[index] = field_offset;
+  }
+}
+
+
+void KeyedLookupCache::Clear() {
+  for (int index = 0; index < kLength; index++) keys_[index].map = NULL;
+}
+
+KeyedLookupCache::Key KeyedLookupCache::keys_[KeyedLookupCache::kLength];
+
+int KeyedLookupCache::field_offsets_[KeyedLookupCache::kLength];
 
 
 #ifdef DEBUG
