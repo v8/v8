@@ -92,6 +92,7 @@ js1_5/Regress/regress-360969-03: PASS || TIMEOUT if $mode == debug
 js1_5/Regress/regress-360969-04: PASS || TIMEOUT if $mode == debug
 js1_5/Regress/regress-360969-05: PASS || TIMEOUT if $mode == debug
 js1_5/Regress/regress-360969-06: PASS || TIMEOUT if $mode == debug
+js1_5/extensions/regress-365527: PASS || TIMEOUT if $mode == debug
 
 js1_5/Regress/regress-280769-3: PASS || FAIL if $mode == debug
 js1_5/Regress/regress-203278-1: PASS || FAIL if $mode == debug
@@ -99,7 +100,6 @@ js1_5/GC/regress-203278-2: PASS || FAIL if $mode == debug
 js1_5/Regress/regress-244470: PASS || FAIL if $mode == debug
 ecma_3/RegExp/regress-209067: PASS || FAIL if $mode == debug
 js1_5/GC/regress-278725: PASS || FAIL if $mode == debug
-js1_5/extensions/regress-365527: PASS || FAIL if $mode == debug
 # http://b/issue?id=1206983
 js1_5/Regress/regress-367561-03: PASS || FAIL if $mode == debug
 ecma/Date/15.9.5.10-2: PASS || FAIL if $mode == debug
@@ -149,7 +149,7 @@ js1_5/String/regress-322772: PASS || FAIL
 js1_5/Array/regress-99120-01: PASS || FAIL
 js1_5/Array/regress-99120-02: PASS || FAIL
 js1_5/Regress/regress-347306-01: PASS || FAIL
-js1_5/Regress/regress-416628: PASS || FAIL
+js1_5/Regress/regress-416628: PASS || FAIL || TIMEOUT if $mode == debug
 
 
 # The following two tests assume that daylight savings time starts first Sunday
@@ -204,7 +204,7 @@ ecma/String/15.5.4.12-4: FAIL_OK
 ecma/String/15.5.4.12-5: FAIL_OK
 
 # Creates a linked list of arrays until we run out of memory or timeout.
-js1_5/Regress/regress-312588: FAIL_OK
+js1_5/Regress/regress-312588: FAIL || TIMEOUT
 
 
 # Runs out of memory because it compiles huge functions.
