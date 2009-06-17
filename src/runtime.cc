@@ -522,12 +522,9 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 static Object* Runtime_RegExpCompile(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
-  CONVERT_CHECKED(JSRegExp, raw_re, args[0]);
-  Handle<JSRegExp> re(raw_re);
-  CONVERT_CHECKED(String, raw_pattern, args[1]);
-  Handle<String> pattern(raw_pattern);
-  CONVERT_CHECKED(String, raw_flags, args[2]);
-  Handle<String> flags(raw_flags);
+  CONVERT_ARG_CHECKED(JSRegExp, re, 0);
+  CONVERT_ARG_CHECKED(String, pattern, 1);
+  CONVERT_ARG_CHECKED(String, flags, 2);
   Handle<Object> result = RegExpImpl::Compile(re, pattern, flags);
   if (result.is_null()) return Failure::Exception();
   return *result;
@@ -537,8 +534,7 @@ static Object* Runtime_RegExpCompile(Arguments args) {
 static Object* Runtime_CreateApiFunction(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
-  CONVERT_CHECKED(FunctionTemplateInfo, raw_data, args[0]);
-  Handle<FunctionTemplateInfo> data(raw_data);
+  CONVERT_ARG_CHECKED(FunctionTemplateInfo, data, 0);
   return *Factory::CreateApiFunction(data);
 }
 
@@ -1066,15 +1062,12 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
-  CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
-  Handle<JSRegExp> regexp(raw_regexp);
-  CONVERT_CHECKED(String, raw_subject, args[1]);
-  Handle<String> subject(raw_subject);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_CHECKED(String, subject, 1);
   // Due to the way the JS files are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CONVERT_CHECKED(Smi, index, args[2]);
-  CONVERT_CHECKED(JSArray, raw_last_match_info, args[3]);
-  Handle<JSArray> last_match_info(raw_last_match_info);
+  CONVERT_ARG_CHECKED(JSArray, last_match_info, 3);
   RUNTIME_ASSERT(last_match_info->HasFastElements());
   RUNTIME_ASSERT(index->value() >= 0);
   RUNTIME_ASSERT(index->value() <= subject->length());
@@ -1217,8 +1210,7 @@ static Object* Runtime_SetCode(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
 
-  CONVERT_CHECKED(JSFunction, raw_target, args[0]);
-  Handle<JSFunction> target(raw_target);
+  CONVERT_ARG_CHECKED(JSFunction, target, 0);
   Handle<Object> code = args.at<Object>(1);
 
   Handle<Context> context(target->context());
@@ -2972,9 +2964,7 @@ static Object* Runtime_IsPropertyEnumerable(Arguments args) {
 static Object* Runtime_GetPropertyNames(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
-
-  CONVERT_CHECKED(JSObject, raw_object, args[0]);
-  Handle<JSObject> object(raw_object);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
   return *GetKeysFor(object);
 }
 
@@ -6663,8 +6653,8 @@ static Object* Runtime_GetBreakLocations(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
 
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  Handle<SharedFunctionInfo> shared(raw_fun->shared());
+  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
+  Handle<SharedFunctionInfo> shared(fun->shared());
   // Find the number of break points
   Handle<Object> break_locations = Debug::GetSourceBreakLocations(shared);
   if (break_locations->IsUndefined()) return Heap::undefined_value();
@@ -6681,8 +6671,8 @@ static Object* Runtime_GetBreakLocations(Arguments args) {
 static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  Handle<SharedFunctionInfo> shared(raw_fun->shared());
+  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
+  Handle<SharedFunctionInfo> shared(fun->shared());
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   RUNTIME_ASSERT(source_position >= 0);
   Handle<Object> break_point_object_arg = args.at<Object>(2);
