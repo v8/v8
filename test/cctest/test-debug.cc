@@ -4281,7 +4281,7 @@ TEST(DebuggerUnload) {
     bar->Call(env->Global(), 0, NULL);
     CHECK_EQ(4, break_point_hit_count);
   }
-   
+
   // Remove the debug event listener without clearing breakpoints. Do this
   // outside a handle scope.
   v8::Debug::SetDebugEventListener(NULL);
