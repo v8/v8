@@ -6366,7 +6366,7 @@ class ApplyInterruptTest {
             "function do_very_little(bar) {"
             "  this.foo = bar;"
             "}"
-            "for (var i = 0; i < 100000; i++) {"
+            "for (var i = 0; i < 10000; i++) {"
             "  do_very_little.apply(this, ['bar']);"
             "}";
         Local<String> source = String::New(c_source);
