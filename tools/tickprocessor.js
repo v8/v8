@@ -478,7 +478,7 @@ function UnixCppEntriesProvider() {
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
 
-UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) [tT] (.*)$/;
+UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) [tTwW] (.*)$/;
 
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
