@@ -4235,57 +4235,83 @@ TEST(CallFunctionInDebugger) {
 }
 
 
+// Debugger message handler which counts the number of breaks.
+static void SendContinueCommand();
+static void MessageHandlerBreakPointHitCount(
+    const v8::Debug::Message& message) {
+  if (message.IsEvent() && message.GetEvent() == v8::Break) {
+    // Count the number of breaks.
+    break_point_hit_count++;
+
+    SendContinueCommand();
+  }
+}
+
+
 // Test that clearing the debug event listener actually clears all break points
 // and related information.
 TEST(DebuggerUnload) {
-  v8::HandleScope scope;
   DebugLocalContext env;
 
   // Check debugger is unloaded before it is used.
   CheckDebuggerUnloaded();
 
-  // Add debug event listener.
+  // Set a debug event listener.
+  break_point_hit_count = 0;
   v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
                                    v8::Undefined());
-  // Create a couple of functions for the test.
-  v8::Local<v8::Function> foo =
-      CompileFunction(&env, "function foo(){x=1}", "foo");
-  v8::Local<v8::Function> bar =
-      CompileFunction(&env, "function bar(){y=2}", "bar");
+  {
+    v8::HandleScope scope;
+    // Create a couple of functions for the test.
+    v8::Local<v8::Function> foo =
+        CompileFunction(&env, "function foo(){x=1}", "foo");
+    v8::Local<v8::Function> bar =
+        CompileFunction(&env, "function bar(){y=2}", "bar");
 
-  // Set some break points.
-  SetBreakPoint(foo, 0);
-  SetBreakPoint(foo, 4);
-  SetBreakPoint(bar, 0);
-  SetBreakPoint(bar, 4);
+    // Set some break points.
+    SetBreakPoint(foo, 0);
+    SetBreakPoint(foo, 4);
+    SetBreakPoint(bar, 0);
+    SetBreakPoint(bar, 4);
 
-  // Make sure that the break points are there.
-  break_point_hit_count = 0;
-  foo->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, break_point_hit_count);
-  bar->Call(env->Global(), 0, NULL);
-  CHECK_EQ(4, break_point_hit_count);
-
-  // Remove the debug event listener without clearing breakpoints.
+    // Make sure that the break points are there.
+    break_point_hit_count = 0;
+    foo->Call(env->Global(), 0, NULL);
+    CHECK_EQ(2, break_point_hit_count);
+    bar->Call(env->Global(), 0, NULL);
+    CHECK_EQ(4, break_point_hit_count);
+  }
+   
+  // Remove the debug event listener without clearing breakpoints. Do this
+  // outside a handle scope.
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded(true);
 
-  // Set a new debug event listener.
-  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
-                                   v8::Undefined());
-  // Check that the break points was actually cleared.
+  // Now set a debug message handler.
   break_point_hit_count = 0;
-  foo->Call(env->Global(), 0, NULL);
-  CHECK_EQ(0, break_point_hit_count);
+  v8::Debug::SetMessageHandler2(MessageHandlerBreakPointHitCount);
+  {
+    v8::HandleScope scope;
 
-  // Set break points and run again.
-  SetBreakPoint(foo, 0);
-  SetBreakPoint(foo, 4);
-  foo->Call(env->Global(), 0, NULL);
-  CHECK_EQ(2, break_point_hit_count);
+    // Get the test functions again.
+    v8::Local<v8::Function> foo =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("foo")));
+    v8::Local<v8::Function> bar =
+      v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("foo")));
 
-  // Remove the debug event listener without clearing breakpoints again.
-  v8::Debug::SetDebugEventListener(NULL);
+    foo->Call(env->Global(), 0, NULL);
+    CHECK_EQ(0, break_point_hit_count);
+
+    // Set break points and run again.
+    SetBreakPoint(foo, 0);
+    SetBreakPoint(foo, 4);
+    foo->Call(env->Global(), 0, NULL);
+    CHECK_EQ(2, break_point_hit_count);
+  }
+
+  // Remove the debug message handler without clearing breakpoints. Do this
+  // outside a handle scope.
+  v8::Debug::SetMessageHandler2(NULL);
   CheckDebuggerUnloaded(true);
 }
 
