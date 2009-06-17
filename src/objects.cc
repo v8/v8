@@ -4977,10 +4977,8 @@ Object* JSArray::Initialize(int capacity) {
 }
 
 
-void JSArray::EnsureSize(int required_size) {
+void JSArray::Expand(int required_size) {
   Handle<JSArray> self(this);
-  ASSERT(HasFastElements());
-  if (elements()->length() >= required_size) return;
   Handle<FixedArray> old_backing(elements());
   int old_size = old_backing->length();
   // Doubling in size would be overkill, but leave some slack to avoid

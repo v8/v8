@@ -2639,6 +2639,13 @@ void Map::ClearCodeCache() {
 }
 
 
+void JSArray::EnsureSize(int required_size) {
+  ASSERT(HasFastElements());
+  if (elements()->length() >= required_size) return;
+  Expand(required_size);
+}
+
+
 void JSArray::SetContent(FixedArray* storage) {
   set_length(Smi::FromInt(storage->length()), SKIP_WRITE_BARRIER);
   set_elements(storage);
