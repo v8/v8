@@ -1815,7 +1815,7 @@ void Assembler::fcompp() {
 void Assembler::fnstsw_ax() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xdF);
+  EMIT(0xDF);
   EMIT(0xE0);
 }
 

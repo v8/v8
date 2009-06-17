@@ -59,6 +59,18 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
 }
 
 
+void MacroAssembler::NegativeZeroTest(Register result,
+                                      Register op,
+                                      Label* then_label) {
+  Label ok;
+  testq(result, result);
+  j(not_zero, &ok);
+  testq(op, op);
+  j(sign, then_label);
+  bind(&ok);
+}
+
+
 void MacroAssembler::ConstructAndTestJSFunction() {
   const int initial_buffer_size = 4 * KB;
   char* buffer = new char[initial_buffer_size];

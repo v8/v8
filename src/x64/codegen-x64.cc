@@ -378,27 +378,26 @@ void CodeGenerator::VisitThisFunction(ThisFunction* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
+void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED();}
 
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
@@ -406,7 +405,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
@@ -418,11 +417,11 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
@@ -434,6 +433,483 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* a) {
 
 //  Stub classes have public member named masm, not masm_.
 #define __ ACCESS_MASM(masm)
+
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
+};
+
+
+void ToBooleanStub::Generate(MacroAssembler* masm) {
+  Label false_result, true_result, not_string;
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+
+  // 'null' => false.
+  __ movq(kScratchRegister, Factory::null_value(), RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(rax, kScratchRegister);
+  __ j(equal, &false_result);
+
+  // Get the map and type of the heap object.
+  __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxbq(rcx, FieldOperand(rdx, Map::kInstanceTypeOffset));
+
+  // Undetectable => false.
+  __ movzxbq(rbx, FieldOperand(rdx, Map::kBitFieldOffset));
+  __ and_(rbx, Immediate(1 << Map::kIsUndetectable));
+  __ j(not_zero, &false_result);
+
+  // JavaScript object => true.
+  __ cmpq(rcx, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ j(above_equal, &true_result);
+
+  // String value => false iff empty.
+  __ cmpq(rcx, Immediate(FIRST_NONSTRING_TYPE));
+  __ j(above_equal, &not_string);
+  __ and_(rcx, Immediate(kStringSizeMask));
+  __ cmpq(rcx, Immediate(kShortStringTag));
+  __ j(not_equal, &true_result);  // Empty string is always short.
+  __ movq(rdx, FieldOperand(rax, String::kLengthOffset));
+  __ shr(rdx, Immediate(String::kShortLengthShift));
+  __ j(zero, &false_result);
+  __ jmp(&true_result);
+
+  __ bind(&not_string);
+  // HeapNumber => false iff +0, -0, or NaN.
+  __ movq(kScratchRegister,
+          Factory::heap_number_map(),
+          RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(rdx, kScratchRegister);
+  __ j(not_equal, &true_result);
+  // TODO(x64): Don't use fp stack, use MMX registers?
+  __ fldz();  // Load zero onto fp stack
+  // Load heap-number double value onto fp stack
+  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  __ fucompp();  // Compare and pop both values.
+  __ movq(kScratchRegister, rax);
+  __ fnstsw_ax();  // Store fp status word in ax, no checking for exceptions.
+  __ testb(rax, Immediate(0x08));  // Test FP condition flag C3.
+  __ movq(rax, kScratchRegister);
+  __ j(zero, &false_result);
+  // Fall through to |true_result|.
+
+  // Return 1/0 for true/false in rax.
+  __ bind(&true_result);
+  __ movq(rax, Immediate(1));
+  __ ret(1 * kPointerSize);
+  __ bind(&false_result);
+  __ xor_(rax, rax);
+  __ ret(1 * kPointerSize);
+}
+
+
+// Flag that indicates whether or not the code that handles smi arguments
+// should be placed in the stub, inlined, or omitted entirely.
+enum GenericBinaryFlags {
+  SMI_CODE_IN_STUB,
+  SMI_CODE_INLINED
+};
+
+
+class GenericBinaryOpStub: public CodeStub {
+ public:
+  GenericBinaryOpStub(Token::Value op,
+                      OverwriteMode mode,
+                      GenericBinaryFlags flags)
+      : op_(op), mode_(mode), flags_(flags) {
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
+
+  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
+
+ private:
+  Token::Value op_;
+  OverwriteMode mode_;
+  GenericBinaryFlags flags_;
+
+  const char* GetName();
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("GenericBinaryOpStub (op %s), (mode %d, flags %d)\n",
+           Token::String(op_),
+           static_cast<int>(mode_),
+           static_cast<int>(flags_));
+  }
+#endif
+
+  // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 13> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
+
+  Major MajorKey() { return GenericBinaryOp; }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           | FlagBits::encode(flags_);
+  }
+  void Generate(MacroAssembler* masm);
+};
+
+
+const char* GenericBinaryOpStub::GetName() {
+  switch (op_) {
+    case Token::ADD: return "GenericBinaryOpStub_ADD";
+    case Token::SUB: return "GenericBinaryOpStub_SUB";
+    case Token::MUL: return "GenericBinaryOpStub_MUL";
+    case Token::DIV: return "GenericBinaryOpStub_DIV";
+    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
+    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
+    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
+    case Token::SAR: return "GenericBinaryOpStub_SAR";
+    case Token::SHL: return "GenericBinaryOpStub_SHL";
+    case Token::SHR: return "GenericBinaryOpStub_SHR";
+    default:         return "GenericBinaryOpStub";
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
+  // Perform fast-case smi code for the operation (rax <op> rbx) and
+  // leave result in register rax.
+
+  // Prepare the smi check of both operands by or'ing them together
+  // before checking against the smi mask.
+  __ movq(rcx, rbx);
+  __ or_(rcx, rax);
+
+  switch (op_) {
+    case Token::ADD:
+      __ addl(rax, rbx);  // add optimistically
+      __ j(overflow, slow);
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+
+    case Token::SUB:
+      __ subl(rax, rbx);  // subtract optimistically
+      __ j(overflow, slow);
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+
+    case Token::DIV:
+    case Token::MOD:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
+      break;
+
+    default:
+      // Fall-through to smi check.
+      break;
+  }
+
+  // Perform the actual smi check.
+  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+  __ testl(rcx, Immediate(kSmiTagMask));
+  __ j(not_zero, slow);
+
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+      // Do nothing here.
+      break;
+
+    case Token::MUL:
+      // If the smi tag is 0 we can just leave the tag on one operand.
+      ASSERT(kSmiTag == 0);  // adjust code below if not the case
+      // Remove tag from one of the operands (but keep sign).
+      __ sar(rax, Immediate(kSmiTagSize));
+      // Do multiplication.
+      __ imull(rax, rbx);  // multiplication of smis; result in eax
+      // Go slow on overflows.
+      __ j(overflow, slow);
+      // Check for negative zero result.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      __ NegativeZeroTest(rax, rcx, slow);  // use rcx = x | y
+      break;
+
+    case Token::DIV:
+      // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
+      __ idiv(rbx);
+      // Check that the remainder is zero.
+      __ testq(rdx, rdx);
+      __ j(not_zero, slow);
+      // Check for the corner case of dividing the most negative smi
+      // by -1. We cannot use the overflow flag, since it is not set
+      // by idiv instruction.
+      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+      // TODO(X64):TODO(Smi): Smi implementation dependent constant.
+      // Value is Smi::fromInt(-(1<<31)) / Smi::fromInt(-1)
+      __ cmpq(rax, Immediate(0x40000000));
+      __ j(equal, slow);
+      // Check for negative zero result.
+      __ NegativeZeroTest(rax, rcx, slow);  // use ecx = x | y
+      // Tag the result and store it in register rax.
+      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      break;
+
+    case Token::MOD:
+      // Divide rdx:rax by rbx.
+      __ idiv(rbx);
+      // Check for negative zero result.
+      __ NegativeZeroTest(rdx, rcx, slow);  // use ecx = x | y
+      // Move remainder to register rax.
+      __ movq(rax, rdx);
+      break;
+
+    case Token::BIT_OR:
+      __ or_(rax, rbx);
+      break;
+
+    case Token::BIT_AND:
+      __ and_(rax, rbx);
+      break;
+
+    case Token::BIT_XOR:
+      __ xor_(rax, rbx);
+      break;
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      // Move the second operand into register ecx.
+      __ movq(rcx, rbx);
+      // Remove tags from operands (but keep sign).
+      __ sar(rax, Immediate(kSmiTagSize));
+      __ sar(rcx, Immediate(kSmiTagSize));
+      // Perform the operation.
+      switch (op_) {
+        case Token::SAR:
+          __ sar(rax);
+          // No checks of result necessary
+          break;
+        case Token::SHR:
+          __ shrl(rax);  // ecx is implicit shift register
+          // Check that the *unsigned* result fits in a smi.
+          // Neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging.
+          // - 0x40000000: this number would convert to negative when
+          // Smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi.
+          __ testq(rax, Immediate(0xc0000000));
+          __ j(not_zero, slow);
+          break;
+        case Token::SHL:
+          __ shll(rax);
+          // TODO(Smi): Significant change if Smi changes.
+          // Check that the *signed* result fits in a smi.
+          // It does, if the 30th and 31st bits are equal, since then
+          // shifting the SmiTag in at the bottom doesn't change the sign.
+          ASSERT(kSmiTagSize == 1);
+          __ cmpl(rax, Immediate(0xc0000000));
+          __ j(sign, slow);
+          __ movsxlq(rax, rax);  // Extend new sign of eax into rax.
+          break;
+        default:
+          UNREACHABLE();
+      }
+      // Tag the result and store it in register eax.
+      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      break;
+
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
+}
+
+
+void UnarySubStub::Generate(MacroAssembler* masm) {
+}
+
+class CompareStub: public CodeStub {
+ public:
+  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Condition cc_;
+  bool strict_;
+
+  Major MajorKey() { return Compare; }
+
+  int MinorKey() {
+    // Encode the three parameters in a unique 16 bit value.
+    ASSERT(static_cast<int>(cc_) < (1 << 15));
+    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
+  }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("CompareStub (cc %d), (strict %s)\n",
+           static_cast<int>(cc_),
+           strict_ ? "true" : "false");
+  }
+#endif
+};
+
+
+void CompareStub::Generate(MacroAssembler* masm) {
+}
+
+
+void StackCheckStub::Generate(MacroAssembler* masm) {
+}
+
+
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#ifdef DEBUG
+  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
+#endif
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
+};
+
+
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+}
+
+
+void InstanceofStub::Generate(MacroAssembler* masm) {
+}
+
+
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // The displacement is used for skipping the return address and the
+  // frame pointer on the stack. It is the offset of the last
+  // parameter (if any) relative to the frame pointer.
+  static const int kDisplacement = 2 * kPointerSize;
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label runtime;
+  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
+  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(not_equal, &runtime);
+  // Value in rcx is Smi encoded.
+
+  // Patch the arguments.length and the parameters pointer.
+  __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ movq(Operand(rsp, 1 * kPointerSize), rcx);
+  __ lea(rdx, Operand(rdx, rcx, kTimes4, kDisplacement));
+  __ movq(Operand(rsp, 2 * kPointerSize), rdx);
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
+}
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The key is in rdx and the parameter count is in rax.
+
+  // The displacement is used for skipping the frame pointer on the
+  // stack. It is the offset of the last parameter (if any) relative
+  // to the frame pointer.
+  static const int kDisplacement = 1 * kPointerSize;
+
+  // Check that the key is a smi.
+  Label slow;
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(not_zero, &slow);
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(rcx, Operand(rbx, StandardFrameConstants::kContextOffset));
+  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(equal, &adaptor);
+
+  // Check index against formal parameters count limit passed in
+  // through register rax. Use unsigned comparison to get negative
+  // check for free.
+  __ cmpq(rdx, rax);
+  __ j(above_equal, &slow);
+
+  // Read the argument from the stack and return it.
+  // Shifting code depends on SmiEncoding being equivalent to left shift:
+  // we multiply by four to get pointer alignment.
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ lea(rbx, Operand(rbp, rax, kTimes4, 0));
+  __ neg(rdx);
+  __ movq(rax, Operand(rbx, rdx, kTimes4, kDisplacement));
+  __ Ret();
+
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
+  __ bind(&adaptor);
+  __ movq(rcx, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmpq(rdx, rcx);
+  __ j(above_equal, &slow);
+
+  // Read the argument from the stack and return it.
+  // Shifting code depends on SmiEncoding being equivalent to left shift:
+  // we multiply by four to get pointer alignment.
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ lea(rbx, Operand(rbx, rcx, kTimes4, 0));
+  __ neg(rdx);
+  __ movq(rax, Operand(rbx, rdx, kTimes4, kDisplacement));
+  __ Ret();
+
+  // Slow-case: Handle non-smi or out-of-bounds access to arguments
+  // by calling the runtime system.
+  __ bind(&slow);
+  __ pop(rbx);  // Return address.
+  __ push(rdx);
+  __ push(rbx);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+}
+
+
+void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
+  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(equal, &adaptor);
+
+  // Nothing to do: The formal number of parameters has already been
+  // passed in register rax by calling function. Just return it.
+  __ ret(0);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame and return it.
+  __ bind(&adaptor);
+  __ movq(rax, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ ret(0);
+}
+
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Check that stack should contain frame pointer, code pointer, state and
@@ -779,7 +1255,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(rbp);
   __ ret(0);
 }
-
 
 #undef __
 

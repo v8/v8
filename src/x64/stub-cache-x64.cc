@@ -25,3 +25,107 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
+#include "v8.h"
+
+#include "ic-inl.h"
+#include "codegen-inl.h"
+#include "stub-cache.h"
+
+namespace v8 {
+namespace internal {
+
+
+Object* CallStubCompiler::CompileCallConstant(Object* a,
+                                              JSObject* b,
+                                              JSFunction* c,
+                                              StubCompiler::CheckType d,
+                                              Code::Flags flags) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+Object* CallStubCompiler::CompileCallField(Object* a,
+                                           JSObject* b,
+                                           int c,
+                                           String* d,
+                                           Code::Flags flags) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* CallStubCompiler::CompileCallInterceptor(Object* a,
+                                                 JSObject* b,
+                                                 String* c) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+
+Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
+                                              JSObject* b,
+                                              AccessorInfo* c,
+                                              String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* LoadStubCompiler::CompileLoadConstant(JSObject* a,
+                                              JSObject* b,
+                                              Object* c,
+                                              String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* LoadStubCompiler::CompileLoadField(JSObject* a,
+                                           JSObject* b,
+                                           int c,
+                                           String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
+                                                 JSObject* b,
+                                                 String* c) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
+                                                AccessorInfo* b,
+                                                String* c) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreField(JSObject* a,
+                                             int b,
+                                             Map* c,
+                                             String* d) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StubCompiler::CompileLazyCompile(Code::Flags a) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+} }  // namespace v8::internal
