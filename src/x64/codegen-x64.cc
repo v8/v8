@@ -1440,7 +1440,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // by -1. We cannot use the overflow flag, since it is not set
       // by idiv instruction.
       ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-      // TODO(X64):TODO(Smi): Smi implementation dependent constant.
+      // TODO(X64): TODO(Smi): Smi implementation dependent constant.
       // Value is Smi::fromInt(-(1<<31)) / Smi::fromInt(-1)
       __ cmpq(rax, Immediate(0x40000000));
       __ j(equal, slow);
