@@ -66,15 +66,17 @@ void Result::ToRegister(Register target) {
       CodeGeneratorScope::Current()->masm()->movq(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
-      /*
-      TODO(X64): Handle constant results.
-      if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
-        CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
+      if (handle()->IsSmi()) {
+        if (CodeGeneratorScope::Current()->IsUnsafeSmi(handle())) {
+          CodeGeneratorScope::Current()->LoadUnsafeSmi(fresh.reg(), handle());
+        } else {
+          CodeGeneratorScope::Current()->masm()->
+              movq(fresh.reg(), handle(), RelocInfo::NONE);
+        }
       } else {
-        CodeGeneratorScope::Current()->masm()->Set(fresh.reg(),
-                                                   Immediate(handle()));
+        CodeGeneratorScope::Current()->masm()->
+            movq(fresh.reg(), handle(), RelocInfo::EMBEDDED_OBJECT);
       }
-      */
     }
     *this = fresh;
   } else if (is_register() && reg().is(target)) {

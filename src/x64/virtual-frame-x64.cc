@@ -85,7 +85,7 @@ void VirtualFrame::Enter() {
   // Store the function in the frame.  The frame owns the register
   // reference now (ie, it can keep it in rdi or spill it later).
   Push(rdi);
-  // SyncElementAt(element_count() - 1);
+  SyncElementAt(element_count() - 1);
   cgen()->allocator()->Unuse(rdi);
 }
 
@@ -99,7 +99,7 @@ void VirtualFrame::Exit() {
   // Avoid using the leave instruction here, because it is too
   // short. We need the return sequence to be a least the size of a
   // call instruction to support patching the exit code in the
-  // debugger. See VisitReturnStatement for the full return sequence.
+  // debugger. See GenerateReturnSequence for the full return sequence.
   // TODO(X64): A patched call will be very long now.  Make sure we
   // have enough room.
   __ movq(rsp, rbp);
@@ -112,6 +112,28 @@ void VirtualFrame::Exit() {
   }
 
   EmitPop(rbp);
+}
+
+
+void VirtualFrame::AllocateStackSlots() {
+  int count = local_count();
+  if (count > 0) {
+    Comment cmnt(masm(), "[ Allocate space for locals");
+    // The locals are initialized to a constant (the undefined value), but
+    // we sync them with the actual frame to allocate space for spilling
+    // them later.  First sync everything above the stack pointer so we can
+    // use pushes to allocate and initialize the locals.
+    SyncRange(stack_pointer_ + 1, element_count() - 1);
+    Handle<Object> undefined = Factory::undefined_value();
+    FrameElement initial_value =
+        FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
+    __ movq(kScratchRegister, undefined, RelocInfo::EMBEDDED_OBJECT);
+    for (int i = 0; i < count; i++) {
+      elements_.Add(initial_value);
+      stack_pointer_++;
+      __ push(kScratchRegister);
+    }
+  }
 }
 
 
@@ -155,23 +177,261 @@ void VirtualFrame::EmitPush(Immediate immediate) {
 }
 
 
-void VirtualFrame::Drop(int a) {
-  UNIMPLEMENTED();
+void VirtualFrame::Drop(int count) {
+  ASSERT(height() >= count);
+  int num_virtual_elements = (element_count() - 1) - stack_pointer_;
+
+  // Emit code to lower the stack pointer if necessary.
+  if (num_virtual_elements < count) {
+    int num_dropped = count - num_virtual_elements;
+    stack_pointer_ -= num_dropped;
+    __ addq(rsp, Immediate(num_dropped * kPointerSize));
+  }
+
+  // Discard elements from the virtual frame and free any registers.
+  for (int i = 0; i < count; i++) {
+    FrameElement dropped = elements_.RemoveLast();
+    if (dropped.is_register()) {
+      Unuse(dropped.reg());
+    }
+  }
 }
 
-int VirtualFrame::InvalidateFrameSlotAt(int a) {
-  UNIMPLEMENTED();
-  return -1;
+
+int VirtualFrame::InvalidateFrameSlotAt(int index) {
+  FrameElement original = elements_[index];
+
+  // Is this element the backing store of any copies?
+  int new_backing_index = kIllegalIndex;
+  if (original.is_copied()) {
+    // Verify it is copied, and find first copy.
+    for (int i = index + 1; i < element_count(); i++) {
+      if (elements_[i].is_copy() && elements_[i].index() == index) {
+        new_backing_index = i;
+        break;
+      }
+    }
+  }
+
+  if (new_backing_index == kIllegalIndex) {
+    // No copies found, return kIllegalIndex.
+    if (original.is_register()) {
+      Unuse(original.reg());
+    }
+    elements_[index] = FrameElement::InvalidElement();
+    return kIllegalIndex;
+  }
+
+  // This is the backing store of copies.
+  Register backing_reg;
+  if (original.is_memory()) {
+    Result fresh = cgen()->allocator()->Allocate();
+    ASSERT(fresh.is_valid());
+    Use(fresh.reg(), new_backing_index);
+    backing_reg = fresh.reg();
+    __ movq(backing_reg, Operand(rbp, fp_relative(index)));
+  } else {
+    // The original was in a register.
+    backing_reg = original.reg();
+    set_register_location(backing_reg, new_backing_index);
+  }
+  // Invalidate the element at index.
+  elements_[index] = FrameElement::InvalidElement();
+  // Set the new backing element.
+  if (elements_[new_backing_index].is_synced()) {
+    elements_[new_backing_index] =
+        FrameElement::RegisterElement(backing_reg, FrameElement::SYNCED);
+  } else {
+    elements_[new_backing_index] =
+        FrameElement::RegisterElement(backing_reg, FrameElement::NOT_SYNCED);
+  }
+  // Update the other copies.
+  for (int i = new_backing_index + 1; i < element_count(); i++) {
+    if (elements_[i].is_copy() && elements_[i].index() == index) {
+      elements_[i].set_index(new_backing_index);
+      elements_[new_backing_index].set_copied();
+    }
+  }
+  return new_backing_index;
 }
+
+
+void VirtualFrame::StoreToFrameSlotAt(int index) {
+  // Store the value on top of the frame to the virtual frame slot at
+  // a given index.  The value on top of the frame is left in place.
+  // This is a duplicating operation, so it can create copies.
+  ASSERT(index >= 0);
+  ASSERT(index < element_count());
+
+  int top_index = element_count() - 1;
+  FrameElement top = elements_[top_index];
+  FrameElement original = elements_[index];
+  if (top.is_copy() && top.index() == index) return;
+  ASSERT(top.is_valid());
+
+  InvalidateFrameSlotAt(index);
+
+  // InvalidateFrameSlotAt can potentially change any frame element, due
+  // to spilling registers to allocate temporaries in order to preserve
+  // the copy-on-write semantics of aliased elements.  Reload top from
+  // the frame.
+  top = elements_[top_index];
+
+  if (top.is_copy()) {
+    // There are two cases based on the relative positions of the
+    // stored-to slot and the backing slot of the top element.
+    int backing_index = top.index();
+    ASSERT(backing_index != index);
+    if (backing_index < index) {
+      // 1. The top element is a copy of a slot below the stored-to
+      // slot.  The stored-to slot becomes an unsynced copy of that
+      // same backing slot.
+      elements_[index] = CopyElementAt(backing_index);
+    } else {
+      // 2. The top element is a copy of a slot above the stored-to
+      // slot.  The stored-to slot becomes the new (unsynced) backing
+      // slot and both the top element and the element at the former
+      // backing slot become copies of it.  The sync state of the top
+      // and former backing elements is preserved.
+      FrameElement backing_element = elements_[backing_index];
+      ASSERT(backing_element.is_memory() || backing_element.is_register());
+      if (backing_element.is_memory()) {
+        // Because sets of copies are canonicalized to be backed by
+        // their lowest frame element, and because memory frame
+        // elements are backed by the corresponding stack address, we
+        // have to move the actual value down in the stack.
+        //
+        // TODO(209): considering allocating the stored-to slot to the
+        // temp register.  Alternatively, allow copies to appear in
+        // any order in the frame and lazily move the value down to
+        // the slot.
+        __ movq(kScratchRegister, Operand(rbp, fp_relative(backing_index)));
+        __ movq(Operand(rbp, fp_relative(index)), kScratchRegister);
+      } else {
+        set_register_location(backing_element.reg(), index);
+        if (backing_element.is_synced()) {
+          // If the element is a register, we will not actually move
+          // anything on the stack but only update the virtual frame
+          // element.
+          backing_element.clear_sync();
+        }
+      }
+      elements_[index] = backing_element;
+
+      // The old backing element becomes a copy of the new backing
+      // element.
+      FrameElement new_element = CopyElementAt(index);
+      elements_[backing_index] = new_element;
+      if (backing_element.is_synced()) {
+        elements_[backing_index].set_sync();
+      }
+
+      // All the copies of the old backing element (including the top
+      // element) become copies of the new backing element.
+      for (int i = backing_index + 1; i < element_count(); i++) {
+        if (elements_[i].is_copy() && elements_[i].index() == backing_index) {
+          elements_[i].set_index(index);
+        }
+      }
+    }
+    return;
+  }
+
+  // Move the top element to the stored-to slot and replace it (the
+  // top element) with a copy.
+  elements_[index] = top;
+  if (top.is_memory()) {
+    // TODO(209): consider allocating the stored-to slot to the temp
+    // register.  Alternatively, allow copies to appear in any order
+    // in the frame and lazily move the value down to the slot.
+    FrameElement new_top = CopyElementAt(index);
+    new_top.set_sync();
+    elements_[top_index] = new_top;
+
+    // The sync state of the former top element is correct (synced).
+    // Emit code to move the value down in the frame.
+    __ movq(kScratchRegister, Operand(rsp, 0));
+    __ movq(Operand(rbp, fp_relative(index)), kScratchRegister);
+  } else if (top.is_register()) {
+    set_register_location(top.reg(), index);
+    // The stored-to slot has the (unsynced) register reference and
+    // the top element becomes a copy.  The sync state of the top is
+    // preserved.
+    FrameElement new_top = CopyElementAt(index);
+    if (top.is_synced()) {
+      new_top.set_sync();
+      elements_[index].clear_sync();
+    }
+    elements_[top_index] = new_top;
+  } else {
+    // The stored-to slot holds the same value as the top but
+    // unsynced.  (We do not have copies of constants yet.)
+    ASSERT(top.is_constant());
+    elements_[index].clear_sync();
+  }
+}
+
 
 void VirtualFrame::MergeTo(VirtualFrame* a) {
   UNIMPLEMENTED();
 }
 
+
 Result VirtualFrame::Pop() {
-  UNIMPLEMENTED();
-  return Result(NULL);
+  FrameElement element = elements_.RemoveLast();
+  int index = element_count();
+  ASSERT(element.is_valid());
+
+  bool pop_needed = (stack_pointer_ == index);
+  if (pop_needed) {
+    stack_pointer_--;
+    if (element.is_memory()) {
+      Result temp = cgen()->allocator()->Allocate();
+      ASSERT(temp.is_valid());
+      temp.set_static_type(element.static_type());
+      __ pop(temp.reg());
+      return temp;
+    }
+
+    __ addq(rsp, Immediate(kPointerSize));
+  }
+  ASSERT(!element.is_memory());
+
+  // The top element is a register, constant, or a copy.  Unuse
+  // registers and follow copies to their backing store.
+  if (element.is_register()) {
+    Unuse(element.reg());
+  } else if (element.is_copy()) {
+    ASSERT(element.index() < index);
+    index = element.index();
+    element = elements_[index];
+  }
+  ASSERT(!element.is_copy());
+
+  // The element is memory, a register, or a constant.
+  if (element.is_memory()) {
+    // Memory elements could only be the backing store of a copy.
+    // Allocate the original to a register.
+    ASSERT(index <= stack_pointer_);
+    Result temp = cgen()->allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    Use(temp.reg(), index);
+    FrameElement new_element =
+        FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
+    // Preserve the copy flag on the element.
+    if (element.is_copied()) new_element.set_copied();
+    new_element.set_static_type(element.static_type());
+    elements_[index] = new_element;
+    __ movq(temp.reg(), Operand(rbp, fp_relative(index)));
+    return Result(temp.reg(), element.static_type());
+  } else if (element.is_register()) {
+    return Result(element.reg(), element.static_type());
+  } else {
+    ASSERT(element.is_constant());
+    return Result(element.handle());
+  }
 }
+
 
 Result VirtualFrame::RawCallStub(CodeStub* a) {
   UNIMPLEMENTED();
@@ -182,12 +442,81 @@ void VirtualFrame::SyncElementBelowStackPointer(int a) {
   UNIMPLEMENTED();
 }
 
-void VirtualFrame::SyncElementByPushing(int a) {
-  UNIMPLEMENTED();
+
+void VirtualFrame::SyncElementByPushing(int index) {
+  // Sync an element of the frame that is just above the stack pointer
+  // by pushing it.
+  ASSERT(index == stack_pointer_ + 1);
+  stack_pointer_++;
+  FrameElement element = elements_[index];
+
+  switch (element.type()) {
+    case FrameElement::INVALID:
+      __ push(Immediate(Smi::FromInt(0)));
+      break;
+
+    case FrameElement::MEMORY:
+      // No memory elements exist above the stack pointer.
+      UNREACHABLE();
+      break;
+
+    case FrameElement::REGISTER:
+      __ push(element.reg());
+      break;
+
+    case FrameElement::CONSTANT:
+      if (element.handle()->IsSmi()) {
+        if (CodeGeneratorScope::Current()->IsUnsafeSmi(element.handle())) {
+          CodeGeneratorScope::Current()->LoadUnsafeSmi(kScratchRegister,
+                                                       element.handle());
+        } else {
+          CodeGeneratorScope::Current()->masm()->
+              movq(kScratchRegister, element.handle(), RelocInfo::NONE);
+        }
+      } else {
+        CodeGeneratorScope::Current()->masm()->
+            movq(kScratchRegister,
+                 element.handle(),
+                 RelocInfo::EMBEDDED_OBJECT);
+      }
+      __ push(kScratchRegister);
+      break;
+
+    case FrameElement::COPY: {
+      int backing_index = element.index();
+      FrameElement backing = elements_[backing_index];
+      ASSERT(backing.is_memory() || backing.is_register());
+      if (backing.is_memory()) {
+        __ push(Operand(rbp, fp_relative(backing_index)));
+      } else {
+        __ push(backing.reg());
+      }
+      break;
+    }
+  }
+  elements_[index].set_sync();
 }
 
-void VirtualFrame::SyncRange(int a, int b) {
-  UNIMPLEMENTED();
+
+// Clear the dirty bits for the range of elements in
+// [min(stack_pointer_ + 1,begin), end].
+void VirtualFrame::SyncRange(int begin, int end) {
+  ASSERT(begin >= 0);
+  ASSERT(end < element_count());
+  // Sync elements below the range if they have not been materialized
+  // on the stack.
+  int start = Min(begin, stack_pointer_ + 1);
+
+  // If positive we have to adjust the stack pointer.
+  int delta = end - stack_pointer_;
+  if (delta > 0) {
+    stack_pointer_ = end;
+    __ subq(rsp, Immediate(delta * kPointerSize));
+  }
+
+  for (int i = start; i <= end; i++) {
+    if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
+  }
 }
 
 

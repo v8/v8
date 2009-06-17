@@ -1887,7 +1887,7 @@ void CallIC::GenerateNormal(MacroAssembler* a, int b) {
 }
 
 void JumpTarget::DoBind() {
-  UNIMPLEMENTED();
+  // UNIMPLEMENTED();
 }
 
 void JumpTarget::DoBranch(Condition a, Hint b) {
