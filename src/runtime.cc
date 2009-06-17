@@ -4161,16 +4161,62 @@ static Object* Runtime_Math_log(Arguments args) {
 }
 
 
+// Helper function to compute x^y, where y is known to be an
+// integer. Uses binary decomposition to limit the number of
+// multiplications; see the discussion in "Hacker's Delight" by Henry
+// S. Warren, Jr., figure 11-6, page 213.
+static double powi(double x, int y) {
+  ASSERT(y != kMinInt);
+  unsigned n = (y < 0) ? -y : y;
+  double m = x;
+  double p = 1;
+  while (true) {
+    if ((n & 1) != 0) p *= m;
+    n >>= 1;
+    if (n == 0) {
+      if (y < 0) {
+        // Unfortunately, we have to be careful when p has reached
+        // infinity in the computation, because sometimes the higher
+        // internal precision in the pow() implementation would have
+        // given us a finite p. This happens very rarely.
+        double result = 1.0 / p;
+        return (result == 0 && isinf(p)) ? pow(x, y) : result;
+      } else {
+        return p;
+      }
+    }
+    m *= m;
+  }
+}
+
+
 static Object* Runtime_Math_pow(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
+
+  // If the second argument is a smi, it is much faster to call the
+  // custom powi() function than the generic pow().
+  if (args[1]->IsSmi()) {
+    int y = Smi::cast(args[1])->value();
+    return Heap::AllocateHeapNumber(powi(x, y));
+  }
+
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return Heap::nan_value();
+  if (y == 0.5) {
+    // It's not uncommon to use Math.pow(x, 0.5) to compute the square
+    // root of a number. To speed up such computations, we explictly
+    // check for this case and use the sqrt() function which is faster
+    // than pow().
+    return Heap::AllocateHeapNumber(sqrt(x));
+  } else if (y == -0.5) {
+    // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
+    return Heap::AllocateHeapNumber(1.0 / sqrt(x));
   } else if (y == 0) {
     return Smi::FromInt(1);
+  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
+    return Heap::nan_value();
   } else {
     return Heap::AllocateHeapNumber(pow(x, y));
   }
