@@ -2051,7 +2051,10 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
       content.sourceLength = mirror.source().length;
       content.scriptType = mirror.scriptType();
       content.compilationType = mirror.compilationType();
-      if (mirror.compilationType() == 1) {  // Compilation type eval.
+      // For compilation type eval emit information on the script from which
+      // eval was called if a script is present.
+      if (mirror.compilationType() == 1 &&
+          mirror.evalFromFunction().script()) {
         content.evalFromScript =
             this.serializeReference(mirror.evalFromFunction().script());
         var evalFromLocation = mirror.evalFromLocation()
