@@ -4170,7 +4170,9 @@ static double powi(double x, int y) {
         // internal precision in the pow() implementation would have
         // given us a finite p. This happens very rarely.
         double result = 1.0 / p;
-        return (result == 0 && isinf(p)) ? pow(x, y) : result;
+        return (result == 0 && isinf(p))
+            ? pow(x, static_cast<double>(y))  // Avoid pow(double, int).
+            : result;
       } else {
         return p;
       }
