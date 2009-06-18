@@ -242,9 +242,8 @@ class Heap : public AllStatic {
   // all available bytes. Check MaxHeapObjectSize() instead.
   static int Available();
 
-  // Returns the maximum object size that heap supports. Objects larger than
-  // the maximum heap object size are allocated in a large object space.
-  static inline int MaxHeapObjectSize();
+  // Returns the maximum object size in paged space.
+  static inline int MaxObjectSizeInPagedSpace();
 
   // Returns of size of all objects residing in the heap.
   static int SizeOfObjects();
@@ -829,6 +828,8 @@ class Heap : public AllStatic {
   static bool context_disposed_pending_;
 
   static const int kMaxMapSpaceSize = 8*MB;
+
+  static const int kMaxObjectSizeInNewSpace = 256*KB;
 
   static NewSpace new_space_;
   static OldSpace* old_pointer_space_;

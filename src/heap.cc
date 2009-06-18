@@ -943,17 +943,15 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
-    OldSpace* target_space = Heap::TargetSpace(object);
-    ASSERT(target_space == Heap::old_pointer_space_ ||
-           target_space == Heap::old_data_space_);
-    Object* result = target_space->AllocateRaw(object_size);
-    if (!result->IsFailure()) {
-      HeapObject* target = HeapObject::cast(result);
-      if (target_space == Heap::old_pointer_space_) {
+    Object* result;
+    if (object_size > MaxObjectSizeInPagedSpace()) {
+      result = lo_space_->AllocateRawFixedArray(object_size);
+      if (!result->IsFailure()) {
         // Save the from-space object pointer and its map pointer at the
         // top of the to space to be swept and copied later.  Write the
         // forwarding address over the map word of the from-space
         // object.
+        HeapObject* target = HeapObject::cast(result);
         promotion_queue.insert(object, first_word.ToMap());
         object->set_map_word(MapWord::FromForwardingAddress(target));
 
@@ -964,21 +962,45 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
         node->set_size(object_size);
 
         *p = target;
-      } else {
-        // Objects promoted to the data space can be copied immediately
-        // and not revisited---we will never sweep that space for
-        // pointers and the copied objects do not contain pointers to
-        // new space objects.
-        *p = MigrateObject(object, target, object_size);
-#ifdef DEBUG
-        VerifyNonPointerSpacePointersVisitor v;
-        (*p)->Iterate(&v);
-#endif
+        return;
       }
-      return;
+    } else {
+      OldSpace* target_space = Heap::TargetSpace(object);
+      ASSERT(target_space == Heap::old_pointer_space_ ||
+             target_space == Heap::old_data_space_);
+      result = target_space->AllocateRaw(object_size);
+      if (!result->IsFailure()) {
+        HeapObject* target = HeapObject::cast(result);
+        if (target_space == Heap::old_pointer_space_) {
+          // Save the from-space object pointer and its map pointer at the
+          // top of the to space to be swept and copied later.  Write the
+          // forwarding address over the map word of the from-space
+          // object.
+          promotion_queue.insert(object, first_word.ToMap());
+          object->set_map_word(MapWord::FromForwardingAddress(target));
+
+          // Give the space allocated for the result a proper map by
+          // treating it as a free list node (not linked into the free
+          // list).
+          FreeListNode* node = FreeListNode::FromAddress(target->address());
+          node->set_size(object_size);
+
+          *p = target;
+        } else {
+          // Objects promoted to the data space can be copied immediately
+          // and not revisited---we will never sweep that space for
+          // pointers and the copied objects do not contain pointers to
+          // new space objects.
+          *p = MigrateObject(object, target, object_size);
+#ifdef DEBUG
+          VerifyNonPointerSpacePointersVisitor v;
+          (*p)->Iterate(&v);
+#endif
+        }
+        return;
+      }
     }
   }
-
   // The object should remain in new space or the old space allocation failed.
   Object* result = new_space_.AllocateRaw(object_size);
   // Failed allocation at this point is utterly unexpected.
@@ -1698,7 +1720,7 @@ Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =
-      size > MaxHeapObjectSize() ? LO_SPACE : OLD_DATA_SPACE;
+      size > MaxObjectSizeInPagedSpace() ? LO_SPACE : OLD_DATA_SPACE;
 
   Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
 
@@ -1713,7 +1735,7 @@ Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
 Object* Heap::AllocateByteArray(int length) {
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =
-      size > MaxHeapObjectSize() ? LO_SPACE : NEW_SPACE;
+      size > MaxObjectSizeInPagedSpace() ? LO_SPACE : NEW_SPACE;
 
   Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
 
@@ -1748,7 +1770,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   int obj_size = Code::SizeFor(body_size, sinfo_size);
   ASSERT(IsAligned(obj_size, Code::kCodeAlignment));
   Object* result;
-  if (obj_size > MaxHeapObjectSize()) {
+  if (obj_size > MaxObjectSizeInPagedSpace()) {
     result = lo_space_->AllocateRawCode(obj_size);
   } else {
     result = code_space_->AllocateRaw(obj_size);
@@ -1788,7 +1810,7 @@ Object* Heap::CopyCode(Code* code) {
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
   Object* result;
-  if (obj_size > MaxHeapObjectSize()) {
+  if (obj_size > MaxObjectSizeInPagedSpace()) {
     result = lo_space_->AllocateRawCode(obj_size);
   } else {
     result = code_space_->AllocateRaw(obj_size);
@@ -1963,7 +1985,7 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   // Allocate the JSObject.
   AllocationSpace space =
       (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  if (map->instance_size() > MaxHeapObjectSize()) space = LO_SPACE;
+  if (map->instance_size() > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
   Object* obj = Allocate(map, space);
   if (obj->IsFailure()) return obj;
 
@@ -2250,7 +2272,7 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
   // Allocate string.
   AllocationSpace space =
-      (size > MaxHeapObjectSize()) ? LO_SPACE : OLD_DATA_SPACE;
+      (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : OLD_DATA_SPACE;
   Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
@@ -2272,13 +2294,16 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   int size = SeqAsciiString::SizeFor(length);
-  if (size > MaxHeapObjectSize()) {
-    space = LO_SPACE;
-  }
 
-  // Use AllocateRaw rather than Allocate because the object's size cannot be
-  // determined from the map.
-  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
+  Object* result = Failure::OutOfMemoryException();
+  if (space == NEW_SPACE) {
+    result = size <= kMaxObjectSizeInNewSpace
+        ? new_space_.AllocateRaw(size)
+        : lo_space_->AllocateRawFixedArray(size);
+  } else {
+    if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
+    result = AllocateRaw(size, space, OLD_DATA_SPACE);
+  }
   if (result->IsFailure()) return result;
 
   // Determine the map based on the string's length.
@@ -2302,13 +2327,16 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   int size = SeqTwoByteString::SizeFor(length);
-  if (size > MaxHeapObjectSize()) {
-    space = LO_SPACE;
-  }
 
-  // Use AllocateRaw rather than Allocate because the object's size cannot be
-  // determined from the map.
-  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
+  Object* result = Failure::OutOfMemoryException();
+  if (space == NEW_SPACE) {
+    result = size <= kMaxObjectSizeInNewSpace
+        ? new_space_.AllocateRaw(size)
+        : lo_space_->AllocateRawFixedArray(size);
+  } else {
+    if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
+    result = AllocateRaw(size, space, OLD_DATA_SPACE);
+  }
   if (result->IsFailure()) return result;
 
   // Determine the map based on the string's length.
@@ -2345,9 +2373,9 @@ Object* Heap::AllocateRawFixedArray(int length) {
   if (always_allocate()) return AllocateFixedArray(length, NOT_TENURED);
   // Allocate the raw data for a fixed array.
   int size = FixedArray::SizeFor(length);
-  return (size > MaxHeapObjectSize())
-      ? lo_space_->AllocateRawFixedArray(size)
-      : new_space_.AllocateRaw(size);
+  return size <= kMaxObjectSizeInNewSpace
+      ? new_space_.AllocateRaw(size)
+      : lo_space_->AllocateRawFixedArray(size);
 }
 
 
@@ -2395,16 +2423,22 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   if (length == 0) return empty_fixed_array();
 
   int size = FixedArray::SizeFor(length);
-  Object* result;
-  if (size > MaxHeapObjectSize()) {
-    result = lo_space_->AllocateRawFixedArray(size);
-  } else {
-    AllocationSpace space =
-        (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-    result = AllocateRaw(size, space, OLD_POINTER_SPACE);
+  Object* result = Failure::OutOfMemoryException();
+  if (pretenure != TENURED) {
+    result = size <= kMaxObjectSizeInNewSpace
+        ? new_space_.AllocateRaw(size)
+        : lo_space_->AllocateRawFixedArray(size);
   }
-  if (result->IsFailure()) return result;
-
+  if (result->IsFailure()) {
+    if (size > MaxObjectSizeInPagedSpace()) {
+      result = lo_space_->AllocateRawFixedArray(size);
+    } else {
+      AllocationSpace space =
+          (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
+      result = AllocateRaw(size, space, OLD_POINTER_SPACE);
+    }
+    if (result->IsFailure()) return result;
+  }
   // Initialize the object.
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
@@ -2504,7 +2538,7 @@ STRUCT_LIST(MAKE_CASE)
   }
   int size = map->instance_size();
   AllocationSpace space =
-      (size > MaxHeapObjectSize()) ? LO_SPACE : OLD_POINTER_SPACE;
+      (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : OLD_POINTER_SPACE;
   Object* result = Heap::Allocate(map, space);
   if (result->IsFailure()) return result;
   Struct::cast(result)->InitializeBody(size);

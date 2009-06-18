@@ -34,7 +34,7 @@
 namespace v8 {
 namespace internal {
 
-int Heap::MaxHeapObjectSize() {
+int Heap::MaxObjectSizeInPagedSpace() {
   return Page::kMaxHeapObjectSize;
 }
 
