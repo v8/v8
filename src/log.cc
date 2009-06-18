@@ -627,88 +627,6 @@ void Logger::DeleteEvent(const char* name, void* object) {
 }
 
 
-void Logger::CodeCreateEvent(LogEventsAndTags tag,
-                             Code* code,
-                             const char* comment) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
-  for (const char* p = comment; *p != '\0'; p++) {
-    if (*p == '"') {
-      msg.Append('\\');
-    }
-    msg.Append(*p);
-  }
-  msg.Append('"');
-  msg.Append('\n');
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  SmartPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s\"\n", code->ExecutableSize(), *str);
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::CodeCreateEvent(LogEventsAndTags tag,
-                             Code* code, String* name,
-                             String* source, int line) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  SmartPointer<char> str =
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  SmartPointer<char> sourcestr =
-      source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"%s %s:%d\"\n",
-             code->ExecutableSize(), *str, *sourcestr, line);
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"args_count: %d\"\n", code->ExecutableSize(), args_count);
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("%s,%s,",
-             log_events_[CODE_CREATION_EVENT], log_events_[REG_EXP_TAG]);
-  msg.AppendAddress(code->address());
-  msg.Append(",%d,\"", code->ExecutableSize());
-  msg.AppendDetailed(source, false);
-  msg.Append("\"\n");
-  msg.WriteToLogFile();
-#endif
-}
-
-
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 // A class that contains all common code dealing with record compression.
@@ -743,6 +661,112 @@ class CompressionHelper {
 };
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
+
+
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code,
+                             const char* comment) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.AppendAddress(code->address());
+  msg.Append(",%d,\"", code->ExecutableSize());
+  for (const char* p = comment; *p != '\0'; p++) {
+    if (*p == '"') {
+      msg.Append('\\');
+    }
+    msg.Append(*p);
+  }
+  msg.Append('"');
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, String* name) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.AppendAddress(code->address());
+  msg.Append(",%d,\"%s\"", code->ExecutableSize(), *str);
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::CodeCreateEvent(LogEventsAndTags tag,
+                             Code* code, String* name,
+                             String* source, int line) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  SmartPointer<char> sourcestr =
+      source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.AppendAddress(code->address());
+  msg.Append(",%d,\"%s %s:%d\"",
+             code->ExecutableSize(), *str, *sourcestr, line);
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,%s,", log_events_[CODE_CREATION_EVENT], log_events_[tag]);
+  msg.AppendAddress(code->address());
+  msg.Append(",%d,\"args_count: %d\"", code->ExecutableSize(), args_count);
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,%s,",
+             log_events_[CODE_CREATION_EVENT], log_events_[REG_EXP_TAG]);
+  msg.AppendAddress(code->address());
+  msg.Append(",%d,\"", code->ExecutableSize());
+  msg.AppendDetailed(source, false);
+  msg.Append('\"');
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
 
 
 void Logger::CodeMoveEvent(Address from, Address to) {
