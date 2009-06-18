@@ -1387,7 +1387,11 @@ class DeferredInlineSmiOperation: public DeferredCode {
 void DeferredInlineSmiOperation::Generate() {
   __ push(src_);
   __ push(Immediate(value_));
-  GenericBinaryOpStub stub(op_, overwrite_mode_, SMI_CODE_INLINED);
+  // For mod we don't generate all the Smi code inline.
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
   __ CallStub(&stub);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1771,6 +1775,33 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       frame_->Push(operand);
       break;
     }
+
+    // Generate inline code for mod of powers of 2 and negative powers of 2.
+    case Token::MOD:
+      if (!reversed &&
+          int_value != 0 &&
+          (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiOperation(op,
+                                                                operand->reg(),
+                                                                operand->reg(),
+                                                                smi_value,
+                                                                overwrite_mode);
+        // Check for negative or non-Smi left hand side.
+        __ test(operand->reg(), Immediate(kSmiTagMask | 0x80000000));
+        deferred->Branch(not_zero);
+        if (int_value < 0) int_value = -int_value;
+        if (int_value == 1) {
+          __ mov(operand->reg(), Immediate(Smi::FromInt(0)));
+        } else {
+          __ and_(operand->reg(), (int_value << kSmiTagSize) - 1);
+        }
+        deferred->BindExit();
+        frame_->Push(operand);
+        break;
+      }
+      // Fall through if we did not find a power of 2 on the right hand side!
 
     default: {
       Result constant_operand(value);
