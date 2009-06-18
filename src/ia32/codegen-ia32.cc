@@ -7163,7 +7163,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
-
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // eax holds the exception.
 

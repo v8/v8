@@ -206,6 +206,44 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
 }
 
 
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  bool resolved;
+  Handle<Code> code = ResolveBuiltin(id, &resolved);
+
+  const char* name = Builtins::GetName(id);
+  int argc = Builtins::GetArgumentsCount(id);
+
+  movq(target, code, RelocInfo::EXTERNAL_REFERENCE);  // Is external reference?
+  if (!resolved) {
+    uint32_t flags =
+        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
+        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
+    Unresolved entry = { pc_offset() - sizeof(intptr_t), flags, name };
+    unresolved_.Add(entry);
+  }
+  addq(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+}
+
+
+Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
+                                            bool* resolved) {
+  // Move the builtin function into the temporary function slot by
+  // reading it from the builtins object. NOTE: We should be able to
+  // reduce this to two instructions by putting the function table in
+  // the global object instead of the "builtins" object and by using a
+  // real register for the function.
+  movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(rdx, FieldOperand(rdx, GlobalObject::kBuiltinsOffset));
+  int builtins_offset =
+      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
+  movq(rdi, FieldOperand(rdx, builtins_offset));
+
+
+  return Builtins::GetCode(id, resolved);
+}
+
+
 void MacroAssembler::Set(Register dst, int64_t x) {
   if (is_int32(x)) {
     movq(dst, Immediate(x));
@@ -241,6 +279,14 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
 }
 
 
+void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  WriteRecordedPositions();
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  movq(kScratchRegister, code_object, rmode);
+  jmp(kScratchRegister);
+}
+
+
 void MacroAssembler::Call(ExternalReference ext) {
   movq(kScratchRegister, ext);
   call(kScratchRegister);
@@ -249,6 +295,14 @@ void MacroAssembler::Call(ExternalReference ext) {
 
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   movq(kScratchRegister, destination, rmode);
+  call(kScratchRegister);
+}
+
+
+void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  WriteRecordedPositions();
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  movq(kScratchRegister, code_object, rmode);
   call(kScratchRegister);
 }
 

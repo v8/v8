@@ -103,7 +103,15 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
 void CodeGenerator::TestCodeGenerator() {
   // Compile a function from a string, and run it.
   Handle<JSFunction> test_function = Compiler::Compile(
-      Factory::NewStringFromAscii(CStrVector("39; 42;")),
+      Factory::NewStringFromAscii(CStrVector(
+          "39;"
+          "(function(){return 43})();"
+          "42;"
+          // "function foo(x, y){return x;};"
+          "43;"
+          // "foo(2,3);"
+          "44;"
+          "(function(){return (function(){return 47})()})();")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
       0,
       0,
@@ -132,7 +140,7 @@ void CodeGenerator::TestCodeGenerator() {
                       &pending_exceptions);
   // Function compiles and runs, but returns a JSFunction object.
   CHECK(result->IsSmi());
-  CHECK_EQ(42, Smi::cast(*result)->value());
+  CHECK_EQ(47, Smi::cast(*result)->value());
 }
 
 
@@ -370,14 +378,43 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+  // Call the runtime to instantiate the function boilerplate object.
+  // The inevitable call will sync frame elements to memory anyway, so
+  // we do it eagerly to allow us to push the arguments directly into
+  // place.
+  ASSERT(boilerplate->IsBoilerplate());
+  frame_->SyncRange(0, frame_->element_count() - 1);
+
+  // Push the boilerplate on the stack.
+  __ movq(kScratchRegister, boilerplate, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(kScratchRegister);
+
+  // Create a new closure.
+  frame_->EmitPush(rsi);
+  Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+  frame_->Push(&result);
 }
 
-void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+  Comment cmnt(masm_, "[ FunctionLiteral");
+
+  // Build the function boilerplate and instantiate it.
+  Handle<JSFunction> boilerplate = BuildBoilerplate(node);
+  // Check for stack-overflow exception.
+  if (HasStackOverflow()) return;
+  InstantiateBoilerplate(boilerplate);
 }
+
+
+void CodeGenerator::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* node) {
+  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
+  InstantiateBoilerplate(node->boilerplate());
+}
+
 
 void CodeGenerator::VisitConditional(Conditional* a) {
   UNIMPLEMENTED();
@@ -521,9 +558,152 @@ void CodeGenerator::VisitProperty(Property* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitCall(Call* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitCall(Call* node) {
+  Comment cmnt(masm_, "[ Call");
+
+  ZoneList<Expression*>* args = node->arguments();
+
+  CodeForStatementPosition(node);
+
+  // Check if the function is a variable or a property.
+  Expression* function = node->expression();
+  Variable* var = function->AsVariableProxy()->AsVariable();
+  Property* property = function->AsProperty();
+
+  // ------------------------------------------------------------------------
+  // Fast-case: Use inline caching.
+  // ---
+  // According to ECMA-262, section 11.2.3, page 44, the function to call
+  // must be resolved after the arguments have been evaluated. The IC code
+  // automatically handles this by loading the arguments before the function
+  // is resolved in cache misses (this also holds for megamorphic calls).
+  // ------------------------------------------------------------------------
+
+  if (var != NULL && !var->is_this() && var->is_global()) {
+    // ----------------------------------
+    // JavaScript example: 'foo(1, 2, 3)'  // foo is global
+    // ----------------------------------
+
+    // Push the name of the function and the receiver onto the stack.
+    frame_->Push(var->name());
+
+    // Pass the global object as the receiver and let the IC stub
+    // patch the stack to use the global proxy as 'this' in the
+    // invoked function.
+    LoadGlobal();
+
+    // Load the arguments.
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      Load(args->at(i));
+    }
+
+    // Call the IC initialization code.
+    CodeForSourcePosition(node->position());
+    Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET_CONTEXT,
+                                       arg_count,
+                                       loop_nesting());
+    frame_->RestoreContextRegister();
+    // Replace the function on the stack with the result.
+    frame_->SetElementAt(0, &result);
+  } else if (var != NULL && var->slot() != NULL &&
+             var->slot()->type() == Slot::LOOKUP) {
+    // TODO(X64): Enable calls of non-global functions.
+    UNIMPLEMENTED();
+    /*
+    // ----------------------------------
+    // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
+    // ----------------------------------
+
+    // Load the function from the context.  Sync the frame so we can
+    // push the arguments directly into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
+    frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
+    // The runtime call returns a pair of values in eax and edx.  The
+    // looked-up function is in eax and the receiver is in edx.  These
+    // register references are not ref counted here.  We spill them
+    // eagerly since they are arguments to an inevitable call (and are
+    // not sharable by the arguments).
+    ASSERT(!allocator()->is_used(eax));
+    frame_->EmitPush(eax);
+
+    // Load the receiver.
+    ASSERT(!allocator()->is_used(edx));
+    frame_->EmitPush(edx);
+
+    // Call the function.
+    CallWithArguments(args, node->position());
+    */
+  } else if (property != NULL) {
+    UNIMPLEMENTED();
+    /*
+    // Check if the key is a literal string.
+    Literal* literal = property->key()->AsLiteral();
+
+    if (literal != NULL && literal->handle()->IsSymbol()) {
+      // ------------------------------------------------------------------
+      // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
+      // ------------------------------------------------------------------
+
+      // Push the name of the function and the receiver onto the stack.
+      frame_->Push(literal->handle());
+      Load(property->obj());
+
+      // Load the arguments.
+      int arg_count = args->length();
+      for (int i = 0; i < arg_count; i++) {
+        Load(args->at(i));
+      }
+
+      // Call the IC initialization code.
+      CodeForSourcePosition(node->position());
+      Result result =
+          frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, loop_nesting());
+      frame_->RestoreContextRegister();
+      // Replace the function on the stack with the result.
+      frame_->SetElementAt(0, &result);
+
+    } else {
+      // -------------------------------------------
+      // JavaScript example: 'array[index](1, 2, 3)'
+      // -------------------------------------------
+
+      // Load the function to call from the property through a reference.
+      Reference ref(this, property);
+      ref.GetValue(NOT_INSIDE_TYPEOF);
+
+      // Pass receiver to called function.
+      if (property->is_synthetic()) {
+        // Use global object as receiver.
+        LoadGlobalReceiver();
+      } else {
+        // The reference's size is non-negative.
+        frame_->PushElementAt(ref.size());
+      }
+
+      // Call the function.
+      CallWithArguments(args, node->position());
+    }
+    */
+  } else {
+    // ----------------------------------
+    // JavaScript example: 'foo(1, 2, 3)'  // foo is not global
+    // ----------------------------------
+
+    // Load the function.
+    Load(function);
+
+    // Pass the global proxy as the receiver.
+    LoadGlobalReceiver();
+
+    // Call the function.
+    CallWithArguments(args, node->position());
+  }
 }
+
 
 void CodeGenerator::VisitCallEval(CallEval* a) {
   UNIMPLEMENTED();
@@ -536,6 +716,7 @@ void CodeGenerator::VisitCallNew(CallNew* a) {
 void CodeGenerator::VisitCallRuntime(CallRuntime* a) {
   UNIMPLEMENTED();
 }
+
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* a) {
   UNIMPLEMENTED();
@@ -1216,6 +1397,16 @@ void CodeGenerator::LoadGlobal() {
   }
 }
 
+
+void CodeGenerator::LoadGlobalReceiver() {
+  Result temp = allocator_->Allocate();
+  Register reg = temp.reg();
+  __ movq(reg, GlobalObject());
+  __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
+  frame_->Push(&temp);
+}
+
+
 #undef __
 
 // End of CodeGenerator implementation.
@@ -1588,12 +1779,59 @@ class CallFunctionStub: public CodeStub {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
+  Label slow;
+
+  // Get the function to call from the stack.
+  // +2 ~ receiver, return address
+  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
+
+  // Check that the function really is a JavaScript function.
+  __ testq(rdi, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &slow);
+
+  // Fast-case: Just invoke the function.
+  ParameterCount actual(argc_);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+
+  // Slow-case: Non-function called.
+  __ bind(&slow);
+  __ Set(rax, argc_);
+  __ Set(rbx, 0);
+  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+  __ Jump(adaptor, RelocInfo::CODE_TARGET);
+}
+
+
+// Call the function just below TOS on the stack with the given
+// arguments. The receiver is the TOS.
+void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
+                                      int position) {
+  // Push the arguments ("left-to-right") on the stack.
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Load(args->at(i));
+  }
+
+  // Record the position for debugging purposes.
+  CodeForSourcePosition(position);
+
+  // Use the shared code stub to call the function.
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
+  Result answer = frame_->CallStub(&call_function, arg_count + 1);
+  // Restore context and replace function on the stack with the
+  // result of the stub invocation.
+  frame_->RestoreContextRegister();
+  frame_->SetElementAt(0, &answer);
 }
 
 
 void InstanceofStub::Generate(MacroAssembler* masm) {
 }
-
 
 
 void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {

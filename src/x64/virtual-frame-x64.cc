@@ -137,6 +137,26 @@ void VirtualFrame::AllocateStackSlots() {
 }
 
 
+void VirtualFrame::SaveContextRegister() {
+  ASSERT(elements_[context_index()].is_memory());
+  __ movq(Operand(rbp, fp_relative(context_index())), rsi);
+}
+
+
+void VirtualFrame::RestoreContextRegister() {
+  ASSERT(elements_[context_index()].is_memory());
+  __ movq(rsi, Operand(rbp, fp_relative(context_index())));
+}
+
+
+void VirtualFrame::PushReceiverSlotAddress() {
+  Result temp = cgen()->allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  __ lea(temp.reg(), ParameterAt(-1));
+  Push(&temp);
+}
+
+
 void VirtualFrame::EmitPop(Register reg) {
   ASSERT(stack_pointer_ == element_count() - 1);
   stack_pointer_--;
@@ -433,13 +453,65 @@ Result VirtualFrame::Pop() {
 }
 
 
-Result VirtualFrame::RawCallStub(CodeStub* a) {
-  UNIMPLEMENTED();
-  return Result(NULL);
+Result VirtualFrame::RawCallStub(CodeStub* stub) {
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ CallStub(stub);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
 }
 
-void VirtualFrame::SyncElementBelowStackPointer(int a) {
-  UNIMPLEMENTED();
+
+void VirtualFrame::SyncElementBelowStackPointer(int index) {
+  // Emit code to write elements below the stack pointer to their
+  // (already allocated) stack address.
+  ASSERT(index <= stack_pointer_);
+  FrameElement element = elements_[index];
+  ASSERT(!element.is_synced());
+  switch (element.type()) {
+    case FrameElement::INVALID:
+      break;
+
+    case FrameElement::MEMORY:
+      // This function should not be called with synced elements.
+      // (memory elements are always synced).
+      UNREACHABLE();
+      break;
+
+    case FrameElement::REGISTER:
+      __ movq(Operand(rbp, fp_relative(index)), element.reg());
+      break;
+
+    case FrameElement::CONSTANT:
+      if (element.handle()->IsSmi()) {
+        if (CodeGeneratorScope::Current()->IsUnsafeSmi(element.handle())) {
+          CodeGeneratorScope::Current()->LoadUnsafeSmi(kScratchRegister,
+                                                       element.handle());
+        } else {
+          __ movq(kScratchRegister, element.handle(), RelocInfo::NONE);
+        }
+      } else {
+        __ movq(kScratchRegister,
+                 element.handle(),
+                 RelocInfo::EMBEDDED_OBJECT);
+      }
+      __ movq(Operand(rbp, fp_relative(index)), kScratchRegister);
+      break;
+
+    case FrameElement::COPY: {
+      int backing_index = element.index();
+      FrameElement backing_element = elements_[backing_index];
+      if (backing_element.is_memory()) {
+        __ movq(kScratchRegister, Operand(rbp, fp_relative(backing_index)));
+        __ movq(Operand(rbp, fp_relative(index)), kScratchRegister);
+      } else {
+        ASSERT(backing_element.is_register());
+        __ movq(Operand(rbp, fp_relative(index)), backing_element.reg());
+      }
+      break;
+    }
+  }
+  elements_[index].set_sync();
 }
 
 
@@ -518,6 +590,55 @@ void VirtualFrame::SyncRange(int begin, int end) {
     if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
   }
 }
+
+//------------------------------------------------------------------------------
+// Virtual frame stub and IC calling functions.
+
+Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
+                                       RelocInfo::Mode rmode) {
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ Call(code, rmode);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
+Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ CallRuntime(f, arg_count);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
+Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
+  PrepareForCall(arg_count, arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ CallRuntime(id, arg_count);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
+Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
+                                int arg_count,
+                                int loop_nesting) {
+  // Arguments, receiver, and function name are on top of the frame.
+  // The IC expects them on the stack.  It does not drop the function
+  // name slot (but it does drop the rest).
+  InLoopFlag in_loop = loop_nesting > 0 ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic = cgen()->ComputeCallInitialize(arg_count, in_loop);
+  // Spill args, receiver, and function.  The call will drop args and
+  // receiver.
+  PrepareForCall(arg_count + 2, arg_count + 1);
+  return RawCallCodeObject(ic, mode);
+}
+
+
 
 
 #undef __

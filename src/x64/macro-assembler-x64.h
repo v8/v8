@@ -161,8 +161,11 @@ class MacroAssembler: public Assembler {
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
+  void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
+  void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.

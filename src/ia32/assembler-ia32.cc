@@ -1417,7 +1417,7 @@ void Assembler::call(const Operand& adr) {
 }
 
 
-void Assembler::call(Handle<Code> code,  RelocInfo::Mode rmode) {
+void Assembler::call(Handle<Code> code, RelocInfo::Mode rmode) {
   WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
