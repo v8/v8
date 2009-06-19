@@ -1021,7 +1021,7 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   last_pc_ = pc_;
   ASSERT(!Heap::InNewSpace(*value));
   emit_rex_64(dst);
-  emit(0xB8 | dst.code() & 0x7);
+  emit(0xB8 | (dst.code() & 0x7));
   if (value->IsHeapObject()) {
     emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
   } else {

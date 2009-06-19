@@ -45,7 +45,7 @@ namespace internal {
 // Test whether a 64-bit value is in a specific range.
 static inline bool is_uint32(int64_t x) {
   const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
-  return x == x & kUInt32Mask;
+  return x == (x & kUInt32Mask);
 }
 
 static inline bool is_int32(int64_t x) {

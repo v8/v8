@@ -123,7 +123,7 @@ void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
 
 
 void Assembler::emit_optional_rex_32(Register rm_reg) {
-  if (rm_reg.code() & 0x8 != 0) emit(0x41);
+  if (rm_reg.code() > 0x7) emit(0x41);
 }
 
 
