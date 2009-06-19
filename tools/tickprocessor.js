@@ -379,7 +379,9 @@ CppEntriesProvider.prototype.parseVmSymbols = function(
   function addPrevEntry(end) {
     // Several functions can be mapped onto the same address. To avoid
     // creating zero-sized entries, skip such duplicates.
-    if (prevEntry && prevEntry.start < end) {
+    // Also double-check that function belongs to the library address space.
+    if (prevEntry && prevEntry.start < end &&
+        prevEntry.start >= libStart && end <= libEnd) {
       processorFunc(prevEntry.name, prevEntry.start, end);
     }
   }
