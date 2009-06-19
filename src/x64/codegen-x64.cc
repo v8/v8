@@ -27,10 +27,11 @@
 
 
 #include "v8.h"
-#include "macro-assembler.h"
-#include "register-allocator-inl.h"
+
+#include "bootstrapper.h"
+// #include "macro-assembler.h"
 #include "codegen-inl.h"
-#include "codegen-x64-inl.h"
+#include "register-allocator-inl.h"
 
 // TEST
 #include "compiler.h"
@@ -105,13 +106,12 @@ void CodeGenerator::TestCodeGenerator() {
   Handle<JSFunction> test_function = Compiler::Compile(
       Factory::NewStringFromAscii(CStrVector(
           "39;"
-          "(function(){return 43})();"
-          "42;"
-          // "function foo(x, y){return x;};"
-          "43;"
-          // "foo(2,3);"
-          "44;"
-          "(function(){return (function(){return 47})()})();")),
+          "(function(){"
+            "function foo(x, y){var w; y = x; x = w; w = y; y = x; return w;};"
+            "function bar(x, y, zee){return zee;};"
+            "foo(2,3);"
+            "return foo(bar(foo(1,3), 42, 47), foo( -25.3, 2));"
+          "})()")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
       0,
       0,
@@ -193,6 +193,44 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
     // up, because it needs the expected frame height from the frame.
     function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
     function_return_is_shadowed_ = false;
+
+    // TODO(X64): Add code to handle arguments object and context object.
+
+    // Generate code to 'execute' declarations and initialize functions
+    // (source elements). In case of an illegal redeclaration we need to
+    // handle that instead of processing the declarations.
+    if (scope_->HasIllegalRedeclaration()) {
+      Comment cmnt(masm_, "[ illegal redeclarations");
+      scope_->VisitIllegalRedeclaration(this);
+    } else {
+      Comment cmnt(masm_, "[ declarations");
+      ProcessDeclarations(scope_->declarations());
+      // Bail out if a stack-overflow exception occurred when processing
+      // declarations.
+      if (HasStackOverflow()) return;
+    }
+
+    if (FLAG_trace) {
+      frame_->CallRuntime(Runtime::kTraceEnter, 0);
+      // Ignore the return value.
+    }
+    // CheckStack();
+
+    // Compile the body of the function in a vanilla state. Don't
+    // bother compiling all the code if the scope has an illegal
+    // redeclaration.
+    if (!scope_->HasIllegalRedeclaration()) {
+      Comment cmnt(masm_, "[ function body");
+#ifdef DEBUG
+      bool is_builtin = Bootstrapper::IsActive();
+      bool should_trace =
+          is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
+      if (should_trace) {
+        frame_->CallRuntime(Runtime::kDebugTrace, 0);
+        // Ignore the return value.
+      }
+#endif
+    }
 
     VisitStatements(body);
   }
@@ -283,12 +321,83 @@ void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 }
 
 
-void CodeGenerator::VisitBlock(Block* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitBlock(Block* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ Block");
+  CodeForStatementPosition(node);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  VisitStatements(node->statements());
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  node->break_target()->Unuse();
 }
 
-void CodeGenerator::VisitDeclaration(Declaration* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitDeclaration(Declaration* node) {
+  Comment cmnt(masm_, "[ Declaration");
+  CodeForStatementPosition(node);
+  Variable* var = node->proxy()->var();
+  ASSERT(var != NULL);  // must have been resolved
+  Slot* slot = var->slot();
+
+  // If it was not possible to allocate the variable at compile time,
+  // we need to "declare" it at runtime to make sure it actually
+  // exists in the local context.
+  if (slot != NULL && slot->type() == Slot::LOOKUP) {
+    // Variables with a "LOOKUP" slot were introduced as non-locals
+    // during variable resolution and must have mode DYNAMIC.
+    ASSERT(var->is_dynamic());
+    // For now, just do a runtime call.  Sync the virtual frame eagerly
+    // so we can simply push the arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(rsi);
+    __ movq(kScratchRegister, var->name(), RelocInfo::EMBEDDED_OBJECT);
+    frame_->EmitPush(kScratchRegister);
+    // Declaration nodes are always introduced in one of two modes.
+    ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
+    PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
+    frame_->EmitPush(Immediate(Smi::FromInt(attr)));
+    // Push initial value, if any.
+    // Note: For variables we must not push an initial value (such as
+    // 'undefined') because we may have a (legal) redeclaration and we
+    // must not destroy the current value.
+    if (node->mode() == Variable::CONST) {
+      __ movq(kScratchRegister, Factory::the_hole_value(),
+              RelocInfo::EMBEDDED_OBJECT);
+      frame_->EmitPush(kScratchRegister);
+    } else if (node->fun() != NULL) {
+      Load(node->fun());
+    } else {
+      frame_->EmitPush(Immediate(Smi::FromInt(0)));  // no initial value!
+    }
+    Result ignored = frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
+    // Ignore the return value (declarations are statements).
+    return;
+  }
+
+  ASSERT(!var->is_global());
+
+  // If we have a function or a constant, we need to initialize the variable.
+  Expression* val = NULL;
+  if (node->mode() == Variable::CONST) {
+    val = new Literal(Factory::the_hole_value());
+  } else {
+    val = node->fun();  // NULL if we don't have a function
+  }
+
+  if (val != NULL) {
+    {
+      // Set the initial value.
+      Reference target(this, node->proxy());
+      Load(val);
+      target.SetValue(NOT_CONST_INIT);
+      // The reference is removed from the stack (preserving TOS) when
+      // it goes out of scope.
+    }
+    // Get rid of the assigned value (declarations are statements).
+    frame_->Drop();
+  }
 }
 
 
