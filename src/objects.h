@@ -2743,6 +2743,9 @@ class SharedFunctionInfo: public HeapObject {
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
 
+  // [construct stub]: Code stub for constructing instances of this function.
+  DECL_ACCESSORS(construct_stub, Code)
+
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
@@ -2838,7 +2841,8 @@ class SharedFunctionInfo: public HeapObject {
   // (An even number of integers has a size that is a multiple of a pointer.)
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
-  static const int kLengthOffset = kCodeOffset + kPointerSize;
+  static const int kConstructStubOffset = kCodeOffset + kPointerSize;
+  static const int kLengthOffset = kConstructStubOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;

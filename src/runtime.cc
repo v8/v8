@@ -4328,45 +4328,61 @@ static Object* Runtime_NewClosure(Arguments args) {
 }
 
 
+static Handle<Code> ComputeConstructStub(Handle<Map> map) {
+  // TODO(385): Change this to create a construct stub specialized for
+  // the given map to make allocation of simple objects - and maybe
+  // arrays - much faster.
+  return Handle<Code>(Builtins::builtin(Builtins::JSConstructStubGeneric));
+}
+
+
 static Object* Runtime_NewObject(Arguments args) {
-  NoHandleAllocation ha;
+  HandleScope scope;
   ASSERT(args.length() == 1);
 
-  Object* constructor = args[0];
-  if (constructor->IsJSFunction()) {
-    JSFunction* function = JSFunction::cast(constructor);
+  Handle<Object> constructor = args.at<Object>(0);
 
-    // Handle stepping into constructors if step into is active.
+  // If the constructor isn't a proper function we throw a type error.
+  if (!constructor->IsJSFunction()) {
+    Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
+    Handle<Object> type_error =
+        Factory::NewTypeError("not_constructor", arguments);
+    return Top::Throw(*type_error);
+  }
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (Debug::StepInActive()) {
-      HandleScope scope;
-      Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
-    }
+  // Handle stepping into constructors if step into is active.
+  if (Debug::StepInActive()) {
+    Debug::HandleStepIn(function, 0, true);
+  }
 #endif
 
-    if (function->has_initial_map() &&
-        function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
+  if (function->has_initial_map()) {
+    if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
       // The 'Function' function ignores the receiver object when
       // called using 'new' and creates a new JSFunction object that
       // is returned.  The receiver object is only used for error
       // reporting if an error occurs when constructing the new
-      // JSFunction.  AllocateJSObject should not be used to allocate
-      // JSFunctions since it does not properly initialize the shared
-      // part of the function.  Since the receiver is ignored anyway,
-      // we use the global object as the receiver instead of a new
-      // JSFunction object.  This way, errors are reported the same
-      // way whether or not 'Function' is called using 'new'.
+      // JSFunction. Factory::NewJSObject() should not be used to
+      // allocate JSFunctions since it does not properly initialize
+      // the shared part of the function. Since the receiver is
+      // ignored anyway, we use the global object as the receiver
+      // instead of a new JSFunction object. This way, errors are
+      // reported the same way whether or not 'Function' is called
+      // using 'new'.
       return Top::context()->global();
     }
-    return Heap::AllocateJSObject(function);
   }
 
-  HandleScope scope;
-  Handle<Object> cons(constructor);
-  // The constructor is not a function; throw a type error.
-  Handle<Object> type_error =
-    Factory::NewTypeError("not_constructor", HandleVector(&cons, 1));
-  return Top::Throw(*type_error);
+  bool first_allocation = !function->has_initial_map();
+  Handle<JSObject> result = Factory::NewJSObject(function);
+  if (first_allocation) {
+    Handle<Map> map = Handle<Map>(function->initial_map());
+    Handle<Code> stub = ComputeConstructStub(map);
+    function->shared()->set_construct_stub(*stub);
+  }
+  return *result;
 }
 
 

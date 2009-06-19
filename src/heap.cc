@@ -1510,6 +1510,8 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = Builtins::builtin(Builtins::Illegal);
   share->set_code(illegal);
+  Code* construct_stub = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  share->set_construct_stub(construct_stub);
   share->set_expected_nof_properties(0);
   share->set_length(0);
   share->set_formal_parameter_count(0);

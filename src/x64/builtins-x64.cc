@@ -171,6 +171,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
 }
 
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
+  masm->int3();  // UNIMPLEMENTED.
+}
+
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Expects five C++ function parameters.
