@@ -412,9 +412,10 @@ CppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function UnixCppEntriesProvider() {
+function UnixCppEntriesProvider(nmExec) {
   this.symbols = [];
   this.parsePos = 0;
+  this.nmExec = nmExec;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
@@ -426,8 +427,8 @@ UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
   try {
     this.symbols = [
-      os.system('nm', ['-C', '-n', libName], -1, -1),
-      os.system('nm', ['-C', '-n', '-D', libName], -1, -1)
+      os.system(this.nmExec, ['-C', '-n', libName], -1, -1),
+      os.system(this.nmExec, ['-C', '-n', '-D', libName], -1, -1)
     ];
   } catch (e) {
     // If the library cannot be found on this system let's not panic.
@@ -525,7 +526,8 @@ function processArguments(args) {
     platform: 'unix',
     stateFilter: null,
     ignoreUnknown: false,
-    separateIc: false
+    separateIc: false,
+    nm: 'nm'
   };
   var argsDispatch = {
     '-j': ['stateFilter', TickProcessor.VmStates.JS,
@@ -545,7 +547,9 @@ function processArguments(args) {
     '--unix': ['platform', 'unix',
         'Specify that we are running on *nix platform'],
     '--windows': ['platform', 'windows',
-        'Specify that we are running on Windows platform']
+        'Specify that we are running on Windows platform'],
+    '--nm': ['nm', 'nm',
+        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)']
   };
   argsDispatch['--js'] = argsDispatch['-j'];
   argsDispatch['--gc'] = argsDispatch['-g'];
@@ -577,9 +581,15 @@ function processArguments(args) {
       break;
     }
     args.shift();
+    var userValue = null;
+    var eqPos = arg.indexOf('=');
+    if (eqPos != -1) {
+      userValue = arg.substr(eqPos + 1);
+      arg = arg.substr(0, eqPos);
+    }
     if (arg in argsDispatch) {
       var dispatch = argsDispatch[arg];
-      result[dispatch[0]] = dispatch[1];
+      result[dispatch[0]] = userValue == null ? dispatch[1] : userValue;
     } else {
       printUsageAndExit();
     }
@@ -594,7 +604,7 @@ function processArguments(args) {
 
 var params = processArguments(arguments);
 var tickProcessor = new TickProcessor(
-    params.platform == 'unix' ? new UnixCppEntriesProvider() :
+    params.platform == 'unix' ? new UnixCppEntriesProvider(params.nm) :
         new WindowsCppEntriesProvider(),
     params.separateIc,
     params.ignoreUnknown,
