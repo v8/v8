@@ -1885,7 +1885,8 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         uint32_t differing_bits = (from ^ to);
         // A mask and compare is only perfect if the differing bits form a
         // number like 00011111 with one single block of trailing 1s.
-        if ((differing_bits & (differing_bits + 1)) == 0) {
+        if ((differing_bits & (differing_bits + 1)) == 0 &&
+             from + differing_bits == to) {
           pos->determines_perfectly = true;
         }
         uint32_t common_bits = ~SmearBitsRight(differing_bits);
