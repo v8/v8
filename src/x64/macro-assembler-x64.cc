@@ -45,6 +45,14 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 }
 
 
+// TODO(x64): For now, the write barrier is disabled on x64 and we
+// therefore generate no code.  This should be fixed when the write
+// barrier is enabled.
+void MacroAssembler::RecordWrite(Register object, int offset,
+                                 Register value, Register scratch) {
+}
+
+
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);
 }
@@ -298,6 +306,12 @@ void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   Move(kScratchRegister, source);
   cmpq(dst, kScratchRegister);
+}
+
+
+void MacroAssembler::Push(Handle<Object> source) {
+  Move(kScratchRegister, source);
+  push(kScratchRegister);
 }
 
 

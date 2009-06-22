@@ -166,6 +166,7 @@ void CodeGenerator::TestCodeGenerator() {
           "      test_local_variables(-25.3, 2));"
           "  // return test_recursion_with_base(0, 0, 0, 47);\n"
           "  var o = { x: 42 };"
+          "  var a = [ 1, 2, 3 ];"
           "  return test_if_then_else(0, 46, 47);"
           "})()")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
@@ -321,7 +322,7 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // all registers).
   if (FLAG_trace) {
     frame_->Push(return_value);
-    // *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
+    *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
   }
   return_value->ToRegister(rax);
 
@@ -334,6 +335,8 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   frame_->Exit();
   masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
   DeleteFrame();
+
+  // TODO(x64): introduce kX64JSReturnSequenceLength and enable assert.
 
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
@@ -587,7 +590,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   CodeForStatementPosition(node);
   Load(node->expression());
   Result return_value = frame_->Pop();
-  /*  if (function_return_is_shadowed_) {
+  if (function_return_is_shadowed_) {
     function_return_.Jump(&return_value);
   } else {
     frame_->PrepareForReturn();
@@ -600,8 +603,6 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
       GenerateReturnSequence(&return_value);
     }
   }
-  */
-  GenerateReturnSequence(&return_value);
 }
 
 
@@ -694,7 +695,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   } else {
     ASSERT(var->is_global());
     Reference ref(this, node);
-    // ref.GetValue(typeof_state());
+    ref.GetValue(typeof_state());
   }
 }
 
@@ -739,10 +740,7 @@ void DeferredObjectLiteral::Generate() {
   // Literal index (1).
   __ push(Immediate(Smi::FromInt(node_->literal_index())));
   // Constant properties (2).
-  __ movq(kScratchRegister,
-          node_->constant_properties(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ push(kScratchRegister);
+  __ Push(node_->constant_properties());
   __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
   if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
 }
@@ -774,10 +772,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // If so, jump to the deferred code passing the literals array.
   DeferredObjectLiteral* deferred =
       new DeferredObjectLiteral(boilerplate.reg(), literals.reg(), node);
-  __ movq(kScratchRegister,
-          Factory::undefined_value(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(boilerplate.reg(), kScratchRegister);
+  __ Cmp(boilerplate.reg(), Factory::undefined_value());
   deferred->Branch(equal);
   deferred->BindExit();
   literals.Unuse();
@@ -839,9 +834,124 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   }
 }
 
-void CodeGenerator::VisitArrayLiteral(ArrayLiteral* a) {
-  UNIMPLEMENTED();
+
+// Materialize the array literal 'node' in the literals array 'literals'
+// of the function.  Leave the array boilerplate in 'boilerplate'.
+class DeferredArrayLiteral: public DeferredCode {
+ public:
+  DeferredArrayLiteral(Register boilerplate,
+                       Register literals,
+                       ArrayLiteral* node)
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
+    set_comment("[ DeferredArrayLiteral");
+  }
+
+  void Generate();
+
+ private:
+  Register boilerplate_;
+  Register literals_;
+  ArrayLiteral* node_;
+};
+
+
+void DeferredArrayLiteral::Generate() {
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
+  // Literal array (0).
+  __ push(literals_);
+  // Literal index (1).
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  // Constant properties (2).
+  __ Push(node_->literals());
+  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
 }
+
+
+void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+  Comment cmnt(masm_, "[ ArrayLiteral");
+
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
+
+  // Load the literals array of the function.
+  __ movq(literals.reg(),
+          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
+
+  // Check whether we need to materialize the object literal boilerplate.
+  // If so, jump to the deferred code passing the literals array.
+  DeferredArrayLiteral* deferred =
+      new DeferredArrayLiteral(boilerplate.reg(), literals.reg(), node);
+  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  deferred->Branch(equal);
+  deferred->BindExit();
+  literals.Unuse();
+
+  // Push the resulting array literal boilerplate on the stack.
+  frame_->Push(&boilerplate);
+  // Clone the boilerplate object.
+  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
+  if (node->depth() == 1) {
+    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  }
+  Result clone = frame_->CallRuntime(clone_function_id, 1);
+  // Push the newly cloned literal object as the result.
+  frame_->Push(&clone);
+
+  // Generate code to set the elements in the array that are not
+  // literals.
+  for (int i = 0; i < node->values()->length(); i++) {
+    Expression* value = node->values()->at(i);
+
+    // If value is a literal the property value is already set in the
+    // boilerplate object.
+    if (value->AsLiteral() != NULL) continue;
+    // If value is a materialized literal the property value is already set
+    // in the boilerplate object if it is simple.
+    if (CompileTimeValue::IsCompileTimeValue(value)) continue;
+
+    // The property must be set by generated code.
+    Load(value);
+
+    // Get the property value off the stack.
+    Result prop_value = frame_->Pop();
+    prop_value.ToRegister();
+
+    // Fetch the array literal while leaving a copy on the stack and
+    // use it to get the elements array.
+    frame_->Dup();
+    Result elements = frame_->Pop();
+    elements.ToRegister();
+    frame_->Spill(elements.reg());
+    // Get the elements array.
+    __ movq(elements.reg(),
+            FieldOperand(elements.reg(), JSObject::kElementsOffset));
+
+    // Write to the indexed properties array.
+    int offset = i * kPointerSize + Array::kHeaderSize;
+    __ movq(FieldOperand(elements.reg(), offset), prop_value.reg());
+
+    // Update the write barrier for the array address.
+    frame_->Spill(prop_value.reg());  // Overwritten by the write barrier.
+    Result scratch = allocator_->Allocate();
+    ASSERT(scratch.is_valid());
+    __ RecordWrite(elements.reg(), offset, prop_value.reg(), scratch.reg());
+  }
+}
+
 
 void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* a) {
   UNIMPLEMENTED();
@@ -1301,20 +1411,15 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   // Fast case checks.
 
   // 'false' => false.
-  __ movq(kScratchRegister, Factory::false_value(), RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(value.reg(), kScratchRegister);
+  __ Cmp(value.reg(), Factory::false_value());
   dest->false_target()->Branch(equal);
 
   // 'true' => true.
-  __ movq(kScratchRegister, Factory::true_value(), RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(value.reg(), kScratchRegister);
+  __ Cmp(value.reg(), Factory::true_value());
   dest->true_target()->Branch(equal);
 
   // 'undefined' => false.
-  __ movq(kScratchRegister,
-          Factory::undefined_value(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(value.reg(), kScratchRegister);
+  __ Cmp(value.reg(), Factory::undefined_value());
   dest->false_target()->Branch(equal);
 
   // Smi => false iff zero.
@@ -1643,9 +1748,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
                                                  value,
                                                  &slow));
         if (potential_slot->var()->mode() == Variable::CONST) {
-          __ movq(kScratchRegister, Factory::the_hole_value(),
-                  RelocInfo::EMBEDDED_OBJECT);
-          __ cmpq(value.reg(), kScratchRegister);
+          __ Cmp(value.reg(), Factory::the_hole_value());
           done.Branch(not_equal, &value);
           __ movq(value.reg(), Factory::undefined_value(),
                   RelocInfo::EMBEDDED_OBJECT);
@@ -1686,9 +1789,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     Comment cmnt(masm_, "[ Load const");
     JumpTarget exit;
     __ movq(rcx, SlotOperand(slot, rcx));
-    __ movq(kScratchRegister, Factory::the_hole_value(),
-            RelocInfo::EMBEDDED_OBJECT);
-    __ cmpq(rcx, kScratchRegister);
+    __ Cmp(rcx, Factory::the_hole_value());
     exit.Branch(not_equal);
     __ movq(rcx, Factory::undefined_value(), RelocInfo::EMBEDDED_OBJECT);
     exit.Bind();
@@ -1772,9 +1873,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       VirtualFrame::SpilledScope spilled_scope;
       Comment cmnt(masm_, "[ Init const");
       __ movq(rcx, SlotOperand(slot, rcx));
-      __ movq(kScratchRegister, Factory::the_hole_value(),
-              RelocInfo::EMBEDDED_OBJECT);
-      __ cmpq(rcx, kScratchRegister);
+      __ Cmp(rcx, Factory::the_hole_value());
       exit.Branch(not_equal);
     }
 
@@ -1790,19 +1889,13 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     } else if (slot->type() == Slot::LOCAL) {
       frame_->StoreToLocalAt(slot->index());
     } else {
-      UNIMPLEMENTED();
-      // The other slot types (LOOKUP and GLOBAL) cannot reach here.
-      //
-      // The use of SlotOperand below is safe for an unspilled frame
-      // because the slot is a context slot.
-      /*
       ASSERT(slot->type() == Slot::CONTEXT);
       frame_->Dup();
       Result value = frame_->Pop();
       value.ToRegister();
       Result start = allocator_->Allocate();
       ASSERT(start.is_valid());
-      __ mov(SlotOperand(slot, start.reg()), value.reg());
+      __ movq(SlotOperand(slot, start.reg()), value.reg());
       // RecordWrite may destroy the value registers.
       //
       // TODO(204): Avoid actually spilling when the value is not
@@ -1814,7 +1907,6 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       __ RecordWrite(start.reg(), offset, value.reg(), temp.reg());
       // The results start, value, and temp are unused by going out of
       // scope.
-      */
     }
 
     exit.Bind();
@@ -1861,13 +1953,18 @@ void CodeGenerator::LoadGlobalReceiver() {
 //  Stub classes have public member named masm, not masm_.
 #define __ ACCESS_MASM(masm)
 
+
+void Reference::GetValue(TypeofState typeof_state) {
+  UNIMPLEMENTED();
+}
+
+
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
   // 'null' => false.
-  __ movq(kScratchRegister, Factory::null_value(), RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(rax, kScratchRegister);
+  __ Cmp(rax, Factory::null_value());
   __ j(equal, &false_result);
 
   // Get the map and type of the heap object.
@@ -1896,10 +1993,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_string);
   // HeapNumber => false iff +0, -0, or NaN.
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(rdx, kScratchRegister);
+  __ Cmp(rdx, Factory::heap_number_map());
   __ j(not_equal, &true_result);
   // TODO(x64): Don't use fp stack, use MMX registers?
   __ fldz();  // Load zero onto fp stack
