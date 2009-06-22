@@ -295,14 +295,11 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
-  CompilationCache::Entry entry = is_global
-      ? CompilationCache::EVAL_GLOBAL
-      : CompilationCache::EVAL_CONTEXTUAL;
 
   // Do a lookup in the compilation cache; if the entry is not there,
   // invoke the compiler and add the result to the cache.
   Handle<JSFunction> result =
-      CompilationCache::LookupEval(source, context, entry);
+      CompilationCache::LookupEval(source, context, is_global);
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
@@ -314,7 +311,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                           NULL,
                           NULL);
     if (!result.is_null()) {
-      CompilationCache::PutEval(source, context, entry, result);
+      CompilationCache::PutEval(source, context, is_global, result);
     }
   }
 
