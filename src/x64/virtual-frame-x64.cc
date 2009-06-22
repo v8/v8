@@ -392,6 +392,10 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 }
 
 
+void VirtualFrame::MakeMergable() {
+  // UNIMPLEMENTED();
+}
+
 void VirtualFrame::MergeTo(VirtualFrame* a) {
   UNIMPLEMENTED();
 }

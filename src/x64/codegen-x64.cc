@@ -103,14 +103,38 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
 
 void CodeGenerator::TestCodeGenerator() {
   // Compile a function from a string, and run it.
+
+  // Set flags appropriately for this stage of implementation.
+  // TODO(X64): Make ic and lazy compilation work, and stop disabling them.
+  // These settings stick - remove them when we don't want them anymore.
+#ifdef DEBUG
+  FLAG_print_builtin_source = true;
+  FLAG_print_builtin_ast = true;
+#endif
+  FLAG_use_ic = false;
+  FLAG_lazy = false;
+
   Handle<JSFunction> test_function = Compiler::Compile(
       Factory::NewStringFromAscii(CStrVector(
-          "39;"
+          "// Put all code in anonymous function to avoid global scope.\n"
           "(function(){"
-            "function foo(x, y){var w; y = x; x = w; w = y; y = x; return w;};"
-            "function bar(x, y, zee){return zee;};"
-            "foo(2,3);"
-            "return foo(bar(foo(1,3), 42, 47), foo( -25.3, 2));"
+          "  function test_if_then_else(x, y, z){"
+          "    if (x) {"
+          "      x = y;"
+          "    } else {"
+          "      x = z;"
+          "    }"
+          "    return x;"
+          "  }"
+          "  function test_local_variables(x, y){"
+          "    var w; y = x; x = w; w = y; y = x; return w;"
+          "  };"
+          "  test_local_variables(2,3);"
+          "  function test_nesting_calls(x, y, zee){return zee;};"
+          "  test_local_variables("
+          "      test_nesting_calls(test_local_variables(1,3), 42, 47),"
+          "      test_local_variables(-25.3, 2));"
+          "  return test_if_then_else(1, 47, 39);"
           "})()")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
       0,
@@ -417,9 +441,103 @@ void CodeGenerator::VisitEmptyStatement(EmptyStatement* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitIfStatement(IfStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitIfStatement(IfStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ IfStatement");
+  // Generate different code depending on which parts of the if statement
+  // are present or not.
+  bool has_then_stm = node->HasThenStatement();
+  bool has_else_stm = node->HasElseStatement();
+
+  CodeForStatementPosition(node);
+  JumpTarget exit;
+  if (has_then_stm && has_else_stm) {
+    JumpTarget then;
+    JumpTarget else_;
+    ControlDestination dest(&then, &else_, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+    if (dest.false_was_fall_through()) {
+      // The else target was bound, so we compile the else part first.
+      Visit(node->else_statement());
+
+      // We may have dangling jumps to the then part.
+      if (then.is_linked()) {
+        if (has_valid_frame()) exit.Jump();
+        then.Bind();
+        Visit(node->then_statement());
+      }
+    } else {
+      // The then target was bound, so we compile the then part first.
+      Visit(node->then_statement());
+
+      if (else_.is_linked()) {
+        if (has_valid_frame()) exit.Jump();
+        else_.Bind();
+        Visit(node->else_statement());
+      }
+    }
+
+  } else if (has_then_stm) {
+    ASSERT(!has_else_stm);
+    JumpTarget then;
+    ControlDestination dest(&then, &exit, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+    if (dest.false_was_fall_through()) {
+      // The exit label was bound.  We may have dangling jumps to the
+      // then part.
+      if (then.is_linked()) {
+        exit.Unuse();
+        exit.Jump();
+        then.Bind();
+        Visit(node->then_statement());
+      }
+    } else {
+      // The then label was bound.
+      Visit(node->then_statement());
+    }
+
+  } else if (has_else_stm) {
+    ASSERT(!has_then_stm);
+    JumpTarget else_;
+    ControlDestination dest(&exit, &else_, false);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+    if (dest.true_was_fall_through()) {
+      // The exit label was bound.  We may have dangling jumps to the
+      // else part.
+      if (else_.is_linked()) {
+        exit.Unuse();
+        exit.Jump();
+        else_.Bind();
+        Visit(node->else_statement());
+      }
+    } else {
+      // The else label was bound.
+      Visit(node->else_statement());
+    }
+
+  } else {
+    ASSERT(!has_then_stm && !has_else_stm);
+    // We only care about the condition's side effects (not its value
+    // or control flow effect).  LoadCondition is called without
+    // forcing control flow.
+    ControlDestination dest(&exit, &exit, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, false);
+    if (!dest.is_used()) {
+      // We got a value on the frame rather than (or in addition to)
+      // control flow.
+      frame_->Drop();
+    }
+  }
+
+  if (exit.is_linked()) {
+    exit.Bind();
+  }
 }
+
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* a) {
   UNIMPLEMENTED();
@@ -993,11 +1111,69 @@ void CodeGenerator::LoadCondition(Expression* x,
   if (force_control && !dest->is_used()) {
     // Convert the TOS value into flow to the control destination.
     // TODO(X64): Make control flow to control destinations work.
-    // ToBoolean(dest);
+    ToBoolean(dest);
   }
 
   ASSERT(!(force_control && !dest->is_used()));
   ASSERT(dest->is_used() || frame_->height() == original_height + 1);
+}
+
+
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
+};
+
+
+// ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
+// convert it to a boolean in the condition code register or jump to
+// 'false_target'/'true_target' as appropriate.
+void CodeGenerator::ToBoolean(ControlDestination* dest) {
+  Comment cmnt(masm_, "[ ToBoolean");
+
+  // The value to convert should be popped from the frame.
+  Result value = frame_->Pop();
+  value.ToRegister();
+  // Fast case checks.
+
+  // 'false' => false.
+  __ movq(kScratchRegister, Factory::false_value(), RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(value.reg(), kScratchRegister);
+  dest->false_target()->Branch(equal);
+
+  // 'true' => true.
+  __ movq(kScratchRegister, Factory::true_value(), RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(value.reg(), kScratchRegister);
+  dest->true_target()->Branch(equal);
+
+  // 'undefined' => false.
+  __ movq(kScratchRegister,
+          Factory::undefined_value(),
+          RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(value.reg(), kScratchRegister);
+  dest->false_target()->Branch(equal);
+
+  // Smi => false iff zero.
+  ASSERT(kSmiTag == 0);
+  __ testq(value.reg(), value.reg());
+  dest->false_target()->Branch(zero);
+  __ testq(value.reg(), Immediate(kSmiTagMask));
+  dest->true_target()->Branch(zero);
+
+  // Call the stub for all other cases.
+  frame_->Push(&value);  // Undo the Pop() from above.
+  ToBooleanStub stub;
+  Result temp = frame_->CallStub(&stub, 1);
+  // Convert the result to a condition code.
+  __ testq(temp.reg(), temp.reg());
+  temp.Unuse();
+  dest->Split(not_equal);
 }
 
 
@@ -1525,18 +1701,6 @@ void CodeGenerator::LoadGlobalReceiver() {
 
 //  Stub classes have public member named masm, not masm_.
 #define __ ACCESS_MASM(masm)
-
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
-};
-
 
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
