@@ -1302,16 +1302,19 @@ Object* JSObject::ReplaceSlowProperty(String* name,
                                        Object* value,
                                        PropertyAttributes attributes) {
   Dictionary* dictionary = property_dictionary();
-  PropertyDetails old_details =
-      dictionary->DetailsAt(dictionary->FindStringEntry(name));
-  int new_index = old_details.index();
-  if (old_details.IsTransition()) new_index = 0;
+  int old_index = dictionary->FindStringEntry(name);
+  int new_enumeration_index = 0;  // 0 means "Use the next available index."
+  if (old_index != -1) {
+    // All calls to ReplaceSlowProperty have had all transitions removed.
+    ASSERT(!dictionary->DetailsAt(old_index).IsTransition());
+    new_enumeration_index = dictionary->DetailsAt(old_index).index();
+  }
 
-  PropertyDetails new_details(attributes, NORMAL, old_details.index());
+  PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
   Object* result =
-      property_dictionary()->SetOrAddStringEntry(name, value, new_details);
+      dictionary->SetOrAddStringEntry(name, value, new_details);
   if (result->IsFailure()) return result;
-  if (property_dictionary() != result) {
+  if (dictionary != result) {
     set_properties(Dictionary::cast(result));
   }
   return value;

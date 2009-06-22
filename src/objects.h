@@ -2033,6 +2033,7 @@ class Dictionary: public DictionaryBase {
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
+    ASSERT(entry >= 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(Smi::cast(get(EntryToIndex(entry) + 2)));
   }
 
