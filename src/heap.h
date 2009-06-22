@@ -444,17 +444,6 @@ class Heap : public AllStatic {
   // Allocates a new utility object in the old generation.
   static Object* AllocateStruct(InstanceType type);
 
-
-  // Initializes a function with a shared part and prototype.
-  // Returns the function.
-  // Note: this code was factored out of AllocateFunction such that
-  // other parts of the VM could use it. Specifically, a function that creates
-  // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
-  // Please note this does not perform a garbage collection.
-  static Object* InitializeFunction(JSFunction* function,
-                                    SharedFunctionInfo* shared,
-                                    Object* prototype);
-
   // Allocates a function initialized with a shared part.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -984,7 +973,17 @@ class Heap : public AllStatic {
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   // Copy memory from src to dst.
-  inline static void CopyBlock(Object** dst, Object** src, int byte_size);
+  static inline void CopyBlock(Object** dst, Object** src, int byte_size);
+
+  // Initializes a function with a shared part and prototype.
+  // Returns the function.
+  // Note: this code was factored out of AllocateFunction such that
+  // other parts of the VM could use it. Specifically, a function that creates
+  // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
+  // Please note this does not perform a garbage collection.
+  static inline Object* InitializeFunction(JSFunction* function,
+                                           SharedFunctionInfo* shared,
+                                           Object* prototype);
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

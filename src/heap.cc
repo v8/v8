@@ -501,6 +501,7 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   // At any old GC clear the keyed lookup cache to enable collection of unused
   // maps.
   KeyedLookupCache::Clear();
+  ContextSlotCache::Clear();
 
   CompilationCache::MarkCompactPrologue();
 
@@ -1387,6 +1388,9 @@ bool Heap::CreateInitialObjects() {
 
   // Initialize keyed lookup cache.
   KeyedLookupCache::Clear();
+
+  // Initialize context slot cache.
+  ContextSlotCache::Clear();
 
   // Initialize compilation cache.
   CompilationCache::Clear();
@@ -3548,7 +3552,9 @@ void KeyedLookupCache::Clear() {
   for (int index = 0; index < kLength; index++) keys_[index].map = NULL;
 }
 
+
 KeyedLookupCache::Key KeyedLookupCache::keys_[KeyedLookupCache::kLength];
+
 
 int KeyedLookupCache::field_offsets_[KeyedLookupCache::kLength];
 

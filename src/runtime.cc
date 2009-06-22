@@ -124,7 +124,8 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       }
     }
     mode = copy->GetWriteBarrierMode();
-    for (int i = 0; i < copy->map()->inobject_properties(); i++) {
+    int nof = copy->map()->inobject_properties();
+    for (int i = 0; i < nof; i++) {
       Object* value = copy->InObjectPropertyAt(i);
       if (value->IsJSObject()) {
         JSObject* jsObject = JSObject::cast(value);
