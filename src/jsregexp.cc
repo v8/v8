@@ -404,7 +404,9 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   // Prepare space for the return values.
   int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(FixedArray::cast(jsregexp->data())) + 1) * 2;
+      UseNativeRegexp() ?
+      (IrregexpNumberOfCaptures(FixedArray::cast(jsregexp->data())) + 1) * 2 :
+      IrregexpNumberOfRegisters(FixedArray::cast(jsregexp->data()));
   OffsetsVector offsets(number_of_capture_registers);
 
 #ifdef DEBUG
@@ -896,12 +898,13 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
   // The "+1" is to avoid a push_limit of zero if stack_limit_slack() is 1.
   const int push_limit = (assembler->stack_limit_slack() + 1) / 2;
 
+  // Count pushes performed to force a stack limit check occasionally.
+  int pushes = 0;
+
   for (int reg = 0; reg <= max_register; reg++) {
     if (!affected_registers.Get(reg)) {
       continue;
     }
-    // Count pushes performed to force a stack limit check occasionally.
-    int pushes = 0;
 
     // The chronologically first deferred action in the trace
     // is used to infer the action needed to restore a register
