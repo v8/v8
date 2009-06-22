@@ -2232,6 +2232,15 @@ JSONProtocolSerializer.prototype.serializeFrame_ = function(mirror, content) {
   if (!IS_UNDEFINED(source_line_text)) {
     content.sourceLineText = source_line_text;
   }
+  
+  content.scopes = [];
+  for (var i = 0; i < mirror.scopeCount(); i++) {
+    var scope = mirror.scope(i);
+    content.scopes.push({
+      type: scope.scopeType(),
+      index: i
+    });
+  }
 }
 
 
