@@ -404,10 +404,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   // Prepare space for the return values.
   int number_of_capture_registers =
-      UseNativeRegexp() ?
-      (IrregexpNumberOfCaptures(FixedArray::cast(jsregexp->data())) + 1) * 2 :
-      IrregexpNumberOfRegisters(FixedArray::cast(jsregexp->data()));
-  OffsetsVector offsets(number_of_capture_registers);
+      (IrregexpNumberOfCaptures(FixedArray::cast(jsregexp->data())) + 1) * 2;
 
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
@@ -423,15 +420,16 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   last_match_info->EnsureSize(number_of_capture_registers + kLastMatchOverhead);
 
-  int* offsets_vector = offsets.vector();
   bool rc;
+  FixedArray* array;
 
   // Dispatch to the correct RegExp implementation.
-
   Handle<String> original_subject = subject;
   Handle<FixedArray> regexp(FixedArray::cast(jsregexp->data()));
   if (UseNativeRegexp()) {
 #if V8_TARGET_ARCH_IA32
+    OffsetsVector captures(number_of_capture_registers);
+    int* captures_vector = captures.vector();
     RegExpMacroAssemblerIA32::Result res;
     do {
       bool is_ascii = subject->IsAsciiRepresentation();
@@ -441,8 +439,8 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
       Handle<Code> code(RegExpImpl::IrregexpNativeCode(*regexp, is_ascii));
       res = RegExpMacroAssemblerIA32::Match(code,
                                             subject,
-                                            offsets_vector,
-                                            offsets.length(),
+                                            captures_vector,
+                                            captures.length(),
                                             previous_index);
       // If result is RETRY, the string have changed representation, and we
       // must restart from scratch.
@@ -455,7 +453,16 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
         || res == RegExpMacroAssemblerIA32::FAILURE);
 
     rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
-#else
+    if (!rc) return Factory::null_value();
+
+    array = last_match_info->elements();
+    ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
+    // The captures come in (start, end+1) pairs.
+    for (int i = 0; i < number_of_capture_registers; i += 2) {
+      SetCapture(array, i, captures_vector[i]);
+      SetCapture(array, i + 1, captures_vector[i + 1]);
+    }
+#else  // !V8_TARGET_ARCH_IA32
     UNREACHABLE();
 #endif
   } else {
@@ -463,33 +470,36 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     if (!EnsureCompiledIrregexp(jsregexp, is_ascii)) {
       return Handle<Object>::null();
     }
+    // Now that we have done EnsureCompiledIrregexp we can get the number of
+    // registers.
+    int number_of_registers =
+        IrregexpNumberOfRegisters(FixedArray::cast(jsregexp->data()));
+    OffsetsVector registers(number_of_registers);
+    int* register_vector = registers.vector();
     for (int i = number_of_capture_registers - 1; i >= 0; i--) {
-      offsets_vector[i] = -1;
+      register_vector[i] = -1;
     }
     Handle<ByteArray> byte_codes(IrregexpByteCode(*regexp, is_ascii));
 
     rc = IrregexpInterpreter::Match(byte_codes,
                                     subject,
-                                    offsets_vector,
+                                    register_vector,
                                     previous_index);
+    if (!rc) return Factory::null_value();
+
+    array = last_match_info->elements();
+    ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
+    // The captures come in (start, end+1) pairs.
+    for (int i = 0; i < number_of_capture_registers; i += 2) {
+      SetCapture(array, i, register_vector[i]);
+      SetCapture(array, i + 1, register_vector[i + 1]);
+    }
   }
 
-  // Handle results from RegExp implementation.
-
-  if (!rc) {
-    return Factory::null_value();
-  }
-
-  FixedArray* array = last_match_info->elements();
-  ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
-  // The captures come in (start, end+1) pairs.
   SetLastCaptureCount(array, number_of_capture_registers);
   SetLastSubject(array, *original_subject);
   SetLastInput(array, *original_subject);
-  for (int i = 0; i < number_of_capture_registers; i+=2) {
-    SetCapture(array, i, offsets_vector[i]);
-    SetCapture(array, i + 1, offsets_vector[i + 1]);
-  }
+
   return last_match_info;
 }
 
