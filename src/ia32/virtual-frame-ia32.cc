@@ -220,7 +220,9 @@ void VirtualFrame::MakeMergable() {
       }
       // No need to set the copied flag---there are no copies of
       // copies or constants so the original was not copied.
-      elements_[i].set_static_type(element.static_type());
+
+      // Backwards jump targets can never know the type of a value.
+      elements_[i].set_static_type(StaticType::unknown());
     } else {
       // Clear the copy flag of non-constant, non-copy elements above
       // the high water mark.  They cannot be copied because copes are
