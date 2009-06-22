@@ -1168,7 +1168,7 @@ class DescriptorLookupCache {
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
   static int Lookup(DescriptorArray* array, String* name) {
-    if(!StringShape(name).IsSymbol()) return kAbsent;
+    if (!StringShape(name).IsSymbol()) return kAbsent;
     int index = Hash(array, name);
     Key& key = keys_[index];
     if ((key.array == array) && (key.name == name)) return results_[index];
@@ -1178,7 +1178,7 @@ class DescriptorLookupCache {
   // Update an element in the cache.
   static void Update(DescriptorArray* array, String* name, int result) {
     ASSERT(result != kAbsent);
-    if(StringShape(name).IsSymbol()) {
+    if (StringShape(name).IsSymbol()) {
       int index = Hash(array, name);
       Key& key = keys_[index];
       key.array = array;
