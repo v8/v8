@@ -92,6 +92,17 @@ struct Register {
     return 1 << code_;
   }
 
+  // Return the high bit of the register code as a 0 or 1.  Used often
+  // when constructing the REX prefix byte.
+  int high_bit() const {
+    return code_ >> 3;
+  }
+  // Return the 3 low bits of the register code.  Used when encoding registers
+  // in modR/M, SIB, and opcode bytes.
+  int low_bits() const {
+    return code_ & 0x7;
+  }
+
   // (unfortunately we can't make this private in a struct when initializing
   // by assignment.)
   int code_;
@@ -983,7 +994,7 @@ class Assembler : public Malloced {
   // the second operand of the operation, a register or operation
   // subcode, into the reg field of the ModR/M byte.
   void emit_operand(Register reg, const Operand& adr) {
-    emit_operand(reg.code() & 0x07, adr);
+    emit_operand(reg.low_bits(), adr);
   }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
@@ -993,14 +1004,14 @@ class Assembler : public Malloced {
 
   // Emit a ModR/M byte with registers coded in the reg and rm_reg fields.
   void emit_modrm(Register reg, Register rm_reg) {
-    emit(0xC0 | (reg.code() & 0x7) << 3 | (rm_reg.code() & 0x7));
+    emit(0xC0 | reg.low_bits() << 3 | rm_reg.low_bits());
   }
 
   // Emit a ModR/M byte with an operation subcode in the reg field and
   // a register in the rm_reg field.
   void emit_modrm(int code, Register rm_reg) {
-    ASSERT((code & ~0x7) == 0);
-    emit(0xC0 | (code & 0x7) << 3 | (rm_reg.code() & 0x7));
+    ASSERT(is_uint3(code));
+    emit(0xC0 | code << 3 | rm_reg.low_bits());
   }
 
   // Emit the code-object-relative offset of the label's position

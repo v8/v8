@@ -380,13 +380,14 @@ void Assembler::GrowBuffer() {
 }
 
 
-void Assembler::emit_operand(int rm, const Operand& adr) {
-  ASSERT_EQ(rm & 0x07, rm);
+void Assembler::emit_operand(int code, const Operand& adr) {
+  ASSERT(is_uint3(code));
   const unsigned length = adr.len_;
   ASSERT(length > 0);
 
   // Emit updated ModR/M byte containing the given register.
-  pc_[0] = (adr.buf_[0] & ~0x38) | (rm << 3);
+  ASSERT((adr.buf_[0] & 0x38) == 0);
+  pc_[0] = adr.buf_[0] | code << 3;
 
   // Emit the rest of the encoded operand.
   for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
@@ -593,7 +594,7 @@ void Assembler::call(Register adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // Opcode: FF /2 r64
-  if (adr.code() > 7) {
+  if (adr.high_bit()) {
     emit_rex_64(adr);
   }
   emit(0xFF);
@@ -763,7 +764,7 @@ void Assembler::int3() {
 void Assembler::j(Condition cc, Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(0 <= cc && cc < 16);
+  ASSERT(is_uint4(cc));
   if (L->is_bound()) {
     const int short_size = 2;
     const int long_size  = 6;
@@ -831,7 +832,7 @@ void Assembler::jmp(Register target) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   // Opcode FF/4 r64
-  if (target.code() > 7) {
+  if (target.high_bit()) {
     emit_rex_64(target);
   }
   emit(0xFF);
@@ -982,7 +983,7 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
-  emit(0xB8 | (dst.code() & 0x7));
+  emit(0xB8 | dst.low_bits());
   emitq(reinterpret_cast<uintptr_t>(value), rmode);
 }
 
@@ -991,7 +992,7 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
-  emit(0xB8 | (dst.code() & 0x7));  // Not a ModR/M byte.
+  emit(0xB8 | dst.low_bits());
   emitq(value, rmode);
 }
 
@@ -1000,7 +1001,7 @@ void Assembler::movq(Register dst, ExternalReference ref) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
-  emit(0xB8 | (dst.code() & 0x7));
+  emit(0xB8 | dst.low_bits());
   emitq(reinterpret_cast<uintptr_t>(ref.address()),
         RelocInfo::EXTERNAL_REFERENCE);
 }
@@ -1021,7 +1022,7 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   last_pc_ = pc_;
   ASSERT(!Heap::InNewSpace(*value));
   emit_rex_64(dst);
-  emit(0xB8 | (dst.code() & 0x7));
+  emit(0xB8 | dst.low_bits());
   if (value->IsHeapObject()) {
     emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
   } else {
@@ -1192,10 +1193,10 @@ void Assembler::nop(int n) {
 void Assembler::pop(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (dst.code() > 7) {
+  if (dst.high_bit()) {
     emit_rex_64(dst);
   }
-  emit(0x58 | (dst.code() & 0x7));
+  emit(0x58 | dst.low_bits());
 }
 
 
@@ -1218,10 +1219,10 @@ void Assembler::popfq() {
 void Assembler::push(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  if (src.code() > 7) {
+  if (src.high_bit()) {
     emit_rex_64(src);
   }
-  emit(0x50 | (src.code() & 0x7));
+  emit(0x50 | src.low_bits());
 }
 
 
@@ -1295,7 +1296,7 @@ void Assembler::ret(int imm16) {
 void Assembler::setcc(Condition cc, Register reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(0 <= cc && cc < 16);
+  ASSERT(is_uint4(cc));
   if (reg.code() > 3) {  // Use x64 byte registers, where different.
     emit_rex_32(reg);
   }
@@ -1331,7 +1332,7 @@ void Assembler::xchg(Register dst, Register src) {
   if (src.is(rax) || dst.is(rax)) {  // Single-byte encoding
     Register other = src.is(rax) ? dst : src;
     emit_rex_64(other);
-    emit(0x90 | (other.code() & 0x7));
+    emit(0x90 | other.low_bits());
   } else {
     emit_rex_64(src, dst);
     emit(0x87);
@@ -1755,7 +1756,7 @@ void Assembler::fnclex() {
 
 void Assembler::emit_farith(int b1, int b2, int i) {
   ASSERT(is_uint8(b1) && is_uint8(b2));  // wrong opcode
-  ASSERT(0 <= i &&  i < 8);  // illegal stack offset
+  ASSERT(is_uint3(i));  // illegal stack offset
   emit(b1);
   emit(b2 + i);
 }
