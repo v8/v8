@@ -1026,10 +1026,9 @@ void Logger::LogCompiledFunctions() {
         Handle<String> script_name(String::cast(script->name()));
         int line_num = GetScriptLineNumber(script, shared->start_position());
         if (line_num > 0) {
-          line_num += script->line_offset()->value() + 1;
           LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG,
                               shared->code(), *func_name,
-                              *script_name, line_num));
+                              *script_name, line_num + 1));
         } else {
           // Can't distinguish enum and script here, so always use Script.
           LOG(CodeCreateEvent(Logger::SCRIPT_TAG,

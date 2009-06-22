@@ -380,10 +380,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
     Handle<String> func_name(name->length() > 0 ?
                              *name : shared->inferred_name());
     if (script->name()->IsString()) {
-      int line_num = GetScriptLineNumber(script, start_position);
-      if (line_num > 0) {
-        line_num += script->line_offset()->value() + 1;
-      }
+      int line_num = GetScriptLineNumber(script, start_position) + 1;
       LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, *code, *func_name,
                           String::cast(script->name()), line_num));
       OProfileAgent::CreateNativeCodeRegion(*func_name,
