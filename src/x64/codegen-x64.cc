@@ -39,12 +39,35 @@
 namespace v8 {
 namespace internal {
 
+#define __ ACCESS_MASM(masm_)
+
 // -------------------------------------------------------------------------
 // Platform-specific DeferredCode functions.
 
-void DeferredCode::SaveRegisters() { UNIMPLEMENTED(); }
+void DeferredCode::SaveRegisters() {
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ push(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore && (action & kSyncedFlag) == 0) {
+      __ movq(Operand(rbp, action), RegisterAllocator::ToRegister(i));
+    }
+  }
+}
 
-void DeferredCode::RestoreRegisters() { UNIMPLEMENTED(); }
+void DeferredCode::RestoreRegisters() {
+  // Restore registers in reverse order due to the stack.
+  for (int i = RegisterAllocator::kNumRegisters - 1; i >= 0; i--) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ pop(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore) {
+      action &= ~kSyncedFlag;
+      __ movq(RegisterAllocator::ToRegister(i), Operand(rbp, action));
+    }
+  }
+}
+
 
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
@@ -94,8 +117,6 @@ CodeGenerator::CodeGenerator(int buffer_size,
       in_spilled_code_(false) {
 }
 
-#define __ ACCESS_MASM(masm_)
-
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
   UNIMPLEMENTED();
@@ -105,14 +126,13 @@ void CodeGenerator::TestCodeGenerator() {
   // Compile a function from a string, and run it.
 
   // Set flags appropriately for this stage of implementation.
-  // TODO(X64): Make ic and lazy compilation work, and stop disabling them.
+  // TODO(X64): Make ic work, and stop disabling them.
   // These settings stick - remove them when we don't want them anymore.
 #ifdef DEBUG
   FLAG_print_builtin_source = true;
   FLAG_print_builtin_ast = true;
 #endif
   FLAG_use_ic = false;
-  FLAG_lazy = false;
 
   Handle<JSFunction> test_function = Compiler::Compile(
       Factory::NewStringFromAscii(CStrVector(
@@ -134,6 +154,7 @@ void CodeGenerator::TestCodeGenerator() {
           "  test_local_variables("
           "      test_nesting_calls(test_local_variables(1,3), 42, 47),"
           "      test_local_variables(-25.3, 2));"
+          "  var o = { x: 42 };"
           "  return test_if_then_else(1, 47, 39);"
           "})()")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
@@ -677,8 +698,134 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitObjectLiteral(ObjectLiteral* a) {
-  UNIMPLEMENTED();
+
+// Materialize the object literal 'node' in the literals array
+// 'literals' of the function.  Leave the object boilerplate in
+// 'boilerplate'.
+class DeferredObjectLiteral: public DeferredCode {
+ public:
+  DeferredObjectLiteral(Register boilerplate,
+                        Register literals,
+                        ObjectLiteral* node)
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
+    set_comment("[ DeferredObjectLiteral");
+  }
+
+  void Generate();
+
+ private:
+  Register boilerplate_;
+  Register literals_;
+  ObjectLiteral* node_;
+};
+
+
+void DeferredObjectLiteral::Generate() {
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
+  // Literal array (0).
+  __ push(literals_);
+  // Literal index (1).
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  // Constant properties (2).
+  __ movq(kScratchRegister,
+          node_->constant_properties(),
+          RelocInfo::EMBEDDED_OBJECT);
+  __ push(kScratchRegister);
+  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
+}
+
+
+void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+  Comment cmnt(masm_, "[ ObjectLiteral");
+
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
+
+  // Load the literals array of the function.
+  __ movq(literals.reg(),
+          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
+
+  // Check whether we need to materialize the object literal boilerplate.
+  // If so, jump to the deferred code passing the literals array.
+  DeferredObjectLiteral* deferred =
+      new DeferredObjectLiteral(boilerplate.reg(), literals.reg(), node);
+  __ movq(kScratchRegister,
+          Factory::undefined_value(),
+          RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(boilerplate.reg(), kScratchRegister);
+  deferred->Branch(equal);
+  deferred->BindExit();
+  literals.Unuse();
+
+  // Push the boilerplate object.
+  frame_->Push(&boilerplate);
+  // Clone the boilerplate object.
+  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
+  if (node->depth() == 1) {
+    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  }
+  Result clone = frame_->CallRuntime(clone_function_id, 1);
+  // Push the newly cloned literal object as the result.
+  frame_->Push(&clone);
+
+  for (int i = 0; i < node->properties()->length(); i++) {
+    ObjectLiteral::Property* property = node->properties()->at(i);
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
+        // else fall through.
+      case ObjectLiteral::Property::COMPUTED: {
+        // TODO(X64): Implement setting of computed values in object literals.
+        UNIMPLEMENTED();
+      }
+      case ObjectLiteral::Property::PROTOTYPE: {
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
+        // Ignore the result.
+        break;
+      }
+      case ObjectLiteral::Property::SETTER: {
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        frame_->Push(Smi::FromInt(1));
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kDefineAccessor, 4);
+        // Ignore the result.
+        break;
+      }
+      case ObjectLiteral::Property::GETTER: {
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        frame_->Push(Smi::FromInt(0));
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kDefineAccessor, 4);
+        // Ignore the result.
+        break;
+      }
+      default: UNREACHABLE();
+    }
+  }
 }
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* a) {
@@ -1632,6 +1779,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     } else if (slot->type() == Slot::LOCAL) {
       frame_->StoreToLocalAt(slot->index());
     } else {
+      UNIMPLEMENTED();
       // The other slot types (LOOKUP and GLOBAL) cannot reach here.
       //
       // The use of SlotOperand below is safe for an unspilled frame
