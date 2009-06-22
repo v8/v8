@@ -267,6 +267,40 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
 }
 
 
+bool MacroAssembler::IsUnsafeSmi(Smi* value) {
+  return false;
+}
+
+void MacroAssembler::LoadUnsafeSmi(Register dst, Smi* source) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::Move(Register dst, Handle<Object> source) {
+  if (source->IsSmi()) {
+    if (IsUnsafeSmi(source)) {
+      LoadUnsafeSmi(dst, source);
+    } else {
+      movq(dst, source, RelocInfo::NONE);
+    }
+  } else {
+    movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
+  }
+}
+
+
+void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
+  Move(kScratchRegister, source);
+  movq(dst, kScratchRegister);
+}
+
+
+void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
+  Move(kScratchRegister, source);
+  cmpq(dst, kScratchRegister);
+}
+
+
 void MacroAssembler::Jump(ExternalReference ext) {
   movq(kScratchRegister, ext);
   jmp(kScratchRegister);

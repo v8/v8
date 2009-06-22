@@ -146,6 +146,16 @@ void CodeGenerator::TestCodeGenerator() {
           "    }"
           "    return x;"
           "  }"
+          "\n"
+          "  function test_recursion_with_base(x, y, z, w) {"
+          "    if (x) {"
+          "     x = x;"
+          "    } else {"
+          "      x = test_recursion_with_base(y, z, w, 0);"
+          "    }"
+          "    return x;"
+          "  }"
+          "\n"
           "  function test_local_variables(x, y){"
           "    var w; y = x; x = w; w = y; y = x; return w;"
           "  };"
@@ -154,8 +164,9 @@ void CodeGenerator::TestCodeGenerator() {
           "  test_local_variables("
           "      test_nesting_calls(test_local_variables(1,3), 42, 47),"
           "      test_local_variables(-25.3, 2));"
+          "  // return test_recursion_with_base(0, 0, 0, 47);\n"
           "  var o = { x: 42 };"
-          "  return test_if_then_else(1, 47, 39);"
+          "  return test_if_then_else(0, 46, 47);"
           "})()")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
       0,
