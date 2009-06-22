@@ -388,7 +388,7 @@ ScriptBreakPoint.prototype.clear = function () {
 function UpdateScriptBreakPoints(script) {
   for (var i = 0; i < script_break_points.length; i++) {
     if (script_break_points[i].type() == Debug.ScriptBreakPointType.ScriptName &&
-        script_break_points[i].script_name() == script.name) {
+        script_break_points[i].matchesScript(script)) {
       script_break_points[i].set(script);
     }
   }
