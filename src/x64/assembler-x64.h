@@ -413,8 +413,8 @@ class Assembler : public Malloced {
   static inline void set_target_address_at(Address pc, Address target);
 
   // Distance between the address of the code target in the call instruction
-  // and the return address
-  static const int kTargetAddrToReturnAddrDist = kPointerSize;
+  // and the return address.  Checked in the debug build.
+  static const int kTargetAddrToReturnAddrDist = 3 + kPointerSize;
 
 
   // ---------------------------------------------------------------------------

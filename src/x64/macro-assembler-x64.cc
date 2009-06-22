@@ -337,7 +337,15 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   WriteRecordedPositions();
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   movq(kScratchRegister, code_object, rmode);
+#ifdef DEBUG
+  Label target;
+  bind(&target);
+#endif
   call(kScratchRegister);
+#ifdef DEBUG
+  ASSERT_EQ(kTargetAddrToReturnAddrDist,
+            SizeOfCodeGeneratedSince(&target) + kPointerSize);
+#endif
 }
 
 
