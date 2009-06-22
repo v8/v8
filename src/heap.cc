@@ -502,6 +502,7 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   // maps.
   KeyedLookupCache::Clear();
   ContextSlotCache::Clear();
+  DescriptorLookupCache::Clear();
 
   CompilationCache::MarkCompactPrologue();
 
@@ -629,6 +630,9 @@ void Heap::Scavenge() {
 
   // Implements Cheney's copying algorithm
   LOG(ResourceEvent("scavenge", "begin"));
+
+  // Clear descriptor cache.
+  DescriptorLookupCache::Clear();
 
   // Used for updating survived_since_last_expansion_ at function end.
   int survived_watermark = PromotedSpaceSize();
@@ -1391,6 +1395,9 @@ bool Heap::CreateInitialObjects() {
 
   // Initialize context slot cache.
   ContextSlotCache::Clear();
+
+  // Initialize descriptor cache.
+  DescriptorLookupCache::Clear();
 
   // Initialize compilation cache.
   CompilationCache::Clear();
@@ -3557,6 +3564,17 @@ KeyedLookupCache::Key KeyedLookupCache::keys_[KeyedLookupCache::kLength];
 
 
 int KeyedLookupCache::field_offsets_[KeyedLookupCache::kLength];
+
+
+void DescriptorLookupCache::Clear() {
+  for (int index = 0; index < kLength; index++) keys_[index].array = NULL;
+}
+
+
+DescriptorLookupCache::Key
+DescriptorLookupCache::keys_[DescriptorLookupCache::kLength];
+
+int DescriptorLookupCache::results_[DescriptorLookupCache::kLength];
 
 
 #ifdef DEBUG

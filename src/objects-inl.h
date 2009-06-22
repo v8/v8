@@ -1299,7 +1299,6 @@ int DescriptorArray::Search(String* name) {
 }
 
 
-
 String* DescriptorArray::GetKey(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return String::cast(get(ToKeyIndex(descriptor_number)));

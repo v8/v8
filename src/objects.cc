@@ -1565,7 +1565,11 @@ Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
 
 void JSObject::LookupInDescriptor(String* name, LookupResult* result) {
   DescriptorArray* descriptors = map()->instance_descriptors();
-  int number = descriptors->Search(name);
+  int number = DescriptorLookupCache::Lookup(descriptors, name);
+  if (number == DescriptorLookupCache::kAbsent) {
+    number = descriptors->Search(name);
+    DescriptorLookupCache::Update(descriptors, name, number);
+  }
   if (number != DescriptorArray::kNotFound) {
     result->DescriptorResult(this, descriptors->GetDetails(number), number);
   } else {

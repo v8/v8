@@ -1148,13 +1148,67 @@ class KeyedLookupCache {
   static void Clear();
  private:
   inline static int Hash(Map* map, String* name);
-  static const int kLength = 128;
+  static const int kLength = 64;
   struct Key {
     Map* map;
     String* name;
   };
   static Key keys_[kLength];
   static int field_offsets_[kLength];
+};
+
+
+
+// Cache for mapping (array, property name) into descriptor index.
+// The cache contains both positive and negative results.
+// Descriptor index equals kNotFound means the property is absent.
+// Cleared at startup and prior to any gc.
+class DescriptorLookupCache {
+ public:
+  // Lookup descriptor index for (map, name).
+  // If absent, kAbsent is returned.
+  static int Lookup(DescriptorArray* array, String* name) {
+    if(!StringShape(name).IsSymbol()) return kAbsent;
+    int index = Hash(array, name);
+    Key& key = keys_[index];
+    if ((key.array == array) && (key.name == name)) return results_[index];
+    return kAbsent;
+  }
+
+  // Update an element in the cache.
+  static void Update(DescriptorArray* array, String* name, int result) {
+    ASSERT(result != kAbsent);
+    if(StringShape(name).IsSymbol()) {
+      int index = Hash(array, name);
+      Key& key = keys_[index];
+      key.array = array;
+      key.name = name;
+      results_[index] = result;
+    }
+  }
+
+  // Clear the cache.
+  static void Clear();
+
+  static const int kAbsent = -2;
+ private:
+  static int Hash(DescriptorArray* array, String* name) {
+    // Uses only lower 32 bits if pointers are larger.
+    uintptr_t array_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array)) >> 2;
+    uintptr_t name_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name)) >> 2;
+    return (array_hash ^ name_hash) % kLength;
+  }
+
+  static const int kLength = 64;
+  struct Key {
+    DescriptorArray* array;
+    String* name;
+  };
+
+  static Key keys_[kLength];
+  static int results_[kLength];
 };
 
 
