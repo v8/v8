@@ -165,8 +165,10 @@ void CodeGenerator::TestCodeGenerator() {
           "      test_nesting_calls(test_local_variables(1,3), 42, 47),"
           "      test_local_variables(-25.3, 2));"
           "  // return test_recursion_with_base(0, 0, 0, 47);\n"
-          "  var o = { x: 42 };"
+          "  var x_value = 42;"
+          "  var o = { x: x_value };"
           "  var a = [ 1, 2, 3 ];"
+          "  var x = true ? 42 : 32;"
           "  return test_if_then_else(0, 46, 47);"
           "})()")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
@@ -472,8 +474,11 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 }
 
 
-void CodeGenerator::VisitEmptyStatement(EmptyStatement* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "// EmptyStatement");
+  CodeForStatementPosition(node);
+  // nothing to do
 }
 
 
@@ -676,9 +681,37 @@ void CodeGenerator::VisitFunctionBoilerplateLiteral(
 }
 
 
-void CodeGenerator::VisitConditional(Conditional* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitConditional(Conditional* node) {
+  Comment cmnt(masm_, "[ Conditional");
+  JumpTarget then;
+  JumpTarget else_;
+  JumpTarget exit;
+  ControlDestination dest(&then, &else_, true);
+  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+  if (dest.false_was_fall_through()) {
+    // The else target was bound, so we compile the else part first.
+    Load(node->else_expression(), typeof_state());
+
+    if (then.is_linked()) {
+      exit.Jump();
+      then.Bind();
+      Load(node->then_expression(), typeof_state());
+    }
+  } else {
+    // The then target was bound, so we compile the then part first.
+    Load(node->then_expression(), typeof_state());
+
+    if (else_.is_linked()) {
+      exit.Jump();
+      else_.Bind();
+      Load(node->else_expression(), typeof_state());
+    }
+  }
+
+  exit.Bind();
 }
+
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
@@ -706,8 +739,76 @@ void CodeGenerator::VisitLiteral(Literal* node) {
 }
 
 
-void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* a) {
-  UNIMPLEMENTED();
+// Materialize the regexp literal 'node' in the literals array
+// 'literals' of the function.  Leave the regexp boilerplate in
+// 'boilerplate'.
+class DeferredRegExpLiteral: public DeferredCode {
+ public:
+  DeferredRegExpLiteral(Register boilerplate,
+                        Register literals,
+                        RegExpLiteral* node)
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
+    set_comment("[ DeferredRegExpLiteral");
+  }
+
+  void Generate();
+
+ private:
+  Register boilerplate_;
+  Register literals_;
+  RegExpLiteral* node_;
+};
+
+
+void DeferredRegExpLiteral::Generate() {
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
+  // Literal array (0).
+  __ push(literals_);
+  // Literal index (1).
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  // RegExp pattern (2).
+  __ Push(node_->pattern());
+  // RegExp flags (3).
+  __ Push(node_->flags());
+  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
+}
+
+
+void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+  Comment cmnt(masm_, "[ RegExp Literal");
+
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
+
+  // Load the literals array of the function.
+  __ movq(literals.reg(),
+          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
+
+  // Check whether we need to materialize the RegExp object.  If so,
+  // jump to the deferred code passing the literals array.
+  DeferredRegExpLiteral* deferred =
+      new DeferredRegExpLiteral(boilerplate.reg(), literals.reg(), node);
+  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  deferred->Branch(equal);
+  deferred->BindExit();
+  literals.Unuse();
+
+  // Push the boilerplate object.
+  frame_->Push(&boilerplate);
 }
 
 
@@ -797,8 +898,18 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
         // else fall through.
       case ObjectLiteral::Property::COMPUTED: {
-        // TODO(X64): Implement setting of computed values in object literals.
-        UNIMPLEMENTED();
+        Handle<Object> key(property->key()->handle());
+        if (key->IsSymbol()) {
+          // Duplicate the object as the IC receiver.
+          frame_->Dup();
+          Load(property->value());
+          frame_->Push(key);
+          Result ignored = frame_->CallStoreIC();
+          // Drop the duplicated receiver and ignore the result.
+          frame_->Drop();
+          break;
+        }
+        // Fall through
       }
       case ObjectLiteral::Property::PROTOTYPE: {
         // Duplicate the object as an argument to the runtime call.
@@ -1889,6 +2000,10 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     } else if (slot->type() == Slot::LOCAL) {
       frame_->StoreToLocalAt(slot->index());
     } else {
+      // The other slot types (LOOKUP and GLOBAL) cannot reach here.
+      //
+      // The use of SlotOperand below is safe for an unspilled frame
+      // because the slot is a context slot.
       ASSERT(slot->type() == Slot::CONTEXT);
       frame_->Dup();
       Result value = frame_->Pop();

@@ -35,6 +35,12 @@
 namespace v8 {
 namespace internal {
 
+// ----------------------------------------------------------------------------
+// Static IC stub generators.
+//
+
+#define __ ACCESS_MASM(masm)
+
 
 void KeyedLoadIC::ClearInlinedVersion(Address address) {
   UNIMPLEMENTED();
@@ -175,7 +181,21 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
 }
 
 void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
-  masm->int3();  // UNIMPLEMENTED.
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  // Move the return address below the arguments.
+  __ pop(rbx);
+  __ push(Operand(rsp, 0));
+  __ push(rcx);
+  __ push(rax);
+  __ push(rbx);
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 3);
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
@@ -185,5 +205,9 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
 }
+
+
+#undef __
+
 
 } }  // namespace v8::internal

@@ -857,6 +857,35 @@ Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
 }
 
 
+Result VirtualFrame::CallStoreIC() {
+  // Name, value, and receiver are on top of the frame.  The IC
+  // expects name in rcx, value in rax, and receiver on the stack.  It
+  // does not drop the receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Result name = Pop();
+  Result value = Pop();
+  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
+
+  if (value.is_register() && value.reg().is(rcx)) {
+    if (name.is_register() && name.reg().is(rax)) {
+      // Wrong registers.
+      __ xchg(rax, rcx);
+    } else {
+      // Register rax is free for value, which frees rcx for name.
+      value.ToRegister(rax);
+      name.ToRegister(rcx);
+    }
+  } else {
+    // Register rcx is free for name, which guarantees rax is free for
+    // value.
+    name.ToRegister(rcx);
+    value.ToRegister(rax);
+  }
+
+  name.Unuse();
+  value.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
 
 
 #undef __
