@@ -147,11 +147,8 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 // Implementation of RelocInfo
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(int delta) {
-  if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
-    intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
-    *p -= delta;  // relocate entry
-  } else if (IsInternalReference(rmode_)) {
+void RelocInfo::apply(intptr_t delta) {
+  if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
     *p += delta;  // relocate entry

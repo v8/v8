@@ -341,8 +341,9 @@ void Assembler::GrowBuffer() {
 #endif
 
   // copy the data
-  int pc_delta = desc.buffer - buffer_;
-  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
+  intptr_t pc_delta = desc.buffer - buffer_;
+  intptr_t rc_delta = (desc.buffer + desc.buffer_size) -
+      (buffer_ + buffer_size_);
   memmove(desc.buffer, buffer_, desc.instr_size);
   memmove(rc_delta + reloc_info_writer.pos(),
           reloc_info_writer.pos(), desc.reloc_size);
@@ -365,11 +366,8 @@ void Assembler::GrowBuffer() {
   // relocate runtime entries
   for (RelocIterator it(desc); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::RUNTIME_ENTRY) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
-      *p -= pc_delta;  // relocate entry
-    } else if (rmode == RelocInfo::INTERNAL_REFERENCE) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
+      intptr_t* p = reinterpret_cast<intptr_t*>(it.rinfo()->pc());
       if (*p != 0) {  // 0 means uninitialized.
         *p += pc_delta;
       }
@@ -1825,9 +1823,7 @@ void Assembler::WriteRecordedPositions() {
 }
 
 
-const int RelocInfo::kApplyMask =
-  RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
-    1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE;
+const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
 
 
 } }  // namespace v8::internal

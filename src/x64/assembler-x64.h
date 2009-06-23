@@ -378,11 +378,15 @@ class CpuFeatures : public AllStatic {
 
 class Assembler : public Malloced {
  private:
-  // The relocation writer's position is kGap bytes below the end of
+  // We check before assembling an instruction that there is sufficient
+  // space to write an instruction and its relocation information.
+  // The relocation writer's position must be kGap bytes above the end of
   // the generated instructions. This leaves enough space for the
-  // longest possible x64 instruction (There is a 15 byte limit on
-  // instruction length, ruling out some otherwise valid instructions) and
-  // allows for a single, fast space check per instruction.
+  // longest possible x64 instruction, 15 bytes, and the longest possible
+  // relocation information encoding, RelocInfoWriter::kMaxLength == 16.
+  // (There is a 15 byte limit on x64 instruction length that rules out some
+  // otherwise valid instructions.)
+  // This allows for a single, fast space check per instruction.
   static const int kGap = 32;
 
  public:
