@@ -809,6 +809,19 @@ void VirtualFrame::SyncRange(int begin, int end) {
   }
 }
 
+
+Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeFlag flag,
+                                   int arg_count) {
+  PrepareForCall(arg_count, arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ InvokeBuiltin(id, flag);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
 //------------------------------------------------------------------------------
 // Virtual frame stub and IC calling functions.
 

@@ -156,7 +156,7 @@ extern MMXRegister mm15;
 
 
 struct XMMRegister {
-  bool is_valid() const  { return 0 <= code_ && code_ < 2; }
+  bool is_valid() const  { return 0 <= code_ && code_ < 16; }
   int code() const  {
     ASSERT(is_valid());
     return code_;
@@ -330,11 +330,11 @@ class Operand BASE_EMBEDDED {
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a Scope before use.
 // Example:
-//   if (CpuFeatures::IsSupported(SSE2)) {
-//     CpuFeatures::Scope fscope(SSE2);
-//     // Generate SSE2 floating point code.
+//   if (CpuFeatures::IsSupported(SSE3)) {
+//     CpuFeatures::Scope fscope(SSE3);
+//     // Generate SSE3 floating point code.
 //   } else {
-//     // Generate standard x87 floating point code.
+//     // Generate standard x87 or SSE2 floating point code.
 //   }
 class CpuFeatures : public AllStatic {
  public:
@@ -371,6 +371,10 @@ class CpuFeatures : public AllStatic {
 #endif
   };
  private:
+  // Safe defaults include SSE2 and CMOV for X64. It is always available, if
+  // anyone checks, but they shouldn't need to check.
+  static const uint64_t kDefaultCpuFeatures =
+      (1 << CpuFeatures::SSE2 | 1 << CpuFeatures::CMOV);
   static uint64_t supported_;
   static uint64_t enabled_;
 };
@@ -497,8 +501,11 @@ class Assembler : public Malloced {
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
 
-  // Conditional moves
-  // Implement conditional moves here.
+  // Conditional moves.
+  void cmovq(Condition cc, Register dst, Register src);
+  void cmovq(Condition cc, Register dst, const Operand& src);
+  void cmovl(Condition cc, Register dst, Register src);
+  void cmovl(Condition cc, Register dst, const Operand& src);
 
   // Exchange two registers
   void xchg(Register dst, Register src);
@@ -510,6 +517,10 @@ class Assembler : public Malloced {
 
   void addl(Register dst, Register src) {
     arithmetic_op_32(0x03, dst, src);
+  }
+
+  void addl(Register dst, Immediate src) {
+    immediate_arithmetic_op_32(0x0, dst, src);
   }
 
   void addq(Register dst, const Operand& src) {
@@ -844,16 +855,31 @@ class Assembler : public Malloced {
 
   void frndint();
 
-    // SSE2 instructions
+  void sahf();
+
+  // SSE2 instructions
+  void movsd(const Operand& dst, XMMRegister src);
+  void movsd(Register src, XMMRegister dst);
+  void movsd(XMMRegister dst, Register src);
+  void movsd(XMMRegister src, const Operand& dst);
+
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
 
-  void cvtsi2sd(XMMRegister dst, const Operand& src);
+  void cvtlsi2sd(XMMRegister dst, const Operand& src);
+  void cvtlsi2sd(XMMRegister dst, Register src);
+  void cvtqsi2sd(XMMRegister dst, const Operand& src);
+  void cvtqsi2sd(XMMRegister dst, Register src);
 
   void addsd(XMMRegister dst, XMMRegister src);
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
+
+
+  void emit_sse_operand(XMMRegister dst, XMMRegister src);
+  void emit_sse_operand(XMMRegister reg, const Operand& adr);
+  void emit_sse_operand(XMMRegister dst, Register src);
 
   // Use either movsd or movlpd.
   // void movdbl(XMMRegister dst, const Operand& src);
@@ -933,6 +959,7 @@ class Assembler : public Malloced {
   // High bit of reg goes to REX.R, high bit of rm_reg goes to REX.B.
   // REX.W is set.
   inline void emit_rex_64(Register reg, Register rm_reg);
+  inline void emit_rex_64(XMMRegister reg, Register rm_reg);
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of the destination, index, and base register codes.
@@ -940,6 +967,7 @@ class Assembler : public Malloced {
   // register is used for REX.B, and the high bit of op's index register
   // is used for REX.X.  REX.W is set.
   inline void emit_rex_64(Register reg, const Operand& op);
+  inline void emit_rex_64(XMMRegister reg, const Operand& op);
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of the register code.
@@ -983,6 +1011,18 @@ class Assembler : public Malloced {
   // is used for REX.X.  REX.W is cleared.  If no REX bits are set, nothing
   // is emitted.
   inline void emit_optional_rex_32(Register reg, const Operand& op);
+
+  // As for emit_optional_rex_32(Register, Register), except that
+  // the registers are XMM registers.
+  inline void emit_optional_rex_32(XMMRegister reg, XMMRegister base);
+
+  // As for emit_optional_rex_32(Register, Register), except that
+  // the registers are XMM registers.
+  inline void emit_optional_rex_32(XMMRegister reg, Register base);
+
+  // As for emit_optional_rex_32(Register, const Operand&), except that
+  // the register is an XMM register.
+  inline void emit_optional_rex_32(XMMRegister reg, const Operand& op);
 
   // Optionally do as emit_rex_32(Register) if the register number has
   // the high bit set.

@@ -1337,9 +1337,169 @@ void CodeGenerator::VisitCountOperation(CountOperation* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitBinaryOperation(BinaryOperation* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
+  // TODO(X64): This code was copied verbatim from codegen-ia32.
+  //     Either find a reason to change it or move it to a shared location.
+
+  // Note that due to an optimization in comparison operations (typeof
+  // compared to a string literal), we can evaluate a binary expression such
+  // as AND or OR and not leave a value on the frame or in the cc register.
+  Comment cmnt(masm_, "[ BinaryOperation");
+  Token::Value op = node->op();
+
+  // According to ECMA-262 section 11.11, page 58, the binary logical
+  // operators must yield the result of one of the two expressions
+  // before any ToBoolean() conversions. This means that the value
+  // produced by a && or || operator is not necessarily a boolean.
+
+  // NOTE: If the left hand side produces a materialized value (not
+  // control flow), we force the right hand side to do the same. This
+  // is necessary because we assume that if we get control flow on the
+  // last path out of an expression we got it on all paths.
+  if (op == Token::AND) {
+    JumpTarget is_true;
+    ControlDestination dest(&is_true, destination()->false_target(), true);
+    LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
+
+    if (dest.false_was_fall_through()) {
+      // The current false target was used as the fall-through.  If
+      // there are no dangling jumps to is_true then the left
+      // subexpression was unconditionally false.  Otherwise we have
+      // paths where we do have to evaluate the right subexpression.
+      if (is_true.is_linked()) {
+        // We need to compile the right subexpression.  If the jump to
+        // the current false target was a forward jump then we have a
+        // valid frame, we have just bound the false target, and we
+        // have to jump around the code for the right subexpression.
+        if (has_valid_frame()) {
+          destination()->false_target()->Unuse();
+          destination()->false_target()->Jump();
+        }
+        is_true.Bind();
+        // The left subexpression compiled to control flow, so the
+        // right one is free to do so as well.
+        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      } else {
+        // We have actually just jumped to or bound the current false
+        // target but the current control destination is not marked as
+        // used.
+        destination()->Use(false);
+      }
+
+    } else if (dest.is_used()) {
+      // The left subexpression compiled to control flow (and is_true
+      // was just bound), so the right is free to do so as well.
+      LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+
+    } else {
+      // We have a materialized value on the frame, so we exit with
+      // one on all paths.  There are possibly also jumps to is_true
+      // from nested subexpressions.
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
+
+      // Avoid popping the result if it converts to 'false' using the
+      // standard ToBoolean() conversion as described in ECMA-262,
+      // section 9.2, page 30.
+      //
+      // Duplicate the TOS value. The duplicate will be popped by
+      // ToBoolean.
+      frame_->Dup();
+      ControlDestination dest(&pop_and_continue, &exit, true);
+      ToBoolean(&dest);
+
+      // Pop the result of evaluating the first part.
+      frame_->Drop();
+
+      // Compile right side expression.
+      is_true.Bind();
+      Load(node->right());
+
+      // Exit (always with a materialized value).
+      exit.Bind();
+    }
+
+  } else if (op == Token::OR) {
+    JumpTarget is_false;
+    ControlDestination dest(destination()->true_target(), &is_false, false);
+    LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
+
+    if (dest.true_was_fall_through()) {
+      // The current true target was used as the fall-through.  If
+      // there are no dangling jumps to is_false then the left
+      // subexpression was unconditionally true.  Otherwise we have
+      // paths where we do have to evaluate the right subexpression.
+      if (is_false.is_linked()) {
+        // We need to compile the right subexpression.  If the jump to
+        // the current true target was a forward jump then we have a
+        // valid frame, we have just bound the true target, and we
+        // have to jump around the code for the right subexpression.
+        if (has_valid_frame()) {
+          destination()->true_target()->Unuse();
+          destination()->true_target()->Jump();
+        }
+        is_false.Bind();
+        // The left subexpression compiled to control flow, so the
+        // right one is free to do so as well.
+        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      } else {
+        // We have just jumped to or bound the current true target but
+        // the current control destination is not marked as used.
+        destination()->Use(true);
+      }
+
+    } else if (dest.is_used()) {
+      // The left subexpression compiled to control flow (and is_false
+      // was just bound), so the right is free to do so as well.
+      LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+
+    } else {
+      // We have a materialized value on the frame, so we exit with
+      // one on all paths.  There are possibly also jumps to is_false
+      // from nested subexpressions.
+      JumpTarget pop_and_continue;
+      JumpTarget exit;
+
+      // Avoid popping the result if it converts to 'true' using the
+      // standard ToBoolean() conversion as described in ECMA-262,
+      // section 9.2, page 30.
+      //
+      // Duplicate the TOS value. The duplicate will be popped by
+      // ToBoolean.
+      frame_->Dup();
+      ControlDestination dest(&exit, &pop_and_continue, false);
+      ToBoolean(&dest);
+
+      // Pop the result of evaluating the first part.
+      frame_->Drop();
+
+      // Compile right side expression.
+      is_false.Bind();
+      Load(node->right());
+
+      // Exit (always with a materialized value).
+      exit.Bind();
+    }
+
+  } else {
+    // NOTE: The code below assumes that the slow cases (calls to runtime)
+    // never return a constant/immutable object.
+    OverwriteMode overwrite_mode = NO_OVERWRITE;
+    if (node->left()->AsBinaryOperation() != NULL &&
+        node->left()->AsBinaryOperation()->ResultOverwriteAllowed()) {
+      overwrite_mode = OVERWRITE_LEFT;
+    } else if (node->right()->AsBinaryOperation() != NULL &&
+               node->right()->AsBinaryOperation()->ResultOverwriteAllowed()) {
+      overwrite_mode = OVERWRITE_RIGHT;
+    }
+
+    Load(node->left());
+    Load(node->right());
+    GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
+  }
 }
+
+
 
 void CodeGenerator::VisitCompareOperation(CompareOperation* a) {
   UNIMPLEMENTED();
@@ -1932,6 +2092,216 @@ void CodeGenerator::LoadGlobalReceiver() {
   frame_->Push(&temp);
 }
 
+
+// Flag that indicates whether or not the code that handles smi arguments
+// should be placed in the stub, inlined, or omitted entirely.
+enum GenericBinaryFlags {
+  SMI_CODE_IN_STUB,
+  SMI_CODE_INLINED
+};
+
+
+class FloatingPointHelper : public AllStatic {
+ public:
+  // Code pattern for loading a floating point value. Input value must
+  // be either a smi or a heap number object (fp value). Requirements:
+  // operand in src register. Returns operand as floating point number
+  // in XMM register
+  static void LoadFloatOperand(MacroAssembler* masm,
+                               Register src,
+                               XMMRegister dst);
+  // Code pattern for loading floating point values. Input values must
+  // be either smi or heap number objects (fp values). Requirements:
+  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
+  // floating point numbers in XMM registers.
+  static void LoadFloatOperands(MacroAssembler* masm,
+                                XMMRegister dst1,
+                                XMMRegister dst2);
+
+  // Code pattern for loading floating point values onto the fp stack.
+  // Input values must be either smi or heap number objects (fp values).
+  // Requirements:
+  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
+  // floating point numbers on fp stack.
+  static void LoadFloatOperands(MacroAssembler* masm);
+
+  // Code pattern for loading a floating point value and converting it
+  // to a 32 bit integer. Input value must be either a smi or a heap number
+  // object.
+  // Returns operands as 32-bit sign extended integers in a general purpose
+  // registers.
+  static void LoadInt32Operand(MacroAssembler* masm,
+                               const Operand& src,
+                               Register dst);
+
+  // Test if operands are smi or number objects (fp). Requirements:
+  // operand_1 in eax, operand_2 in edx; falls through on float
+  // operands, jumps to the non_float label otherwise.
+  static void CheckFloatOperands(MacroAssembler* masm,
+                                 Label* non_float);
+  // Allocate a heap number in new space with undefined value.
+  // Returns tagged pointer in result, or jumps to need_gc if new space is full.
+  static void AllocateHeapNumber(MacroAssembler* masm,
+                                 Label* need_gc,
+                                 Register scratch,
+                                 Register result);
+};
+
+
+class GenericBinaryOpStub: public CodeStub {
+ public:
+  GenericBinaryOpStub(Token::Value op,
+                      OverwriteMode mode,
+                      GenericBinaryFlags flags)
+      : op_(op), mode_(mode), flags_(flags) {
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
+
+  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
+
+ private:
+  Token::Value op_;
+  OverwriteMode mode_;
+  GenericBinaryFlags flags_;
+
+  const char* GetName();
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("GenericBinaryOpStub (op %s), (mode %d, flags %d)\n",
+           Token::String(op_),
+           static_cast<int>(mode_),
+           static_cast<int>(flags_));
+  }
+#endif
+
+  // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 13> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
+
+  Major MajorKey() { return GenericBinaryOp; }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           | FlagBits::encode(flags_);
+  }
+  void Generate(MacroAssembler* masm);
+};
+
+
+void CodeGenerator::GenericBinaryOperation(Token::Value op,
+                                           SmiAnalysis* type,
+                                           OverwriteMode overwrite_mode) {
+  Comment cmnt(masm_, "[ BinaryOperation");
+  Comment cmnt_token(masm_, Token::String(op));
+
+  if (op == Token::COMMA) {
+    // Simply discard left value.
+    frame_->Nip(1);
+    return;
+  }
+
+  // Set the flags based on the operation, type and loop nesting level.
+  GenericBinaryFlags flags;
+  switch (op) {
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      // Bit operations always assume they likely operate on Smis. Still only
+      // generate the inline Smi check code if this operation is part of a loop.
+      flags = (loop_nesting() > 0)
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
+      break;
+
+    default:
+      // By default only inline the Smi check code for likely smis if this
+      // operation is part of a loop.
+      flags = ((loop_nesting() > 0) && type->IsLikelySmi())
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
+      break;
+  }
+
+  Result right = frame_->Pop();
+  Result left = frame_->Pop();
+
+  if (op == Token::ADD) {
+    bool left_is_string = left.static_type().is_jsstring();
+    bool right_is_string = right.static_type().is_jsstring();
+    if (left_is_string || right_is_string) {
+      frame_->Push(&left);
+      frame_->Push(&right);
+      Result answer;
+      if (left_is_string) {
+        if (right_is_string) {
+          // TODO(lrn): if (left.is_constant() && right.is_constant())
+          // -- do a compile time cons, if allocation during codegen is allowed.
+          answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
+        } else {
+          answer =
+            frame_->InvokeBuiltin(Builtins::STRING_ADD_LEFT, CALL_FUNCTION, 2);
+        }
+      } else if (right_is_string) {
+        answer =
+          frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
+      }
+      answer.set_static_type(StaticType::jsstring());
+      frame_->Push(&answer);
+      return;
+    }
+    // Neither operand is known to be a string.
+  }
+
+  bool left_is_smi = left.is_constant() && left.handle()->IsSmi();
+  bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
+  bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
+  bool right_is_non_smi = right.is_constant() && !right.handle()->IsSmi();
+  bool generate_no_smi_code = false;  // No smi code at all, inline or in stub.
+
+  if (left_is_smi && right_is_smi) {
+    // Compute the constant result at compile time, and leave it on the frame.
+    int left_int = Smi::cast(*left.handle())->value();
+    int right_int = Smi::cast(*right.handle())->value();
+    if (FoldConstantSmis(op, left_int, right_int)) return;
+  }
+
+  if (left_is_non_smi || right_is_non_smi) {
+    // Set flag so that we go straight to the slow case, with no smi code.
+    generate_no_smi_code = true;
+  } else if (right_is_smi) {
+    ConstantSmiBinaryOperation(op, &left, right.handle(),
+                               type, false, overwrite_mode);
+    return;
+  } else if (left_is_smi) {
+    ConstantSmiBinaryOperation(op, &right, left.handle(),
+                               type, true, overwrite_mode);
+    return;
+  }
+
+  if (flags == SMI_CODE_INLINED && !generate_no_smi_code) {
+    LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
+  } else {
+    frame_->Push(&left);
+    frame_->Push(&right);
+    // If we know the arguments aren't smis, use the binary operation stub
+    // that does not check for the fast smi case.
+    // The same stub is used for NO_SMI_CODE and SMI_CODE_INLINED.
+    if (generate_no_smi_code) {
+      flags = SMI_CODE_INLINED;
+    }
+    GenericBinaryOpStub stub(op, overwrite_mode, flags);
+    Result answer = frame_->CallStub(&stub, 2);
+    frame_->Push(&answer);
+  }
+}
+
+
 // Emit a LoadIC call to get the value from receiver and leave it in
 // dst.  The receiver register is restored after the call.
 class DeferredReferenceGetNamedValue: public DeferredCode {
@@ -1976,6 +2346,176 @@ void DeferredReferenceGetNamedValue::Generate() {
   __ pop(receiver_);
 }
 
+
+
+
+// The result of src + value is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative addition and call the appropriate
+// specialized stub for add.  The result is left in dst.
+class DeferredInlineSmiAdd: public DeferredCode {
+ public:
+  DeferredInlineSmiAdd(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAdd");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+void DeferredInlineSmiAdd::Generate() {
+  // Undo the optimistic add operation and call the shared stub.
+  __ subq(dst_, Immediate(value_));
+  __ push(dst_);
+  __ push(Immediate(value_));
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
+  __ CallStub(&igostub);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+// The result of value + src is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative addition and call the appropriate
+// specialized stub for add.  The result is left in dst.
+class DeferredInlineSmiAddReversed: public DeferredCode {
+ public:
+  DeferredInlineSmiAddReversed(Register dst,
+                               Smi* value,
+                               OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAddReversed");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+void DeferredInlineSmiAddReversed::Generate() {
+  // Undo the optimistic add operation and call the shared stub.
+  __ subq(dst_, Immediate(value_));
+  __ push(Immediate(value_));
+  __ push(dst_);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
+  __ CallStub(&igostub);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+// The result of src - value is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative subtraction and call the
+// appropriate specialized stub for subtract.  The result is left in
+// dst.
+class DeferredInlineSmiSub: public DeferredCode {
+ public:
+  DeferredInlineSmiSub(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiSub");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+void DeferredInlineSmiSub::Generate() {
+  // Undo the optimistic sub operation and call the shared stub.
+  __ addq(dst_, Immediate(value_));
+  __ push(dst_);
+  __ push(Immediate(value_));
+  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
+  __ CallStub(&igostub);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
+                                               Result* operand,
+                                               Handle<Object> value,
+                                               SmiAnalysis* type,
+                                               bool reversed,
+                                               OverwriteMode overwrite_mode) {
+  // NOTE: This is an attempt to inline (a bit) more of the code for
+  // some possible smi operations (like + and -) when (at least) one
+  // of the operands is a constant smi.
+  // Consumes the argument "operand".
+
+  // TODO(199): Optimize some special cases of operations involving a
+  // smi literal (multiply by 2, shift by 0, etc.).
+  if (IsUnsafeSmi(value)) {
+    Result unsafe_operand(value);
+    if (reversed) {
+      LikelySmiBinaryOperation(op, &unsafe_operand, operand,
+                               overwrite_mode);
+    } else {
+      LikelySmiBinaryOperation(op, operand, &unsafe_operand,
+                               overwrite_mode);
+    }
+    ASSERT(!operand->is_valid());
+    return;
+  }
+
+  // Get the literal value.
+  Smi* smi_value = Smi::cast(*value);
+
+  switch (op) {
+    case Token::ADD: {
+      operand->ToRegister();
+      frame_->Spill(operand->reg());
+
+      // Optimistically add.  Call the specialized add stub if the
+      // result is not a smi or overflows.
+      DeferredCode* deferred = NULL;
+      if (reversed) {
+        deferred = new DeferredInlineSmiAddReversed(operand->reg(),
+                                                    smi_value,
+                                                    overwrite_mode);
+      } else {
+        deferred = new DeferredInlineSmiAdd(operand->reg(),
+                                            smi_value,
+                                            overwrite_mode);
+      }
+      __ movq(kScratchRegister, value, RelocInfo::NONE);
+      __ addl(operand->reg(), kScratchRegister);
+      deferred->Branch(overflow);
+      __ testl(operand->reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+      deferred->BindExit();
+      frame_->Push(operand);
+      break;
+    }
+    // TODO(X64): Move other implementations from ia32 to here.
+    default: {
+      Result constant_operand(value);
+      if (reversed) {
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
+      } else {
+        LikelySmiBinaryOperation(op, operand, &constant_operand,
+                                 overwrite_mode);
+      }
+      break;
+    }
+  }
+  ASSERT(!operand->is_valid());
+}
 
 #undef __
 #define __ ACCESS_MASM(masm)
@@ -2223,234 +2763,23 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Flag that indicates whether or not the code that handles smi arguments
-// should be placed in the stub, inlined, or omitted entirely.
-enum GenericBinaryFlags {
-  SMI_CODE_IN_STUB,
-  SMI_CODE_INLINED
-};
 
+bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
+  return false;  // UNIMPLEMENTED.
+}
 
-class GenericBinaryOpStub: public CodeStub {
- public:
-  GenericBinaryOpStub(Token::Value op,
-                      OverwriteMode mode,
-                      GenericBinaryFlags flags)
-      : op_(op), mode_(mode), flags_(flags) {
-    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
-  }
-
-  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
-
- private:
-  Token::Value op_;
-  OverwriteMode mode_;
-  GenericBinaryFlags flags_;
-
-  const char* GetName();
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("GenericBinaryOpStub (op %s), (mode %d, flags %d)\n",
-           Token::String(op_),
-           static_cast<int>(mode_),
-           static_cast<int>(flags_));
-  }
-#endif
-
-  // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
-  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 13> {};
-  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
-
-  Major MajorKey() { return GenericBinaryOp; }
-  int MinorKey() {
-    // Encode the parameters in a unique 16 bit value.
-    return OpBits::encode(op_)
-           | ModeBits::encode(mode_)
-           | FlagBits::encode(flags_);
-  }
-  void Generate(MacroAssembler* masm);
-};
-
-
-const char* GenericBinaryOpStub::GetName() {
-  switch (op_) {
-    case Token::ADD: return "GenericBinaryOpStub_ADD";
-    case Token::SUB: return "GenericBinaryOpStub_SUB";
-    case Token::MUL: return "GenericBinaryOpStub_MUL";
-    case Token::DIV: return "GenericBinaryOpStub_DIV";
-    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
-    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
-    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
-    case Token::SAR: return "GenericBinaryOpStub_SAR";
-    case Token::SHL: return "GenericBinaryOpStub_SHL";
-    case Token::SHR: return "GenericBinaryOpStub_SHR";
-    default:         return "GenericBinaryOpStub";
-  }
+void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
+                                             Result* left,
+                                             Result* right,
+                                             OverwriteMode overwrite_mode) {
+  UNIMPLEMENTED();
 }
 
 
-void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
-  // Perform fast-case smi code for the operation (rax <op> rbx) and
-  // leave result in register rax.
-
-  // Prepare the smi check of both operands by or'ing them together
-  // before checking against the smi mask.
-  __ movq(rcx, rbx);
-  __ or_(rcx, rax);
-
-  switch (op_) {
-    case Token::ADD:
-      __ addl(rax, rbx);  // add optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::SUB:
-      __ subl(rax, rbx);  // subtract optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::DIV:
-    case Token::MOD:
-      // Sign extend rax into rdx:rax
-      // (also sign extends eax into edx if eax is Smi).
-      __ cqo();
-      // Check for 0 divisor.
-      __ testq(rbx, rbx);
-      __ j(zero, slow);
-      break;
-
-    default:
-      // Fall-through to smi check.
-      break;
-  }
-
-  // Perform the actual smi check.
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
-  __ testl(rcx, Immediate(kSmiTagMask));
-  __ j(not_zero, slow);
-
-  switch (op_) {
-    case Token::ADD:
-    case Token::SUB:
-      // Do nothing here.
-      break;
-
-    case Token::MUL:
-      // If the smi tag is 0 we can just leave the tag on one operand.
-      ASSERT(kSmiTag == 0);  // adjust code below if not the case
-      // Remove tag from one of the operands (but keep sign).
-      __ sar(rax, Immediate(kSmiTagSize));
-      // Do multiplication.
-      __ imull(rax, rbx);  // multiplication of smis; result in eax
-      // Go slow on overflows.
-      __ j(overflow, slow);
-      // Check for negative zero result.
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      __ NegativeZeroTest(rax, rcx, slow);  // use rcx = x | y
-      break;
-
-    case Token::DIV:
-      // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
-      __ idiv(rbx);
-      // Check that the remainder is zero.
-      __ testq(rdx, rdx);
-      __ j(not_zero, slow);
-      // Check for the corner case of dividing the most negative smi
-      // by -1. We cannot use the overflow flag, since it is not set
-      // by idiv instruction.
-      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-      // TODO(X64): TODO(Smi): Smi implementation dependent constant.
-      // Value is Smi::fromInt(-(1<<31)) / Smi::fromInt(-1)
-      __ cmpq(rax, Immediate(0x40000000));
-      __ j(equal, slow);
-      // Check for negative zero result.
-      __ NegativeZeroTest(rax, rcx, slow);  // use ecx = x | y
-      // Tag the result and store it in register rax.
-      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
-      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
-      break;
-
-    case Token::MOD:
-      // Divide rdx:rax by rbx.
-      __ idiv(rbx);
-      // Check for negative zero result.
-      __ NegativeZeroTest(rdx, rcx, slow);  // use ecx = x | y
-      // Move remainder to register rax.
-      __ movq(rax, rdx);
-      break;
-
-    case Token::BIT_OR:
-      __ or_(rax, rbx);
-      break;
-
-    case Token::BIT_AND:
-      __ and_(rax, rbx);
-      break;
-
-    case Token::BIT_XOR:
-      __ xor_(rax, rbx);
-      break;
-
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      // Move the second operand into register ecx.
-      __ movq(rcx, rbx);
-      // Remove tags from operands (but keep sign).
-      __ sar(rax, Immediate(kSmiTagSize));
-      __ sar(rcx, Immediate(kSmiTagSize));
-      // Perform the operation.
-      switch (op_) {
-        case Token::SAR:
-          __ sar(rax);
-          // No checks of result necessary
-          break;
-        case Token::SHR:
-          __ shrl(rax);  // ecx is implicit shift register
-          // Check that the *unsigned* result fits in a smi.
-          // Neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging.
-          // - 0x40000000: this number would convert to negative when
-          // Smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi.
-          __ testq(rax, Immediate(0xc0000000));
-          __ j(not_zero, slow);
-          break;
-        case Token::SHL:
-          __ shll(rax);
-          // TODO(Smi): Significant change if Smi changes.
-          // Check that the *signed* result fits in a smi.
-          // It does, if the 30th and 31st bits are equal, since then
-          // shifting the SmiTag in at the bottom doesn't change the sign.
-          ASSERT(kSmiTagSize == 1);
-          __ cmpl(rax, Immediate(0xc0000000));
-          __ j(sign, slow);
-          __ movsxlq(rax, rax);  // Extend new sign of eax into rax.
-          break;
-        default:
-          UNREACHABLE();
-      }
-      // Tag the result and store it in register eax.
-      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
-      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
-      break;
-
-    default:
-      UNREACHABLE();
-      break;
-  }
-}
-
-
-void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
-}
-
+// End of CodeGenerator implementation.
 
 void UnarySubStub::Generate(MacroAssembler* masm) {
+  UNIMPLEMENTED();
 }
 
 class CompareStub: public CodeStub {
@@ -3017,6 +3346,547 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(rbp);
   __ ret(0);
 }
+
+
+// -----------------------------------------------------------------------------
+// Implementation of stubs.
+
+//  Stub classes have public member named masm, not masm_.
+
+
+void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
+                                             Label* need_gc,
+                                             Register scratch,
+                                             Register result) {
+  ExternalReference allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+  ExternalReference allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  __ movq(scratch, allocation_top);  // scratch: address of allocation top.
+  __ movq(result, Operand(scratch, 0));
+  __ addq(result, Immediate(HeapNumber::kSize));  // New top.
+  __ movq(kScratchRegister, allocation_limit);
+  __ cmpq(result, Operand(kScratchRegister, 0));
+  __ j(above, need_gc);
+
+  __ movq(Operand(scratch, 0), result);  // store new top
+  __ addq(result, Immediate(kHeapObjectTag - HeapNumber::kSize));
+  __ movq(kScratchRegister,
+          Factory::heap_number_map(),
+          RelocInfo::EMBEDDED_OBJECT);
+  __ movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
+  // Tag old top and use as result.
+}
+
+
+
+void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
+                                           Register src,
+                                           XMMRegister dst) {
+  Label load_smi, done;
+
+  __ testl(src, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi);
+  __ movsd(dst, FieldOperand(src, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi);
+  __ sar(src, Immediate(kSmiTagSize));
+  __ cvtlsi2sd(dst, src);
+
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
+                                            XMMRegister dst1,
+                                            XMMRegister dst2) {
+  __ movq(kScratchRegister, Operand(rsp, 2 * kPointerSize));
+  LoadFloatOperand(masm, kScratchRegister, dst1);
+  __ movq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+  LoadFloatOperand(masm, kScratchRegister, dst2);
+}
+
+
+void FloatingPointHelper::LoadInt32Operand(MacroAssembler* masm,
+                                           const Operand& src,
+                                           Register dst) {
+  // TODO(X64): Convert number operands to int32 values.
+  // Don't convert a Smi to a double first.
+  UNIMPLEMENTED();
+}
+
+
+void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm) {
+  Label load_smi_1, load_smi_2, done_load_1, done;
+  __ movq(kScratchRegister, Operand(rsp, 2 * kPointerSize));
+  __ testl(kScratchRegister, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_1);
+  __ fld_d(FieldOperand(kScratchRegister, HeapNumber::kValueOffset));
+  __ bind(&done_load_1);
+
+  __ movq(kScratchRegister, Operand(rsp, 1 * kPointerSize));
+  __ testl(kScratchRegister, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_2);
+  __ fld_d(FieldOperand(kScratchRegister, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi_1);
+  __ sar(kScratchRegister, Immediate(kSmiTagSize));
+  __ push(kScratchRegister);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(kScratchRegister);
+  __ jmp(&done_load_1);
+
+  __ bind(&load_smi_2);
+  __ sar(kScratchRegister, Immediate(kSmiTagSize));
+  __ push(kScratchRegister);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(kScratchRegister);
+
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
+                                             Label* non_float) {
+  Label test_other, done;
+  // Test if both operands are floats or smi -> scratch=k_is_float;
+  // Otherwise scratch = k_not_float.
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(zero, &test_other);  // argument in rdx is OK
+  __ movq(kScratchRegister,
+          Factory::heap_number_map(),
+          RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(kScratchRegister, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ j(not_equal, non_float);  // argument in rdx is not a number -> NaN
+
+  __ bind(&test_other);
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &done);  // argument in eax is OK
+  __ movq(kScratchRegister,
+          Factory::heap_number_map(),
+          RelocInfo::EMBEDDED_OBJECT);
+  __ cmpq(kScratchRegister, FieldOperand(rax, HeapObject::kMapOffset));
+  __ j(not_equal, non_float);  // argument in rax is not a number -> NaN
+
+  // Fall-through: Both operands are numbers.
+  __ bind(&done);
+}
+
+
+const char* GenericBinaryOpStub::GetName() {
+  switch (op_) {
+    case Token::ADD: return "GenericBinaryOpStub_ADD";
+    case Token::SUB: return "GenericBinaryOpStub_SUB";
+    case Token::MUL: return "GenericBinaryOpStub_MUL";
+    case Token::DIV: return "GenericBinaryOpStub_DIV";
+    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
+    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
+    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
+    case Token::SAR: return "GenericBinaryOpStub_SAR";
+    case Token::SHL: return "GenericBinaryOpStub_SHL";
+    case Token::SHR: return "GenericBinaryOpStub_SHR";
+    default:         return "GenericBinaryOpStub";
+  }
+}
+
+void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
+  // Perform fast-case smi code for the operation (rax <op> rbx) and
+  // leave result in register rax.
+
+  // Prepare the smi check of both operands by or'ing them together
+  // before checking against the smi mask.
+  __ movq(rcx, rbx);
+  __ or_(rcx, rax);
+
+  switch (op_) {
+    case Token::ADD:
+      __ addl(rax, rbx);  // add optimistically
+      __ j(overflow, slow);
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+
+    case Token::SUB:
+      __ subl(rax, rbx);  // subtract optimistically
+      __ j(overflow, slow);
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+
+    case Token::DIV:
+    case Token::MOD:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
+      break;
+
+    default:
+      // Fall-through to smi check.
+      break;
+  }
+
+  // Perform the actual smi check.
+  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+  __ testl(rcx, Immediate(kSmiTagMask));
+  __ j(not_zero, slow);
+
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+      // Do nothing here.
+      break;
+
+    case Token::MUL:
+      // If the smi tag is 0 we can just leave the tag on one operand.
+      ASSERT(kSmiTag == 0);  // adjust code below if not the case
+      // Remove tag from one of the operands (but keep sign).
+      __ sar(rax, Immediate(kSmiTagSize));
+      // Do multiplication.
+      __ imull(rax, rbx);  // multiplication of smis; result in eax
+      // Go slow on overflows.
+      __ j(overflow, slow);
+      // Check for negative zero result.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      __ NegativeZeroTest(rax, rcx, slow);  // use rcx = x | y
+      break;
+
+    case Token::DIV:
+      // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
+      __ idiv(rbx);
+      // Check that the remainder is zero.
+      __ testq(rdx, rdx);
+      __ j(not_zero, slow);
+      // Check for the corner case of dividing the most negative smi
+      // by -1. We cannot use the overflow flag, since it is not set
+      // by idiv instruction.
+      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+      // TODO(X64): TODO(Smi): Smi implementation dependent constant.
+      // Value is Smi::fromInt(-(1<<31)) / Smi::fromInt(-1)
+      __ cmpq(rax, Immediate(0x40000000));
+      __ j(equal, slow);
+      // Check for negative zero result.
+      __ NegativeZeroTest(rax, rcx, slow);  // use ecx = x | y
+      // Tag the result and store it in register rax.
+      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      break;
+
+    case Token::MOD:
+      // Divide rdx:rax by rbx.
+      __ idiv(rbx);
+      // Check for negative zero result.
+      __ NegativeZeroTest(rdx, rcx, slow);  // use ecx = x | y
+      // Move remainder to register rax.
+      __ movq(rax, rdx);
+      break;
+
+    case Token::BIT_OR:
+      __ or_(rax, rbx);
+      break;
+
+    case Token::BIT_AND:
+      __ and_(rax, rbx);
+      break;
+
+    case Token::BIT_XOR:
+      ASSERT_EQ(0, kSmiTag);
+      __ xor_(rax, rbx);
+      break;
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      // Move the second operand into register ecx.
+      __ movq(rcx, rbx);
+      // Remove tags from operands (but keep sign).
+      __ sar(rax, Immediate(kSmiTagSize));
+      __ sar(rcx, Immediate(kSmiTagSize));
+      // Perform the operation.
+      switch (op_) {
+        case Token::SAR:
+          __ sar(rax);
+          // No checks of result necessary
+          break;
+        case Token::SHR:
+          __ shrl(rax);  // rcx is implicit shift register
+          // Check that the *unsigned* result fits in a smi.
+          // Neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging.
+          // - 0x40000000: this number would convert to negative when
+          // Smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi.
+          __ testq(rax, Immediate(0xc0000000));
+          __ j(not_zero, slow);
+          break;
+        case Token::SHL:
+          __ shll(rax);
+          // TODO(Smi): Significant change if Smi changes.
+          // Check that the *signed* result fits in a smi.
+          // It does, if the 30th and 31st bits are equal, since then
+          // shifting the SmiTag in at the bottom doesn't change the sign.
+          ASSERT(kSmiTagSize == 1);
+          __ cmpl(rax, Immediate(0xc0000000));
+          __ j(sign, slow);
+          __ movsxlq(rax, rax);  // Extend new sign of eax into rax.
+          break;
+        default:
+          UNREACHABLE();
+      }
+      // Tag the result and store it in register eax.
+      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      break;
+
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
+  Label call_runtime;
+
+  if (flags_ == SMI_CODE_IN_STUB) {
+    // The fast case smi code wasn't inlined in the stub caller
+    // code. Generate it here to speed up common operations.
+    Label slow;
+    __ movq(rbx, Operand(rsp, 1 * kPointerSize));  // get y
+    __ movq(rax, Operand(rsp, 2 * kPointerSize));  // get x
+    GenerateSmiCode(masm, &slow);
+    __ ret(2 * kPointerSize);  // remove both operands
+
+    // Too bad. The fast case smi code didn't succeed.
+    __ bind(&slow);
+  }
+
+  // Setup registers.
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));  // get y
+  __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // get x
+
+  // Floating point case.
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV: {
+      // rax: y
+      // rdx: x
+      FloatingPointHelper::CheckFloatOperands(masm, &call_runtime);
+      // Fast-case: Both operands are numbers.
+      // Allocate a heap number, if needed.
+      Label skip_allocation;
+      switch (mode_) {
+        case OVERWRITE_LEFT:
+          __ movq(rax, rdx);
+          // Fall through!
+        case OVERWRITE_RIGHT:
+          // If the argument in rax is already an object, we skip the
+          // allocation of a heap number.
+          __ testl(rax, Immediate(kSmiTagMask));
+          __ j(not_zero, &skip_allocation);
+          // Fall through!
+        case NO_OVERWRITE:
+          FloatingPointHelper::AllocateHeapNumber(masm,
+                                                  &call_runtime,
+                                                  rcx,
+                                                  rax);
+          __ bind(&skip_allocation);
+          break;
+        default: UNREACHABLE();
+      }
+      // xmm4 and xmm5 are volatile XMM registers.
+      FloatingPointHelper::LoadFloatOperands(masm, xmm4, xmm5);
+
+      switch (op_) {
+        case Token::ADD: __ addsd(xmm4, xmm5); break;
+        case Token::SUB: __ subsd(xmm4, xmm5); break;
+        case Token::MUL: __ mulsd(xmm4, xmm5); break;
+        case Token::DIV: __ divsd(xmm4, xmm5); break;
+        default: UNREACHABLE();
+      }
+      __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm4);
+      __ ret(2 * kPointerSize);
+    }
+    case Token::MOD: {
+      // For MOD we go directly to runtime in the non-smi case.
+      break;
+    }
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SAR:
+    case Token::SHL:
+    case Token::SHR: {
+      FloatingPointHelper::CheckFloatOperands(masm, &call_runtime);
+      // TODO(X64): Don't convert a Smi to float and then back to int32
+      // afterwards.
+      FloatingPointHelper::LoadFloatOperands(masm);
+
+      Label skip_allocation, non_smi_result, operand_conversion_failure;
+
+      // Reserve space for converted numbers.
+      __ subq(rsp, Immediate(2 * kPointerSize));
+
+      bool use_sse3 = CpuFeatures::IsSupported(CpuFeatures::SSE3);
+      if (use_sse3) {
+        // Truncate the operands to 32-bit integers and check for
+        // exceptions in doing so.
+         CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        __ fisttp_s(Operand(rsp, 0 * kPointerSize));
+        __ fisttp_s(Operand(rsp, 1 * kPointerSize));
+        __ fnstsw_ax();
+        __ testl(rax, Immediate(1));
+        __ j(not_zero, &operand_conversion_failure);
+      } else {
+        // Check if right operand is int32.
+        __ fist_s(Operand(rsp, 0 * kPointerSize));
+        __ fild_s(Operand(rsp, 0 * kPointerSize));
+        __ fucompp();
+        __ fnstsw_ax();
+        __ sahf();  // TODO(X64): Not available.
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
+
+        // Check if left operand is int32.
+        __ fist_s(Operand(rsp, 1 * kPointerSize));
+        __ fild_s(Operand(rsp, 1 * kPointerSize));
+        __ fucompp();
+        __ fnstsw_ax();
+        __ sahf();  // TODO(X64): Not available. Test bits in ax directly
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
+      }
+
+      // Get int32 operands and perform bitop.
+      __ pop(rcx);
+      __ pop(rax);
+      switch (op_) {
+        case Token::BIT_OR:  __ or_(rax, rcx); break;
+        case Token::BIT_AND: __ and_(rax, rcx); break;
+        case Token::BIT_XOR: __ xor_(rax, rcx); break;
+        case Token::SAR: __ sar(rax); break;
+        case Token::SHL: __ shl(rax); break;
+        case Token::SHR: __ shr(rax); break;
+        default: UNREACHABLE();
+      }
+      if (op_ == Token::SHR) {
+        // Check if result is non-negative and fits in a smi.
+        __ testl(rax, Immediate(0xc0000000));
+        __ j(not_zero, &non_smi_result);
+      } else {
+        // Check if result fits in a smi.
+        __ cmpl(rax, Immediate(0xc0000000));
+        __ j(negative, &non_smi_result);
+      }
+      // Tag smi result and return.
+      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      __ ret(2 * kPointerSize);
+
+      // All ops except SHR return a signed int32 that we load in a HeapNumber.
+      if (op_ != Token::SHR) {
+        __ bind(&non_smi_result);
+        // Allocate a heap number if needed.
+        __ movsxlq(rbx, rax);  // rbx: sign extended 32-bit result
+        switch (mode_) {
+          case OVERWRITE_LEFT:
+          case OVERWRITE_RIGHT:
+            // If the operand was an object, we skip the
+            // allocation of a heap number.
+            __ movq(rax, Operand(rsp, mode_ == OVERWRITE_RIGHT ?
+                                 1 * kPointerSize : 2 * kPointerSize));
+            __ testl(rax, Immediate(kSmiTagMask));
+            __ j(not_zero, &skip_allocation);
+            // Fall through!
+          case NO_OVERWRITE:
+            FloatingPointHelper::AllocateHeapNumber(masm, &call_runtime,
+                                                    rcx, rax);
+            __ bind(&skip_allocation);
+            break;
+          default: UNREACHABLE();
+        }
+        // Store the result in the HeapNumber and return.
+        __ movq(Operand(rsp, 1 * kPointerSize), rbx);
+        __ fild_s(Operand(rsp, 1 * kPointerSize));
+        __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
+        __ ret(2 * kPointerSize);
+      }
+
+      // Clear the FPU exception flag and reset the stack before calling
+      // the runtime system.
+      __ bind(&operand_conversion_failure);
+      __ addq(rsp, Immediate(2 * kPointerSize));
+      if (use_sse3) {
+        // If we've used the SSE3 instructions for truncating the
+        // floating point values to integers and it failed, we have a
+        // pending #IA exception. Clear it.
+        __ fnclex();
+      } else {
+        // The non-SSE3 variant does early bailout if the right
+        // operand isn't a 32-bit integer, so we may have a single
+        // value on the FPU stack we need to get rid of.
+        __ ffree(0);
+      }
+
+      // SHR should return uint32 - go to runtime for non-smi/negative result.
+      if (op_ == Token::SHR) {
+        __ bind(&non_smi_result);
+      }
+      __ movq(rax, Operand(rsp, 1 * kPointerSize));
+      __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+      break;
+    }
+    default: UNREACHABLE(); break;
+  }
+
+  // If all else fails, use the runtime system to get the correct
+  // result.
+  __ bind(&call_runtime);
+  // Disable builtin-calls until JS builtins can compile and run.
+  __ Abort("Disabled until builtins compile and run.");
+  switch (op_) {
+    case Token::ADD:
+      __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
+      break;
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
+      break;
+    case Token::MUL:
+      __ InvokeBuiltin(Builtins::MUL, JUMP_FUNCTION);
+        break;
+    case Token::DIV:
+      __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
+      break;
+    case Token::MOD:
+      __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
+      break;
+    case Token::BIT_OR:
+      __ InvokeBuiltin(Builtins::BIT_OR, JUMP_FUNCTION);
+      break;
+    case Token::BIT_AND:
+      __ InvokeBuiltin(Builtins::BIT_AND, JUMP_FUNCTION);
+      break;
+    case Token::BIT_XOR:
+      __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_FUNCTION);
+      break;
+    case Token::SAR:
+      __ InvokeBuiltin(Builtins::SAR, JUMP_FUNCTION);
+      break;
+    case Token::SHL:
+      __ InvokeBuiltin(Builtins::SHL, JUMP_FUNCTION);
+      break;
+    case Token::SHR:
+      __ InvokeBuiltin(Builtins::SHR, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 
 #undef __
 
