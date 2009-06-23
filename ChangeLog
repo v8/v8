@@ -1,3 +1,8 @@
+2009-06-23: Version 1.1.10.14
+
+	Fixed two bugs in the regular expression engine.
+
+
 2009-05-18: Version 1.1.10.13
 
         Added multiple generations to the script compilation cache to
