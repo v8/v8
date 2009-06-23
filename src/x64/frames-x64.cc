@@ -80,8 +80,9 @@ void ExitFrame::Iterate(ObjectVisitor* a) const {
 }
 
 byte* InternalFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED();
-  return NULL;
+  // Internal frames have no arguments. The stack pointer of the
+  // caller is at a fixed offset from the frame pointer.
+  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 byte* JavaScriptFrame::GetCallerStackPointer() const {

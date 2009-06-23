@@ -842,6 +842,42 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
 }
 
 
+Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
+  // Name and receiver are on the top of the frame.  The IC expects
+  // name in rcx and receiver on the stack.  It does not drop the
+  // receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  Result name = Pop();
+  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
+  name.ToRegister(rcx);
+  name.Unuse();
+  return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
+  // Key and receiver are on top of the frame.  The IC expects them on
+  // the stack.  It does not drop them.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
+  return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallKeyedStoreIC() {
+  // Value, key, and receiver are on the top of the frame.  The IC
+  // expects value in rax and key and receiver on the stack.  It does
+  // not drop the key and receiver.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  // TODO(1222589): Make the IC grab the values from the stack.
+  Result value = Pop();
+  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
+  value.ToRegister(rax);
+  value.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
+
+
 Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
                                 int arg_count,
                                 int loop_nesting) {

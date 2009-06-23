@@ -29,9 +29,12 @@
 #include "v8.h"
 
 #include "bootstrapper.h"
-// #include "macro-assembler.h"
 #include "codegen-inl.h"
+#include "debug.h"
+#include "ic-inl.h"
+#include "parser.h"
 #include "register-allocator-inl.h"
+#include "scopes.h"
 
 // TEST
 #include "compiler.h"
@@ -167,6 +170,15 @@ void CodeGenerator::TestCodeGenerator() {
           "  // return test_recursion_with_base(0, 0, 0, 47);\n"
           "  var x_value = 42;"
           "  var o = { x: x_value };"
+          "  o.x = 43;"
+          "  o.x;"
+          "  var x_string = 'x';"
+          "  o[x_string] = 44;"
+          "  o[x_string];"
+          "  o.f = function() { return 45; };"
+          "  o.f();"
+          "  var f_string = 'f';"
+          "  o[f_string]();"
           "  var a = [ 1, 2, 3 ];"
           "  var x = true ? 42 : 32;"
           "  return test_if_then_else(0, 46, 47);"
@@ -1156,12 +1168,20 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 }
 
 
-void CodeGenerator::VisitThrow(Throw* a) {
-  // UNIMPLEMENTED();
+void CodeGenerator::VisitThrow(Throw* node) {
+  Comment cmnt(masm_, "[ Throw");
+  CodeForStatementPosition(node);
+
+  Load(node->exception());
+  Result result = frame_->CallRuntime(Runtime::kThrow, 1);
+  frame_->Push(&result);
 }
 
-void CodeGenerator::VisitProperty(Property* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitProperty(Property* node) {
+  Comment cmnt(masm_, "[ Property");
+  Reference property(this, node);
+  property.GetValue(typeof_state());
 }
 
 
@@ -1244,8 +1264,6 @@ void CodeGenerator::VisitCall(Call* node) {
     CallWithArguments(args, node->position());
     */
   } else if (property != NULL) {
-    UNIMPLEMENTED();
-    /*
     // Check if the key is a literal string.
     Literal* literal = property->key()->AsLiteral();
 
@@ -1293,7 +1311,7 @@ void CodeGenerator::VisitCall(Call* node) {
       // Call the function.
       CallWithArguments(args, node->position());
     }
-    */
+
   } else {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is not global
@@ -1315,9 +1333,11 @@ void CodeGenerator::VisitCallEval(CallEval* a) {
   UNIMPLEMENTED();
 }
 
+
 void CodeGenerator::VisitCallNew(CallNew* a) {
   UNIMPLEMENTED();
 }
+
 
 void CodeGenerator::VisitCallRuntime(CallRuntime* a) {
   UNIMPLEMENTED();
@@ -1632,136 +1652,6 @@ void CodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-void Reference::SetValue(InitState init_state) {
-  ASSERT(cgen_->HasValidEntryRegisters());
-  ASSERT(!is_illegal());
-  MacroAssembler* masm = cgen_->masm();
-  switch (type_) {
-    case SLOT: {
-      Comment cmnt(masm, "[ Store to Slot");
-      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
-      ASSERT(slot != NULL);
-      cgen_->StoreToSlot(slot, init_state);
-      break;
-    }
-      // TODO(X64): Make cases other than SLOT work.
-      /*
-    case NAMED: {
-      Comment cmnt(masm, "[ Store to named Property");
-      cgen_->frame()->Push(GetName());
-      Result answer = cgen_->frame()->CallStoreIC();
-      cgen_->frame()->Push(&answer);
-      break;
-    }
-
-    case KEYED: {
-      Comment cmnt(masm, "[ Store to keyed Property");
-
-      // Generate inlined version of the keyed store if the code is in
-      // a loop and the key is likely to be a smi.
-      Property* property = expression()->AsProperty();
-      ASSERT(property != NULL);
-      SmiAnalysis* key_smi_analysis = property->key()->type();
-
-      if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
-        Comment cmnt(masm, "[ Inlined store to keyed Property");
-
-        // Get the receiver, key and value into registers.
-        Result value = cgen_->frame()->Pop();
-        Result key = cgen_->frame()->Pop();
-        Result receiver = cgen_->frame()->Pop();
-
-        Result tmp = cgen_->allocator_->Allocate();
-        ASSERT(tmp.is_valid());
-
-        // Determine whether the value is a constant before putting it
-        // in a register.
-        bool value_is_constant = value.is_constant();
-
-        // Make sure that value, key and receiver are in registers.
-        value.ToRegister();
-        key.ToRegister();
-        receiver.ToRegister();
-
-        DeferredReferenceSetKeyedValue* deferred =
-            new DeferredReferenceSetKeyedValue(value.reg(),
-                                               key.reg(),
-                                               receiver.reg());
-
-        // Check that the value is a smi if it is not a constant.  We
-        // can skip the write barrier for smis and constants.
-        if (!value_is_constant) {
-          __ test(value.reg(), Immediate(kSmiTagMask));
-          deferred->Branch(not_zero);
-        }
-
-        // Check that the key is a non-negative smi.
-        __ test(key.reg(), Immediate(kSmiTagMask | 0x80000000));
-        deferred->Branch(not_zero);
-
-        // Check that the receiver is not a smi.
-        __ test(receiver.reg(), Immediate(kSmiTagMask));
-        deferred->Branch(zero);
-
-        // Check that the receiver is a JSArray.
-        __ mov(tmp.reg(),
-               FieldOperand(receiver.reg(), HeapObject::kMapOffset));
-        __ movzx_b(tmp.reg(),
-                   FieldOperand(tmp.reg(), Map::kInstanceTypeOffset));
-        __ cmp(tmp.reg(), JS_ARRAY_TYPE);
-        deferred->Branch(not_equal);
-
-        // Check that the key is within bounds.  Both the key and the
-        // length of the JSArray are smis.
-        __ cmp(key.reg(),
-               FieldOperand(receiver.reg(), JSArray::kLengthOffset));
-        deferred->Branch(greater_equal);
-
-        // Get the elements array from the receiver and check that it
-        // is not a dictionary.
-        __ mov(tmp.reg(),
-               FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-        // Bind the deferred code patch site to be able to locate the
-        // fixed array map comparison.  When debugging, we patch this
-        // comparison to always fail so that we will hit the IC call
-        // in the deferred code which will allow the debugger to
-        // break for fast case stores.
-        __ bind(deferred->patch_site());
-        __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
-               Immediate(Factory::fixed_array_map()));
-        deferred->Branch(not_equal);
-
-        // Store the value.
-        __ mov(Operand(tmp.reg(),
-                       key.reg(),
-                       times_2,
-                       Array::kHeaderSize - kHeapObjectTag),
-               value.reg());
-        __ IncrementCounter(&Counters::keyed_store_inline, 1);
-
-        deferred->BindExit();
-
-        cgen_->frame()->Push(&receiver);
-        cgen_->frame()->Push(&key);
-        cgen_->frame()->Push(&value);
-      } else {
-        Result answer = cgen_->frame()->CallKeyedStoreIC();
-        // Make sure that we do not have a test instruction after the
-        // call.  A test instruction after the call is used to
-        // indicate that we have generated an inline version of the
-        // keyed store.
-        __ nop();
-        cgen_->frame()->Push(&answer);
-      }
-      break;
-    }
-      */
-    default:
-      UNREACHABLE();
-  }
-}
-
-
 Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
   // Currently, this assertion will fail if we try to assign to
   // a constant variable that is constant because it is read-only
@@ -2057,20 +1947,241 @@ void CodeGenerator::LoadGlobalReceiver() {
   frame_->Push(&temp);
 }
 
+// Emit a LoadIC call to get the value from receiver and leave it in
+// dst.  The receiver register is restored after the call.
+class DeferredReferenceGetNamedValue: public DeferredCode {
+ public:
+  DeferredReferenceGetNamedValue(Register dst,
+                                 Register receiver,
+                                 Handle<String> name)
+      : dst_(dst), receiver_(receiver),  name_(name) {
+    set_comment("[ DeferredReferenceGetNamedValue");
+  }
+
+  virtual void Generate();
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Label patch_site_;
+  Register dst_;
+  Register receiver_;
+  Handle<String> name_;
+};
+
+
+void DeferredReferenceGetNamedValue::Generate() {
+  __ push(receiver_);
+  __ Move(rcx, name_);
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // The call must be followed by a test eax instruction to indicate
+  // that the inobject property case was inlined.
+  //
+  // Store the delta to the map check instruction here in the test
+  // instruction.  Use masm_-> instead of the __ macro since the
+  // latter can't return a value.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  masm_->testq(rax, Immediate(-delta_to_patch_site));
+  __ IncrementCounter(&Counters::named_load_inline_miss, 1);
+
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+  __ pop(receiver_);
+}
+
 
 #undef __
-
-// End of CodeGenerator implementation.
-
-// -----------------------------------------------------------------------------
-// Implementation of stubs.
-
-//  Stub classes have public member named masm, not masm_.
 #define __ ACCESS_MASM(masm)
 
 
+Handle<String> Reference::GetName() {
+  ASSERT(type_ == NAMED);
+  Property* property = expression_->AsProperty();
+  if (property == NULL) {
+    // Global variable reference treated as a named property reference.
+    VariableProxy* proxy = expression_->AsVariableProxy();
+    ASSERT(proxy->AsVariable() != NULL);
+    ASSERT(proxy->AsVariable()->is_global());
+    return proxy->name();
+  } else {
+    Literal* raw_name = property->key()->AsLiteral();
+    ASSERT(raw_name != NULL);
+    return Handle<String>(String::cast(*raw_name->handle()));
+  }
+}
+
+
 void Reference::GetValue(TypeofState typeof_state) {
-  UNIMPLEMENTED();
+  ASSERT(!cgen_->in_spilled_code());
+  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(!is_illegal());
+  MacroAssembler* masm = cgen_->masm();
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Load from Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      cgen_->LoadFromSlot(slot, typeof_state);
+      break;
+    }
+
+    case NAMED: {
+      // TODO(1241834): Make sure that it is safe to ignore the
+      // distinction between expressions in a typeof and not in a
+      // typeof. If there is a chance that reference errors can be
+      // thrown below, we must distinguish between the two kinds of
+      // loads (typeof expression loads must not throw a reference
+      // error).
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
+
+      // Do not inline the inobject property case for loads from the global
+      // object.  Also do not inline for unoptimized code.  This saves time
+      // in the code generator.  Unoptimized code is toplevel code or code
+      // that is not in a loop.
+      if (is_global ||
+          cgen_->scope()->is_global_scope() ||
+          cgen_->loop_nesting() == 0) {
+        Comment cmnt(masm, "[ Load from named Property");
+        cgen_->frame()->Push(GetName());
+
+        RelocInfo::Mode mode = is_global
+                               ? RelocInfo::CODE_TARGET_CONTEXT
+                               : RelocInfo::CODE_TARGET;
+        Result answer = cgen_->frame()->CallLoadIC(mode);
+        // A test eax instruction following the call signals that the
+        // inobject property case was inlined.  Ensure that there is not
+        // a test eax instruction here.
+        __ nop();
+        cgen_->frame()->Push(&answer);
+      } else {
+        // Inline the inobject property case.
+        Comment cmnt(masm, "[ Inlined named property load");
+        Result receiver = cgen_->frame()->Pop();
+        receiver.ToRegister();
+
+        Result value = cgen_->allocator()->Allocate();
+        ASSERT(value.is_valid());
+        DeferredReferenceGetNamedValue* deferred =
+            new DeferredReferenceGetNamedValue(value.reg(),
+                                               receiver.reg(),
+                                               GetName());
+
+        // Check that the receiver is a heap object.
+        __ testq(receiver.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(zero);
+
+        __ bind(deferred->patch_site());
+        // This is the map check instruction that will be patched (so we can't
+        // use the double underscore macro that may insert instructions).
+        // Initially use an invalid map to force a failure.
+        masm->Move(kScratchRegister, Factory::null_value());
+        masm->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                   kScratchRegister);
+        // This branch is always a forwards branch so it's always a fixed
+        // size which allows the assert below to succeed and patching to work.
+        deferred->Branch(not_equal);
+
+        // The delta from the patch label to the load offset must be
+        // statically known.
+        ASSERT(masm->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
+               LoadIC::kOffsetToLoadInstruction);
+        // The initial (invalid) offset has to be large enough to force
+        // a 32-bit instruction encoding to allow patching with an
+        // arbitrary offset.  Use kMaxInt (minus kHeapObjectTag).
+        int offset = kMaxInt;
+        masm->movq(value.reg(), FieldOperand(receiver.reg(), offset));
+
+        __ IncrementCounter(&Counters::named_load_inline, 1);
+        deferred->BindExit();
+        cgen_->frame()->Push(&receiver);
+        cgen_->frame()->Push(&value);
+      }
+      break;
+    }
+
+    case KEYED: {
+      // TODO(1241834): Make sure that this it is safe to ignore the
+      // distinction between expressions in a typeof and not in a typeof.
+      Comment cmnt(masm, "[ Load from keyed Property");
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
+      // Inline array load code if inside of a loop.  We do not know
+      // the receiver map yet, so we initially generate the code with
+      // a check against an invalid map.  In the inline cache code, we
+      // patch the map check if appropriate.
+
+      // TODO(x64): Implement inlined loads for keyed properties.
+      //      Comment cmnt(masm, "[ Load from keyed Property");
+
+      RelocInfo::Mode mode = is_global
+        ? RelocInfo::CODE_TARGET_CONTEXT
+        : RelocInfo::CODE_TARGET;
+      Result answer = cgen_->frame()->CallKeyedLoadIC(mode);
+      // Make sure that we do not have a test instruction after the
+      // call.  A test instruction after the call is used to
+      // indicate that we have generated an inline version of the
+      // keyed load.  The explicit nop instruction is here because
+      // the push that follows might be peep-hole optimized away.
+      __ nop();
+      cgen_->frame()->Push(&answer);
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void Reference::SetValue(InitState init_state) {
+  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(!is_illegal());
+  MacroAssembler* masm = cgen_->masm();
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Store to Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      cgen_->StoreToSlot(slot, init_state);
+      break;
+    }
+
+    case NAMED: {
+      Comment cmnt(masm, "[ Store to named Property");
+      cgen_->frame()->Push(GetName());
+      Result answer = cgen_->frame()->CallStoreIC();
+      cgen_->frame()->Push(&answer);
+      break;
+    }
+
+    case KEYED: {
+      Comment cmnt(masm, "[ Store to keyed Property");
+
+      // Generate inlined version of the keyed store if the code is in
+      // a loop and the key is likely to be a smi.
+      Property* property = expression()->AsProperty();
+      ASSERT(property != NULL);
+
+      // TODO(x64): Implement inlined version of keyed stores.
+      
+      Result answer = cgen_->frame()->CallKeyedStoreIC();
+      // Make sure that we do not have a test instruction after the
+      // call.  A test instruction after the call is used to
+      // indicate that we have generated an inline version of the
+      // keyed store.
+      __ nop();
+      cgen_->frame()->Push(&answer);
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 

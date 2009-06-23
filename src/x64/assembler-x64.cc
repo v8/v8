@@ -1875,16 +1875,4 @@ void BreakLocationIterator::SetDebugBreakAtReturn()  {
   UNIMPLEMENTED();
 }
 
-void CallIC::Generate(MacroAssembler* a, int b, ExternalReference const& c) {
-  UNIMPLEMENTED();
-}
-
-void CallIC::GenerateMegamorphic(MacroAssembler* a, int b) {
-  UNIMPLEMENTED();
-}
-
-void CallIC::GenerateNormal(MacroAssembler* a, int b) {
-  UNIMPLEMENTED();
-}
-
 } }  // namespace v8::internal
