@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(X64): Remove stdio.h when compiler test is removed.
+#include <stdio.h>
 
 #include "v8.h"
 
@@ -36,7 +38,7 @@
 #include "register-allocator-inl.h"
 #include "scopes.h"
 
-// TEST
+// TODO(X64): Remove compiler.h when compiler test is removed.
 #include "compiler.h"
 
 namespace v8 {
@@ -137,52 +139,35 @@ void CodeGenerator::TestCodeGenerator() {
 #endif
   FLAG_use_ic = false;
 
-  Handle<JSFunction> test_function = Compiler::Compile(
-      Factory::NewStringFromAscii(CStrVector(
+  // Read the file "test.js" from the current directory, compile, and run it.
+  // If the file is not there, use a simple script embedded here instead.
+  Handle<String> test_script;
+  FILE* file = fopen("test.js", "rb");
+  if (file == NULL) {
+    test_script = Factory::NewStringFromAscii(CStrVector(
           "// Put all code in anonymous function to avoid global scope.\n"
           "(function(){"
-          "  function test_if_then_else(x, y, z){"
-          "    if (x) {"
-          "      x = y;"
-          "    } else {"
-          "      x = z;"
-          "    }"
-          "    return x;"
-          "  }"
-          "\n"
-          "  function test_recursion_with_base(x, y, z, w) {"
-          "    if (x) {"
-          "     x = x;"
-          "    } else {"
-          "      x = test_recursion_with_base(y, z, w, 0);"
-          "    }"
-          "    return x;"
-          "  }"
-          "\n"
-          "  function test_local_variables(x, y){"
-          "    var w; y = x; x = w; w = y; y = x; return w;"
-          "  };"
-          "  test_local_variables(2,3);"
-          "  function test_nesting_calls(x, y, zee){return zee;};"
-          "  test_local_variables("
-          "      test_nesting_calls(test_local_variables(1,3), 42, 47),"
-          "      test_local_variables(-25.3, 2));"
-          "  // return test_recursion_with_base(0, 0, 0, 47);\n"
-          "  var x_value = 42;"
-          "  var o = { x: x_value };"
-          "  o.x = 43;"
-          "  o.x;"
-          "  var x_string = 'x';"
-          "  o[x_string] = 44;"
-          "  o[x_string];"
-          "  o.f = function() { return 45; };"
-          "  o.f();"
-          "  var f_string = 'f';"
-          "  o[f_string]();"
-          "  var a = [ 1, 2, 3 ];"
-          "  var x = true ? 42 : 32;"
-          "  return test_if_then_else(0, 46, 47);"
-          "})()")),
+          "  var x = true ? 47 : 32;"
+          "  return x;"
+          "})()"));
+  } else {
+    fseek(file, 0, SEEK_END);
+    int size = ftell(file);
+    rewind(file);
+
+    char* chars = new char[size + 1];
+    chars[size] = '\0';
+    for (int i = 0; i < size;) {
+      int read = fread(&chars[i], 1, size - i, file);
+      i += read;
+    }
+    fclose(file);
+    test_script = Factory::NewStringFromAscii(CStrVector(chars));
+    delete[] chars;
+  }
+
+  Handle<JSFunction> test_function = Compiler::Compile(
+      test_script,
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
       0,
       0,
