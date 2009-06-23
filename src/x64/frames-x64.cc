@@ -32,20 +32,41 @@
 namespace v8 {
 namespace internal {
 
-StackFrame::Type ExitFrame::GetStateForFramePointer(unsigned char* a,
-                                                    StackFrame::State* b) {
-  // TODO(X64): UNIMPLEMENTED
-  return NONE;
+
+StackFrame::Type StackFrame::ComputeType(State* state) {
+  ASSERT(state->fp != NULL);
+  if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
+    return ARGUMENTS_ADAPTOR;
+  }
+  // The marker and function offsets overlap. If the marker isn't a
+  // smi then the frame is a JavaScript frame -- and the marker is
+  // really the function.
+  const int offset = StandardFrameConstants::kMarkerOffset;
+  Object* marker = Memory::Object_at(state->fp + offset);
+  if (!marker->IsSmi()) return JAVA_SCRIPT;
+  return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+}
+
+
+StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
+  if (fp == 0) return NONE;
+  // Compute the stack pointer.
+  Address sp = Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
+  // Fill in the state.
+  state->fp = fp;
+  state->sp = sp;
+  state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
+  // Determine frame type.
+  if (Memory::Address_at(fp + ExitFrameConstants::kDebugMarkOffset) != 0) {
+    return EXIT_DEBUG;
+  } else {
+    return EXIT;
+  }
 }
 
 int JavaScriptFrame::GetProvidedParametersCount() const {
   UNIMPLEMENTED();
   return 0;
-}
-
-StackFrame::Type StackFrame::ComputeType(StackFrame::State* a) {
-  UNIMPLEMENTED();
-  return NONE;
 }
 
 byte* ArgumentsAdaptorFrame::GetCallerStackPointer() const {
@@ -59,8 +80,9 @@ void ExitFrame::Iterate(ObjectVisitor* a) const {
 }
 
 byte* InternalFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED();
-  return NULL;
+  // Internal frames have no arguments. The stack pointer of the
+  // caller is at a fixed offset from the frame pointer.
+  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 byte* JavaScriptFrame::GetCallerStackPointer() const {

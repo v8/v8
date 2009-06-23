@@ -27,21 +27,50 @@
 
 
 #include "v8.h"
-#include "macro-assembler.h"
+
+#include "bootstrapper.h"
+#include "codegen-inl.h"
+#include "debug.h"
+#include "ic-inl.h"
+#include "parser.h"
 #include "register-allocator-inl.h"
-#include "codegen.h"
+#include "scopes.h"
+
 // TEST
 #include "compiler.h"
 
 namespace v8 {
 namespace internal {
 
+#define __ ACCESS_MASM(masm_)
+
 // -------------------------------------------------------------------------
 // Platform-specific DeferredCode functions.
 
-void DeferredCode::SaveRegisters() { UNIMPLEMENTED(); }
+void DeferredCode::SaveRegisters() {
+  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ push(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore && (action & kSyncedFlag) == 0) {
+      __ movq(Operand(rbp, action), RegisterAllocator::ToRegister(i));
+    }
+  }
+}
 
-void DeferredCode::RestoreRegisters() { UNIMPLEMENTED(); }
+void DeferredCode::RestoreRegisters() {
+  // Restore registers in reverse order due to the stack.
+  for (int i = RegisterAllocator::kNumRegisters - 1; i >= 0; i--) {
+    int action = registers_[i];
+    if (action == kPush) {
+      __ pop(RegisterAllocator::ToRegister(i));
+    } else if (action != kIgnore) {
+      action &= ~kSyncedFlag;
+      __ movq(RegisterAllocator::ToRegister(i), Operand(rbp, action));
+    }
+  }
+}
+
 
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
@@ -91,8 +120,6 @@ CodeGenerator::CodeGenerator(int buffer_size,
       in_spilled_code_(false) {
 }
 
-#define __ ACCESS_MASM(masm_)
-
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
   UNIMPLEMENTED();
@@ -100,8 +127,62 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
 
 void CodeGenerator::TestCodeGenerator() {
   // Compile a function from a string, and run it.
+
+  // Set flags appropriately for this stage of implementation.
+  // TODO(X64): Make ic work, and stop disabling them.
+  // These settings stick - remove them when we don't want them anymore.
+#ifdef DEBUG
+  FLAG_print_builtin_source = true;
+  FLAG_print_builtin_ast = true;
+#endif
+  FLAG_use_ic = false;
+
   Handle<JSFunction> test_function = Compiler::Compile(
-      Factory::NewStringFromAscii(CStrVector("42")),
+      Factory::NewStringFromAscii(CStrVector(
+          "// Put all code in anonymous function to avoid global scope.\n"
+          "(function(){"
+          "  function test_if_then_else(x, y, z){"
+          "    if (x) {"
+          "      x = y;"
+          "    } else {"
+          "      x = z;"
+          "    }"
+          "    return x;"
+          "  }"
+          "\n"
+          "  function test_recursion_with_base(x, y, z, w) {"
+          "    if (x) {"
+          "     x = x;"
+          "    } else {"
+          "      x = test_recursion_with_base(y, z, w, 0);"
+          "    }"
+          "    return x;"
+          "  }"
+          "\n"
+          "  function test_local_variables(x, y){"
+          "    var w; y = x; x = w; w = y; y = x; return w;"
+          "  };"
+          "  test_local_variables(2,3);"
+          "  function test_nesting_calls(x, y, zee){return zee;};"
+          "  test_local_variables("
+          "      test_nesting_calls(test_local_variables(1,3), 42, 47),"
+          "      test_local_variables(-25.3, 2));"
+          "  // return test_recursion_with_base(0, 0, 0, 47);\n"
+          "  var x_value = 42;"
+          "  var o = { x: x_value };"
+          "  o.x = 43;"
+          "  o.x;"
+          "  var x_string = 'x';"
+          "  o[x_string] = 44;"
+          "  o[x_string];"
+          "  o.f = function() { return 45; };"
+          "  o.f();"
+          "  var f_string = 'f';"
+          "  o[f_string]();"
+          "  var a = [ 1, 2, 3 ];"
+          "  var x = true ? 42 : 32;"
+          "  return test_if_then_else(0, 46, 47);"
+          "})()")),
       Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
       0,
       0,
@@ -128,15 +209,16 @@ void CodeGenerator::TestCodeGenerator() {
                       0,
                       NULL,
                       &pending_exceptions);
+  // Function compiles and runs, but returns a JSFunction object.
   CHECK(result->IsSmi());
-  CHECK_EQ(42, Smi::cast(*result)->value());
+  CHECK_EQ(47, Smi::cast(*result)->value());
 }
 
 
 void CodeGenerator::GenCode(FunctionLiteral* function) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(function);
-  // ZoneList<Statement*>* body = fun->body();
+  ZoneList<Statement*>* body = function->body();
 
   // Initialize state.
   ASSERT(scope_ == NULL);
@@ -176,12 +258,75 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
     allocator_->Initialize();
     frame_->Enter();
 
-    Result return_register = allocator_->Allocate(rax);
+    // Allocate space for locals and initialize them.
+    frame_->AllocateStackSlots();
+    // Initialize the function return target after the locals are set
+    // up, because it needs the expected frame height from the frame.
+    function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
+    function_return_is_shadowed_ = false;
 
-    __ movq(return_register.reg(), Immediate(0x54));  // Smi 42
+    // TODO(X64): Add code to handle arguments object and context object.
 
-    GenerateReturnSequence(&return_register);
+    // Generate code to 'execute' declarations and initialize functions
+    // (source elements). In case of an illegal redeclaration we need to
+    // handle that instead of processing the declarations.
+    if (scope_->HasIllegalRedeclaration()) {
+      Comment cmnt(masm_, "[ illegal redeclarations");
+      scope_->VisitIllegalRedeclaration(this);
+    } else {
+      Comment cmnt(masm_, "[ declarations");
+      ProcessDeclarations(scope_->declarations());
+      // Bail out if a stack-overflow exception occurred when processing
+      // declarations.
+      if (HasStackOverflow()) return;
+    }
+
+    if (FLAG_trace) {
+      frame_->CallRuntime(Runtime::kTraceEnter, 0);
+      // Ignore the return value.
+    }
+    // CheckStack();
+
+    // Compile the body of the function in a vanilla state. Don't
+    // bother compiling all the code if the scope has an illegal
+    // redeclaration.
+    if (!scope_->HasIllegalRedeclaration()) {
+      Comment cmnt(masm_, "[ function body");
+#ifdef DEBUG
+      bool is_builtin = Bootstrapper::IsActive();
+      bool should_trace =
+          is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
+      if (should_trace) {
+        frame_->CallRuntime(Runtime::kDebugTrace, 0);
+        // Ignore the return value.
+      }
+#endif
+    }
+
+    VisitStatements(body);
   }
+  // Adjust for function-level loop nesting.
+  loop_nesting_ -= function->loop_nesting();
+
+  // Code generation state must be reset.
+  ASSERT(state_ == NULL);
+  ASSERT(loop_nesting() == 0);
+  ASSERT(!function_return_is_shadowed_);
+  function_return_.Unuse();
+  DeleteFrame();
+
+  // Process any deferred code using the register allocator.
+  if (!HasStackOverflow()) {
+    HistogramTimerScope deferred_timer(&Counters::deferred_code_generation);
+    JumpTarget::set_compiling_deferred_code(true);
+    ProcessDeferred();
+    JumpTarget::set_compiling_deferred_code(false);
+  }
+
+  // There is no need to delete the register allocator, it is a
+  // stack-allocated local.
+  allocator_ = NULL;
+  scope_ = NULL;
 }
 
 void CodeGenerator::GenerateReturnSequence(Result* return_value) {
@@ -191,7 +336,7 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // all registers).
   if (FLAG_trace) {
     frame_->Push(return_value);
-    // *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
+    *return_value = frame_->CallRuntime(Runtime::kTraceExit, 1);
   }
   return_value->ToRegister(rax);
 
@@ -204,6 +349,8 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   frame_->Exit();
   masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
   DeleteFrame();
+
+  // TODO(x64): introduce kX64JSReturnSequenceLength and enable assert.
 
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
@@ -221,29 +368,228 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitStatements(ZoneList<Statement*>* a) {
-  UNIMPLEMENTED();
+#ifdef DEBUG
+bool CodeGenerator::HasValidEntryRegisters() {
+  return (allocator()->count(rax) == (frame()->is_used(rax) ? 1 : 0))
+      && (allocator()->count(rbx) == (frame()->is_used(rbx) ? 1 : 0))
+      && (allocator()->count(rcx) == (frame()->is_used(rcx) ? 1 : 0))
+      && (allocator()->count(rdx) == (frame()->is_used(rdx) ? 1 : 0))
+      && (allocator()->count(rdi) == (frame()->is_used(rdi) ? 1 : 0))
+      && (allocator()->count(r8) == (frame()->is_used(r8) ? 1 : 0))
+      && (allocator()->count(r9) == (frame()->is_used(r9) ? 1 : 0))
+      && (allocator()->count(r11) == (frame()->is_used(r11) ? 1 : 0))
+      && (allocator()->count(r14) == (frame()->is_used(r14) ? 1 : 0))
+      && (allocator()->count(r15) == (frame()->is_used(r15) ? 1 : 0))
+      && (allocator()->count(r13) == (frame()->is_used(r13) ? 1 : 0))
+      && (allocator()->count(r12) == (frame()->is_used(r12) ? 1 : 0));
+}
+#endif
+
+
+void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+  ASSERT(!in_spilled_code());
+  for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
+    Visit(statements->at(i));
+  }
 }
 
-void CodeGenerator::VisitBlock(Block* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitBlock(Block* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ Block");
+  CodeForStatementPosition(node);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  VisitStatements(node->statements());
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  node->break_target()->Unuse();
 }
 
-void CodeGenerator::VisitDeclaration(Declaration* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitDeclaration(Declaration* node) {
+  Comment cmnt(masm_, "[ Declaration");
+  CodeForStatementPosition(node);
+  Variable* var = node->proxy()->var();
+  ASSERT(var != NULL);  // must have been resolved
+  Slot* slot = var->slot();
+
+  // If it was not possible to allocate the variable at compile time,
+  // we need to "declare" it at runtime to make sure it actually
+  // exists in the local context.
+  if (slot != NULL && slot->type() == Slot::LOOKUP) {
+    // Variables with a "LOOKUP" slot were introduced as non-locals
+    // during variable resolution and must have mode DYNAMIC.
+    ASSERT(var->is_dynamic());
+    // For now, just do a runtime call.  Sync the virtual frame eagerly
+    // so we can simply push the arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(rsi);
+    __ movq(kScratchRegister, var->name(), RelocInfo::EMBEDDED_OBJECT);
+    frame_->EmitPush(kScratchRegister);
+    // Declaration nodes are always introduced in one of two modes.
+    ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
+    PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
+    frame_->EmitPush(Immediate(Smi::FromInt(attr)));
+    // Push initial value, if any.
+    // Note: For variables we must not push an initial value (such as
+    // 'undefined') because we may have a (legal) redeclaration and we
+    // must not destroy the current value.
+    if (node->mode() == Variable::CONST) {
+      __ movq(kScratchRegister, Factory::the_hole_value(),
+              RelocInfo::EMBEDDED_OBJECT);
+      frame_->EmitPush(kScratchRegister);
+    } else if (node->fun() != NULL) {
+      Load(node->fun());
+    } else {
+      frame_->EmitPush(Immediate(Smi::FromInt(0)));  // no initial value!
+    }
+    Result ignored = frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
+    // Ignore the return value (declarations are statements).
+    return;
+  }
+
+  ASSERT(!var->is_global());
+
+  // If we have a function or a constant, we need to initialize the variable.
+  Expression* val = NULL;
+  if (node->mode() == Variable::CONST) {
+    val = new Literal(Factory::the_hole_value());
+  } else {
+    val = node->fun();  // NULL if we don't have a function
+  }
+
+  if (val != NULL) {
+    {
+      // Set the initial value.
+      Reference target(this, node->proxy());
+      Load(val);
+      target.SetValue(NOT_CONST_INIT);
+      // The reference is removed from the stack (preserving TOS) when
+      // it goes out of scope.
+    }
+    // Get rid of the assigned value (declarations are statements).
+    frame_->Drop();
+  }
 }
 
-void CodeGenerator::VisitExpressionStatement(ExpressionStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ ExpressionStatement");
+  CodeForStatementPosition(node);
+  Expression* expression = node->expression();
+  expression->MarkAsStatement();
+  Load(expression);
+  // Remove the lingering expression result from the top of stack.
+  frame_->Drop();
 }
 
-void CodeGenerator::VisitEmptyStatement(EmptyStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "// EmptyStatement");
+  CodeForStatementPosition(node);
+  // nothing to do
 }
 
-void CodeGenerator::VisitIfStatement(IfStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitIfStatement(IfStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ IfStatement");
+  // Generate different code depending on which parts of the if statement
+  // are present or not.
+  bool has_then_stm = node->HasThenStatement();
+  bool has_else_stm = node->HasElseStatement();
+
+  CodeForStatementPosition(node);
+  JumpTarget exit;
+  if (has_then_stm && has_else_stm) {
+    JumpTarget then;
+    JumpTarget else_;
+    ControlDestination dest(&then, &else_, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+    if (dest.false_was_fall_through()) {
+      // The else target was bound, so we compile the else part first.
+      Visit(node->else_statement());
+
+      // We may have dangling jumps to the then part.
+      if (then.is_linked()) {
+        if (has_valid_frame()) exit.Jump();
+        then.Bind();
+        Visit(node->then_statement());
+      }
+    } else {
+      // The then target was bound, so we compile the then part first.
+      Visit(node->then_statement());
+
+      if (else_.is_linked()) {
+        if (has_valid_frame()) exit.Jump();
+        else_.Bind();
+        Visit(node->else_statement());
+      }
+    }
+
+  } else if (has_then_stm) {
+    ASSERT(!has_else_stm);
+    JumpTarget then;
+    ControlDestination dest(&then, &exit, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+    if (dest.false_was_fall_through()) {
+      // The exit label was bound.  We may have dangling jumps to the
+      // then part.
+      if (then.is_linked()) {
+        exit.Unuse();
+        exit.Jump();
+        then.Bind();
+        Visit(node->then_statement());
+      }
+    } else {
+      // The then label was bound.
+      Visit(node->then_statement());
+    }
+
+  } else if (has_else_stm) {
+    ASSERT(!has_then_stm);
+    JumpTarget else_;
+    ControlDestination dest(&exit, &else_, false);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+    if (dest.true_was_fall_through()) {
+      // The exit label was bound.  We may have dangling jumps to the
+      // else part.
+      if (else_.is_linked()) {
+        exit.Unuse();
+        exit.Jump();
+        else_.Bind();
+        Visit(node->else_statement());
+      }
+    } else {
+      // The else label was bound.
+      Visit(node->else_statement());
+    }
+
+  } else {
+    ASSERT(!has_then_stm && !has_else_stm);
+    // We only care about the condition's side effects (not its value
+    // or control flow effect).  LoadCondition is called without
+    // forcing control flow.
+    ControlDestination dest(&exit, &exit, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, false);
+    if (!dest.is_used()) {
+      // We got a value on the frame rather than (or in addition to)
+      // control flow.
+      frame_->Drop();
+    }
+  }
+
+  if (exit.is_linked()) {
+    exit.Bind();
+  }
 }
+
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* a) {
   UNIMPLEMENTED();
@@ -253,9 +599,29 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitReturnStatement(ReturnStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ ReturnStatement");
+
+  CodeForStatementPosition(node);
+  Load(node->expression());
+  Result return_value = frame_->Pop();
+  if (function_return_is_shadowed_) {
+    function_return_.Jump(&return_value);
+  } else {
+    frame_->PrepareForReturn();
+    if (function_return_.is_bound()) {
+      // If the function return label is already bound we reuse the
+      // code by jumping to the return site.
+      function_return_.Jump(&return_value);
+    } else {
+      function_return_.Bind(&return_value);
+      GenerateReturnSequence(&return_value);
+    }
+  }
 }
+
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* a) {
   UNIMPLEMENTED();
@@ -289,74 +655,694 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+  // Call the runtime to instantiate the function boilerplate object.
+  // The inevitable call will sync frame elements to memory anyway, so
+  // we do it eagerly to allow us to push the arguments directly into
+  // place.
+  ASSERT(boilerplate->IsBoilerplate());
+  frame_->SyncRange(0, frame_->element_count() - 1);
+
+  // Push the boilerplate on the stack.
+  __ movq(kScratchRegister, boilerplate, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(kScratchRegister);
+
+  // Create a new closure.
+  frame_->EmitPush(rsi);
+  Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+  frame_->Push(&result);
 }
+
+
+void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+  Comment cmnt(masm_, "[ FunctionLiteral");
+
+  // Build the function boilerplate and instantiate it.
+  Handle<JSFunction> boilerplate = BuildBoilerplate(node);
+  // Check for stack-overflow exception.
+  if (HasStackOverflow()) return;
+  InstantiateBoilerplate(boilerplate);
+}
+
 
 void CodeGenerator::VisitFunctionBoilerplateLiteral(
-    FunctionBoilerplateLiteral* a) {
-  UNIMPLEMENTED();
+    FunctionBoilerplateLiteral* node) {
+  Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
+  InstantiateBoilerplate(node->boilerplate());
 }
 
-void CodeGenerator::VisitConditional(Conditional* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitConditional(Conditional* node) {
+  Comment cmnt(masm_, "[ Conditional");
+  JumpTarget then;
+  JumpTarget else_;
+  JumpTarget exit;
+  ControlDestination dest(&then, &else_, true);
+  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+
+  if (dest.false_was_fall_through()) {
+    // The else target was bound, so we compile the else part first.
+    Load(node->else_expression(), typeof_state());
+
+    if (then.is_linked()) {
+      exit.Jump();
+      then.Bind();
+      Load(node->then_expression(), typeof_state());
+    }
+  } else {
+    // The then target was bound, so we compile the then part first.
+    Load(node->then_expression(), typeof_state());
+
+    if (else_.is_linked()) {
+      exit.Jump();
+      else_.Bind();
+      Load(node->else_expression(), typeof_state());
+    }
+  }
+
+  exit.Bind();
 }
 
-void CodeGenerator::VisitSlot(Slot* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitSlot(Slot* node) {
+  Comment cmnt(masm_, "[ Slot");
+  LoadFromSlot(node, typeof_state());
 }
 
-void CodeGenerator::VisitVariableProxy(VariableProxy* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
+  Comment cmnt(masm_, "[ VariableProxy");
+  Variable* var = node->var();
+  Expression* expr = var->rewrite();
+  if (expr != NULL) {
+    Visit(expr);
+  } else {
+    ASSERT(var->is_global());
+    Reference ref(this, node);
+    ref.GetValue(typeof_state());
+  }
 }
 
-void CodeGenerator::VisitLiteral(Literal* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitLiteral(Literal* node) {
+  Comment cmnt(masm_, "[ Literal");
+  frame_->Push(node->handle());
 }
 
-void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* a) {
-  UNIMPLEMENTED();
+
+// Materialize the regexp literal 'node' in the literals array
+// 'literals' of the function.  Leave the regexp boilerplate in
+// 'boilerplate'.
+class DeferredRegExpLiteral: public DeferredCode {
+ public:
+  DeferredRegExpLiteral(Register boilerplate,
+                        Register literals,
+                        RegExpLiteral* node)
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
+    set_comment("[ DeferredRegExpLiteral");
+  }
+
+  void Generate();
+
+ private:
+  Register boilerplate_;
+  Register literals_;
+  RegExpLiteral* node_;
+};
+
+
+void DeferredRegExpLiteral::Generate() {
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
+  // Literal array (0).
+  __ push(literals_);
+  // Literal index (1).
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  // RegExp pattern (2).
+  __ Push(node_->pattern());
+  // RegExp flags (3).
+  __ Push(node_->flags());
+  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
 }
 
-void CodeGenerator::VisitObjectLiteral(ObjectLiteral* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+  Comment cmnt(masm_, "[ RegExp Literal");
+
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
+
+  // Load the literals array of the function.
+  __ movq(literals.reg(),
+          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
+
+  // Check whether we need to materialize the RegExp object.  If so,
+  // jump to the deferred code passing the literals array.
+  DeferredRegExpLiteral* deferred =
+      new DeferredRegExpLiteral(boilerplate.reg(), literals.reg(), node);
+  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  deferred->Branch(equal);
+  deferred->BindExit();
+  literals.Unuse();
+
+  // Push the boilerplate object.
+  frame_->Push(&boilerplate);
 }
 
-void CodeGenerator::VisitArrayLiteral(ArrayLiteral* a) {
-  UNIMPLEMENTED();
+
+// Materialize the object literal 'node' in the literals array
+// 'literals' of the function.  Leave the object boilerplate in
+// 'boilerplate'.
+class DeferredObjectLiteral: public DeferredCode {
+ public:
+  DeferredObjectLiteral(Register boilerplate,
+                        Register literals,
+                        ObjectLiteral* node)
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
+    set_comment("[ DeferredObjectLiteral");
+  }
+
+  void Generate();
+
+ private:
+  Register boilerplate_;
+  Register literals_;
+  ObjectLiteral* node_;
+};
+
+
+void DeferredObjectLiteral::Generate() {
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
+  // Literal array (0).
+  __ push(literals_);
+  // Literal index (1).
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  // Constant properties (2).
+  __ Push(node_->constant_properties());
+  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
 }
+
+
+void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+  Comment cmnt(masm_, "[ ObjectLiteral");
+
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
+
+  // Load the literals array of the function.
+  __ movq(literals.reg(),
+          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
+
+  // Check whether we need to materialize the object literal boilerplate.
+  // If so, jump to the deferred code passing the literals array.
+  DeferredObjectLiteral* deferred =
+      new DeferredObjectLiteral(boilerplate.reg(), literals.reg(), node);
+  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  deferred->Branch(equal);
+  deferred->BindExit();
+  literals.Unuse();
+
+  // Push the boilerplate object.
+  frame_->Push(&boilerplate);
+  // Clone the boilerplate object.
+  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
+  if (node->depth() == 1) {
+    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  }
+  Result clone = frame_->CallRuntime(clone_function_id, 1);
+  // Push the newly cloned literal object as the result.
+  frame_->Push(&clone);
+
+  for (int i = 0; i < node->properties()->length(); i++) {
+    ObjectLiteral::Property* property = node->properties()->at(i);
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
+        // else fall through.
+      case ObjectLiteral::Property::COMPUTED: {
+        Handle<Object> key(property->key()->handle());
+        if (key->IsSymbol()) {
+          // Duplicate the object as the IC receiver.
+          frame_->Dup();
+          Load(property->value());
+          frame_->Push(key);
+          Result ignored = frame_->CallStoreIC();
+          // Drop the duplicated receiver and ignore the result.
+          frame_->Drop();
+          break;
+        }
+        // Fall through
+      }
+      case ObjectLiteral::Property::PROTOTYPE: {
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
+        // Ignore the result.
+        break;
+      }
+      case ObjectLiteral::Property::SETTER: {
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        frame_->Push(Smi::FromInt(1));
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kDefineAccessor, 4);
+        // Ignore the result.
+        break;
+      }
+      case ObjectLiteral::Property::GETTER: {
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        frame_->Push(Smi::FromInt(0));
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kDefineAccessor, 4);
+        // Ignore the result.
+        break;
+      }
+      default: UNREACHABLE();
+    }
+  }
+}
+
+
+// Materialize the array literal 'node' in the literals array 'literals'
+// of the function.  Leave the array boilerplate in 'boilerplate'.
+class DeferredArrayLiteral: public DeferredCode {
+ public:
+  DeferredArrayLiteral(Register boilerplate,
+                       Register literals,
+                       ArrayLiteral* node)
+      : boilerplate_(boilerplate), literals_(literals), node_(node) {
+    set_comment("[ DeferredArrayLiteral");
+  }
+
+  void Generate();
+
+ private:
+  Register boilerplate_;
+  Register literals_;
+  ArrayLiteral* node_;
+};
+
+
+void DeferredArrayLiteral::Generate() {
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
+  // Literal array (0).
+  __ push(literals_);
+  // Literal index (1).
+  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  // Constant properties (2).
+  __ Push(node_->literals());
+  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
+}
+
+
+void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+  Comment cmnt(masm_, "[ ArrayLiteral");
+
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
+
+  // Load the literals array of the function.
+  __ movq(literals.reg(),
+          FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
+
+  // Load the literal at the ast saved index.
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  int literal_offset =
+      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
+  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
+
+  // Check whether we need to materialize the object literal boilerplate.
+  // If so, jump to the deferred code passing the literals array.
+  DeferredArrayLiteral* deferred =
+      new DeferredArrayLiteral(boilerplate.reg(), literals.reg(), node);
+  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  deferred->Branch(equal);
+  deferred->BindExit();
+  literals.Unuse();
+
+  // Push the resulting array literal boilerplate on the stack.
+  frame_->Push(&boilerplate);
+  // Clone the boilerplate object.
+  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
+  if (node->depth() == 1) {
+    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  }
+  Result clone = frame_->CallRuntime(clone_function_id, 1);
+  // Push the newly cloned literal object as the result.
+  frame_->Push(&clone);
+
+  // Generate code to set the elements in the array that are not
+  // literals.
+  for (int i = 0; i < node->values()->length(); i++) {
+    Expression* value = node->values()->at(i);
+
+    // If value is a literal the property value is already set in the
+    // boilerplate object.
+    if (value->AsLiteral() != NULL) continue;
+    // If value is a materialized literal the property value is already set
+    // in the boilerplate object if it is simple.
+    if (CompileTimeValue::IsCompileTimeValue(value)) continue;
+
+    // The property must be set by generated code.
+    Load(value);
+
+    // Get the property value off the stack.
+    Result prop_value = frame_->Pop();
+    prop_value.ToRegister();
+
+    // Fetch the array literal while leaving a copy on the stack and
+    // use it to get the elements array.
+    frame_->Dup();
+    Result elements = frame_->Pop();
+    elements.ToRegister();
+    frame_->Spill(elements.reg());
+    // Get the elements array.
+    __ movq(elements.reg(),
+            FieldOperand(elements.reg(), JSObject::kElementsOffset));
+
+    // Write to the indexed properties array.
+    int offset = i * kPointerSize + Array::kHeaderSize;
+    __ movq(FieldOperand(elements.reg(), offset), prop_value.reg());
+
+    // Update the write barrier for the array address.
+    frame_->Spill(prop_value.reg());  // Overwritten by the write barrier.
+    Result scratch = allocator_->Allocate();
+    ASSERT(scratch.is_valid());
+    __ RecordWrite(elements.reg(), offset, prop_value.reg(), scratch.reg());
+  }
+}
+
 
 void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitAssignment(Assignment* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitAssignment(Assignment* node) {
+  Comment cmnt(masm_, "[ Assignment");
+  CodeForStatementPosition(node);
+
+  { Reference target(this, node->target());
+    if (target.is_illegal()) {
+      // Fool the virtual frame into thinking that we left the assignment's
+      // value on the frame.
+      frame_->Push(Smi::FromInt(0));
+      return;
+    }
+    Variable* var = node->target()->AsVariableProxy()->AsVariable();
+
+    if (node->starts_initialization_block()) {
+      ASSERT(target.type() == Reference::NAMED ||
+             target.type() == Reference::KEYED);
+      // Change to slow case in the beginning of an initialization
+      // block to avoid the quadratic behavior of repeatedly adding
+      // fast properties.
+
+      // The receiver is the argument to the runtime call.  It is the
+      // first value pushed when the reference was loaded to the
+      // frame.
+      frame_->PushElementAt(target.size() - 1);
+      // Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+    }
+    if (node->op() == Token::ASSIGN ||
+        node->op() == Token::INIT_VAR ||
+        node->op() == Token::INIT_CONST) {
+      Load(node->value());
+
+    } else {
+      // TODO(X64): Make compound assignments work.
+      /*
+      Literal* literal = node->value()->AsLiteral();
+      bool overwrite_value =
+          (node->value()->AsBinaryOperation() != NULL &&
+           node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+      Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
+      // There are two cases where the target is not read in the right hand
+      // side, that are easy to test for: the right hand side is a literal,
+      // or the right hand side is a different variable.  TakeValue invalidates
+      // the target, with an implicit promise that it will be written to again
+      // before it is read.
+      if (literal != NULL || (right_var != NULL && right_var != var)) {
+        target.TakeValue(NOT_INSIDE_TYPEOF);
+      } else {
+        target.GetValue(NOT_INSIDE_TYPEOF);
+      }
+      */
+      Load(node->value());
+      /*
+      GenericBinaryOperation(node->binary_op(),
+                             node->type(),
+                             overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+      */
+    }
+
+    if (var != NULL &&
+        var->mode() == Variable::CONST &&
+        node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
+      // Assignment ignored - leave the value on the stack.
+    } else {
+      CodeForSourcePosition(node->position());
+      if (node->op() == Token::INIT_CONST) {
+        // Dynamic constant initializations must use the function context
+        // and initialize the actual constant declared. Dynamic variable
+        // initializations are simply assignments and use SetValue.
+        target.SetValue(CONST_INIT);
+      } else {
+        target.SetValue(NOT_CONST_INIT);
+      }
+      if (node->ends_initialization_block()) {
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        // End of initialization block. Revert to fast case.  The
+        // argument to the runtime call is the receiver, which is the
+        // first value pushed as part of the reference, which is below
+        // the lhs value.
+        frame_->PushElementAt(target.size());
+        // Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+      }
+    }
+  }
 }
 
-void CodeGenerator::VisitThrow(Throw* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitThrow(Throw* node) {
+  Comment cmnt(masm_, "[ Throw");
+  CodeForStatementPosition(node);
+
+  Load(node->exception());
+  Result result = frame_->CallRuntime(Runtime::kThrow, 1);
+  frame_->Push(&result);
 }
 
-void CodeGenerator::VisitProperty(Property* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitProperty(Property* node) {
+  Comment cmnt(masm_, "[ Property");
+  Reference property(this, node);
+  property.GetValue(typeof_state());
 }
 
-void CodeGenerator::VisitCall(Call* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitCall(Call* node) {
+  Comment cmnt(masm_, "[ Call");
+
+  ZoneList<Expression*>* args = node->arguments();
+
+  CodeForStatementPosition(node);
+
+  // Check if the function is a variable or a property.
+  Expression* function = node->expression();
+  Variable* var = function->AsVariableProxy()->AsVariable();
+  Property* property = function->AsProperty();
+
+  // ------------------------------------------------------------------------
+  // Fast-case: Use inline caching.
+  // ---
+  // According to ECMA-262, section 11.2.3, page 44, the function to call
+  // must be resolved after the arguments have been evaluated. The IC code
+  // automatically handles this by loading the arguments before the function
+  // is resolved in cache misses (this also holds for megamorphic calls).
+  // ------------------------------------------------------------------------
+
+  if (var != NULL && !var->is_this() && var->is_global()) {
+    // ----------------------------------
+    // JavaScript example: 'foo(1, 2, 3)'  // foo is global
+    // ----------------------------------
+
+    // Push the name of the function and the receiver onto the stack.
+    frame_->Push(var->name());
+
+    // Pass the global object as the receiver and let the IC stub
+    // patch the stack to use the global proxy as 'this' in the
+    // invoked function.
+    LoadGlobal();
+
+    // Load the arguments.
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      Load(args->at(i));
+    }
+
+    // Call the IC initialization code.
+    CodeForSourcePosition(node->position());
+    Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET_CONTEXT,
+                                       arg_count,
+                                       loop_nesting());
+    frame_->RestoreContextRegister();
+    // Replace the function on the stack with the result.
+    frame_->SetElementAt(0, &result);
+  } else if (var != NULL && var->slot() != NULL &&
+             var->slot()->type() == Slot::LOOKUP) {
+    // TODO(X64): Enable calls of non-global functions.
+    UNIMPLEMENTED();
+    /*
+    // ----------------------------------
+    // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
+    // ----------------------------------
+
+    // Load the function from the context.  Sync the frame so we can
+    // push the arguments directly into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
+    frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
+    // The runtime call returns a pair of values in eax and edx.  The
+    // looked-up function is in eax and the receiver is in edx.  These
+    // register references are not ref counted here.  We spill them
+    // eagerly since they are arguments to an inevitable call (and are
+    // not sharable by the arguments).
+    ASSERT(!allocator()->is_used(eax));
+    frame_->EmitPush(eax);
+
+    // Load the receiver.
+    ASSERT(!allocator()->is_used(edx));
+    frame_->EmitPush(edx);
+
+    // Call the function.
+    CallWithArguments(args, node->position());
+    */
+  } else if (property != NULL) {
+    // Check if the key is a literal string.
+    Literal* literal = property->key()->AsLiteral();
+
+    if (literal != NULL && literal->handle()->IsSymbol()) {
+      // ------------------------------------------------------------------
+      // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
+      // ------------------------------------------------------------------
+
+      // Push the name of the function and the receiver onto the stack.
+      frame_->Push(literal->handle());
+      Load(property->obj());
+
+      // Load the arguments.
+      int arg_count = args->length();
+      for (int i = 0; i < arg_count; i++) {
+        Load(args->at(i));
+      }
+
+      // Call the IC initialization code.
+      CodeForSourcePosition(node->position());
+      Result result =
+          frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, loop_nesting());
+      frame_->RestoreContextRegister();
+      // Replace the function on the stack with the result.
+      frame_->SetElementAt(0, &result);
+
+    } else {
+      // -------------------------------------------
+      // JavaScript example: 'array[index](1, 2, 3)'
+      // -------------------------------------------
+
+      // Load the function to call from the property through a reference.
+      Reference ref(this, property);
+      ref.GetValue(NOT_INSIDE_TYPEOF);
+
+      // Pass receiver to called function.
+      if (property->is_synthetic()) {
+        // Use global object as receiver.
+        LoadGlobalReceiver();
+      } else {
+        // The reference's size is non-negative.
+        frame_->PushElementAt(ref.size());
+      }
+
+      // Call the function.
+      CallWithArguments(args, node->position());
+    }
+
+  } else {
+    // ----------------------------------
+    // JavaScript example: 'foo(1, 2, 3)'  // foo is not global
+    // ----------------------------------
+
+    // Load the function.
+    Load(function);
+
+    // Pass the global proxy as the receiver.
+    LoadGlobalReceiver();
+
+    // Call the function.
+    CallWithArguments(args, node->position());
+  }
 }
+
 
 void CodeGenerator::VisitCallEval(CallEval* a) {
   UNIMPLEMENTED();
 }
 
+
 void CodeGenerator::VisitCallNew(CallNew* a) {
   UNIMPLEMENTED();
 }
 
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* a) {
   UNIMPLEMENTED();
 }
+
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* a) {
   UNIMPLEMENTED();
@@ -378,27 +1364,26 @@ void CodeGenerator::VisitThisFunction(ThisFunction* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
-}
+void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED();}
 
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
@@ -406,7 +1391,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
@@ -418,22 +1403,1290 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* a) {
+void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
-
-#undef __
-// End of CodeGenerator implementation.
 
 // -----------------------------------------------------------------------------
-// Implementation of stubs.
+// CodeGenerator implementation of Expressions
 
-//  Stub classes have public member named masm, not masm_.
+void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  ASSERT(!in_spilled_code());
+  JumpTarget true_target;
+  JumpTarget false_target;
+  ControlDestination dest(&true_target, &false_target, true);
+  LoadCondition(x, typeof_state, &dest, false);
+
+  if (dest.false_was_fall_through()) {
+    // The false target was just bound.
+    JumpTarget loaded;
+    frame_->Push(Factory::false_value());
+    // There may be dangling jumps to the true target.
+    if (true_target.is_linked()) {
+      loaded.Jump();
+      true_target.Bind();
+      frame_->Push(Factory::true_value());
+      loaded.Bind();
+    }
+
+  } else if (dest.is_used()) {
+    // There is true, and possibly false, control flow (with true as
+    // the fall through).
+    JumpTarget loaded;
+    frame_->Push(Factory::true_value());
+    if (false_target.is_linked()) {
+      loaded.Jump();
+      false_target.Bind();
+      frame_->Push(Factory::false_value());
+      loaded.Bind();
+    }
+
+  } else {
+    // We have a valid value on top of the frame, but we still may
+    // have dangling jumps to the true and false targets from nested
+    // subexpressions (eg, the left subexpressions of the
+    // short-circuited boolean operators).
+    ASSERT(has_valid_frame());
+    if (true_target.is_linked() || false_target.is_linked()) {
+      JumpTarget loaded;
+      loaded.Jump();  // Don't lose the current TOS.
+      if (true_target.is_linked()) {
+        true_target.Bind();
+        frame_->Push(Factory::true_value());
+        if (false_target.is_linked()) {
+          loaded.Jump();
+        }
+      }
+      if (false_target.is_linked()) {
+        false_target.Bind();
+        frame_->Push(Factory::false_value());
+      }
+      loaded.Bind();
+    }
+  }
+
+  ASSERT(has_valid_frame());
+  ASSERT(frame_->height() == original_height + 1);
+}
+
+
+// Emit code to load the value of an expression to the top of the
+// frame. If the expression is boolean-valued it may be compiled (or
+// partially compiled) into control flow to the control destination.
+// If force_control is true, control flow is forced.
+void CodeGenerator::LoadCondition(Expression* x,
+                                  TypeofState typeof_state,
+                                  ControlDestination* dest,
+                                  bool force_control) {
+  ASSERT(!in_spilled_code());
+  int original_height = frame_->height();
+
+  { CodeGenState new_state(this, typeof_state, dest);
+    Visit(x);
+
+    // If we hit a stack overflow, we may not have actually visited
+    // the expression.  In that case, we ensure that we have a
+    // valid-looking frame state because we will continue to generate
+    // code as we unwind the C++ stack.
+    //
+    // It's possible to have both a stack overflow and a valid frame
+    // state (eg, a subexpression overflowed, visiting it returned
+    // with a dummied frame state, and visiting this expression
+    // returned with a normal-looking state).
+    if (HasStackOverflow() &&
+        !dest->is_used() &&
+        frame_->height() == original_height) {
+      dest->Goto(true);
+    }
+  }
+
+  if (force_control && !dest->is_used()) {
+    // Convert the TOS value into flow to the control destination.
+    // TODO(X64): Make control flow to control destinations work.
+    ToBoolean(dest);
+  }
+
+  ASSERT(!(force_control && !dest->is_used()));
+  ASSERT(dest->is_used() || frame_->height() == original_height + 1);
+}
+
+
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
+};
+
+
+// ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
+// convert it to a boolean in the condition code register or jump to
+// 'false_target'/'true_target' as appropriate.
+void CodeGenerator::ToBoolean(ControlDestination* dest) {
+  Comment cmnt(masm_, "[ ToBoolean");
+
+  // The value to convert should be popped from the frame.
+  Result value = frame_->Pop();
+  value.ToRegister();
+  // Fast case checks.
+
+  // 'false' => false.
+  __ Cmp(value.reg(), Factory::false_value());
+  dest->false_target()->Branch(equal);
+
+  // 'true' => true.
+  __ Cmp(value.reg(), Factory::true_value());
+  dest->true_target()->Branch(equal);
+
+  // 'undefined' => false.
+  __ Cmp(value.reg(), Factory::undefined_value());
+  dest->false_target()->Branch(equal);
+
+  // Smi => false iff zero.
+  ASSERT(kSmiTag == 0);
+  __ testq(value.reg(), value.reg());
+  dest->false_target()->Branch(zero);
+  __ testq(value.reg(), Immediate(kSmiTagMask));
+  dest->true_target()->Branch(zero);
+
+  // Call the stub for all other cases.
+  frame_->Push(&value);  // Undo the Pop() from above.
+  ToBooleanStub stub;
+  Result temp = frame_->CallStub(&stub, 1);
+  // Convert the result to a condition code.
+  __ testq(temp.reg(), temp.reg());
+  temp.Unuse();
+  dest->Split(not_equal);
+}
+
+
+void CodeGenerator::LoadUnsafeSmi(Register target, Handle<Object> value) {
+  UNIMPLEMENTED();
+  // TODO(X64): Implement security policy for loads of smis.
+}
+
+
+bool CodeGenerator::IsUnsafeSmi(Handle<Object> value) {
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// CodeGenerator implementation of variables, lookups, and stores.
+
+Reference::Reference(CodeGenerator* cgen, Expression* expression)
+    : cgen_(cgen), expression_(expression), type_(ILLEGAL) {
+  cgen->LoadReference(this);
+}
+
+
+Reference::~Reference() {
+  cgen_->UnloadReference(this);
+}
+
+
+void CodeGenerator::LoadReference(Reference* ref) {
+  // References are loaded from both spilled and unspilled code.  Set the
+  // state to unspilled to allow that (and explicitly spill after
+  // construction at the construction sites).
+  bool was_in_spilled_code = in_spilled_code_;
+  in_spilled_code_ = false;
+
+  Comment cmnt(masm_, "[ LoadReference");
+  Expression* e = ref->expression();
+  Property* property = e->AsProperty();
+  Variable* var = e->AsVariableProxy()->AsVariable();
+
+  if (property != NULL) {
+    // The expression is either a property or a variable proxy that rewrites
+    // to a property.
+    Load(property->obj());
+    // We use a named reference if the key is a literal symbol, unless it is
+    // a string that can be legally parsed as an integer.  This is because
+    // otherwise we will not get into the slow case code that handles [] on
+    // String objects.
+    Literal* literal = property->key()->AsLiteral();
+    uint32_t dummy;
+    if (literal != NULL &&
+        literal->handle()->IsSymbol() &&
+        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+      ref->set_type(Reference::NAMED);
+    } else {
+      Load(property->key());
+      ref->set_type(Reference::KEYED);
+    }
+  } else if (var != NULL) {
+    // The expression is a variable proxy that does not rewrite to a
+    // property.  Global variables are treated as named property references.
+    if (var->is_global()) {
+      LoadGlobal();
+      ref->set_type(Reference::NAMED);
+    } else {
+      ASSERT(var->slot() != NULL);
+      ref->set_type(Reference::SLOT);
+    }
+  } else {
+    // Anything else is a runtime error.
+    Load(e);
+    // frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
+  }
+
+  in_spilled_code_ = was_in_spilled_code;
+}
+
+
+void CodeGenerator::UnloadReference(Reference* ref) {
+  // Pop a reference from the stack while preserving TOS.
+  Comment cmnt(masm_, "[ UnloadReference");
+  frame_->Nip(ref->size());
+}
+
+
+Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
+  // Currently, this assertion will fail if we try to assign to
+  // a constant variable that is constant because it is read-only
+  // (such as the variable referring to a named function expression).
+  // We need to implement assignments to read-only variables.
+  // Ideally, we should do this during AST generation (by converting
+  // such assignments into expression statements); however, in general
+  // we may not be able to make the decision until past AST generation,
+  // that is when the entire program is known.
+  ASSERT(slot != NULL);
+  int index = slot->index();
+  switch (slot->type()) {
+    case Slot::PARAMETER:
+      return frame_->ParameterAt(index);
+
+    case Slot::LOCAL:
+      return frame_->LocalAt(index);
+
+    case Slot::CONTEXT: {
+      // Follow the context chain if necessary.
+      ASSERT(!tmp.is(rsi));  // do not overwrite context register
+      Register context = rsi;
+      int chain_length = scope()->ContextChainLength(slot->var()->scope());
+      for (int i = 0; i < chain_length; i++) {
+        // Load the closure.
+        // (All contexts, even 'with' contexts, have a closure,
+        // and it is the same for all contexts inside a function.
+        // There is no need to go to the function context first.)
+        __ movq(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        // Load the function context (which is the incoming, outer context).
+        __ movq(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+        context = tmp;
+      }
+      // We may have a 'with' context now. Get the function context.
+      // (In fact this mov may never be the needed, since the scope analysis
+      // may not permit a direct context access in this case and thus we are
+      // always at a function context. However it is safe to dereference be-
+      // cause the function context of a function context is itself. Before
+      // deleting this mov we should try to create a counter-example first,
+      // though...)
+      __ movq(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      return ContextOperand(tmp, index);
+    }
+
+    default:
+      UNREACHABLE();
+      return Operand(rsp, 0);
+  }
+}
+
+
+Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
+                                                         Result tmp,
+                                                         JumpTarget* slow) {
+  UNIMPLEMENTED();
+  return Operand(rsp, 0);
+}
+
+
+void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->is_dynamic());
+
+    JumpTarget slow;
+    JumpTarget done;
+    Result value;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+      value = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
+      // If there was no control flow to slow, we can exit early.
+      if (!slow.is_linked()) {
+        frame_->Push(&value);
+        return;
+      }
+
+      done.Jump(&value);
+
+    } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+      Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+      // Only generate the fast case for locals that rewrite to slots.
+      // This rules out argument loads.
+      if (potential_slot != NULL) {
+        // Allocate a fresh register to use as a temp in
+        // ContextSlotOperandCheckExtensions and to hold the result
+        // value.
+        value = allocator_->Allocate();
+        ASSERT(value.is_valid());
+        __ movq(value.reg(),
+               ContextSlotOperandCheckExtensions(potential_slot,
+                                                 value,
+                                                 &slow));
+        if (potential_slot->var()->mode() == Variable::CONST) {
+          __ Cmp(value.reg(), Factory::the_hole_value());
+          done.Branch(not_equal, &value);
+          __ movq(value.reg(), Factory::undefined_value(),
+                  RelocInfo::EMBEDDED_OBJECT);
+        }
+        // There is always control flow to slow from
+        // ContextSlotOperandCheckExtensions so we have to jump around
+        // it.
+        done.Jump(&value);
+      }
+    }
+
+    slow.Bind();
+    // A runtime call is inevitable.  We eagerly sync frame elements
+    // to memory so that we can push the arguments directly into place
+    // on top of the frame.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+    frame_->EmitPush(rsi);
+    __ movq(kScratchRegister, slot->var()->name(), RelocInfo::EMBEDDED_OBJECT);
+    frame_->EmitPush(kScratchRegister);
+    if (typeof_state == INSIDE_TYPEOF) {
+      // value =
+      //    frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    } else {
+      // value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
+    }
+
+    done.Bind(&value);
+    frame_->Push(&value);
+
+  } else if (slot->var()->mode() == Variable::CONST) {
+    // Const slots may contain 'the hole' value (the constant hasn't been
+    // initialized yet) which needs to be converted into the 'undefined'
+    // value.
+    //
+    // We currently spill the virtual frame because constants use the
+    // potentially unsafe direct-frame access of SlotOperand.
+    VirtualFrame::SpilledScope spilled_scope;
+    Comment cmnt(masm_, "[ Load const");
+    JumpTarget exit;
+    __ movq(rcx, SlotOperand(slot, rcx));
+    __ Cmp(rcx, Factory::the_hole_value());
+    exit.Branch(not_equal);
+    __ movq(rcx, Factory::undefined_value(), RelocInfo::EMBEDDED_OBJECT);
+    exit.Bind();
+    frame_->EmitPush(rcx);
+
+  } else if (slot->type() == Slot::PARAMETER) {
+    frame_->PushParameterAt(slot->index());
+
+  } else if (slot->type() == Slot::LOCAL) {
+    frame_->PushLocalAt(slot->index());
+
+  } else {
+    // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
+    // here.
+    //
+    // The use of SlotOperand below is safe for an unspilled frame
+    // because it will always be a context slot.
+    ASSERT(slot->type() == Slot::CONTEXT);
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    __ movq(temp.reg(), SlotOperand(slot, temp.reg()));
+    frame_->Push(&temp);
+  }
+}
+
+
+void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
+  // TODO(X64): Enable more types of slot.
+
+  if (slot->type() == Slot::LOOKUP) {
+    UNIMPLEMENTED();
+    /*
+    ASSERT(slot->var()->is_dynamic());
+
+    // For now, just do a runtime call.  Since the call is inevitable,
+    // we eagerly sync the virtual frame so we can directly push the
+    // arguments into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(slot->var()->name()));
+
+    Result value;
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize const
+      // properties (introduced via eval("const foo = (some expr);")). Also,
+      // uses the current function context instead of the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the same
+      // time, because the const declaration may be at the end of the eval
+      // code (sigh...) and the const variable may have been used before
+      // (where its value is 'undefined'). Thus, we can only do the
+      // initialization when we actually encounter the expression and when
+      // the expression operands are defined and valid, and thus we need the
+      // split into 2 operations: declaration of the context slot followed
+      // by initialization.
+      value = frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      value = frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling chained assignment
+    // expressions.
+    frame_->Push(&value);
+    */
+  } else {
+    ASSERT(!slot->var()->is_dynamic());
+
+    JumpTarget exit;
+    if (init_state == CONST_INIT) {
+      ASSERT(slot->var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is executed,
+      // the code is identical to a normal store (see below).
+      //
+      // We spill the frame in the code below because the direct-frame
+      // access of SlotOperand is potentially unsafe with an unspilled
+      // frame.
+      VirtualFrame::SpilledScope spilled_scope;
+      Comment cmnt(masm_, "[ Init const");
+      __ movq(rcx, SlotOperand(slot, rcx));
+      __ Cmp(rcx, Factory::the_hole_value());
+      exit.Branch(not_equal);
+    }
+
+    // We must execute the store.  Storing a variable must keep the (new)
+    // value on the stack. This is necessary for compiling assignment
+    // expressions.
+    //
+    // Note: We will reach here even with slot->var()->mode() ==
+    // Variable::CONST because of const declarations which will initialize
+    // consts to 'the hole' value and by doing so, end up calling this code.
+    if (slot->type() == Slot::PARAMETER) {
+      frame_->StoreToParameterAt(slot->index());
+    } else if (slot->type() == Slot::LOCAL) {
+      frame_->StoreToLocalAt(slot->index());
+    } else {
+      // The other slot types (LOOKUP and GLOBAL) cannot reach here.
+      //
+      // The use of SlotOperand below is safe for an unspilled frame
+      // because the slot is a context slot.
+      ASSERT(slot->type() == Slot::CONTEXT);
+      frame_->Dup();
+      Result value = frame_->Pop();
+      value.ToRegister();
+      Result start = allocator_->Allocate();
+      ASSERT(start.is_valid());
+      __ movq(SlotOperand(slot, start.reg()), value.reg());
+      // RecordWrite may destroy the value registers.
+      //
+      // TODO(204): Avoid actually spilling when the value is not
+      // needed (probably the common case).
+      frame_->Spill(value.reg());
+      int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ RecordWrite(start.reg(), offset, value.reg(), temp.reg());
+      // The results start, value, and temp are unused by going out of
+      // scope.
+    }
+
+    exit.Bind();
+  }
+}
+
+
+Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
+    Slot* slot,
+    TypeofState typeof_state,
+    JumpTarget* slow) {
+  UNIMPLEMENTED();
+  return Result(rax);
+}
+
+
+void CodeGenerator::LoadGlobal() {
+  if (in_spilled_code()) {
+    frame_->EmitPush(GlobalObject());
+  } else {
+    Result temp = allocator_->Allocate();
+    __ movq(temp.reg(), GlobalObject());
+    frame_->Push(&temp);
+  }
+}
+
+
+void CodeGenerator::LoadGlobalReceiver() {
+  Result temp = allocator_->Allocate();
+  Register reg = temp.reg();
+  __ movq(reg, GlobalObject());
+  __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
+  frame_->Push(&temp);
+}
+
+// Emit a LoadIC call to get the value from receiver and leave it in
+// dst.  The receiver register is restored after the call.
+class DeferredReferenceGetNamedValue: public DeferredCode {
+ public:
+  DeferredReferenceGetNamedValue(Register dst,
+                                 Register receiver,
+                                 Handle<String> name)
+      : dst_(dst), receiver_(receiver),  name_(name) {
+    set_comment("[ DeferredReferenceGetNamedValue");
+  }
+
+  virtual void Generate();
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Label patch_site_;
+  Register dst_;
+  Register receiver_;
+  Handle<String> name_;
+};
+
+
+void DeferredReferenceGetNamedValue::Generate() {
+  __ push(receiver_);
+  __ Move(rcx, name_);
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // The call must be followed by a test eax instruction to indicate
+  // that the inobject property case was inlined.
+  //
+  // Store the delta to the map check instruction here in the test
+  // instruction.  Use masm_-> instead of the __ macro since the
+  // latter can't return a value.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  masm_->testq(rax, Immediate(-delta_to_patch_site));
+  __ IncrementCounter(&Counters::named_load_inline_miss, 1);
+
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+  __ pop(receiver_);
+}
+
+
+#undef __
 #define __ ACCESS_MASM(masm)
+
+
+Handle<String> Reference::GetName() {
+  ASSERT(type_ == NAMED);
+  Property* property = expression_->AsProperty();
+  if (property == NULL) {
+    // Global variable reference treated as a named property reference.
+    VariableProxy* proxy = expression_->AsVariableProxy();
+    ASSERT(proxy->AsVariable() != NULL);
+    ASSERT(proxy->AsVariable()->is_global());
+    return proxy->name();
+  } else {
+    Literal* raw_name = property->key()->AsLiteral();
+    ASSERT(raw_name != NULL);
+    return Handle<String>(String::cast(*raw_name->handle()));
+  }
+}
+
+
+void Reference::GetValue(TypeofState typeof_state) {
+  ASSERT(!cgen_->in_spilled_code());
+  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(!is_illegal());
+  MacroAssembler* masm = cgen_->masm();
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Load from Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      cgen_->LoadFromSlot(slot, typeof_state);
+      break;
+    }
+
+    case NAMED: {
+      // TODO(1241834): Make sure that it is safe to ignore the
+      // distinction between expressions in a typeof and not in a
+      // typeof. If there is a chance that reference errors can be
+      // thrown below, we must distinguish between the two kinds of
+      // loads (typeof expression loads must not throw a reference
+      // error).
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
+
+      // Do not inline the inobject property case for loads from the global
+      // object.  Also do not inline for unoptimized code.  This saves time
+      // in the code generator.  Unoptimized code is toplevel code or code
+      // that is not in a loop.
+      if (is_global ||
+          cgen_->scope()->is_global_scope() ||
+          cgen_->loop_nesting() == 0) {
+        Comment cmnt(masm, "[ Load from named Property");
+        cgen_->frame()->Push(GetName());
+
+        RelocInfo::Mode mode = is_global
+                               ? RelocInfo::CODE_TARGET_CONTEXT
+                               : RelocInfo::CODE_TARGET;
+        Result answer = cgen_->frame()->CallLoadIC(mode);
+        // A test eax instruction following the call signals that the
+        // inobject property case was inlined.  Ensure that there is not
+        // a test eax instruction here.
+        __ nop();
+        cgen_->frame()->Push(&answer);
+      } else {
+        // Inline the inobject property case.
+        Comment cmnt(masm, "[ Inlined named property load");
+        Result receiver = cgen_->frame()->Pop();
+        receiver.ToRegister();
+
+        Result value = cgen_->allocator()->Allocate();
+        ASSERT(value.is_valid());
+        DeferredReferenceGetNamedValue* deferred =
+            new DeferredReferenceGetNamedValue(value.reg(),
+                                               receiver.reg(),
+                                               GetName());
+
+        // Check that the receiver is a heap object.
+        __ testq(receiver.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(zero);
+
+        __ bind(deferred->patch_site());
+        // This is the map check instruction that will be patched (so we can't
+        // use the double underscore macro that may insert instructions).
+        // Initially use an invalid map to force a failure.
+        masm->Move(kScratchRegister, Factory::null_value());
+        masm->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                   kScratchRegister);
+        // This branch is always a forwards branch so it's always a fixed
+        // size which allows the assert below to succeed and patching to work.
+        deferred->Branch(not_equal);
+
+        // The delta from the patch label to the load offset must be
+        // statically known.
+        ASSERT(masm->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
+               LoadIC::kOffsetToLoadInstruction);
+        // The initial (invalid) offset has to be large enough to force
+        // a 32-bit instruction encoding to allow patching with an
+        // arbitrary offset.  Use kMaxInt (minus kHeapObjectTag).
+        int offset = kMaxInt;
+        masm->movq(value.reg(), FieldOperand(receiver.reg(), offset));
+
+        __ IncrementCounter(&Counters::named_load_inline, 1);
+        deferred->BindExit();
+        cgen_->frame()->Push(&receiver);
+        cgen_->frame()->Push(&value);
+      }
+      break;
+    }
+
+    case KEYED: {
+      // TODO(1241834): Make sure that this it is safe to ignore the
+      // distinction between expressions in a typeof and not in a typeof.
+      Comment cmnt(masm, "[ Load from keyed Property");
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
+      // Inline array load code if inside of a loop.  We do not know
+      // the receiver map yet, so we initially generate the code with
+      // a check against an invalid map.  In the inline cache code, we
+      // patch the map check if appropriate.
+
+      // TODO(x64): Implement inlined loads for keyed properties.
+      //      Comment cmnt(masm, "[ Load from keyed Property");
+
+      RelocInfo::Mode mode = is_global
+        ? RelocInfo::CODE_TARGET_CONTEXT
+        : RelocInfo::CODE_TARGET;
+      Result answer = cgen_->frame()->CallKeyedLoadIC(mode);
+      // Make sure that we do not have a test instruction after the
+      // call.  A test instruction after the call is used to
+      // indicate that we have generated an inline version of the
+      // keyed load.  The explicit nop instruction is here because
+      // the push that follows might be peep-hole optimized away.
+      __ nop();
+      cgen_->frame()->Push(&answer);
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void Reference::SetValue(InitState init_state) {
+  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(!is_illegal());
+  MacroAssembler* masm = cgen_->masm();
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Store to Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      cgen_->StoreToSlot(slot, init_state);
+      break;
+    }
+
+    case NAMED: {
+      Comment cmnt(masm, "[ Store to named Property");
+      cgen_->frame()->Push(GetName());
+      Result answer = cgen_->frame()->CallStoreIC();
+      cgen_->frame()->Push(&answer);
+      break;
+    }
+
+    case KEYED: {
+      Comment cmnt(masm, "[ Store to keyed Property");
+
+      // TODO(x64): Implement inlined version of keyed stores.
+
+      Result answer = cgen_->frame()->CallKeyedStoreIC();
+      // Make sure that we do not have a test instruction after the
+      // call.  A test instruction after the call is used to
+      // indicate that we have generated an inline version of the
+      // keyed store.
+      __ nop();
+      cgen_->frame()->Push(&answer);
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void ToBooleanStub::Generate(MacroAssembler* masm) {
+  Label false_result, true_result, not_string;
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+
+  // 'null' => false.
+  __ Cmp(rax, Factory::null_value());
+  __ j(equal, &false_result);
+
+  // Get the map and type of the heap object.
+  __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxbq(rcx, FieldOperand(rdx, Map::kInstanceTypeOffset));
+
+  // Undetectable => false.
+  __ movzxbq(rbx, FieldOperand(rdx, Map::kBitFieldOffset));
+  __ and_(rbx, Immediate(1 << Map::kIsUndetectable));
+  __ j(not_zero, &false_result);
+
+  // JavaScript object => true.
+  __ cmpq(rcx, Immediate(FIRST_JS_OBJECT_TYPE));
+  __ j(above_equal, &true_result);
+
+  // String value => false iff empty.
+  __ cmpq(rcx, Immediate(FIRST_NONSTRING_TYPE));
+  __ j(above_equal, &not_string);
+  __ and_(rcx, Immediate(kStringSizeMask));
+  __ cmpq(rcx, Immediate(kShortStringTag));
+  __ j(not_equal, &true_result);  // Empty string is always short.
+  __ movq(rdx, FieldOperand(rax, String::kLengthOffset));
+  __ shr(rdx, Immediate(String::kShortLengthShift));
+  __ j(zero, &false_result);
+  __ jmp(&true_result);
+
+  __ bind(&not_string);
+  // HeapNumber => false iff +0, -0, or NaN.
+  __ Cmp(rdx, Factory::heap_number_map());
+  __ j(not_equal, &true_result);
+  // TODO(x64): Don't use fp stack, use MMX registers?
+  __ fldz();  // Load zero onto fp stack
+  // Load heap-number double value onto fp stack
+  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  __ fucompp();  // Compare and pop both values.
+  __ movq(kScratchRegister, rax);
+  __ fnstsw_ax();  // Store fp status word in ax, no checking for exceptions.
+  __ testb(rax, Immediate(0x08));  // Test FP condition flag C3.
+  __ movq(rax, kScratchRegister);
+  __ j(zero, &false_result);
+  // Fall through to |true_result|.
+
+  // Return 1/0 for true/false in rax.
+  __ bind(&true_result);
+  __ movq(rax, Immediate(1));
+  __ ret(1 * kPointerSize);
+  __ bind(&false_result);
+  __ xor_(rax, rax);
+  __ ret(1 * kPointerSize);
+}
+
+
+// Flag that indicates whether or not the code that handles smi arguments
+// should be placed in the stub, inlined, or omitted entirely.
+enum GenericBinaryFlags {
+  SMI_CODE_IN_STUB,
+  SMI_CODE_INLINED
+};
+
+
+class GenericBinaryOpStub: public CodeStub {
+ public:
+  GenericBinaryOpStub(Token::Value op,
+                      OverwriteMode mode,
+                      GenericBinaryFlags flags)
+      : op_(op), mode_(mode), flags_(flags) {
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
+
+  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
+
+ private:
+  Token::Value op_;
+  OverwriteMode mode_;
+  GenericBinaryFlags flags_;
+
+  const char* GetName();
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("GenericBinaryOpStub (op %s), (mode %d, flags %d)\n",
+           Token::String(op_),
+           static_cast<int>(mode_),
+           static_cast<int>(flags_));
+  }
+#endif
+
+  // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 13> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
+
+  Major MajorKey() { return GenericBinaryOp; }
+  int MinorKey() {
+    // Encode the parameters in a unique 16 bit value.
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           | FlagBits::encode(flags_);
+  }
+  void Generate(MacroAssembler* masm);
+};
+
+
+const char* GenericBinaryOpStub::GetName() {
+  switch (op_) {
+    case Token::ADD: return "GenericBinaryOpStub_ADD";
+    case Token::SUB: return "GenericBinaryOpStub_SUB";
+    case Token::MUL: return "GenericBinaryOpStub_MUL";
+    case Token::DIV: return "GenericBinaryOpStub_DIV";
+    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
+    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
+    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
+    case Token::SAR: return "GenericBinaryOpStub_SAR";
+    case Token::SHL: return "GenericBinaryOpStub_SHL";
+    case Token::SHR: return "GenericBinaryOpStub_SHR";
+    default:         return "GenericBinaryOpStub";
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
+  // Perform fast-case smi code for the operation (rax <op> rbx) and
+  // leave result in register rax.
+
+  // Prepare the smi check of both operands by or'ing them together
+  // before checking against the smi mask.
+  __ movq(rcx, rbx);
+  __ or_(rcx, rax);
+
+  switch (op_) {
+    case Token::ADD:
+      __ addl(rax, rbx);  // add optimistically
+      __ j(overflow, slow);
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+
+    case Token::SUB:
+      __ subl(rax, rbx);  // subtract optimistically
+      __ j(overflow, slow);
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+
+    case Token::DIV:
+    case Token::MOD:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
+      break;
+
+    default:
+      // Fall-through to smi check.
+      break;
+  }
+
+  // Perform the actual smi check.
+  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+  __ testl(rcx, Immediate(kSmiTagMask));
+  __ j(not_zero, slow);
+
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+      // Do nothing here.
+      break;
+
+    case Token::MUL:
+      // If the smi tag is 0 we can just leave the tag on one operand.
+      ASSERT(kSmiTag == 0);  // adjust code below if not the case
+      // Remove tag from one of the operands (but keep sign).
+      __ sar(rax, Immediate(kSmiTagSize));
+      // Do multiplication.
+      __ imull(rax, rbx);  // multiplication of smis; result in eax
+      // Go slow on overflows.
+      __ j(overflow, slow);
+      // Check for negative zero result.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      __ NegativeZeroTest(rax, rcx, slow);  // use rcx = x | y
+      break;
+
+    case Token::DIV:
+      // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
+      __ idiv(rbx);
+      // Check that the remainder is zero.
+      __ testq(rdx, rdx);
+      __ j(not_zero, slow);
+      // Check for the corner case of dividing the most negative smi
+      // by -1. We cannot use the overflow flag, since it is not set
+      // by idiv instruction.
+      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+      // TODO(X64): TODO(Smi): Smi implementation dependent constant.
+      // Value is Smi::fromInt(-(1<<31)) / Smi::fromInt(-1)
+      __ cmpq(rax, Immediate(0x40000000));
+      __ j(equal, slow);
+      // Check for negative zero result.
+      __ NegativeZeroTest(rax, rcx, slow);  // use ecx = x | y
+      // Tag the result and store it in register rax.
+      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      break;
+
+    case Token::MOD:
+      // Divide rdx:rax by rbx.
+      __ idiv(rbx);
+      // Check for negative zero result.
+      __ NegativeZeroTest(rdx, rcx, slow);  // use ecx = x | y
+      // Move remainder to register rax.
+      __ movq(rax, rdx);
+      break;
+
+    case Token::BIT_OR:
+      __ or_(rax, rbx);
+      break;
+
+    case Token::BIT_AND:
+      __ and_(rax, rbx);
+      break;
+
+    case Token::BIT_XOR:
+      __ xor_(rax, rbx);
+      break;
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      // Move the second operand into register ecx.
+      __ movq(rcx, rbx);
+      // Remove tags from operands (but keep sign).
+      __ sar(rax, Immediate(kSmiTagSize));
+      __ sar(rcx, Immediate(kSmiTagSize));
+      // Perform the operation.
+      switch (op_) {
+        case Token::SAR:
+          __ sar(rax);
+          // No checks of result necessary
+          break;
+        case Token::SHR:
+          __ shrl(rax);  // ecx is implicit shift register
+          // Check that the *unsigned* result fits in a smi.
+          // Neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging.
+          // - 0x40000000: this number would convert to negative when
+          // Smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi.
+          __ testq(rax, Immediate(0xc0000000));
+          __ j(not_zero, slow);
+          break;
+        case Token::SHL:
+          __ shll(rax);
+          // TODO(Smi): Significant change if Smi changes.
+          // Check that the *signed* result fits in a smi.
+          // It does, if the 30th and 31st bits are equal, since then
+          // shifting the SmiTag in at the bottom doesn't change the sign.
+          ASSERT(kSmiTagSize == 1);
+          __ cmpl(rax, Immediate(0xc0000000));
+          __ j(sign, slow);
+          __ movsxlq(rax, rax);  // Extend new sign of eax into rax.
+          break;
+        default:
+          UNREACHABLE();
+      }
+      // Tag the result and store it in register eax.
+      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      break;
+
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
+}
+
+
+void UnarySubStub::Generate(MacroAssembler* masm) {
+}
+
+class CompareStub: public CodeStub {
+ public:
+  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Condition cc_;
+  bool strict_;
+
+  Major MajorKey() { return Compare; }
+
+  int MinorKey() {
+    // Encode the three parameters in a unique 16 bit value.
+    ASSERT(static_cast<int>(cc_) < (1 << 15));
+    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
+  }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("CompareStub (cc %d), (strict %s)\n",
+           static_cast<int>(cc_),
+           strict_ ? "true" : "false");
+  }
+#endif
+};
+
+
+void CompareStub::Generate(MacroAssembler* masm) {
+}
+
+
+void StackCheckStub::Generate(MacroAssembler* masm) {
+}
+
+
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#ifdef DEBUG
+  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
+#endif
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
+};
+
+
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  Label slow;
+
+  // Get the function to call from the stack.
+  // +2 ~ receiver, return address
+  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
+
+  // Check that the function really is a JavaScript function.
+  __ testq(rdi, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &slow);
+
+  // Fast-case: Just invoke the function.
+  ParameterCount actual(argc_);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+
+  // Slow-case: Non-function called.
+  __ bind(&slow);
+  __ Set(rax, argc_);
+  __ Set(rbx, 0);
+  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+  __ Jump(adaptor, RelocInfo::CODE_TARGET);
+}
+
+
+// Call the function just below TOS on the stack with the given
+// arguments. The receiver is the TOS.
+void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
+                                      int position) {
+  // Push the arguments ("left-to-right") on the stack.
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Load(args->at(i));
+  }
+
+  // Record the position for debugging purposes.
+  CodeForSourcePosition(position);
+
+  // Use the shared code stub to call the function.
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
+  Result answer = frame_->CallStub(&call_function, arg_count + 1);
+  // Restore context and replace function on the stack with the
+  // result of the stub invocation.
+  frame_->RestoreContextRegister();
+  frame_->SetElementAt(0, &answer);
+}
+
+
+void InstanceofStub::Generate(MacroAssembler* masm) {
+}
+
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // The displacement is used for skipping the return address and the
+  // frame pointer on the stack. It is the offset of the last
+  // parameter (if any) relative to the frame pointer.
+  static const int kDisplacement = 2 * kPointerSize;
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label runtime;
+  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
+  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(not_equal, &runtime);
+  // Value in rcx is Smi encoded.
+
+  // Patch the arguments.length and the parameters pointer.
+  __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ movq(Operand(rsp, 1 * kPointerSize), rcx);
+  __ lea(rdx, Operand(rdx, rcx, kTimes4, kDisplacement));
+  __ movq(Operand(rsp, 2 * kPointerSize), rdx);
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
+}
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The key is in rdx and the parameter count is in rax.
+
+  // The displacement is used for skipping the frame pointer on the
+  // stack. It is the offset of the last parameter (if any) relative
+  // to the frame pointer.
+  static const int kDisplacement = 1 * kPointerSize;
+
+  // Check that the key is a smi.
+  Label slow;
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(not_zero, &slow);
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(rcx, Operand(rbx, StandardFrameConstants::kContextOffset));
+  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(equal, &adaptor);
+
+  // Check index against formal parameters count limit passed in
+  // through register rax. Use unsigned comparison to get negative
+  // check for free.
+  __ cmpq(rdx, rax);
+  __ j(above_equal, &slow);
+
+  // Read the argument from the stack and return it.
+  // Shifting code depends on SmiEncoding being equivalent to left shift:
+  // we multiply by four to get pointer alignment.
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ lea(rbx, Operand(rbp, rax, kTimes4, 0));
+  __ neg(rdx);
+  __ movq(rax, Operand(rbx, rdx, kTimes4, kDisplacement));
+  __ Ret();
+
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
+  __ bind(&adaptor);
+  __ movq(rcx, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmpq(rdx, rcx);
+  __ j(above_equal, &slow);
+
+  // Read the argument from the stack and return it.
+  // Shifting code depends on SmiEncoding being equivalent to left shift:
+  // we multiply by four to get pointer alignment.
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ lea(rbx, Operand(rbx, rcx, kTimes4, 0));
+  __ neg(rdx);
+  __ movq(rax, Operand(rbx, rdx, kTimes4, kDisplacement));
+  __ Ret();
+
+  // Slow-case: Handle non-smi or out-of-bounds access to arguments
+  // by calling the runtime system.
+  __ bind(&slow);
+  __ pop(rbx);  // Return address.
+  __ push(rdx);
+  __ push(rbx);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+}
+
+
+void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movq(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
+  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(equal, &adaptor);
+
+  // Nothing to do: The formal number of parameters has already been
+  // passed in register rax by calling function. Just return it.
+  __ ret(0);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame and return it.
+  __ bind(&adaptor);
+  __ movq(rax, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ ret(0);
+}
+
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // Check that stack should contain frame pointer, code pointer, state and
@@ -779,7 +3032,6 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(rbp);
   __ ret(0);
 }
-
 
 #undef __
 

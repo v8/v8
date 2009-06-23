@@ -124,7 +124,8 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       }
     }
     mode = copy->GetWriteBarrierMode();
-    for (int i = 0; i < copy->map()->inobject_properties(); i++) {
+    int nof = copy->map()->inobject_properties();
+    for (int i = 0; i < nof; i++) {
       Object* value = copy->InObjectPropertyAt(i);
       if (value->IsJSObject()) {
         JSObject* jsObject = JSObject::cast(value);
@@ -522,12 +523,9 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 static Object* Runtime_RegExpCompile(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
-  CONVERT_CHECKED(JSRegExp, raw_re, args[0]);
-  Handle<JSRegExp> re(raw_re);
-  CONVERT_CHECKED(String, raw_pattern, args[1]);
-  Handle<String> pattern(raw_pattern);
-  CONVERT_CHECKED(String, raw_flags, args[2]);
-  Handle<String> flags(raw_flags);
+  CONVERT_ARG_CHECKED(JSRegExp, re, 0);
+  CONVERT_ARG_CHECKED(String, pattern, 1);
+  CONVERT_ARG_CHECKED(String, flags, 2);
   Handle<Object> result = RegExpImpl::Compile(re, pattern, flags);
   if (result.is_null()) return Failure::Exception();
   return *result;
@@ -537,8 +535,7 @@ static Object* Runtime_RegExpCompile(Arguments args) {
 static Object* Runtime_CreateApiFunction(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
-  CONVERT_CHECKED(FunctionTemplateInfo, raw_data, args[0]);
-  Handle<FunctionTemplateInfo> data(raw_data);
+  CONVERT_ARG_CHECKED(FunctionTemplateInfo, data, 0);
   return *Factory::CreateApiFunction(data);
 }
 
@@ -1066,15 +1063,12 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
-  CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
-  Handle<JSRegExp> regexp(raw_regexp);
-  CONVERT_CHECKED(String, raw_subject, args[1]);
-  Handle<String> subject(raw_subject);
+  CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
+  CONVERT_ARG_CHECKED(String, subject, 1);
   // Due to the way the JS files are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CONVERT_CHECKED(Smi, index, args[2]);
-  CONVERT_CHECKED(JSArray, raw_last_match_info, args[3]);
-  Handle<JSArray> last_match_info(raw_last_match_info);
+  CONVERT_ARG_CHECKED(JSArray, last_match_info, 3);
   RUNTIME_ASSERT(last_match_info->HasFastElements());
   RUNTIME_ASSERT(index->value() >= 0);
   RUNTIME_ASSERT(index->value() <= subject->length());
@@ -1217,8 +1211,7 @@ static Object* Runtime_SetCode(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
 
-  CONVERT_CHECKED(JSFunction, raw_target, args[0]);
-  Handle<JSFunction> target(raw_target);
+  CONVERT_ARG_CHECKED(JSFunction, target, 0);
   Handle<Object> code = args.at<Object>(1);
 
   Handle<Context> context(target->context());
@@ -2633,12 +2626,9 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
     String* key = String::cast(args[1]);
     if (receiver->HasFastProperties()) {
       // Attempt to use lookup cache.
-      Object* obj = Heap::GetKeyedLookupCache();
-      if (obj->IsFailure()) return obj;
-      LookupCache* cache = LookupCache::cast(obj);
       Map* receiver_map = receiver->map();
-      int offset = cache->Lookup(receiver_map, key);
-      if (offset != LookupCache::kNotFound) {
+      int offset = KeyedLookupCache::Lookup(receiver_map, key);
+      if (offset != -1) {
         Object* value = receiver->FastPropertyAt(offset);
         return value->IsTheHole() ? Heap::undefined_value() : value;
       }
@@ -2648,9 +2638,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       receiver->LocalLookup(key, &result);
       if (result.IsProperty() && result.IsLoaded() && result.type() == FIELD) {
         int offset = result.GetFieldIndex();
-        Object* obj = cache->Put(receiver_map, key, offset);
-        if (obj->IsFailure()) return obj;
-        Heap::SetKeyedLookupCache(LookupCache::cast(obj));
+        KeyedLookupCache::Update(receiver_map, key, offset);
         Object* value = receiver->FastPropertyAt(offset);
         return value->IsTheHole() ? Heap::undefined_value() : value;
       }
@@ -2977,9 +2965,7 @@ static Object* Runtime_IsPropertyEnumerable(Arguments args) {
 static Object* Runtime_GetPropertyNames(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
-
-  CONVERT_CHECKED(JSObject, raw_object, args[0]);
-  Handle<JSObject> object(raw_object);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
   return *GetKeysFor(object);
 }
 
@@ -4166,16 +4152,64 @@ static Object* Runtime_Math_log(Arguments args) {
 }
 
 
+// Helper function to compute x^y, where y is known to be an
+// integer. Uses binary decomposition to limit the number of
+// multiplications; see the discussion in "Hacker's Delight" by Henry
+// S. Warren, Jr., figure 11-6, page 213.
+static double powi(double x, int y) {
+  ASSERT(y != kMinInt);
+  unsigned n = (y < 0) ? -y : y;
+  double m = x;
+  double p = 1;
+  while (true) {
+    if ((n & 1) != 0) p *= m;
+    n >>= 1;
+    if (n == 0) {
+      if (y < 0) {
+        // Unfortunately, we have to be careful when p has reached
+        // infinity in the computation, because sometimes the higher
+        // internal precision in the pow() implementation would have
+        // given us a finite p. This happens very rarely.
+        double result = 1.0 / p;
+        return (result == 0 && isinf(p))
+            ? pow(x, static_cast<double>(y))  // Avoid pow(double, int).
+            : result;
+      } else {
+        return p;
+      }
+    }
+    m *= m;
+  }
+}
+
+
 static Object* Runtime_Math_pow(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
+
+  // If the second argument is a smi, it is much faster to call the
+  // custom powi() function than the generic pow().
+  if (args[1]->IsSmi()) {
+    int y = Smi::cast(args[1])->value();
+    return Heap::AllocateHeapNumber(powi(x, y));
+  }
+
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return Heap::nan_value();
+  if (y == 0.5) {
+    // It's not uncommon to use Math.pow(x, 0.5) to compute the square
+    // root of a number. To speed up such computations, we explictly
+    // check for this case and use the sqrt() function which is faster
+    // than pow().
+    return Heap::AllocateHeapNumber(sqrt(x));
+  } else if (y == -0.5) {
+    // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
+    return Heap::AllocateHeapNumber(1.0 / sqrt(x));
   } else if (y == 0) {
     return Smi::FromInt(1);
+  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
+    return Heap::nan_value();
   } else {
     return Heap::AllocateHeapNumber(pow(x, y));
   }
@@ -4295,45 +4329,61 @@ static Object* Runtime_NewClosure(Arguments args) {
 }
 
 
+static Handle<Code> ComputeConstructStub(Handle<Map> map) {
+  // TODO(385): Change this to create a construct stub specialized for
+  // the given map to make allocation of simple objects - and maybe
+  // arrays - much faster.
+  return Handle<Code>(Builtins::builtin(Builtins::JSConstructStubGeneric));
+}
+
+
 static Object* Runtime_NewObject(Arguments args) {
-  NoHandleAllocation ha;
+  HandleScope scope;
   ASSERT(args.length() == 1);
 
-  Object* constructor = args[0];
-  if (constructor->IsJSFunction()) {
-    JSFunction* function = JSFunction::cast(constructor);
+  Handle<Object> constructor = args.at<Object>(0);
 
-    // Handle stepping into constructors if step into is active.
+  // If the constructor isn't a proper function we throw a type error.
+  if (!constructor->IsJSFunction()) {
+    Vector< Handle<Object> > arguments = HandleVector(&constructor, 1);
+    Handle<Object> type_error =
+        Factory::NewTypeError("not_constructor", arguments);
+    return Top::Throw(*type_error);
+  }
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(constructor);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    if (Debug::StepInActive()) {
-      HandleScope scope;
-      Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
-    }
+  // Handle stepping into constructors if step into is active.
+  if (Debug::StepInActive()) {
+    Debug::HandleStepIn(function, 0, true);
+  }
 #endif
 
-    if (function->has_initial_map() &&
-        function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
+  if (function->has_initial_map()) {
+    if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
       // The 'Function' function ignores the receiver object when
       // called using 'new' and creates a new JSFunction object that
       // is returned.  The receiver object is only used for error
       // reporting if an error occurs when constructing the new
-      // JSFunction.  AllocateJSObject should not be used to allocate
-      // JSFunctions since it does not properly initialize the shared
-      // part of the function.  Since the receiver is ignored anyway,
-      // we use the global object as the receiver instead of a new
-      // JSFunction object.  This way, errors are reported the same
-      // way whether or not 'Function' is called using 'new'.
+      // JSFunction. Factory::NewJSObject() should not be used to
+      // allocate JSFunctions since it does not properly initialize
+      // the shared part of the function. Since the receiver is
+      // ignored anyway, we use the global object as the receiver
+      // instead of a new JSFunction object. This way, errors are
+      // reported the same way whether or not 'Function' is called
+      // using 'new'.
       return Top::context()->global();
     }
-    return Heap::AllocateJSObject(function);
   }
 
-  HandleScope scope;
-  Handle<Object> cons(constructor);
-  // The constructor is not a function; throw a type error.
-  Handle<Object> type_error =
-    Factory::NewTypeError("not_constructor", HandleVector(&cons, 1));
-  return Top::Throw(*type_error);
+  bool first_allocation = !function->has_initial_map();
+  Handle<JSObject> result = Factory::NewJSObject(function);
+  if (first_allocation) {
+    Handle<Map> map = Handle<Map>(function->initial_map());
+    Handle<Code> stub = ComputeConstructStub(map);
+    function->shared()->set_construct_stub(*stub);
+  }
+  return *result;
 }
 
 
@@ -6622,8 +6672,8 @@ static Object* Runtime_GetBreakLocations(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
 
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  Handle<SharedFunctionInfo> shared(raw_fun->shared());
+  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
+  Handle<SharedFunctionInfo> shared(fun->shared());
   // Find the number of break points
   Handle<Object> break_locations = Debug::GetSourceBreakLocations(shared);
   if (break_locations->IsUndefined()) return Heap::undefined_value();
@@ -6640,8 +6690,8 @@ static Object* Runtime_GetBreakLocations(Arguments args) {
 static Object* Runtime_SetFunctionBreakPoint(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  Handle<SharedFunctionInfo> shared(raw_fun->shared());
+  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
+  Handle<SharedFunctionInfo> shared(fun->shared());
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   RUNTIME_ASSERT(source_position >= 0);
   Handle<Object> break_point_object_arg = args.at<Object>(2);

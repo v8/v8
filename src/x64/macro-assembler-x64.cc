@@ -45,6 +45,14 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 }
 
 
+// TODO(x64): For now, the write barrier is disabled on x64 and we
+// therefore generate no code.  This should be fixed when the write
+// barrier is enabled.
+void MacroAssembler::RecordWrite(Register object, int offset,
+                                 Register value, Register scratch) {
+}
+
+
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);
 }
@@ -56,6 +64,18 @@ void MacroAssembler::Check(Condition cc, const char* msg) {
   Abort(msg);
   // will not return here
   bind(&L);
+}
+
+
+void MacroAssembler::NegativeZeroTest(Register result,
+                                      Register op,
+                                      Label* then_label) {
+  Label ok;
+  testq(result, result);
+  j(not_zero, &ok);
+  testq(op, op);
+  j(sign, then_label);
+  bind(&ok);
 }
 
 
@@ -194,6 +214,44 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
 }
 
 
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  bool resolved;
+  Handle<Code> code = ResolveBuiltin(id, &resolved);
+
+  const char* name = Builtins::GetName(id);
+  int argc = Builtins::GetArgumentsCount(id);
+
+  movq(target, code, RelocInfo::EXTERNAL_REFERENCE);  // Is external reference?
+  if (!resolved) {
+    uint32_t flags =
+        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
+        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
+    Unresolved entry = { pc_offset() - sizeof(intptr_t), flags, name };
+    unresolved_.Add(entry);
+  }
+  addq(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+}
+
+
+Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
+                                            bool* resolved) {
+  // Move the builtin function into the temporary function slot by
+  // reading it from the builtins object. NOTE: We should be able to
+  // reduce this to two instructions by putting the function table in
+  // the global object instead of the "builtins" object and by using a
+  // real register for the function.
+  movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(rdx, FieldOperand(rdx, GlobalObject::kBuiltinsOffset));
+  int builtins_offset =
+      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
+  movq(rdi, FieldOperand(rdx, builtins_offset));
+
+
+  return Builtins::GetCode(id, resolved);
+}
+
+
 void MacroAssembler::Set(Register dst, int64_t x) {
   if (is_int32(x)) {
     movq(dst, Immediate(x));
@@ -217,6 +275,46 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
 }
 
 
+bool MacroAssembler::IsUnsafeSmi(Smi* value) {
+  return false;
+}
+
+void MacroAssembler::LoadUnsafeSmi(Register dst, Smi* source) {
+  UNIMPLEMENTED();
+}
+
+
+void MacroAssembler::Move(Register dst, Handle<Object> source) {
+  if (source->IsSmi()) {
+    if (IsUnsafeSmi(source)) {
+      LoadUnsafeSmi(dst, source);
+    } else {
+      movq(dst, source, RelocInfo::NONE);
+    }
+  } else {
+    movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
+  }
+}
+
+
+void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
+  Move(kScratchRegister, source);
+  movq(dst, kScratchRegister);
+}
+
+
+void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
+  Move(kScratchRegister, source);
+  cmpq(dst, kScratchRegister);
+}
+
+
+void MacroAssembler::Push(Handle<Object> source) {
+  Move(kScratchRegister, source);
+  push(kScratchRegister);
+}
+
+
 void MacroAssembler::Jump(ExternalReference ext) {
   movq(kScratchRegister, ext);
   jmp(kScratchRegister);
@@ -225,6 +323,14 @@ void MacroAssembler::Jump(ExternalReference ext) {
 
 void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   movq(kScratchRegister, destination, rmode);
+  jmp(kScratchRegister);
+}
+
+
+void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  WriteRecordedPositions();
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  movq(kScratchRegister, code_object, rmode);
   jmp(kScratchRegister);
 }
 
@@ -238,6 +344,22 @@ void MacroAssembler::Call(ExternalReference ext) {
 void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   movq(kScratchRegister, destination, rmode);
   call(kScratchRegister);
+}
+
+
+void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
+  WriteRecordedPositions();
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  movq(kScratchRegister, code_object, rmode);
+#ifdef DEBUG
+  Label target;
+  bind(&target);
+#endif
+  call(kScratchRegister);
+#ifdef DEBUG
+  ASSERT_EQ(kTargetAddrToReturnAddrDist,
+            SizeOfCodeGeneratedSince(&target) + kPointerSize);
+#endif
 }
 
 
@@ -533,7 +655,7 @@ void MacroAssembler::InvokeFunction(Register function,
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
   movl(rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-  // Advances rdx to the end of the Code object headers, to the start of
+  // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
   lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
 

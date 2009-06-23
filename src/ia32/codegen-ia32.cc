@@ -1387,7 +1387,11 @@ class DeferredInlineSmiOperation: public DeferredCode {
 void DeferredInlineSmiOperation::Generate() {
   __ push(src_);
   __ push(Immediate(value_));
-  GenericBinaryOpStub stub(op_, overwrite_mode_, SMI_CODE_INLINED);
+  // For mod we don't generate all the Smi code inline.
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
   __ CallStub(&stub);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1772,6 +1776,33 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       break;
     }
 
+    // Generate inline code for mod of powers of 2 and negative powers of 2.
+    case Token::MOD:
+      if (!reversed &&
+          int_value != 0 &&
+          (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiOperation(op,
+                                                                operand->reg(),
+                                                                operand->reg(),
+                                                                smi_value,
+                                                                overwrite_mode);
+        // Check for negative or non-Smi left hand side.
+        __ test(operand->reg(), Immediate(kSmiTagMask | 0x80000000));
+        deferred->Branch(not_zero);
+        if (int_value < 0) int_value = -int_value;
+        if (int_value == 1) {
+          __ mov(operand->reg(), Immediate(Smi::FromInt(0)));
+        } else {
+          __ and_(operand->reg(), (int_value << kSmiTagSize) - 1);
+        }
+        deferred->BindExit();
+        frame_->Push(operand);
+        break;
+      }
+      // Fall through if we did not find a power of 2 on the right hand side!
+
     default: {
       Result constant_operand(value);
       if (reversed) {
@@ -1805,6 +1836,12 @@ class CompareStub: public CodeStub {
     ASSERT(static_cast<int>(cc_) < (1 << 15));
     return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
   }
+
+  // Branch to the label if the given object isn't a symbol.
+  void BranchIfNonSymbol(MacroAssembler* masm,
+                         Label* label,
+                         Register object,
+                         Register scratch);
 
 #ifdef DEBUG
   void Print() {
@@ -2420,131 +2457,6 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 }
 
 
-int CodeGenerator::FastCaseSwitchMaxOverheadFactor() {
-    return kFastSwitchMaxOverheadFactor;
-}
-
-
-int CodeGenerator::FastCaseSwitchMinCaseCount() {
-    return kFastSwitchMinCaseCount;
-}
-
-
-// Generate a computed jump to a switch case.
-void CodeGenerator::GenerateFastCaseSwitchJumpTable(
-    SwitchStatement* node,
-    int min_index,
-    int range,
-    Label* default_label,
-    Vector<Label*> case_targets,
-    Vector<Label> case_labels) {
-  // Notice: Internal references, used by both the jmp instruction and
-  // the table entries, need to be relocated if the buffer grows. This
-  // prevents the forward use of Labels, since a displacement cannot
-  // survive relocation, and it also cannot safely be distinguished
-  // from a real address.  Instead we put in zero-values as
-  // placeholders, and fill in the addresses after the labels have been
-  // bound.
-
-  JumpTarget setup_default;
-  JumpTarget is_smi;
-
-  // A non-null default label pointer indicates a default case among
-  // the case labels.  Otherwise we use the break target as a
-  // "default".
-  JumpTarget* default_target =
-      (default_label == NULL) ? node->break_target() : &setup_default;
-
-  // Test whether input is a smi.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  Result switch_value = frame_->Pop();
-  switch_value.ToRegister();
-  __ test(switch_value.reg(), Immediate(kSmiTagMask));
-  is_smi.Branch(equal, &switch_value, taken);
-
-  // It's a heap object, not a smi or a failure.  Check if it is a
-  // heap number.
-  Result temp = allocator()->Allocate();
-  ASSERT(temp.is_valid());
-  __ CmpObjectType(switch_value.reg(), HEAP_NUMBER_TYPE, temp.reg());
-  temp.Unuse();
-  default_target->Branch(not_equal);
-
-  // The switch value is a heap number.  Convert it to a smi.
-  frame_->Push(&switch_value);
-  Result smi_value = frame_->CallRuntime(Runtime::kNumberToSmi, 1);
-
-  is_smi.Bind(&smi_value);
-  smi_value.ToRegister();
-  // Convert the switch value to a 0-based table index.
-  if (min_index != 0) {
-    frame_->Spill(smi_value.reg());
-    __ sub(Operand(smi_value.reg()), Immediate(min_index << kSmiTagSize));
-  }
-  // Go to the default case if the table index is negative or not a smi.
-  __ test(smi_value.reg(), Immediate(0x80000000 | kSmiTagMask));
-  default_target->Branch(not_equal, not_taken);
-  __ cmp(smi_value.reg(), range << kSmiTagSize);
-  default_target->Branch(greater_equal, not_taken);
-
-  // The expected frame at all the case labels is a version of the
-  // current one (the bidirectional entry frame, which an arbitrary
-  // frame of the correct height can be merged to).  Keep a copy to
-  // restore at the start of every label.  Create a jump target and
-  // bind it to set its entry frame properly.
-  JumpTarget entry_target(JumpTarget::BIDIRECTIONAL);
-  entry_target.Bind(&smi_value);
-  VirtualFrame* start_frame = new VirtualFrame(frame_);
-
-  // 0 is placeholder.
-  // Jump to the address at table_address + 2 * smi_value.reg().
-  // The target of the jump is read from table_address + 4 * switch_value.
-  // The Smi encoding of smi_value.reg() is 2 * switch_value.
-  smi_value.ToRegister();
-  __ jmp(Operand(smi_value.reg(), smi_value.reg(),
-                 times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
-  smi_value.Unuse();
-  // Calculate address to overwrite later with actual address of table.
-  int32_t jump_table_ref = masm_->pc_offset() - sizeof(int32_t);
-  __ Align(4);
-  Label table_start;
-  __ bind(&table_start);
-  __ WriteInternalReference(jump_table_ref, table_start);
-
-  for (int i = 0; i < range; i++) {
-    // These are the table entries. 0x0 is the placeholder for case address.
-    __ dd(0x0, RelocInfo::INTERNAL_REFERENCE);
-  }
-
-  GenerateFastCaseSwitchCases(node, case_labels, start_frame);
-
-  // If there was a default case, we need to emit the code to match it.
-  if (default_label != NULL) {
-    if (has_valid_frame()) {
-      node->break_target()->Jump();
-    }
-    setup_default.Bind();
-    frame_->MergeTo(start_frame);
-    __ jmp(default_label);
-    DeleteFrame();
-  }
-  if (node->break_target()->is_linked()) {
-    node->break_target()->Bind();
-  }
-
-  for (int i = 0, entry_pos = table_start.pos();
-       i < range;
-       i++, entry_pos += sizeof(uint32_t)) {
-    if (case_targets[i] == NULL) {
-      __ WriteInternalReference(entry_pos,
-                                *node->break_target()->entry_label());
-    } else {
-      __ WriteInternalReference(entry_pos, *case_targets[i]);
-    }
-  }
-}
-
-
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   ASSERT(!in_spilled_code());
   Comment cmnt(masm_, "[ SwitchStatement");
@@ -2553,10 +2465,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
   // Compile the switch value.
   Load(node->tag());
-
-  if (TryGenerateFastCaseSwitchStatement(node)) {
-    return;
-  }
 
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
@@ -7121,17 +7029,16 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Save the return address (and get it off the stack).
+  // Push arguments below the return address.
   __ pop(ecx);
-
-  // Push arguments.
   __ push(eax);
   __ push(edx);
   __ push(ecx);
 
   // Inlined floating point compare.
   // Call builtin if operands are not floating point or smi.
-  FloatingPointHelper::CheckFloatOperands(masm, &call_builtin, ebx);
+  Label check_for_symbols;
+  FloatingPointHelper::CheckFloatOperands(masm, &check_for_symbols, ebx);
   FloatingPointHelper::LoadFloatOperands(masm, ecx);
   __ FCmp();
 
@@ -7154,6 +7061,18 @@ void CompareStub::Generate(MacroAssembler* masm) {
   __ bind(&above_lbl);
   __ mov(eax, 1);
   __ ret(2 * kPointerSize);  // eax, edx were pushed
+
+  // Fast negative check for symbol-to-symbol equality.
+  __ bind(&check_for_symbols);
+  if (cc_ == equal) {
+    BranchIfNonSymbol(masm, &call_builtin, eax, ecx);
+    BranchIfNonSymbol(masm, &call_builtin, edx, ecx);
+
+    // We've already checked for object identity, so if both operands
+    // are symbols they aren't equal. Register eax already holds a
+    // non-zero value, which indicates not equal, so just return.
+    __ ret(2 * kPointerSize);
+  }
 
   __ bind(&call_builtin);
   // must swap argument order
@@ -7185,6 +7104,20 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ InvokeBuiltin(builtin, JUMP_FUNCTION);
+}
+
+
+void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
+                                    Label* label,
+                                    Register object,
+                                    Register scratch) {
+  __ test(object, Immediate(kSmiTagMask));
+  __ j(zero, label);
+  __ mov(scratch, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, kIsSymbolMask | kIsNotStringMask);
+  __ cmp(scratch, kSymbolTag | kStringTag);
+  __ j(not_equal, label);
 }
 
 
@@ -7228,7 +7161,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
-
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {

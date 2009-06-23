@@ -481,11 +481,6 @@ bool Object::IsMapCache() {
 }
 
 
-bool Object::IsLookupCache() {
-  return IsHashTable();
-}
-
-
 bool Object::IsPrimitive() {
   return IsOddball() || IsNumber() || IsString();
 }
@@ -1304,7 +1299,6 @@ int DescriptorArray::Search(String* name) {
 }
 
 
-
 String* DescriptorArray::GetKey(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return String::cast(get(ToKeyIndex(descriptor_number)));
@@ -1388,7 +1382,6 @@ CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(MapCache)
-CAST_ACCESSOR(LookupCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(SeqAsciiString)
@@ -1786,10 +1779,16 @@ int Map::inobject_properties() {
 
 int HeapObject::SizeFromMap(Map* map) {
   InstanceType instance_type = map->instance_type();
-  // Only inline the two most frequent cases.
-  if (instance_type == JS_OBJECT_TYPE) return  map->instance_size();
+  // Only inline the most frequent cases.
+  if (instance_type == JS_OBJECT_TYPE ||
+      (instance_type & (kIsNotStringMask | kStringRepresentationMask)) ==
+      (kStringTag | kConsStringTag) ||
+      instance_type == JS_ARRAY_TYPE) return map->instance_size();
   if (instance_type == FIXED_ARRAY_TYPE) {
     return reinterpret_cast<FixedArray*>(this)->FixedArraySize();
+  }
+  if (instance_type == BYTE_ARRAY_TYPE) {
+    return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
   }
   // Otherwise do the general size computation.
   return SlowSizeFromMap(map);
@@ -2130,6 +2129,7 @@ ACCESSORS(BreakPointInfo, statement_position, Smi, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 #endif
 
+ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
@@ -2636,6 +2636,13 @@ void Map::ClearCodeCache() {
   //  - MarkCompactCollector::MarkUnmarkedObject
   ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, Heap::empty_fixed_array());
+}
+
+
+void JSArray::EnsureSize(int required_size) {
+  ASSERT(HasFastElements());
+  if (elements()->length() >= required_size) return;
+  Expand(required_size);
 }
 
 

@@ -45,7 +45,7 @@ namespace internal {
 // Test whether a 64-bit value is in a specific range.
 static inline bool is_uint32(int64_t x) {
   const int64_t kUInt32Mask = V8_INT64_C(0xffffffff);
-  return x == x & kUInt32Mask;
+  return x == (x & kUInt32Mask);
 }
 
 static inline bool is_int32(int64_t x) {
@@ -92,6 +92,17 @@ struct Register {
     return 1 << code_;
   }
 
+  // Return the high bit of the register code as a 0 or 1.  Used often
+  // when constructing the REX prefix byte.
+  int high_bit() const {
+    return code_ >> 3;
+  }
+  // Return the 3 low bits of the register code.  Used when encoding registers
+  // in modR/M, SIB, and opcode bytes.
+  int low_bits() const {
+    return code_ & 0x7;
+  }
+
   // (unfortunately we can't make this private in a struct when initializing
   // by assignment.)
   int code_;
@@ -114,6 +125,35 @@ extern Register r13;
 extern Register r14;
 extern Register r15;
 extern Register no_reg;
+
+
+struct MMXRegister {
+  bool is_valid() const  { return 0 <= code_ && code_ < 2; }
+  int code() const  {
+    ASSERT(is_valid());
+    return code_;
+  }
+
+  int code_;
+};
+
+extern MMXRegister mm0;
+extern MMXRegister mm1;
+extern MMXRegister mm2;
+extern MMXRegister mm3;
+extern MMXRegister mm4;
+extern MMXRegister mm5;
+extern MMXRegister mm6;
+extern MMXRegister mm7;
+extern MMXRegister mm8;
+extern MMXRegister mm9;
+extern MMXRegister mm10;
+extern MMXRegister mm11;
+extern MMXRegister mm12;
+extern MMXRegister mm13;
+extern MMXRegister mm14;
+extern MMXRegister mm15;
+
 
 struct XMMRegister {
   bool is_valid() const  { return 0 <= code_ && code_ < 2; }
@@ -373,8 +413,8 @@ class Assembler : public Malloced {
   static inline void set_target_address_at(Address pc, Address target);
 
   // Distance between the address of the code target in the call instruction
-  // and the return address
-  static const int kTargetAddrToReturnAddrDist = kPointerSize;
+  // and the return address.  Checked in the debug build.
+  static const int kTargetAddrToReturnAddrDist = 3 + kPointerSize;
 
 
   // ---------------------------------------------------------------------------
@@ -446,6 +486,9 @@ class Assembler : public Malloced {
   void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
+  void movsxlq(Register dst, Register src);
+  void movzxbq(Register dst, const Operand& src);
+
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);
@@ -459,6 +502,10 @@ class Assembler : public Malloced {
   // Arithmetics
   void addq(Register dst, Register src) {
     arithmetic_op(0x03, dst, src);
+  }
+
+  void addl(Register dst, Register src) {
+    arithmetic_op_32(0x03, dst, src);
   }
 
   void addq(Register dst, const Operand& src) {
@@ -502,6 +549,10 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x7, dst, src);
   }
 
+  void cmpl(Register dst, Immediate src) {
+    immediate_arithmetic_op_32(0x7, dst, src);
+  }
+
   void cmpq(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x7, dst, src);
   }
@@ -540,6 +591,8 @@ class Assembler : public Malloced {
   void imul(Register dst, const Operand& src);
   // Performs the operation dst = src * imm.
   void imul(Register dst, Register src, Immediate imm);
+  // Multiply 32 bit registers
+  void imull(Register dst, Register src);
 
   void incq(Register dst);
   void incq(const Operand& dst);
@@ -604,12 +657,20 @@ class Assembler : public Malloced {
     shift(dst, 0x4);
   }
 
+  void shll(Register dst) {
+    shift_32(dst, 0x4);
+  }
+
   void shr(Register dst, Immediate shift_amount) {
     shift(dst, shift_amount, 0x5);
   }
 
   void shr(Register dst) {
     shift(dst, 0x5);
+  }
+
+  void shrl(Register dst) {
+    shift_32(dst, 0x5);
   }
 
   void store_rax(void* dst, RelocInfo::Mode mode);
@@ -633,6 +694,10 @@ class Assembler : public Malloced {
 
   void subq(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x5, dst, src);
+  }
+
+  void subl(Register dst, Register src) {
+    arithmetic_op_32(0x2B, dst, src);
   }
 
   void subl(const Operand& dst, Immediate src) {
@@ -770,9 +835,12 @@ class Assembler : public Malloced {
   void fwait();
   void fnclex();
 
+  void fsin();
+  void fcos();
+
   void frndint();
 
-  // SSE2 instructions
+    // SSE2 instructions
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
 
@@ -811,11 +879,6 @@ class Assembler : public Malloced {
   // Writes a quadword of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   // void dd(uint64_t data, RelocInfo::Mode reloc_info);
-
-  // Writes the absolute address of a bound label at the given position in
-  // the generated code. That positions should have the relocation mode
-  // internal_reference!
-  void WriteInternalReference(int position, const Label& bound_label);
 
   int pc_offset() const  { return pc_ - buffer_; }
   int current_statement_position() const { return current_statement_position_; }
@@ -931,7 +994,7 @@ class Assembler : public Malloced {
   // the second operand of the operation, a register or operation
   // subcode, into the reg field of the ModR/M byte.
   void emit_operand(Register reg, const Operand& adr) {
-    emit_operand(reg.code() & 0x07, adr);
+    emit_operand(reg.low_bits(), adr);
   }
 
   // Emit the ModR/M byte, and optionally the SIB byte and
@@ -941,14 +1004,14 @@ class Assembler : public Malloced {
 
   // Emit a ModR/M byte with registers coded in the reg and rm_reg fields.
   void emit_modrm(Register reg, Register rm_reg) {
-    emit(0xC0 | (reg.code() & 0x7) << 3 | (rm_reg.code() & 0x7));
+    emit(0xC0 | reg.low_bits() << 3 | rm_reg.low_bits());
   }
 
   // Emit a ModR/M byte with an operation subcode in the reg field and
   // a register in the rm_reg field.
   void emit_modrm(int code, Register rm_reg) {
-    ASSERT((code & ~0x7) == 0);
-    emit(0xC0 | (code & 0x7) << 3 | (rm_reg.code() & 0x7));
+    ASSERT(is_uint3(code));
+    emit(0xC0 | code << 3 | rm_reg.low_bits());
   }
 
   // Emit the code-object-relative offset of the label's position
@@ -959,12 +1022,16 @@ class Assembler : public Malloced {
   // similar, differing just in the opcode or in the reg field of the
   // ModR/M byte.
   void arithmetic_op(byte opcode, Register dst, Register src);
+  void arithmetic_op_32(byte opcode, Register dst, Register src);
   void arithmetic_op(byte opcode, Register reg, const Operand& op);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
   void immediate_arithmetic_op(byte subcode, const Operand& dst, Immediate src);
-  // Operate on a 32-bit word in memory.
+  // Operate on a 32-bit word in memory or register.
   void immediate_arithmetic_op_32(byte subcode,
                                   const Operand& dst,
+                                  Immediate src);
+  void immediate_arithmetic_op_32(byte subcode,
+                                  Register dst,
                                   Immediate src);
   // Operate on a byte in memory.
   void immediate_arithmetic_op_8(byte subcode,
@@ -974,8 +1041,9 @@ class Assembler : public Malloced {
   void shift(Register dst, Immediate shift_amount, int subcode);
   // Shift dst by cl % 64 bits.
   void shift(Register dst, int subcode);
+  void shift_32(Register dst, int subcode);
 
-  // void emit_farith(int b1, int b2, int i);
+  void emit_farith(int b1, int b2, int i);
 
   // labels
   // void print(Label* L);

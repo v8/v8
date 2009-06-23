@@ -189,7 +189,7 @@ void VirtualFrame::MakeMergable() {
           backing_element = elements_[element.index()];
         }
         Result fresh = cgen()->allocator()->Allocate();
-        ASSERT(fresh.is_valid());
+        ASSERT(fresh.is_valid());  // A register was spilled if all were in use.
         elements_[i] =
             FrameElement::RegisterElement(fresh.reg(),
                                           FrameElement::NOT_SYNCED);
@@ -218,14 +218,15 @@ void VirtualFrame::MakeMergable() {
           }
         }
       }
-      // No need to set the copied flag---there are no copies of
-      // copies or constants so the original was not copied.
-      elements_[i].set_static_type(element.static_type());
+      // No need to set the copied flag---there are no copies.
+
+      // Backwards jump targets can never know the type of a value.
+      elements_[i].set_static_type(StaticType::unknown());
     } else {
-      // Clear the copy flag of non-constant, non-copy elements above
-      // the high water mark.  They cannot be copied because copes are
-      // always higher than their backing store and copies are not
-      // allowed above the water mark.
+      // Clear the copy flag of non-constant, non-copy elements.
+      // They cannot be copied because copies are not allowed.
+      // The copy flag is not relied on before the end of this loop,
+      // including when registers are spilled.
       elements_[i].clear_copied();
     }
   }
