@@ -2162,13 +2162,8 @@ void Reference::SetValue(InitState init_state) {
     case KEYED: {
       Comment cmnt(masm, "[ Store to keyed Property");
 
-      // Generate inlined version of the keyed store if the code is in
-      // a loop and the key is likely to be a smi.
-      Property* property = expression()->AsProperty();
-      ASSERT(property != NULL);
-
       // TODO(x64): Implement inlined version of keyed stores.
-      
+
       Result answer = cgen_->frame()->CallKeyedStoreIC();
       // Make sure that we do not have a test instruction after the
       // call.  A test instruction after the call is used to
