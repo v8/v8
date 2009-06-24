@@ -2368,15 +2368,15 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result left = frame_->Pop();
 
   if (op == Token::ADD) {
-    bool left_is_string = left.static_type().is_jsstring();
-    bool right_is_string = right.static_type().is_jsstring();
+    bool left_is_string = left.is_constant() && left.handle()->IsString();
+    bool right_is_string = right.is_constant() && right.handle()->IsString();
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
       Result answer;
       if (left_is_string) {
         if (right_is_string) {
-          // TODO(lrn): if (left.is_constant() && right.is_constant())
+          // TODO(lrn): if both are constant strings
           // -- do a compile time cons, if allocation during codegen is allowed.
           answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
         } else {
@@ -2387,7 +2387,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         answer =
           frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
       }
-      answer.set_static_type(StaticType::jsstring());
       frame_->Push(&answer);
       return;
     }

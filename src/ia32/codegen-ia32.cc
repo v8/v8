@@ -919,15 +919,15 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result left = frame_->Pop();
 
   if (op == Token::ADD) {
-    bool left_is_string = left.static_type().is_jsstring();
-    bool right_is_string = right.static_type().is_jsstring();
+    bool left_is_string = left.is_constant() && left.handle()->IsString();
+    bool right_is_string = right.is_constant() && right.handle()->IsString();
     if (left_is_string || right_is_string) {
       frame_->Push(&left);
       frame_->Push(&right);
       Result answer;
       if (left_is_string) {
         if (right_is_string) {
-          // TODO(lrn): if (left.is_constant() && right.is_constant())
+          // TODO(lrn): if both are constant strings
           // -- do a compile time cons, if allocation during codegen is allowed.
           answer = frame_->CallRuntime(Runtime::kStringAdd, 2);
         } else {
@@ -938,7 +938,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
         answer =
           frame_->InvokeBuiltin(Builtins::STRING_ADD_RIGHT, CALL_FUNCTION, 2);
       }
-      answer.set_static_type(StaticType::jsstring());
       frame_->Push(&answer);
       return;
     }
@@ -6854,9 +6853,45 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // result.
   __ bind(&call_runtime);
   switch (op_) {
-    case Token::ADD:
+    case Token::ADD: {
+      // Test for string arguments before calling runtime.
+      Label not_strings, both_strings, not_string1, string1;
+      Result answer;
+      __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
+      __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
+      __ test(eax, Immediate(kSmiTagMask));
+      __ j(zero, &not_string1);
+      __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, eax);
+      __ j(above_equal, &not_string1);
+
+      // First argument is a a string, test second.
+      __ test(edx, Immediate(kSmiTagMask));
+      __ j(zero, &string1);
+      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, edx);
+      __ j(above_equal, &string1);
+
+      // First and second argument are strings.
+      __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2);
+
+      // Only first argument is a string.
+      __ bind(&string1);
+      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
+
+      // First argument was not a string, test second.
+      __ bind(&not_string1);
+      __ test(edx, Immediate(kSmiTagMask));
+      __ j(zero, &not_strings);
+      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, edx);
+      __ j(above_equal, &not_strings);
+
+      // Only second argument is a string.
+      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
+
+      __ bind(&not_strings);
+      // Neither argument is a string.
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
+    }
     case Token::SUB:
       __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
       break;

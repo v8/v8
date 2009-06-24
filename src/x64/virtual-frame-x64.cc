@@ -432,8 +432,7 @@ void VirtualFrame::MakeMergable() {
           }
         }
       }
-      // No need to set the copied flag---there are no copies.
-      elements_[i].set_static_type(StaticType::unknown());
+      // No need to set the copied flag --- there are no copies.
     } else {
       // Clear the copy flag of non-constant, non-copy elements.
       // They cannot be copied because copies are not allowed.
@@ -651,7 +650,6 @@ Result VirtualFrame::Pop() {
     if (element.is_memory()) {
       Result temp = cgen()->allocator()->Allocate();
       ASSERT(temp.is_valid());
-      temp.set_static_type(element.static_type());
       __ pop(temp.reg());
       return temp;
     }
@@ -683,12 +681,11 @@ Result VirtualFrame::Pop() {
         FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
     // Preserve the copy flag on the element.
     if (element.is_copied()) new_element.set_copied();
-    new_element.set_static_type(element.static_type());
     elements_[index] = new_element;
     __ movq(temp.reg(), Operand(rbp, fp_relative(index)));
-    return Result(temp.reg(), element.static_type());
+    return Result(temp.reg());
   } else if (element.is_register()) {
-    return Result(element.reg(), element.static_type());
+    return Result(element.reg());
   } else {
     ASSERT(element.is_constant());
     return Result(element.handle());

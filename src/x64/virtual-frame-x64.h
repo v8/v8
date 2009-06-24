@@ -378,7 +378,7 @@ class VirtualFrame : public ZoneObject {
   void EmitPush(Immediate immediate);
 
   // Push an element on the virtual frame.
-  void Push(Register reg, StaticType static_type = StaticType());
+  void Push(Register reg);
   void Push(Handle<Object> value);
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 
@@ -386,7 +386,7 @@ class VirtualFrame : public ZoneObject {
   // frame).
   void Push(Result* result) {
     if (result->is_register()) {
-      Push(result->reg(), result->static_type());
+      Push(result->reg());
     } else {
       ASSERT(result->is_constant());
       Push(result->handle());
