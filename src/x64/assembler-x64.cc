@@ -1110,6 +1110,15 @@ void Assembler::movsxlq(Register dst, Register src) {
 }
 
 
+void Assembler::movsxlq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x63);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::movzxbq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -495,6 +495,7 @@ class Assembler : public Malloced {
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
   void movsxlq(Register dst, Register src);
+  void movsxlq(Register dst, const Operand& src);
   void movzxbq(Register dst, const Operand& src);
 
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.

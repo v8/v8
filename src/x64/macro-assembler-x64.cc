@@ -694,7 +694,8 @@ void MacroAssembler::InvokeFunction(Register function,
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
-  movl(rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+  movsxlq(rbx,
+          FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
   // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
