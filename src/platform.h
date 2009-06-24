@@ -44,6 +44,8 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
+#define V8_INFINITY INFINITY
+
 // Windows specific stuff.
 #ifdef WIN32
 
@@ -58,7 +60,8 @@ enum {
   FP_NORMAL
 };
 
-#define INFINITY HUGE_VAL
+#undef V8_INFINITY
+#define V8_INFINITY HUGE_VAL
 
 namespace v8 {
 namespace internal {
@@ -100,8 +103,8 @@ int random();
 // __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
 #if __GNUC_VERSION__ >= 29600 && __GNUC_VERSION__ < 40100
 #include <limits>
-#undef INFINITY
-#define INFINITY std::numeric_limits<double>::infinity()
+#undef V8_INFINITY
+#define V8_INFINITY std::numeric_limits<double>::infinity()
 #endif
 
 #endif  // __GNUC__
