@@ -123,9 +123,20 @@ CodeGenerator::CodeGenerator(int buffer_size,
 }
 
 
-void CodeGenerator::DeclareGlobals(Handle<FixedArray> a) {
-  UNIMPLEMENTED();
+void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+  // Call the runtime to declare the globals.  The inevitable call
+  // will sync frame elements to memory anyway, so we do it eagerly to
+  // allow us to push the arguments directly into place.
+  frame_->SyncRange(0, frame_->element_count() - 1);
+
+  __ movq(kScratchRegister, pairs, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(kScratchRegister);
+  frame_->EmitPush(rsi);  // The context is the second argument.
+  frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
+  Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
+  // Return value is ignored.
 }
+
 
 void CodeGenerator::TestCodeGenerator() {
   // Compile a function from a string, and run it.
@@ -286,10 +297,35 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
         // Ignore the return value.
       }
 #endif
-    }
+      VisitStatements(body);
 
-    VisitStatements(body);
+      // Handle the return from the function.
+      if (has_valid_frame()) {
+        // If there is a valid frame, control flow can fall off the end of
+        // the body.  In that case there is an implicit return statement.
+        ASSERT(!function_return_is_shadowed_);
+        CodeForReturnPosition(function);
+        frame_->PrepareForReturn();
+        Result undefined(Factory::undefined_value());
+        if (function_return_.is_bound()) {
+          function_return_.Jump(&undefined);
+        } else {
+          function_return_.Bind(&undefined);
+          GenerateReturnSequence(&undefined);
+        }
+      } else if (function_return_.is_linked()) {
+        // If the return target has dangling jumps to it, then we have not
+        // yet generated the return sequence.  This can happen when (a)
+        // control does not flow off the end of the body so we did not
+        // compile an artificial return statement just above, and (b) there
+        // are return statements in the body but (c) they are all shadowed.
+        Result return_value;
+        function_return_.Bind(&return_value);
+        GenerateReturnSequence(&return_value);
+      }
+    }
   }
+
   // Adjust for function-level loop nesting.
   loop_nesting_ -= function->loop_nesting();
 
@@ -1323,13 +1359,75 @@ void CodeGenerator::VisitCallEval(CallEval* a) {
 }
 
 
-void CodeGenerator::VisitCallNew(CallNew* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitCallNew(CallNew* node) {
+  Comment cmnt(masm_, "[ CallNew");
+  CodeForStatementPosition(node);
+
+  // According to ECMA-262, section 11.2.2, page 44, the function
+  // expression in new calls must be evaluated before the
+  // arguments. This is different from ordinary calls, where the
+  // actual function to call is resolved after the arguments have been
+  // evaluated.
+
+  // Compute function to call and use the global object as the
+  // receiver. There is no need to use the global proxy here because
+  // it will always be replaced with a newly allocated object.
+  Load(node->expression());
+  LoadGlobal();
+
+  // Push the arguments ("left-to-right") on the stack.
+  ZoneList<Expression*>* args = node->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Load(args->at(i));
+  }
+
+  // Call the construct call builtin that handles allocation and
+  // constructor invocation.
+  CodeForSourcePosition(node->position());
+  Result result = frame_->CallConstructor(arg_count);
+  // Replace the function on the stack with the result.
+  frame_->SetElementAt(0, &result);
 }
 
 
-void CodeGenerator::VisitCallRuntime(CallRuntime* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
+  if (CheckForInlineRuntimeCall(node)) {
+    return;
+  }
+
+  ZoneList<Expression*>* args = node->arguments();
+  Comment cmnt(masm_, "[ CallRuntime");
+  Runtime::Function* function = node->function();
+
+  if (function == NULL) {
+    // Prepare stack for calling JS runtime function.
+    frame_->Push(node->name());
+    // Push the builtins object found in the current global object.
+    __ movq(kScratchRegister, GlobalObject());
+    __ movq(kScratchRegister,
+            FieldOperand(kScratchRegister, GlobalObject::kBuiltinsOffset));
+    frame_->Push(kScratchRegister);
+  }
+
+  // Push the arguments ("left-to-right").
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Load(args->at(i));
+  }
+
+  if (function == NULL) {
+    // Call the JS runtime function.
+    Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET,
+                                       arg_count,
+                                       loop_nesting_);
+    frame_->RestoreContextRegister();
+    frame_->SetElementAt(0, &answer);
+  } else {
+    // Call the C runtime function.
+    Result answer = frame_->CallRuntime(function, arg_count);
+    frame_->Push(&answer);
+  }
 }
 
 
@@ -1509,9 +1607,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitThisFunction(ThisFunction* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitThisFunction(ThisFunction* node) {
+  frame_->PushFunction();
 }
+
 
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
@@ -1706,7 +1806,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   ASSERT(kSmiTag == 0);
   __ testq(value.reg(), value.reg());
   dest->false_target()->Branch(zero);
-  __ testq(value.reg(), Immediate(kSmiTagMask));
+  __ testl(value.reg(), Immediate(kSmiTagMask));
   dest->true_target()->Branch(zero);
 
   // Call the stub for all other cases.
@@ -2600,7 +2700,7 @@ void Reference::GetValue(TypeofState typeof_state) {
                                                GetName());
 
         // Check that the receiver is a heap object.
-        __ testq(receiver.reg(), Immediate(kSmiTagMask));
+        __ testl(receiver.reg(), Immediate(kSmiTagMask));
         deferred->Branch(zero);
 
         __ bind(deferred->patch_site());
@@ -2767,10 +2867,10 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-
 bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
   return false;  // UNIMPLEMENTED.
 }
+
 
 void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                              Result* left,
@@ -2851,7 +2951,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
-  __ testq(rdi, Immediate(kSmiTagMask));
+  __ testl(rdi, Immediate(kSmiTagMask));
   __ j(zero, &slow);
   // Goto slow case if we do not have a function.
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
@@ -2916,7 +3016,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // Patch the arguments.length and the parameters pointer.
   __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ movq(Operand(rsp, 1 * kPointerSize), rcx);
-  __ lea(rdx, Operand(rdx, rcx, kTimes4, kDisplacement));
+  __ lea(rdx, Operand(rdx, rcx, times_4, kDisplacement));
   __ movq(Operand(rsp, 2 * kPointerSize), rdx);
 
   // Do the runtime call to allocate the arguments object.
@@ -2954,9 +3054,9 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // Shifting code depends on SmiEncoding being equivalent to left shift:
   // we multiply by four to get pointer alignment.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ lea(rbx, Operand(rbp, rax, kTimes4, 0));
+  __ lea(rbx, Operand(rbp, rax, times_4, 0));
   __ neg(rdx);
-  __ movq(rax, Operand(rbx, rdx, kTimes4, kDisplacement));
+  __ movq(rax, Operand(rbx, rdx, times_4, kDisplacement));
   __ Ret();
 
   // Arguments adaptor case: Check index against actual arguments
@@ -2971,9 +3071,9 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // Shifting code depends on SmiEncoding being equivalent to left shift:
   // we multiply by four to get pointer alignment.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ lea(rbx, Operand(rbx, rcx, kTimes4, 0));
+  __ lea(rbx, Operand(rbx, rcx, times_4, 0));
   __ neg(rdx);
-  __ movq(rax, Operand(rbx, rdx, kTimes4, kDisplacement));
+  __ movq(rax, Operand(rbx, rdx, times_4, kDisplacement));
   __ Ret();
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
@@ -3105,7 +3205,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   Label retry;
   // If the returned exception is RETRY_AFTER_GC continue at retry label
   ASSERT(Failure::RETRY_AFTER_GC == 0);
-  __ testq(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
+  __ testl(rax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
   __ j(zero, &retry);
 
   Label continue_exception;
@@ -3574,8 +3674,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Check for negative zero result.
       __ NegativeZeroTest(rax, rcx, slow);  // use ecx = x | y
       // Tag the result and store it in register rax.
-      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
-      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, times_1, kSmiTag));
       break;
 
     case Token::MOD:
@@ -3640,8 +3740,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           UNREACHABLE();
       }
       // Tag the result and store it in register eax.
-      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
-      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, times_1, kSmiTag));
       break;
 
     default:
@@ -3787,8 +3887,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ j(negative, &non_smi_result);
       }
       // Tag smi result and return.
-      ASSERT(kSmiTagSize == kTimes2);  // adjust code if not the case
-      __ lea(rax, Operand(rax, rax, kTimes1, kSmiTag));
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(rax, Operand(rax, rax, times_1, kSmiTag));
       __ ret(2 * kPointerSize);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.

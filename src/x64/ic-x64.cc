@@ -206,7 +206,7 @@ void CallIC::Generate(MacroAssembler* masm,
   // Check if the receiver is a global object of some sort.
   Label invoke, global;
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));  // receiver
-  __ testq(rdx, Immediate(kSmiTagMask));
+  __ testl(rdx, Immediate(kSmiTagMask));
   __ j(zero, &invoke);
   __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
   __ movzxbq(rcx, FieldOperand(rcx, Map::kInstanceTypeOffset));

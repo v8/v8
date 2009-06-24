@@ -65,7 +65,7 @@ void VirtualFrame::Enter() {
 #ifdef DEBUG
   // Verify that rdi contains a JS function.  The following code
   // relies on rax being available for use.
-  __ testq(rdi, Immediate(kSmiTagMask));
+  __ testl(rdi, Immediate(kSmiTagMask));
   __ Check(not_zero,
            "VirtualFrame::Enter - rdi is not a function (smi check).");
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
@@ -903,6 +903,30 @@ Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
   // receiver.
   PrepareForCall(arg_count + 2, arg_count + 1);
   return RawCallCodeObject(ic, mode);
+}
+
+
+Result VirtualFrame::CallConstructor(int arg_count) {
+  // Arguments, receiver, and function are on top of the frame.  The
+  // IC expects arg count in rax, function in rdi, and the arguments
+  // and receiver on the stack.
+  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  // Duplicate the function before preparing the frame.
+  PushElementAt(arg_count + 1);
+  Result function = Pop();
+  PrepareForCall(arg_count + 1, arg_count + 1);  // Spill args and receiver.
+  function.ToRegister(rdi);
+
+  // Constructors are called with the number of arguments in register
+  // eax for now. Another option would be to have separate construct
+  // call trampolines per different arguments counts encountered.
+  Result num_args = cgen()->allocator()->Allocate(rax);
+  ASSERT(num_args.is_valid());
+  __ movq(num_args.reg(), Immediate(arg_count));
+
+  function.Unuse();
+  num_args.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CONSTRUCT_CALL);
 }
 
 

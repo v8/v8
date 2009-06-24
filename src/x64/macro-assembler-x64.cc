@@ -756,7 +756,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r15, Operand(rbp, rdi, kTimesPointerSize, offset));
+  lea(r15, Operand(rbp, rdi, times_pointer_size, offset));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory

@@ -50,10 +50,10 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ push(rdi);
 
   // Preserve the number of arguments on the stack. Must preserve both
-  // eax and ebx because these registers are used when copying the
+  // rax and rbx because these registers are used when copying the
   // arguments and the receiver.
   ASSERT(kSmiTagSize == 1);
-  __ lea(rcx, Operand(rax, rax, kTimes1, kSmiTag));
+  __ lea(rcx, Operand(rax, rax, times_1, kSmiTag));
   __ push(rcx);
 }
 
@@ -71,7 +71,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   ASSERT_EQ(kSmiTagSize, 1 && kSmiTag == 0);
   ASSERT_EQ(kPointerSize, (1 << kSmiTagSize) * 4);
   __ pop(rcx);
-  __ lea(rsp, Operand(rsp, rbx, kTimes4, 1 * kPointerSize));  // 1 ~ receiver
+  __ lea(rsp, Operand(rsp, rbx, times_4, 1 * kPointerSize));  // 1 ~ receiver
   __ push(rcx);
 }
 
@@ -98,7 +98,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(rax, Operand(rbp, rax, kTimesPointerSize, offset));
+    __ lea(rax, Operand(rbp, rax, times_pointer_size, offset));
     __ movq(rcx, Immediate(-1));  // account for receiver
 
     Label copy;
@@ -117,7 +117,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ lea(rdi, Operand(rbp, rax, kTimesPointerSize, offset));
+    __ lea(rdi, Operand(rbp, rax, times_pointer_size, offset));
     __ movq(rcx, Immediate(-1));  // account for receiver
 
     Label copy;
@@ -167,13 +167,132 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
 }
 
+
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
+  // ----------- S t a t e -------------
+  //  -- rax: number of arguments
+  //  -- rdi: constructor function
+  // -----------------------------------
+
+  Label non_function_call;
+  // Check that function is not a smi.
+  __ testl(rdi, Immediate(kSmiTagMask));
+  __ j(zero, &non_function_call);
+  // Check that function is a JSFunction.
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &non_function_call);
+
+  // Jump to the function-specific construct stub.
+  __ movq(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movq(rbx, FieldOperand(rbx, SharedFunctionInfo::kConstructStubOffset));
+  __ lea(rbx, FieldOperand(rbx, Code::kHeaderSize));
+  __ jmp(rbx);
+
+  // edi: called object
+  // eax: number of arguments
+  __ bind(&non_function_call);
+
+  // Set expected number of arguments to zero (not changing eax).
+  __ movq(rbx, Immediate(0));
+  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+          RelocInfo::CODE_TARGET);
 }
 
+
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
+    // Enter a construct frame.
+  __ EnterConstructFrame();
+
+  // Store a smi-tagged arguments count on the stack.
+  __ shl(rax, Immediate(kSmiTagSize));
+  __ push(rax);
+
+  // Push the function to invoke on the stack.
+  __ push(rdi);
+
+  // Try to allocate the object without transitioning into C code. If any of the
+  // preconditions is not met, the code bails out to the runtime call.
+  Label rt_call, allocated;
+
+  // TODO(x64): Implement inlined allocation.
+
+  // Allocate the new receiver object using the runtime call.
+  // rdi: function (constructor)
+  __ bind(&rt_call);
+  // Must restore edi (constructor) before calling runtime.
+  __ movq(rdi, Operand(rsp, 0));
+  __ push(rdi);
+  __ CallRuntime(Runtime::kNewObject, 1);
+  __ movq(rbx, rax);  // store result in rbx
+
+  // New object allocated.
+  // rbx: newly allocated object
+  __ bind(&allocated);
+  // Retrieve the function from the stack.
+  __ pop(rdi);
+
+  // Retrieve smi-tagged arguments count from the stack.
+  __ movq(rax, Operand(rsp, 0));
+  __ shr(rax, Immediate(kSmiTagSize));
+
+  // Push the allocated receiver to the stack. We need two copies
+  // because we may have to return the original one and the calling
+  // conventions dictate that the called function pops the receiver.
+  __ push(rbx);
+  __ push(rbx);
+
+  // Setup pointer to last argument.
+  __ lea(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
+
+  // Copy arguments and receiver to the expression stack.
+  Label loop, entry;
+  __ movq(rcx, rax);
+  __ jmp(&entry);
+  __ bind(&loop);
+  __ push(Operand(rbx, rcx, times_pointer_size, 0));
+  __ bind(&entry);
+  __ decq(rcx);
+  __ j(greater_equal, &loop);
+
+  // Call the function.
+  ParameterCount actual(rax);
+  __ InvokeFunction(rdi, actual, CALL_FUNCTION);
+
+  // Restore context from the frame.
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+
+  // If the result is an object (in the ECMA sense), we should get rid
+  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+  // on page 74.
+  Label use_receiver, exit;
+  // If the result is a smi, it is *not* an object in the ECMA sense.
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &use_receiver);
+
+  // If the type of the result (stored in its map) is less than
+  // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+  __ j(greater_equal, &exit);
+
+  // Throw away the result of the constructor invocation and use the
+  // on-stack receiver as the result.
+  __ bind(&use_receiver);
+  __ movq(rax, Operand(rsp, 0));
+
+  // Restore the arguments count and leave the construct frame.
+  __ bind(&exit);
+  __ movq(rbx, Operand(rsp, kPointerSize));  // get arguments count
+  __ LeaveConstructFrame();
+
+  // Remove caller arguments from the stack and return.
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ pop(rcx);
+  __ lea(rsp, Operand(rsp, rbx, times_4, 1 * kPointerSize));  // 1 ~ receiver
+  __ push(rcx);
+  __ ret(0);
 }
+
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
@@ -258,7 +377,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ xor_(rcx, rcx);  // Set loop variable to 0.
   __ jmp(&entry);
   __ bind(&loop);
-  __ movq(kScratchRegister, Operand(rbx, rcx, kTimesPointerSize, 0));
+  __ movq(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
   __ push(Operand(kScratchRegister, 0));  // dereference handle
   __ addq(rcx, Immediate(1));
   __ bind(&entry);

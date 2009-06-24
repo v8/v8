@@ -278,12 +278,12 @@ class Immediate BASE_EMBEDDED {
 // Machine instruction Operands
 
 enum ScaleFactor {
-  kTimes1 = 0,
-  kTimes2 = 1,
-  kTimes4 = 2,
-  kTimes8 = 3,
-  kTimesIntSize = kTimes4,
-  kTimesPointerSize = kTimes8
+  times_1 = 0,
+  times_2 = 1,
+  times_4 = 2,
+  times_8 = 3,
+  times_int_size = times_4,
+  times_pointer_size = times_8
 };
 
 

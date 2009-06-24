@@ -77,7 +77,7 @@ Operand::Operand(Register base, int32_t disp): rex_(0) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(kTimes1, rsp, base);
+    set_sib(times_1, rsp, base);
   }
 
   if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
