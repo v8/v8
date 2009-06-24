@@ -1604,8 +1604,153 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
 
 
-void CodeGenerator::VisitCompareOperation(CompareOperation* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
+  Comment cmnt(masm_, "[ CompareOperation");
+
+  // Get the expressions from the node.
+  Expression* left = node->left();
+  Expression* right = node->right();
+  Token::Value op = node->op();
+  // To make typeof testing for natives implemented in JavaScript really
+  // efficient, we generate special code for expressions of the form:
+  // 'typeof <expression> == <string>'.
+  UnaryOperation* operation = left->AsUnaryOperation();
+  if ((op == Token::EQ || op == Token::EQ_STRICT) &&
+      (operation != NULL && operation->op() == Token::TYPEOF) &&
+      (right->AsLiteral() != NULL &&
+       right->AsLiteral()->handle()->IsString())) {
+    Handle<String> check(String::cast(*right->AsLiteral()->handle()));
+
+    // Load the operand and move it to a register.
+    LoadTypeofExpression(operation->expression());
+    Result answer = frame_->Pop();
+    answer.ToRegister();
+
+    if (check->Equals(Heap::number_symbol())) {
+      __ testl(answer.reg(), Immediate(kSmiTagMask));
+      destination()->true_target()->Branch(zero);
+      frame_->Spill(answer.reg());
+      __ movq(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ Cmp(answer.reg(), Factory::heap_number_map());
+      answer.Unuse();
+      destination()->Split(equal);
+
+    } else if (check->Equals(Heap::string_symbol())) {
+      __ testl(answer.reg(), Immediate(kSmiTagMask));
+      destination()->false_target()->Branch(zero);
+
+      // It can be an undetectable string object.
+      __ movq(kScratchRegister,
+              FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+               Immediate(1 << Map::kIsUndetectable));
+      destination()->false_target()->Branch(not_zero);
+      __ CmpInstanceType(kScratchRegister, FIRST_NONSTRING_TYPE);
+      answer.Unuse();
+      destination()->Split(below);  // Unsigned byte comparison needed.
+
+    } else if (check->Equals(Heap::boolean_symbol())) {
+      __ Cmp(answer.reg(), Factory::true_value());
+      destination()->true_target()->Branch(equal);
+      __ Cmp(answer.reg(), Factory::false_value());
+      answer.Unuse();
+      destination()->Split(equal);
+
+    } else if (check->Equals(Heap::undefined_symbol())) {
+      __ Cmp(answer.reg(), Factory::undefined_value());
+      destination()->true_target()->Branch(equal);
+
+      __ testl(answer.reg(), Immediate(kSmiTagMask));
+      destination()->false_target()->Branch(zero);
+
+      // It can be an undetectable object.
+      __ movq(kScratchRegister,
+              FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+               Immediate(1 << Map::kIsUndetectable));
+      answer.Unuse();
+      destination()->Split(not_zero);
+
+    } else if (check->Equals(Heap::function_symbol())) {
+      __ testl(answer.reg(), Immediate(kSmiTagMask));
+      destination()->false_target()->Branch(zero);
+      frame_->Spill(answer.reg());
+      __ CmpObjectType(answer.reg(), JS_FUNCTION_TYPE, answer.reg());
+      answer.Unuse();
+      destination()->Split(equal);
+
+    } else if (check->Equals(Heap::object_symbol())) {
+      __ testl(answer.reg(), Immediate(kSmiTagMask));
+      destination()->false_target()->Branch(zero);
+      __ Cmp(answer.reg(), Factory::null_value());
+      destination()->true_target()->Branch(equal);
+
+      // It can be an undetectable object.
+      __ movq(kScratchRegister,
+              FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ movb(kScratchRegister,
+              FieldOperand(kScratchRegister, Map::kBitFieldOffset));
+      __ testb(kScratchRegister, Immediate(1 << Map::kIsUndetectable));
+      destination()->false_target()->Branch(not_zero);
+      __ cmpb(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
+      destination()->false_target()->Branch(below);
+      __ cmpb(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
+      answer.Unuse();
+      destination()->Split(below_equal);
+    } else {
+      // Uncommon case: typeof testing against a string literal that is
+      // never returned from the typeof operator.
+      answer.Unuse();
+      destination()->Goto(false);
+    }
+    return;
+  }
+
+  Condition cc = no_condition;
+  bool strict = false;
+  switch (op) {
+    case Token::EQ_STRICT:
+      strict = true;
+      // Fall through
+    case Token::EQ:
+      cc = equal;
+      break;
+    case Token::LT:
+      cc = less;
+      break;
+    case Token::GT:
+      cc = greater;
+      break;
+    case Token::LTE:
+      cc = less_equal;
+      break;
+    case Token::GTE:
+      cc = greater_equal;
+      break;
+    case Token::IN: {
+      Load(left);
+      Load(right);
+      Result answer = frame_->InvokeBuiltin(Builtins::IN, CALL_FUNCTION, 2);
+      frame_->Push(&answer);  // push the result
+      return;
+    }
+    case Token::INSTANCEOF: {
+      Load(left);
+      Load(right);
+      InstanceofStub stub;
+      Result answer = frame_->CallStub(&stub, 2);
+      answer.ToRegister();
+      __ testq(answer.reg(), answer.reg());
+      answer.Unuse();
+      destination()->Split(zero);
+      return;
+    }
+    default:
+      UNREACHABLE();
+  }
+  Load(left);
+  Load(right);
+  Comparison(cc, strict, destination());
 }
 
 
@@ -2195,6 +2340,248 @@ void CodeGenerator::LoadGlobalReceiver() {
   __ movq(reg, GlobalObject());
   __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
   frame_->Push(&temp);
+}
+
+
+// TODO(1241834): Get rid of this function in favor of just using Load, now
+// that we have the INSIDE_TYPEOF typeof state. => Need to handle global
+// variables w/o reference errors elsewhere.
+void CodeGenerator::LoadTypeofExpression(Expression* x) {
+  Variable* variable = x->AsVariableProxy()->AsVariable();
+  if (variable != NULL && !variable->is_this() && variable->is_global()) {
+    // NOTE: This is somewhat nasty. We force the compiler to load
+    // the variable as if through '<global>.<variable>' to make sure we
+    // do not get reference errors.
+    Slot global(variable, Slot::CONTEXT, Context::GLOBAL_INDEX);
+    Literal key(variable->name());
+    // TODO(1241834): Fetch the position from the variable instead of using
+    // no position.
+    Property property(&global, &key, RelocInfo::kNoPosition);
+    Load(&property);
+  } else {
+    Load(x, INSIDE_TYPEOF);
+  }
+}
+
+
+class CompareStub: public CodeStub {
+ public:
+  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Condition cc_;
+  bool strict_;
+
+  Major MajorKey() { return Compare; }
+
+  int MinorKey() {
+    // Encode the three parameters in a unique 16 bit value.
+    ASSERT(static_cast<int>(cc_) < (1 << 15));
+    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
+  }
+
+  // Branch to the label if the given object isn't a symbol.
+  void BranchIfNonSymbol(MacroAssembler* masm,
+                         Label* label,
+                         Register object);
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("CompareStub (cc %d), (strict %s)\n",
+           static_cast<int>(cc_),
+           strict_ ? "true" : "false");
+  }
+#endif
+};
+
+
+void CodeGenerator::Comparison(Condition cc,
+                               bool strict,
+                               ControlDestination* dest) {
+  // Strict only makes sense for equality comparisons.
+  ASSERT(!strict || cc == equal);
+
+  Result left_side;
+  Result right_side;
+  // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
+  if (cc == greater || cc == less_equal) {
+    cc = ReverseCondition(cc);
+    left_side = frame_->Pop();
+    right_side = frame_->Pop();
+  } else {
+    right_side = frame_->Pop();
+    left_side = frame_->Pop();
+  }
+  ASSERT(cc == less || cc == equal || cc == greater_equal);
+
+  // If either side is a constant smi, optimize the comparison.
+  bool left_side_constant_smi =
+      left_side.is_constant() && left_side.handle()->IsSmi();
+  bool right_side_constant_smi =
+      right_side.is_constant() && right_side.handle()->IsSmi();
+  bool left_side_constant_null =
+      left_side.is_constant() && left_side.handle()->IsNull();
+  bool right_side_constant_null =
+      right_side.is_constant() && right_side.handle()->IsNull();
+
+  if (left_side_constant_smi || right_side_constant_smi) {
+    if (left_side_constant_smi && right_side_constant_smi) {
+      // Trivial case, comparing two constants.
+      int left_value = Smi::cast(*left_side.handle())->value();
+      int right_value = Smi::cast(*right_side.handle())->value();
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {  // Only one side is a constant Smi.
+      // If left side is a constant Smi, reverse the operands.
+      // Since one side is a constant Smi, conversion order does not matter.
+      if (left_side_constant_smi) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+        // This may reintroduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
+      }
+      // Implement comparison against a constant Smi, inlining the case
+      // where both sides are Smis.
+      left_side.ToRegister();
+
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_smi;
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+      __ testl(left_side.reg(), Immediate(kSmiTagMask));
+      is_smi.Branch(zero, taken);
+
+      // Setup and call the compare stub.
+      CompareStub stub(cc, strict);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
+      result.ToRegister();
+      __ cmpq(result.reg(), Immediate(0));
+      result.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_smi.Bind();
+      left_side = Result(left_reg);
+      right_side = Result(right_val);
+      // Test smi equality and comparison by signed int comparison.
+      if (IsUnsafeSmi(right_side.handle())) {
+        right_side.ToRegister();
+        __ cmpq(left_side.reg(), right_side.reg());
+      } else {
+        __ Cmp(left_side.reg(), right_side.handle());
+      }
+      left_side.Unuse();
+      right_side.Unuse();
+      dest->Split(cc);
+    }
+  } else if (cc == equal &&
+             (left_side_constant_null || right_side_constant_null)) {
+    // To make null checks efficient, we check if either the left side or
+    // the right side is the constant 'null'.
+    // If so, we optimize the code by inlining a null check instead of
+    // calling the (very) general runtime routine for checking equality.
+    Result operand = left_side_constant_null ? right_side : left_side;
+    right_side.Unuse();
+    left_side.Unuse();
+    operand.ToRegister();
+    __ Cmp(operand.reg(), Factory::null_value());
+    if (strict) {
+      operand.Unuse();
+      dest->Split(equal);
+    } else {
+      // The 'null' value is only equal to 'undefined' if using non-strict
+      // comparisons.
+      dest->true_target()->Branch(equal);
+      __ Cmp(operand.reg(), Factory::undefined_value());
+      dest->true_target()->Branch(equal);
+      __ testl(operand.reg(), Immediate(kSmiTagMask));
+      dest->false_target()->Branch(equal);
+
+      // It can be an undetectable object.
+      // Use a scratch register in preference to spilling operand.reg().
+      Result temp = allocator()->Allocate();
+      ASSERT(temp.is_valid());
+      __ movq(temp.reg(),
+             FieldOperand(operand.reg(), HeapObject::kMapOffset));
+      __ testb(FieldOperand(temp.reg(), Map::kBitFieldOffset),
+               Immediate(1 << Map::kIsUndetectable));
+      temp.Unuse();
+      operand.Unuse();
+      dest->Split(not_zero);
+    }
+  } else {  // Neither side is a constant Smi or null.
+    // If either side is a non-smi constant, skip the smi check.
+    bool known_non_smi =
+        (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
+        (right_side.is_constant() && !right_side.handle()->IsSmi());
+    left_side.ToRegister();
+    right_side.ToRegister();
+
+    if (known_non_smi) {
+      // When non-smi, call out to the compare stub.
+      CompareStub stub(cc, strict);
+      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+      if (cc == equal) {
+        __ testq(answer.reg(), answer.reg());
+      } else {
+        __ cmpq(answer.reg(), Immediate(0));
+      }
+      answer.Unuse();
+      dest->Split(cc);
+    } else {
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_smi;
+      Register left_reg = left_side.reg();
+      Register right_reg = right_side.reg();
+
+      __ movq(kScratchRegister, left_side.reg());
+      __ or_(kScratchRegister, right_side.reg());
+      __ testl(kScratchRegister, Immediate(kSmiTagMask));
+      is_smi.Branch(zero, taken);
+      // When non-smi, call out to the compare stub.
+      CompareStub stub(cc, strict);
+      Result answer = frame_->CallStub(&stub, &left_side, &right_side);
+      if (cc == equal) {
+        __ testq(answer.reg(), answer.reg());
+      } else {
+        __ cmpq(answer.reg(), Immediate(0));
+      }
+      answer.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_smi.Bind();
+      left_side = Result(left_reg);
+      right_side = Result(right_reg);
+      __ cmpq(left_side.reg(), right_side.reg());
+      right_side.Unuse();
+      left_side.Unuse();
+      dest->Split(cc);
+    }
+  }
 }
 
 
@@ -3313,35 +3700,212 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   UNIMPLEMENTED();
 }
 
-class CompareStub: public CodeStub {
- public:
-  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Condition cc_;
-  bool strict_;
-
-  Major MajorKey() { return Compare; }
-
-  int MinorKey() {
-    // Encode the three parameters in a unique 16 bit value.
-    ASSERT(static_cast<int>(cc_) < (1 << 15));
-    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
-  }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("CompareStub (cc %d), (strict %s)\n",
-           static_cast<int>(cc_),
-           strict_ ? "true" : "false");
-  }
-#endif
-};
-
 
 void CompareStub::Generate(MacroAssembler* masm) {
+  Label call_builtin, done;
+
+  // NOTICE! This code is only reached after a smi-fast-case check, so
+  // it is certain that at least one operand isn't a smi.
+
+  if (cc_ == equal) {  // Both strict and non-strict.
+    Label slow;  // Fallthrough label.
+    // Equality is almost reflexive (everything but NaN), so start by testing
+    // for "identity and not NaN".
+    {
+      Label not_identical;
+      __ cmpq(rax, rdx);
+      __ j(not_equal, &not_identical);
+      // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+      // so we do the second best thing - test it ourselves.
+
+      Label return_equal;
+      Label heap_number;
+      // If it's not a heap number, then return equal.
+      __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      __ j(equal, &heap_number);
+      __ bind(&return_equal);
+      __ xor_(rax, rax);
+      __ ret(0);
+
+      __ bind(&heap_number);
+      // It is a heap number, so return non-equal if it's NaN and equal if it's
+      // not NaN.
+      // The representation of NaN values has all exponent bits (52..62) set,
+      // and not all mantissa bits (0..51) clear.
+      // Read double representation into rax.
+      __ movq(rbx, 0x7ff0000000000000, RelocInfo::NONE);
+      __ movq(rax, FieldOperand(rdx, HeapNumber::kValueOffset));
+      // Test that exponent bits are all set.
+      __ or_(rbx, rax);
+      __ cmpq(rbx, rax);
+      __ j(not_equal, &return_equal);
+      // Shift out flag and all exponent bits, retaining only mantissa.
+      __ shl(rax, Immediate(12));
+      // If all bits in the mantissa are zero the number is Infinity, and
+      // we return zero.  Otherwise it is a NaN, and we return non-zero.
+      // So just return rax.
+      __ ret(0);
+
+      __ bind(&not_identical);
+    }
+
+    // If we're doing a strict equality comparison, we don't have to do
+    // type conversion, so we generate code to do fast comparison for objects
+    // and oddballs. Non-smi numbers and strings still go through the usual
+    // slow-case code.
+    if (strict_) {
+      // If either is a Smi (we know that not both are), then they can only
+      // be equal if the other is a HeapNumber. If so, use the slow case.
+      {
+        Label not_smis;
+        ASSERT_EQ(0, kSmiTag);
+        ASSERT_EQ(0, Smi::FromInt(0));
+        __ movq(rcx, Immediate(kSmiTagMask));
+        __ and_(rcx, rax);
+        __ testq(rcx, rdx);
+        __ j(not_zero, &not_smis);
+        // One operand is a smi.
+
+        // Check whether the non-smi is a heap number.
+        ASSERT_EQ(1, kSmiTagMask);
+        // rcx still holds rax & kSmiTag, which is either zero or one.
+        __ decq(rcx);  // If rax is a smi, all 1s, else all 0s.
+        __ movq(rbx, rdx);
+        __ xor_(rbx, rax);
+        __ and_(rbx, rcx);  // rbx holds either 0 or rax ^ rdx.
+        __ xor_(rbx, rax);
+        // if rax was smi, rbx is now rdx, else rax.
+
+        // Check if the non-smi operand is a heap number.
+        __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        // If heap number, handle it in the slow case.
+        __ j(equal, &slow);
+        // Return non-equal (ebx is not zero)
+        __ movq(rax, rbx);
+        __ ret(0);
+
+        __ bind(&not_smis);
+      }
+
+      // If either operand is a JSObject or an oddball value, then they are not
+      // equal since their pointers are different
+      // There is no test for undetectability in strict equality.
+
+      // If the first object is a JS object, we have done pointer comparison.
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      Label first_non_object;
+      __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+      __ j(below, &first_non_object);
+      // Return non-zero (rax is not zero)
+      Label return_not_equal;
+      ASSERT(kHeapObjectTag != 0);
+      __ bind(&return_not_equal);
+      __ ret(0);
+
+      __ bind(&first_non_object);
+      // Check for oddballs: true, false, null, undefined.
+      __ CmpInstanceType(rcx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      __ CmpObjectType(rdx, FIRST_JS_OBJECT_TYPE, rcx);
+      __ j(above_equal, &return_not_equal);
+
+      // Check for oddballs: true, false, null, undefined.
+      __ CmpInstanceType(rcx, ODDBALL_TYPE);
+      __ j(equal, &return_not_equal);
+
+      // Fall through to the general case.
+    }
+    __ bind(&slow);
+  }
+
+  // Push arguments below the return address.
+  __ pop(rcx);
+  __ push(rax);
+  __ push(rdx);
+  __ push(rcx);
+
+  // Inlined floating point compare.
+  // Call builtin if operands are not floating point or smi.
+  Label check_for_symbols;
+  // TODO(X64): Implement floating point comparisons;
+  __ int3();
+
+  // TODO(1243847): Use cmov below once CpuFeatures are properly hooked up.
+  Label below_lbl, above_lbl;
+  // use edx, eax to convert unsigned to signed comparison
+  __ j(below, &below_lbl);
+  __ j(above, &above_lbl);
+
+  __ xor_(rax, rax);  // equal
+  __ ret(2 * kPointerSize);
+
+  __ bind(&below_lbl);
+  __ movq(rax, Immediate(-1));
+  __ ret(2 * kPointerSize);
+
+  __ bind(&above_lbl);
+  __ movq(rax, Immediate(1));
+  __ ret(2 * kPointerSize);  // eax, edx were pushed
+
+  // Fast negative check for symbol-to-symbol equality.
+  __ bind(&check_for_symbols);
+  if (cc_ == equal) {
+    BranchIfNonSymbol(masm, &call_builtin, rax);
+    BranchIfNonSymbol(masm, &call_builtin, rdx);
+
+    // We've already checked for object identity, so if both operands
+    // are symbols they aren't equal. Register eax already holds a
+    // non-zero value, which indicates not equal, so just return.
+    __ ret(2 * kPointerSize);
+  }
+
+  __ bind(&call_builtin);
+  // must swap argument order
+  __ pop(rcx);
+  __ pop(rdx);
+  __ pop(rax);
+  __ push(rdx);
+  __ push(rax);
+
+  // Figure out which native to call and setup the arguments.
+  Builtins::JavaScript builtin;
+  if (cc_ == equal) {
+    builtin = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
+  } else {
+    builtin = Builtins::COMPARE;
+    int ncr;  // NaN compare result
+    if (cc_ == less || cc_ == less_equal) {
+      ncr = GREATER;
+    } else {
+      ASSERT(cc_ == greater || cc_ == greater_equal);  // remaining cases
+      ncr = LESS;
+    }
+    __ push(Immediate(Smi::FromInt(ncr)));
+  }
+
+  // Restore return address on the stack.
+  __ push(rcx);
+
+  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
+  // tagged as a small integer.
+  __ InvokeBuiltin(builtin, JUMP_FUNCTION);
+}
+
+
+void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
+                                    Label* label,
+                                    Register object) {
+  __ testl(object, Immediate(kSmiTagMask));
+  __ j(zero, label);
+  __ movq(kScratchRegister, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzxbq(kScratchRegister,
+             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
+  __ and_(kScratchRegister, Immediate(kIsSymbolMask | kIsNotStringMask));
+  __ cmpb(kScratchRegister, Immediate(kSymbolTag | kStringTag));
+  __ j(not_equal, label);
 }
 
 

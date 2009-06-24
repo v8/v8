@@ -309,6 +309,12 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 }
 
 
+void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
+  Move(kScratchRegister, source);
+  cmpq(dst, kScratchRegister);
+}
+
+
 void MacroAssembler::Push(Handle<Object> source) {
   Move(kScratchRegister, source);
   push(kScratchRegister);

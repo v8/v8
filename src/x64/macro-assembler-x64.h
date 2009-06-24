@@ -172,6 +172,7 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, Handle<Object> source);
   void Move(const Operand& dst, Handle<Object> source);
   void Cmp(Register dst, Handle<Object> source);
+  void Cmp(const Operand& dst, Handle<Object> source);
   void Push(Handle<Object> source);
 
   // Control Flow

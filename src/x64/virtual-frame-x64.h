@@ -307,8 +307,8 @@ class VirtualFrame : public ZoneObject {
   // even a register.  The argument is consumed by the call.
   Result CallStub(CodeStub* stub, Result* arg);
 
-  // Call stub that takes a pair of arguments passed in edx (arg0) and
-  // eax (arg1).  The arguments are given as results which do not have
+  // Call stub that takes a pair of arguments passed in edx (arg0, rdx) and
+  // eax (arg1, rax).  The arguments are given as results which do not have
   // to be in the proper registers or even in registers.  The
   // arguments are consumed by the call.
   Result CallStub(CodeStub* stub, Result* arg0, Result* arg1);

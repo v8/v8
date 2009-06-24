@@ -702,6 +702,39 @@ Result VirtualFrame::RawCallStub(CodeStub* stub) {
 }
 
 
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+  PrepareForCall(0, 0);
+  arg->ToRegister(rax);
+  arg->Unuse();
+  return RawCallStub(stub);
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
+  PrepareForCall(0, 0);
+
+  if (arg0->is_register() && arg0->reg().is(rax)) {
+    if (arg1->is_register() && arg1->reg().is(rdx)) {
+      // Wrong registers.
+      __ xchg(rax, rdx);
+    } else {
+      // Register rdx is free for arg0, which frees rax for arg1.
+      arg0->ToRegister(rdx);
+      arg1->ToRegister(rax);
+    }
+  } else {
+    // Register rax is free for arg1, which guarantees rdx is free for
+    // arg0.
+    arg1->ToRegister(rax);
+    arg0->ToRegister(rdx);
+  }
+
+  arg0->Unuse();
+  arg1->Unuse();
+  return RawCallStub(stub);
+}
+
+
 void VirtualFrame::SyncElementBelowStackPointer(int index) {
   // Emit code to write elements below the stack pointer to their
   // (already allocated) stack address.

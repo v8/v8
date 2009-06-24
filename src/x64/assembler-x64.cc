@@ -504,14 +504,30 @@ void Assembler::immediate_arithmetic_op_32(byte subcode,
 
 
 void Assembler::immediate_arithmetic_op_8(byte subcode,
-                                           const Operand& dst,
-                                           Immediate src) {
+                                          const Operand& dst,
+                                          Immediate src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(dst);
-  ASSERT(is_int8(src.value_));
+  ASSERT(is_int8(src.value_) || is_uint8(src.value_));
   emit(0x80);
   emit_operand(subcode, dst);
+  emit(src.value_);
+}
+
+
+void Assembler::immediate_arithmetic_op_8(byte subcode,
+                                          Register dst,
+                                          Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.code() > 3) {
+    // Use 64-bit mode byte registers.
+    emit_rex_64(dst);
+  }
+  ASSERT(is_int8(src.value_) || is_uint8(src.value_));
+  emit(0x80);
+  emit_modrm(subcode, dst);
   emit(src.value_);
 }
 
