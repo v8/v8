@@ -273,6 +273,14 @@ class CodeGenState BASE_EMBEDDED {
 };
 
 
+// -------------------------------------------------------------------------
+// Arguments allocation mode
+
+enum ArgumentsAllocationMode {
+  NO_ARGUMENTS_ALLOCATION,
+  EAGER_ARGUMENTS_ALLOCATION,
+  LAZY_ARGUMENTS_ALLOCATION
+};
 
 
 // -------------------------------------------------------------------------
@@ -332,11 +340,10 @@ class CodeGenerator: public AstVisitor {
 
   // Accessors
   Scope* scope() const { return scope_; }
+  bool is_eval() { return is_eval_; }
 
   // Generating deferred code.
   void ProcessDeferred();
-
-  bool is_eval() { return is_eval_; }
 
   // State
   TypeofState typeof_state() const { return state_->typeof_state(); }
@@ -373,6 +380,12 @@ class CodeGenerator: public AstVisitor {
   // target (which can not be done more than once).
   void GenerateReturnSequence(Result* return_value);
 
+  // Returns the arguments allocation mode.
+  ArgumentsAllocationMode ArgumentsMode() const;
+
+  // Store the arguments object and allocate it if necessary.
+  Result StoreArgumentsObject(bool initial);
+
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
@@ -408,6 +421,7 @@ class CodeGenerator: public AstVisitor {
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
+  void LoadFromSlotCheckForArguments(Slot* slot, TypeofState typeof_state);
   Result LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                            TypeofState typeof_state,
                                            JumpTarget* slow);
@@ -469,6 +483,14 @@ class CodeGenerator: public AstVisitor {
   void LoadUnsafeSmi(Register target, Handle<Object> value);
 
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
+
+  // Use an optimized version of Function.prototype.apply that avoid
+  // allocating the arguments object and just copies the arguments
+  // from the stack.
+  void CallApplyLazy(Property* apply,
+                     Expression* receiver,
+                     VariableProxy* arguments,
+                     int position);
 
   void CheckStack();
 

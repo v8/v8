@@ -1582,7 +1582,8 @@ VariableProxy* AstBuildingParser::Declare(Handle<String> name,
   // For global const variables we bind the proxy to a variable.
   if (mode == Variable::CONST && top_scope_->is_global_scope()) {
     ASSERT(resolve);  // should be set by all callers
-    var = NEW(Variable(top_scope_, name, Variable::CONST, true, false));
+    Variable::Kind kind = Variable::NORMAL;
+    var = NEW(Variable(top_scope_, name, Variable::CONST, true, kind));
   }
 
   // If requested and we have a local variable, bind the proxy to the variable

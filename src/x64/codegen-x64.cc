@@ -1257,6 +1257,10 @@ void CodeGenerator::VisitCall(Call* node) {
       // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
       // ------------------------------------------------------------------
 
+      // TODO(X64): Consider optimizing Function.prototype.apply calls
+      // with arguments object. Requires lazy arguments allocation;
+      // see http://codereview.chromium.org/147075.
+
       // Push the name of the function and the receiver onto the stack.
       frame_->Push(literal->handle());
       Load(property->obj());
