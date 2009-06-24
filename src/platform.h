@@ -109,6 +109,8 @@ int random();
 namespace v8 {
 namespace internal {
 
+class Semaphore;
+
 double ceiling(double x);
 
 // Forward declarations.
