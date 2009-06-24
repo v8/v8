@@ -1404,10 +1404,12 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Prepare stack for calling JS runtime function.
     frame_->Push(node->name());
     // Push the builtins object found in the current global object.
-    __ movq(kScratchRegister, GlobalObject());
-    __ movq(kScratchRegister,
-            FieldOperand(kScratchRegister, GlobalObject::kBuiltinsOffset));
-    frame_->Push(kScratchRegister);
+    Result temp = allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ movq(temp.reg(), GlobalObject());
+    __ movq(temp.reg(),
+            FieldOperand(temp.reg(), GlobalObject::kBuiltinsOffset));
+    frame_->Push(&temp);
   }
 
   // Push the arguments ("left-to-right").
