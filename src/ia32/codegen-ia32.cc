@@ -6095,6 +6095,13 @@ void Reference::GetValue(TypeofState typeof_state) {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   MacroAssembler* masm = cgen_->masm();
+
+  // Record the source position for the property load.
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    cgen_->CodeForSourcePosition(property->position());
+  }
+
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Load from Slot");
@@ -6186,6 +6193,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
+
       // Inline array load code if inside of a loop.  We do not know
       // the receiver map yet, so we initially generate the code with
       // a check against an invalid map.  In the inline cache code, we
