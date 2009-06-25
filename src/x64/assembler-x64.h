@@ -82,8 +82,6 @@ struct Register {
   }
   bool is_valid() const  { return 0 <= code_ && code_ < 16; }
   bool is(Register reg) const  { return code_ == reg.code_; }
-  // The byte-register distinction of ai32 has dissapeared.
-  bool is_byte_register() const  { return false; }
   int code() const  {
     ASSERT(is_valid());
     return code_;

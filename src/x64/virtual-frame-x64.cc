@@ -284,6 +284,45 @@ int VirtualFrame::InvalidateFrameSlotAt(int index) {
 }
 
 
+void VirtualFrame::TakeFrameSlotAt(int index) {
+  ASSERT(index >= 0);
+  ASSERT(index <= element_count());
+  FrameElement original = elements_[index];
+  int new_backing_store_index = InvalidateFrameSlotAt(index);
+  if (new_backing_store_index != kIllegalIndex) {
+    elements_.Add(CopyElementAt(new_backing_store_index));
+    return;
+  }
+
+  switch (original.type()) {
+    case FrameElement::MEMORY: {
+      // Emit code to load the original element's data into a register.
+      // Push that register as a FrameElement on top of the frame.
+      Result fresh = cgen()->allocator()->Allocate();
+      ASSERT(fresh.is_valid());
+      FrameElement new_element =
+          FrameElement::RegisterElement(fresh.reg(),
+                                        FrameElement::NOT_SYNCED);
+      Use(fresh.reg(), element_count());
+      elements_.Add(new_element);
+      __ movq(fresh.reg(), Operand(rbp, fp_relative(index)));
+      break;
+    }
+    case FrameElement::REGISTER:
+      Use(original.reg(), element_count());
+      // Fall through.
+    case FrameElement::CONSTANT:
+    case FrameElement::COPY:
+      original.clear_sync();
+      elements_.Add(original);
+      break;
+    case FrameElement::INVALID:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
 void VirtualFrame::StoreToFrameSlotAt(int index) {
   // Store the value on top of the frame to the virtual frame slot at
   // a given index.  The value on top of the frame is left in place.

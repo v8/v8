@@ -1951,9 +1951,184 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-void CodeGenerator::VisitCountOperation(CountOperation* a) {
-  UNIMPLEMENTED();
+// The value in dst was optimistically incremented or decremented.  The
+// result overflowed or was not smi tagged.  Undo the operation, call
+// into the runtime to convert the argument to a number, and call the
+// specialized add or subtract stub.  The result is left in dst.
+class DeferredPrefixCountOperation: public DeferredCode {
+ public:
+  DeferredPrefixCountOperation(Register dst, bool is_increment)
+      : dst_(dst), is_increment_(is_increment) {
+    set_comment("[ DeferredCountOperation");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  bool is_increment_;
+};
+
+
+void DeferredPrefixCountOperation::Generate() {
+  // Undo the optimistic smi operation.
+  if (is_increment_) {
+    __ subq(dst_, Immediate(Smi::FromInt(1)));
+  } else {
+    __ addq(dst_, Immediate(Smi::FromInt(1)));
+  }
+  __ push(dst_);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+  __ push(rax);
+  __ push(Immediate(Smi::FromInt(1)));
+  if (is_increment_) {
+    __ CallRuntime(Runtime::kNumberAdd, 2);
+  } else {
+    __ CallRuntime(Runtime::kNumberSub, 2);
+  }
+  if (!dst_.is(rax)) __ movq(dst_, rax);
 }
+
+
+// The value in dst was optimistically incremented or decremented.  The
+// result overflowed or was not smi tagged.  Undo the operation and call
+// into the runtime to convert the argument to a number.  Update the
+// original value in old.  Call the specialized add or subtract stub.
+// The result is left in dst.
+class DeferredPostfixCountOperation: public DeferredCode {
+ public:
+  DeferredPostfixCountOperation(Register dst, Register old, bool is_increment)
+      : dst_(dst), old_(old), is_increment_(is_increment) {
+    set_comment("[ DeferredCountOperation");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Register old_;
+  bool is_increment_;
+};
+
+
+void DeferredPostfixCountOperation::Generate() {
+  // Undo the optimistic smi operation.
+  if (is_increment_) {
+    __ subq(dst_, Immediate(Smi::FromInt(1)));
+  } else {
+    __ addq(dst_, Immediate(Smi::FromInt(1)));
+  }
+  __ push(dst_);
+  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+
+  // Save the result of ToNumber to use as the old value.
+  __ push(rax);
+
+  // Call the runtime for the addition or subtraction.
+  __ push(rax);
+  __ push(Immediate(Smi::FromInt(1)));
+  if (is_increment_) {
+    __ CallRuntime(Runtime::kNumberAdd, 2);
+  } else {
+    __ CallRuntime(Runtime::kNumberSub, 2);
+  }
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+  __ pop(old_);
+}
+
+
+void CodeGenerator::VisitCountOperation(CountOperation* node) {
+  Comment cmnt(masm_, "[ CountOperation");
+
+  bool is_postfix = node->is_postfix();
+  bool is_increment = node->op() == Token::INC;
+
+  Variable* var = node->expression()->AsVariableProxy()->AsVariable();
+  bool is_const = (var != NULL && var->mode() == Variable::CONST);
+
+  // Postfix operations need a stack slot under the reference to hold
+  // the old value while the new value is being stored.  This is so that
+  // in the case that storing the new value requires a call, the old
+  // value will be in the frame to be spilled.
+  if (is_postfix) frame_->Push(Smi::FromInt(0));
+
+  { Reference target(this, node->expression());
+    if (target.is_illegal()) {
+      // Spoof the virtual frame to have the expected height (one higher
+      // than on entry).
+      if (!is_postfix) frame_->Push(Smi::FromInt(0));
+      return;
+    }
+    target.TakeValue(NOT_INSIDE_TYPEOF);
+
+    Result new_value = frame_->Pop();
+    new_value.ToRegister();
+
+    Result old_value;  // Only allocated in the postfix case.
+    if (is_postfix) {
+      // Allocate a temporary to preserve the old value.
+      old_value = allocator_->Allocate();
+      ASSERT(old_value.is_valid());
+      __ movq(old_value.reg(), new_value.reg());
+    }
+    // Ensure the new value is writable.
+    frame_->Spill(new_value.reg());
+
+    // In order to combine the overflow and the smi tag check, we need
+    // to be able to allocate a byte register.  We attempt to do so
+    // without spilling.  If we fail, we will generate separate overflow
+    // and smi tag checks.
+    //
+    // We allocate and clear the temporary register before
+    // performing the count operation since clearing the register using
+    // xor will clear the overflow flag.
+    Result tmp = allocator_->AllocateWithoutSpilling();
+
+    // Clear scratch register to prepare it for setcc after the operation below.
+    __ xor_(kScratchRegister, kScratchRegister);
+
+    DeferredCode* deferred = NULL;
+    if (is_postfix) {
+      deferred = new DeferredPostfixCountOperation(new_value.reg(),
+                                                   old_value.reg(),
+                                                   is_increment);
+    } else {
+      deferred = new DeferredPrefixCountOperation(new_value.reg(),
+                                                  is_increment);
+    }
+
+    if (is_increment) {
+      __ addq(new_value.reg(), Immediate(Smi::FromInt(1)));
+    } else {
+      __ subq(new_value.reg(), Immediate(Smi::FromInt(1)));
+    }
+
+    // If the count operation didn't overflow and the result is a valid
+    // smi, we're done. Otherwise, we jump to the deferred slow-case
+    // code.
+
+    // We combine the overflow and the smi tag check.
+    __ setcc(overflow, kScratchRegister);
+    __ or_(kScratchRegister, new_value.reg());
+    __ testl(kScratchRegister, Immediate(kSmiTagMask));
+    tmp.Unuse();
+    deferred->Branch(not_zero);
+
+    deferred->BindExit();
+
+    // Postfix: store the old value in the allocated slot under the
+    // reference.
+    if (is_postfix) frame_->SetElementAt(target.size(), &old_value);
+
+    frame_->Push(&new_value);
+    // Non-constant: update the reference.
+    if (!is_const) target.SetValue(NOT_CONST_INIT);
+  }
+
+  // Postfix: drop the new value and use the old.
+  if (is_postfix) frame_->Drop();
+}
+
 
 void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // TODO(X64): This code was copied verbatim from codegen-ia32.
@@ -4018,6 +4193,39 @@ void Reference::GetValue(TypeofState typeof_state) {
 
     default:
       UNREACHABLE();
+  }
+}
+
+
+void Reference::TakeValue(TypeofState typeof_state) {
+  // TODO(X64): This function is completely architecture independent. Move
+  // it somewhere shared.
+
+  // For non-constant frame-allocated slots, we invalidate the value in the
+  // slot.  For all others, we fall back on GetValue.
+  ASSERT(!cgen_->in_spilled_code());
+  ASSERT(!is_illegal());
+  if (type_ != SLOT) {
+    GetValue(typeof_state);
+    return;
+  }
+
+  Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+  ASSERT(slot != NULL);
+  if (slot->type() == Slot::LOOKUP ||
+      slot->type() == Slot::CONTEXT ||
+      slot->var()->mode() == Variable::CONST) {
+    GetValue(typeof_state);
+    return;
+  }
+
+  // Only non-constant, frame-allocated parameters and locals can reach
+  // here.
+  if (slot->type() == Slot::PARAMETER) {
+    cgen_->frame()->TakeParameterAt(slot->index());
+  } else {
+    ASSERT(slot->type() == Slot::LOCAL);
+    cgen_->frame()->TakeLocalAt(slot->index());
   }
 }
 
