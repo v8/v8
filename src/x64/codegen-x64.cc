@@ -1434,9 +1434,163 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 }
 
 
-void CodeGenerator::VisitUnaryOperation(UnaryOperation* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
+  // Note that because of NOT and an optimization in comparison of a typeof
+  // expression to a literal string, this function can fail to leave a value
+  // on top of the frame or in the cc register.
+  Comment cmnt(masm_, "[ UnaryOperation");
+
+  Token::Value op = node->op();
+
+  if (op == Token::NOT) {
+    // Swap the true and false targets but keep the same actual label
+    // as the fall through.
+    destination()->Invert();
+    LoadCondition(node->expression(), NOT_INSIDE_TYPEOF, destination(), true);
+    // Swap the labels back.
+    destination()->Invert();
+
+  } else if (op == Token::DELETE) {
+    Property* property = node->expression()->AsProperty();
+    if (property != NULL) {
+      Load(property->obj());
+      Load(property->key());
+      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
+      frame_->Push(&answer);
+      return;
+    }
+
+    Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
+    if (variable != NULL) {
+      Slot* slot = variable->slot();
+      if (variable->is_global()) {
+        LoadGlobal();
+        frame_->Push(variable->name());
+        Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
+                                              CALL_FUNCTION, 2);
+        frame_->Push(&answer);
+        return;
+
+      } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
+        // Call the runtime to look up the context holding the named
+        // variable.  Sync the virtual frame eagerly so we can push the
+        // arguments directly into place.
+        frame_->SyncRange(0, frame_->element_count() - 1);
+        frame_->EmitPush(rsi);
+        frame_->EmitPush(variable->name());
+        Result context = frame_->CallRuntime(Runtime::kLookupContext, 2);
+        ASSERT(context.is_register());
+        frame_->EmitPush(context.reg());
+        context.Unuse();
+        frame_->EmitPush(variable->name());
+        Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
+                                              CALL_FUNCTION, 2);
+        frame_->Push(&answer);
+        return;
+      }
+
+      // Default: Result of deleting non-global, not dynamically
+      // introduced variables is false.
+      frame_->Push(Factory::false_value());
+
+    } else {
+      // Default: Result of deleting expressions is true.
+      Load(node->expression());  // may have side-effects
+      frame_->SetElementAt(0, Factory::true_value());
+    }
+
+  } else if (op == Token::TYPEOF) {
+    // Special case for loading the typeof expression; see comment on
+    // LoadTypeofExpression().
+    LoadTypeofExpression(node->expression());
+    Result answer = frame_->CallRuntime(Runtime::kTypeof, 1);
+    frame_->Push(&answer);
+
+  } else if (op == Token::VOID) {
+    Expression* expression = node->expression();
+    if (expression && expression->AsLiteral() && (
+        expression->AsLiteral()->IsTrue() ||
+        expression->AsLiteral()->IsFalse() ||
+        expression->AsLiteral()->handle()->IsNumber() ||
+        expression->AsLiteral()->handle()->IsString() ||
+        expression->AsLiteral()->handle()->IsJSRegExp() ||
+        expression->AsLiteral()->IsNull())) {
+      // Omit evaluating the value of the primitive literal.
+      // It will be discarded anyway, and can have no side effect.
+      frame_->Push(Factory::undefined_value());
+    } else {
+      Load(node->expression());
+      frame_->SetElementAt(0, Factory::undefined_value());
+    }
+
+  } else {
+    Load(node->expression());
+    switch (op) {
+      case Token::NOT:
+      case Token::DELETE:
+      case Token::TYPEOF:
+        UNREACHABLE();  // handled above
+        break;
+
+      case Token::SUB: {
+        bool overwrite =
+            (node->AsBinaryOperation() != NULL &&
+             node->AsBinaryOperation()->ResultOverwriteAllowed());
+        UnarySubStub stub(overwrite);
+        // TODO(1222589): remove dependency of TOS being cached inside stub
+        Result operand = frame_->Pop();
+        Result answer = frame_->CallStub(&stub, &operand);
+        frame_->Push(&answer);
+        break;
+      }
+
+      case Token::BIT_NOT: {
+        // Smi check.
+        JumpTarget smi_label;
+        JumpTarget continue_label;
+        Result operand = frame_->Pop();
+        operand.ToRegister();
+        __ testl(operand.reg(), Immediate(kSmiTagMask));
+        smi_label.Branch(zero, &operand);
+
+        frame_->Push(&operand);  // undo popping of TOS
+        Result answer = frame_->InvokeBuiltin(Builtins::BIT_NOT,
+                                              CALL_FUNCTION, 1);
+        continue_label.Jump(&answer);
+        smi_label.Bind(&answer);
+        answer.ToRegister();
+        frame_->Spill(answer.reg());
+        __ not_(answer.reg());
+        // Remove inverted smi-tag.  The mask is sign-extended to 64 bits.
+        __ xor_(answer.reg(), Immediate(kSmiTagMask));
+        continue_label.Bind(&answer);
+        frame_->Push(&answer);
+        break;
+      }
+
+      case Token::ADD: {
+        // Smi check.
+        JumpTarget continue_label;
+        Result operand = frame_->Pop();
+        operand.ToRegister();
+        __ testl(operand.reg(), Immediate(kSmiTagMask));
+        continue_label.Branch(zero, &operand, taken);
+
+        frame_->Push(&operand);
+        Result answer = frame_->InvokeBuiltin(Builtins::TO_NUMBER,
+                                              CALL_FUNCTION, 1);
+
+        continue_label.Bind(&answer);
+        frame_->Push(&answer);
+        break;
+      }
+
+      default:
+        UNREACHABLE();
+    }
+  }
 }
+
 
 void CodeGenerator::VisitCountOperation(CountOperation* a) {
   UNIMPLEMENTED();

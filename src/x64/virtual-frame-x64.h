@@ -376,6 +376,8 @@ class VirtualFrame : public ZoneObject {
   void EmitPush(Register reg);
   void EmitPush(const Operand& operand);
   void EmitPush(Immediate immediate);
+  // Uses kScratchRegister, emits appropriate relocation info.
+  void EmitPush(Handle<Object> value);
 
   // Push an element on the virtual frame.
   void Push(Register reg);

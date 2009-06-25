@@ -197,6 +197,14 @@ void VirtualFrame::EmitPush(Immediate immediate) {
 }
 
 
+void VirtualFrame::EmitPush(Handle<Object> value) {
+  ASSERT(stack_pointer_ == element_count() - 1);
+  elements_.Add(FrameElement::MemoryElement());
+  stack_pointer_++;
+  __ Push(value);
+}
+
+
 void VirtualFrame::Drop(int count) {
   ASSERT(height() >= count);
   int num_virtual_elements = (element_count() - 1) - stack_pointer_;
