@@ -1495,8 +1495,6 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       Load(node->value());
 
     } else {
-      // TODO(X64): Make compound assignments work.
-      /*
       Literal* literal = node->value()->AsLiteral();
       bool overwrite_value =
           (node->value()->AsBinaryOperation() != NULL &&
@@ -1507,18 +1505,16 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // or the right hand side is a different variable.  TakeValue invalidates
       // the target, with an implicit promise that it will be written to again
       // before it is read.
-      if (literal != NULL || (right_var != NULL && right_var != var)) {
-        target.TakeValue(NOT_INSIDE_TYPEOF);
+      // TODO(X64): Implement TakeValue optimization.
+      if (false && literal != NULL || (right_var != NULL && right_var != var)) {
+        // target.TakeValue(NOT_INSIDE_TYPEOF);
       } else {
         target.GetValue(NOT_INSIDE_TYPEOF);
       }
-      */
       Load(node->value());
-      /*
       GenericBinaryOperation(node->binary_op(),
                              node->type(),
                              overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
-      */
     }
 
     if (var != NULL &&
@@ -2450,35 +2446,92 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
 
 
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  ASSERT(args->length() == 1);
+
+  // ArgumentsAccessStub expects the key in edx and the formal
+  // parameter count in eax.
+  Load(args->at(0));
+  Result key = frame_->Pop();
+  // Explicitly create a constant result.
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())));
+  // Call the shared stub to get to arguments[key].
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
+  Result result = frame_->CallStub(&stub, &key, &count);
+  frame_->Push(&result);
 }
 
+
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ testl(value.reg(), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(equal);
+  // It is a heap object - get map.
+  // Check if the object is a JS array or not.
+  __ CmpObjectType(value.reg(), JS_ARRAY_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(equal);
+}
+
+
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();}
+  ASSERT(args->length() == 0);
+  // ArgumentsAccessStub takes the parameter count as an input argument
+  // in register eax.  Create a constant result for it.
+  Result count(Handle<Smi>(Smi::FromInt(scope_->num_parameters())));
+  // Call the shared stub to get to the arguments.length.
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
+  Result result = frame_->CallStub(&stub, &count);
+  frame_->Push(&result);
+}
+
 
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
-}
 
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
+
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ testl(value.reg(), Immediate(kSmiTagMask));
+  value.Unuse();
+  destination()->Split(zero);
 }
+
 
 void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
 }
 
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  ASSERT(args->length() == 2);
+
+  // Load the two objects into registers and perform the comparison.
+  Load(args->at(0));
+  Load(args->at(1));
+  Result right = frame_->Pop();
+  Result left = frame_->Pop();
+  right.ToRegister();
+  left.ToRegister();
+  __ cmpq(right.reg(), left.reg());
+  right.Unuse();
+  left.Unuse();
+  destination()->Split(equal);
 }
+
+
 
 void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* a) {
   UNIMPLEMENTED();
@@ -2488,9 +2541,49 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
 }
 
+
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  ASSERT(args->length() == 2);
+  JumpTarget leave;
+  Load(args->at(0));  // Load the object.
+  Load(args->at(1));  // Load the value.
+  Result value = frame_->Pop();
+  Result object = frame_->Pop();
+  value.ToRegister();
+  object.ToRegister();
+
+  // if (object->IsSmi()) return value.
+  __ testl(object.reg(), Immediate(kSmiTagMask));
+  leave.Branch(zero, &value);
+
+  // It is a heap object - get its map.
+  Result scratch = allocator_->Allocate();
+  ASSERT(scratch.is_valid());
+  // if (!object->IsJSValue()) return value.
+  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, scratch.reg());
+  leave.Branch(not_equal, &value);
+
+  // Store the value.
+  __ movq(FieldOperand(object.reg(), JSValue::kValueOffset), value.reg());
+  // Update the write barrier.  Save the value as it will be
+  // overwritten by the write barrier code and is needed afterward.
+  Result duplicate_value = allocator_->Allocate();
+  ASSERT(duplicate_value.is_valid());
+  __ movq(duplicate_value.reg(), value.reg());
+  // The object register is also overwritten by the write barrier and
+  // possibly aliased in the frame.
+  frame_->Spill(object.reg());
+  __ RecordWrite(object.reg(), JSValue::kValueOffset, duplicate_value.reg(),
+                 scratch.reg());
+  object.Unuse();
+  scratch.Unuse();
+  duplicate_value.Unuse();
+
+  // Leave.
+  leave.Bind(&value);
+  frame_->Push(&value);
 }
+
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
