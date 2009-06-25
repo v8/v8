@@ -78,14 +78,6 @@ int strncasecmp(const char* s1, const char* s2, int n);
 
 #endif  // _MSC_VER
 
-// MinGW specific stuff.
-#ifdef __MINGW32__
-
-// Needed for va_list.
-#include <stdarg.h>
-
-#endif  // __MINGW32__
-
 // Random is missing on both Visual Studio and MinGW.
 int random();
 
@@ -93,6 +85,10 @@ int random();
 
 // GCC specific stuff
 #ifdef __GNUC__
+
+// Needed for va_list on at least MinGW and Android.
+#include <stdarg.h>
+
 #define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
