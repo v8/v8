@@ -80,6 +80,13 @@ assertTrue(this === NonObjectReceiver(null));
 assertTrue(this === NonObjectReceiver(void 0));
 
 
+function FunctionReceiver() {
+  return ReturnReceiver.apply(Object, arguments);
+}
+
+assertTrue(Object === FunctionReceiver());
+
+
 function ShadowApply() {
   function f() { return 42; }
   f.apply = function() { return 87; }

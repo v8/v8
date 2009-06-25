@@ -2184,10 +2184,14 @@ void CodeGenerator::CallApplyLazy(Property* apply,
       __ test(receiver.reg(), Immediate(kSmiTagMask));
       build_args.Branch(zero);
       Result tmp = allocator_->Allocate();
+      // We allow all JSObjects including JSFunctions.  As long as
+      // JS_FUNCTION_TYPE is the last instance type and it is right
+      // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
+      // bound.
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
       __ CmpObjectType(receiver.reg(), FIRST_JS_OBJECT_TYPE, tmp.reg());
       build_args.Branch(less);
-      __ cmp(tmp.reg(), LAST_JS_OBJECT_TYPE);
-      build_args.Branch(greater);
     }
 
     // Verify that we're invoking Function.prototype.apply.
