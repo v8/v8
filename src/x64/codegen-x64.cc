@@ -283,7 +283,7 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
       frame_->CallRuntime(Runtime::kTraceEnter, 0);
       // Ignore the return value.
     }
-    // CheckStack();
+    CheckStack();
 
     // Compile the body of the function in a vanilla state. Don't
     // bother compiling all the code if the scope has an illegal
@@ -407,6 +407,35 @@ bool CodeGenerator::HasValidEntryRegisters() {
       && (allocator()->count(r12) == (frame()->is_used(r12) ? 1 : 0));
 }
 #endif
+
+
+class DeferredStackCheck: public DeferredCode {
+ public:
+  DeferredStackCheck() {
+    set_comment("[ DeferredStackCheck");
+  }
+
+  virtual void Generate();
+};
+
+
+void DeferredStackCheck::Generate() {
+  StackCheckStub stub;
+  __ CallStub(&stub);
+}
+
+
+void CodeGenerator::CheckStack() {
+  if (FLAG_check_stack) {
+    DeferredStackCheck* deferred = new DeferredStackCheck;
+    ExternalReference stack_guard_limit =
+        ExternalReference::address_of_stack_guard_limit();
+    __ movq(kScratchRegister, stack_guard_limit);
+    __ cmpq(rsp, Operand(kScratchRegister, 0));
+    deferred->Branch(below);
+    deferred->BindExit();
+  }
+}
 
 
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
@@ -658,9 +687,339 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* a) {
   UNIMPLEMENTED();
 }
 
-void CodeGenerator::VisitLoopStatement(LoopStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ LoopStatement");
+  CodeForStatementPosition(node);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+
+  // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
+  // known result for the test expression, with no side effects.
+  enum { ALWAYS_TRUE, ALWAYS_FALSE, DONT_KNOW } info = DONT_KNOW;
+  if (node->cond() == NULL) {
+    ASSERT(node->type() == LoopStatement::FOR_LOOP);
+    info = ALWAYS_TRUE;
+  } else {
+    Literal* lit = node->cond()->AsLiteral();
+    if (lit != NULL) {
+      if (lit->IsTrue()) {
+        info = ALWAYS_TRUE;
+      } else if (lit->IsFalse()) {
+        info = ALWAYS_FALSE;
+      }
+    }
+  }
+
+  switch (node->type()) {
+    case LoopStatement::DO_LOOP: {
+      JumpTarget body(JumpTarget::BIDIRECTIONAL);
+      IncrementLoopNesting();
+
+      // Label the top of the loop for the backward jump if necessary.
+      if (info == ALWAYS_TRUE) {
+        // Use the continue target.
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->Bind();
+      } else if (info == ALWAYS_FALSE) {
+        // No need to label it.
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+      } else {
+        // Continue is the test, so use the backward body target.
+        ASSERT(info == DONT_KNOW);
+        node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+        body.Bind();
+      }
+
+      CheckStack();  // TODO(1222600): ignore if body contains calls.
+      Visit(node->body());
+
+      // Compile the test.
+      if (info == ALWAYS_TRUE) {
+        // If control flow can fall off the end of the body, jump back
+        // to the top and bind the break target at the exit.
+        if (has_valid_frame()) {
+          node->continue_target()->Jump();
+        }
+        if (node->break_target()->is_linked()) {
+          node->break_target()->Bind();
+        }
+
+      } else if (info == ALWAYS_FALSE) {
+        // We may have had continues or breaks in the body.
+        if (node->continue_target()->is_linked()) {
+          node->continue_target()->Bind();
+        }
+        if (node->break_target()->is_linked()) {
+          node->break_target()->Bind();
+        }
+
+      } else {
+        ASSERT(info == DONT_KNOW);
+        // We have to compile the test expression if it can be reached by
+        // control flow falling out of the body or via continue.
+        if (node->continue_target()->is_linked()) {
+          node->continue_target()->Bind();
+        }
+        if (has_valid_frame()) {
+          ControlDestination dest(&body, node->break_target(), false);
+          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+        }
+        if (node->break_target()->is_linked()) {
+          node->break_target()->Bind();
+        }
+      }
+      break;
+    }
+
+    case LoopStatement::WHILE_LOOP: {
+      // Do not duplicate conditions that may have function literal
+      // subexpressions.  This can cause us to compile the function
+      // literal twice.
+      bool test_at_bottom = !node->may_have_function_literal();
+
+      IncrementLoopNesting();
+
+      // If the condition is always false and has no side effects, we
+      // do not need to compile anything.
+      if (info == ALWAYS_FALSE) break;
+
+      JumpTarget body;
+      if (test_at_bottom) {
+        body.set_direction(JumpTarget::BIDIRECTIONAL);
+      }
+
+      // Based on the condition analysis, compile the test as necessary.
+      if (info == ALWAYS_TRUE) {
+        // We will not compile the test expression.  Label the top of
+        // the loop with the continue target.
+        node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->Bind();
+      } else {
+        ASSERT(info == DONT_KNOW);  // ALWAYS_FALSE cannot reach here.
+        if (test_at_bottom) {
+          // Continue is the test at the bottom, no need to label the
+          // test at the top.  The body is a backward target.
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+        } else {
+          // Label the test at the top as the continue target.  The
+          // body is a forward-only target.
+          node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->Bind();
+        }
+        // Compile the test with the body as the true target and
+        // preferred fall-through and with the break target as the
+        // false target.
+        ControlDestination dest(&body, node->break_target(), true);
+        LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+
+        if (dest.false_was_fall_through()) {
+          // If we got the break target as fall-through, the test may
+          // have been unconditionally false (if there are no jumps to
+          // the body).
+          if (!body.is_linked()) break;
+
+          // Otherwise, jump around the body on the fall through and
+          // then bind the body target.
+          node->break_target()->Unuse();
+          node->break_target()->Jump();
+          body.Bind();
+        }
+      }
+
+      CheckStack();  // TODO(1222600): ignore if body contains calls.
+      Visit(node->body());
+
+      // Based on the condition analysis, compile the backward jump as
+      // necessary.
+      if (info == ALWAYS_TRUE) {
+        // The loop body has been labeled with the continue target.
+        if (has_valid_frame()) {
+          node->continue_target()->Jump();
+        }
+      } else {
+        ASSERT(info == DONT_KNOW);  // ALWAYS_FALSE cannot reach here.
+        if (test_at_bottom) {
+          // If we have chosen to recompile the test at the bottom,
+          // then it is the continue target.
+          if (node->continue_target()->is_linked()) {
+            node->continue_target()->Bind();
+          }
+          if (has_valid_frame()) {
+            // The break target is the fall-through (body is a backward
+            // jump from here and thus an invalid fall-through).
+            ControlDestination dest(&body, node->break_target(), false);
+            LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          }
+        } else {
+          // If we have chosen not to recompile the test at the
+          // bottom, jump back to the one at the top.
+          if (has_valid_frame()) {
+            node->continue_target()->Jump();
+          }
+        }
+      }
+
+      // The break target may be already bound (by the condition), or
+      // there may not be a valid frame.  Bind it only if needed.
+      if (node->break_target()->is_linked()) {
+        node->break_target()->Bind();
+      }
+      break;
+    }
+
+    case LoopStatement::FOR_LOOP: {
+      // Do not duplicate conditions that may have function literal
+      // subexpressions.  This can cause us to compile the function
+      // literal twice.
+      bool test_at_bottom = !node->may_have_function_literal();
+
+      // Compile the init expression if present.
+      if (node->init() != NULL) {
+        Visit(node->init());
+      }
+
+      IncrementLoopNesting();
+
+      // If the condition is always false and has no side effects, we
+      // do not need to compile anything else.
+      if (info == ALWAYS_FALSE) break;
+
+      // Target for backward edge if no test at the bottom, otherwise
+      // unused.
+      JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+
+      // Target for backward edge if there is a test at the bottom,
+      // otherwise used as target for test at the top.
+      JumpTarget body;
+      if (test_at_bottom) {
+        body.set_direction(JumpTarget::BIDIRECTIONAL);
+      }
+
+      // Based on the condition analysis, compile the test as necessary.
+      if (info == ALWAYS_TRUE) {
+        // We will not compile the test expression.  Label the top of
+        // the loop.
+        if (node->next() == NULL) {
+          // Use the continue target if there is no update expression.
+          node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->Bind();
+        } else {
+          // Otherwise use the backward loop target.
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+          loop.Bind();
+        }
+      } else {
+        ASSERT(info == DONT_KNOW);
+        if (test_at_bottom) {
+          // Continue is either the update expression or the test at
+          // the bottom, no need to label the test at the top.
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+        } else if (node->next() == NULL) {
+          // We are not recompiling the test at the bottom and there
+          // is no update expression.
+          node->continue_target()->set_direction(JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->Bind();
+        } else {
+          // We are not recompiling the test at the bottom and there
+          // is an update expression.
+          node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+          loop.Bind();
+        }
+
+        // Compile the test with the body as the true target and
+        // preferred fall-through and with the break target as the
+        // false target.
+        ControlDestination dest(&body, node->break_target(), true);
+        LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+
+        if (dest.false_was_fall_through()) {
+          // If we got the break target as fall-through, the test may
+          // have been unconditionally false (if there are no jumps to
+          // the body).
+          if (!body.is_linked()) break;
+
+          // Otherwise, jump around the body on the fall through and
+          // then bind the body target.
+          node->break_target()->Unuse();
+          node->break_target()->Jump();
+          body.Bind();
+        }
+      }
+
+      CheckStack();  // TODO(1222600): ignore if body contains calls.
+      Visit(node->body());
+
+      // If there is an update expression, compile it if necessary.
+      if (node->next() != NULL) {
+        if (node->continue_target()->is_linked()) {
+          node->continue_target()->Bind();
+        }
+
+        // Control can reach the update by falling out of the body or
+        // by a continue.
+        if (has_valid_frame()) {
+          // Record the source position of the statement as this code
+          // which is after the code for the body actually belongs to
+          // the loop statement and not the body.
+          CodeForStatementPosition(node);
+          Visit(node->next());
+        }
+      }
+
+      // Based on the condition analysis, compile the backward jump as
+      // necessary.
+      if (info == ALWAYS_TRUE) {
+        if (has_valid_frame()) {
+          if (node->next() == NULL) {
+            node->continue_target()->Jump();
+          } else {
+            loop.Jump();
+          }
+        }
+      } else {
+        ASSERT(info == DONT_KNOW);  // ALWAYS_FALSE cannot reach here.
+        if (test_at_bottom) {
+          if (node->continue_target()->is_linked()) {
+            // We can have dangling jumps to the continue target if
+            // there was no update expression.
+            node->continue_target()->Bind();
+          }
+          // Control can reach the test at the bottom by falling out
+          // of the body, by a continue in the body, or from the
+          // update expression.
+          if (has_valid_frame()) {
+            // The break target is the fall-through (body is a
+            // backward jump from here).
+            ControlDestination dest(&body, node->break_target(), false);
+            LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          }
+        } else {
+          // Otherwise, jump back to the test at the top.
+          if (has_valid_frame()) {
+            if (node->next() == NULL) {
+              node->continue_target()->Jump();
+            } else {
+              loop.Jump();
+            }
+          }
+        }
+      }
+
+      // The break target may be already bound (by the condition), or
+      // there may not be a valid frame.  Bind it only if needed.
+      if (node->break_target()->is_linked()) {
+        node->break_target()->Bind();
+      }
+      break;
+    }
+  }
+
+  DecrementLoopNesting();
+  node->continue_target()->Unuse();
+  node->break_target()->Unuse();
 }
+
 
 void CodeGenerator::VisitForInStatement(ForInStatement* a) {
   UNIMPLEMENTED();
@@ -1271,17 +1630,17 @@ void CodeGenerator::VisitCall(Call* node) {
     frame_->EmitPush(esi);
     frame_->EmitPush(Immediate(var->name()));
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
-    // The runtime call returns a pair of values in eax and edx.  The
-    // looked-up function is in eax and the receiver is in edx.  These
+    // The runtime call returns a pair of values in rax and rdx.  The
+    // looked-up function is in rax and the receiver is in rdx.  These
     // register references are not ref counted here.  We spill them
     // eagerly since they are arguments to an inevitable call (and are
     // not sharable by the arguments).
-    ASSERT(!allocator()->is_used(eax));
-    frame_->EmitPush(eax);
+    ASSERT(!allocator()->is_used(rax));
+    frame_->EmitPush(rax);
 
     // Load the receiver.
-    ASSERT(!allocator()->is_used(edx));
-    frame_->EmitPush(edx);
+    ASSERT(!allocator()->is_used(rdx));
+    frame_->EmitPush(rdx);
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -2783,7 +3142,7 @@ class FloatingPointHelper : public AllStatic {
                                Register dst);
 
   // Test if operands are smi or number objects (fp). Requirements:
-  // operand_1 in eax, operand_2 in edx; falls through on float
+  // operand_1 in rax, operand_2 in rdx; falls through on float
   // operands, jumps to the non_float label otherwise.
   static void CheckFloatOperands(MacroAssembler* masm,
                                  Label* non_float);
@@ -3008,7 +3367,7 @@ void DeferredReferenceGetNamedValue::Generate() {
   __ Move(rcx, name_);
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  // The call must be followed by a test eax instruction to indicate
+  // The call must be followed by a test rax instruction to indicate
   // that the inobject property case was inlined.
   //
   // Store the delta to the map check instruction here in the test
@@ -3991,7 +4350,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   // TODO(1243847): Use cmov below once CpuFeatures are properly hooked up.
   Label below_lbl, above_lbl;
-  // use edx, eax to convert unsigned to signed comparison
+  // use rdx, rax to convert unsigned to signed comparison
   __ j(below, &below_lbl);
   __ j(above, &above_lbl);
 
@@ -4004,7 +4363,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&above_lbl);
   __ movq(rax, Immediate(1));
-  __ ret(2 * kPointerSize);  // eax, edx were pushed
+  __ ret(2 * kPointerSize);  // rax, rdx were pushed
 
   // Fast negative check for symbol-to-symbol equality.
   __ bind(&check_for_symbols);
@@ -4013,7 +4372,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     BranchIfNonSymbol(masm, &call_builtin, rdx);
 
     // We've already checked for object identity, so if both operands
-    // are symbols they aren't equal. Register eax already holds a
+    // are symbols they aren't equal. Register rax already holds a
     // non-zero value, which indicates not equal, so just return.
     __ ret(2 * kPointerSize);
   }
@@ -4062,10 +4421,6 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
   __ and_(kScratchRegister, Immediate(kIsSymbolMask | kIsNotStringMask));
   __ cmpb(kScratchRegister, Immediate(kSymbolTag | kStringTag));
   __ j(not_equal, label);
-}
-
-
-void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
@@ -4603,6 +4958,19 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 // Implementation of stubs.
 
 //  Stub classes have public member named masm, not masm_.
+
+void StackCheckStub::Generate(MacroAssembler* masm) {
+  // Because builtins always remove the receiver from the stack, we
+  // have to fake one to avoid underflowing the stack. The receiver
+  // must be inserted below the return address on the stack so we
+  // temporarily store that in a register.
+  __ pop(rax);
+  __ push(Immediate(Smi::FromInt(0)));
+  __ push(rax);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
+}
 
 
 void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
