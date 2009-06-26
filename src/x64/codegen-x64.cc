@@ -1486,7 +1486,8 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // The receiver is the argument to the runtime call.  It is the
       // first value pushed when the reference was loaded to the
       // frame.
-      frame_->PushElementAt(target.size() - 1);
+      // TODO(X64): Enable this and the switch back to fast, once they work.
+      // frame_->PushElementAt(target.size() - 1);
       // Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
     }
     if (node->op() == Token::ASSIGN ||
@@ -1538,7 +1539,8 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         // argument to the runtime call is the receiver, which is the
         // first value pushed as part of the reference, which is below
         // the lhs value.
-        frame_->PushElementAt(target.size());
+        // TODO(X64): Enable this once ToFastProperties works.
+        // frame_->PushElementAt(target.size());
         // Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
       }
     }
@@ -2305,7 +2307,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       (operation != NULL && operation->op() == Token::TYPEOF) &&
       (right->AsLiteral() != NULL &&
        right->AsLiteral()->handle()->IsString())) {
-    Handle<String> check(String::cast(*right->AsLiteral()->handle()));
+    Handle<String> check(Handle<String>::cast(right->AsLiteral()->handle()));
 
     // Load the operand and move it to a register.
     LoadTypeofExpression(operation->expression());
@@ -3257,7 +3259,7 @@ void CodeGenerator::Comparison(Condition cc,
       CompareStub stub(cc, strict);
       Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
-      __ cmpq(result.reg(), Immediate(0));
+      __ testq(result.reg(), result.reg());
       result.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
@@ -3323,11 +3325,7 @@ void CodeGenerator::Comparison(Condition cc,
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      if (cc == equal) {
-        __ testq(answer.reg(), answer.reg());
-      } else {
-        __ cmpq(answer.reg(), Immediate(0));
-      }
+      __ testq(answer.reg(), answer.reg());  // Both zero and sign flag right.
       answer.Unuse();
       dest->Split(cc);
     } else {
