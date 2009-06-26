@@ -504,6 +504,27 @@ void CodeGenerator::CheckStack() {
 }
 
 
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#ifdef DEBUG
+  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
+#endif
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
+};
+
+
 void CodeGenerator::VisitAndSpill(Statement* statement) {
   // TODO(X64): No architecture specific code. Move to shared location.
   ASSERT(in_spilled_code());
@@ -2485,8 +2506,64 @@ void CodeGenerator::VisitCall(Call* node) {
 }
 
 
-void CodeGenerator::VisitCallEval(CallEval* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitCallEval(CallEval* node) {
+  Comment cmnt(masm_, "[ CallEval");
+
+  // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
+  // the function we need to call and the receiver of the call.
+  // Then we call the resolved function using the given arguments.
+
+  ZoneList<Expression*>* args = node->arguments();
+  Expression* function = node->expression();
+
+  CodeForStatementPosition(node);
+
+  // Prepare the stack for the call to the resolved function.
+  Load(function);
+
+  // Allocate a frame slot for the receiver.
+  frame_->Push(Factory::undefined_value());
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Load(args->at(i));
+  }
+
+  // Prepare the stack for the call to ResolvePossiblyDirectEval.
+  frame_->PushElementAt(arg_count + 1);
+  if (arg_count > 0) {
+    frame_->PushElementAt(arg_count);
+  } else {
+    frame_->Push(Factory::undefined_value());
+  }
+
+  // Resolve the call.
+  Result result =
+      frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+
+  // Touch up the stack with the right values for the function and the
+  // receiver.  Use a scratch register to avoid destroying the result.
+  Result scratch = allocator_->Allocate();
+  ASSERT(scratch.is_valid());
+  __ movl(scratch.reg(),
+          FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(0)));
+  frame_->SetElementAt(arg_count + 1, &scratch);
+
+  // We can reuse the result register now.
+  frame_->Spill(result.reg());
+  __ movl(result.reg(),
+          FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(1)));
+  frame_->SetElementAt(arg_count, &result);
+
+  // Call the function.
+  CodeForSourcePosition(node->position());
+  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+  CallFunctionStub call_function(arg_count, in_loop);
+  result = frame_->CallStub(&call_function, arg_count + 1);
+
+  // Restore the context and overwrite the function on the stack with
+  // the result.
+  frame_->RestoreContextRegister();
+  frame_->SetElementAt(0, &result);
 }
 
 
@@ -3742,10 +3819,10 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     __ movq(kScratchRegister, slot->var()->name(), RelocInfo::EMBEDDED_OBJECT);
     frame_->EmitPush(kScratchRegister);
     if (typeof_state == INSIDE_TYPEOF) {
-      // value =
-      //    frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+       value =
+         frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
-      // value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
+       value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     }
 
     done.Bind(&value);
@@ -5589,55 +5666,6 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
 }
 
 
-class CallFunctionStub: public CodeStub {
- public:
-  CallFunctionStub(int argc, InLoopFlag in_loop)
-      : argc_(argc), in_loop_(in_loop) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int argc_;
-  InLoopFlag in_loop_;
-
-#ifdef DEBUG
-  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
-#endif
-
-  Major MajorKey() { return CallFunction; }
-  int MinorKey() { return argc_; }
-  InLoopFlag InLoop() { return in_loop_; }
-};
-
-
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
-
-  // Get the function to call from the stack.
-  // +2 ~ receiver, return address
-  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
-
-  // Check that the function really is a JavaScript function.
-  __ testl(rdi, Immediate(kSmiTagMask));
-  __ j(zero, &slow);
-  // Goto slow case if we do not have a function.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &slow);
-
-  // Fast-case: Just invoke the function.
-  ParameterCount actual(argc_);
-  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
-
-  // Slow-case: Non-function called.
-  __ bind(&slow);
-  __ Set(rax, argc_);
-  __ Set(rbx, 0);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
-  __ Jump(adaptor, RelocInfo::CODE_TARGET);
-}
-
-
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
@@ -5690,6 +5718,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ bind(&runtime);
   __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
 }
+
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in rdx and the parameter count is in rax.
@@ -5803,7 +5832,6 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
   __ ret(0);
 }
-
 
 
 void CEntryStub::GenerateCore(MacroAssembler* masm,
@@ -5951,6 +5979,34 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   ASSERT_EQ(StackHandlerConstants::kStateOffset + kPointerSize,
             StackHandlerConstants::kPCOffset);
   __ ret(0);
+}
+
+
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  Label slow;
+
+  // Get the function to call from the stack.
+  // +2 ~ receiver, return address
+  __ movq(rdi, Operand(rsp, (argc_ + 2) * kPointerSize));
+
+  // Check that the function really is a JavaScript function.
+  __ testl(rdi, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+  __ j(not_equal, &slow);
+
+  // Fast-case: Just invoke the function.
+  ParameterCount actual(argc_);
+  __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
+
+  // Slow-case: Non-function called.
+  __ bind(&slow);
+  __ Set(rax, argc_);
+  __ Set(rbx, 0);
+  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+  Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+  __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 
 
@@ -6248,7 +6304,7 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
   __ bind(&load_smi_lhs);
   ASSERT(kSmiTagSize == 1);
   ASSERT(kSmiTag == 0);
-  __ lea(kScratchRegister, Operand(lhs, lhs, times_1, 0);
+  __ lea(kScratchRegister, Operand(lhs, lhs, times_1, 0));
   __ push(kScratchRegister);
   __ fild_s(Operand(rsp, 0));
   __ pop(kScratchRegister);
