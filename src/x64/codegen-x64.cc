@@ -687,16 +687,163 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 }
 
 
-void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ WithEnterStatement");
+  CodeForStatementPosition(node);
+  Load(node->expression());
+  Result context;
+  if (node->is_catch_block()) {
+    context = frame_->CallRuntime(Runtime::kPushCatchContext, 1);
+  } else {
+    context = frame_->CallRuntime(Runtime::kPushContext, 1);
+  }
+
+  // Update context local.
+  frame_->SaveContextRegister();
+
+  // Verify that the runtime call result and rsi agree.
+  if (FLAG_debug_code) {
+    __ cmpq(context.reg(), rsi);
+    __ Assert(equal, "Runtime::NewContext should end up in rsi");
+  }
 }
 
-void CodeGenerator::VisitWithExitStatement(WithExitStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ WithExitStatement");
+  CodeForStatementPosition(node);
+  // Pop context.
+  __ movq(rsi, ContextOperand(rsi, Context::PREVIOUS_INDEX));
+  // Update context local.
+  frame_->SaveContextRegister();
 }
 
-void CodeGenerator::VisitSwitchStatement(SwitchStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
+  // TODO(X64): This code is completely generic and should be moved somewhere
+  // where it can be shared between architectures.
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ SwitchStatement");
+  CodeForStatementPosition(node);
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+
+  // Compile the switch value.
+  Load(node->tag());
+
+  ZoneList<CaseClause*>* cases = node->cases();
+  int length = cases->length();
+  CaseClause* default_clause = NULL;
+
+  JumpTarget next_test;
+  // Compile the case label expressions and comparisons.  Exit early
+  // if a comparison is unconditionally true.  The target next_test is
+  // bound before the loop in order to indicate control flow to the
+  // first comparison.
+  next_test.Bind();
+  for (int i = 0; i < length && !next_test.is_unused(); i++) {
+    CaseClause* clause = cases->at(i);
+    // The default is not a test, but remember it for later.
+    if (clause->is_default()) {
+      default_clause = clause;
+      continue;
+    }
+
+    Comment cmnt(masm_, "[ Case comparison");
+    // We recycle the same target next_test for each test.  Bind it if
+    // the previous test has not done so and then unuse it for the
+    // loop.
+    if (next_test.is_linked()) {
+      next_test.Bind();
+    }
+    next_test.Unuse();
+
+    // Duplicate the switch value.
+    frame_->Dup();
+
+    // Compile the label expression.
+    Load(clause->label());
+
+    // Compare and branch to the body if true or the next test if
+    // false.  Prefer the next test as a fall through.
+    ControlDestination dest(clause->body_target(), &next_test, false);
+    Comparison(equal, true, &dest);
+
+    // If the comparison fell through to the true target, jump to the
+    // actual body.
+    if (dest.true_was_fall_through()) {
+      clause->body_target()->Unuse();
+      clause->body_target()->Jump();
+    }
+  }
+
+  // If there was control flow to a next test from the last one
+  // compiled, compile a jump to the default or break target.
+  if (!next_test.is_unused()) {
+    if (next_test.is_linked()) {
+      next_test.Bind();
+    }
+    // Drop the switch value.
+    frame_->Drop();
+    if (default_clause != NULL) {
+      default_clause->body_target()->Jump();
+    } else {
+      node->break_target()->Jump();
+    }
+  }
+
+  // The last instruction emitted was a jump, either to the default
+  // clause or the break target, or else to a case body from the loop
+  // that compiles the tests.
+  ASSERT(!has_valid_frame());
+  // Compile case bodies as needed.
+  for (int i = 0; i < length; i++) {
+    CaseClause* clause = cases->at(i);
+
+    // There are two ways to reach the body: from the corresponding
+    // test or as the fall through of the previous body.
+    if (clause->body_target()->is_linked() || has_valid_frame()) {
+      if (clause->body_target()->is_linked()) {
+        if (has_valid_frame()) {
+          // If we have both a jump to the test and a fall through, put
+          // a jump on the fall through path to avoid the dropping of
+          // the switch value on the test path.  The exception is the
+          // default which has already had the switch value dropped.
+          if (clause->is_default()) {
+            clause->body_target()->Bind();
+          } else {
+            JumpTarget body;
+            body.Jump();
+            clause->body_target()->Bind();
+            frame_->Drop();
+            body.Bind();
+          }
+        } else {
+          // No fall through to worry about.
+          clause->body_target()->Bind();
+          if (!clause->is_default()) {
+            frame_->Drop();
+          }
+        }
+      } else {
+        // Otherwise, we have only fall through.
+        ASSERT(has_valid_frame());
+      }
+
+      // We are now prepared to compile the body.
+      Comment cmnt(masm_, "[ Case body");
+      VisitStatements(clause->statements());
+    }
+    clause->body_target()->Unuse();
+  }
+
+  // We may not have a valid frame here so bind the break target only
+  // if needed.
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  node->break_target()->Unuse();
 }
 
 
