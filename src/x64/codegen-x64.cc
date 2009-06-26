@@ -3870,8 +3870,6 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   // TODO(X64): Enable more types of slot.
 
   if (slot->type() == Slot::LOOKUP) {
-    UNIMPLEMENTED();
-    /*
     ASSERT(slot->var()->is_dynamic());
 
     // For now, just do a runtime call.  Since the call is inevitable,
@@ -3879,8 +3877,8 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     // arguments into place.
     frame_->SyncRange(0, frame_->element_count() - 1);
 
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(slot->var()->name()));
+    frame_->EmitPush(rsi);
+    frame_->EmitPush(slot->var()->name());
 
     Result value;
     if (init_state == CONST_INIT) {
@@ -3906,7 +3904,6 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     // stack. This is necessary for compiling chained assignment
     // expressions.
     frame_->Push(&value);
-    */
   } else {
     ASSERT(!slot->var()->is_dynamic());
 
