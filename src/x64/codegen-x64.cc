@@ -249,10 +249,10 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
 
     // Entry:
     // Stack: receiver, arguments, return address.
-    // ebp: caller's frame pointer
-    // esp: stack pointer
-    // edi: called JS function
-    // esi: callee's context
+    // rbp: caller's frame pointer
+    // rsp: stack pointer
+    // rdi: called JS function
+    // rsi: callee's context
     allocator_->Initialize();
     frame_->Enter();
 
@@ -263,7 +263,73 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
     function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
     function_return_is_shadowed_ = false;
 
-    // TODO(X64): Add code to handle arguments object and context object.
+    // Allocate the local context if needed.
+    if (scope_->num_heap_slots() > 0) {
+      Comment cmnt(masm_, "[ allocate local context");
+      // Allocate local context.
+      // Get outer context and create a new context based on it.
+      frame_->PushFunction();
+      Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
+
+      // Update context local.
+      frame_->SaveContextRegister();
+
+      // Verify that the runtime call result and rsi agree.
+      if (FLAG_debug_code) {
+        __ cmpq(context.reg(), rsi);
+        __ Assert(equal, "Runtime::NewContext should end up in rsi");
+      }
+    }
+
+    // TODO(1241774): Improve this code:
+    // 1) only needed if we have a context
+    // 2) no need to recompute context ptr every single time
+    // 3) don't copy parameter operand code from SlotOperand!
+    {
+      Comment cmnt2(masm_, "[ copy context parameters into .context");
+
+      // Note that iteration order is relevant here! If we have the same
+      // parameter twice (e.g., function (x, y, x)), and that parameter
+      // needs to be copied into the context, it must be the last argument
+      // passed to the parameter that needs to be copied. This is a rare
+      // case so we don't check for it, instead we rely on the copying
+      // order: such a parameter is copied repeatedly into the same
+      // context location and thus the last value is what is seen inside
+      // the function.
+      for (int i = 0; i < scope_->num_parameters(); i++) {
+        Variable* par = scope_->parameter(i);
+        Slot* slot = par->slot();
+        if (slot != NULL && slot->type() == Slot::CONTEXT) {
+          // The use of SlotOperand below is safe in unspilled code
+          // because the slot is guaranteed to be a context slot.
+          //
+          // There are no parameters in the global scope.
+          ASSERT(!scope_->is_global_scope());
+          frame_->PushParameterAt(i);
+          Result value = frame_->Pop();
+          value.ToRegister();
+
+          // SlotOperand loads context.reg() with the context object
+          // stored to, used below in RecordWrite.
+          Result context = allocator_->Allocate();
+          ASSERT(context.is_valid());
+          __ movq(SlotOperand(slot, context.reg()), value.reg());
+          int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+          Result scratch = allocator_->Allocate();
+          ASSERT(scratch.is_valid());
+          frame_->Spill(context.reg());
+          frame_->Spill(value.reg());
+          __ RecordWrite(context.reg(), offset, value.reg(), scratch.reg());
+        }
+      }
+    }
+
+    // Store the arguments object.  This must happen after context
+    // initialization because the arguments object may be stored in
+    // the context.
+    if (ArgumentsMode() != NO_ARGUMENTS_ALLOCATION) {
+      StoreArgumentsObject(true);
+    }
 
     // Generate code to 'execute' declarations and initialize functions
     // (source elements). In case of an illegal redeclaration we need to
@@ -3480,6 +3546,71 @@ void CodeGenerator::LoadGlobalReceiver() {
   __ movq(reg, GlobalObject());
   __ movq(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
   frame_->Push(&temp);
+}
+
+
+ArgumentsAllocationMode CodeGenerator::ArgumentsMode() const {
+  if (scope_->arguments() == NULL) return NO_ARGUMENTS_ALLOCATION;
+  ASSERT(scope_->arguments_shadow() != NULL);
+  // We don't want to do lazy arguments allocation for functions that
+  // have heap-allocated contexts, because it interfers with the
+  // uninitialized const tracking in the context objects.
+  return (scope_->num_heap_slots() > 0)
+      ? EAGER_ARGUMENTS_ALLOCATION
+      : LAZY_ARGUMENTS_ALLOCATION;
+}
+
+
+Result CodeGenerator::StoreArgumentsObject(bool initial) {
+  ArgumentsAllocationMode mode = ArgumentsMode();
+  ASSERT(mode != NO_ARGUMENTS_ALLOCATION);
+
+  Comment cmnt(masm_, "[ store arguments object");
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && initial) {
+    // When using lazy arguments allocation, we store the hole value
+    // as a sentinel indicating that the arguments object hasn't been
+    // allocated yet.
+    frame_->Push(Factory::the_hole_value());
+  } else {
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    frame_->PushFunction();
+    frame_->PushReceiverSlotAddress();
+    frame_->Push(Smi::FromInt(scope_->num_parameters()));
+    Result result = frame_->CallStub(&stub, 3);
+    frame_->Push(&result);
+  }
+
+  { Reference shadow_ref(this, scope_->arguments_shadow());
+    Reference arguments_ref(this, scope_->arguments());
+    ASSERT(shadow_ref.is_slot() && arguments_ref.is_slot());
+    // Here we rely on the convenient property that references to slot
+    // take up zero space in the frame (ie, it doesn't matter that the
+    // stored value is actually below the reference on the frame).
+    JumpTarget done;
+    bool skip_arguments = false;
+    if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
+      // We have to skip storing into the arguments slot if it has
+      // already been written to. This can happen if the a function
+      // has a local variable named 'arguments'.
+      LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+      Result arguments = frame_->Pop();
+      if (arguments.is_constant()) {
+        // We have to skip updating the arguments object if it has
+        // been assigned a proper value.
+        skip_arguments = !arguments.handle()->IsTheHole();
+      } else {
+        __ Cmp(arguments.reg(), Factory::the_hole_value());
+        arguments.Unuse();
+        done.Branch(not_equal);
+      }
+    }
+    if (!skip_arguments) {
+      arguments_ref.SetValue(NOT_CONST_INIT);
+      if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
+    }
+    shadow_ref.SetValue(NOT_CONST_INIT);
+  }
+  return frame_->Pop();
 }
 
 
