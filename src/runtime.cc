@@ -50,9 +50,8 @@ namespace v8 {
 namespace internal {
 
 
-#define RUNTIME_ASSERT(value) do {                                   \
-  if (!(value)) return IllegalOperation();                           \
-} while (false)
+#define RUNTIME_ASSERT(value) \
+  if (!(value)) return Top::ThrowIllegalOperation();
 
 // Cast the given object to a value of the specified type and store
 // it in a variable with the given name.  If the object is not of the
@@ -95,11 +94,6 @@ namespace internal {
 
 // Non-reentrant string buffer for efficient general use in this file.
 static StaticResource<StringInputBuffer> runtime_string_input_buffer;
-
-
-static Object* IllegalOperation() {
-  return Top::Throw(Heap::illegal_access_symbol());
-}
 
 
 static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
@@ -3704,20 +3698,8 @@ static Object* Runtime_NumberMod(Arguments args) {
 static Object* Runtime_StringAdd(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
-
   CONVERT_CHECKED(String, str1, args[0]);
   CONVERT_CHECKED(String, str2, args[1]);
-  int len1 = str1->length();
-  int len2 = str2->length();
-  if (len1 == 0) return str2;
-  if (len2 == 0) return str1;
-  int length_sum = len1 + len2;
-  // Make sure that an out of memory exception is thrown if the length
-  // of the new cons string is too large to fit in a Smi.
-  if (length_sum > Smi::kMaxValue || length_sum < 0) {
-    Top::context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
-  }
   return Heap::AllocateConsString(str1, str2);
 }
 
@@ -4584,7 +4566,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   ASSERT(args.length() == 2);
 
   if (!args[0]->IsContext() || !args[1]->IsString()) {
-    return MakePair(IllegalOperation(), NULL);
+    return MakePair(Top::ThrowIllegalOperation(), NULL);
   }
   Handle<Context> context = args.at<Context>(0);
   Handle<String> name = args.at<String>(1);

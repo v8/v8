@@ -1536,13 +1536,23 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 }
 
 
-Object* Heap::AllocateConsString(String* first,
-                                 String* second) {
+Object* Heap::AllocateConsString(String* first, String* second) {
   int first_length = first->length();
+  if (first_length == 0) return second;
+
   int second_length = second->length();
+  if (second_length == 0) return first;
+
   int length = first_length + second_length;
   bool is_ascii = first->IsAsciiRepresentation()
       && second->IsAsciiRepresentation();
+
+  // Make sure that an out of memory exception is thrown if the length
+  // of the new cons string is too large to fit in a Smi.
+  if (length > Smi::kMaxValue || length < -0) {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
+  }
 
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
@@ -1553,8 +1563,12 @@ Object* Heap::AllocateConsString(String* first,
       if (result->IsFailure()) return result;
       // Copy the characters into the new object.
       char* dest = SeqAsciiString::cast(result)->GetChars();
-      String::WriteToFlat(first, dest, 0, first_length);
-      String::WriteToFlat(second, dest + first_length, 0, second_length);
+      // Copy first part.
+      char* src = SeqAsciiString::cast(first)->GetChars();
+      for (int i = 0; i < first_length; i++) *dest++ = src[i];
+      // Copy second part.
+      src = SeqAsciiString::cast(second)->GetChars();
+      for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
     } else {
       Object* result = AllocateRawTwoByteString(length);
