@@ -516,6 +516,17 @@ void CodeGenerator::VisitAndSpill(Statement* statement) {
 }
 
 
+void CodeGenerator::VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  VisitStatements(statements);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
+}
+
+
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
   ASSERT(!in_spilled_code());
   for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
@@ -721,12 +732,19 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
 }
 
 
-void CodeGenerator::VisitContinueStatement(ContinueStatement* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ ContinueStatement");
+  CodeForStatementPosition(node);
+  node->target()->continue_target()->Jump();
 }
 
-void CodeGenerator::VisitBreakStatement(BreakStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ BreakStatement");
+  CodeForStatementPosition(node);
+  node->target()->break_target()->Jump();
 }
 
 
@@ -1435,16 +1453,353 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->break_target()->Unuse();
 }
 
-void CodeGenerator::VisitTryCatch(TryCatch* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitTryCatch(TryCatch* node) {
+  ASSERT(!in_spilled_code());
+  VirtualFrame::SpilledScope spilled_scope;
+  Comment cmnt(masm_, "[ TryCatch");
+  CodeForStatementPosition(node);
+
+  JumpTarget try_block;
+  JumpTarget exit;
+
+  try_block.Call();
+  // --- Catch block ---
+  frame_->EmitPush(rax);
+
+  // Store the caught exception in the catch variable.
+  { Reference ref(this, node->catch_var());
+    ASSERT(ref.is_slot());
+    // Load the exception to the top of the stack.  Here we make use of the
+    // convenient property that it doesn't matter whether a value is
+    // immediately on top of or underneath a zero-sized reference.
+    ref.SetValue(NOT_CONST_INIT);
+  }
+
+  // Remove the exception from the stack.
+  frame_->Drop();
+
+  VisitStatementsAndSpill(node->catch_block()->statements());
+  if (has_valid_frame()) {
+    exit.Jump();
+  }
+
+
+  // --- Try block ---
+  try_block.Bind();
+
+  frame_->PushTryHandler(TRY_CATCH_HANDLER);
+  int handler_height = frame_->height();
+
+  // Shadow the jump targets for all escapes from the try block, including
+  // returns.  During shadowing, the original target is hidden as the
+  // ShadowTarget and operations on the original actually affect the
+  // shadowing target.
+  //
+  // We should probably try to unify the escaping targets and the return
+  // target.
+  int nof_escapes = node->escaping_targets()->length();
+  List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
+  shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
+
+  // Add the remaining shadow targets.
+  for (int i = 0; i < nof_escapes; i++) {
+    shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
+  }
+
+  // Generate code for the statements in the try block.
+  VisitStatementsAndSpill(node->try_block()->statements());
+
+  // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original targets are unshadowed and the
+  // ShadowTargets represent the formerly shadowing targets.
+  bool has_unlinks = false;
+  for (int i = 0; i < shadows.length(); i++) {
+    shadows[i]->StopShadowing();
+    has_unlinks = has_unlinks || shadows[i]->is_linked();
+  }
+  function_return_is_shadowed_ = function_return_was_shadowed;
+
+  // Get an external reference to the handler address.
+  ExternalReference handler_address(Top::k_handler_address);
+
+  // Make sure that there's nothing left on the stack above the
+  // handler structure.
+  if (FLAG_debug_code) {
+    __ movq(kScratchRegister, handler_address);
+    __ cmpq(rsp, Operand(kScratchRegister, 0));
+    __ Assert(equal, "stack pointer should point to top handler");
+  }
+
+  // If we can fall off the end of the try block, unlink from try chain.
+  if (has_valid_frame()) {
+    // The next handler address is on top of the frame.  Unlink from
+    // the handler list and drop the rest of this handler from the
+    // frame.
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    __ movq(kScratchRegister, handler_address);
+    frame_->EmitPop(Operand(kScratchRegister, 0));
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+    if (has_unlinks) {
+      exit.Jump();
+    }
+  }
+
+  // Generate unlink code for the (formerly) shadowing targets that
+  // have been jumped to.  Deallocate each shadow target.
+  Result return_value;
+  for (int i = 0; i < shadows.length(); i++) {
+    if (shadows[i]->is_linked()) {
+      // Unlink from try chain; be careful not to destroy the TOS if
+      // there is one.
+      if (i == kReturnShadowIndex) {
+        shadows[i]->Bind(&return_value);
+        return_value.ToRegister(rax);
+      } else {
+        shadows[i]->Bind();
+      }
+      // Because we can be jumping here (to spilled code) from
+      // unspilled code, we need to reestablish a spilled frame at
+      // this block.
+      frame_->SpillAll();
+
+      // Reload sp from the top handler, because some statements that we
+      // break from (eg, for...in) may have left stuff on the stack.
+      __ movq(kScratchRegister, handler_address);
+      __ movq(rsp, Operand(kScratchRegister, 0));
+      frame_->Forget(frame_->height() - handler_height);
+
+      ASSERT(StackHandlerConstants::kNextOffset == 0);
+      __ movq(kScratchRegister, handler_address);
+      frame_->EmitPop(Operand(kScratchRegister, 0));
+      frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+
+      if (i == kReturnShadowIndex) {
+        if (!function_return_is_shadowed_) frame_->PrepareForReturn();
+        shadows[i]->other_target()->Jump(&return_value);
+      } else {
+        shadows[i]->other_target()->Jump();
+      }
+    }
+  }
+
+  exit.Bind();
 }
 
-void CodeGenerator::VisitTryFinally(TryFinally* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitTryFinally(TryFinally* node) {
+  ASSERT(!in_spilled_code());
+  VirtualFrame::SpilledScope spilled_scope;
+  Comment cmnt(masm_, "[ TryFinally");
+  CodeForStatementPosition(node);
+
+  // State: Used to keep track of reason for entering the finally
+  // block. Should probably be extended to hold information for
+  // break/continue from within the try block.
+  enum { FALLING, THROWING, JUMPING };
+
+  JumpTarget try_block;
+  JumpTarget finally_block;
+
+  try_block.Call();
+
+  frame_->EmitPush(rax);
+  // In case of thrown exceptions, this is where we continue.
+  __ movq(rcx, Immediate(Smi::FromInt(THROWING)));
+  finally_block.Jump();
+
+  // --- Try block ---
+  try_block.Bind();
+
+  frame_->PushTryHandler(TRY_FINALLY_HANDLER);
+  int handler_height = frame_->height();
+
+  // Shadow the jump targets for all escapes from the try block, including
+  // returns.  During shadowing, the original target is hidden as the
+  // ShadowTarget and operations on the original actually affect the
+  // shadowing target.
+  //
+  // We should probably try to unify the escaping targets and the return
+  // target.
+  int nof_escapes = node->escaping_targets()->length();
+  List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
+  shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
+
+  // Add the remaining shadow targets.
+  for (int i = 0; i < nof_escapes; i++) {
+    shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
+  }
+
+  // Generate code for the statements in the try block.
+  VisitStatementsAndSpill(node->try_block()->statements());
+
+  // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original targets are unshadowed and the
+  // ShadowTargets represent the formerly shadowing targets.
+  int nof_unlinks = 0;
+  for (int i = 0; i < shadows.length(); i++) {
+    shadows[i]->StopShadowing();
+    if (shadows[i]->is_linked()) nof_unlinks++;
+  }
+  function_return_is_shadowed_ = function_return_was_shadowed;
+
+  // Get an external reference to the handler address.
+  ExternalReference handler_address(Top::k_handler_address);
+
+  // If we can fall off the end of the try block, unlink from the try
+  // chain and set the state on the frame to FALLING.
+  if (has_valid_frame()) {
+    // The next handler address is on top of the frame.
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    __ movq(kScratchRegister, handler_address);
+    frame_->EmitPop(Operand(kScratchRegister, 0));
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+
+    // Fake a top of stack value (unneeded when FALLING) and set the
+    // state in ecx, then jump around the unlink blocks if any.
+    __ movq(kScratchRegister,
+            Factory::undefined_value(),
+            RelocInfo::EMBEDDED_OBJECT);
+    frame_->EmitPush(kScratchRegister);
+    __ movq(rcx, Immediate(Smi::FromInt(FALLING)));
+    if (nof_unlinks > 0) {
+      finally_block.Jump();
+    }
+  }
+
+  // Generate code to unlink and set the state for the (formerly)
+  // shadowing targets that have been jumped to.
+  for (int i = 0; i < shadows.length(); i++) {
+    if (shadows[i]->is_linked()) {
+      // If we have come from the shadowed return, the return value is
+      // on the virtual frame.  We must preserve it until it is
+      // pushed.
+      if (i == kReturnShadowIndex) {
+        Result return_value;
+        shadows[i]->Bind(&return_value);
+        return_value.ToRegister(rax);
+      } else {
+        shadows[i]->Bind();
+      }
+      // Because we can be jumping here (to spilled code) from
+      // unspilled code, we need to reestablish a spilled frame at
+      // this block.
+      frame_->SpillAll();
+
+      // Reload sp from the top handler, because some statements that
+      // we break from (eg, for...in) may have left stuff on the
+      // stack.
+      __ movq(kScratchRegister, handler_address);
+      __ movq(rsp, Operand(kScratchRegister, 0));
+      frame_->Forget(frame_->height() - handler_height);
+
+      // Unlink this handler and drop it from the frame.
+      ASSERT(StackHandlerConstants::kNextOffset == 0);
+      __ movq(kScratchRegister, handler_address);
+      frame_->EmitPop(Operand(kScratchRegister, 0));
+      frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+
+      if (i == kReturnShadowIndex) {
+        // If this target shadowed the function return, materialize
+        // the return value on the stack.
+        frame_->EmitPush(rax);
+      } else {
+        // Fake TOS for targets that shadowed breaks and continues.
+        __ movq(kScratchRegister,
+                Factory::undefined_value(),
+                RelocInfo::EMBEDDED_OBJECT);
+        frame_->EmitPush(kScratchRegister);
+      }
+      __ movq(rcx, Immediate(Smi::FromInt(JUMPING + i)));
+      if (--nof_unlinks > 0) {
+        // If this is not the last unlink block, jump around the next.
+        finally_block.Jump();
+      }
+    }
+  }
+
+  // --- Finally block ---
+  finally_block.Bind();
+
+  // Push the state on the stack.
+  frame_->EmitPush(rcx);
+
+  // We keep two elements on the stack - the (possibly faked) result
+  // and the state - while evaluating the finally block.
+  //
+  // Generate code for the statements in the finally block.
+  VisitStatementsAndSpill(node->finally_block()->statements());
+
+  if (has_valid_frame()) {
+    // Restore state and return value or faked TOS.
+    frame_->EmitPop(rcx);
+    frame_->EmitPop(rax);
+  }
+
+  // Generate code to jump to the right destination for all used
+  // formerly shadowing targets.  Deallocate each shadow target.
+  for (int i = 0; i < shadows.length(); i++) {
+    if (has_valid_frame() && shadows[i]->is_bound()) {
+      BreakTarget* original = shadows[i]->other_target();
+      __ cmpq(rcx, Immediate(Smi::FromInt(JUMPING + i)));
+      if (i == kReturnShadowIndex) {
+        // The return value is (already) in rax.
+        Result return_value = allocator_->Allocate(rax);
+        ASSERT(return_value.is_valid());
+        if (function_return_is_shadowed_) {
+          original->Branch(equal, &return_value);
+        } else {
+          // Branch around the preparation for return which may emit
+          // code.
+          JumpTarget skip;
+          skip.Branch(not_equal);
+          frame_->PrepareForReturn();
+          original->Jump(&return_value);
+          skip.Bind();
+        }
+      } else {
+        original->Branch(equal);
+      }
+    }
+  }
+
+  if (has_valid_frame()) {
+    // Check if we need to rethrow the exception.
+    JumpTarget exit;
+    __ cmpq(rcx, Immediate(Smi::FromInt(THROWING)));
+    exit.Branch(not_equal);
+
+    // Rethrow exception.
+    frame_->EmitPush(rax);  // undo pop from above
+    frame_->CallRuntime(Runtime::kReThrow, 1);
+
+    // Done.
+    exit.Bind();
+  }
 }
 
-void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* a) {
-  UNIMPLEMENTED();
+
+void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
+  ASSERT(!in_spilled_code());
+  Comment cmnt(masm_, "[ DebuggerStatement");
+  CodeForStatementPosition(node);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Spill everything, even constants, to the frame.
+  frame_->SpillAll();
+  frame_->CallRuntime(Runtime::kDebugBreak, 0);
+  // Ignore the return value.
+#endif
 }
 
 
@@ -1868,8 +2223,16 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
-void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  ASSERT(!in_spilled_code());
+  // Call runtime routine to allocate the catch extension object and
+  // assign the exception value to the catch variable.
+  Comment cmnt(masm_, "[ CatchExtensionObject");
+  Load(node->key());
+  Load(node->value());
+  Result result =
+      frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->Push(&result);
 }
 
 
@@ -2860,8 +3223,8 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
-  // ArgumentsAccessStub expects the key in edx and the formal
-  // parameter count in eax.
+  // ArgumentsAccessStub expects the key in rdx and the formal
+  // parameter count in rax.
   Load(args->at(0));
   Result key = frame_->Pop();
   // Explicitly create a constant result.

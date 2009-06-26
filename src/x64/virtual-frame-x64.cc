@@ -1038,6 +1038,15 @@ Result VirtualFrame::CallStoreIC() {
 }
 
 
+void VirtualFrame::PushTryHandler(HandlerType type) {
+  ASSERT(cgen()->HasValidEntryRegisters());
+  // Grow the expression stack by handler size less one (the return
+  // address is already pushed by a call instruction).
+  Adjust(kHandlerSize - 1);
+  __ PushTryHandler(IN_JAVASCRIPT, type);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal
