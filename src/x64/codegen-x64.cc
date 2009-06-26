@@ -438,6 +438,18 @@ void CodeGenerator::CheckStack() {
 }
 
 
+void CodeGenerator::VisitAndSpill(Statement* statement) {
+  // TODO(X64): No architecture specific code. Move to shared location.
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Visit(statement);
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
+  set_in_spilled_code(true);
+}
+
+
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
   ASSERT(!in_spilled_code());
   for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
@@ -1021,8 +1033,193 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 }
 
 
-void CodeGenerator::VisitForInStatement(ForInStatement* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::VisitForInStatement(ForInStatement* node) {
+  ASSERT(!in_spilled_code());
+  VirtualFrame::SpilledScope spilled_scope;
+  Comment cmnt(masm_, "[ ForInStatement");
+  CodeForStatementPosition(node);
+
+  JumpTarget primitive;
+  JumpTarget jsobject;
+  JumpTarget fixed_array;
+  JumpTarget entry(JumpTarget::BIDIRECTIONAL);
+  JumpTarget end_del_check;
+  JumpTarget exit;
+
+  // Get the object to enumerate over (converted to JSObject).
+  LoadAndSpill(node->enumerable());
+
+  // Both SpiderMonkey and kjs ignore null and undefined in contrast
+  // to the specification.  12.6.4 mandates a call to ToObject.
+  frame_->EmitPop(rax);
+
+  // rax: value to be iterated over
+  __ Cmp(rax, Factory::undefined_value());
+  exit.Branch(equal);
+  __ Cmp(rax, Factory::null_value());
+  exit.Branch(equal);
+
+  // Stack layout in body:
+  // [iteration counter (smi)] <- slot 0
+  // [length of array]         <- slot 1
+  // [FixedArray]              <- slot 2
+  // [Map or 0]                <- slot 3
+  // [Object]                  <- slot 4
+
+  // Check if enumerable is already a JSObject
+  // rax: value to be iterated over
+  __ testl(rax, Immediate(kSmiTagMask));
+  primitive.Branch(zero);
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+  jsobject.Branch(above_equal);
+
+  primitive.Bind();
+  frame_->EmitPush(rax);
+  frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION, 1);
+  // function call returns the value in rax, which is where we want it below
+
+  jsobject.Bind();
+  // Get the set of properties (as a FixedArray or Map).
+  // rax: value to be iterated over
+  frame_->EmitPush(rax);  // push the object being iterated over (slot 4)
+
+  frame_->EmitPush(rax);  // push the Object (slot 4) for the runtime call
+  frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
+
+  // If we got a Map, we can do a fast modification check.
+  // Otherwise, we got a FixedArray, and we have to do a slow check.
+  // rax: map or fixed array (result from call to
+  // Runtime::kGetPropertyNamesFast)
+  __ movq(rdx, rax);
+  __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ Cmp(rcx, Factory::meta_map());
+  fixed_array.Branch(not_equal);
+
+  // Get enum cache
+  // rax: map (result from call to Runtime::kGetPropertyNamesFast)
+  __ movq(rcx, rax);
+  __ movq(rcx, FieldOperand(rcx, Map::kInstanceDescriptorsOffset));
+  // Get the bridge array held in the enumeration index field.
+  __ movq(rcx, FieldOperand(rcx, DescriptorArray::kEnumerationIndexOffset));
+  // Get the cache from the bridge array.
+  __ movq(rdx, FieldOperand(rcx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+
+  frame_->EmitPush(rax);  // <- slot 3
+  frame_->EmitPush(rdx);  // <- slot 2
+  __ movq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
+  __ shl(rax, Immediate(kSmiTagSize));
+  frame_->EmitPush(rax);  // <- slot 1
+  frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
+  entry.Jump();
+
+  fixed_array.Bind();
+  // rax: fixed array (result from call to Runtime::kGetPropertyNamesFast)
+  frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 3
+  frame_->EmitPush(rax);  // <- slot 2
+
+  // Push the length of the array and the initial index onto the stack.
+  __ movq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
+  __ shl(rax, Immediate(kSmiTagSize));
+  frame_->EmitPush(rax);  // <- slot 1
+  frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
+
+  // Condition.
+  entry.Bind();
+  // Grab the current frame's height for the break and continue
+  // targets only after all the state is pushed on the frame.
+  node->break_target()->set_direction(JumpTarget::FORWARD_ONLY);
+  node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
+
+  __ movq(rax, frame_->ElementAt(0));  // load the current count
+  __ cmpq(rax, frame_->ElementAt(1));  // compare to the array length
+  node->break_target()->Branch(above_equal);
+
+  // Get the i'th entry of the array.
+  __ movq(rdx, frame_->ElementAt(2));
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  // Multiplier is times_4 since rax is already a Smi.
+  __ movq(rbx, Operand(rdx, rax, times_4,
+                       FixedArray::kHeaderSize - kHeapObjectTag));
+
+  // Get the expected map from the stack or a zero map in the
+  // permanent slow case rax: current iteration count rbx: i'th entry
+  // of the enum cache
+  __ movq(rdx, frame_->ElementAt(3));
+  // Check if the expected map still matches that of the enumerable.
+  // If not, we have to filter the key.
+  // rax: current iteration count
+  // rbx: i'th entry of the enum cache
+  // rdx: expected map value
+  __ movq(rcx, frame_->ElementAt(4));
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ cmpq(rcx, rdx);
+  end_del_check.Branch(equal);
+
+  // Convert the entry to a string (or null if it isn't a property anymore).
+  frame_->EmitPush(frame_->ElementAt(4));  // push enumerable
+  frame_->EmitPush(rbx);  // push entry
+  frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION, 2);
+  __ movq(rbx, rax);
+
+  // If the property has been removed while iterating, we just skip it.
+  __ Cmp(rbx, Factory::null_value());
+  node->continue_target()->Branch(equal);
+
+  end_del_check.Bind();
+  // Store the entry in the 'each' expression and take another spin in the
+  // loop.  rdx: i'th entry of the enum cache (or string there of)
+  frame_->EmitPush(rbx);
+  { Reference each(this, node->each());
+    // Loading a reference may leave the frame in an unspilled state.
+    frame_->SpillAll();
+    if (!each.is_illegal()) {
+      if (each.size() > 0) {
+        frame_->EmitPush(frame_->ElementAt(each.size()));
+      }
+      // If the reference was to a slot we rely on the convenient property
+      // that it doesn't matter whether a value (eg, ebx pushed above) is
+      // right on top of or right underneath a zero-sized reference.
+      each.SetValue(NOT_CONST_INIT);
+      if (each.size() > 0) {
+        // It's safe to pop the value lying on top of the reference before
+        // unloading the reference itself (which preserves the top of stack,
+        // ie, now the topmost value of the non-zero sized reference), since
+        // we will discard the top of stack after unloading the reference
+        // anyway.
+        frame_->Drop();
+      }
+    }
+  }
+  // Unloading a reference may leave the frame in an unspilled state.
+  frame_->SpillAll();
+
+  // Discard the i'th entry pushed above or else the remainder of the
+  // reference, whichever is currently on top of the stack.
+  frame_->Drop();
+
+  // Body.
+  CheckStack();  // TODO(1222600): ignore if body contains calls.
+  VisitAndSpill(node->body());
+
+  // Next.  Reestablish a spilled frame in case we are coming here via
+  // a continue in the body.
+  node->continue_target()->Bind();
+  frame_->SpillAll();
+  frame_->EmitPop(rax);
+  __ addq(rax, Immediate(Smi::FromInt(1)));
+  frame_->EmitPush(rax);
+  entry.Jump();
+
+  // Cleanup.  No need to spill because VirtualFrame::Drop is safe for
+  // any frame.
+  node->break_target()->Bind();
+  frame_->Drop(5);
+
+  // Exit.
+  exit.Bind();
+
+  node->continue_target()->Unuse();
+  node->break_target()->Unuse();
 }
 
 void CodeGenerator::VisitTryCatch(TryCatch* a) {
@@ -2593,6 +2790,17 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation of Expressions
+
+void CodeGenerator::LoadAndSpill(Expression* expression,
+                                 TypeofState typeof_state) {
+  // TODO(x64): No architecture specific code. Move to shared location.
+  ASSERT(in_spilled_code());
+  set_in_spilled_code(false);
+  Load(expression, typeof_state);
+  frame_->SpillAll();
+  set_in_spilled_code(true);
+}
+
 
 void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 #ifdef DEBUG
