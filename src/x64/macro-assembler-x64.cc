@@ -420,6 +420,16 @@ void MacroAssembler::Ret() {
 }
 
 
+void MacroAssembler::FCmp() {
+  fcompp();
+  push(rax);
+  fnstsw_ax();
+  // TODO(X64): Check that sahf is safe to use, using CPUProbe.
+  sahf();
+  pop(rax);
+}
+
+
 void MacroAssembler::CmpObjectType(Register heap_object,
                                    InstanceType type,
                                    Register map) {

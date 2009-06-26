@@ -3270,7 +3270,15 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
 
 
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ testl(value.reg(),
+           Immediate(static_cast<uint32_t>(kSmiTagMask | 0x80000000U)));
+  value.Unuse();
+  destination()->Split(zero);
 }
 
 
@@ -4243,9 +4251,13 @@ class FloatingPointHelper : public AllStatic {
   // Code pattern for loading floating point values onto the fp stack.
   // Input values must be either smi or heap number objects (fp values).
   // Requirements:
-  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
-  // floating point numbers on fp stack.
+  // Register version: operands in registers lhs and rhs.
+  // Stack version: operands on TOS+1 and TOS+2.
+  // Returns operands as floating point numbers on fp stack.
   static void LoadFloatOperands(MacroAssembler* masm);
+  static void LoadFloatOperands(MacroAssembler* masm,
+                                Register lhs,
+                                Register rhs);
 
   // Code pattern for loading a floating point value and converting it
   // to a 32 bit integer. Input value must be either a smi or a heap number
@@ -5484,7 +5496,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ bind(&slow);
   }
 
-  // Push arguments below the return address.
+  // Push arguments below the return address to prepare jump to builtin.
   __ pop(rcx);
   __ push(rax);
   __ push(rdx);
@@ -5493,8 +5505,13 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Inlined floating point compare.
   // Call builtin if operands are not floating point or smi.
   Label check_for_symbols;
-  // TODO(X64): Implement floating point comparisons;
-  __ int3();
+  // Push arguments on stack, for helper functions.
+  FloatingPointHelper::CheckFloatOperands(masm, &check_for_symbols);
+  FloatingPointHelper::LoadFloatOperands(masm, rax, rdx);
+  __ FCmp();
+
+  // Jump to builtin for NaN.
+  __ j(parity_even, &call_builtin);
 
   // TODO(1243847): Use cmov below once CpuFeatures are properly hooked up.
   Label below_lbl, above_lbl;
@@ -6214,6 +6231,38 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm) {
   __ bind(&done);
 }
 
+void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
+                                            Register lhs,
+                                            Register rhs) {
+  Label load_smi_lhs, load_smi_rhs, done_load_lhs, done;
+  __ testl(lhs, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_lhs);
+  __ fld_d(FieldOperand(lhs, HeapNumber::kValueOffset));
+  __ bind(&done_load_lhs);
+
+  __ testl(rhs, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_rhs);
+  __ fld_d(FieldOperand(rhs, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi_lhs);
+  ASSERT(kSmiTagSize == 1);
+  ASSERT(kSmiTag == 0);
+  __ lea(kScratchRegister, Operand(lhs, lhs, times_1, 0);
+  __ push(kScratchRegister);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(kScratchRegister);
+  __ jmp(&done_load_lhs);
+
+  __ bind(&load_smi_rhs);
+  __ movq(kScratchRegister, rhs);
+  __ sar(kScratchRegister, Immediate(kSmiTagSize));
+  __ push(kScratchRegister);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(kScratchRegister);
+
+  __ bind(&done);
+}
 
 void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
                                              Label* non_float) {
