@@ -2290,11 +2290,11 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       Load(node->value());
 
     } else {
-      Literal* literal = node->value()->AsLiteral();
+      // Literal* literal = node->value()->AsLiteral();
       bool overwrite_value =
           (node->value()->AsBinaryOperation() != NULL &&
            node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-      Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
+      // Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
       // There are two cases where the target is not read in the right hand
       // side, that are easy to test for: the right hand side is a literal,
       // or the right hand side is a different variable.  TakeValue invalidates
@@ -5840,7 +5840,7 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // Check that stack should contain frame pointer, code pointer, state and
+  // Check that stack should contain next handler, frame pointer, state and
   // return address in that order.
   ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
             StackHandlerConstants::kStateOffset);
@@ -5849,13 +5849,11 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 
   ExternalReference handler_address(Top::k_handler_address);
   __ movq(kScratchRegister, handler_address);
-  __ movq(rdx, Operand(kScratchRegister, 0));
+  __ movq(rsp, Operand(kScratchRegister, 0));
   // get next in chain
-  __ movq(rcx, Operand(rdx, 0));
+  __ pop(rcx);
   __ movq(Operand(kScratchRegister, 0), rcx);
-  __ movq(rsp, rdx);
   __ pop(rbp);  // pop frame pointer
-  __ pop(rdx);  // remove code pointer
   __ pop(rdx);  // remove state
 
   // Before returning we restore the context from the frame pointer if not NULL.
@@ -5866,7 +5864,6 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   __ j(equal, &skip);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ bind(&skip);
-
   __ ret(0);
 }
 
