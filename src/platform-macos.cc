@@ -507,7 +507,7 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #endif  // __DARWIN_UNIX03
 #else
 #error Unsupported Mac OS X host architecture.
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_HOST_ARCH_IA32
   }
 
   // We always sample the VM state.

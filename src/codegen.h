@@ -77,6 +77,8 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 #include "x64/codegen-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/codegen-arm.h"
+#else
+#error Unsupported target architecture.
 #endif
 
 #include "register-allocator.h"
