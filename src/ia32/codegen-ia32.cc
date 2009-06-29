@@ -6321,13 +6321,16 @@ void Reference::TakeValue(TypeofState typeof_state) {
   ASSERT(slot != NULL);
   if (slot->type() == Slot::LOOKUP ||
       slot->type() == Slot::CONTEXT ||
-      slot->var()->mode() == Variable::CONST) {
+      slot->var()->mode() == Variable::CONST ||
+      slot->is_arguments()) {
     GetValue(typeof_state);
     return;
   }
 
-  // Only non-constant, frame-allocated parameters and locals can reach
-  // here.
+  // Only non-constant, frame-allocated parameters and locals can
+  // reach here. Be careful not to use the optimizations for arguments
+  // object access since it may not have been initialized yet.
+  ASSERT(!slot->is_arguments());
   if (slot->type() == Slot::PARAMETER) {
     cgen_->frame()->TakeParameterAt(slot->index());
   } else {
