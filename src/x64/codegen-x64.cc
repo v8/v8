@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(X64): Remove stdio.h when compiler test is removed.
-#include <stdio.h>
-
 #include "v8.h"
 
 #include "bootstrapper.h"
@@ -37,9 +34,6 @@
 #include "parser.h"
 #include "register-allocator-inl.h"
 #include "scopes.h"
-
-// TODO(X64): Remove compiler.h when compiler test is removed.
-#include "compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -135,81 +129,6 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
-}
-
-
-void CodeGenerator::TestCodeGenerator() {
-  // Compile a function from a string, and run it.
-
-  // Set flags appropriately for this stage of implementation.
-  // TODO(X64): Make ic work, and stop disabling them.
-  // These settings stick - remove them when we don't want them anymore.
-#ifdef DEBUG
-  FLAG_print_builtin_source = true;
-  FLAG_print_builtin_ast = true;
-#endif
-  FLAG_use_ic = false;
-
-  // Read the file "test.js" from the current directory, compile, and run it.
-  // If the file is not there, use a simple script embedded here instead.
-  Handle<String> test_script;
-  FILE* file = fopen("test.js", "rb");
-  if (file == NULL) {
-    test_script = Factory::NewStringFromAscii(CStrVector(
-          "// Put all code in anonymous function to avoid global scope.\n"
-          "(function(){"
-          "  var x = true ? 47 : 32;"
-          "  return x;"
-          "})()"));
-  } else {
-    fseek(file, 0, SEEK_END);
-    int size = ftell(file);
-    rewind(file);
-
-    char* chars = new char[size + 1];
-    chars[size] = '\0';
-    for (int i = 0; i < size;) {
-      int read = fread(&chars[i], 1, size - i, file);
-      i += read;
-    }
-    fclose(file);
-    test_script = Factory::NewStringFromAscii(CStrVector(chars));
-    delete[] chars;
-  }
-
-  Handle<JSFunction> test_function = Compiler::Compile(
-      test_script,
-      Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
-      0,
-      0,
-      NULL,
-      NULL);
-
-  Code* code_object = test_function->code();  // Local for debugging ease.
-  USE(code_object);
-
-  // Create a dummy function and context.
-  Handle<JSFunction> bridge =
-      Factory::NewFunction(Factory::empty_symbol(), Factory::undefined_value());
-  Handle<Context> context =
-    Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
-
-  test_function = Factory::NewFunctionFromBoilerplate(
-      test_function,
-      context);
-
-  bool pending_exceptions;
-  Handle<Object> result =
-      Execution::Call(test_function,
-                      Handle<Object>::cast(test_function),
-                      0,
-                      NULL,
-                      &pending_exceptions);
-  // Function compiles and runs, but returns a JSFunction object.
-#ifdef DEBUG
-  PrintF("Result of test function: ");
-  result->Print();
-#endif
 }
 
 
@@ -2227,12 +2146,12 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     Result elements = frame_->Pop();
     elements.ToRegister();
     frame_->Spill(elements.reg());
-    // Get the elements array.
+    // Get the elements FixedArray.
     __ movq(elements.reg(),
             FieldOperand(elements.reg(), JSObject::kElementsOffset));
 
     // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
+    int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ movq(FieldOperand(elements.reg(), offset), prop_value.reg());
 
     // Update the write barrier for the array address.
@@ -3227,10 +3146,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       // It can be an undetectable object.
       __ movq(kScratchRegister,
               FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movb(kScratchRegister,
-              FieldOperand(kScratchRegister, Map::kBitFieldOffset));
-      __ testb(kScratchRegister, Immediate(1 << Map::kIsUndetectable));
+      __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+               Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
+      __ movb(kScratchRegister,
+              FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
       __ cmpb(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
       destination()->false_target()->Branch(below);
       __ cmpb(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
@@ -6737,8 +6657,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // If all else fails, use the runtime system to get the correct
   // result.
   __ bind(&call_runtime);
-  // Disable builtin-calls until JS builtins can compile and run.
-  __ Abort("Disabled until builtins compile and run.");
   switch (op_) {
     case Token::ADD:
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);

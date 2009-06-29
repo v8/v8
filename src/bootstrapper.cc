@@ -1113,8 +1113,8 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef V8_HOST_ARCH_64_BIT
-  // TODO(X64): Remove this test when code generation works and is stable.
-  CodeGenerator::TestCodeGenerator();
+  // TODO(X64): Remove this when inline caches work.
+  FLAG_use_ic = false;
 #endif  // V8_HOST_ARCH_64_BIT
 
 
