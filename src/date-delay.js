@@ -424,7 +424,7 @@ function TimeClip(time) {
 
 
 %SetCode($Date, function(year, month, date, hours, minutes, seconds, ms) {
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     // ECMA 262 - 15.9.3
     var argc = %_ArgumentsLength();
     if (argc == 0) {

@@ -35,7 +35,7 @@
 // Set the String function and constructor.
 %SetCode($String, function(x) {
   var value = %_ArgumentsLength() == 0 ? '' : ToString(x);
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;

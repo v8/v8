@@ -416,6 +416,7 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateIsSmi, "_IsSmi"},
   {&CodeGenerator::GenerateIsNonNegativeSmi, "_IsNonNegativeSmi"},
   {&CodeGenerator::GenerateIsArray, "_IsArray"},
+  {&CodeGenerator::GenerateIsConstructCall, "_IsConstructCall"},
   {&CodeGenerator::GenerateArgumentsLength, "_ArgumentsLength"},
   {&CodeGenerator::GenerateArgumentsAccess, "_Arguments"},
   {&CodeGenerator::GenerateValueOf, "_ValueOf"},

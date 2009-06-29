@@ -3330,6 +3330,14 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
+  // TODO(X64): Optimize this like it's done on IA-32.
+  ASSERT(args->length() == 0);
+  Result answer = frame_->CallRuntime(Runtime::kIsConstructCall, 0);
+  frame_->Push(&answer);
+}
+
+
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // ArgumentsAccessStub takes the parameter count as an input argument

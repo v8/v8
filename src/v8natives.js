@@ -154,7 +154,7 @@ function SetupGlobal() {
 
   // ECMA-262 - 15.1.1.3.
   %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
-  
+
   // Setup non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
     "isNaN", GlobalIsNaN,
@@ -174,7 +174,7 @@ SetupGlobal();
 
 
 %SetCode($Boolean, function(x) {
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     %_SetValueOf(this, ToBoolean(x));
   } else {
     return ToBoolean(x);
@@ -273,7 +273,7 @@ function ObjectLookupSetter(name) {
 
 
 %SetCode($Object, function(x) {
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     if (x == null) return this;
     return ToObject(x);
   } else {
@@ -350,7 +350,7 @@ SetupBoolean();
 // Set the Number function and constructor.
 %SetCode($Number, function(x) {
   var value = %_ArgumentsLength() == 0 ? 0 : ToNumber(x);
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
@@ -570,4 +570,3 @@ function SetupFunction() {
 }
 
 SetupFunction();
-

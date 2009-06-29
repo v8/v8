@@ -659,7 +659,7 @@ function DefineError(f) {
   %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
   f.prototype.name = name;
   %SetCode(f, function(m) {
-    if (%IsConstructCall()) {
+    if (%_IsConstructCall()) {
       if (m === kAddMessageAccessorsMarker) {
         DefineOneShotAccessor(this, 'message', function (obj) {
           return FormatMessage({type: obj.type, args: obj.arguments});

@@ -3290,6 +3290,14 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 0);
+  frame_->CallRuntime(Runtime::kIsConstructCall, 0);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 0);
