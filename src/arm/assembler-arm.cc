@@ -816,7 +816,6 @@ void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
 void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
-  ASSERT(!dst.is(src1));
   emit(cond | A | s | dst.code()*B16 | srcA.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -825,7 +824,6 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
 void Assembler::mul(Register dst, Register src1, Register src2,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dst.is(src1));
   emit(cond | s | dst.code()*B16 | src2.code()*B8 | B7 | B4 | src1.code());
 }
 
@@ -837,7 +835,7 @@ void Assembler::smlal(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | B22 | A | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -850,7 +848,7 @@ void Assembler::smull(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | B22 | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -863,7 +861,7 @@ void Assembler::umlal(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | A | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -876,8 +874,8 @@ void Assembler::umull(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
-  emit(cond | B23 | s | dstH.code()*B16 | dstL.code()*B12 |
+  ASSERT(!dstL.is(dstH));
+  emit(cond | B23 | B22 | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
 

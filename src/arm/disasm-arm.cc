@@ -438,7 +438,7 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       return 6;
     }
     case 'u': {  // 'u: signed or unsigned multiplies
-      if (instr->Bit(22) == 0) {
+      if (instr->Bit(22) == 1) {
         Print("u");
       } else {
         Print("s");
@@ -499,7 +499,7 @@ void Decoder::DecodeType01(Instr* instr) {
             Format(instr, "mla'cond's 'rd, 'rm, 'rs, 'rn");
           }
         } else {
-          Format(instr, "'um'al'cond's 'rn, 'rd, 'rs, 'rm");
+          Format(instr, "'um'al'cond's 'rn, 'rd, 'rm, 'rs");
         }
       } else {
         Unknown(instr);  // not used by V8
