@@ -711,6 +711,10 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       13,
       "mul_two_doubles");
+  Add(ExternalReference::compare_doubles().address(),
+      UNCLASSIFIED,
+      14,
+      "compare_doubles");
 #endif
 }
 

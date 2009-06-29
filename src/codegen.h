@@ -249,6 +249,36 @@ class UnarySubStub : public CodeStub {
 };
 
 
+class CompareStub: public CodeStub {
+ public:
+  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Condition cc_;
+  bool strict_;
+
+  Major MajorKey() { return Compare; }
+
+  int MinorKey();
+
+  // Branch to the label if the given object isn't a symbol.
+  void BranchIfNonSymbol(MacroAssembler* masm,
+                         Label* label,
+                         Register object,
+                         Register scratch);
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("CompareStub (cc %d), (strict %s)\n",
+           static_cast<int>(cc_),
+           strict_ ? "true" : "false");
+  }
+#endif
+};
+
+
 class CEntryStub : public CodeStub {
  public:
   CEntryStub() { }

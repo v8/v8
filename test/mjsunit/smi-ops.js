@@ -196,6 +196,54 @@ assertEquals(78, Xor100Reversed(OBJ_42));
 var x = 0x23; var y = 0x35;
 assertEquals(0x16, x ^ y);
 
+
+// Bitwise not.
+var v = 0;
+assertEquals(-1, ~v);
+v = SMI_MIN;
+assertEquals(0x3fffffff, ~v);
+v = SMI_MAX;
+assertEquals(-0x40000000, ~v);
+
+// Overflowing ++ and --.
+v = SMI_MAX;
+v++;
+assertEquals(0x40000000, v);
+v = SMI_MIN;
+v--;
+assertEquals(-0x40000001, v);
+
+// Not actually Smi operations.
+// Check that relations on unary ops work.
+var v = -1.2;
+assertTrue(v == v);
+assertTrue(v === v);
+assertTrue(v <= v);
+assertTrue(v >= v);
+assertFalse(v < v);
+assertFalse(v > v);
+assertFalse(v != v);
+assertFalse(v !== v);
+
+// Right hand side of unary minus is overwritable.
+v = 1.5
+assertEquals(-2.25, -(v * v));
+
+// Smi input to bitop gives non-smi result where the rhs is a float that
+// can be overwritten.
+var x1 = 0x10000000;
+var x2 = 0x40000002;
+var x3 = 0x40000000;
+assertEquals(0x40000000, x1 << (x2 - x3));
+
+// Smi input to bitop gives non-smi result where the rhs could be overwritten
+// if it were a float, but it isn't.
+x1 = 0x10000000
+x2 = 4
+x3 = 2
+assertEquals(0x40000000, x1 << (x2 - x3));
+
+
 // Test shift operators on non-smi inputs, giving smi and non-smi results.
 function testShiftNonSmis() {
   var pos_non_smi = 2000000000;

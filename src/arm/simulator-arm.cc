@@ -1046,6 +1046,9 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
         int64_t result = target(arg0, arg1, arg2, arg3);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
+        if (::v8::internal::FLAG_trace_sim) {
+          PrintF("Returned %08x\n", lo_res);
+        }
         set_register(r0, lo_res);
         set_register(r1, hi_res);
         set_register(r0, result);

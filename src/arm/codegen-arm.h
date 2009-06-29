@@ -292,7 +292,10 @@ class CodeGenerator: public AstVisitor {
   void ToBoolean(JumpTarget* true_target, JumpTarget* false_target);
 
   void GenericBinaryOperation(Token::Value op, OverwriteMode overwrite_mode);
-  void Comparison(Condition cc, bool strict = false);
+  void Comparison(Condition cc,
+                  Expression* left,
+                  Expression* right,
+                  bool strict = false);
 
   void SmiOperation(Token::Value op,
                     Handle<Object> value,

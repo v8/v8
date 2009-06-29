@@ -6811,6 +6811,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
+int CompareStub::MinorKey() {
+  // Encode the two parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
+  return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

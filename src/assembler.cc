@@ -608,6 +608,12 @@ static double mul_two_doubles(double x, double y) {
 }
 
 
+static int native_compare_doubles(double x, double y) {
+  if (x == y) return 0;
+  return x < y ? 1 : -1;
+}
+
+
 ExternalReference ExternalReference::double_fp_operation(
     Token::Value operation) {
   typedef double BinaryFPOperation(double x, double y);
@@ -627,6 +633,12 @@ ExternalReference ExternalReference::double_fp_operation(
   }
   // Passing true as 2nd parameter indicates that they return an fp value.
   return ExternalReference(Redirect(FUNCTION_ADDR(function), true));
+}
+
+
+ExternalReference ExternalReference::compare_doubles() {
+  return ExternalReference(Redirect(FUNCTION_ADDR(native_compare_doubles),
+                                    false));
 }
 
 

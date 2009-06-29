@@ -41,6 +41,18 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm_)
 
+static void EmitIdenticalObjectComparison(MacroAssembler* masm,
+                                          Label* slow,
+                                          Condition cc);
+static void EmitSmiNonsmiComparison(MacroAssembler* masm,
+                                    Label* rhs_not_nan,
+                                    Label* slow,
+                                    bool strict);
+static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc);
+static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm);
+
+
+
 // -------------------------------------------------------------------------
 // Platform-specific DeferredCode functions.
 
@@ -1002,7 +1014,13 @@ void CodeGenerator::SmiOperation(Token::Value op,
 }
 
 
-void CodeGenerator::Comparison(Condition cc, bool strict) {
+void CodeGenerator::Comparison(Condition cc,
+                               Expression* left,
+                               Expression* right,
+                               bool strict) {
+  if (left != NULL) LoadAndSpill(left);
+  if (right != NULL) LoadAndSpill(right);
+
   VirtualFrame::SpilledScope spilled_scope;
   // sp[0] : y
   // sp[1] : x
@@ -1026,43 +1044,19 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   __ tst(r2, Operand(kSmiTagMask));
   smi.Branch(eq);
 
-  // Perform non-smi comparison by runtime call.
-  frame_->EmitPush(r1);
+  // Perform non-smi comparison by stub.
+  // CompareStub takes arguments in r0 and r1, returns <0, >0 or 0 in r0.
+  // We call with 0 args because there are 0 on the stack.
+  CompareStub stub(cc, strict);
+  frame_->CallStub(&stub, 0);
 
-  // Figure out which native to call and setup the arguments.
-  Builtins::JavaScript native;
-  int arg_count = 1;
-  if (cc == eq) {
-    native = strict ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
-  } else {
-    native = Builtins::COMPARE;
-    int ncr;  // NaN compare result
-    if (cc == lt || cc == le) {
-      ncr = GREATER;
-    } else {
-      ASSERT(cc == gt || cc == ge);  // remaining cases
-      ncr = LESS;
-    }
-    frame_->EmitPush(r0);
-    arg_count++;
-    __ mov(r0, Operand(Smi::FromInt(ncr)));
-  }
-
-  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
-  // tagged as a small integer.
-  frame_->EmitPush(r0);
-  Result arg_count_register = allocator_->Allocate(r0);
-  ASSERT(arg_count_register.is_valid());
-  __ mov(arg_count_register.reg(), Operand(arg_count));
-  Result result = frame_->InvokeBuiltin(native,
-                                        CALL_JS,
-                                        &arg_count_register,
-                                        arg_count + 1);
+  Result result = allocator_->Allocate(r0);
+  ASSERT(result.is_valid());
   __ cmp(result.reg(), Operand(0));
   result.Unuse();
   exit.Jump();
 
-  // test smi equality by pointer comparison.
+  // Do smi comparisons by pointer comparison.
   smi.Bind();
   __ cmp(r1, Operand(r0));
 
@@ -1505,8 +1499,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     // Duplicate TOS.
     __ ldr(r0, frame_->Top());
     frame_->EmitPush(r0);
-    LoadAndSpill(clause->label());
-    Comparison(eq, true);
+    Comparison(eq, NULL, clause->label(), true);
     Branch(false, &next_test);
 
     // Before entering the body from the test, remove the switch value from
@@ -3512,8 +3505,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::SUB: {
         bool overwrite =
-            (node->AsBinaryOperation() != NULL &&
-             node->AsBinaryOperation()->ResultOverwriteAllowed());
+            (node->expression()->AsBinaryOperation() != NULL &&
+             node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
         UnarySubStub stub(overwrite);
         frame_->CallStub(&stub, 0);
         break;
@@ -3977,34 +3970,34 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     return;
   }
 
-  LoadAndSpill(left);
-  LoadAndSpill(right);
   switch (op) {
     case Token::EQ:
-      Comparison(eq, false);
+      Comparison(eq, left, right, false);
       break;
 
     case Token::LT:
-      Comparison(lt);
+      Comparison(lt, left, right);
       break;
 
     case Token::GT:
-      Comparison(gt);
+      Comparison(gt, left, right);
       break;
 
     case Token::LTE:
-      Comparison(le);
+      Comparison(le, left, right);
       break;
 
     case Token::GTE:
-      Comparison(ge);
+      Comparison(ge, left, right);
       break;
 
     case Token::EQ_STRICT:
-      Comparison(eq, true);
+      Comparison(eq, left, right, true);
       break;
 
     case Token::IN: {
+      LoadAndSpill(left);
+      LoadAndSpill(right);
       Result arg_count = allocator_->Allocate(r0);
       ASSERT(arg_count.is_valid());
       __ mov(arg_count.reg(), Operand(1));  // not counting receiver
@@ -4017,6 +4010,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     }
 
     case Token::INSTANCEOF: {
+      LoadAndSpill(left);
+      LoadAndSpill(right);
       InstanceofStub stub;
       Result result = frame_->CallStub(&stub, 2);
       // At this point if instanceof succeeded then r0 == 0.
@@ -4499,6 +4494,408 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler *masm) {
 }
 
 
+// Handle the case where the lhs and rhs are the same object.
+// Equality is almost reflexive (everything but NaN), so this is a test
+// for "identity and not NaN".
+static void EmitIdenticalObjectComparison(MacroAssembler* masm,
+                                          Label* slow,
+                                          Condition cc) {
+  Label not_identical;
+  __ cmp(r0, Operand(r1));
+  __ b(ne, &not_identical);
+
+  Register exp_mask_reg = r5;
+  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
+
+  // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
+  // so we do the second best thing - test it ourselves.
+  Label heap_number, return_equal;
+  // They are both equal and they are not both Smis so both of them are not
+  // Smis.  If it's not a heap number, then return equal.
+  if (cc == lt || cc == gt) {
+    __ CompareObjectType(r0, r4, r4, FIRST_JS_OBJECT_TYPE);
+    __ b(ge, slow);
+  } else {
+    __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+    __ b(eq, &heap_number);
+    // Comparing JS objects with <=, >= is complicated.
+    if (cc != eq) {
+      __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
+      __ b(ge, slow);
+    }
+  }
+  __ bind(&return_equal);
+  if (cc == lt) {
+    __ mov(r0, Operand(GREATER));  // Things aren't less than themselves.
+  } else if (cc == gt) {
+    __ mov(r0, Operand(LESS));     // Things aren't greater than themselves.
+  } else {
+    __ mov(r0, Operand(0));        // Things are <=, >=, ==, === themselves.
+  }
+  __ mov(pc, Operand(lr));  // Return.
+
+  // For less and greater we don't have to check for NaN since the result of
+  // x < x is false regardless.  For the others here is some code to check
+  // for NaN.
+  if (cc != lt && cc != gt) {
+    __ bind(&heap_number);
+    // It is a heap number, so return non-equal if it's NaN and equal if it's
+    // not NaN.
+    // The representation of NaN values has all exponent bits (52..62) set,
+    // and not all mantissa bits (0..51) clear.
+    // Read top bits of double representation (second word of value).
+    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+    // Test that exponent bits are all set.
+    __ and_(r3, r2, Operand(exp_mask_reg));
+    __ cmp(r3, Operand(exp_mask_reg));
+    __ b(ne, &return_equal);
+
+    // Shift out flag and all exponent bits, retaining only mantissa.
+    __ mov(r2, Operand(r2, LSL, HeapNumber::kNonMantissaBitsInTopWord));
+    // Or with all low-bits of mantissa.
+    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+    __ orr(r0, r3, Operand(r2), SetCC);
+    // For equal we already have the right value in r0:  Return zero (equal)
+    // if all bits in mantissa are zero (it's an Infinity) and non-zero if not
+    // (it's a NaN).  For <= and >= we need to load r0 with the failing value
+    // if it's a NaN.
+    if (cc != eq) {
+      // All-zero means Infinity means equal.
+      __ mov(pc, Operand(lr), LeaveCC, eq);  // Return equal
+      if (cc == le) {
+        __ mov(r0, Operand(GREATER));  // NaN <= NaN should fail.
+      } else {
+        __ mov(r0, Operand(LESS));     // NaN >= NaN should fail.
+      }
+    }
+    __ mov(pc, Operand(lr));  // Return.
+  }
+  // No fall through here.
+
+  __ bind(&not_identical);
+}
+
+
+// See comment at call site.
+static void EmitSmiNonsmiComparison(MacroAssembler* masm,
+                                    Label* rhs_not_nan,
+                                    Label* slow,
+                                    bool strict) {
+  Label lhs_is_smi;
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &lhs_is_smi);
+
+  // Rhs is a Smi.  Check whether the non-smi is a heap number.
+  __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
+  if (strict) {
+    // If lhs was not a number and rhs was a Smi then strict equality cannot
+    // succeed.  Return non-equal (r0 is already not zero)
+    __ mov(pc, Operand(lr), LeaveCC, ne);  // Return.
+  } else {
+    // Smi compared non-strictly with a non-Smi non-heap-number.  Call
+    // the runtime.
+    __ b(ne, slow);
+  }
+
+  // Rhs is a smi, lhs is a number.
+  __ push(lr);
+  __ mov(r7, Operand(r1));
+  ConvertToDoubleStub stub1(r3, r2, r7, r6);
+  __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+  // r3 and r2 are rhs as double.
+  __ ldr(r1, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
+  __ ldr(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+  // We now have both loaded as doubles but we can skip the lhs nan check
+  // since it's a Smi.
+  __ pop(lr);
+  __ jmp(rhs_not_nan);
+
+  __ bind(&lhs_is_smi);
+  // Lhs is a Smi.  Check whether the non-smi is a heap number.
+  __ CompareObjectType(r1, r4, r4, HEAP_NUMBER_TYPE);
+  if (strict) {
+    // If lhs was not a number and rhs was a Smi then strict equality cannot
+    // succeed.  Return non-equal.
+    __ mov(r0, Operand(1), LeaveCC, ne);  // Non-zero indicates not equal.
+    __ mov(pc, Operand(lr), LeaveCC, ne);  // Return.
+  } else {
+    // Smi compared non-strictly with a non-Smi non-heap-number.  Call
+    // the runtime.
+    __ b(ne, slow);
+  }
+
+  // Lhs is a smi, rhs is a number.
+  // r0 is Smi and r1 is heap number.
+  __ push(lr);
+  __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
+  __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
+  __ mov(r7, Operand(r0));
+  ConvertToDoubleStub stub2(r1, r0, r7, r6);
+  __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+  __ pop(lr);
+  // Fall through to both_loaded_as_doubles.
+}
+
+
+void EmitNanCheck(MacroAssembler* masm, Label* rhs_not_nan, Condition cc) {
+  bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
+  Register lhs_exponent = exp_first ? r0 : r1;
+  Register rhs_exponent = exp_first ? r2 : r3;
+  Register lhs_mantissa = exp_first ? r1 : r0;
+  Register rhs_mantissa = exp_first ? r3 : r2;
+  Label one_is_nan, neither_is_nan;
+
+  Register exp_mask_reg = r5;
+
+  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
+  __ and_(r4, rhs_exponent, Operand(exp_mask_reg));
+  __ cmp(r4, Operand(exp_mask_reg));
+  __ b(ne, rhs_not_nan);
+  __ mov(r4,
+         Operand(rhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
+         SetCC);
+  __ b(ne, &one_is_nan);
+  __ cmp(rhs_mantissa, Operand(0));
+  __ b(ne, &one_is_nan);
+
+  __ bind(rhs_not_nan);
+  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
+  __ and_(r4, lhs_exponent, Operand(exp_mask_reg));
+  __ cmp(r4, Operand(exp_mask_reg));
+  __ b(ne, &neither_is_nan);
+  __ mov(r4,
+         Operand(lhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
+         SetCC);
+  __ b(ne, &one_is_nan);
+  __ cmp(lhs_mantissa, Operand(0));
+  __ b(eq, &neither_is_nan);
+
+  __ bind(&one_is_nan);
+  // NaN comparisons always fail.
+  // Load whatever we need in r0 to make the comparison fail.
+  if (cc == lt || cc == le) {
+    __ mov(r0, Operand(GREATER));
+  } else {
+    __ mov(r0, Operand(LESS));
+  }
+  __ mov(pc, Operand(lr));  // Return.
+
+  __ bind(&neither_is_nan);
+}
+
+
+// See comment at call site.
+static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
+  bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
+  Register lhs_exponent = exp_first ? r0 : r1;
+  Register rhs_exponent = exp_first ? r2 : r3;
+  Register lhs_mantissa = exp_first ? r1 : r0;
+  Register rhs_mantissa = exp_first ? r3 : r2;
+
+  // r0, r1, r2, r3 have the two doubles.  Neither is a NaN.
+  if (cc == eq) {
+    // Doubles are not equal unless they have the same bit pattern.
+    // Exception: 0 and -0.
+    __ cmp(lhs_mantissa, Operand(rhs_mantissa));
+    __ orr(r0, lhs_mantissa, Operand(rhs_mantissa), LeaveCC, ne);
+    // Return non-zero if the numbers are unequal.
+    __ mov(pc, Operand(lr), LeaveCC, ne);
+
+    __ sub(r0, lhs_exponent, Operand(rhs_exponent), SetCC);
+    // If exponents are equal then return 0.
+    __ mov(pc, Operand(lr), LeaveCC, eq);
+
+    // Exponents are unequal.  The only way we can return that the numbers
+    // are equal is if one is -0 and the other is 0.  We already dealt
+    // with the case where both are -0 or both are 0.
+    // We start by seeing if the mantissas (that are equal) or the bottom
+    // 31 bits of the rhs exponent are non-zero.  If so we return not
+    // equal.
+    __ orr(r4, rhs_mantissa, Operand(rhs_exponent, LSL, kSmiTagSize), SetCC);
+    __ mov(r0, Operand(r4), LeaveCC, ne);
+    __ mov(pc, Operand(lr), LeaveCC, ne);  // Return conditionally.
+    // Now they are equal if and only if the lhs exponent is zero in its
+    // low 31 bits.
+    __ mov(r0, Operand(lhs_exponent, LSL, kSmiTagSize));
+    __ mov(pc, Operand(lr));
+  } else {
+    // Call a native function to do a comparison between two non-NaNs.
+    // Call C routine that may not cause GC or other trouble.
+    __ mov(r5, Operand(ExternalReference::compare_doubles()));
+    __ Jump(r5);  // Tail call.
+  }
+}
+
+
+// See comment at call site.
+static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm) {
+    // If either operand is a JSObject or an oddball value, then they are
+    // not equal since their pointers are different.
+    // There is no test for undetectability in strict equality.
+    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    Label first_non_object;
+    // Get the type of the first operand into r2 and compare it with
+    // FIRST_JS_OBJECT_TYPE.
+    __ CompareObjectType(r0, r2, r2, FIRST_JS_OBJECT_TYPE);
+    __ b(lt, &first_non_object);
+
+    // Return non-zero (r0 is not zero)
+    Label return_not_equal;
+    __ bind(&return_not_equal);
+    __ mov(pc, Operand(lr));  // Return.
+
+    __ bind(&first_non_object);
+    // Check for oddballs: true, false, null, undefined.
+    __ cmp(r2, Operand(ODDBALL_TYPE));
+    __ b(eq, &return_not_equal);
+
+    __ CompareObjectType(r1, r3, r3, FIRST_JS_OBJECT_TYPE);
+    __ b(ge, &return_not_equal);
+
+    // Check for oddballs: true, false, null, undefined.
+    __ cmp(r3, Operand(ODDBALL_TYPE));
+    __ b(eq, &return_not_equal);
+}
+
+
+// See comment at call site.
+static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
+                                       Label* both_loaded_as_doubles,
+                                       Label* not_heap_numbers,
+                                       Label* slow) {
+  __ CompareObjectType(r0, r2, r2, HEAP_NUMBER_TYPE);
+  __ b(ne, not_heap_numbers);
+  __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE);
+  __ b(ne, slow);  // First was a heap number, second wasn't.  Go slow case.
+
+  // Both are heap numbers.  Load them up then jump to the code we have
+  // for that.
+  __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
+  __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
+  __ ldr(r1, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
+  __ ldr(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+  __ jmp(both_loaded_as_doubles);
+}
+
+
+// Fast negative check for symbol-to-symbol equality.
+static void EmitCheckForSymbols(MacroAssembler* masm, Label* slow) {
+  // r2 is object type of r0.
+  __ tst(r2, Operand(kIsNotStringMask));
+  __ b(ne, slow);
+  __ tst(r2, Operand(kIsSymbolMask));
+  __ b(eq, slow);
+  __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE);
+  __ b(ge, slow);
+  __ tst(r3, Operand(kIsSymbolMask));
+  __ b(eq, slow);
+
+  // Both are symbols.  We already checked they weren't the same pointer
+  // so they are not equal.
+  __ mov(r0, Operand(1));   // Non-zero indicates not equal.
+  __ mov(pc, Operand(lr));  // Return.
+}
+
+
+// On entry r0 and r1 are the things to be compared.  On exit r0 is 0,
+// positive or negative to indicate the result of the comparison.
+void CompareStub::Generate(MacroAssembler* masm) {
+  Label slow;  // Call builtin.
+  Label not_smis, both_loaded_as_doubles, rhs_not_nan;
+
+  // NOTICE! This code is only reached after a smi-fast-case check, so
+  // it is certain that at least one operand isn't a smi.
+
+  // Handle the case where the objects are identical.  Either returns the answer
+  // or goes to slow.  Only falls through if the objects were not identical.
+  EmitIdenticalObjectComparison(masm, &slow, cc_);
+
+  // If either is a Smi (we know that not both are), then they can only
+  // be strictly equal if the other is a HeapNumber.
+  ASSERT_EQ(0, kSmiTag);
+  ASSERT_EQ(0, Smi::FromInt(0));
+  __ and_(r2, r0, Operand(r1));
+  __ tst(r2, Operand(kSmiTagMask));
+  __ b(ne, &not_smis);
+  // One operand is a smi.  EmitSmiNonsmiComparison generates code that can:
+  // 1) Return the answer.
+  // 2) Go to slow.
+  // 3) Fall through to both_loaded_as_doubles.
+  // 4) Jump to rhs_not_nan.
+  // In cases 3 and 4 we have found out we were dealing with a number-number
+  // comparison and the numbers have been loaded into r0, r1, r2, r3 as doubles.
+  EmitSmiNonsmiComparison(masm, &rhs_not_nan, &slow, strict_);
+
+  __ bind(&both_loaded_as_doubles);
+  // r0, r1, r2, r3 are the double representations of the left hand side
+  // and the right hand side.
+
+  // Checks for NaN in the doubles we have loaded.  Can return the answer or
+  // fall through if neither is a NaN.  Also binds rhs_not_nan.
+  EmitNanCheck(masm, &rhs_not_nan, cc_);
+
+  // Compares two doubles in r0, r1, r2, r3 that are not NaNs.  Returns the
+  // answer.  Never falls through.
+  EmitTwoNonNanDoubleComparison(masm, cc_);
+
+  __ bind(&not_smis);
+  // At this point we know we are dealing with two different objects,
+  // and neither of them is a Smi.  The objects are in r0 and r1.
+  if (strict_) {
+    // This returns non-equal for some object types, or falls through if it
+    // was not lucky.
+    EmitStrictTwoHeapObjectCompare(masm);
+  }
+
+  Label check_for_symbols;
+  // Check for heap-number-heap-number comparison.  Can jump to slow case,
+  // or load both doubles into r0, r1, r2, r3 and jump to the code that handles
+  // that case.  If the inputs are not doubles then jumps to check_for_symbols.
+  // In this case r2 will contain the type of r0.
+  EmitCheckForTwoHeapNumbers(masm,
+                             &both_loaded_as_doubles,
+                             &check_for_symbols,
+                             &slow);
+
+  __ bind(&check_for_symbols);
+  if (cc_ == eq) {
+    // Either jumps to slow or returns the answer.  Assumes that r2 is the type
+    // of r0 on entry.
+    EmitCheckForSymbols(masm, &slow);
+  }
+
+  __ bind(&slow);
+  __ push(lr);
+  __ push(r1);
+  __ push(r0);
+  // Figure out which native to call and setup the arguments.
+  Builtins::JavaScript native;
+  int arg_count = 1;  // Not counting receiver.
+  if (cc_ == eq) {
+    native = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
+  } else {
+    native = Builtins::COMPARE;
+    int ncr;  // NaN compare result
+    if (cc_ == lt || cc_ == le) {
+      ncr = GREATER;
+    } else {
+      ASSERT(cc_ == gt || cc_ == ge);  // remaining cases
+      ncr = LESS;
+    }
+    arg_count++;
+    __ mov(r0, Operand(Smi::FromInt(ncr)));
+    __ push(r0);
+  }
+
+  // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
+  // tagged as a small integer.
+  __ mov(r0, Operand(arg_count));
+  __ InvokeBuiltin(native, CALL_JS);
+  __ cmp(r0, Operand(0));
+  __ pop(pc);
+}
+
+
 // Allocates a heap number or jumps to the label if the young space is full and
 // a scavenge is needed.
 static void AllocateHeapNumber(
@@ -4555,7 +4952,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // The new heap number is in r5.  r6 and r7 are scratch.
   AllocateHeapNumber(masm, &slow, r5, r6, r7);
   // Write Smi from r0 to r3 and r2 in double format.  r6 is scratch.
-  ConvertToDoubleStub stub1(r3, r2, r0, r6);
+  __ mov(r7, Operand(r0));
+  ConvertToDoubleStub stub1(r3, r2, r7, r6);
   __ push(lr);
   __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
   // Write Smi from r1 to r1 and r0 in double format.  r6 is scratch.
@@ -5032,7 +5430,6 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 void UnarySubStub::Generate(MacroAssembler* masm) {
   Label undo;
   Label slow;
-  Label done;
   Label not_smi;
 
   // Enter runtime system if the value is not a smi.
@@ -5057,9 +5454,6 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   __ push(r0);
   __ mov(r0, Operand(0));  // Set number of arguments.
   __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
-
-  __ bind(&done);
-  __ StubReturn(1);
 
   __ bind(&not_smi);
   __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
@@ -5220,9 +5614,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // support moving the C entry code stub. This should be fixed, but currently
   // this is OK because the CEntryStub gets generated so early in the V8 boot
   // sequence that it is not moving ever.
-  __ add(lr, pc, Operand(4));  // compute return address: (pc + 8) + 4
-  __ push(lr);
-  __ Jump(r5);
+  masm->add(lr, pc, Operand(4));  // compute return address: (pc + 8) + 4
+  masm->push(lr);
+  masm->Jump(r5);
 
   if (always_allocate) {
     // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
@@ -5643,6 +6037,13 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
   __ Jump(Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline)),
           RelocInfo::CODE_TARGET);
+}
+
+
+int CompareStub::MinorKey() {
+  // Encode the two parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) >> 28 < (1 << 15));
+  return (static_cast<unsigned>(cc_) >> 27) | (strict_ ? 1 : 0);
 }
 
 
