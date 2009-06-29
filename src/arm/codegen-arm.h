@@ -340,7 +340,8 @@ class CodeGenerator: public AstVisitor {
   void GenerateArgumentsLength(ZoneList<Expression*>* args);
   void GenerateArgumentsAccess(ZoneList<Expression*>* args);
 
-  // Support for accessing the value field of an object (used by Date).
+  // Support for accessing the class and value fields of an object.
+  void GenerateClassOf(ZoneList<Expression*>* args);
   void GenerateValueOf(ZoneList<Expression*>* args);
   void GenerateSetValueOf(ZoneList<Expression*>* args);
 

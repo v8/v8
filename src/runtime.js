@@ -394,7 +394,7 @@ function APPLY_PREPARE(args) {
   // First check whether length is a positive Smi and args is an
   // array. This is the fast case. If this fails, we do the slow case
   // that takes care of more eventualities.
-  if (%_IsArray(args)) {
+  if (IS_ARRAY(args)) {
     length = args.length;
     if (%_IsSmi(length) && length >= 0 && length < 0x800000 && IS_FUNCTION(this)) {
       return length;
@@ -415,9 +415,7 @@ function APPLY_PREPARE(args) {
   }
 
   // Make sure the arguments list has the right type.
-  if (args != null &&
-      !%HasArrayClass(args) &&
-      !%HasArgumentsClass(args)) {
+  if (args != null && !IS_ARRAY(args) && !IS_ARGUMENTS(args)) {
     throw %MakeTypeError('apply_wrong_args', []);
   }
 

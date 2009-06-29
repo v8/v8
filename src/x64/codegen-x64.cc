@@ -3430,6 +3430,15 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
+  // TODO(X64): Optimize this like it's done on IA-32.
+  ASSERT(args->length() == 1);
+  Load(args->at(0));  // Load the object.
+  Result result = frame_->CallRuntime(Runtime::kClassOf, 1);
+  frame_->Push(&result);
+}
+
+
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   JumpTarget leave;

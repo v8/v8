@@ -3180,6 +3180,15 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 }
 
 
+void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 1);
+  LoadAndSpill(args->at(0));  // Load the object.
+  frame_->CallRuntime(Runtime::kClassOf, 1);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);

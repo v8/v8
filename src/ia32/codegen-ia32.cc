@@ -5022,6 +5022,70 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  JumpTarget leave, null, function, non_function_constructor;
+  Load(args->at(0));  // Load the object.
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  frame_->Spill(obj.reg());
+
+  // If the object is a smi, we return null.
+  __ test(obj.reg(), Immediate(kSmiTagMask));
+  null.Branch(zero);
+
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  { Result tmp = allocator()->Allocate();
+    __ mov(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+    __ movzx_b(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
+    __ cmp(tmp.reg(), FIRST_JS_OBJECT_TYPE);
+    null.Branch(less);
+
+    // As long as JS_FUNCTION_TYPE is the last instance type and it is
+    // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+    // LAST_JS_OBJECT_TYPE.
+    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+    __ cmp(tmp.reg(), JS_FUNCTION_TYPE);
+    function.Branch(equal);
+  }
+
+  // Check if the constructor in the map is a function.
+  { Result tmp = allocator()->Allocate();
+    __ mov(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
+    __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, tmp.reg());
+    non_function_constructor.Branch(not_equal);
+  }
+
+  // The map register now contains the constructor function. Grab the
+  // instance class name from there.
+  __ mov(obj.reg(),
+         FieldOperand(obj.reg(), JSFunction::kSharedFunctionInfoOffset));
+  __ mov(obj.reg(),
+         FieldOperand(obj.reg(), SharedFunctionInfo::kInstanceClassNameOffset));
+  frame_->Push(&obj);
+  leave.Jump();
+
+  // Functions have class 'Function'.
+  function.Bind();
+  frame_->Push(Factory::function_class_symbol());
+  leave.Jump();
+
+  // Objects with a non-function constructor have class 'Object'.
+  non_function_constructor.Bind();
+  frame_->Push(Factory::Object_symbol());
+  leave.Jump();
+
+  // Non-JS objects have class null.
+  null.Bind();
+  frame_->Push(Factory::null_value());
+
+  // All done.
+  leave.Bind();
+}
+
+
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   JumpTarget leave;
