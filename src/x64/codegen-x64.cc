@@ -4137,39 +4137,6 @@ void CodeGenerator::LoadTypeofExpression(Expression* x) {
 }
 
 
-class CompareStub: public CodeStub {
- public:
-  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Condition cc_;
-  bool strict_;
-
-  Major MajorKey() { return Compare; }
-
-  int MinorKey() {
-    // Encode the three parameters in a unique 16 bit value.
-    ASSERT(static_cast<int>(cc_) < (1 << 15));
-    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
-  }
-
-  // Branch to the label if the given object isn't a symbol.
-  void BranchIfNonSymbol(MacroAssembler* masm,
-                         Label* label,
-                         Register object);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("CompareStub (cc %d), (strict %s)\n",
-           static_cast<int>(cc_),
-           strict_ ? "true" : "false");
-  }
-#endif
-};
-
-
 void CodeGenerator::Comparison(Condition cc,
                                bool strict,
                                ControlDestination* dest) {
@@ -5664,8 +5631,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Fast negative check for symbol-to-symbol equality.
   __ bind(&check_for_symbols);
   if (cc_ == equal) {
-    BranchIfNonSymbol(masm, &call_builtin, rax);
-    BranchIfNonSymbol(masm, &call_builtin, rdx);
+    BranchIfNonSymbol(masm, &call_builtin, rax, kScratchRegister);
+    BranchIfNonSymbol(masm, &call_builtin, rdx, kScratchRegister);
 
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register rax already holds a
@@ -5708,14 +5675,15 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
 void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
                                     Label* label,
-                                    Register object) {
+                                    Register object,
+                                    Register scratch) {
   __ testl(object, Immediate(kSmiTagMask));
   __ j(zero, label);
-  __ movq(kScratchRegister, FieldOperand(object, HeapObject::kMapOffset));
-  __ movzxbq(kScratchRegister,
-             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
-  __ and_(kScratchRegister, Immediate(kIsSymbolMask | kIsNotStringMask));
-  __ cmpb(kScratchRegister, Immediate(kSymbolTag | kStringTag));
+  __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzxbq(scratch,
+             FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(kIsSymbolMask | kIsNotStringMask));
+  __ cmpb(scratch, Immediate(kSymbolTag | kStringTag));
   __ j(not_equal, label);
 }
 
