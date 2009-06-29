@@ -77,7 +77,7 @@ Operand::Operand(Register base, int32_t disp): rex_(0) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(kTimes1, rsp, base);
+    set_sib(times_1, rsp, base);
   }
 
   if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
@@ -113,20 +113,20 @@ Operand::Operand(Register base,
 }
 
 
-// Safe default is no features.
-// TODO(X64): Safe defaults include SSE2 for X64.
-uint64_t CpuFeatures::supported_ = 0;
+// The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
+//   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
+uint64_t CpuFeatures::supported_ = kDefaultCpuFeatures;
 uint64_t CpuFeatures::enabled_ = 0;
 
 void CpuFeatures::Probe()  {
   ASSERT(Heap::HasBeenSetup());
-  ASSERT(supported_ == 0);
+  ASSERT(supported_ == kDefaultCpuFeatures);
   if (Serializer::enabled()) return;  // No features if we might serialize.
 
   Assembler assm(NULL, 0);
   Label cpuid, done;
 #define __ assm.
-  // Save old esp, since we are going to modify the stack.
+  // Save old rsp, since we are going to modify the stack.
   __ push(rbp);
   __ pushfq();
   __ push(rcx);
@@ -154,11 +154,11 @@ void CpuFeatures::Probe()  {
   // safe here.
   __ bind(&cpuid);
   __ movq(rax, Immediate(1));
-  supported_ = (1 << CPUID);
+  supported_ = kDefaultCpuFeatures | (1 << CPUID);
   { Scope fscope(CPUID);
     __ cpuid();
   }
-  supported_ = 0;
+  supported_ = kDefaultCpuFeatures;
 
   // Move the result from ecx:edx to rax and make sure to mark the
   // CPUID feature as supported.
@@ -187,6 +187,10 @@ void CpuFeatures::Probe()  {
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   supported_ = probe();
+  // SSE2 and CMOV must be available on an X64 CPU.
+  ASSERT(IsSupported(CPUID));
+  ASSERT(IsSupported(SSE2));
+  ASSERT(IsSupported(CMOV));
 }
 
 // -----------------------------------------------------------------------------
@@ -341,8 +345,9 @@ void Assembler::GrowBuffer() {
 #endif
 
   // copy the data
-  int pc_delta = desc.buffer - buffer_;
-  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
+  intptr_t pc_delta = desc.buffer - buffer_;
+  intptr_t rc_delta = (desc.buffer + desc.buffer_size) -
+      (buffer_ + buffer_size_);
   memmove(desc.buffer, buffer_, desc.instr_size);
   memmove(rc_delta + reloc_info_writer.pos(),
           reloc_info_writer.pos(), desc.reloc_size);
@@ -365,11 +370,8 @@ void Assembler::GrowBuffer() {
   // relocate runtime entries
   for (RelocIterator it(desc); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
-    if (rmode == RelocInfo::RUNTIME_ENTRY) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
-      *p -= pc_delta;  // relocate entry
-    } else if (rmode == RelocInfo::INTERNAL_REFERENCE) {
-      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+    if (rmode == RelocInfo::INTERNAL_REFERENCE) {
+      intptr_t* p = reinterpret_cast<intptr_t*>(it.rinfo()->pc());
       if (*p != 0) {  // 0 means uninitialized.
         *p += pc_delta;
       }
@@ -502,14 +504,30 @@ void Assembler::immediate_arithmetic_op_32(byte subcode,
 
 
 void Assembler::immediate_arithmetic_op_8(byte subcode,
-                                           const Operand& dst,
-                                           Immediate src) {
+                                          const Operand& dst,
+                                          Immediate src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(dst);
-  ASSERT(is_int8(src.value_));
+  ASSERT(is_int8(src.value_) || is_uint8(src.value_));
   emit(0x80);
   emit_operand(subcode, dst);
+  emit(src.value_);
+}
+
+
+void Assembler::immediate_arithmetic_op_8(byte subcode,
+                                          Register dst,
+                                          Immediate src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.code() > 3) {
+    // Use 64-bit mode byte registers.
+    emit_rex_64(dst);
+  }
+  ASSERT(is_int8(src.value_) || is_uint8(src.value_));
+  emit(0x80);
+  emit_modrm(subcode, dst);
   emit(src.value_);
 }
 
@@ -610,6 +628,57 @@ void Assembler::call(const Operand& op) {
   emit(0xFF);
   emit_operand(2, op);
 }
+
+
+void Assembler::cmovq(Condition cc, Register dst, Register src) {
+  // No need to check CpuInfo for CMOV support, it's a required part of the
+  // 64-bit architecture.
+  ASSERT(cc >= 0);  // Use mov for unconditional moves.
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: REX.W 0f 40 + cc /r
+  emit_rex_64(dst, src);
+  emit(0x0f);
+  emit(0x40 + cc);
+  emit_modrm(dst, src);
+}
+
+
+void Assembler::cmovq(Condition cc, Register dst, const Operand& src) {
+  ASSERT(cc >= 0);
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: REX.W 0f 40 + cc /r
+  emit_rex_64(dst, src);
+  emit(0x0f);
+  emit(0x40 + cc);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::cmovl(Condition cc, Register dst, Register src) {
+  ASSERT(cc >= 0);
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: 0f 40 + cc /r
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x40 + cc);
+  emit_modrm(dst, src);
+}
+
+
+void Assembler::cmovl(Condition cc, Register dst, const Operand& src) {
+  ASSERT(cc >= 0);
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode: 0f 40 + cc /r
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x40 + cc);
+  emit_operand(dst, src);
+}
+
 
 
 void Assembler::cpuid() {
@@ -1038,6 +1107,15 @@ void Assembler::movsxlq(Register dst, Register src) {
   emit_rex_64(dst, src);
   emit(0x63);
   emit_modrm(dst, src);
+}
+
+
+void Assembler::movsxlq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x63);
+  emit_operand(dst, src);
 }
 
 
@@ -1754,11 +1832,180 @@ void Assembler::fnclex() {
 }
 
 
+void Assembler::sahf() {
+  // TODO(X64): Test for presence. Not all 64-bit intel CPU's have sahf
+  // in 64-bit mode. Test CpuID.
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x9E);
+}
+
+
 void Assembler::emit_farith(int b1, int b2, int i) {
   ASSERT(is_uint8(b1) && is_uint8(b2));  // wrong opcode
   ASSERT(is_uint3(i));  // illegal stack offset
   emit(b1);
   emit(b2 + i);
+}
+
+// SSE 2 operations
+
+void Assembler::movsd(const Operand& dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);  // double
+  emit_optional_rex_32(src, dst);
+  emit(0x0F);
+  emit(0x11);  // store
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movsd(Register dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);  // double
+  emit_optional_rex_32(src, dst);
+  emit(0x0F);
+  emit(0x11);  // store
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movsd(XMMRegister dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);  // double
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x10);  // load
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movsd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);  // double
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x10);  // load
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvttss2si(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF3);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x2C);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::cvttsd2si(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x2C);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::cvtlsi2sd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvtlsi2sd(XMMRegister dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::cvtqsi2sd(XMMRegister dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::addsd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x58);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::mulsd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x59);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::subsd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x5C);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::divsd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x5E);
+  emit_sse_operand(dst, src);
+}
+
+
+
+void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
+  Register ireg = { reg.code() };
+  emit_operand(ireg, adr);
+}
+
+
+void Assembler::emit_sse_operand(XMMRegister dst, XMMRegister src) {
+  emit(0xC0 | (dst.code() << 3) | src.code());
+}
+
+void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
+  emit(0xC0 | (dst.code() << 3) | src.code());
 }
 
 
@@ -1825,9 +2072,7 @@ void Assembler::WriteRecordedPositions() {
 }
 
 
-const int RelocInfo::kApplyMask =
-  RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
-    1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE;
+const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
 
 
 } }  // namespace v8::internal

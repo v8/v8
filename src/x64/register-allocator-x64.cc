@@ -71,4 +71,14 @@ void Result::ToRegister(Register target) {
 }
 
 
+// -------------------------------------------------------------------------
+// RegisterAllocator implementation.
+
+Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
+  // This function is not used in 64-bit code.
+  UNREACHABLE();
+  return Result();
+}
+
+
 } }  // namespace v8::internal

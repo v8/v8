@@ -309,6 +309,12 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 }
 
 
+void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
+  Move(kScratchRegister, source);
+  cmpq(dst, kScratchRegister);
+}
+
+
 void MacroAssembler::Push(Handle<Object> source) {
   Move(kScratchRegister, source);
   push(kScratchRegister);
@@ -331,7 +337,15 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   WriteRecordedPositions();
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   movq(kScratchRegister, code_object, rmode);
+#ifdef DEBUG
+  Label target;
+  bind(&target);
+#endif
   jmp(kScratchRegister);
+#ifdef DEBUG
+  ASSERT_EQ(kTargetAddrToReturnAddrDist,
+            SizeOfCodeGeneratedSince(&target) + kPointerSize);
+#endif
 }
 
 
@@ -403,6 +417,16 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 
 void MacroAssembler::Ret() {
   ret(0);
+}
+
+
+void MacroAssembler::FCmp() {
+  fcompp();
+  push(rax);
+  fnstsw_ax();
+  // TODO(X64): Check that sahf is safe to use, using CPUProbe.
+  sahf();
+  pop(rax);
 }
 
 
@@ -544,6 +568,36 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
+  bool resolved;
+  Handle<Code> code = ResolveBuiltin(id, &resolved);
+
+  // Calls are not allowed in some stubs.
+  ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
+
+  // Rely on the assertion to check that the number of provided
+  // arguments match the expected number of arguments. Fake a
+  // parameter count to avoid emitting code to do the check.
+  ParameterCount expected(0);
+  InvokeCode(Handle<Code>(code), expected, expected,
+             RelocInfo::CODE_TARGET, flag);
+
+  const char* name = Builtins::GetName(id);
+  int argc = Builtins::GetArgumentsCount(id);
+  // The target address for the jump is stored as an immediate at offset
+  // kInvokeCodeAddressOffset.
+  if (!resolved) {
+    uint32_t flags =
+        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
+        Bootstrapper::FixupFlagsUseCodeObject::encode(false);
+    Unresolved entry =
+        { pc_offset() - kTargetAddrToReturnAddrDist, flags, name };
+    unresolved_.Add(entry);
+  }
+}
+
+
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     Handle<Code> code_constant,
@@ -610,8 +664,6 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 }
 
 
-
-
 void MacroAssembler::InvokeCode(Register code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
@@ -636,12 +688,11 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
   Label done;
   Register dummy = rax;
   InvokePrologue(expected, actual, code, dummy, &done, flag);
-  movq(kScratchRegister, code, rmode);
   if (flag == CALL_FUNCTION) {
-    call(kScratchRegister);
+    Call(code, rmode);
   } else {
     ASSERT(flag == JUMP_FUNCTION);
-    jmp(kScratchRegister);
+    Jump(code, rmode);
   }
   bind(&done);
 }
@@ -653,7 +704,8 @@ void MacroAssembler::InvokeFunction(Register function,
   ASSERT(function.is(rdi));
   movq(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movq(rsi, FieldOperand(function, JSFunction::kContextOffset));
-  movl(rbx, FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+  movsxlq(rbx,
+          FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
   movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
   // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
@@ -721,7 +773,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r15, Operand(rbp, rdi, kTimesPointerSize, offset));
+  lea(r15, Operand(rbp, rdi, times_pointer_size, offset));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory

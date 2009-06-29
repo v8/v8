@@ -6357,8 +6357,8 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
     int n, HashTableKey* key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
-  // Make sure 25% is free
-  if (nof + (nof >> 2) <= capacity) return this;
+  // Make sure 50% is free
+  if (nof + (nof >> 1) <= capacity) return this;
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;

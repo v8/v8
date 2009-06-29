@@ -507,8 +507,7 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateConsString(String* first,
-                                    String* second);
+  static Object* AllocateConsString(String* first, String* second);
 
   // Allocates a new sliced string object which is a slice of an underlying
   // string buffer stretching from the index start (inclusive) to the index

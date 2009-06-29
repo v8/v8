@@ -29,6 +29,7 @@
 #define V8_X64_ASSEMBLER_X64_INL_H_
 
 #include "cpu.h"
+#include "memory.h"
 
 namespace v8 {
 namespace internal {
@@ -74,8 +75,18 @@ void Assembler::emit_rex_64(Register reg, Register rm_reg) {
 }
 
 
+void Assembler::emit_rex_64(XMMRegister reg, Register rm_reg) {
+  emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
+}
+
+
 void Assembler::emit_rex_64(Register reg, const Operand& op) {
   emit(0x48 | reg.high_bit() << 2 | op.rex_);
+}
+
+
+void Assembler::emit_rex_64(XMMRegister reg, const Operand& op) {
+  emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
 }
 
 
@@ -122,6 +133,24 @@ void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
 }
 
 
+void Assembler::emit_optional_rex_32(XMMRegister reg, const Operand& op) {
+  byte rex_bits =  (reg.code() & 0x8) >> 1 | op.rex_;
+  if (rex_bits != 0) emit(0x40 | rex_bits);
+}
+
+
+void Assembler::emit_optional_rex_32(XMMRegister reg, XMMRegister base) {
+  byte rex_bits =  (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
+  if (rex_bits != 0) emit(0x40 | rex_bits);
+}
+
+
+void Assembler::emit_optional_rex_32(XMMRegister reg, Register base) {
+  byte rex_bits =  (reg.code() & 0x8) >> 1 | (base.code() & 0x8) >> 3;
+  if (rex_bits != 0) emit(0x40 | rex_bits);
+}
+
+
 void Assembler::emit_optional_rex_32(Register rm_reg) {
   if (rm_reg.high_bit()) emit(0x41);
 }
@@ -147,11 +176,8 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 // Implementation of RelocInfo
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(int delta) {
-  if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
-    intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
-    *p -= delta;  // relocate entry
-  } else if (IsInternalReference(rmode_)) {
+void RelocInfo::apply(intptr_t delta) {
+  if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     intptr_t* p = reinterpret_cast<intptr_t*>(pc_);
     *p += delta;  // relocate entry

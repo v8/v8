@@ -31,12 +31,12 @@
 #include "ic-inl.h"
 #include "codegen-inl.h"
 #include "stub-cache.h"
+#include "macro-assembler-x64.h"
 
 namespace v8 {
 namespace internal {
 
-
-#define __ ACCESS_MASM(masm())
+#define __ ACCESS_MASM((&masm_))
 
 
 Object* CallStubCompiler::CompileCallConstant(Object* a,
@@ -147,7 +147,6 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 
   return GetCodeWithFlags(flags, "LazyCompileStub");
 }
-
 
 #undef __
 

@@ -1639,6 +1639,9 @@ class FixedArray: public Array {
   // Garbage collection support.
   static int SizeFor(int length) { return kHeaderSize + length * kPointerSize; }
 
+  // Code Generation support.
+  static int OffsetOfElementAt(int index) { return SizeFor(index); }
+
   // Casting.
   static inline FixedArray* cast(Object* obj);
 

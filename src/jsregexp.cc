@@ -421,7 +421,10 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   last_match_info->EnsureSize(number_of_capture_registers + kLastMatchOverhead);
 
   bool rc;
-  FixedArray* array;
+  // We have to initialize this with something to make gcc happy but we can't
+  // initialize it with its real value until after the GC-causing things are
+  // over.
+  FixedArray* array = NULL;
 
   // Dispatch to the correct RegExp implementation.
   Handle<String> original_subject = subject;

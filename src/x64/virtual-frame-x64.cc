@@ -65,7 +65,7 @@ void VirtualFrame::Enter() {
 #ifdef DEBUG
   // Verify that rdi contains a JS function.  The following code
   // relies on rax being available for use.
-  __ testq(rdi, Immediate(kSmiTagMask));
+  __ testl(rdi, Immediate(kSmiTagMask));
   __ Check(not_zero,
            "VirtualFrame::Enter - rdi is not a function (smi check).");
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
@@ -197,6 +197,14 @@ void VirtualFrame::EmitPush(Immediate immediate) {
 }
 
 
+void VirtualFrame::EmitPush(Handle<Object> value) {
+  ASSERT(stack_pointer_ == element_count() - 1);
+  elements_.Add(FrameElement::MemoryElement());
+  stack_pointer_++;
+  __ Push(value);
+}
+
+
 void VirtualFrame::Drop(int count) {
   ASSERT(height() >= count);
   int num_virtual_elements = (element_count() - 1) - stack_pointer_;
@@ -273,6 +281,45 @@ int VirtualFrame::InvalidateFrameSlotAt(int index) {
     }
   }
   return new_backing_index;
+}
+
+
+void VirtualFrame::TakeFrameSlotAt(int index) {
+  ASSERT(index >= 0);
+  ASSERT(index <= element_count());
+  FrameElement original = elements_[index];
+  int new_backing_store_index = InvalidateFrameSlotAt(index);
+  if (new_backing_store_index != kIllegalIndex) {
+    elements_.Add(CopyElementAt(new_backing_store_index));
+    return;
+  }
+
+  switch (original.type()) {
+    case FrameElement::MEMORY: {
+      // Emit code to load the original element's data into a register.
+      // Push that register as a FrameElement on top of the frame.
+      Result fresh = cgen()->allocator()->Allocate();
+      ASSERT(fresh.is_valid());
+      FrameElement new_element =
+          FrameElement::RegisterElement(fresh.reg(),
+                                        FrameElement::NOT_SYNCED);
+      Use(fresh.reg(), element_count());
+      elements_.Add(new_element);
+      __ movq(fresh.reg(), Operand(rbp, fp_relative(index)));
+      break;
+    }
+    case FrameElement::REGISTER:
+      Use(original.reg(), element_count());
+      // Fall through.
+    case FrameElement::CONSTANT:
+    case FrameElement::COPY:
+      original.clear_sync();
+      elements_.Add(original);
+      break;
+    case FrameElement::INVALID:
+      UNREACHABLE();
+      break;
+  }
 }
 
 
@@ -432,8 +479,7 @@ void VirtualFrame::MakeMergable() {
           }
         }
       }
-      // No need to set the copied flag---there are no copies.
-      elements_[i].set_static_type(StaticType::unknown());
+      // No need to set the copied flag --- there are no copies.
     } else {
       // Clear the copy flag of non-constant, non-copy elements.
       // They cannot be copied because copies are not allowed.
@@ -651,7 +697,6 @@ Result VirtualFrame::Pop() {
     if (element.is_memory()) {
       Result temp = cgen()->allocator()->Allocate();
       ASSERT(temp.is_valid());
-      temp.set_static_type(element.static_type());
       __ pop(temp.reg());
       return temp;
     }
@@ -683,12 +728,11 @@ Result VirtualFrame::Pop() {
         FrameElement::RegisterElement(temp.reg(), FrameElement::SYNCED);
     // Preserve the copy flag on the element.
     if (element.is_copied()) new_element.set_copied();
-    new_element.set_static_type(element.static_type());
     elements_[index] = new_element;
     __ movq(temp.reg(), Operand(rbp, fp_relative(index)));
-    return Result(temp.reg(), element.static_type());
+    return Result(temp.reg());
   } else if (element.is_register()) {
-    return Result(element.reg(), element.static_type());
+    return Result(element.reg());
   } else {
     ASSERT(element.is_constant());
     return Result(element.handle());
@@ -702,6 +746,39 @@ Result VirtualFrame::RawCallStub(CodeStub* stub) {
   Result result = cgen()->allocator()->Allocate(rax);
   ASSERT(result.is_valid());
   return result;
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+  PrepareForCall(0, 0);
+  arg->ToRegister(rax);
+  arg->Unuse();
+  return RawCallStub(stub);
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
+  PrepareForCall(0, 0);
+
+  if (arg0->is_register() && arg0->reg().is(rax)) {
+    if (arg1->is_register() && arg1->reg().is(rdx)) {
+      // Wrong registers.
+      __ xchg(rax, rdx);
+    } else {
+      // Register rdx is free for arg0, which frees rax for arg1.
+      arg0->ToRegister(rdx);
+      arg1->ToRegister(rax);
+    }
+  } else {
+    // Register rax is free for arg1, which guarantees rdx is free for
+    // arg0.
+    arg1->ToRegister(rax);
+    arg0->ToRegister(rdx);
+  }
+
+  arg0->Unuse();
+  arg1->Unuse();
+  return RawCallStub(stub);
 }
 
 
@@ -809,6 +886,19 @@ void VirtualFrame::SyncRange(int begin, int end) {
   }
 }
 
+
+Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeFlag flag,
+                                   int arg_count) {
+  PrepareForCall(arg_count, arg_count);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ InvokeBuiltin(id, flag);
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
 //------------------------------------------------------------------------------
 // Virtual frame stub and IC calling functions.
 
@@ -893,6 +983,30 @@ Result VirtualFrame::CallCallIC(RelocInfo::Mode mode,
 }
 
 
+Result VirtualFrame::CallConstructor(int arg_count) {
+  // Arguments, receiver, and function are on top of the frame.  The
+  // IC expects arg count in rax, function in rdi, and the arguments
+  // and receiver on the stack.
+  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  // Duplicate the function before preparing the frame.
+  PushElementAt(arg_count + 1);
+  Result function = Pop();
+  PrepareForCall(arg_count + 1, arg_count + 1);  // Spill args and receiver.
+  function.ToRegister(rdi);
+
+  // Constructors are called with the number of arguments in register
+  // eax for now. Another option would be to have separate construct
+  // call trampolines per different arguments counts encountered.
+  Result num_args = cgen()->allocator()->Allocate(rax);
+  ASSERT(num_args.is_valid());
+  __ movq(num_args.reg(), Immediate(arg_count));
+
+  function.Unuse();
+  num_args.Unuse();
+  return RawCallCodeObject(ic, RelocInfo::CONSTRUCT_CALL);
+}
+
+
 Result VirtualFrame::CallStoreIC() {
   // Name, value, and receiver are on top of the frame.  The IC
   // expects name in rcx, value in rax, and receiver on the stack.  It
@@ -921,6 +1035,15 @@ Result VirtualFrame::CallStoreIC() {
   name.Unuse();
   value.Unuse();
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
+}
+
+
+void VirtualFrame::PushTryHandler(HandlerType type) {
+  ASSERT(cgen()->HasValidEntryRegisters());
+  // Grow the expression stack by handler size less one (the return
+  // address is already pushed by a call instruction).
+  Adjust(kHandlerSize - 1);
+  __ PushTryHandler(IN_JAVASCRIPT, type);
 }
 
 

@@ -654,6 +654,12 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_INT_FIELD(p, offset, value) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_INTPTR_FIELD(p, offset) \
+  (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_INTPTR_FIELD(p, offset, value) \
+  (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_UINT32_FIELD(p, offset) \
   (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)))
 
@@ -2303,12 +2309,12 @@ void JSBuiltinsObject::set_javascript_builtin(Builtins::JavaScript id,
 
 
 Address Proxy::proxy() {
-  return AddressFrom<Address>(READ_INT_FIELD(this, kProxyOffset));
+  return AddressFrom<Address>(READ_INTPTR_FIELD(this, kProxyOffset));
 }
 
 
 void Proxy::set_proxy(Address value) {
-  WRITE_INT_FIELD(this, kProxyOffset, OffsetFrom(value));
+  WRITE_INTPTR_FIELD(this, kProxyOffset, OffsetFrom(value));
 }
 
 
