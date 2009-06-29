@@ -79,10 +79,12 @@ void KeyedLoadIC::Generate(MacroAssembler* masm,
 
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC0AB));  // Debugging aid.
 }
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC1AB));  // Debugging aid.
 }
 
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
@@ -162,10 +164,12 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
 void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC2AB));  // Debugging aid.
 }
 
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC3AB));  // Debugging aid.
 }
 
 Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
@@ -265,26 +269,32 @@ void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC4AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC5AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC6AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC7AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC8AB));  // Debugging aid.
 }
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xC9AB));  // Debugging aid.
 }
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
@@ -312,10 +322,12 @@ void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xCAAB));  // Debugging aid.
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   masm->int3();  // UNIMPLEMENTED.
+  masm->movq(kScratchRegister, Immediate(0xCBAB));  // Debugging aid.
 }
 
 

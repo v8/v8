@@ -2301,7 +2301,8 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // the target, with an implicit promise that it will be written to again
       // before it is read.
       // TODO(X64): Implement TakeValue optimization.
-      if (false && literal != NULL || (right_var != NULL && right_var != var)) {
+      if (false) {
+        // if (literal != NULL || (right_var != NULL && right_var != var)) {
         // target.TakeValue(NOT_INSIDE_TYPEOF);
       } else {
         target.GetValue(NOT_INSIDE_TYPEOF);
@@ -3342,7 +3343,9 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
+  // TODO(X64): Implement this function.
+  // Ignore arguments and return undefined, to signal failure.
+  frame_->Push(Factory::undefined_value());
 }
 
 
@@ -3371,9 +3374,26 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateLog(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
+  // Conditionally generate a log call.
+  // Args:
+  //   0 (literal string): The type of logging (corresponds to the flags).
+  //     This is used to determine whether or not to generate the log call.
+  //   1 (string): Format string.  Access the string at argument index 2
+  //     with '%2s' (see Logger::LogRuntime for all the formats).
+  //   2 (array): Arguments to the format string.
+  ASSERT_EQ(args->length(), 3);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (ShouldGenerateLog(args->at(0))) {
+    Load(args->at(1));
+    Load(args->at(2));
+    frame_->CallRuntime(Runtime::kLog, 2);
+  }
+#endif
+  // Finally, we're expected to leave a value on the top of the stack.
+  frame_->Push(Factory::undefined_value());
 }
+
 
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
@@ -3446,8 +3466,28 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  ASSERT(args->length() == 1);
+  JumpTarget leave;
+  Load(args->at(0));  // Load the object.
+  frame_->Dup();
+  Result object = frame_->Pop();
+  object.ToRegister();
+  ASSERT(object.is_valid());
+  // if (object->IsSmi()) return object.
+  __ testl(object.reg(), Immediate(kSmiTagMask));
+  leave.Branch(zero);
+  // It is a heap object - get map.
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  // if (!object->IsJSValue()) return object.
+  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, temp.reg());
+  leave.Branch(not_equal);
+  __ movq(temp.reg(), FieldOperand(object.reg(), JSValue::kValueOffset));
+  object.Unuse();
+  frame_->SetElementAt(0, &temp);
+  leave.Bind();
 }
+
 
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation of Expressions
