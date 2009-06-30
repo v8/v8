@@ -172,6 +172,23 @@ Object* StubCache::ComputeLoadNormal(String* name, JSObject* receiver) {
 }
 
 
+Object* StubCache::ComputeLoadGlobal(String* name,
+                                     JSGlobalObject* receiver,
+                                     JSGlobalPropertyCell* cell) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
+  if (code->IsUndefined()) {
+    LoadStubCompiler compiler;
+    code = compiler.CompileLoadGlobal(receiver, cell, name);
+    if (code->IsFailure()) return code;
+    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    if (result->IsFailure()) return code;
+  }
+  return Set(name, receiver->map(), Code::cast(code));
+}
+
+
 Object* StubCache::ComputeKeyedLoadField(String* name,
                                          JSObject* receiver,
                                          JSObject* holder,
@@ -312,6 +329,23 @@ Object* StubCache::ComputeStoreField(String* name,
     LOG(CodeCreateEvent(Logger::STORE_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
+  }
+  return Set(name, receiver->map(), Code::cast(code));
+}
+
+
+Object* StubCache::ComputeStoreGlobal(String* name,
+                                      JSGlobalObject* receiver,
+                                      JSGlobalPropertyCell* cell) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, NORMAL);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
+  if (code->IsUndefined()) {
+    StoreStubCompiler compiler;
+    code = compiler.CompileStoreGlobal(receiver, cell, name);
+    if (code->IsFailure()) return code;
+    LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
+    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    if (result->IsFailure()) return code;
   }
   return Set(name, receiver->map(), Code::cast(code));
 }
@@ -492,6 +526,31 @@ Object* StubCache::ComputeCallNormal(int argc,
                                      JSObject* receiver) {
   Object* code = ComputeCallNormal(argc, in_loop);
   if (code->IsFailure()) return code;
+  return Set(name, receiver->map(), Code::cast(code));
+}
+
+
+Object* StubCache::ComputeCallGlobal(int argc,
+                                     InLoopFlag in_loop,
+                                     String* name,
+                                     JSGlobalObject* receiver,
+                                     JSGlobalPropertyCell* cell,
+                                     JSFunction* function) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC, NORMAL);
+  Object* code = receiver->map()->FindInCodeCache(name, flags);
+  if (code->IsUndefined()) {
+    // If the function hasn't been compiled yet, we cannot do it now
+    // because it may cause GC. To avoid this issue, we return an
+    // internal error which will make sure we do not update any
+    // caches.
+    if (!function->is_compiled()) return Failure::InternalError();
+    CallStubCompiler compiler(argc);
+    code = compiler.CompileCallGlobal(receiver, cell, function, name);
+    if (code->IsFailure()) return code;
+    LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
+    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
+    if (result->IsFailure()) return code;
+  }
   return Set(name, receiver->map(), Code::cast(code));
 }
 

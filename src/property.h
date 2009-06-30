@@ -230,6 +230,7 @@ class LookupResult BASE_EMBEDDED {
   bool IsReadOnly() { return details_.IsReadOnly(); }
   bool IsDontDelete() { return details_.IsDontDelete(); }
   bool IsDontEnum() { return details_.IsDontEnum(); }
+  bool IsDeleted() { return details_.IsDeleted(); }
 
   bool IsValid() { return  lookup_type_ != NOT_FOUND; }
   bool IsNotFound() { return lookup_type_ == NOT_FOUND; }
@@ -256,8 +257,14 @@ class LookupResult BASE_EMBEDDED {
     switch (type()) {
       case FIELD:
         return holder()->FastPropertyAt(GetFieldIndex());
-      case NORMAL:
-        return holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+      case NORMAL: {
+        Object* value;
+        value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+        if (holder()->IsJSGlobalObject()) {
+          value = JSGlobalPropertyCell::cast(value)->value();
+        }
+        return value;
+      }
       case CONSTANT_FUNCTION:
         return GetConstantFunction();
       default:
@@ -306,7 +313,7 @@ class LookupResult BASE_EMBEDDED {
     }
     // In the dictionary case, the data is held in the value field.
     ASSERT(lookup_type_ == DICTIONARY_TYPE);
-    return holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+    return holder()->GetNormalizedProperty(this);
   }
 
  private:

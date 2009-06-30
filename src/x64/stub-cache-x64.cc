@@ -67,6 +67,15 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
 
 
 
+Object* CallStubCompiler::CompileCallGlobal(JSGlobalObject* object,
+                                            JSGlobalPropertyCell* cell,
+                                            JSFunction* function,
+                                            String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
                                               JSObject* b,
                                               AccessorInfo* c,
@@ -102,6 +111,14 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
 }
 
 
+Object* LoadStubCompiler::CompileLoadGlobal(JSGlobalObject* object,
+                                            JSGlobalPropertyCell* cell,
+                                            String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
                                                 AccessorInfo* b,
                                                 String* c) {
@@ -120,6 +137,14 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* a,
 
 
 Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* StoreStubCompiler::CompileStoreGlobal(JSGlobalObject* object,
+                                              JSGlobalPropertyCell* cell,
+                                              String* name) {
   UNIMPLEMENTED();
   return NULL;
 }

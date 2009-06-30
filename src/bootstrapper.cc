@@ -580,8 +580,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
       js_global_function->initial_map()->set_is_hidden_prototype();
       SetExpectedNofProperties(js_global_function, 100);
-      object = Handle<JSGlobalObject>::cast(
-          Factory::NewJSObject(js_global_function, TENURED));
+      object = Factory::NewJSGlobalObject(js_global_function);
     }
 
     // Set the global context for the global object.
@@ -1445,6 +1444,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // Set the property.
         Handle<String> key = Handle<String>(String::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i));
+        if (value->IsJSGlobalPropertyCell()) {
+          value = Handle<Object>(JSGlobalPropertyCell::cast(*value)->value());
+        }
         PropertyDetails details = properties->DetailsAt(i);
         SetProperty(to, key, value, details.attributes());
       }

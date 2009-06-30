@@ -423,14 +423,29 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case NORMAL: {
-        // There is only one shared stub for calling normalized
-        // properties. It does not traverse the prototype chain, so the
-        // property must be found in the receiver for the stub to be
-        // applicable.
         if (!object->IsJSObject()) return;
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (lookup->holder() != *receiver) return;
-        code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
+        if (object->IsJSGlobalObject()) {
+          // The stub generated for the global object picks the value directly
+          // from the property cell. So the property must be directly on the
+          // global object.
+          Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
+          if (lookup->holder() != *global) return;
+          JSGlobalPropertyCell* cell =
+              JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
+          if (cell->value()->IsJSFunction()) {
+            JSFunction* function = JSFunction::cast(cell->value());
+            code = StubCache::ComputeCallGlobal(argc, in_loop, *name, *global,
+                                                cell, function);
+          }
+        } else {
+          // There is only one shared stub for calling normalized
+          // properties. It does not traverse the prototype chain, so the
+          // property must be found in the receiver for the stub to be
+          // applicable.
+          Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+          if (lookup->holder() != *receiver) return;
+          code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
+        }
         break;
       }
       case INTERCEPTOR: {
@@ -614,12 +629,23 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case NORMAL: {
-        // There is only one shared stub for loading normalized
-        // properties. It does not traverse the prototype chain, so the
-        // property must be found in the receiver for the stub to be
-        // applicable.
-        if (lookup->holder() != *receiver) return;
-        code = StubCache::ComputeLoadNormal(*name, *receiver);
+        if (object->IsJSGlobalObject()) {
+          // The stub generated for the global object picks the value directly
+          // from the property cell. So the property must be directly on the
+          // global object.
+          Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
+          if (lookup->holder() != *global) return;
+          JSGlobalPropertyCell* cell =
+              JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
+          code = StubCache::ComputeLoadGlobal(*name, *global, cell);
+        } else {
+          // There is only one shared stub for loading normalized
+          // properties. It does not traverse the prototype chain, so the
+          // property must be found in the receiver for the stub to be
+          // applicable.
+          if (lookup->holder() != *receiver) return;
+          code = StubCache::ComputeLoadNormal(*name, *receiver);
+        }
         break;
       }
       case CALLBACKS: {
@@ -951,6 +977,19 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
       code = StubCache::ComputeStoreField(*name, *receiver, index, *transition);
+      break;
+    }
+    case NORMAL: {
+      if (!receiver->IsJSGlobalObject()) {
+        return;
+      }
+      // The stub generated for the global object picks the value directly
+      // from the property cell. So the property must be directly on the
+      // global object.
+      Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
+      JSGlobalPropertyCell* cell =
+          JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
+      code = StubCache::ComputeStoreGlobal(*name, *global, cell);
       break;
     }
     case CALLBACKS: {

@@ -53,6 +53,13 @@ Smi* PropertyDetails::AsSmi() {
 }
 
 
+PropertyDetails PropertyDetails::AsDeleted() {
+  PropertyDetails d(DONT_ENUM, NORMAL);
+  Smi* smi = Smi::FromInt(AsSmi()->value() | DeletedField::encode(1));
+  return PropertyDetails(smi);
+}
+
+
 #define CAST_ACCESSOR(type)                     \
   type* type::cast(Object* object) {            \
     ASSERT(object->Is##type());                 \
@@ -406,6 +413,13 @@ bool Object::IsCode() {
 bool Object::IsOddball() {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == ODDBALL_TYPE;
+}
+
+
+bool Object::IsJSGlobalPropertyCell() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type()
+      == JS_GLOBAL_PROPERTY_CELL_TYPE;
 }
 
 
@@ -1046,6 +1060,8 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 
+ACCESSORS(JSGlobalPropertyCell, value, Object, kValueOffset)
+
 int JSObject::GetHeaderSize() {
   switch (map()->instance_type()) {
     case JS_GLOBAL_PROXY_TYPE:
@@ -1403,6 +1419,7 @@ CAST_ACCESSOR(Failure)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(Oddball)
+CAST_ACCESSOR(JSGlobalPropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
 CAST_ACCESSOR(Map)
 CAST_ACCESSOR(JSFunction)

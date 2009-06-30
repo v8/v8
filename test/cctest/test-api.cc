@@ -6040,6 +6040,7 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   CHECK(value->BooleanValue());
 }
 
+
 static bool NamedGetAccessBlocker(Local<v8::Object> obj,
                                   Local<Value> name,
                                   v8::AccessType type,
@@ -6093,6 +6094,7 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
   CHECK(value_2->IsUndefined());
 }
 
+
 // This tests that access check information remains on the global
 // object template when creating contexts.
 THREADED_TEST(AccessControlRepeatedContextCreation) {
@@ -6108,6 +6110,71 @@ THREADED_TEST(AccessControlRepeatedContextCreation) {
   CHECK(!constructor->access_check_info()->IsUndefined());
   v8::Persistent<Context> context0 = Context::New(NULL, global_template);
   CHECK(!constructor->access_check_info()->IsUndefined());
+}
+
+
+THREADED_TEST(TurnOnAccessCheck) {
+  v8::HandleScope handle_scope;
+
+  // Create an environment with access check to the global object disabled by
+  // default.
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedGetAccessBlocker,
+                                           IndexedGetAccessBlocker,
+                                           v8::Handle<v8::Value>(),
+                                           false);
+  v8::Persistent<Context> context = Context::New(NULL, global_template);
+  Context::Scope context_scope(context);
+
+  // Set up a property and a number of functions.
+  context->Global()->Set(v8_str("a"), v8_num(1));
+  CompileRun("function f1() {return a;}"
+             "function f2() {return a;}"
+             "function g1() {return h();}"
+             "function g2() {return h();}"
+             "function h() {return 1;}");
+  Local<Function> f1 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("f1")));
+  Local<Function> f2 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("f2")));
+  Local<Function> g1 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("g1")));
+  Local<Function> g2 =
+      Local<Function>::Cast(context->Global()->Get(v8_str("g2")));
+  Local<Function> h =
+      Local<Function>::Cast(context->Global()->Get(v8_str("h")));
+
+  // Get the global object.
+  v8::Handle<v8::Object> global = context->Global();
+
+  // Call f1 one time and f2 a number of times. This will ensure that f1 still
+  // uses the runtime system to retreive property a whereas f2 uses global load
+  // inline cache is used.
+  CHECK(!f1->Call(global, 0, NULL)->IsUndefined());
+  for (int i = 0; i < 4; i++) {
+    CHECK(!f2->Call(global, 0, NULL)->IsUndefined());
+  }
+
+  // Same for g1 and g2.
+  CHECK(!g1->Call(global, 0, NULL)->IsUndefined());
+  for (int i = 0; i < 4; i++) {
+    CHECK(!g2->Call(global, 0, NULL)->IsUndefined());
+  }
+
+  // Detach the global and turn on access check.
+  context->DetachGlobal();
+  context->Global()->TurnOnAccessCheck();
+
+  // Failing access check to property get results in undefined.
+  CHECK(f1->Call(global, 0, NULL)->IsUndefined());
+  CHECK(f2->Call(global, 0, NULL)->IsUndefined());
+
+  // Failing access check to function call results in exception.
+  CHECK(g1->Call(global, 0, NULL).IsEmpty());
+  CHECK(g2->Call(global, 0, NULL).IsEmpty());
+
+  // No failing access check when just returning a constant.
+  CHECK(h->Call(global, 0, NULL)->Equals(v8_num(1)));
 }
 
 

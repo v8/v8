@@ -1070,6 +1070,11 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   oddball_map_ = Map::cast(obj);
 
+  obj = AllocatePartialMap(JS_GLOBAL_PROPERTY_CELL_TYPE,
+                           JSGlobalPropertyCell::kSize);
+  if (obj->IsFailure()) return false;
+  global_property_cell_map_ = Map::cast(obj);
+
   // Allocate the empty array
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
@@ -1095,6 +1100,10 @@ bool Heap::CreateInitialMaps() {
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
   oddball_map()->set_code_cache(empty_fixed_array());
 
+  global_property_cell_map()->set_instance_descriptors(
+      empty_descriptor_array());
+  global_property_cell_map()->set_code_cache(empty_fixed_array());
+
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
   meta_map()->set_constructor(null_value());
@@ -1103,6 +1112,9 @@ bool Heap::CreateInitialMaps() {
   fixed_array_map()->set_constructor(null_value());
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
+
+  global_property_cell_map()->set_prototype(null_value());
+  global_property_cell_map()->set_constructor(null_value());
 
   obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   if (obj->IsFailure()) return false;
@@ -1226,6 +1238,17 @@ Object* Heap::AllocateHeapNumber(double value) {
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
+  return result;
+}
+
+
+Object* Heap::AllocateJSGlobalPropertyCell(Object* value) {
+  Object* result = AllocateRaw(JSGlobalPropertyCell::kSize,
+                               OLD_POINTER_SPACE,
+                               OLD_POINTER_SPACE);
+  if (result->IsFailure()) return result;
+  HeapObject::cast(result)->set_map(global_property_cell_map());
+  JSGlobalPropertyCell::cast(result)->set_value(value);
   return result;
 }
 
@@ -2055,7 +2078,34 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
     Map::cast(initial_map)->set_constructor(constructor);
   }
   // Allocate the object based on the constructors initial map.
-  return AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+  Object* result =
+      AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+  // Make sure result is NOT a JS global object if valid.
+  ASSERT(result->IsFailure() || !result->IsJSGlobalObject());
+  return result;
+}
+
+
+Object* Heap::AllocateJSGlobalObject(JSFunction* constructor) {
+  ASSERT(constructor->has_initial_map());
+  // Make sure no field properties are described in the initial map.
+  // This guarantees us that normalizing the properties does not
+  // require us to change property values to JSGlobalPropertyCells.
+  ASSERT(constructor->initial_map()->NextFreePropertyIndex() == 0);
+
+  // Allocate the object based on the constructors initial map.
+  Object* result = AllocateJSObjectFromMap(constructor->initial_map(), TENURED);
+  if (result->IsFailure()) return result;
+
+  // Normalize the result.
+  JSObject* global = JSObject::cast(result);
+  result = global->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  if (result->IsFailure()) return result;
+
+  // Make sure result is a JS global object with properties in dictionary.
+  ASSERT(global->IsJSGlobalObject());
+  ASSERT(!global->HasFastProperties());
+  return global;
 }
 
 

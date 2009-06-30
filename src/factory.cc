@@ -619,6 +619,14 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 }
 
 
+Handle<JSGlobalObject> Factory::NewJSGlobalObject(
+    Handle<JSFunction> constructor) {
+  CALL_HEAP_FUNCTION(Heap::AllocateJSGlobalObject(*constructor),
+                     JSGlobalObject);
+}
+
+
+
 Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
   CALL_HEAP_FUNCTION(Heap::AllocateJSObjectFromMap(*map, NOT_TENURED),
                      JSObject);
