@@ -115,17 +115,17 @@ static void TraceInterpreter(const byte* code_base,
 }
 
 
-#define BYTECODE(name)                                  \
-  case BC_##name:                                       \
-    TraceInterpreter(code_base,                         \
-                     pc,                                \
-                     backtrack_sp - backtrack_stack,    \
-                     current,                           \
-                     current_char,                      \
-                     BC_##name##_LENGTH,                \
+#define BYTECODE(name)                                    \
+  case BC_##name:                                         \
+    TraceInterpreter(code_base,                           \
+                     pc,                                  \
+                     backtrack_sp - backtrack_stack_base, \
+                     current,                             \
+                     current_char,                        \
+                     BC_##name##_LENGTH,                  \
                      #name);
 #else
-#define BYTECODE(name)                                  \
+#define BYTECODE(name)                                    \
   case BC_##name:
 #endif
 
@@ -150,9 +150,12 @@ static bool RawMatch(const byte* code_base,
                      uint32_t current_char) {
   const byte* pc = code_base;
   static const int kBacktrackStackSize = 10000;
-  int backtrack_stack[kBacktrackStackSize];
+  // Use a SmartPointer here to ensure that the memory gets freed when the
+  // matching finishes.
+  SmartPointer<int> backtrack_stack(NewArray<int>(kBacktrackStackSize));
+  int* backtrack_stack_base = *backtrack_stack;
+  int* backtrack_sp = backtrack_stack_base;
   int backtrack_stack_space = kBacktrackStackSize;
-  int* backtrack_sp = backtrack_stack;
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
@@ -202,13 +205,13 @@ static bool RawMatch(const byte* code_base,
         pc += BC_SET_CP_TO_REGISTER_LENGTH;
         break;
       BYTECODE(SET_REGISTER_TO_SP)
-        registers[insn >> BYTECODE_SHIFT] = backtrack_sp - backtrack_stack;
+        registers[insn >> BYTECODE_SHIFT] = backtrack_sp - backtrack_stack_base;
         pc += BC_SET_REGISTER_TO_SP_LENGTH;
         break;
       BYTECODE(SET_SP_TO_REGISTER)
-        backtrack_sp = backtrack_stack + registers[insn >> BYTECODE_SHIFT];
+        backtrack_sp = backtrack_stack_base + registers[insn >> BYTECODE_SHIFT];
         backtrack_stack_space = kBacktrackStackSize -
-                                (backtrack_sp - backtrack_stack);
+                                (backtrack_sp - backtrack_stack_base);
         pc += BC_SET_SP_TO_REGISTER_LENGTH;
         break;
       BYTECODE(POP_CP)
