@@ -1814,7 +1814,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlot(node, typeof_state());
+  LoadFromSlotCheckForArguments(node, typeof_state());
 }
 
 
@@ -2219,7 +2219,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // or the right hand side is a different variable.  TakeValue invalidates
       // the target, with an implicit promise that it will be written to again
       // before it is read.
-      // TODO(X64): Implement TakeValue optimization.
+      // TODO(X64): Implement TakeValue optimization.  Check issue 150016.
       if (false) {
         // if (literal != NULL || (right_var != NULL && right_var != var)) {
         // target.TakeValue(NOT_INSIDE_TYPEOF);
@@ -3839,6 +3839,44 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+                                                  TypeofState state) {
+  LoadFromSlot(slot, state);
+
+  // Bail out quickly if we're not using lazy arguments allocation.
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
+
+  // ... or if the slot isn't a non-parameter arguments slot.
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
+
+  // Pop the loaded value from the stack.
+  Result value = frame_->Pop();
+
+  // If the loaded value is a constant, we know if the arguments
+  // object has been lazily loaded yet.
+  if (value.is_constant()) {
+    if (value.handle()->IsTheHole()) {
+      Result arguments = StoreArgumentsObject(false);
+      frame_->Push(&arguments);
+    } else {
+      frame_->Push(&value);
+    }
+    return;
+  }
+
+  // The loaded value is in a register. If it is the sentinel that
+  // indicates that we haven't loaded the arguments object yet, we
+  // need to do it now.
+  JumpTarget exit;
+  __ Cmp(value.reg(), Factory::the_hole_value());
+  frame_->Push(&value);
+  exit.Branch(not_equal);
+  Result arguments = StoreArgumentsObject(false);
+  frame_->SetElementAt(0, &arguments);
+  exit.Bind();
+}
+
+
 void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   // TODO(X64): Enable more types of slot.
 
@@ -5112,7 +5150,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlot(slot, typeof_state);
+      cgen_->LoadFromSlotCheckForArguments(slot, typeof_state);
       break;
     }
 
