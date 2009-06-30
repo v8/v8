@@ -1107,6 +1107,21 @@ static Object* Runtime_FunctionGetScriptSourcePosition(Arguments args) {
 }
 
 
+static Object* Runtime_FunctionGetPositionForOffset(Arguments args) {
+  ASSERT(args.length() == 2);
+
+  CONVERT_CHECKED(JSFunction, fun, args[0]);
+  CONVERT_NUMBER_CHECKED(int, offset, Int32, args[1]);
+
+  Code* code = fun->code();
+  RUNTIME_ASSERT(0 <= offset && offset < code->Size());
+
+  Address pc = code->address() + offset;
+  return Smi::FromInt(fun->code()->SourcePosition(pc));
+}
+
+
+
 static Object* Runtime_FunctionSetInstanceClassName(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -7356,6 +7371,67 @@ static Object* Runtime_GetScript(Arguments args) {
   // Find the requested script.
   Handle<Object> result =
       Runtime_GetScriptFromScriptName(Handle<String>(script_name));
+  return *result;
+}
+
+
+// Determines whether the given stack frame should be displayed in
+// a stack trace.  The caller is the error constructor that asked
+// for the stack trace to be collected.  The first time a construct
+// call to this function is encountered it is skipped.  The seen_caller
+// in/out parameter is used to remember if the caller has been seen
+// yet.
+static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
+    bool* seen_caller) {
+  // Only display JS frames.
+  if (!raw_frame->is_java_script())
+    return false;
+  JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
+  Object* raw_fun = frame->function();
+  // Not sure when this can happen but skip it just in case.
+  if (!raw_fun->IsJSFunction())
+    return false;
+  if ((raw_fun == caller) && !(*seen_caller) && frame->IsConstructor()) {
+    *seen_caller = true;
+    return false;
+  }
+  // Skip the most obvious builtin calls.  Some builtin calls (such as
+  // Number.ADD which is invoked using 'call') are very difficult to
+  // recognize so we're leaving them in for now.
+  return !frame->receiver()->IsJSBuiltinsObject();
+}
+
+
+// Collect the raw data for a stack trace.  Returns an array of three
+// element segments each containing a receiver, function and native
+// code offset.
+static Object* Runtime_CollectStackTrace(Arguments args) {
+  ASSERT_EQ(args.length(), 1);
+  Object* caller = args[0];
+
+  StackFrameIterator iter;
+  int frame_count = 0;
+  bool seen_caller = false;
+  while (!iter.done()) {
+    if (ShowFrameInStackTrace(iter.frame(), caller, &seen_caller))
+      frame_count++;
+    iter.Advance();
+  }
+  HandleScope scope;
+  Handle<JSArray> result = Factory::NewJSArray(frame_count * 3);
+  int i = 0;
+  seen_caller = false;
+  for (iter.Reset(); !iter.done(); iter.Advance()) {
+    StackFrame* raw_frame = iter.frame();
+    if (ShowFrameInStackTrace(raw_frame, caller, &seen_caller)) {
+      JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
+      result->SetElement(i++, frame->receiver());
+      result->SetElement(i++, frame->function());
+      Address pc = frame->pc();
+      Address start = frame->code()->address();
+      result->SetElement(i++, Smi::FromInt(pc - start));
+    }
+  }
   return *result;
 }
 

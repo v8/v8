@@ -91,6 +91,7 @@ macro IS_BOOLEAN_WRAPPER(arg)   = (%_ClassOf(arg) === 'Boolean');
 macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
 macro IS_SCRIPT(arg)            = (%_ClassOf(arg) === 'Script');
 macro IS_ARGUMENTS(arg)         = (%_ClassOf(arg) === 'Arguments');
+macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
 macro FLOOR(arg)                = %Math_floor(arg);
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.

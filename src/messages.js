@@ -557,54 +557,8 @@ function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
 
 
 function GetStackTraceLine(recv, fun, pos, isGlobal) {
-  try {
-    return UnsafeGetStackTraceLine(recv, fun, pos, isGlobal);
-  } catch (e) {
-    return "<error: " + e + ">";
-  }
+  return FormatSourcePosition(new CallSite(recv, fun, pos));
 }
-
-
-function GetFunctionName(fun, recv) {
-  var name = %FunctionGetName(fun);
-  if (name) return name;
-  for (var prop in recv) {
-    if (recv[prop] === fun)
-      return prop;
-  }
-  return "[anonymous]";
-}
-
-
-function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
-  var result = "";
-  // The global frame has no meaningful function or receiver
-  if (!isTopLevel) {
-    // If the receiver is not the global object then prefix the
-    // message send
-    if (recv !== global)
-      result += ToDetailString(recv) + ".";
-    result += GetFunctionName(fun, recv);
-  }
-  if (pos != -1) {
-    var script = %FunctionGetScript(fun);
-    var file;
-    if (script) {
-      file = %FunctionGetScript(fun).data;
-    }
-    if (file) {
-      var location = %FunctionGetScript(fun).locationFromPosition(pos, true);
-      if (!isTopLevel) result += "(";
-      result += file;
-      if (location != null) {
-        result += ":" + (location.line + 1) + ":" + (location.column + 1);
-      }
-      if (!isTopLevel) result += ")";
-    }
-  }
-  return (result) ? "    at " + result : result;
-}
-
 
 // ----------------------------------------------------------------------------
 // Error implementation
@@ -630,6 +584,197 @@ function DefineOneShotAccessor(obj, name, fun) {
     delete obj[name];
     obj[name] = v;
   });
+}
+
+function CallSite(receiver, fun, pos) {
+  this.receiver = receiver;
+  this.fun = fun;
+  this.pos = pos;
+}
+
+CallSite.prototype.getThis = function () {
+  return this.receiver;
+};
+
+CallSite.prototype.getTypeName = function () {
+  var constructor = this.receiver.constructor;
+  if (!constructor)
+    return $Object.prototype.toString.call(this.receiver);
+  var constructorName = constructor.name;
+  if (!constructorName)
+    return $Object.prototype.toString.call(this.receiver);
+  return constructorName;
+};
+
+CallSite.prototype.isToplevel = function () {
+  if (this.receiver == null)
+    return true;
+  var className = $Object.prototype.toString.call(this.receiver);
+  return IS_GLOBAL(this.receiver);
+};
+
+CallSite.prototype.isEval = function () {
+  var script = %FunctionGetScript(this.fun);
+  return script && script.compilation_type == 1;
+};
+
+CallSite.prototype.getEvalOrigin = function () {
+  var script = %FunctionGetScript(this.fun);
+  if (!script || script.compilation_type != 1)
+    return null;
+  return new CallSite(null, script.eval_from_function,
+      script.eval_from_position);
+};
+
+CallSite.prototype.getFunctionName = function () {
+  // See if the function knows its own name
+  var name = this.fun.name;
+  if (name)
+    return name;
+  // See if we can find a unique property on the receiver that holds
+  // this function.
+  for (var prop in this.receiver) {
+    if (this.receiver[prop] === this.fun) {
+      // If we find more than one match bail out to avoid confusion
+      if (name)
+        return null;
+      name = prop;
+    }
+  }
+  if (name)
+    return name;
+  // Maybe this is an evaluation?
+  var script = %FunctionGetScript(this.fun);
+  if (script && script.compilation_type == 1)
+    return "eval";
+  return null;
+};
+
+CallSite.prototype.getFileName = function () {
+  var script = %FunctionGetScript(this.fun);
+  return script ? script.name : null;
+};
+
+CallSite.prototype.getLineNumber = function () {
+  if (this.pos == -1)
+    return null;
+  var script = %FunctionGetScript(this.fun);
+  var location = null;
+  if (script) {
+    location = script.locationFromPosition(this.pos, true);
+  }
+  return location ? location.line + 1 : null;
+};
+
+CallSite.prototype.getColumnNumber = function () {
+  if (this.pos == -1)
+    return null;
+  var script = %FunctionGetScript(this.fun);
+  var location = null;
+  if (script) {
+    location = script.locationFromPosition(this.pos, true);
+  }
+  return location ? location.column : null;
+};
+
+CallSite.prototype.isNative = function () {
+  var script = %FunctionGetScript(this.fun);
+  return script ? (script.type == 0) : false;
+};
+
+CallSite.prototype.getPosition = function () {
+  return this.pos;
+};
+
+CallSite.prototype.isConstructor = function () {
+  var constructor = this.receiver ? this.receiver.constructor : null;
+  if (!constructor)
+    return false;
+  return this.fun === constructor;
+};
+
+function FormatSourcePosition(frame) {
+  var fileLocation = "";
+  if (frame.isNative()) {
+    fileLocation = "native";
+  } else if (frame.isEval()) {
+    fileLocation = "eval at " + FormatSourcePosition(frame.getEvalOrigin());
+  } else {
+    var fileName = frame.getFileName();
+    if (fileName) {
+      fileLocation += fileName;
+      var lineNumber = frame.getLineNumber();
+      if (lineNumber != null) {
+        fileLocation += ":" + lineNumber;
+        var columnNumber = frame.getColumnNumber();
+        if (columnNumber) {
+          fileLocation += ":" + columnNumber;
+        }
+      }
+    }
+  }
+  if (!fileLocation) {
+    fileLocation = "unknown source";
+  }
+  var line = "";
+  var functionName = frame.getFunctionName();
+  if (functionName) {
+    if (frame.isToplevel()) {
+      line += functionName;
+    } else if (frame.isConstructor()) {
+      line += "new " + functionName;
+    } else {
+      line += frame.getTypeName() + "." + functionName;
+    }
+    line += " (" + fileLocation + ")";
+  } else {
+    line += fileLocation;
+  }
+  return line;
+}
+
+function FormatStackTrace(error, frames) {
+  var lines = [];
+  try {
+    lines.push(error.toString());
+  } catch (e) {
+    try {
+      lines.push("<error: " + e + ">");
+    } catch (ee) {
+      lines.push("<error>");
+    }
+  }
+  for (var i = 0; i < frames.length; i++) {
+    var frame = frames[i];
+    try {
+      var line = FormatSourcePosition(frame);
+    } catch (e) {
+      try {
+        var line = "<error: " + e + ">";
+      } catch (ee) {
+        // Any code that reaches this point is seriously nasty!
+        var line = "<error>";
+      }
+    }
+    lines.push("    at " + line);
+  }
+  return lines.join("\n");
+}
+
+function FormatRawStackTrace(error, raw_stack) {
+  var frames = [ ];
+  for (var i = 0; i < raw_stack.length; i += 3) {
+    var recv = raw_stack[i];
+    var fun = raw_stack[i+1];
+    var pc = raw_stack[i+2];
+    var pos = %FunctionGetPositionForOffset(fun, pc);
+    frames.push(new CallSite(recv, fun, pos));
+  }
+  if (IS_FUNCTION($Error.prepareStackTrace)) {
+    return $Error.prepareStackTrace(error, frames);
+  } else {
+    return FormatStackTrace(error, frames);
+  }
 }
 
 function DefineError(f) {
@@ -666,6 +811,12 @@ function DefineError(f) {
         });
       } else if (!IS_UNDEFINED(m)) {
         this.message = ToString(m);
+      }
+      if ($Error.captureStackTraces) {
+        var raw_stack = %CollectStackTrace(f);
+        DefineOneShotAccessor(this, 'stack', function (obj) {
+          return FormatRawStackTrace(obj, raw_stack);
+        });
       }
     } else {
       return new f(m);

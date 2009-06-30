@@ -2685,16 +2685,16 @@ class Script: public Struct {
  public:
   // Script types.
   enum Type {
-    TYPE_NATIVE,
-    TYPE_EXTENSION,
-    TYPE_NORMAL
+    TYPE_NATIVE = 0,
+    TYPE_EXTENSION = 1,
+    TYPE_NORMAL = 2
   };
 
   // Script compilation types.
   enum CompilationType {
-    COMPILATION_TYPE_HOST,
-    COMPILATION_TYPE_EVAL,
-    COMPILATION_TYPE_JSON
+    COMPILATION_TYPE_HOST = 0,
+    COMPILATION_TYPE_EVAL = 1,
+    COMPILATION_TYPE_JSON = 2
   };
 
   // [source]: the script source.

@@ -169,8 +169,10 @@ namespace internal {
   F(FunctionGetSourceCode, 1) \
   F(FunctionGetScript, 1) \
   F(FunctionGetScriptSourcePosition, 1) \
+  F(FunctionGetPositionForOffset, 2) \
   F(FunctionIsAPIFunction, 1) \
   F(GetScript, 1) \
+  F(CollectStackTrace, 1) \
   \
   F(ClassOf, 1) \
   F(SetCode, 2) \
