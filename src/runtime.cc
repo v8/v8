@@ -4492,17 +4492,25 @@ static Object* Runtime_LookupContext(Arguments args) {
 // compiler to do the right thing.
 //
 // TODO(1236026): This is a non-portable hack that should be removed.
-// TODO(x64): Definitely!
+#ifdef V8_HOST_ARCH_64_BIT
+// Tested with GCC, not with MSVC.
+struct ObjectPair {
+  Object* x;
+  Object* y;
+};
+static inline ObjectPair MakePair(Object* x, Object* y) {
+  ObjectPair result = {x, y};
+  return result;  // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
+}
+#else
 typedef uint64_t ObjectPair;
 static inline ObjectPair MakePair(Object* x, Object* y) {
-#if V8_HOST_ARCH_64_BIT
-  UNIMPLEMENTED();
-  return 0;
-#else
   return reinterpret_cast<uint32_t>(x) |
       (reinterpret_cast<ObjectPair>(y) << 32);
-#endif
 }
+#endif
+
+
 
 
 static inline Object* Unhole(Object* x, PropertyAttributes attributes) {

@@ -2329,9 +2329,6 @@ void CodeGenerator::VisitCall(Call* node) {
     frame_->SetElementAt(0, &result);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
-    // TODO(X64): Enable calls of non-global functions.
-    UNIMPLEMENTED();
-    /*
     // ----------------------------------
     // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
     // ----------------------------------
@@ -2339,8 +2336,8 @@ void CodeGenerator::VisitCall(Call* node) {
     // Load the function from the context.  Sync the frame so we can
     // push the arguments directly into place.
     frame_->SyncRange(0, frame_->element_count() - 1);
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(var->name()));
+    frame_->EmitPush(rsi);
+    frame_->EmitPush(var->name());
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     // The runtime call returns a pair of values in rax and rdx.  The
     // looked-up function is in rax and the receiver is in rdx.  These
@@ -2356,7 +2353,6 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Call the function.
     CallWithArguments(args, node->position());
-    */
   } else if (property != NULL) {
     // Check if the key is a literal string.
     Literal* literal = property->key()->AsLiteral();
@@ -3946,8 +3942,72 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     Slot* slot,
     TypeofState typeof_state,
     JumpTarget* slow) {
-  UNIMPLEMENTED();
-  return Result(rax);
+  // Check that no extension objects have been created by calls to
+  // eval from the current scope to the global scope.
+  Register context = rsi;
+  Result tmp = allocator_->Allocate();
+  ASSERT(tmp.is_valid());  // All non-reserved registers were available.
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+               Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      // Load next context in chain.
+      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp.reg();
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.  If we have reached an eval scope, we check
+    // all extensions from this point.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    // Loop up the context chain.  There is no frame effect so it is
+    // safe to use raw labels here.
+    Label next, fast;
+    if (!context.is(tmp.reg())) {
+      __ movq(tmp.reg(), context);
+    }
+    // Load map for comparison into register, outside loop.
+    __ Move(kScratchRegister, Factory::global_context_map());
+    __ bind(&next);
+    // Terminate at global context.
+    __ cmpq(kScratchRegister, FieldOperand(tmp.reg(), HeapObject::kMapOffset));
+    __ j(equal, &fast);
+    // Check that extension is NULL.
+    __ cmpq(ContextOperand(tmp.reg(), Context::EXTENSION_INDEX), Immediate(0));
+    slow->Branch(not_equal);
+    // Load next context in chain.
+    __ movq(tmp.reg(), ContextOperand(tmp.reg(), Context::CLOSURE_INDEX));
+    __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+    __ jmp(&next);
+    __ bind(&fast);
+  }
+  tmp.Unuse();
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  LoadGlobal();
+  frame_->Push(slot->var()->name());
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+                         ? RelocInfo::CODE_TARGET
+                         : RelocInfo::CODE_TARGET_CONTEXT;
+  Result answer = frame_->CallLoadIC(mode);
+  // A test rax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test eax
+  // instruction here.
+  __ nop();
+  // Discard the global object. The result is in answer.
+  frame_->Drop();
+  return answer;
 }
 
 
@@ -5385,12 +5445,41 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
-
-
 // End of CodeGenerator implementation.
 
 void UnarySubStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label slow;
+  Label done;
+  Label try_float;
+
+  // Check whether the value is a smi.
+  __ testl(rax, Immediate(kSmiTagMask));
+  // TODO(X64): Add inline code that handles floats, as on ia32 platform.
+  __ j(not_zero, &slow);
+
+  // Enter runtime system if the value of the expression is zero
+  // to make sure that we switch between 0 and -0.
+  __ testq(rax, rax);
+  __ j(zero, &slow);
+
+  // The value of the expression is a smi that is not zero.  Try
+  // optimistic subtraction '0 - value'.
+  __ movq(rdx, rax);
+  __ xor_(rax, rax);
+  __ subl(rax, rdx);
+  __ j(no_overflow, &done);
+  // Restore rax and enter runtime system.
+  __ movq(rax, rdx);
+
+  // Enter runtime system.
+  __ bind(&slow);
+  __ pop(rcx);  // pop return address
+  __ push(rax);
+  __ push(rcx);  // push return address
+  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+
+  __ bind(&done);
+  __ StubReturn(1);
 }
 
 
