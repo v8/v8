@@ -328,11 +328,11 @@ Object* CallIC::LoadFunction(State state,
     UpdateCaches(&lookup, state, object, name);
   }
 
+  // Get the property.
+  PropertyAttributes attr;
+  result = object->GetProperty(*object, &lookup, *name, &attr);
+  if (result->IsFailure()) return result;
   if (lookup.type() == INTERCEPTOR) {
-    // Get the property.
-    PropertyAttributes attr;
-    result = object->GetProperty(*name, &attr);
-    if (result->IsFailure()) return result;
     // If the object does not have the requested property, check which
     // exception we need to throw.
     if (attr == ABSENT) {
@@ -341,11 +341,6 @@ Object* CallIC::LoadFunction(State state,
       }
       return TypeError("undefined_method", object, name);
     }
-  } else {
-    // Lookup is valid and no interceptors are involved. Get the
-    // property.
-    result = object->GetProperty(*name);
-    if (result->IsFailure()) return result;
   }
 
   ASSERT(result != Heap::the_hole_value());
