@@ -1360,7 +1360,21 @@ void Simulator::DecodeType01(Instr* instr) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         } else {
-          UNIMPLEMENTED();
+          ASSERT(type == 0);
+          int rm = instr->RmField();
+          switch (instr->Bits(7, 4)) {
+            case BX:
+              set_pc(get_register(rm));
+              break;
+            case BLX: {
+              uint32_t old_pc = get_pc();
+              set_pc(get_register(rm));
+              set_register(lr, old_pc + Instr::kInstrSize);
+              break;
+            }
+            default:
+              UNIMPLEMENTED();
+          }
         }
         break;
       }
@@ -1384,7 +1398,27 @@ void Simulator::DecodeType01(Instr* instr) {
           Format(instr, "cmn'cond 'rn, 'shift_rm");
           Format(instr, "cmn'cond 'rn, 'imm");
         } else {
-          UNIMPLEMENTED();
+          ASSERT(type == 0);
+          int rm = instr->RmField();
+          int rd = instr->RdField();
+          switch (instr->Bits(7, 4)) {
+            case CLZ: {
+              uint32_t bits = get_register(rm);
+              int leading_zeros = 0;
+              if (bits == 0) {
+                leading_zeros = 32;
+              } else {
+                while ((bits & 0x80000000u) == 0) {
+                  bits <<= 1;
+                  leading_zeros++;
+                }
+              }
+              set_register(rd, leading_zeros);
+              break;
+            }
+            default:
+              UNIMPLEMENTED();
+          }
         }
         break;
       }

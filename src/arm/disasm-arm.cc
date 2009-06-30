@@ -593,7 +593,17 @@ void Decoder::DecodeType01(Instr* instr) {
         if (instr->HasS()) {
           Format(instr, "teq'cond 'rn, 'shift_op");
         } else {
-          Unknown(instr);  // not used by V8
+          switch (instr->Bits(7, 4)) {
+            case BX:
+              Format(instr, "bx'cond 'rm");
+              break;
+            case BLX:
+              Format(instr, "blx'cond 'rm");
+              break;
+            default:
+              Unknown(instr);  // not used by V8
+              break;
+          }
         }
         break;
       }
@@ -609,7 +619,14 @@ void Decoder::DecodeType01(Instr* instr) {
         if (instr->HasS()) {
           Format(instr, "cmn'cond 'rn, 'shift_op");
         } else {
-          Unknown(instr);  // not used by V8
+          switch (instr->Bits(7, 4)) {
+            case CLZ:
+              Format(instr, "clz'cond 'rd, 'rm");
+              break;
+            default:
+              Unknown(instr);  // not used by V8
+              break;
+          }
         }
         break;
       }
