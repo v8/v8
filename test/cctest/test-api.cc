@@ -6149,16 +6149,16 @@ THREADED_TEST(TurnOnAccessCheck) {
 
   // Call f1 one time and f2 a number of times. This will ensure that f1 still
   // uses the runtime system to retreive property a whereas f2 uses global load
-  // inline cache is used.
-  CHECK(!f1->Call(global, 0, NULL)->IsUndefined());
+  // inline cache.
+  CHECK(f1->Call(global, 0, NULL)->Equals(v8_num(1)));
   for (int i = 0; i < 4; i++) {
-    CHECK(!f2->Call(global, 0, NULL)->IsUndefined());
+    CHECK(f2->Call(global, 0, NULL)->Equals(v8_num(1)));
   }
 
   // Same for g1 and g2.
-  CHECK(!g1->Call(global, 0, NULL)->IsUndefined());
+  CHECK(g1->Call(global, 0, NULL)->Equals(v8_num(1)));
   for (int i = 0; i < 4; i++) {
-    CHECK(!g2->Call(global, 0, NULL)->IsUndefined());
+    CHECK(g2->Call(global, 0, NULL)->Equals(v8_num(1)));
   }
 
   // Detach the global and turn on access check.

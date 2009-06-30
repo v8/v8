@@ -632,7 +632,8 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           if (lookup->holder() != *global) return;
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-          code = StubCache::ComputeLoadGlobal(*name, *global, cell);
+          code = StubCache::ComputeLoadGlobal(*name, *global,
+                                              cell, lookup->IsDontDelete());
         } else {
           // There is only one shared stub for loading normalized
           // properties. It does not traverse the prototype chain, so the

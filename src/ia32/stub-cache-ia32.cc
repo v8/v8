@@ -475,9 +475,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 Object* CallStubCompiler::CompileCallField(Object* object,
                                            JSObject* holder,
                                            int index,
-                                           String* name,
-                                           Code::Flags flags) {
-  ASSERT_EQ(FIELD, Code::ExtractTypeFromFlags(flags));
+                                           String* name) {
   // ----------- S t a t e -------------
   // -----------------------------------
   Label miss;
@@ -518,16 +516,14 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCodeWithFlags(flags, name);
+  return GetCode(FIELD, name);
 }
 
 
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
-                                              CheckType check,
-                                              Code::Flags flags) {
-  ASSERT_EQ(CONSTANT_FUNCTION, Code::ExtractTypeFromFlags(flags));
+                                              CheckType check) {
   // ----------- S t a t e -------------
   // -----------------------------------
   Label miss;
@@ -643,7 +639,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   if (function->shared()->name()->IsString()) {
     function_name = String::cast(function->shared()->name());
   }
-  return GetCodeWithFlags(flags, function_name);
+  return GetCode(CONSTANT_FUNCTION, function_name);
 }
 
 
@@ -1098,7 +1094,8 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 
 Object* LoadStubCompiler::CompileLoadGlobal(JSGlobalObject* object,
                                             JSGlobalPropertyCell* cell,
-                                            String* name) {
+                                            String* name,
+                                            bool is_dont_delete) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- esp[0] : return address
@@ -1118,9 +1115,11 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSGlobalObject* object,
   __ mov(eax, Immediate(Handle<JSGlobalPropertyCell>(cell)));
   __ mov(eax, FieldOperand(eax, JSGlobalPropertyCell::kValueOffset));
 
-  // Check for deleted property.
-  __ cmp(eax, Factory::the_hole_value());
-  __ j(equal, &miss, not_taken);
+  // Check for deleted property if property can actually be deleted.
+  if (!is_dont_delete) {
+    __ cmp(eax, Factory::the_hole_value());
+    __ j(equal, &miss, not_taken);
+  }
 
   __ ret(0);
 

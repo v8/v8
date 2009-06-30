@@ -174,12 +174,13 @@ Object* StubCache::ComputeLoadNormal(String* name, JSObject* receiver) {
 
 Object* StubCache::ComputeLoadGlobal(String* name,
                                      JSGlobalObject* receiver,
-                                     JSGlobalPropertyCell* cell) {
+                                     JSGlobalPropertyCell* cell,
+                                     bool is_dont_delete) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
-    code = compiler.CompileLoadGlobal(receiver, cell, name);
+    code = compiler.CompileLoadGlobal(receiver, cell, name, is_dont_delete);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
@@ -443,9 +444,10 @@ Object* StubCache::ComputeCallConstant(int argc,
     // caches.
     if (!function->is_compiled()) return Failure::InternalError();
     // Compile the stub - only create stubs for fully compiled functions.
-    CallStubCompiler compiler(argc);
-    code = compiler.CompileCallConstant(object, holder, function, check, flags);
+    CallStubCompiler compiler(argc, in_loop);
+    code = compiler.CompileCallConstant(object, holder, function, check);
     if (code->IsFailure()) return code;
+    ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
@@ -476,9 +478,10 @@ Object* StubCache::ComputeCallField(int argc,
                                                     argc);
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    CallStubCompiler compiler(argc);
-    code = compiler.CompileCallField(object, holder, index, name, flags);
+    CallStubCompiler compiler(argc, in_loop);
+    code = compiler.CompileCallField(object, holder, index, name);
     if (code->IsFailure()) return code;
+    ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
@@ -509,9 +512,10 @@ Object* StubCache::ComputeCallInterceptor(int argc,
                                     argc);
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
-    CallStubCompiler compiler(argc);
+    CallStubCompiler compiler(argc, NOT_IN_LOOP);
     code = compiler.CompileCallInterceptor(object, holder, name);
     if (code->IsFailure()) return code;
+    ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return result;
@@ -536,7 +540,8 @@ Object* StubCache::ComputeCallGlobal(int argc,
                                      JSGlobalObject* receiver,
                                      JSGlobalPropertyCell* cell,
                                      JSFunction* function) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC, NORMAL);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::CALL_IC, NORMAL, in_loop, argc);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     // If the function hasn't been compiled yet, we cannot do it now
@@ -544,9 +549,10 @@ Object* StubCache::ComputeCallGlobal(int argc,
     // internal error which will make sure we do not update any
     // caches.
     if (!function->is_compiled()) return Failure::InternalError();
-    CallStubCompiler compiler(argc);
+    CallStubCompiler compiler(argc, in_loop);
     code = compiler.CompileCallGlobal(receiver, cell, function, name);
     if (code->IsFailure()) return code;
+    ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
     if (result->IsFailure()) return code;
@@ -992,7 +998,7 @@ Object* CallStubCompiler::GetCode(PropertyType type, String* name) {
   int argc = arguments_.immediate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC,
                                                     type,
-                                                    NOT_IN_LOOP,
+                                                    in_loop_,
                                                     argc);
   return GetCodeWithFlags(flags, name);
 }
