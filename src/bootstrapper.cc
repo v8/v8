@@ -1434,8 +1434,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       }
     }
   } else {
-    Handle<Dictionary> properties =
-        Handle<Dictionary>(from->property_dictionary());
+    Handle<StringDictionary> properties =
+        Handle<StringDictionary>(from->property_dictionary());
     int capacity = properties->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* raw_key(properties->KeyAt(i));

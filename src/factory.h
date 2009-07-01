@@ -47,7 +47,9 @@ class Factory : public AllStatic {
   // Allocate a new fixed array with non-existing entries (the hole).
   static Handle<FixedArray> NewFixedArrayWithHoles(int size);
 
-  static Handle<Dictionary> NewDictionary(int at_least_space_for);
+  static Handle<NumberDictionary> NewNumberDictionary(int at_least_space_for);
+
+  static Handle<StringDictionary> NewStringDictionary(int at_least_space_for);
 
   static Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);
 
@@ -313,9 +315,10 @@ class Factory : public AllStatic {
 
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
-  static Handle<Dictionary> DictionaryAtNumberPut(Handle<Dictionary>,
-                                                  uint32_t key,
-                                                  Handle<Object> value);
+  static Handle<NumberDictionary> DictionaryAtNumberPut(
+      Handle<NumberDictionary>,
+      uint32_t key,
+      Handle<Object> value);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);

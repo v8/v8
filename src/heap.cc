@@ -1392,14 +1392,14 @@ bool Heap::CreateInitialObjects() {
   prototype_accessors_ = Proxy::cast(obj);
 
   // Allocate the code_stubs dictionary.
-  obj = Dictionary::Allocate(4);
+  obj = NumberDictionary::Allocate(4);
   if (obj->IsFailure()) return false;
-  code_stubs_ = Dictionary::cast(obj);
+  code_stubs_ = NumberDictionary::cast(obj);
 
   // Allocate the non_monomorphic_cache used in stub-cache.cc
-  obj = Dictionary::Allocate(4);
+  obj = NumberDictionary::Allocate(4);
   if (obj->IsFailure()) return false;
-  non_monomorphic_cache_ =  Dictionary::cast(obj);
+  non_monomorphic_cache_ = NumberDictionary::cast(obj);
 
   CreateFixedStubs();
 
@@ -2563,7 +2563,7 @@ Object* Heap::AllocateHashTable(int length) {
   Object* result = Heap::AllocateFixedArray(length);
   if (result->IsFailure()) return result;
   reinterpret_cast<Array*>(result)->set_map(hash_table_map());
-  ASSERT(result->IsDictionary());
+  ASSERT(result->IsHashTable());
   return result;
 }
 

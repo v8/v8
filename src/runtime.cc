@@ -168,7 +168,7 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       }
     }
   } else {
-    Dictionary* element_dictionary = copy->element_dictionary();
+    NumberDictionary* element_dictionary = copy->element_dictionary();
     int capacity = element_dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* k = element_dictionary->KeyAt(i);
@@ -2604,9 +2604,9 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       }
     } else {
       // Attempt dictionary lookup.
-      Dictionary* dictionary = receiver->property_dictionary();
-      int entry = dictionary->FindStringEntry(key);
-      if ((entry != Dictionary::kNotFound) &&
+      StringDictionary* dictionary = receiver->property_dictionary();
+      int entry = dictionary->FindEntry(key);
+      if ((entry != StringDictionary::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
         Object* value = dictionary->ValueAt(entry);
         if (receiver->IsGlobalObject()) {
@@ -5130,8 +5130,8 @@ class ArrayConcatVisitor {
       storage_->set(index, *elm);
 
     } else {
-      Handle<Dictionary> dict = Handle<Dictionary>::cast(storage_);
-      Handle<Dictionary> result =
+      Handle<NumberDictionary> dict = Handle<NumberDictionary>::cast(storage_);
+      Handle<NumberDictionary> result =
           Factory::DictionaryAtNumberPut(dict, index, elm);
       if (!result.is_identical_to(dict))
         storage_ = result;
@@ -5179,7 +5179,7 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
     }
 
   } else {
-    Handle<Dictionary> dict(receiver->element_dictionary());
+    Handle<NumberDictionary> dict(receiver->element_dictionary());
     uint32_t capacity = dict->Capacity();
     for (uint32_t j = 0; j < capacity; j++) {
       Handle<Object> k(dict->KeyAt(j));
@@ -5333,7 +5333,7 @@ static Object* Runtime_ArrayConcat(Arguments args) {
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-                  Factory::NewDictionary(at_least_space_for));
+                  Factory::NewNumberDictionary(at_least_space_for));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -5396,7 +5396,7 @@ static Object* Runtime_EstimateNumberOfElements(Arguments args) {
   CONVERT_CHECKED(JSArray, array, args[0]);
   HeapObject* elements = array->elements();
   if (elements->IsDictionary()) {
-    return Smi::FromInt(Dictionary::cast(elements)->NumberOfElements());
+    return Smi::FromInt(NumberDictionary::cast(elements)->NumberOfElements());
   } else {
     return array->length();
   }

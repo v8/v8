@@ -1370,15 +1370,14 @@ void DescriptorArray::Swap(int first, int second) {
 }
 
 
-bool Dictionary::requires_slow_elements() {
+bool NumberDictionary::requires_slow_elements() {
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return false;
   return 0 !=
       (Smi::cast(max_index_object)->value() & kRequiresSlowElementsMask);
 }
 
-
-uint32_t Dictionary::max_number_key() {
+uint32_t NumberDictionary::max_number_key() {
   ASSERT(!requires_slow_elements());
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return 0;
@@ -1386,8 +1385,7 @@ uint32_t Dictionary::max_number_key() {
   return value >> kRequiresSlowElementsTagSize;
 }
 
-
-void Dictionary::set_requires_slow_elements() {
+void NumberDictionary::set_requires_slow_elements() {
   set(kMaxNumberKeyIndex,
       Smi::FromInt(kRequiresSlowElementsMask),
       SKIP_WRITE_BARRIER);
@@ -1400,7 +1398,6 @@ void Dictionary::set_requires_slow_elements() {
 
 CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
-CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(MapCache)
@@ -1439,9 +1436,9 @@ CAST_ACCESSOR(Struct)
   STRUCT_LIST(MAKE_STRUCT_CAST)
 #undef MAKE_STRUCT_CAST
 
-template <int prefix_size, int elem_size>
-HashTable<prefix_size, elem_size>* HashTable<prefix_size, elem_size>::cast(
-    Object* obj) {
+
+template <typename Shape, typename Key>
+HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
   ASSERT(obj->IsHashTable());
   return reinterpret_cast<HashTable*>(obj);
 }
@@ -2468,15 +2465,15 @@ bool JSObject::HasIndexedInterceptor() {
 }
 
 
-Dictionary* JSObject::property_dictionary() {
+StringDictionary* JSObject::property_dictionary() {
   ASSERT(!HasFastProperties());
-  return Dictionary::cast(properties());
+  return StringDictionary::cast(properties());
 }
 
 
-Dictionary* JSObject::element_dictionary() {
+NumberDictionary* JSObject::element_dictionary() {
   ASSERT(!HasFastElements());
-  return Dictionary::cast(elements());
+  return NumberDictionary::cast(elements());
 }
 
 
@@ -2640,16 +2637,17 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
   set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
 }
 
-void Dictionary::SetEntry(int entry,
-                          Object* key,
-                          Object* value,
-                          PropertyDetails details) {
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::SetEntry(int entry,
+                                      Object* key,
+                                      Object* value,
+                                      PropertyDetails details) {
   ASSERT(!key->IsString() || details.index() > 0);
-  int index = EntryToIndex(entry);
-  WriteBarrierMode mode = GetWriteBarrierMode();
-  set(index, key, mode);
-  set(index+1, value, mode);
-  fast_set(this, index+2, details.AsSmi());
+  int index = HashTable<Shape, Key>::EntryToIndex(entry);
+  WriteBarrierMode mode = FixedArray::GetWriteBarrierMode();
+  FixedArray::set(index, key, mode);
+  FixedArray::set(index+1, value, mode);
+  FixedArray::fast_set(this, index+2, details.AsSmi());
 }
 
 

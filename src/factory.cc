@@ -49,9 +49,17 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size) {
 }
 
 
-Handle<Dictionary> Factory::NewDictionary(int at_least_space_for) {
+Handle<StringDictionary> Factory::NewStringDictionary(int at_least_space_for) {
   ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(Dictionary::Allocate(at_least_space_for), Dictionary);
+  CALL_HEAP_FUNCTION(StringDictionary::Allocate(at_least_space_for),
+                     StringDictionary);
+}
+
+
+Handle<NumberDictionary> Factory::NewNumberDictionary(int at_least_space_for) {
+  ASSERT(0 <= at_least_space_for);
+  CALL_HEAP_FUNCTION(NumberDictionary::Allocate(at_least_space_for),
+                     NumberDictionary);
 }
 
 
@@ -655,10 +663,11 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
 }
 
 
-Handle<Dictionary> Factory::DictionaryAtNumberPut(Handle<Dictionary> dictionary,
-                                                  uint32_t key,
-                                                  Handle<Object> value) {
-  CALL_HEAP_FUNCTION(dictionary->AtNumberPut(key, *value), Dictionary);
+Handle<NumberDictionary> Factory::DictionaryAtNumberPut(
+    Handle<NumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(dictionary->AtNumberPut(key, *value), NumberDictionary);
 }
 
 
