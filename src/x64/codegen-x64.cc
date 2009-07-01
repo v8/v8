@@ -3336,10 +3336,30 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  frame_->SpillAll();
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
+  // Make sure the frame is aligned like the OS expects.
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    __ movq(rbx, rsp);  // Save in AMD-64 abi callee-saved register.
+    __ and_(rsp, Immediate(-kFrameAlignment));
+  }
+
+  // Call V8::RandomPositiveSmi().
+  __ Call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
+
+  // Restore stack pointer from callee-saved register edi.
+  if (kFrameAlignment > 0) {
+    __ movq(rsp, rbx);
+  }
+
+  Result result = allocator_->Allocate(rax);
+  frame_->Push(&result);
 }
+
 
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
@@ -5488,27 +5508,18 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 void UnarySubStub::Generate(MacroAssembler* masm) {
   Label slow;
   Label done;
-  Label try_float;
 
   // Check whether the value is a smi.
   __ testl(rax, Immediate(kSmiTagMask));
   // TODO(X64): Add inline code that handles floats, as on ia32 platform.
   __ j(not_zero, &slow);
-
-  // Enter runtime system if the value of the expression is zero
+  // Enter runtime system if the value of the smi is zero
   // to make sure that we switch between 0 and -0.
-  __ testq(rax, rax);
+  // Also enter it if the value of the smi is Smi::kMinValue
+  __ testl(rax, Immediate(0x7FFFFFFE));
   __ j(zero, &slow);
-
-  // The value of the expression is a smi that is not zero.  Try
-  // optimistic subtraction '0 - value'.
-  __ movq(rdx, rax);
-  __ xor_(rax, rax);
-  __ subl(rax, rdx);
-  __ j(no_overflow, &done);
-  // Restore rax and enter runtime system.
-  __ movq(rax, rdx);
-
+  __ neg(rax);
+  __ jmp(&done);
   // Enter runtime system.
   __ bind(&slow);
   __ pop(rcx);  // pop return address
