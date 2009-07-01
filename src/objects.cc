@@ -2738,6 +2738,14 @@ Object* JSObject::DefineGetterSetter(String* name,
     Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (ok->IsFailure()) return ok;
 
+    // For the global object allocate a new map to invalidate the global inline
+    // caches which have a global property cell reference directly in the code.
+    if (IsJSGlobalObject()) {
+      Object* new_map = map()->CopyDropDescriptors();
+      if (new_map->IsFailure()) return new_map;
+      set_map(Map::cast(new_map));
+    }
+
     // Update the dictionary with the new CALLBACKS property.
     return SetNormalizedProperty(name, structure, details);
   }
