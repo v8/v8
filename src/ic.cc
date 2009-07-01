@@ -265,6 +265,39 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
 }
 
 
+static bool HasInterceptorGetter(JSObject* object) {
+  return !object->GetNamedInterceptor()->getter()->IsUndefined();
+}
+
+
+static void LookupForRead(Object* object,
+                          String* name,
+                          LookupResult* lookup) {
+  object->Lookup(name, lookup);
+  if (lookup->IsNotFound() || lookup->type() != INTERCEPTOR) {
+    return;
+  }
+
+  JSObject* holder = lookup->holder();
+  if (HasInterceptorGetter(holder)) {
+    return;
+  }
+
+  // There is no getter, just skip it and lookup down the proto chain
+  holder->LocalLookupRealNamedProperty(name, lookup);
+  if (lookup->IsValid()) {
+    return;
+  }
+
+  Object* proto = holder->GetPrototype();
+  if (proto == Heap::null_value()) {
+    return;
+  }
+
+  LookupForRead(proto, name, lookup);
+}
+
+
 Object* CallIC::TryCallAsFunction(Object* object) {
   HandleScope scope;
   Handle<Object> target(object);
@@ -312,7 +345,7 @@ Object* CallIC::LoadFunction(State state,
 
   // Lookup the property in the object.
   LookupResult lookup;
-  object->Lookup(*name, &lookup);
+  LookupForRead(*object, *name, &lookup);
 
   if (!lookup.IsValid()) {
     // If the object does not have the requested property, check which
@@ -444,6 +477,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case INTERCEPTOR: {
+        ASSERT(HasInterceptorGetter(lookup->holder()));
         code = StubCache::ComputeCallInterceptor(argc, *name, *object,
                                                  lookup->holder());
         break;
@@ -530,7 +564,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
   // Named lookup in the object.
   LookupResult lookup;
-  object->Lookup(*name, &lookup);
+  LookupForRead(*object, *name, &lookup);
 
   // If lookup is invalid, check if we need to throw an exception.
   if (!lookup.IsValid()) {
@@ -654,6 +688,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case INTERCEPTOR: {
+        ASSERT(HasInterceptorGetter(lookup->holder()));
         code = StubCache::ComputeLoadInterceptor(*name, *receiver,
                                                  lookup->holder());
         break;
@@ -745,7 +780,7 @@ Object* KeyedLoadIC::Load(State state,
 
     // Named lookup.
     LookupResult lookup;
-    object->Lookup(*name, &lookup);
+    LookupForRead(*object, *name, &lookup);
 
     // If lookup is invalid, check if we need to throw an exception.
     if (!lookup.IsValid()) {
@@ -839,6 +874,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
         break;
       }
       case INTERCEPTOR: {
+        ASSERT(HasInterceptorGetter(lookup->holder()));
         code = StubCache::ComputeKeyedLoadInterceptor(*name, *receiver,
                                                       lookup->holder());
         break;
@@ -885,9 +921,9 @@ static bool StoreICableLookup(LookupResult* lookup) {
 }
 
 
-static bool LookupForStoreIC(JSObject* object,
-                             String* name,
-                             LookupResult* lookup) {
+static bool LookupForWrite(JSObject* object,
+                           String* name,
+                           LookupResult* lookup) {
   object->LocalLookup(name, lookup);
   if (!StoreICableLookup(lookup)) {
     return false;
@@ -930,7 +966,7 @@ Object* StoreIC::Store(State state,
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
-    if (LookupForStoreIC(*receiver, *name, &lookup)) {
+    if (LookupForWrite(*receiver, *name, &lookup)) {
       UpdateCaches(&lookup, state, receiver, name, value);
     }
   }
@@ -996,6 +1032,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       break;
     }
     case INTERCEPTOR: {
+      ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
       code = StubCache::ComputeStoreInterceptor(*name, *receiver);
       break;
     }
