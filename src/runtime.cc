@@ -2609,7 +2609,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       if ((entry != Dictionary::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
         Object* value = dictionary->ValueAt(entry);
-        if (receiver->IsJSGlobalObject()) {
+        if (receiver->IsGlobalObject()) {
            value = JSGlobalPropertyCell::cast(value)->value();
         }
         return value;

@@ -619,10 +619,10 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 }
 
 
-Handle<JSGlobalObject> Factory::NewJSGlobalObject(
+Handle<GlobalObject> Factory::NewGlobalObject(
     Handle<JSFunction> constructor) {
-  CALL_HEAP_FUNCTION(Heap::AllocateJSGlobalObject(*constructor),
-                     JSGlobalObject);
+  CALL_HEAP_FUNCTION(Heap::AllocateGlobalObject(*constructor),
+                     GlobalObject);
 }
 
 

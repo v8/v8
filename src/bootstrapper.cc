@@ -539,7 +539,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
   {  // --- G l o b a l ---
     // Step 1: create a fresh inner JSGlobalObject
-    Handle<JSGlobalObject> object;
+    Handle<GlobalObject> object;
     {
       Handle<JSFunction> js_global_function;
       Handle<ObjectTemplateInfo> js_global_template;
@@ -579,8 +579,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       }
 
       js_global_function->initial_map()->set_is_hidden_prototype();
-      SetExpectedNofProperties(js_global_function, 100);
-      object = Factory::NewJSGlobalObject(js_global_function);
+      object = Factory::NewGlobalObject(js_global_function);
     }
 
     // Set the global context for the global object.
@@ -962,12 +961,10 @@ bool Genesis::InstallNatives() {
 
   Handle<String> name = Factory::LookupAsciiSymbol("builtins");
   builtins_fun->shared()->set_instance_class_name(*name);
-  SetExpectedNofProperties(builtins_fun, 100);
 
   // Allocate the builtins object.
   Handle<JSBuiltinsObject> builtins =
-      Handle<JSBuiltinsObject>::cast(Factory::NewJSObject(builtins_fun,
-                                                          TENURED));
+      Handle<JSBuiltinsObject>::cast(Factory::NewGlobalObject(builtins_fun));
   builtins->set_builtins(*builtins);
   builtins->set_global_context(*global_context());
   builtins->set_global_receiver(*builtins);
@@ -1190,10 +1187,6 @@ bool Genesis::InstallNatives() {
     apply->shared()->set_length(2);
   }
 
-  // Make sure that the builtins object has fast properties.
-  // If the ASSERT below fails, please increase the expected number of
-  // properties for the builtins object.
-  ASSERT(builtins->HasFastProperties());
 #ifdef DEBUG
   builtins->Verify();
 #endif

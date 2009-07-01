@@ -419,11 +419,11 @@ void CallIC::UpdateCaches(LookupResult* lookup,
       }
       case NORMAL: {
         if (!object->IsJSObject()) return;
-        if (object->IsJSGlobalObject()) {
+        if (object->IsGlobalObject()) {
           // The stub generated for the global object picks the value directly
           // from the property cell. So the property must be directly on the
           // global object.
-          Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
+          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
           if (lookup->holder() != *global) return;
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
@@ -624,11 +624,11 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case NORMAL: {
-        if (object->IsJSGlobalObject()) {
+        if (object->IsGlobalObject()) {
           // The stub generated for the global object picks the value directly
           // from the property cell. So the property must be directly on the
           // global object.
-          Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
+          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
           if (lookup->holder() != *global) return;
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
@@ -976,13 +976,13 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       break;
     }
     case NORMAL: {
-      if (!receiver->IsJSGlobalObject()) {
+      if (!receiver->IsGlobalObject()) {
         return;
       }
       // The stub generated for the global object picks the value directly
       // from the property cell. So the property must be directly on the
       // global object.
-      Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(receiver);
+      Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
       JSGlobalPropertyCell* cell =
           JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
       code = StubCache::ComputeStoreGlobal(*name, *global, cell);

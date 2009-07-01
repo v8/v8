@@ -1558,7 +1558,7 @@ Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateSharedFunctionInfo(Object* name) {
-  Object* result = Allocate(shared_function_info_map(), NEW_SPACE);
+  Object* result = Allocate(shared_function_info_map(), OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
 
   SharedFunctionInfo* share = SharedFunctionInfo::cast(result);
@@ -2050,7 +2050,7 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
 
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
-  Object* properties = AllocateFixedArray(prop_size);
+  Object* properties = AllocateFixedArray(prop_size, pretenure);
   if (properties->IsFailure()) return properties;
 
   // Allocate the JSObject.
@@ -2080,18 +2080,23 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
   // Allocate the object based on the constructors initial map.
   Object* result =
       AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
-  // Make sure result is NOT a JS global object if valid.
-  ASSERT(result->IsFailure() || !result->IsJSGlobalObject());
+  // Make sure result is NOT a global object if valid.
+  ASSERT(result->IsFailure() || !result->IsGlobalObject());
   return result;
 }
 
 
-Object* Heap::AllocateJSGlobalObject(JSFunction* constructor) {
+Object* Heap::AllocateGlobalObject(JSFunction* constructor) {
   ASSERT(constructor->has_initial_map());
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
   // require us to change property values to JSGlobalPropertyCells.
   ASSERT(constructor->initial_map()->NextFreePropertyIndex() == 0);
+
+  // Make sure we don't have a ton of pre-allocated slots in the
+  // global objects. They will be unused once we normalize the object.
+  ASSERT(constructor->initial_map()->unused_property_fields() == 0);
+  ASSERT(constructor->initial_map()->inobject_properties() == 0);
 
   // Allocate the object based on the constructors initial map.
   Object* result = AllocateJSObjectFromMap(constructor->initial_map(), TENURED);
@@ -2102,8 +2107,8 @@ Object* Heap::AllocateJSGlobalObject(JSFunction* constructor) {
   result = global->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
   if (result->IsFailure()) return result;
 
-  // Make sure result is a JS global object with properties in dictionary.
-  ASSERT(global->IsJSGlobalObject());
+  // Make sure result is a global object with properties in dictionary.
+  ASSERT(global->IsGlobalObject());
   ASSERT(!global->HasFastProperties());
   return global;
 }
@@ -2182,7 +2187,7 @@ Object* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
-  Object* properties = AllocateFixedArray(prop_size);
+  Object* properties = AllocateFixedArray(prop_size, TENURED);
   if (properties->IsFailure()) return properties;
 
   // Reset the map for the object.

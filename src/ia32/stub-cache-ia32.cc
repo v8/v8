@@ -715,7 +715,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 }
 
 
-Object* CallStubCompiler::CompileCallGlobal(JSGlobalObject* object,
+Object* CallStubCompiler::CompileCallGlobal(GlobalObject* object,
                                             JSGlobalPropertyCell* cell,
                                             JSFunction* function,
                                             String* name) {
@@ -911,7 +911,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 }
 
 
-Object* StoreStubCompiler::CompileStoreGlobal(JSGlobalObject* object,
+Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
                                               JSGlobalPropertyCell* cell,
                                               String* name) {
   // ----------- S t a t e -------------
@@ -1092,7 +1092,7 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 }
 
 
-Object* LoadStubCompiler::CompileLoadGlobal(JSGlobalObject* object,
+Object* LoadStubCompiler::CompileLoadGlobal(GlobalObject* object,
                                             JSGlobalPropertyCell* cell,
                                             String* name,
                                             bool is_dont_delete) {

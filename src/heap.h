@@ -289,11 +289,11 @@ class Heap : public AllStatic {
   static Object* AllocateJSObject(JSFunction* constructor,
                                   PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocates and initializes a new JS global object based on a constructor.
+  // Allocates and initializes a new global object based on a constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateJSGlobalObject(JSFunction* constructor);
+  static Object* AllocateGlobalObject(JSFunction* constructor);
 
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.

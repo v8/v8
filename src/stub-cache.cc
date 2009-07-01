@@ -173,7 +173,7 @@ Object* StubCache::ComputeLoadNormal(String* name, JSObject* receiver) {
 
 
 Object* StubCache::ComputeLoadGlobal(String* name,
-                                     JSGlobalObject* receiver,
+                                     GlobalObject* receiver,
                                      JSGlobalPropertyCell* cell,
                                      bool is_dont_delete) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
@@ -336,7 +336,7 @@ Object* StubCache::ComputeStoreField(String* name,
 
 
 Object* StubCache::ComputeStoreGlobal(String* name,
-                                      JSGlobalObject* receiver,
+                                      GlobalObject* receiver,
                                       JSGlobalPropertyCell* cell) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, NORMAL);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
@@ -537,7 +537,7 @@ Object* StubCache::ComputeCallNormal(int argc,
 Object* StubCache::ComputeCallGlobal(int argc,
                                      InLoopFlag in_loop,
                                      String* name,
-                                     JSGlobalObject* receiver,
+                                     GlobalObject* receiver,
                                      JSGlobalPropertyCell* cell,
                                      JSFunction* function) {
   Code::Flags flags =

@@ -79,7 +79,7 @@ class StubCache : public AllStatic {
 
 
   static Object* ComputeLoadGlobal(String* name,
-                                   JSGlobalObject* receiver,
+                                   GlobalObject* receiver,
                                    JSGlobalPropertyCell* cell,
                                    bool is_dont_delete);
 
@@ -119,7 +119,7 @@ class StubCache : public AllStatic {
                                    Map* transition = NULL);
 
   static Object* ComputeStoreGlobal(String* name,
-                                    JSGlobalObject* receiver,
+                                    GlobalObject* receiver,
                                     JSGlobalPropertyCell* cell);
 
   static Object* ComputeStoreCallback(String* name,
@@ -164,7 +164,7 @@ class StubCache : public AllStatic {
   static Object* ComputeCallGlobal(int argc,
                                    InLoopFlag in_loop,
                                    String* name,
-                                   JSGlobalObject* receiver,
+                                   GlobalObject* receiver,
                                    JSGlobalPropertyCell* cell,
                                    JSFunction* function);
 
@@ -433,7 +433,7 @@ class LoadStubCompiler: public StubCompiler {
                                  JSObject* holder,
                                  String* name);
 
-  Object* CompileLoadGlobal(JSGlobalObject* object,
+  Object* CompileLoadGlobal(GlobalObject* object,
                             JSGlobalPropertyCell* holder,
                             String* name,
                             bool is_dont_delete);
@@ -479,7 +479,7 @@ class StoreStubCompiler: public StubCompiler {
                                AccessorInfo* callbacks,
                                String* name);
   Object* CompileStoreInterceptor(JSObject* object, String* name);
-  Object* CompileStoreGlobal(JSGlobalObject* object,
+  Object* CompileStoreGlobal(GlobalObject* object,
                              JSGlobalPropertyCell* holder,
                              String* name);
 
@@ -517,7 +517,7 @@ class CallStubCompiler: public StubCompiler {
   Object* CompileCallInterceptor(Object* object,
                                  JSObject* holder,
                                  String* name);
-  Object* CompileCallGlobal(JSGlobalObject* object,
+  Object* CompileCallGlobal(GlobalObject* object,
                             JSGlobalPropertyCell* cell,
                             JSFunction* function,
                             String* name);

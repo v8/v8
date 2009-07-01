@@ -402,7 +402,7 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result,
 Object* JSObject::GetNormalizedProperty(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  if (IsJSGlobalObject()) {
+  if (IsGlobalObject()) {
     value = JSGlobalPropertyCell::cast(value)->value();
   }
   ASSERT(!value->IsJSGlobalPropertyCell());
@@ -412,7 +412,7 @@ Object* JSObject::GetNormalizedProperty(LookupResult* result) {
 
 Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
   ASSERT(!HasFastProperties());
-  if (IsJSGlobalObject()) {
+  if (IsGlobalObject()) {
     JSGlobalPropertyCell* cell =
         JSGlobalPropertyCell::cast(
             property_dictionary()->ValueAt(result->GetDictionaryEntry()));
@@ -431,7 +431,7 @@ Object* JSObject::SetNormalizedProperty(String* name,
   int entry = property_dictionary()->FindStringEntry(name);
   if (entry == Dictionary::kNotFound) {
     Object* store_value = value;
-    if (IsJSGlobalObject()) {
+    if (IsGlobalObject()) {
       store_value = Heap::AllocateJSGlobalPropertyCell(value);
       if (store_value->IsFailure()) return store_value;
     }
@@ -445,7 +445,7 @@ Object* JSObject::SetNormalizedProperty(String* name,
   details = PropertyDetails(details.attributes(),
                             details.type(),
                             property_dictionary()->DetailsAt(entry).index());
-  if (IsJSGlobalObject()) {
+  if (IsGlobalObject()) {
     JSGlobalPropertyCell* cell =
         JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
     cell->set_value(value);
@@ -464,7 +464,7 @@ Object* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
   int entry = dictionary->FindStringEntry(name);
   if (entry != Dictionary::kNotFound) {
     // If we have a global object set the cell to the hole.
-    if (IsJSGlobalObject()) {
+    if (IsGlobalObject()) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.IsDontDelete() && mode != FORCE_DELETION) {
         return Heap::false_value();
@@ -1342,7 +1342,7 @@ Object* JSObject::AddSlowProperty(String* name,
   ASSERT(!HasFastProperties());
   Dictionary* dict = property_dictionary();
   Object* store_value = value;
-  if (IsJSGlobalObject()) {
+  if (IsGlobalObject()) {
     // In case name is an orphaned property reuse the cell.
     int entry = dict->FindStringEntry(name);
     if (entry != Dictionary::kNotFound) {
@@ -1703,7 +1703,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       // Make sure to disallow caching for uninitialized constants
       // found in the dictionary-mode objects.
       Object* value = property_dictionary()->ValueAt(entry);
-      if (IsJSGlobalObject()) {
+      if (IsGlobalObject()) {
         PropertyDetails d = property_dictionary()->DetailsAt(entry);
         if (d.IsDeleted()) {
           result->NotFound();
@@ -2114,7 +2114,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = r.GetConstantFunction();
-        if (IsJSGlobalObject()) {
+        if (IsGlobalObject()) {
           value = Heap::AllocateJSGlobalPropertyCell(value);
           if (value->IsFailure()) return value;
         }
@@ -2127,7 +2127,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = FastPropertyAt(r.GetFieldIndex());
-        if (IsJSGlobalObject()) {
+        if (IsGlobalObject()) {
           value = Heap::AllocateJSGlobalPropertyCell(value);
           if (value->IsFailure()) return value;
         }
@@ -2140,7 +2140,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), CALLBACKS, details.index());
         Object* value = r.GetCallbacksObject();
-        if (IsJSGlobalObject()) {
+        if (IsGlobalObject()) {
           value = Heap::AllocateJSGlobalPropertyCell(value);
           if (value->IsFailure()) return value;
         }
@@ -2203,9 +2203,9 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
 
 Object* JSObject::TransformToFastProperties(int unused_property_fields) {
   if (HasFastProperties()) return this;
-  ASSERT(!IsJSGlobalObject());
+  ASSERT(!IsGlobalObject());
   return property_dictionary()->
-    TransformPropertiesToFastFor(this, unused_property_fields);
+      TransformPropertiesToFastFor(this, unused_property_fields);
 }
 
 
@@ -2740,7 +2740,7 @@ Object* JSObject::DefineGetterSetter(String* name,
 
     // For the global object allocate a new map to invalidate the global inline
     // caches which have a global property cell reference directly in the code.
-    if (IsJSGlobalObject()) {
+    if (IsGlobalObject()) {
       Object* new_map = map()->CopyDropDescriptors();
       if (new_map->IsFailure()) return new_map;
       set_map(Map::cast(new_map));
@@ -6739,7 +6739,7 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 }
 
 
-Object* JSGlobalObject::GetPropertyCell(LookupResult* result) {
+Object* GlobalObject::GetPropertyCell(LookupResult* result) {
   ASSERT(!HasFastProperties());
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   ASSERT(value->IsJSGlobalPropertyCell());

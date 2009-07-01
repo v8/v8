@@ -65,7 +65,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
 
 
 
-Object* CallStubCompiler::CompileCallGlobal(JSGlobalObject* object,
+Object* CallStubCompiler::CompileCallGlobal(GlobalObject* object,
                                             JSGlobalPropertyCell* cell,
                                             JSFunction* function,
                                             String* name) {
@@ -109,7 +109,7 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
 }
 
 
-Object* LoadStubCompiler::CompileLoadGlobal(JSGlobalObject* object,
+Object* LoadStubCompiler::CompileLoadGlobal(GlobalObject* object,
                                             JSGlobalPropertyCell* cell,
                                             String* name,
                                             bool is_dont_delete) {
@@ -141,7 +141,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
 }
 
 
-Object* StoreStubCompiler::CompileStoreGlobal(JSGlobalObject* object,
+Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
                                               JSGlobalPropertyCell* cell,
                                               String* name) {
   UNIMPLEMENTED();

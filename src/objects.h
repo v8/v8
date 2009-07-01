@@ -3059,6 +3059,9 @@ class GlobalObject: public JSObject {
   // [global receiver]: the global receiver object of the context
   DECL_ACCESSORS(global_receiver, JSObject)
 
+  // Retrieve the property cell used to store a property.
+  Object* GetPropertyCell(LookupResult* result);
+
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 
@@ -3078,9 +3081,6 @@ class GlobalObject: public JSObject {
 // JavaScript global object.
 class JSGlobalObject: public GlobalObject {
  public:
-
-  // Retrieve the property cell used to store a property.
-  Object* GetPropertyCell(LookupResult* result);
 
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);

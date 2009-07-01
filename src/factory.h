@@ -183,9 +183,8 @@ class Factory : public AllStatic {
   static Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure = NOT_TENURED);
 
-  // JS global objects are pretenured.
-  static Handle<JSGlobalObject> NewJSGlobalObject(
-      Handle<JSFunction> constructor);
+  // Global objects are pretenured.
+  static Handle<GlobalObject> NewGlobalObject(Handle<JSFunction> constructor);
 
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
