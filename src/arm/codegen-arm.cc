@@ -5334,7 +5334,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ tst(r3, Operand(r3));
       __ mov(r0, Operand(r3), LeaveCC, ne);
       __ Ret(ne);
-      // Slow case.
+      // We need -0 if we were multiplying a negative number with 0 to get 0.
+      // We know one of them was zero.
+      __ add(r2, r0, Operand(r1), SetCC);
+      __ mov(r0, Operand(Smi::FromInt(0)), LeaveCC, pl);
+      __ Ret(pl);  // Return Smi 0 if the non-zero one was positive.
+      // Slow case.  We fall through here if we multiplied a negative number
+      // with 0, because that would mean we should produce -0.
       __ bind(&slow);
 
       HandleBinaryOpSlowCases(masm,
