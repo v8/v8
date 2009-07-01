@@ -221,6 +221,7 @@ void Heap::ReportStatisticsAfterGC() {
   // NewSpace statistics are logged exactly once when --log-gc is turned on.
 #if defined(DEBUG) && defined(ENABLE_LOGGING_AND_PROFILING)
   if (FLAG_heap_stats) {
+    new_space_.CollectStatistics();
     ReportHeapStatistics("After GC");
   } else if (FLAG_log_gc) {
     new_space_.ReportStatistics();
@@ -428,22 +429,8 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     old_gen_allocation_limit_ =
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
-
-    // If we have used the mark-compact collector to collect the new
-    // space, and it has not compacted the new space, we force a
-    // separate scavenge collection.  This is a hack.  It covers the
-    // case where (1) a new space collection was requested, (2) the
-    // collector selection policy selected the mark-compact collector,
-    // and (3) the mark-compact collector policy selected not to
-    // compact the new space.  In that case, there is no more (usable)
-    // free space in the new space after the collection compared to
-    // before.
-    if (space == NEW_SPACE && !MarkCompactCollector::HasCompacted()) {
-      Scavenge();
-    }
-  } else {
-    Scavenge();
   }
+  Scavenge();
   Counters::objs_since_last_young.Set(0);
 
   PostGarbageCollectionProcessing();
