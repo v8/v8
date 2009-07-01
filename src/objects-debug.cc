@@ -744,12 +744,12 @@ void Proxy::ProxyVerify() {
   ASSERT(IsProxy());
 }
 
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::Print() {
-  int capacity = HashTable<Shape, Key>::Capacity();
+
+void Dictionary::Print() {
+  int capacity = Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k)) {
+    Object* k = KeyAt(i);
+    if (IsKey(k)) {
       PrintF(" ");
       if (k->IsString()) {
         String::cast(k)->StringPrint();
@@ -1017,7 +1017,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
   } else {
-    StringDictionary* dict = property_dictionary();
+    Dictionary* dict = property_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict->Capacity() - dict->NumberOfElements();
@@ -1034,7 +1034,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_elements_   += len - holes;
     info->number_of_fast_unused_elements_ += holes;
   } else {
-    NumberDictionary* dict = element_dictionary();
+    Dictionary* dict = element_dictionary();
     info->number_of_slow_used_elements_ += dict->NumberOfElements();
     info->number_of_slow_unused_elements_ +=
         dict->Capacity() - dict->NumberOfElements();

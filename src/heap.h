@@ -118,8 +118,8 @@ namespace internal {
   V(Map, neander_map)                                   \
   V(JSObject, message_listeners)                        \
   V(Proxy, prototype_accessors)                         \
-  V(NumberDictionary, code_stubs)                       \
-  V(NumberDictionary, non_monomorphic_cache)            \
+  V(Dictionary, code_stubs)                             \
+  V(Dictionary, non_monomorphic_cache)                  \
   V(Code, js_entry_code)                                \
   V(Code, js_construct_entry_code)                      \
   V(Code, c_entry_code)                                 \
@@ -692,10 +692,10 @@ class Heap : public AllStatic {
   static inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  static void set_code_stubs(NumberDictionary* value) { code_stubs_ = value; }
+  static void set_code_stubs(Dictionary* value) { code_stubs_ = value; }
 
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  static void set_non_monomorphic_cache(NumberDictionary* value) {
+  static void set_non_monomorphic_cache(Dictionary* value) {
     non_monomorphic_cache_ = value;
   }
 

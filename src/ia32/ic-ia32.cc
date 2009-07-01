@@ -83,7 +83,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
 
   // Compute the capacity mask.
   const int kCapacityOffset =
-      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
+      Array::kHeaderSize + Dictionary::kCapacityIndex * kPointerSize;
   __ mov(r2, FieldOperand(r0, kCapacityOffset));
   __ shr(r2, kSmiTagSize);  // convert smi to int
   __ dec(r2);
@@ -93,18 +93,18 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // cover ~93% of loads from dictionaries.
   static const int kProbes = 4;
   const int kElementsStartOffset =
-      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
+      Array::kHeaderSize + Dictionary::kElementsStartIndex * kPointerSize;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
     __ shr(r1, String::kHashShift);
     if (i > 0) {
-      __ add(Operand(r1), Immediate(StringDictionary::GetProbeOffset(i)));
+      __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
     }
     __ and_(r1, Operand(r2));
 
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
+    // Scale the index by multiplying by the element size.
+    ASSERT(Dictionary::kElementSize == 3);
     __ lea(r1, Operand(r1, r1, times_2, 0));  // r1 = r1 * 3
 
     // Check if the key is identical to the name.

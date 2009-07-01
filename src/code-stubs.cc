@@ -37,8 +37,8 @@ namespace internal {
 
 Handle<Code> CodeStub::GetCode() {
   uint32_t key = GetKey();
-  int index = Heap::code_stubs()->FindEntry(key);
-  if (index == NumberDictionary::kNotFound) {
+  int index = Heap::code_stubs()->FindNumberEntry(key);
+  if (index == -1) {
     HandleScope scope;
 
     // Update the static counter each time a new code stub is generated.
@@ -80,15 +80,14 @@ Handle<Code> CodeStub::GetCode() {
 #endif
 
     // Update the dictionary and the root in Heap.
-    Handle<NumberDictionary> dict =
-        Factory::DictionaryAtNumberPut(
-            Handle<NumberDictionary>(Heap::code_stubs()),
-            key,
-            code);
+    Handle<Dictionary> dict =
+        Factory::DictionaryAtNumberPut(Handle<Dictionary>(Heap::code_stubs()),
+                                       key,
+                                       code);
     Heap::set_code_stubs(*dict);
-    index = Heap::code_stubs()->FindEntry(key);
+    index = Heap::code_stubs()->FindNumberEntry(key);
   }
-  ASSERT(index != NumberDictionary::kNotFound);
+  ASSERT(index != -1);
 
   return Handle<Code>(Code::cast(Heap::code_stubs()->ValueAt(index)));
 }
