@@ -513,10 +513,10 @@ class Sampler::PlatformData : public Malloced {
 #else
 #error Unsupported Mac OS X host architecture.
 #endif  // V8_TARGET_ARCH_IA32
-        if (KERN_SUCCESS == thread_get_state(profiled_thread_,
-                                             flavor,
-                                             (natural_t*)&state,
-                                             &count)) {
+        if (thread_get_state(profiled_thread_,
+                             flavor,
+                             reinterpret_cast<natural_t*>(&state),
+                             &count) == KERN_SUCCESS) {
 #if V8_HOST_ARCH_X64
           UNIMPLEMENTED();
           sample.pc = 0;
