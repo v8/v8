@@ -230,7 +230,9 @@ class Page {
   static const int kRSetEndOffset = kRSetOffset + kPageSize / kBitsPerPointer;
 
   // The start offset of the object area in a page.
-  static const int kObjectStartOffset = kRSetEndOffset;
+  // This needs to be at least (bits per uint32_t) * kBitsPerPointer,
+  // to align start of rset to a uint32_t address.
+  static const int kObjectStartOffset = 256;
 
   // The start offset of the remembered set in a page.
   static const int kRSetStartOffset = kRSetOffset +
