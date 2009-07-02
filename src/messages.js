@@ -609,7 +609,6 @@ CallSite.prototype.getTypeName = function () {
 CallSite.prototype.isToplevel = function () {
   if (this.receiver == null)
     return true;
-  var className = $Object.prototype.toString.call(this.receiver);
   return IS_GLOBAL(this.receiver);
 };
 
@@ -624,6 +623,10 @@ CallSite.prototype.getEvalOrigin = function () {
     return null;
   return new CallSite(null, script.eval_from_function,
       script.eval_from_position);
+};
+
+CallSite.prototype.getFunction = function () {
+  return this.fun;
 };
 
 CallSite.prototype.getFunctionName = function () {
@@ -644,6 +647,11 @@ CallSite.prototype.getFunctionName = function () {
 CallSite.prototype.getMethodName = function () {
   // See if we can find a unique property on the receiver that holds
   // this function.
+  var ownName = this.fun.name;
+  if (ownName && this.receiver && this.receiver[ownName] === this.fun)
+    // To handle DontEnum properties we guess that the method has
+    // the same name as the function.
+    return ownName;
   var name = null;
   for (var prop in this.receiver) {
     if (this.receiver[prop] === this.fun) {
@@ -725,15 +733,23 @@ function FormatSourcePosition(frame) {
     fileLocation = "unknown source";
   }
   var line = "";
+  var functionName = frame.getFunction().name;
   var methodName = frame.getMethodName();
-  var functionName = frame.getFunctionName();
   var addPrefix = true;
-  if (frame.isToplevel()) {
-    line += functionName;
-  } else if (frame.isConstructor()) {
-    line += "new " + functionName;
-  } else if (methodName) {
-    line += frame.getTypeName() + "." + methodName;
+  var isConstructor = frame.isConstructor();
+  var isMethodCall = !(frame.isToplevel() || isConstructor);
+  if (isMethodCall) {
+    line += frame.getTypeName() + ".";
+    if (functionName) {
+      line += functionName;
+      if (methodName && (methodName != functionName)) {
+        line += " [as " + methodName + "]";
+      }
+    } else {
+      line += methodName || "<anonymous>";
+    }
+  } else if (isConstructor) {
+    line += "new " + (functionName || "<anonymous>");
   } else if (functionName) {
     line += functionName;
   } else {
@@ -741,11 +757,7 @@ function FormatSourcePosition(frame) {
     addPrefix = false;
   }
   if (addPrefix) {
-    line += " (";
-    if (functionName) {
-      line += functionName + " @ ";
-    }
-    line += fileLocation + ")";
+    line += " (" + fileLocation + ")";
   }
   return line;
 }

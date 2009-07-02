@@ -73,6 +73,17 @@ function testConstructor() {
   new Plonk();
 }
 
+function testRenamedMethod() {
+  function a$b$c$d() { return FAIL; }
+  function Wookie() { }
+  Wookie.prototype.d = a$b$c$d;
+  (new Wookie).d();
+}
+
+function testAnonymousMethod() {
+  (function () { FAIL }).call([1, 2, 3]);
+}
+
 // Utility function for testing that the expected strings occur
 // in the stack trace produced when running the given function.
 function testTrace(fun, expected) {
@@ -149,9 +160,11 @@ testTrace(testNested, ["at one", "at two", "at three"]);
 testTrace(testMethodNameInference, ["at Foo.bar"]);
 testTrace(testImplicitConversion, ["at Nirk.valueOf"]);
 testTrace(testEval, ["at Doo (eval at testEval"]);
-testTrace(testNestedEval, ["at eval (eval at Inner (eval at Outer"]);
+testTrace(testNestedEval, ["eval at Inner (eval at Outer"]);
 testTrace(testValue, ["at Number.causeError"]);
 testTrace(testConstructor, ["new Plonk"]);
+testTrace(testRenamedMethod, ["Wookie.a$b$c$d [as d]"]);
+testTrace(testAnonymousMethod, ["Array.<anonymous>"]);
 
 testCallerCensorship();
 testUnintendedCallerCensorship();
