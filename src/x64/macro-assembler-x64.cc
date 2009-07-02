@@ -399,6 +399,51 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 }
 
 
+void MacroAssembler::TryGetFunctionPrototype(Register function,
+                                             Register result,
+                                             Label* miss) {
+  // Check that the receiver isn't a smi.
+  testl(function, Immediate(kSmiTagMask));
+  j(zero, miss);
+
+  // Check that the function really is a function.
+  CmpObjectType(function, JS_FUNCTION_TYPE, result);
+  j(not_equal, miss);
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  testb(FieldOperand(result, Map::kBitFieldOffset),
+        Immediate(1 << Map::kHasNonInstancePrototype));
+  j(not_zero, &non_instance);
+
+  // Get the prototype or initial map from the function.
+  movq(result,
+       FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // If the prototype or initial map is the hole, don't return it and
+  // simply miss the cache instead. This will allow us to allocate a
+  // prototype object on-demand in the runtime system.
+  Cmp(result, Factory::the_hole_value());
+  j(equal, miss);
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  CmpObjectType(result, MAP_TYPE, kScratchRegister);
+  j(not_equal, &done);
+
+  // Get the prototype from the initial map.
+  movq(result, FieldOperand(result, Map::kPrototypeOffset));
+  jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  bind(&non_instance);
+  movq(result, FieldOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  bind(&done);
+}
+
 
 void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {

@@ -5771,6 +5771,62 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
 
 void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Implements "value instanceof function" operator.
+  // Expected input state:
+  //   rsp[0] : return address
+  //   rsp[1] : function pointer
+  //   rsp[2] : value
+
+  // Get the object - go slow case if it's a smi.
+  Label slow;
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+
+  // Check that the left hand is a JS object. Leave its map in rax.
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);
+  __ j(below, &slow);
+  __ CmpInstanceType(rax, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Get the prototype of the function.
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  __ TryGetFunctionPrototype(rdx, rbx, &slow);
+
+  // Check that the function prototype is a JS object.
+  __ testl(rbx, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+  __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  __ j(below, &slow);
+  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Register mapping: rax is object map and rbx is function prototype.
+  __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
+
+  // Loop through the prototype chain looking for the function prototype.
+  Label loop, is_instance, is_not_instance;
+  __ Move(kScratchRegister, Factory::null_value());
+  __ bind(&loop);
+  __ cmpq(rcx, rbx);
+  __ j(equal, &is_instance);
+  __ cmpq(rcx, kScratchRegister);
+  __ j(equal, &is_not_instance);
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
+  __ jmp(&loop);
+
+  __ bind(&is_instance);
+  __ xor_(rax, rax);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&is_not_instance);
+  __ movq(rax, Immediate(Smi::FromInt(1)));
+  __ ret(2 * kPointerSize);
+
+  // Slow-case: Go through the JavaScript implementation.
+  __ bind(&slow);
+  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
 
 

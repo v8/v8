@@ -273,6 +273,7 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
+  ASSERT(desc->instr_size > 0);  // Zero-size code objects upset the system.
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
   desc->origin = this;
 
