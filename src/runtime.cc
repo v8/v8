@@ -769,17 +769,23 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   PropertyAttributes attributes = DONT_DELETE;
 
   // Lookup the property locally in the global object. If it isn't
-  // there, we add the property and take special precautions to always
-  // add it as a local property even in case of callbacks in the
-  // prototype chain (this rules out using SetProperty).
-  // We have IgnoreAttributesAndSetLocalProperty for this.
+  // there, there is a property with this name in the prototype chain.
+  // We follow Safari and Firefox behavior and only set the property
+  // locally if there is an explicit initialization value that we have
+  // to assign to the property. When adding the property we take
+  // special precautions to always add it as a local property even in
+  // case of callbacks in the prototype chain (this rules out using
+  // SetProperty).  We have IgnoreAttributesAndSetLocalProperty for
+  // this.
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
-    Object* value = (assign) ? args[1] : Heap::undefined_value();
-    return global->IgnoreAttributesAndSetLocalProperty(*name,
-                                                       value,
-                                                       attributes);
+    if (assign) {
+      return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                         args[1],
+                                                         attributes);
+    }
+    return Heap::undefined_value();
   }
 
   // Determine if this is a redeclaration of something read-only.

@@ -7024,3 +7024,20 @@ THREADED_TEST(GetCallingContext) {
   calling_context1.Clear();
   calling_context2.Clear();
 }
+
+
+// Check that a variable declaration with no explicit initialization
+// value does not shadow an existing property in the prototype chain.
+//
+// This is consistent with Firefox and Safari.
+//
+// See http://crbug.com/12548.
+THREADED_TEST(InitGlobalVarInProtoChain) {
+  v8::HandleScope scope;
+  LocalContext context;
+  // Introduce a variable in the prototype chain.
+  CompileRun("__proto__.x = 42");
+  v8::Handle<v8::Value> result = CompileRun("var x; x");
+  CHECK(!result->IsUndefined());
+  CHECK_EQ(42, result->Int32Value());
+}
