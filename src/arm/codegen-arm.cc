@@ -3176,9 +3176,60 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);
-  LoadAndSpill(args->at(0));  // Load the object.
-  frame_->CallRuntime(Runtime::kClassOf, 1);
+  JumpTarget leave, null, function, non_function_constructor;
+
+  // Load the object into r0.
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r0);
+
+  // If the object is a smi, we return null.
+  __ tst(r0, Operand(kSmiTagMask));
+  null.Branch(eq);
+
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  __ CompareObjectType(r0, r0, r1, FIRST_JS_OBJECT_TYPE);
+  null.Branch(lt);
+
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ cmp(r1, Operand(JS_FUNCTION_TYPE));
+  function.Branch(eq);
+
+  // Check if the constructor in the map is a function.
+  __ ldr(r0, FieldMemOperand(r0, Map::kConstructorOffset));
+  __ CompareObjectType(r0, r1, r1, JS_FUNCTION_TYPE);
+  non_function_constructor.Branch(ne);
+
+  // The r0 register now contains the constructor function. Grab the
+  // instance class name from there.
+  __ ldr(r0, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kInstanceClassNameOffset));
   frame_->EmitPush(r0);
+  leave.Jump();
+
+  // Functions have class 'Function'.
+  function.Bind();
+  __ mov(r0, Operand(Factory::function_class_symbol()));
+  frame_->EmitPush(r0);
+  leave.Jump();
+
+  // Objects with a non-function constructor have class 'Object'.
+  non_function_constructor.Bind();
+  __ mov(r0, Operand(Factory::Object_symbol()));
+  frame_->EmitPush(r0);
+  leave.Jump();
+
+  // Non-JS objects have class null.
+  null.Bind();
+  __ mov(r0, Operand(Factory::null_value()));
+  frame_->EmitPush(r0);
+
+  // All done.
+  leave.Bind();
 }
 
 
