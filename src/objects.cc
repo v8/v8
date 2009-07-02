@@ -138,7 +138,7 @@ void Object::Lookup(String* name, LookupResult* result) {
   } else if (IsBoolean()) {
     holder = global_context->boolean_function()->instance_prototype();
   }
-  ASSERT(holder != NULL);  // cannot handle null or undefined.
+  ASSERT(holder != NULL);  // Cannot handle null or undefined.
   JSObject::cast(holder)->Lookup(name, result);
 }
 
@@ -399,6 +399,88 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result,
 }
 
 
+Object* JSObject::GetNormalizedProperty(LookupResult* result) {
+  ASSERT(!HasFastProperties());
+  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
+  if (IsGlobalObject()) {
+    value = JSGlobalPropertyCell::cast(value)->value();
+  }
+  ASSERT(!value->IsJSGlobalPropertyCell());
+  return value;
+}
+
+
+Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
+  ASSERT(!HasFastProperties());
+  if (IsGlobalObject()) {
+    JSGlobalPropertyCell* cell =
+        JSGlobalPropertyCell::cast(
+            property_dictionary()->ValueAt(result->GetDictionaryEntry()));
+    cell->set_value(value);
+  } else {
+    property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
+  }
+  return value;
+}
+
+
+Object* JSObject::SetNormalizedProperty(String* name,
+                                        Object* value,
+                                        PropertyDetails details) {
+  ASSERT(!HasFastProperties());
+  int entry = property_dictionary()->FindStringEntry(name);
+  if (entry == Dictionary::kNotFound) {
+    Object* store_value = value;
+    if (IsGlobalObject()) {
+      store_value = Heap::AllocateJSGlobalPropertyCell(value);
+      if (store_value->IsFailure()) return store_value;
+    }
+    Object* dict =
+        property_dictionary()->AddStringEntry(name, store_value, details);
+    if (dict->IsFailure()) return dict;
+    set_properties(Dictionary::cast(dict));
+    return value;
+  }
+  // Preserve enumeration index.
+  details = PropertyDetails(details.attributes(),
+                            details.type(),
+                            property_dictionary()->DetailsAt(entry).index());
+  if (IsGlobalObject()) {
+    JSGlobalPropertyCell* cell =
+        JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
+    cell->set_value(value);
+    // Please note we have to update the property details.
+    property_dictionary()->DetailsAtPut(entry, details);
+  } else {
+    property_dictionary()->SetStringEntry(entry, name, value, details);
+  }
+  return value;
+}
+
+
+Object* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
+  ASSERT(!HasFastProperties());
+  Dictionary* dictionary = property_dictionary();
+  int entry = dictionary->FindStringEntry(name);
+  if (entry != Dictionary::kNotFound) {
+    // If we have a global object set the cell to the hole.
+    if (IsGlobalObject()) {
+      PropertyDetails details = dictionary->DetailsAt(entry);
+      if (details.IsDontDelete() && mode != FORCE_DELETION) {
+        return Heap::false_value();
+      }
+      JSGlobalPropertyCell* cell =
+          JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
+      cell->set_value(Heap::the_hole_value());
+      dictionary->DetailsAtPut(entry, details.AsDeleted());
+    } else {
+      return dictionary->DeleteProperty(entry, mode);
+    }
+  }
+  return Heap::true_value();
+}
+
+
 Object* Object::GetProperty(Object* receiver,
                             LookupResult* result,
                             String* name,
@@ -449,8 +531,7 @@ Object* Object::GetProperty(Object* receiver,
   JSObject* holder = result->holder();
   switch (result->type()) {
     case NORMAL:
-      value =
-          holder->property_dictionary()->ValueAt(result->GetDictionaryEntry());
+      value = holder->GetNormalizedProperty(result);
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? Heap::undefined_value() : value;
     case FIELD:
@@ -949,6 +1030,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case PROXY_TYPE:
       accumulator->Add("<Proxy>");
       break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      accumulator->Add("Cell for ");
+      JSGlobalPropertyCell::cast(this)->value()->ShortPrint(accumulator);
+      break;
     default:
       accumulator->Add("<Other heap object (%d)>", map()->instance_type());
       break;
@@ -1041,6 +1126,10 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case CODE_TYPE:
       reinterpret_cast<Code*>(this)->CodeIterateBody(v);
+      break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      reinterpret_cast<JSGlobalPropertyCell*>(this)
+          ->JSGlobalPropertyCellIterateBody(v);
       break;
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
@@ -1250,12 +1339,27 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
 Object* JSObject::AddSlowProperty(String* name,
                                   Object* value,
                                   PropertyAttributes attributes) {
-  PropertyDetails details = PropertyDetails(attributes, NORMAL);
-  Object* result = property_dictionary()->AddStringEntry(name, value, details);
-  if (result->IsFailure()) return result;
-  if (property_dictionary() != result) {
-     set_properties(Dictionary::cast(result));
+  ASSERT(!HasFastProperties());
+  Dictionary* dict = property_dictionary();
+  Object* store_value = value;
+  if (IsGlobalObject()) {
+    // In case name is an orphaned property reuse the cell.
+    int entry = dict->FindStringEntry(name);
+    if (entry != Dictionary::kNotFound) {
+      store_value = dict->ValueAt(entry);
+      JSGlobalPropertyCell::cast(store_value)->set_value(value);
+      PropertyDetails details = PropertyDetails(attributes, NORMAL);
+      dict->SetStringEntry(entry, name, store_value, details);
+      return value;
+    }
+    store_value = Heap::AllocateJSGlobalPropertyCell(value);
+    if (store_value->IsFailure()) return store_value;
+    JSGlobalPropertyCell::cast(store_value)->set_value(value);
   }
+  PropertyDetails details = PropertyDetails(attributes, NORMAL);
+  Object* result = dict->AddStringEntry(name, store_value, details);
+  if (result->IsFailure()) return result;
+  if (dict != result) set_properties(Dictionary::cast(result));
   return value;
 }
 
@@ -1311,13 +1415,7 @@ Object* JSObject::ReplaceSlowProperty(String* name,
   }
 
   PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
-  Object* result =
-      dictionary->SetOrAddStringEntry(name, value, new_details);
-  if (result->IsFailure()) return result;
-  if (dictionary != result) {
-    set_properties(Dictionary::cast(result));
-  }
-  return value;
+  return SetNormalizedProperty(name, value, new_details);
 }
 
 Object* JSObject::ConvertDescriptorToFieldAndMapTransition(
@@ -1550,7 +1648,7 @@ Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
     if (JSObject::cast(pt)->HasFastElements()) continue;
     Dictionary* dictionary = JSObject::cast(pt)->element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    if (entry != Dictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -1601,10 +1699,20 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
     }
   } else {
     int entry = property_dictionary()->FindStringEntry(name);
-    if (entry != DescriptorArray::kNotFound) {
+    if (entry != Dictionary::kNotFound) {
       // Make sure to disallow caching for uninitialized constants
       // found in the dictionary-mode objects.
-      if (property_dictionary()->ValueAt(entry)->IsTheHole()) {
+      Object* value = property_dictionary()->ValueAt(entry);
+      if (IsGlobalObject()) {
+        PropertyDetails d = property_dictionary()->DetailsAt(entry);
+        if (d.IsDeleted()) {
+          result->NotFound();
+          return;
+        }
+        value = JSGlobalPropertyCell::cast(value)->value();
+        ASSERT(result->IsLoaded());
+      }
+      if (value->IsTheHole()) {
         result->DisallowCaching();
       }
       result->DictionaryResult(this, entry);
@@ -1736,8 +1844,7 @@ Object* JSObject::SetProperty(LookupResult* result,
   // transition or null descriptor and there are no setters in the prototypes.
   switch (result->type()) {
     case NORMAL:
-      property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
-      return value;
+      return SetNormalizedProperty(result, value);
     case FIELD:
       return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
@@ -1819,8 +1926,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   //  Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
-      property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
-      return value;
+      return SetNormalizedProperty(result, value);
     case FIELD:
       return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
@@ -2008,6 +2114,10 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = r.GetConstantFunction();
+        if (IsGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -2017,6 +2127,10 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = FastPropertyAt(r.GetFieldIndex());
+        if (IsGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -2026,6 +2140,10 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), CALLBACKS, details.index());
         Object* value = r.GetCallbacksObject();
+        if (IsGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -2085,8 +2203,9 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
 
 Object* JSObject::TransformToFastProperties(int unused_property_fields) {
   if (HasFastProperties()) return this;
+  ASSERT(!IsGlobalObject());
   return property_dictionary()->
-    TransformPropertiesToFastFor(this, unused_property_fields);
+      TransformPropertiesToFastFor(this, unused_property_fields);
 }
 
 
@@ -2139,12 +2258,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name, DeleteMode mode) {
   Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
   if (obj->IsFailure()) return obj;
 
-  ASSERT(!HasFastProperties());
-  // Attempt to remove the property from the property dictionary.
-  Dictionary* dictionary = property_dictionary();
-  int entry = dictionary->FindStringEntry(name);
-  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
-  return Heap::true_value();
+  return DeleteNormalizedProperty(name, mode);
 }
 
 
@@ -2194,7 +2308,9 @@ Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
   ASSERT(!HasFastElements());
   Dictionary* dictionary = element_dictionary();
   int entry = dictionary->FindNumberEntry(index);
-  if (entry != -1) return dictionary->DeleteProperty(entry, mode);
+  if (entry != Dictionary::kNotFound) {
+    return dictionary->DeleteProperty(entry, mode);
+  }
   return Heap::true_value();
 }
 
@@ -2266,7 +2382,9 @@ Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
+    if (entry != Dictionary::kNotFound) {
+      return dictionary->DeleteProperty(entry, mode);
+    }
   }
   return Heap::true_value();
 }
@@ -2318,10 +2436,7 @@ Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
     Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (obj->IsFailure()) return obj;
     // Make sure the properties are normalized before removing the entry.
-    Dictionary* dictionary = property_dictionary();
-    int entry = dictionary->FindStringEntry(name);
-    if (entry != -1) return dictionary->DeleteProperty(entry, mode);
-    return Heap::true_value();
+    return DeleteNormalizedProperty(name, mode);
   }
 }
 
@@ -2574,7 +2689,7 @@ Object* JSObject::DefineGetterSetter(String* name,
     if (!HasFastElements()) {
       Dictionary* dictionary = element_dictionary();
       int entry = dictionary->FindNumberEntry(index);
-      if (entry != -1) {
+      if (entry != Dictionary::kNotFound) {
         Object* result = dictionary->ValueAt(entry);
         PropertyDetails details = dictionary->DetailsAt(entry);
         if (details.IsReadOnly()) return Heap::undefined_value();
@@ -2623,13 +2738,16 @@ Object* JSObject::DefineGetterSetter(String* name,
     Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (ok->IsFailure()) return ok;
 
-    // Update the dictionary with the new CALLBACKS property.
-    Object* dict =
-        property_dictionary()->SetOrAddStringEntry(name, structure, details);
-    if (dict->IsFailure()) return dict;
+    // For the global object allocate a new map to invalidate the global inline
+    // caches which have a global property cell reference directly in the code.
+    if (IsGlobalObject()) {
+      Object* new_map = map()->CopyDropDescriptors();
+      if (new_map->IsFailure()) return new_map;
+      set_map(Map::cast(new_map));
+    }
 
-    // Set the potential new dictionary on the object.
-    set_properties(Dictionary::cast(dict));
+    // Update the dictionary with the new CALLBACKS property.
+    return SetNormalizedProperty(name, structure, details);
   }
 
   return structure;
@@ -2683,7 +2801,7 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
       if (!jsObject->HasFastElements()) {
         Dictionary* dictionary = jsObject->element_dictionary();
         int entry = dictionary->FindNumberEntry(index);
-        if (entry != -1) {
+        if (entry != Dictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
           PropertyDetails details = dictionary->DetailsAt(entry);
           if (details.type() == CALLBACKS) {
@@ -3974,6 +4092,11 @@ void ConsString::ConsStringIterateBody(ObjectVisitor* v) {
 }
 
 
+void JSGlobalPropertyCell::JSGlobalPropertyCellIterateBody(ObjectVisitor* v) {
+  IteratePointers(v, kValueOffset, kValueOffset + kPointerSize);
+}
+
+
 uint16_t ConsString::ConsStringGet(int index) {
   ASSERT(index >= 0 && index < this->length());
 
@@ -4897,8 +5020,30 @@ const char* Code::ICState2String(InlineCacheState state) {
 }
 
 
+const char* Code::PropertyType2String(PropertyType type) {
+  switch (type) {
+    case NORMAL: return "NORMAL";
+    case FIELD: return "FIELD";
+    case CONSTANT_FUNCTION: return "CONSTANT_FUNCTION";
+    case CALLBACKS: return "CALLBACKS";
+    case INTERCEPTOR: return "INTERCEPTOR";
+    case MAP_TRANSITION: return "MAP_TRANSITION";
+    case CONSTANT_TRANSITION: return "CONSTANT_TRANSITION";
+    case NULL_DESCRIPTOR: return "NULL_DESCRIPTOR";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
 void Code::Disassemble(const char* name) {
   PrintF("kind = %s\n", Kind2String(kind()));
+  if (is_inline_cache_stub()) {
+    PrintF("ic_state = %s\n", ICState2String(ic_state()));
+    PrintF("ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
+    if (ic_state() == MONOMORPHIC) {
+      PrintF("type = %s\n", PropertyType2String(type()));
+    }
+  }
   if ((name != NULL) && (name[0] != '\0')) {
     PrintF("name = %s\n", name);
   }
@@ -5095,7 +5240,9 @@ bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
       return true;
     }
   } else {
-    if (element_dictionary()->FindNumberEntry(index) != -1) return true;
+    if (element_dictionary()->FindNumberEntry(index) != Dictionary::kNotFound) {
+      return true;
+    }
   }
 
   // Handle [] on String objects.
@@ -5170,7 +5317,8 @@ bool JSObject::HasLocalElement(uint32_t index) {
     return (index < length) &&
            !FixedArray::cast(elements())->get(index)->IsTheHole();
   } else {
-    return element_dictionary()->FindNumberEntry(index) != -1;
+    return element_dictionary()->FindNumberEntry(index)
+        != Dictionary::kNotFound;
   }
 }
 
@@ -5196,7 +5344,9 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     if ((index < length) &&
         !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
   } else {
-    if (element_dictionary()->FindNumberEntry(index) != -1) return true;
+    if (element_dictionary()->FindNumberEntry(index) != Dictionary::kNotFound) {
+      return true;
+    }
   }
 
   // Handle [] on String objects.
@@ -5332,7 +5482,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
   Dictionary* dictionary = Dictionary::cast(elms);
 
   int entry = dictionary->FindNumberEntry(index);
-  if (entry != -1) {
+  if (entry != Dictionary::kNotFound) {
     Object* element = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS) {
@@ -5426,7 +5576,7 @@ Object* JSObject::GetElementPostInterceptor(JSObject* receiver,
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    if (entry != Dictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -5510,7 +5660,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
   } else {
     Dictionary* dictionary = element_dictionary();
     int entry = dictionary->FindNumberEntry(index);
-    if (entry != -1) {
+    if (entry != Dictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -5803,7 +5953,8 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
     return (index < length) &&
         !FixedArray::cast(elements())->get(index)->IsTheHole();
   }
-  return element_dictionary()->FindNumberEntry(index) != -1;
+  return element_dictionary()->FindNumberEntry(index)
+      != Dictionary::kNotFound;
 }
 
 
@@ -6328,7 +6479,7 @@ Object* HashTable<prefix_size, element_size>::Allocate(int at_least_space_for) {
 template <int prefix_size, int element_size>
 int HashTable<prefix_size, element_size>::FindEntry(HashTableKey* key) {
   uint32_t nof = NumberOfElements();
-  if (nof == 0) return -1;  // Bail out if empty.
+  if (nof == 0) return kNotFound;  // Bail out if empty.
 
   uint32_t capacity = Capacity();
   uint32_t hash = key->Hash();
@@ -6338,17 +6489,17 @@ int HashTable<prefix_size, element_size>::FindEntry(HashTableKey* key) {
   uint32_t passed_elements = 0;
   if (!element->IsNull()) {
     if (!element->IsUndefined() && key->IsMatch(element)) return entry;
-    if (++passed_elements == nof) return -1;
+    if (++passed_elements == nof) return kNotFound;
   }
   for (uint32_t i = 1; !element->IsUndefined(); i++) {
     entry = GetProbe(hash, i, capacity);
     element = KeyAt(entry);
     if (!element->IsNull()) {
       if (!element->IsUndefined() && key->IsMatch(element)) return entry;
-      if (++passed_elements == nof) return -1;
+      if (++passed_elements == nof) return kNotFound;
     }
   }
-  return -1;
+  return kNotFound;
 }
 
 
@@ -6588,6 +6739,14 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 }
 
 
+Object* GlobalObject::GetPropertyCell(LookupResult* result) {
+  ASSERT(!HasFastProperties());
+  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
+  ASSERT(value->IsJSGlobalPropertyCell());
+  return value;
+}
+
+
 Object* SymbolTable::LookupString(String* string, Object** s) {
   SymbolKey key(string);
   return LookupKey(&key, s);
@@ -6597,7 +6756,7 @@ Object* SymbolTable::LookupString(String* string, Object** s) {
 bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
   SymbolKey key(string);
   int entry = FindEntry(&key);
-  if (entry == -1) {
+  if (entry == kNotFound) {
     return false;
   } else {
     String* result = String::cast(KeyAt(entry));
@@ -6618,7 +6777,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);
 
   // Symbol already in table.
-  if (entry != -1) {
+  if (entry != kNotFound) {
     *s = KeyAt(entry);
     return this;
   }
@@ -6648,7 +6807,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
 Object* CompilationCacheTable::Lookup(String* src) {
   StringKey key(src);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6656,7 +6815,7 @@ Object* CompilationCacheTable::Lookup(String* src) {
 Object* CompilationCacheTable::LookupEval(String* src, Context* context) {
   StringSharedKey key(src, context->closure()->shared());
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6665,7 +6824,7 @@ Object* CompilationCacheTable::LookupRegExp(String* src,
                                             JSRegExp::Flags flags) {
   RegExpKey key(src, flags);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6764,7 +6923,7 @@ class SymbolsKey : public HashTableKey {
 Object* MapCache::Lookup(FixedArray* array) {
   SymbolsKey key(array);
   int entry = FindEntry(&key);
-  if (entry == -1) return Heap::undefined_value();
+  if (entry == kNotFound) return Heap::undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
@@ -6915,7 +7074,7 @@ Object* Dictionary::AtPut(HashTableKey* key, Object* value) {
   int entry = FindEntry(key);
 
   // If the entry is present set the value;
-  if (entry != -1) {
+  if (entry != kNotFound) {
     ValueAtPut(entry, value);
     return this;
   }
@@ -6988,7 +7147,7 @@ Object* Dictionary::AddStringEntry(String* key,
                                    Object* value,
                                    PropertyDetails details) {
   StringKey k(key);
-  SLOW_ASSERT(FindEntry(&k) == -1);
+  SLOW_ASSERT(FindEntry(&k) == kNotFound);
   return Add(&k, value, details);
 }
 
@@ -6998,14 +7157,8 @@ Object* Dictionary::AddNumberEntry(uint32_t key,
                                    PropertyDetails details) {
   NumberKey k(key);
   UpdateMaxNumberKey(key);
-  SLOW_ASSERT(FindEntry(&k) == -1);
+  SLOW_ASSERT(FindEntry(&k) == kNotFound);
   return Add(&k, value, details);
-}
-
-
-Object* Dictionary::AtStringPut(String* key, Object* value) {
-  StringKey k(key);
-  return AtPut(&k, value);
 }
 
 
@@ -7016,12 +7169,10 @@ Object* Dictionary::AtNumberPut(uint32_t key, Object* value) {
 }
 
 
-Object* Dictionary::SetOrAddStringEntry(String* key,
-                                        Object* value,
-                                        PropertyDetails details) {
-  StringKey k(key);
-  int entry = FindEntry(&k);
-  if (entry == -1) return AddStringEntry(key, value, details);
+Object* Dictionary::SetStringEntry(int entry,
+                                   String* key,
+                                   Object* value,
+                                   PropertyDetails details) {
   // Preserve enumeration index.
   details = PropertyDetails(details.attributes(),
                             details.type(),
@@ -7124,8 +7275,12 @@ Object* Dictionary::SlowReverseLookup(Object* value) {
   int capacity = Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
-    if (IsKey(k) && ValueAt(i) == value) {
-      return k;
+    if (IsKey(k)) {
+      Object* e = ValueAt(i);
+      if (e->IsJSGlobalPropertyCell()) {
+        e = JSGlobalPropertyCell::cast(e)->value();
+      }
+      if (e == value) return k;
     }
   }
   return Heap::undefined_value();

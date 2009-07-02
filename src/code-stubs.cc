@@ -133,6 +133,10 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
       return "InvokeBuiltin";
     case JSExit:
       return "JSExit";
+    case ConvertToDouble:
+      return "ConvertToDouble";
+    case WriteInt32ToHeapNumber:
+      return "WriteInt32ToHeapNumber";
     default:
       UNREACHABLE();
       return NULL;

@@ -78,6 +78,12 @@ class StubCache : public AllStatic {
   static Object* ComputeLoadNormal(String* name, JSObject* receiver);
 
 
+  static Object* ComputeLoadGlobal(String* name,
+                                   GlobalObject* receiver,
+                                   JSGlobalPropertyCell* cell,
+                                   bool is_dont_delete);
+
+
   // ---
 
   static Object* ComputeKeyedLoadField(String* name,
@@ -111,6 +117,10 @@ class StubCache : public AllStatic {
                                    JSObject* receiver,
                                    int field_index,
                                    Map* transition = NULL);
+
+  static Object* ComputeStoreGlobal(String* name,
+                                    GlobalObject* receiver,
+                                    JSGlobalPropertyCell* cell);
 
   static Object* ComputeStoreCallback(String* name,
                                       JSObject* receiver,
@@ -150,6 +160,13 @@ class StubCache : public AllStatic {
                                         String* name,
                                         Object* object,
                                         JSObject* holder);
+
+  static Object* ComputeCallGlobal(int argc,
+                                   InLoopFlag in_loop,
+                                   String* name,
+                                   GlobalObject* receiver,
+                                   JSGlobalPropertyCell* cell,
+                                   JSFunction* function);
 
   // ---
 
@@ -416,6 +433,11 @@ class LoadStubCompiler: public StubCompiler {
                                  JSObject* holder,
                                  String* name);
 
+  Object* CompileLoadGlobal(GlobalObject* object,
+                            JSGlobalPropertyCell* holder,
+                            String* name,
+                            bool is_dont_delete);
+
  private:
   Object* GetCode(PropertyType type, String* name);
 };
@@ -457,6 +479,10 @@ class StoreStubCompiler: public StubCompiler {
                                AccessorInfo* callbacks,
                                String* name);
   Object* CompileStoreInterceptor(JSObject* object, String* name);
+  Object* CompileStoreGlobal(GlobalObject* object,
+                             JSGlobalPropertyCell* holder,
+                             String* name);
+
 
  private:
   Object* GetCode(PropertyType type, String* name);
@@ -477,24 +503,28 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
 class CallStubCompiler: public StubCompiler {
  public:
-  explicit CallStubCompiler(int argc) : arguments_(argc) { }
+  explicit CallStubCompiler(int argc, InLoopFlag in_loop)
+      : arguments_(argc), in_loop_(in_loop) { }
 
   Object* CompileCallField(Object* object,
                            JSObject* holder,
                            int index,
-                           String* name,
-                           Code::Flags flags);
+                           String* name);
   Object* CompileCallConstant(Object* object,
                               JSObject* holder,
                               JSFunction* function,
-                              CheckType check,
-                              Code::Flags flags);
+                              CheckType check);
   Object* CompileCallInterceptor(Object* object,
                                  JSObject* holder,
                                  String* name);
+  Object* CompileCallGlobal(GlobalObject* object,
+                            JSGlobalPropertyCell* cell,
+                            JSFunction* function,
+                            String* name);
 
  private:
   const ParameterCount arguments_;
+  const InLoopFlag in_loop_;
 
   const ParameterCount& arguments() { return arguments_; }
 

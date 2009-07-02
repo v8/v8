@@ -25,20 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_H_
-#define V8_VIRTUAL_FRAME_H_
+// See <URL:http://code.google.com/p/v8/issues/detail?id=394>
 
-#include "frame-element.h"
-#include "macro-assembler.h"
+function setx(){
+  x=1;
+}
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/virtual-frame-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/virtual-frame-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/virtual-frame-arm.h"
-#else
-#error Unsupported target architecture.
-#endif
+function getx(){
+  return x;
+}
 
-#endif  // V8_VIRTUAL_FRAME_H_
+setx()
+setx()
+__defineSetter__('x',function(){});
+__defineGetter__('x',function(){return 2;});
+setx()
+assertEquals(2, x);
+
+assertEquals(2, getx());
+assertEquals(2, getx());
+assertEquals(2, getx());

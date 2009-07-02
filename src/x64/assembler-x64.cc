@@ -750,6 +750,15 @@ void Assembler::idiv(Register src) {
 }
 
 
+void Assembler::imul(Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(src);
+  emit(0xF7);
+  emit_modrm(0x5, src);
+}
+
+
 void Assembler::imul(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -292,7 +292,10 @@ class CodeGenerator: public AstVisitor {
   void ToBoolean(JumpTarget* true_target, JumpTarget* false_target);
 
   void GenericBinaryOperation(Token::Value op, OverwriteMode overwrite_mode);
-  void Comparison(Condition cc, bool strict = false);
+  void Comparison(Condition cc,
+                  Expression* left,
+                  Expression* right,
+                  bool strict = false);
 
   void SmiOperation(Token::Value op,
                     Handle<Object> value,
@@ -333,11 +336,15 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   void GenerateIsArray(ZoneList<Expression*>* args);
 
+  // Support for construct call checks.
+  void GenerateIsConstructCall(ZoneList<Expression*>* args);
+
   // Support for arguments.length and arguments[?].
   void GenerateArgumentsLength(ZoneList<Expression*>* args);
   void GenerateArgumentsAccess(ZoneList<Expression*>* args);
 
-  // Support for accessing the value field of an object (used by Date).
+  // Support for accessing the class and value fields of an object.
+  void GenerateClassOf(ZoneList<Expression*>* args);
   void GenerateValueOf(ZoneList<Expression*>* args);
   void GenerateSetValueOf(ZoneList<Expression*>* args);
 

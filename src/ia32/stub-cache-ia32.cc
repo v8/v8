@@ -475,9 +475,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 Object* CallStubCompiler::CompileCallField(Object* object,
                                            JSObject* holder,
                                            int index,
-                                           String* name,
-                                           Code::Flags flags) {
-  ASSERT_EQ(FIELD, Code::ExtractTypeFromFlags(flags));
+                                           String* name) {
   // ----------- S t a t e -------------
   // -----------------------------------
   Label miss;
@@ -518,16 +516,14 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCodeWithFlags(flags, name);
+  return GetCode(FIELD, name);
 }
 
 
 Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSObject* holder,
                                               JSFunction* function,
-                                              CheckType check,
-                                              Code::Flags flags) {
-  ASSERT_EQ(CONSTANT_FUNCTION, Code::ExtractTypeFromFlags(flags));
+                                              CheckType check) {
   // ----------- S t a t e -------------
   // -----------------------------------
   Label miss;
@@ -627,6 +623,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
+  ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
   __ InvokeCode(code, expected, arguments(),
@@ -642,7 +639,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   if (function->shared()->name()->IsString()) {
     function_name = String::cast(function->shared()->name());
   }
-  return GetCodeWithFlags(flags, function_name);
+  return GetCode(CONSTANT_FUNCTION, function_name);
 }
 
 
@@ -715,6 +712,59 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
+}
+
+
+Object* CallStubCompiler::CompileCallGlobal(GlobalObject* object,
+                                            JSGlobalPropertyCell* cell,
+                                            JSFunction* function,
+                                            String* name) {
+  // ----------- S t a t e -------------
+  // -----------------------------------
+  Label miss;
+
+  __ IncrementCounter(&Counters::call_global_inline, 1);
+
+  // Get the number of arguments.
+  const int argc = arguments().immediate();
+
+  // Check that the map of the global has not changed.
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+  __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(object->map())));
+  __ j(not_equal, &miss, not_taken);
+
+  // Get the value from the cell.
+  __ mov(edi, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+  __ mov(edi, FieldOperand(edi, JSGlobalPropertyCell::kValueOffset));
+
+  // Check that the cell contains the same function.
+  __ cmp(Operand(edi), Immediate(Handle<JSFunction>(function)));
+  __ j(not_equal, &miss, not_taken);
+
+  // Patch the receiver on the stack with the global proxy.
+  __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+  __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+
+  // Setup the context (function already in edi).
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+
+  // Jump to the cached code (tail call).
+  ASSERT(function->is_compiled());
+  Handle<Code> code(function->code());
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  __ InvokeCode(code, expected, arguments(),
+                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::call_global_inline, 1);
+  __ IncrementCounter(&Counters::call_global_inline_miss, 1);
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
 }
 
 
@@ -861,6 +911,49 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 }
 
 
+Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
+                                              JSGlobalPropertyCell* cell,
+                                              String* name) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : name
+  //  -- esp[0] : return address
+  //  -- esp[4] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ IncrementCounter(&Counters::named_store_global_inline, 1);
+
+  // Check that the map of the global has not changed.
+  __ mov(ebx, (Operand(esp, kPointerSize)));
+  __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(object->map())));
+  __ j(not_equal, &miss, not_taken);
+
+  // Store the value in the cell.
+  __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+  __ mov(FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset), eax);
+
+  // RecordWrite clobbers the value register. Pass the value being stored in
+  // edx.
+  __ mov(edx, eax);
+  __ RecordWrite(ecx, JSGlobalPropertyCell::kValueOffset, edx, ebx);
+
+  // Return the value (register eax).
+  __ ret(0);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::named_store_global_inline, 1);
+  __ IncrementCounter(&Counters::named_store_global_inline_miss, 1);
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
+  __ jmp(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
+}
+
+
 Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   int index,
                                                   Map* transition,
@@ -996,6 +1089,47 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 
   // Return the generated code.
   return GetCode(INTERCEPTOR, name);
+}
+
+
+Object* LoadStubCompiler::CompileLoadGlobal(GlobalObject* object,
+                                            JSGlobalPropertyCell* cell,
+                                            String* name,
+                                            bool is_dont_delete) {
+  // ----------- S t a t e -------------
+  //  -- ecx    : name
+  //  -- esp[0] : return address
+  //  -- esp[4] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ IncrementCounter(&Counters::named_load_global_inline, 1);
+
+  // Check that the map of the global has not changed.
+  __ mov(eax, (Operand(esp, kPointerSize)));
+  __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
+         Immediate(Handle<Map>(object->map())));
+  __ j(not_equal, &miss, not_taken);
+
+  // Get the value from the cell.
+  __ mov(eax, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+  __ mov(eax, FieldOperand(eax, JSGlobalPropertyCell::kValueOffset));
+
+  // Check for deleted property if property can actually be deleted.
+  if (!is_dont_delete) {
+    __ cmp(eax, Factory::the_hole_value());
+    __ j(equal, &miss, not_taken);
+  }
+
+  __ ret(0);
+
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::named_load_global_inline, 1);
+  __ IncrementCounter(&Counters::named_load_global_inline_miss, 1);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
 }
 
 

@@ -919,6 +919,14 @@ void Assembler::idiv(Register src) {
 }
 
 
+void Assembler::imul(Register reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF7);
+  EMIT(0xE8 | reg.code());
+}
+
+
 void Assembler::imul(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

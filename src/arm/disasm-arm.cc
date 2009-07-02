@@ -438,7 +438,7 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       return 6;
     }
     case 'u': {  // 'u: signed or unsigned multiplies
-      if (instr->Bit(22) == 0) {
+      if (instr->Bit(22) == 1) {
         Print("u");
       } else {
         Print("s");
@@ -499,7 +499,7 @@ void Decoder::DecodeType01(Instr* instr) {
             Format(instr, "mla'cond's 'rd, 'rm, 'rs, 'rn");
           }
         } else {
-          Format(instr, "'um'al'cond's 'rn, 'rd, 'rs, 'rm");
+          Format(instr, "'um'al'cond's 'rn, 'rd, 'rm, 'rs");
         }
       } else {
         Unknown(instr);  // not used by V8
@@ -593,7 +593,17 @@ void Decoder::DecodeType01(Instr* instr) {
         if (instr->HasS()) {
           Format(instr, "teq'cond 'rn, 'shift_op");
         } else {
-          Unknown(instr);  // not used by V8
+          switch (instr->Bits(7, 4)) {
+            case BX:
+              Format(instr, "bx'cond 'rm");
+              break;
+            case BLX:
+              Format(instr, "blx'cond 'rm");
+              break;
+            default:
+              Unknown(instr);  // not used by V8
+              break;
+          }
         }
         break;
       }
@@ -609,7 +619,14 @@ void Decoder::DecodeType01(Instr* instr) {
         if (instr->HasS()) {
           Format(instr, "cmn'cond 'rn, 'shift_op");
         } else {
-          Unknown(instr);  // not used by V8
+          switch (instr->Bits(7, 4)) {
+            case CLZ:
+              Format(instr, "clz'cond 'rd, 'rm");
+              break;
+            default:
+              Unknown(instr);  // not used by V8
+              break;
+          }
         }
         break;
       }

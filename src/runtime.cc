@@ -413,48 +413,6 @@ static Object* Runtime_ClassOf(Arguments args) {
 }
 
 
-static Object* Runtime_HasStringClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::String_symbol()));
-}
-
-
-static Object* Runtime_HasDateClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Date_symbol()));
-}
-
-
-static Object* Runtime_HasArrayClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Array_symbol()));
-}
-
-
-static Object* Runtime_HasFunctionClass(Arguments args) {
-  return Heap::ToBoolean(
-             args[0]->HasSpecificClassOf(Heap::function_class_symbol()));
-}
-
-
-static Object* Runtime_HasNumberClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Number_symbol()));
-}
-
-
-static Object* Runtime_HasBooleanClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Boolean_symbol()));
-}
-
-
-static Object* Runtime_HasArgumentsClass(Arguments args) {
-  return Heap::ToBoolean(
-             args[0]->HasSpecificClassOf(Heap::Arguments_symbol()));
-}
-
-
-static Object* Runtime_HasRegExpClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::RegExp_symbol()));
-}
-
-
 static Object* Runtime_IsInPrototypeChain(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -617,9 +575,6 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
   // non-deletable. However, neither SpiderMonkey nor KJS creates the
   // property as read-only, so we don't either.
   PropertyAttributes base = is_eval ? NONE : DONT_DELETE;
-
-  // Only optimize the object if we intend to add more than 5 properties.
-  OptimizedObjectForAddingMultipleProperties ba(global, pairs->length()/2 > 5);
 
   // Traverse the name/value pairs and set the properties.
   int length = pairs->length();
@@ -814,17 +769,23 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   PropertyAttributes attributes = DONT_DELETE;
 
   // Lookup the property locally in the global object. If it isn't
-  // there, we add the property and take special precautions to always
-  // add it as a local property even in case of callbacks in the
-  // prototype chain (this rules out using SetProperty).
-  // We have IgnoreAttributesAndSetLocalProperty for this.
+  // there, there is a property with this name in the prototype chain.
+  // We follow Safari and Firefox behavior and only set the property
+  // locally if there is an explicit initialization value that we have
+  // to assign to the property. When adding the property we take
+  // special precautions to always add it as a local property even in
+  // case of callbacks in the prototype chain (this rules out using
+  // SetProperty).  We have IgnoreAttributesAndSetLocalProperty for
+  // this.
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
-    Object* value = (assign) ? args[1] : Heap::undefined_value();
-    return global->IgnoreAttributesAndSetLocalProperty(*name,
-                                                       value,
-                                                       attributes);
+    if (assign) {
+      return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                         args[1],
+                                                         attributes);
+    }
+    return Heap::undefined_value();
   }
 
   // Determine if this is a redeclaration of something read-only.
@@ -932,10 +893,8 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
       properties->set(index, *value);
     }
   } else if (type == NORMAL) {
-    Dictionary* dictionary = global->property_dictionary();
-    int entry = lookup.GetDictionaryEntry();
-    if (dictionary->ValueAt(entry)->IsTheHole()) {
-      dictionary->ValueAtPut(entry, *value);
+    if (global->GetNormalizedProperty(&lookup)->IsTheHole()) {
+      global->SetNormalizedProperty(&lookup, *value);
     }
   } else {
     // Ignore re-initialization of constants that have already been
@@ -1025,10 +984,8 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
         properties->set(index, *value);
       }
     } else if (type == NORMAL) {
-      Dictionary* dictionary = context_ext->property_dictionary();
-      int entry = lookup.GetDictionaryEntry();
-      if (dictionary->ValueAt(entry)->IsTheHole()) {
-        dictionary->ValueAtPut(entry, *value);
+      if (context_ext->GetNormalizedProperty(&lookup)->IsTheHole()) {
+        context_ext->SetNormalizedProperty(&lookup, *value);
       }
     } else {
       // We should not reach here. Any real, named property should be
@@ -1154,6 +1111,21 @@ static Object* Runtime_FunctionGetScriptSourcePosition(Arguments args) {
   int pos = fun->shared()->start_position();
   return Smi::FromInt(pos);
 }
+
+
+static Object* Runtime_FunctionGetPositionForOffset(Arguments args) {
+  ASSERT(args.length() == 2);
+
+  CONVERT_CHECKED(JSFunction, fun, args[0]);
+  CONVERT_NUMBER_CHECKED(int, offset, Int32, args[1]);
+
+  Code* code = fun->code();
+  RUNTIME_ASSERT(0 <= offset && offset < code->Size());
+
+  Address pc = code->address() + offset;
+  return Smi::FromInt(fun->code()->SourcePosition(pc));
+}
+
 
 
 static Object* Runtime_FunctionSetInstanceClassName(Arguments args) {
@@ -2640,9 +2612,13 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       // Attempt dictionary lookup.
       Dictionary* dictionary = receiver->property_dictionary();
       int entry = dictionary->FindStringEntry(key);
-      if ((entry != DescriptorArray::kNotFound) &&
+      if ((entry != Dictionary::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
-        return dictionary->ValueAt(entry);
+        Object* value = dictionary->ValueAt(entry);
+        if (receiver->IsGlobalObject()) {
+           value = JSGlobalPropertyCell::cast(value)->value();
+        }
+        return value;
       }
     }
   }
@@ -4522,17 +4498,25 @@ static Object* Runtime_LookupContext(Arguments args) {
 // compiler to do the right thing.
 //
 // TODO(1236026): This is a non-portable hack that should be removed.
-// TODO(x64): Definitely!
+#ifdef V8_HOST_ARCH_64_BIT
+// Tested with GCC, not with MSVC.
+struct ObjectPair {
+  Object* x;
+  Object* y;
+};
+static inline ObjectPair MakePair(Object* x, Object* y) {
+  ObjectPair result = {x, y};
+  return result;  // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
+}
+#else
 typedef uint64_t ObjectPair;
 static inline ObjectPair MakePair(Object* x, Object* y) {
-#if V8_HOST_ARCH_64_BIT
-  UNIMPLEMENTED();
-  return 0;
-#else
   return reinterpret_cast<uint32_t>(x) |
       (reinterpret_cast<ObjectPair>(y) << 32);
-#endif
 }
+#endif
+
+
 
 
 static inline Object* Unhole(Object* x, PropertyAttributes attributes) {
@@ -5560,15 +5544,12 @@ static Object* DebugLookupResultValue(Object* receiver, String* name,
                                       bool* caught_exception) {
   Object* value;
   switch (result->type()) {
-    case NORMAL: {
-      Dictionary* dict =
-          JSObject::cast(result->holder())->property_dictionary();
-      value = dict->ValueAt(result->GetDictionaryEntry());
+    case NORMAL:
+      value = result->holder()->GetNormalizedProperty(result);
       if (value->IsTheHole()) {
         return Heap::undefined_value();
       }
       return value;
-    }
     case FIELD:
       value =
           JSObject::cast(
@@ -7404,6 +7385,67 @@ static Object* Runtime_GetScript(Arguments args) {
   // Find the requested script.
   Handle<Object> result =
       Runtime_GetScriptFromScriptName(Handle<String>(script_name));
+  return *result;
+}
+
+
+// Determines whether the given stack frame should be displayed in
+// a stack trace.  The caller is the error constructor that asked
+// for the stack trace to be collected.  The first time a construct
+// call to this function is encountered it is skipped.  The seen_caller
+// in/out parameter is used to remember if the caller has been seen
+// yet.
+static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
+    bool* seen_caller) {
+  // Only display JS frames.
+  if (!raw_frame->is_java_script())
+    return false;
+  JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
+  Object* raw_fun = frame->function();
+  // Not sure when this can happen but skip it just in case.
+  if (!raw_fun->IsJSFunction())
+    return false;
+  if ((raw_fun == caller) && !(*seen_caller) && frame->IsConstructor()) {
+    *seen_caller = true;
+    return false;
+  }
+  // Skip the most obvious builtin calls.  Some builtin calls (such as
+  // Number.ADD which is invoked using 'call') are very difficult to
+  // recognize so we're leaving them in for now.
+  return !frame->receiver()->IsJSBuiltinsObject();
+}
+
+
+// Collect the raw data for a stack trace.  Returns an array of three
+// element segments each containing a receiver, function and native
+// code offset.
+static Object* Runtime_CollectStackTrace(Arguments args) {
+  ASSERT_EQ(args.length(), 1);
+  Object* caller = args[0];
+
+  StackFrameIterator iter;
+  int frame_count = 0;
+  bool seen_caller = false;
+  while (!iter.done()) {
+    if (ShowFrameInStackTrace(iter.frame(), caller, &seen_caller))
+      frame_count++;
+    iter.Advance();
+  }
+  HandleScope scope;
+  Handle<JSArray> result = Factory::NewJSArray(frame_count * 3);
+  int i = 0;
+  seen_caller = false;
+  for (iter.Reset(); !iter.done(); iter.Advance()) {
+    StackFrame* raw_frame = iter.frame();
+    if (ShowFrameInStackTrace(raw_frame, caller, &seen_caller)) {
+      JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
+      result->SetElement(i++, frame->receiver());
+      result->SetElement(i++, frame->function());
+      Address pc = frame->pc();
+      Address start = frame->code()->address();
+      result->SetElement(i++, Smi::FromInt(pc - start));
+    }
+  }
   return *result;
 }
 

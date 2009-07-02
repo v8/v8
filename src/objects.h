@@ -153,20 +153,23 @@ class PropertyDetails BASE_EMBEDDED {
 
   int index() { return IndexField::decode(value_); }
 
+  inline PropertyDetails AsDeleted();
+
   static bool IsValidIndex(int index) { return IndexField::is_valid(index); }
 
   bool IsReadOnly() { return (attributes() & READ_ONLY) != 0; }
   bool IsDontDelete() { return (attributes() & DONT_DELETE) != 0; }
   bool IsDontEnum() { return (attributes() & DONT_ENUM) != 0; }
+  bool IsDeleted() { return DeletedField::decode(value_) != 0;}
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
   class TypeField:       public BitField<PropertyType,       0, 3> {};
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
-  class IndexField:      public BitField<uint32_t,           6, 32-6> {};
+  class DeletedField:    public BitField<uint32_t,           6, 1> {};
+  class IndexField:      public BitField<uint32_t,           7, 31-7> {};
 
   static const int kInitialIndex = 1;
-
  private:
   uint32_t value_;
 };
@@ -263,6 +266,7 @@ enum PropertyNormalizationMode {
   V(HEAP_NUMBER_TYPE)                           \
   V(FIXED_ARRAY_TYPE)                           \
   V(CODE_TYPE)                                  \
+  V(JS_GLOBAL_PROPERTY_CELL_TYPE)               \
   V(ODDBALL_TYPE)                               \
   V(PROXY_TYPE)                                 \
   V(BYTE_ARRAY_TYPE)                            \
@@ -547,6 +551,7 @@ enum InstanceType {
   FIXED_ARRAY_TYPE,
   CODE_TYPE,
   ODDBALL_TYPE,
+  JS_GLOBAL_PROPERTY_CELL_TYPE,
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   FILLER_TYPE,
@@ -684,6 +689,7 @@ class Object BASE_EMBEDDED {
   inline bool IsJSGlobalProxy();
   inline bool IsUndetectableObject();
   inline bool IsAccessCheckNeeded();
+  inline bool IsJSGlobalPropertyCell();
 
   // Returns true if this object is an instance of the specified
   // function template.
@@ -1193,6 +1199,8 @@ class HeapNumber: public HeapObject {
 // caching.
 class JSObject: public HeapObject {
  public:
+  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
+
   // [properties]: Backing storage for properties.
   // properties is a FixedArray in the fast case, and a Dictionary in the
   // slow case.
@@ -1242,6 +1250,23 @@ class JSObject: public HeapObject {
   Object* IgnoreAttributesAndSetLocalProperty(String* key,
                                               Object* value,
                                               PropertyAttributes attributes);
+
+  // Retrieve a value in a normalized object given a lookup result.
+  // Handles the special representation of JS global objects.
+  Object* GetNormalizedProperty(LookupResult* result);
+
+  // Sets the property value in a normalized object given a lookup result.
+  // Handles the special representation of JS global objects.
+  Object* SetNormalizedProperty(LookupResult* result, Object* value);
+
+  // Sets the property value in a normalized object given (key, value, details).
+  // Handles the special representation of JS global objects.
+  Object* SetNormalizedProperty(String* name,
+                                Object* value,
+                                PropertyDetails details);
+
+  // Deletes the named property in a normalized object.
+  Object* DeleteNormalizedProperty(String* name, DeleteMode mode);
 
   // Sets a property that currently has lazy loading.
   Object* SetLazyProperty(LookupResult* result,
@@ -1293,7 +1318,6 @@ class JSObject: public HeapObject {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
 
-  enum DeleteMode { NORMAL_DELETION, FORCE_DELETION };
   Object* DeleteProperty(String* name, DeleteMode mode);
   Object* DeleteElement(uint32_t index, DeleteMode mode);
   Object* DeleteLazyProperty(LookupResult* result,
@@ -1930,6 +1954,9 @@ class HashTable: public FixedArray {
   static const int kElementsStartOffset   =
       kHeaderSize + kElementsStartIndex * kPointerSize;
 
+  // Constant used for denoting a absent entry.
+  static const int kNotFound = -1;
+
  protected:
   // Find entry for key otherwise return -1.
   int FindEntry(HashTableKey* key);
@@ -2027,7 +2054,9 @@ class DictionaryBase: public HashTable<2, 3> {};
 class Dictionary: public DictionaryBase {
  public:
   // Returns the value at entry.
-  Object* ValueAt(int entry) { return get(EntryToIndex(entry)+1); }
+  Object* ValueAt(int entry) {
+    return get(EntryToIndex(entry)+1);
+  }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
@@ -2064,16 +2093,16 @@ class Dictionary: public DictionaryBase {
   Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
 
   // Type specific at put (default NONE attributes is used when adding).
-  Object* AtStringPut(String* key, Object* value);
   Object* AtNumberPut(uint32_t key, Object* value);
 
   Object* AddStringEntry(String* key, Object* value, PropertyDetails details);
   Object* AddNumberEntry(uint32_t key, Object* value, PropertyDetails details);
 
   // Set an existing entry or add a new one if needed.
-  Object* SetOrAddStringEntry(String* key,
-                              Object* value,
-                              PropertyDetails details);
+  Object* SetStringEntry(int entry,
+                         String* key,
+                         Object* value,
+                         PropertyDetails details);
 
   Object* SetOrAddNumberEntry(uint32_t key,
                               Object* value,
@@ -2252,6 +2281,7 @@ class Code: public HeapObject {
   // Printing
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
+  static const char* PropertyType2String(PropertyType type);
   void Disassemble(const char* name);
 #endif  // ENABLE_DISASSEMBLER
 
@@ -2274,7 +2304,7 @@ class Code: public HeapObject {
   // [flags]: Access to specific code flags.
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
-  inline InLoopFlag ic_in_loop();  // Only valid for IC stubs..
+  inline InLoopFlag ic_in_loop();  // Only valid for IC stubs.
   inline PropertyType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
@@ -2655,16 +2685,16 @@ class Script: public Struct {
  public:
   // Script types.
   enum Type {
-    TYPE_NATIVE,
-    TYPE_EXTENSION,
-    TYPE_NORMAL
+    TYPE_NATIVE = 0,
+    TYPE_EXTENSION = 1,
+    TYPE_NORMAL = 2
   };
 
   // Script compilation types.
   enum CompilationType {
-    COMPILATION_TYPE_HOST,
-    COMPILATION_TYPE_EVAL,
-    COMPILATION_TYPE_JSON
+    COMPILATION_TYPE_HOST = 0,
+    COMPILATION_TYPE_EVAL = 1,
+    COMPILATION_TYPE_JSON = 2
   };
 
   // [source]: the script source.
@@ -3029,6 +3059,9 @@ class GlobalObject: public JSObject {
   // [global receiver]: the global receiver object of the context
   DECL_ACCESSORS(global_receiver, JSObject)
 
+  // Retrieve the property cell used to store a property.
+  Object* GetPropertyCell(LookupResult* result);
+
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 
@@ -3048,6 +3081,7 @@ class GlobalObject: public JSObject {
 // JavaScript global object.
 class JSGlobalObject: public GlobalObject {
  public:
+
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
 
@@ -3934,6 +3968,31 @@ class Oddball: public HeapObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);
 };
+
+
+class JSGlobalPropertyCell: public HeapObject {
+ public:
+  // [value]: value of the global property.
+  DECL_ACCESSORS(value, Object)
+
+  // Casting.
+  static inline JSGlobalPropertyCell* cast(Object* obj);
+
+  // Dispatched behavior.
+  void JSGlobalPropertyCellIterateBody(ObjectVisitor* v);
+#ifdef DEBUG
+  void JSGlobalPropertyCellVerify();
+  void JSGlobalPropertyCellPrint();
+#endif
+
+  // Layout description.
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kSize = kValueOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalPropertyCell);
+};
+
 
 
 // Proxy describes objects pointing from JavaScript to C structures.

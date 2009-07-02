@@ -1046,6 +1046,9 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
         int64_t result = target(arg0, arg1, arg2, arg3);
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
+        if (::v8::internal::FLAG_trace_sim) {
+          PrintF("Returned %08x\n", lo_res);
+        }
         set_register(r0, lo_res);
         set_register(r1, hi_res);
         set_register(r0, result);
@@ -1357,7 +1360,21 @@ void Simulator::DecodeType01(Instr* instr) {
           SetNZFlags(alu_out);
           SetCFlag(shifter_carry_out);
         } else {
-          UNIMPLEMENTED();
+          ASSERT(type == 0);
+          int rm = instr->RmField();
+          switch (instr->Bits(7, 4)) {
+            case BX:
+              set_pc(get_register(rm));
+              break;
+            case BLX: {
+              uint32_t old_pc = get_pc();
+              set_pc(get_register(rm));
+              set_register(lr, old_pc + Instr::kInstrSize);
+              break;
+            }
+            default:
+              UNIMPLEMENTED();
+          }
         }
         break;
       }
@@ -1381,7 +1398,27 @@ void Simulator::DecodeType01(Instr* instr) {
           Format(instr, "cmn'cond 'rn, 'shift_rm");
           Format(instr, "cmn'cond 'rn, 'imm");
         } else {
-          UNIMPLEMENTED();
+          ASSERT(type == 0);
+          int rm = instr->RmField();
+          int rd = instr->RdField();
+          switch (instr->Bits(7, 4)) {
+            case CLZ: {
+              uint32_t bits = get_register(rm);
+              int leading_zeros = 0;
+              if (bits == 0) {
+                leading_zeros = 32;
+              } else {
+                while ((bits & 0x80000000u) == 0) {
+                  bits <<= 1;
+                  leading_zeros++;
+                }
+              }
+              set_register(rd, leading_zeros);
+              break;
+            }
+            default:
+              UNIMPLEMENTED();
+          }
         }
         break;
       }

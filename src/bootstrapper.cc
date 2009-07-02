@@ -539,7 +539,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
   {  // --- G l o b a l ---
     // Step 1: create a fresh inner JSGlobalObject
-    Handle<JSGlobalObject> object;
+    Handle<GlobalObject> object;
     {
       Handle<JSFunction> js_global_function;
       Handle<ObjectTemplateInfo> js_global_template;
@@ -579,9 +579,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       }
 
       js_global_function->initial_map()->set_is_hidden_prototype();
-      SetExpectedNofProperties(js_global_function, 100);
-      object = Handle<JSGlobalObject>::cast(
-          Factory::NewJSObject(js_global_function, TENURED));
+      object = Factory::NewGlobalObject(js_global_function);
     }
 
     // Set the global context for the global object.
@@ -963,12 +961,10 @@ bool Genesis::InstallNatives() {
 
   Handle<String> name = Factory::LookupAsciiSymbol("builtins");
   builtins_fun->shared()->set_instance_class_name(*name);
-  SetExpectedNofProperties(builtins_fun, 100);
 
   // Allocate the builtins object.
   Handle<JSBuiltinsObject> builtins =
-      Handle<JSBuiltinsObject>::cast(Factory::NewJSObject(builtins_fun,
-                                                          TENURED));
+      Handle<JSBuiltinsObject>::cast(Factory::NewGlobalObject(builtins_fun));
   builtins->set_builtins(*builtins);
   builtins->set_global_context(*global_context());
   builtins->set_global_receiver(*builtins);
@@ -1113,8 +1109,8 @@ bool Genesis::InstallNatives() {
   }
 
 #ifdef V8_HOST_ARCH_64_BIT
-  // TODO(X64): Remove this test when code generation works and is stable.
-  CodeGenerator::TestCodeGenerator();
+  // TODO(X64): Remove this when inline caches work.
+  FLAG_use_ic = false;
 #endif  // V8_HOST_ARCH_64_BIT
 
 
@@ -1191,10 +1187,6 @@ bool Genesis::InstallNatives() {
     apply->shared()->set_length(2);
   }
 
-  // Make sure that the builtins object has fast properties.
-  // If the ASSERT below fails, please increase the expected number of
-  // properties for the builtins object.
-  ASSERT(builtins->HasFastProperties());
 #ifdef DEBUG
   builtins->Verify();
 #endif
@@ -1212,6 +1204,17 @@ bool Genesis::InstallSpecialObjects() {
         Factory::LookupAsciiSymbol(FLAG_expose_natives_as);
     SetProperty(js_global, natives_string,
                 Handle<JSObject>(js_global->builtins()), DONT_ENUM);
+  }
+
+  if (FLAG_capture_stack_traces) {
+    Handle<Object> Error = GetProperty(js_global, "Error");
+    if (Error->IsJSObject()) {
+      Handle<String> name = Factory::LookupAsciiSymbol("captureStackTraces");
+      SetProperty(Handle<JSObject>::cast(Error),
+                  name,
+                  Factory::true_value(),
+                  NONE);
+    }
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1445,6 +1448,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // Set the property.
         Handle<String> key = Handle<String>(String::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i));
+        if (value->IsJSGlobalPropertyCell()) {
+          value = Handle<Object>(JSGlobalPropertyCell::cast(*value)->value());
+        }
         PropertyDetails details = properties->DetailsAt(i);
         SetProperty(to, key, value, details.attributes());
       }

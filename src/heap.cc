@@ -79,7 +79,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-#if V8_HOST_ARCH_ARM
+#if V8_TARGET_ARCH_ARM
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
@@ -221,6 +221,7 @@ void Heap::ReportStatisticsAfterGC() {
   // NewSpace statistics are logged exactly once when --log-gc is turned on.
 #if defined(DEBUG) && defined(ENABLE_LOGGING_AND_PROFILING)
   if (FLAG_heap_stats) {
+    new_space_.CollectStatistics();
     ReportHeapStatistics("After GC");
   } else if (FLAG_log_gc) {
     new_space_.ReportStatistics();
@@ -428,22 +429,8 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     old_gen_allocation_limit_ =
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
-
-    // If we have used the mark-compact collector to collect the new
-    // space, and it has not compacted the new space, we force a
-    // separate scavenge collection.  This is a hack.  It covers the
-    // case where (1) a new space collection was requested, (2) the
-    // collector selection policy selected the mark-compact collector,
-    // and (3) the mark-compact collector policy selected not to
-    // compact the new space.  In that case, there is no more (usable)
-    // free space in the new space after the collection compared to
-    // before.
-    if (space == NEW_SPACE && !MarkCompactCollector::HasCompacted()) {
-      Scavenge();
-    }
-  } else {
-    Scavenge();
   }
+  Scavenge();
   Counters::objs_since_last_young.Set(0);
 
   PostGarbageCollectionProcessing();
@@ -1070,6 +1057,11 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   oddball_map_ = Map::cast(obj);
 
+  obj = AllocatePartialMap(JS_GLOBAL_PROPERTY_CELL_TYPE,
+                           JSGlobalPropertyCell::kSize);
+  if (obj->IsFailure()) return false;
+  global_property_cell_map_ = Map::cast(obj);
+
   // Allocate the empty array
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
@@ -1095,6 +1087,10 @@ bool Heap::CreateInitialMaps() {
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
   oddball_map()->set_code_cache(empty_fixed_array());
 
+  global_property_cell_map()->set_instance_descriptors(
+      empty_descriptor_array());
+  global_property_cell_map()->set_code_cache(empty_fixed_array());
+
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
   meta_map()->set_constructor(null_value());
@@ -1103,6 +1099,9 @@ bool Heap::CreateInitialMaps() {
   fixed_array_map()->set_constructor(null_value());
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
+
+  global_property_cell_map()->set_prototype(null_value());
+  global_property_cell_map()->set_constructor(null_value());
 
   obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   if (obj->IsFailure()) return false;
@@ -1230,6 +1229,17 @@ Object* Heap::AllocateHeapNumber(double value) {
 }
 
 
+Object* Heap::AllocateJSGlobalPropertyCell(Object* value) {
+  Object* result = AllocateRaw(JSGlobalPropertyCell::kSize,
+                               OLD_POINTER_SPACE,
+                               OLD_POINTER_SPACE);
+  if (result->IsFailure()) return result;
+  HeapObject::cast(result)->set_map(global_property_cell_map());
+  JSGlobalPropertyCell::cast(result)->set_value(value);
+  return result;
+}
+
+
 Object* Heap::CreateOddball(Map* map,
                             const char* to_string,
                             Object* to_number) {
@@ -1257,28 +1267,49 @@ bool Heap::CreateApiObjects() {
   return true;
 }
 
+
+void Heap::CreateCEntryStub() {
+  CEntryStub stub;
+  c_entry_code_ = *stub.GetCode();
+}
+
+
+void Heap::CreateCEntryDebugBreakStub() {
+  CEntryDebugBreakStub stub;
+  c_entry_debug_break_code_ = *stub.GetCode();
+}
+
+
+void Heap::CreateJSEntryStub() {
+  JSEntryStub stub;
+  js_entry_code_ = *stub.GetCode();
+}
+
+
+void Heap::CreateJSConstructEntryStub() {
+  JSConstructEntryStub stub;
+  js_construct_entry_code_ = *stub.GetCode();
+}
+
+
 void Heap::CreateFixedStubs() {
   // Here we create roots for fixed stubs. They are needed at GC
   // for cooking and uncooking (check out frames.cc).
   // The eliminates the need for doing dictionary lookup in the
   // stub cache for these stubs.
   HandleScope scope;
-  {
-    CEntryStub stub;
-    c_entry_code_ = *stub.GetCode();
-  }
-  {
-    CEntryDebugBreakStub stub;
-    c_entry_debug_break_code_ = *stub.GetCode();
-  }
-  {
-    JSEntryStub stub;
-    js_entry_code_ = *stub.GetCode();
-  }
-  {
-    JSConstructEntryStub stub;
-    js_construct_entry_code_ = *stub.GetCode();
-  }
+  // gcc-4.4 has problem generating correct code of following snippet:
+  // {  CEntryStub stub;
+  //    c_entry_code_ = *stub.GetCode();
+  // }
+  // {  CEntryDebugBreakStub stub;
+  //    c_entry_debug_break_code_ = *stub.GetCode();
+  // }
+  // To workaround the problem, make separate functions without inlining.
+  Heap::CreateCEntryStub();
+  Heap::CreateCEntryDebugBreakStub();
+  Heap::CreateJSEntryStub();
+  Heap::CreateJSConstructEntryStub();
 }
 
 
@@ -1514,7 +1545,7 @@ Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateSharedFunctionInfo(Object* name) {
-  Object* result = Allocate(shared_function_info_map(), NEW_SPACE);
+  Object* result = Allocate(shared_function_info_map(), OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
 
   SharedFunctionInfo* share = SharedFunctionInfo::cast(result);
@@ -2006,7 +2037,7 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
 
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
-  Object* properties = AllocateFixedArray(prop_size);
+  Object* properties = AllocateFixedArray(prop_size, pretenure);
   if (properties->IsFailure()) return properties;
 
   // Allocate the JSObject.
@@ -2034,7 +2065,39 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
     Map::cast(initial_map)->set_constructor(constructor);
   }
   // Allocate the object based on the constructors initial map.
-  return AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+  Object* result =
+      AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+  // Make sure result is NOT a global object if valid.
+  ASSERT(result->IsFailure() || !result->IsGlobalObject());
+  return result;
+}
+
+
+Object* Heap::AllocateGlobalObject(JSFunction* constructor) {
+  ASSERT(constructor->has_initial_map());
+  // Make sure no field properties are described in the initial map.
+  // This guarantees us that normalizing the properties does not
+  // require us to change property values to JSGlobalPropertyCells.
+  ASSERT(constructor->initial_map()->NextFreePropertyIndex() == 0);
+
+  // Make sure we don't have a ton of pre-allocated slots in the
+  // global objects. They will be unused once we normalize the object.
+  ASSERT(constructor->initial_map()->unused_property_fields() == 0);
+  ASSERT(constructor->initial_map()->inobject_properties() == 0);
+
+  // Allocate the object based on the constructors initial map.
+  Object* result = AllocateJSObjectFromMap(constructor->initial_map(), TENURED);
+  if (result->IsFailure()) return result;
+
+  // Normalize the result.
+  JSObject* global = JSObject::cast(result);
+  result = global->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  if (result->IsFailure()) return result;
+
+  // Make sure result is a global object with properties in dictionary.
+  ASSERT(global->IsGlobalObject());
+  ASSERT(!global->HasFastProperties());
+  return global;
 }
 
 
@@ -2111,7 +2174,7 @@ Object* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
-  Object* properties = AllocateFixedArray(prop_size);
+  Object* properties = AllocateFixedArray(prop_size, TENURED);
   if (properties->IsFailure()) return properties;
 
   // Reset the map for the object.

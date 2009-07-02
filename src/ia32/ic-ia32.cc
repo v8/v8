@@ -66,8 +66,14 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // Test the has_named_interceptor bit in the map.
   __ test(FieldOperand(r0, Map::kInstanceAttributesOffset),
           Immediate(1 << (Map::kHasNamedInterceptor + (3 * 8))));
+
   // Jump to miss if the interceptor bit is set.
   __ j(not_zero, miss_label, not_taken);
+
+  // Bail out if we have a JS global object.
+  __ movzx_b(r0, FieldOperand(r0, Map::kInstanceTypeOffset));
+  __ cmp(r0, JS_GLOBAL_PROXY_TYPE);
+  __ j(equal, miss_label, not_taken);
 
   // Check that the properties array is a dictionary.
   __ mov(r0, FieldOperand(r1, JSObject::kPropertiesOffset));

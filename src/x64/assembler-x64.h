@@ -605,12 +605,13 @@ class Assembler : public Malloced {
   // Divide rdx:rax by src.  Quotient in rax, remainder in rdx.
   void idiv(Register src);
 
-  void imul(Register dst, Register src);
-  void imul(Register dst, const Operand& src);
-  // Performs the operation dst = src * imm.
-  void imul(Register dst, Register src, Immediate imm);
+  // Signed multiply instructions.
+  void imul(Register src);                               // rdx:rax = rax * src.
+  void imul(Register dst, Register src);                 // dst = dst * src.
+  void imul(Register dst, const Operand& src);           // dst = dst * src.
+  void imul(Register dst, Register src, Immediate imm);  // dst = src * imm.
   // Multiply 32 bit registers
-  void imull(Register dst, Register src);
+  void imull(Register dst, Register src);                // dst = dst * src.
 
   void incq(Register dst);
   void incq(const Operand& dst);

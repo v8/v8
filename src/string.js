@@ -35,7 +35,7 @@
 // Set the String function and constructor.
 %SetCode($String, function(x) {
   var value = %_ArgumentsLength() == 0 ? '' : ToString(x);
-  if (%IsConstructCall()) {
+  if (%_IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
@@ -46,7 +46,7 @@
 
 // ECMA-262 section 15.5.4.2
 function StringToString() {
-  if (!IS_STRING(this) && !%HasStringClass(this))
+  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this))
     throw new $TypeError('String.prototype.toString is not generic');
   return %_ValueOf(this);
 }
@@ -54,7 +54,7 @@ function StringToString() {
 
 // ECMA-262 section 15.5.4.3
 function StringValueOf() {
-  if (!IS_STRING(this) && !%HasStringClass(this))
+  if (!IS_STRING(this) && !IS_STRING_WRAPPER(this))
     throw new $TypeError('String.prototype.valueOf is not generic');
   return %_ValueOf(this);
 }

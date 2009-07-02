@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(X64): Remove stdio.h when compiler test is removed.
-#include <stdio.h>
-
 #include "v8.h"
 
 #include "bootstrapper.h"
@@ -37,9 +34,6 @@
 #include "parser.h"
 #include "register-allocator-inl.h"
 #include "scopes.h"
-
-// TODO(X64): Remove compiler.h when compiler test is removed.
-#include "compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -135,81 +129,6 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
-}
-
-
-void CodeGenerator::TestCodeGenerator() {
-  // Compile a function from a string, and run it.
-
-  // Set flags appropriately for this stage of implementation.
-  // TODO(X64): Make ic work, and stop disabling them.
-  // These settings stick - remove them when we don't want them anymore.
-#ifdef DEBUG
-  FLAG_print_builtin_source = true;
-  FLAG_print_builtin_ast = true;
-#endif
-  FLAG_use_ic = false;
-
-  // Read the file "test.js" from the current directory, compile, and run it.
-  // If the file is not there, use a simple script embedded here instead.
-  Handle<String> test_script;
-  FILE* file = fopen("test.js", "rb");
-  if (file == NULL) {
-    test_script = Factory::NewStringFromAscii(CStrVector(
-          "// Put all code in anonymous function to avoid global scope.\n"
-          "(function(){"
-          "  var x = true ? 47 : 32;"
-          "  return x;"
-          "})()"));
-  } else {
-    fseek(file, 0, SEEK_END);
-    int size = ftell(file);
-    rewind(file);
-
-    char* chars = new char[size + 1];
-    chars[size] = '\0';
-    for (int i = 0; i < size;) {
-      int read = fread(&chars[i], 1, size - i, file);
-      i += read;
-    }
-    fclose(file);
-    test_script = Factory::NewStringFromAscii(CStrVector(chars));
-    delete[] chars;
-  }
-
-  Handle<JSFunction> test_function = Compiler::Compile(
-      test_script,
-      Factory::NewStringFromAscii(CStrVector("CodeGeneratorTestScript")),
-      0,
-      0,
-      NULL,
-      NULL);
-
-  Code* code_object = test_function->code();  // Local for debugging ease.
-  USE(code_object);
-
-  // Create a dummy function and context.
-  Handle<JSFunction> bridge =
-      Factory::NewFunction(Factory::empty_symbol(), Factory::undefined_value());
-  Handle<Context> context =
-    Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, bridge);
-
-  test_function = Factory::NewFunctionFromBoilerplate(
-      test_function,
-      context);
-
-  bool pending_exceptions;
-  Handle<Object> result =
-      Execution::Call(test_function,
-                      Handle<Object>::cast(test_function),
-                      0,
-                      NULL,
-                      &pending_exceptions);
-  // Function compiles and runs, but returns a JSFunction object.
-#ifdef DEBUG
-  PrintF("Result of test function: ");
-  result->Print();
-#endif
 }
 
 
@@ -1895,7 +1814,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlot(node, typeof_state());
+  LoadFromSlotCheckForArguments(node, typeof_state());
 }
 
 
@@ -2227,12 +2146,12 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     Result elements = frame_->Pop();
     elements.ToRegister();
     frame_->Spill(elements.reg());
-    // Get the elements array.
+    // Get the elements FixedArray.
     __ movq(elements.reg(),
             FieldOperand(elements.reg(), JSObject::kElementsOffset));
 
     // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
+    int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ movq(FieldOperand(elements.reg(), offset), prop_value.reg());
 
     // Update the write barrier for the array address.
@@ -2300,7 +2219,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // or the right hand side is a different variable.  TakeValue invalidates
       // the target, with an implicit promise that it will be written to again
       // before it is read.
-      // TODO(X64): Implement TakeValue optimization.
+      // TODO(X64): Implement TakeValue optimization.  Check issue 150016.
       if (false) {
         // if (literal != NULL || (right_var != NULL && right_var != var)) {
         // target.TakeValue(NOT_INSIDE_TYPEOF);
@@ -2410,9 +2329,6 @@ void CodeGenerator::VisitCall(Call* node) {
     frame_->SetElementAt(0, &result);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
-    // TODO(X64): Enable calls of non-global functions.
-    UNIMPLEMENTED();
-    /*
     // ----------------------------------
     // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
     // ----------------------------------
@@ -2420,8 +2336,8 @@ void CodeGenerator::VisitCall(Call* node) {
     // Load the function from the context.  Sync the frame so we can
     // push the arguments directly into place.
     frame_->SyncRange(0, frame_->element_count() - 1);
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(var->name()));
+    frame_->EmitPush(rsi);
+    frame_->EmitPush(var->name());
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     // The runtime call returns a pair of values in rax and rdx.  The
     // looked-up function is in rax and the receiver is in rdx.  These
@@ -2437,7 +2353,6 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Call the function.
     CallWithArguments(args, node->position());
-    */
   } else if (property != NULL) {
     // Check if the key is a literal string.
     Literal* literal = property->key()->AsLiteral();
@@ -3227,10 +3142,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       // It can be an undetectable object.
       __ movq(kScratchRegister,
               FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movb(kScratchRegister,
-              FieldOperand(kScratchRegister, Map::kBitFieldOffset));
-      __ testb(kScratchRegister, Immediate(1 << Map::kIsUndetectable));
+      __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+               Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
+      __ movb(kScratchRegister,
+              FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
       __ cmpb(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
       destination()->false_target()->Branch(below);
       __ cmpb(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
@@ -3330,6 +3246,14 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
+  // TODO(X64): Optimize this like it's done on IA-32.
+  ASSERT(args->length() == 0);
+  Result answer = frame_->CallRuntime(Runtime::kIsConstructCall, 0);
+  frame_->Push(&answer);
+}
+
+
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   // ArgumentsAccessStub takes the parameter count as an input argument
@@ -3412,13 +3336,42 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  frame_->SpillAll();
 
-void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* a) {
-  UNIMPLEMENTED();
+  // Make sure the frame is aligned like the OS expects.
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    __ movq(rbx, rsp);  // Save in AMD-64 abi callee-saved register.
+    __ and_(rsp, Immediate(-kFrameAlignment));
+  }
+
+  // Call V8::RandomPositiveSmi().
+  __ Call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
+
+  // Restore stack pointer from callee-saved register edi.
+  if (kFrameAlignment > 0) {
+    __ movq(rsp, rbx);
+  }
+
+  Result result = allocator_->Allocate(rax);
+  frame_->Push(&result);
 }
+
 
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   UNIMPLEMENTED();
+}
+
+
+void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
+  // TODO(X64): Optimize this like it's done on IA-32.
+  ASSERT(args->length() == 1);
+  Load(args->at(0));  // Load the object.
+  Result result = frame_->CallRuntime(Runtime::kClassOf, 1);
+  frame_->Push(&result);
 }
 
 
@@ -3906,6 +3859,44 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+                                                  TypeofState state) {
+  LoadFromSlot(slot, state);
+
+  // Bail out quickly if we're not using lazy arguments allocation.
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
+
+  // ... or if the slot isn't a non-parameter arguments slot.
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
+
+  // Pop the loaded value from the stack.
+  Result value = frame_->Pop();
+
+  // If the loaded value is a constant, we know if the arguments
+  // object has been lazily loaded yet.
+  if (value.is_constant()) {
+    if (value.handle()->IsTheHole()) {
+      Result arguments = StoreArgumentsObject(false);
+      frame_->Push(&arguments);
+    } else {
+      frame_->Push(&value);
+    }
+    return;
+  }
+
+  // The loaded value is in a register. If it is the sentinel that
+  // indicates that we haven't loaded the arguments object yet, we
+  // need to do it now.
+  JumpTarget exit;
+  __ Cmp(value.reg(), Factory::the_hole_value());
+  frame_->Push(&value);
+  exit.Branch(not_equal);
+  Result arguments = StoreArgumentsObject(false);
+  frame_->SetElementAt(0, &arguments);
+  exit.Bind();
+}
+
+
 void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   // TODO(X64): Enable more types of slot.
 
@@ -4009,8 +4000,72 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     Slot* slot,
     TypeofState typeof_state,
     JumpTarget* slow) {
-  UNIMPLEMENTED();
-  return Result(rax);
+  // Check that no extension objects have been created by calls to
+  // eval from the current scope to the global scope.
+  Register context = rsi;
+  Result tmp = allocator_->Allocate();
+  ASSERT(tmp.is_valid());  // All non-reserved registers were available.
+
+  Scope* s = scope();
+  while (s != NULL) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+               Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      // Load next context in chain.
+      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp.reg();
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.  If we have reached an eval scope, we check
+    // all extensions from this point.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    // Loop up the context chain.  There is no frame effect so it is
+    // safe to use raw labels here.
+    Label next, fast;
+    if (!context.is(tmp.reg())) {
+      __ movq(tmp.reg(), context);
+    }
+    // Load map for comparison into register, outside loop.
+    __ Move(kScratchRegister, Factory::global_context_map());
+    __ bind(&next);
+    // Terminate at global context.
+    __ cmpq(kScratchRegister, FieldOperand(tmp.reg(), HeapObject::kMapOffset));
+    __ j(equal, &fast);
+    // Check that extension is NULL.
+    __ cmpq(ContextOperand(tmp.reg(), Context::EXTENSION_INDEX), Immediate(0));
+    slow->Branch(not_equal);
+    // Load next context in chain.
+    __ movq(tmp.reg(), ContextOperand(tmp.reg(), Context::CLOSURE_INDEX));
+    __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+    __ jmp(&next);
+    __ bind(&fast);
+  }
+  tmp.Unuse();
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  LoadGlobal();
+  frame_->Push(slot->var()->name());
+  RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
+                         ? RelocInfo::CODE_TARGET
+                         : RelocInfo::CODE_TARGET_CONTEXT;
+  Result answer = frame_->CallLoadIC(mode);
+  // A test rax instruction following the call signals that the inobject
+  // property case was inlined.  Ensure that there is not a test eax
+  // instruction here.
+  __ nop();
+  // Discard the global object. The result is in answer.
+  frame_->Drop();
+  return answer;
 }
 
 
@@ -4118,39 +4173,6 @@ void CodeGenerator::LoadTypeofExpression(Expression* x) {
     Load(x, INSIDE_TYPEOF);
   }
 }
-
-
-class CompareStub: public CodeStub {
- public:
-  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Condition cc_;
-  bool strict_;
-
-  Major MajorKey() { return Compare; }
-
-  int MinorKey() {
-    // Encode the three parameters in a unique 16 bit value.
-    ASSERT(static_cast<int>(cc_) < (1 << 15));
-    return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
-  }
-
-  // Branch to the label if the given object isn't a symbol.
-  void BranchIfNonSymbol(MacroAssembler* masm,
-                         Label* label,
-                         Register object);
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("CompareStub (cc %d), (strict %s)\n",
-           static_cast<int>(cc_),
-           strict_ ? "true" : "false");
-  }
-#endif
-};
 
 
 void CodeGenerator::Comparison(Condition cc,
@@ -5148,7 +5170,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlot(slot, typeof_state);
+      cgen_->LoadFromSlotCheckForArguments(slot, typeof_state);
       break;
     }
 
@@ -5481,12 +5503,32 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
-
-
 // End of CodeGenerator implementation.
 
 void UnarySubStub::Generate(MacroAssembler* masm) {
-  UNIMPLEMENTED();
+  Label slow;
+  Label done;
+
+  // Check whether the value is a smi.
+  __ testl(rax, Immediate(kSmiTagMask));
+  // TODO(X64): Add inline code that handles floats, as on ia32 platform.
+  __ j(not_zero, &slow);
+  // Enter runtime system if the value of the smi is zero
+  // to make sure that we switch between 0 and -0.
+  // Also enter it if the value of the smi is Smi::kMinValue
+  __ testl(rax, Immediate(0x7FFFFFFE));
+  __ j(zero, &slow);
+  __ neg(rax);
+  __ jmp(&done);
+  // Enter runtime system.
+  __ bind(&slow);
+  __ pop(rcx);  // pop return address
+  __ push(rax);
+  __ push(rcx);  // push return address
+  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+
+  __ bind(&done);
+  __ StubReturn(1);
 }
 
 
@@ -5647,8 +5689,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Fast negative check for symbol-to-symbol equality.
   __ bind(&check_for_symbols);
   if (cc_ == equal) {
-    BranchIfNonSymbol(masm, &call_builtin, rax);
-    BranchIfNonSymbol(masm, &call_builtin, rdx);
+    BranchIfNonSymbol(masm, &call_builtin, rax, kScratchRegister);
+    BranchIfNonSymbol(masm, &call_builtin, rdx, kScratchRegister);
 
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register rax already holds a
@@ -5691,14 +5733,15 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
 void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
                                     Label* label,
-                                    Register object) {
+                                    Register object,
+                                    Register scratch) {
   __ testl(object, Immediate(kSmiTagMask));
   __ j(zero, label);
-  __ movq(kScratchRegister, FieldOperand(object, HeapObject::kMapOffset));
-  __ movzxbq(kScratchRegister,
-             FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
-  __ and_(kScratchRegister, Immediate(kIsSymbolMask | kIsNotStringMask));
-  __ cmpb(kScratchRegister, Immediate(kSymbolTag | kStringTag));
+  __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
+  __ movzxbq(scratch,
+             FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ and_(scratch, Immediate(kIsSymbolMask | kIsNotStringMask));
+  __ cmpb(scratch, Immediate(kSymbolTag | kStringTag));
   __ j(not_equal, label);
 }
 
@@ -6752,8 +6795,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // If all else fails, use the runtime system to get the correct
   // result.
   __ bind(&call_runtime);
-  // Disable builtin-calls until JS builtins can compile and run.
-  __ Abort("Disabled until builtins compile and run.");
   switch (op_) {
     case Token::ADD:
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
@@ -6791,6 +6832,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+}
+
+
+int CompareStub::MinorKey() {
+  // Encode the two parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
+  return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
 }
 
 

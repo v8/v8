@@ -294,15 +294,6 @@ class CodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
-  // During implementation of CodeGenerator, this call creates a
-  // CodeGenerator instance, and calls GenCode on it with a null
-  // function literal.  CodeGenerator will then construct and return
-  // a simple dummy function.  Call this during bootstrapping before
-  // trying to compile any real functions, to get CodeGenerator up
-  // and running.
-  // TODO(X64): Remove once we can get through the bootstrapping process.
-  static void TestCodeGenerator();
-
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
 #endif
@@ -432,6 +423,7 @@ class CodeGenerator: public AstVisitor {
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
+  void LoadFromSlotCheckForArguments(Slot* slot, TypeofState state);
   Result LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                            TypeofState typeof_state,
                                            JumpTarget* slow);
@@ -522,11 +514,15 @@ class CodeGenerator: public AstVisitor {
   void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   void GenerateIsArray(ZoneList<Expression*>* args);
 
+  // Support for construct call checks.
+  void GenerateIsConstructCall(ZoneList<Expression*>* args);
+
   // Support for arguments.length and arguments[?].
   void GenerateArgumentsLength(ZoneList<Expression*>* args);
   void GenerateArgumentsAccess(ZoneList<Expression*>* args);
 
-  // Support for accessing the value field of an object (used by Date).
+  // Support for accessing the class and value fields of an object.
+  void GenerateClassOf(ZoneList<Expression*>* args);
   void GenerateValueOf(ZoneList<Expression*>* args);
   void GenerateSetValueOf(ZoneList<Expression*>* args);
 

@@ -491,6 +491,20 @@ static bool fits_shifter(uint32_t imm32,
 }
 
 
+// We have to use the temporary register for things that can be relocated even
+// if they can be encoded in the ARM's 12 bits of immediate-offset instruction
+// space.  There is no guarantee that the relocated location can be similarly
+// encoded.
+static bool MustUseIp(RelocInfo::Mode rmode) {
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+    return Serializer::enabled();
+  } else if (rmode == RelocInfo::NONE) {
+    return false;
+  }
+  return true;
+}
+
+
 void Assembler::addrmod1(Instr instr,
                          Register rn,
                          Register rd,
@@ -501,8 +515,7 @@ void Assembler::addrmod1(Instr instr,
     // immediate
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if ((x.rmode_ != RelocInfo::NONE &&
-         x.rmode_ != RelocInfo::EXTERNAL_REFERENCE) ||
+    if (MustUseIp(x.rmode_) ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
@@ -816,7 +829,6 @@ void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
 void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
-  ASSERT(!dst.is(src1));
   emit(cond | A | s | dst.code()*B16 | srcA.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -825,7 +837,6 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
 void Assembler::mul(Register dst, Register src1, Register src2,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dst.is(src1));
   emit(cond | s | dst.code()*B16 | src2.code()*B8 | B7 | B4 | src1.code());
 }
 
@@ -837,7 +848,7 @@ void Assembler::smlal(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | B22 | A | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -850,7 +861,7 @@ void Assembler::smull(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | B22 | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -863,7 +874,7 @@ void Assembler::umlal(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
+  ASSERT(!dstL.is(dstH));
   emit(cond | B23 | A | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
@@ -876,8 +887,8 @@ void Assembler::umull(Register dstL,
                       SBit s,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
-  ASSERT(!dstL.is(dstH) && !dstH.is(src1) && !src1.is(dstL));
-  emit(cond | B23 | s | dstH.code()*B16 | dstL.code()*B12 |
+  ASSERT(!dstL.is(dstH));
+  emit(cond | B23 | B22 | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
 
@@ -906,8 +917,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // immediate
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if ((src.rmode_ != RelocInfo::NONE &&
-         src.rmode_ != RelocInfo::EXTERNAL_REFERENCE)||
+    if (MustUseIp(src.rmode_) ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // immediate operand cannot be encoded, load it first to register ip
       RecordRelocInfo(src.rmode_, src.imm32_);

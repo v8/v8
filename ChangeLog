@@ -1,3 +1,13 @@
+2009-07-02: Version 1.2.11
+
+        Improved performance on IA-32 and ARM.
+
+        Fixed profiler sampler implementation on Mac OS X.
+
+        Changed the representation of global objects to improve
+        performance of adding a lot of new properties.
+
+
 2009-06-29: Version 1.2.10
 
         Improved debugger support.

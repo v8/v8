@@ -1141,7 +1141,7 @@ static void SweepSpace(NewSpace* space) {
       // We give non-live objects a map that will correctly give their size,
       // since their existing map might not be live after the collection.
       int size = object->Size();
-      if (size >= Array::kHeaderSize) {
+      if (size >= ByteArray::kHeaderSize) {
         object->set_map(Heap::byte_array_map());
         ByteArray::cast(object)->set_length(ByteArray::LengthFor(size));
       } else {

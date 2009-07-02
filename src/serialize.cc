@@ -699,6 +699,7 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       10,
       "Debug::step_in_fp_addr()");
+#endif
   Add(ExternalReference::double_fp_operation(Token::ADD).address(),
       UNCLASSIFIED,
       11,
@@ -711,7 +712,10 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       13,
       "mul_two_doubles");
-#endif
+  Add(ExternalReference::compare_doubles().address(),
+      UNCLASSIFIED,
+      14,
+      "compare_doubles");
 }
 
 

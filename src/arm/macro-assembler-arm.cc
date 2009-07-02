@@ -46,14 +46,14 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 
 // We always generate arm code, never thumb code, even if V8 is compiled to
 // thumb, so we require inter-working support
-#if defined(__thumb__) && !defined(__THUMB_INTERWORK__)
+#if defined(__thumb__) && !defined(USE_THUMB_INTERWORK)
 #error "flag -mthumb-interwork missing"
 #endif
 
 
 // We do not support thumb inter-working with an arm architecture not supporting
 // the blx instruction (below v5t)
-#if defined(__THUMB_INTERWORK__)
+#if defined(USE_THUMB_INTERWORK)
 #if !defined(__ARM_ARCH_5T__) && \
   !defined(__ARM_ARCH_5TE__) &&  \
   !defined(__ARM_ARCH_7A__) &&   \
@@ -65,12 +65,12 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 
 
 // Using blx may yield better code, so use it when required or when available
-#if defined(__THUMB_INTERWORK__) || defined(__ARM_ARCH_5__)
+#if defined(USE_THUMB_INTERWORK) || defined(__ARM_ARCH_5__)
 #define USE_BLX 1
 #endif
 
 // Using bx does not yield better code, so use it only when required
-#if defined(__THUMB_INTERWORK__)
+#if defined(USE_THUMB_INTERWORK)
 #define USE_BX 1
 #endif
 

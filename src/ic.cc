@@ -265,6 +265,39 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
 }
 
 
+static bool HasInterceptorGetter(JSObject* object) {
+  return !object->GetNamedInterceptor()->getter()->IsUndefined();
+}
+
+
+static void LookupForRead(Object* object,
+                          String* name,
+                          LookupResult* lookup) {
+  object->Lookup(name, lookup);
+  if (lookup->IsNotFound() || lookup->type() != INTERCEPTOR) {
+    return;
+  }
+
+  JSObject* holder = lookup->holder();
+  if (HasInterceptorGetter(holder)) {
+    return;
+  }
+
+  // There is no getter, just skip it and lookup down the proto chain
+  holder->LocalLookupRealNamedProperty(name, lookup);
+  if (lookup->IsValid()) {
+    return;
+  }
+
+  Object* proto = holder->GetPrototype();
+  if (proto == Heap::null_value()) {
+    return;
+  }
+
+  LookupForRead(proto, name, lookup);
+}
+
+
 Object* CallIC::TryCallAsFunction(Object* object) {
   HandleScope scope;
   Handle<Object> target(object);
@@ -312,7 +345,7 @@ Object* CallIC::LoadFunction(State state,
 
   // Lookup the property in the object.
   LookupResult lookup;
-  object->Lookup(*name, &lookup);
+  LookupForRead(*object, *name, &lookup);
 
   if (!lookup.IsValid()) {
     // If the object does not have the requested property, check which
@@ -328,11 +361,11 @@ Object* CallIC::LoadFunction(State state,
     UpdateCaches(&lookup, state, object, name);
   }
 
+  // Get the property.
+  PropertyAttributes attr;
+  result = object->GetProperty(*object, &lookup, *name, &attr);
+  if (result->IsFailure()) return result;
   if (lookup.type() == INTERCEPTOR) {
-    // Get the property.
-    PropertyAttributes attr;
-    result = object->GetProperty(*name, &attr);
-    if (result->IsFailure()) return result;
     // If the object does not have the requested property, check which
     // exception we need to throw.
     if (attr == ABSENT) {
@@ -341,11 +374,6 @@ Object* CallIC::LoadFunction(State state,
       }
       return TypeError("undefined_method", object, name);
     }
-  } else {
-    // Lookup is valid and no interceptors are involved. Get the
-    // property.
-    result = object->GetProperty(*name);
-    if (result->IsFailure()) return result;
   }
 
   ASSERT(result != Heap::the_hole_value());
@@ -423,17 +451,33 @@ void CallIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case NORMAL: {
-        // There is only one shared stub for calling normalized
-        // properties. It does not traverse the prototype chain, so the
-        // property must be found in the receiver for the stub to be
-        // applicable.
         if (!object->IsJSObject()) return;
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (lookup->holder() != *receiver) return;
-        code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
+        if (object->IsGlobalObject()) {
+          // The stub generated for the global object picks the value directly
+          // from the property cell. So the property must be directly on the
+          // global object.
+          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
+          if (lookup->holder() != *global) return;
+          JSGlobalPropertyCell* cell =
+              JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
+          if (cell->value()->IsJSFunction()) {
+            JSFunction* function = JSFunction::cast(cell->value());
+            code = StubCache::ComputeCallGlobal(argc, in_loop, *name, *global,
+                                                cell, function);
+          }
+        } else {
+          // There is only one shared stub for calling normalized
+          // properties. It does not traverse the prototype chain, so the
+          // property must be found in the receiver for the stub to be
+          // applicable.
+          Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+          if (lookup->holder() != *receiver) return;
+          code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
+        }
         break;
       }
       case INTERCEPTOR: {
+        ASSERT(HasInterceptorGetter(lookup->holder()));
         code = StubCache::ComputeCallInterceptor(argc, *name, *object,
                                                  lookup->holder());
         break;
@@ -520,7 +564,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
   // Named lookup in the object.
   LookupResult lookup;
-  object->Lookup(*name, &lookup);
+  LookupForRead(*object, *name, &lookup);
 
   // If lookup is invalid, check if we need to throw an exception.
   if (!lookup.IsValid()) {
@@ -614,12 +658,24 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case NORMAL: {
-        // There is only one shared stub for loading normalized
-        // properties. It does not traverse the prototype chain, so the
-        // property must be found in the receiver for the stub to be
-        // applicable.
-        if (lookup->holder() != *receiver) return;
-        code = StubCache::ComputeLoadNormal(*name, *receiver);
+        if (object->IsGlobalObject()) {
+          // The stub generated for the global object picks the value directly
+          // from the property cell. So the property must be directly on the
+          // global object.
+          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
+          if (lookup->holder() != *global) return;
+          JSGlobalPropertyCell* cell =
+              JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
+          code = StubCache::ComputeLoadGlobal(*name, *global,
+                                              cell, lookup->IsDontDelete());
+        } else {
+          // There is only one shared stub for loading normalized
+          // properties. It does not traverse the prototype chain, so the
+          // property must be found in the receiver for the stub to be
+          // applicable.
+          if (lookup->holder() != *receiver) return;
+          code = StubCache::ComputeLoadNormal(*name, *receiver);
+        }
         break;
       }
       case CALLBACKS: {
@@ -632,6 +688,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case INTERCEPTOR: {
+        ASSERT(HasInterceptorGetter(lookup->holder()));
         code = StubCache::ComputeLoadInterceptor(*name, *receiver,
                                                  lookup->holder());
         break;
@@ -723,7 +780,7 @@ Object* KeyedLoadIC::Load(State state,
 
     // Named lookup.
     LookupResult lookup;
-    object->Lookup(*name, &lookup);
+    LookupForRead(*object, *name, &lookup);
 
     // If lookup is invalid, check if we need to throw an exception.
     if (!lookup.IsValid()) {
@@ -817,6 +874,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
         break;
       }
       case INTERCEPTOR: {
+        ASSERT(HasInterceptorGetter(lookup->holder()));
         code = StubCache::ComputeKeyedLoadInterceptor(*name, *receiver,
                                                       lookup->holder());
         break;
@@ -863,9 +921,9 @@ static bool StoreICableLookup(LookupResult* lookup) {
 }
 
 
-static bool LookupForStoreIC(JSObject* object,
-                             String* name,
-                             LookupResult* lookup) {
+static bool LookupForWrite(JSObject* object,
+                           String* name,
+                           LookupResult* lookup) {
   object->LocalLookup(name, lookup);
   if (!StoreICableLookup(lookup)) {
     return false;
@@ -908,7 +966,7 @@ Object* StoreIC::Store(State state,
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
-    if (LookupForStoreIC(*receiver, *name, &lookup)) {
+    if (LookupForWrite(*receiver, *name, &lookup)) {
       UpdateCaches(&lookup, state, receiver, name, value);
     }
   }
@@ -953,6 +1011,19 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       code = StubCache::ComputeStoreField(*name, *receiver, index, *transition);
       break;
     }
+    case NORMAL: {
+      if (!receiver->IsGlobalObject()) {
+        return;
+      }
+      // The stub generated for the global object picks the value directly
+      // from the property cell. So the property must be directly on the
+      // global object.
+      Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
+      JSGlobalPropertyCell* cell =
+          JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
+      code = StubCache::ComputeStoreGlobal(*name, *global, cell);
+      break;
+    }
     case CALLBACKS: {
       if (!lookup->GetCallbackObject()->IsAccessorInfo()) return;
       AccessorInfo* callback = AccessorInfo::cast(lookup->GetCallbackObject());
@@ -961,6 +1032,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       break;
     }
     case INTERCEPTOR: {
+      ASSERT(!receiver->GetNamedInterceptor()->setter()->IsUndefined());
       code = StubCache::ComputeStoreInterceptor(*name, *receiver);
       break;
     }

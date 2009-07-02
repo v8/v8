@@ -79,51 +79,6 @@ void MacroAssembler::NegativeZeroTest(Register result,
 }
 
 
-void MacroAssembler::ConstructAndTestJSFunction() {
-  const int initial_buffer_size = 4 * KB;
-  char* buffer = new char[initial_buffer_size];
-  MacroAssembler masm(buffer, initial_buffer_size);
-
-  const uint64_t secret = V8_INT64_C(0xdeadbeefcafebabe);
-  Handle<String> constant =
-      Factory::NewStringFromAscii(Vector<const char>("451", 3), TENURED);
-#define __ ACCESS_MASM((&masm))
-  // Construct a simple JSfunction here, using Assembler and MacroAssembler
-  // commands.
-  __ movq(rax, constant, RelocInfo::EMBEDDED_OBJECT);
-  __ push(rax);
-  __ CallRuntime(Runtime::kStringParseFloat, 1);
-  __ movq(kScratchRegister, secret, RelocInfo::NONE);
-  __ addq(rax, kScratchRegister);
-  __ ret(0);
-#undef __
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
-  Object* code = Heap::CreateCode(desc, NULL, flags, Handle<Object>::null());
-  if (!code->IsFailure()) {
-    Handle<Code> code_handle(Code::cast(code));
-    Handle<String> name =
-        Factory::NewStringFromAscii(Vector<const char>("foo", 3), NOT_TENURED);
-    Handle<JSFunction> function =
-        Factory::NewFunction(name,
-                             JS_FUNCTION_TYPE,
-                             JSObject::kHeaderSize,
-                             code_handle,
-                             true);
-    bool pending_exceptions;
-    Handle<Object> result =
-        Execution::Call(function,
-                        Handle<Object>::cast(function),
-                        0,
-                        NULL,
-                        &pending_exceptions);
-    CHECK(result->IsSmi());
-    CHECK(secret + (451 << kSmiTagSize) == reinterpret_cast<uint64_t>(*result));
-  }
-}
-
-
 void MacroAssembler::Abort(const char* msg) {
   // We want to pass the msg string like a smi to avoid GC
   // problems, however msg is not guaranteed to be aligned
