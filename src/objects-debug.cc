@@ -763,6 +763,9 @@ void Dictionary<Shape, Key>::Print() {
   }
 }
 
+// Template instantiations.
+template void Dictionary<NumberDictionaryShape, uint32_t>::Print();
+template void Dictionary<StringDictionaryShape, String*>::Print();
 
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());
