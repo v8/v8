@@ -85,13 +85,13 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 
   // Compute the capacity mask.
   const int kCapacityOffset =
-      Array::kHeaderSize + Dictionary::kCapacityIndex * kPointerSize;
+      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
   __ ldr(r3, FieldMemOperand(t0, kCapacityOffset));
   __ mov(r3, Operand(r3, ASR, kSmiTagSize));  // convert smi to int
   __ sub(r3, r3, Operand(1));
 
   const int kElementsStartOffset =
-      Array::kHeaderSize + Dictionary::kElementsStartIndex * kPointerSize;
+      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
 
   // Generate an unrolled loop that performs a few probes before
   // giving up. Measurements done on Gmail indicate that 2 probes
@@ -102,12 +102,12 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
     __ ldr(t1, FieldMemOperand(r2, String::kLengthOffset));
     __ mov(t1, Operand(t1, LSR, String::kHashShift));
     if (i > 0) {
-      __ add(t1, t1, Operand(Dictionary::GetProbeOffset(i)));
+      __ add(t1, t1, Operand(StringDictionary::GetProbeOffset(i)));
     }
     __ and_(t1, t1, Operand(r3));
 
     // Scale the index by multiplying by the element size.
-    ASSERT(Dictionary::kElementSize == 3);
+    ASSERT(StringDictionary::kEntrySize == 3);
     __ add(t1, t1, Operand(t1, LSL, 1));  // t1 = t1 * 3
 
     // Check if the key is identical to the name.
