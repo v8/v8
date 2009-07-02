@@ -7420,32 +7420,46 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
 // element segments each containing a receiver, function and native
 // code offset.
 static Object* Runtime_CollectStackTrace(Arguments args) {
-  ASSERT_EQ(args.length(), 1);
+  ASSERT_EQ(args.length(), 2);
   Object* caller = args[0];
+  CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
+
+  HandleScope scope;
+
+  int initial_size = limit < 10 ? limit : 10;
+  Handle<JSArray> result = Factory::NewJSArray(initial_size * 3);
 
   StackFrameIterator iter;
-  int frame_count = 0;
   bool seen_caller = false;
-  while (!iter.done()) {
-    if (ShowFrameInStackTrace(iter.frame(), caller, &seen_caller))
-      frame_count++;
-    iter.Advance();
-  }
-  HandleScope scope;
-  Handle<JSArray> result = Factory::NewJSArray(frame_count * 3);
-  int i = 0;
-  seen_caller = false;
-  for (iter.Reset(); !iter.done(); iter.Advance()) {
+  int cursor = 0;
+  int frames_seen = 0;
+  while (!iter.done() && frames_seen < limit) {
     StackFrame* raw_frame = iter.frame();
     if (ShowFrameInStackTrace(raw_frame, caller, &seen_caller)) {
+      frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-      result->SetElement(i++, frame->receiver());
-      result->SetElement(i++, frame->function());
+      Object* recv = frame->receiver();
+      Object* fun = frame->function();
       Address pc = frame->pc();
       Address start = frame->code()->address();
-      result->SetElement(i++, Smi::FromInt(pc - start));
+      Smi* offset = Smi::FromInt(pc - start);
+      FixedArray* elements = result->elements();
+      if (cursor + 2 < elements->length()) {
+        elements->set(cursor++, recv);
+        elements->set(cursor++, fun);
+        elements->set(cursor++, offset, SKIP_WRITE_BARRIER);
+      } else {
+        HandleScope scope;
+        SetElement(result, cursor++, Handle<Object>(recv));
+        SetElement(result, cursor++, Handle<Object>(fun));
+        SetElement(result, cursor++, Handle<Smi>(offset));
+      }
     }
+    iter.Advance();
   }
+
+  result->set_length(Smi::FromInt(cursor), SKIP_WRITE_BARRIER);
+
   return *result;
 }
 

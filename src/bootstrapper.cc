@@ -1206,15 +1206,13 @@ bool Genesis::InstallSpecialObjects() {
                 Handle<JSObject>(js_global->builtins()), DONT_ENUM);
   }
 
-  if (FLAG_capture_stack_traces) {
-    Handle<Object> Error = GetProperty(js_global, "Error");
-    if (Error->IsJSObject()) {
-      Handle<String> name = Factory::LookupAsciiSymbol("captureStackTraces");
-      SetProperty(Handle<JSObject>::cast(Error),
-                  name,
-                  Factory::true_value(),
-                  NONE);
-    }
+  Handle<Object> Error = GetProperty(js_global, "Error");
+  if (Error->IsJSObject()) {
+    Handle<String> name = Factory::LookupAsciiSymbol("stackTraceLimit");
+    SetProperty(Handle<JSObject>::cast(Error),
+                name,
+                Handle<Smi>(Smi::FromInt(FLAG_stack_trace_limit)),
+                NONE);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT

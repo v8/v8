@@ -629,10 +629,22 @@ CallSite.prototype.getEvalOrigin = function () {
 CallSite.prototype.getFunctionName = function () {
   // See if the function knows its own name
   var name = this.fun.name;
-  if (name)
+  if (name) {
     return name;
+  } else {
+    return %FunctionGetInferredName(this.fun);
+  }
+  // Maybe this is an evaluation?
+  var script = %FunctionGetScript(this.fun);
+  if (script && script.compilation_type == 1)
+    return "eval";
+  return null;
+};
+
+CallSite.prototype.getMethodName = function () {
   // See if we can find a unique property on the receiver that holds
   // this function.
+  var name = null;
   for (var prop in this.receiver) {
     if (this.receiver[prop] === this.fun) {
       // If we find more than one match bail out to avoid confusion
@@ -643,10 +655,6 @@ CallSite.prototype.getFunctionName = function () {
   }
   if (name)
     return name;
-  // Maybe this is an evaluation?
-  var script = %FunctionGetScript(this.fun);
-  if (script && script.compilation_type == 1)
-    return "eval";
   return null;
 };
 
@@ -717,18 +725,27 @@ function FormatSourcePosition(frame) {
     fileLocation = "unknown source";
   }
   var line = "";
+  var methodName = frame.getMethodName();
   var functionName = frame.getFunctionName();
-  if (functionName) {
-    if (frame.isToplevel()) {
-      line += functionName;
-    } else if (frame.isConstructor()) {
-      line += "new " + functionName;
-    } else {
-      line += frame.getTypeName() + "." + functionName;
-    }
-    line += " (" + fileLocation + ")";
+  var addPrefix = true;
+  if (frame.isToplevel()) {
+    line += functionName;
+  } else if (frame.isConstructor()) {
+    line += "new " + functionName;
+  } else if (methodName) {
+    line += frame.getTypeName() + "." + methodName;
+  } else if (functionName) {
+    line += functionName;
   } else {
     line += fileLocation;
+    addPrefix = false;
+  }
+  if (addPrefix) {
+    line += " (";
+    if (functionName) {
+      line += functionName + " @ ";
+    }
+    line += fileLocation + ")";
   }
   return line;
 }
@@ -812,8 +829,12 @@ function DefineError(f) {
       } else if (!IS_UNDEFINED(m)) {
         this.message = ToString(m);
       }
-      if ($Error.captureStackTraces) {
-        var raw_stack = %CollectStackTrace(f);
+      var stackTraceLimit = $Error.stackTraceLimit;
+      if (stackTraceLimit) {
+        // Cap the limit to avoid extremely big traces
+        if (stackTraceLimit < 0 || stackTraceLimit > 10000)
+          stackTraceLimit = 10000;
+        var raw_stack = %CollectStackTrace(f, stackTraceLimit);
         DefineOneShotAccessor(this, 'stack', function (obj) {
           return FormatRawStackTrace(obj, raw_stack);
         });
