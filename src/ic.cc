@@ -460,11 +460,10 @@ void CallIC::UpdateCaches(LookupResult* lookup,
           if (lookup->holder() != *global) return;
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-          if (cell->value()->IsJSFunction()) {
-            JSFunction* function = JSFunction::cast(cell->value());
-            code = StubCache::ComputeCallGlobal(argc, in_loop, *name, *global,
-                                                cell, function);
-          }
+          if (!cell->value()->IsJSFunction()) return;
+          JSFunction* function = JSFunction::cast(cell->value());
+          code = StubCache::ComputeCallGlobal(argc, in_loop, *name, *global,
+                                              cell, function);
         } else {
           // There is only one shared stub for calling normalized
           // properties. It does not traverse the prototype chain, so the
@@ -489,7 +488,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
 
   // If we're unable to compute the stub (not enough memory left), we
   // simply avoid updating the caches.
-  if (code->IsFailure()) return;
+  if (code == NULL || code->IsFailure()) return;
 
   // Patch the call site depending on the state of the cache.
   if (state == UNINITIALIZED ||
@@ -700,7 +699,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 
   // If we're unable to compute the stub (not enough memory left), we
   // simply avoid updating the caches.
-  if (code->IsFailure()) return;
+  if (code == NULL || code->IsFailure()) return;
 
   // Patch the call site depending on the state of the cache.
   if (state == UNINITIALIZED || state == PREMONOMORPHIC ||
@@ -890,7 +889,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
 
   // If we're unable to compute the stub (not enough memory left), we
   // simply avoid updating the caches.
-  if (code->IsFailure()) return;
+  if (code == NULL || code->IsFailure()) return;
 
   // Patch the call site depending on the state of the cache.  Make
   // sure to always rewrite from monomorphic to megamorphic.
@@ -1042,7 +1041,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
   // If we're unable to compute the stub (not enough memory left), we
   // simply avoid updating the caches.
-  if (code->IsFailure()) return;
+  if (code == NULL || code->IsFailure()) return;
 
   // Patch the call site depending on the state of the cache.
   if (state == UNINITIALIZED || state == MONOMORPHIC_PROTOTYPE_FAILURE) {
@@ -1164,7 +1163,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 
   // If we're unable to compute the stub (not enough memory left), we
   // simply avoid updating the caches.
-  if (code->IsFailure()) return;
+  if (code == NULL || code->IsFailure()) return;
 
   // Patch the call site depending on the state of the cache.  Make
   // sure to always rewrite from monomorphic to megamorphic.
