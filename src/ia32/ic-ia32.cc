@@ -70,7 +70,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // Jump to miss if the interceptor bit is set.
   __ j(not_zero, miss_label, not_taken);
 
-  // Bail out if we have a JS global object.
+  // Bail out if we have a JS global proxy object.
   __ movzx_b(r0, FieldOperand(r0, Map::kInstanceTypeOffset));
   __ cmp(r0, JS_GLOBAL_PROXY_TYPE);
   __ j(equal, miss_label, not_taken);

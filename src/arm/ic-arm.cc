@@ -72,9 +72,9 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Jump to miss if the interceptor bit is set.
   __ b(ne, miss);
 
-  // Bail out if we have a JS global object.
+  // Bail out if we have a JS global proxy object.
   __ ldrb(r3, FieldMemOperand(t0, Map::kInstanceTypeOffset));
-  __ cmp(r3, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ cmp(r3, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, miss);
 
   // Check that the properties array is a dictionary.
