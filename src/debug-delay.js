@@ -991,7 +991,6 @@ CompileEvent.prototype.toJSONProtocol = function() {
   }
   o.body = {};
   o.body.script = this.script_;
-  o.setOption('includeSource', true);
 
   return o.toJSONProtocol();
 }
