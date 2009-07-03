@@ -4727,8 +4727,6 @@ class DeferredInlineSmiAdd: public DeferredCode {
 
 
 void DeferredInlineSmiAdd::Generate() {
-  // Undo the optimistic add operation and call the shared stub.
-  __ subq(dst_, Immediate(value_));
   __ push(dst_);
   __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
@@ -4759,8 +4757,6 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 
 
 void DeferredInlineSmiAddReversed::Generate() {
-  // Undo the optimistic add operation and call the shared stub.
-  __ subq(dst_, Immediate(value_));
   __ push(Immediate(value_));
   __ push(dst_);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
@@ -4792,8 +4788,6 @@ class DeferredInlineSmiSub: public DeferredCode {
 
 
 void DeferredInlineSmiSub::Generate() {
-  // Undo the optimistic sub operation and call the shared stub.
-  __ addq(dst_, Immediate(value_));
   __ push(dst_);
   __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
@@ -4835,9 +4829,6 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::ADD: {
       operand->ToRegister();
       frame_->Spill(operand->reg());
-
-      // Optimistically add.  Call the specialized add stub if the
-      // result is not a smi or overflows.
       DeferredCode* deferred = NULL;
       if (reversed) {
         deferred = new DeferredInlineSmiAddReversed(operand->reg(),
@@ -4848,11 +4839,17 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                             smi_value,
                                             overwrite_mode);
       }
-      __ movq(kScratchRegister, value, RelocInfo::NONE);
-      __ addl(operand->reg(), kScratchRegister);
-      deferred->Branch(overflow);
       __ testl(operand->reg(), Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+      // A smi currently fits in a 32-bit Immediate.
+      __ addl(operand->reg(), Immediate(smi_value));
+      Label add_success;
+      __ j(no_overflow, &add_success);
+      __ subl(operand->reg(), Immediate(smi_value));
+      __ movsxlq(operand->reg(), operand->reg());
+      deferred->Jump();
+      __ bind(&add_success);
+      __ movsxlq(operand->reg(), operand->reg());
       deferred->BindExit();
       frame_->Push(operand);
       break;
@@ -5138,12 +5135,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
   __ movq(answer.reg(), left->reg());
   switch (op) {
     case Token::ADD:
-      __ addl(answer.reg(), right->reg());  // Add optimistically.
+      __ addl(answer.reg(), right->reg());
       deferred->Branch(overflow);
       break;
 
     case Token::SUB:
-      __ subl(answer.reg(), right->reg());  // Subtract optimistically.
+      __ subl(answer.reg(), right->reg());
       deferred->Branch(overflow);
       break;
 
@@ -6039,7 +6036,12 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   //      callee-saved register.
 
   if (do_gc) {
-    __ movq(Operand(rsp, 0), rax);  // Result.
+    // Pass failure code returned from last attempt as first argument to GC.
+#ifdef __MSVC__
+    __ movq(rcx, rax);  // argc.
+#else  // ! defined(__MSVC__)
+    __ movq(rdi, rax);  // argv.
+#endif
     __ movq(kScratchRegister,
             FUNCTION_ADDR(Runtime::PerformGC),
             RelocInfo::RUNTIME_ENTRY);
@@ -6556,49 +6558,26 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (rax <op> rbx) and
   // leave result in register rax.
 
-  // Prepare the smi check of both operands by or'ing them together
-  // before checking against the smi mask.
+  // Smi check both operands.
   __ movq(rcx, rbx);
   __ or_(rcx, rax);
-
-  switch (op_) {
-    case Token::ADD:
-      __ addl(rax, rbx);  // add optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::SUB:
-      __ subl(rax, rbx);  // subtract optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::DIV:
-    case Token::MOD:
-      // Sign extend rax into rdx:rax
-      // (also sign extends eax into edx if eax is Smi).
-      __ cqo();
-      // Check for 0 divisor.
-      __ testq(rbx, rbx);
-      __ j(zero, slow);
-      break;
-
-    default:
-      // Fall-through to smi check.
-      break;
-  }
-
-  // Perform the actual smi check.
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
   __ testl(rcx, Immediate(kSmiTagMask));
   __ j(not_zero, slow);
 
   switch (op_) {
-    case Token::ADD:
-    case Token::SUB:
-      // Do nothing here.
+    case Token::ADD: {
+      __ addl(rax, rbx);
+      __ j(overflow, slow);  // The slow case rereads operands from the stack.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
       break;
+    }
+
+    case Token::SUB: {
+      __ subl(rax, rbx);
+      __ j(overflow, slow);  // The slow case rereads operands from the stack.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+    }
 
     case Token::MUL:
       // If the smi tag is 0 we can just leave the tag on one operand.
@@ -6615,6 +6594,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
 
     case Token::DIV:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
       // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
       __ idiv(rbx);
       // Check that the remainder is zero.
@@ -6636,6 +6621,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
 
     case Token::MOD:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
       // Divide rdx:rax by rbx.
       __ idiv(rbx);
       // Check for negative zero result.

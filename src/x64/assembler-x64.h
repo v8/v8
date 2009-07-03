@@ -522,6 +522,10 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_32(0x0, dst, src);
   }
 
+  void addl(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_32(0x0, dst, src);
+  }
+
   void addq(Register dst, const Operand& src) {
     arithmetic_op(0x03, dst, src);
   }
@@ -537,10 +541,6 @@ class Assembler : public Malloced {
 
   void addq(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x0, dst, src);
-  }
-
-  void addl(const Operand& dst, Immediate src) {
-    immediate_arithmetic_op_32(0x0, dst, src);
   }
 
   void cmpb(Register dst, Immediate src) {
@@ -720,6 +720,10 @@ class Assembler : public Malloced {
   }
 
   void subl(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_32(0x5, dst, src);
+  }
+
+  void subl(Register dst, Immediate src) {
     immediate_arithmetic_op_32(0x5, dst, src);
   }
 

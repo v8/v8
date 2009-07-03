@@ -1063,9 +1063,11 @@ class VerifyPointersAndRSetVisitor: public ObjectVisitor {
         HeapObject* object = HeapObject::cast(*current);
         ASSERT(Heap::Contains(object));
         ASSERT(object->map()->IsMap());
+#ifndef V8_TARGET_ARCH_X64
         if (Heap::InNewSpace(object)) {
           ASSERT(Page::IsRSetSet(reinterpret_cast<Address>(current), 0));
         }
+#endif
       }
     }
   }
