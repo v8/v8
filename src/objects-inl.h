@@ -699,7 +699,7 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
 
 
 int Smi::value() {
-  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kSmiTagSize);
+  return static_cast<int>(reinterpret_cast<intptr_t>(this)) >> kSmiTagSize;
 }
 
 
