@@ -161,14 +161,31 @@ function ADD(x) {
 
 // Left operand (this) is already a string.
 function STRING_ADD_LEFT(y) {
-  if (!IS_STRING(y)) y = %ToString(%ToPrimitive(y, NO_HINT));
+  if (!IS_STRING(y)) {
+    if (IS_STRING_WRAPPER(y)) {
+      y = %_ValueOf(y);
+    } else {
+      y = IS_NUMBER(y)
+          ? %NumberToString(y)
+          : %ToString(%ToPrimitive(y, NO_HINT));
+    }
+  }
   return %StringAdd(this, y);
 }
 
 
 // Right operand (y) is already a string.
 function STRING_ADD_RIGHT(y) {
-  var x = IS_STRING(this) ? this : %ToString(%ToPrimitive(this, NO_HINT));
+  var x = this;
+  if (!IS_STRING(x)) {
+    if (IS_STRING_WRAPPER(x)) {
+      x = %_ValueOf(x);
+    } else {
+      x = IS_NUMBER(x)
+          ? %NumberToString(x)
+          : %ToString(%ToPrimitive(x, NO_HINT));
+    }
+  }
   return %StringAdd(x, y);
 }
 
