@@ -3848,9 +3848,7 @@ RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
 //   Disjunction
 RegExpTree* RegExpParser::ParsePattern() {
   RegExpTree* result = ParseDisjunction(CHECK_FAILED);
-  if (has_more()) {
-    ReportError(CStrVector("Unmatched ')'") CHECK_FAILED);
-  }
+  ASSERT(!has_more());
   // If the result of parsing is a literal string atom, and it has the
   // same length as the input, then the atom is identical to the input.
   if (result->IsAtom() && result->AsAtom()->length() == in()->length()) {
@@ -3888,7 +3886,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       return builder->ToRegExp();
     case ')': {
       if (!stored_state->IsSubexpression()) {
-        ReportError(CStrVector("Unexpected ')'") CHECK_FAILED);
+        ReportError(CStrVector("Unmatched ')'") CHECK_FAILED);
       }
       ASSERT_NE(INITIAL, stored_state->group_type());
 
@@ -4028,7 +4026,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         CharacterRange::AddClassEscape(c, ranges);
         RegExpTree* atom = new RegExpCharacterClass(ranges, false);
         builder->AddAtom(atom);
-        goto has_read_atom;  // Avoid setting has_character_escapes_.
+        break;
       }
       case '1': case '2': case '3': case '4': case '5': case '6':
       case '7': case '8': case '9': {
@@ -4040,11 +4038,11 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           }
           if (capture == NULL) {
             builder->AddEmpty();
-            goto has_read_atom;
+            break;
           }
           RegExpTree* atom = new RegExpBackReference(capture);
           builder->AddAtom(atom);
-          goto has_read_atom;  // Avoid setting has_character_escapes_.
+          break;
         }
         uc32 first_digit = Next();
         if (first_digit == '8' || first_digit == '9') {
@@ -4129,7 +4127,6 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       break;
     }  // end switch(current())
 
-   has_read_atom:
     int min;
     int max;
     switch (current()) {
