@@ -204,8 +204,8 @@ TEST(Parser) {
   CHECK_PARSE_EQ("(?=a){9,10}a", "(: (-> + 'a') 'a')");
   CHECK_PARSE_EQ("(?!a)?a", "'a'");
   CHECK_PARSE_EQ("\\1(a)", "(^ 'a')");
-  CHECK_PARSE_EQ("(?!(a))\\1", "(-> - (^ 'a'))");
-  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: (^ 'a') (<- 1)))");
+  CHECK_PARSE_EQ("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
+  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
   CHECK_PARSE_EQ("[\\0]", "[\\x00]");
   CHECK_PARSE_EQ("[\\11]", "[\\x09]");
   CHECK_PARSE_EQ("[\\11a]", "[\\x09 a]");
