@@ -2022,11 +2022,11 @@ void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
 
 
 void Assembler::emit_sse_operand(XMMRegister dst, XMMRegister src) {
-  emit(0xC0 | (dst.code() << 3) | src.code());
+  emit(0xC0 | (dst.low_bits() << 3) | src.low_bits());
 }
 
 void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
-  emit(0xC0 | (dst.code() << 3) | src.code());
+  emit(0xC0 | (dst.low_bits() << 3) | src.low_bits());
 }
 
 

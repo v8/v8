@@ -160,6 +160,17 @@ struct XMMRegister {
     return code_;
   }
 
+  // Return the high bit of the register code as a 0 or 1.  Used often
+  // when constructing the REX prefix byte.
+  int high_bit() const {
+    return code_ >> 3;
+  }
+  // Return the 3 low bits of the register code.  Used when encoding registers
+  // in modR/M, SIB, and opcode bytes.
+  int low_bits() const {
+    return code_ & 0x7;
+  }
+
   int code_;
 };
 

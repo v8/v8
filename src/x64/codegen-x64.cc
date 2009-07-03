@@ -154,8 +154,7 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
-      //    fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-      false) {
+      function->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
     frame_->SpillAll();
     __ int3();
   }
