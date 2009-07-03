@@ -749,6 +749,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
 
   // Setup the frame structure on the stack.
+  // All constants are relative to the frame pointer of the exit frame.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
@@ -763,7 +764,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
   ExternalReference context_address(Top::k_context_address);
-  movq(rdi, rax);  // Backup rax before we use it.
+  movq(r14, rax);  // Backup rax before we use it.
 
   movq(rax, rbp);
   store_rax(c_entry_fp_address);
@@ -773,7 +774,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Setup argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  lea(r15, Operand(rbp, rdi, times_pointer_size, offset));
+  lea(r15, Operand(rbp, r14, times_pointer_size, offset));
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
