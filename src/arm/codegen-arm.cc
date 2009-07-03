@@ -50,6 +50,11 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     bool strict);
 static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc);
 static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm);
+static void MultiplyByKnownInt(MacroAssembler* masm,
+                               Register source,
+                               Register destination,
+                               int known_int);
+static bool IsEasyToMultiplyBy(int x);
 
 
 
@@ -695,26 +700,61 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
 class GenericBinaryOpStub : public CodeStub {
  public:
   GenericBinaryOpStub(Token::Value op,
-                      OverwriteMode mode)
-      : op_(op), mode_(mode) { }
+                      OverwriteMode mode,
+                      int constant_rhs = CodeGenerator::kUnknownIntValue)
+      : op_(op),
+        mode_(mode),
+        constant_rhs_(constant_rhs),
+        specialized_on_rhs_(RhsIsOneWeWantToOptimizeFor(op, constant_rhs)) { }
 
  private:
   Token::Value op_;
   OverwriteMode mode_;
+  int constant_rhs_;
+  bool specialized_on_rhs_;
+
+  static const int kMaxKnownRhs = 0x40000000;
 
   // Minor key encoding in 16 bits.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 14> {};
+  class OpBits: public BitField<Token::Value, 2, 6> {};
+  class KnownIntBits: public BitField<int, 8, 8> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
     // Encode the parameters in a unique 16 bit value.
     return OpBits::encode(op_)
-           | ModeBits::encode(mode_);
+           | ModeBits::encode(mode_)
+           | KnownIntBits::encode(MinorKeyForKnownInt());
   }
 
   void Generate(MacroAssembler* masm);
   void HandleNonSmiBitwiseOp(MacroAssembler* masm);
+
+  static bool RhsIsOneWeWantToOptimizeFor(Token::Value op, int constant_rhs) {
+    if (constant_rhs == CodeGenerator::kUnknownIntValue) return false;
+    if (op == Token::DIV) return constant_rhs >= 2 && constant_rhs <= 3;
+    if (op == Token::MOD) {
+      if (constant_rhs <= 1) return false;
+      if (constant_rhs <= 10) return true;
+      if (constant_rhs <= kMaxKnownRhs && IsPowerOf2(constant_rhs)) return true;
+      return false;
+    }
+    return false;
+  }
+
+  int MinorKeyForKnownInt() {
+    if (!specialized_on_rhs_) return 0;
+    if (constant_rhs_ <= 10) return constant_rhs_ + 1;
+    ASSERT(IsPowerOf2(constant_rhs_));
+    int key = 12;
+    int d = constant_rhs_;
+    while ((d & 1) == 0) {
+      key++;
+      d >>= 1;
+    }
+    return key;
+  }
 
   const char* GetName() {
     switch (op_) {
@@ -722,6 +762,7 @@ class GenericBinaryOpStub : public CodeStub {
       case Token::SUB: return "GenericBinaryOpStub_SUB";
       case Token::MUL: return "GenericBinaryOpStub_MUL";
       case Token::DIV: return "GenericBinaryOpStub_DIV";
+      case Token::MOD: return "GenericBinaryOpStub_MOD";
       case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
       case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
       case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
@@ -733,13 +774,22 @@ class GenericBinaryOpStub : public CodeStub {
   }
 
 #ifdef DEBUG
-  void Print() { PrintF("GenericBinaryOpStub (%s)\n", Token::String(op_)); }
+  void Print() {
+    if (!specialized_on_rhs_) {
+      PrintF("GenericBinaryOpStub (%s)\n", Token::String(op_));
+    } else {
+      PrintF("GenericBinaryOpStub (%s by %d)\n",
+             Token::String(op_),
+             constant_rhs_);
+    }
+  }
 #endif
 };
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           OverwriteMode overwrite_mode) {
+                                           OverwriteMode overwrite_mode,
+                                           int constant_rhs) {
   VirtualFrame::SpilledScope spilled_scope;
   // sp[0] : y
   // sp[1] : x
@@ -750,6 +800,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::ADD:  // fall through.
     case Token::SUB:  // fall through.
     case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
     case Token::BIT_OR:
     case Token::BIT_AND:
     case Token::BIT_XOR:
@@ -758,24 +810,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::SAR: {
       frame_->EmitPop(r0);  // r0 : y
       frame_->EmitPop(r1);  // r1 : x
-      GenericBinaryOpStub stub(op, overwrite_mode);
+      GenericBinaryOpStub stub(op, overwrite_mode, constant_rhs);
       frame_->CallStub(&stub, 0);
-      break;
-    }
-
-    case Token::DIV: {
-      Result arg_count = allocator_->Allocate(r0);
-      ASSERT(arg_count.is_valid());
-      __ mov(arg_count.reg(), Operand(1));
-      frame_->InvokeBuiltin(Builtins::DIV, CALL_JS, &arg_count, 2);
-      break;
-    }
-
-    case Token::MOD: {
-      Result arg_count = allocator_->Allocate(r0);
-      ASSERT(arg_count.is_valid());
-      __ mov(arg_count.reg(), Operand(1));
-      frame_->InvokeBuiltin(Builtins::MOD, CALL_JS, &arg_count, 2);
       break;
     }
 
@@ -842,6 +878,10 @@ void DeferredInlineSmiOperation::Generate() {
       break;
     }
 
+    // For these operations there is no optimistic operation that needs to be
+    // reverted.
+    case Token::MUL:
+    case Token::MOD:
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND: {
@@ -872,8 +912,29 @@ void DeferredInlineSmiOperation::Generate() {
       break;
   }
 
-  GenericBinaryOpStub stub(op_, overwrite_mode_);
+  GenericBinaryOpStub stub(op_, overwrite_mode_, value_);
   __ CallStub(&stub);
+}
+
+
+static bool PopCountLessThanEqual2(unsigned int x) {
+  x &= x - 1;
+  return (x & (x - 1)) == 0;
+}
+
+
+// Returns the index of the lowest bit set.
+static int BitPosition(unsigned x) {
+  int bit_posn = 0;
+  while ((x & 0xf) == 0) {
+    bit_posn += 4;
+    x >>= 4;
+  }
+  while ((x & 1) == 0) {
+    bit_posn++;
+    x >>= 1;
+  }
+  return bit_posn;
 }
 
 
@@ -896,6 +957,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
   JumpTarget exit;
   frame_->EmitPop(r0);
 
+  bool something_to_inline = true;
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred =
@@ -925,6 +987,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       break;
     }
 
+
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND: {
@@ -946,68 +1009,112 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::SHR:
     case Token::SAR: {
       if (reversed) {
-        __ mov(ip, Operand(value));
-        frame_->EmitPush(ip);
-        frame_->EmitPush(r0);
-        GenericBinaryOperation(op, mode);
-
-      } else {
-        int shift_value = int_value & 0x1f;  // least significant 5 bits
-        DeferredCode* deferred =
-          new DeferredInlineSmiOperation(op, shift_value, false, mode);
-        __ tst(r0, Operand(kSmiTagMask));
-        deferred->Branch(ne);
-        __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
-        switch (op) {
-          case Token::SHL: {
-            __ mov(r2, Operand(r2, LSL, shift_value));
-            // check that the *unsigned* result fits in a smi
-            __ add(r3, r2, Operand(0x40000000), SetCC);
-            deferred->Branch(mi);
-            break;
-          }
-          case Token::SHR: {
-            // LSR by immediate 0 means shifting 32 bits.
-            if (shift_value != 0) {
-              __ mov(r2, Operand(r2, LSR, shift_value));
-            }
-            // check that the *unsigned* result fits in a smi
-            // neither of the two high-order bits can be set:
-            // - 0x80000000: high bit would be lost when smi tagging
-            // - 0x40000000: this number would convert to negative when
-            // smi tagging these two cases can only happen with shifts
-            // by 0 or 1 when handed a valid smi
-            __ and_(r3, r2, Operand(0xc0000000), SetCC);
-            deferred->Branch(ne);
-            break;
-          }
-          case Token::SAR: {
-            if (shift_value != 0) {
-              // ASR by immediate 0 means shifting 32 bits.
-              __ mov(r2, Operand(r2, ASR, shift_value));
-            }
-            break;
-          }
-          default: UNREACHABLE();
-        }
-        __ mov(r0, Operand(r2, LSL, kSmiTagSize));
-        deferred->BindExit();
+        something_to_inline = false;
+        break;
       }
+      int shift_value = int_value & 0x1f;  // least significant 5 bits
+      DeferredCode* deferred =
+        new DeferredInlineSmiOperation(op, shift_value, false, mode);
+      __ tst(r0, Operand(kSmiTagMask));
+      deferred->Branch(ne);
+      __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
+      switch (op) {
+        case Token::SHL: {
+          if (shift_value != 0) {
+            __ mov(r2, Operand(r2, LSL, shift_value));
+          }
+          // check that the *unsigned* result fits in a smi
+          __ add(r3, r2, Operand(0x40000000), SetCC);
+          deferred->Branch(mi);
+          break;
+        }
+        case Token::SHR: {
+          // LSR by immediate 0 means shifting 32 bits.
+          if (shift_value != 0) {
+            __ mov(r2, Operand(r2, LSR, shift_value));
+          }
+          // check that the *unsigned* result fits in a smi
+          // neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging
+          // - 0x40000000: this number would convert to negative when
+          // smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi
+          __ and_(r3, r2, Operand(0xc0000000), SetCC);
+          deferred->Branch(ne);
+          break;
+        }
+        case Token::SAR: {
+          if (shift_value != 0) {
+            // ASR by immediate 0 means shifting 32 bits.
+            __ mov(r2, Operand(r2, ASR, shift_value));
+          }
+          break;
+        }
+        default: UNREACHABLE();
+      }
+      __ mov(r0, Operand(r2, LSL, kSmiTagSize));
+      deferred->BindExit();
+      break;
+    }
+
+    case Token::MOD: {
+      if (reversed || int_value < 2 || !IsPowerOf2(int_value)) {
+        something_to_inline = false;
+        break;
+      }
+      DeferredCode* deferred =
+        new DeferredInlineSmiOperation(op, int_value, reversed, mode);
+      unsigned mask = (0x80000000u | kSmiTagMask);
+      __ tst(r0, Operand(mask));
+      deferred->Branch(ne);  // Go to deferred code on non-Smis and negative.
+      mask = (int_value << kSmiTagSize) - 1;
+      __ and_(r0, r0, Operand(mask));
+      deferred->BindExit();
+      break;
+    }
+
+    case Token::MUL: {
+      if (!IsEasyToMultiplyBy(int_value)) {
+        something_to_inline = false;
+        break;
+      }
+      DeferredCode* deferred =
+        new DeferredInlineSmiOperation(op, int_value, reversed, mode);
+      unsigned max_smi_that_wont_overflow = Smi::kMaxValue / int_value;
+      max_smi_that_wont_overflow <<= kSmiTagSize;
+      unsigned mask = 0x80000000u;
+      while ((mask & max_smi_that_wont_overflow) == 0) {
+        mask |= mask >> 1;
+      }
+      mask |= kSmiTagMask;
+      // This does a single mask that checks for a too high value in a
+      // conservative way and for a non-Smi.  It also filters out negative
+      // numbers, unfortunately, but since this code is inline we prefer
+      // brevity to comprehensiveness.
+      __ tst(r0, Operand(mask));
+      deferred->Branch(ne);
+      MultiplyByKnownInt(masm_, r0, r0, int_value);
+      deferred->BindExit();
       break;
     }
 
     default:
-      if (!reversed) {
-        frame_->EmitPush(r0);
-        __ mov(r0, Operand(value));
-        frame_->EmitPush(r0);
-      } else {
-        __ mov(ip, Operand(value));
-        frame_->EmitPush(ip);
-        frame_->EmitPush(r0);
-      }
-      GenericBinaryOperation(op, mode);
+      something_to_inline = false;
       break;
+  }
+
+  if (!something_to_inline) {
+    if (!reversed) {
+      frame_->EmitPush(r0);
+      __ mov(r0, Operand(value));
+      frame_->EmitPush(r0);
+      GenericBinaryOperation(op, mode, int_value);
+    } else {
+      __ mov(ip, Operand(value));
+      frame_->EmitPush(ip);
+      frame_->EmitPush(r0);
+      GenericBinaryOperation(op, mode, kUnknownIntValue);
+    }
   }
 
   exit.Bind();
@@ -3308,7 +3415,7 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   LoadAndSpill(args->at(0));
   frame_->EmitPop(r0);
-  __ tst(r0, Operand(kSmiTagMask | 0x80000000));
+  __ tst(r0, Operand(kSmiTagMask | 0x80000000u));
   cc_reg_ = eq;
 }
 
@@ -4354,7 +4461,7 @@ static void CountLeadingZeros(
   __ add(zeros, zeros, Operand(2), LeaveCC, eq);
   __ mov(scratch, Operand(scratch, LSL, 2), LeaveCC, eq);
   // Top bit.
-  __ tst(scratch, Operand(0x80000000));
+  __ tst(scratch, Operand(0x80000000u));
   __ add(zeros, zeros, Operand(1), LeaveCC, eq);
 #endif
 }
@@ -4506,7 +4613,7 @@ void WriteInt32ToHeapNumberStub::Generate(MacroAssembler *masm) {
   // We test for the special value that has a different exponent.  This test
   // has the neat side effect of setting the flags according to the sign.
   ASSERT(HeapNumber::kSignMask == 0x80000000u);
-  __ cmp(the_int_, Operand(0x80000000));
+  __ cmp(the_int_, Operand(0x80000000u));
   __ b(eq, &max_negative_int);
   // Set up the correct exponent in scratch_.  All non-Smi int32s have the same.
   // A non-Smi integer is 1.xxx * 2^30 so the exponent is 30 (biased).
@@ -5320,6 +5427,85 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
 }
 
 
+// Can we multiply by x with max two shifts and an add.
+// This answers yes to all integers from 2 to 10.
+static bool IsEasyToMultiplyBy(int x) {
+  if (x < 2) return false;                          // Avoid special cases.
+  if (x > (Smi::kMaxValue + 1) >> 2) return false;  // Almost always overflows.
+  if (IsPowerOf2(x)) return true;                   // Simple shift.
+  if (PopCountLessThanEqual2(x)) return true;       // Shift and add and shift.
+  if (IsPowerOf2(x + 1)) return true;               // Patterns like 11111.
+  return false;
+}
+
+
+// Can multiply by anything that IsEasyToMultiplyBy returns true for.
+// Source and destination may be the same register.  This routine does
+// not set carry and overflow the way a mul instruction would.
+static void MultiplyByKnownInt(MacroAssembler* masm,
+                               Register source,
+                               Register destination,
+                               int known_int) {
+  if (IsPowerOf2(known_int)) {
+    __ mov(destination, Operand(source, LSL, BitPosition(known_int)));
+  } else if (PopCountLessThanEqual2(known_int)) {
+    int first_bit = BitPosition(known_int);
+    int second_bit = BitPosition(known_int ^ (1 << first_bit));
+    __ add(destination, source, Operand(source, LSL, second_bit - first_bit));
+    if (first_bit != 0) {
+      __ mov(destination, Operand(destination, LSL, first_bit));
+    }
+  } else {
+    ASSERT(IsPowerOf2(known_int + 1));  // Patterns like 1111.
+    int the_bit = BitPosition(known_int + 1);
+    __ rsb(destination, source, Operand(source, LSL, the_bit));
+  }
+}
+
+
+// This function (as opposed to MultiplyByKnownInt) takes the known int in a
+// a register for the cases where it doesn't know a good trick, and may deliver
+// a result that needs shifting.
+static void MultiplyByKnownInt2(
+    MacroAssembler* masm,
+    Register result,
+    Register source,
+    Register known_int_register,   // Smi tagged.
+    int known_int,
+    int* required_shift) {  // Including Smi tag shift
+  switch (known_int) {
+    case 3:
+      __ add(result, source, Operand(source, LSL, 1));
+      *required_shift = 1;
+      break;
+    case 5:
+      __ add(result, source, Operand(source, LSL, 2));
+      *required_shift = 1;
+      break;
+    case 6:
+      __ add(result, source, Operand(source, LSL, 1));
+      *required_shift = 2;
+      break;
+    case 7:
+      __ rsb(result, source, Operand(source, LSL, 3));
+      *required_shift = 1;
+      break;
+    case 9:
+      __ add(result, source, Operand(source, LSL, 3));
+      *required_shift = 1;
+      break;
+    case 10:
+      __ add(result, source, Operand(source, LSL, 2));
+      *required_shift = 2;
+      break;
+    default:
+      ASSERT(!IsPowerOf2(known_int));  // That would be very inefficient.
+      __ mul(result, source, known_int_register);
+      *required_shift = 0;
+  }
+}
+
+
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // r1 : x
   // r0 : y
@@ -5398,7 +5584,101 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
                               &not_smi,
                               Builtins::MUL,
                               Token::MUL,
-                                mode_);
+                              mode_);
+      break;
+    }
+
+    case Token::DIV:
+    case Token::MOD: {
+      Label not_smi;
+      if (specialized_on_rhs_) {
+        Label smi_is_unsuitable;
+        __ BranchOnNotSmi(r1, &not_smi);
+        if (IsPowerOf2(constant_rhs_)) {
+          if (op_ == Token::MOD) {
+            __ and_(r0,
+                    r1,
+                    Operand(0x80000000u | ((constant_rhs_ << kSmiTagSize) - 1)),
+                    SetCC);
+            // We now have the answer, but if the input was negative we also
+            // have the sign bit.  Our work is done if the result is
+            // positive or zero:
+            __ Ret(pl);
+            // A mod of a negative left hand side must return a negative number.
+            // Unfortunately if the answer is 0 then we must return -0.  And we
+            // already optimistically trashed r0 so we may need to restore it.
+            __ eor(r0, r0, Operand(0x80000000u), SetCC);
+            // Next two instructions are conditional on the answer being -0.
+            __ mov(r0, Operand(Smi::FromInt(constant_rhs_)), LeaveCC, eq);
+            __ b(eq, &smi_is_unsuitable);
+            // We need to subtract the dividend.  Eg. -3 % 4 == -3.
+            __ sub(r0, r0, Operand(Smi::FromInt(constant_rhs_)));
+          } else {
+            ASSERT(op_ == Token::DIV);
+            __ tst(r1,
+                   Operand(0x80000000u | ((constant_rhs_ << kSmiTagSize) - 1)));
+            __ b(ne, &smi_is_unsuitable);  // Go slow on negative or remainder.
+            int shift = 0;
+            int d = constant_rhs_;
+            while ((d & 1) == 0) {
+              d >>= 1;
+              shift++;
+            }
+            __ mov(r0, Operand(r1, LSR, shift));
+            __ bic(r0, r0, Operand(kSmiTagMask));
+          }
+        } else {
+          // Not a power of 2.
+          __ tst(r1, Operand(0x80000000u));
+          __ b(ne, &smi_is_unsuitable);
+          // Find a fixed point reciprocal of the divisor so we can divide by
+          // multiplying.
+          double divisor = 1.0 / constant_rhs_;
+          int shift = 32;
+          double scale = 4294967296.0;  // 1 << 32.
+          uint32_t mul;
+          // Maximise the precision of the fixed point reciprocal.
+          while (true) {
+            mul = static_cast<uint32_t>(scale * divisor);
+            if (mul >= 0x7fffffff) break;
+            scale *= 2.0;
+            shift++;
+          }
+          mul++;
+          __ mov(r2, Operand(mul));
+          __ umull(r3, r2, r2, r1);
+          __ mov(r2, Operand(r2, LSR, shift - 31));
+          // r2 is r1 / rhs.  r2 is not Smi tagged.
+          // r0 is still the known rhs.  r0 is Smi tagged.
+          // r1 is still the unkown lhs.  r1 is Smi tagged.
+          int required_r4_shift = 0;  // Including the Smi tag shift of 1.
+          // r4 = r2 * r0.
+          MultiplyByKnownInt2(masm,
+                              r4,
+                              r2,
+                              r0,
+                              constant_rhs_,
+                              &required_r4_shift);
+          // r4 << required_r4_shift is now the Smi tagged rhs * (r1 / rhs).
+          if (op_ == Token::DIV) {
+            __ sub(r3, r1, Operand(r4, LSL, required_r4_shift), SetCC);
+            __ b(ne, &smi_is_unsuitable);  // There was a remainder.
+            __ mov(r0, Operand(r2, LSL, kSmiTagSize));
+          } else {
+            ASSERT(op_ == Token::MOD);
+            __ sub(r0, r1, Operand(r4, LSL, required_r4_shift));
+          }
+        }
+        __ Ret();
+        __ bind(&smi_is_unsuitable);
+      } else {
+        __ jmp(&not_smi);
+      }
+      HandleBinaryOpSlowCases(masm,
+                              &not_smi,
+                              op_ == Token::MOD ? Builtins::MOD : Builtins::DIV,
+                              op_,
+                              mode_);
       break;
     }
 
@@ -5423,7 +5703,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           __ and_(r2, r2, Operand(0x1f));
           __ mov(r0, Operand(r1, ASR, r2));
           // Smi tag result.
-          __ and_(r0, r0, Operand(~kSmiTagMask));
+          __ bic(r0, r0, Operand(kSmiTagMask));
           break;
         case Token::SHR:
           // Remove tags from operands.  We can't do this on a 31 bit number

@@ -712,9 +712,17 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       13,
       "mul_two_doubles");
-  Add(ExternalReference::compare_doubles().address(),
+  Add(ExternalReference::double_fp_operation(Token::DIV).address(),
       UNCLASSIFIED,
       14,
+      "div_two_doubles");
+  Add(ExternalReference::double_fp_operation(Token::MOD).address(),
+      UNCLASSIFIED,
+      15,
+      "mod_two_doubles");
+  Add(ExternalReference::compare_doubles().address(),
+      UNCLASSIFIED,
+      16,
       "compare_doubles");
 }
 
