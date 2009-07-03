@@ -471,8 +471,8 @@ void Assembler::immediate_arithmetic_op_32(byte subcode,
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(dst);
-    emit(0x83);
   if (is_int8(src.value_)) {
+    emit(0x83);
     emit_modrm(subcode, dst);
     emit(src.value_);
   } else if (dst.is(rax)) {
@@ -1561,6 +1561,7 @@ void Assembler::fldz() {
 void Assembler::fld_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xD9);
   emit_operand(0, adr);
 }
@@ -1569,6 +1570,7 @@ void Assembler::fld_s(const Operand& adr) {
 void Assembler::fld_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDD);
   emit_operand(0, adr);
 }
@@ -1577,6 +1579,7 @@ void Assembler::fld_d(const Operand& adr) {
 void Assembler::fstp_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xD9);
   emit_operand(3, adr);
 }
@@ -1585,6 +1588,7 @@ void Assembler::fstp_s(const Operand& adr) {
 void Assembler::fstp_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDD);
   emit_operand(3, adr);
 }
@@ -1593,6 +1597,7 @@ void Assembler::fstp_d(const Operand& adr) {
 void Assembler::fild_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(0, adr);
 }
@@ -1601,6 +1606,7 @@ void Assembler::fild_s(const Operand& adr) {
 void Assembler::fild_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDF);
   emit_operand(5, adr);
 }
@@ -1609,6 +1615,7 @@ void Assembler::fild_d(const Operand& adr) {
 void Assembler::fistp_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(3, adr);
 }
@@ -1618,6 +1625,7 @@ void Assembler::fisttp_s(const Operand& adr) {
   ASSERT(CpuFeatures::IsEnabled(CpuFeatures::SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(1, adr);
 }
@@ -1626,6 +1634,7 @@ void Assembler::fisttp_s(const Operand& adr) {
 void Assembler::fist_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDB);
   emit_operand(2, adr);
 }
@@ -1634,6 +1643,7 @@ void Assembler::fist_s(const Operand& adr) {
 void Assembler::fistp_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDF);
   emit_operand(8, adr);
 }
@@ -1688,6 +1698,7 @@ void Assembler::fsub(int i) {
 void Assembler::fisub_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
+  emit_optional_rex_32(adr);
   emit(0xDA);
   emit_operand(4, adr);
 }
