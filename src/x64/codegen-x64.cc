@@ -4386,8 +4386,8 @@ void CodeGenerator::Comparison(Condition cc,
       Register left_reg = left_side.reg();
       Register right_reg = right_side.reg();
 
-      __ movq(kScratchRegister, left_side.reg());
-      __ or_(kScratchRegister, right_side.reg());
+      __ movq(kScratchRegister, left_reg);
+      __ or_(kScratchRegister, right_reg);
       __ testl(kScratchRegister, Immediate(kSmiTagMask));
       is_smi.Branch(zero, taken);
       // When non-smi, call out to the compare stub.
@@ -6493,17 +6493,18 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
   __ bind(&load_smi_lhs);
   ASSERT(kSmiTagSize == 1);
   ASSERT(kSmiTag == 0);
-  __ lea(kScratchRegister, Operand(lhs, lhs, times_1, 0));
+  __ movsxlq(kScratchRegister, lhs);
+  __ sar(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
-  __ fild_s(Operand(rsp, 0));
+  __ fild_d(Operand(rsp, 0));
   __ pop(kScratchRegister);
   __ jmp(&done_load_lhs);
 
   __ bind(&load_smi_rhs);
-  __ movq(kScratchRegister, rhs);
+  __ movsxlq(kScratchRegister, rhs);
   __ sar(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
-  __ fild_s(Operand(rsp, 0));
+  __ fild_d(Operand(rsp, 0));
   __ pop(kScratchRegister);
 
   __ bind(&done);
@@ -6512,24 +6513,18 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
                                              Label* non_float) {
   Label test_other, done;
-  // Test if both operands are floats or smi -> scratch=k_is_float;
-  // Otherwise scratch = k_not_float.
+  // Test if both operands are numbers (heap_numbers or smis).
+  // If not, jump to label non_float.
   __ testl(rdx, Immediate(kSmiTagMask));
   __ j(zero, &test_other);  // argument in rdx is OK
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(kScratchRegister, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ j(not_equal, non_float);  // argument in rdx is not a number -> NaN
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),Factory::heap_number_map());
+  __ j(not_equal, non_float);  // The argument in rdx is not a number.
 
   __ bind(&test_other);
   __ testl(rax, Immediate(kSmiTagMask));
   __ j(zero, &done);  // argument in rax is OK
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(kScratchRegister, FieldOperand(rax, HeapObject::kMapOffset));
-  __ j(not_equal, non_float);  // argument in rax is not a number -> NaN
+  __ Cmp(FieldOperand(rax, HeapObject::kMapOffset),Factory::heap_number_map());
+  __ j(not_equal, non_float);  // The argument in rax is not a number.
 
   // Fall-through: Both operands are numbers.
   __ bind(&done);
@@ -6792,6 +6787,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ testl(rax, Immediate(1));
         __ j(not_zero, &operand_conversion_failure);
       } else {
+        // TODO(X64): Verify that SSE3 is always supported, drop this code.
         // Check if right operand is int32.
         __ fist_s(Operand(rsp, 0 * kPointerSize));
         __ fild_s(Operand(rsp, 0 * kPointerSize));
