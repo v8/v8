@@ -6517,13 +6517,13 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
   // If not, jump to label non_float.
   __ testl(rdx, Immediate(kSmiTagMask));
   __ j(zero, &test_other);  // argument in rdx is OK
-  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),Factory::heap_number_map());
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset), Factory::heap_number_map());
   __ j(not_equal, non_float);  // The argument in rdx is not a number.
 
   __ bind(&test_other);
   __ testl(rax, Immediate(kSmiTagMask));
   __ j(zero, &done);  // argument in rax is OK
-  __ Cmp(FieldOperand(rax, HeapObject::kMapOffset),Factory::heap_number_map());
+  __ Cmp(FieldOperand(rax, HeapObject::kMapOffset), Factory::heap_number_map());
   __ j(not_equal, non_float);  // The argument in rax is not a number.
 
   // Fall-through: Both operands are numbers.
