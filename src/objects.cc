@@ -5825,11 +5825,10 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
 }
 
 
-bool JSObject::GetPropertyWithInterceptorProper(
+Object* JSObject::GetPropertyWithInterceptorProper(
     JSObject* receiver,
     String* name,
-    PropertyAttributes* attributes,
-    Object** result_object) {
+    PropertyAttributes* attributes) {
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
@@ -5850,17 +5849,14 @@ bool JSObject::GetPropertyWithInterceptorProper(
       VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    if (Top::has_scheduled_exception()) {
-      return false;
-    }
-    if (!result.IsEmpty()) {
+    if (!Top::has_scheduled_exception() && !result.IsEmpty()) {
       *attributes = NONE;
-      *result_object = *v8::Utils::OpenHandle(*result);
-      return true;
+      return *v8::Utils::OpenHandle(*result);
     }
   }
 
-  return false;
+  *attributes = ABSENT;
+  return Heap::undefined_value();
 }
 
 
@@ -5874,12 +5870,13 @@ Object* JSObject::GetInterceptorPropertyWithLookupHint(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = NULL;
-  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+  Object* result = GetPropertyWithInterceptorProper(receiver,
+                                                    name,
+                                                    attributes);
+  if (*attributes != ABSENT) {
     return result;
-  } else {
-    RETURN_IF_SCHEDULED_EXCEPTION();
   }
+  RETURN_IF_SCHEDULED_EXCEPTION();
 
   int property_index = lookup_hint->value();
   if (property_index >= 0) {
@@ -5924,12 +5921,11 @@ Object* JSObject::GetPropertyWithInterceptor(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = NULL;
-  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+  Object* result = GetPropertyWithInterceptorProper(receiver, name, attributes);
+  if (*attributes != ABSENT) {
     return result;
-  } else {
-    RETURN_IF_SCHEDULED_EXCEPTION();
   }
+  RETURN_IF_SCHEDULED_EXCEPTION();
 
   result = holder_handle->GetPropertyPostInterceptor(
       *receiver_handle,
