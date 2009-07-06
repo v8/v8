@@ -744,28 +744,6 @@ void Proxy::ProxyVerify() {
   ASSERT(IsProxy());
 }
 
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::Print() {
-  int capacity = HashTable<Shape, Key>::Capacity();
-  for (int i = 0; i < capacity; i++) {
-    Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k)) {
-      PrintF(" ");
-      if (k->IsString()) {
-        String::cast(k)->StringPrint();
-      } else {
-        k->ShortPrint();
-      }
-      PrintF(": ");
-      ValueAt(i)->ShortPrint();
-      PrintF("\n");
-    }
-  }
-}
-
-// Template instantiations.
-template void Dictionary<NumberDictionaryShape, uint32_t>::Print();
-template void Dictionary<StringDictionaryShape, String*>::Print();
 
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());

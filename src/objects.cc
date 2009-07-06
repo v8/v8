@@ -5747,6 +5747,34 @@ bool JSObject::ShouldConvertToFastElements() {
       (length / (2 * NumberDictionary::kEntrySize));
 }
 
+
+// Certain compilers request function template instantiation when they
+// see the definition of the other template functions in the
+// class. This requires us to have the template functions put
+// together, so even though this function belongs in objects-debug.cc,
+// we keep it here instead to satisfy certain compilers.
+#ifdef DEBUG
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::Print() {
+  int capacity = HashTable<Shape, Key>::Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = HashTable<Shape, Key>::KeyAt(i);
+    if (HashTable<Shape, Key>::IsKey(k)) {
+      PrintF(" ");
+      if (k->IsString()) {
+        String::cast(k)->StringPrint();
+      } else {
+        k->ShortPrint();
+      }
+      PrintF(": ");
+      ValueAt(i)->ShortPrint();
+      PrintF("\n");
+    }
+  }
+}
+#endif
+
+
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
