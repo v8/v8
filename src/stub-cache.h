@@ -197,11 +197,13 @@ class StubCache : public AllStatic {
   static void GenerateMiss(MacroAssembler* masm);
 
   // Generate code for probing the stub cache table.
+  // If extra != no_reg it might be used as am extra scratch register.
   static void GenerateProbe(MacroAssembler* masm,
                             Code::Flags flags,
                             Register receiver,
                             Register name,
-                            Register scratch);
+                            Register scratch,
+                            Register extra);
 
   enum Table {
     kPrimary,

@@ -160,6 +160,17 @@ struct XMMRegister {
     return code_;
   }
 
+  // Return the high bit of the register code as a 0 or 1.  Used often
+  // when constructing the REX prefix byte.
+  int high_bit() const {
+    return code_ >> 3;
+  }
+  // Return the 3 low bits of the register code.  Used when encoding registers
+  // in modR/M, SIB, and opcode bytes.
+  int low_bits() const {
+    return code_ & 0x7;
+  }
+
   int code_;
 };
 
@@ -522,6 +533,10 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_32(0x0, dst, src);
   }
 
+  void addl(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_32(0x0, dst, src);
+  }
+
   void addq(Register dst, const Operand& src) {
     arithmetic_op(0x03, dst, src);
   }
@@ -537,10 +552,6 @@ class Assembler : public Malloced {
 
   void addq(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x0, dst, src);
-  }
-
-  void addl(const Operand& dst, Immediate src) {
-    immediate_arithmetic_op_32(0x0, dst, src);
   }
 
   void cmpb(Register dst, Immediate src) {
@@ -720,6 +731,10 @@ class Assembler : public Malloced {
   }
 
   void subl(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_32(0x5, dst, src);
+  }
+
+  void subl(Register dst, Immediate src) {
     immediate_arithmetic_op_32(0x5, dst, src);
   }
 

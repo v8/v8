@@ -1,3 +1,16 @@
+2009-07-06: Version 1.2.12
+
+        Added stack traces collection to Error objects accessible through
+        the e.stack property.
+
+        Changed RegExp parser to use a recursive data structure instead of
+        stack-based recursion.
+
+        Optimized Date object construction and string concatenation.
+
+        Improved performance of div, mod, and mul on ARM platforms.
+
+
 2009-07-02: Version 1.2.11
 
         Improved performance on IA-32 and ARM.

@@ -433,7 +433,7 @@ function ApplyReplacementFunction(replace, lastMatchInfo, subject) {
   if (m == 1) {
     var s = CaptureString(subject, lastMatchInfo, 0);
     // Don't call directly to avoid exposing the built-in global object.
-    return ToString(replace.call(null, s, index, subject));
+    return replace.call(null, s, index, subject);
   }
   var parameters = $Array(m + 2);
   for (var j = 0; j < m; j++) {
@@ -441,7 +441,7 @@ function ApplyReplacementFunction(replace, lastMatchInfo, subject) {
   }
   parameters[j] = index;
   parameters[j + 1] = subject;
-  return ToString(replace.apply(null, parameters));
+  return replace.apply(null, parameters);
 }
 
 

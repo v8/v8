@@ -1206,15 +1206,13 @@ bool Genesis::InstallSpecialObjects() {
                 Handle<JSObject>(js_global->builtins()), DONT_ENUM);
   }
 
-  if (FLAG_capture_stack_traces) {
-    Handle<Object> Error = GetProperty(js_global, "Error");
-    if (Error->IsJSObject()) {
-      Handle<String> name = Factory::LookupAsciiSymbol("captureStackTraces");
-      SetProperty(Handle<JSObject>::cast(Error),
-                  name,
-                  Factory::true_value(),
-                  NONE);
-    }
+  Handle<Object> Error = GetProperty(js_global, "Error");
+  if (Error->IsJSObject()) {
+    Handle<String> name = Factory::LookupAsciiSymbol("stackTraceLimit");
+    SetProperty(Handle<JSObject>::cast(Error),
+                name,
+                Handle<Smi>(Smi::FromInt(FLAG_stack_trace_limit)),
+                NONE);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -1434,8 +1432,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       }
     }
   } else {
-    Handle<Dictionary> properties =
-        Handle<Dictionary>(from->property_dictionary());
+    Handle<StringDictionary> properties =
+        Handle<StringDictionary>(from->property_dictionary());
     int capacity = properties->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* raw_key(properties->KeyAt(i));

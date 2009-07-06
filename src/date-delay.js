@@ -47,7 +47,7 @@ function ThrowDateTypeError() {
 
 // ECMA 262 - 15.9.1.2
 function Day(time) {
-  return FLOOR(time/msPerDay);
+  return FLOOR(time / msPerDay);
 }
 
 
@@ -428,29 +428,33 @@ function TimeClip(time) {
 
 
 %SetCode($Date, function(year, month, date, hours, minutes, seconds, ms) {
-  if (%_IsConstructCall()) {
-    // ECMA 262 - 15.9.3
-    var argc = %_ArgumentsLength();
-    if (argc == 0) {
-      %_SetValueOf(this, %DateCurrentTime());
-      return;
-    }
-    if (argc == 1) {
+  if (!%_IsConstructCall()) {
+    // ECMA 262 - 15.9.2
+    return (new $Date()).toString();
+  }
+
+  // ECMA 262 - 15.9.3
+  var argc = %_ArgumentsLength();
+  var value;
+  if (argc == 0) {
+    value = %DateCurrentTime();
+
+  } else if (argc == 1) {
+    if (IS_NUMBER(year)) {
+      value = TimeClip(year);
+    } else {
       // According to ECMA 262, no hint should be given for this
-      // conversion.  However, ToPrimitive defaults to String Hint
-      // for Date objects which will lose precision when the Date
+      // conversion. However, ToPrimitive defaults to STRING_HINT for
+      // Date objects which will lose precision when the Date
       // constructor is called with another Date object as its
-      // argument.  We therefore use Number Hint for the conversion
-      // (which is the default for everything else than Date
-      // objects).  This makes us behave like KJS and SpiderMonkey.
+      // argument. We therefore use NUMBER_HINT for the conversion,
+      // which is the default for everything else than Date objects.
+      // This makes us behave like KJS and SpiderMonkey.
       var time = ToPrimitive(year, NUMBER_HINT);
-      if (IS_STRING(time)) {
-        %_SetValueOf(this, DateParse(time));
-      } else {
-        %_SetValueOf(this, TimeClip(ToNumber(time)));
-      }
-      return;
+      value = IS_STRING(time) ? DateParse(time) : TimeClip(ToNumber(time));
     }
+
+  } else {
     year = ToNumber(year);
     month = ToNumber(month);
     date = argc > 2 ? ToNumber(date) : 1;
@@ -462,11 +466,9 @@ function TimeClip(time) {
         ? 1900 + TO_INTEGER(year) : year;
     var day = MakeDay(year, month, date);
     var time = MakeTime(hours, minutes, seconds, ms);
-    %_SetValueOf(this, TimeClip(UTC(MakeDate(day, time))));
-  } else {
-    // ECMA 262 - 15.9.2
-    return (new $Date()).toString();
+    value = TimeClip(UTC(MakeDate(day, time)));
   }
+  %_SetValueOf(this, value);
 });
 
 

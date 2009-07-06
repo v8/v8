@@ -72,9 +72,9 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Jump to miss if the interceptor bit is set.
   __ b(ne, miss);
 
-  // Bail out if we have a JS global object.
+  // Bail out if we have a JS global proxy object.
   __ ldrb(r3, FieldMemOperand(t0, Map::kInstanceTypeOffset));
-  __ cmp(r3, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ cmp(r3, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, miss);
 
   // Check that the properties array is a dictionary.
@@ -85,13 +85,13 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 
   // Compute the capacity mask.
   const int kCapacityOffset =
-      Array::kHeaderSize + Dictionary::kCapacityIndex * kPointerSize;
+      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
   __ ldr(r3, FieldMemOperand(t0, kCapacityOffset));
   __ mov(r3, Operand(r3, ASR, kSmiTagSize));  // convert smi to int
   __ sub(r3, r3, Operand(1));
 
   const int kElementsStartOffset =
-      Array::kHeaderSize + Dictionary::kElementsStartIndex * kPointerSize;
+      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
 
   // Generate an unrolled loop that performs a few probes before
   // giving up. Measurements done on Gmail indicate that 2 probes
@@ -102,12 +102,12 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
     __ ldr(t1, FieldMemOperand(r2, String::kLengthOffset));
     __ mov(t1, Operand(t1, LSR, String::kHashShift));
     if (i > 0) {
-      __ add(t1, t1, Operand(Dictionary::GetProbeOffset(i)));
+      __ add(t1, t1, Operand(StringDictionary::GetProbeOffset(i)));
     }
     __ and_(t1, t1, Operand(r3));
 
     // Scale the index by multiplying by the element size.
-    ASSERT(Dictionary::kElementSize == 3);
+    ASSERT(StringDictionary::kEntrySize == 3);
     __ add(t1, t1, Operand(t1, LSL, 1));  // t1 = t1 * 3
 
     // Check if the key is identical to the name.
@@ -217,7 +217,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Probe the stub cache.
   Code::Flags flags =
       Code::ComputeFlags(Code::CALL_IC, NOT_IN_LOOP, MONOMORPHIC, NORMAL, argc);
-  StubCache::GenerateProbe(masm, flags, r1, r2, r3);
+  StubCache::GenerateProbe(masm, flags, r1, r2, r3, no_reg);
 
   // If the stub cache probing failed, the receiver might be a value.
   // For value objects, we use the map of the prototype objects for
@@ -254,7 +254,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Probe the stub cache for the value object.
   __ bind(&probe);
-  StubCache::GenerateProbe(masm, flags, r1, r2, r3);
+  StubCache::GenerateProbe(masm, flags, r1, r2, r3, no_reg);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -422,7 +422,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  StubCache::GenerateProbe(masm, flags, r0, r2, r3);
+  StubCache::GenerateProbe(masm, flags, r0, r2, r3, no_reg);
 
   // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
@@ -761,7 +761,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
-  StubCache::GenerateProbe(masm, flags, r1, r2, r3);
+  StubCache::GenerateProbe(masm, flags, r1, r2, r3, no_reg);
 
   // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));

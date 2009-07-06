@@ -168,7 +168,7 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
       }
     }
   } else {
-    Dictionary* element_dictionary = copy->element_dictionary();
+    NumberDictionary* element_dictionary = copy->element_dictionary();
     int capacity = element_dictionary->Capacity();
     for (int i = 0; i < capacity; i++) {
       Object* k = element_dictionary->KeyAt(i);
@@ -2610,9 +2610,9 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       }
     } else {
       // Attempt dictionary lookup.
-      Dictionary* dictionary = receiver->property_dictionary();
-      int entry = dictionary->FindStringEntry(key);
-      if ((entry != Dictionary::kNotFound) &&
+      StringDictionary* dictionary = receiver->property_dictionary();
+      int entry = dictionary->FindEntry(key);
+      if ((entry != StringDictionary::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
         Object* value = dictionary->ValueAt(entry);
         if (receiver->IsGlobalObject()) {
@@ -5136,8 +5136,8 @@ class ArrayConcatVisitor {
       storage_->set(index, *elm);
 
     } else {
-      Handle<Dictionary> dict = Handle<Dictionary>::cast(storage_);
-      Handle<Dictionary> result =
+      Handle<NumberDictionary> dict = Handle<NumberDictionary>::cast(storage_);
+      Handle<NumberDictionary> result =
           Factory::DictionaryAtNumberPut(dict, index, elm);
       if (!result.is_identical_to(dict))
         storage_ = result;
@@ -5185,7 +5185,7 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
     }
 
   } else {
-    Handle<Dictionary> dict(receiver->element_dictionary());
+    Handle<NumberDictionary> dict(receiver->element_dictionary());
     uint32_t capacity = dict->Capacity();
     for (uint32_t j = 0; j < capacity; j++) {
       Handle<Object> k(dict->KeyAt(j));
@@ -5339,7 +5339,7 @@ static Object* Runtime_ArrayConcat(Arguments args) {
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-                  Factory::NewDictionary(at_least_space_for));
+                  Factory::NewNumberDictionary(at_least_space_for));
   }
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
@@ -5402,7 +5402,7 @@ static Object* Runtime_EstimateNumberOfElements(Arguments args) {
   CONVERT_CHECKED(JSArray, array, args[0]);
   HeapObject* elements = array->elements();
   if (elements->IsDictionary()) {
-    return Smi::FromInt(Dictionary::cast(elements)->NumberOfElements());
+    return Smi::FromInt(NumberDictionary::cast(elements)->NumberOfElements());
   } else {
     return array->length();
   }
@@ -7420,32 +7420,46 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
 // element segments each containing a receiver, function and native
 // code offset.
 static Object* Runtime_CollectStackTrace(Arguments args) {
-  ASSERT_EQ(args.length(), 1);
+  ASSERT_EQ(args.length(), 2);
   Object* caller = args[0];
+  CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
+
+  HandleScope scope;
+
+  int initial_size = limit < 10 ? limit : 10;
+  Handle<JSArray> result = Factory::NewJSArray(initial_size * 3);
 
   StackFrameIterator iter;
-  int frame_count = 0;
   bool seen_caller = false;
-  while (!iter.done()) {
-    if (ShowFrameInStackTrace(iter.frame(), caller, &seen_caller))
-      frame_count++;
-    iter.Advance();
-  }
-  HandleScope scope;
-  Handle<JSArray> result = Factory::NewJSArray(frame_count * 3);
-  int i = 0;
-  seen_caller = false;
-  for (iter.Reset(); !iter.done(); iter.Advance()) {
+  int cursor = 0;
+  int frames_seen = 0;
+  while (!iter.done() && frames_seen < limit) {
     StackFrame* raw_frame = iter.frame();
     if (ShowFrameInStackTrace(raw_frame, caller, &seen_caller)) {
+      frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-      result->SetElement(i++, frame->receiver());
-      result->SetElement(i++, frame->function());
+      Object* recv = frame->receiver();
+      Object* fun = frame->function();
       Address pc = frame->pc();
       Address start = frame->code()->address();
-      result->SetElement(i++, Smi::FromInt(pc - start));
+      Smi* offset = Smi::FromInt(pc - start);
+      FixedArray* elements = result->elements();
+      if (cursor + 2 < elements->length()) {
+        elements->set(cursor++, recv);
+        elements->set(cursor++, fun);
+        elements->set(cursor++, offset, SKIP_WRITE_BARRIER);
+      } else {
+        HandleScope scope;
+        SetElement(result, cursor++, Handle<Object>(recv));
+        SetElement(result, cursor++, Handle<Object>(fun));
+        SetElement(result, cursor++, Handle<Smi>(offset));
+      }
     }
+    iter.Advance();
   }
+
+  result->set_length(Smi::FromInt(cursor), SKIP_WRITE_BARRIER);
+
   return *result;
 }
 

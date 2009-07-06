@@ -118,8 +118,8 @@ namespace internal {
   V(Map, neander_map)                                   \
   V(JSObject, message_listeners)                        \
   V(Proxy, prototype_accessors)                         \
-  V(Dictionary, code_stubs)                             \
-  V(Dictionary, non_monomorphic_cache)                  \
+  V(NumberDictionary, code_stubs)                       \
+  V(NumberDictionary, non_monomorphic_cache)            \
   V(Code, js_entry_code)                                \
   V(Code, js_construct_entry_code)                      \
   V(Code, c_entry_code)                                 \
@@ -692,10 +692,10 @@ class Heap : public AllStatic {
   static inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  static void set_code_stubs(Dictionary* value) { code_stubs_ = value; }
+  static void set_code_stubs(NumberDictionary* value) { code_stubs_ = value; }
 
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  static void set_non_monomorphic_cache(Dictionary* value) {
+  static void set_non_monomorphic_cache(NumberDictionary* value) {
     non_monomorphic_cache_ = value;
   }
 
@@ -1063,9 +1063,11 @@ class VerifyPointersAndRSetVisitor: public ObjectVisitor {
         HeapObject* object = HeapObject::cast(*current);
         ASSERT(Heap::Contains(object));
         ASSERT(object->map()->IsMap());
+#ifndef V8_TARGET_ARCH_X64
         if (Heap::InNewSpace(object)) {
           ASSERT(Page::IsRSetSet(reinterpret_cast<Address>(current), 0));
         }
+#endif
       }
     }
   }

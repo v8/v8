@@ -745,25 +745,6 @@ void Proxy::ProxyVerify() {
 }
 
 
-void Dictionary::Print() {
-  int capacity = Capacity();
-  for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
-      PrintF(" ");
-      if (k->IsString()) {
-        String::cast(k)->StringPrint();
-      } else {
-        k->ShortPrint();
-      }
-      PrintF(": ");
-      ValueAt(i)->ShortPrint();
-      PrintF("\n");
-    }
-  }
-}
-
-
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());
   VerifyPointer(getter());
@@ -1017,7 +998,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
     info->number_of_fast_unused_fields_ += map()->unused_property_fields();
   } else {
-    Dictionary* dict = property_dictionary();
+    StringDictionary* dict = property_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
     info->number_of_slow_unused_properties_ +=
         dict->Capacity() - dict->NumberOfElements();
@@ -1034,7 +1015,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     info->number_of_fast_used_elements_   += len - holes;
     info->number_of_fast_unused_elements_ += holes;
   } else {
-    Dictionary* dict = element_dictionary();
+    NumberDictionary* dict = element_dictionary();
     info->number_of_slow_used_elements_ += dict->NumberOfElements();
     info->number_of_slow_unused_elements_ +=
         dict->Capacity() - dict->NumberOfElements();

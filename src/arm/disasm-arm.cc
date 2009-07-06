@@ -438,7 +438,19 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       return 6;
     }
     case 'u': {  // 'u: signed or unsigned multiplies
-      if (instr->Bit(22) == 1) {
+      // The manual gets the meaning of bit 22 backwards in the multiply
+      // instruction overview on page A3.16.2.  The instructions that
+      // exist in u and s variants are the following:
+      // smull A4.1.87
+      // umull A4.1.129
+      // umlal A4.1.128
+      // smlal A4.1.76
+      // For these 0 means u and 1 means s.  As can be seen on their individual
+      // pages.  The other 18 mul instructions have the bit set or unset in
+      // arbitrary ways that are unrelated to the signedness of the instruction.
+      // None of these 18 instructions exist in both a 'u' and an 's' variant.
+
+      if (instr->Bit(22) == 0) {
         Print("u");
       } else {
         Print("s");
@@ -494,11 +506,16 @@ void Decoder::DecodeType01(Instr* instr) {
         // multiply instructions
         if (instr->Bit(23) == 0) {
           if (instr->Bit(21) == 0) {
-            Format(instr, "mul'cond's 'rd, 'rm, 'rs");
+            // Mul calls it Rd.  Everyone else calls it Rn.
+            Format(instr, "mul'cond's 'rn, 'rm, 'rs");
           } else {
-            Format(instr, "mla'cond's 'rd, 'rm, 'rs, 'rn");
+            // In the manual the order is rd, rm, rs, rn.  But mla swaps the
+            // positions of rn and rd in the encoding.
+            Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
           }
         } else {
+          // In the manual the order is RdHi, RdLo, Rm, Rs.
+          // RdHi is what other instructions call Rn and RdLo is Rd.
           Format(instr, "'um'al'cond's 'rn, 'rd, 'rm, 'rs");
         }
       } else {

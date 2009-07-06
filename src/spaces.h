@@ -93,13 +93,14 @@ class AllocationInfo;
 // bytes are used as remembered set, and the rest of the page is the object
 // area.
 //
-// Pointers are aligned to the pointer size (4 bytes), only 1 bit is needed
+// Pointers are aligned to the pointer size (4), only 1 bit is needed
 // for a pointer in the remembered set. Given an address, its remembered set
 // bit position (offset from the start of the page) is calculated by dividing
 // its page offset by 32. Therefore, the object area in a page starts at the
 // 256th byte (8K/32). Bytes 0 to 255 do not need the remembered set, so that
 // the first two words (64 bits) in a page can be used for other purposes.
 // TODO(X64): This description only represents the 32-bit layout.
+// On the 64-bit platform, we add an offset to the start of the remembered set.
 //
 // The mark-compact collector transforms a map pointer into a page index and a
 // page offset. The map space can have up to 1024 pages, and 8M bytes (1024 *
@@ -217,15 +218,25 @@ class Page {
   // Page size mask.
   static const intptr_t kPageAlignmentMask = (1 << kPageSizeBits) - 1;
 
+  // The offset of the remembered set in a page, in addition to the empty words
+  // formed as the remembered bits of the remembered set itself.
+#ifdef V8_TARGET_ARCH_X64
+  static const int kRSetOffset = 4 * kPointerSize;  // Room for four pointers.
+#else
+  static const int kRSetOffset = 0;
+#endif
   // The end offset of the remembered set in a page
   // (heaps are aligned to pointer size).
-  static const int kRSetEndOffset= kPageSize / kBitsPerPointer;
-
-  // The start offset of the remembered set in a page.
-  static const int kRSetStartOffset = kRSetEndOffset / kBitsPerPointer;
+  static const int kRSetEndOffset = kRSetOffset + kPageSize / kBitsPerPointer;
 
   // The start offset of the object area in a page.
-  static const int kObjectStartOffset = kRSetEndOffset;
+  // This needs to be at least (bits per uint32_t) * kBitsPerPointer,
+  // to align start of rset to a uint32_t address.
+  static const int kObjectStartOffset = 256;
+
+  // The start offset of the remembered set in a page.
+  static const int kRSetStartOffset = kRSetOffset +
+      kObjectStartOffset / kBitsPerPointer;
 
   // Object area size in bytes.
   static const int kObjectAreaSize = kPageSize - kObjectStartOffset;

@@ -1080,41 +1080,44 @@ void Simulator::DecodeType01(Instr* instr) {
     // multiply instruction or extra loads and stores
     if (instr->Bits(7, 4) == 9) {
       if (instr->Bit(24) == 0) {
-        // multiply instructions
-        int rd = instr->RdField();
+        // Multiply instructions have Rd in a funny place.
+        int rd = instr->RnField();
         int rm = instr->RmField();
         int rs = instr->RsField();
         int32_t rs_val = get_register(rs);
         int32_t rm_val = get_register(rm);
         if (instr->Bit(23) == 0) {
           if (instr->Bit(21) == 0) {
-            // Format(instr, "mul'cond's 'rd, 'rm, 'rs");
+            // Format(instr, "mul'cond's 'rn, 'rm, 'rs");
             int32_t alu_out = rm_val * rs_val;
             set_register(rd, alu_out);
             if (instr->HasS()) {
               SetNZFlags(alu_out);
             }
           } else {
-            Format(instr, "mla'cond's 'rd, 'rm, 'rs, 'rn");
+            UNIMPLEMENTED();  // mla is not used by V8.
           }
         } else {
           // Format(instr, "'um'al'cond's 'rn, 'rd, 'rs, 'rm");
-          int rn = instr->RnField();
+          int rd_lo = instr->RdField();
           int32_t hi_res = 0;
           int32_t lo_res = 0;
-          if (instr->Bit(22) == 0) {
-            // signed multiply
-            UNIMPLEMENTED();
+          if (instr->Bit(22) == 1) {
+            int64_t left_op  = static_cast<int32_t>(rm_val);
+            int64_t right_op = static_cast<int32_t>(rs_val);
+            uint64_t result = left_op * right_op;
+            hi_res = static_cast<int32_t>(result >> 32);
+            lo_res = static_cast<int32_t>(result & 0xffffffff);
           } else {
             // unsigned multiply
-            uint64_t left_op  = rm_val;
-            uint64_t right_op = rs_val;
+            uint64_t left_op  = static_cast<uint32_t>(rm_val);
+            uint64_t right_op = static_cast<uint32_t>(rs_val);
             uint64_t result = left_op * right_op;
             hi_res = static_cast<int32_t>(result >> 32);
             lo_res = static_cast<int32_t>(result & 0xffffffff);
           }
-          set_register(rn, hi_res);
-          set_register(rd, lo_res);
+          set_register(rd_lo, lo_res);
+          set_register(rd, hi_res);
           if (instr->HasS()) {
             UNIMPLEMENTED();
           }

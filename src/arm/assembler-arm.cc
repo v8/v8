@@ -837,6 +837,7 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
 void Assembler::mul(Register dst, Register src1, Register src2,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
+  // dst goes in bits 16-19 for this instruction!
   emit(cond | s | dst.code()*B16 | src2.code()*B8 | B7 | B4 | src1.code());
 }
 
@@ -888,7 +889,7 @@ void Assembler::umull(Register dstL,
                       Condition cond) {
   ASSERT(!dstL.is(pc) && !dstH.is(pc) && !src1.is(pc) && !src2.is(pc));
   ASSERT(!dstL.is(dstH));
-  emit(cond | B23 | B22 | s | dstH.code()*B16 | dstL.code()*B12 |
+  emit(cond | B23 | s | dstH.code()*B16 | dstL.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }
 

@@ -95,7 +95,9 @@ function MathExp(x) {
 // ECMA 262 - 15.8.2.9
 function MathFloor(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  if (0 < x && x <= 0x7FFFFFFF) {
+  // It's more common to call this with a positive number that's out
+  // of range than negative numbers; check the upper bound first.
+  if (x <= 0x7FFFFFFF && x > 0) {
     // Numbers in the range [0, 2^31) can be floored by converting
     // them to an unsigned 32-bit value using the shift operator.
     // We avoid doing so for -0, because the result of Math.floor(-0)

@@ -609,7 +609,6 @@ CallSite.prototype.getTypeName = function () {
 CallSite.prototype.isToplevel = function () {
   if (this.receiver == null)
     return true;
-  var className = $Object.prototype.toString.call(this.receiver);
   return IS_GLOBAL(this.receiver);
 };
 
@@ -626,13 +625,34 @@ CallSite.prototype.getEvalOrigin = function () {
       script.eval_from_position);
 };
 
+CallSite.prototype.getFunction = function () {
+  return this.fun;
+};
+
 CallSite.prototype.getFunctionName = function () {
   // See if the function knows its own name
   var name = this.fun.name;
-  if (name)
+  if (name) {
     return name;
+  } else {
+    return %FunctionGetInferredName(this.fun);
+  }
+  // Maybe this is an evaluation?
+  var script = %FunctionGetScript(this.fun);
+  if (script && script.compilation_type == 1)
+    return "eval";
+  return null;
+};
+
+CallSite.prototype.getMethodName = function () {
   // See if we can find a unique property on the receiver that holds
   // this function.
+  var ownName = this.fun.name;
+  if (ownName && this.receiver && this.receiver[ownName] === this.fun)
+    // To handle DontEnum properties we guess that the method has
+    // the same name as the function.
+    return ownName;
+  var name = null;
   for (var prop in this.receiver) {
     if (this.receiver[prop] === this.fun) {
       // If we find more than one match bail out to avoid confusion
@@ -643,10 +663,6 @@ CallSite.prototype.getFunctionName = function () {
   }
   if (name)
     return name;
-  // Maybe this is an evaluation?
-  var script = %FunctionGetScript(this.fun);
-  if (script && script.compilation_type == 1)
-    return "eval";
   return null;
 };
 
@@ -717,18 +733,31 @@ function FormatSourcePosition(frame) {
     fileLocation = "unknown source";
   }
   var line = "";
-  var functionName = frame.getFunctionName();
-  if (functionName) {
-    if (frame.isToplevel()) {
+  var functionName = frame.getFunction().name;
+  var methodName = frame.getMethodName();
+  var addPrefix = true;
+  var isConstructor = frame.isConstructor();
+  var isMethodCall = !(frame.isToplevel() || isConstructor);
+  if (isMethodCall) {
+    line += frame.getTypeName() + ".";
+    if (functionName) {
       line += functionName;
-    } else if (frame.isConstructor()) {
-      line += "new " + functionName;
+      if (methodName && (methodName != functionName)) {
+        line += " [as " + methodName + "]";
+      }
     } else {
-      line += frame.getTypeName() + "." + functionName;
+      line += methodName || "<anonymous>";
     }
-    line += " (" + fileLocation + ")";
+  } else if (isConstructor) {
+    line += "new " + (functionName || "<anonymous>");
+  } else if (functionName) {
+    line += functionName;
   } else {
     line += fileLocation;
+    addPrefix = false;
+  }
+  if (addPrefix) {
+    line += " (" + fileLocation + ")";
   }
   return line;
 }
@@ -812,8 +841,12 @@ function DefineError(f) {
       } else if (!IS_UNDEFINED(m)) {
         this.message = ToString(m);
       }
-      if ($Error.captureStackTraces) {
-        var raw_stack = %CollectStackTrace(f);
+      var stackTraceLimit = $Error.stackTraceLimit;
+      if (stackTraceLimit) {
+        // Cap the limit to avoid extremely big traces
+        if (stackTraceLimit < 0 || stackTraceLimit > 10000)
+          stackTraceLimit = 10000;
+        var raw_stack = %CollectStackTrace(f, stackTraceLimit);
         DefineOneShotAccessor(this, 'stack', function (obj) {
           return FormatRawStackTrace(obj, raw_stack);
         });

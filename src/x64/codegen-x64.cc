@@ -154,8 +154,7 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
 
 #ifdef DEBUG
   if (strlen(FLAG_stop_at) > 0 &&
-      //    fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-      false) {
+      function->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
     frame_->SpillAll();
     __ int3();
   }
@@ -3367,11 +3366,67 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
-  // TODO(X64): Optimize this like it's done on IA-32.
   ASSERT(args->length() == 1);
+  JumpTarget leave, null, function, non_function_constructor;
   Load(args->at(0));  // Load the object.
-  Result result = frame_->CallRuntime(Runtime::kClassOf, 1);
-  frame_->Push(&result);
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  frame_->Spill(obj.reg());
+
+  // If the object is a smi, we return null.
+  __ testl(obj.reg(), Immediate(kSmiTagMask));
+  null.Branch(zero);
+
+  // Check that the object is a JS object but take special care of JS
+  // functions to make sure they have 'Function' as their class.
+  { Result tmp = allocator()->Allocate();
+    __ movq(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
+    __ movb(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
+    __ cmpb(tmp.reg(), Immediate(FIRST_JS_OBJECT_TYPE));
+    null.Branch(less);
+
+    // As long as JS_FUNCTION_TYPE is the last instance type and it is
+    // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+    // LAST_JS_OBJECT_TYPE.
+    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+    __ cmpb(tmp.reg(), Immediate(JS_FUNCTION_TYPE));
+    function.Branch(equal);
+  }
+
+  // Check if the constructor in the map is a function.
+  { Result tmp = allocator()->Allocate();
+    __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
+    __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, tmp.reg());
+    non_function_constructor.Branch(not_equal);
+  }
+
+  // The obj register now contains the constructor function. Grab the
+  // instance class name from there.
+  __ movq(obj.reg(),
+          FieldOperand(obj.reg(), JSFunction::kSharedFunctionInfoOffset));
+  __ movq(obj.reg(),
+          FieldOperand(obj.reg(),
+                       SharedFunctionInfo::kInstanceClassNameOffset));
+  frame_->Push(&obj);
+  leave.Jump();
+
+  // Functions have class 'Function'.
+  function.Bind();
+  frame_->Push(Factory::function_class_symbol());
+  leave.Jump();
+
+  // Objects with a non-function constructor have class 'Object'.
+  non_function_constructor.Bind();
+  frame_->Push(Factory::Object_symbol());
+  leave.Jump();
+
+  // Non-JS objects have class null.
+  null.Bind();
+  frame_->Push(Factory::null_value());
+
+  // All done.
+  leave.Bind();
 }
 
 
@@ -4331,8 +4386,8 @@ void CodeGenerator::Comparison(Condition cc,
       Register left_reg = left_side.reg();
       Register right_reg = right_side.reg();
 
-      __ movq(kScratchRegister, left_side.reg());
-      __ or_(kScratchRegister, right_side.reg());
+      __ movq(kScratchRegister, left_reg);
+      __ or_(kScratchRegister, right_reg);
       __ testl(kScratchRegister, Immediate(kSmiTagMask));
       is_smi.Branch(zero, taken);
       // When non-smi, call out to the compare stub.
@@ -4671,8 +4726,6 @@ class DeferredInlineSmiAdd: public DeferredCode {
 
 
 void DeferredInlineSmiAdd::Generate() {
-  // Undo the optimistic add operation and call the shared stub.
-  __ subq(dst_, Immediate(value_));
   __ push(dst_);
   __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
@@ -4703,8 +4756,6 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 
 
 void DeferredInlineSmiAddReversed::Generate() {
-  // Undo the optimistic add operation and call the shared stub.
-  __ subq(dst_, Immediate(value_));
   __ push(Immediate(value_));
   __ push(dst_);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
@@ -4736,8 +4787,6 @@ class DeferredInlineSmiSub: public DeferredCode {
 
 
 void DeferredInlineSmiSub::Generate() {
-  // Undo the optimistic sub operation and call the shared stub.
-  __ addq(dst_, Immediate(value_));
   __ push(dst_);
   __ push(Immediate(value_));
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
@@ -4779,9 +4828,6 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     case Token::ADD: {
       operand->ToRegister();
       frame_->Spill(operand->reg());
-
-      // Optimistically add.  Call the specialized add stub if the
-      // result is not a smi or overflows.
       DeferredCode* deferred = NULL;
       if (reversed) {
         deferred = new DeferredInlineSmiAddReversed(operand->reg(),
@@ -4792,11 +4838,17 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                             smi_value,
                                             overwrite_mode);
       }
-      __ movq(kScratchRegister, value, RelocInfo::NONE);
-      __ addl(operand->reg(), kScratchRegister);
-      deferred->Branch(overflow);
       __ testl(operand->reg(), Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
+      // A smi currently fits in a 32-bit Immediate.
+      __ addl(operand->reg(), Immediate(smi_value));
+      Label add_success;
+      __ j(no_overflow, &add_success);
+      __ subl(operand->reg(), Immediate(smi_value));
+      __ movsxlq(operand->reg(), operand->reg());
+      deferred->Jump();
+      __ bind(&add_success);
+      __ movsxlq(operand->reg(), operand->reg());
       deferred->BindExit();
       frame_->Push(operand);
       break;
@@ -5082,12 +5134,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
   __ movq(answer.reg(), left->reg());
   switch (op) {
     case Token::ADD:
-      __ addl(answer.reg(), right->reg());  // Add optimistically.
+      __ addl(answer.reg(), right->reg());
       deferred->Branch(overflow);
       break;
 
     case Token::SUB:
-      __ subl(answer.reg(), right->reg());  // Subtract optimistically.
+      __ subl(answer.reg(), right->reg());
       deferred->Branch(overflow);
       break;
 
@@ -5771,6 +5823,62 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
 
 void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Implements "value instanceof function" operator.
+  // Expected input state:
+  //   rsp[0] : return address
+  //   rsp[1] : function pointer
+  //   rsp[2] : value
+
+  // Get the object - go slow case if it's a smi.
+  Label slow;
+  __ movq(rax, Operand(rsp, 2 * kPointerSize));
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+
+  // Check that the left hand is a JS object. Leave its map in rax.
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rax);
+  __ j(below, &slow);
+  __ CmpInstanceType(rax, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Get the prototype of the function.
+  __ movq(rdx, Operand(rsp, 1 * kPointerSize));
+  __ TryGetFunctionPrototype(rdx, rbx, &slow);
+
+  // Check that the function prototype is a JS object.
+  __ testl(rbx, Immediate(kSmiTagMask));
+  __ j(zero, &slow);
+  __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, kScratchRegister);
+  __ j(below, &slow);
+  __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
+  __ j(above, &slow);
+
+  // Register mapping: rax is object map and rbx is function prototype.
+  __ movq(rcx, FieldOperand(rax, Map::kPrototypeOffset));
+
+  // Loop through the prototype chain looking for the function prototype.
+  Label loop, is_instance, is_not_instance;
+  __ Move(kScratchRegister, Factory::null_value());
+  __ bind(&loop);
+  __ cmpq(rcx, rbx);
+  __ j(equal, &is_instance);
+  __ cmpq(rcx, kScratchRegister);
+  __ j(equal, &is_not_instance);
+  __ movq(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rcx, FieldOperand(rcx, Map::kPrototypeOffset));
+  __ jmp(&loop);
+
+  __ bind(&is_instance);
+  __ xor_(rax, rax);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&is_not_instance);
+  __ movq(rax, Immediate(Smi::FromInt(1)));
+  __ ret(2 * kPointerSize);
+
+  // Slow-case: Go through the JavaScript implementation.
+  __ bind(&slow);
+  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
 
 
@@ -5921,13 +6029,18 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // rbx: pointer to C function  (C callee-saved).
   // rbp: frame pointer  (restored after C call).
   // rsp: stack pointer  (restored after C call).
-  // rdi: number of arguments including receiver.
+  // r14: number of arguments including receiver (C callee-saved).
   // r15: pointer to the first argument (C callee-saved).
   //      This pointer is reused in LeaveExitFrame(), so it is stored in a
   //      callee-saved register.
 
   if (do_gc) {
-    __ movq(Operand(rsp, 0), rax);  // Result.
+    // Pass failure code returned from last attempt as first argument to GC.
+#ifdef __MSVC__
+    __ movq(rcx, rax);  // argc.
+#else  // ! defined(__MSVC__)
+    __ movq(rdi, rax);  // argv.
+#endif
     __ movq(kScratchRegister,
             FUNCTION_ADDR(Runtime::PerformGC),
             RelocInfo::RUNTIME_ENTRY);
@@ -5944,11 +6057,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Call C function.
 #ifdef __MSVC__
   // MSVC passes arguments in rcx, rdx, r8, r9
-  __ movq(rcx, rdi);  // argc.
+  __ movq(rcx, r14);  // argc.
   __ movq(rdx, r15);  // argv.
 #else  // ! defined(__MSVC__)
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
-  // First argument is already in rdi.
+  __ movq(rdi, r14);  // argc.
   __ movq(rsi, r15);  // argv.
 #endif
   __ call(rbx);
@@ -6090,10 +6203,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // rax: number of arguments including receiver
   // rbx: pointer to C function  (C callee-saved)
-  // rbp: frame pointer  (restored after C call)
+  // rbp: frame pointer of calling JS frame (restored after C call)
   // rsp: stack pointer  (restored after C call)
-  // rsi: current context (C callee-saved)
-  // rdi: caller's parameter pointer pp  (C callee-saved)
+  // rsi: current context (restored)
 
   // NOTE: Invocations of builtins may return failure objects
   // instead of a proper result. The builtin entry handles
@@ -6107,16 +6219,16 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(frame_type);
 
-  // rax: result parameter for PerformGC, if any (setup below).
-  //      Holds the result of a previous call to GenerateCore that
-  //      returned a failure. On next call, it's used as parameter
-  //      to Runtime::PerformGC.
+  // rax: Holds the context at this point, but should not be used.
+  //      On entry to code generated by GenerateCore, it must hold
+  //      a failure result if the collect_garbage argument to GenerateCore
+  //      is true.  This failure result can be the result of code
+  //      generated by a previous call to GenerateCore.  The value
+  //      of rax is then passed to Runtime::PerformGC.
   // rbx: pointer to builtin function  (C callee-saved).
-  // rbp: frame pointer  (restored after C call).
-  // rsp: stack pointer  (restored after C call).
-  // rdi: number of arguments including receiver (destroyed by C call).
-  //      The rdi register is not callee-save in Unix 64-bit ABI, so
-  //      we must treat it as volatile.
+  // rbp: frame pointer of exit frame  (restored after C call).
+  // rsp: stack pointer (restored after C call).
+  // r14: number of arguments including receiver (C callee-saved).
   // r15: argv pointer (C callee-saved).
 
   Label throw_out_of_memory_exception;
@@ -6381,17 +6493,18 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
   __ bind(&load_smi_lhs);
   ASSERT(kSmiTagSize == 1);
   ASSERT(kSmiTag == 0);
-  __ lea(kScratchRegister, Operand(lhs, lhs, times_1, 0));
+  __ movsxlq(kScratchRegister, lhs);
+  __ sar(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
-  __ fild_s(Operand(rsp, 0));
+  __ fild_d(Operand(rsp, 0));
   __ pop(kScratchRegister);
   __ jmp(&done_load_lhs);
 
   __ bind(&load_smi_rhs);
-  __ movq(kScratchRegister, rhs);
+  __ movsxlq(kScratchRegister, rhs);
   __ sar(kScratchRegister, Immediate(kSmiTagSize));
   __ push(kScratchRegister);
-  __ fild_s(Operand(rsp, 0));
+  __ fild_d(Operand(rsp, 0));
   __ pop(kScratchRegister);
 
   __ bind(&done);
@@ -6400,24 +6513,18 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
                                              Label* non_float) {
   Label test_other, done;
-  // Test if both operands are floats or smi -> scratch=k_is_float;
-  // Otherwise scratch = k_not_float.
+  // Test if both operands are numbers (heap_numbers or smis).
+  // If not, jump to label non_float.
   __ testl(rdx, Immediate(kSmiTagMask));
   __ j(zero, &test_other);  // argument in rdx is OK
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(kScratchRegister, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ j(not_equal, non_float);  // argument in rdx is not a number -> NaN
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset), Factory::heap_number_map());
+  __ j(not_equal, non_float);  // The argument in rdx is not a number.
 
   __ bind(&test_other);
   __ testl(rax, Immediate(kSmiTagMask));
   __ j(zero, &done);  // argument in rax is OK
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
-  __ cmpq(kScratchRegister, FieldOperand(rax, HeapObject::kMapOffset));
-  __ j(not_equal, non_float);  // argument in rax is not a number -> NaN
+  __ Cmp(FieldOperand(rax, HeapObject::kMapOffset), Factory::heap_number_map());
+  __ j(not_equal, non_float);  // The argument in rax is not a number.
 
   // Fall-through: Both operands are numbers.
   __ bind(&done);
@@ -6444,49 +6551,26 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (rax <op> rbx) and
   // leave result in register rax.
 
-  // Prepare the smi check of both operands by or'ing them together
-  // before checking against the smi mask.
+  // Smi check both operands.
   __ movq(rcx, rbx);
   __ or_(rcx, rax);
-
-  switch (op_) {
-    case Token::ADD:
-      __ addl(rax, rbx);  // add optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::SUB:
-      __ subl(rax, rbx);  // subtract optimistically
-      __ j(overflow, slow);
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      break;
-
-    case Token::DIV:
-    case Token::MOD:
-      // Sign extend rax into rdx:rax
-      // (also sign extends eax into edx if eax is Smi).
-      __ cqo();
-      // Check for 0 divisor.
-      __ testq(rbx, rbx);
-      __ j(zero, slow);
-      break;
-
-    default:
-      // Fall-through to smi check.
-      break;
-  }
-
-  // Perform the actual smi check.
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
   __ testl(rcx, Immediate(kSmiTagMask));
   __ j(not_zero, slow);
 
   switch (op_) {
-    case Token::ADD:
-    case Token::SUB:
-      // Do nothing here.
+    case Token::ADD: {
+      __ addl(rax, rbx);
+      __ j(overflow, slow);  // The slow case rereads operands from the stack.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
       break;
+    }
+
+    case Token::SUB: {
+      __ subl(rax, rbx);
+      __ j(overflow, slow);  // The slow case rereads operands from the stack.
+      __ movsxlq(rax, rax);  // Sign extend eax into rax.
+      break;
+    }
 
     case Token::MUL:
       // If the smi tag is 0 we can just leave the tag on one operand.
@@ -6503,6 +6587,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
 
     case Token::DIV:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
       // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
       __ idiv(rbx);
       // Check that the remainder is zero.
@@ -6524,6 +6614,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
 
     case Token::MOD:
+      // Sign extend rax into rdx:rax
+      // (also sign extends eax into edx if eax is Smi).
+      __ cqo();
+      // Check for 0 divisor.
+      __ testq(rbx, rbx);
+      __ j(zero, slow);
       // Divide rdx:rax by rbx.
       __ idiv(rbx);
       // Check for negative zero result.
@@ -6691,6 +6787,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ testl(rax, Immediate(1));
         __ j(not_zero, &operand_conversion_failure);
       } else {
+        // TODO(X64): Verify that SSE3 is always supported, drop this code.
         // Check if right operand is int32.
         __ fist_s(Operand(rsp, 0 * kPointerSize));
         __ fild_s(Operand(rsp, 0 * kPointerSize));

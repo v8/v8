@@ -562,8 +562,8 @@ Object* StubCache::ComputeCallGlobal(int argc,
 
 
 static Object* GetProbeValue(Code::Flags flags) {
-  Dictionary* dictionary = Heap::non_monomorphic_cache();
-  int entry = dictionary->FindNumberEntry(flags);
+  NumberDictionary* dictionary = Heap::non_monomorphic_cache();
+  int entry = dictionary->FindEntry(flags);
   if (entry != -1) return dictionary->ValueAt(entry);
   return Heap::undefined_value();
 }
@@ -579,7 +579,7 @@ static Object* ProbeCache(Code::Flags flags) {
       Heap::non_monomorphic_cache()->AtNumberPut(flags,
                                                  Heap::undefined_value());
   if (result->IsFailure()) return result;
-  Heap::set_non_monomorphic_cache(Dictionary::cast(result));
+  Heap::set_non_monomorphic_cache(NumberDictionary::cast(result));
   return probe;
 }
 
@@ -587,7 +587,7 @@ static Object* ProbeCache(Code::Flags flags) {
 static Object* FillCache(Object* code) {
   if (code->IsCode()) {
     int entry =
-        Heap::non_monomorphic_cache()->FindNumberEntry(
+        Heap::non_monomorphic_cache()->FindEntry(
             Code::cast(code)->flags());
     // The entry must be present see comment in ProbeCache.
     ASSERT(entry != -1);

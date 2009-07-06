@@ -172,7 +172,7 @@ namespace internal {
   F(FunctionGetPositionForOffset, 2) \
   F(FunctionIsAPIFunction, 1) \
   F(GetScript, 1) \
-  F(CollectStackTrace, 1) \
+  F(CollectStackTrace, 2) \
   \
   F(ClassOf, 1) \
   F(SetCode, 2) \

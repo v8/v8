@@ -1207,7 +1207,7 @@ class JSObject: public HeapObject {
   DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
   inline void initialize_properties();
   inline bool HasFastProperties();
-  inline Dictionary* property_dictionary();  // Gets slow properties.
+  inline StringDictionary* property_dictionary();  // Gets slow properties.
 
   // [elements]: The elements (properties with names that are integers).
   // elements is a FixedArray in the fast case, and a Dictionary in the slow
@@ -1215,7 +1215,7 @@ class JSObject: public HeapObject {
   DECL_ACCESSORS(elements, FixedArray)  // Get and set fast elements.
   inline void initialize_elements();
   inline bool HasFastElements();
-  inline Dictionary* element_dictionary();  // Gets slow elements.
+  inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
@@ -1875,32 +1875,29 @@ class DescriptorArray: public FixedArray {
 // - Elements with key == undefined have not been used yet.
 // - Elements with key == null have been deleted.
 //
-// The hash table class is parameterized with a prefix size and with
-// the size, including the key size, of the elements held in the hash
+// The hash table class is parameterized with a Shape and a Key.
+// Shape must be a class with the following interface:
+//   class ExampleShape {
+//    public:
+//      // Tells whether key matches other.
+//     static bool IsMatch(Key key, Object* other);
+//     // Returns the hash value for key.
+//     static uint32_t Hash(Key key);
+//     // Returns the hash value for object.
+//     static uint32_t HashForObject(Key key, Object* object);
+//     // Convert key to an object.
+//     static inline Object* AsObject(Key key);
+//     // The prefix size indicates number of elements in the beginning
+//     // of the backing storage.
+//     static const int kPrefixSize = ..;
+//     // The Element size indicates number of elements per entry.
+//     static const int kEntrySize = ..;
+//   };
 // table.  The prefix size indicates an amount of memory in the
 // beginning of the backing storage that can be used for non-element
 // information by subclasses.
 
-// HashTableKey is an abstract superclass keys.
-class HashTableKey {
- public:
-  // Returns whether the other object matches this key.
-  virtual bool IsMatch(Object* other) = 0;
-  typedef uint32_t (*HashFunction)(Object* obj);
-  // Returns the hash function used for this key.
-  virtual HashFunction GetHashFunction() = 0;
-  // Returns the hash value for this key.
-  virtual uint32_t Hash() = 0;
-  // Returns the key object for storing into the dictionary.
-  // If allocations fails a failure object is returned.
-  virtual Object* GetObject() = 0;
-  virtual bool IsStringKey() = 0;
-  // Required.
-  virtual ~HashTableKey() {}
-};
-
-
-template<int prefix_size, int element_size>
+template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
   // Returns the number of elements in the dictionary.
@@ -1949,25 +1946,27 @@ class HashTable: public FixedArray {
   static const int kNumberOfElementsIndex = 0;
   static const int kCapacityIndex         = 1;
   static const int kPrefixStartIndex      = 2;
-  static const int kElementsStartIndex    = kPrefixStartIndex + prefix_size;
-  static const int kElementSize           = element_size;
+  static const int kElementsStartIndex    =
+      kPrefixStartIndex + Shape::kPrefixSize;
+  static const int kEntrySize             = Shape::kEntrySize;
   static const int kElementsStartOffset   =
       kHeaderSize + kElementsStartIndex * kPointerSize;
 
   // Constant used for denoting a absent entry.
   static const int kNotFound = -1;
 
- protected:
   // Find entry for key otherwise return -1.
-  int FindEntry(HashTableKey* key);
+  int FindEntry(Key key);
+
+ protected:
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
-  uint32_t FindInsertionEntry(Object* key, uint32_t hash);
+  uint32_t FindInsertionEntry(uint32_t hash);
 
   // Returns the index for an entry (of the key)
   static inline int EntryToIndex(int entry) {
-    return (entry * kElementSize) + kElementsStartIndex;
+    return (entry * kEntrySize) + kElementsStartIndex;
   }
 
   // Update the number of elements in the dictionary.
@@ -1992,15 +1991,51 @@ class HashTable: public FixedArray {
   }
 
   // Ensure enough space for n additional elements.
-  Object* EnsureCapacity(int n, HashTableKey* key);
+  Object* EnsureCapacity(int n, Key key);
 };
 
+
+
+// HashTableKey is an abstract superclass for virtual key behavior.
+class HashTableKey {
+ public:
+  // Returns whether the other object matches this key.
+  virtual bool IsMatch(Object* other) = 0;
+  // Returns the hash value for this key.
+  virtual uint32_t Hash() = 0;
+  // Returns the hash value for object.
+  virtual uint32_t HashForObject(Object* key) = 0;
+  // Returns the key object for storing into the dictionary.
+  // If allocations fails a failure object is returned.
+  virtual Object* AsObject() = 0;
+  // Required.
+  virtual ~HashTableKey() {}
+};
+
+class SymbolTableShape {
+ public:
+  static bool IsMatch(HashTableKey* key, Object* value) {
+    return key->IsMatch(value);
+  }
+  static uint32_t Hash(HashTableKey* key) {
+    return key->Hash();
+  }
+  static uint32_t HashForObject(HashTableKey* key, Object* object) {
+    return key->HashForObject(object);
+  }
+  static Object* AsObject(HashTableKey* key) {
+    return key->AsObject();
+  }
+
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 1;
+};
 
 // SymbolTable.
 //
 // No special elements in the prefix and the element size is 1
 // because only the symbol itself (the key) needs to be stored.
-class SymbolTable: public HashTable<0, 1> {
+class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
  public:
   // Find symbol in the symbol table.  If it is not there yet, it is
   // added.  The return value is the symbol table which might have
@@ -2024,11 +2059,33 @@ class SymbolTable: public HashTable<0, 1> {
 };
 
 
+class MapCacheShape {
+ public:
+  static bool IsMatch(HashTableKey* key, Object* value) {
+    return key->IsMatch(value);
+  }
+  static uint32_t Hash(HashTableKey* key) {
+    return key->Hash();
+  }
+
+  static uint32_t HashForObject(HashTableKey* key, Object* object) {
+    return key->HashForObject(object);
+  }
+
+  static Object* AsObject(HashTableKey* key) {
+    return key->AsObject();
+  }
+
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+};
+
+
 // MapCache.
 //
 // Maps keys that are a fixed array of symbols to a map.
 // Used for canonicalize maps for object literals.
-class MapCache: public HashTable<0, 2> {
+class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(FixedArray* key);
@@ -2040,73 +2097,41 @@ class MapCache: public HashTable<0, 2> {
 };
 
 
-// Dictionary for keeping properties and elements in slow case.
-//
-// One element in the prefix is used for storing non-element
-// information about the dictionary.
-//
-// The rest of the array embeds triples of (key, value, details).
-// if key == undefined the triple is empty.
-// if key == null the triple has been deleted.
-// otherwise key contains the name of a property.
-class DictionaryBase: public HashTable<2, 3> {};
-
-class Dictionary: public DictionaryBase {
+template <typename Shape, typename Key>
+class Dictionary: public HashTable<Shape, Key> {
  public:
+
+  static inline Dictionary<Shape, Key>* cast(Object* obj) {
+    return reinterpret_cast<Dictionary<Shape, Key>*>(obj);
+  }
+
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return get(EntryToIndex(entry)+1);
+    return get(HashTable<Shape, Key>::EntryToIndex(entry)+1);
   }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
-    set(EntryToIndex(entry)+1, value);
+    set(HashTable<Shape, Key>::EntryToIndex(entry)+1, value);
   }
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
     ASSERT(entry >= 0);  // Not found is -1, which is not caught by get().
-    return PropertyDetails(Smi::cast(get(EntryToIndex(entry) + 2)));
+    return PropertyDetails(
+        Smi::cast(get(HashTable<Shape, Key>::EntryToIndex(entry) + 2)));
   }
 
   // Set the details for entry.
   void DetailsAtPut(int entry, PropertyDetails value) {
-    set(EntryToIndex(entry) + 2, value.AsSmi());
+    set(HashTable<Shape, Key>::EntryToIndex(entry) + 2, value.AsSmi());
   }
-
-  // Remove all entries were key is a number and (from <= key && key < to).
-  void RemoveNumberEntries(uint32_t from, uint32_t to);
 
   // Sorting support
   void CopyValuesTo(FixedArray* elements);
 
-  // Casting.
-  static inline Dictionary* cast(Object* obj);
-
-  // Find entry for string key otherwise return -1.
-  int FindStringEntry(String* key);
-
-  // Find entry for number key otherwise return -1.
-  int FindNumberEntry(uint32_t index);
-
   // Delete a property from the dictionary.
   Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
-
-  // Type specific at put (default NONE attributes is used when adding).
-  Object* AtNumberPut(uint32_t key, Object* value);
-
-  Object* AddStringEntry(String* key, Object* value, PropertyDetails details);
-  Object* AddNumberEntry(uint32_t key, Object* value, PropertyDetails details);
-
-  // Set an existing entry or add a new one if needed.
-  Object* SetStringEntry(int entry,
-                         String* key,
-                         Object* value,
-                         PropertyDetails details);
-
-  Object* SetOrAddNumberEntry(uint32_t key,
-                              Object* value,
-                              PropertyDetails details);
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
@@ -2117,14 +2142,113 @@ class Dictionary: public DictionaryBase {
 
   // Copies keys to preallocated fixed array.
   void CopyKeysTo(FixedArray* storage, PropertyAttributes filter);
-  // Copies enumerable keys to preallocated fixed array.
-  void CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array);
   // Fill in details for properties into storage.
   void CopyKeysTo(FixedArray* storage);
+
+  // Accessors for next enumeration index.
+  void SetNextEnumerationIndex(int index) {
+    fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
+  }
+
+  int NextEnumerationIndex() {
+    return Smi::cast(FixedArray::get(kNextEnumerationIndexIndex))->value();
+  }
+
+  // Returns a new array for dictionary usage. Might return Failure.
+  static Object* Allocate(int at_least_space_for);
+
+  // Ensure enough space for n additional elements.
+  Object* EnsureCapacity(int n, Key key);
+
+#ifdef DEBUG
+  void Print();
+#endif
+  // Returns the key (slow).
+  Object* SlowReverseLookup(Object* value);
+
+  // Sets the entry to (key, value) pair.
+  inline void SetEntry(int entry,
+                       Object* key,
+                       Object* value,
+                       PropertyDetails details);
+
+  Object* Add(Key key, Object* value, PropertyDetails details);
+
+ protected:
+  // Generic at put operation.
+  Object* AtPut(Key key, Object* value);
+
+  // Add entry to dictionary.
+  Object* AddEntry(Key key,
+                   Object* value,
+                   PropertyDetails details,
+                   uint32_t hash);
+
+  // Generate new enumeration indices to avoid enumeration index overflow.
+  Object* GenerateNewEnumerationIndices();
+  static const int kMaxNumberKeyIndex =
+      HashTable<Shape, Key>::kPrefixStartIndex;
+  static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
+};
+
+
+class StringDictionaryShape {
+ public:
+  static inline bool IsMatch(String* key, Object* other);
+  static inline uint32_t Hash(String* key);
+  static inline uint32_t HashForObject(String* key, Object* object);
+  static inline Object* AsObject(String* key);
+  static const int kPrefixSize = 2;
+  static const int kEntrySize = 3;
+  static const bool kIsEnumerable = true;
+};
+
+
+class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
+ public:
+  static inline StringDictionary* cast(Object* obj) {
+    ASSERT(obj->IsDictionary());
+    return reinterpret_cast<StringDictionary*>(obj);
+  }
+
+  // Copies enumerable keys to preallocated fixed array.
+  void CopyEnumKeysTo(FixedArray* storage, FixedArray* sort_array);
 
   // For transforming properties of a JSObject.
   Object* TransformPropertiesToFastFor(JSObject* obj,
                                        int unused_property_fields);
+};
+
+
+class NumberDictionaryShape {
+ public:
+  static inline bool IsMatch(uint32_t key, Object* other);
+  static inline uint32_t Hash(uint32_t key);
+  static inline uint32_t HashForObject(uint32_t key, Object* object);
+  static inline Object* AsObject(uint32_t key);
+  static const int kPrefixSize = 2;
+  static const int kEntrySize = 3;
+  static const bool kIsEnumerable = false;
+};
+
+
+class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
+ public:
+  static NumberDictionary* cast(Object* obj) {
+    ASSERT(obj->IsDictionary());
+    return reinterpret_cast<NumberDictionary*>(obj);
+  }
+
+  // Type specific at put (default NONE attributes is used when adding).
+  Object* AtNumberPut(uint32_t key, Object* value);
+  Object* AddNumberEntry(uint32_t key,
+                         Object* value,
+                         PropertyDetails details);
+
+  // Set an existing entry or add a new one if needed.
+  Object* Set(uint32_t key, Object* value, PropertyDetails details);
+
+  void UpdateMaxNumberKey(uint32_t key);
 
   // If slow elements are required we will never go back to fast-case
   // for the elements kept in this dictionary.  We require slow
@@ -2139,59 +2263,13 @@ class Dictionary: public DictionaryBase {
   // requires_slow_elements returns false.
   inline uint32_t max_number_key();
 
-  // Accessors for next enumeration index.
-  void SetNextEnumerationIndex(int index) {
-    fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
-  }
-
-  int NextEnumerationIndex() {
-    return Smi::cast(get(kNextEnumerationIndexIndex))->value();
-  }
-
-  // Returns a new array for dictionary usage. Might return Failure.
-  static Object* Allocate(int at_least_space_for);
-
-  // Ensure enough space for n additional elements.
-  Object* EnsureCapacity(int n, HashTableKey* key);
-
-#ifdef DEBUG
-  void Print();
-#endif
-  // Returns the key (slow).
-  Object* SlowReverseLookup(Object* value);
+  // Remove all entries were key is a number and (from <= key && key < to).
+  void RemoveNumberEntries(uint32_t from, uint32_t to);
 
   // Bit masks.
   static const int kRequiresSlowElementsMask = 1;
   static const int kRequiresSlowElementsTagSize = 1;
   static const uint32_t kRequiresSlowElementsLimit = (1 << 29) - 1;
-
-  void UpdateMaxNumberKey(uint32_t key);
-
- private:
-  // Generic at put operation.
-  Object* AtPut(HashTableKey* key, Object* value);
-
-  Object* Add(HashTableKey* key, Object* value, PropertyDetails details);
-
-  // Add entry to dictionary.
-  void AddEntry(Object* key,
-                Object* value,
-                PropertyDetails details,
-                uint32_t hash);
-
-  // Sets the entry to (key, value) pair.
-  inline void SetEntry(int entry,
-                       Object* key,
-                       Object* value,
-                       PropertyDetails details);
-
-  // Generate new enumeration indices to avoid enumeration index overflow.
-  Object* GenerateNewEnumerationIndices();
-
-  static const int kMaxNumberKeyIndex = kPrefixStartIndex;
-  static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Dictionary);
 };
 
 
@@ -3231,7 +3309,30 @@ class JSRegExp: public JSObject {
 };
 
 
-class CompilationCacheTable: public HashTable<0, 2> {
+class CompilationCacheShape {
+ public:
+  static inline bool IsMatch(HashTableKey* key, Object* value) {
+    return key->IsMatch(value);
+  }
+
+  static inline uint32_t Hash(HashTableKey* key) {
+    return key->Hash();
+  }
+
+  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
+    return key->HashForObject(object);
+  }
+
+  static Object* AsObject(HashTableKey* key) {
+    return key->AsObject();
+  }
+
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+};
+
+class CompilationCacheTable: public HashTable<CompilationCacheShape,
+                                              HashTableKey*> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
