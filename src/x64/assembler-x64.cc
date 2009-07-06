@@ -1449,7 +1449,7 @@ void Assembler::testb(Register reg, Immediate mask) {
   last_pc_ = pc_;
   if (reg.is(rax)) {
     emit(0xA8);
-    emit(mask);
+    emit(mask.value_);  // Low byte emitted.
   } else {
     if (reg.code() > 3) {
       // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
@@ -1470,6 +1470,15 @@ void Assembler::testb(const Operand& op, Immediate mask) {
   emit(0xF6);
   emit_operand(rax, op);  // Operation code 0
   emit(mask.value_);  // Low byte emitted.
+}
+
+
+void Assembler::testl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst, src);
+  emit(0x85);
+  emit_modrm(dst, src);
 }
 
 

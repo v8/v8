@@ -562,6 +562,14 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_8(0x7, dst, src);
   }
 
+  void cmpl(Register dst, Register src) {
+    arithmetic_op_32(0x3B, dst, src);
+  }
+
+  void cmpl(Register dst, Immediate src) {
+    immediate_arithmetic_op_32(0x7, dst, src);
+  }
+
   void cmpq(Register dst, Register src) {
     arithmetic_op(0x3B, dst, src);
   }
@@ -576,10 +584,6 @@ class Assembler : public Malloced {
 
   void cmpq(Register dst, Immediate src) {
     immediate_arithmetic_op(0x7, dst, src);
-  }
-
-  void cmpl(Register dst, Immediate src) {
-    immediate_arithmetic_op_32(0x7, dst, src);
   }
 
   void cmpq(const Operand& dst, Immediate src) {
@@ -740,6 +744,7 @@ class Assembler : public Malloced {
 
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);
+  void testl(Register dst, Register src);
   void testl(Register reg, Immediate mask);
   void testl(const Operand& op, Immediate mask);
   void testq(const Operand& op, Register reg);

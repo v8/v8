@@ -2459,13 +2459,13 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   // receiver.  Use a scratch register to avoid destroying the result.
   Result scratch = allocator_->Allocate();
   ASSERT(scratch.is_valid());
-  __ movl(scratch.reg(),
+  __ movq(scratch.reg(),
           FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(0)));
   frame_->SetElementAt(arg_count + 1, &scratch);
 
   // We can reuse the result register now.
   frame_->Spill(result.reg());
-  __ movl(result.reg(),
+  __ movq(result.reg(),
           FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(1)));
   frame_->SetElementAt(arg_count, &result);
 
@@ -4316,12 +4316,8 @@ void CodeGenerator::Comparison(Condition cc,
       left_side = Result(left_reg);
       right_side = Result(right_val);
       // Test smi equality and comparison by signed int comparison.
-      if (IsUnsafeSmi(right_side.handle())) {
-        right_side.ToRegister();
-        __ cmpq(left_side.reg(), right_side.reg());
-      } else {
-        __ Cmp(left_side.reg(), right_side.handle());
-      }
+      // Both sides are smis, so we can use an Immediate.
+      __ cmpl(left_side.reg(), Immediate(Smi::cast(*right_side.handle())));
       left_side.Unuse();
       right_side.Unuse();
       dest->Split(cc);
@@ -4373,7 +4369,8 @@ void CodeGenerator::Comparison(Condition cc,
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ testq(answer.reg(), answer.reg());  // Both zero and sign flag right.
+      // The result is a Smi, which is negative, zero, or positive.
+      __ testl(answer.reg(), answer.reg());  // Both zero and sign flag right.
       answer.Unuse();
       dest->Split(cc);
     } else {
@@ -4393,11 +4390,7 @@ void CodeGenerator::Comparison(Condition cc,
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      if (cc == equal) {
-        __ testq(answer.reg(), answer.reg());
-      } else {
-        __ cmpq(answer.reg(), Immediate(0));
-      }
+      __ testl(answer.reg(), answer.reg());  // Sets both zero and sign flags.
       answer.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
@@ -4405,7 +4398,7 @@ void CodeGenerator::Comparison(Condition cc,
       is_smi.Bind();
       left_side = Result(left_reg);
       right_side = Result(right_reg);
-      __ cmpq(left_side.reg(), right_side.reg());
+      __ cmpl(left_side.reg(), right_side.reg());
       right_side.Unuse();
       left_side.Unuse();
       dest->Split(cc);
@@ -5446,6 +5439,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_string);
   // HeapNumber => false iff +0, -0, or NaN.
+  // These three cases set C3 when compared to zero in the FPU.
   __ Cmp(rdx, Factory::heap_number_map());
   __ j(not_equal, &true_result);
   // TODO(x64): Don't use fp stack, use MMX registers?
@@ -5455,9 +5449,9 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ fucompp();  // Compare and pop both values.
   __ movq(kScratchRegister, rax);
   __ fnstsw_ax();  // Store fp status word in ax, no checking for exceptions.
-  __ testb(rax, Immediate(0x08));  // Test FP condition flag C3.
+  __ testl(rax, Immediate(0x4000));  // Test FP condition flag C3, bit 16.
   __ movq(rax, kScratchRegister);
-  __ j(zero, &false_result);
+  __ j(not_zero, &false_result);
   // Fall through to |true_result|.
 
   // Return 1/0 for true/false in rax.
@@ -5627,7 +5621,11 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ shl(rax, Immediate(12));
       // If all bits in the mantissa are zero the number is Infinity, and
       // we return zero.  Otherwise it is a NaN, and we return non-zero.
-      // So just return rax.
+      // We cannot just return rax because only eax is tested on return.
+      // TODO(X64): Solve this using movcc, when implemented.
+      __ movq(kScratchRegister, rax);
+      __ shr(kScratchRegister, Immediate(32));
+      __ or_(rax, kScratchRegister);
       __ ret(0);
 
       __ bind(&not_identical);
@@ -5665,7 +5663,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
                Factory::heap_number_map());
         // If heap number, handle it in the slow case.
         __ j(equal, &slow);
-        // Return non-equal (ebx is not zero)
+        // Return non-equal.  ebx (the lower half of rbx) is not zero.
         __ movq(rax, rbx);
         __ ret(0);
 
@@ -5681,7 +5679,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       Label first_non_object;
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
       __ j(below, &first_non_object);
-      // Return non-zero (rax is not zero)
+      // Return non-zero (eax (not rax) is not zero)
       Label return_not_equal;
       ASSERT(kHeapObjectTag != 0);
       __ bind(&return_not_equal);
@@ -5745,7 +5743,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     BranchIfNonSymbol(masm, &call_builtin, rdx, kScratchRegister);
 
     // We've already checked for object identity, so if both operands
-    // are symbols they aren't equal. Register rax already holds a
+    // are symbols they aren't equal. Register eax (not rax) already holds a
     // non-zero value, which indicates not equal, so just return.
     __ ret(2 * kPointerSize);
   }
