@@ -3271,7 +3271,11 @@ class JSRegExp: public JSObject {
   // Set implementation data after the object has been prepared.
   inline void SetDataAt(int index, Object* value);
   static int code_index(bool is_ascii) {
-    return is_ascii ? kIrregexpASCIICodeIndex : kIrregexpUC16CodeIndex;
+    if (is_ascii) {
+      return kIrregexpASCIICodeIndex;
+    } else {
+      return kIrregexpUC16CodeIndex;
+    }
   }
 
   static inline JSRegExp* cast(Object* obj);
