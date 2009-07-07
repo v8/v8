@@ -3453,8 +3453,22 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 0);
-  frame_->CallRuntime(Runtime::kIsConstructCall, 0);
-  frame_->EmitPush(r0);
+
+  // Get the frame pointer for the calling frame.
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  Label check_frame_marker;
+  __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r1, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ b(ne, &check_frame_marker);
+  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
+  __ cmp(r1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
+  cc_reg_ = eq;
 }
 
 
