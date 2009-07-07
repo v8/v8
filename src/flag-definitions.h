@@ -208,8 +208,6 @@ DEFINE_bool(preemption, false,
 
 // Regexp
 DEFINE_bool(trace_regexps, false, "trace regexp execution")
-DEFINE_bool(regexp_native, true,
-            "use native code regexp implementation (IA32 only)")
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc

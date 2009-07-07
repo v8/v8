@@ -419,7 +419,8 @@
       'target_name': 'v8_base',
       'type': '<(library)',
       'defines': [
-        'V8_TARGET_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32',
+        'V8_NATIVE_REGEXP'
       ],
       'include_dirs+': [
         '../../src',
@@ -477,7 +478,8 @@
       'target_name': 'v8_nosnapshot',
       'type': '<(library)',
       'defines': [
-        'V8_TARGET_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32',
+        'V8_NATIVE_REGEXP'
       ],
       'dependencies': [
         'js2c',
@@ -509,7 +511,8 @@
       'target_name': 'v8',
       'type': '<(library)',
       'defines': [
-        'V8_TARGET_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32',
+        'V8_NATIVE_REGEXP'
       ],
       'dependencies': [
         'js2c',
@@ -549,7 +552,8 @@
       'target_name': 'v8_shell',
       'type': 'executable',
       'defines': [
-        'V8_TARGET_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32',
+        'V8_NATIVE_REGEXP'
       ],
       'dependencies': [
         'v8',
@@ -579,7 +583,8 @@
         'v8',
       ],
       'defines': [
-        'V8_TARGET_ARCH_IA32'
+        'V8_TARGET_ARCH_IA32',
+        'V8_NATIVE_REGEXP'
       ],
       'include_dirs': [
         '../../src',

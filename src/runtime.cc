@@ -1016,16 +1016,16 @@ static Object* Runtime_RegExpExec(Arguments args) {
   ASSERT(args.length() == 4);
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_CHECKED(String, subject, 1);
-  // Due to the way the JS files are constructed this must be less than the
+  // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CONVERT_CHECKED(Smi, index, args[2]);
+  CONVERT_SMI_CHECKED(index, args[2]);
   CONVERT_ARG_CHECKED(JSArray, last_match_info, 3);
   RUNTIME_ASSERT(last_match_info->HasFastElements());
-  RUNTIME_ASSERT(index->value() >= 0);
-  RUNTIME_ASSERT(index->value() <= subject->length());
+  RUNTIME_ASSERT(index >= 0);
+  RUNTIME_ASSERT(index <= subject->length());
   Handle<Object> result = RegExpImpl::Exec(regexp,
                                            subject,
-                                           index->value(),
+                                           index,
                                            last_match_info);
   if (result.is_null()) return Failure::Exception();
   return *result;

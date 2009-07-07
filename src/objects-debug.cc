@@ -714,7 +714,7 @@ void JSRegExp::JSRegExpVerify() {
       break;
     }
     case JSRegExp::IRREGEXP: {
-      bool is_native = RegExpImpl::UseNativeRegexp();
+      bool is_native = RegExpImpl::UsesNativeRegExp();
 
       FixedArray* arr = FixedArray::cast(data());
       Object* ascii_data = arr->get(JSRegExp::kIrregexpASCIICodeIndex);
