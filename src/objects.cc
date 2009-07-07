@@ -1865,7 +1865,7 @@ Object* JSObject::SetProperty(LookupResult* result,
       if (value == result->GetConstantFunction()) return value;
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertDescriptorToField(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
@@ -1947,7 +1947,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
       if (value == result->GetConstantFunction()) return value;
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertDescriptorToField(name, value, attributes);
     case CALLBACKS:
     case INTERCEPTOR:
       // Override callback in clone

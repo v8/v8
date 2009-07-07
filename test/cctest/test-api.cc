@@ -7041,3 +7041,21 @@ THREADED_TEST(InitGlobalVarInProtoChain) {
   CHECK(!result->IsUndefined());
   CHECK_EQ(42, result->Int32Value());
 }
+
+
+// Regression test for issue 398.
+// If a function is added to an object, creating a constant function
+// field, and the result is cloned, replacing the constant function on the
+// original should not affect the clone.
+// See http://code.google.com/p/v8/issues/detail?id=398
+THREADED_TEST(ReplaceConstantFunction) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  v8::Handle<v8::FunctionTemplate> func_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::String> foo_string = v8::String::New("foo");
+  obj->Set(foo_string, func_templ->GetFunction());
+  v8::Handle<v8::Object> obj_clone = obj->Clone();
+  obj_clone->Set(foo_string, v8::String::New("Hello"));
+  CHECK(!obj->Get(foo_string)->IsUndefined());
+}
