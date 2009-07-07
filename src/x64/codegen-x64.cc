@@ -3361,7 +3361,21 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  // TODO(X64): Use inline floating point in the fast case.
+  ASSERT(args->length() == 1);
+
+  // Load number.
+  Load(args->at(0));
+  Result answer;
+  switch (op) {
+    case SIN:
+      answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
+      break;
+    case COS:
+      answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
+      break;
+  }
+  frame_->Push(&answer);
 }
 
 
