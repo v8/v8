@@ -427,6 +427,17 @@ void Assembler::arithmetic_op_32(byte opcode, Register dst, Register src) {
 }
 
 
+void Assembler::arithmetic_op_32(byte opcode,
+                                 const Operand& dst,
+                                 Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(src, dst);
+  emit(opcode);
+  emit_operand(src, dst);
+}
+
+
 void Assembler::immediate_arithmetic_op(byte subcode,
                                         Register dst,
                                         Immediate src) {
@@ -1068,11 +1079,23 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
 
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  emitq(value, rmode);
+  // Non-relocatable values might not need a 64-bit representation.
+  if (rmode == RelocInfo::NONE) {
+    // Sadly, there is no zero or sign extending move for 8-bit immediates.
+    if (is_int32(value)) {
+      movq(dst, Immediate(static_cast<int32_t>(value)));
+    } else if (is_uint32(value)) {
+      movl(dst, Immediate(static_cast<int32_t>(value)));
+    }
+    // Value cannot be represented by 32 bits, so do a full 64 bit immediate
+    // value.
+  } else {
+    EnsureSpace ensure_space(this);
+    last_pc_ = pc_;
+    emit_rex_64(dst);
+    emit(0xB8 | dst.low_bits());
+    emitq(value, rmode);
+  }
 }
 
 
@@ -1097,16 +1120,24 @@ void Assembler::movq(const Operand& dst, Immediate value) {
 
 
 void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  ASSERT(!Heap::InNewSpace(*value));
-  emit_rex_64(dst);
-  emit(0xB8 | dst.low_bits());
-  if (value->IsHeapObject()) {
-    emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
+  // If there is no relocation info, emit the value of the handle efficiently
+  // (possibly using less that 8 bytes for the value).
+  if (mode == RelocInfo::NONE) {
+    // There is no possible reason to store a heap pointer without relocation
+    // info, so it must be a smi.
+    ASSERT(value->IsSmi());
+    // Smis never have more than 32 significant bits, but they might
+    // have garbage in the high bits.
+    movq(dst,
+         Immediate(static_cast<int32_t>(reinterpret_cast<intptr_t>(*value))));
   } else {
-    ASSERT_EQ(RelocInfo::NONE, mode);
-    emitq(reinterpret_cast<uintptr_t>(*value), RelocInfo::NONE);
+    EnsureSpace ensure_space(this);
+    last_pc_ = pc_;
+    ASSERT(value->IsHeapObject());
+    ASSERT(!Heap::InNewSpace(*value));
+    emit_rex_64(dst);
+    emit(0xB8 | dst.low_bits());
+    emitq(reinterpret_cast<uintptr_t>(value.location()), mode);
   }
 }
 

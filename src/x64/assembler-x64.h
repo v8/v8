@@ -566,7 +566,19 @@ class Assembler : public Malloced {
     arithmetic_op_32(0x3B, dst, src);
   }
 
+  void cmpl(Register dst, const Operand& src) {
+    arithmetic_op_32(0x3B, src, dst);
+  }
+
+  void cmpl(const Operand& dst, Register src) {
+    arithmetic_op_32(0x39, dst, src);
+  }
+
   void cmpl(Register dst, Immediate src) {
+    immediate_arithmetic_op_32(0x7, dst, src);
+  }
+
+  void cmpl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x7, dst, src);
   }
 
@@ -1091,6 +1103,7 @@ class Assembler : public Malloced {
   // ModR/M byte.
   void arithmetic_op(byte opcode, Register dst, Register src);
   void arithmetic_op_32(byte opcode, Register dst, Register src);
+  void arithmetic_op_32(byte opcode, const Operand& dst, Register src);
   void arithmetic_op(byte opcode, Register reg, const Operand& op);
   void immediate_arithmetic_op(byte subcode, Register dst, Immediate src);
   void immediate_arithmetic_op(byte subcode, const Operand& dst, Immediate src);
