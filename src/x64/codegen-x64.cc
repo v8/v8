@@ -366,15 +366,6 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
 }
 
 
-void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
-                                                    int b,
-                                                    int c,
-                                                    Label* d,
-                                                    Vector<Label*> e,
-                                                    Vector<Label> f) {
-  UNIMPLEMENTED();
-}
-
 #ifdef DEBUG
 bool CodeGenerator::HasValidEntryRegisters() {
   return (allocator()->count(rax) == (frame()->is_used(rax) ? 1 : 0))
