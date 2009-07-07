@@ -288,11 +288,7 @@ TickProcessor.prototype.printStatistics = function() {
 function padLeft(s, len) {
   s = s.toString();
   if (s.length < len) {
-    var padLength = len - s.length;
-    if (!(padLength in padLeft)) {
-      padLeft[padLength] = new Array(padLength + 1).join(' ');
-    }
-    s = padLeft[padLength] + s;
+    s = (new Array(len - s.length + 1).join(' ')) + s;
   }
   return s;
 };
@@ -515,11 +511,25 @@ WindowsCppEntriesProvider.prototype.unmangleName = function(name) {
 };
 
 
-function ArgumentsProcessor(args) {
-  this.args_ = args;
-  this.result_ = ArgumentsProcessor.DEFAULTS;
+function padRight(s, len) {
+  s = s.toString();
+  if (s.length < len) {
+    s = s + (new Array(len - s.length + 1).join(' '));
+  }
+  return s;
+};
 
-  this.argsDispatch_ = {
+
+function processArguments(args) {
+  var result = {
+    logFileName: 'v8.log',
+    platform: 'unix',
+    stateFilter: null,
+    ignoreUnknown: false,
+    separateIc: false,
+    nm: 'nm'
+  };
+  var argsDispatch = {
     '-j': ['stateFilter', TickProcessor.VmStates.JS,
         'Show only ticks from JS VM state'],
     '-g': ['stateFilter', TickProcessor.VmStates.GC,
@@ -541,82 +551,63 @@ function ArgumentsProcessor(args) {
     '--nm': ['nm', 'nm',
         'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)']
   };
-  this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
-  this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
-  this.argsDispatch_['--compiler'] = this.argsDispatch_['-c'];
-  this.argsDispatch_['--other'] = this.argsDispatch_['-o'];
-  this.argsDispatch_['--external'] = this.argsDispatch_['-e'];
-};
+  argsDispatch['--js'] = argsDispatch['-j'];
+  argsDispatch['--gc'] = argsDispatch['-g'];
+  argsDispatch['--compiler'] = argsDispatch['-c'];
+  argsDispatch['--other'] = argsDispatch['-o'];
+  argsDispatch['--external'] = argsDispatch['-e'];
 
+  function printUsageAndExit() {
+    print('Cmdline args: [options] [log-file-name]\n' +
+          'Default log file name is "v8.log".\n');
+    print('Options:');
+    for (var arg in argsDispatch) {
+      var synonims = [arg];
+      var dispatch = argsDispatch[arg];
+      for (var synArg in argsDispatch) {
+        if (arg !== synArg && dispatch === argsDispatch[synArg]) {
+          synonims.push(synArg);
+          delete argsDispatch[synArg];
+        }
+      }
+      print('  ' + padRight(synonims.join(', '), 20) + dispatch[2]);
+    }
+    quit(2);
+  }
 
-ArgumentsProcessor.DEFAULTS = {
-  logFileName: 'v8.log',
-  platform: 'unix',
-  stateFilter: null,
-  ignoreUnknown: false,
-  separateIc: false,
-  nm: 'nm'
-};
-
-
-ArgumentsProcessor.prototype.parse = function() {
-  while (this.args_.length) {
-    var arg = this.args_[0];
+  while (args.length) {
+    var arg = args[0];
     if (arg.charAt(0) != '-') {
       break;
     }
-    this.args_.shift();
+    args.shift();
     var userValue = null;
     var eqPos = arg.indexOf('=');
     if (eqPos != -1) {
       userValue = arg.substr(eqPos + 1);
       arg = arg.substr(0, eqPos);
     }
-    if (arg in this.argsDispatch_) {
-      var dispatch = this.argsDispatch_[arg];
-      this.result_[dispatch[0]] = userValue == null ? dispatch[1] : userValue;
+    if (arg in argsDispatch) {
+      var dispatch = argsDispatch[arg];
+      result[dispatch[0]] = userValue == null ? dispatch[1] : userValue;
     } else {
-      return false;
+      printUsageAndExit();
     }
   }
 
-  if (this.args_.length >= 1) {
-      this.result_.logFileName = this.args_.shift();
+  if (args.length >= 1) {
+      result.logFileName = args.shift();
   }
-  return true;
+  return result;
 };
 
 
-ArgumentsProcessor.prototype.result = function() {
-  return this.result_;
-};
-
-
-ArgumentsProcessor.prototype.printUsageAndExit = function() {
-
-  function padRight(s, len) {
-    s = s.toString();
-    if (s.length < len) {
-      s = s + (new Array(len - s.length + 1).join(' '));
-    }
-    return s;
-  }
-
-  print('Cmdline args: [options] [log-file-name]\n' +
-        'Default log file name is "' +
-        ArgumentsProcessor.DEFAULTS.logFileName + '".\n');
-  print('Options:');
-  for (var arg in this.argsDispatch_) {
-    var synonims = [arg];
-    var dispatch = this.argsDispatch_[arg];
-    for (var synArg in this.argsDispatch_) {
-      if (arg !== synArg && dispatch === this.argsDispatch_[synArg]) {
-        synonims.push(synArg);
-        delete this.argsDispatch_[synArg];
-      }
-    }
-    print('  ' + padRight(synonims.join(', '), 20) + dispatch[2]);
-  }
-  quit(2);
-};
-
+var params = processArguments(arguments);
+var tickProcessor = new TickProcessor(
+    params.platform == 'unix' ? new UnixCppEntriesProvider(params.nm) :
+        new WindowsCppEntriesProvider(),
+    params.separateIc,
+    params.ignoreUnknown,
+    params.stateFilter);
+tickProcessor.processLogFile(params.logFileName);
+tickProcessor.printStatistics();

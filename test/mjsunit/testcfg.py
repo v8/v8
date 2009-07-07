@@ -55,15 +55,10 @@ class MjsunitTestCase(test.TestCase):
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
       result += flags_match.group(1).strip().split()
-    additional_files = []
     files_match = FILES_PATTERN.search(source);
-    # Accept several lines of 'Files:'
-    while True:
-      if files_match:
-        additional_files += files_match.group(1).strip().split()
-        files_match = FILES_PATTERN.search(source, files_match.end())
-      else:
-        break
+    additional_files = []
+    if files_match:
+      additional_files += files_match.group(1).strip().split()
     for a_file in additional_files:
       result.append(join(dirname(self.config.root), '..', a_file))
     framework = join(dirname(self.config.root), 'mjsunit', 'mjsunit.js')
