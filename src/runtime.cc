@@ -4155,16 +4155,21 @@ static Object* Runtime_Math_pow(Arguments args) {
   }
 
   CONVERT_DOUBLE_CHECKED(y, args[1]);
-  if (y == 0.5) {
-    // It's not uncommon to use Math.pow(x, 0.5) to compute the square
-    // root of a number. To speed up such computations, we explictly
-    // check for this case and use the sqrt() function which is faster
-    // than pow().
-    return Heap::AllocateHeapNumber(sqrt(x));
-  } else if (y == -0.5) {
-    // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
-    return Heap::AllocateHeapNumber(1.0 / sqrt(x));
-  } else if (y == 0) {
+
+  if (!isinf(x)) {
+    if (y == 0.5) {
+      // It's not uncommon to use Math.pow(x, 0.5) to compute the
+      // square root of a number. To speed up such computations, we
+      // explictly check for this case and use the sqrt() function
+      // which is faster than pow().
+      return Heap::AllocateHeapNumber(sqrt(x));
+    } else if (y == -0.5) {
+      // Optimized using Math.pow(x, -0.5) == 1 / Math.pow(x, 0.5).
+      return Heap::AllocateHeapNumber(1.0 / sqrt(x));
+    }
+  }
+
+  if (y == 0) {
     return Smi::FromInt(1);
   } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
     return Heap::nan_value();
