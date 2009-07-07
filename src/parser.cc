@@ -2045,7 +2045,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   //   'continue' Identifier? ';'
 
   Expect(Token::CONTINUE, CHECK_OK);
-  Handle<String> label(static_cast<String**>(NULL));
+  Handle<String> label = Handle<String>::null();
   Token::Value tok = peek();
   if (!scanner_.has_line_terminator_before_next() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {

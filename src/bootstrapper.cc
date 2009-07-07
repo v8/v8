@@ -1556,7 +1556,7 @@ Genesis::Genesis(Handle<Object> global_object,
   // will always do unlinking.
   previous_ = current_;
   current_  = this;
-  result_ = NULL;
+  result_ = Handle<Context>::null();
 
   // If V8 isn't running and cannot be initialized, just return.
   if (!V8::IsRunning() && !V8::Initialize(NULL)) return;
