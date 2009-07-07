@@ -3144,11 +3144,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
                Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
-      __ movb(kScratchRegister,
-              FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
-      __ cmpb(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
+      __ CmpInstanceType(kScratchRegister, FIRST_JS_OBJECT_TYPE);
       destination()->false_target()->Branch(below);
-      __ cmpb(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
+      __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
       answer.Unuse();
       destination()->Split(below_equal);
     } else {
@@ -3393,27 +3391,22 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  { Result tmp = allocator()->Allocate();
-    __ movq(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
-    __ movb(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
-    __ cmpb(tmp.reg(), Immediate(FIRST_JS_OBJECT_TYPE));
-    null.Branch(less);
 
-    // As long as JS_FUNCTION_TYPE is the last instance type and it is
-    // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-    // LAST_JS_OBJECT_TYPE.
-    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-    __ cmpb(tmp.reg(), Immediate(JS_FUNCTION_TYPE));
-    function.Branch(equal);
-  }
+  __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
+  null.Branch(less);
+
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ CmpInstanceType(obj.reg(), JS_FUNCTION_TYPE);
+  function.Branch(equal);
 
   // Check if the constructor in the map is a function.
-  { Result tmp = allocator()->Allocate();
-    __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
-    __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, tmp.reg());
-    non_function_constructor.Branch(not_equal);
-  }
+  __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
+  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
+  non_function_constructor.Branch(not_equal);
 
   // The obj register now contains the constructor function. Grab the
   // instance class name from there.
@@ -5428,6 +5421,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(equal, &false_result);
 
   // Get the map and type of the heap object.
+  // We don't use CmpObjectType because we manipulate the type field.
   __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
   __ movzxbq(rcx, FieldOperand(rdx, Map::kInstanceTypeOffset));
 
