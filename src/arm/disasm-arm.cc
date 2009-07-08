@@ -506,17 +506,25 @@ void Decoder::DecodeType01(Instr* instr) {
         // multiply instructions
         if (instr->Bit(23) == 0) {
           if (instr->Bit(21) == 0) {
-            // Mul calls it Rd.  Everyone else calls it Rn.
+            // The MUL instruction description (A 4.1.33) refers to Rd as being
+            // the destination for the operation, but it confusingly uses the
+            // Rn field to encode it.
             Format(instr, "mul'cond's 'rn, 'rm, 'rs");
           } else {
-            // In the manual the order is rd, rm, rs, rn.  But mla swaps the
-            // positions of rn and rd in the encoding.
+            // The MLA instruction description (A 4.1.28) refers to the order
+            // of registers as "Rd, Rm, Rs, Rn". But confusingly it uses the
+            // Rn field to encode the Rd register and the Rd field to encode
+            // the Rn register.
             Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
           }
         } else {
-          // In the manual the order is RdHi, RdLo, Rm, Rs.
-          // RdHi is what other instructions call Rn and RdLo is Rd.
-          Format(instr, "'um'al'cond's 'rn, 'rd, 'rm, 'rs");
+          // The signed/long multiply instructions use the terms RdHi and RdLo
+          // when referring to the target registers. They are mapped to the Rn
+          // and Rd fields as follows:
+          // RdLo == Rd field
+          // RdHi == Rn field
+          // The order of registers is: <RdLo>, <RdHi>, <Rm>, <Rs>
+          Format(instr, "'um'al'cond's 'rd, 'rn, 'rm, 'rs");
         }
       } else {
         Unknown(instr);  // not used by V8

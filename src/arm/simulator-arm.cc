@@ -1080,25 +1080,44 @@ void Simulator::DecodeType01(Instr* instr) {
     // multiply instruction or extra loads and stores
     if (instr->Bits(7, 4) == 9) {
       if (instr->Bit(24) == 0) {
-        // Multiply instructions have Rd in a funny place.
-        int rd = instr->RnField();
+        // Raw field decoding here. Multiply instructions have their Rd in
+        // funny places.
+        int rn = instr->RnField();
         int rm = instr->RmField();
         int rs = instr->RsField();
         int32_t rs_val = get_register(rs);
         int32_t rm_val = get_register(rm);
         if (instr->Bit(23) == 0) {
           if (instr->Bit(21) == 0) {
+            // The MUL instruction description (A 4.1.33) refers to Rd as being
+            // the destination for the operation, but it confusingly uses the
+            // Rn field to encode it.
             // Format(instr, "mul'cond's 'rn, 'rm, 'rs");
+            int rd = rn;  // Remap the rn field to the Rd register.
             int32_t alu_out = rm_val * rs_val;
             set_register(rd, alu_out);
             if (instr->HasS()) {
               SetNZFlags(alu_out);
             }
           } else {
-            UNIMPLEMENTED();  // mla is not used by V8.
+            // The MLA instruction description (A 4.1.28) refers to the order
+            // of registers as "Rd, Rm, Rs, Rn". But confusingly it uses the
+            // Rn field to encode the Rd register and the Rd field to encode
+            // the Rn register.
+            Format(instr, "mla'cond's 'rn, 'rm, 'rs, 'rd");
           }
         } else {
-          // Format(instr, "'um'al'cond's 'rn, 'rd, 'rs, 'rm");
+          // The signed/long multiply instructions use the terms RdHi and RdLo
+          // when referring to the target registers. They are mapped to the Rn
+          // and Rd fields as follows:
+          // RdLo == Rd
+          // RdHi == Rn (This is confusingly stored in variable rd here
+          //             because the mul instruction from above uses the
+          //             Rn field to encode the Rd register. Good luck figuring
+          //             this out without reading the ARM instruction manual
+          //             at a very detailed level.)
+          // Format(instr, "'um'al'cond's 'rd, 'rn, 'rs, 'rm");
+          int rd_hi = rn;  // Remap the rn field to the RdHi register.
           int rd_lo = instr->RdField();
           int32_t hi_res = 0;
           int32_t lo_res = 0;
@@ -1117,7 +1136,7 @@ void Simulator::DecodeType01(Instr* instr) {
             lo_res = static_cast<int32_t>(result & 0xffffffff);
           }
           set_register(rd_lo, lo_res);
-          set_register(rd, hi_res);
+          set_register(rd_hi, hi_res);
           if (instr->HasS()) {
             UNIMPLEMENTED();
           }
