@@ -152,6 +152,9 @@
         'js2c',
         'v8_base',
       ],
+      'include_dirs': [
+        '../../src',
+      ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries-empty.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
@@ -505,6 +508,9 @@
       'type': 'executable',
       'dependencies': [
         'v8_nosnapshot',
+      ],
+      'include_dirs': [
+        '../../src',
       ],
       'sources': [
         '../../src/mksnapshot.cc',
