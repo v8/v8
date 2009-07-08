@@ -1267,7 +1267,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   frame_->EmitPush(rax);  // <- slot 3
   frame_->EmitPush(rdx);  // <- slot 2
-  __ movq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
+  __ movsxlq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
   __ shl(rax, Immediate(kSmiTagSize));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
@@ -1279,7 +1279,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(rax);  // <- slot 2
 
   // Push the length of the array and the initial index onto the stack.
-  __ movq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
+  __ movsxlq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
   __ shl(rax, Immediate(kSmiTagSize));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
@@ -1299,8 +1299,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ movq(rdx, frame_->ElementAt(2));
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   // Multiplier is times_4 since rax is already a Smi.
-  __ movq(rbx, Operand(rdx, rax, times_4,
-                       FixedArray::kHeaderSize - kHeapObjectTag));
+  __ movq(rbx, FieldOperand(rdx, rax, times_4, FixedArray::kHeaderSize));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case rax: current iteration count rbx: i'th entry
