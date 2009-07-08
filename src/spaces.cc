@@ -1141,7 +1141,7 @@ static void ReportHistogram(bool print_spill) {
   // Summarize string types.
   int string_number = 0;
   int string_bytes = 0;
-#define INCREMENT(type, size, name)                  \
+#define INCREMENT(type, size, name, camel_name)      \
     string_number += heap_histograms[type].number(); \
     string_bytes += heap_histograms[type].bytes();
   STRING_TYPE_LIST(INCREMENT)
@@ -1185,8 +1185,8 @@ static void DoReportStatistics(HistogramInfo* info, const char* description) {
   // Lump all the string types together.
   int string_number = 0;
   int string_bytes = 0;
-#define INCREMENT(type, size, name)       \
-    string_number += info[type].number(); \
+#define INCREMENT(type, size, name, camel_name)       \
+    string_number += info[type].number();             \
     string_bytes += info[type].bytes();
   STRING_TYPE_LIST(INCREMENT)
 #undef INCREMENT
@@ -1266,12 +1266,12 @@ void FreeListNode::set_size(int size_in_bytes) {
   // field and a next pointer, we give it a filler map that gives it the
   // correct size.
   if (size_in_bytes > ByteArray::kHeaderSize) {
-    set_map(Heap::byte_array_map());
+    set_map(Heap::raw_unchecked_byte_array_map());
     ByteArray::cast(this)->set_length(ByteArray::LengthFor(size_in_bytes));
   } else if (size_in_bytes == kPointerSize) {
-    set_map(Heap::one_word_filler_map());
+    set_map(Heap::raw_unchecked_one_word_filler_map());
   } else if (size_in_bytes == 2 * kPointerSize) {
-    set_map(Heap::two_word_filler_map());
+    set_map(Heap::raw_unchecked_two_word_filler_map());
   } else {
     UNREACHABLE();
   }
@@ -1280,14 +1280,14 @@ void FreeListNode::set_size(int size_in_bytes) {
 
 
 Address FreeListNode::next() {
-  ASSERT(map() == Heap::byte_array_map());
+  ASSERT(map() == Heap::raw_unchecked_byte_array_map());
   ASSERT(Size() >= kNextOffset + kPointerSize);
   return Memory::Address_at(address() + kNextOffset);
 }
 
 
 void FreeListNode::set_next(Address next) {
-  ASSERT(map() == Heap::byte_array_map());
+  ASSERT(map() == Heap::raw_unchecked_byte_array_map());
   ASSERT(Size() >= kNextOffset + kPointerSize);
   Memory::Address_at(address() + kNextOffset) = next;
 }
@@ -1856,7 +1856,7 @@ void OldSpace::ReportStatistics() {
             int bitpos = intoff*kBitsPerByte + bitoff;
             Address slot = p->OffsetToAddress(bitpos << kObjectAlignmentBits);
             Object** obj = reinterpret_cast<Object**>(slot);
-            if (*obj == Heap::fixed_array_map()) {
+            if (*obj == Heap::raw_unchecked_fixed_array_map()) {
               rset_marked_arrays++;
               FixedArray* fa = FixedArray::cast(HeapObject::FromAddress(slot));
 

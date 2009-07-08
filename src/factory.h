@@ -28,6 +28,7 @@
 #ifndef V8_FACTORY_H_
 #define V8_FACTORY_H_
 
+#include "globals.h"
 #include "heap.h"
 #include "zone-inl.h"
 
@@ -299,13 +300,19 @@ class Factory : public AllStatic {
                                 Handle<JSObject> instance,
                                 bool* pending_exception);
 
-#define ROOT_ACCESSOR(type, name) \
-  static Handle<type> name() { return Handle<type>(&Heap::name##_); }
+#define ROOT_ACCESSOR(type, name, camel_name)                                  \
+  static inline Handle<type> name() {                                          \
+    return Handle<type>(bit_cast<type**, Object**>(                            \
+        &Heap::roots_[Heap::k##camel_name##RootIndex]));                       \
+  }
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR_ACCESSOR
 
 #define SYMBOL_ACCESSOR(name, str) \
-  static Handle<String> name() { return Handle<String>(&Heap::name##_); }
+  static inline Handle<String> name() {                                        \
+    return Handle<String>(bit_cast<String**, Object**>(                        \
+        &Heap::roots_[Heap::k##name##RootIndex]));                             \
+  }
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 

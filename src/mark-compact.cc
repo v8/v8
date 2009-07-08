@@ -224,7 +224,9 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
 
   Object* second = reinterpret_cast<ConsString*>(object)->unchecked_second();
-  if (reinterpret_cast<String*>(second) != Heap::empty_string()) return object;
+  if (second != Heap::raw_unchecked_empty_string()) {
+    return object;
+  }
 
   // Since we don't have the object's start, it is impossible to update the
   // remembered set.  Therefore, we only replace the string with its left
@@ -421,7 +423,7 @@ class SymbolTableCleaner : public ObjectVisitor {
           }
         }
         // Set the entry to null_value (as deleted).
-        *p = Heap::null_value();
+        *p = Heap::raw_unchecked_null_value();
         pointers_removed_++;
       }
     }
@@ -475,7 +477,7 @@ void MarkCompactCollector::MarkDescriptorArray(
     DescriptorArray* descriptors) {
   if (descriptors->IsMarked()) return;
   // Empty descriptor array is marked as a root before any maps are marked.
-  ASSERT(descriptors != Heap::empty_descriptor_array());
+  ASSERT(descriptors != Heap::raw_unchecked_empty_descriptor_array());
   SetMark(descriptors);
 
   FixedArray* contents = reinterpret_cast<FixedArray*>(
@@ -590,7 +592,7 @@ void MarkCompactCollector::MarkSymbolTable() {
   // and if it is a sliced string or a cons string backed by an
   // external string (even indirectly), then the external string does
   // not receive a weak reference callback.
-  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
+  SymbolTable* symbol_table = Heap::raw_unchecked_symbol_table();
   // Mark the symbol table itself.
   SetMark(symbol_table);
   // Explicitly mark the prefix.
@@ -780,10 +782,9 @@ void MarkCompactCollector::MarkLiveObjects() {
   ProcessObjectGroups(root_visitor.stack_visitor());
 
   // Prune the symbol table removing all symbols only pointed to by the
-  // symbol table.  Cannot use SymbolTable::cast here because the symbol
+  // symbol table.  Cannot use symbol_table() here because the symbol
   // table is marked.
-  SymbolTable* symbol_table =
-      reinterpret_cast<SymbolTable*>(Heap::symbol_table());
+  SymbolTable* symbol_table = Heap::raw_unchecked_symbol_table();
   SymbolTableCleaner v;
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());
@@ -1142,11 +1143,11 @@ static void SweepSpace(NewSpace* space) {
       // since their existing map might not be live after the collection.
       int size = object->Size();
       if (size >= ByteArray::kHeaderSize) {
-        object->set_map(Heap::byte_array_map());
+        object->set_map(Heap::raw_unchecked_byte_array_map());
         ByteArray::cast(object)->set_length(ByteArray::LengthFor(size));
       } else {
         ASSERT(size == kPointerSize);
-        object->set_map(Heap::one_word_filler_map());
+        object->set_map(Heap::raw_unchecked_one_word_filler_map());
       }
       ASSERT(object->Size() == size);
     }

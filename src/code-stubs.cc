@@ -85,7 +85,7 @@ Handle<Code> CodeStub::GetCode() {
             Handle<NumberDictionary>(Heap::code_stubs()),
             key,
             code);
-    Heap::set_code_stubs(*dict);
+    Heap::public_set_code_stubs(*dict);
     index = Heap::code_stubs()->FindEntry(key);
   }
   ASSERT(index != NumberDictionary::kNotFound);

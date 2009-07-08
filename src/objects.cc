@@ -4615,7 +4615,7 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
   // low-level accessors to get and modify their data.
   DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
       *RawField(this, Map::kInstanceDescriptorsOffset));
-  if (d == Heap::empty_descriptor_array()) return;
+  if (d == Heap::raw_unchecked_empty_descriptor_array()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   FixedArray* contents = reinterpret_cast<FixedArray*>(
