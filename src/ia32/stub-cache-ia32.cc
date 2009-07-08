@@ -1149,6 +1149,9 @@ Object* LoadStubCompiler::CompileLoadGlobal(GlobalObject* object,
   if (!is_dont_delete) {
     __ cmp(eax, Factory::the_hole_value());
     __ j(equal, &miss, not_taken);
+  } else if (FLAG_debug_code) {
+    __ cmp(eax, Factory::the_hole_value());
+    __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
   __ ret(0);

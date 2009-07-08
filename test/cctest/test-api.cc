@@ -6962,6 +6962,28 @@ THREADED_TEST(ForceDeleteWithInterceptor) {
 }
 
 
+// Make sure that forcing a delete invalidates any IC stubs, so we
+// don't read the hole value.
+THREADED_TEST(ForceDeleteIC) {
+  v8::HandleScope scope;
+  LocalContext context;
+  // Create a DontDelete variable on the global object.
+  CompileRun("this.__proto__ = { foo: 'horse' };"
+             "var foo = 'fish';"
+             "function f() { return foo.length; }");
+  // Initialize the IC for foo in f.
+  CompileRun("for (var i = 0; i < 4; i++) f();");
+  // Make sure the value of foo is correct before the deletion.
+  CHECK_EQ(4, CompileRun("f()")->Int32Value());
+  // Force the deletion of foo.
+  CHECK(context->Global()->ForceDelete(v8_str("foo")));
+  // Make sure the value for foo is read from the prototype, and that
+  // we don't get in trouble with reading the deleted cell value
+  // sentinel.
+  CHECK_EQ(5, CompileRun("f()")->Int32Value());
+}
+
+
 v8::Persistent<Context> calling_context0;
 v8::Persistent<Context> calling_context1;
 v8::Persistent<Context> calling_context2;

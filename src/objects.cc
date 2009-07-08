@@ -467,8 +467,15 @@ Object* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
     // If we have a global object set the cell to the hole.
     if (IsGlobalObject()) {
       PropertyDetails details = dictionary->DetailsAt(entry);
-      if (details.IsDontDelete() && mode != FORCE_DELETION) {
-        return Heap::false_value();
+      if (details.IsDontDelete()) {
+        if (mode != FORCE_DELETION) return Heap::false_value();
+        // When forced to delete global properties, we have to make a
+        // map change to invalidate any ICs that think they can load
+        // from the DontDelete cell without checking if it contains
+        // the hole value.
+        Object* new_map = map()->CopyDropDescriptors();
+        if (new_map->IsFailure()) return new_map;
+        set_map(Map::cast(new_map));
       }
       JSGlobalPropertyCell* cell =
           JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
@@ -1932,7 +1939,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   if (!result->IsLoaded()) {
     return SetLazyProperty(result, name, value, attributes);
   }
-  //  Check of IsReadOnly removed from here in clone.
+  // Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
       return SetNormalizedProperty(result, value);
