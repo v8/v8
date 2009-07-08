@@ -176,7 +176,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   const char* name = Builtins::GetName(id);
   int argc = Builtins::GetArgumentsCount(id);
 
-  movq(target, code, RelocInfo::EXTERNAL_REFERENCE);  // Is external reference?
+  movq(target, code, RelocInfo::EMBEDDED_OBJECT);
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
@@ -624,7 +624,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry =
         { pc_offset() - kTargetAddrToReturnAddrDist, flags, name };

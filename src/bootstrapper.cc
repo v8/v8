@@ -134,7 +134,7 @@ void Bootstrapper::TearDown() {
 }
 
 
-// Pending fixups are code positions that have refer to builtin code
+// Pending fixups are code positions that refer to builtin code
 // objects that were not available at the time the code was generated.
 // The pending list is processed whenever an environment has been
 // created.
@@ -216,7 +216,6 @@ bool PendingFixups::Process(Handle<JSBuiltinsObject> builtins) {
         *reinterpret_cast<Object**>(pc) = f->code();
       }
     } else {
-      ASSERT(is_pc_relative);
       Assembler::set_target_address_at(pc, f->code()->instruction_start());
     }
 
