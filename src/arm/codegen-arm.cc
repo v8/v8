@@ -3615,7 +3615,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
                           false_target(),
                           true_target(),
                           true);
-    cc_reg_ = NegateCondition(cc_reg_);
+    // LoadConditionAndSpill might emit only unconditional jumps to
+    // the targets in which case cc_reg_ is not set.  When that
+    // happens, don't attempt to negate the condition.
+    if (has_cc()) cc_reg_ = NegateCondition(cc_reg_);
 
   } else if (op == Token::DELETE) {
     Property* property = node->expression()->AsProperty();
