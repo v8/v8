@@ -1711,6 +1711,10 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       if (IsGlobalObject()) {
         PropertyDetails d = property_dictionary()->DetailsAt(entry);
         if (d.IsDeleted()) {
+          // We've skipped a global object during lookup, so we cannot
+          // use inline caching because the map of the global object
+          // doesn't change if the property should be re-added.
+          result->DisallowCaching();
           result->NotFound();
           return;
         }
