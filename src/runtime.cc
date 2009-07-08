@@ -2598,15 +2598,13 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
         Object* value = receiver->FastPropertyAt(offset);
         return value->IsTheHole() ? Heap::undefined_value() : value;
       }
-      // Lookup cache miss.  Perform lookup and update the cache if
-      // appropriate.
+      // Lookup cache miss.  Perform lookup and update the cache if appropriate.
       LookupResult result;
       receiver->LocalLookup(key, &result);
       if (result.IsProperty() && result.IsLoaded() && result.type() == FIELD) {
         int offset = result.GetFieldIndex();
         KeyedLookupCache::Update(receiver_map, key, offset);
-        Object* value = receiver->FastPropertyAt(offset);
-        return value->IsTheHole() ? Heap::undefined_value() : value;
+        return receiver->FastPropertyAt(offset);
       }
     } else {
       // Attempt dictionary lookup.
@@ -2615,10 +2613,10 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       if ((entry != StringDictionary::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
         Object* value = dictionary->ValueAt(entry);
-        if (receiver->IsGlobalObject()) {
-           value = JSGlobalPropertyCell::cast(value)->value();
-        }
-        return value;
+        if (!receiver->IsGlobalObject()) return value;
+        value = JSGlobalPropertyCell::cast(value)->value();
+        if (!value->IsTheHole()) return value;
+        // If value is the hole do the general lookup.
       }
     }
   }
