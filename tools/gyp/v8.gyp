@@ -153,7 +153,7 @@
         'v8_base',
       ],
       'sources': [
-        '<(INTERMEDIATE_DIR)/libraries-empty.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/libraries-empty.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
