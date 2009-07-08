@@ -2424,13 +2424,23 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   JumpTarget exit;
   LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                         &then, &else_, true);
-  Branch(false, &else_);
-  then.Bind();
-  LoadAndSpill(node->then_expression(), typeof_state());
-  exit.Jump();
-  else_.Bind();
-  LoadAndSpill(node->else_expression(), typeof_state());
-  exit.Bind();
+  if (frame_ != NULL) {
+    Branch(false, &else_);
+  }
+  if (frame_ != NULL || then.is_linked()) {
+    then.Bind();
+    LoadAndSpill(node->then_expression(), typeof_state());
+  }
+  if (frame_ != NULL) {
+    exit.Jump();
+  }
+  if (else_.is_linked()) {
+    else_.Bind();
+    LoadAndSpill(node->else_expression(), typeof_state());
+  }
+  if (exit.is_linked()) {
+    exit.Bind();
+  }
   ASSERT(frame_->height() == original_height + 1);
 }
 
