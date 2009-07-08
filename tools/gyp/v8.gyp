@@ -154,7 +154,7 @@
       ],
       'sources': [
         '<(INTERMEDIATE_DIR)/libraries-empty.cc',
-        '../../src/snapshot.cc',
+        '<(INTERMEDIATE_DIR)/snapshot.cc',
       ],
       'actions': [
         {
