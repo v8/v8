@@ -105,8 +105,8 @@ namespace internal {
   V(Map, boilerplate_function_map, BoilerplateFunctionMap)                     \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, proxy_map, ProxyMap)                                                  \
-  V(Map, one_word_filler_map, OneWordFillerMap)                                \
-  V(Map, two_word_filler_map, TwoWordFillerMap)                                \
+  V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
+  V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
@@ -263,6 +263,7 @@ class Heap : public AllStatic {
   static OldSpace* old_data_space() { return old_data_space_; }
   static OldSpace* code_space() { return code_space_; }
   static MapSpace* map_space() { return map_space_; }
+  static CellSpace* cell_space() { return cell_space_; }
   static LargeObjectSpace* lo_space() { return lo_space_; }
 
   static bool always_allocate() { return always_allocate_scope_depth_ != 0; }
@@ -852,6 +853,7 @@ class Heap : public AllStatic {
   static OldSpace* old_data_space_;
   static OldSpace* code_space_;
   static MapSpace* map_space_;
+  static CellSpace* cell_space_;
   static LargeObjectSpace* lo_space_;
   static HeapState gc_state_;
 
@@ -975,7 +977,10 @@ class Heap : public AllStatic {
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
   // have to test the allocation space argument and (b) can reduce code size
   // (since both AllocateRaw and AllocateRawMap are inlined).
-  static inline Object* AllocateRawMap(int size_in_bytes);
+  static inline Object* AllocateRawMap();
+
+  // Allocate an uninitialized object in the global property cell space.
+  static inline Object* AllocateRawCell();
 
   // Initializes a JSObject based on its map.
   static void InitializeJSObjectFromMap(JSObject* obj,

@@ -768,6 +768,8 @@ int Failure::value() const {
 
 
 Failure* Failure::RetryAfterGC(int requested_bytes) {
+  // Assert that the space encoding fits in the three bytes allotted for it.
+  ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
   int requested = requested_bytes >> kObjectAlignmentBits;
   int value = (requested << kSpaceTagSize) | NEW_SPACE;
   ASSERT(value >> kSpaceTagSize == requested);

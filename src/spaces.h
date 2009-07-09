@@ -1315,8 +1315,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
  private:
   // The size range of blocks, in bytes. (Smaller allocations are allowed, but
   // will always result in waste.)
-  static const int kMinBlockSize =
-      POINTER_SIZE_ALIGN(ByteArray::kHeaderSize) + kPointerSize;
+  static const int kMinBlockSize = 2 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxHeapObjectSize;
 
   // The identity of the owning space, for building allocation Failure
@@ -1391,9 +1390,9 @@ class OldSpaceFreeList BASE_EMBEDDED {
 
 
 // The free list for the map space.
-class MapSpaceFreeList BASE_EMBEDDED {
+class FixedSizeFreeList BASE_EMBEDDED {
  public:
-  explicit MapSpaceFreeList(AllocationSpace owner);
+  FixedSizeFreeList(AllocationSpace owner, int object_size);
 
   // Clear the free list.
   void Reset();
@@ -1402,12 +1401,12 @@ class MapSpaceFreeList BASE_EMBEDDED {
   int available() { return available_; }
 
   // Place a node on the free list.  The block starting at 'start' (assumed to
-  // have size Map::kSize) is placed on the free list.  Bookkeeping
+  // have size object_size_) is placed on the free list.  Bookkeeping
   // information will be written to the block, ie, its contents will be
   // destroyed.  The start address should be word aligned.
   void Free(Address start);
 
-  // Allocate a map-sized block from the free list.  The block is unitialized.
+  // Allocate a fixed sized block from the free list.  The block is unitialized.
   // A failure is returned if no block is available.
   Object* Allocate();
 
@@ -1422,7 +1421,10 @@ class MapSpaceFreeList BASE_EMBEDDED {
   // objects.
   AllocationSpace owner_;
 
-  DISALLOW_COPY_AND_ASSIGN(MapSpaceFreeList);
+  // The size of the objects in this space.
+  int object_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(FixedSizeFreeList);
 };
 
 
@@ -1460,12 +1462,6 @@ class OldSpace : public PagedSpace {
   // clears the free list.
   virtual void PrepareForMarkCompact(bool will_compact);
 
-  // Adjust the top of relocation pointer to point to the end of the object
-  // given by 'address' and 'size_in_bytes'.  Move it to the next page if
-  // necessary, ensure that it points to the address, then increment it by the
-  // size.
-  void MCAdjustRelocationEnd(Address address, int size_in_bytes);
-
   // Updates the allocation pointer to the relocation top after a mark-compact
   // collection.
   virtual void MCCommitRelocationInfo();
@@ -1492,38 +1488,39 @@ class OldSpace : public PagedSpace {
   // The space's free list.
   OldSpaceFreeList free_list_;
 
-  // During relocation, we keep a pointer to the most recently relocated
-  // object in order to know when to move to the next page.
-  Address mc_end_of_relocation_;
-
  public:
   TRACK_MEMORY("OldSpace")
 };
 
 
 // -----------------------------------------------------------------------------
-// Old space for all map objects
+// Old space for objects of a fixed size
 
-class MapSpace : public PagedSpace {
+class FixedSpace : public PagedSpace {
  public:
-  // Creates a map space object with a maximum capacity.
-  explicit MapSpace(int max_capacity, AllocationSpace id)
-      : PagedSpace(max_capacity, id, NOT_EXECUTABLE), free_list_(id) { }
+  FixedSpace(int max_capacity,
+             AllocationSpace id,
+             int object_size_in_bytes,
+             const char* name)
+      : PagedSpace(max_capacity, id, NOT_EXECUTABLE),
+        object_size_in_bytes_(object_size_in_bytes),
+        name_(name),
+        free_list_(id, object_size_in_bytes),
+        page_extra_(Page::kObjectAreaSize % object_size_in_bytes) { }
 
   // The top of allocation in a page in this space. Undefined if page is unused.
   virtual Address PageAllocationTop(Page* page) {
     return page == TopPageOf(allocation_info_) ? top()
-        : page->ObjectAreaEnd() - kPageExtra;
+        : page->ObjectAreaEnd() - page_extra_;
   }
 
-  // Give a map-sized block of memory to the space's free list.
+  int object_size_in_bytes() { return object_size_in_bytes_; }
+
+  // Give a fixed sized block of memory to the space's free list.
   void Free(Address start) {
     free_list_.Free(start);
     accounting_stats_.DeallocateBytes(Map::kSize);
   }
-
-  // Given an index, returns the page address.
-  Address PageAddress(int page_index) { return page_addresses_[page_index]; }
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact(bool will_compact);
@@ -1536,17 +1533,15 @@ class MapSpace : public PagedSpace {
   // Verify integrity of this space.
   virtual void Verify();
 
+  // Implement by subclasses to verify an actual object in the space.
+  virtual void VerifyObject(HeapObject* obj) = 0;
+
   // Reports statistic info of the space
   void ReportStatistics();
+
   // Dump the remembered sets in the space to stdout.
   void PrintRSet();
 #endif
-
-  // Constants.
-  static const int kMapPageIndexBits = 10;
-  static const int kMaxMapPageIndex = (1 << kMapPageIndexBits) - 1;
-
-  static const int kPageExtra = Page::kObjectAreaSize % Map::kSize;
 
  protected:
   // Virtual function in the superclass.  Slow path of AllocateRaw.
@@ -1557,11 +1552,65 @@ class MapSpace : public PagedSpace {
   HeapObject* AllocateInNextPage(Page* current_page, int size_in_bytes);
 
  private:
-  // The space's free list.
-  MapSpaceFreeList free_list_;
+  // The size of objects in this space.
+  int object_size_in_bytes_;
 
+  // The name of this space.
+  const char* name_;
+
+  // The space's free list.
+  FixedSizeFreeList free_list_;
+
+  // Bytes of each page that cannot be allocated.
+  int page_extra_;
+};
+
+
+// -----------------------------------------------------------------------------
+// Old space for all map objects
+
+class MapSpace : public FixedSpace {
+ public:
+  // Creates a map space object with a maximum capacity.
+  MapSpace(int max_capacity, AllocationSpace id)
+      : FixedSpace(max_capacity, id, Map::kSize, "map") {}
+
+  // Prepares for a mark-compact GC.
+  virtual void PrepareForMarkCompact(bool will_compact);
+
+  // Given an index, returns the page address.
+  Address PageAddress(int page_index) { return page_addresses_[page_index]; }
+
+  // Constants.
+  static const int kMaxMapPageIndex = (1 << MapWord::kMapPageIndexBits) - 1;
+
+ protected:
+#ifdef DEBUG
+  virtual void VerifyObject(HeapObject* obj);
+#endif
+
+ private:
   // An array of page start address in a map space.
   Address page_addresses_[kMaxMapPageIndex + 1];
+
+ public:
+  TRACK_MEMORY("MapSpace")
+};
+
+
+// -----------------------------------------------------------------------------
+// Old space for all global object property cell objects
+
+class CellSpace : public FixedSpace {
+ public:
+  // Creates a property cell space object with a maximum capacity.
+  CellSpace(int max_capacity, AllocationSpace id)
+      : FixedSpace(max_capacity, id, JSGlobalPropertyCell::kSize, "cell") {}
+
+ protected:
+#ifdef DEBUG
+  virtual void VerifyObject(HeapObject* obj);
+#endif
 
  public:
   TRACK_MEMORY("MapSpace")

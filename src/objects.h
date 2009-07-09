@@ -928,12 +928,14 @@ class Smi: public Object {
 
 // Failure is used for reporting out of memory situations and
 // propagating exceptions through the runtime system.  Failure objects
-// are transient and cannot occur as part of the objects graph.
+// are transient and cannot occur as part of the object graph.
 //
 // Failures are a single word, encoded as follows:
 // +-------------------------+---+--+--+
 // |rrrrrrrrrrrrrrrrrrrrrrrrr|sss|tt|11|
 // +-------------------------+---+--+--+
+//  3                       7 6 4 32 10
+//  1
 //
 // The low two bits, 0-1, are the failure tag, 11.  The next two bits,
 // 2-3, are a failure type tag 'tt' with possible values:
@@ -944,18 +946,13 @@ class Smi: public Object {
 //
 // The next three bits, 4-6, are an allocation space tag 'sss'.  The
 // allocation space tag is 000 for all failure types except
-// RETRY_AFTER_GC.  For RETRY_AFTER_GC, the possible values are
-// (the encoding is found in globals.h):
-//   000 NEW_SPACE
-//   001 OLD_SPACE
-//   010 CODE_SPACE
-//   011 MAP_SPACE
-//   100 LO_SPACE
+// RETRY_AFTER_GC.  For RETRY_AFTER_GC, the possible values are the
+// allocation spaces (the encoding is found in globals.h).
 //
-// The remaining bits is the number of words requested by the
-// allocation request that failed, and is zeroed except for
-// RETRY_AFTER_GC failures.  The 25 bits (on a 32 bit platform) gives
-// a representable range of 2^27 bytes (128MB).
+// The remaining bits is the size of the allocation request in units
+// of the pointer size, and is zeroed except for RETRY_AFTER_GC
+// failures.  The 25 bits (on a 32 bit platform) gives a representable
+// range of 2^27 bytes (128MB).
 
 // Failure type tag info.
 const int kFailureTypeTagSize = 2;
@@ -1085,14 +1082,6 @@ class MapWord BASE_EMBEDDED {
 
   inline Address ToEncodedAddress();
 
- private:
-  // HeapObject calls the private constructor and directly reads the value.
-  friend class HeapObject;
-
-  explicit MapWord(uintptr_t value) : value_(value) {}
-
-  uintptr_t value_;
-
   // Bits used by the marking phase of the garbage collector.
   //
   // The first word of a heap object is normally a map pointer. The last two
@@ -1134,6 +1123,14 @@ class MapWord BASE_EMBEDDED {
   // 0xFFE00000
   static const uint32_t kForwardingOffsetMask =
       ~(kMapPageIndexMask | kMapPageOffsetMask);
+
+ private:
+  // HeapObject calls the private constructor and directly reads the value.
+  friend class HeapObject;
+
+  explicit MapWord(uintptr_t value) : value_(value) {}
+
+  uintptr_t value_;
 };
 
 
