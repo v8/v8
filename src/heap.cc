@@ -601,6 +601,7 @@ static void VerifyNonPointerSpacePointers() {
 }
 #endif
 
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -667,12 +668,6 @@ void Heap::Scavenge() {
     HeapObject* heap_object = old_pointer_iterator.next();
     heap_object->Iterate(&scavenge_visitor);
   }
-
-  HeapObjectIterator cell_iterator(cell_space_);
-  while (cell_iterator.has_next()) {
-    cell_iterator.next()->Iterate(&scavenge_visitor);
-  }
-
   HeapObjectIterator map_iterator(map_space_);
   while (map_iterator.has_next()) {
     HeapObject* heap_object = map_iterator.next();
@@ -689,10 +684,21 @@ void Heap::Scavenge() {
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
   IterateRSet(old_pointer_space_, &ScavengePointer);
-  IterateRSet(cell_space_, &ScavengePointer);
   IterateRSet(map_space_, &ScavengePointer);
   lo_space_->IterateRSet(&ScavengePointer);
 #endif
+
+  // Copy objects reachable from cells by scavenging cell values directly.
+  HeapObjectIterator cell_iterator(cell_space_);
+  while (cell_iterator.has_next()) {
+    HeapObject* cell = cell_iterator.next();
+    if (cell->IsJSGlobalPropertyCell()) {
+      Address value_address =
+          reinterpret_cast<Address>(cell) +
+          (JSGlobalPropertyCell::kValueOffset - kHeapObjectTag);
+      scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
+    }
+  }
 
   do {
     ASSERT(new_space_front <= new_space_.top());
@@ -832,16 +838,13 @@ int Heap::UpdateRSet(HeapObject* obj) {
 
 
 void Heap::RebuildRSets() {
-  // By definition, we do not care about remembered set bits in code or data
-  // spaces.
+  // By definition, we do not care about remembered set bits in code,
+  // data, or cell spaces.
   map_space_->ClearRSet();
   RebuildRSets(map_space_);
 
   old_pointer_space_->ClearRSet();
   RebuildRSets(old_pointer_space_);
-
-  cell_space_->ClearRSet();
-  RebuildRSets(cell_space_);
 
   Heap::lo_space_->ClearRSet();
   RebuildRSets(lo_space_);
@@ -2864,9 +2867,7 @@ int Heap::IterateRSetRange(Address object_start,
 
 void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
   ASSERT(Page::is_rset_in_use());
-  ASSERT(space == old_pointer_space_ ||
-         space == cell_space_ ||
-         space == map_space_);
+  ASSERT(space == old_pointer_space_ || space == map_space_);
 
   static void* paged_rset_histogram = StatsTable::CreateHistogram(
       "V8.RSetPaged",
