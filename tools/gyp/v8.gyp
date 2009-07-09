@@ -152,7 +152,7 @@
         'js2c',
         'v8_base',
       ],
-      'include_dirs': [
+      'include_dirs+': [
         '../../src',
       ],
       'sources': [
@@ -179,7 +179,7 @@
         'js2c',
         'v8_base',
       ],
-      'include_dirs': [
+      'include_dirs+': [
         '../../src',
       ],
       'sources': [
@@ -190,7 +190,7 @@
     {
       'target_name': 'v8_base',
       'type': '<(library)',
-      'include_dirs': [
+      'include_dirs+': [
         '../../src',
       ],
       'sources': [
@@ -509,7 +509,7 @@
       'dependencies': [
         'v8_nosnapshot',
       ],
-      'include_dirs': [
+      'include_dirs+': [
         '../../src',
       ],
       'sources': [
