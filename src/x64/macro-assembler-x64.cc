@@ -176,7 +176,7 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   const char* name = Builtins::GetName(id);
   int argc = Builtins::GetArgumentsCount(id);
 
-  movq(target, code, RelocInfo::EXTERNAL_REFERENCE);  // Is external reference?
+  movq(target, code, RelocInfo::EMBEDDED_OBJECT);
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
@@ -208,7 +208,9 @@ Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
 
 
 void MacroAssembler::Set(Register dst, int64_t x) {
-  if (is_int32(x)) {
+  if (x == 0) {
+    xor_(dst, dst);
+  } else if (is_int32(x)) {
     movq(dst, Immediate(x));
   } else if (is_uint32(x)) {
     movl(dst, Immediate(x));
@@ -219,14 +221,17 @@ void MacroAssembler::Set(Register dst, int64_t x) {
 
 
 void MacroAssembler::Set(const Operand& dst, int64_t x) {
-  if (is_int32(x)) {
-    movq(kScratchRegister, Immediate(x));
+  if (x == 0) {
+    xor_(kScratchRegister, kScratchRegister);
+    movq(dst, kScratchRegister);
+  } else if (is_int32(x)) {
+    movq(dst, Immediate(x));
   } else if (is_uint32(x)) {
-    movl(kScratchRegister, Immediate(x));
+    movl(dst, Immediate(x));
   } else {
     movq(kScratchRegister, x, RelocInfo::NONE);
+    movq(dst, kScratchRegister);
   }
-  movq(dst, kScratchRegister);
 }
 
 
@@ -240,11 +245,13 @@ void MacroAssembler::LoadUnsafeSmi(Register dst, Smi* source) {
 
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
+  ASSERT(!source->IsFailure());
   if (source->IsSmi()) {
     if (IsUnsafeSmi(source)) {
       LoadUnsafeSmi(dst, source);
     } else {
-      movq(dst, source, RelocInfo::NONE);
+      int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+      movq(dst, Immediate(smi));
     }
   } else {
     movq(dst, source, RelocInfo::EMBEDDED_OBJECT);
@@ -253,8 +260,13 @@ void MacroAssembler::Move(Register dst, Handle<Object> source) {
 
 
 void MacroAssembler::Move(const Operand& dst, Handle<Object> source) {
-  Move(kScratchRegister, source);
-  movq(dst, kScratchRegister);
+  if (source->IsSmi()) {
+    int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+    movq(dst, Immediate(smi));
+  } else {
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    movq(dst, kScratchRegister);
+  }
 }
 
 
@@ -265,14 +277,37 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 
 
 void MacroAssembler::Cmp(const Operand& dst, Handle<Object> source) {
-  Move(kScratchRegister, source);
-  cmpq(dst, kScratchRegister);
+  if (source->IsSmi()) {
+    if (IsUnsafeSmi(source)) {
+      LoadUnsafeSmi(kScratchRegister, source);
+      cmpl(dst, kScratchRegister);
+    } else {
+      // For smi-comparison, it suffices to compare the low 32 bits.
+      int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+      cmpl(dst, Immediate(smi));
+    }
+  } else {
+    ASSERT(source->IsHeapObject());
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    cmpq(dst, kScratchRegister);
+  }
 }
 
 
 void MacroAssembler::Push(Handle<Object> source) {
-  Move(kScratchRegister, source);
-  push(kScratchRegister);
+  if (source->IsSmi()) {
+    if (IsUnsafeSmi(source)) {
+      LoadUnsafeSmi(kScratchRegister, source);
+      push(kScratchRegister);
+    } else {
+      int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(*source));
+      push(Immediate(smi));
+    }
+  } else {
+    ASSERT(source->IsHeapObject());
+    movq(kScratchRegister, source, RelocInfo::EMBEDDED_OBJECT);
+    push(kScratchRegister);
+  }
 }
 
 
@@ -589,7 +624,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry =
         { pc_offset() - kTargetAddrToReturnAddrDist, flags, name };

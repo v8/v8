@@ -1,3 +1,14 @@
+2009-07-09: Version 1.2.13
+
+        Fixed issue 397, issue 398, and issue 399.
+
+        Added support for breakpoint groups.
+
+        Fixed bugs introduced with the new global object representation.
+
+        Fixed a few bugs in the ARM code generator.
+
+
 2009-07-06: Version 1.2.12
 
         Added stack traces collection to Error objects accessible through

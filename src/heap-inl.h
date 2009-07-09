@@ -216,7 +216,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 
 
 void Heap::SetLastScriptId(Object* last_script_id) {
-  last_script_id_ = last_script_id;
+  roots_[kLastScriptIdRootIndex] = last_script_id;
 }
 
 

@@ -1576,10 +1576,10 @@ VariableProxy* AstBuildingParser::Declare(Handle<String> name,
   // to the calling function context.
   if (top_scope_->is_function_scope()) {
     // Declare the variable in the function scope.
-    var = top_scope_->LookupLocal(name);
+    var = top_scope_->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = top_scope_->Declare(name, mode);
+      var = top_scope_->DeclareLocal(name, mode);
     } else {
       // The name was declared before; check for conflicting
       // re-declarations. If the previous declaration was a const or the
@@ -2045,7 +2045,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   //   'continue' Identifier? ';'
 
   Expect(Token::CONTINUE, CHECK_OK);
-  Handle<String> label(static_cast<String**>(NULL));
+  Handle<String> label = Handle<String>::null();
   Token::Value tok = peek();
   if (!scanner_.has_line_terminator_before_next() &&
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
@@ -3466,8 +3466,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
     while (!done) {
       Handle<String> param_name = ParseIdentifier(CHECK_OK);
       if (!is_pre_parsing_) {
-        top_scope_->AddParameter(top_scope_->Declare(param_name,
-                                                     Variable::VAR));
+        top_scope_->AddParameter(top_scope_->DeclareLocal(param_name,
+                                                          Variable::VAR));
         num_parameters++;
       }
       done = (peek() == Token::RPAREN);

@@ -366,15 +366,6 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
 }
 
 
-void CodeGenerator::GenerateFastCaseSwitchJumpTable(SwitchStatement* a,
-                                                    int b,
-                                                    int c,
-                                                    Label* d,
-                                                    Vector<Label*> e,
-                                                    Vector<Label> f) {
-  UNIMPLEMENTED();
-}
-
 #ifdef DEBUG
 bool CodeGenerator::HasValidEntryRegisters() {
   return (allocator()->count(rax) == (frame()->is_used(rax) ? 1 : 0))
@@ -1276,7 +1267,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   frame_->EmitPush(rax);  // <- slot 3
   frame_->EmitPush(rdx);  // <- slot 2
-  __ movq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
+  __ movsxlq(rax, FieldOperand(rdx, FixedArray::kLengthOffset));
   __ shl(rax, Immediate(kSmiTagSize));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
@@ -1288,7 +1279,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(rax);  // <- slot 2
 
   // Push the length of the array and the initial index onto the stack.
-  __ movq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
+  __ movsxlq(rax, FieldOperand(rax, FixedArray::kLengthOffset));
   __ shl(rax, Immediate(kSmiTagSize));
   frame_->EmitPush(rax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
@@ -1308,8 +1299,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ movq(rdx, frame_->ElementAt(2));
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   // Multiplier is times_4 since rax is already a Smi.
-  __ movq(rbx, Operand(rdx, rax, times_4,
-                       FixedArray::kHeaderSize - kHeapObjectTag));
+  __ movq(rbx, FieldOperand(rdx, rax, times_4, FixedArray::kHeaderSize));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case rax: current iteration count rbx: i'th entry
@@ -2459,13 +2449,13 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   // receiver.  Use a scratch register to avoid destroying the result.
   Result scratch = allocator_->Allocate();
   ASSERT(scratch.is_valid());
-  __ movl(scratch.reg(),
+  __ movq(scratch.reg(),
           FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(0)));
   frame_->SetElementAt(arg_count + 1, &scratch);
 
   // We can reuse the result register now.
   frame_->Spill(result.reg());
-  __ movl(result.reg(),
+  __ movq(result.reg(),
           FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(1)));
   frame_->SetElementAt(arg_count, &result);
 
@@ -3144,11 +3134,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
                Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
-      __ movb(kScratchRegister,
-              FieldOperand(kScratchRegister, Map::kInstanceTypeOffset));
-      __ cmpb(kScratchRegister, Immediate(FIRST_JS_OBJECT_TYPE));
+      __ CmpInstanceType(kScratchRegister, FIRST_JS_OBJECT_TYPE);
       destination()->false_target()->Branch(below);
-      __ cmpb(kScratchRegister, Immediate(LAST_JS_OBJECT_TYPE));
+      __ CmpInstanceType(kScratchRegister, LAST_JS_OBJECT_TYPE);
       answer.Unuse();
       destination()->Split(below_equal);
     } else {
@@ -3246,10 +3234,25 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
-  // TODO(X64): Optimize this like it's done on IA-32.
   ASSERT(args->length() == 0);
-  Result answer = frame_->CallRuntime(Runtime::kIsConstructCall, 0);
-  frame_->Push(&answer);
+
+  // Get the frame pointer for the calling frame.
+  Result fp = allocator()->Allocate();
+  __ movq(fp.reg(), Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  Label check_frame_marker;
+  __ cmpq(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
+          Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ j(not_equal, &check_frame_marker);
+  __ movq(fp.reg(), Operand(fp.reg(), StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ cmpq(Operand(fp.reg(), StandardFrameConstants::kMarkerOffset),
+          Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
+  fp.Unuse();
+  destination()->Split(equal);
 }
 
 
@@ -3361,7 +3364,21 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  UNIMPLEMENTED();
+  // TODO(X64): Use inline floating point in the fast case.
+  ASSERT(args->length() == 1);
+
+  // Load number.
+  Load(args->at(0));
+  Result answer;
+  switch (op) {
+    case SIN:
+      answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
+      break;
+    case COS:
+      answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
+      break;
+  }
+  frame_->Push(&answer);
 }
 
 
@@ -3379,27 +3396,22 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
-  { Result tmp = allocator()->Allocate();
-    __ movq(obj.reg(), FieldOperand(obj.reg(), HeapObject::kMapOffset));
-    __ movb(tmp.reg(), FieldOperand(obj.reg(), Map::kInstanceTypeOffset));
-    __ cmpb(tmp.reg(), Immediate(FIRST_JS_OBJECT_TYPE));
-    null.Branch(less);
 
-    // As long as JS_FUNCTION_TYPE is the last instance type and it is
-    // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
-    // LAST_JS_OBJECT_TYPE.
-    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
-    ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-    __ cmpb(tmp.reg(), Immediate(JS_FUNCTION_TYPE));
-    function.Branch(equal);
-  }
+  __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
+  null.Branch(less);
+
+  // As long as JS_FUNCTION_TYPE is the last instance type and it is
+  // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
+  // LAST_JS_OBJECT_TYPE.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+  ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+  __ CmpInstanceType(obj.reg(), JS_FUNCTION_TYPE);
+  function.Branch(equal);
 
   // Check if the constructor in the map is a function.
-  { Result tmp = allocator()->Allocate();
-    __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
-    __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, tmp.reg());
-    non_function_constructor.Branch(not_equal);
-  }
+  __ movq(obj.reg(), FieldOperand(obj.reg(), Map::kConstructorOffset));
+  __ CmpObjectType(obj.reg(), JS_FUNCTION_TYPE, kScratchRegister);
+  non_function_constructor.Branch(not_equal);
 
   // The obj register now contains the constructor function. Grab the
   // instance class name from there.
@@ -3803,8 +3815,28 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
                                                          Result tmp,
                                                          JumpTarget* slow) {
-  UNIMPLEMENTED();
-  return Operand(rsp, 0);
+  ASSERT(slot->type() == Slot::CONTEXT);
+  ASSERT(tmp.is_register());
+  Register context = rsi;
+
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX),
+                Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      __ movq(tmp.reg(), ContextOperand(context, Context::CLOSURE_INDEX));
+      __ movq(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp.reg();
+    }
+  }
+  // Check that last extension is NULL.
+  __ cmpq(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
+  slow->Branch(not_equal, not_taken);
+  __ movq(tmp.reg(), ContextOperand(context, Context::FCONTEXT_INDEX));
+  return ContextOperand(tmp.reg(), slot->index());
 }
 
 
@@ -4316,12 +4348,8 @@ void CodeGenerator::Comparison(Condition cc,
       left_side = Result(left_reg);
       right_side = Result(right_val);
       // Test smi equality and comparison by signed int comparison.
-      if (IsUnsafeSmi(right_side.handle())) {
-        right_side.ToRegister();
-        __ cmpq(left_side.reg(), right_side.reg());
-      } else {
-        __ Cmp(left_side.reg(), right_side.handle());
-      }
+      // Both sides are smis, so we can use an Immediate.
+      __ cmpl(left_side.reg(), Immediate(Smi::cast(*right_side.handle())));
       left_side.Unuse();
       right_side.Unuse();
       dest->Split(cc);
@@ -4373,7 +4401,8 @@ void CodeGenerator::Comparison(Condition cc,
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      __ testq(answer.reg(), answer.reg());  // Both zero and sign flag right.
+      // The result is a Smi, which is negative, zero, or positive.
+      __ testl(answer.reg(), answer.reg());  // Both zero and sign flag right.
       answer.Unuse();
       dest->Split(cc);
     } else {
@@ -4393,11 +4422,7 @@ void CodeGenerator::Comparison(Condition cc,
       // When non-smi, call out to the compare stub.
       CompareStub stub(cc, strict);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
-      if (cc == equal) {
-        __ testq(answer.reg(), answer.reg());
-      } else {
-        __ cmpq(answer.reg(), Immediate(0));
-      }
+      __ testl(answer.reg(), answer.reg());  // Sets both zero and sign flags.
       answer.Unuse();
       dest->true_target()->Branch(cc);
       dest->false_target()->Jump();
@@ -4405,7 +4430,7 @@ void CodeGenerator::Comparison(Condition cc,
       is_smi.Bind();
       left_side = Result(left_reg);
       right_side = Result(right_reg);
-      __ cmpq(left_side.reg(), right_side.reg());
+      __ cmpl(left_side.reg(), right_side.reg());
       right_side.Unuse();
       left_side.Unuse();
       dest->Split(cc);
@@ -5421,6 +5446,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(equal, &false_result);
 
   // Get the map and type of the heap object.
+  // We don't use CmpObjectType because we manipulate the type field.
   __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
   __ movzxbq(rcx, FieldOperand(rdx, Map::kInstanceTypeOffset));
 
@@ -5446,6 +5472,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_string);
   // HeapNumber => false iff +0, -0, or NaN.
+  // These three cases set C3 when compared to zero in the FPU.
   __ Cmp(rdx, Factory::heap_number_map());
   __ j(not_equal, &true_result);
   // TODO(x64): Don't use fp stack, use MMX registers?
@@ -5455,9 +5482,9 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ fucompp();  // Compare and pop both values.
   __ movq(kScratchRegister, rax);
   __ fnstsw_ax();  // Store fp status word in ax, no checking for exceptions.
-  __ testb(rax, Immediate(0x08));  // Test FP condition flag C3.
+  __ testl(rax, Immediate(0x4000));  // Test FP condition flag C3, bit 16.
   __ movq(rax, kScratchRegister);
-  __ j(zero, &false_result);
+  __ j(not_zero, &false_result);
   // Fall through to |true_result|.
 
   // Return 1/0 for true/false in rax.
@@ -5617,7 +5644,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
       // Read double representation into rax.
-      __ movq(rbx, 0x7ff0000000000000, RelocInfo::NONE);
+      __ movq(rbx, V8_UINT64_C(0x7ff0000000000000), RelocInfo::NONE);
       __ movq(rax, FieldOperand(rdx, HeapNumber::kValueOffset));
       // Test that exponent bits are all set.
       __ or_(rbx, rax);
@@ -5627,7 +5654,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ shl(rax, Immediate(12));
       // If all bits in the mantissa are zero the number is Infinity, and
       // we return zero.  Otherwise it is a NaN, and we return non-zero.
-      // So just return rax.
+      // We cannot just return rax because only eax is tested on return.
+      __ setcc(not_zero, rax);
       __ ret(0);
 
       __ bind(&not_identical);
@@ -5665,7 +5693,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
                Factory::heap_number_map());
         // If heap number, handle it in the slow case.
         __ j(equal, &slow);
-        // Return non-equal (ebx is not zero)
+        // Return non-equal.  ebx (the lower half of rbx) is not zero.
         __ movq(rax, rbx);
         __ ret(0);
 
@@ -5681,7 +5709,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       Label first_non_object;
       __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
       __ j(below, &first_non_object);
-      // Return non-zero (rax is not zero)
+      // Return non-zero (eax (not rax) is not zero)
       Label return_not_equal;
       ASSERT(kHeapObjectTag != 0);
       __ bind(&return_not_equal);
@@ -5745,7 +5773,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     BranchIfNonSymbol(masm, &call_builtin, rdx, kScratchRegister);
 
     // We've already checked for object identity, so if both operands
-    // are symbols they aren't equal. Register rax already holds a
+    // are symbols they aren't equal. Register eax (not rax) already holds a
     // non-zero value, which indicates not equal, so just return.
     __ ret(2 * kPointerSize);
   }

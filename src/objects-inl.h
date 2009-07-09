@@ -481,7 +481,7 @@ bool Object::IsDictionary() {
 
 
 bool Object::IsSymbolTable() {
-  return IsHashTable() && this == Heap::symbol_table();
+  return IsHashTable() && this == Heap::raw_unchecked_symbol_table();
 }
 
 
@@ -2655,8 +2655,8 @@ void Map::ClearCodeCache() {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
-  ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
-  WRITE_FIELD(this, kCodeCacheOffset, Heap::empty_fixed_array());
+  ASSERT(!Heap::InNewSpace(Heap::raw_unchecked_empty_fixed_array()));
+  WRITE_FIELD(this, kCodeCacheOffset, Heap::raw_unchecked_empty_fixed_array());
 }
 
 

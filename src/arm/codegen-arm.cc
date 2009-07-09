@@ -2421,16 +2421,22 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
   JumpTarget then;
   JumpTarget else_;
-  JumpTarget exit;
   LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                         &then, &else_, true);
-  Branch(false, &else_);
-  then.Bind();
-  LoadAndSpill(node->then_expression(), typeof_state());
-  exit.Jump();
-  else_.Bind();
-  LoadAndSpill(node->else_expression(), typeof_state());
-  exit.Bind();
+  if (has_valid_frame()) {
+    Branch(false, &else_);
+  }
+  if (has_valid_frame() || then.is_linked()) {
+    then.Bind();
+    LoadAndSpill(node->then_expression(), typeof_state());
+  }
+  if (else_.is_linked()) {
+    JumpTarget exit;
+    if (has_valid_frame()) exit.Jump();
+    else_.Bind();
+    LoadAndSpill(node->else_expression(), typeof_state());
+    if (exit.is_linked()) exit.Bind();
+  }
   ASSERT(frame_->height() == original_height + 1);
 }
 
@@ -3453,8 +3459,22 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 0);
-  frame_->CallRuntime(Runtime::kIsConstructCall, 0);
-  frame_->EmitPush(r0);
+
+  // Get the frame pointer for the calling frame.
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+
+  // Skip the arguments adaptor frame if it exists.
+  Label check_frame_marker;
+  __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r1, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ b(ne, &check_frame_marker);
+  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+
+  // Check the marker in the calling frame.
+  __ bind(&check_frame_marker);
+  __ ldr(r1, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
+  __ cmp(r1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
+  cc_reg_ = eq;
 }
 
 
@@ -3591,7 +3611,9 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
                           false_target(),
                           true_target(),
                           true);
-    cc_reg_ = NegateCondition(cc_reg_);
+    // LoadCondition may (and usually does) leave a test and branch to
+    // be emitted by the caller.  In that case, negate the condition.
+    if (has_cc()) cc_reg_ = NegateCondition(cc_reg_);
 
   } else if (op == Token::DELETE) {
     Property* property = node->expression()->AsProperty();

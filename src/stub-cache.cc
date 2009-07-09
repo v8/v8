@@ -562,10 +562,11 @@ Object* StubCache::ComputeCallGlobal(int argc,
 
 
 static Object* GetProbeValue(Code::Flags flags) {
-  NumberDictionary* dictionary = Heap::non_monomorphic_cache();
+  // Use raw_unchecked... so we don't get assert failures during GC.
+  NumberDictionary* dictionary = Heap::raw_unchecked_non_monomorphic_cache();
   int entry = dictionary->FindEntry(flags);
   if (entry != -1) return dictionary->ValueAt(entry);
-  return Heap::undefined_value();
+  return Heap::raw_unchecked_undefined_value();
 }
 
 
@@ -579,7 +580,7 @@ static Object* ProbeCache(Code::Flags flags) {
       Heap::non_monomorphic_cache()->AtNumberPut(flags,
                                                  Heap::undefined_value());
   if (result->IsFailure()) return result;
-  Heap::set_non_monomorphic_cache(NumberDictionary::cast(result));
+  Heap::public_set_non_monomorphic_cache(NumberDictionary::cast(result));
   return probe;
 }
 

@@ -43,21 +43,10 @@
 namespace v8 {
 namespace internal {
 
-#define ROOT_ALLOCATION(type, name) type* Heap::name##_;
-  ROOT_LIST(ROOT_ALLOCATION)
-#undef ROOT_ALLOCATION
-
-
-#define STRUCT_ALLOCATION(NAME, Name, name) Map* Heap::name##_map_;
-  STRUCT_LIST(STRUCT_ALLOCATION)
-#undef STRUCT_ALLOCATION
-
-
-#define SYMBOL_ALLOCATION(name, string) String* Heap::name##_;
-  SYMBOL_LIST(SYMBOL_ALLOCATION)
-#undef SYMBOL_ALLOCATION
 
 String* Heap::hidden_symbol_;
+Object* Heap::roots_[Heap::kRootListLength];
+
 
 NewSpace Heap::new_space_;
 OldSpace* Heap::old_pointer_space_ = NULL;
@@ -284,9 +273,8 @@ void Heap::GarbageCollectionEpilogue() {
 
   Counters::alive_after_last_gc.Set(SizeOfObjects());
 
-  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table_);
-  Counters::symbol_table_capacity.Set(symbol_table->Capacity());
-  Counters::number_of_symbols.Set(symbol_table->NumberOfElements());
+  Counters::symbol_table_capacity.Set(symbol_table()->Capacity());
+  Counters::number_of_symbols.Set(symbol_table()->NumberOfElements());
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   ReportStatisticsAfterGC();
 #endif
@@ -405,8 +393,7 @@ class SymbolTableVerifier : public ObjectVisitor {
 static void VerifySymbolTable() {
 #ifdef DEBUG
   SymbolTableVerifier verifier;
-  SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
-  symbol_table->IterateElements(&verifier);
+  Heap::symbol_table()->IterateElements(&verifier);
 #endif  // DEBUG
 }
 
@@ -1012,7 +999,7 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
   if (result->IsFailure()) return result;
 
   // Map::cast cannot be used due to uninitialized map field.
-  reinterpret_cast<Map*>(result)->set_map(meta_map());
+  reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
   reinterpret_cast<Map*>(result)->set_inobject_properties(0);
@@ -1041,41 +1028,66 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
 }
 
 
+const Heap::StringTypeTable Heap::string_type_table[] = {
+#define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
+  {type, size, k##camel_name##MapRootIndex},
+  STRING_TYPE_LIST(STRING_TYPE_ELEMENT)
+#undef STRING_TYPE_ELEMENT
+};
+
+
+const Heap::ConstantSymbolTable Heap::constant_symbol_table[] = {
+#define CONSTANT_SYMBOL_ELEMENT(name, contents)                                \
+  {contents, k##name##RootIndex},
+  SYMBOL_LIST(CONSTANT_SYMBOL_ELEMENT)
+#undef CONSTANT_SYMBOL_ELEMENT
+};
+
+
+const Heap::StructTable Heap::struct_table[] = {
+#define STRUCT_TABLE_ELEMENT(NAME, Name, name)                                 \
+  { NAME##_TYPE, Name::kSize, k##Name##MapRootIndex },
+  STRUCT_LIST(STRUCT_TABLE_ELEMENT)
+#undef STRUCT_TABLE_ELEMENT
+};
+
+
 bool Heap::CreateInitialMaps() {
   Object* obj = AllocatePartialMap(MAP_TYPE, Map::kSize);
   if (obj->IsFailure()) return false;
 
   // Map::cast cannot be used due to uninitialized map field.
-  meta_map_ = reinterpret_cast<Map*>(obj);
-  meta_map()->set_map(meta_map());
+  Map* new_meta_map = reinterpret_cast<Map*>(obj);
+  set_meta_map(new_meta_map);
+  new_meta_map->set_map(new_meta_map);
 
   obj = AllocatePartialMap(FIXED_ARRAY_TYPE, FixedArray::kHeaderSize);
   if (obj->IsFailure()) return false;
-  fixed_array_map_ = Map::cast(obj);
+  set_fixed_array_map(Map::cast(obj));
 
   obj = AllocatePartialMap(ODDBALL_TYPE, Oddball::kSize);
   if (obj->IsFailure()) return false;
-  oddball_map_ = Map::cast(obj);
+  set_oddball_map(Map::cast(obj));
 
   obj = AllocatePartialMap(JS_GLOBAL_PROPERTY_CELL_TYPE,
                            JSGlobalPropertyCell::kSize);
   if (obj->IsFailure()) return false;
-  global_property_cell_map_ = Map::cast(obj);
+  set_global_property_cell_map(Map::cast(obj));
 
   // Allocate the empty array
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
-  empty_fixed_array_ = FixedArray::cast(obj);
+  set_empty_fixed_array(FixedArray::cast(obj));
 
   obj = Allocate(oddball_map(), OLD_DATA_SPACE);
   if (obj->IsFailure()) return false;
-  null_value_ = obj;
+  set_null_value(obj);
 
   // Allocate the empty descriptor array.  AllocateMap can now be used.
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
   // There is a check against empty_descriptor_array() in cast().
-  empty_descriptor_array_ = reinterpret_cast<DescriptorArray*>(obj);
+  set_empty_descriptor_array(reinterpret_cast<DescriptorArray*>(obj));
 
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_instance_descriptors(empty_descriptor_array());
@@ -1105,95 +1117,95 @@ bool Heap::CreateInitialMaps() {
 
   obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   if (obj->IsFailure()) return false;
-  heap_number_map_ = Map::cast(obj);
+  set_heap_number_map(Map::cast(obj));
 
   obj = AllocateMap(PROXY_TYPE, Proxy::kSize);
   if (obj->IsFailure()) return false;
-  proxy_map_ = Map::cast(obj);
+  set_proxy_map(Map::cast(obj));
 
-#define ALLOCATE_STRING_MAP(type, size, name)   \
-    obj = AllocateMap(type, size);              \
-    if (obj->IsFailure()) return false;         \
-    name##_map_ = Map::cast(obj);
-  STRING_TYPE_LIST(ALLOCATE_STRING_MAP);
-#undef ALLOCATE_STRING_MAP
+  for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
+    const StringTypeTable& entry = string_type_table[i];
+    obj = AllocateMap(entry.type, entry.size);
+    if (obj->IsFailure()) return false;
+    roots_[entry.index] = Map::cast(obj);
+  }
 
   obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  undetectable_short_string_map_ = Map::cast(obj);
-  undetectable_short_string_map_->set_is_undetectable();
+  set_undetectable_short_string_map(Map::cast(obj));
+  Map::cast(obj)->set_is_undetectable();
 
   obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  undetectable_medium_string_map_ = Map::cast(obj);
-  undetectable_medium_string_map_->set_is_undetectable();
+  set_undetectable_medium_string_map(Map::cast(obj));
+  Map::cast(obj)->set_is_undetectable();
 
   obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  undetectable_long_string_map_ = Map::cast(obj);
-  undetectable_long_string_map_->set_is_undetectable();
+  set_undetectable_long_string_map(Map::cast(obj));
+  Map::cast(obj)->set_is_undetectable();
 
   obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  undetectable_short_ascii_string_map_ = Map::cast(obj);
-  undetectable_short_ascii_string_map_->set_is_undetectable();
+  set_undetectable_short_ascii_string_map(Map::cast(obj));
+  Map::cast(obj)->set_is_undetectable();
 
   obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  undetectable_medium_ascii_string_map_ = Map::cast(obj);
-  undetectable_medium_ascii_string_map_->set_is_undetectable();
+  set_undetectable_medium_ascii_string_map(Map::cast(obj));
+  Map::cast(obj)->set_is_undetectable();
 
   obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  undetectable_long_ascii_string_map_ = Map::cast(obj);
-  undetectable_long_ascii_string_map_->set_is_undetectable();
+  set_undetectable_long_ascii_string_map(Map::cast(obj));
+  Map::cast(obj)->set_is_undetectable();
 
   obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kAlignedSize);
   if (obj->IsFailure()) return false;
-  byte_array_map_ = Map::cast(obj);
+  set_byte_array_map(Map::cast(obj));
 
   obj = AllocateMap(CODE_TYPE, Code::kHeaderSize);
   if (obj->IsFailure()) return false;
-  code_map_ = Map::cast(obj);
+  set_code_map(Map::cast(obj));
 
   obj = AllocateMap(FILLER_TYPE, kPointerSize);
   if (obj->IsFailure()) return false;
-  one_word_filler_map_ = Map::cast(obj);
+  set_one_word_filler_map(Map::cast(obj));
 
   obj = AllocateMap(FILLER_TYPE, 2 * kPointerSize);
   if (obj->IsFailure()) return false;
-  two_word_filler_map_ = Map::cast(obj);
+  set_two_word_filler_map(Map::cast(obj));
 
-#define ALLOCATE_STRUCT_MAP(NAME, Name, name)      \
-  obj = AllocateMap(NAME##_TYPE, Name::kSize);     \
-  if (obj->IsFailure()) return false;              \
-  name##_map_ = Map::cast(obj);
-  STRUCT_LIST(ALLOCATE_STRUCT_MAP)
-#undef ALLOCATE_STRUCT_MAP
-
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
-  if (obj->IsFailure()) return false;
-  hash_table_map_ = Map::cast(obj);
+  for (unsigned i = 0; i < ARRAY_SIZE(struct_table); i++) {
+    const StructTable& entry = struct_table[i];
+    obj = AllocateMap(entry.type, entry.size);
+    if (obj->IsFailure()) return false;
+    roots_[entry.index] = Map::cast(obj);
+  }
 
   obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
   if (obj->IsFailure()) return false;
-  context_map_ = Map::cast(obj);
+  set_hash_table_map(Map::cast(obj));
 
   obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
   if (obj->IsFailure()) return false;
-  catch_context_map_ = Map::cast(obj);
+  set_context_map(Map::cast(obj));
 
   obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
   if (obj->IsFailure()) return false;
-  global_context_map_ = Map::cast(obj);
+  set_catch_context_map(Map::cast(obj));
+
+  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
+  if (obj->IsFailure()) return false;
+  set_global_context_map(Map::cast(obj));
 
   obj = AllocateMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   if (obj->IsFailure()) return false;
-  boilerplate_function_map_ = Map::cast(obj);
+  set_boilerplate_function_map(Map::cast(obj));
 
   obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kSize);
   if (obj->IsFailure()) return false;
-  shared_function_info_map_ = Map::cast(obj);
+  set_shared_function_info_map(Map::cast(obj));
 
   ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
   return true;
@@ -1254,15 +1266,15 @@ bool Heap::CreateApiObjects() {
 
   obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   if (obj->IsFailure()) return false;
-  neander_map_ = Map::cast(obj);
+  set_neander_map(Map::cast(obj));
 
-  obj = Heap::AllocateJSObjectFromMap(neander_map_);
+  obj = Heap::AllocateJSObjectFromMap(neander_map());
   if (obj->IsFailure()) return false;
   Object* elements = AllocateFixedArray(2);
   if (elements->IsFailure()) return false;
   FixedArray::cast(elements)->set(0, Smi::FromInt(0));
   JSObject::cast(obj)->set_elements(FixedArray::cast(elements));
-  message_listeners_ = JSObject::cast(obj);
+  set_message_listeners(JSObject::cast(obj));
 
   return true;
 }
@@ -1270,25 +1282,25 @@ bool Heap::CreateApiObjects() {
 
 void Heap::CreateCEntryStub() {
   CEntryStub stub;
-  c_entry_code_ = *stub.GetCode();
+  set_c_entry_code(*stub.GetCode());
 }
 
 
 void Heap::CreateCEntryDebugBreakStub() {
   CEntryDebugBreakStub stub;
-  c_entry_debug_break_code_ = *stub.GetCode();
+  set_c_entry_debug_break_code(*stub.GetCode());
 }
 
 
 void Heap::CreateJSEntryStub() {
   JSEntryStub stub;
-  js_entry_code_ = *stub.GetCode();
+  set_js_entry_code(*stub.GetCode());
 }
 
 
 void Heap::CreateJSConstructEntryStub() {
   JSConstructEntryStub stub;
-  js_construct_entry_code_ = *stub.GetCode();
+  set_js_construct_entry_code(*stub.GetCode());
 }
 
 
@@ -1319,34 +1331,35 @@ bool Heap::CreateInitialObjects() {
   // The -0 value must be set before NumberFromDouble works.
   obj = AllocateHeapNumber(-0.0, TENURED);
   if (obj->IsFailure()) return false;
-  minus_zero_value_ = obj;
-  ASSERT(signbit(minus_zero_value_->Number()) != 0);
+  set_minus_zero_value(obj);
+  ASSERT(signbit(minus_zero_value()->Number()) != 0);
 
   obj = AllocateHeapNumber(OS::nan_value(), TENURED);
   if (obj->IsFailure()) return false;
-  nan_value_ = obj;
+  set_nan_value(obj);
 
   obj = Allocate(oddball_map(), OLD_DATA_SPACE);
   if (obj->IsFailure()) return false;
-  undefined_value_ = obj;
+  set_undefined_value(obj);
   ASSERT(!InNewSpace(undefined_value()));
 
   // Allocate initial symbol table.
   obj = SymbolTable::Allocate(kInitialSymbolTableSize);
   if (obj->IsFailure()) return false;
-  symbol_table_ = obj;
+  // Don't use set_symbol_table() due to asserts.
+  roots_[kSymbolTableRootIndex] = obj;
 
   // Assign the print strings for oddballs after creating symboltable.
   Object* symbol = LookupAsciiSymbol("undefined");
   if (symbol->IsFailure()) return false;
-  Oddball::cast(undefined_value_)->set_to_string(String::cast(symbol));
-  Oddball::cast(undefined_value_)->set_to_number(nan_value_);
+  Oddball::cast(undefined_value())->set_to_string(String::cast(symbol));
+  Oddball::cast(undefined_value())->set_to_number(nan_value());
 
   // Assign the print strings for oddballs after creating symboltable.
   symbol = LookupAsciiSymbol("null");
   if (symbol->IsFailure()) return false;
-  Oddball::cast(null_value_)->set_to_string(String::cast(symbol));
-  Oddball::cast(null_value_)->set_to_number(Smi::FromInt(0));
+  Oddball::cast(null_value())->set_to_string(String::cast(symbol));
+  Oddball::cast(null_value())->set_to_number(Smi::FromInt(0));
 
   // Allocate the null_value
   obj = Oddball::cast(null_value())->Initialize("null", Smi::FromInt(0));
@@ -1354,32 +1367,31 @@ bool Heap::CreateInitialObjects() {
 
   obj = CreateOddball(oddball_map(), "true", Smi::FromInt(1));
   if (obj->IsFailure()) return false;
-  true_value_ = obj;
+  set_true_value(obj);
 
   obj = CreateOddball(oddball_map(), "false", Smi::FromInt(0));
   if (obj->IsFailure()) return false;
-  false_value_ = obj;
+  set_false_value(obj);
 
   obj = CreateOddball(oddball_map(), "hole", Smi::FromInt(-1));
   if (obj->IsFailure()) return false;
-  the_hole_value_ = obj;
+  set_the_hole_value(obj);
 
   // Allocate the empty string.
   obj = AllocateRawAsciiString(0, TENURED);
   if (obj->IsFailure()) return false;
-  empty_string_ = String::cast(obj);
+  set_empty_string(String::cast(obj));
 
-#define SYMBOL_INITIALIZE(name, string)                 \
-  obj = LookupAsciiSymbol(string);                      \
-  if (obj->IsFailure()) return false;                   \
-  (name##_) = String::cast(obj);
-  SYMBOL_LIST(SYMBOL_INITIALIZE)
-#undef SYMBOL_INITIALIZE
+  for (unsigned i = 0; i < ARRAY_SIZE(constant_symbol_table); i++) {
+    obj = LookupAsciiSymbol(constant_symbol_table[i].contents);
+    if (obj->IsFailure()) return false;
+    roots_[constant_symbol_table[i].index] = String::cast(obj);
+  }
 
   // Allocate the hidden symbol which is used to identify the hidden properties
   // in JSObjects. The hash code has a special value so that it will not match
   // the empty string when searching for the property. It cannot be part of the
-  // SYMBOL_LIST because it needs to be allocated manually with the special
+  // loop above because it needs to be allocated manually with the special
   // hash code in place. The hash code for the hidden_symbol is zero to ensure
   // that it will always be at the first entry in property descriptors.
   obj = AllocateSymbol(CStrVector(""), 0, String::kHashComputedMask);
@@ -1389,37 +1401,37 @@ bool Heap::CreateInitialObjects() {
   // Allocate the proxy for __proto__.
   obj = AllocateProxy((Address) &Accessors::ObjectPrototype);
   if (obj->IsFailure()) return false;
-  prototype_accessors_ = Proxy::cast(obj);
+  set_prototype_accessors(Proxy::cast(obj));
 
   // Allocate the code_stubs dictionary.
   obj = NumberDictionary::Allocate(4);
   if (obj->IsFailure()) return false;
-  code_stubs_ = NumberDictionary::cast(obj);
+  set_code_stubs(NumberDictionary::cast(obj));
 
   // Allocate the non_monomorphic_cache used in stub-cache.cc
   obj = NumberDictionary::Allocate(4);
   if (obj->IsFailure()) return false;
-  non_monomorphic_cache_ = NumberDictionary::cast(obj);
+  set_non_monomorphic_cache(NumberDictionary::cast(obj));
 
   CreateFixedStubs();
 
   // Allocate the number->string conversion cache
   obj = AllocateFixedArray(kNumberStringCacheSize * 2);
   if (obj->IsFailure()) return false;
-  number_string_cache_ = FixedArray::cast(obj);
+  set_number_string_cache(FixedArray::cast(obj));
 
   // Allocate cache for single character strings.
   obj = AllocateFixedArray(String::kMaxAsciiCharCode+1);
   if (obj->IsFailure()) return false;
-  single_character_string_cache_ = FixedArray::cast(obj);
+  set_single_character_string_cache(FixedArray::cast(obj));
 
   // Allocate cache for external strings pointing to native source code.
   obj = AllocateFixedArray(Natives::GetBuiltinsCount());
   if (obj->IsFailure()) return false;
-  natives_source_cache_ = FixedArray::cast(obj);
+  set_natives_source_cache(FixedArray::cast(obj));
 
   // Handling of script id generation is in Factory::NewScript.
-  last_script_id_ = undefined_value();
+  set_last_script_id(undefined_value());
 
   // Initialize keyed lookup cache.
   KeyedLookupCache::Clear();
@@ -1457,13 +1469,13 @@ Object* Heap::GetNumberStringCache(Object* number) {
   } else {
     hash = double_get_hash(number->Number());
   }
-  Object* key = number_string_cache_->get(hash * 2);
+  Object* key = number_string_cache()->get(hash * 2);
   if (key == number) {
-    return String::cast(number_string_cache_->get(hash * 2 + 1));
+    return String::cast(number_string_cache()->get(hash * 2 + 1));
   } else if (key->IsHeapNumber() &&
              number->IsHeapNumber() &&
              key->Number() == number->Number()) {
-    return String::cast(number_string_cache_->get(hash * 2 + 1));
+    return String::cast(number_string_cache()->get(hash * 2 + 1));
   }
   return undefined_value();
 }
@@ -1473,12 +1485,12 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int hash;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number));
-    number_string_cache_->set(hash * 2, number, SKIP_WRITE_BARRIER);
+    number_string_cache()->set(hash * 2, number, SKIP_WRITE_BARRIER);
   } else {
     hash = double_get_hash(number->Number());
-    number_string_cache_->set(hash * 2, number);
+    number_string_cache()->set(hash * 2, number);
   }
-  number_string_cache_->set(hash * 2 + 1, string);
+  number_string_cache()->set(hash * 2 + 1, string);
 }
 
 
@@ -1491,19 +1503,19 @@ Object* Heap::SmiOrNumberFromDouble(double value,
   static const DoubleRepresentation plus_zero(0.0);
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation nan(OS::nan_value());
-  ASSERT(minus_zero_value_ != NULL);
+  ASSERT(minus_zero_value() != NULL);
   ASSERT(sizeof(plus_zero.value) == sizeof(plus_zero.bits));
 
   DoubleRepresentation rep(value);
   if (rep.bits == plus_zero.bits) return Smi::FromInt(0);  // not uncommon
   if (rep.bits == minus_zero.bits) {
     return new_object ? AllocateHeapNumber(-0.0, pretenure)
-                      : minus_zero_value_;
+                      : minus_zero_value();
   }
   if (rep.bits == nan.bits) {
     return new_object
         ? AllocateHeapNumber(OS::nan_value(), pretenure)
-        : nan_value_;
+        : nan_value();
   }
 
   // Try to represent the value as a tagged small integer.
@@ -2754,10 +2766,11 @@ void Heap::Verify() {
 
 Object* Heap::LookupSymbol(Vector<const char> string) {
   Object* symbol = NULL;
-  Object* new_table =
-      SymbolTable::cast(symbol_table_)->LookupSymbol(string, &symbol);
+  Object* new_table = symbol_table()->LookupSymbol(string, &symbol);
   if (new_table->IsFailure()) return new_table;
-  symbol_table_ = new_table;
+  // Can't use set_symbol_table because SymbolTable::cast knows that
+  // SymbolTable is a singleton and checks for identity.
+  roots_[kSymbolTableRootIndex] = new_table;
   ASSERT(symbol != NULL);
   return symbol;
 }
@@ -2766,10 +2779,11 @@ Object* Heap::LookupSymbol(Vector<const char> string) {
 Object* Heap::LookupSymbol(String* string) {
   if (string->IsSymbol()) return string;
   Object* symbol = NULL;
-  Object* new_table =
-      SymbolTable::cast(symbol_table_)->LookupString(string, &symbol);
+  Object* new_table = symbol_table()->LookupString(string, &symbol);
   if (new_table->IsFailure()) return new_table;
-  symbol_table_ = new_table;
+  // Can't use set_symbol_table because SymbolTable::cast knows that
+  // SymbolTable is a singleton and checks for identity.
+  roots_[kSymbolTableRootIndex] = new_table;
   ASSERT(symbol != NULL);
   return symbol;
 }
@@ -2780,8 +2794,7 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
     *symbol = string;
     return true;
   }
-  SymbolTable* table = SymbolTable::cast(symbol_table_);
-  return table->LookupSymbolIfExists(string, symbol);
+  return symbol_table()->LookupSymbolIfExists(string, symbol);
 }
 
 
@@ -2868,28 +2881,15 @@ void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
 
 void Heap::IterateRoots(ObjectVisitor* v) {
   IterateStrongRoots(v);
-  v->VisitPointer(reinterpret_cast<Object**>(&symbol_table_));
+  v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   SYNCHRONIZE_TAG("symbol_table");
 }
 
 
 void Heap::IterateStrongRoots(ObjectVisitor* v) {
-#define ROOT_ITERATE(type, name) \
-  v->VisitPointer(bit_cast<Object**, type**>(&name##_));
-  STRONG_ROOT_LIST(ROOT_ITERATE);
-#undef ROOT_ITERATE
+  v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   SYNCHRONIZE_TAG("strong_root_list");
 
-#define STRUCT_MAP_ITERATE(NAME, Name, name) \
-  v->VisitPointer(bit_cast<Object**, Map**>(&name##_map_));
-  STRUCT_LIST(STRUCT_MAP_ITERATE);
-#undef STRUCT_MAP_ITERATE
-  SYNCHRONIZE_TAG("struct_map");
-
-#define SYMBOL_ITERATE(name, string) \
-  v->VisitPointer(bit_cast<Object**, String**>(&name##_));
-  SYMBOL_LIST(SYMBOL_ITERATE)
-#undef SYMBOL_ITERATE
   v->VisitPointer(bit_cast<Object**, String**>(&hidden_symbol_));
   SYNCHRONIZE_TAG("symbol");
 
@@ -3366,8 +3366,8 @@ void HeapProfiler::WriteSample() {
   // Lump all the string types together.
   int string_number = 0;
   int string_bytes = 0;
-#define INCREMENT_SIZE(type, size, name)   \
-    string_number += info[type].number();  \
+#define INCREMENT_SIZE(type, size, name, camel_name)   \
+    string_number += info[type].number();              \
     string_bytes += info[type].bytes();
   STRING_TYPE_LIST(INCREMENT_SIZE)
 #undef INCREMENT_SIZE

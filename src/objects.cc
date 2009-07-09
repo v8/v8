@@ -467,8 +467,15 @@ Object* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
     // If we have a global object set the cell to the hole.
     if (IsGlobalObject()) {
       PropertyDetails details = dictionary->DetailsAt(entry);
-      if (details.IsDontDelete() && mode != FORCE_DELETION) {
-        return Heap::false_value();
+      if (details.IsDontDelete()) {
+        if (mode != FORCE_DELETION) return Heap::false_value();
+        // When forced to delete global properties, we have to make a
+        // map change to invalidate any ICs that think they can load
+        // from the DontDelete cell without checking if it contains
+        // the hole value.
+        Object* new_map = map()->CopyDropDescriptors();
+        if (new_map->IsFailure()) return new_map;
+        set_map(Map::cast(new_map));
       }
       JSGlobalPropertyCell* cell =
           JSGlobalPropertyCell::cast(dictionary->ValueAt(entry));
@@ -1711,6 +1718,10 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       if (IsGlobalObject()) {
         PropertyDetails d = property_dictionary()->DetailsAt(entry);
         if (d.IsDeleted()) {
+          // We've skipped a global object during lookup, so we cannot
+          // use inline caching because the map of the global object
+          // doesn't change if the property should be re-added.
+          result->DisallowCaching();
           result->NotFound();
           return;
         }
@@ -1865,7 +1876,7 @@ Object* JSObject::SetProperty(LookupResult* result,
       if (value == result->GetConstantFunction()) return value;
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertDescriptorToField(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
@@ -1928,7 +1939,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   if (!result->IsLoaded()) {
     return SetLazyProperty(result, name, value, attributes);
   }
-  //  Check of IsReadOnly removed from here in clone.
+  // Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
       return SetNormalizedProperty(result, value);
@@ -1947,7 +1958,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
       if (value == result->GetConstantFunction()) return value;
       // Preserve the attributes of this existing property.
       attributes = result->GetAttributes();
-      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
+      return ConvertDescriptorToField(name, value, attributes);
     case CALLBACKS:
     case INTERCEPTOR:
       // Override callback in clone
@@ -4604,7 +4615,7 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
   // low-level accessors to get and modify their data.
   DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
       *RawField(this, Map::kInstanceDescriptorsOffset));
-  if (d == Heap::empty_descriptor_array()) return;
+  if (d == Heap::raw_unchecked_empty_descriptor_array()) return;
   Smi* NullDescriptorDetails =
     PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
   FixedArray* contents = reinterpret_cast<FixedArray*>(
@@ -5825,11 +5836,10 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
 }
 
 
-bool JSObject::GetPropertyWithInterceptorProper(
+Object* JSObject::GetPropertyWithInterceptorProper(
     JSObject* receiver,
     String* name,
-    PropertyAttributes* attributes,
-    Object** result_object) {
+    PropertyAttributes* attributes) {
   HandleScope scope;
   Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
@@ -5850,17 +5860,14 @@ bool JSObject::GetPropertyWithInterceptorProper(
       VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    if (Top::has_scheduled_exception()) {
-      return false;
-    }
-    if (!result.IsEmpty()) {
+    if (!Top::has_scheduled_exception() && !result.IsEmpty()) {
       *attributes = NONE;
-      *result_object = *v8::Utils::OpenHandle(*result);
-      return true;
+      return *v8::Utils::OpenHandle(*result);
     }
   }
 
-  return false;
+  *attributes = ABSENT;
+  return Heap::undefined_value();
 }
 
 
@@ -5874,12 +5881,13 @@ Object* JSObject::GetInterceptorPropertyWithLookupHint(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = NULL;
-  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+  Object* result = GetPropertyWithInterceptorProper(receiver,
+                                                    name,
+                                                    attributes);
+  if (*attributes != ABSENT) {
     return result;
-  } else {
-    RETURN_IF_SCHEDULED_EXCEPTION();
   }
+  RETURN_IF_SCHEDULED_EXCEPTION();
 
   int property_index = lookup_hint->value();
   if (property_index >= 0) {
@@ -5924,12 +5932,11 @@ Object* JSObject::GetPropertyWithInterceptor(
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
 
-  Object* result = NULL;
-  if (GetPropertyWithInterceptorProper(receiver, name, attributes, &result)) {
+  Object* result = GetPropertyWithInterceptorProper(receiver, name, attributes);
+  if (*attributes != ABSENT) {
     return result;
-  } else {
-    RETURN_IF_SCHEDULED_EXCEPTION();
   }
+  RETURN_IF_SCHEDULED_EXCEPTION();
 
   result = holder_handle->GetPropertyPostInterceptor(
       *receiver_handle,

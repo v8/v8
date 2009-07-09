@@ -372,10 +372,10 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
 
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
-  Handle<Object> cache(reinterpret_cast<Object**>(script->wrapper()->proxy()));
-  if (!cache.is_null()) {
+  if (script->wrapper()->proxy() != NULL) {
     // Return the script wrapper directly from the cache.
-    return Handle<JSValue>(JSValue::cast(*cache));
+    return Handle<JSValue>(
+        reinterpret_cast<JSValue**>(script->wrapper()->proxy()));
   }
 
   // Construct a new script wrapper.

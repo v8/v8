@@ -427,6 +427,19 @@ function TimeClip(time) {
 }
 
 
+// The Date cache is used to limit the cost of parsing the same Date
+// strings over and over again.
+var Date_cache = {
+  // Cached time value.
+  time: $NaN,
+  // Cached year when interpreting the time as a local time. Only
+  // valid when the time matches cached time.
+  year: $NaN,
+  // String input for which the cached time is valid.
+  string: null
+};
+
+
 %SetCode($Date, function(year, month, date, hours, minutes, seconds, ms) {
   if (!%_IsConstructCall()) {
     // ECMA 262 - 15.9.2
@@ -442,6 +455,20 @@ function TimeClip(time) {
   } else if (argc == 1) {
     if (IS_NUMBER(year)) {
       value = TimeClip(year);
+
+    } else if (IS_STRING(year)) {
+      // Probe the Date cache. If we already have a time value for the
+      // given time, we re-use that instead of parsing the string again.
+      var cache = Date_cache;
+      if (cache.string === year) {
+        value = cache.time;
+      } else {
+        value = DateParse(year);
+        cache.time = value;
+        cache.year = YearFromTime(LocalTimeNoCheck(value));
+        cache.string = year;
+      }
+
     } else {
       // According to ECMA 262, no hint should be given for this
       // conversion. However, ToPrimitive defaults to STRING_HINT for
@@ -537,8 +564,9 @@ function GetUTCHoursFrom(aDate) {
 function GetFullYearFrom(aDate) {
   var t = DATE_VALUE(aDate);
   if (NUMBER_IS_NAN(t)) return t;
-  // Ignore the DST offset for year computations.
-  return YearFromTime(t + local_time_offset);
+  var cache = Date_cache;
+  if (cache.time === t) return cache.year;
+  return YearFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -634,7 +662,7 @@ function DatePrintString(time) {
 
 // -------------------------------------------------------------------
 
-// Reused output buffer.
+// Reused output buffer. Used when parsing date strings.
 var parse_buffer = $Array(7);
 
 // ECMA 262 - 15.9.4.2
