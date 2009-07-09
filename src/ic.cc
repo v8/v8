@@ -452,24 +452,26 @@ void CallIC::UpdateCaches(LookupResult* lookup,
       }
       case NORMAL: {
         if (!object->IsJSObject()) return;
-        if (object->IsGlobalObject()) {
-          // The stub generated for the global object picks the value directly
-          // from the property cell. So the property must be directly on the
-          // global object.
-          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
-          if (lookup->holder() != *global) return;
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+
+        if (lookup->holder()->IsGlobalObject()) {
+          GlobalObject* global = GlobalObject::cast(lookup->holder());
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
           if (!cell->value()->IsJSFunction()) return;
           JSFunction* function = JSFunction::cast(cell->value());
-          code = StubCache::ComputeCallGlobal(argc, in_loop, *name, *global,
-                                              cell, function);
+          code = StubCache::ComputeCallGlobal(argc,
+                                              in_loop,
+                                              *name,
+                                              *receiver,
+                                              global,
+                                              cell,
+                                              function);
         } else {
           // There is only one shared stub for calling normalized
           // properties. It does not traverse the prototype chain, so the
           // property must be found in the receiver for the stub to be
           // applicable.
-          Handle<JSObject> receiver = Handle<JSObject>::cast(object);
           if (lookup->holder() != *receiver) return;
           code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
         }
@@ -657,16 +659,15 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case NORMAL: {
-        if (object->IsGlobalObject()) {
-          // The stub generated for the global object picks the value directly
-          // from the property cell. So the property must be directly on the
-          // global object.
-          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
-          if (lookup->holder() != *global) return;
+        if (lookup->holder()->IsGlobalObject()) {
+          GlobalObject* global = GlobalObject::cast(lookup->holder());
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-          code = StubCache::ComputeLoadGlobal(*name, *global,
-                                              cell, lookup->IsDontDelete());
+          code = StubCache::ComputeLoadGlobal(*name,
+                                              *receiver,
+                                              global,
+                                              cell,
+                                              lookup->IsDontDelete());
         } else {
           // There is only one shared stub for loading normalized
           // properties. It does not traverse the prototype chain, so the

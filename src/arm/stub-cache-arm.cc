@@ -685,7 +685,8 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 }
 
 
-Object* CallStubCompiler::CompileCallGlobal(GlobalObject* object,
+Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
+                                            GlobalObject* holder,
                                             JSGlobalPropertyCell* cell,
                                             JSFunction* function,
                                             String* name) {
@@ -699,11 +700,19 @@ Object* CallStubCompiler::CompileCallGlobal(GlobalObject* object,
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
-  // Check that the map of the global has not changed.
-  __ ldr(r2, MemOperand(sp, argc * kPointerSize));
-  __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ cmp(r3, Operand(Handle<Map>(object->map())));
-  __ b(ne, &miss);
+  // Get the receiver from the stack.
+  __ ldr(r0, MemOperand(sp, argc * kPointerSize));
+
+  // If the object is the holder then we know that it's a global
+  // object which can only happen for contextual calls. In this case,
+  // the receiver cannot be a smi.
+  if (object != holder) {
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &miss);
+  }
+
+  // Check that the maps haven't changed.
+  masm()->CheckMaps(object, r0, holder, r3, r2, &miss);
 
   // Get the value from the cell.
   __ mov(r3, Operand(Handle<JSGlobalPropertyCell>(cell)));
@@ -715,8 +724,10 @@ Object* CallStubCompiler::CompileCallGlobal(GlobalObject* object,
 
   // Patch the receiver on the stack with the global proxy if
   // necessary.
-  __ ldr(r3, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
-  __ str(r3, MemOperand(sp, argc * kPointerSize));
+  if (object->IsGlobalObject()) {
+    __ ldr(r3, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
+    __ str(r3, MemOperand(sp, argc * kPointerSize));
+  }
 
   // Setup the context (function already in r1).
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
@@ -1013,7 +1024,8 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
 }
 
 
-Object* LoadStubCompiler::CompileLoadGlobal(GlobalObject* object,
+Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
+                                            GlobalObject* holder,
                                             JSGlobalPropertyCell* cell,
                                             String* name,
                                             bool is_dont_delete) {
@@ -1026,11 +1038,19 @@ Object* LoadStubCompiler::CompileLoadGlobal(GlobalObject* object,
 
   __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
 
-  // Check that the map of the global has not changed.
+  // Get the receiver from the stack.
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Operand(Handle<Map>(object->map())));
-  __ b(ne, &miss);
+
+  // If the object is the holder then we know that it's a global
+  // object which can only happen for contextual calls. In this case,
+  // the receiver cannot be a smi.
+  if (object != holder) {
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &miss);
+  }
+
+  // Check that the map of the global has not changed.
+  masm()->CheckMaps(object, r1, holder, r3, r0, &miss);
 
   // Get the value from the cell.
   __ mov(r3, Operand(Handle<JSGlobalPropertyCell>(cell)));

@@ -173,14 +173,19 @@ Object* StubCache::ComputeLoadNormal(String* name, JSObject* receiver) {
 
 
 Object* StubCache::ComputeLoadGlobal(String* name,
-                                     GlobalObject* receiver,
+                                     JSObject* receiver,
+                                     GlobalObject* holder,
                                      JSGlobalPropertyCell* cell,
                                      bool is_dont_delete) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
-    code = compiler.CompileLoadGlobal(receiver, cell, name, is_dont_delete);
+    code = compiler.CompileLoadGlobal(receiver,
+                                      holder,
+                                      cell,
+                                      name,
+                                      is_dont_delete);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent(Logger::LOAD_IC_TAG, Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
@@ -537,7 +542,8 @@ Object* StubCache::ComputeCallNormal(int argc,
 Object* StubCache::ComputeCallGlobal(int argc,
                                      InLoopFlag in_loop,
                                      String* name,
-                                     GlobalObject* receiver,
+                                     JSObject* receiver,
+                                     GlobalObject* holder,
                                      JSGlobalPropertyCell* cell,
                                      JSFunction* function) {
   Code::Flags flags =
@@ -550,7 +556,7 @@ Object* StubCache::ComputeCallGlobal(int argc,
     // caches.
     if (!function->is_compiled()) return Failure::InternalError();
     CallStubCompiler compiler(argc, in_loop);
-    code = compiler.CompileCallGlobal(receiver, cell, function, name);
+    code = compiler.CompileCallGlobal(receiver, holder, cell, function, name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
