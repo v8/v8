@@ -2421,25 +2421,21 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
   JumpTarget then;
   JumpTarget else_;
-  JumpTarget exit;
   LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                         &then, &else_, true);
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     Branch(false, &else_);
   }
-  if (frame_ != NULL || then.is_linked()) {
+  if (has_valid_frame() || then.is_linked()) {
     then.Bind();
     LoadAndSpill(node->then_expression(), typeof_state());
   }
-  if (frame_ != NULL) {
-    exit.Jump();
-  }
   if (else_.is_linked()) {
+    JumpTarget exit;
+    if (has_valid_frame()) exit.Jump();
     else_.Bind();
     LoadAndSpill(node->else_expression(), typeof_state());
-  }
-  if (exit.is_linked()) {
-    exit.Bind();
+    if (exit.is_linked()) exit.Bind();
   }
   ASSERT(frame_->height() == original_height + 1);
 }
@@ -3615,9 +3611,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
                           false_target(),
                           true_target(),
                           true);
-    // LoadConditionAndSpill might emit only unconditional jumps to
-    // the targets in which case cc_reg_ is not set.  When that
-    // happens, don't attempt to negate the condition.
+    // LoadCondition may (and usually does) leave a test and branch to
+    // be emitted by the caller.  In that case, negate the condition.
     if (has_cc()) cc_reg_ = NegateCondition(cc_reg_);
 
   } else if (op == Token::DELETE) {
