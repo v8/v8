@@ -1265,7 +1265,7 @@ void FreeListNode::set_size(int size_in_bytes) {
   // If the block is too small (eg, one or two words), to hold both a size
   // field and a next pointer, we give it a filler map that gives it the
   // correct size.
-  if (size_in_bytes > ByteArray::kHeaderSize) {
+  if (size_in_bytes > ByteArray::kAlignedSize) {
     set_map(Heap::raw_unchecked_byte_array_map());
     ByteArray::cast(this)->set_length(ByteArray::LengthFor(size_in_bytes));
   } else if (size_in_bytes == kPointerSize) {
