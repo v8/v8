@@ -697,6 +697,7 @@ void Assembler::bl(int branch_offset, Condition cond) {
 
 
 void Assembler::blx(int branch_offset) {  // v5 and above
+  WriteRecordedPositions();
   ASSERT((branch_offset & 1) == 0);
   int h = ((branch_offset & 2) >> 1)*B24;
   int imm24 = branch_offset >> 2;
@@ -706,12 +707,14 @@ void Assembler::blx(int branch_offset) {  // v5 and above
 
 
 void Assembler::blx(Register target, Condition cond) {  // v5 and above
+  WriteRecordedPositions();
   ASSERT(!target.is(pc));
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | 3*B4 | target.code());
 }
 
 
 void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
+  WriteRecordedPositions();
   ASSERT(!target.is(pc));  // use of pc is actually allowed, but discouraged
   emit(cond | B24 | B21 | 15*B16 | 15*B12 | 15*B8 | B4 | target.code());
 }
@@ -810,6 +813,9 @@ void Assembler::orr(Register dst, Register src1, const Operand& src2,
 
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
+  if (dst.is(pc)) {
+    WriteRecordedPositions();
+  }
   addrmod1(cond | 13*B21 | s, r0, dst, src);
 }
 
@@ -937,6 +943,9 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
 
 // Load/Store instructions
 void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
+  if (dst.is(pc)) {
+    WriteRecordedPositions();
+  }
   addrmod2(cond | B26 | L, dst, src);
 
   // Eliminate pattern: push(r), pop(r)
@@ -1274,7 +1283,6 @@ void Assembler::RecordPosition(int pos) {
   if (pos == RelocInfo::kNoPosition) return;
   ASSERT(pos >= 0);
   current_position_ = pos;
-  WriteRecordedPositions();
 }
 
 
@@ -1282,7 +1290,6 @@ void Assembler::RecordStatementPosition(int pos) {
   if (pos == RelocInfo::kNoPosition) return;
   ASSERT(pos >= 0);
   current_statement_position_ = pos;
-  WriteRecordedPositions();
 }
 
 
