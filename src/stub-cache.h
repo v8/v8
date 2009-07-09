@@ -439,7 +439,7 @@ class LoadStubCompiler: public StubCompiler {
 
   Object* CompileLoadGlobal(JSObject* object,
                             GlobalObject* holder,
-                            JSGlobalPropertyCell* holder,
+                            JSGlobalPropertyCell* cell,
                             String* name,
                             bool is_dont_delete);
 
