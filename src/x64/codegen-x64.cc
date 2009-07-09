@@ -1292,7 +1292,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   __ movq(rax, frame_->ElementAt(0));  // load the current count
-  __ cmpq(rax, frame_->ElementAt(1));  // compare to the array length
+  __ cmpl(rax, frame_->ElementAt(1));  // compare to the array length
   node->break_target()->Branch(above_equal);
 
   // Get the i'th entry of the array.
@@ -5109,7 +5109,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
         Label result_ok;
         __ shl(answer.reg());
         // Check that the *signed* result fits in a smi.
-        __ cmpq(answer.reg(), Immediate(0xc0000000));
+        __ cmpl(answer.reg(), Immediate(0xc0000000));
         __ j(positive, &result_ok);
         ASSERT(kSmiTag == 0);
         __ shl(rcx, Immediate(kSmiTagSize));
@@ -6675,12 +6675,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Move the second operand into register ecx.
       __ movq(rcx, rbx);
       // Remove tags from operands (but keep sign).
-      __ sar(rax, Immediate(kSmiTagSize));
-      __ sar(rcx, Immediate(kSmiTagSize));
+      __ sarl(rax, Immediate(kSmiTagSize));
+      __ sarl(rcx, Immediate(kSmiTagSize));
       // Perform the operation.
       switch (op_) {
         case Token::SAR:
-          __ sar(rax);
+          __ sarl(rax);
           // No checks of result necessary
           break;
         case Token::SHR:
@@ -6691,19 +6691,17 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           // - 0x40000000: this number would convert to negative when
           // Smi tagging these two cases can only happen with shifts
           // by 0 or 1 when handed a valid smi.
-          __ testq(rax, Immediate(0xc0000000));
+          __ testl(rax, Immediate(0xc0000000));
           __ j(not_zero, slow);
           break;
         case Token::SHL:
           __ shll(rax);
-          // TODO(Smi): Significant change if Smi changes.
           // Check that the *signed* result fits in a smi.
           // It does, if the 30th and 31st bits are equal, since then
           // shifting the SmiTag in at the bottom doesn't change the sign.
           ASSERT(kSmiTagSize == 1);
           __ cmpl(rax, Immediate(0xc0000000));
           __ j(sign, slow);
-          __ movsxlq(rax, rax);  // Extend new sign of eax into rax.
           break;
         default:
           UNREACHABLE();

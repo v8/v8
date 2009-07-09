@@ -579,6 +579,23 @@ void Assembler::shift_32(Register dst, int subcode) {
 }
 
 
+void Assembler::shift_32(Register dst, Immediate shift_amount, int subcode) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  ASSERT(is_uint6(shift_amount.value_));  // illegal shift count
+  if (shift_amount.value_ == 1) {
+    emit_optional_rex_32(dst);
+    emit(0xD1);
+    emit_modrm(subcode, dst);
+  } else {
+    emit_optional_rex_32(dst);
+    emit(0xC1);
+    emit_modrm(subcode, dst);
+    emit(shift_amount.value_);
+  }
+}
+
+
 void Assembler::bt(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
