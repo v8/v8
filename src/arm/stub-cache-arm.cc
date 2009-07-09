@@ -913,8 +913,6 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // Store the value in the cell.
   __ mov(r2, Operand(Handle<JSGlobalPropertyCell>(cell)));
   __ str(r0, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
-  __ mov(r1, Operand(JSGlobalPropertyCell::kValueOffset));
-  __ RecordWrite(r2, r1, r3);
 
   __ Ret();
 

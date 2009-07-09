@@ -975,11 +975,6 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ mov(ecx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
   __ mov(FieldOperand(ecx, JSGlobalPropertyCell::kValueOffset), eax);
 
-  // RecordWrite clobbers the value register. Pass the value being stored in
-  // edx.
-  __ mov(edx, eax);
-  __ RecordWrite(ecx, JSGlobalPropertyCell::kValueOffset, edx, ebx);
-
   // Return the value (register eax).
   __ ret(0);
 

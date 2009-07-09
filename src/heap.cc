@@ -2768,12 +2768,20 @@ void Heap::Verify() {
   ASSERT(HasBeenSetup());
 
   VerifyPointersVisitor visitor;
-  Heap::IterateRoots(&visitor);
+  IterateRoots(&visitor);
 
-  AllSpaces spaces;
-  while (Space* space = spaces.next()) {
-    space->Verify();
-  }
+  new_space_.Verify();
+
+  VerifyPointersAndRSetVisitor rset_visitor;
+  old_pointer_space_->Verify(&rset_visitor);
+  map_space_->Verify(&rset_visitor);
+
+  VerifyPointersVisitor no_rset_visitor;
+  old_data_space_->Verify(&no_rset_visitor);
+  code_space_->Verify(&no_rset_visitor);
+  cell_space_->Verify(&no_rset_visitor);
+
+  lo_space_->Verify();
 }
 #endif  // DEBUG
 

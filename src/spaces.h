@@ -302,7 +302,6 @@ class Space : public Malloced {
   virtual int Size() = 0;
 
 #ifdef DEBUG
-  virtual void Verify() = 0;
   virtual void Print() = 0;
 #endif
 
@@ -836,6 +835,13 @@ class PagedSpace : public Space {
   // Print meta info and objects in this space.
   virtual void Print();
 
+  // Verify integrity of this space.
+  virtual void Verify(ObjectVisitor* visitor);
+
+  // Overridden by subclasses to verify space-specific object
+  // properties (e.g., only maps or free-list nodes are in map space).
+  virtual void VerifyObject(HeapObject* obj) {}
+
   // Report code object related statistics
   void CollectCodeStatistics();
   static void ReportCodeStatistics();
@@ -861,6 +867,12 @@ class PagedSpace : public Space {
 
   // Relocation information during mark-compact collections.
   AllocationInfo mc_forwarding_info_;
+
+  // Bytes of each page that cannot be allocated.  Possibly non-zero
+  // for pages in spaces with only fixed-size objects.  Always zero
+  // for pages in spaces with variable sized objects (those pages are
+  // padded with free-list nodes).
+  int page_extra_;
 
   // Sets allocation pointer to a page bottom.
   static void SetAllocationInfo(AllocationInfo* alloc_info, Page* p);
@@ -1439,6 +1451,7 @@ class OldSpace : public PagedSpace {
                     AllocationSpace id,
                     Executability executable)
       : PagedSpace(max_capacity, id, executable), free_list_(id) {
+    page_extra_ = 0;
   }
 
   // The bytes available on the free list (ie, not above the linear allocation
@@ -1467,9 +1480,6 @@ class OldSpace : public PagedSpace {
   virtual void MCCommitRelocationInfo();
 
 #ifdef DEBUG
-  // Verify integrity of this space.
-  virtual void Verify();
-
   // Reports statistics for the space
   void ReportStatistics();
   // Dump the remembered sets in the space to stdout.
@@ -1505,8 +1515,9 @@ class FixedSpace : public PagedSpace {
       : PagedSpace(max_capacity, id, NOT_EXECUTABLE),
         object_size_in_bytes_(object_size_in_bytes),
         name_(name),
-        free_list_(id, object_size_in_bytes),
-        page_extra_(Page::kObjectAreaSize % object_size_in_bytes) { }
+        free_list_(id, object_size_in_bytes) {
+    page_extra_ = Page::kObjectAreaSize % object_size_in_bytes;
+  }
 
   // The top of allocation in a page in this space. Undefined if page is unused.
   virtual Address PageAllocationTop(Page* page) {
@@ -1530,12 +1541,6 @@ class FixedSpace : public PagedSpace {
   virtual void MCCommitRelocationInfo();
 
 #ifdef DEBUG
-  // Verify integrity of this space.
-  virtual void Verify();
-
-  // Implement by subclasses to verify an actual object in the space.
-  virtual void VerifyObject(HeapObject* obj) = 0;
-
   // Reports statistic info of the space
   void ReportStatistics();
 
@@ -1560,9 +1565,6 @@ class FixedSpace : public PagedSpace {
 
   // The space's free list.
   FixedSizeFreeList free_list_;
-
-  // Bytes of each page that cannot be allocated.
-  int page_extra_;
 };
 
 

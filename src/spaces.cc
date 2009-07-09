@@ -786,6 +786,77 @@ void PagedSpace::Print() { }
 #endif
 
 
+#ifdef DEBUG
+// We do not assume that the PageIterator works, because it depends on the
+// invariants we are checking during verification.
+void PagedSpace::Verify(ObjectVisitor* visitor) {
+  // The allocation pointer should be valid, and it should be in a page in the
+  // space.
+  ASSERT(allocation_info_.VerifyPagedAllocation());
+  Page* top_page = Page::FromAllocationTop(allocation_info_.top);
+  ASSERT(MemoryAllocator::IsPageInSpace(top_page, this));
+
+  // Loop over all the pages.
+  bool above_allocation_top = false;
+  Page* current_page = first_page_;
+  while (current_page->is_valid()) {
+    if (above_allocation_top) {
+      // We don't care what's above the allocation top.
+    } else {
+      // Unless this is the last page in the space containing allocated
+      // objects, the allocation top should be at a constant offset from the
+      // object area end.
+      Address top = current_page->AllocationTop();
+      if (current_page == top_page) {
+        ASSERT(top == allocation_info_.top);
+        // The next page will be above the allocation top.
+        above_allocation_top = true;
+      } else {
+        ASSERT(top == current_page->ObjectAreaEnd() - page_extra_);
+      }
+
+      // It should be packed with objects from the bottom to the top.
+      Address current = current_page->ObjectAreaStart();
+      while (current < top) {
+        HeapObject* object = HeapObject::FromAddress(current);
+
+        // The first word should be a map, and we expect all map pointers to
+        // be in map space.
+        Map* map = object->map();
+        ASSERT(map->IsMap());
+        ASSERT(Heap::map_space()->Contains(map));
+
+        // Perform space-specific object verification.
+        VerifyObject(object);
+
+        // The object itself should look OK.
+        object->Verify();
+
+        // All the interior pointers should be contained in the heap and
+        // have their remembered set bits set if required as determined
+        // by the visitor.
+        int size = object->Size();
+        if (object->IsCode()) {
+          Code::cast(object)->ConvertICTargetsFromAddressToObject();
+          object->IterateBody(map->instance_type(), size, visitor);
+          Code::cast(object)->ConvertICTargetsFromObjectToAddress();
+        } else {
+          object->IterateBody(map->instance_type(), size, visitor);
+        }
+
+        current += size;
+      }
+
+      // The allocation pointer should not be in the middle of an object.
+      ASSERT(current == top);
+    }
+
+    current_page = current_page->next_page();
+  }
+}
+#endif
+
+
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
@@ -1615,76 +1686,6 @@ HeapObject* OldSpace::AllocateInNextPage(Page* current_page,
 
 
 #ifdef DEBUG
-// We do not assume that the PageIterator works, because it depends on the
-// invariants we are checking during verification.
-void OldSpace::Verify() {
-  // The allocation pointer should be valid, and it should be in a page in the
-  // space.
-  ASSERT(allocation_info_.VerifyPagedAllocation());
-  Page* top_page = Page::FromAllocationTop(allocation_info_.top);
-  ASSERT(MemoryAllocator::IsPageInSpace(top_page, this));
-
-  // Loop over all the pages.
-  bool above_allocation_top = false;
-  Page* current_page = first_page_;
-  while (current_page->is_valid()) {
-    if (above_allocation_top) {
-      // We don't care what's above the allocation top.
-    } else {
-      // Unless this is the last page in the space containing allocated
-      // objects, the allocation top should be at the object area end.
-      Address top = current_page->AllocationTop();
-      if (current_page == top_page) {
-        ASSERT(top == allocation_info_.top);
-        // The next page will be above the allocation top.
-        above_allocation_top = true;
-      } else {
-        ASSERT(top == current_page->ObjectAreaEnd());
-      }
-
-      // It should be packed with objects from the bottom to the top.
-      Address current = current_page->ObjectAreaStart();
-      while (current < top) {
-        HeapObject* object = HeapObject::FromAddress(current);
-
-        // The first word should be a map, and we expect all map pointers to
-        // be in map space.
-        Map* map = object->map();
-        ASSERT(map->IsMap());
-        ASSERT(Heap::map_space()->Contains(map));
-
-        // The object should not be a map.
-        ASSERT(!object->IsMap());
-
-        // The object itself should look OK.
-        object->Verify();
-
-        // All the interior pointers should be contained in the heap and have
-        // their remembered set bits set if they point to new space.  Code
-        // objects do not have remembered set bits that we care about.
-        VerifyPointersAndRSetVisitor rset_visitor;
-        VerifyPointersVisitor no_rset_visitor;
-        int size = object->Size();
-        if (object->IsCode()) {
-          Code::cast(object)->ConvertICTargetsFromAddressToObject();
-          object->IterateBody(map->instance_type(), size, &no_rset_visitor);
-          Code::cast(object)->ConvertICTargetsFromObjectToAddress();
-        } else {
-          object->IterateBody(map->instance_type(), size, &rset_visitor);
-        }
-
-        current += size;
-      }
-
-      // The allocation pointer should not be in the middle of an object.
-      ASSERT(current == top);
-    }
-
-    current_page = current_page->next_page();
-  }
-}
-
-
 struct CommentStatistic {
   const char* comment;
   int size;
@@ -2086,69 +2087,6 @@ HeapObject* FixedSpace::AllocateInNextPage(Page* current_page,
 
 
 #ifdef DEBUG
-// We do not assume that the PageIterator works, because it depends on the
-// invariants we are checking during verification.
-void FixedSpace::Verify() {
-  // The allocation pointer should be valid, and it should be in a page in the
-  // space.
-  ASSERT(allocation_info_.VerifyPagedAllocation());
-  Page* top_page = Page::FromAllocationTop(allocation_info_.top);
-  ASSERT(MemoryAllocator::IsPageInSpace(top_page, this));
-
-  // Loop over all the pages.
-  bool above_allocation_top = false;
-  Page* current_page = first_page_;
-  while (current_page->is_valid()) {
-    if (above_allocation_top) {
-      // We don't care what's above the allocation top.
-    } else {
-      // Unless this is the last page in the space containing allocated
-      // objects, the allocation top should be at a constant offset from the
-      // object area end.
-      Address top = current_page->AllocationTop();
-      if (current_page == top_page) {
-        ASSERT(top == allocation_info_.top);
-        // The next page will be above the allocation top.
-        above_allocation_top = true;
-      } else {
-        ASSERT(top == current_page->ObjectAreaEnd() - page_extra_);
-      }
-
-      // It should be packed with objects from the bottom to the top.
-      Address current = current_page->ObjectAreaStart();
-      while (current < top) {
-        HeapObject* object = HeapObject::FromAddress(current);
-
-        // The first word should be a map, and we expect all map pointers to
-        // be in map space.
-        Map* map = object->map();
-        ASSERT(map->IsMap());
-        ASSERT(Heap::map_space()->Contains(map));
-
-        // Verify the object in the space.
-        VerifyObject(object);
-
-        // The object itself should look OK.
-        object->Verify();
-
-        // All the interior pointers should be contained in the heap and
-        // have their remembered set bits set if they point to new space.
-        VerifyPointersAndRSetVisitor visitor;
-        int size = object->Size();
-        object->IterateBody(map->instance_type(), size, &visitor);
-
-        current += size;
-      }
-
-      // The allocation pointer should not be in the middle of an object.
-      ASSERT(current == top);
-    }
-
-    current_page = current_page->next_page();
-  }
-}
-
-
 void FixedSpace::ReportStatistics() {
   int pct = Available() * 100 / Capacity();
   PrintF("  capacity: %d, waste: %d, available: %d, %%%d\n",

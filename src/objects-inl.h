@@ -1062,7 +1062,16 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 
-ACCESSORS(JSGlobalPropertyCell, value, Object, kValueOffset)
+Object* JSGlobalPropertyCell::value() {
+  return READ_FIELD(this, kValueOffset);
+}
+
+
+void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
+  // The write barrier is not used for global property cells.
+  WRITE_FIELD(this, kValueOffset, val);
+}
+
 
 int JSObject::GetHeaderSize() {
   switch (map()->instance_type()) {
