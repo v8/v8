@@ -5644,7 +5644,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
       // Read double representation into rax.
-      __ movq(rbx, 0x7ff0000000000000, RelocInfo::NONE);
+      __ movq(rbx, V8_UINT64_C(0x7ff0000000000000), RelocInfo::NONE);
       __ movq(rax, FieldOperand(rdx, HeapNumber::kValueOffset));
       // Test that exponent bits are all set.
       __ or_(rbx, rax);
@@ -5655,10 +5655,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // If all bits in the mantissa are zero the number is Infinity, and
       // we return zero.  Otherwise it is a NaN, and we return non-zero.
       // We cannot just return rax because only eax is tested on return.
-      // TODO(X64): Solve this using movcc, when implemented.
-      __ movq(kScratchRegister, rax);
-      __ shr(kScratchRegister, Immediate(32));
-      __ or_(rax, kScratchRegister);
+      __ setcc(not_zero, rax);
       __ ret(0);
 
       __ bind(&not_identical);

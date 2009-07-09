@@ -1084,18 +1084,19 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
     // Sadly, there is no zero or sign extending move for 8-bit immediates.
     if (is_int32(value)) {
       movq(dst, Immediate(static_cast<int32_t>(value)));
+      return;
     } else if (is_uint32(value)) {
       movl(dst, Immediate(static_cast<int32_t>(value)));
+      return;
     }
     // Value cannot be represented by 32 bits, so do a full 64 bit immediate
     // value.
-  } else {
-    EnsureSpace ensure_space(this);
-    last_pc_ = pc_;
-    emit_rex_64(dst);
-    emit(0xB8 | dst.low_bits());
-    emitq(value, rmode);
   }
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst);
+  emit(0xB8 | dst.low_bits());
+  emitq(value, rmode);
 }
 
 
