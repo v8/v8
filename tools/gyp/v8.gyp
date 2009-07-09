@@ -515,6 +515,22 @@
       'sources': [
         '../../src/mksnapshot.cc',
       ],
-    }
+    },
+    {
+      'target_name': 'v8_shell',
+      'type': 'executable',
+      'dependencies': [
+        'v8'
+      ],
+      'sources': [
+        '../../samples/shell.cc',
+      ],
+      'conditions': [
+        [ 'OS=="win"', {
+          # This could be gotten by not setting chromium_code, if that's OK.
+          'defines': ['_CRT_SECURE_NO_WARNINGS'],
+        }],
+      ],
+    },
   ],
 }
