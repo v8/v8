@@ -670,7 +670,7 @@ void Heap::Scavenge() {
 
   HeapObjectIterator cell_iterator(cell_space_);
   while (cell_iterator.has_next()) {
-    cell_iterator.next()->Iterate(&scavenge_visitor));
+    cell_iterator.next()->Iterate(&scavenge_visitor);
   }
 
   HeapObjectIterator map_iterator(map_space_);
