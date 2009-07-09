@@ -355,14 +355,19 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // receiver.
   frame_->Exit();
   masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
+  // Add padding that will be overwritten by a debugger breakpoint.
+  // frame_->Exit() generates "movq rsp, rbp; pop rbp" length 5.
+  // "ret k" has length 2.
+  const int kPadding = Debug::kX64JSReturnSequenceLength - 5 - 2;
+  for (int i = 0; i < kPadding; ++i) {
+    masm_->int3();
+  }
   DeleteFrame();
-
-  // TODO(x64): introduce kX64JSReturnSequenceLength and enable assert.
 
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
-  // ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
-  //          masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  ASSERT_EQ(Debug::kX64JSReturnSequenceLength,
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 }
 
 

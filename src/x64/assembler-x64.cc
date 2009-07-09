@@ -73,45 +73,8 @@ XMMRegister xmm14 = { 14 };
 XMMRegister xmm15 = { 15 };
 
 
-Operand::Operand(Register base, int32_t disp): rex_(0) {
-  len_ = 1;
-  if (base.is(rsp) || base.is(r12)) {
-    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-    set_sib(times_1, rsp, base);
-  }
-
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    set_modrm(0, base);
-  } else if (is_int8(disp)) {
-    set_modrm(1, base);
-    set_disp8(disp);
-  } else {
-    set_modrm(2, base);
-    set_disp32(disp);
-  }
-}
-
-
-Operand::Operand(Register base,
-                 Register index,
-                 ScaleFactor scale,
-                 int32_t disp): rex_(0) {
-  ASSERT(!index.is(rsp));
-  len_ = 1;
-  set_sib(scale, index, base);
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
-    // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
-    // possibly set by set_sib.
-    set_modrm(0, rsp);
-  } else if (is_int8(disp)) {
-    set_modrm(1, rsp);
-    set_disp8(disp);
-  } else {
-    set_modrm(2, rsp);
-    set_disp32(disp);
-  }
-}
-
+// -----------------------------------------------------------------------------
+// Implementation of CpuFeatures
 
 // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
 //   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
@@ -192,6 +155,71 @@ void CpuFeatures::Probe()  {
   ASSERT(IsSupported(SSE2));
   ASSERT(IsSupported(CMOV));
 }
+
+
+// -----------------------------------------------------------------------------
+// Implementation of RelocInfo
+
+// Patch the code at the current PC with a call to the target address.
+// Additional guard int3 instructions can be added if required.
+void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
+  // Call instruction takes up 13 bytes and int3 takes up one byte.
+  Address patch_site = pc_;
+  Memory::uint16_at(patch_site) = 0xBA49u;  // movq r10, imm64
+  // Write "0x00, call r10" starting at last byte of address.  We overwrite
+  // the 0x00 later, and this lets us write a uint32.
+  Memory::uint32_at(patch_site + 9) = 0xD2FF4900u;  // 0x00, call r10
+  Memory::Address_at(patch_site + 2) = target;
+
+  // Add the requested number of int3 instructions after the call.
+  for (int i = 0; i < guard_bytes; i++) {
+    *(patch_site + 13 + i) = 0xCC;  // int3
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Implementation of Operand
+
+Operand::Operand(Register base, int32_t disp): rex_(0) {
+  len_ = 1;
+  if (base.is(rsp) || base.is(r12)) {
+    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+    set_sib(times_1, rsp, base);
+  }
+
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    set_modrm(0, base);
+  } else if (is_int8(disp)) {
+    set_modrm(1, base);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, base);
+    set_disp32(disp);
+  }
+}
+
+
+Operand::Operand(Register base,
+                 Register index,
+                 ScaleFactor scale,
+                 int32_t disp): rex_(0) {
+  ASSERT(!index.is(rsp));
+  len_ = 1;
+  set_sib(scale, index, base);
+  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+    // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
+    // possibly set by set_sib.
+    set_modrm(0, rsp);
+  } else if (is_int8(disp)) {
+    set_modrm(1, rsp);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, rsp);
+    set_disp32(disp);
+  }
+}
+
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler

@@ -363,6 +363,10 @@ class Debug {
   static const int kIa32CallInstructionLength = 5;
   static const int kIa32JSReturnSequenceLength = 6;
 
+  // The x64 JS return sequence is padded with int3 to make it large
+  // enough to hold a call instruction when the debugger patches it.
+  static const int kX64JSReturnSequenceLength = 13;
+
   // Code generator routines.
   static void GenerateLoadICDebugBreak(MacroAssembler* masm);
   static void GenerateStoreICDebugBreak(MacroAssembler* masm);
