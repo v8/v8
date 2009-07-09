@@ -2724,12 +2724,6 @@ class DeferredPrefixCountOperation: public DeferredCode {
 
 
 void DeferredPrefixCountOperation::Generate() {
-  // Undo the optimistic smi operation.
-  if (is_increment_) {
-    __ subq(dst_, Immediate(Smi::FromInt(1)));
-  } else {
-    __ addq(dst_, Immediate(Smi::FromInt(1)));
-  }
   __ push(dst_);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
   __ push(rax);
@@ -2765,12 +2759,6 @@ class DeferredPostfixCountOperation: public DeferredCode {
 
 
 void DeferredPostfixCountOperation::Generate() {
-  // Undo the optimistic smi operation.
-  if (is_increment_) {
-    __ subq(dst_, Immediate(Smi::FromInt(1)));
-  } else {
-    __ addq(dst_, Immediate(Smi::FromInt(1)));
-  }
   __ push(dst_);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
 
@@ -2827,19 +2815,6 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // Ensure the new value is writable.
     frame_->Spill(new_value.reg());
 
-    // In order to combine the overflow and the smi tag check, we need
-    // to be able to allocate a byte register.  We attempt to do so
-    // without spilling.  If we fail, we will generate separate overflow
-    // and smi tag checks.
-    //
-    // We allocate and clear the temporary register before
-    // performing the count operation since clearing the register using
-    // xor will clear the overflow flag.
-    Result tmp = allocator_->AllocateWithoutSpilling();
-
-    // Clear scratch register to prepare it for setcc after the operation below.
-    __ xor_(kScratchRegister, kScratchRegister);
-
     DeferredCode* deferred = NULL;
     if (is_postfix) {
       deferred = new DeferredPostfixCountOperation(new_value.reg(),
@@ -2850,24 +2825,25 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   is_increment);
     }
 
+    Result tmp = allocator_->AllocateWithoutSpilling();
+    ASSERT(kSmiTagMask == 1 && kSmiTag == 0);
+    __ movl(tmp.reg(), Immediate(kSmiTagMask));
+    // Smi test.
+    __ movq(kScratchRegister, new_value.reg());
     if (is_increment) {
-      __ addq(new_value.reg(), Immediate(Smi::FromInt(1)));
+      __ addl(kScratchRegister, Immediate(Smi::FromInt(1)));
     } else {
-      __ subq(new_value.reg(), Immediate(Smi::FromInt(1)));
+      __ subl(kScratchRegister, Immediate(Smi::FromInt(1)));
     }
-
-    // If the count operation didn't overflow and the result is a valid
-    // smi, we're done. Otherwise, we jump to the deferred slow-case
-    // code.
-
-    // We combine the overflow and the smi tag check.
-    __ setcc(overflow, kScratchRegister);
-    __ or_(kScratchRegister, new_value.reg());
-    __ testl(kScratchRegister, Immediate(kSmiTagMask));
+    // deferred->Branch(overflow);
+    __ cmovl(overflow, kScratchRegister, tmp.reg());
+    __ testl(kScratchRegister, tmp.reg());
     tmp.Unuse();
     deferred->Branch(not_zero);
+    __ movq(new_value.reg(), kScratchRegister);
 
     deferred->BindExit();
+
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -5081,12 +5057,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     // Perform the operation.
     switch (op) {
       case Token::SAR:
-        __ sar(answer.reg());
+        __ sarl(answer.reg());
         // No checks of result necessary
         break;
       case Token::SHR: {
         Label result_ok;
-        __ shr(answer.reg());
+        __ shrl(answer.reg());
         // Check that the *unsigned* result fits in a smi.  Neither of
         // the two high-order bits can be set:
         //  * 0x80000000: high bit would be lost when smi tagging.
@@ -6813,7 +6789,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ testl(rax, Immediate(1));
         __ j(not_zero, &operand_conversion_failure);
       } else {
-        // TODO(X64): Verify that SSE3 is always supported, drop this code.
         // Check if right operand is int32.
         __ fist_s(Operand(rsp, 0 * kPointerSize));
         __ fild_s(Operand(rsp, 0 * kPointerSize));
@@ -6840,9 +6815,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_OR:  __ or_(rax, rcx); break;
         case Token::BIT_AND: __ and_(rax, rcx); break;
         case Token::BIT_XOR: __ xor_(rax, rcx); break;
-        case Token::SAR: __ sar(rax); break;
-        case Token::SHL: __ shl(rax); break;
-        case Token::SHR: __ shr(rax); break;
+        case Token::SAR: __ sarl(rax); break;
+        case Token::SHL: __ shll(rax); break;
+        case Token::SHR: __ shrl(rax); break;
         default: UNREACHABLE();
       }
       if (op_ == Token::SHR) {
