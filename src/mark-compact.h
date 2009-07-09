@@ -357,7 +357,8 @@ class MarkCompactCollector: public AllStatic {
   static int RelocateCellObject(HeapObject* obj);
 
   // Helper function.
-  static inline int RelocateOldNonCodeObject(HeapObject* obj, PagedSpace* space);
+  static inline int RelocateOldNonCodeObject(HeapObject* obj,
+                                             PagedSpace* space);
 
   // Relocates an object in the code space.
   static int RelocateCodeObject(HeapObject* obj);
