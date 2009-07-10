@@ -1850,14 +1850,27 @@ class DescriptorArray: public FixedArray {
   // using the supplied storage for the small "bridge".
   void SetEnumCache(FixedArray* bridge_storage, FixedArray* new_cache);
 
-  // Accessors for fetching instance descriptor at descriptor number..
+  // Accessors for fetching instance descriptor at descriptor number.
   inline String* GetKey(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
   inline Smi* GetDetails(int descriptor_number);
+  inline PropertyType GetType(int descriptor_number);
+  inline int GetFieldIndex(int descriptor_number);
+  inline JSFunction* GetConstantFunction(int descriptor_number);
+  inline Object* GetCallbacksObject(int descriptor_number);
+  inline AccessorDescriptor* GetCallbacks(int descriptor_number);
+  inline bool IsProperty(int descriptor_number);
+  inline bool IsTransition(int descriptor_number);
+  inline bool IsNullDescriptor(int descriptor_number);
+  inline bool IsDontEnum(int descriptor_number);
 
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number, Descriptor* desc);
+
+  // Transfer complete descriptor from another descriptor array to
+  // this one.
+  inline void CopyFrom(int index, DescriptorArray* src, int src_index);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is

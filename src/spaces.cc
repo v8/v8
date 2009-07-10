@@ -37,8 +37,8 @@ namespace internal {
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
-  ASSERT((space).low() <= (info).top                 \
-         && (info).top <= (space).high()             \
+  ASSERT((space).low() <= (info).top                  \
+         && (info).top <= (space).high()              \
          && (info).limit == (space).high())
 
 

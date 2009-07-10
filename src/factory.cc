@@ -570,13 +570,9 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   int descriptor_count = 0;
 
   // Copy the descriptors from the array.
-  {
-    DescriptorWriter w(*result);
-    for (DescriptorReader r(*array); !r.eos(); r.advance()) {
-      if (!r.IsNullDescriptor()) {
-        w.WriteFrom(&r);
-      }
-      descriptor_count++;
+  for (int i = 0; i < array->number_of_descriptors(); i++) {
+    if (array->GetType(i) != NULL_DESCRIPTOR) {
+      result->CopyFrom(descriptor_count++, *array, i);
     }
   }
 
@@ -596,9 +592,6 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     if (result->LinearSearch(*key, descriptor_count) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      // We do not use a DescriptorWriter because SymbolFromString can
-      // allocate. A DescriptorWriter holds a raw pointer and is
-      // therefore not GC safe.
       result->Set(descriptor_count, &desc);
       descriptor_count++;
     } else {
@@ -609,13 +602,11 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // If duplicates were detected, allocate a result of the right size
   // and transfer the elements.
   if (duplicates > 0) {
+    int number_of_descriptors = result->number_of_descriptors() - duplicates;
     Handle<DescriptorArray> new_result =
-        NewDescriptorArray(result->number_of_descriptors() - duplicates);
-    DescriptorWriter w(*new_result);
-    DescriptorReader r(*result);
-    while (!w.eos()) {
-      w.WriteFrom(&r);
-      r.advance();
+        NewDescriptorArray(number_of_descriptors);
+    for (int i = 0; i < number_of_descriptors; i++) {
+      new_result->CopyFrom(i, *result, i);
     }
     result = new_result;
   }

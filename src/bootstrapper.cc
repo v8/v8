@@ -1373,43 +1373,35 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
   if (from->HasFastProperties()) {
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
-    int offset = 0;
-    while (true) {
-      // Iterating through the descriptors is not gc safe so we have to
-      // store the value in a handle and create a new stream for each entry.
-      DescriptorReader stream(*descs, offset);
-      if (stream.eos()) break;
-      // We have to read out the next offset before we do anything that may
-      // cause a gc, since the DescriptorReader is not gc safe.
-      offset = stream.next_position();
-      PropertyDetails details = stream.GetDetails();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      PropertyDetails details = PropertyDetails(descs->GetDetails(i));
       switch (details.type()) {
         case FIELD: {
           HandleScope inner;
-          Handle<String> key = Handle<String>(stream.GetKey());
-          int index = stream.GetFieldIndex();
+          Handle<String> key = Handle<String>(descs->GetKey(i));
+          int index = descs->GetFieldIndex(i);
           Handle<Object> value = Handle<Object>(from->FastPropertyAt(index));
           SetProperty(to, key, value, details.attributes());
           break;
         }
         case CONSTANT_FUNCTION: {
           HandleScope inner;
-          Handle<String> key = Handle<String>(stream.GetKey());
+          Handle<String> key = Handle<String>(descs->GetKey(i));
           Handle<JSFunction> fun =
-              Handle<JSFunction>(stream.GetConstantFunction());
+              Handle<JSFunction>(descs->GetConstantFunction(i));
           SetProperty(to, key, fun, details.attributes());
           break;
         }
         case CALLBACKS: {
           LookupResult result;
-          to->LocalLookup(stream.GetKey(), &result);
+          to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
           if (result.IsValid()) continue;
           HandleScope inner;
           Handle<DescriptorArray> inst_descs =
               Handle<DescriptorArray>(to->map()->instance_descriptors());
-          Handle<String> key = Handle<String>(stream.GetKey());
-          Handle<Object> entry = Handle<Object>(stream.GetCallbacksObject());
+          Handle<String> key = Handle<String>(descs->GetKey(i));
+          Handle<Object> entry = Handle<Object>(descs->GetCallbacksObject(i));
           inst_descs = Factory::CopyAppendProxyDescriptor(inst_descs,
                                                           key,
                                                           entry,
