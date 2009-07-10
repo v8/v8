@@ -247,6 +247,17 @@ void StubCompiler::GenerateLoadStringLength2(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
+                                                 Register receiver,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Label* miss_label) {
+  __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
+  __ mov(r0, scratch1);
+  __ Ret();
+}
+
+
 // Generate StoreField code, value is passed in r0 register.
 // After executing generated code, the receiver_reg and name_reg
 // may be clobbered.
