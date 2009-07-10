@@ -3240,6 +3240,9 @@ class GlobalObject: public JSObject {
   // Retrieve the property cell used to store a property.
   Object* GetPropertyCell(LookupResult* result);
 
+  // Ensure that the global object has a cell for the given property name.
+  Object* EnsurePropertyCell(String* name);
+
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 

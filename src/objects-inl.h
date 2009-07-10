@@ -2653,7 +2653,7 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
                                       Object* key,
                                       Object* value,
                                       PropertyDetails details) {
-  ASSERT(!key->IsString() || details.index() > 0);
+  ASSERT(!key->IsString() || details.IsDeleted() || details.index() > 0);
   int index = HashTable<Shape, Key>::EntryToIndex(entry);
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode();
   FixedArray::set(index, key, mode);

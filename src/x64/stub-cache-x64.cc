@@ -42,7 +42,8 @@ namespace internal {
 Object* CallStubCompiler::CompileCallConstant(Object* a,
                                               JSObject* b,
                                               JSFunction* c,
-                                              StubCompiler::CheckType d) {
+                                              String* d,
+                                              StubCompiler::CheckType e) {
   UNIMPLEMENTED();
   return NULL;
 }

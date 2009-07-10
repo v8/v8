@@ -450,7 +450,7 @@ Object* StubCache::ComputeCallConstant(int argc,
     if (!function->is_compiled()) return Failure::InternalError();
     // Compile the stub - only create stubs for fully compiled functions.
     CallStubCompiler compiler(argc, in_loop);
-    code = compiler.CompileCallConstant(object, holder, function, check);
+    code = compiler.CompileCallConstant(object, holder, function, name, check);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
@@ -957,6 +957,10 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
 
 
 Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, const char* name) {
+  // Check for allocation failures during stub compilation.
+  if (failure_->IsFailure()) return failure_;
+
+  // Create code object in the heap.
   CodeDesc desc;
   masm_.GetCode(&desc);
   Object* result = Heap::CreateCode(desc, NULL, flags, masm_.CodeObject());

@@ -436,8 +436,7 @@ Object* JSObject::SetNormalizedProperty(String* name,
       store_value = Heap::AllocateJSGlobalPropertyCell(value);
       if (store_value->IsFailure()) return store_value;
     }
-    Object* dict =
-        property_dictionary()->Add(name, store_value, details);
+    Object* dict = property_dictionary()->Add(name, store_value, details);
     if (dict->IsFailure()) return dict;
     set_properties(StringDictionary::cast(dict));
     return value;
@@ -1712,30 +1711,24 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
   } else {
     int entry = property_dictionary()->FindEntry(name);
     if (entry != StringDictionary::kNotFound) {
-      // Make sure to disallow caching for uninitialized constants
-      // found in the dictionary-mode objects.
       Object* value = property_dictionary()->ValueAt(entry);
       if (IsGlobalObject()) {
         PropertyDetails d = property_dictionary()->DetailsAt(entry);
         if (d.IsDeleted()) {
-          // We've skipped a global object during lookup, so we cannot
-          // use inline caching because the map of the global object
-          // doesn't change if the property should be re-added.
-          result->DisallowCaching();
           result->NotFound();
           return;
         }
         value = JSGlobalPropertyCell::cast(value)->value();
         ASSERT(result->IsLoaded());
       }
-      if (value->IsTheHole()) {
-        result->DisallowCaching();
-      }
+      // Make sure to disallow caching for uninitialized constants
+      // found in the dictionary-mode objects.
+      if (value->IsTheHole()) result->DisallowCaching();
       result->DictionaryResult(this, entry);
       return;
     }
     // Slow case object skipped during lookup. Do not use inline caching.
-    result->DisallowCaching();
+    if (!IsGlobalObject()) result->DisallowCaching();
   }
   result->NotFound();
 }
@@ -6841,6 +6834,26 @@ Object* GlobalObject::GetPropertyCell(LookupResult* result) {
 }
 
 
+Object* GlobalObject::EnsurePropertyCell(String* name) {
+  ASSERT(!HasFastProperties());
+  int entry = property_dictionary()->FindEntry(name);
+  if (entry == StringDictionary::kNotFound) {
+    Object* cell = Heap::AllocateJSGlobalPropertyCell(Heap::the_hole_value());
+    if (cell->IsFailure()) return cell;
+    PropertyDetails details(NONE, NORMAL);
+    details = details.AsDeleted();
+    Object* dictionary = property_dictionary()->Add(name, cell, details);
+    if (dictionary->IsFailure()) return dictionary;
+    set_properties(StringDictionary::cast(dictionary));
+    return cell;
+  } else {
+    Object* value = property_dictionary()->ValueAt(entry);
+    ASSERT(value->IsJSGlobalPropertyCell());
+    return value;
+  }
+}
+
+
 Object* SymbolTable::LookupString(String* string, Object** s) {
   SymbolKey key(string);
   return LookupKey(&key, s);
@@ -7200,7 +7213,7 @@ Object* Dictionary<Shape, Key>::AddEntry(Key key,
 
   uint32_t entry = Dictionary<Shape, Key>::FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
-  if (details.index() == 0 && Shape::kIsEnumerable) {
+  if (!details.IsDeleted() && details.index() == 0 && Shape::kIsEnumerable) {
     // Assign an enumeration index to the property and update
     // SetNextEnumerationIndex.
     int index = NextEnumerationIndex();
@@ -7273,7 +7286,9 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k)) {
-      PropertyAttributes attr = DetailsAt(i).attributes();
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
+      PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) result++;
     }
   }
@@ -7297,7 +7312,9 @@ void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage,
   for (int i = 0; i < capacity; i++) {
      Object* k = HashTable<Shape, Key>::KeyAt(i);
      if (HashTable<Shape, Key>::IsKey(k)) {
-       PropertyAttributes attr = DetailsAt(i).attributes();
+       PropertyDetails details = DetailsAt(i);
+       if (details.IsDeleted()) continue;
+       PropertyAttributes attr = details.attributes();
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
@@ -7315,13 +7332,12 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
      Object* k = KeyAt(i);
      if (IsKey(k)) {
        PropertyDetails details = DetailsAt(i);
-       if (!details.IsDontEnum()) {
-         storage->set(index, k);
-         sort_array->set(index,
-                         Smi::FromInt(details.index()),
-                         SKIP_WRITE_BARRIER);
-         index++;
-       }
+       if (details.IsDeleted() || details.IsDontEnum()) continue;
+       storage->set(index, k);
+       sort_array->set(index,
+                       Smi::FromInt(details.index()),
+                       SKIP_WRITE_BARRIER);
+       index++;
      }
   }
   storage->SortPairs(sort_array, sort_array->length());
@@ -7338,6 +7354,8 @@ void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage) {
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k)) {
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
       storage->set(index++, k);
     }
   }
