@@ -59,6 +59,7 @@ debug-multiple-breakpoints: CRASH || FAIL
 debug-setbreakpoint: CRASH || FAIL || PASS
 debug-step-stub-callfunction: SKIP
 debug-stepin-constructor: CRASH, FAIL
+debug-stepin-function-call: CRASH || FAIL
 debug-step: SKIP
 debug-breakpoints: PASS || FAIL
 debug-handle: CRASH || FAIL || PASS
