@@ -4316,7 +4316,7 @@ static Object* Runtime_NewObject(Arguments args) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Handle stepping into constructors if step into is active.
   if (Debug::StepInActive()) {
-    Debug::HandleStepIn(function, 0, true);
+    Debug::HandleStepIn(function, Handle<Object>::null(), 0, true);
   }
 #endif
 

@@ -397,7 +397,7 @@ Object* CallIC::LoadFunction(State state,
       // cause GC.
       HandleScope scope;
       Handle<JSFunction> function(JSFunction::cast(result));
-      Debug::HandleStepIn(function, fp(), false);
+      Debug::HandleStepIn(function, object, fp(), false);
       return *function;
     }
 #endif

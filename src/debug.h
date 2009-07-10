@@ -270,6 +270,7 @@ class Debug {
 
   static bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
   static void HandleStepIn(Handle<JSFunction> function,
+                           Handle<Object> holder,
                            Address fp,
                            bool is_constructor);
   static Address step_in_fp() { return thread_local_.step_into_fp_; }
