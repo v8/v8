@@ -1069,6 +1069,7 @@ Object* JSGlobalPropertyCell::value() {
 
 void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
   // The write barrier is not used for global property cells.
+  ASSERT(!val->IsJSGlobalPropertyCell());
   WRITE_FIELD(this, kValueOffset, val);
 }
 

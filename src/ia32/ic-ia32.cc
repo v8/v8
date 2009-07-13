@@ -75,6 +75,12 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   __ cmp(r0, JS_GLOBAL_PROXY_TYPE);
   __ j(equal, miss_label, not_taken);
 
+  // Possible work-around for http://crbug.com/16276.
+  __ cmp(r0, JS_GLOBAL_OBJECT_TYPE);
+  __ j(equal, miss_label, not_taken);
+  __ cmp(r0, JS_BUILTINS_OBJECT_TYPE);
+  __ j(equal, miss_label, not_taken);
+
   // Check that the properties array is a dictionary.
   __ mov(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
   __ cmp(FieldOperand(r0, HeapObject::kMapOffset),

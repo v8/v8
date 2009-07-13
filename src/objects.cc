@@ -1632,6 +1632,7 @@ Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
   return *value_handle;
 }
 
+
 void JSObject::LookupCallbackSetterInPrototypes(String* name,
                                                 LookupResult* result) {
   for (Object* pt = GetPrototype();
@@ -1659,7 +1660,7 @@ Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
     if (JSObject::cast(pt)->HasFastElements()) continue;
     NumberDictionary* dictionary = JSObject::cast(pt)->element_dictionary();
     int entry = dictionary->FindEntry(index);
-    if (entry != StringDictionary::kNotFound) {
+    if (entry != NumberDictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
