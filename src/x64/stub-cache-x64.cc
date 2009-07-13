@@ -42,7 +42,8 @@ namespace internal {
 Object* CallStubCompiler::CompileCallConstant(Object* a,
                                               JSObject* b,
                                               JSFunction* c,
-                                              StubCompiler::CheckType d) {
+                                              String* d,
+                                              StubCompiler::CheckType e) {
   UNIMPLEMENTED();
   return NULL;
 }
@@ -65,7 +66,8 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* a,
 
 
 
-Object* CallStubCompiler::CompileCallGlobal(GlobalObject* object,
+Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
+                                            GlobalObject* holder,
                                             JSGlobalPropertyCell* cell,
                                             JSFunction* function,
                                             String* name) {
@@ -109,7 +111,8 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
 }
 
 
-Object* LoadStubCompiler::CompileLoadGlobal(GlobalObject* object,
+Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
+                                            GlobalObject* holder,
                                             JSGlobalPropertyCell* cell,
                                             String* name,
                                             bool is_dont_delete) {

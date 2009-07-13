@@ -53,6 +53,7 @@ OldSpace* Heap::old_pointer_space_ = NULL;
 OldSpace* Heap::old_data_space_ = NULL;
 OldSpace* Heap::code_space_ = NULL;
 MapSpace* Heap::map_space_ = NULL;
+CellSpace* Heap::cell_space_ = NULL;
 LargeObjectSpace* Heap::lo_space_ = NULL;
 
 static const int kMinimumPromotionLimit = 2*MB;
@@ -110,7 +111,8 @@ int Heap::Capacity() {
       old_pointer_space_->Capacity() +
       old_data_space_->Capacity() +
       code_space_->Capacity() +
-      map_space_->Capacity();
+      map_space_->Capacity() +
+      cell_space_->Capacity();
 }
 
 
@@ -121,7 +123,8 @@ int Heap::Available() {
       old_pointer_space_->Available() +
       old_data_space_->Available() +
       code_space_->Available() +
-      map_space_->Available();
+      map_space_->Available() +
+      cell_space_->Available();
 }
 
 
@@ -130,6 +133,7 @@ bool Heap::HasBeenSetup() {
          old_data_space_ != NULL &&
          code_space_ != NULL &&
          map_space_ != NULL &&
+         cell_space_ != NULL &&
          lo_space_ != NULL;
 }
 
@@ -359,6 +363,8 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
       return code_space_->Available() >= requested_size;
     case MAP_SPACE:
       return map_space_->Available() >= requested_size;
+    case CELL_SPACE:
+      return cell_space_->Available() >= requested_size;
     case LO_SPACE:
       return lo_space_->Available() >= requested_size;
   }
@@ -595,6 +601,7 @@ static void VerifyNonPointerSpacePointers() {
 }
 #endif
 
+
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
@@ -653,7 +660,7 @@ void Heap::Scavenge() {
   // Copy objects reachable from weak pointers.
   GlobalHandles::IterateWeakRoots(&scavenge_visitor);
 
-#if V8_HOST_ARCH_64_BIT
+#ifdef V8_HOST_ARCH_64_BIT
   // TODO(X64): Make this go away again. We currently disable RSets for
   // 64-bit-mode.
   HeapObjectIterator old_pointer_iterator(old_pointer_space_);
@@ -673,13 +680,25 @@ void Heap::Scavenge() {
       heap_object->Iterate(&scavenge_visitor);
     }
   }
-#else  // V8_HOST_ARCH_64_BIT
+#else  // !defined(V8_HOST_ARCH_64_BIT)
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
   IterateRSet(old_pointer_space_, &ScavengePointer);
   IterateRSet(map_space_, &ScavengePointer);
   lo_space_->IterateRSet(&ScavengePointer);
-#endif   // V8_HOST_ARCH_64_BIT
+#endif
+
+  // Copy objects reachable from cells by scavenging cell values directly.
+  HeapObjectIterator cell_iterator(cell_space_);
+  while (cell_iterator.has_next()) {
+    HeapObject* cell = cell_iterator.next();
+    if (cell->IsJSGlobalPropertyCell()) {
+      Address value_address =
+          reinterpret_cast<Address>(cell) +
+          (JSGlobalPropertyCell::kValueOffset - kHeapObjectTag);
+      scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
+    }
+  }
 
   do {
     ASSERT(new_space_front <= new_space_.top());
@@ -819,8 +838,8 @@ int Heap::UpdateRSet(HeapObject* obj) {
 
 
 void Heap::RebuildRSets() {
-  // By definition, we do not care about remembered set bits in code or data
-  // spaces.
+  // By definition, we do not care about remembered set bits in code,
+  // data, or cell spaces.
   map_space_->ClearRSet();
   RebuildRSets(map_space_);
 
@@ -995,7 +1014,7 @@ void Heap::ScavengePointer(HeapObject** p) {
 
 Object* Heap::AllocatePartialMap(InstanceType instance_type,
                                  int instance_size) {
-  Object* result = AllocateRawMap(Map::kSize);
+  Object* result = AllocateRawMap();
   if (result->IsFailure()) return result;
 
   // Map::cast cannot be used due to uninitialized map field.
@@ -1009,7 +1028,7 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
 
 
 Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
-  Object* result = AllocateRawMap(Map::kSize);
+  Object* result = AllocateRawMap();
   if (result->IsFailure()) return result;
 
   Map* map = reinterpret_cast<Map*>(result);
@@ -1055,7 +1074,6 @@ const Heap::StructTable Heap::struct_table[] = {
 bool Heap::CreateInitialMaps() {
   Object* obj = AllocatePartialMap(MAP_TYPE, Map::kSize);
   if (obj->IsFailure()) return false;
-
   // Map::cast cannot be used due to uninitialized map field.
   Map* new_meta_map = reinterpret_cast<Map*>(obj);
   set_meta_map(new_meta_map);
@@ -1069,11 +1087,6 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_oddball_map(Map::cast(obj));
 
-  obj = AllocatePartialMap(JS_GLOBAL_PROPERTY_CELL_TYPE,
-                           JSGlobalPropertyCell::kSize);
-  if (obj->IsFailure()) return false;
-  set_global_property_cell_map(Map::cast(obj));
-
   // Allocate the empty array
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
@@ -1083,11 +1096,10 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_null_value(obj);
 
-  // Allocate the empty descriptor array.  AllocateMap can now be used.
+  // Allocate the empty descriptor array.
   obj = AllocateEmptyFixedArray();
   if (obj->IsFailure()) return false;
-  // There is a check against empty_descriptor_array() in cast().
-  set_empty_descriptor_array(reinterpret_cast<DescriptorArray*>(obj));
+  set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_instance_descriptors(empty_descriptor_array());
@@ -1099,21 +1111,15 @@ bool Heap::CreateInitialMaps() {
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
   oddball_map()->set_code_cache(empty_fixed_array());
 
-  global_property_cell_map()->set_instance_descriptors(
-      empty_descriptor_array());
-  global_property_cell_map()->set_code_cache(empty_fixed_array());
-
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
   meta_map()->set_constructor(null_value());
 
   fixed_array_map()->set_prototype(null_value());
   fixed_array_map()->set_constructor(null_value());
+
   oddball_map()->set_prototype(null_value());
   oddball_map()->set_constructor(null_value());
-
-  global_property_cell_map()->set_prototype(null_value());
-  global_property_cell_map()->set_constructor(null_value());
 
   obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   if (obj->IsFailure()) return false;
@@ -1168,13 +1174,18 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_code_map(Map::cast(obj));
 
+  obj = AllocateMap(JS_GLOBAL_PROPERTY_CELL_TYPE,
+                    JSGlobalPropertyCell::kSize);
+  if (obj->IsFailure()) return false;
+  set_global_property_cell_map(Map::cast(obj));
+
   obj = AllocateMap(FILLER_TYPE, kPointerSize);
   if (obj->IsFailure()) return false;
-  set_one_word_filler_map(Map::cast(obj));
+  set_one_pointer_filler_map(Map::cast(obj));
 
   obj = AllocateMap(FILLER_TYPE, 2 * kPointerSize);
   if (obj->IsFailure()) return false;
-  set_two_word_filler_map(Map::cast(obj));
+  set_two_pointer_filler_map(Map::cast(obj));
 
   for (unsigned i = 0; i < ARRAY_SIZE(struct_table); i++) {
     const StructTable& entry = struct_table[i];
@@ -1242,9 +1253,7 @@ Object* Heap::AllocateHeapNumber(double value) {
 
 
 Object* Heap::AllocateJSGlobalPropertyCell(Object* value) {
-  Object* result = AllocateRaw(JSGlobalPropertyCell::kSize,
-                               OLD_POINTER_SPACE,
-                               OLD_POINTER_SPACE);
+  Object* result = AllocateRawCell();
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(global_property_cell_map());
   JSGlobalPropertyCell::cast(result)->set_value(value);
@@ -1821,7 +1830,7 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map(Heap::one_word_filler_map());
+    filler->set_map(Heap::one_pointer_filler_map());
   } else {
     filler->set_map(Heap::byte_array_map());
     ByteArray::cast(filler)->set_length(ByteArray::LengthFor(size));
@@ -2697,6 +2706,8 @@ void Heap::ReportHeapStatistics(const char* title) {
   code_space_->ReportStatistics();
   PrintF("Map space : ");
   map_space_->ReportStatistics();
+  PrintF("Cell space : ");
+  cell_space_->ReportStatistics();
   PrintF("Large object space : ");
   lo_space_->ReportStatistics();
   PrintF(">>>>>> ========================================= >>>>>>\n");
@@ -2717,6 +2728,7 @@ bool Heap::Contains(Address addr) {
      old_data_space_->Contains(addr) ||
      code_space_->Contains(addr) ||
      map_space_->Contains(addr) ||
+     cell_space_->Contains(addr) ||
      lo_space_->SlowContains(addr));
 }
 
@@ -2741,6 +2753,8 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
       return code_space_->Contains(addr);
     case MAP_SPACE:
       return map_space_->Contains(addr);
+    case CELL_SPACE:
+      return cell_space_->Contains(addr);
     case LO_SPACE:
       return lo_space_->SlowContains(addr);
   }
@@ -2754,12 +2768,20 @@ void Heap::Verify() {
   ASSERT(HasBeenSetup());
 
   VerifyPointersVisitor visitor;
-  Heap::IterateRoots(&visitor);
+  IterateRoots(&visitor);
 
-  AllSpaces spaces;
-  while (Space* space = spaces.next()) {
-    space->Verify();
-  }
+  new_space_.Verify();
+
+  VerifyPointersAndRSetVisitor rset_visitor;
+  old_pointer_space_->Verify(&rset_visitor);
+  map_space_->Verify(&rset_visitor);
+
+  VerifyPointersVisitor no_rset_visitor;
+  old_data_space_->Verify(&no_rset_visitor);
+  code_space_->Verify(&no_rset_visitor);
+  cell_space_->Verify(&no_rset_visitor);
+
+  lo_space_->Verify();
 }
 #endif  // DEBUG
 
@@ -2964,6 +2986,7 @@ int Heap::PromotedSpaceSize() {
       + old_data_space_->Size()
       + code_space_->Size()
       + map_space_->Size()
+      + cell_space_->Size()
       + lo_space_->Size();
 }
 
@@ -3041,6 +3064,13 @@ bool Heap::Setup(bool create_heap_objects) {
   // enough to hold at least a page will cause it to allocate.
   if (!map_space_->Setup(NULL, 0)) return false;
 
+  // Initialize global property cell space.
+  cell_space_ = new CellSpace(old_generation_size_, CELL_SPACE);
+  if (cell_space_ == NULL) return false;
+  // Setting up a paged space without giving it a virtual memory range big
+  // enough to hold at least a page will cause it to allocate.
+  if (!cell_space_->Setup(NULL, 0)) return false;
+
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
@@ -3093,6 +3123,12 @@ void Heap::TearDown() {
     map_space_ = NULL;
   }
 
+  if (cell_space_ != NULL) {
+    cell_space_->TearDown();
+    delete cell_space_;
+    cell_space_ = NULL;
+  }
+
   if (lo_space_ != NULL) {
     lo_space_->TearDown();
     delete lo_space_;
@@ -3104,11 +3140,9 @@ void Heap::TearDown() {
 
 
 void Heap::Shrink() {
-  // Try to shrink map, old, and code spaces.
-  map_space_->Shrink();
-  old_pointer_space_->Shrink();
-  old_data_space_->Shrink();
-  code_space_->Shrink();
+  // Try to shrink all paged spaces.
+  PagedSpaces spaces;
+  while (PagedSpace* space = spaces.next()) space->Shrink();
 }
 
 
@@ -3116,24 +3150,16 @@ void Heap::Shrink() {
 
 void Heap::Protect() {
   if (HasBeenSetup()) {
-    new_space_.Protect();
-    map_space_->Protect();
-    old_pointer_space_->Protect();
-    old_data_space_->Protect();
-    code_space_->Protect();
-    lo_space_->Protect();
+    AllSpaces spaces;
+    while (Space* space = spaces.next()) space->Protect();
   }
 }
 
 
 void Heap::Unprotect() {
   if (HasBeenSetup()) {
-    new_space_.Unprotect();
-    map_space_->Unprotect();
-    old_pointer_space_->Unprotect();
-    old_data_space_->Unprotect();
-    code_space_->Unprotect();
-    lo_space_->Unprotect();
+    AllSpaces spaces;
+    while (Space* space = spaces.next()) space->Unprotect();
   }
 }
 
@@ -3171,6 +3197,8 @@ Space* AllSpaces::next() {
       return Heap::code_space();
     case MAP_SPACE:
       return Heap::map_space();
+    case CELL_SPACE:
+      return Heap::cell_space();
     case LO_SPACE:
       return Heap::lo_space();
     default:
@@ -3189,6 +3217,8 @@ PagedSpace* PagedSpaces::next() {
       return Heap::code_space();
     case MAP_SPACE:
       return Heap::map_space();
+    case CELL_SPACE:
+      return Heap::cell_space();
     default:
       return NULL;
   }
@@ -3261,6 +3291,9 @@ ObjectIterator* SpaceIterator::CreateIterator() {
       break;
     case MAP_SPACE:
       iterator_ = new HeapObjectIterator(Heap::map_space());
+      break;
+    case CELL_SPACE:
+      iterator_ = new HeapObjectIterator(Heap::cell_space());
       break;
     case LO_SPACE:
       iterator_ = new LargeObjectIterator(Heap::lo_space());

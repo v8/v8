@@ -355,14 +355,19 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   // receiver.
   frame_->Exit();
   masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
+  // Add padding that will be overwritten by a debugger breakpoint.
+  // frame_->Exit() generates "movq rsp, rbp; pop rbp" length 5.
+  // "ret k" has length 2.
+  const int kPadding = Debug::kX64JSReturnSequenceLength - 5 - 2;
+  for (int i = 0; i < kPadding; ++i) {
+    masm_->int3();
+  }
   DeleteFrame();
-
-  // TODO(x64): introduce kX64JSReturnSequenceLength and enable assert.
 
   // Check that the size of the code used for returning matches what is
   // expected by the debugger.
-  // ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
-  //          masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+  ASSERT_EQ(Debug::kX64JSReturnSequenceLength,
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 }
 
 
@@ -1292,7 +1297,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->continue_target()->set_direction(JumpTarget::FORWARD_ONLY);
 
   __ movq(rax, frame_->ElementAt(0));  // load the current count
-  __ cmpq(rax, frame_->ElementAt(1));  // compare to the array length
+  __ cmpl(rax, frame_->ElementAt(1));  // compare to the array length
   node->break_target()->Branch(above_equal);
 
   // Get the i'th entry of the array.
@@ -2724,12 +2729,6 @@ class DeferredPrefixCountOperation: public DeferredCode {
 
 
 void DeferredPrefixCountOperation::Generate() {
-  // Undo the optimistic smi operation.
-  if (is_increment_) {
-    __ subq(dst_, Immediate(Smi::FromInt(1)));
-  } else {
-    __ addq(dst_, Immediate(Smi::FromInt(1)));
-  }
   __ push(dst_);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
   __ push(rax);
@@ -2765,12 +2764,6 @@ class DeferredPostfixCountOperation: public DeferredCode {
 
 
 void DeferredPostfixCountOperation::Generate() {
-  // Undo the optimistic smi operation.
-  if (is_increment_) {
-    __ subq(dst_, Immediate(Smi::FromInt(1)));
-  } else {
-    __ addq(dst_, Immediate(Smi::FromInt(1)));
-  }
   __ push(dst_);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
 
@@ -2827,19 +2820,6 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // Ensure the new value is writable.
     frame_->Spill(new_value.reg());
 
-    // In order to combine the overflow and the smi tag check, we need
-    // to be able to allocate a byte register.  We attempt to do so
-    // without spilling.  If we fail, we will generate separate overflow
-    // and smi tag checks.
-    //
-    // We allocate and clear the temporary register before
-    // performing the count operation since clearing the register using
-    // xor will clear the overflow flag.
-    Result tmp = allocator_->AllocateWithoutSpilling();
-
-    // Clear scratch register to prepare it for setcc after the operation below.
-    __ xor_(kScratchRegister, kScratchRegister);
-
     DeferredCode* deferred = NULL;
     if (is_postfix) {
       deferred = new DeferredPostfixCountOperation(new_value.reg(),
@@ -2850,24 +2830,25 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   is_increment);
     }
 
+    Result tmp = allocator_->AllocateWithoutSpilling();
+    ASSERT(kSmiTagMask == 1 && kSmiTag == 0);
+    __ movl(tmp.reg(), Immediate(kSmiTagMask));
+    // Smi test.
+    __ movq(kScratchRegister, new_value.reg());
     if (is_increment) {
-      __ addq(new_value.reg(), Immediate(Smi::FromInt(1)));
+      __ addl(kScratchRegister, Immediate(Smi::FromInt(1)));
     } else {
-      __ subq(new_value.reg(), Immediate(Smi::FromInt(1)));
+      __ subl(kScratchRegister, Immediate(Smi::FromInt(1)));
     }
-
-    // If the count operation didn't overflow and the result is a valid
-    // smi, we're done. Otherwise, we jump to the deferred slow-case
-    // code.
-
-    // We combine the overflow and the smi tag check.
-    __ setcc(overflow, kScratchRegister);
-    __ or_(kScratchRegister, new_value.reg());
-    __ testl(kScratchRegister, Immediate(kSmiTagMask));
+    // deferred->Branch(overflow);
+    __ cmovl(overflow, kScratchRegister, tmp.reg());
+    __ testl(kScratchRegister, tmp.reg());
     tmp.Unuse();
     deferred->Branch(not_zero);
+    __ movq(new_value.reg(), kScratchRegister);
 
     deferred->BindExit();
+
 
     // Postfix: store the old value in the allocated slot under the
     // reference.
@@ -5081,12 +5062,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     // Perform the operation.
     switch (op) {
       case Token::SAR:
-        __ sar(answer.reg());
+        __ sarl(answer.reg());
         // No checks of result necessary
         break;
       case Token::SHR: {
         Label result_ok;
-        __ shr(answer.reg());
+        __ shrl(answer.reg());
         // Check that the *unsigned* result fits in a smi.  Neither of
         // the two high-order bits can be set:
         //  * 0x80000000: high bit would be lost when smi tagging.
@@ -5109,7 +5090,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
         Label result_ok;
         __ shl(answer.reg());
         // Check that the *signed* result fits in a smi.
-        __ cmpq(answer.reg(), Immediate(0xc0000000));
+        __ cmpl(answer.reg(), Immediate(0xc0000000));
         __ j(positive, &result_ok);
         ASSERT(kSmiTag == 0);
         __ shl(rcx, Immediate(kSmiTagSize));
@@ -6675,12 +6656,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Move the second operand into register ecx.
       __ movq(rcx, rbx);
       // Remove tags from operands (but keep sign).
-      __ sar(rax, Immediate(kSmiTagSize));
-      __ sar(rcx, Immediate(kSmiTagSize));
+      __ sarl(rax, Immediate(kSmiTagSize));
+      __ sarl(rcx, Immediate(kSmiTagSize));
       // Perform the operation.
       switch (op_) {
         case Token::SAR:
-          __ sar(rax);
+          __ sarl(rax);
           // No checks of result necessary
           break;
         case Token::SHR:
@@ -6691,19 +6672,17 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           // - 0x40000000: this number would convert to negative when
           // Smi tagging these two cases can only happen with shifts
           // by 0 or 1 when handed a valid smi.
-          __ testq(rax, Immediate(0xc0000000));
+          __ testl(rax, Immediate(0xc0000000));
           __ j(not_zero, slow);
           break;
         case Token::SHL:
           __ shll(rax);
-          // TODO(Smi): Significant change if Smi changes.
           // Check that the *signed* result fits in a smi.
           // It does, if the 30th and 31st bits are equal, since then
           // shifting the SmiTag in at the bottom doesn't change the sign.
           ASSERT(kSmiTagSize == 1);
           __ cmpl(rax, Immediate(0xc0000000));
           __ j(sign, slow);
-          __ movsxlq(rax, rax);  // Extend new sign of eax into rax.
           break;
         default:
           UNREACHABLE();
@@ -6815,7 +6794,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ testl(rax, Immediate(1));
         __ j(not_zero, &operand_conversion_failure);
       } else {
-        // TODO(X64): Verify that SSE3 is always supported, drop this code.
         // Check if right operand is int32.
         __ fist_s(Operand(rsp, 0 * kPointerSize));
         __ fild_s(Operand(rsp, 0 * kPointerSize));
@@ -6842,9 +6820,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_OR:  __ or_(rax, rcx); break;
         case Token::BIT_AND: __ and_(rax, rcx); break;
         case Token::BIT_XOR: __ xor_(rax, rcx); break;
-        case Token::SAR: __ sar(rax); break;
-        case Token::SHL: __ shl(rax); break;
-        case Token::SHR: __ shr(rax); break;
+        case Token::SAR: __ sarl(rax); break;
+        case Token::SHL: __ shll(rax); break;
+        case Token::SHR: __ shrl(rax); break;
         default: UNREACHABLE();
       }
       if (op_ == Token::SHR) {

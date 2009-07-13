@@ -192,11 +192,14 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   //  -- [sp]  : receiver
   // -----------------------------------
 
-  // NOTE: Right now, this code always misses on ARM which is
-  // sub-optimal. We should port the fast case code from IA-32.
+  Label miss;
 
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  // Load receiver.
+  __ ldr(r0, MemOperand(sp, 0));
+
+  StubCompiler::GenerateLoadFunctionPrototype(masm, r0, r1, r3, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 

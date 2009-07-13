@@ -7591,6 +7591,16 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ dec(Operand::StaticVariable(scope_depth));
   }
 
+  // Make sure we're not trying to return 'the hole' from the runtime
+  // call as this may lead to crashes in the IC code later.
+  if (FLAG_debug_code) {
+    Label okay;
+    __ cmp(eax, Factory::the_hole_value());
+    __ j(not_equal, &okay);
+    __ int3();
+    __ bind(&okay);
+  }
+
   // Check for failure result.
   Label failure_returned;
   ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);

@@ -25,43 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var kLegalPairs = [
-  [0x00, '%00'],
-  [0x01, '%01'],
-  [0x7f, '%7F'],
-  [0x80, '%C2%80'],
-  [0x81, '%C2%81'],
-  [0x7ff, '%DF%BF'],
-  [0x800, '%E0%A0%80'],
-  [0x801, '%E0%A0%81'],
-  [0xd7ff, '%ED%9F%BF'],
-  [0xffff, '%EF%BF%BF']
-];
-
-var kIllegalEncoded = [
-  '%80', '%BF', '%80%BF', '%80%BF%80', '%C0%22', '%DF',
-  '%EF%BF', '%F7BFBF', '%FE', '%FF', '%FE%FE%FF%FF',
-  '%C0%AF', '%E0%9F%BF', '%F0%8F%BF%BF', '%C0%80',
-  '%E0%80%80'
-];
-
-function run() {
-  for (var i = 0; i < kLegalPairs.length; i++) {
-    var decoded = String.fromCharCode(kLegalPairs[i][0]);
-    var encoded = kLegalPairs[i][1];
-    assertEquals(decodeURI(encoded), decoded);
-    assertEquals(encodeURI(decoded), encoded);
-  }
-  for (var i = 0; i < kIllegalEncoded.length; i++) {
-    var value = kIllegalEncoded[i];
-    var threw = false;
-    try {
-      decodeURI(value);
-      assertUnreachable(value);
-    } catch (e) {
-      assertInstanceof(e, URIError);
-    }
-  }
+function f() {
+  return 87;
 }
 
-run();
+function LoadFromGlobal(global) { return global.x; }
+function StoreToGlobal(global, value) { global.x = value; }
+function CallOnGlobal(global) { return global.f(); }
+
+// Initialize the ICs in the functions.
+for (var i = 0; i < 3; i++) {
+  StoreToGlobal(this, 42 + i);
+  assertEquals(42 + i, LoadFromGlobal(this));
+  assertEquals(87, CallOnGlobal(this));
+}
+
+// Try the ICs with a smi. This should not crash.
+for (var i = 0; i < 3; i++) {
+  StoreToGlobal(i, 42 + i);
+  assertTrue(typeof LoadFromGlobal(i) == "undefined");
+  assertThrows("CallOnGlobal(" + i + ")");
+}

@@ -768,6 +768,8 @@ int Failure::value() const {
 
 
 Failure* Failure::RetryAfterGC(int requested_bytes) {
+  // Assert that the space encoding fits in the three bytes allotted for it.
+  ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
   int requested = requested_bytes >> kObjectAlignmentBits;
   int value = (requested << kSpaceTagSize) | NEW_SPACE;
   ASSERT(value >> kSpaceTagSize == requested);
@@ -1060,7 +1062,17 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 
-ACCESSORS(JSGlobalPropertyCell, value, Object, kValueOffset)
+Object* JSGlobalPropertyCell::value() {
+  return READ_FIELD(this, kValueOffset);
+}
+
+
+void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
+  // The write barrier is not used for global property cells.
+  ASSERT(!val->IsJSGlobalPropertyCell());
+  WRITE_FIELD(this, kValueOffset, val);
+}
+
 
 int JSObject::GetHeaderSize() {
   switch (map()->instance_type()) {
@@ -1339,6 +1351,56 @@ Smi* DescriptorArray::GetDetails(int descriptor_number) {
 }
 
 
+PropertyType DescriptorArray::GetType(int descriptor_number) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  return PropertyDetails(GetDetails(descriptor_number)).type();
+}
+
+
+int DescriptorArray::GetFieldIndex(int descriptor_number) {
+  return Descriptor::IndexFromValue(GetValue(descriptor_number));
+}
+
+
+JSFunction* DescriptorArray::GetConstantFunction(int descriptor_number) {
+  return JSFunction::cast(GetValue(descriptor_number));
+}
+
+
+Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
+  ASSERT(GetType(descriptor_number) == CALLBACKS);
+  return GetValue(descriptor_number);
+}
+
+
+AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
+  ASSERT(GetType(descriptor_number) == CALLBACKS);
+  Proxy* p = Proxy::cast(GetCallbacksObject(descriptor_number));
+  return reinterpret_cast<AccessorDescriptor*>(p->proxy());
+}
+
+
+bool DescriptorArray::IsProperty(int descriptor_number) {
+  return GetType(descriptor_number) < FIRST_PHANTOM_PROPERTY_TYPE;
+}
+
+
+bool DescriptorArray::IsTransition(int descriptor_number) {
+  PropertyType t = GetType(descriptor_number);
+  return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+}
+
+
+bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
+  return GetType(descriptor_number) == NULL_DESCRIPTOR;
+}
+
+
+bool DescriptorArray::IsDontEnum(int descriptor_number) {
+  return PropertyDetails(GetDetails(descriptor_number)).IsDontEnum();
+}
+
+
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
@@ -1359,6 +1421,13 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   fast_set(content_array, ToValueIndex(descriptor_number), desc->GetValue());
   fast_set(content_array, ToDetailsIndex(descriptor_number),
            desc->GetDetails().AsSmi());
+}
+
+
+void DescriptorArray::CopyFrom(int index, DescriptorArray* src, int src_index) {
+  Descriptor desc;
+  src->Get(src_index, &desc);
+  Set(index, &desc);
 }
 
 
@@ -2642,7 +2711,7 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
                                       Object* key,
                                       Object* value,
                                       PropertyDetails details) {
-  ASSERT(!key->IsString() || details.index() > 0);
+  ASSERT(!key->IsString() || details.IsDeleted() || details.index() > 0);
   int index = HashTable<Shape, Key>::EntryToIndex(entry);
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode();
   FixedArray::set(index, key, mode);

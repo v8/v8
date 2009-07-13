@@ -271,29 +271,38 @@ void ByteArray::ByteArrayVerify() {
 
 void JSObject::PrintProperties() {
   if (HasFastProperties()) {
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
+    DescriptorArray* descs = map()->instance_descriptors();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
       PrintF("   ");
-      r.GetKey()->StringPrint();
+      descs->GetKey(i)->StringPrint();
       PrintF(": ");
-      if (r.type() == FIELD) {
-        FastPropertyAt(r.GetFieldIndex())->ShortPrint();
-        PrintF(" (field at offset %d)\n", r.GetFieldIndex());
-      } else if (r.type() ==  CONSTANT_FUNCTION) {
-        r.GetConstantFunction()->ShortPrint();
-        PrintF(" (constant function)\n");
-      } else if (r.type() == CALLBACKS) {
-        r.GetCallbacksObject()->ShortPrint();
-        PrintF(" (callback)\n");
-      } else if (r.type() == MAP_TRANSITION) {
-        PrintF(" (map transition)\n");
-      } else if (r.type() == CONSTANT_TRANSITION) {
-        PrintF(" (constant transition)\n");
-      } else if (r.type() == NULL_DESCRIPTOR) {
-        PrintF(" (null descriptor)\n");
-      } else {
-        UNREACHABLE();
+      switch (descs->GetType(i)) {
+        case FIELD: {
+          int index = descs->GetFieldIndex(i);
+          FastPropertyAt(index)->ShortPrint();
+          PrintF(" (field at offset %d)\n", index);
+          break;
+        }
+        case CONSTANT_FUNCTION:
+          descs->GetConstantFunction(i)->ShortPrint();
+          PrintF(" (constant function)\n");
+          break;
+        case CALLBACKS:
+          descs->GetCallbacksObject(i)->ShortPrint();
+          PrintF(" (callback)\n");
+          break;
+        case MAP_TRANSITION:
+          PrintF(" (map transition)\n");
+          break;
+        case CONSTANT_TRANSITION:
+          PrintF(" (constant transition)\n");
+          break;
+        case NULL_DESCRIPTOR:
+          PrintF(" (null descriptor)\n");
+          break;
+        default:
+          UNREACHABLE();
+          break;
       }
     }
   } else {
@@ -1062,11 +1071,10 @@ void JSObject::SpillInformation::Print() {
 
 void DescriptorArray::PrintDescriptors() {
   PrintF("Descriptor array  %d\n", number_of_descriptors());
-  int number = 0;
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    PrintF(" %d: ", i);
     Descriptor desc;
-    r.Get(&desc);
-    PrintF(" %d: ", number++);
+    Get(i, &desc);
     desc.Print();
   }
   PrintF("\n");
@@ -1076,14 +1084,14 @@ void DescriptorArray::PrintDescriptors() {
 bool DescriptorArray::IsSortedNoDuplicates() {
   String* current_key = NULL;
   uint32_t current = 0;
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    String* key = r.GetKey();
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    String* key = GetKey(i);
     if (key == current_key) {
       PrintDescriptors();
       return false;
     }
     current_key = key;
-    uint32_t hash = r.GetKey()->Hash();
+    uint32_t hash = GetKey(i)->Hash();
     if (hash < current) {
       PrintDescriptors();
       return false;

@@ -436,8 +436,7 @@ Object* JSObject::SetNormalizedProperty(String* name,
       store_value = Heap::AllocateJSGlobalPropertyCell(value);
       if (store_value->IsFailure()) return store_value;
     }
-    Object* dict =
-        property_dictionary()->Add(name, store_value, details);
+    Object* dict = property_dictionary()->Add(name, store_value, details);
     if (dict->IsFailure()) return dict;
     set_properties(StringDictionary::cast(dict));
     return value;
@@ -1633,6 +1632,7 @@ Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
   return *value_handle;
 }
 
+
 void JSObject::LookupCallbackSetterInPrototypes(String* name,
                                                 LookupResult* result) {
   for (Object* pt = GetPrototype();
@@ -1660,7 +1660,7 @@ Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
     if (JSObject::cast(pt)->HasFastElements()) continue;
     NumberDictionary* dictionary = JSObject::cast(pt)->element_dictionary();
     int entry = dictionary->FindEntry(index);
-    if (entry != StringDictionary::kNotFound) {
+    if (entry != NumberDictionary::kNotFound) {
       Object* element = dictionary->ValueAt(entry);
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -1712,30 +1712,24 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
   } else {
     int entry = property_dictionary()->FindEntry(name);
     if (entry != StringDictionary::kNotFound) {
-      // Make sure to disallow caching for uninitialized constants
-      // found in the dictionary-mode objects.
       Object* value = property_dictionary()->ValueAt(entry);
       if (IsGlobalObject()) {
         PropertyDetails d = property_dictionary()->DetailsAt(entry);
         if (d.IsDeleted()) {
-          // We've skipped a global object during lookup, so we cannot
-          // use inline caching because the map of the global object
-          // doesn't change if the property should be re-added.
-          result->DisallowCaching();
           result->NotFound();
           return;
         }
         value = JSGlobalPropertyCell::cast(value)->value();
         ASSERT(result->IsLoaded());
       }
-      if (value->IsTheHole()) {
-        result->DisallowCaching();
-      }
+      // Make sure to disallow caching for uninitialized constants
+      // found in the dictionary-mode objects.
+      if (value->IsTheHole()) result->DisallowCaching();
       result->DictionaryResult(this, entry);
       return;
     }
     // Slow case object skipped during lookup. Do not use inline caching.
-    result->DisallowCaching();
+    if (!IsGlobalObject()) result->DisallowCaching();
   }
   result->NotFound();
 }
@@ -2121,20 +2115,19 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
   if (obj->IsFailure()) return obj;
   StringDictionary* dictionary = StringDictionary::cast(obj);
 
-  for (DescriptorReader r(map()->instance_descriptors());
-       !r.eos();
-       r.advance()) {
-    PropertyDetails details = r.GetDetails();
+  DescriptorArray* descs = map()->instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    PropertyDetails details = descs->GetDetails(i);
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
-        Object* value = r.GetConstantFunction();
+        Object* value = descs->GetConstantFunction(i);
         if (IsGlobalObject()) {
           value = Heap::AllocateJSGlobalPropertyCell(value);
           if (value->IsFailure()) return value;
         }
-        Object* result = dictionary->Add(r.GetKey(), value, d);
+        Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
         dictionary = StringDictionary::cast(result);
         break;
@@ -2142,12 +2135,12 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
       case FIELD: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
-        Object* value = FastPropertyAt(r.GetFieldIndex());
+        Object* value = FastPropertyAt(descs->GetFieldIndex(i));
         if (IsGlobalObject()) {
           value = Heap::AllocateJSGlobalPropertyCell(value);
           if (value->IsFailure()) return value;
         }
-        Object* result = dictionary->Add(r.GetKey(), value, d);
+        Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
         dictionary = StringDictionary::cast(result);
         break;
@@ -2155,12 +2148,12 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
       case CALLBACKS: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), CALLBACKS, details.index());
-        Object* value = r.GetCallbacksObject();
+        Object* value = descs->GetCallbacksObject(i);
         if (IsGlobalObject()) {
           value = Heap::AllocateJSGlobalPropertyCell(value);
           if (value->IsFailure()) return value;
         }
-        Object* result = dictionary->Add(r.GetKey(), value, d);
+        Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
         dictionary = StringDictionary::cast(result);
         break;
@@ -2574,35 +2567,44 @@ bool JSObject::IsSimpleEnum() {
 
 int Map::NumberOfDescribedProperties() {
   int result = 0;
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.IsProperty()) result++;
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (descs->IsProperty(i)) result++;
   }
   return result;
 }
 
 
 int Map::PropertyIndexFor(String* name) {
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.Equals(name) && !r.IsNullDescriptor()) return r.GetFieldIndex();
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (name->Equals(descs->GetKey(i)) && !descs->IsNullDescriptor(i)) {
+      return descs->GetFieldIndex(i);
+    }
   }
   return -1;
 }
 
 
 int Map::NextFreePropertyIndex() {
-  int index = -1;
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.type() == FIELD) {
-      if (r.GetFieldIndex() > index) index = r.GetFieldIndex();
+  int max_index = -1;
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (descs->GetType(i) == FIELD) {
+      int current_index = descs->GetFieldIndex(i);
+      if (current_index > max_index) max_index = current_index;
     }
   }
-  return index+1;
+  return max_index + 1;
 }
 
 
 AccessorDescriptor* Map::FindAccessor(String* name) {
-  for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.Equals(name) && r.type() == CALLBACKS) return r.GetCallbacks();
+  DescriptorArray* descs = instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    if (name->Equals(descs->GetKey(i)) && descs->GetType(i) == CALLBACKS) {
+      return descs->GetCallbacks(i);
+    }
   }
   return NULL;
 }
@@ -2850,16 +2852,15 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
 
 Object* JSObject::SlowReverseLookup(Object* value) {
   if (HasFastProperties()) {
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
-      if (r.type() == FIELD) {
-        if (FastPropertyAt(r.GetFieldIndex()) == value) {
-          return r.GetKey();
+    DescriptorArray* descs = map()->instance_descriptors();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      if (descs->GetType(i) == FIELD) {
+        if (FastPropertyAt(descs->GetFieldIndex(i)) == value) {
+          return descs->GetKey(i);
         }
-      } else if (r.type() == CONSTANT_FUNCTION) {
-        if (r.GetConstantFunction() == value) {
-          return r.GetKey();
+      } else if (descs->GetType(i) == CONSTANT_FUNCTION) {
+        if (descs->GetConstantFunction(i) == value) {
+          return descs->GetKey(i);
         }
       }
     }
@@ -3173,13 +3174,13 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
   int transitions = 0;
   int null_descriptors = 0;
   if (remove_transitions) {
-    for (DescriptorReader r(this); !r.eos(); r.advance()) {
-      if (r.IsTransition()) transitions++;
-      if (r.IsNullDescriptor()) null_descriptors++;
+    for (int i = 0; i < number_of_descriptors(); i++) {
+      if (IsTransition(i)) transitions++;
+      if (IsNullDescriptor(i)) null_descriptors++;
     }
   } else {
-    for (DescriptorReader r(this); !r.eos(); r.advance()) {
-      if (r.IsNullDescriptor()) null_descriptors++;
+    for (int i = 0; i < number_of_descriptors(); i++) {
+      if (IsNullDescriptor(i)) null_descriptors++;
     }
   }
   int new_size = number_of_descriptors() - transitions - null_descriptors;
@@ -3227,32 +3228,31 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
   // Copy the descriptors, filtering out transitions and null descriptors,
   // and inserting or replacing a descriptor.
-  DescriptorWriter w(new_descriptors);
-  DescriptorReader r(this);
   uint32_t descriptor_hash = descriptor->GetKey()->Hash();
+  int from_index = 0;
+  int to_index = 0;
 
-  for (; !r.eos(); r.advance()) {
-    if (r.GetKey()->Hash() > descriptor_hash ||
-        r.GetKey() == descriptor->GetKey()) break;
-    if (r.IsNullDescriptor()) continue;
-    if (remove_transitions && r.IsTransition()) continue;
-    w.WriteFrom(&r);
+  for (; from_index < number_of_descriptors(); from_index++) {
+    String* key = GetKey(from_index);
+    if (key->Hash() > descriptor_hash || key == descriptor->GetKey()) {
+      break;
+    }
+    if (IsNullDescriptor(from_index)) continue;
+    if (remove_transitions && IsTransition(from_index)) continue;
+    new_descriptors->CopyFrom(to_index++, this, from_index);
   }
-  w.Write(descriptor);
-  if (replacing) {
-    ASSERT(r.GetKey() == descriptor->GetKey());
-    r.advance();
-  } else {
-    ASSERT(r.eos() ||
-           r.GetKey()->Hash() > descriptor_hash ||
-           r.IsNullDescriptor());
+
+  new_descriptors->Set(to_index++, descriptor);
+  if (replacing) from_index++;
+
+  for (; from_index < number_of_descriptors(); from_index++) {
+    if (IsNullDescriptor(from_index)) continue;
+    if (remove_transitions && IsTransition(from_index)) continue;
+    new_descriptors->CopyFrom(to_index++, this, from_index);
   }
-  for (; !r.eos(); r.advance()) {
-    if (r.IsNullDescriptor()) continue;
-    if (remove_transitions && r.IsTransition()) continue;
-    w.WriteFrom(&r);
-  }
-  ASSERT(w.eos());
+
+  ASSERT(to_index == new_descriptors->number_of_descriptors());
+  SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
 
   return new_descriptors;
 }
@@ -3265,8 +3265,8 @@ Object* DescriptorArray::RemoveTransitions() {
 
   // Compute the size of the map transition entries to be removed.
   int num_removed = 0;
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (!r.IsProperty()) num_removed++;
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    if (!IsProperty(i)) num_removed++;
   }
 
   // Allocate the new descriptor array.
@@ -3275,11 +3275,11 @@ Object* DescriptorArray::RemoveTransitions() {
   DescriptorArray* new_descriptors = DescriptorArray::cast(result);
 
   // Copy the content.
-  DescriptorWriter w(new_descriptors);
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (r.IsProperty()) w.WriteFrom(&r);
+  int next_descriptor = 0;
+  for (int i = 0; i < number_of_descriptors(); i++) {
+    if (IsProperty(i)) new_descriptors->CopyFrom(next_descriptor++, this, i);
   }
-  ASSERT(w.eos());
+  ASSERT(next_descriptor == new_descriptors->number_of_descriptors());
 
   return new_descriptors;
 }
@@ -4586,10 +4586,10 @@ void String::PrintOn(FILE* file) {
 
 void Map::CreateBackPointers() {
   DescriptorArray* descriptors = instance_descriptors();
-  for (DescriptorReader r(descriptors); !r.eos(); r.advance()) {
-    if (r.type() == MAP_TRANSITION) {
+  for (int i = 0; i < descriptors->number_of_descriptors(); i++) {
+    if (descriptors->GetType(i) == MAP_TRANSITION) {
       // Get target.
-      Map* target = Map::cast(r.GetValue());
+      Map* target = Map::cast(descriptors->GetValue(i));
 #ifdef DEBUG
       // Verify target.
       Object* source_prototype = prototype();
@@ -4600,7 +4600,7 @@ void Map::CreateBackPointers() {
       ASSERT(target_prototype->IsJSObject() ||
              target_prototype->IsNull());
       ASSERT(source_prototype->IsMap() ||
-          source_prototype == target_prototype);
+             source_prototype == target_prototype);
 #endif
       // Point target back to source.  set_prototype() will not let us set
       // the prototype to a map, as we do here.
@@ -6018,13 +6018,11 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
 int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
   if (HasFastProperties()) {
+    DescriptorArray* descs = map()->instance_descriptors();
     int result = 0;
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
-      PropertyDetails details = r.GetDetails();
-      if (details.IsProperty() &&
-          (details.attributes() & filter) == 0) {
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      PropertyDetails details = descs->GetDetails(i);
+      if (details.IsProperty() && (details.attributes() & filter) == 0) {
         result++;
       }
     }
@@ -6157,16 +6155,11 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 // purpose of this function is to provide reflection information for the object
 // mirrors.
 void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
-  ASSERT(storage->length() >=
-         NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE)) -
-             index);
+  ASSERT(storage->length() >= (NumberOfLocalProperties(NONE) - index));
   if (HasFastProperties()) {
-    for (DescriptorReader r(map()->instance_descriptors());
-         !r.eos();
-         r.advance()) {
-      if (r.IsProperty()) {
-        storage->set(index++, r.GetKey());
-      }
+    DescriptorArray* descs = map()->instance_descriptors();
+    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      if (descs->IsProperty(i)) storage->set(index++, descs->GetKey(i));
     }
     ASSERT(storage->length() >= index);
   } else {
@@ -6841,6 +6834,26 @@ Object* GlobalObject::GetPropertyCell(LookupResult* result) {
 }
 
 
+Object* GlobalObject::EnsurePropertyCell(String* name) {
+  ASSERT(!HasFastProperties());
+  int entry = property_dictionary()->FindEntry(name);
+  if (entry == StringDictionary::kNotFound) {
+    Object* cell = Heap::AllocateJSGlobalPropertyCell(Heap::the_hole_value());
+    if (cell->IsFailure()) return cell;
+    PropertyDetails details(NONE, NORMAL);
+    details = details.AsDeleted();
+    Object* dictionary = property_dictionary()->Add(name, cell, details);
+    if (dictionary->IsFailure()) return dictionary;
+    set_properties(StringDictionary::cast(dictionary));
+    return cell;
+  } else {
+    Object* value = property_dictionary()->ValueAt(entry);
+    ASSERT(value->IsJSGlobalPropertyCell());
+    return value;
+  }
+}
+
+
 Object* SymbolTable::LookupString(String* string, Object** s) {
   SymbolKey key(string);
   return LookupKey(&key, s);
@@ -7200,7 +7213,7 @@ Object* Dictionary<Shape, Key>::AddEntry(Key key,
 
   uint32_t entry = Dictionary<Shape, Key>::FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
-  if (details.index() == 0 && Shape::kIsEnumerable) {
+  if (!details.IsDeleted() && details.index() == 0 && Shape::kIsEnumerable) {
     // Assign an enumeration index to the property and update
     // SetNextEnumerationIndex.
     int index = NextEnumerationIndex();
@@ -7273,7 +7286,9 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k)) {
-      PropertyAttributes attr = DetailsAt(i).attributes();
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
+      PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) result++;
     }
   }
@@ -7297,7 +7312,9 @@ void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage,
   for (int i = 0; i < capacity; i++) {
      Object* k = HashTable<Shape, Key>::KeyAt(i);
      if (HashTable<Shape, Key>::IsKey(k)) {
-       PropertyAttributes attr = DetailsAt(i).attributes();
+       PropertyDetails details = DetailsAt(i);
+       if (details.IsDeleted()) continue;
+       PropertyAttributes attr = details.attributes();
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
@@ -7315,13 +7332,12 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
      Object* k = KeyAt(i);
      if (IsKey(k)) {
        PropertyDetails details = DetailsAt(i);
-       if (!details.IsDontEnum()) {
-         storage->set(index, k);
-         sort_array->set(index,
-                         Smi::FromInt(details.index()),
-                         SKIP_WRITE_BARRIER);
-         index++;
-       }
+       if (details.IsDeleted() || details.IsDontEnum()) continue;
+       storage->set(index, k);
+       sort_array->set(index,
+                       Smi::FromInt(details.index()),
+                       SKIP_WRITE_BARRIER);
+       index++;
      }
   }
   storage->SortPairs(sort_array, sort_array->length());
@@ -7338,6 +7354,8 @@ void Dictionary<Shape, Key>::CopyKeysTo(FixedArray* storage) {
   for (int i = 0; i < capacity; i++) {
     Object* k = HashTable<Shape, Key>::KeyAt(i);
     if (HashTable<Shape, Key>::IsKey(k)) {
+      PropertyDetails details = DetailsAt(i);
+      if (details.IsDeleted()) continue;
       storage->set(index++, k);
     }
   }
@@ -7410,7 +7428,7 @@ Object* StringDictionary::TransformPropertiesToFastFor(
   if (fields->IsFailure()) return fields;
 
   // Fill in the instance descriptor and the fields.
-  DescriptorWriter w(descriptors);
+  int next_descriptor = 0;
   int current_offset = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
@@ -7427,7 +7445,7 @@ Object* StringDictionary::TransformPropertiesToFastFor(
                                      JSFunction::cast(value),
                                      details.attributes(),
                                      details.index());
-        w.Write(&d);
+        descriptors->Set(next_descriptor++, &d);
       } else if (type == NORMAL) {
         if (current_offset < inobject_props) {
           obj->InObjectPropertyAtPut(current_offset,
@@ -7441,13 +7459,13 @@ Object* StringDictionary::TransformPropertiesToFastFor(
                           current_offset++,
                           details.attributes(),
                           details.index());
-        w.Write(&d);
+        descriptors->Set(next_descriptor++, &d);
       } else if (type == CALLBACKS) {
         CallbacksDescriptor d(String::cast(key),
                               value,
                               details.attributes(),
                               details.index());
-        w.Write(&d);
+        descriptors->Set(next_descriptor++, &d);
       } else {
         UNREACHABLE();
       }

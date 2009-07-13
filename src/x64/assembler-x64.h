@@ -690,9 +690,20 @@ class Assembler : public Malloced {
     shift(dst, shift_amount, 0x7);
   }
 
+  // Shifts dst right, duplicating sign bit, by shift_amount bits.
+  // Shifting by 1 is handled efficiently.
+  void sarl(Register dst, Immediate shift_amount) {
+    shift_32(dst, shift_amount, 0x7);
+  }
+
   // Shifts dst right, duplicating sign bit, by cl % 64 bits.
   void sar(Register dst) {
     shift(dst, 0x7);
+  }
+
+  // Shifts dst right, duplicating sign bit, by cl % 64 bits.
+  void sarl(Register dst) {
+    shift_32(dst, 0x7);
   }
 
   void shl(Register dst, Immediate shift_amount) {
@@ -1123,6 +1134,7 @@ class Assembler : public Malloced {
                                  Immediate src);
   // Emit machine code for a shift operation.
   void shift(Register dst, Immediate shift_amount, int subcode);
+  void shift_32(Register dst, Immediate shift_amount, int subcode);
   // Shift dst by cl % 64 bits.
   void shift(Register dst, int subcode);
   void shift_32(Register dst, int subcode);

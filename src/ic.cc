@@ -327,13 +327,11 @@ Object* CallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, name);
   }
 
-  Object* result = Heap::the_hole_value();
-
   // Check if the name is trivially convertible to an index and get
   // the element if so.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    result = object->GetElement(index);
+    Object* result = object->GetElement(index);
     if (result->IsJSFunction()) return result;
 
     // Try to find a suitable function delegate for the object at hand.
@@ -363,7 +361,7 @@ Object* CallIC::LoadFunction(State state,
 
   // Get the property.
   PropertyAttributes attr;
-  result = object->GetProperty(*object, &lookup, *name, &attr);
+  Object* result = object->GetProperty(*object, &lookup, *name, &attr);
   if (result->IsFailure()) return result;
   if (lookup.type() == INTERCEPTOR) {
     // If the object does not have the requested property, check which
@@ -397,7 +395,7 @@ Object* CallIC::LoadFunction(State state,
       // cause GC.
       HandleScope scope;
       Handle<JSFunction> function(JSFunction::cast(result));
-      Debug::HandleStepIn(function, fp(), false);
+      Debug::HandleStepIn(function, object, fp(), false);
       return *function;
     }
 #endif
@@ -452,24 +450,26 @@ void CallIC::UpdateCaches(LookupResult* lookup,
       }
       case NORMAL: {
         if (!object->IsJSObject()) return;
-        if (object->IsGlobalObject()) {
-          // The stub generated for the global object picks the value directly
-          // from the property cell. So the property must be directly on the
-          // global object.
-          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
-          if (lookup->holder() != *global) return;
+        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+
+        if (lookup->holder()->IsGlobalObject()) {
+          GlobalObject* global = GlobalObject::cast(lookup->holder());
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
           if (!cell->value()->IsJSFunction()) return;
           JSFunction* function = JSFunction::cast(cell->value());
-          code = StubCache::ComputeCallGlobal(argc, in_loop, *name, *global,
-                                              cell, function);
+          code = StubCache::ComputeCallGlobal(argc,
+                                              in_loop,
+                                              *name,
+                                              *receiver,
+                                              global,
+                                              cell,
+                                              function);
         } else {
           // There is only one shared stub for calling normalized
           // properties. It does not traverse the prototype chain, so the
           // property must be found in the receiver for the stub to be
           // applicable.
-          Handle<JSObject> receiver = Handle<JSObject>::cast(object);
           if (lookup->holder() != *receiver) return;
           code = StubCache::ComputeCallNormal(argc, in_loop, *name, *receiver);
         }
@@ -657,16 +657,15 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         break;
       }
       case NORMAL: {
-        if (object->IsGlobalObject()) {
-          // The stub generated for the global object picks the value directly
-          // from the property cell. So the property must be directly on the
-          // global object.
-          Handle<GlobalObject> global = Handle<GlobalObject>::cast(object);
-          if (lookup->holder() != *global) return;
+        if (lookup->holder()->IsGlobalObject()) {
+          GlobalObject* global = GlobalObject::cast(lookup->holder());
           JSGlobalPropertyCell* cell =
               JSGlobalPropertyCell::cast(global->GetPropertyCell(lookup));
-          code = StubCache::ComputeLoadGlobal(*name, *global,
-                                              cell, lookup->IsDontDelete());
+          code = StubCache::ComputeLoadGlobal(*name,
+                                              *receiver,
+                                              global,
+                                              cell,
+                                              lookup->IsDontDelete());
         } else {
           // There is only one shared stub for loading normalized
           // properties. It does not traverse the prototype chain, so the
