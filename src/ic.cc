@@ -38,17 +38,6 @@
 namespace v8 {
 namespace internal {
 
-// Temporary helper for working around http://crbug.com/16276. If we
-// allow 'the hole value' to leak into the IC code, it may lead to
-// crashes, but this should not happen and we should track down the
-// cause of it.
-static inline Handle<Object> UnholeForBug16276(Handle<Object> object) {
-  if (!object->IsTheHole()) return object;
-  ASSERT(false);  // This should not happen.
-  return Factory::undefined_value();
-}
-
-
 #ifdef DEBUG
 static char TransitionMarkFromState(IC::State state) {
   switch (state) {
@@ -332,8 +321,6 @@ Object* CallIC::TryCallAsFunction(Object* object) {
 Object* CallIC::LoadFunction(State state,
                              Handle<Object> object,
                              Handle<String> name) {
-  object = UnholeForBug16276(object);
-
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -387,7 +374,7 @@ Object* CallIC::LoadFunction(State state,
     }
   }
 
-  ASSERT(!result->IsTheHole());
+  ASSERT(result != Heap::the_hole_value());
 
   if (result->IsJSFunction()) {
     // Check if there is an optimized (builtin) version of the function.
@@ -518,8 +505,6 @@ void CallIC::UpdateCaches(LookupResult* lookup,
 
 
 Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
-  object = UnholeForBug16276(object);
-
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -732,8 +717,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 Object* KeyedLoadIC::Load(State state,
                           Handle<Object> object,
                           Handle<Object> key) {
-  object = UnholeForBug16276(object);
-
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
 
@@ -959,8 +942,6 @@ Object* StoreIC::Store(State state,
                        Handle<Object> object,
                        Handle<String> name,
                        Handle<Object> value) {
-  object = UnholeForBug16276(object);
-
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -1079,13 +1060,11 @@ Object* KeyedStoreIC::Store(State state,
                             Handle<Object> object,
                             Handle<Object> key,
                             Handle<Object> value) {
-  object = UnholeForBug16276(object);
-
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
 
-    // If the object is undefined or null it's illegal to try to set
-    // any properties on it; throw a TypeError in that case.
+    // If the object is undefined or null it's illegal to try to set any
+    // properties on it; throw a TypeError in that case.
     if (object->IsUndefined() || object->IsNull()) {
       return TypeError("non_object_property_store", object, name);
     }
