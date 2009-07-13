@@ -1085,8 +1085,9 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   // handle it if it turns out not to be in release mode.
   ASSERT(pre_data == NULL || pre_data->SanityCheck());
   // If the pre-data isn't sane we simply ignore it
-  if (pre_data != NULL && !pre_data->SanityCheck())
+  if (pre_data != NULL && !pre_data->SanityCheck()) {
     pre_data = NULL;
+  }
   i::Handle<i::JSFunction> boilerplate = i::Compiler::Compile(str,
                                                               name_obj,
                                                               line_offset,
