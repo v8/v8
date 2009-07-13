@@ -77,6 +77,13 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ cmp(r3, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, miss);
 
+  // Possible work-around for http://crbug.com/16276.
+  // See also: http://codereview.chromium.org/155418.
+  __ cmp(r3, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, miss);
+  __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
+  __ b(eq, miss);
+
   // Check that the properties array is a dictionary.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kPropertiesOffset));
   __ ldr(r3, FieldMemOperand(t0, HeapObject::kMapOffset));
