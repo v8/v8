@@ -393,6 +393,9 @@ class MemoryAllocator : public AllStatic {
   // Returns the maximum available bytes of heaps.
   static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
 
+  // Returns allocated spaces in bytes.
+  static int Size() { return size_; }
+
   // Returns maximum available bytes that the old space can have.
   static int MaxAvailable() {
     return (Available() / Page::kPageSize) * Page::kObjectAreaSize;

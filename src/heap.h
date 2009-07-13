@@ -733,6 +733,11 @@ class Heap : public AllStatic {
   static void ZapFromSpace();
 #endif
 
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+  // Print short heap statistics.
+  static void PrintShortHeapStatistics();
+#endif
+
   // Makes a new symbol object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.

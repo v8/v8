@@ -207,6 +207,27 @@ void Heap::ReportStatisticsBeforeGC() {
 }
 
 
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+void Heap::PrintShortHeapStatistics() {
+  if (!FLAG_trace_gc_verbose) return;
+  PrintF("Memory allocator,   used: %8d, available: %8d\n",
+         MemoryAllocator::Size(), MemoryAllocator::Available());
+  PrintF("New space,          used: %8d, available: %8d\n",
+         Heap::new_space_.Size(), new_space_.Available());
+  PrintF("Old pointers,       used: %8d, available: %8d\n",
+         old_pointer_space_->Size(), old_pointer_space_->Available());
+  PrintF("Old data space,     used: %8d, available: %8d\n",
+         old_data_space_->Size(), old_data_space_->Available());
+  PrintF("Code space,         used: %8d, available: %8d\n",
+         code_space_->Size(), code_space_->Available());
+  PrintF("Map space,          used: %8d, available: %8d\n",
+         map_space_->Size(), map_space_->Available());
+  PrintF("Large object space, used: %8d, avaialble: %8d\n",
+         map_space_->Size(), map_space_->Available());
+}
+#endif
+
+
 // TODO(1238405): Combine the infrastructure for --heap-stats and
 // --log-gc to avoid the complicated preprocessor and flag testing.
 void Heap::ReportStatisticsAfterGC() {
@@ -3620,6 +3641,10 @@ GCTracer::~GCTracer() {
          CollectorString(),
          start_size_, SizeOfHeapObjects(),
          static_cast<int>(OS::TimeCurrentMillis() - start_time_));
+
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+  Heap::PrintShortHeapStatistics();
+#endif
 }
 
 
