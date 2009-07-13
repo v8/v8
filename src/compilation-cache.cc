@@ -37,10 +37,17 @@ namespace internal {
 static const int kSubCacheCount = 4;
 
 // The number of generations for each sub cache.
+#if V8_TARGET_ARCH_ARM
+static const int kScriptGenerations = 1;
+static const int kEvalGlobalGenerations = 1;
+static const int kEvalContextualGenerations = 1;
+static const int kRegExpGenerations = 1;
+#else
 static const int kScriptGenerations = 5;
 static const int kEvalGlobalGenerations = 2;
 static const int kEvalContextualGenerations = 2;
 static const int kRegExpGenerations = 2;
+#endif
 
 // Initial of each compilation cache table allocated.
 static const int kInitialCacheSize = 64;
