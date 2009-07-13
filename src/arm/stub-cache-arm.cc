@@ -1121,8 +1121,6 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
-// TODO(1224671): IC stubs for keyed loads have not been implemented
-// for ARM.
 Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                 JSObject* receiver,
                                                 JSObject* holder,
