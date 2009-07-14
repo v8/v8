@@ -718,6 +718,10 @@ class Assembler : public Malloced {
     shift_32(dst, 0x4);
   }
 
+  void shll(Register dst, Immediate shift_amount) {
+    shift_32(dst, shift_amount, 0x4);
+  }
+
   void shr(Register dst, Immediate shift_amount) {
     shift(dst, shift_amount, 0x5);
   }
