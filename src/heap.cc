@@ -69,7 +69,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-#if V8_TARGET_ARCH_ARM
+#if defined(ANDROID)
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
@@ -223,7 +223,7 @@ void Heap::PrintShortHeapStatistics() {
   PrintF("Map space,          used: %8d, available: %8d\n",
          map_space_->Size(), map_space_->Available());
   PrintF("Large object space, used: %8d, avaialble: %8d\n",
-         map_space_->Size(), map_space_->Available());
+         lo_space_->Size(), lo_space_->Available());
 }
 #endif
 

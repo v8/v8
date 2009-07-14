@@ -37,7 +37,7 @@ namespace internal {
 static const int kSubCacheCount = 4;
 
 // The number of generations for each sub cache.
-#if V8_TARGET_ARCH_ARM
+#if defined(ANDROID)
 static const int kScriptGenerations = 1;
 static const int kEvalGlobalGenerations = 1;
 static const int kEvalContextualGenerations = 1;
