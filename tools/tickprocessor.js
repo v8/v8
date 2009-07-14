@@ -420,11 +420,9 @@ function UnixCppEntriesProvider(nmExec) {
   this.symbols = [];
   this.parsePos = 0;
   this.nmExec = nmExec;
+  this.FUNC_RE = /^([0-9a-fA-F]{8}) [tTwW] (.*)$/;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
-
-
-UnixCppEntriesProvider.FUNC_RE = /^([0-9a-fA-F]{8}) [tTwW] (.*)$/;
 
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
@@ -454,8 +452,26 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
 
   var line = this.symbols[0].substring(this.parsePos, lineEndPos);
   this.parsePos = lineEndPos + 1;
-  var fields = line.match(UnixCppEntriesProvider.FUNC_RE);
+  var fields = line.match(this.FUNC_RE);
   return fields ? { name: fields[2], start: parseInt(fields[1], 16) } : null;
+};
+
+
+function MacCppEntriesProvider(nmExec) {
+  UnixCppEntriesProvider.call(this, nmExec);
+  this.FUNC_RE = /^([0-9a-fA-F]{8}) [iItT] (.*)$/;
+};
+inherits(MacCppEntriesProvider, UnixCppEntriesProvider);
+
+
+MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
+  this.parsePos = 0;
+  try {
+    this.symbols = [os.system(this.nmExec, ['-n', '-f', libName], -1, -1), ''];
+  } catch (e) {
+    // If the library cannot be found on this system let's not panic.
+    this.symbols = '';
+  }
 };
 
 
@@ -538,6 +554,8 @@ function ArgumentsProcessor(args) {
         'Specify that we are running on *nix platform'],
     '--windows': ['platform', 'windows',
         'Specify that we are running on Windows platform'],
+    '--mac': ['platform', 'mac',
+        'Specify that we are running on Mac OS X platform'],
     '--nm': ['nm', 'nm',
         'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)']
   };
