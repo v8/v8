@@ -7081,3 +7081,21 @@ THREADED_TEST(ReplaceConstantFunction) {
   obj_clone->Set(foo_string, v8::String::New("Hello"));
   CHECK(!obj->Get(foo_string)->IsUndefined());
 }
+
+
+// Regression test for http://crbug.com/16276.
+THREADED_TEST(Regress16276) {
+  v8::HandleScope scope;
+  LocalContext context;
+  // Force the IC in f to be a dictionary load IC.
+  CompileRun("function f(obj) { return obj.x; }\n"
+             "var obj = { x: { foo: 42 }, y: 87 };\n"
+             "var x = obj.x;\n"
+             "delete obj.y;\n"
+             "for (var i = 0; i < 5; i++) f(obj);");
+  // Detach the global object to make 'this' refer directly to the
+  // global object (not the proxy), and make sure that the dictionary
+  // load IC doesn't mess up loading directly from the global object.
+  context->DetachGlobal();
+  CHECK_EQ(42, CompileRun("f(this).foo")->Int32Value());
+}
