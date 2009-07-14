@@ -216,6 +216,12 @@ Object* Object::GetPropertyWithDefinedGetter(Object* receiver,
   HandleScope scope;
   Handle<JSFunction> fun(JSFunction::cast(getter));
   Handle<Object> self(receiver);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Handle stepping into a getter if step into is active.
+  if (Debug::StepInActive()) {
+    Debug::HandleStepIn(fun, Handle<Object>::null(), 0, false);
+  }
+#endif
   bool has_pending_exception;
   Handle<Object> result =
       Execution::Call(fun, self, 0, NULL, &has_pending_exception);
@@ -1624,6 +1630,12 @@ Object* JSObject::SetPropertyWithDefinedSetter(JSFunction* setter,
   Handle<Object> value_handle(value);
   Handle<JSFunction> fun(JSFunction::cast(setter));
   Handle<JSObject> self(this);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Handle stepping into a setter if step into is active.
+  if (Debug::StepInActive()) {
+    Debug::HandleStepIn(fun, Handle<Object>::null(), 0, false);
+  }
+#endif
   bool has_pending_exception;
   Object** argv[] = { value_handle.location() };
   Execution::Call(fun, self, 1, argv, &has_pending_exception);
