@@ -2367,7 +2367,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       result = NEW(TryFinally(try_block, finally_block));
       // Add the jump targets of the try block and the catch block.
       for (int i = 0; i < collector.targets()->length(); i++) {
-        catch_collector.targets()->Add(collector.targets()->at(i));
+        catch_collector.AddTarget(collector.targets()->at(i));
       }
       result->set_escaping_targets(catch_collector.targets());
     }
