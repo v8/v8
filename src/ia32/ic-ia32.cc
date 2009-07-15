@@ -153,6 +153,9 @@ static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
 }
 
 
+// The offset from the inlined patch site to the start of the
+// inlined load instruction.  It is 7 bytes (test eax, imm) plus
+// 6 bytes (jne slow_label).
 const int LoadIC::kOffsetToLoadInstruction = 13;
 
 

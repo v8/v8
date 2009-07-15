@@ -43,11 +43,11 @@ namespace internal {
 
 
 void KeyedLoadIC::ClearInlinedVersion(Address address) {
-  UNIMPLEMENTED();
+  // TODO(X64): Implement this when LoadIC is enabled.
 }
 
 void KeyedStoreIC::ClearInlinedVersion(Address address) {
-  UNIMPLEMENTED();
+  // TODO(X64): Implement this when LoadIC is enabled.
 }
 
 void KeyedStoreIC::RestoreInlinedVersion(Address address) {
@@ -78,22 +78,32 @@ void KeyedLoadIC::Generate(MacroAssembler* masm,
 
 
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC0AB));  // Debugging aid.
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : name
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+
+  Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
 }
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC1AB));  // Debugging aid.
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : name
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+
+  Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
 }
 
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
-  UNIMPLEMENTED();
+  // Never patch the map in the map check, so the check always fails.
   return false;
 }
 
 bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
-  UNIMPLEMENTED();
+  // Never patch the map in the map check, so the check always fails.
   return false;
 }
 
@@ -163,13 +173,11 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 }
 
 void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC2AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kKeyedStoreIC_Miss)));
 }
 
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC3AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kKeyedStoreIC_Miss)));
 }
 
 Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
@@ -228,20 +236,24 @@ void CallIC::Generate(MacroAssembler* masm,
   __ InvokeFunction(rdi, actual, JUMP_FUNCTION);
 }
 
-void CallIC::GenerateMegamorphic(MacroAssembler* a, int b) {
-  UNIMPLEMENTED();
+void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
+  // Cache miss: Jump to runtime.
+  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
-void CallIC::GenerateNormal(MacroAssembler* a, int b) {
-  UNIMPLEMENTED();
+void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
+  // Cache miss: Jump to runtime.
+  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
 
+// The offset from the inlined patch site to the start of the
+// inlined load instruction.
 const int LoadIC::kOffsetToLoadInstruction = 20;
 
 
 void LoadIC::ClearInlinedVersion(Address address) {
-  UNIMPLEMENTED();
+  // TODO(X64): Implement this when LoadIC is enabled.
 }
 
 
@@ -266,33 +278,27 @@ void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC4AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC5AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC6AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC7AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC8AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xC9AB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
@@ -319,13 +325,11 @@ void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xCAAB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
-  masm->int3();  // UNIMPLEMENTED.
-  masm->movq(kScratchRegister, Immediate(0xCBAB));  // Debugging aid.
+  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
 }
 
 

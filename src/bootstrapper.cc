@@ -1107,12 +1107,6 @@ bool Genesis::InstallNatives() {
     global_context()->set_empty_script(*script);
   }
 
-#ifdef V8_HOST_ARCH_64_BIT
-  // TODO(X64): Remove this when inline caches work.
-  FLAG_use_ic = false;
-#endif  // V8_HOST_ARCH_64_BIT
-
-
   if (FLAG_natives_file == NULL) {
     // Without natives file, install default natives.
     for (int i = Natives::GetDelayCount();
