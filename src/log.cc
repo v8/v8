@@ -843,7 +843,12 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
-  msg.Append("heap-sample-begin,\"%s\",\"%s\"\n", space, kind);
+  msg.Append("heap-sample-begin,\"%s\",\"%s\"", space, kind);
+  uint32_t sec, usec;
+  if (OS::GetUserTime(&sec, &usec) != -1) {
+    msg.Append(",%d,%d", sec, usec);
+  }
+  msg.Append('\n');
   msg.WriteToLogFile();
 #endif
 }
