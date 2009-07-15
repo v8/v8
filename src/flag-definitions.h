@@ -144,9 +144,6 @@ DEFINE_bool(debugger_auto_break, false,
             "automatically set the debug break flag when debugger commands are "
             "in the queue (experimental)")
 
-// execution.cc
-DEFINE_bool(call_regexp, false, "allow calls to RegExp objects")
-
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
            "maximum length of function source code printed in a stack trace.")
