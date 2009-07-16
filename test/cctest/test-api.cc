@@ -5024,6 +5024,236 @@ THREADED_TEST(InterceptorLoadICWithOverride) {
 }
 
 
+// Test the case when we stored field into
+// a stub, but interceptor produced value on its own.
+THREADED_TEST(InterceptorLoadICFieldNotNeeded) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "proto = new Object();"
+    "o.__proto__ = proto;"
+    "proto.x = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  o.x;"
+    // Now it should be ICed and keep a reference to x defined on proto
+    "}"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result += o.x;"
+    "}"
+    "result;",
+    42 * 1000);
+}
+
+
+// Test the case when we stored field into
+// a stub, but it got invalidated later on.
+THREADED_TEST(InterceptorLoadICInvalidatedField) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "proto1 = new Object();"
+    "proto2 = new Object();"
+    "o.__proto__ = proto1;"
+    "proto1.__proto__ = proto2;"
+    "proto2.y = 239;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  o.y;"
+    // Now it should be ICed and keep a reference to y defined on proto2
+    "}"
+    "proto1.y = 42;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result += o.y;"
+    "}"
+    "result;",
+    42 * 1000);
+}
+
+
+// Test the case when we stored field into
+// a stub, but it got invalidated later on due to override on
+// global object which is between interceptor and fields' holders.
+THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
+  CheckInterceptorLoadIC(InterceptorLoadXICGetter,
+    "o.__proto__ = this;"  // set a global to be a proto of o.
+    "this.__proto__.y = 239;"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (o.y != 239) throw 'oops: ' + o.y;"
+    // Now it should be ICed and keep a reference to y defined on field_holder.
+    "}"
+    "this.y = 42;"  // Assign on a global.
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  result += o.y;"
+    "}"
+    "result;",
+    42 * 10);
+}
+
+
+static v8::Handle<Value> Return239(Local<String> name, const AccessorInfo&) {
+  ApiTestFuzzer::Fuzz();
+  return v8_num(239);
+}
+
+
+static void SetOnThis(Local<String> name,
+                      Local<Value> value,
+                      const AccessorInfo& info) {
+  info.This()->ForceSet(name, value);
+}
+
+
+THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  templ->SetAccessor(v8_str("y"), Return239);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "var result = 0;"
+      "for (var i = 0; i < 7; i++) {"
+      "  result = o.y;"
+      "}");
+  CHECK_EQ(239, value->Int32Value());
+}
+
+
+THREADED_TEST(InterceptorLoadICWithCallbackOnProto) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+      "o.__proto__ = p;"
+      "var result = 0;"
+      "for (var i = 0; i < 7; i++) {"
+      "  result = o.x + o.y;"
+      "}");
+  CHECK_EQ(239 + 42, value->Int32Value());
+}
+
+
+THREADED_TEST(InterceptorLoadICForCallbackWithOverride) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  templ->SetAccessor(v8_str("y"), Return239);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "fst = new Object();  fst.__proto__ = o;"
+    "snd = new Object();  snd.__proto__ = fst;"
+    "var result1 = 0;"
+    "for (var i = 0; i < 7;  i++) {"
+    "  result1 = snd.x;"
+    "}"
+    "fst.x = 239;"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result = snd.x;"
+    "}"
+    "result + result1");
+  CHECK_EQ(239 + 42, value->Int32Value());
+}
+
+
+// Test the case when we stored callback into
+// a stub, but interceptor produced value on its own.
+THREADED_TEST(InterceptorLoadICCallbackNotNeeded) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "o.__proto__ = p;"
+    "for (var i = 0; i < 7; i++) {"
+    "  o.x;"
+    // Now it should be ICed and keep a reference to x defined on p
+    "}"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.x;"
+    "}"
+    "result");
+  CHECK_EQ(42 * 7, value->Int32Value());
+}
+
+
+// Test the case when we stored callback into
+// a stub, but it got invalidated later on.
+THREADED_TEST(InterceptorLoadICInvalidatedCallback) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239, SetOnThis);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "inbetween = new Object();"
+    "o.__proto__ = inbetween;"
+    "inbetween.__proto__ = p;"
+    "for (var i = 0; i < 10; i++) {"
+    "  o.y;"
+    // Now it should be ICed and keep a reference to y defined on p
+    "}"
+    "inbetween.y = 42;"
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  result += o.y;"
+    "}"
+    "result");
+  CHECK_EQ(42 * 10, value->Int32Value());
+}
+
+
+// Test the case when we stored callback into
+// a stub, but it got invalidated later on due to override on
+// global object which is between interceptor and callbacks' holders.
+THREADED_TEST(InterceptorLoadICInvalidatedCallbackViaGlobal) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(InterceptorLoadXICGetter);
+  v8::Handle<v8::ObjectTemplate> templ_p = ObjectTemplate::New();
+  templ_p->SetAccessor(v8_str("y"), Return239, SetOnThis);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+  context->Global()->Set(v8_str("p"), templ_p->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "o.__proto__ = this;"
+    "this.__proto__ = p;"
+    "for (var i = 0; i < 10; i++) {"
+    "  if (o.y != 239) throw 'oops: ' + o.y;"
+    // Now it should be ICed and keep a reference to y defined on p
+    "}"
+    "this.y = 42;"
+    "var result = 0;"
+    "for (var i = 0; i < 10; i++) {"
+    "  result += o.y;"
+    "}"
+    "result");
+  CHECK_EQ(42 * 10, value->Int32Value());
+}
+
+
 static v8::Handle<Value> InterceptorLoadICGetter0(Local<String> name,
                                                   const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
@@ -5107,6 +5337,192 @@ THREADED_TEST(InterceptorCallIC) {
     "}");
   CHECK_EQ(42, value->Int32Value());
 }
+
+
+// This test checks that if interceptor doesn't provide
+// a value, we can fetch regular value.
+THREADED_TEST(InterceptorCallICSeesOthers) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "o.x = function f(x) { return x + 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result = o.x(41);"
+    "}");
+  CHECK_EQ(42, value->Int32Value());
+}
+
+
+static v8::Handle<Value> call_ic_function4;
+static v8::Handle<Value> InterceptorCallICGetter4(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(v8_str("x")->Equals(name));
+  return call_ic_function4;
+}
+
+
+// This test checks that if interceptor provides a function,
+// even if we cached shadowed variant, interceptor's function
+// is invoked
+THREADED_TEST(InterceptorCallICCacheableNotNeeded) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorCallICGetter4);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  call_ic_function4 =
+      v8_compile("function f(x) { return x - 1; }; f")->Run();
+  v8::Handle<Value> value = CompileRun(
+    "o.__proto__.x = function(x) { return x + 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.x(42);"
+    "}");
+  CHECK_EQ(41, value->Int32Value());
+}
+
+
+// Test the case when we stored cacheable lookup into
+// a stub, but it got invalidated later on
+THREADED_TEST(InterceptorCallICInvalidatedCacheable) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "proto1 = new Object();"
+    "proto2 = new Object();"
+    "o.__proto__ = proto1;"
+    "proto1.__proto__ = proto2;"
+    "proto2.y = function(x) { return x + 1; };"
+    // Invoke it many times to compile a stub
+    "for (var i = 0; i < 7; i++) {"
+    "  o.y(42);"
+    "}"
+    "proto1.y = function(x) { return x - 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.y(42);"
+    "}");
+  CHECK_EQ(41 * 7, value->Int32Value());
+}
+
+
+static v8::Handle<Value> call_ic_function5;
+static v8::Handle<Value> InterceptorCallICGetter5(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (v8_str("x")->Equals(name))
+    return call_ic_function5;
+  else
+    return Local<Value>();
+}
+
+
+// This test checks that if interceptor doesn't provide a function,
+// cached constant function is used
+THREADED_TEST(InterceptorCallICConstantFunctionUsed) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "o.x = inc;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.x(42);"
+    "}");
+  CHECK_EQ(43, value->Int32Value());
+}
+
+
+// This test checks that if interceptor provides a function,
+// even if we cached constant function, interceptor's function
+// is invoked
+THREADED_TEST(InterceptorCallICConstantFunctionNotNeeded) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorCallICGetter5);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  call_ic_function5 =
+      v8_compile("function f(x) { return x - 1; }; f")->Run();
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "o.x = inc;"
+    "var result = 0;"
+    "for (var i = 0; i < 1000; i++) {"
+    "  result = o.x(42);"
+    "}");
+  CHECK_EQ(41, value->Int32Value());
+}
+
+
+// Test the case when we stored constant function into
+// a stub, but it got invalidated later on
+THREADED_TEST(InterceptorCallICInvalidatedConstantFunction) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "proto1 = new Object();"
+    "proto2 = new Object();"
+    "o.__proto__ = proto1;"
+    "proto1.__proto__ = proto2;"
+    "proto2.y = inc;"
+    // Invoke it many times to compile a stub
+    "for (var i = 0; i < 7; i++) {"
+    "  o.y(42);"
+    "}"
+    "proto1.y = function(x) { return x - 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.y(42);"
+    "}");
+  CHECK_EQ(41 * 7, value->Int32Value());
+}
+
+
+// Test the case when we stored constant function into
+// a stub, but it got invalidated later on due to override on
+// global object which is between interceptor and constant function' holders.
+THREADED_TEST(InterceptorCallICInvalidatedConstantFunctionViaGlobal) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NoBlockGetterX);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "o.__proto__ = this;"
+    "this.__proto__.y = inc;"
+    // Invoke it many times to compile a stub
+    "for (var i = 0; i < 7; i++) {"
+    "  if (o.y(42) != 43) throw 'oops: ' + o.y(42);"
+    "}"
+    "this.y = function(x) { return x - 1; };"
+    "var result = 0;"
+    "for (var i = 0; i < 7; i++) {"
+    "  result += o.y(42);"
+    "}");
+  CHECK_EQ(41 * 7, value->Int32Value());
+}
+
 
 static int interceptor_call_count = 0;
 
