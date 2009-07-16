@@ -6521,14 +6521,14 @@ int HashTable<Shape, Key>::FindEntry(Key key) {
   uint32_t hash = Shape::Hash(key);
 
   // For the first probes rotate the hash to ensure a proper spread.
+  uint32_t h = hash;
   for (uint32_t i = 0; i < kNofFastProbes; i++) {
-    int entry = hash & mask;
+    int entry = h & mask;
     Object* element = KeyAt(entry);
     if (element->IsUndefined()) return kNotFound;
     if (!element->IsNull() && Shape::IsMatch(key, element)) return entry;
-    hash = RotateRight(hash, kHashRotateShift);
+    h = RotateRight(h, kHashRotateShift);
   }
-
 
   // In this unlikely event, do a linear scan.
   for (uint32_t i = 1; i <= mask; i++) {
@@ -6584,11 +6584,12 @@ uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   Object* element;
 
   // For the first probes rotate the hash to ensure a proper spread.
+  uint32_t h = hash;
   for (uint32_t i = 0; i < kNofFastProbes; i++) {
-    entry = hash & mask;
+    entry = h & mask;
     element = KeyAt(entry);
     if (element->IsUndefined() || element->IsNull()) return entry;
-    hash = RotateRight(hash, kHashRotateShift);
+    h = RotateRight(h, kHashRotateShift);
   }
 
   do {
