@@ -6594,7 +6594,7 @@ uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   do {
     entry = ++hash & mask;
     element = KeyAt(entry);
-  } while(!(element->IsUndefined() || element->IsNull()));
+  } while (!(element->IsUndefined() || element->IsNull()));
 
   return entry;
 }
@@ -7033,7 +7033,7 @@ class SymbolsKey : public HashTableKey {
   uint32_t HashForObject(Object* obj) {
     FixedArray* symbols = FixedArray::cast(obj);
     int len = symbols->length();
-    uint32_t hash = 40617523; // In case the array is empty.
+    uint32_t hash = 40617523;  // In case the array is empty.
     for (int i = 0; i < len; i++) {
       hash ^= String::cast(symbols->get(i))->Hash();
     }
