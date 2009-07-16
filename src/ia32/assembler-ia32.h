@@ -597,6 +597,9 @@ class Assembler : public Malloced {
   void xor_(const Operand& src, Register dst);
   void xor_(const Operand& dst, const Immediate& x);
 
+  // Rotate dist right count times, asserts count < 32.
+  void ror(Register dst, uint32_t count);
+
   // Bit operations.
   void bt(const Operand& dst, Register src);
   void bts(const Operand& dst, Register src);

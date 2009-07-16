@@ -97,15 +97,20 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // Generate an unrolled loop that performs a few probes before
   // giving up. Measurements done on Gmail indicate that 2 probes
   // cover ~93% of loads from dictionaries.
-  static const int kProbes = 4;
   const int kElementsStartOffset =
       Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
-  for (int i = 0; i < kProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
+
+  static const uint32_t kProbes =
+      HashTable<StringDictionaryShape, String*>::kNofFastProbes;
+  static const uint32_t kShift =
+      HashTable<StringDictionaryShape, String*>::kHashRotateShift;
+
+  for (uint32_t i = 0; i < kProbes; i++) {
+    // Compute the masked index.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
     __ shr(r1, String::kHashShift);
     if (i > 0) {
-      __ add(Operand(r1), Immediate(StringDictionary::GetProbeOffset(i)));
+      __ ror(r1, (kShift * i) % kBitsPerInt);
     }
     __ and_(r1, Operand(r2));
 

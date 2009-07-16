@@ -45,6 +45,7 @@ using ::v8::internal::PrintF;
 using ::v8::internal::OS;
 using ::v8::internal::ReadLine;
 using ::v8::internal::DeleteArray;
+using ::v8::internal::RotateRight;
 
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent was through
@@ -817,7 +818,12 @@ int32_t Simulator::GetShiftRm(Instr* instr, bool* carry_out) {
       }
 
       case ROR: {
-        UNIMPLEMENTED();
+        ASSERT(shift_amount > 0);
+        uint32_t uresult = static_cast<uint32_t>(result);
+        uresult = RotateRight(uresult, shift_amount - 1);
+        *carry_out = (uresult & 1) == 1;
+        uresult = RotateRight(uresult, 1);
+        result = static_cast<int32_t>(uresult);
         break;
       }
 
