@@ -365,13 +365,10 @@ Object* CallIC::LoadFunction(State state,
     return TypeError("undefined_method", object, name);
   }
 
-  // TODO(X64): Enable inline cache for calls.
-#ifndef V8_TARGET_ARCH_X64
   // Lookup is valid: Update inline cache and stub cache.
   if (FLAG_use_ic && lookup.IsLoaded()) {
     UpdateCaches(&lookup, state, object, name);
   }
-#endif
 
   // Get the property.
   PropertyAttributes attr;
@@ -1248,11 +1245,6 @@ Object* CallIC_Miss(Arguments args) {
 
 
 void CallIC::GenerateInitialize(MacroAssembler* masm, int argc) {
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
-}
-
-
-void CallIC::GeneratePreMonomorphic(MacroAssembler* masm, int argc) {
   Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 

@@ -863,6 +863,8 @@ Object* StubCompiler::CompileCallInitialize(Code::Flags flags) {
 Object* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
+  // The code of the PreMonomorphic stub is the same as the code
+  // of the Initialized stub.  They just differ on the code object flags.
   CallIC::GenerateInitialize(masm(), argc);
   Object* result = GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
   if (!result->IsFailure()) {

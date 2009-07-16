@@ -174,7 +174,6 @@ class CallIC: public IC {
 
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm, int argc);
-  static void GeneratePreMonomorphic(MacroAssembler* masm, int argc);
   static void GenerateMiss(MacroAssembler* masm, int argc);
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);

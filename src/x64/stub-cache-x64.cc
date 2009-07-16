@@ -44,24 +44,24 @@ Object* CallStubCompiler::CompileCallConstant(Object* a,
                                               JSFunction* c,
                                               String* d,
                                               StubCompiler::CheckType e) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 Object* CallStubCompiler::CompileCallField(Object* a,
                                            JSObject* b,
                                            int c,
                                            String* d) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
 Object* CallStubCompiler::CompileCallInterceptor(Object* a,
                                                  JSObject* b,
                                                  String* c) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
@@ -71,8 +71,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
                                             JSGlobalPropertyCell* cell,
                                             JSFunction* function,
                                             String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
