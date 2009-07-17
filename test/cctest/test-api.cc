@@ -1266,6 +1266,38 @@ THREADED_TEST(InternalFields) {
 }
 
 
+THREADED_TEST(InternalFieldsNativePointers) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(1);
+  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
+  CHECK_EQ(1, obj->InternalFieldCount());
+  CHECK(obj->GetPointerFromInternalField(0) == NULL);
+
+  char* data = new char[100];
+
+  void* aligned = data;
+  CHECK_EQ(0, reinterpret_cast<uintptr_t>(aligned) & 0x1);
+  void* unaligned = data + 1;
+  CHECK_EQ(1, reinterpret_cast<uintptr_t>(unaligned) & 0x1);
+
+  // Check reading and writing aligned pointers.
+  obj->SetPointerInInternalField(0, aligned);
+  i::Heap::CollectAllGarbage();
+  CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
+
+  // Check reading and writing unaligned pointers.
+  obj->SetPointerInInternalField(0, unaligned);
+  i::Heap::CollectAllGarbage();
+  CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
+
+  delete[] data;
+}
+
+
 THREADED_TEST(IdentityHash) {
   v8::HandleScope scope;
   LocalContext env;
