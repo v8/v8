@@ -506,20 +506,6 @@
     {
       'target_name': 'mksnapshot',
       'type': 'executable',
-      'configurations': {
-        'Release': {
-          'conditions': [
-            ['OS=="mac"', {
-              'xcode_settings': {
-                # Dead code stripping is normally enabled for release mode,
-                # but it causes mksnapshot to crash in some situations.
-                # http://code.google.com/p/v8/issues/detail?id=404
-                'DEAD_CODE_STRIPPING': 'NO',
-              },
-            }],
-          ],
-        },
-      },
       'dependencies': [
         'v8_nosnapshot',
       ],
