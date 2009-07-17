@@ -2051,6 +2051,11 @@ class HashTable: public FixedArray {
   // Casting.
   static inline HashTable* cast(Object* obj);
 
+  // Compute the probe offset (quadratic probing).
+  INLINE(static uint32_t GetProbeOffset(uint32_t n)) {
+    return (n + n * n) >> 1;
+  }
+
   static const int kNumberOfElementsIndex = 0;
   static const int kCapacityIndex         = 1;
   static const int kPrefixStartIndex      = 2;
@@ -2065,9 +2070,6 @@ class HashTable: public FixedArray {
 
   // Find entry for key otherwise return -1.
   int FindEntry(Key key);
-
-  static const uint32_t kNofFastProbes = 4;
-  static const uint32_t kHashRotateShift = 3;
 
  protected:
 
@@ -2092,6 +2094,13 @@ class HashTable: public FixedArray {
     // and non-zero.
     ASSERT(capacity > 0);
     fast_set(this, kCapacityIndex, Smi::FromInt(capacity));
+  }
+
+
+  // Returns probe entry.
+  static uint32_t GetProbe(uint32_t hash, uint32_t number, uint32_t size) {
+    ASSERT(IsPowerOf2(size));
+    return (hash + GetProbeOffset(number)) & (size - 1);
   }
 
   // Ensure enough space for n additional elements.

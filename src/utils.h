@@ -212,21 +212,6 @@ uint32_t ComputeIntegerHash(uint32_t key);
 
 
 // ----------------------------------------------------------------------------
-// Bitwise rotate word
-
-inline uint32_t RotateRight(uint32_t value, uint32_t n) {
-  ASSERT(n < 31);
-  return (value >> n) | (value << (32-n));
-}
-
-
-inline uint32_t RotateLeft(uint32_t value, uint32_t n) {
-  ASSERT(n < 31);
-  return (value << n) | (value >> (32-n));
-}
-
-
-// ----------------------------------------------------------------------------
 // I/O support.
 
 // Our version of printf(). Avoids compilation errors that we get

@@ -6502,8 +6502,7 @@ template<typename Shape, typename Key>
 Object* HashTable<Shape, Key>::Allocate(
     int at_least_space_for) {
   int capacity = RoundUpToPowerOf2(at_least_space_for);
-  static const int kMinCapacity = 16;
-  if (capacity < kMinCapacity) capacity = kMinCapacity;
+  if (capacity < 4) capacity = 4;  // Guarantee min capacity.
   Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
   if (!obj->IsFailure()) {
     HashTable::cast(obj)->SetNumberOfElements(0);
@@ -6517,25 +6516,26 @@ Object* HashTable<Shape, Key>::Allocate(
 // Find entry for key otherwise return -1.
 template<typename Shape, typename Key>
 int HashTable<Shape, Key>::FindEntry(Key key) {
-  uint32_t mask = Capacity() - 1;
+  uint32_t nof = NumberOfElements();
+  if (nof == 0) return kNotFound;  // Bail out if empty.
+
+  uint32_t capacity = Capacity();
   uint32_t hash = Shape::Hash(key);
+  uint32_t entry = GetProbe(hash, 0, capacity);
 
-  // For the first probes rotate the hash to ensure a proper spread.
-  uint32_t h = hash;
-  for (uint32_t i = 0; i < kNofFastProbes; i++) {
-    int entry = h & mask;
-    Object* element = KeyAt(entry);
-    if (element->IsUndefined()) return kNotFound;
-    if (!element->IsNull() && Shape::IsMatch(key, element)) return entry;
-    h = RotateRight(h, kHashRotateShift);
+  Object* element = KeyAt(entry);
+  uint32_t passed_elements = 0;
+  if (!element->IsNull()) {
+    if (!element->IsUndefined() && Shape::IsMatch(key, element)) return entry;
+    if (++passed_elements == nof) return kNotFound;
   }
-
-  // In this unlikely event, do a linear scan.
-  for (uint32_t i = 1; i <= mask; i++) {
-    int entry = ++hash & mask;
-    Object* element = KeyAt(entry);
-    if (element->IsUndefined()) return kNotFound;
-    if (!element->IsNull() && Shape::IsMatch(key, element)) return entry;
+  for (uint32_t i = 1; !element->IsUndefined(); i++) {
+    entry = GetProbe(hash, i, capacity);
+    element = KeyAt(entry);
+    if (!element->IsNull()) {
+      if (!element->IsUndefined() && Shape::IsMatch(key, element)) return entry;
+      if (++passed_elements == nof) return kNotFound;
+    }
   }
   return kNotFound;
 }
@@ -6579,23 +6579,14 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
 
 template<typename Shape, typename Key>
 uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
-  uint32_t mask = Capacity() - 1;
-  int entry;
-  Object* element;
+  uint32_t capacity = Capacity();
+  uint32_t entry = GetProbe(hash, 0, capacity);
+  Object* element = KeyAt(entry);
 
-  // For the first probes rotate the hash to ensure a proper spread.
-  uint32_t h = hash;
-  for (uint32_t i = 0; i < kNofFastProbes; i++) {
-    entry = h & mask;
+  for (uint32_t i = 1; !(element->IsUndefined() || element->IsNull()); i++) {
+    entry = GetProbe(hash, i, capacity);
     element = KeyAt(entry);
-    if (element->IsUndefined() || element->IsNull()) return entry;
-    h = RotateRight(h, kHashRotateShift);
   }
-
-  do {
-    entry = ++hash & mask;
-    element = KeyAt(entry);
-  } while (!(element->IsUndefined() || element->IsNull()));
 
   return entry;
 }
@@ -6674,10 +6665,6 @@ int Dictionary<NumberDictionaryShape, uint32_t>::NumberOfEnumElements();
 
 template
 int Dictionary<StringDictionaryShape, String*>::NumberOfEnumElements();
-
-template
-int HashTable<NumberDictionaryShape, uint32_t>::FindEntry(uint32_t key);
-
 
 // Collates undefined and unexisting elements below limit from position
 // zero of the elements. The object stays in Dictionary mode.
@@ -7034,7 +7021,7 @@ class SymbolsKey : public HashTableKey {
   uint32_t HashForObject(Object* obj) {
     FixedArray* symbols = FixedArray::cast(obj);
     int len = symbols->length();
-    uint32_t hash = 40617523;  // In case the array is empty.
+    uint32_t hash = 0;
     for (int i = 0; i < len; i++) {
       hash ^= String::cast(symbols->get(i))->Hash();
     }

@@ -1240,16 +1240,6 @@ void Assembler::xor_(const Operand& dst, const Immediate& x) {
 }
 
 
-void Assembler::ror(Register dst, uint32_t count) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  EMIT(0xC1);
-  emit_operand(ecx, Operand(dst));
-  ASSERT(count < 32);
-  EMIT(count);
-}
-
-
 void Assembler::bt(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
