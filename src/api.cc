@@ -2464,6 +2464,43 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
 }
 
 
+void* v8::Object::GetPointerFromInternalField(int index) {
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Object* pointer = obj->GetInternalField(index);
+  if (pointer->IsSmi()) {
+    // Fast case, aligned native pointer.
+    return pointer;
+  }
+
+  // Read from uninitialized field.
+  if (!pointer->IsProxy()) {
+    // Play safe even if it's something unexpected.
+    ASSERT(pointer->IsUndefined());
+    return NULL;
+  }
+
+  // Unaligned native pointer.
+  return reinterpret_cast<void*>(i::Proxy::cast(pointer)->proxy());
+}
+
+
+void v8::Object::SetPointerInInternalField(int index, void* value) {
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Object* as_object = reinterpret_cast<i::Object*>(value);
+  if (as_object->IsSmi()) {
+    // Aligned pointer, store as is.
+    obj->SetInternalField(index, as_object);
+  } else {
+    // Currently internal fields are used by DOM wrappers which only
+    // get garbage collected by the mark-sweep collector, so we
+    // pretenure the proxy.
+    i::Handle<i::Proxy> proxy =
+        i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
+    if (!proxy.is_null()) obj->SetInternalField(index, *proxy);
+  }
+}
+
+
 // --- E n v i r o n m e n t ---
 
 bool v8::V8::Initialize() {

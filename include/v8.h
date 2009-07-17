@@ -1113,6 +1113,13 @@ class V8EXPORT Object : public Value {
   /** Sets the value in an internal field. */
   void SetInternalField(int index, Handle<Value> value);
 
+  // The two functions below do not perform index bounds checks and
+  // they do not check that the VM is still running. Use with caution.
+  /** Gets a native pointer from an internal field. */
+  void* GetPointerFromInternalField(int index);
+  /** Sets a native pointer in an internal field. */
+  void SetPointerInInternalField(int index, void* value);
+
   // Testers for local properties.
   bool HasRealNamedProperty(Handle<String> key);
   bool HasRealIndexedProperty(uint32_t index);
