@@ -1075,7 +1075,12 @@ void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
 
 
 int JSObject::GetHeaderSize() {
-  switch (map()->instance_type()) {
+  InstanceType type = map()->instance_type();
+  // Check for the most common kind of JavaScript object before
+  // falling into the generic switch. This speeds up the internal
+  // field operations considerably on average.
+  if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
+  switch (type) {
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -1090,7 +1095,6 @@ int JSObject::GetHeaderSize() {
       return JSValue::kSize;
     case JS_REGEXP_TYPE:
       return JSValue::kSize;
-    case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     default:
