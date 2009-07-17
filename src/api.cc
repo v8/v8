@@ -2494,7 +2494,7 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
     // Currently internal fields are used by DOM wrappers which only
     // get garbage collected by the mark-sweep collector, so we
     // pretenure the proxy.
-    HandleScope scope;    
+    HandleScope scope;
     i::Handle<i::Proxy> proxy =
         i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
     if (!proxy.is_null()) obj->SetInternalField(index, *proxy);
