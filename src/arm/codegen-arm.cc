@@ -2897,7 +2897,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
 
     // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
+    int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ str(r0, FieldMemOperand(r1, offset));
 
     // Update the write barrier for the array address.

@@ -89,7 +89,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
 
   // Compute the capacity mask.
   const int kCapacityOffset =
-      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
   __ mov(r2, FieldOperand(r0, kCapacityOffset));
   __ shr(r2, kSmiTagSize);  // convert smi to int
   __ dec(r2);
@@ -99,7 +100,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // cover ~93% of loads from dictionaries.
   static const int kProbes = 4;
   const int kElementsStartOffset =
-      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
@@ -266,7 +268,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
          Immediate(Factory::hash_table_map()));
   __ j(equal, &slow, not_taken);
   // Check that the key (index) is within bounds.
-  __ cmp(eax, FieldOperand(ecx, Array::kLengthOffset));
+  __ cmp(eax, FieldOperand(ecx, FixedArray::kLengthOffset));
   __ j(below, &fast, taken);
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
@@ -304,7 +306,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ jmp(&index_int);
   // Fast case: Do the load.
   __ bind(&fast);
-  __ mov(eax, Operand(ecx, eax, times_4, Array::kHeaderSize - kHeapObjectTag));
+  __ mov(eax,
+         Operand(ecx, eax, times_4, FixedArray::kHeaderSize - kHeapObjectTag));
   __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
@@ -422,7 +425,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // eax: value
   // ecx: FixedArray
   // ebx: index (as a smi)
-  __ mov(Operand(ecx, ebx, times_2, Array::kHeaderSize - kHeapObjectTag), eax);
+  __ mov(Operand(ecx, ebx, times_2, FixedArray::kHeaderSize - kHeapObjectTag),
+         eax);
   // Update write barrier for the elements array address.
   __ mov(edx, Operand(eax));
   __ RecordWrite(ecx, 0, edx, ebx);

@@ -5321,6 +5321,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       // patch the map check if appropriate.
 
       // TODO(x64): Implement inlined loads for keyed properties.
+      // Make sure to load length field as a 32-bit quantity.
       //      Comment cmnt(masm, "[ Load from keyed Property");
 
       RelocInfo::Mode mode = is_global

@@ -1187,7 +1187,7 @@ bool Heap::CreateInitialMaps() {
   set_undetectable_long_ascii_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
 
-  obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kAlignedSize);
+  obj = AllocateMap(BYTE_ARRAY_TYPE, ByteArray::kAlignedSize);
   if (obj->IsFailure()) return false;
   set_byte_array_map(Map::cast(obj));
 

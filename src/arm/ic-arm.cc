@@ -91,14 +91,14 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ b(ne, miss);
 
   // Compute the capacity mask.
-  const int kCapacityOffset =
-      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
+  const int kCapacityOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
   __ ldr(r3, FieldMemOperand(t0, kCapacityOffset));
   __ mov(r3, Operand(r3, ASR, kSmiTagSize));  // convert smi to int
   __ sub(r3, r3, Operand(1));
 
-  const int kElementsStartOffset =
-      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
+  const int kElementsStartOffset = StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
 
   // Generate an unrolled loop that performs a few probes before
   // giving up. Measurements done on Gmail indicate that 2 probes
@@ -599,7 +599,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Fast case: Do the load.
   __ bind(&fast);
-  __ add(r3, r1, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
   __ cmp(r0, Operand(Factory::the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
@@ -666,9 +666,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Untag the key (for checking against untagged length in the fixed array).
   __ mov(r1, Operand(r1, ASR, kSmiTagSize));
   // Compute address to store into and check array bounds.
-  __ add(r2, r3, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
-  __ ldr(ip, FieldMemOperand(r3, Array::kLengthOffset));
+  __ ldr(ip, FieldMemOperand(r3, FixedArray::kLengthOffset));
   __ cmp(r1, Operand(ip));
   __ b(lo, &fast);
 
@@ -696,7 +696,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(r3, Operand(r2));
   // NOTE: Computing the address to store into must take the fact
   // that the key has been incremented into account.
-  int displacement = Array::kHeaderSize - kHeapObjectTag -
+  int displacement = FixedArray::kHeaderSize - kHeapObjectTag -
       ((1 << kSmiTagSize) * 2);
   __ add(r2, r2, Operand(displacement));
   __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
@@ -721,7 +721,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(r1, Operand(ip));
   __ b(hs, &extra);
   __ mov(r3, Operand(r2));
-  __ add(r2, r2, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
 
 

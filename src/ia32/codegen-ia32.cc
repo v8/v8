@@ -4351,7 +4351,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
            FieldOperand(elements.reg(), JSObject::kElementsOffset));
 
     // Write to the indexed properties array.
-    int offset = i * kPointerSize + Array::kHeaderSize;
+    int offset = i * kPointerSize + FixedArray::kHeaderSize;
     __ mov(FieldOperand(elements.reg(), offset), prop_value.reg());
 
     // Update the write barrier for the array address.
@@ -6309,7 +6309,7 @@ void Reference::GetValue(TypeofState typeof_state) {
         __ mov(index.reg(), key.reg());
         __ sar(index.reg(), kSmiTagSize);
         __ cmp(index.reg(),
-               FieldOperand(elements.reg(), Array::kLengthOffset));
+               FieldOperand(elements.reg(), FixedArray::kLengthOffset));
         deferred->Branch(above_equal);
 
         // Load and check that the result is not the hole.  We could
@@ -6323,7 +6323,7 @@ void Reference::GetValue(TypeofState typeof_state) {
         __ mov(value.reg(), Operand(elements.reg(),
                                     index.reg(),
                                     times_4,
-                                    Array::kHeaderSize - kHeapObjectTag));
+                                    FixedArray::kHeaderSize - kHeapObjectTag));
         elements.Unuse();
         index.Unuse();
         __ cmp(Operand(value.reg()), Immediate(Factory::the_hole_value()));
@@ -6495,7 +6495,7 @@ void Reference::SetValue(InitState init_state) {
         __ mov(Operand(tmp.reg(),
                        key.reg(),
                        times_2,
-                       Array::kHeaderSize - kHeapObjectTag),
+                       FixedArray::kHeaderSize - kHeapObjectTag),
                value.reg());
         __ IncrementCounter(&Counters::keyed_store_inline, 1);
 
