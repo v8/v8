@@ -241,8 +241,69 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
                                             JSGlobalPropertyCell* cell,
                                             JSFunction* function,
                                             String* name) {
-  // TODO(X64): Implement a real stub.
-  return Failure::InternalError();
+  // ----------- S t a t e -------------
+  // -----------------------------------
+  // rsp[0] return address
+  // rsp[8] argument argc
+  // rsp[16] argument argc - 1
+  // ...
+  // rsp[argc * 8] argument 1
+  // rsp[(argc + 1) * 8] argument 0 = receiver
+  // rsp[(argc + 2) * 8] function name
+  Label miss;
+
+  __ IncrementCounter(&Counters::call_global_inline, 1);
+
+  // Get the number of arguments.
+  const int argc = arguments().immediate();
+
+  // Get the receiver from the stack.
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+
+  // If the object is the holder then we know that it's a global
+  // object which can only happen for contextual calls. In this case,
+  // the receiver cannot be a smi.
+  if (object != holder) {
+    __ testl(rdx, Immediate(kSmiTagMask));
+    __ j(zero, &miss);
+  }
+
+  // Check that the maps haven't changed.
+  CheckPrototypes(object, rdx, holder, rbx, rcx, name, &miss);
+
+  // Get the value from the cell.
+  __ Move(rdi, Handle<JSGlobalPropertyCell>(cell));
+  __ movq(rdi, FieldOperand(rdi, JSGlobalPropertyCell::kValueOffset));
+
+  // Check that the cell contains the same function.
+  __ Cmp(rdi, Handle<JSFunction>(function));
+  __ j(not_equal, &miss);
+
+  // Patch the receiver on the stack with the global proxy.
+  if (object->IsGlobalObject()) {
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
+    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+  }
+
+  // Setup the context (function already in edi).
+  __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+
+  // Jump to the cached code (tail call).
+  ASSERT(function->is_compiled());
+  Handle<Code> code(function->code());
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  __ InvokeCode(code, expected, arguments(),
+                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::call_global_inline, 1);
+  __ IncrementCounter(&Counters::call_global_inline_miss, 1);
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
 }
 
 
