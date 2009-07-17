@@ -834,12 +834,7 @@ class AstBuildingParserFactory : public ParserFactory {
     return new CallEval(expression, arguments, pos);
   }
 
-  virtual Statement* EmptyStatement() {
-    // Use a statically allocated empty statement singleton to avoid
-    // allocating lots and lots of empty statements.
-    static v8::internal::EmptyStatement empty;
-    return &empty;
-  }
+  virtual Statement* EmptyStatement();
 };
 
 
@@ -1029,6 +1024,14 @@ Scope* AstBuildingParserFactory::NewScope(Scope* parent, Scope::Type type,
   Scope* result = new Scope(parent, type);
   result->Initialize(inside_with);
   return result;
+}
+
+
+Statement* AstBuildingParserFactory::EmptyStatement() {
+  // Use a statically allocated empty statement singleton to avoid
+  // allocating lots and lots of empty statements.
+  static v8::internal::EmptyStatement empty;
+  return &empty;
 }
 
 
