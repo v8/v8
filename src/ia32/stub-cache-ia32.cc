@@ -266,13 +266,11 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
     __ mov(dst, FieldOperand(src, offset));
   } else {
     // Calculate the offset into the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     __ mov(dst, FieldOperand(src, JSObject::kPropertiesOffset));
     __ mov(dst, FieldOperand(dst, offset));
   }
 }
-
-
 
 
 void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
@@ -349,7 +347,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ RecordWrite(receiver_reg, offset, name_reg, scratch);
   } else {
     // Write to the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array (optimistically).
     __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ mov(FieldOperand(scratch, offset), eax);

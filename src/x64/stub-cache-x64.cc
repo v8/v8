@@ -171,12 +171,59 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 }
 
 
-Object* CallStubCompiler::CompileCallField(Object* a,
-                                           JSObject* b,
-                                           int c,
-                                           String* d) {
-  // TODO(X64): Implement a real stub.
-  return Failure::InternalError();
+Object* CallStubCompiler::CompileCallField(Object* object,
+                                           JSObject* holder,
+                                           int index,
+                                           String* name) {
+  // ----------- S t a t e -------------
+  // -----------------------------------
+  // rsp[0] return address
+  // rsp[8] argument argc
+  // rsp[16] argument argc - 1
+  // ...
+  // rsp[argc * 8] argument 1
+  // rsp[(argc + 1) * 8] argument 0 = receiver
+  // rsp[(argc + 2) * 8] function name
+  Label miss;
+
+  // Get the receiver from the stack.
+  const int argc = arguments().immediate();
+  __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ testl(rdx, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Do the right check and compute the holder register.
+  Register reg =
+      CheckPrototypes(JSObject::cast(object), rdx, holder,
+                      rbx, rcx, name, &miss);
+
+  GenerateFastPropertyLoad(masm(), rdi, reg, holder, index);
+
+  // Check that the function really is a function.
+  __ testl(rdi, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rbx);
+  __ j(not_equal, &miss);
+
+  // Patch the receiver on the stack with the global proxy if
+  // necessary.
+  if (object->IsGlobalObject()) {
+    __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
+    __ movq(Operand(rsp, (argc + 1) * kPointerSize), rdx);
+  }
+
+  // Invoke the function.
+  __ InvokeFunction(rdi, arguments(), JUMP_FUNCTION);
+
+  // Handle call cache miss.
+  __ bind(&miss);
+  Handle<Code> ic = ComputeCallMiss(arguments().immediate());
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(FIELD, name);
 }
 
 
@@ -334,23 +381,50 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   return result;
 }
 
+#undef __
+
+//-----------------------------------------------------------------------------
+// StubCompiler static helper functions
+
+#define __ ACCESS_MASM(masm)
 
 void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                        int index,
                                                        Register prototype) {
   // Load the global or builtins object from the current context.
-  masm->movq(prototype,
+  __ movq(prototype,
              Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
   // Load the global context from the global or builtins object.
-  masm->movq(prototype,
+  __ movq(prototype,
              FieldOperand(prototype, GlobalObject::kGlobalContextOffset));
   // Load the function from the global context.
-  masm->movq(prototype, Operand(prototype, Context::SlotOffset(index)));
+  __ movq(prototype, Operand(prototype, Context::SlotOffset(index)));
   // Load the initial map.  The global functions all have initial maps.
-  masm->movq(prototype,
+  __ movq(prototype,
              FieldOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
   // Load the prototype from the initial map.
-  masm->movq(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
+  __ movq(prototype, FieldOperand(prototype, Map::kPrototypeOffset));
+}
+
+
+// Load a fast property out of a holder object (src). In-object properties
+// are loaded directly otherwise the property is loaded from the properties
+// fixed array.
+void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
+                                            Register dst, Register src,
+                                            JSObject* holder, int index) {
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
+    __ movq(dst, FieldOperand(src, offset));
+  } else {
+    // Calculate the offset into the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
+    __ movq(dst, FieldOperand(src, JSObject::kPropertiesOffset));
+    __ movq(dst, FieldOperand(dst, offset));
+  }
 }
 
 #undef __
