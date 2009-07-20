@@ -253,13 +253,16 @@ void InstructionTable::AddJumpConditionalShort() {
 static InstructionTable instruction_table;
 
 
-// The X64 disassembler implementation.
+//------------------------------------------------------------------------------
+// DisassemblerX64 implementation.
+
 enum UnimplementedOpcodeAction {
   CONTINUE_ON_UNIMPLEMENTED_OPCODE,
   ABORT_ON_UNIMPLEMENTED_OPCODE
 };
 
-
+// A new DisassemblerX64 object is created to disassemble each instruction.
+// The object can only disassemble a single instruction.
 class DisassemblerX64 {
  public:
   DisassemblerX64(const NameConverter& converter,
@@ -271,6 +274,7 @@ class DisassemblerX64 {
             unimplemented_action == ABORT_ON_UNIMPLEMENTED_OPCODE),
         rex_(0),
         operand_size_(0),
+        group_1_prefix_(0),
         byte_size_operand_(false) {
     tmp_buffer_[0] = '\0';
   }
@@ -296,14 +300,10 @@ class DisassemblerX64 {
   bool abort_on_unimplemented_;
   // Prefixes parsed
   byte rex_;
-  byte operand_size_;
+  byte operand_size_;  // 0x66 or (if no group 3 prefix is present) 0x0.
+  byte group_1_prefix_;  // 0xF2, 0xF3, or (if no group 1 prefix is present) 0.
   // Byte size operand override.
   bool byte_size_operand_;
-
-  void setOperandSizePrefix(byte prefix) {
-    ASSERT_EQ(0x66, prefix);
-    operand_size_ = prefix;
-  }
 
   void setRex(byte rex) {
     ASSERT_EQ(0x40, rex & 0xF0);
@@ -380,6 +380,8 @@ class DisassemblerX64 {
                     byte* data);
   int PrintImmediate(byte* data, OperandSize size);
   int PrintImmediateOp(byte* data);
+  const char* TwoByteMnemonic(byte opcode);
+  int TwoByteOpcodeInstruction(byte* data);
   int F7Instruction(byte* data);
   int ShiftInstruction(byte* data);
   int JumpShort(byte* data);
@@ -391,7 +393,7 @@ class DisassemblerX64 {
 
   void UnimplementedInstruction() {
     if (abort_on_unimplemented_) {
-      UNIMPLEMENTED();
+      CHECK(false);
     } else {
       AppendToBuffer("'Unimplemented Instruction'");
     }
@@ -936,38 +938,146 @@ int DisassemblerX64::FPUInstruction(byte* data) {
   return 2;
 }
 
-// Mnemonics for instructions 0xF0 byte.
+
+// Handle all two-byte opcodes, which start with 0x0F.
+// These instructions may be affected by an 0x66, 0xF2, or 0xF3 prefix.
+// We do not use any three-byte opcodes, which start with 0x0F38 or 0x0F3A.
+int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
+  byte opcode = *(data + 1);
+  byte* current = data + 2;
+  // At return, "current" points to the start of the next instruction.
+  const char* mnemonic = TwoByteMnemonic(opcode);
+  if (opcode == 0x1F) {
+    // NOP
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    current++;
+    if (regop == 4) {  // SIB byte present.
+      current++;
+    }
+    if (mod == 1) {  // Byte displacement.
+      current += 1;
+    } else if (mod == 2) {  // 32-bit displacement.
+      current += 4;
+    }  // else no immediate displacement.
+    AppendToBuffer("nop");
+
+  } else  if (opcode == 0xA2 || opcode == 0x31) {
+    // RDTSC or CPUID
+    AppendToBuffer("%s", mnemonic);
+
+  } else if ((opcode & 0xF0) == 0x80) {
+    // Jcc: Conditional jump (branch).
+    current = data + JumpConditional(data);
+
+  } else if (opcode == 0xBE || opcode == 0xBF || opcode == 0xB6 ||
+             opcode == 0xB7 || opcode == 0xAF) {
+    // Size-extending moves, IMUL.
+    current += PrintOperands(mnemonic, REG_OPER_OP_ORDER, current);
+
+  } else if ((opcode & 0xF0) == 0x90) {
+    // SETcc: Set byte on condition. Needs pointer to beginning of instruction.
+    current = data + SetCC(data);
+
+  } else if (opcode == 0xAB || opcode == 0xA5 || opcode == 0xAD) {
+    // SHLD, SHRD (double-precision shift), BTS (bit set).
+    AppendToBuffer("%s ", mnemonic);
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    current += PrintRightOperand(current);
+    if (opcode == 0xAB) {
+      AppendToBuffer(",%s", NameOfCPURegister(regop));
+    } else {
+      AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
+    }
+  } else if (group_1_prefix_ == 0xF2) {
+    // Beginning of instructions with prefix 0xF2.
+
+    if (opcode == 0x11 || opcode == 0x10) {
+      // MOVSD: Move scalar double-precision fp to/from/between XMM registers.
+      AppendToBuffer("movsd ");
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      if (opcode == 0x11) {
+        current += PrintRightOperand(current);
+        AppendToBuffer(",%s", NameOfXMMRegister(regop));
+      } else {
+        AppendToBuffer("%s,", NameOfXMMRegister(regop));
+        current += PrintRightOperand(current);
+      }
+    } else if (opcode == 0x2A) {
+      // CVTSI2SD: integer to XMM double conversion.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+      data += PrintRightOperand(data);
+    } else if ((opcode & 0xF8) == 0x58) {
+      // XMM arithmetic. Mnemonic was retrieved at the start of this function.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("%s %s,%s", mnemonic, NameOfXMMRegister(regop),
+                     NameOfXMMRegister(rm));
+    } else {
+      UnimplementedInstruction();
+    }
+  } else if (opcode == 0x2C && group_1_prefix_ == 0xF3) {
+    // Instruction with prefix 0xF3.
+
+    // CVTTSS2SI: Convert scalar single-precision FP to dword integer.
+    // Assert that mod is not 3, so source is memory, not an XMM register.
+    ASSERT((*current & 0xC0) != 0xC0);
+    current += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, current);
+  } else {
+    UnimplementedInstruction();
+  }
+  return current - data;
+}
+
+
+// Mnemonics for two-byte opcode instructions starting with 0x0F.
+// The argument is the second byte of the two-byte opcode.
 // Returns NULL if the instruction is not handled here.
-static const char* F0Mnem(byte f0byte) {
-  switch (f0byte) {
+const char* DisassemblerX64::TwoByteMnemonic(byte opcode) {
+  switch (opcode) {
     case 0x1F:
       return "nop";
+    case 0x2A:  // F2 prefix.
+      return "cvtsi2sd";
     case 0x31:
       return "rdtsc";
+    case 0x58:  // F2 prefix.
+      return "addsd";
+    case 0x59:  // F2 prefix.
+      return "mulsd";
+    case 0x5C:  // F2 prefix.
+      return "subsd";
+    case 0x5E:  // F2 prefix.
+      return "divsd";
     case 0xA2:
       return "cpuid";
-    case 0xBE:
-      return "movsxb";
-    case 0xBF:
-      return "movsxw";
+    case 0xA5:
+      return "shld";
+    case 0xAB:
+      return "bts";
+    case 0xAD:
+      return "shrd";
+    case 0xAF:
+      return "imul";
     case 0xB6:
       return "movzxb";
     case 0xB7:
       return "movzxw";
-    case 0xAF:
-      return "imul";
-    case 0xA5:
-      return "shld";
-    case 0xAD:
-      return "shrd";
-    case 0xAB:
-      return "bts";
+    case 0xBE:
+      return "movsxb";
+    case 0xBF:
+      return "movsxw";
     default:
       return NULL;
   }
 }
 
-// Disassembled instruction '*instr' and writes it into 'out_buffer'.
+
+// Disassembles the instruction at instr, and writes it into out_buffer.
 int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
                                        byte* instr) {
   tmp_buffer_pos_ = 0;  // starting to write as position 0
@@ -979,17 +1089,17 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
   // Scan for prefixes.
   while (true) {
     current = *data;
-    if (current == 0x66) {
-      // If the sequence is 66 0f, it's not a prefix, but a SSE escape.
-      if (*(data + 1) == 0x0F) break;
-      data++;
-    } else if ((current & 0xF0) == 0x40) {
+    if (current == 0x66) {  // Group 3 prefix.
+      operand_size_ = current;
+    } else if ((current & 0xF0) == 0x40) {  // REX prefix.
       setRex(current);
       if (rex_w()) AppendToBuffer("REX.W ");
-      data++;
-    } else {
+    } else if ((current & 0xFE) == 0xF2) {  // Group 1 prefix.
+      group_1_prefix_ = current;
+    } else {  // Not a prefix - an opcode.
       break;
     }
+    data++;
   }
 
   const InstructionDesc& idesc = instruction_table.Get(current);
@@ -1108,55 +1218,8 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += PrintImmediateOp(data);
         break;
 
-      case 0x0F: {
-        byte f0byte = *(data + 1);
-        const char* f0mnem = F0Mnem(f0byte);
-        if (f0byte == 0x1F) {
-          data += 1;
-          byte modrm = *data;
-          data += 1;
-          if (((modrm >> 3) & 7) == 4) {
-            // SIB byte present.
-            data += 1;
-          }
-          int mod = modrm >> 6;
-          if (mod == 1) {
-            // Byte displacement.
-            data += 1;
-          } else if (mod == 2) {
-            // 32-bit displacement.
-            data += 4;
-          }
-          AppendToBuffer("nop");
-        } else  if (f0byte == 0xA2 || f0byte == 0x31) {
-          AppendToBuffer("%s", f0mnem);
-          data += 2;
-        } else if ((f0byte & 0xF0) == 0x80) {
-          data += JumpConditional(data);
-        } else if (f0byte == 0xBE || f0byte == 0xBF || f0byte == 0xB6 || f0byte
-            == 0xB7 || f0byte == 0xAF) {
-          data += 2;
-          data += PrintOperands(f0mnem, REG_OPER_OP_ORDER, data);
-        } else if ((f0byte & 0xF0) == 0x90) {
-          data += SetCC(data);
-        } else {
-          data += 2;
-          if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
-            // shrd, shld, bts
-            AppendToBuffer("%s ", f0mnem);
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            data += PrintRightOperand(data);
-            if (f0byte == 0xAB) {
-              AppendToBuffer(",%s", NameOfCPURegister(regop));
-            } else {
-              AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
-            }
-          } else {
-            UnimplementedInstruction();
-          }
-        }
-      }
+      case 0x0F:
+        data += TwoByteOpcodeInstruction(data);
         break;
 
       case 0x8F: {
@@ -1303,10 +1366,10 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           default:
             UNREACHABLE();
         }
-        break;
         AppendToBuffer("test%c rax,0x%"V8_PTR_PREFIX"ux",
                        operand_size_code(),
                        value);
+        break;
       }
       case 0xD1:  // fall through
       case 0xD3:  // fall through
@@ -1332,73 +1395,6 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
       case 0xEB:
         data += JumpShort(data);
-        break;
-
-      case 0xF2:
-        if (*(data + 1) == 0x0F) {
-          byte b2 = *(data + 2);
-          if (b2 == 0x11) {
-            AppendToBuffer("movsd ");
-            data += 3;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            data += PrintRightOperand(data);
-            AppendToBuffer(",%s", NameOfXMMRegister(regop));
-          } else if (b2 == 0x10) {
-            data += 3;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            AppendToBuffer("movsd %s,", NameOfXMMRegister(regop));
-            data += PrintRightOperand(data);
-          } else {
-            const char* mnem = "?";
-            switch (b2) {
-              case 0x2A:
-                mnem = "cvtsi2sd";
-                break;
-              case 0x58:
-                mnem = "addsd";
-                break;
-              case 0x59:
-                mnem = "mulsd";
-                break;
-              case 0x5C:
-                mnem = "subsd";
-                break;
-              case 0x5E:
-                mnem = "divsd";
-                break;
-            }
-            data += 3;
-            int mod, regop, rm;
-            get_modrm(*data, &mod, &regop, &rm);
-            if (b2 == 0x2A) {
-              AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
-              data += PrintRightOperand(data);
-            } else {
-              AppendToBuffer("%s %s,%s", mnem, NameOfXMMRegister(regop),
-                             NameOfXMMRegister(rm));
-              data++;
-            }
-          }
-        } else {
-          UnimplementedInstruction();
-        }
-        break;
-
-      case 0xF3:
-        if (*(data + 1) == 0x0F) {
-          if (*(data + 2) == 0x2C) {
-            data += 3;
-            data += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, data);
-          } else {
-            UnimplementedInstruction();
-            data += 1;
-          }
-        } else {
-          UnimplementedInstruction();
-          data += 1;
-        }
         break;
 
       case 0xF7:
