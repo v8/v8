@@ -3406,6 +3406,8 @@ void HeapProfiler::CollectStats(HeapObject* obj, HistogramInfo* info) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void HeapProfiler::WriteSample() {
   LOG(HeapSampleBeginEvent("Heap", "allocated"));
+  LOG(HeapSampleStats(
+      "Heap", "allocated", Heap::Capacity(), Heap::SizeOfObjects()));
 
   HistogramInfo info[LAST_TYPE+1];
 #define DEF_TYPE_NAME(name) info[name].set_name(#name);
