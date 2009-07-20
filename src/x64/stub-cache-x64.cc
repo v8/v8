@@ -311,8 +311,8 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
                                               JSObject* b,
                                               AccessorInfo* c,
                                               String* d) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
@@ -320,8 +320,8 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* a,
                                               JSObject* b,
                                               Object* c,
                                               String* d) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
@@ -329,16 +329,16 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* a,
                                            JSObject* b,
                                            int c,
                                            String* d) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
 Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* a,
                                                  JSObject* b,
                                                  String* c) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
@@ -347,8 +347,8 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                             JSGlobalPropertyCell* cell,
                                             String* name,
                                             bool is_dont_delete) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
@@ -487,6 +487,22 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
     __ movq(dst, FieldOperand(dst, offset));
   }
 }
+
+
+void StubCache::GenerateProbe(MacroAssembler* masm,
+                              Code::Flags flags,
+                              Register receiver,
+                              Register name,
+                              Register scratch,
+                              Register extra) {
+  Label miss;
+  // TODO(X64): Probe the primary and secondary StubCache tables.
+
+  // Cache miss: Fall-through and let caller handle the miss by
+  // entering the runtime system.
+  __ bind(&miss);
+}
+
 
 #undef __
 

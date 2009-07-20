@@ -609,13 +609,10 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     }
   }
 
-  // TODO(X64): Enable inline cache for load.
-  #ifndef V8_TARGET_ARCH_X64
   // Update inline cache and stub cache.
   if (FLAG_use_ic && lookup.IsLoaded()) {
     UpdateCaches(&lookup, state, object, name);
   }
-  #endif
 
   PropertyAttributes attr;
   if (lookup.IsValid() && lookup.type() == INTERCEPTOR) {

@@ -285,11 +285,34 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
+
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  // Probe the stub cache.
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
+  StubCache::GenerateProbe(masm, flags, rax, rcx, rbx, rdx);
+
+  // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
+
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
@@ -302,7 +325,7 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 }
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
-  UNIMPLEMENTED();
+  // TODO(X64): Implement this function.  Until then, the code is not patched.
   return false;
 }
 
