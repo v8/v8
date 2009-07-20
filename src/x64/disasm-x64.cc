@@ -1349,7 +1349,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case 0xA9: {
-        int64_t value;
+        int64_t value = 0;
         switch (operand_size()) {
           case WORD_SIZE:
             value = *reinterpret_cast<uint16_t*>(data + 1);
