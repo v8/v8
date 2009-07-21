@@ -28,7 +28,6 @@
 // Platform specific code for MacOS goes here. For the POSIX comaptible parts
 // the implementation is in platform-posix.cc.
 
-#include <ucontext.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <mach/mach_init.h>
@@ -207,6 +206,7 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 
 void OS::LogSharedLibraryAddresses() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   unsigned int images_count = _dyld_image_count();
   for (unsigned int i = 0; i < images_count; ++i) {
     const mach_header* header = _dyld_get_image_header(i);
@@ -218,6 +218,7 @@ void OS::LogSharedLibraryAddresses() {
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
     LOG(SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
   }
+#endif  // ENABLE_LOGGING_AND_PROFILING
 }
 
 
