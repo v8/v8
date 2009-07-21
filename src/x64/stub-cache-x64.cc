@@ -316,21 +316,45 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* a,
 }
 
 
-Object* LoadStubCompiler::CompileLoadConstant(JSObject* a,
-                                              JSObject* b,
-                                              Object* c,
-                                              String* d) {
-  // TODO(X64): Implement a real stub.
-  return Failure::InternalError();
+Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
+                                              JSObject* holder,
+                                              Object* value,
+                                              String* name) {
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ movq(rax, (Operand(rsp, kPointerSize)));
+  GenerateLoadConstant(object, holder, rax, rbx, rdx, value, name, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(CONSTANT_FUNCTION, name);
 }
 
 
-Object* LoadStubCompiler::CompileLoadField(JSObject* a,
-                                           JSObject* b,
-                                           int c,
-                                           String* d) {
-  // TODO(X64): Implement a real stub.
-  return Failure::InternalError();
+Object* LoadStubCompiler::CompileLoadField(JSObject* object,
+                                           JSObject* holder,
+                                           int index,
+                                           String* name) {
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ movq(rax, (Operand(rsp, kPointerSize)));
+  GenerateLoadField(object, holder, rax, rbx, rdx, index, name, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(FIELD, name);
 }
 
 
@@ -347,8 +371,51 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                             JSGlobalPropertyCell* cell,
                                             String* name,
                                             bool is_dont_delete) {
-  // TODO(X64): Implement a real stub.
-  return Failure::InternalError();
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ IncrementCounter(&Counters::named_load_global_inline, 1);
+
+  // Get the receiver from the stack.
+  __ movq(rax, (Operand(rsp, kPointerSize)));
+
+  // If the object is the holder then we know that it's a global
+  // object which can only happen for contextual loads. In this case,
+  // the receiver cannot be a smi.
+  if (object != holder) {
+    __ testl(rax, Immediate(kSmiTagMask));
+    __ j(zero, &miss);
+  }
+
+  // Check that the maps haven't changed.
+  CheckPrototypes(object, rax, holder, rbx, rdx, name, &miss);
+
+  // Get the value from the cell.
+  __ Move(rax, Handle<JSGlobalPropertyCell>(cell));
+  __ movq(rax, FieldOperand(rax, JSGlobalPropertyCell::kValueOffset));
+
+  // Check for deleted property if property can actually be deleted.
+  if (!is_dont_delete) {
+    __ Cmp(rax, Factory::the_hole_value());
+    __ j(equal, &miss);
+  } else if (FLAG_debug_code) {
+    __ Cmp(rax, Factory::the_hole_value());
+    __ Check(not_equal, "DontDelete cells can't contain the hole");
+  }
+
+  __ ret(0);
+
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::named_load_global_inline, 1);
+  __ IncrementCounter(&Counters::named_load_global_inline_miss, 1);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
 }
 
 
@@ -442,12 +509,74 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   return result;
 }
 
+
+void StubCompiler::GenerateLoadField(JSObject* object,
+                                     JSObject* holder,
+                                     Register receiver,
+                                     Register scratch1,
+                                     Register scratch2,
+                                     int index,
+                                     String* name,
+                                     Label* miss) {
+  // Check that the receiver isn't a smi.
+  __ testl(receiver, Immediate(kSmiTagMask));
+  __ j(zero, miss);
+
+  // Check the prototype chain.
+  Register reg =
+      CheckPrototypes(object, receiver, holder,
+                      scratch1, scratch2, name, miss);
+
+  // Get the value from the properties.
+  GenerateFastPropertyLoad(masm(), rax, reg, holder, index);
+  __ ret(0);
+}
+
+
+void StubCompiler::GenerateLoadConstant(JSObject* object,
+                                        JSObject* holder,
+                                        Register receiver,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Object* value,
+                                        String* name,
+                                        Label* miss) {
+  // Check that the receiver isn't a smi.
+  __ testl(receiver, Immediate(kSmiTagMask));
+  __ j(zero, miss);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      CheckPrototypes(object, receiver, holder,
+                      scratch1, scratch2, name, miss);
+
+  // Return the constant value.
+  __ Move(rax, Handle<Object>(value));
+  __ ret(0);
+}
+
+
 #undef __
 
 //-----------------------------------------------------------------------------
 // StubCompiler static helper functions
 
 #define __ ACCESS_MASM(masm)
+
+
+void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
+  ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
+  Code* code = NULL;
+  if (kind == Code::LOAD_IC) {
+    code = Builtins::builtin(Builtins::LoadIC_Miss);
+  } else {
+    code = Builtins::builtin(Builtins::KeyedLoadIC_Miss);
+  }
+
+  Handle<Code> ic(code);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+}
+
 
 void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                        int index,
