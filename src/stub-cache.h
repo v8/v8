@@ -256,11 +256,14 @@ class StubCache : public AllStatic {
   }
 
   // Compute the entry for a given offset in exactly the same way as
-  // we done in generated code. This makes it a lot easier to avoid
-  // making mistakes in the hashed offset computations.
+  // we do in generated code.  We generate an hash code that already
+  // ends in String::kHashShift 0s.  Then we shift it so it is a multiple
+  // of sizeof(Entry).  This makes it easier to avoid making mistakes
+  // in the hashed offset computations.
   static Entry* entry(Entry* table, int offset) {
+    const int shift_amount = kPointerSizeLog2 + 1 - String::kHashShift;
     return reinterpret_cast<Entry*>(
-        reinterpret_cast<Address>(table) + (offset << 1));
+        reinterpret_cast<Address>(table) + (offset << shift_amount));
   }
 };
 

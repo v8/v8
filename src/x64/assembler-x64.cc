@@ -456,13 +456,13 @@ void Assembler::arithmetic_op_32(byte opcode, Register dst, Register src) {
 
 
 void Assembler::arithmetic_op_32(byte opcode,
-                                 const Operand& dst,
-                                 Register src) {
+                                 Register reg,
+                                 const Operand& rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_optional_rex_32(src, dst);
+  emit_optional_rex_32(reg, rm_reg);
   emit(opcode);
-  emit_operand(src, dst);
+  emit_operand(reg, rm_reg);
 }
 
 

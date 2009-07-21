@@ -564,6 +564,36 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
 #define __ ACCESS_MASM(masm)
 
 
+static void ProbeTable(MacroAssembler* masm,
+                       Code::Flags flags,
+                       StubCache::Table table,
+                       Register name,
+                       Register offset) {
+  ExternalReference key_offset(SCTableReference::keyReference(table));
+  Label miss;
+
+  __ movq(kScratchRegister, key_offset);
+  // Check that the key in the entry matches the name.
+  __ cmpl(name, Operand(kScratchRegister, offset, times_4, 0));
+  __ j(not_equal, &miss);
+  // Get the code entry from the cache.
+  // Use key_offset + kPointerSize, rather than loading value_offset.
+  __ movq(kScratchRegister,
+          Operand(kScratchRegister, offset, times_4, kPointerSize));
+  // Check that the flags match what we're looking for.
+  __ movl(offset, FieldOperand(kScratchRegister, Code::kFlagsOffset));
+  __ and_(offset, Immediate(~Code::kFlagsNotUsedInLookup));
+  __ cmpl(offset, Immediate(flags));
+  __ j(not_equal, &miss);
+
+  // Jump to the first instruction in the code stub.
+  __ addq(kScratchRegister, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ jmp(kScratchRegister);
+
+  __ bind(&miss);
+}
+
+
 void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
   Code* code = NULL;
@@ -625,7 +655,43 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
                               Register scratch,
                               Register extra) {
   Label miss;
-  // TODO(X64): Probe the primary and secondary StubCache tables.
+  USE(extra);  // The register extra is not used on the X64 platform.
+  // Make sure that code is valid. The shifting code relies on the
+  // entry size being 16.
+  ASSERT(sizeof(Entry) == 16);
+
+  // Make sure the flags do not name a specific type.
+  ASSERT(Code::ExtractTypeFromFlags(flags) == 0);
+
+  // Make sure that there are no register conflicts.
+  ASSERT(!scratch.is(receiver));
+  ASSERT(!scratch.is(name));
+
+  // Check that the receiver isn't a smi.
+  __ testl(receiver, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Get the map of the receiver and compute the hash.
+  __ movl(scratch, FieldOperand(name, String::kLengthOffset));
+  // Use only the low 32 bits of the map pointer.
+  __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ xor_(scratch, Immediate(flags));
+  __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+
+  // Probe the primary table.
+  ProbeTable(masm, flags, kPrimary, name, scratch);
+
+  // Primary miss: Compute hash for secondary probe.
+  __ movl(scratch, FieldOperand(name, String::kLengthOffset));
+  __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ xor_(scratch, Immediate(flags));
+  __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ subl(scratch, name);
+  __ addl(scratch, Immediate(flags));
+  __ and_(scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
+
+  // Probe the secondary table.
+  ProbeTable(masm, flags, kSecondary, name, scratch);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
