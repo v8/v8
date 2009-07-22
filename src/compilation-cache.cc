@@ -63,6 +63,8 @@ class CompilationSubCache {
     tables_ = NewArray<Object*>(generations);
   }
 
+  ~CompilationSubCache() { DeleteArray(tables_); }
+
   // Get the compilation cache tables for a specific generation.
   Handle<CompilationCacheTable> GetTable(int generation);
 
