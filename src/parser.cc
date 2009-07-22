@@ -3931,7 +3931,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     case '*':
     case '+':
     case '?':
-      ReportError(CStrVector("Nothing to repeat") CHECK_FAILED);
+      return ReportError(CStrVector("Nothing to repeat"));
     case '^': {
       Advance();
       if (multiline_) {
@@ -4006,7 +4006,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     case '\\':
       switch (Next()) {
       case kEndMarker:
-        ReportError(CStrVector("\\ at end of pattern") CHECK_FAILED);
+        return ReportError(CStrVector("\\ at end of pattern"));
       case 'b':
         Advance(2);
         builder->AddAssertion(
@@ -4493,7 +4493,7 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
         return CharacterRange::Singleton(0);  // Return dummy value.
       }
       case kEndMarker:
-        ReportError(CStrVector("\\ at end of pattern") CHECK_FAILED);
+        return ReportError(CStrVector("\\ at end of pattern"));
       default:
         uc32 c = ParseClassCharacterEscape(CHECK_FAILED);
         return CharacterRange::Singleton(c);
