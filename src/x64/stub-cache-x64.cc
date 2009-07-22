@@ -427,12 +427,38 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
 }
 
 
-Object* StoreStubCompiler::CompileStoreField(JSObject* a,
-                                             int b,
-                                             Map* c,
-                                             String* d) {
-  UNIMPLEMENTED();
-  return NULL;
+Object* StoreStubCompiler::CompileStoreField(JSObject* object,
+                                             int index,
+                                             Map* transition,
+                                             String* name) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Get the object from the stack.
+  __ movq(rbx, Operand(rsp, 1 * kPointerSize));
+
+  // Generate store field code.  Trashes the name register.
+  GenerateStoreField(masm(),
+                     Builtins::StoreIC_ExtendStorage,
+                     object,
+                     index,
+                     transition,
+                     rbx, rcx, rdx,
+                     &miss);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  __ Move(rcx, Handle<String>(name));  // restore name
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
 }
 
 
@@ -696,6 +722,82 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
   __ bind(&miss);
+}
+
+
+void StubCompiler::GenerateStoreField(MacroAssembler* masm,
+                                      Builtins::Name storage_extend,
+                                      JSObject* object,
+                                      int index,
+                                      Map* transition,
+                                      Register receiver_reg,
+                                      Register name_reg,
+                                      Register scratch,
+                                      Label* miss_label) {
+  // Check that the object isn't a smi.
+  __ testl(receiver_reg, Immediate(kSmiTagMask));
+  __ j(zero, miss_label);
+
+  // Check that the map of the object hasn't changed.
+  __ Cmp(FieldOperand(receiver_reg, HeapObject::kMapOffset),
+         Handle<Map>(object->map()));
+  __ j(not_equal, miss_label);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver_reg, scratch, miss_label);
+  }
+
+  // Stub never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
+  // Perform map transition for the receiver if necessary.
+  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
+    // The properties must be extended before we can store the value.
+    // We jump to a runtime call that extends the properties array.
+    __ Move(rcx, Handle<Map>(transition));
+    Handle<Code> ic(Builtins::builtin(storage_extend));
+    __ Jump(ic, RelocInfo::CODE_TARGET);
+    return;
+  }
+
+  if (transition != NULL) {
+    // Update the map of the object; no write barrier updating is
+    // needed because the map is never in new space.
+    __ Move(FieldOperand(receiver_reg, HeapObject::kMapOffset),
+            Handle<Map>(transition));
+  }
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
+
+  if (index < 0) {
+    // Set the property straight into the object.
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ movq(FieldOperand(receiver_reg, offset), rax);
+
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ movq(name_reg, rax);
+    __ RecordWrite(receiver_reg, offset, name_reg, scratch);
+  } else {
+    // Write to the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
+    // Get the properties array (optimistically).
+    __ movq(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
+    __ movq(FieldOperand(scratch, offset), rax);
+
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ movq(name_reg, rax);
+    __ RecordWrite(scratch, offset, name_reg, receiver_reg);
+  }
+
+  // Return the value (register rax).
+  __ ret(0);
 }
 
 
