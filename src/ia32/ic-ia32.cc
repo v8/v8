@@ -282,7 +282,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ test(ebx, Immediate(kIsSymbolMask));
-  __ j(not_zero, &slow, not_taken);
+  __ j(zero, &slow, not_taken);
   // Probe the dictionary leaving result in ecx.
   GenerateDictionaryLoad(masm, &slow, ebx, ecx, edx, eax);
   GenerateCheckNonObjectOrLoaded(masm, &slow, ecx, edx);
