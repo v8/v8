@@ -85,8 +85,8 @@ GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap.
 int Heap::young_generation_size_ = 0;  // Will be 2 * semispace_size_.
-
 int Heap::survived_since_last_expansion_ = 0;
+int Heap::external_allocation_limit_ = 0;
 
 Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
@@ -2988,6 +2988,7 @@ bool Heap::ConfigureHeap(int semispace_size, int old_gen_size) {
   semispace_size_ = RoundUpToPowerOf2(semispace_size_);
   initial_semispace_size_ = Min(initial_semispace_size_, semispace_size_);
   young_generation_size_ = 2 * semispace_size_;
+  external_allocation_limit_ = 10 * semispace_size_;
 
   // The old generation is paged.
   old_generation_size_ = RoundUp(old_generation_size_, Page::kPageSize);
