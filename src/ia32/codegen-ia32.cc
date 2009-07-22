@@ -3857,7 +3857,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
     s = s->outer_scope();
   }
 
-  if (s->is_eval_scope()) {
+  if (s != NULL && s->is_eval_scope()) {
     // Loop up the context chain.  There is no frame effect so it is
     // safe to use raw labels here.
     Label next, fast;
@@ -5388,12 +5388,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
   } else {
     Load(node->expression());
     switch (op) {
-      case Token::NOT:
-      case Token::DELETE:
-      case Token::TYPEOF:
-        UNREACHABLE();  // handled above
-        break;
-
       case Token::SUB: {
         bool overwrite =
             (node->AsBinaryOperation() != NULL &&
@@ -5448,6 +5442,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       }
 
       default:
+        // NOT, DELETE, TYPEOF, and VOID are handled outside the
+        // switch.
         UNREACHABLE();
     }
   }
