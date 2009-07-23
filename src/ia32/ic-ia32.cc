@@ -291,7 +291,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // If the string is a symbol, do a quick inline probe of the receiver's
   // dictionary, if it exists.
-  __ movzx_b(ebx, FieldOperand(exd, Map::kInstanceTypeOffset));
+  __ movzx_b(ebx, FieldOperand(edx, Map::kInstanceTypeOffset));
   __ test(ebx, Immediate(kIsSymbolMask));
   __ j(zero, &slow, not_taken);
   // Probe the dictionary leaving result in ecx.
