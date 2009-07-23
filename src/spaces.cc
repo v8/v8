@@ -133,8 +133,6 @@ PageIterator::PageIterator(PagedSpace* space, Mode mode) : space_(space) {
 #endif
       stop_page_ = space->last_page_;
       break;
-    default:
-      UNREACHABLE();
   }
 }
 

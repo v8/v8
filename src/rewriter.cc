@@ -38,8 +38,9 @@ namespace internal {
 
 class AstOptimizer: public AstVisitor {
  public:
-  explicit AstOptimizer() {}
-  explicit AstOptimizer(Handle<String> enclosing_name) {
+  explicit AstOptimizer() : has_function_literal_(false) {}
+  explicit AstOptimizer(Handle<String> enclosing_name)
+      : has_function_literal_(false) {
     func_name_inferrer_.PushEnclosingName(enclosing_name);
   }
 
