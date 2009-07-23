@@ -180,7 +180,7 @@ template <class T> class V8EXPORT_INLINE Handle {
   /**
    * Creates an empty handle.
    */
-  Handle();
+  inline Handle();
 
   /**
    * Creates a new handle for the specified value.
@@ -264,7 +264,7 @@ template <class T> class V8EXPORT_INLINE Handle {
  */
 template <class T> class V8EXPORT_INLINE Local : public Handle<T> {
  public:
-  Local();
+  inline Local();
   template <class S> inline Local(Local<S> that)
       : Handle<T>(reinterpret_cast<T*>(*that)) {
     /**
@@ -284,7 +284,7 @@ template <class T> class V8EXPORT_INLINE Local : public Handle<T> {
    *  The referee is kept alive by the local handle even when
    *  the original handle is destroyed/disposed.
    */
-  static Local<T> New(Handle<T> that);
+  inline static Local<T> New(Handle<T> that);
 };
 
 
@@ -312,7 +312,7 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * Creates an empty persistent handle that doesn't point to any
    * storage cell.
    */
-  Persistent();
+  inline Persistent();
 
   /**
    * Creates a persistent handle for the same storage cell as the
@@ -353,7 +353,7 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * Creates a new persistent handle for an existing local or
    * persistent handle.
    */
-  static Persistent<T> New(Handle<T> that);
+  inline static Persistent<T> New(Handle<T> that);
 
   /**
    * Releases the storage cell referenced by this persistent handle.
@@ -361,7 +361,7 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * This handle's reference, and any any other references to the storage
    * cell remain and IsEmpty will still return false.
    */
-  void Dispose();
+  inline void Dispose();
 
   /**
    * Make the reference to this object weak.  When only weak handles
@@ -369,20 +369,20 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
    * callback to the given V8::WeakReferenceCallback function, passing
    * it the object reference and the given parameters.
    */
-  void MakeWeak(void* parameters, WeakReferenceCallback callback);
+  inline void MakeWeak(void* parameters, WeakReferenceCallback callback);
 
   /** Clears the weak reference to this object.*/
-  void ClearWeak();
+  inline void ClearWeak();
 
   /**
    *Checks if the handle holds the only reference to an object.
    */
-  bool IsNearDeath() const;
+  inline bool IsNearDeath() const;
 
   /**
    * Returns true if the handle's reference is weak.
    */
-  bool IsWeak() const;
+  inline bool IsWeak() const;
 
  private:
   friend class ImplementationUtilities;
