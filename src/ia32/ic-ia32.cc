@@ -43,6 +43,10 @@ namespace internal {
 
 
 // Helper function used to load a property from a dictionary backing storage.
+// This function may return false negatives, so miss_label
+// must always call a backup property load that is complete.
+// This function is safe to call if the receiver has fast properties,
+// or if name is not a symbol, and will jump to the miss_label in that case.
 static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
                                    Register r0, Register r1, Register r2,
                                    Register name) {
@@ -56,7 +60,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   //
   // r2   - used to hold the capacity of the property dictionary.
   //
-  // name - holds the name of the property and is unchanges.
+  // name - holds the name of the property and is unchanged.
 
   Label done;
 
@@ -274,13 +278,20 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
   KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
-  // Check if the key is a symbol that is not an array index.
+
   __ bind(&check_string);
+  // The key is not a smi.
+  // Is it a string?
+  __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edx);
+  __ j(above_equal, &slow);
+  // Is the string an array index, with cached numeric value?
   __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
   __ test(ebx, Immediate(String::kIsArrayIndexMask));
   __ j(not_zero, &index_string, not_taken);
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+
+  // If the string is a symbol, do a quick inline probe of the receiver's
+  // dictionary, if it exists.
+  __ movzx_b(ebx, FieldOperand(exd, Map::kInstanceTypeOffset));
   __ test(ebx, Immediate(kIsSymbolMask));
   __ j(zero, &slow, not_taken);
   // Probe the dictionary leaving result in ecx.
