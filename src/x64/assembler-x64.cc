@@ -773,6 +773,15 @@ void Assembler::decq(const Operand& dst) {
 }
 
 
+void Assembler::decl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xFF);
+  emit_modrm(0x1, dst);
+}
+
+
 void Assembler::decl(const Operand& dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1521,7 +1530,7 @@ void Assembler::store_rax(ExternalReference ref) {
 
 
 void Assembler::testb(Register reg, Immediate mask) {
-  ASSERT(is_int8(mask.value_));
+  ASSERT(is_int8(mask.value_) || is_uint8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (reg.is(rax)) {
@@ -1540,7 +1549,7 @@ void Assembler::testb(Register reg, Immediate mask) {
 
 
 void Assembler::testb(const Operand& op, Immediate mask) {
-  ASSERT(is_int8(mask.value_));
+  ASSERT(is_int8(mask.value_) || is_uint8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(rax, op);

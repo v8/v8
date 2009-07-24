@@ -687,7 +687,7 @@ int DisassemblerX64::ShiftInstruction(byte* data) {
   byte modrm = *(data + 1);
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
-  ASSERT(regop < 8);
+  regop &= 0x7;  // The REX.R bit does not affect the operation.
   int imm8 = -1;
   int num_bytes = 2;
   if (mod != 3) {

@@ -327,7 +327,7 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, (Operand(rsp, kPointerSize)));
+  __ movq(rax, Operand(rsp, kPointerSize));
   GenerateLoadConstant(object, holder, rax, rbx, rdx, value, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -348,7 +348,7 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ movq(rax, (Operand(rsp, kPointerSize)));
+  __ movq(rax, Operand(rsp, kPointerSize));
   GenerateLoadField(object, holder, rax, rbx, rdx, index, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -381,7 +381,7 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   __ IncrementCounter(&Counters::named_load_global_inline, 1);
 
   // Get the receiver from the stack.
-  __ movq(rax, (Operand(rsp, kPointerSize)));
+  __ movq(rax, Operand(rsp, kPointerSize));
 
   // If the object is the holder then we know that it's a global
   // object which can only happen for contextual loads. In this case,
@@ -473,6 +473,36 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
                                               String* name) {
   UNIMPLEMENTED();
   return NULL;
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
+                                                JSObject* receiver,
+                                                JSObject* holder,
+                                                int index) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : name
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
+  __ IncrementCounter(&Counters::keyed_load_field, 1);
+
+  // Check that the name has not changed.
+  __ Cmp(rax, Handle<String>(name));
+  __ j(not_equal, &miss);
+
+  GenerateLoadField(receiver, holder, rcx, rbx, rdx, index, name, &miss);
+
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::keyed_load_field, 1);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(FIELD, name);
 }
 
 

@@ -627,6 +627,7 @@ class Assembler : public Malloced {
 
   void decq(Register dst);
   void decq(const Operand& dst);
+  void decl(Register dst);
   void decl(const Operand& dst);
 
   // Sign-extends rax into rdx:rax.
@@ -735,6 +736,10 @@ class Assembler : public Malloced {
 
   void shrl(Register dst) {
     shift_32(dst, 0x5);
+  }
+
+  void shrl(Register dst, Immediate shift_amount) {
+    shift_32(dst, shift_amount, 0x5);
   }
 
   void store_rax(void* dst, RelocInfo::Mode mode);

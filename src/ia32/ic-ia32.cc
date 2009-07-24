@@ -237,8 +237,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Label slow, fast, check_string, index_int, index_string;
 
   // Load name and receiver.
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
 
   // Check that the object isn't a smi.
   __ test(ecx, Immediate(kSmiTagMask));

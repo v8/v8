@@ -113,6 +113,7 @@ test-debug/RecursiveBreakpoints: CRASH || FAIL
 test-debug/DebuggerUnload: CRASH || FAIL
 test-debug/DebuggerHostDispatch: CRASH || FAIL
 test-debug/DebugBreakInMessageHandler: CRASH || FAIL
+test-debug/NoDebugBreakInAfterCompileMessageHandler: CRASH || FAIL
 test-api/HugeConsStringOutOfMemory: CRASH || FAIL
 test-api/OutOfMemory: CRASH || FAIL
 test-api/OutOfMemoryNested: CRASH || FAIL

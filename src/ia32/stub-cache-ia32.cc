@@ -1010,7 +1010,7 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ IncrementCounter(&Counters::named_store_global_inline, 1);
 
   // Check that the map of the global has not changed.
-  __ mov(ebx, (Operand(esp, kPointerSize)));
+  __ mov(ebx, Operand(esp, kPointerSize));
   __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
          Immediate(Handle<Map>(object->map())));
   __ j(not_equal, &miss, not_taken);
@@ -1089,7 +1089,7 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
   GenerateLoadField(object, holder, eax, ebx, edx, index, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -1110,7 +1110,7 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
   GenerateLoadCallback(object, holder, eax, ecx, ebx, edx,
                        callback, name, &miss);
   __ bind(&miss);
@@ -1132,7 +1132,7 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
   GenerateLoadConstant(object, holder, eax, ebx, edx, value, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -1152,7 +1152,7 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
   // TODO(368): Compile in the whole chain: all the interceptors in
   // prototypes and ultimate answer.
   GenerateLoadInterceptor(receiver,
@@ -1188,7 +1188,7 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   __ IncrementCounter(&Counters::named_load_global_inline, 1);
 
   // Get the receiver from the stack.
-  __ mov(eax, (Operand(esp, kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
 
   // If the object is the holder then we know that it's a global
   // object which can only happen for contextual loads. In this case,
@@ -1237,8 +1237,8 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_field, 1);
 
   // Check that the name has not changed.
@@ -1267,8 +1267,8 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_callback, 1);
 
   // Check that the name has not changed.
@@ -1297,8 +1297,8 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_constant_function, 1);
 
   // Check that the name has not changed.
@@ -1326,8 +1326,8 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_interceptor, 1);
 
   // Check that the name has not changed.
@@ -1362,8 +1362,8 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_array_length, 1);
 
   // Check that the name has not changed.
@@ -1388,8 +1388,8 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_string_length, 1);
 
   // Check that the name has not changed.
@@ -1414,8 +1414,8 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_function_prototype, 1);
 
   // Check that the name has not changed.
