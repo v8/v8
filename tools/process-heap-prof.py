@@ -1,4 +1,6 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+#!/usr/bin/env python
+#
+# Copyright 2009 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -25,20 +27,47 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix message
+# This is an utility for converting V8 heap logs into .hp files that can
+# be further processed using 'hp2ps' tool (bundled with GHC and Valgrind)
+# to produce heap usage histograms.
 
-# All tests in the bug directory are expected to fail.
-bugs: FAIL
+# Sample usage:
+# $ ./shell --log-gc script.js
+# $ tools/process-heap-prof.py v8.log | hp2ps -c > script-heap-graph.ps
+# ('-c' enables color, see hp2ps manual page for more options)
 
-[ $arch == x64 ]
+import csv, sys, time
 
-simple-throw: FAIL
-try-catch-finally-throw-in-catch-and-finally: FAIL
-try-catch-finally-throw-in-catch: FAIL
-try-catch-finally-throw-in-finally: FAIL
-try-finally-throw-in-finally: FAIL
-try-finally-throw-in-try-and-finally: FAIL
-try-finally-throw-in-try: FAIL
-overwritten-builtins: FAIL
-regress/regress-73: FAIL
-regress/regress-75: FAIL
+def process_logfile(filename):
+  first_call_time = None
+  sample_time = 0.0
+  sampling = False
+  try:
+    logfile = open(filename, 'rb')
+    try:
+      logreader = csv.reader(logfile)
+
+      print('JOB "v8"')
+      print('DATE "%s"' % time.asctime(time.localtime()))
+      print('SAMPLE_UNIT "seconds"')
+      print('VALUE_UNIT "bytes"')
+
+      for row in logreader:
+        if row[0] == 'heap-sample-begin' and row[1] == 'Heap':
+          sample_time = float(row[3])/1000.0
+          if first_call_time == None:
+            first_call_time = sample_time
+          sample_time -= first_call_time
+          print('BEGIN_SAMPLE %.2f' % sample_time)
+          sampling = True
+        elif row[0] == 'heap-sample-end' and row[1] == 'Heap':
+          print('END_SAMPLE %.2f' % sample_time)
+          sampling = False
+        elif row[0] == 'heap-sample-item' and sampling:
+          print('%s %d' % (row[1], int(row[3])))
+    finally:
+      logfile.close()
+  except:
+    sys.exit('can\'t open %s' % filename)
+
+process_logfile(sys.argv[1])

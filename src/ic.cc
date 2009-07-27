@@ -273,28 +273,39 @@ static bool HasInterceptorGetter(JSObject* object) {
 static void LookupForRead(Object* object,
                           String* name,
                           LookupResult* lookup) {
-  object->Lookup(name, lookup);
-  if (lookup->IsNotFound() || lookup->type() != INTERCEPTOR) {
-    return;
-  }
+  AssertNoAllocation no_gc;  // pointers must stay valid
 
-  JSObject* holder = lookup->holder();
-  if (HasInterceptorGetter(holder)) {
-    return;
-  }
+  // Skip all the objects with named interceptors, but
+  // without actual getter.
+  while (true) {
+    object->Lookup(name, lookup);
+    // Besides normal conditions (property not found or it's not
+    // an interceptor), bail out of lookup is not cacheable: we won't
+    // be able to IC it anyway and regular lookup should work fine.
+    if (lookup->IsNotFound() || lookup->type() != INTERCEPTOR ||
+        !lookup->IsCacheable()) {
+      return;
+    }
 
-  // There is no getter, just skip it and lookup down the proto chain
-  holder->LocalLookupRealNamedProperty(name, lookup);
-  if (lookup->IsValid()) {
-    return;
-  }
+    JSObject* holder = lookup->holder();
+    if (HasInterceptorGetter(holder)) {
+      return;
+    }
 
-  Object* proto = holder->GetPrototype();
-  if (proto == Heap::null_value()) {
-    return;
-  }
+    holder->LocalLookupRealNamedProperty(name, lookup);
+    if (lookup->IsValid()) {
+      ASSERT(lookup->type() != INTERCEPTOR);
+      return;
+    }
 
-  LookupForRead(proto, name, lookup);
+    Object* proto = holder->GetPrototype();
+    if (proto->IsNull()) {
+      lookup->NotFound();
+      return;
+    }
+
+    object = proto;
+  }
 }
 
 
@@ -726,7 +737,9 @@ Object* KeyedLoadIC::Load(State state,
       return TypeError("non_object_property_load", object, name);
     }
 
-    if (FLAG_use_ic) {
+    // TODO(X64): Enable specialized stubs for length and prototype lookup.
+#ifndef V8_TARGET_ARCH_X64
+    if (false && FLAG_use_ic) {
       // Use specialized code for getting the length of strings.
       if (object->IsString() && name->Equals(Heap::length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
@@ -736,7 +749,7 @@ Object* KeyedLoadIC::Load(State state,
         set_target(Code::cast(code));
 #ifdef DEBUG
         TraceIC("KeyedLoadIC", name, state, target());
-#endif
+#endif  // DEBUG
         return Smi::FromInt(string->length());
       }
 
@@ -748,7 +761,7 @@ Object* KeyedLoadIC::Load(State state,
         set_target(Code::cast(code));
 #ifdef DEBUG
         TraceIC("KeyedLoadIC", name, state, target());
-#endif
+#endif  // DEBUG
         return JSArray::cast(*object)->length();
       }
 
@@ -761,10 +774,11 @@ Object* KeyedLoadIC::Load(State state,
         set_target(Code::cast(code));
 #ifdef DEBUG
         TraceIC("KeyedLoadIC", name, state, target());
-#endif
+#endif  // DEBUG
         return Accessors::FunctionGetPrototype(*object, 0);
       }
     }
+#endif  // !V8_TARGET_ARCH_X64
 
     // Check if the name is trivially convertible to an index and get
     // the element or char if so.
@@ -787,10 +801,13 @@ Object* KeyedLoadIC::Load(State state,
       }
     }
 
+    // TODO(X64): Enable inline caching for load.
+#ifndef V8_TARGET_ARCH_X64
     // Update the inline cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
       UpdateCaches(&lookup, state, object, name);
     }
+#endif
 
     PropertyAttributes attr;
     if (lookup.IsValid() && lookup.type() == INTERCEPTOR) {
@@ -961,6 +978,10 @@ Object* StoreIC::Store(State state,
     return *value;
   }
 
+  // TODO(X64): Enable inline cache for StoreIC.
+#ifdef V8_TARGET_ARCH_X64
+  USE(&LookupForWrite);  // The compiler complains otherwise.
+#else
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
@@ -968,6 +989,7 @@ Object* StoreIC::Store(State state,
       UpdateCaches(&lookup, state, receiver, name, value);
     }
   }
+#endif
 
   // Set the property.
   return receiver->SetProperty(*name, *value, NONE);
@@ -1086,10 +1108,13 @@ Object* KeyedStoreIC::Store(State state,
     LookupResult lookup;
     receiver->LocalLookup(*name, &lookup);
 
+    // TODO(X64): Enable inline cache for KeyedStoreIC.
+#ifndef V8_TARGET_ARCH_X64
     // Update inline cache and stub cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
       UpdateCaches(&lookup, state, receiver, name, value);
     }
+#endif
 
     // Set the property.
     return receiver->SetProperty(*name, *value, NONE);
@@ -1217,11 +1242,6 @@ Object* CallIC_Miss(Arguments args) {
 
 
 void CallIC::GenerateInitialize(MacroAssembler* masm, int argc) {
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
-}
-
-
-void CallIC::GeneratePreMonomorphic(MacroAssembler* masm, int argc) {
   Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 

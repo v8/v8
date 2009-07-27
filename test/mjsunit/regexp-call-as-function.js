@@ -25,79 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
-#define V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
+// Test that regular expressions can be called as functions.  Calling
+// a regular expression as a function corresponds to calling it's exec
+// method.
 
-#include "v8.h"
-
-namespace v8 {
-namespace internal {
-
-// -------------------------------------------------------------------------
-// RegisterAllocator implementation.
-
-bool RegisterAllocator::IsReserved(Register reg) {
-  return reg.is(cp) || reg.is(fp) || reg.is(sp) || reg.is(pc);
-}
-
-
-
-// The register allocator uses small integers to represent the
-// non-reserved assembler registers.  The mapping is:
-//
-// r0 <-> 0
-// r1 <-> 1
-// r2 <-> 2
-// r3 <-> 3
-// r4 <-> 4
-// r5 <-> 5
-// r6 <-> 6
-// r7 <-> 7
-// r9 <-> 8
-// r10 <-> 9
-// ip <-> 10
-// lr <-> 11
-
-int RegisterAllocator::ToNumber(Register reg) {
-  ASSERT(reg.is_valid() && !IsReserved(reg));
-  const int kNumbers[] = {
-    0,   // r0
-    1,   // r1
-    2,   // r2
-    3,   // r3
-    4,   // r4
-    5,   // r5
-    6,   // r6
-    7,   // r7
-    -1,  // cp
-    8,   // r9
-    9,   // r10
-    -1,  // fp
-    10,  // ip
-    -1,  // sp
-    11,  // lr
-    -1   // pc
-  };
-  return kNumbers[reg.code()];
-}
-
-
-Register RegisterAllocator::ToRegister(int num) {
-  ASSERT(num >= 0 && num < kNumRegisters);
-  const Register kRegisters[] =
-      { r0, r1, r2, r3, r4, r5, r6, r7, r9, r10, ip, lr };
-  return kRegisters[num];
-}
-
-
-void RegisterAllocator::Initialize() {
-  Reset();
-  // The non-reserved r1 and lr registers are live on JS function entry.
-  Use(r1);  // JS function.
-  Use(lr);  // Return address.
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
+var regexp = /a(b)(c)/;
+var subject = "xyzabcde";
+var expected = 'abc,b,c';
+assertEquals(expected, String(regexp.exec(subject)));
+assertEquals(expected, String(regexp(subject)));

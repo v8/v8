@@ -834,12 +834,7 @@ class AstBuildingParserFactory : public ParserFactory {
     return new CallEval(expression, arguments, pos);
   }
 
-  virtual Statement* EmptyStatement() {
-    // Use a statically allocated empty statement singleton to avoid
-    // allocating lots and lots of empty statements.
-    static v8::internal::EmptyStatement empty;
-    return &empty;
-  }
+  virtual Statement* EmptyStatement();
 };
 
 
@@ -1029,6 +1024,14 @@ Scope* AstBuildingParserFactory::NewScope(Scope* parent, Scope::Type type,
   Scope* result = new Scope(parent, type);
   result->Initialize(inside_with);
   return result;
+}
+
+
+Statement* AstBuildingParserFactory::EmptyStatement() {
+  // Use a statically allocated empty statement singleton to avoid
+  // allocating lots and lots of empty statements.
+  static v8::internal::EmptyStatement empty;
+  return &empty;
 }
 
 
@@ -2367,7 +2370,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       result = NEW(TryFinally(try_block, finally_block));
       // Add the jump targets of the try block and the catch block.
       for (int i = 0; i < collector.targets()->length(); i++) {
-        catch_collector.targets()->Add(collector.targets()->at(i));
+        catch_collector.AddTarget(collector.targets()->at(i));
       }
       result->set_escaping_targets(catch_collector.targets());
     }
@@ -3928,7 +3931,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     case '*':
     case '+':
     case '?':
-      ReportError(CStrVector("Nothing to repeat") CHECK_FAILED);
+      return ReportError(CStrVector("Nothing to repeat"));
     case '^': {
       Advance();
       if (multiline_) {
@@ -4003,7 +4006,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     case '\\':
       switch (Next()) {
       case kEndMarker:
-        ReportError(CStrVector("\\ at end of pattern") CHECK_FAILED);
+        return ReportError(CStrVector("\\ at end of pattern"));
       case 'b':
         Advance(2);
         builder->AddAssertion(
@@ -4490,7 +4493,7 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
         return CharacterRange::Singleton(0);  // Return dummy value.
       }
       case kEndMarker:
-        ReportError(CStrVector("\\ at end of pattern") CHECK_FAILED);
+        return ReportError(CStrVector("\\ at end of pattern"));
       default:
         uc32 c = ParseClassCharacterEscape(CHECK_FAILED);
         return CharacterRange::Singleton(c);

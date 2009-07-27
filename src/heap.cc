@@ -69,7 +69,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-#if V8_TARGET_ARCH_ARM
+#if defined(ANDROID)
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
@@ -85,8 +85,8 @@ GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap.
 int Heap::young_generation_size_ = 0;  // Will be 2 * semispace_size_.
-
 int Heap::survived_since_last_expansion_ = 0;
+int Heap::external_allocation_limit_ = 0;
 
 Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
@@ -205,6 +205,27 @@ void Heap::ReportStatisticsBeforeGC() {
   }
 #endif
 }
+
+
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+void Heap::PrintShortHeapStatistics() {
+  if (!FLAG_trace_gc_verbose) return;
+  PrintF("Memory allocator,   used: %8d, available: %8d\n",
+         MemoryAllocator::Size(), MemoryAllocator::Available());
+  PrintF("New space,          used: %8d, available: %8d\n",
+         Heap::new_space_.Size(), new_space_.Available());
+  PrintF("Old pointers,       used: %8d, available: %8d\n",
+         old_pointer_space_->Size(), old_pointer_space_->Available());
+  PrintF("Old data space,     used: %8d, available: %8d\n",
+         old_data_space_->Size(), old_data_space_->Available());
+  PrintF("Code space,         used: %8d, available: %8d\n",
+         code_space_->Size(), code_space_->Available());
+  PrintF("Map space,          used: %8d, available: %8d\n",
+         map_space_->Size(), map_space_->Available());
+  PrintF("Large object space, used: %8d, avaialble: %8d\n",
+         lo_space_->Size(), lo_space_->Available());
+}
+#endif
 
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
@@ -1166,7 +1187,7 @@ bool Heap::CreateInitialMaps() {
   set_undetectable_long_ascii_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
 
-  obj = AllocateMap(BYTE_ARRAY_TYPE, Array::kAlignedSize);
+  obj = AllocateMap(BYTE_ARRAY_TYPE, ByteArray::kAlignedSize);
   if (obj->IsFailure()) return false;
   set_byte_array_map(Map::cast(obj));
 
@@ -2967,6 +2988,7 @@ bool Heap::ConfigureHeap(int semispace_size, int old_gen_size) {
   semispace_size_ = RoundUpToPowerOf2(semispace_size_);
   initial_semispace_size_ = Min(initial_semispace_size_, semispace_size_);
   young_generation_size_ = 2 * semispace_size_;
+  external_allocation_limit_ = 10 * semispace_size_;
 
   // The old generation is paged.
   old_generation_size_ = RoundUp(old_generation_size_, Page::kPageSize);
@@ -3385,6 +3407,8 @@ void HeapProfiler::CollectStats(HeapObject* obj, HistogramInfo* info) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void HeapProfiler::WriteSample() {
   LOG(HeapSampleBeginEvent("Heap", "allocated"));
+  LOG(HeapSampleStats(
+      "Heap", "allocated", Heap::Capacity(), Heap::SizeOfObjects()));
 
   HistogramInfo info[LAST_TYPE+1];
 #define DEF_TYPE_NAME(name) info[name].set_name(#name);
@@ -3620,6 +3644,10 @@ GCTracer::~GCTracer() {
          CollectorString(),
          start_size_, SizeOfHeapObjects(),
          static_cast<int>(OS::TimeCurrentMillis() - start_time_));
+
+#if defined(ENABLE_LOGGING_AND_PROFILING)
+  Heap::PrintShortHeapStatistics();
+#endif
 }
 
 

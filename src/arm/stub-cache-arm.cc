@@ -164,7 +164,7 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
     __ ldr(dst, FieldMemOperand(src, offset));
   } else {
     // Calculate the offset into the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     __ ldr(dst, FieldMemOperand(src, JSObject::kPropertiesOffset));
     __ ldr(dst, FieldMemOperand(dst, offset));
   }
@@ -330,7 +330,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ RecordWrite(receiver_reg, name_reg, scratch);
   } else {
     // Write to the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array
     __ ldr(scratch, FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ str(r0, FieldMemOperand(scratch, offset));
@@ -1121,8 +1121,6 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
-// TODO(1224671): IC stubs for keyed loads have not been implemented
-// for ARM.
 Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                 JSObject* receiver,
                                                 JSObject* holder,

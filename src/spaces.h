@@ -393,6 +393,9 @@ class MemoryAllocator : public AllStatic {
   // Returns the maximum available bytes of heaps.
   static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
 
+  // Returns allocated spaces in bytes.
+  static int Size() { return size_; }
+
   // Returns maximum available bytes that the old space can have.
   static int MaxAvailable() {
     return (Available() / Page::kPageSize) * Page::kObjectAreaSize;
@@ -434,7 +437,11 @@ class MemoryAllocator : public AllStatic {
   static const int kMaxNofChunks = 1 << Page::kPageSizeBits;
   // If a chunk has at least 32 pages, the maximum heap size is about
   // 8 * 1024 * 32 * 8K = 2G bytes.
+#if defined(ANDROID)
+  static const int kPagesPerChunk = 16;
+#else
   static const int kPagesPerChunk = 64;
+#endif
   static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
 
  private:

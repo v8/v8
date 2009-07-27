@@ -843,7 +843,22 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_gc) return;
   LogMessageBuilder msg;
-  msg.Append("heap-sample-begin,\"%s\",\"%s\"\n", space, kind);
+  // Using non-relative system time in order to be able to synchronize with
+  // external memory profiling events (e.g. DOM memory size).
+  msg.Append("heap-sample-begin,\"%s\",\"%s\",%.0f\n",
+             space, kind, OS::TimeCurrentMillis());
+  msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::HeapSampleStats(const char* space, const char* kind,
+                             int capacity, int used) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
+  LogMessageBuilder msg;
+  msg.Append("heap-sample-stats,\"%s\",\"%s\",%d,%d\n",
+             space, kind, capacity, used);
   msg.WriteToLogFile();
 #endif
 }

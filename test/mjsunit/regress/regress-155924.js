@@ -25,79 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
-#define V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
+// A HeapNumber with certain bits in the mantissa of the floating point
+// value should not be able to masquerade as a string in a keyed lookup
+// inline cache stub.  See http://codereview.chromium.org/155924.
 
-#include "v8.h"
+A = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];
 
-namespace v8 {
-namespace internal {
-
-// -------------------------------------------------------------------------
-// RegisterAllocator implementation.
-
-bool RegisterAllocator::IsReserved(Register reg) {
-  return reg.is(cp) || reg.is(fp) || reg.is(sp) || reg.is(pc);
+function foo() {
+  x = 1 << 26;
+  x = x * x;
+  // The following floating-point heap number has a second word similar
+  // to that of the string "5":
+  // 2^52 + index << cached_index_shift + cached_index_tag
+  x = x + (5 << 2) + (1 << 1);
+  return A[x];
 }
 
-
-
-// The register allocator uses small integers to represent the
-// non-reserved assembler registers.  The mapping is:
-//
-// r0 <-> 0
-// r1 <-> 1
-// r2 <-> 2
-// r3 <-> 3
-// r4 <-> 4
-// r5 <-> 5
-// r6 <-> 6
-// r7 <-> 7
-// r9 <-> 8
-// r10 <-> 9
-// ip <-> 10
-// lr <-> 11
-
-int RegisterAllocator::ToNumber(Register reg) {
-  ASSERT(reg.is_valid() && !IsReserved(reg));
-  const int kNumbers[] = {
-    0,   // r0
-    1,   // r1
-    2,   // r2
-    3,   // r3
-    4,   // r4
-    5,   // r5
-    6,   // r6
-    7,   // r7
-    -1,  // cp
-    8,   // r9
-    9,   // r10
-    -1,  // fp
-    10,  // ip
-    -1,  // sp
-    11,  // lr
-    -1   // pc
-  };
-  return kNumbers[reg.code()];
-}
-
-
-Register RegisterAllocator::ToRegister(int num) {
-  ASSERT(num >= 0 && num < kNumRegisters);
-  const Register kRegisters[] =
-      { r0, r1, r2, r3, r4, r5, r6, r7, r9, r10, ip, lr };
-  return kRegisters[num];
-}
-
-
-void RegisterAllocator::Initialize() {
-  Reset();
-  // The non-reserved r1 and lr registers are live on JS function entry.
-  Use(r1);  // JS function.
-  Use(lr);  // Return address.
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_ARM_REGISTER_ALLOCATOR_ARM_INL_H_
+assertEquals(undefined, foo(), "First lookup A[bad_float]");
+assertEquals(undefined, foo(), "Second lookup A[bad_float]");
+assertEquals(undefined, foo(), "Third lookup A[bad_float]");

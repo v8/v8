@@ -1085,8 +1085,9 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   // handle it if it turns out not to be in release mode.
   ASSERT(pre_data == NULL || pre_data->SanityCheck());
   // If the pre-data isn't sane we simply ignore it
-  if (pre_data != NULL && !pre_data->SanityCheck())
+  if (pre_data != NULL && !pre_data->SanityCheck()) {
     pre_data = NULL;
+  }
   i::Handle<i::JSFunction> boilerplate = i::Compiler::Compile(str,
                                                               name_obj,
                                                               line_offset,
@@ -2461,6 +2462,44 @@ void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
   ENTER_V8;
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
+}
+
+
+void* v8::Object::GetPointerFromInternalField(int index) {
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Object* pointer = obj->GetInternalField(index);
+  if (pointer->IsSmi()) {
+    // Fast case, aligned native pointer.
+    return pointer;
+  }
+
+  // Read from uninitialized field.
+  if (!pointer->IsProxy()) {
+    // Play safe even if it's something unexpected.
+    ASSERT(pointer->IsUndefined());
+    return NULL;
+  }
+
+  // Unaligned native pointer.
+  return reinterpret_cast<void*>(i::Proxy::cast(pointer)->proxy());
+}
+
+
+void v8::Object::SetPointerInInternalField(int index, void* value) {
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Object* as_object = reinterpret_cast<i::Object*>(value);
+  if (as_object->IsSmi()) {
+    // Aligned pointer, store as is.
+    obj->SetInternalField(index, as_object);
+  } else {
+    // Currently internal fields are used by DOM wrappers which only
+    // get garbage collected by the mark-sweep collector, so we
+    // pretenure the proxy.
+    HandleScope scope;
+    i::Handle<i::Proxy> proxy =
+        i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
+    if (!proxy.is_null()) obj->SetInternalField(index, *proxy);
+  }
 }
 
 

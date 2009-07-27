@@ -254,6 +254,7 @@
         '../../src/frames-inl.h',
         '../../src/frames.cc',
         '../../src/frames.h',
+        '../../src/frame-element.cc',
         '../../src/frame-element.h',
         '../../src/func-name-inferrer.cc',
         '../../src/func-name-inferrer.h',

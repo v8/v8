@@ -1718,6 +1718,10 @@ class Array: public HeapObject {
 
   // Layout descriptor.
   static const int kLengthOffset = HeapObject::kHeaderSize;
+
+ protected:
+  // No code should use the Array class directly, only its subclasses.
+  // Use the kHeaderSize of the appropriate subclass, which may be aligned.
   static const int kHeaderSize = kLengthOffset + kIntSize;
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
@@ -2426,6 +2430,10 @@ class ByteArray: public Array {
   void ByteArrayPrint();
   void ByteArrayVerify();
 #endif
+
+  // ByteArray headers are not quadword aligned.
+  static const int kHeaderSize = Array::kHeaderSize;
+  static const int kAlignedSize = Array::kAlignedSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);

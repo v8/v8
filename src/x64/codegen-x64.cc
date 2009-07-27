@@ -3379,7 +3379,7 @@ void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
   // functions to make sure they have 'Function' as their class.
 
   __ CmpObjectType(obj.reg(), FIRST_JS_OBJECT_TYPE, obj.reg());
-  null.Branch(less);
+  null.Branch(below);
 
   // As long as JS_FUNCTION_TYPE is the last instance type and it is
   // right after LAST_JS_OBJECT_TYPE, we can avoid checking for
@@ -5321,6 +5321,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       // patch the map check if appropriate.
 
       // TODO(x64): Implement inlined loads for keyed properties.
+      // Make sure to load length field as a 32-bit quantity.
       //      Comment cmnt(masm, "[ Load from keyed Property");
 
       RelocInfo::Mode mode = is_global

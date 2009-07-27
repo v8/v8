@@ -456,13 +456,13 @@ void Assembler::arithmetic_op_32(byte opcode, Register dst, Register src) {
 
 
 void Assembler::arithmetic_op_32(byte opcode,
-                                 const Operand& dst,
-                                 Register src) {
+                                 Register reg,
+                                 const Operand& rm_reg) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  emit_optional_rex_32(src, dst);
+  emit_optional_rex_32(reg, rm_reg);
   emit(opcode);
-  emit_operand(src, dst);
+  emit_operand(reg, rm_reg);
 }
 
 
@@ -770,6 +770,15 @@ void Assembler::decq(const Operand& dst) {
   emit_rex_64(dst);
   emit(0xFF);
   emit_operand(1, dst);
+}
+
+
+void Assembler::decl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xFF);
+  emit_modrm(0x1, dst);
 }
 
 
@@ -1521,7 +1530,7 @@ void Assembler::store_rax(ExternalReference ref) {
 
 
 void Assembler::testb(Register reg, Immediate mask) {
-  ASSERT(is_int8(mask.value_));
+  ASSERT(is_int8(mask.value_) || is_uint8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (reg.is(rax)) {
@@ -1540,7 +1549,7 @@ void Assembler::testb(Register reg, Immediate mask) {
 
 
 void Assembler::testb(const Operand& op, Immediate mask) {
-  ASSERT(is_int8(mask.value_));
+  ASSERT(is_int8(mask.value_) || is_uint8(mask.value_));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(rax, op);
@@ -2181,50 +2190,5 @@ void Assembler::WriteRecordedPositions() {
 
 const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
 
-
-} }  // namespace v8::internal
-
-
-// TODO(x64): Implement and move these to their correct cc-files:
-#include "ast.h"
-#include "bootstrapper.h"
-#include "codegen-inl.h"
-#include "cpu.h"
-#include "debug.h"
-#include "disasm.h"
-#include "disassembler.h"
-#include "frames-inl.h"
-#include "x64/macro-assembler-x64.h"
-#include "x64/regexp-macro-assembler-x64.h"
-#include "ic-inl.h"
-#include "log.h"
-#include "macro-assembler.h"
-#include "parser.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-stack.h"
-#include "register-allocator-inl.h"
-#include "register-allocator.h"
-#include "runtime.h"
-#include "scopes.h"
-#include "serialize.h"
-#include "stub-cache.h"
-#include "unicode.h"
-
-namespace v8 {
-namespace internal {
-
-
-void BreakLocationIterator::ClearDebugBreakAtReturn() {
-  UNIMPLEMENTED();
-}
-
-bool BreakLocationIterator::IsDebugBreakAtReturn()  {
-  UNIMPLEMENTED();
-  return false;
-}
-
-void BreakLocationIterator::SetDebugBreakAtReturn()  {
-  UNIMPLEMENTED();
-}
 
 } }  // namespace v8::internal

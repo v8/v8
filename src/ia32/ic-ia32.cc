@@ -43,6 +43,10 @@ namespace internal {
 
 
 // Helper function used to load a property from a dictionary backing storage.
+// This function may return false negatives, so miss_label
+// must always call a backup property load that is complete.
+// This function is safe to call if the receiver has fast properties,
+// or if name is not a symbol, and will jump to the miss_label in that case.
 static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
                                    Register r0, Register r1, Register r2,
                                    Register name) {
@@ -56,7 +60,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   //
   // r2   - used to hold the capacity of the property dictionary.
   //
-  // name - holds the name of the property and is unchanges.
+  // name - holds the name of the property and is unchanged.
 
   Label done;
 
@@ -89,7 +93,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
 
   // Compute the capacity mask.
   const int kCapacityOffset =
-      Array::kHeaderSize + StringDictionary::kCapacityIndex * kPointerSize;
+      StringDictionary::kHeaderSize +
+      StringDictionary::kCapacityIndex * kPointerSize;
   __ mov(r2, FieldOperand(r0, kCapacityOffset));
   __ shr(r2, kSmiTagSize);  // convert smi to int
   __ dec(r2);
@@ -99,7 +104,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // cover ~93% of loads from dictionaries.
   static const int kProbes = 4;
   const int kElementsStartOffset =
-      Array::kHeaderSize + StringDictionary::kElementsStartIndex * kPointerSize;
+      StringDictionary::kHeaderSize +
+      StringDictionary::kElementsStartIndex * kPointerSize;
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
@@ -153,6 +159,9 @@ static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
 }
 
 
+// The offset from the inlined patch site to the start of the
+// inlined load instruction.  It is 7 bytes (test eax, imm) plus
+// 6 bytes (jne slow_label).
 const int LoadIC::kOffsetToLoadInstruction = 13;
 
 
@@ -228,8 +237,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Label slow, fast, check_string, index_int, index_string;
 
   // Load name and receiver.
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ mov(ecx, Operand(esp, 2 * kPointerSize));
 
   // Check that the object isn't a smi.
   __ test(ecx, Immediate(kSmiTagMask));
@@ -263,21 +272,28 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
          Immediate(Factory::hash_table_map()));
   __ j(equal, &slow, not_taken);
   // Check that the key (index) is within bounds.
-  __ cmp(eax, FieldOperand(ecx, Array::kLengthOffset));
+  __ cmp(eax, FieldOperand(ecx, FixedArray::kLengthOffset));
   __ j(below, &fast, taken);
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
   KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
-  // Check if the key is a symbol that is not an array index.
+
   __ bind(&check_string);
+  // The key is not a smi.
+  // Is it a string?
+  __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, edx);
+  __ j(above_equal, &slow);
+  // Is the string an array index, with cached numeric value?
   __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
   __ test(ebx, Immediate(String::kIsArrayIndexMask));
   __ j(not_zero, &index_string, not_taken);
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+
+  // If the string is a symbol, do a quick inline probe of the receiver's
+  // dictionary, if it exists.
+  __ movzx_b(ebx, FieldOperand(edx, Map::kInstanceTypeOffset));
   __ test(ebx, Immediate(kIsSymbolMask));
-  __ j(not_zero, &slow, not_taken);
+  __ j(zero, &slow, not_taken);
   // Probe the dictionary leaving result in ecx.
   GenerateDictionaryLoad(masm, &slow, ebx, ecx, edx, eax);
   GenerateCheckNonObjectOrLoaded(masm, &slow, ecx, edx);
@@ -301,7 +317,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ jmp(&index_int);
   // Fast case: Do the load.
   __ bind(&fast);
-  __ mov(eax, Operand(ecx, eax, times_4, Array::kHeaderSize - kHeapObjectTag));
+  __ mov(eax,
+         Operand(ecx, eax, times_4, FixedArray::kHeaderSize - kHeapObjectTag));
   __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
@@ -419,7 +436,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // eax: value
   // ecx: FixedArray
   // ebx: index (as a smi)
-  __ mov(Operand(ecx, ebx, times_2, Array::kHeaderSize - kHeapObjectTag), eax);
+  __ mov(Operand(ecx, ebx, times_2, FixedArray::kHeaderSize - kHeapObjectTag),
+         eax);
   // Update write barrier for the elements array address.
   __ mov(edx, Operand(eax));
   __ RecordWrite(ecx, 0, edx, ebx);

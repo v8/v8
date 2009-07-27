@@ -49,7 +49,8 @@ namespace internal {
   ICU(StoreInterceptorProperty)
 
 //
-// IC is the base class for LoadIC, StoreIC and CallIC.
+// IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
+// and KeyedStoreIC.
 //
 class IC {
  public:
@@ -173,7 +174,6 @@ class CallIC: public IC {
 
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm, int argc);
-  static void GeneratePreMonomorphic(MacroAssembler* masm, int argc);
   static void GenerateMiss(MacroAssembler* masm, int argc);
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
@@ -219,8 +219,8 @@ class LoadIC: public IC {
   static void GenerateFunctionPrototype(MacroAssembler* masm);
 
   // The offset from the inlined patch site to the start of the
-  // inlined load instruction.  It is 7 bytes (test eax, imm) plus
-  // 6 bytes (jne slow_label).
+  // inlined load instruction.  It is architecture-dependent, and not
+  // used on ARM.
   static const int kOffsetToLoadInstruction;
 
  private:
