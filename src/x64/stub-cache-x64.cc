@@ -471,8 +471,36 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
 Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
                                               JSGlobalPropertyCell* cell,
                                               String* name) {
-  // TODO(X64): Implement a real stub.
-  return Failure::InternalError();
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+  Label miss;
+
+  // Check that the map of the global has not changed.
+  __ movq(rbx, Operand(rsp, kPointerSize));
+  __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
+         Handle<Map>(object->map()));
+  __ j(not_equal, &miss);
+
+  // Store the value in the cell.
+  __ Move(rcx, Handle<JSGlobalPropertyCell>(cell));
+  __ movq(FieldOperand(rcx, JSGlobalPropertyCell::kValueOffset), rax);
+
+  __ IncrementCounter(&Counters::named_store_global_inline, 1);
+  // Return the value (register rax).
+  __ ret(0);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  __ IncrementCounter(&Counters::named_store_global_inline_miss, 1);
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(NORMAL, name);
 }
 
 

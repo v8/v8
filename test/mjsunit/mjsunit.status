@@ -98,7 +98,7 @@ invalid-lhs: PASS || CRASH || FAIL
 debug-stepin-constructor: CRASH || FAIL
 debug-stepin-function-call: CRASH || FAIL
 debug-stepin-accessor: CRASH || FAIL
-new: CRASH || FAIL
+new: PASS || CRASH || FAIL
 fuzz-natives: PASS || TIMEOUT
 greedy: PASS || TIMEOUT
 debug-handle: CRASH || FAIL
