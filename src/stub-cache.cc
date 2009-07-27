@@ -736,22 +736,22 @@ Handle<Code> ComputeCallMiss(int argc) {
 
 Object* LoadCallbackProperty(Arguments args) {
   Handle<JSObject> recv = args.at<JSObject>(0);
-  AccessorInfo* callback = AccessorInfo::cast(args[1]);
+  Handle<JSObject> holder = args.at<JSObject>(1);
+  AccessorInfo* callback = AccessorInfo::cast(args[2]);
+  Handle<Object> data = args.at<Object>(3);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
-  Handle<String> name = args.at<String>(2);
-  Handle<JSObject> holder = args.at<JSObject>(3);
-  HandleScope scope;
-  Handle<Object> data(callback->data());
-  LOG(ApiNamedPropertyAccess("load", *recv, *name));
+  Handle<String> name = args.at<String>(4);
   // NOTE: If we can align the structure of an AccessorInfo with the
   // locations of the arguments to this function maybe we don't have
   // to explicitly create the structure but can just pass a pointer
   // into the stack.
+  LOG(ApiNamedPropertyAccess("load", *recv, *name));
   v8::AccessorInfo info(v8::Utils::ToLocal(recv),
                         v8::Utils::ToLocal(data),
                         v8::Utils::ToLocal(holder));
+  HandleScope scope;
   v8::Handle<v8::Value> result;
   {
     // Leaving JavaScript.

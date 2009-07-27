@@ -447,15 +447,17 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   // Push the arguments on the JS stack of the caller.
   __ pop(scratch2);  // remove return address
   __ push(receiver);  // receiver
-  __ push(Immediate(Handle<AccessorInfo>(callback)));  // callback data
-  __ push(name_reg);  // name
   __ push(reg);  // holder
+  __ mov(reg, Immediate(Handle<AccessorInfo>(callback)));  // callback data
+  __ push(reg);
+  __ push(FieldOperand(reg, AccessorInfo::kDataOffset));
+  __ push(name_reg);  // name
   __ push(scratch2);  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallRuntime(load_callback_property, 4);
+  __ TailCallRuntime(load_callback_property, 5);
 }
 
 
