@@ -978,10 +978,6 @@ Object* StoreIC::Store(State state,
     return *value;
   }
 
-  // TODO(X64): Enable inline cache for StoreIC.
-#ifdef V8_TARGET_ARCH_X64
-  USE(&LookupForWrite);  // The compiler complains otherwise.
-#else
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
@@ -989,7 +985,6 @@ Object* StoreIC::Store(State state,
       UpdateCaches(&lookup, state, receiver, name, value);
     }
   }
-#endif
 
   // Set the property.
   return receiver->SetProperty(*name, *value, NONE);

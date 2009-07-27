@@ -422,8 +422,8 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
                                                 AccessorInfo* b,
                                                 String* c) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
@@ -463,16 +463,16 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
 
 
 Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* a, String* b) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 
 Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
                                               JSGlobalPropertyCell* cell,
                                               String* name) {
-  UNIMPLEMENTED();
-  return NULL;
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
 }
 
 

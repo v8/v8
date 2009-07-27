@@ -183,12 +183,10 @@ void KeyedLoadIC::Generate(MacroAssembler* masm,
 
   __ movq(rax, Operand(rsp, kPointerSize));
   __ movq(rcx, Operand(rsp, 2 * kPointerSize));
-
-  // Move the return address below the arguments.
   __ pop(rbx);
-  __ push(rcx);
-  __ push(rax);
-  __ push(rbx);
+  __ push(rcx);  // receiver
+  __ push(rax);  // name
+  __ push(rbx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 2);
@@ -369,19 +367,19 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   //  -- rsp[16] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(rcx);
-  __ push(Operand(rsp, 1 * kPointerSize));
-  __ push(Operand(rsp, 1 * kPointerSize));
-  __ push(rax);
-  __ push(rcx);
+  __ push(Operand(rsp, 1 * kPointerSize));  // receiver
+  __ push(Operand(rsp, 1 * kPointerSize));  // key
+  __ push(rax);  // value
+  __ push(rcx);  // return address
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(f, 3);
 }
 
 void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kKeyedStoreIC_Miss)));
+  __ int3();
+  __ movq(rax, Immediate(0xdead1234));
 }
 
 
@@ -584,11 +582,10 @@ void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
   __ movq(rax, Operand(rsp, kPointerSize));
 
-  // Move the return address below the arguments.
   __ pop(rbx);
-  __ push(rax);
-  __ push(rcx);
-  __ push(rbx);
+  __ push(rax);  // receiver
+  __ push(rcx);  // name
+  __ push(rbx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 2);
@@ -654,19 +651,33 @@ void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-  // Move the return address below the arguments.
   __ pop(rbx);
-  __ push(Operand(rsp, 0));
-  __ push(rcx);
-  __ push(rax);
-  __ push(rbx);
+  __ push(Operand(rsp, 0));  // receiver
+  __ push(rcx);  // name
+  __ push(rax);  // value
+  __ push(rbx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 3);
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : Map (target of map transition)
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(Operand(rsp, 0));  // receiver
+  __ push(rcx);  // transition map
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {

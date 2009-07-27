@@ -749,12 +749,10 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   // -----------------------------------
 
   __ mov(eax, Operand(esp, kPointerSize));
-
-  // Move the return address below the arguments.
   __ pop(ebx);
-  __ push(eax);
-  __ push(ecx);
-  __ push(ebx);
+  __ push(eax);  // receiver
+  __ push(ecx);  // name
+  __ push(ebx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 2);
@@ -877,12 +875,10 @@ void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 
   __ mov(eax, Operand(esp, kPointerSize));
   __ mov(ecx, Operand(esp, 2 * kPointerSize));
-
-  // Move the return address below the arguments.
   __ pop(ebx);
-  __ push(ecx);
-  __ push(eax);
-  __ push(ebx);
+  __ push(ecx);  // receiver
+  __ push(eax);  // name
+  __ push(ebx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 2);
@@ -917,12 +913,12 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   //  -- esp[4] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(ebx);
-  __ push(Operand(esp, 0));
-  __ push(ecx);
-  __ push(eax);
-  __ push(ebx);
+  __ push(Operand(esp, 0));  // receiver
+  __ push(ecx);  // transition map
+  __ push(eax);  // value
+  __ push(ebx);  // return address
+
   // Perform tail call to the entry.
   __ TailCallRuntime(
       ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);

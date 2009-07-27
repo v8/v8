@@ -151,6 +151,13 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
                                      int num_arguments) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : argument num_arguments - 1
+  //  ...
+  //  -- rsp[8 * num_arguments] : argument 0 (receiver)
+  // -----------------------------------
+
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
