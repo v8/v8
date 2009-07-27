@@ -1350,7 +1350,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
             const char* memory_location = NameOfAddress(
                 reinterpret_cast<byte*>(
                     *reinterpret_cast<int32_t*>(data + 1)));
-            if (*data & 0x2 == 0x2) {  // Opcode 0xA3
+            if (*data == 0xA3) {  // Opcode 0xA3
               AppendToBuffer("movzxlq rax,(%s)", memory_location);
             } else {  // Opcode 0xA1
               AppendToBuffer("movzxlq (%s),rax", memory_location);
@@ -1362,7 +1362,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
             // New x64 instruction mov rax,(imm_64).
             const char* memory_location = NameOfAddress(
                 *reinterpret_cast<byte**>(data + 1));
-            if (*data & 0x2 == 0x2) {  // Opcode 0xA3
+            if (*data == 0xA3) {  // Opcode 0xA3
               AppendToBuffer("movq rax,(%s)", memory_location);
             } else {  // Opcode 0xA1
               AppendToBuffer("movq (%s),rax", memory_location);
