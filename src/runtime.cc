@@ -7425,7 +7425,7 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
 // code offset.
 static Object* Runtime_CollectStackTrace(Arguments args) {
   ASSERT_EQ(args.length(), 2);
-  Object* caller = args[0];
+  Handle<Object> caller = args.at<Object>(0);
   CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
 
   HandleScope scope;
@@ -7441,7 +7441,7 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
   int frames_seen = 0;
   while (!iter.done() && frames_seen < limit) {
     StackFrame* raw_frame = iter.frame();
-    if (ShowFrameInStackTrace(raw_frame, caller, &seen_caller)) {
+    if (ShowFrameInStackTrace(raw_frame, *caller, &seen_caller)) {
       frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
       Object* recv = frame->receiver();
@@ -7456,8 +7456,10 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
         elements->set(cursor++, offset, SKIP_WRITE_BARRIER);
       } else {
         HandleScope scope;
-        SetElement(result, cursor++, Handle<Object>(recv));
-        SetElement(result, cursor++, Handle<Object>(fun));
+        Handle<Object> recv_handle(recv);
+        Handle<Object> fun_handle(fun);
+        SetElement(result, cursor++, recv_handle);
+        SetElement(result, cursor++, fun_handle);
         SetElement(result, cursor++, Handle<Smi>(offset));
       }
     }
