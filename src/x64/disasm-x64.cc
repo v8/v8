@@ -1343,6 +1343,39 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += 2;
         break;
 
+      case 0xA1:  // Fall through.
+      case 0xA3:
+        switch (operand_size()) {
+          case DOUBLEWORD_SIZE: {
+            const char* memory_location = NameOfAddress(
+                reinterpret_cast<byte*>(
+                    *reinterpret_cast<int32_t*>(data + 1)));
+            if (*data & 0x2 == 0x2) {  // Opcode 0xA3
+              AppendToBuffer("movzxlq rax,(%s)", memory_location);
+            } else {  // Opcode 0xA1
+              AppendToBuffer("movzxlq (%s),rax", memory_location);
+            }
+            data += 5;
+            break;
+          }
+          case QUADWORD_SIZE: {
+            // New x64 instruction mov rax,(imm_64).
+            const char* memory_location = NameOfAddress(
+                *reinterpret_cast<byte**>(data + 1));
+            if (*data & 0x2 == 0x2) {  // Opcode 0xA3
+              AppendToBuffer("movq rax,(%s)", memory_location);
+            } else {  // Opcode 0xA1
+              AppendToBuffer("movq (%s),rax", memory_location);
+            }
+            data += 9;
+            break;
+          }
+          default:
+            UnimplementedInstruction();
+            data += 2;
+        }
+        break;
+
       case 0xA8:
         AppendToBuffer("test al,0x%x", *reinterpret_cast<uint8_t*>(data + 1));
         data += 2;
