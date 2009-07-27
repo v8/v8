@@ -424,14 +424,10 @@ class MacOSMutex : public Mutex {
  public:
 
   MacOSMutex() {
-    // For some reason the compiler doesn't allow you to write
-    // "this->mutex_ = PTHREAD_..." directly on mac.
-    pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&m, &attr);
-    mutex_ = m;
+    pthread_mutex_init(&mutex_, &attr);
   }
 
   ~MacOSMutex() { pthread_mutex_destroy(&mutex_); }
