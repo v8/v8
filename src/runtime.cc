@@ -7408,14 +7408,15 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
   // Not sure when this can happen but skip it just in case.
   if (!raw_fun->IsJSFunction())
     return false;
-  if ((raw_fun == caller) && !(*seen_caller) && frame->IsConstructor()) {
+  if ((raw_fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
     return false;
   }
-  // Skip the most obvious builtin calls.  Some builtin calls (such as
-  // Number.ADD which is invoked using 'call') are very difficult to
-  // recognize so we're leaving them in for now.
-  return !frame->receiver()->IsJSBuiltinsObject();
+  // Skip all frames until we've seen the caller.  Also, skip the most
+  // obvious builtin calls.  Some builtin calls (such as Number.ADD
+  // which is invoked using 'call') are very difficult to recognize
+  // so we're leaving them in for now.
+  return *seen_caller && !frame->receiver()->IsJSBuiltinsObject();
 }
 
 
@@ -7433,7 +7434,9 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
   Handle<JSArray> result = Factory::NewJSArray(initial_size * 3);
 
   StackFrameIterator iter;
-  bool seen_caller = false;
+  // If the caller parameter is a function we skip frames until we're
+  // under it before starting to collect.
+  bool seen_caller = !caller->IsJSFunction();
   int cursor = 0;
   int frames_seen = 0;
   while (!iter.done() && frames_seen < limit) {
