@@ -92,7 +92,6 @@ debug-ignore-breakpoints: CRASH || FAIL
 debug-setbreakpoint: CRASH || FAIL
 debug-step-stub-callfunction: CRASH || FAIL
 debug-step: CRASH || FAIL
-invalid-lhs: PASS || CRASH || FAIL
 debug-stepin-constructor: CRASH || FAIL
 debug-stepin-function-call: CRASH || FAIL
 debug-stepin-accessor: CRASH || FAIL

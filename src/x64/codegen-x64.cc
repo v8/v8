@@ -3728,7 +3728,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
   } else {
     // Anything else is a runtime error.
     Load(e);
-    // frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
+    frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
   }
 
   in_spilled_code_ = was_in_spilled_code;
