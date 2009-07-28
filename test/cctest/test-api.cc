@@ -7644,9 +7644,8 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(2, result->Int32Value());
   CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(6))->value());
 
-  result = CompileRun("var nan = 0/0;"
-                      "for (var i = 0; i < 8; i++) {"
-                      "  pixels[5] = nan;"
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[5] = NaN;"
                       "}"
                       "pixels[5];");
   CHECK_EQ(0, result->Int32Value());
