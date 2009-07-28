@@ -789,19 +789,70 @@ Object* StoreCallbackProperty(Arguments args) {
 
 
 Object* LoadInterceptorProperty(Arguments args) {
-  JSObject* recv = JSObject::cast(args[0]);
-  JSObject* holder = JSObject::cast(args[1]);
-  String* name = String::cast(args[2]);
+  Handle<JSObject> receiver_handle = args.at<JSObject>(0);
+  Handle<JSObject> holder_handle = args.at<JSObject>(1);
+  Handle<String> name_handle = args.at<String>(2);
   Smi* lookup_hint = Smi::cast(args[3]);
-  ASSERT(holder->HasNamedInterceptor());
-  PropertyAttributes attr = NONE;
+  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(4);
+  Handle<Object> data_handle = args.at<Object>(5);
 
-  Object* result = holder->GetInterceptorPropertyWithLookupHint(
-      recv, lookup_hint, name, &attr);
+  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
+  v8::NamedPropertyGetter getter =
+      FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
+  ASSERT(getter != NULL);
+
+  PropertyAttributes attributes = ABSENT;
+  Object* result = Heap::undefined_value();
+
+  {
+    // Use the interceptor getter.
+    v8::AccessorInfo info(v8::Utils::ToLocal(receiver_handle),
+                          v8::Utils::ToLocal(data_handle),
+                          v8::Utils::ToLocal(holder_handle));
+    HandleScope scope;
+    v8::Handle<v8::Value> r;
+    {
+      // Leaving JavaScript.
+      VMState state(EXTERNAL);
+      r = getter(v8::Utils::ToLocal(name_handle), info);
+    }
+    RETURN_IF_SCHEDULED_EXCEPTION();
+    if (!r.IsEmpty()) {
+      return *v8::Utils::OpenHandle(*r);
+    }
+  }
+
+  int property_index = lookup_hint->value();
+  if (property_index >= 0) {
+    result = holder_handle->FastPropertyAt(property_index);
+  } else {
+    switch (property_index) {
+      case JSObject::kLookupInPrototype: {
+          Object* pt = holder_handle->GetPrototype();
+          if (pt == Heap::null_value()) return Heap::undefined_value();
+          result = pt->GetPropertyWithReceiver(
+              *receiver_handle,
+              *name_handle,
+              &attributes);
+          RETURN_IF_SCHEDULED_EXCEPTION();
+        }
+        break;
+
+      case JSObject::kLookupInHolder:
+        result = holder_handle->GetPropertyPostInterceptor(
+            *receiver_handle,
+            *name_handle,
+            &attributes);
+        RETURN_IF_SCHEDULED_EXCEPTION();
+        break;
+
+      default:
+        UNREACHABLE();
+    }
+  }
+
   if (result->IsFailure()) return result;
-
-  // If the property is present, return it.
-  if (attr != ABSENT) return result;
+  if (attributes != ABSENT) return result;
 
   // If the top frame is an internal frame, this is really a call
   // IC. In this case, we simply return the undefined result which

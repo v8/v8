@@ -152,6 +152,27 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 }
 
 
+template <typename Pushable>
+static void PushInterceptorArguments(MacroAssembler* masm,
+                                     Register receiver,
+                                     Register holder,
+                                     Pushable name,
+                                     JSObject* holder_obj,
+                                     Smi* lookup_hint) {
+  __ push(receiver);
+  __ push(holder);
+  __ push(name);
+  // TODO(367): Maybe don't push lookup_hint for LOOKUP_IN_HOLDER and/or
+  // LOOKUP_IN_PROTOTYPE, but use a special version of lookup method?
+  __ push(Immediate(lookup_hint));
+
+  InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
+  __ mov(receiver, Immediate(Handle<Object>(interceptor)));
+  __ push(receiver);
+  __ push(FieldOperand(receiver, InterceptorInfo::kDataOffset));
+}
+
+
 void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                        int index,
                                                        Register prototype) {
@@ -504,18 +525,18 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
   // Push the arguments on the JS stack of the caller.
   __ pop(scratch2);  // remove return address
-  __ push(receiver);  // receiver
-  __ push(reg);  // holder
-  __ push(name_reg);  // name
-  // TODO(367): Maybe don't push lookup_hint for LOOKUP_IN_HOLDER and/or
-  // LOOKUP_IN_PROTOTYPE, but use a special version of lookup method?
-  __ push(Immediate(lookup_hint));
+  PushInterceptorArguments(masm(),
+                           receiver,
+                           reg,
+                           name_reg,
+                           holder,
+                           lookup_hint);
   __ push(scratch2);  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 4);
+  __ TailCallRuntime(load_ic_property, 6);
 }
 
 
@@ -744,15 +765,17 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ EnterInternalFrame();
 
   // Push arguments on the expression stack.
-  __ push(edx);  // receiver
-  __ push(reg);  // holder
-  __ push(Operand(ebp, (argc + 3) * kPointerSize));  // name
-  __ push(Immediate(holder->InterceptorPropertyLookupHint(name)));
+  PushInterceptorArguments(masm(),
+                           edx,
+                           reg,
+                           Operand(ebp, (argc + 3) * kPointerSize),
+                           holder,
+                           holder->InterceptorPropertyLookupHint(name));
 
   // Perform call.
   ExternalReference load_interceptor =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ mov(eax, Immediate(4));
+  __ mov(eax, Immediate(6));
   __ mov(ebx, Immediate(load_interceptor));
 
   CEntryStub stub;

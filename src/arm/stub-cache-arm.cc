@@ -505,10 +505,17 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
   __ mov(scratch1, Operand(lookup_hint));
   __ push(scratch1);
 
+  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
+  ASSERT(!Heap::InNewSpace(interceptor));
+  __ mov(scratch1, Operand(Handle<Object>(interceptor)));
+  __ push(scratch1);
+  __ ldr(scratch2, FieldMemOperand(scratch1, InterceptorInfo::kDataOffset));
+  __ push(scratch2);
+
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 4);
+  __ TailCallRuntime(load_ic_property, 6);
 }
 
 
