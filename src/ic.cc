@@ -739,7 +739,7 @@ Object* KeyedLoadIC::Load(State state,
 
     // TODO(X64): Enable specialized stubs for length and prototype lookup.
 #ifndef V8_TARGET_ARCH_X64
-    if (false && FLAG_use_ic) {
+    if (FLAG_use_ic) {
       // Use specialized code for getting the length of strings.
       if (object->IsString() && name->Equals(Heap::length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
@@ -801,13 +801,9 @@ Object* KeyedLoadIC::Load(State state,
       }
     }
 
-    // TODO(X64): Enable inline caching for load.
-#ifndef V8_TARGET_ARCH_X64
-    // Update the inline cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
       UpdateCaches(&lookup, state, object, name);
     }
-#endif
 
     PropertyAttributes attr;
     if (lookup.IsValid() && lookup.type() == INTERCEPTOR) {
@@ -1103,13 +1099,10 @@ Object* KeyedStoreIC::Store(State state,
     LookupResult lookup;
     receiver->LocalLookup(*name, &lookup);
 
-    // TODO(X64): Enable inline cache for KeyedStoreIC.
-#ifndef V8_TARGET_ARCH_X64
     // Update inline cache and stub cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
       UpdateCaches(&lookup, state, receiver, name, value);
     }
-#endif
 
     // Set the property.
     return receiver->SetProperty(*name, *value, NONE);

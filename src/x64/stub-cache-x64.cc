@@ -415,51 +415,6 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   AccessorInfo* callback) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   Object* callback) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* object,
-                                                      JSObject* holder,
-                                                      String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
                                                 AccessorInfo* b,
                                                 String* c) {
@@ -572,6 +527,89 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
 
   // Return the generated code.
   return GetCode(FIELD, name);
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   AccessorInfo* callback) {
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   Object* callback) {
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* object,
+                                                      JSObject* holder,
+                                                      String* name) {
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
+}
+
+Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
+  // TODO(X64): Implement a real stub.
+  return Failure::InternalError();
+}
+
+
+Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
+                                                  int index,
+                                                  Map* transition,
+                                                  String* name) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : key
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ IncrementCounter(&Counters::keyed_store_field, 1);
+
+  // Get the name from the stack.
+  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+  // Check that the name has not changed.
+  __ Cmp(rcx, Handle<String>(name));
+  __ j(not_equal, &miss);
+
+  // Get the object from the stack.
+  __ movq(rbx, Operand(rsp, 2 * kPointerSize));
+
+  // Generate store field code.  Trashes the name register.
+  GenerateStoreField(masm(),
+                     Builtins::KeyedStoreIC_ExtendStorage,
+                     object,
+                     index,
+                     transition,
+                     rbx, rcx, rdx,
+                     &miss);
+
+  // Handle store cache miss.
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::keyed_store_field, 1);
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
 }
 
 

@@ -306,8 +306,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   //  -- rsp[8] : name
   //  -- rsp[16] : receiver
   // -----------------------------------
-
-  Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
+  Generate(masm, ExternalReference(IC_Utility(kKeyedLoadIC_Miss)));
 }
 
 
@@ -341,9 +340,25 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   __ TailCallRuntime(f, 3);
 }
 
+
 void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  __ int3();
-  __ movq(rax, Immediate(0xdead1234));
+  // ----------- S t a t e -------------
+  //  -- rax     : value
+  //  -- rcx     : transition map
+  //  -- rsp[0]  : return address
+  //  -- rsp[8]  : key
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(Operand(rsp, 1 * kPointerSize));  // receiver
+  __ push(rcx);  // transition map
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
 }
 
 
@@ -457,15 +472,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ movq(rdx, rax);
   __ RecordWrite(rcx, 0, rdx, rbx);
   __ ret(0);
-}
-
-
-Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
-                                                  int index,
-                                                  Map* transition,
-                                                  String* name) {
-  UNIMPLEMENTED();
-  return NULL;
 }
 
 
