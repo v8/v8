@@ -4,8 +4,12 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-#include "v8.h"
+#ifdef __linux__
+#include <signal.h>
+#include <unistd.h>
+#endif
 
+#include "v8.h"
 #include "log.h"
 #include "cctest.h"
 
@@ -149,9 +153,6 @@ using v8::internal::LoggerTestHelper;
 // thread, so this case never happen.
 static bool was_sigprof_received = true;
 #ifdef __linux__
-
-#include <signal.h>
-#include <unistd.h>
 
 struct sigaction old_sigprof_handler;
 
