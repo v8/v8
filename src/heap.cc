@@ -1191,6 +1191,10 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_byte_array_map(Map::cast(obj));
 
+  obj = AllocateMap(PIXEL_ARRAY_TYPE, PixelArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_pixel_array_map(Map::cast(obj));
+
   obj = AllocateMap(CODE_TYPE, Code::kHeaderSize);
   if (obj->IsFailure()) return false;
   set_code_map(Map::cast(obj));
@@ -1576,8 +1580,7 @@ Object* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate proxies in paged spaces.
   STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Object* result = Allocate(proxy_map(), space);
   if (result->IsFailure()) return result;
 
@@ -1856,6 +1859,23 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
     filler->set_map(Heap::byte_array_map());
     ByteArray::cast(filler)->set_length(ByteArray::LengthFor(size));
   }
+}
+
+
+Object* Heap::AllocatePixelArray(int length,
+                                 uint8_t* external_pointer,
+                                 PretenureFlag pretenure) {
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  Object* result = AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
+
+  if (result->IsFailure()) return result;
+
+  reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
+  reinterpret_cast<PixelArray*>(result)->set_length(length);
+  reinterpret_cast<PixelArray*>(result)->set_external_pointer(external_pointer);
+
+  return result;
 }
 
 

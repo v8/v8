@@ -1169,6 +1169,15 @@ class V8EXPORT Object : public Value {
    */
   Local<Object> Clone();
 
+  /**
+   * Set the backing store of the indexed properties to be managed by the
+   * embedding layer. Access to the indexed properties will follow the rules
+   * spelled out in CanvasPixelArray.
+   * Note: The embedding program still owns the data and needs to ensure that
+   *       the backing store is preserved while V8 has a reference.
+   */
+  void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
+
   static Local<Object> New();
   static Object* Cast(Value* obj);
  private:
