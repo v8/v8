@@ -739,7 +739,7 @@ Object* KeyedLoadIC::Load(State state,
 
     // TODO(X64): Enable specialized stubs for length and prototype lookup.
 #ifndef V8_TARGET_ARCH_X64
-    if (false && FLAG_use_ic) {
+    if (FLAG_use_ic) {
       // Use specialized code for getting the length of strings.
       if (object->IsString() && name->Equals(Heap::length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
