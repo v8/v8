@@ -7113,3 +7113,150 @@ THREADED_TEST(ReplaceConstantFunction) {
   obj_clone->Set(foo_string, v8::String::New("Hello"));
   CHECK(!obj->Get(foo_string)->IsUndefined());
 }
+
+
+// Regression test for http://crbug.com/16276.
+THREADED_TEST(Regress16276) {
+  v8::HandleScope scope;
+  LocalContext context;
+  // Force the IC in f to be a dictionary load IC.
+  CompileRun("function f(obj) { return obj.x; }\n"
+             "var obj = { x: { foo: 42 }, y: 87 };\n"
+             "var x = obj.x;\n"
+             "delete obj.y;\n"
+             "for (var i = 0; i < 5; i++) f(obj);");
+  // Detach the global object to make 'this' refer directly to the
+  // global object (not the proxy), and make sure that the dictionary
+  // load IC doesn't mess up loading directly from the global object.
+  context->DetachGlobal();
+  CHECK_EQ(42, CompileRun("f(this).foo")->Int32Value());
+}
+
+
+THREADED_TEST(PixelArray) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 40;
+  uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
+  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
+                                                              pixel_data);
+  i::Heap::CollectAllGarbage();  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    pixels->set(i, i);
+  }
+  i::Heap::CollectAllGarbage();  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(i, pixels->get(i));
+    CHECK_EQ(i, pixel_data[i]);
+  }
+
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  // Set the elements to be the pixels.
+  // jsobj->set_elements(*pixels);
+  obj->SetIndexedPropertiesToPixelData(pixel_data, kElementCount);
+  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1))->value());
+  obj->Set(v8_str("field"), v8::Int32::New(1503));
+  context->Global()->Set(v8_str("pixels"), obj);
+  v8::Handle<v8::Value> result = CompileRun("pixels.field");
+  CHECK_EQ(1503, result->Int32Value());
+  result = CompileRun("pixels[1]");
+  CHECK_EQ(1, result->Int32Value());
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  i::Handle<i::Smi> value(i::Smi::FromInt(2));
+  i::SetElement(jsobj, 1, value);
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1))->value());
+  *value.location() = i::Smi::FromInt(256);
+  i::SetElement(jsobj, 1, value);
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(1))->value());
+  *value.location() = i::Smi::FromInt(-1);
+  i::SetElement(jsobj, 1, value);
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[i] = (i * 65) - 109;"
+                      "}"
+                      "pixels[1] + pixels[6];");
+  CHECK_EQ(255, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0))->value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(21, i::Smi::cast(jsobj->GetElement(2))->value());
+  CHECK_EQ(86, i::Smi::cast(jsobj->GetElement(3))->value());
+  CHECK_EQ(151, i::Smi::cast(jsobj->GetElement(4))->value());
+  CHECK_EQ(216, i::Smi::cast(jsobj->GetElement(5))->value());
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(6))->value());
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(7))->value());
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(984, result->Int32Value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[i] = (i * 1.1);"
+                      "}"
+                      "pixels[1] + pixels[6];");
+  CHECK_EQ(8, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(0))->value());
+  CHECK_EQ(1, i::Smi::cast(jsobj->GetElement(1))->value());
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(2))->value());
+  CHECK_EQ(3, i::Smi::cast(jsobj->GetElement(3))->value());
+  CHECK_EQ(4, i::Smi::cast(jsobj->GetElement(4))->value());
+  CHECK_EQ(6, i::Smi::cast(jsobj->GetElement(5))->value());
+  CHECK_EQ(7, i::Smi::cast(jsobj->GetElement(6))->value());
+  CHECK_EQ(8, i::Smi::cast(jsobj->GetElement(7))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[7] = undefined;"
+                      "}"
+                      "pixels[7];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(7))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[6] = '2.3';"
+                      "}"
+                      "pixels[6];");
+  CHECK_EQ(2, result->Int32Value());
+  CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(6))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[5] = NaN;"
+                      "}"
+                      "pixels[5];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+
+  result = CompileRun("pixels[3] = 33;"
+                      "delete pixels[3];"
+                      "pixels[3];");
+  CHECK_EQ(33, result->Int32Value());
+
+  result = CompileRun("pixels[0] = 10; pixels[1] = 11;"
+                      "pixels[2] = 12; pixels[3] = 13;"
+                      "pixels.__defineGetter__('2',"
+                      "function() { return 120; });"
+                      "pixels[2];");
+  CHECK_EQ(12, result->Int32Value());
+
+  result = CompileRun("var js_array = new Array(40);"
+                      "js_array[0] = 77;"
+                      "js_array;");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+
+  result = CompileRun("pixels[1] = 23;"
+                      "pixels.__proto__ = [];"
+                      "js_array.__proto__ = pixels;"
+                      "js_array.concat(pixels);");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+  CHECK_EQ(23, v8::Object::Cast(*result)->Get(v8_str("1"))->Int32Value());
+
+  free(pixel_data);
+}

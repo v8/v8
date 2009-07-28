@@ -5329,7 +5329,7 @@ static void BreakMessageHandler(const v8::Debug::Message& message) {
 
 
 // Test that if DebugBreak is forced it is ignored when code from
-// debug-delay.js is executed. 
+// debug-delay.js is executed.
 TEST(NoDebugBreakInAfterCompileMessageHandler) {
   v8::HandleScope scope;
   DebugLocalContext env;

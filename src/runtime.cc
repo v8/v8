@@ -155,33 +155,43 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
   }
 
   // Deep copy local elements.
-  if (copy->HasFastElements()) {
-    FixedArray* elements = copy->elements();
-    WriteBarrierMode mode = elements->GetWriteBarrierMode();
-    for (int i = 0; i < elements->length(); i++) {
-      Object* value = elements->get(i);
-      if (value->IsJSObject()) {
-        JSObject* jsObject = JSObject::cast(value);
-        result = DeepCopyBoilerplate(jsObject);
-        if (result->IsFailure()) return result;
-        elements->set(i, result, mode);
-      }
-    }
-  } else {
-    NumberDictionary* element_dictionary = copy->element_dictionary();
-    int capacity = element_dictionary->Capacity();
-    for (int i = 0; i < capacity; i++) {
-      Object* k = element_dictionary->KeyAt(i);
-      if (element_dictionary->IsKey(k)) {
-        Object* value = element_dictionary->ValueAt(i);
+  // Pixel elements cannot be created using an object literal.
+  ASSERT(!copy->HasPixelElements());
+  switch (copy->GetElementsKind()) {
+    case JSObject::FAST_ELEMENTS: {
+      FixedArray* elements = FixedArray::cast(copy->elements());
+      WriteBarrierMode mode = elements->GetWriteBarrierMode();
+      for (int i = 0; i < elements->length(); i++) {
+        Object* value = elements->get(i);
         if (value->IsJSObject()) {
           JSObject* jsObject = JSObject::cast(value);
           result = DeepCopyBoilerplate(jsObject);
           if (result->IsFailure()) return result;
-          element_dictionary->ValueAtPut(i, result);
+          elements->set(i, result, mode);
         }
       }
+      break;
     }
+    case JSObject::DICTIONARY_ELEMENTS: {
+      NumberDictionary* element_dictionary = copy->element_dictionary();
+      int capacity = element_dictionary->Capacity();
+      for (int i = 0; i < capacity; i++) {
+        Object* k = element_dictionary->KeyAt(i);
+        if (element_dictionary->IsKey(k)) {
+          Object* value = element_dictionary->ValueAt(i);
+          if (value->IsJSObject()) {
+            JSObject* jsObject = JSObject::cast(value);
+            result = DeepCopyBoilerplate(jsObject);
+            if (result->IsFailure()) return result;
+            element_dictionary->ValueAtPut(i, result);
+          }
+        }
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
   return copy;
 }
@@ -1637,7 +1647,7 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
       }
       case SUBJECT_CAPTURE: {
         int capture = part.data;
-        FixedArray* match_info = last_match_info->elements();
+        FixedArray* match_info = FixedArray::cast(last_match_info->elements());
         int from = RegExpImpl::GetCapture(match_info, capture * 2);
         int to = RegExpImpl::GetCapture(match_info, capture * 2 + 1);
         if (from >= 0 && to > from) {
@@ -1717,7 +1727,8 @@ static Object* StringReplaceRegExpWithString(String* subject,
     int start, end;
     {
       AssertNoAllocation match_info_array_is_not_in_a_handle;
-      FixedArray* match_info_array = last_match_info_handle->elements();
+      FixedArray* match_info_array =
+          FixedArray::cast(last_match_info_handle->elements());
 
       ASSERT_EQ(capture_count * 2 + 2,
                 RegExpImpl::GetLastCaptureCount(match_info_array));
@@ -2345,7 +2356,7 @@ static Object* Runtime_StringMatch(Arguments args) {
     int end;
     {
       AssertNoAllocation no_alloc;
-      FixedArray* elements = regexp_info->elements();
+      FixedArray* elements = FixedArray::cast(regexp_info->elements());
       start = Smi::cast(elements->get(RegExpImpl::kFirstCapture))->value();
       end = Smi::cast(elements->get(RegExpImpl::kFirstCapture + 1))->value();
     }
@@ -4885,7 +4896,7 @@ static Object* Runtime_DateParseString(Arguments args) {
 
   AssertNoAllocation no_allocation;
 
-  FixedArray* output_array = output->elements();
+  FixedArray* output_array = FixedArray::cast(output->elements());
   RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
   if (str->IsAsciiRepresentation()) {
@@ -5173,37 +5184,62 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
                                 ArrayConcatVisitor* visitor) {
   uint32_t num_of_elements = 0;
 
-  if (receiver->HasFastElements()) {
-    Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
-    uint32_t len = elements->length();
-    if (range < len) len = range;
-
-    for (uint32_t j = 0; j < len; j++) {
-      Handle<Object> e(elements->get(j));
-      if (!e->IsTheHole()) {
-        num_of_elements++;
-        if (visitor)
-          visitor->visit(j, e);
+  switch (receiver->GetElementsKind()) {
+    case JSObject::FAST_ELEMENTS: {
+      Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
+      uint32_t len = elements->length();
+      if (range < len) {
+        len = range;
       }
-    }
 
-  } else {
-    Handle<NumberDictionary> dict(receiver->element_dictionary());
-    uint32_t capacity = dict->Capacity();
-    for (uint32_t j = 0; j < capacity; j++) {
-      Handle<Object> k(dict->KeyAt(j));
-      if (dict->IsKey(*k)) {
-        ASSERT(k->IsNumber());
-        uint32_t index = static_cast<uint32_t>(k->Number());
-        if (index < range) {
+      for (uint32_t j = 0; j < len; j++) {
+        Handle<Object> e(elements->get(j));
+        if (!e->IsTheHole()) {
           num_of_elements++;
           if (visitor) {
-            visitor->visit(index,
-                           Handle<Object>(dict->ValueAt(j)));
+            visitor->visit(j, e);
           }
         }
       }
+      break;
     }
+    case JSObject::PIXEL_ELEMENTS: {
+      Handle<PixelArray> pixels(PixelArray::cast(receiver->elements()));
+      uint32_t len = pixels->length();
+      if (range < len) {
+        len = range;
+      }
+
+      for (uint32_t j = 0; j < len; j++) {
+        num_of_elements++;
+        if (visitor != NULL) {
+          Handle<Smi> e(Smi::FromInt(pixels->get(j)));
+          visitor->visit(j, e);
+        }
+      }
+      break;
+    }
+    case JSObject::DICTIONARY_ELEMENTS: {
+      Handle<NumberDictionary> dict(receiver->element_dictionary());
+      uint32_t capacity = dict->Capacity();
+      for (uint32_t j = 0; j < capacity; j++) {
+        Handle<Object> k(dict->KeyAt(j));
+        if (dict->IsKey(*k)) {
+          ASSERT(k->IsNumber());
+          uint32_t index = static_cast<uint32_t>(k->Number());
+          if (index < range) {
+            num_of_elements++;
+            if (visitor) {
+              visitor->visit(index, Handle<Object>(dict->ValueAt(j)));
+            }
+          }
+        }
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 
   return num_of_elements;
@@ -7449,7 +7485,7 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
       Address pc = frame->pc();
       Address start = frame->code()->address();
       Smi* offset = Smi::FromInt(pc - start);
-      FixedArray* elements = result->elements();
+      FixedArray* elements = FixedArray::cast(result->elements());
       if (cursor + 2 < elements->length()) {
         elements->set(cursor++, recv);
         elements->set(cursor++, fun);

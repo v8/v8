@@ -6301,8 +6301,8 @@ void Reference::GetValue(TypeofState typeof_state) {
         __ mov(elements.reg(),
                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
         __ cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
-               Immediate(Factory::hash_table_map()));
-        deferred->Branch(equal);
+               Immediate(Factory::fixed_array_map()));
+        deferred->Branch(not_equal);
 
         // Shift the key to get the actual index value and check that
         // it is within bounds.

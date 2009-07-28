@@ -1006,6 +1006,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case BYTE_ARRAY_TYPE:
       accumulator->Add("<ByteArray[%u]>", ByteArray::cast(this)->length());
       break;
+    case PIXEL_ARRAY_TYPE:
+      accumulator->Add("<PixelArray[%u]>", PixelArray::cast(this)->length());
+      break;
     case SHARED_FUNCTION_INFO_TYPE:
       accumulator->Add("<SharedFunctionInfo>");
       break;
@@ -1147,6 +1150,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
+    case PIXEL_ARRAY_TYPE:
       break;
     case SHARED_FUNCTION_INFO_TYPE: {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(this);
@@ -1669,7 +1673,9 @@ Object* JSObject::LookupCallbackSetterInPrototypes(uint32_t index) {
   for (Object* pt = GetPrototype();
        pt != Heap::null_value();
        pt = pt->GetPrototype()) {
-    if (JSObject::cast(pt)->HasFastElements()) continue;
+    if (!JSObject::cast(pt)->HasDictionaryElements()) {
+        continue;
+    }
     NumberDictionary* dictionary = JSObject::cast(pt)->element_dictionary();
     int entry = dictionary->FindEntry(index);
     if (entry != NumberDictionary::kNotFound) {
@@ -2231,7 +2237,8 @@ Object* JSObject::TransformToFastProperties(int unused_property_fields) {
 
 
 Object* JSObject::NormalizeElements() {
-  if (!HasFastElements()) return this;
+  ASSERT(!HasPixelElements());
+  if (HasDictionaryElements()) return this;
 
   // Get number of entries.
   FixedArray* array = FixedArray::cast(elements());
@@ -2317,20 +2324,28 @@ Object* JSObject::DeletePropertyWithInterceptor(String* name) {
 
 Object* JSObject::DeleteElementPostInterceptor(uint32_t index,
                                                DeleteMode mode) {
-  if (HasFastElements()) {
-    uint32_t length = IsJSArray() ?
+  ASSERT(!HasPixelElements());
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
       static_cast<uint32_t>(FixedArray::cast(elements())->length());
-    if (index < length) {
-      FixedArray::cast(elements())->set_the_hole(index);
+      if (index < length) {
+        FixedArray::cast(elements())->set_the_hole(index);
+      }
+      break;
     }
-    return Heap::true_value();
-  }
-  ASSERT(!HasFastElements());
-  NumberDictionary* dictionary = element_dictionary();
-  int entry = dictionary->FindEntry(index);
-  if (entry != NumberDictionary::kNotFound) {
-    return dictionary->DeleteProperty(entry, mode);
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindEntry(index);
+      if (entry != NumberDictionary::kNotFound) {
+        return dictionary->DeleteProperty(entry, mode);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
   return Heap::true_value();
 }
@@ -2392,20 +2407,31 @@ Object* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
     return DeleteElementWithInterceptor(index);
   }
 
-  if (HasFastElements()) {
-    uint32_t length = IsJSArray() ?
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
       static_cast<uint32_t>(Smi::cast(JSArray::cast(this)->length())->value()) :
       static_cast<uint32_t>(FixedArray::cast(elements())->length());
-    if (index < length) {
-      FixedArray::cast(elements())->set_the_hole(index);
+      if (index < length) {
+        FixedArray::cast(elements())->set_the_hole(index);
+      }
+      break;
     }
-    return Heap::true_value();
-  } else {
-    NumberDictionary* dictionary = element_dictionary();
-    int entry = dictionary->FindEntry(index);
-    if (entry != NumberDictionary::kNotFound) {
-      return dictionary->DeleteProperty(entry, mode);
+    case PIXEL_ELEMENTS: {
+      // Pixel elements cannot be deleted. Just silently ignore here.
+      break;
     }
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindEntry(index);
+      if (entry != NumberDictionary::kNotFound) {
+        return dictionary->DeleteProperty(entry, mode);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
   return Heap::true_value();
 }
@@ -2483,21 +2509,32 @@ bool JSObject::ReferencesObject(Object* obj) {
   }
 
   // Check if the object is among the indexed properties.
-  if (HasFastElements()) {
-    int length = IsJSArray()
-        ? Smi::cast(JSArray::cast(this)->length())->value()
-        : FixedArray::cast(elements())->length();
-    for (int i = 0; i < length; i++) {
-      Object* element = FixedArray::cast(elements())->get(i);
-      if (!element->IsTheHole() && element == obj) {
+  switch (GetElementsKind()) {
+    case PIXEL_ELEMENTS:
+      // Raw pixels do not reference other objects.
+      break;
+    case FAST_ELEMENTS: {
+      int length = IsJSArray() ?
+          Smi::cast(JSArray::cast(this)->length())->value() :
+          FixedArray::cast(elements())->length();
+      for (int i = 0; i < length; i++) {
+        Object* element = FixedArray::cast(elements())->get(i);
+        if (!element->IsTheHole() && element == obj) {
+          return true;
+        }
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      key = element_dictionary()->SlowReverseLookup(obj);
+      if (key != Heap::undefined_value()) {
         return true;
       }
+      break;
     }
-  } else {
-    key = element_dictionary()->SlowReverseLookup(obj);
-    if (key != Heap::undefined_value()) {
-      return true;
-    }
+    default:
+      UNREACHABLE();
+      break;
   }
 
   // For functions check the context. Boilerplate functions do
@@ -2715,20 +2752,31 @@ Object* JSObject::DefineGetterSetter(String* name,
   if (is_element && IsJSArray()) return Heap::undefined_value();
 
   if (is_element) {
-    // Lookup the index.
-    if (!HasFastElements()) {
-      NumberDictionary* dictionary = element_dictionary();
-      int entry = dictionary->FindEntry(index);
-      if (entry != NumberDictionary::kNotFound) {
-        Object* result = dictionary->ValueAt(entry);
-        PropertyDetails details = dictionary->DetailsAt(entry);
-        if (details.IsReadOnly()) return Heap::undefined_value();
-        if (details.type() == CALLBACKS) {
-          // Only accessors allowed as elements.
-          ASSERT(result->IsFixedArray());
-          return result;
+    switch (GetElementsKind()) {
+      case FAST_ELEMENTS:
+        break;
+      case PIXEL_ELEMENTS:
+        // Ignore getters and setters on pixel elements.
+        return Heap::undefined_value();
+      case DICTIONARY_ELEMENTS: {
+        // Lookup the index.
+        NumberDictionary* dictionary = element_dictionary();
+        int entry = dictionary->FindEntry(index);
+        if (entry != NumberDictionary::kNotFound) {
+          Object* result = dictionary->ValueAt(entry);
+          PropertyDetails details = dictionary->DetailsAt(entry);
+          if (details.IsReadOnly()) return Heap::undefined_value();
+          if (details.type() == CALLBACKS) {
+            // Only accessors allowed as elements.
+            ASSERT(result->IsFixedArray());
+            return result;
+          }
         }
+        break;
       }
+      default:
+        UNREACHABLE();
+        break;
     }
   } else {
     // Lookup the name.
@@ -2827,9 +2875,9 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
     for (Object* obj = this;
          obj != Heap::null_value();
          obj = JSObject::cast(obj)->GetPrototype()) {
-      JSObject* jsObject = JSObject::cast(obj);
-      if (!jsObject->HasFastElements()) {
-        NumberDictionary* dictionary = jsObject->element_dictionary();
+      JSObject* js_object = JSObject::cast(obj);
+      if (js_object->HasDictionaryElements()) {
+        NumberDictionary* dictionary = js_object->element_dictionary();
         int entry = dictionary->FindEntry(index);
         if (entry != NumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
@@ -3029,28 +3077,35 @@ static bool HasKey(FixedArray* array, Object* key) {
 
 
 Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
-  if (array->HasFastElements()) {
-    return UnionOfKeys(array->elements());
-  }
-  ASSERT(!array->HasFastElements());
-  NumberDictionary* dict = array->element_dictionary();
-  int size = dict->NumberOfElements();
+  ASSERT(!array->HasPixelElements());
+  switch (array->GetElementsKind()) {
+    case JSObject::FAST_ELEMENTS:
+      return UnionOfKeys(FixedArray::cast(array->elements()));
+    case JSObject::DICTIONARY_ELEMENTS: {
+      NumberDictionary* dict = array->element_dictionary();
+      int size = dict->NumberOfElements();
 
-  // Allocate a temporary fixed array.
-  Object* object = Heap::AllocateFixedArray(size);
-  if (object->IsFailure()) return object;
-  FixedArray* key_array = FixedArray::cast(object);
+      // Allocate a temporary fixed array.
+      Object* object = Heap::AllocateFixedArray(size);
+      if (object->IsFailure()) return object;
+      FixedArray* key_array = FixedArray::cast(object);
 
-  int capacity = dict->Capacity();
-  int pos = 0;
-  // Copy the elements from the JSArray to the temporary fixed array.
-  for (int i = 0; i < capacity; i++) {
-    if (dict->IsKey(dict->KeyAt(i))) {
-      key_array->set(pos++, dict->ValueAt(i));
+      int capacity = dict->Capacity();
+      int pos = 0;
+      // Copy the elements from the JSArray to the temporary fixed array.
+      for (int i = 0; i < capacity; i++) {
+        if (dict->IsKey(dict->KeyAt(i))) {
+          key_array->set(pos++, dict->ValueAt(i));
+        }
+      }
+      // Compute the union of this and the temporary fixed array.
+      return UnionOfKeys(key_array);
     }
+    default:
+      UNREACHABLE();
   }
-  // Compute the union of this and the temporary fixed array.
-  return UnionOfKeys(key_array);
+  UNREACHABLE();
+  return Heap::null_value();  // Failure case needs to "return" a value.
 }
 
 
@@ -5089,54 +5144,74 @@ void Code::Disassemble(const char* name) {
 
 
 void JSObject::SetFastElements(FixedArray* elems) {
+  // We should never end in here with a pixel array.
+  ASSERT(!HasPixelElements());
 #ifdef DEBUG
   // Check the provided array is filled with the_hole.
   uint32_t len = static_cast<uint32_t>(elems->length());
   for (uint32_t i = 0; i < len; i++) ASSERT(elems->get(i)->IsTheHole());
 #endif
   WriteBarrierMode mode = elems->GetWriteBarrierMode();
-  if (HasFastElements()) {
-    FixedArray* old_elements = FixedArray::cast(elements());
-    uint32_t old_length = static_cast<uint32_t>(old_elements->length());
-    // Fill out the new array with this content and array holes.
-    for (uint32_t i = 0; i < old_length; i++) {
-      elems->set(i, old_elements->get(i), mode);
-    }
-  } else {
-    NumberDictionary* dictionary = NumberDictionary::cast(elements());
-    for (int i = 0; i < dictionary->Capacity(); i++) {
-      Object* key = dictionary->KeyAt(i);
-      if (key->IsNumber()) {
-        uint32_t entry = static_cast<uint32_t>(key->Number());
-        elems->set(entry, dictionary->ValueAt(i), mode);
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      FixedArray* old_elements = FixedArray::cast(elements());
+      uint32_t old_length = static_cast<uint32_t>(old_elements->length());
+      // Fill out the new array with this content and array holes.
+      for (uint32_t i = 0; i < old_length; i++) {
+        elems->set(i, old_elements->get(i), mode);
       }
+      break;
     }
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dictionary = NumberDictionary::cast(elements());
+      for (int i = 0; i < dictionary->Capacity(); i++) {
+        Object* key = dictionary->KeyAt(i);
+        if (key->IsNumber()) {
+          uint32_t entry = static_cast<uint32_t>(key->Number());
+          elems->set(entry, dictionary->ValueAt(i), mode);
+        }
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
   set_elements(elems);
 }
 
 
 Object* JSObject::SetSlowElements(Object* len) {
+  // We should never end in here with a pixel array.
+  ASSERT(!HasPixelElements());
+
   uint32_t new_length = static_cast<uint32_t>(len->Number());
 
-  if (!HasFastElements()) {
-    if (IsJSArray()) {
-      uint32_t old_length =
-          static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
-      element_dictionary()->RemoveNumberEntries(new_length, old_length),
-      JSArray::cast(this)->set_length(len);
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      // Make sure we never try to shrink dense arrays into sparse arrays.
+      ASSERT(static_cast<uint32_t>(FixedArray::cast(elements())->length()) <=
+                                   new_length);
+      Object* obj = NormalizeElements();
+      if (obj->IsFailure()) return obj;
+
+      // Update length for JSArrays.
+      if (IsJSArray()) JSArray::cast(this)->set_length(len);
+      break;
     }
-    return this;
+    case DICTIONARY_ELEMENTS: {
+      if (IsJSArray()) {
+        uint32_t old_length =
+        static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
+        element_dictionary()->RemoveNumberEntries(new_length, old_length),
+        JSArray::cast(this)->set_length(len);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
-
-  // Make sure we never try to shrink dense arrays into sparse arrays.
-  ASSERT(static_cast<uint32_t>(FixedArray::cast(elements())->length()) <=
-                               new_length);
-  Object* obj = NormalizeElements();
-  if (obj->IsFailure()) return obj;
-
-  // Update length for JSArrays.
-  if (IsJSArray()) JSArray::cast(this)->set_length(len);
   return this;
 }
 
@@ -5159,7 +5234,7 @@ Object* JSArray::Initialize(int capacity) {
 
 void JSArray::Expand(int required_size) {
   Handle<JSArray> self(this);
-  Handle<FixedArray> old_backing(elements());
+  Handle<FixedArray> old_backing(FixedArray::cast(elements()));
   int old_size = old_backing->length();
   // Doubling in size would be overkill, but leave some slack to avoid
   // constantly growing.
@@ -5186,52 +5261,62 @@ static Object* ArrayLengthRangeError() {
 
 
 Object* JSObject::SetElementsLength(Object* len) {
+  // We should never end in here with a pixel array.
+  ASSERT(!HasPixelElements());
+
   Object* smi_length = len->ToSmi();
   if (smi_length->IsSmi()) {
     int value = Smi::cast(smi_length)->value();
     if (value < 0) return ArrayLengthRangeError();
-    if (HasFastElements()) {
-      int old_capacity = FixedArray::cast(elements())->length();
-      if (value <= old_capacity) {
+    switch (GetElementsKind()) {
+      case FAST_ELEMENTS: {
+        int old_capacity = FixedArray::cast(elements())->length();
+        if (value <= old_capacity) {
+          if (IsJSArray()) {
+            int old_length = FastD2I(JSArray::cast(this)->length()->Number());
+            // NOTE: We may be able to optimize this by removing the
+            // last part of the elements backing storage array and
+            // setting the capacity to the new size.
+            for (int i = value; i < old_length; i++) {
+              FixedArray::cast(elements())->set_the_hole(i);
+            }
+            JSArray::cast(this)->set_length(smi_length, SKIP_WRITE_BARRIER);
+          }
+          return this;
+        }
+        int min = NewElementsCapacity(old_capacity);
+        int new_capacity = value > min ? value : min;
+        if (new_capacity <= kMaxFastElementsLength ||
+            !ShouldConvertToSlowElements(new_capacity)) {
+          Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
+          if (obj->IsFailure()) return obj;
+          if (IsJSArray()) JSArray::cast(this)->set_length(smi_length,
+                                                           SKIP_WRITE_BARRIER);
+          SetFastElements(FixedArray::cast(obj));
+          return this;
+        }
+        break;
+      }
+      case DICTIONARY_ELEMENTS: {
         if (IsJSArray()) {
-          int old_length = FastD2I(JSArray::cast(this)->length()->Number());
-          // NOTE: We may be able to optimize this by removing the
-          // last part of the elements backing storage array and
-          // setting the capacity to the new size.
-          for (int i = value; i < old_length; i++) {
-            FixedArray::cast(elements())->set_the_hole(i);
+          if (value == 0) {
+            // If the length of a slow array is reset to zero, we clear
+            // the array and flush backing storage. This has the added
+            // benefit that the array returns to fast mode.
+            initialize_elements();
+          } else {
+            // Remove deleted elements.
+            uint32_t old_length =
+            static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
+            element_dictionary()->RemoveNumberEntries(value, old_length);
           }
           JSArray::cast(this)->set_length(smi_length, SKIP_WRITE_BARRIER);
         }
         return this;
       }
-      int min = NewElementsCapacity(old_capacity);
-      int new_capacity = value > min ? value : min;
-      if (new_capacity <= kMaxFastElementsLength ||
-          !ShouldConvertToSlowElements(new_capacity)) {
-        Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
-        if (obj->IsFailure()) return obj;
-        if (IsJSArray()) JSArray::cast(this)->set_length(smi_length,
-                                                         SKIP_WRITE_BARRIER);
-        SetFastElements(FixedArray::cast(obj));
-        return this;
-      }
-    } else {
-      if (IsJSArray()) {
-        if (value == 0) {
-          // If the length of a slow array is reset to zero, we clear
-          // the array and flush backing storage. This has the added
-          // benefit that the array returns to fast mode.
-          initialize_elements();
-        } else {
-          // Remove deleted elements.
-          uint32_t old_length =
-              static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
-          element_dictionary()->RemoveNumberEntries(value, old_length);
-        }
-        JSArray::cast(this)->set_length(smi_length, SKIP_WRITE_BARRIER);
-      }
-      return this;
+      default:
+        UNREACHABLE();
+        break;
     }
   }
 
@@ -5258,20 +5343,36 @@ Object* JSObject::SetElementsLength(Object* len) {
 
 
 bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
-  if (HasFastElements()) {
-    uint32_t length = IsJSArray() ?
-        static_cast<uint32_t>(
-            Smi::cast(JSArray::cast(this)->length())->value()) :
-        static_cast<uint32_t>(FixedArray::cast(elements())->length());
-    if ((index < length) &&
-        !FixedArray::cast(elements())->get(index)->IsTheHole()) {
-      return true;
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>
+              (Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedArray::cast(elements())->length());
+      if ((index < length) &&
+          !FixedArray::cast(elements())->get(index)->IsTheHole()) {
+        return true;
+      }
+      break;
     }
-  } else {
-    if (element_dictionary()->FindEntry(index)
-        != NumberDictionary::kNotFound) {
-      return true;
+    case PIXEL_ELEMENTS: {
+      // TODO(iposva): Add testcase.
+      PixelArray* pixels = PixelArray::cast(elements());
+      if (index < static_cast<uint32_t>(pixels->length())) {
+        return true;
+      }
+      break;
     }
+    case DICTIONARY_ELEMENTS: {
+      if (element_dictionary()->FindEntry(index)
+          != NumberDictionary::kNotFound) {
+        return true;
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 
   // Handle [] on String objects.
@@ -5338,17 +5439,29 @@ bool JSObject::HasLocalElement(uint32_t index) {
   // Handle [] on String objects.
   if (this->IsStringObjectWithCharacterAt(index)) return true;
 
-  if (HasFastElements()) {
-    uint32_t length = IsJSArray() ?
-        static_cast<uint32_t>(
-            Smi::cast(JSArray::cast(this)->length())->value()) :
-        static_cast<uint32_t>(FixedArray::cast(elements())->length());
-    return (index < length) &&
-           !FixedArray::cast(elements())->get(index)->IsTheHole();
-  } else {
-    return element_dictionary()->FindEntry(index)
-        != NumberDictionary::kNotFound;
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>
+              (Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedArray::cast(elements())->length());
+      return (index < length) &&
+          !FixedArray::cast(elements())->get(index)->IsTheHole();
+    }
+    case PIXEL_ELEMENTS: {
+      PixelArray* pixels = PixelArray::cast(elements());
+      return (index < static_cast<uint32_t>(pixels->length()));
+    }
+    case DICTIONARY_ELEMENTS: {
+      return element_dictionary()->FindEntry(index)
+          != NumberDictionary::kNotFound;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
+  UNREACHABLE();
+  return Heap::null_value();
 }
 
 
@@ -5365,18 +5478,33 @@ bool JSObject::HasElementWithReceiver(JSObject* receiver, uint32_t index) {
     return HasElementWithInterceptor(receiver, index);
   }
 
-  if (HasFastElements()) {
-    uint32_t length = IsJSArray() ?
-        static_cast<uint32_t>(
-            Smi::cast(JSArray::cast(this)->length())->value()) :
-        static_cast<uint32_t>(FixedArray::cast(elements())->length());
-    if ((index < length) &&
-        !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
-  } else {
-    if (element_dictionary()->FindEntry(index)
-        != NumberDictionary::kNotFound) {
-      return true;
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>
+              (Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedArray::cast(elements())->length());
+      if ((index < length) &&
+          !FixedArray::cast(elements())->get(index)->IsTheHole()) return true;
+      break;
     }
+    case PIXEL_ELEMENTS: {
+      PixelArray* pixels = PixelArray::cast(elements());
+      if (index < static_cast<uint32_t>(pixels->length())) {
+        return true;
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      if (element_dictionary()->FindEntry(index)
+          != NumberDictionary::kNotFound) {
+        return true;
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 
   // Handle [] on String objects.
@@ -5472,7 +5600,7 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   // Otherwise default to slow case.
   Object* obj = NormalizeElements();
   if (obj->IsFailure()) return obj;
-  ASSERT(!HasFastElements());
+  ASSERT(HasDictionaryElements());
   return SetElement(index, value);
 }
 
@@ -5501,80 +5629,95 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
 
 
 Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
-  // Fast case.
-  if (HasFastElements()) return SetFastElement(index, value);
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS:
+      // Fast case.
+      return SetFastElement(index, value);
+    case PIXEL_ELEMENTS: {
+      PixelArray* pixels = PixelArray::cast(elements());
+      return pixels->SetValue(index, value);
+    }
+    case DICTIONARY_ELEMENTS: {
+      // Insert element in the dictionary.
+      FixedArray* elms = FixedArray::cast(elements());
+      NumberDictionary* dictionary = NumberDictionary::cast(elms);
 
-  // Dictionary case.
-  ASSERT(!HasFastElements());
-
-  // Insert element in the dictionary.
-  FixedArray* elms = FixedArray::cast(elements());
-  NumberDictionary* dictionary = NumberDictionary::cast(elms);
-
-  int entry = dictionary->FindEntry(index);
-  if (entry != NumberDictionary::kNotFound) {
-    Object* element = dictionary->ValueAt(entry);
-    PropertyDetails details = dictionary->DetailsAt(entry);
-    if (details.type() == CALLBACKS) {
-      // Only accessors allowed as elements.
-      FixedArray* structure = FixedArray::cast(element);
-      if (structure->get(kSetterIndex)->IsJSFunction()) {
-        JSFunction* setter = JSFunction::cast(structure->get(kSetterIndex));
-        return SetPropertyWithDefinedSetter(setter, value);
+      int entry = dictionary->FindEntry(index);
+      if (entry != NumberDictionary::kNotFound) {
+        Object* element = dictionary->ValueAt(entry);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        if (details.type() == CALLBACKS) {
+          // Only accessors allowed as elements.
+          FixedArray* structure = FixedArray::cast(element);
+          if (structure->get(kSetterIndex)->IsJSFunction()) {
+            JSFunction* setter = JSFunction::cast(structure->get(kSetterIndex));
+            return SetPropertyWithDefinedSetter(setter, value);
+          } else {
+            Handle<Object> self(this);
+            Handle<Object> key(Factory::NewNumberFromUint(index));
+            Handle<Object> args[2] = { key, self };
+            return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
+                                                     HandleVector(args, 2)));
+          }
+        } else {
+          dictionary->UpdateMaxNumberKey(index);
+          dictionary->ValueAtPut(entry, value);
+        }
       } else {
-        Handle<Object> self(this);
-        Handle<Object> key(Factory::NewNumberFromUint(index));
-        Handle<Object> args[2] = { key, self };
-        return Top::Throw(*Factory::NewTypeError("no_setter_in_callback",
-                                                 HandleVector(args, 2)));
+        // Index not already used. Look for an accessor in the prototype chain.
+        if (!IsJSArray()) {
+          Object* setter = LookupCallbackSetterInPrototypes(index);
+          if (setter->IsJSFunction()) {
+            return SetPropertyWithDefinedSetter(JSFunction::cast(setter),
+                                                value);
+          }
+        }
+        Object* result = dictionary->AtNumberPut(index, value);
+        if (result->IsFailure()) return result;
+        if (elms != FixedArray::cast(result)) {
+          set_elements(FixedArray::cast(result));
+        }
       }
-    } else {
-      dictionary->UpdateMaxNumberKey(index);
-      dictionary->ValueAtPut(entry, value);
-    }
-  } else {
-    // Index not already used. Look for an accessor in the prototype chain.
-    if (!IsJSArray()) {
-      Object* setter = LookupCallbackSetterInPrototypes(index);
-      if (setter->IsJSFunction()) {
-        return SetPropertyWithDefinedSetter(JSFunction::cast(setter), value);
+
+      // Update the array length if this JSObject is an array.
+      if (IsJSArray()) {
+        JSArray* array = JSArray::cast(this);
+        Object* return_value = array->JSArrayUpdateLengthFromIndex(index,
+                                                                   value);
+        if (return_value->IsFailure()) return return_value;
       }
-    }
-    Object* result = dictionary->AtNumberPut(index, value);
-    if (result->IsFailure()) return result;
-    if (elms != FixedArray::cast(result)) {
-      set_elements(FixedArray::cast(result));
-    }
-  }
 
-  // Update the array length if this JSObject is an array.
-  if (IsJSArray()) {
-    JSArray* array = JSArray::cast(this);
-    Object* return_value = array->JSArrayUpdateLengthFromIndex(index, value);
-    if (return_value->IsFailure()) return return_value;
-  }
-
-  // Attempt to put this object back in fast case.
-  if (ShouldConvertToFastElements()) {
-    uint32_t new_length = 0;
-    if (IsJSArray()) {
-      CHECK(Array::IndexFromObject(JSArray::cast(this)->length(), &new_length));
-      JSArray::cast(this)->set_length(Smi::FromInt(new_length));
-    } else {
-      new_length = NumberDictionary::cast(elements())->max_number_key() + 1;
-    }
-    Object* obj = Heap::AllocateFixedArrayWithHoles(new_length);
-    if (obj->IsFailure()) return obj;
-    SetFastElements(FixedArray::cast(obj));
+      // Attempt to put this object back in fast case.
+      if (ShouldConvertToFastElements()) {
+        uint32_t new_length = 0;
+        if (IsJSArray()) {
+          CHECK(Array::IndexFromObject(JSArray::cast(this)->length(),
+                                       &new_length));
+          JSArray::cast(this)->set_length(Smi::FromInt(new_length));
+        } else {
+          new_length = NumberDictionary::cast(elements())->max_number_key() + 1;
+        }
+        Object* obj = Heap::AllocateFixedArrayWithHoles(new_length);
+        if (obj->IsFailure()) return obj;
+        SetFastElements(FixedArray::cast(obj));
 #ifdef DEBUG
-    if (FLAG_trace_normalization) {
-      PrintF("Object elements are fast case again:\n");
-      Print();
-    }
+        if (FLAG_trace_normalization) {
+          PrintF("Object elements are fast case again:\n");
+          Print();
+        }
 #endif
-  }
+      }
 
-  return value;
+      return value;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+  // All possible cases have been handled above. Add a return to avoid the
+  // complaints from the compiler.
+  UNREACHABLE();
+  return Heap::null_value();
 }
 
 
@@ -5597,32 +5740,45 @@ Object* JSObject::GetElementPostInterceptor(JSObject* receiver,
                                             uint32_t index) {
   // Get element works for both JSObject and JSArray since
   // JSArray::length cannot change.
-  if (HasFastElements()) {
-    FixedArray* elms = FixedArray::cast(elements());
-    if (index < static_cast<uint32_t>(elms->length())) {
-      Object* value = elms->get(index);
-      if (!value->IsTheHole()) return value;
-    }
-  } else {
-    NumberDictionary* dictionary = element_dictionary();
-    int entry = dictionary->FindEntry(index);
-    if (entry != NumberDictionary::kNotFound) {
-      Object* element = dictionary->ValueAt(entry);
-      PropertyDetails details = dictionary->DetailsAt(entry);
-      if (details.type() == CALLBACKS) {
-        // Only accessors allowed as elements.
-        FixedArray* structure = FixedArray::cast(element);
-        Object* getter = structure->get(kGetterIndex);
-        if (getter->IsJSFunction()) {
-          return GetPropertyWithDefinedGetter(receiver,
-                                              JSFunction::cast(getter));
-        } else {
-          // Getter is not a function.
-          return Heap::undefined_value();
-        }
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      FixedArray* elms = FixedArray::cast(elements());
+      if (index < static_cast<uint32_t>(elms->length())) {
+        Object* value = elms->get(index);
+        if (!value->IsTheHole()) return value;
       }
-      return element;
+      break;
     }
+    case PIXEL_ELEMENTS: {
+      // TODO(iposva): Add testcase and implement.
+      UNIMPLEMENTED();
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindEntry(index);
+      if (entry != NumberDictionary::kNotFound) {
+        Object* element = dictionary->ValueAt(entry);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        if (details.type() == CALLBACKS) {
+          // Only accessors allowed as elements.
+          FixedArray* structure = FixedArray::cast(element);
+          Object* getter = structure->get(kGetterIndex);
+          if (getter->IsJSFunction()) {
+            return GetPropertyWithDefinedGetter(receiver,
+                                                JSFunction::cast(getter));
+          } else {
+            // Getter is not a function.
+            return Heap::undefined_value();
+          }
+        }
+        return element;
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 
   // Continue searching via the prototype chain.
@@ -5681,31 +5837,44 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
 
   // Get element works for both JSObject and JSArray since
   // JSArray::length cannot change.
-  if (HasFastElements()) {
-    FixedArray* elms = FixedArray::cast(elements());
-    if (index < static_cast<uint32_t>(elms->length())) {
-      Object* value = elms->get(index);
-      if (!value->IsTheHole()) return value;
-    }
-  } else {
-    NumberDictionary* dictionary = element_dictionary();
-    int entry = dictionary->FindEntry(index);
-    if (entry != NumberDictionary::kNotFound) {
-      Object* element = dictionary->ValueAt(entry);
-      PropertyDetails details = dictionary->DetailsAt(entry);
-      if (details.type() == CALLBACKS) {
-        // Only accessors allowed as elements.
-        FixedArray* structure = FixedArray::cast(element);
-        Object* getter = structure->get(kGetterIndex);
-        if (getter->IsJSFunction()) {
-          return GetPropertyWithDefinedGetter(receiver,
-                                              JSFunction::cast(getter));
-        } else {
-          // Getter is not a function.
-          return Heap::undefined_value();
-        }
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      FixedArray* elms = FixedArray::cast(elements());
+      if (index < static_cast<uint32_t>(elms->length())) {
+        Object* value = elms->get(index);
+        if (!value->IsTheHole()) return value;
       }
-      return element;
+      break;
+    }
+    case PIXEL_ELEMENTS: {
+      PixelArray* pixels = PixelArray::cast(elements());
+      if (index < static_cast<uint32_t>(pixels->length())) {
+        uint8_t value = pixels->get(index);
+        return Smi::FromInt(value);
+      }
+      break;
+    }
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dictionary = element_dictionary();
+      int entry = dictionary->FindEntry(index);
+      if (entry != NumberDictionary::kNotFound) {
+        Object* element = dictionary->ValueAt(entry);
+        PropertyDetails details = dictionary->DetailsAt(entry);
+        if (details.type() == CALLBACKS) {
+          // Only accessors allowed as elements.
+          FixedArray* structure = FixedArray::cast(element);
+          Object* getter = structure->get(kGetterIndex);
+          if (getter->IsJSFunction()) {
+            return GetPropertyWithDefinedGetter(receiver,
+                                                JSFunction::cast(getter));
+          } else {
+            // Getter is not a function.
+            return Heap::undefined_value();
+          }
+        }
+        return element;
+      }
+      break;
     }
   }
 
@@ -5719,16 +5888,27 @@ bool JSObject::HasDenseElements() {
   int capacity = 0;
   int number_of_elements = 0;
 
-  if (HasFastElements()) {
-    FixedArray* elms = FixedArray::cast(elements());
-    capacity = elms->length();
-    for (int i = 0; i < capacity; i++) {
-      if (!elms->get(i)->IsTheHole()) number_of_elements++;
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      FixedArray* elms = FixedArray::cast(elements());
+      capacity = elms->length();
+      for (int i = 0; i < capacity; i++) {
+        if (!elms->get(i)->IsTheHole()) number_of_elements++;
+      }
+      break;
     }
-  } else {
-    NumberDictionary* dictionary = NumberDictionary::cast(elements());
-    capacity = dictionary->Capacity();
-    number_of_elements = dictionary->NumberOfElements();
+    case PIXEL_ELEMENTS: {
+      return true;
+    }
+    case DICTIONARY_ELEMENTS: {
+      NumberDictionary* dictionary = NumberDictionary::cast(elements());
+      capacity = dictionary->Capacity();
+      number_of_elements = dictionary->NumberOfElements();
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 
   if (capacity == 0) return true;
@@ -5747,7 +5927,7 @@ bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
 
 
 bool JSObject::ShouldConvertToFastElements() {
-  ASSERT(!HasFastElements());
+  ASSERT(HasDictionaryElements());
   NumberDictionary* dictionary = NumberDictionary::cast(elements());
   // If the elements are sparse, we should not go back to fast case.
   if (!HasDenseElements()) return false;
@@ -6001,16 +6181,30 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
   // Handle [] on String objects.
   if (this->IsStringObjectWithCharacterAt(index)) return true;
 
-  if (HasFastElements()) {
-    uint32_t length = IsJSArray() ?
-        static_cast<uint32_t>(
-            Smi::cast(JSArray::cast(this)->length())->value()) :
-        static_cast<uint32_t>(FixedArray::cast(elements())->length());
-    return (index < length) &&
-        !FixedArray::cast(elements())->get(index)->IsTheHole();
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      uint32_t length = IsJSArray() ?
+          static_cast<uint32_t>(
+              Smi::cast(JSArray::cast(this)->length())->value()) :
+          static_cast<uint32_t>(FixedArray::cast(elements())->length());
+      return (index < length) &&
+          !FixedArray::cast(elements())->get(index)->IsTheHole();
+    }
+    case PIXEL_ELEMENTS: {
+      PixelArray* pixels = PixelArray::cast(elements());
+      return index < static_cast<uint32_t>(pixels->length());
+    }
+    case DICTIONARY_ELEMENTS: {
+      return element_dictionary()->FindEntry(index)
+          != NumberDictionary::kNotFound;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
-  return element_dictionary()->FindEntry(index)
-      != NumberDictionary::kNotFound;
+  // All possibilities have been handled above already.
+  UNREACHABLE();
+  return Heap::null_value();
 }
 
 
@@ -6193,24 +6387,43 @@ int JSObject::NumberOfEnumElements() {
 int JSObject::GetLocalElementKeys(FixedArray* storage,
                                   PropertyAttributes filter) {
   int counter = 0;
-  if (HasFastElements()) {
-    int length = IsJSArray()
-        ? Smi::cast(JSArray::cast(this)->length())->value()
-        : FixedArray::cast(elements())->length();
-    for (int i = 0; i < length; i++) {
-      if (!FixedArray::cast(elements())->get(i)->IsTheHole()) {
-        if (storage) {
-          storage->set(counter, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+  switch (GetElementsKind()) {
+    case FAST_ELEMENTS: {
+      int length = IsJSArray() ?
+          Smi::cast(JSArray::cast(this)->length())->value() :
+          FixedArray::cast(elements())->length();
+      for (int i = 0; i < length; i++) {
+        if (!FixedArray::cast(elements())->get(i)->IsTheHole()) {
+          if (storage != NULL) {
+            storage->set(counter, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+          }
+          counter++;
+        }
+      }
+      ASSERT(!storage || storage->length() >= counter);
+      break;
+    }
+    case PIXEL_ELEMENTS: {
+      int length = PixelArray::cast(elements())->length();
+      while (counter < length) {
+        if (storage != NULL) {
+          storage->set(counter, Smi::FromInt(counter), SKIP_WRITE_BARRIER);
         }
         counter++;
       }
+      ASSERT(!storage || storage->length() >= counter);
+      break;
     }
-    ASSERT(!storage || storage->length() >= counter);
-  } else {
-    if (storage) {
-      element_dictionary()->CopyKeysTo(storage, filter);
+    case DICTIONARY_ELEMENTS: {
+      if (storage != NULL) {
+        element_dictionary()->CopyKeysTo(storage, filter);
+      }
+      counter = element_dictionary()->NumberOfElementsFilterAttributes(filter);
+      break;
     }
-    counter = element_dictionary()->NumberOfElementsFilterAttributes(filter);
+    default:
+      UNREACHABLE();
+      break;
   }
 
   if (this->IsJSValue()) {
@@ -6669,7 +6882,7 @@ int Dictionary<StringDictionaryShape, String*>::NumberOfEnumElements();
 // Collates undefined and unexisting elements below limit from position
 // zero of the elements. The object stays in Dictionary mode.
 Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
-  ASSERT(!HasFastElements());
+  ASSERT(HasDictionaryElements());
   // Must stay in dictionary mode, either because of requires_slow_elements,
   // or because we are not going to sort (and therefore compact) all of the
   // elements.
@@ -6743,7 +6956,9 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 // If the object is in dictionary mode, it is converted to fast elements
 // mode.
 Object* JSObject::PrepareElementsForSort(uint32_t limit) {
-  if (!HasFastElements()) {
+  ASSERT(!HasPixelElements());
+
+  if (HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
     NumberDictionary* dict = element_dictionary();
@@ -6768,7 +6983,7 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
   // Collect holes at the end, undefined before that and the rest at the
   // start, and return the number of non-hole, non-undefined values.
 
-  FixedArray* elements = this->elements();
+  FixedArray* elements = FixedArray::cast(this->elements());
   uint32_t elements_length = static_cast<uint32_t>(elements->length());
   if (limit > elements_length) {
     limit = elements_length ;
@@ -6835,6 +7050,41 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
   ASSERT_NE(NULL, result_double);
   result_double->set_value(static_cast<double>(result));
   return result_double;
+}
+
+
+Object* PixelArray::SetValue(uint32_t index, Object* value) {
+  uint8_t clamped_value = 0;
+  if (index < static_cast<uint32_t>(length())) {
+    int int_value = 0;
+    if (value->IsSmi()) {
+      int_value = Smi::cast(value)->value();
+    } else if (value->IsHeapNumber()) {
+      static const DoubleRepresentation nan(OS::nan_value());
+      DoubleRepresentation double_value = HeapNumber::cast(value)->value();
+      if (nan.bits != double_value.bits) {
+        int_value = static_cast<int>(double_value.value + 0.5);
+      } else {
+        // NaN clamps to zero.
+        int_value = 0;
+      }
+    } else if (value->IsUndefined()) {
+      int_value = 0;
+    } else {
+      // All other types have been converted to a number type further up in the
+      // call chain.
+      UNREACHABLE();
+    }
+    if (int_value < 0) {
+      clamped_value = 0;
+    } else if (int_value > 255) {
+      clamped_value = 255;
+    } else {
+      clamped_value = static_cast<uint8_t>(int_value);
+    }
+    set(index, clamped_value);
+  }
+  return Smi::FromInt(clamped_value);
 }
 
 

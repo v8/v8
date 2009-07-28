@@ -2193,6 +2193,25 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 }
 
 
+void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
+  ON_BAILOUT("v8::SetElementsToPixelData()", return);
+  ENTER_V8;
+  if (!ApiCheck(i::Smi::IsValid(length),
+                "v8::Object::SetIndexedPropertiesToPixelData()",
+                "length exceeds max acceptable value")) {
+    return;
+  }
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (!ApiCheck(!self->IsJSArray(),
+                "v8::Object::SetIndexedPropertiesToPixelData()",
+                "JSArray is not supported")) {
+    return;
+  }
+  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
+  self->set_elements(*pixels);
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
@@ -3056,7 +3075,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   if (!self->HasFastElements()) {
     return Local<Object>();
   }
-  i::FixedArray* elms = self->elements();
+  i::FixedArray* elms = i::FixedArray::cast(self->elements());
   i::Object* paragon = elms->get(index);
   if (!paragon->IsJSObject()) {
     return Local<Object>();

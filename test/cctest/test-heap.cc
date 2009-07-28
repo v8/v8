@@ -653,7 +653,7 @@ TEST(JSArray) {
   uint32_t int_length = 0;
   CHECK(Array::IndexFromObject(length, &int_length));
   CHECK_EQ(length, array->length());
-  CHECK(!array->HasFastElements());  // Must be in slow mode.
+  CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
   array->SetElement(int_length, name);

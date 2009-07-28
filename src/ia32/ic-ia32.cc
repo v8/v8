@@ -229,7 +229,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  Label slow, fast, check_string, index_int, index_string;
+  Label slow, check_string, index_int, index_string, check_pixel_array;
 
   // Load name and receiver.
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -264,11 +264,36 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(ecx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
-         Immediate(Factory::hash_table_map()));
-  __ j(equal, &slow, not_taken);
+         Immediate(Factory::fixed_array_map()));
+  __ j(not_equal, &check_pixel_array);
   // Check that the key (index) is within bounds.
   __ cmp(eax, FieldOperand(ecx, Array::kLengthOffset));
-  __ j(below, &fast, taken);
+  __ j(above_equal, &slow);
+  // Fast case: Do the load.
+  __ mov(eax,
+         Operand(ecx, eax, times_4, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
+  // In case the loaded value is the_hole we have to consult GetProperty
+  // to ensure the prototype chain is searched.
+  __ j(equal, &slow);
+  __ IncrementCounter(&Counters::keyed_load_generic_smi, 1);
+  __ ret(0);
+
+  // Check whether the elements is a pixel array.
+  // eax: untagged index
+  // ecx: elements array
+  __ bind(&check_pixel_array);
+  __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
+         Immediate(Factory::pixel_array_map()));
+  __ j(not_equal, &slow);
+  __ cmp(eax, FieldOperand(ecx, PixelArray::kLengthOffset));
+  __ j(above_equal, &slow);
+  __ mov(ecx, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
+  __ movzx_b(eax, Operand(ecx, eax, times_1, 0));
+  __ shl(eax, kSmiTagSize);
+  __ ret(0);
+
+
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
@@ -310,15 +335,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ and_(eax, (1 << String::kShortLengthShift) - 1);
   __ shr(eax, String::kLongLengthShift);
   __ jmp(&index_int);
-  // Fast case: Do the load.
-  __ bind(&fast);
-  __ mov(eax, Operand(ecx, eax, times_4, Array::kHeaderSize - kHeapObjectTag));
-  __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
-  // In case the loaded value is the_hole we have to consult GetProperty
-  // to ensure the prototype chain is searched.
-  __ j(equal, &slow, not_taken);
-  __ IncrementCounter(&Counters::keyed_load_generic_smi, 1);
-  __ ret(0);
 }
 
 
@@ -329,7 +345,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- esp[4] : key
   //  -- esp[8] : receiver
   // -----------------------------------
-  Label slow, fast, array, extra;
+  Label slow, fast, array, extra, check_pixel_array;
 
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, 2 * kPointerSize));  // 2 ~ return address, key
@@ -364,8 +380,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
-         Immediate(Factory::hash_table_map()));
-  __ j(equal, &slow, not_taken);
+         Immediate(Factory::fixed_array_map()));
+  __ j(not_equal, &check_pixel_array, not_taken);
   // Untag the key (for checking against untagged length in the fixed array).
   __ mov(edx, Operand(ebx));
   __ sar(edx, kSmiTagSize);  // untag the index and use it for the comparison
@@ -374,7 +390,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx: FixedArray
   // ebx: index (as a smi)
   __ j(below, &fast, taken);
-
 
   // Slow case: Push extra copies of the arguments (3).
   __ bind(&slow);
@@ -386,6 +401,37 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Do tail-call to runtime routine.
   __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
 
+  // Check whether the elements is a pixel array.
+  // eax: value
+  // ecx: elements array
+  // ebx: index (as a smi)
+  __ bind(&check_pixel_array);
+  __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
+         Immediate(Factory::pixel_array_map()));
+  __ j(not_equal, &slow);
+  // Check that the value is a smi. If a conversion is needed call into the
+  // runtime to convert and clamp.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, &slow);
+  __ sar(ebx, kSmiTagSize);  // Untag the index.
+  __ cmp(ebx, FieldOperand(ecx, PixelArray::kLengthOffset));
+  __ j(above_equal, &slow);
+  __ sar(eax, kSmiTagSize);  // Untag the value.
+  {  // Clamp the value to [0..255].
+    Label done, check_255;
+    __ cmp(eax, 0);
+    __ j(greater_equal, &check_255);
+    __ mov(eax, Immediate(0));
+    __ jmp(&done);
+    __ bind(&check_255);
+    __ cmp(eax, 255);
+    __ j(less_equal, &done);
+    __ mov(eax, Immediate(255));
+    __ bind(&done);
+  }
+  __ mov(ecx, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
+  __ mov_b(Operand(ecx, ebx, times_1, 0), eax);
+  __ ret(0);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -416,14 +462,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ebx: index (as a smi)
   __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
   __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
-         Immediate(Factory::hash_table_map()));
-  __ j(equal, &slow, not_taken);
+         Immediate(Factory::fixed_array_map()));
+  __ j(not_equal, &check_pixel_array);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
   __ cmp(ebx, FieldOperand(edx, JSArray::kLengthOffset));
   __ j(above_equal, &extra, not_taken);
-
 
   // Fast case: Do the store.
   __ bind(&fast);
