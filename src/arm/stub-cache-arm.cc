@@ -678,13 +678,13 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
     case JSARRAY_HAS_FAST_ELEMENTS_CHECK:
       CheckPrototypes(JSObject::cast(object), r1, holder, r3, r2, name, &miss);
-      // Make sure object->elements()->map() != Heap::hash_table_map()
+      // Make sure object->HasFastElements().
       // Get the elements array of the object.
       __ ldr(r3, FieldMemOperand(r1, JSObject::kElementsOffset));
       // Check that the object is in fast mode (not dictionary).
       __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-      __ cmp(r2, Operand(Factory::hash_table_map()));
-      __ b(eq, &miss);
+      __ cmp(r2, Operand(Factory::fixed_array_map()));
+      __ b(ne, &miss);
       break;
 
     default:

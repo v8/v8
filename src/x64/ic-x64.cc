@@ -87,8 +87,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
 
   // Check that the properties array is a dictionary.
   __ movq(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
-  __ Cmp(FieldOperand(r0, HeapObject::kMapOffset),
-         Factory::hash_table_map());
+  __ Cmp(FieldOperand(r0, HeapObject::kMapOffset), Factory::hash_table_map());
   __ j(not_equal, miss_label);
 
   // Compute the capacity mask.
@@ -243,8 +242,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&index_int);
   __ movq(rcx, FieldOperand(rcx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
-  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::hash_table_map());
-  __ j(equal, &slow);
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
+  __ j(not_equal, &slow);
   // Check that the key (index) is within bounds.
   __ cmpl(rax, FieldOperand(rcx, FixedArray::kLengthOffset));
   __ j(below, &fast);  // Unsigned comparison rejects negative indices.
@@ -387,8 +386,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rbx: index (as a smi)
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
-  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::hash_table_map());
-  __ j(equal, &slow);
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
+  __ j(not_equal, &slow);
   // Untag the key (for checking against untagged length in the fixed array).
   __ movl(rdx, rbx);
   __ sarl(rdx, Immediate(kSmiTagSize));
@@ -438,8 +437,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rdx: JSArray
   // rbx: index (as a smi)
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::hash_table_map());
-  __ j(equal, &slow);
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
+  __ j(not_equal, &slow);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
