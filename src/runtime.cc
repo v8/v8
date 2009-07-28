@@ -7408,14 +7408,15 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
   // Not sure when this can happen but skip it just in case.
   if (!raw_fun->IsJSFunction())
     return false;
-  if ((raw_fun == caller) && !(*seen_caller) && frame->IsConstructor()) {
+  if ((raw_fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
     return false;
   }
-  // Skip the most obvious builtin calls.  Some builtin calls (such as
-  // Number.ADD which is invoked using 'call') are very difficult to
-  // recognize so we're leaving them in for now.
-  return !frame->receiver()->IsJSBuiltinsObject();
+  // Skip all frames until we've seen the caller.  Also, skip the most
+  // obvious builtin calls.  Some builtin calls (such as Number.ADD
+  // which is invoked using 'call') are very difficult to recognize
+  // so we're leaving them in for now.
+  return *seen_caller && !frame->receiver()->IsJSBuiltinsObject();
 }
 
 
@@ -7424,7 +7425,7 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
 // code offset.
 static Object* Runtime_CollectStackTrace(Arguments args) {
   ASSERT_EQ(args.length(), 2);
-  Object* caller = args[0];
+  Handle<Object> caller = args.at<Object>(0);
   CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
 
   HandleScope scope;
@@ -7433,12 +7434,14 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
   Handle<JSArray> result = Factory::NewJSArray(initial_size * 3);
 
   StackFrameIterator iter;
-  bool seen_caller = false;
+  // If the caller parameter is a function we skip frames until we're
+  // under it before starting to collect.
+  bool seen_caller = !caller->IsJSFunction();
   int cursor = 0;
   int frames_seen = 0;
   while (!iter.done() && frames_seen < limit) {
     StackFrame* raw_frame = iter.frame();
-    if (ShowFrameInStackTrace(raw_frame, caller, &seen_caller)) {
+    if (ShowFrameInStackTrace(raw_frame, *caller, &seen_caller)) {
       frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
       Object* recv = frame->receiver();
@@ -7453,8 +7456,10 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
         elements->set(cursor++, offset, SKIP_WRITE_BARRIER);
       } else {
         HandleScope scope;
-        SetElement(result, cursor++, Handle<Object>(recv));
-        SetElement(result, cursor++, Handle<Object>(fun));
+        Handle<Object> recv_handle(recv);
+        Handle<Object> fun_handle(fun);
+        SetElement(result, cursor++, recv_handle);
+        SetElement(result, cursor++, fun_handle);
         SetElement(result, cursor++, Handle<Smi>(offset));
       }
     }
