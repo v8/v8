@@ -2461,7 +2461,7 @@ class PixelArray: public Array {
   // [external_pointer]: The pointer to the external memory area backing this
   // pixel array.
   DECL_ACCESSORS(external_pointer, uint8_t)  // Pointer to the data store.
-  
+
   // Setter and getter.
   inline uint8_t get(int index);
   inline void set(int index, uint8_t value);
@@ -2482,8 +2482,8 @@ class PixelArray: public Array {
   static const int kExternalPointerOffset = Array::kAlignedSize;
   static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
   static const int kAlignedSize = OBJECT_SIZE_ALIGN(kHeaderSize);
-  
-private:
+
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PixelArray);
 };
 

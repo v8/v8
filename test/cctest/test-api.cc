@@ -7651,7 +7651,7 @@ THREADED_TEST(PixelArray) {
                       "pixels[5];");
   CHECK_EQ(0, result->Int32Value());
   CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
-  
+
   result = CompileRun("pixels[3] = 33;"
                       "delete pixels[3];"
                       "pixels[3];");
@@ -7660,14 +7660,13 @@ THREADED_TEST(PixelArray) {
   result = CompileRun("pixels[0] = 10; pixels[1] = 11;"
                       "pixels[2] = 12; pixels[3] = 13;"
                       "pixels.__defineGetter__('2',"
-                                                "function() { return 120; });"
+                      "function() { return 120; });"
                       "pixels[2];");
   CHECK_EQ(12, result->Int32Value());
 
   result = CompileRun("var js_array = new Array(40);"
                       "js_array[0] = 77;"
-                      "js_array;"
-  );
+                      "js_array;");
   CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
 
   result = CompileRun("pixels[1] = 23;"

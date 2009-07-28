@@ -297,7 +297,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ movzx_b(eax, Operand(ecx, eax, times_1, 0));
   __ shl(eax, kSmiTagSize);
   __ ret(0);
-  
+
 
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);

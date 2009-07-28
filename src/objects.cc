@@ -3084,12 +3084,12 @@ Object* FixedArray::AddKeysFromJSArray(JSArray* array) {
     case JSObject::DICTIONARY_ELEMENTS: {
       NumberDictionary* dict = array->element_dictionary();
       int size = dict->NumberOfElements();
-      
+
       // Allocate a temporary fixed array.
       Object* object = Heap::AllocateFixedArray(size);
       if (object->IsFailure()) return object;
       FixedArray* key_array = FixedArray::cast(object);
-      
+
       int capacity = dict->Capacity();
       int pos = 0;
       // Copy the elements from the JSArray to the temporary fixed array.
@@ -5194,7 +5194,7 @@ Object* JSObject::SetSlowElements(Object* len) {
                                    new_length);
       Object* obj = NormalizeElements();
       if (obj->IsFailure()) return obj;
-      
+
       // Update length for JSArrays.
       if (IsJSArray()) JSArray::cast(this)->set_length(len);
       break;
@@ -5641,7 +5641,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
       // Insert element in the dictionary.
       FixedArray* elms = FixedArray::cast(elements());
       NumberDictionary* dictionary = NumberDictionary::cast(elms);
-      
+
       int entry = dictionary->FindEntry(index);
       if (entry != NumberDictionary::kNotFound) {
         Object* element = dictionary->ValueAt(entry);
@@ -5678,7 +5678,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
           set_elements(FixedArray::cast(result));
         }
       }
-      
+
       // Update the array length if this JSObject is an array.
       if (IsJSArray()) {
         JSArray* array = JSArray::cast(this);
@@ -5686,7 +5686,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
                                                                    value);
         if (return_value->IsFailure()) return return_value;
       }
-      
+
       // Attempt to put this object back in fast case.
       if (ShouldConvertToFastElements()) {
         uint32_t new_length = 0;
@@ -5707,7 +5707,7 @@ Object* JSObject::SetElementWithoutInterceptor(uint32_t index, Object* value) {
         }
 #endif
       }
-      
+
       return value;
     }
     default:

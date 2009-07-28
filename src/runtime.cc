@@ -5191,7 +5191,7 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
       if (range < len) {
         len = range;
       }
-      
+
       for (uint32_t j = 0; j < len; j++) {
         Handle<Object> e(elements->get(j));
         if (!e->IsTheHole()) {
