@@ -419,6 +419,51 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
+Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   AccessorInfo* callback) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
+                                                   JSObject* object,
+                                                   JSObject* holder,
+                                                   Object* callback) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* object,
+                                                      JSObject* holder,
+                                                      String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+
 Object* StoreStubCompiler::CompileStoreCallback(JSObject* a,
                                                 AccessorInfo* b,
                                                 String* c) {

@@ -5154,7 +5154,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       ASSERT(kSmiTag == 0);  // Adjust code below if not the case.
       // Remove smi tag from the left operand (but keep sign).
       // Left-hand operand has been copied into answer.
-      __ sar(answer.reg(), Immediate(kSmiTagSize));
+      __ sarl(answer.reg(), Immediate(kSmiTagSize));
       // Do multiplication of smis, leaving result in answer.
       __ imull(answer.reg(), right->reg());
       // Go slow on overflows.
@@ -5183,6 +5183,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       break;
 
     case Token::BIT_XOR:
+      ASSERT(kSmiTag == 0);  // Adjust code below if not the case.
       __ xor_(answer.reg(), right->reg());
       break;
 
@@ -6430,7 +6431,7 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&load_smi);
-  __ sar(src, Immediate(kSmiTagSize));
+  __ sarl(src, Immediate(kSmiTagSize));
   __ cvtlsi2sd(dst, src);
 
   __ bind(&done);
@@ -6586,7 +6587,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // If the smi tag is 0 we can just leave the tag on one operand.
       ASSERT(kSmiTag == 0);  // adjust code below if not the case
       // Remove tag from one of the operands (but keep sign).
-      __ sar(rax, Immediate(kSmiTagSize));
+      __ sarl(rax, Immediate(kSmiTagSize));
       // Do multiplication.
       __ imull(rax, rbx);  // multiplication of smis; result in eax
       // Go slow on overflows.

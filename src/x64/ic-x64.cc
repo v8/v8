@@ -300,6 +300,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 }
 
+
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rsp[0] : return address
@@ -310,54 +311,18 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
 }
 
+
 bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
   // Never patch the map in the map check, so the check always fails.
   return false;
 }
+
 
 bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
   // Never patch the map in the map check, so the check always fails.
   return false;
 }
 
-Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   AccessorInfo* callback) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   Object* callback) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* object,
-                                                      JSObject* holder,
-                                                      String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
 
 void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   // ----------- S t a t e -------------
