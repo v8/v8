@@ -252,8 +252,6 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // rsp[(argc + 2) * 8] function name
   Label miss;
 
-  __ IncrementCounter(&Counters::call_global_inline, 1);
-
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
@@ -289,6 +287,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
+  __ IncrementCounter(&Counters::call_global_inline, 1);
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -297,7 +296,6 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  __ DecrementCounter(&Counters::call_global_inline, 1);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1);
   Handle<Code> ic = ComputeCallMiss(arguments().immediate());
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -378,8 +376,6 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::named_load_global_inline, 1);
-
   // Get the receiver from the stack.
   __ movq(rax, Operand(rsp, kPointerSize));
 
@@ -407,10 +403,10 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
+  __ IncrementCounter(&Counters::named_load_global_inline, 1);
   __ ret(0);
 
   __ bind(&miss);
-  __ DecrementCounter(&Counters::named_load_global_inline, 1);
   __ IncrementCounter(&Counters::named_load_global_inline_miss, 1);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -534,8 +530,8 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ Move(rcx, Handle<JSGlobalPropertyCell>(cell));
   __ movq(FieldOperand(rcx, JSGlobalPropertyCell::kValueOffset), rax);
 
-  __ IncrementCounter(&Counters::named_store_global_inline, 1);
   // Return the value (register rax).
+  __ IncrementCounter(&Counters::named_store_global_inline, 1);
   __ ret(0);
 
   // Handle store cache miss.

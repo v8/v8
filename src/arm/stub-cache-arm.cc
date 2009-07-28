@@ -746,8 +746,6 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::call_global_inline, 1, r1, r3);
-
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
@@ -784,6 +782,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
+  __ IncrementCounter(&Counters::call_global_inline, 1, r1, r3);
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -792,7 +791,6 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  __ DecrementCounter(&Counters::call_global_inline, 1, r1, r3);
   __ IncrementCounter(&Counters::call_global_inline_miss, 1, r1, r3);
   Handle<Code> ic = ComputeCallMiss(arguments().immediate());
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -953,8 +951,6 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::named_store_global_inline, 1, r1, r3);
-
   // Check that the map of the global has not changed.
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -965,11 +961,11 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ mov(r2, Operand(Handle<JSGlobalPropertyCell>(cell)));
   __ str(r0, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
 
+  __ IncrementCounter(&Counters::named_store_global_inline, 1, r1, r3);
   __ Ret();
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ DecrementCounter(&Counters::named_store_global_inline, 1, r1, r3);
   __ IncrementCounter(&Counters::named_store_global_inline_miss, 1, r1, r3);
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
@@ -1085,8 +1081,6 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
-
   // Get the receiver from the stack.
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
 
@@ -1111,10 +1105,10 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
     __ b(eq, &miss);
   }
 
+  __ IncrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
   __ Ret();
 
   __ bind(&miss);
-  __ DecrementCounter(&Counters::named_load_global_inline, 1, r1, r3);
   __ IncrementCounter(&Counters::named_load_global_inline_miss, 1, r1, r3);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
