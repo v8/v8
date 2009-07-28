@@ -7056,27 +7056,31 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 Object* PixelArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
   if (index < static_cast<uint32_t>(length())) {
-    int int_value = 0;
     if (value->IsSmi()) {
-      int_value = Smi::cast(value)->value();
+      int int_value = Smi::cast(value)->value();
+      if (int_value < 0) {
+        clamped_value = 0;
+      } else if (int_value > 255) {
+        clamped_value = 255;
+      } else {
+        clamped_value = static_cast<uint8_t>(int_value);
+      }
     } else if (value->IsHeapNumber()) {
       double double_value = HeapNumber::cast(value)->value();
-      if (!isnan(double_value)) {
-        // NaN clamps to zero (default). Other doubles are rounded to
-        // the nearest integer.
-        int_value = static_cast<int>(double_value + 0.5);
+      if (!(double_value > 0)) {
+        // NaN and less than zero clamp to zero.
+        clamped_value = 0;
+      } else if (double_value > 255) {
+        // Greater than 255 clamp to 255.
+        clamped_value = 255;
+      } else {
+        // Other doubles are rounded to the nearest integer.
+        clamped_value = static_cast<uint8_t>(double_value + 0.5);
       }
     } else {
       // Clamp undefined to zero (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
-    }
-    if (int_value < 0) {
-      clamped_value = 0;
-    } else if (int_value > 255) {
-      clamped_value = 255;
-    } else {
-      clamped_value = static_cast<uint8_t>(int_value);
     }
     set(index, clamped_value);
   }

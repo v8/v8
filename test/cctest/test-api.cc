@@ -7234,6 +7234,20 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(0, result->Int32Value());
   CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
 
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[8] = Infinity;"
+                      "}"
+                      "pixels[8];");
+  CHECK_EQ(255, result->Int32Value());
+  CHECK_EQ(255, i::Smi::cast(jsobj->GetElement(8))->value());
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  pixels[9] = -Infinity;"
+                      "}"
+                      "pixels[9];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(9))->value());
+
   result = CompileRun("pixels[3] = 33;"
                       "delete pixels[3];"
                       "pixels[3];");
