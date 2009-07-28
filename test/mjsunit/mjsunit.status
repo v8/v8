@@ -76,7 +76,6 @@ array-splice: PASS || TIMEOUT
 [ $arch == x64 ]
 
 debug-backtrace: CRASH || FAIL
-date-parse: CRASH || FAIL
 debug-backtrace-text: CRASH || FAIL
 debug-multiple-breakpoints: CRASH || FAIL
 debug-breakpoints: CRASH || FAIL
@@ -93,7 +92,6 @@ debug-ignore-breakpoints: CRASH || FAIL
 debug-setbreakpoint: CRASH || FAIL
 debug-step-stub-callfunction: CRASH || FAIL
 debug-step: CRASH || FAIL
-mirror-date: CRASH || FAIL
 invalid-lhs: PASS || CRASH || FAIL
 debug-stepin-constructor: CRASH || FAIL
 debug-stepin-function-call: CRASH || FAIL
@@ -102,7 +100,6 @@ new: PASS || CRASH || FAIL
 fuzz-natives: PASS || TIMEOUT
 greedy: PASS || TIMEOUT
 debug-handle: CRASH || FAIL
-string-indexof: PASS || TIMEOUT
 debug-clearbreakpointgroup: CRASH || FAIL
 regress/regress-269: CRASH || FAIL
 div-mod: CRASH || FAIL
