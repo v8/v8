@@ -233,9 +233,9 @@ void OS::LogSharedLibraryAddresses() {
     char attr_r, attr_w, attr_x, attr_p;
     if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
-    char c;
+    int c;
     if (attr_r == 'r' && attr_x == 'x') {
-      while (c = getc(fp), c != EOF && c != '\n' && c != '/');
+      while (c = getc(fp), (c != EOF) && (c != '\n') && (c != '/'));
       char lib_name[1024];
       bool lib_has_name = false;
       if (c == '/') {
@@ -250,7 +250,7 @@ void OS::LogSharedLibraryAddresses() {
       }
       LOG(SharedLibraryEvent(lib_name, start, end));
     }
-    while (c = getc(fp), c != EOF && c != '\n');
+    while (c = getc(fp), (c != EOF) && (c != '\n'));
   }
   fclose(fp);
 #endif
