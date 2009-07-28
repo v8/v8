@@ -587,6 +587,23 @@ Object* Execution::DebugBreakHelper() {
     return Heap::undefined_value();
   }
 
+  {
+    JavaScriptFrameIterator it;
+    ASSERT(!it.done());
+    Object* fun = it.frame()->function();
+    if (fun && fun->IsJSFunction()) {
+      GlobalObject* global = JSFunction::cast(fun)->context()->global();
+      // Don't stop in builtin functions.
+      if (global == Top::context()->builtins()) {
+       return Heap::undefined_value();
+      }
+      // Don't stop in debugger functions.
+      if (Debug::IsDebugGlobal(global)) {
+       return Heap::undefined_value();
+      }
+    }
+  }
+
   // Collect the break state before clearing the flags.
   bool debug_command_only =
       StackGuard::IsDebugCommand() && !StackGuard::IsDebugBreak();
