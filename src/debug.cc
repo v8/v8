@@ -1310,7 +1310,9 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
         // function to be called and not the code for Builtins::FunctionApply or
         // Builtins::FunctionCall. The receiver of call/apply is the target
         // function.
-        if (!holder.is_null() && holder->IsJSFunction()) {
+        if (!holder.is_null() && holder->IsJSFunction() &&
+            JSFunction::cast(*holder)->context()->global() !=
+            Top::context()->builtins()) {
           Handle<SharedFunctionInfo> shared_info(
               JSFunction::cast(*holder)->shared());
           Debug::FloodWithOneShot(shared_info);
