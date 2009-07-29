@@ -934,6 +934,9 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
       case ObjectLiteral::Property::COMPUTED:
         prop_kind = "PROPERTY - COMPUTED";
         break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        prop_kind = "PROPERTY - MATERIALIZED_LITERAL";
+        break;
       case ObjectLiteral::Property::PROTOTYPE:
         prop_kind = "PROPERTY - PROTOTYPE";
         break;
@@ -945,7 +948,6 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
         break;
       default:
         UNREACHABLE();
-        break;
     }
     IndentedScope prop(prop_kind);
     PrintIndentedVisit("KEY", node->properties()->at(i)->key());
