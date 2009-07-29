@@ -2341,6 +2341,11 @@ bool JSFunction::IsBoilerplate() {
 }
 
 
+bool JSFunction::IsBuiltin() {
+  return context()->global()->IsJSBuiltinsObject();
+}
+
+
 bool JSObject::IsLoaded() {
   return !map()->needs_loading();
 }

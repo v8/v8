@@ -3167,6 +3167,9 @@ class JSFunction: public JSObject {
   // function.
   inline bool IsBoilerplate();
 
+  // Tells whether this function is builtin.
+  inline bool IsBuiltin();
+
   // [literals]: Fixed array holding the materialized literals.
   //
   // If the function contains object, regexp or array literals, the

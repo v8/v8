@@ -1301,7 +1301,7 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
   // step into was requested.
   if (fp == Debug::step_in_fp()) {
     // Don't allow step into functions in the native context.
-    if (function->context()->global() != Top::context()->builtins()) {
+    if (!function->IsBuiltin()) {
       if (function->shared()->code() ==
           Builtins::builtin(Builtins::FunctionApply) ||
           function->shared()->code() ==
@@ -1310,7 +1310,8 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
         // function to be called and not the code for Builtins::FunctionApply or
         // Builtins::FunctionCall. The receiver of call/apply is the target
         // function.
-        if (!holder.is_null() && holder->IsJSFunction()) {
+        if (!holder.is_null() && holder->IsJSFunction() &&
+            !JSFunction::cast(*holder)->IsBuiltin()) {
           Handle<SharedFunctionInfo> shared_info(
               JSFunction::cast(*holder)->shared());
           Debug::FloodWithOneShot(shared_info);
