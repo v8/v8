@@ -1508,10 +1508,6 @@ class JSObject: public HeapObject {
   void LookupCallback(String* name, LookupResult* result);
 
   inline Smi* InterceptorPropertyLookupHint(String* name);
-  Object* GetInterceptorPropertyWithLookupHint(JSObject* receiver,
-                                               Smi* lookup_hint,
-                                               String* name,
-                                               PropertyAttributes* attributes);
   static const int kLookupInHolder = -1;
   static const int kLookupInPrototype = -2;
 
@@ -1705,12 +1701,6 @@ class JSObject: public HeapObject {
   Object* DefineGetterSetter(String* name, PropertyAttributes attributes);
 
   void LookupInDescriptor(String* name, LookupResult* result);
-
-  // Attempts to get property with a named interceptor getter.
-  // Sets |attributes| to ABSENT if interceptor didn't return anything
-  Object* GetPropertyWithInterceptorProper(JSObject* receiver,
-                                           String* name,
-                                           PropertyAttributes* attributes);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };

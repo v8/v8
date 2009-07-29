@@ -6028,12 +6028,12 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
 }
 
 
-Object* JSObject::GetPropertyWithInterceptorProper(
+Object* JSObject::GetPropertyWithInterceptor(
     JSObject* receiver,
     String* name,
     PropertyAttributes* attributes) {
+  InterceptorInfo* interceptor = GetNamedInterceptor();
   HandleScope scope;
-  Handle<InterceptorInfo> interceptor(GetNamedInterceptor());
   Handle<JSObject> receiver_handle(receiver);
   Handle<JSObject> holder_handle(this);
   Handle<String> name_handle(name);
@@ -6052,85 +6052,14 @@ Object* JSObject::GetPropertyWithInterceptorProper(
       VMState state(EXTERNAL);
       result = getter(v8::Utils::ToLocal(name_handle), info);
     }
-    if (!Top::has_scheduled_exception() && !result.IsEmpty()) {
+    RETURN_IF_SCHEDULED_EXCEPTION();
+    if (!result.IsEmpty()) {
       *attributes = NONE;
       return *v8::Utils::OpenHandle(*result);
     }
   }
 
-  *attributes = ABSENT;
-  return Heap::undefined_value();
-}
-
-
-Object* JSObject::GetInterceptorPropertyWithLookupHint(
-    JSObject* receiver,
-    Smi* lookup_hint,
-    String* name,
-    PropertyAttributes* attributes) {
-  HandleScope scope;
-  Handle<JSObject> receiver_handle(receiver);
-  Handle<JSObject> holder_handle(this);
-  Handle<String> name_handle(name);
-
-  Object* result = GetPropertyWithInterceptorProper(receiver,
-                                                    name,
-                                                    attributes);
-  if (*attributes != ABSENT) {
-    return result;
-  }
-  RETURN_IF_SCHEDULED_EXCEPTION();
-
-  int property_index = lookup_hint->value();
-  if (property_index >= 0) {
-    result = holder_handle->FastPropertyAt(property_index);
-  } else {
-    switch (property_index) {
-      case kLookupInPrototype: {
-          Object* pt = holder_handle->GetPrototype();
-          *attributes = ABSENT;
-          if (pt == Heap::null_value()) return Heap::undefined_value();
-          result = pt->GetPropertyWithReceiver(
-              *receiver_handle,
-              *name_handle,
-              attributes);
-          RETURN_IF_SCHEDULED_EXCEPTION();
-        }
-        break;
-
-      case kLookupInHolder:
-        result = holder_handle->GetPropertyPostInterceptor(
-            *receiver_handle,
-            *name_handle,
-            attributes);
-        RETURN_IF_SCHEDULED_EXCEPTION();
-        break;
-
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  return result;
-}
-
-
-Object* JSObject::GetPropertyWithInterceptor(
-    JSObject* receiver,
-    String* name,
-    PropertyAttributes* attributes) {
-  HandleScope scope;
-  Handle<JSObject> receiver_handle(receiver);
-  Handle<JSObject> holder_handle(this);
-  Handle<String> name_handle(name);
-
-  Object* result = GetPropertyWithInterceptorProper(receiver, name, attributes);
-  if (*attributes != ABSENT) {
-    return result;
-  }
-  RETURN_IF_SCHEDULED_EXCEPTION();
-
-  result = holder_handle->GetPropertyPostInterceptor(
+  Object* result = holder_handle->GetPropertyPostInterceptor(
       *receiver_handle,
       *name_handle,
       attributes);
