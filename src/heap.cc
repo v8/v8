@@ -3411,6 +3411,100 @@ void HeapIterator::reset() {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+namespace {
+
+// JSConstructorProfile is responsible for gathering and logging
+// "constructor profile" of JS object allocated on heap.
+// It is run during garbage collection cycle, thus it doesn't need
+// to use handles.
+class JSConstructorProfile BASE_EMBEDDED {
+ public:
+  JSConstructorProfile() : zscope_(DELETE_ON_EXIT) {}
+  void CollectStats(JSObject* obj);
+  void PrintStats();
+  // Used by ZoneSplayTree::ForEach.
+  void Call(String* name, const NumberAndSizeInfo& number_and_size);
+ private:
+  struct TreeConfig {
+    typedef String* Key;
+    typedef NumberAndSizeInfo Value;
+    static const Key kNoKey;
+    static const Value kNoValue;
+    // Strings are unique, so it is sufficient to compare their pointers.
+    static int Compare(const Key& a, const Key& b) {
+      return a == b ? 0 : (a < b ? -1 : 1);
+    }
+  };
+
+  typedef ZoneSplayTree<TreeConfig> JSObjectsInfoTree;
+  static int CalculateJSObjectNetworkSize(JSObject* obj);
+
+  ZoneScope zscope_;
+  JSObjectsInfoTree js_objects_info_tree_;
+};
+
+const JSConstructorProfile::TreeConfig::Key
+    JSConstructorProfile::TreeConfig::kNoKey = NULL;
+const JSConstructorProfile::TreeConfig::Value
+    JSConstructorProfile::TreeConfig::kNoValue;
+
+
+int JSConstructorProfile::CalculateJSObjectNetworkSize(JSObject* obj) {
+  int size = obj->Size();
+  // If 'properties' and 'elements' are non-empty (thus, non-shared),
+  // take their size into account.
+  if (FixedArray::cast(obj->properties())->length() != 0) {
+    size += obj->properties()->Size();
+  }
+  if (FixedArray::cast(obj->elements())->length() != 0) {
+    size += obj->elements()->Size();
+  }
+  return size;
+}
+
+
+void JSConstructorProfile::Call(String* name,
+                                const NumberAndSizeInfo& number_and_size) {
+  SmartPointer<char> s_name;
+  if (name != NULL) {
+    s_name = name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  }
+  LOG(HeapSampleJSConstructorEvent(*s_name,
+                                   number_and_size.number(),
+                                   number_and_size.bytes()));
+}
+
+
+void JSConstructorProfile::CollectStats(JSObject* obj) {
+  String* constructor_func = NULL;
+  if (obj->map()->constructor()->IsJSFunction()) {
+    JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
+    SharedFunctionInfo* sfi = constructor->shared();
+    String* name = String::cast(sfi->name());
+    constructor_func = name->length() > 0 ? name : sfi->inferred_name();
+  } else if (obj->IsJSFunction()) {
+    constructor_func = Heap::function_class_symbol();
+  }
+  JSObjectsInfoTree::Locator loc;
+  if (!js_objects_info_tree_.Find(constructor_func, &loc)) {
+    js_objects_info_tree_.Insert(constructor_func, &loc);
+  }
+  NumberAndSizeInfo number_and_size = loc.value();
+  number_and_size.increment_number(1);
+  number_and_size.increment_bytes(CalculateJSObjectNetworkSize(obj));
+  loc.set_value(number_and_size);
+}
+
+
+void JSConstructorProfile::PrintStats() {
+  js_objects_info_tree_.ForEach(this);
+}
+
+}  // namespace
+#endif
+
+
 //
 // HeapProfiler class implementation.
 //
@@ -3435,9 +3529,14 @@ void HeapProfiler::WriteSample() {
   INSTANCE_TYPE_LIST(DEF_TYPE_NAME)
 #undef DEF_TYPE_NAME
 
+  JSConstructorProfile js_cons_profile;
   HeapIterator iterator;
   while (iterator.has_next()) {
-    CollectStats(iterator.next(), info);
+    HeapObject* obj = iterator.next();
+    CollectStats(obj, info);
+    if (obj->IsJSObject()) {
+      js_cons_profile.CollectStats(JSObject::cast(obj));
+    }
   }
 
   // Lump all the string types together.
@@ -3458,6 +3557,8 @@ void HeapProfiler::WriteSample() {
                               info[i].bytes()));
     }
   }
+
+  js_cons_profile.PrintStats();
 
   LOG(HeapSampleEndEvent("Heap", "allocated"));
 }

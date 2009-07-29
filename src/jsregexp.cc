@@ -31,7 +31,7 @@
 #include "compiler.h"
 #include "execution.h"
 #include "factory.h"
-#include "jsregexp-inl.h"
+#include "jsregexp.h"
 #include "platform.h"
 #include "runtime.h"
 #include "top.h"
