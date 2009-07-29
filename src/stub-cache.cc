@@ -787,22 +787,24 @@ Object* StoreCallbackProperty(Arguments args) {
   return *value;
 }
 
-
-Object* LoadInterceptorProperty(Arguments args) {
+/**
+ * Attempts to load a property with an interceptor (which must be present),
+ * but doesn't search the prototype chain.
+ *
+ * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
+ * provide any value for the given name.
+ */
+Object* LoadPropertyWithInterceptorOnly(Arguments args) {
   Handle<JSObject> receiver_handle = args.at<JSObject>(0);
   Handle<JSObject> holder_handle = args.at<JSObject>(1);
   Handle<String> name_handle = args.at<String>(2);
-  Smi* lookup_hint = Smi::cast(args[3]);
-  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(4);
-  Handle<Object> data_handle = args.at<Object>(5);
+  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(3);
+  Handle<Object> data_handle = args.at<Object>(4);
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetter getter =
       FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
   ASSERT(getter != NULL);
-
-  PropertyAttributes attributes = ABSENT;
-  Object* result = Heap::undefined_value();
 
   {
     // Use the interceptor getter.
@@ -822,65 +824,92 @@ Object* LoadInterceptorProperty(Arguments args) {
     }
   }
 
-  int property_index = lookup_hint->value();
-  if (property_index >= 0) {
-    result = holder_handle->FastPropertyAt(property_index);
-  } else {
-    switch (property_index) {
-      case JSObject::kLookupInPrototype: {
-          Object* pt = holder_handle->GetPrototype();
-          if (pt == Heap::null_value()) return Heap::undefined_value();
-          result = pt->GetPropertyWithReceiver(
-              *receiver_handle,
-              *name_handle,
-              &attributes);
-          RETURN_IF_SCHEDULED_EXCEPTION();
-        }
-        break;
+  return Heap::no_interceptor_result_sentinel();
+}
 
-      case JSObject::kLookupInHolder:
-        result = holder_handle->GetPropertyPostInterceptor(
-            *receiver_handle,
-            *name_handle,
-            &attributes);
-        RETURN_IF_SCHEDULED_EXCEPTION();
-        break;
 
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  if (result->IsFailure()) return result;
-  if (attributes != ABSENT) return result;
-
-  // If the top frame is an internal frame, this is really a call
-  // IC. In this case, we simply return the undefined result which
-  // will lead to an exception when trying to invoke the result as a
-  // function.
-  StackFrameIterator it;
-  it.Advance();  // skip exit frame
-  if (it.frame()->is_internal()) return result;
-
+static Object* ThrowReferenceError(String* name) {
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here, so we
   // can't use either LoadIC or KeyedLoadIC constructors.
   IC ic(IC::NO_EXTRA_FRAME);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
-  if (!ic.is_contextual()) return result;
+  if (!ic.is_contextual()) return Heap::undefined_value();
 
   // Throw a reference error.
+  HandleScope scope;
+  Handle<String> name_handle(name);
+  Handle<Object> error =
+      Factory::NewReferenceError("not_defined",
+                                  HandleVector(&name_handle, 1));
+  return Top::Throw(*error);
+}
+
+
+static Object* LoadWithInterceptor(Arguments* args,
+                                   PropertyAttributes* attrs) {
+  Handle<JSObject> receiver_handle = args->at<JSObject>(0);
+  Handle<JSObject> holder_handle = args->at<JSObject>(1);
+  Handle<String> name_handle = args->at<String>(2);
+  Handle<InterceptorInfo> interceptor_info = args->at<InterceptorInfo>(3);
+  Handle<Object> data_handle = args->at<Object>(4);
+
+  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
+  v8::NamedPropertyGetter getter =
+      FUNCTION_CAST<v8::NamedPropertyGetter>(getter_address);
+  ASSERT(getter != NULL);
+
   {
+    // Use the interceptor getter.
+    v8::AccessorInfo info(v8::Utils::ToLocal(receiver_handle),
+                          v8::Utils::ToLocal(data_handle),
+                          v8::Utils::ToLocal(holder_handle));
     HandleScope scope;
-    // We cannot use the raw name pointer here since getting the
-    // property might cause a GC.  However, we can get the name from
-    // the stack using the arguments object.
-    Handle<String> name_handle = args.at<String>(2);
-    Handle<Object> error =
-        Factory::NewReferenceError("not_defined",
-                                   HandleVector(&name_handle, 1));
-    return Top::Throw(*error);
+    v8::Handle<v8::Value> r;
+    {
+      // Leaving JavaScript.
+      VMState state(EXTERNAL);
+      r = getter(v8::Utils::ToLocal(name_handle), info);
+    }
+    RETURN_IF_SCHEDULED_EXCEPTION();
+    if (!r.IsEmpty()) {
+      *attrs = NONE;
+      return *v8::Utils::OpenHandle(*r);
+    }
   }
+
+  Object* result = holder_handle->GetPropertyPostInterceptor(
+      *receiver_handle,
+      *name_handle,
+      attrs);
+  RETURN_IF_SCHEDULED_EXCEPTION();
+  return result;
+}
+
+
+/**
+ * Loads a property with an interceptor performing post interceptor
+ * lookup if interceptor failed.
+ */
+Object* LoadPropertyWithInterceptorForLoad(Arguments args) {
+  PropertyAttributes attr = NONE;
+  Object* result = LoadWithInterceptor(&args, &attr);
+  if (result->IsFailure()) return result;
+
+  // If the property is present, return it.
+  if (attr != ABSENT) return result;
+  return ThrowReferenceError(String::cast(args[2]));
+}
+
+
+Object* LoadPropertyWithInterceptorForCall(Arguments args) {
+  PropertyAttributes attr;
+  Object* result = LoadWithInterceptor(&args, &attr);
+  RETURN_IF_SCHEDULED_EXCEPTION();
+  // This is call IC. In this case, we simply return the undefined result which
+  // will lead to an exception when trying to invoke the result as a
+  // function.
+  return result;
 }
 
 

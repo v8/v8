@@ -110,6 +110,7 @@ namespace internal {
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
   V(Object, undefined_value, UndefinedValue)                                   \
+  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \

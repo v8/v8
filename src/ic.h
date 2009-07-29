@@ -35,17 +35,19 @@ namespace internal {
 
 // IC_UTIL_LIST defines all utility functions called from generated
 // inline caching code. The argument for the macro, ICU, is the function name.
-#define IC_UTIL_LIST(ICU)          \
-  ICU(LoadIC_Miss)                 \
-  ICU(KeyedLoadIC_Miss)            \
-  ICU(CallIC_Miss)                 \
-  ICU(StoreIC_Miss)                \
-  ICU(SharedStoreIC_ExtendStorage) \
-  ICU(KeyedStoreIC_Miss)           \
-  /* Utilities for IC stubs. */    \
-  ICU(LoadCallbackProperty)        \
-  ICU(StoreCallbackProperty)       \
-  ICU(LoadInterceptorProperty)     \
+#define IC_UTIL_LIST(ICU)                             \
+  ICU(LoadIC_Miss)                                    \
+  ICU(KeyedLoadIC_Miss)                               \
+  ICU(CallIC_Miss)                                    \
+  ICU(StoreIC_Miss)                                   \
+  ICU(SharedStoreIC_ExtendStorage)                    \
+  ICU(KeyedStoreIC_Miss)                              \
+  /* Utilities for IC stubs. */                       \
+  ICU(LoadCallbackProperty)                           \
+  ICU(StoreCallbackProperty)                          \
+  ICU(LoadPropertyWithInterceptorOnly)                \
+  ICU(LoadPropertyWithInterceptorForLoad)             \
+  ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(StoreInterceptorProperty)
 
 //

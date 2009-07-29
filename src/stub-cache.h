@@ -307,7 +307,9 @@ Object* StoreCallbackProperty(Arguments args);
 
 
 // Support functions for IC stubs for interceptors.
-Object* LoadInterceptorProperty(Arguments args);
+Object* LoadPropertyWithInterceptorOnly(Arguments args);
+Object* LoadPropertyWithInterceptorForLoad(Arguments args);
+Object* LoadPropertyWithInterceptorForCall(Arguments args);
 Object* StoreInterceptorProperty(Arguments args);
 Object* CallInterceptorProperty(Arguments args);
 
@@ -377,13 +379,6 @@ class StubCompiler BASE_EMBEDDED {
                                  Label* miss_label);
   static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
 
- protected:
-  Object* GetCodeWithFlags(Code::Flags flags, const char* name);
-  Object* GetCodeWithFlags(Code::Flags flags, String* name);
-
-  MacroAssembler* masm() { return &masm_; }
-  void set_failure(Failure* failure) { failure_ = failure; }
-
   // Check the integrity of the prototype chain to make sure that the
   // current IC is still valid.
   Register CheckPrototypes(JSObject* object,
@@ -393,6 +388,13 @@ class StubCompiler BASE_EMBEDDED {
                            Register scratch,
                            String* name,
                            Label* miss);
+
+ protected:
+  Object* GetCodeWithFlags(Code::Flags flags, const char* name);
+  Object* GetCodeWithFlags(Code::Flags flags, String* name);
+
+  MacroAssembler* masm() { return &masm_; }
+  void set_failure(Failure* failure) { failure_ = failure; }
 
   void GenerateLoadField(JSObject* object,
                          JSObject* holder,
@@ -424,7 +426,7 @@ class StubCompiler BASE_EMBEDDED {
 
   void GenerateLoadInterceptor(JSObject* object,
                                JSObject* holder,
-                               Smi* lookup_hint,
+                               LookupResult* lookup,
                                Register receiver,
                                Register name_reg,
                                Register scratch1,

@@ -483,7 +483,7 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
 
 void StubCompiler::GenerateLoadInterceptor(JSObject* object,
                                            JSObject* holder,
-                                           Smi* lookup_hint,
+                                           LookupResult* lookup,
                                            Register receiver,
                                            Register name_reg,
                                            Register scratch1,
@@ -502,8 +502,6 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
   __ push(receiver);  // receiver
   __ push(reg);  // holder
   __ push(name_reg);  // name
-  __ mov(scratch1, Operand(lookup_hint));
-  __ push(scratch1);
 
   InterceptorInfo* interceptor = holder->GetNamedInterceptor();
   ASSERT(!Heap::InNewSpace(interceptor));
@@ -514,8 +512,8 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
-      ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 6);
+      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
+  __ TailCallRuntime(load_ic_property, 5);
 }
 
 
@@ -1059,9 +1057,11 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
 
   __ ldr(r0, MemOperand(sp, 0));
 
+  LookupResult lookup;
+  holder->LocalLookupRealNamedProperty(name, &lookup);
   GenerateLoadInterceptor(object,
                           holder,
-                          holder->InterceptorPropertyLookupHint(name),
+                          &lookup,
                           r0,
                           r2,
                           r3,
@@ -1218,9 +1218,11 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(r2, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
+  LookupResult lookup;
+  holder->LocalLookupRealNamedProperty(name, &lookup);
   GenerateLoadInterceptor(receiver,
                           holder,
-                          Smi::FromInt(JSObject::kLookupInHolder),
+                          &lookup,
                           r0,
                           r2,
                           r3,

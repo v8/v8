@@ -1507,10 +1507,6 @@ class JSObject: public HeapObject {
   Object* LookupCallbackSetterInPrototypes(uint32_t index);
   void LookupCallback(String* name, LookupResult* result);
 
-  inline Smi* InterceptorPropertyLookupHint(String* name);
-  static const int kLookupInHolder = -1;
-  static const int kLookupInPrototype = -2;
-
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
   int NumberOfLocalProperties(PropertyAttributes filter);
