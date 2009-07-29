@@ -1967,6 +1967,20 @@ typedef Persistent<Context> (*ContextGenerator)();
 
 
 /**
+ * Profiler modules.
+ *
+ * In V8, profiler consists of several modules: CPU profiler, and different
+ * kinds of heap profiling. Each can be turned on / off independently.
+ */
+enum ProfilerModules {
+  PROFILER_MODULE_NONE            = 0,
+  PROFILER_MODULE_CPU             = 1,
+  PROFILER_MODULE_HEAP_STATS      = 1 << 1,
+  PROFILER_MODULE_JS_CONSTRUCTORS = 1 << 2
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
@@ -2118,6 +2132,32 @@ class V8EXPORT V8 {
    * Return whether profiler is currently paused.
    */
   static bool IsProfilerPaused();
+
+  /**
+   * Resumes specified profiler modules.
+   * "ResumeProfiler" is equivalent to "ResumeProfilerEx(PROFILER_MODULE_CPU)".
+   * See ProfilerModules enum.
+   *
+   * \param flags Flags specifying profiler modules.
+   */
+  static void ResumeProfilerEx(int flags);
+
+  /**
+   * Pauses specified profiler modules.
+   * "PauseProfiler" is equivalent to "PauseProfilerEx(PROFILER_MODULE_CPU)".
+   * See ProfilerModules enum.
+   *
+   * \param flags Flags specifying profiler modules.
+   */
+  static void PauseProfilerEx(int flags);
+
+  /**
+   * Returns active (resumed) profiler modules.
+   * See ProfilerModules enum.
+   *
+   * \returns active profiler modules.
+   */
+  static int GetActiveProfilerModules();
 
   /**
    * If logging is performed into a memory buffer (via --logfile=*), allows to

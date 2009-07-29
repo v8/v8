@@ -3235,6 +3235,46 @@ bool V8::IsProfilerPaused() {
 }
 
 
+void V8::ResumeProfilerEx(int flags) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (flags & PROFILER_MODULE_CPU) {
+    i::Logger::ResumeProfiler();
+  }
+  if (flags & (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
+    i::FLAG_log_gc = true;
+  }
+#endif
+}
+
+
+void V8::PauseProfilerEx(int flags) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (flags & PROFILER_MODULE_CPU) {
+    i::Logger::PauseProfiler();
+  }
+  if (flags & (PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS)) {
+    i::FLAG_log_gc = false;
+  }
+#endif
+}
+
+
+int V8::GetActiveProfilerModules() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  int result = PROFILER_MODULE_NONE;
+  if (!i::Logger::IsProfilerPaused()) {
+    result |= PROFILER_MODULE_CPU;
+  }
+  if (i::FLAG_log_gc) {
+    result |= PROFILER_MODULE_HEAP_STATS | PROFILER_MODULE_JS_CONSTRUCTORS;
+  }
+  return result;
+#else
+  return PROFILER_MODULE_NONE;
+#endif
+}
+
+
 int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   return i::Logger::GetLogLines(from_pos, dest_buf, max_size);
