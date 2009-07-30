@@ -4976,14 +4976,14 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
 
     // Complete the operation.
     if (op == Token::DIV) {
-      // Check for negative zero result.  If result is zero, and divisor
-      // is negative, return a floating point negative zero.  The jump
-      // to non_zero_result is safe w.r.t. the frame.
+      // Check for negative zero result.  If the result is zero, and the
+      // divisor is negative, return a floating point negative zero.
       Label non_zero_result;
       __ testl(left->reg(), left->reg());
       __ j(not_zero, &non_zero_result);
       __ testl(right->reg(), right->reg());
       deferred->Branch(negative);
+      // The frame is identical on all paths reaching this label.
       __ bind(&non_zero_result);
       // Check for the corner case of dividing the most negative smi by
       // -1. We cannot use the overflow flag, since it is not set by
@@ -5003,15 +5003,14 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       frame_->Push(&quotient);
     } else {
       ASSERT(op == Token::MOD);
-      // Check for a negative zero result.  If the result is zero, and
-      // the dividend is negative, return a floating point negative
-      // zero.  The frame is unchanged between the jump to &non_zero_result
-      // and the target, so a Label can be used.
+      // Check for a negative zero result.  If the result is zero, and the
+      // dividend is negative, return a floating point negative zero.
       Label non_zero_result;
       __ testl(rdx, rdx);
       __ j(not_zero, &non_zero_result);
       __ testl(left->reg(), left->reg());
       deferred->Branch(negative);
+      // The frame is identical on all paths reaching this label.
       __ bind(&non_zero_result);
       deferred->BindExit();
       left->Unuse();
