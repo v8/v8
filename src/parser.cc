@@ -1059,7 +1059,7 @@ VariableProxy* PreParser::Declare(Handle<String> name, Variable::Mode mode,
 
 class Target BASE_EMBEDDED {
  public:
-  Target(Parser* parser, Node* node)
+  Target(Parser* parser, AstNode* node)
       : parser_(parser), node_(node), previous_(parser_->target_stack_) {
     parser_->target_stack_ = this;
   }
@@ -1069,11 +1069,11 @@ class Target BASE_EMBEDDED {
   }
 
   Target* previous() { return previous_; }
-  Node* node() { return node_; }
+  AstNode* node() { return node_; }
 
  private:
   Parser* parser_;
-  Node* node_;
+  AstNode* node_;
   Target* previous_;
 };
 

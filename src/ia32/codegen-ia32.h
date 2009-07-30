@@ -558,7 +558,7 @@ class CodeGenerator: public AstVisitor {
   // information.
   void CodeForFunctionPosition(FunctionLiteral* fun);
   void CodeForReturnPosition(FunctionLiteral* fun);
-  void CodeForStatementPosition(Node* node);
+  void CodeForStatementPosition(AstNode* node);
   void CodeForSourcePosition(int pos);
 
 #ifdef DEBUG
