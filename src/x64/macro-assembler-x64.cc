@@ -318,6 +318,17 @@ void MacroAssembler::Push(Handle<Object> source) {
 }
 
 
+void MacroAssembler::Push(Smi* source) {
+  if (IsUnsafeSmi(source)) {
+    LoadUnsafeSmi(kScratchRegister, source);
+    push(kScratchRegister);
+  } else {
+    int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(source));
+    push(Immediate(smi));
+  }
+}
+
+
 void MacroAssembler::Jump(ExternalReference ext) {
   movq(kScratchRegister, ext);
   jmp(kScratchRegister);
@@ -363,6 +374,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   movq(kScratchRegister, code_object, rmode);
 #ifdef DEBUG
+  // Patch target is kPointer size bytes *before* target label.
   Label target;
   bind(&target);
 #endif

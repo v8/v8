@@ -389,6 +389,112 @@ bool CodeGenerator::HasValidEntryRegisters() {
 #endif
 
 
+class DeferredReferenceGetKeyedValue: public DeferredCode {
+ public:
+  explicit DeferredReferenceGetKeyedValue(Register dst,
+                                          Register receiver,
+                                          Register key,
+                                          bool is_global)
+      : dst_(dst), receiver_(receiver), key_(key), is_global_(is_global) {
+    set_comment("[ DeferredReferenceGetKeyedValue");
+  }
+
+  virtual void Generate();
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Label patch_site_;
+  Register dst_;
+  Register receiver_;
+  Register key_;
+  bool is_global_;
+};
+
+
+void DeferredReferenceGetKeyedValue::Generate() {
+  __ push(receiver_);  // First IC argument.
+  __ push(key_);       // Second IC argument.
+
+  // Calculate the delta from the IC call instruction to the map check
+  // movq instruction in the inlined version.  This delta is stored in
+  // a test(rax, delta) instruction after the call so that we can find
+  // it in the IC initialization code and patch the movq instruction.
+  // This means that we cannot allow test instructions after calls to
+  // KeyedLoadIC stubs in other places.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  RelocInfo::Mode mode = is_global_
+                         ? RelocInfo::CODE_TARGET_CONTEXT
+                         : RelocInfo::CODE_TARGET;
+  __ Call(ic, mode);
+  // The delta from the start of the map-compare instruction to the
+  // test instruction.  We use masm_-> directly here instead of the __
+  // macro because the macro sometimes uses macro expansion to turn
+  // into something that can't return a value.  This is encountered
+  // when doing generated code coverage tests.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  // TODO(X64): Consider whether it's worth switching the test to a
+  // 7-byte NOP with non-zero immediate (0f 1f 80 xxxxxxxx) which won't
+  // be generated normally.
+  masm_->testl(rax, Immediate(-delta_to_patch_site));
+  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
+
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+  __ pop(key_);
+  __ pop(receiver_);
+}
+
+
+class DeferredReferenceSetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceSetKeyedValue(Register value,
+                                 Register key,
+                                 Register receiver)
+      : value_(value), key_(key), receiver_(receiver) {
+    set_comment("[ DeferredReferenceSetKeyedValue");
+  }
+
+  virtual void Generate();
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Register value_;
+  Register key_;
+  Register receiver_;
+  Label patch_site_;
+};
+
+
+void DeferredReferenceSetKeyedValue::Generate() {
+  __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
+  // Push receiver and key arguments on the stack.
+  __ push(receiver_);
+  __ push(key_);
+  // Move value argument to eax as expected by the IC stub.
+  if (!value_.is(rax)) __ movq(rax, value_);
+  // Call the IC stub.
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // The delta from the start of the map-compare instructions (initial movq)
+  // to the test instruction.  We use masm_-> directly here instead of the
+  // __ macro because the macro sometimes uses macro expansion to turn
+  // into something that can't return a value.  This is encountered
+  // when doing generated code coverage tests.
+  int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
+  // Here we use masm_-> instead of the __ macro because this is the
+  // instruction that gets patched and coverage code gets in the way.
+  masm_->testl(rax, Immediate(-delta_to_patch_site));
+  // Restore value (returned from store IC), key and receiver
+  // registers.
+  if (!value_.is(rax)) __ movq(value_, rax);
+  __ pop(key_);
+  __ pop(receiver_);
+}
+
+
 class DeferredStackCheck: public DeferredCode {
  public:
   DeferredStackCheck() {
@@ -2193,9 +2299,8 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // The receiver is the argument to the runtime call.  It is the
       // first value pushed when the reference was loaded to the
       // frame.
-      // TODO(X64): Enable this and the switch back to fast, once they work.
-      // frame_->PushElementAt(target.size() - 1);
-      // Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+      frame_->PushElementAt(target.size() - 1);
+      Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
     }
     if (node->op() == Token::ASSIGN ||
         node->op() == Token::INIT_VAR ||
@@ -2203,20 +2308,18 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       Load(node->value());
 
     } else {
-      // Literal* literal = node->value()->AsLiteral();
+      Literal* literal = node->value()->AsLiteral();
       bool overwrite_value =
           (node->value()->AsBinaryOperation() != NULL &&
            node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-      // Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
+      Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
       // There are two cases where the target is not read in the right hand
       // side, that are easy to test for: the right hand side is a literal,
       // or the right hand side is a different variable.  TakeValue invalidates
       // the target, with an implicit promise that it will be written to again
       // before it is read.
-      // TODO(X64): Implement TakeValue optimization.  Check issue 150016.
-      if (false) {
-        // if (literal != NULL || (right_var != NULL && right_var != var)) {
-        // target.TakeValue(NOT_INSIDE_TYPEOF);
+      if (literal != NULL || (right_var != NULL && right_var != var)) {
+        target.TakeValue(NOT_INSIDE_TYPEOF);
       } else {
         target.GetValue(NOT_INSIDE_TYPEOF);
       }
@@ -2247,9 +2350,8 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         // argument to the runtime call is the receiver, which is the
         // first value pushed as part of the reference, which is below
         // the lhs value.
-        // TODO(X64): Enable this once ToFastProperties works.
-        // frame_->PushElementAt(target.size());
-        // Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+        frame_->PushElementAt(target.size());
+        Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
       }
     }
   }
@@ -3645,7 +3747,7 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
 
   // Smi => false iff zero.
   ASSERT(kSmiTag == 0);
-  __ testq(value.reg(), value.reg());
+  __ testl(value.reg(), value.reg());
   dest->false_target()->Branch(zero);
   __ testl(value.reg(), Immediate(kSmiTagMask));
   dest->true_target()->Branch(zero);
@@ -4130,7 +4232,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
   // A test rax instruction following the call signals that the inobject
   // property case was inlined.  Ensure that there is not a test eax
   // instruction here.
-  __ nop();
+  masm_->nop();
   // Discard the global object. The result is in answer.
   frame_->Drop();
   return answer;
@@ -4700,7 +4802,7 @@ void DeferredReferenceGetNamedValue::Generate() {
   int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(patch_site());
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
-  masm_->testq(rax, Immediate(-delta_to_patch_site));
+  masm_->testl(rax, Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::named_load_inline_miss, 1);
 
   if (!dst_.is(rax)) __ movq(dst_, rax);
@@ -5287,7 +5389,8 @@ void Reference::GetValue(TypeofState typeof_state) {
                    kScratchRegister);
         // This branch is always a forwards branch so it's always a fixed
         // size which allows the assert below to succeed and patching to work.
-        deferred->Branch(not_equal);
+        // Don't use deferred->Branch(...), since that might add coverage code.
+        masm->j(not_equal, deferred->entry_label());
 
         // The delta from the patch label to the load offset must be
         // statically known.
@@ -5314,26 +5417,117 @@ void Reference::GetValue(TypeofState typeof_state) {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
+
       // Inline array load code if inside of a loop.  We do not know
       // the receiver map yet, so we initially generate the code with
       // a check against an invalid map.  In the inline cache code, we
       // patch the map check if appropriate.
+      if (cgen_->loop_nesting() > 0) {
+        Comment cmnt(masm, "[ Inlined load from keyed Property");
 
-      // TODO(x64): Implement inlined loads for keyed properties.
-      // Make sure to load length field as a 32-bit quantity.
-      //      Comment cmnt(masm, "[ Load from keyed Property");
+        Result key = cgen_->frame()->Pop();
+        Result receiver = cgen_->frame()->Pop();
+        key.ToRegister();
+        receiver.ToRegister();
 
-      RelocInfo::Mode mode = is_global
-        ? RelocInfo::CODE_TARGET_CONTEXT
-        : RelocInfo::CODE_TARGET;
-      Result answer = cgen_->frame()->CallKeyedLoadIC(mode);
-      // Make sure that we do not have a test instruction after the
-      // call.  A test instruction after the call is used to
-      // indicate that we have generated an inline version of the
-      // keyed load.  The explicit nop instruction is here because
-      // the push that follows might be peep-hole optimized away.
-      __ nop();
-      cgen_->frame()->Push(&answer);
+        // Use a fresh temporary to load the elements without destroying
+        // the receiver which is needed for the deferred slow case.
+        Result elements = cgen_->allocator()->Allocate();
+        ASSERT(elements.is_valid());
+
+        // Use a fresh temporary for the index and later the loaded
+        // value.
+        Result index = cgen_->allocator()->Allocate();
+        ASSERT(index.is_valid());
+
+        DeferredReferenceGetKeyedValue* deferred =
+            new DeferredReferenceGetKeyedValue(index.reg(),
+                                               receiver.reg(),
+                                               key.reg(),
+                                               is_global);
+
+        // Check that the receiver is not a smi (only needed if this
+        // is not a load from the global context) and that it has the
+        // expected map.
+        if (!is_global) {
+          __ testl(receiver.reg(), Immediate(kSmiTagMask));
+          deferred->Branch(zero);
+        }
+
+        // Initially, use an invalid map. The map is patched in the IC
+        // initialization code.
+        __ bind(deferred->patch_site());
+        // Use masm-> here instead of the double underscore macro since extra
+        // coverage code can interfere with the patching.
+        masm->movq(kScratchRegister, Factory::null_value(), RelocInfo::EMBEDDED_OBJECT);
+        masm->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                   kScratchRegister);
+        deferred->Branch(not_equal);
+
+        // Check that the key is a non-negative smi.
+        __ testl(key.reg(),
+                 Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000u)));
+        deferred->Branch(not_zero);
+
+        // Get the elements array from the receiver and check that it
+        // is not a dictionary.
+        __ movq(elements.reg(),
+                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+        __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
+               Factory::fixed_array_map());
+        deferred->Branch(not_equal);
+
+        // Shift the key to get the actual index value and check that
+        // it is within bounds.
+        __ movl(index.reg(), key.reg());
+        __ shrl(index.reg(), Immediate(kSmiTagSize));
+        __ cmpl(index.reg(),
+                FieldOperand(elements.reg(), FixedArray::kLengthOffset));
+        deferred->Branch(above_equal);
+
+        // The index register holds the un-smi-tagged key. It has been
+        // zero-extended to 64-bits, so it can be used directly as index in the
+        // operand below.
+        // Load and check that the result is not the hole.  We could
+        // reuse the index or elements register for the value.
+        //
+        // TODO(206): Consider whether it makes sense to try some
+        // heuristic about which register to reuse.  For example, if
+        // one is rax, the we can reuse that one because the value
+        // coming from the deferred code will be in rax.
+        Result value = index;
+        __ movq(value.reg(),
+                Operand(elements.reg(),
+                        index.reg(),
+                        times_pointer_size,
+                        FixedArray::kHeaderSize - kHeapObjectTag));
+        elements.Unuse();
+        index.Unuse();
+        __ Cmp(value.reg(), Factory::the_hole_value());
+        deferred->Branch(equal);
+        __ IncrementCounter(&Counters::keyed_load_inline, 1);
+
+        deferred->BindExit();
+        // Restore the receiver and key to the frame and push the
+        // result on top of it.
+        cgen_->frame()->Push(&receiver);
+        cgen_->frame()->Push(&key);
+        cgen_->frame()->Push(&value);
+
+      } else {
+        Comment cmnt(masm, "[ Load from keyed Property");
+        RelocInfo::Mode mode = is_global
+                               ? RelocInfo::CODE_TARGET_CONTEXT
+                               : RelocInfo::CODE_TARGET;
+        Result answer = cgen_->frame()->CallKeyedLoadIC(mode);
+        // Make sure that we do not have a test instruction after the
+        // call.  A test instruction after the call is used to
+        // indicate that we have generated an inline version of the
+        // keyed load.  The explicit nop instruction is here because
+        // the push that follows might be peep-hole optimized away.
+        __ nop();
+        cgen_->frame()->Push(&answer);
+      }
       break;
     }
 
@@ -5400,15 +5594,105 @@ void Reference::SetValue(InitState init_state) {
     case KEYED: {
       Comment cmnt(masm, "[ Store to keyed Property");
 
-      // TODO(x64): Implement inlined version of keyed stores.
+      // Generate inlined version of the keyed store if the code is in
+      // a loop and the key is likely to be a smi.
+      Property* property = expression()->AsProperty();
+      ASSERT(property != NULL);
+      SmiAnalysis* key_smi_analysis = property->key()->type();
 
-      Result answer = cgen_->frame()->CallKeyedStoreIC();
-      // Make sure that we do not have a test instruction after the
-      // call.  A test instruction after the call is used to
-      // indicate that we have generated an inline version of the
-      // keyed store.
-      __ nop();
-      cgen_->frame()->Push(&answer);
+      if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
+        Comment cmnt(masm, "[ Inlined store to keyed Property");
+
+        // Get the receiver, key and value into registers.
+        Result value = cgen_->frame()->Pop();
+        Result key = cgen_->frame()->Pop();
+        Result receiver = cgen_->frame()->Pop();
+
+        Result tmp = cgen_->allocator_->Allocate();
+        ASSERT(tmp.is_valid());
+
+        // Determine whether the value is a constant before putting it
+        // in a register.
+        bool value_is_constant = value.is_constant();
+
+        // Make sure that value, key and receiver are in registers.
+        value.ToRegister();
+        key.ToRegister();
+        receiver.ToRegister();
+
+        DeferredReferenceSetKeyedValue* deferred =
+            new DeferredReferenceSetKeyedValue(value.reg(),
+                                               key.reg(),
+                                               receiver.reg());
+
+        // Check that the value is a smi if it is not a constant.
+        // We can skip the write barrier for smis and constants.
+        if (!value_is_constant) {
+          __ testl(value.reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
+        }
+
+        // Check that the key is a non-negative smi.
+        __ testl(key.reg(),
+                 Immediate(static_cast<uint32_t>(kSmiTagMask | 0x80000000U)));
+        deferred->Branch(not_zero);
+
+        // Check that the receiver is not a smi.
+        __ testl(receiver.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(zero);
+
+        // Check that the receiver is a JSArray.
+        __ CmpObjectType(receiver.reg(), JS_ARRAY_TYPE, kScratchRegister);
+        deferred->Branch(not_equal);
+
+        // Check that the key is within bounds.  Both the key and the
+        // length of the JSArray are smis, so compare only low 32 bits.
+        __ cmpl(key.reg(),
+                FieldOperand(receiver.reg(), JSArray::kLengthOffset));
+        deferred->Branch(greater_equal);
+
+        // Get the elements array from the receiver and check that it
+        // is a flat array (not a dictionary).
+        __ movq(tmp.reg(),
+                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+        // Bind the deferred code patch site to be able to locate the
+        // fixed array map comparison.  When debugging, we patch this
+        // comparison to always fail so that we will hit the IC call
+        // in the deferred code which will allow the debugger to
+        // break for fast case stores.
+        __ bind(deferred->patch_site());
+        // Avoid using __ to ensure the distance from patch_site
+        // to the map address is always the same.
+        masm->movq(kScratchRegister, Factory::fixed_array_map(),
+                   RelocInfo::EMBEDDED_OBJECT);
+        __ cmpq(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
+                kScratchRegister);
+        deferred->Branch(not_equal);
+
+        // Store the value.
+        ASSERT_EQ(1, kSmiTagSize);
+        ASSERT_EQ(0, kSmiTag);
+        __ movq(Operand(tmp.reg(),
+                        key.reg(),
+                        times_half_pointer_size,
+                        FixedArray::kHeaderSize - kHeapObjectTag),
+                value.reg());
+        __ IncrementCounter(&Counters::keyed_store_inline, 1);
+
+        deferred->BindExit();
+
+        cgen_->frame()->Push(&receiver);
+        cgen_->frame()->Push(&key);
+        cgen_->frame()->Push(&value);
+      } else {
+        Result answer = cgen_->frame()->CallKeyedStoreIC();
+        // Make sure that we do not have a test instruction after the
+        // call.  A test instruction after the call is used to
+        // indicate that we have generated an inline version of the
+        // keyed store.
+        masm->nop();
+        cgen_->frame()->Push(&answer);
+      }
       break;
     }
 

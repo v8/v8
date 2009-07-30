@@ -159,16 +159,64 @@ static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
 }
 
 
-void KeyedLoadIC::ClearInlinedVersion(Address address) {
-  // TODO(X64): Implement this when LoadIC is enabled.
+// One byte opcode for test eax,0xXXXXXXXX.
+static const byte kTestEaxByte = 0xA9;
+
+
+static bool PatchInlinedMapCheck(Address address, Object* map) {
+  // Arguments are address of start of call sequence that called
+  // the IC,
+  Address test_instruction_address =
+      address + Assembler::kTargetAddrToReturnAddrDist;
+  // The keyed load has a fast inlined case if the IC call instruction
+  // is immediately followed by a test instruction.
+  if (*test_instruction_address != kTestEaxByte) return false;
+
+  // Fetch the offset from the test instruction to the map compare
+  // instructions (starting with the 64-bit immediate mov of the map
+  // address). This offset is stored in the last 4 bytes of the 5
+  // byte test instruction.
+  Address delta_address = test_instruction_address + 1;
+  int delta = *reinterpret_cast<int*>(delta_address);
+  // Compute the map address.  The map address is in the last 8 bytes
+  // of the 10-byte immediate mov instruction (incl. REX prefix), so we add 2
+  // to the offset to get the map address.
+  Address map_address = test_instruction_address + delta + 2;
+  // Patch the map check.
+  *(reinterpret_cast<Object**>(map_address)) = map;
+  return true;
 }
+
+
+bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
+}
+
+
+bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
+}
+
+
+void KeyedLoadIC::ClearInlinedVersion(Address address) {
+  // Insert null as the map to check for to make sure the map check fails
+  // sending control flow to the IC instead of the inlined version.
+  PatchInlinedLoad(address, Heap::null_value());
+}
+
 
 void KeyedStoreIC::ClearInlinedVersion(Address address) {
-  // TODO(X64): Implement this when LoadIC is enabled.
+  // Insert null as the elements map to check for.  This will make
+  // sure that the elements fast-case map check fails so that control
+  // flows to the IC instead of the inlined version.
+  PatchInlinedStore(address, Heap::null_value());
 }
 
+
 void KeyedStoreIC::RestoreInlinedVersion(Address address) {
-  UNIMPLEMENTED();
+  // Restore the fast-case elements map check so that the inlined
+  // version can be used again.
+  PatchInlinedStore(address, Heap::fixed_array_map());
 }
 
 
@@ -307,18 +355,6 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   //  -- rsp[16] : receiver
   // -----------------------------------
   Generate(masm, ExternalReference(IC_Utility(kKeyedLoadIC_Miss)));
-}
-
-
-bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
-  // Never patch the map in the map check, so the check always fails.
-  return false;
-}
-
-
-bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
-  // Never patch the map in the map check, so the check always fails.
-  return false;
 }
 
 
@@ -539,7 +575,10 @@ const int LoadIC::kOffsetToLoadInstruction = 20;
 
 
 void LoadIC::ClearInlinedVersion(Address address) {
-  // TODO(X64): Implement this when LoadIC is enabled.
+  // Reset the map check of the inlined inobject property load (if
+  // present) to guarantee failure by holding an invalid map (the null
+  // value).  The offset can be patched to anything.
+  PatchInlinedLoad(address, Heap::null_value(), kMaxInt);
 }
 
 
@@ -605,13 +644,37 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
+
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
-bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
-  // TODO(X64): Implement this function.  Until then, the code is not patched.
-  return false;
+
+bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kTargetAddrToReturnAddrDist;
+  // If the instruction following the call is not a test eax, nothing
+  // was inlined.
+  if (*test_instruction_address != kTestEaxByte) return false;
+
+  Address delta_address = test_instruction_address + 1;
+  // The delta to the start of the map check instruction.
+  int delta = *reinterpret_cast<int*>(delta_address);
+
+  // The map address is the last 8 bytes of the 10-byte
+  // immediate move instruction, so we add 2 to get the
+  // offset to the last 8 bytes.
+  Address map_address = test_instruction_address + delta + 2;
+  *(reinterpret_cast<Object**>(map_address)) = map;
+
+  // The offset is in the 32-bit displacement of a seven byte
+  // memory-to-register move instruction (REX.W 0x88 ModR/M disp32),
+  // so we add 3 to get the offset of the displacement.
+  Address offset_address =
+      test_instruction_address + delta + kOffsetToLoadInstruction + 3;
+  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
+  return true;
 }
 
 void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {

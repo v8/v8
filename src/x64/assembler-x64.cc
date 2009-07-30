@@ -1140,6 +1140,9 @@ void Assembler::movq(const Operand& dst, Register src) {
 
 
 void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
+  // This method must not be used with heap object references. The stored
+  // address is not GC safe. Use the handle version instead.
+  ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
