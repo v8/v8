@@ -2127,7 +2127,10 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
   if (!HasFastProperties()) return this;
 
-  // Allocate new content
+  // The global object is always normalized.
+  ASSERT(!IsGlobalObject());
+
+  // Allocate new content.
   Object* obj =
       StringDictionary::Allocate(map()->NumberOfDescribedProperties() * 2 + 4);
   if (obj->IsFailure()) return obj;
@@ -2141,10 +2144,6 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = descs->GetConstantFunction(i);
-        if (IsGlobalObject()) {
-          value = Heap::AllocateJSGlobalPropertyCell(value);
-          if (value->IsFailure()) return value;
-        }
         Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
         dictionary = StringDictionary::cast(result);
@@ -2154,10 +2153,6 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = FastPropertyAt(descs->GetFieldIndex(i));
-        if (IsGlobalObject()) {
-          value = Heap::AllocateJSGlobalPropertyCell(value);
-          if (value->IsFailure()) return value;
-        }
         Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
         dictionary = StringDictionary::cast(result);
@@ -2167,10 +2162,6 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), CALLBACKS, details.index());
         Object* value = descs->GetCallbacksObject(i);
-        if (IsGlobalObject()) {
-          value = Heap::AllocateJSGlobalPropertyCell(value);
-          if (value->IsFailure()) return value;
-        }
         Object* result = dictionary->Add(descs->GetKey(i), value, d);
         if (result->IsFailure()) return result;
         dictionary = StringDictionary::cast(result);
@@ -2182,9 +2173,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
       case INTERCEPTOR:
         break;
       default:
-      case NORMAL:
         UNREACHABLE();
-        break;
     }
   }
 

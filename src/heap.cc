@@ -2103,6 +2103,11 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   // properly initialized.
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
 
+  // Both types of globla objects should be allocated using
+  // AllocateGloblaObject to be properly initialized.
+  ASSERT(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
+  ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
+
   // Allocate the backing storage for the properties.
   int prop_size = map->unused_property_fields() - map->inobject_properties();
   Object* properties = AllocateFixedArray(prop_size, pretenure);
@@ -2143,24 +2148,62 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
 
 Object* Heap::AllocateGlobalObject(JSFunction* constructor) {
   ASSERT(constructor->has_initial_map());
+  Map* map = constructor->initial_map();
+
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
   // require us to change property values to JSGlobalPropertyCells.
-  ASSERT(constructor->initial_map()->NextFreePropertyIndex() == 0);
+  ASSERT(map->NextFreePropertyIndex() == 0);
 
   // Make sure we don't have a ton of pre-allocated slots in the
   // global objects. They will be unused once we normalize the object.
-  ASSERT(constructor->initial_map()->unused_property_fields() == 0);
-  ASSERT(constructor->initial_map()->inobject_properties() == 0);
+  ASSERT(map->unused_property_fields() == 0);
+  ASSERT(map->inobject_properties() == 0);
 
-  // Allocate the object based on the constructors initial map.
-  Object* result = AllocateJSObjectFromMap(constructor->initial_map(), TENURED);
-  if (result->IsFailure()) return result;
+  // Initial size of the backing store to avoid resize of the storage during
+  // bootstrapping. The size differs between the JS global object ad the
+  // builtins object.
+  int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
 
-  // Normalize the result.
-  JSObject* global = JSObject::cast(result);
-  result = global->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
-  if (result->IsFailure()) return result;
+  // Allocate a dictionary object for backing storage.
+  Object* obj =
+      StringDictionary::Allocate(
+          map->NumberOfDescribedProperties() * 2 + initial_size);
+  if (obj->IsFailure()) return obj;
+  StringDictionary* dictionary = StringDictionary::cast(obj);
+
+  // The global object might be created from an object template with accessors.
+  // Fill these accessors into the dictionary.
+  DescriptorArray* descs = map->instance_descriptors();
+  for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    PropertyDetails details = descs->GetDetails(i);
+    ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
+    PropertyDetails d =
+        PropertyDetails(details.attributes(), CALLBACKS, details.index());
+    Object* value = descs->GetCallbacksObject(i);
+    value = Heap::AllocateJSGlobalPropertyCell(value);
+    if (value->IsFailure()) return value;
+
+    Object* result = dictionary->Add(descs->GetKey(i), value, d);
+    if (result->IsFailure()) return result;
+    dictionary = StringDictionary::cast(result);
+  }
+
+  // Allocate the global object and initialize it with the backing store.
+  obj = Allocate(map, OLD_POINTER_SPACE);
+  if (obj->IsFailure()) return obj;
+  JSObject* global = JSObject::cast(obj);
+  InitializeJSObjectFromMap(global, dictionary, map);
+
+  // Create a new map for the global object.
+  obj = map->CopyDropDescriptors();
+  if (obj->IsFailure()) return obj;
+  Map* new_map = Map::cast(obj);
+
+  // Setup the global object as a normalized object.
+  global->set_map(new_map);
+  global->map()->set_instance_descriptors(Heap::empty_descriptor_array());
+  global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
   ASSERT(global->IsGlobalObject());
