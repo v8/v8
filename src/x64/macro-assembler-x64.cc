@@ -71,9 +71,9 @@ void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
   Label ok;
-  testq(result, result);
+  testl(result, result);
   j(not_zero, &ok);
-  testq(op, op);
+  testl(op, op);
   j(sign, then_label);
   bind(&ok);
 }

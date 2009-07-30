@@ -2437,11 +2437,13 @@ class ByteArray: public Array {
 };
 
 
-// PixelArray represents a fixed size byte array with special sematics used for
-// implementing the CanvasPixelArray object. Please see the specification at:
-// http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#canvaspixelarray
-// In particular write access clamps the values to 0 or 255 if the value
-// used is outside this range.
+// A PixelArray represents a fixed-size byte array with special semantics
+// used for implementing the CanvasPixelArray object. Please see the
+// specification at:
+// http://www.whatwg.org/specs/web-apps/current-work/
+//                      multipage/the-canvas-element.html#canvaspixelarray
+// In particular, write access clamps the value written to 0 or 255 if the
+// value written is outside this range.
 class PixelArray: public Array {
  public:
   // [external_pointer]: The pointer to the external memory area backing this

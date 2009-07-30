@@ -4851,10 +4851,8 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       Label add_success;
       __ j(no_overflow, &add_success);
       __ subl(operand->reg(), Immediate(smi_value));
-      __ movsxlq(operand->reg(), operand->reg());
       deferred->Jump();
       __ bind(&add_success);
-      __ movsxlq(operand->reg(), operand->reg());
       deferred->BindExit();
       frame_->Push(operand);
       break;
@@ -4965,35 +4963,36 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     }
     deferred->Branch(not_zero);
 
-    if (!left_is_in_rax) __ movq(rax, left->reg());
-    // Sign extend rax into rdx:rax.
-    __ cqo();
+    // All operations on the smi values are on 32-bit registers, which are
+    // zero-extended into 64-bits by all 32-bit operations.
+    if (!left_is_in_rax) __ movl(rax, left->reg());
+    // Sign extend eax into edx:eax.
+    __ cdq();
     // Check for 0 divisor.
-    __ testq(right->reg(), right->reg());
+    __ testl(right->reg(), right->reg());
     deferred->Branch(zero);
     // Divide rdx:rax by the right operand.
-    __ idiv(right->reg());
+    __ idivl(right->reg());
 
     // Complete the operation.
     if (op == Token::DIV) {
       // Check for negative zero result.  If result is zero, and divisor
-      // is negative, return a floating point negative zero.  The
-      // virtual frame is unchanged in this block, so local control flow
-      // can use a Label rather than a JumpTarget.
+      // is negative, return a floating point negative zero.  The jump
+      // to non_zero_result is safe w.r.t. the frame.
       Label non_zero_result;
-      __ testq(left->reg(), left->reg());
+      __ testl(left->reg(), left->reg());
       __ j(not_zero, &non_zero_result);
-      __ testq(right->reg(), right->reg());
+      __ testl(right->reg(), right->reg());
       deferred->Branch(negative);
       __ bind(&non_zero_result);
       // Check for the corner case of dividing the most negative smi by
       // -1. We cannot use the overflow flag, since it is not set by
       // idiv instruction.
       ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-      __ cmpq(rax, Immediate(0x40000000));
+      __ cmpl(rax, Immediate(0x40000000));
       deferred->Branch(equal);
       // Check that the remainder is zero.
-      __ testq(rdx, rdx);
+      __ testl(rdx, rdx);
       deferred->Branch(not_zero);
       // Tag the result and store it in the quotient register.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
@@ -5006,12 +5005,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       ASSERT(op == Token::MOD);
       // Check for a negative zero result.  If the result is zero, and
       // the dividend is negative, return a floating point negative
-      // zero.  The frame is unchanged in this block, so local control
-      // flow can use a Label rather than a JumpTarget.
+      // zero.  The frame is unchanged between the jump to &non_zero_result
+      // and the target, so a Label can be used.
       Label non_zero_result;
-      __ testq(rdx, rdx);
+      __ testl(rdx, rdx);
       __ j(not_zero, &non_zero_result);
-      __ testq(left->reg(), left->reg());
+      __ testl(left->reg(), left->reg());
       deferred->Branch(negative);
       __ bind(&non_zero_result);
       deferred->BindExit();
@@ -5056,9 +5055,9 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     deferred->Branch(not_zero);
 
     // Untag both operands.
-    __ movq(answer.reg(), left->reg());
-    __ sar(answer.reg(), Immediate(kSmiTagSize));
-    __ sar(rcx, Immediate(kSmiTagSize));
+    __ movl(answer.reg(), left->reg());
+    __ sarl(answer.reg(), Immediate(kSmiTagSize));
+    __ sarl(rcx, Immediate(kSmiTagSize));
     // Perform the operation.
     switch (op) {
       case Token::SAR:
@@ -5164,7 +5163,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       // in this block, so local control flow can use a Label rather
       // than a JumpTarget.
       Label non_zero_result;
-      __ testq(answer.reg(), answer.reg());
+      __ testl(answer.reg(), answer.reg());
       __ j(not_zero, &non_zero_result);
       __ movq(answer.reg(), left->reg());
       __ or_(answer.reg(), right->reg());
@@ -6564,7 +6563,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 
   // Smi check both operands.
   __ movq(rcx, rbx);
-  __ or_(rcx, rax);
+  __ or_(rcx, rax);  // The value in ecx is used for negative zero test later.
   __ testl(rcx, Immediate(kSmiTagMask));
   __ j(not_zero, slow);
 
@@ -6572,14 +6571,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     case Token::ADD: {
       __ addl(rax, rbx);
       __ j(overflow, slow);  // The slow case rereads operands from the stack.
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
       break;
     }
 
     case Token::SUB: {
       __ subl(rax, rbx);
       __ j(overflow, slow);  // The slow case rereads operands from the stack.
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
       break;
     }
 
@@ -6593,21 +6590,19 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Go slow on overflows.
       __ j(overflow, slow);
       // Check for negative zero result.
-      __ movsxlq(rax, rax);  // Sign extend eax into rax.
-      __ NegativeZeroTest(rax, rcx, slow);  // use rcx = x | y
+      __ NegativeZeroTest(rax, rcx, slow);  // ecx (not rcx) holds x | y.
       break;
 
     case Token::DIV:
-      // Sign extend rax into rdx:rax
-      // (also sign extends eax into edx if eax is Smi).
-      __ cqo();
+      // Sign extend eax into edx:eax.
+      __ cdq();
       // Check for 0 divisor.
-      __ testq(rbx, rbx);
+      __ testl(rbx, rbx);
       __ j(zero, slow);
-      // Divide rdx:rax by rbx (where rdx:rax is equivalent to the smi in eax).
-      __ idiv(rbx);
+      // Divide edx:eax by ebx (where edx:eax is equivalent to the smi in eax).
+      __ idivl(rbx);
       // Check that the remainder is zero.
-      __ testq(rdx, rdx);
+      __ testl(rdx, rdx);
       __ j(not_zero, slow);
       // Check for the corner case of dividing the most negative smi
       // by -1. We cannot use the overflow flag, since it is not set
@@ -6615,28 +6610,27 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
       // TODO(X64): TODO(Smi): Smi implementation dependent constant.
       // Value is Smi::fromInt(-(1<<31)) / Smi::fromInt(-1)
-      __ cmpq(rax, Immediate(0x40000000));
+      __ cmpl(rax, Immediate(0x40000000));
       __ j(equal, slow);
       // Check for negative zero result.
-      __ NegativeZeroTest(rax, rcx, slow);  // use ecx = x | y
+      __ NegativeZeroTest(rax, rcx, slow);  // ecx (not rcx) holds x | y.
       // Tag the result and store it in register rax.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
       __ lea(rax, Operand(rax, rax, times_1, kSmiTag));
       break;
 
     case Token::MOD:
-      // Sign extend rax into rdx:rax
-      // (also sign extends eax into edx if eax is Smi).
-      __ cqo();
+      // Sign extend eax into edx:eax
+      __ cdq();
       // Check for 0 divisor.
-      __ testq(rbx, rbx);
+      __ testl(rbx, rbx);
       __ j(zero, slow);
-      // Divide rdx:rax by rbx.
-      __ idiv(rbx);
+      // Divide edx:eax by ebx.
+      __ idivl(rbx);
       // Check for negative zero result.
-      __ NegativeZeroTest(rdx, rcx, slow);  // use ecx = x | y
+      __ NegativeZeroTest(rdx, rcx, slow);  // ecx (not rcx) holds x | y.
       // Move remainder to register rax.
-      __ movq(rax, rdx);
+      __ movl(rax, rdx);
       break;
 
     case Token::BIT_OR:
@@ -6656,7 +6650,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     case Token::SHR:
     case Token::SAR:
       // Move the second operand into register ecx.
-      __ movq(rcx, rbx);
+      __ movl(rcx, rbx);
       // Remove tags from operands (but keep sign).
       __ sarl(rax, Immediate(kSmiTagSize));
       __ sarl(rcx, Immediate(kSmiTagSize));

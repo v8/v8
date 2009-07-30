@@ -687,6 +687,13 @@ void Assembler::call(const Operand& op) {
 }
 
 
+void Assembler::cdq() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x99);
+}
+
+
 void Assembler::cmovq(Condition cc, Register dst, Register src) {
   // No need to check CpuInfo for CMOV support, it's a required part of the
   // 64-bit architecture.
@@ -807,10 +814,19 @@ void Assembler::hlt() {
 }
 
 
-void Assembler::idiv(Register src) {
+void Assembler::idivq(Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(src);
+  emit(0xF7);
+  emit_modrm(0x7, src);
+}
+
+
+void Assembler::idivl(Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(src);
   emit(0xF7);
   emit_modrm(0x7, src);
 }

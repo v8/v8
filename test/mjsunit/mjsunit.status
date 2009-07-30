@@ -97,14 +97,10 @@ debug-stepin-builtin: CRASH || FAIL
 debug-stepin-constructor: CRASH || FAIL
 debug-stepin-function-call: CRASH || FAIL
 debug-stepin-accessor: CRASH || FAIL
-new: PASS || CRASH || FAIL
 fuzz-natives: PASS || TIMEOUT
-greedy: PASS || TIMEOUT
 debug-handle: CRASH || FAIL
 debug-clearbreakpointgroup: CRASH || FAIL
 regress/regress-269: CRASH || FAIL
-div-mod: CRASH || FAIL
-unicode-test: PASS || TIMEOUT
 regress/regress-392: CRASH || FAIL
 regress/regress-1200351: CRASH || FAIL
 regress/regress-998565: CRASH || FAIL
