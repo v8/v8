@@ -1144,6 +1144,36 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
+Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
+                                                   JSObject* receiver,
+                                                   JSObject* holder,
+                                                   AccessorInfo* callback) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0]  : return address
+  //  -- rsp[8]  : name
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
+  __ IncrementCounter(&Counters::keyed_load_callback, 1);
+
+  // Check that the name has not changed.
+  __ Cmp(rax, Handle<String>(name));
+  __ j(not_equal, &miss);
+
+  GenerateLoadCallback(receiver, holder, rcx, rax, rbx, rdx,
+                       callback, name, &miss);
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::keyed_load_callback, 1);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(CALLBACKS, name);
+}
+
+
 Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   // ----------- S t a t e -------------
   //  -- rsp[0]  : return address
@@ -1167,15 +1197,6 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 
   // Return the generated code.
   return GetCode(CALLBACKS, name);
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   AccessorInfo* callback) {
-  UNIMPLEMENTED();
-  return NULL;
 }
 
 

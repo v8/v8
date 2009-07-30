@@ -5459,7 +5459,8 @@ void Reference::GetValue(TypeofState typeof_state) {
         __ bind(deferred->patch_site());
         // Use masm-> here instead of the double underscore macro since extra
         // coverage code can interfere with the patching.
-        masm->movq(kScratchRegister, Factory::null_value(), RelocInfo::EMBEDDED_OBJECT);
+        masm->movq(kScratchRegister, Factory::null_value(),
+                   RelocInfo::EMBEDDED_OBJECT);
         masm->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                    kScratchRegister);
         deferred->Branch(not_equal);
