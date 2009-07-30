@@ -1443,13 +1443,15 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   set_prototype_accessors(Proxy::cast(obj));
 
-  // Allocate the code_stubs dictionary.
-  obj = NumberDictionary::Allocate(4);
+  // Allocate the code_stubs dictionary. The initial size is set to avoid
+  // expanding the dictionary during bootstrapping.
+  obj = NumberDictionary::Allocate(128);
   if (obj->IsFailure()) return false;
   set_code_stubs(NumberDictionary::cast(obj));
 
-  // Allocate the non_monomorphic_cache used in stub-cache.cc
-  obj = NumberDictionary::Allocate(4);
+  // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
+  // is set to avoid expanding the dictionary during bootstrapping.
+  obj = NumberDictionary::Allocate(64);
   if (obj->IsFailure()) return false;
   set_non_monomorphic_cache(NumberDictionary::cast(obj));
 

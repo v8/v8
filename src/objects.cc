@@ -1244,7 +1244,7 @@ Object* JSObject::AddFastProperty(String* name,
   // hidden symbols) and is not a real identifier.
   StringInputBuffer buffer(name);
   if (!Scanner::IsIdentifier(&buffer) && name != Heap::hidden_symbol()) {
-    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (obj->IsFailure()) return obj;
     return AddSlowProperty(name, value, attributes);
   }
@@ -1282,7 +1282,7 @@ Object* JSObject::AddFastProperty(String* name,
 
   if (map()->unused_property_fields() == 0) {
     if (properties()->length() > kMaxFastProperties) {
-      Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+      Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
       if (obj->IsFailure()) return obj;
       return AddSlowProperty(name, value, attributes);
     }
@@ -1403,7 +1403,7 @@ Object* JSObject::AddProperty(String* name,
     } else {
       // Normalize the object to prevent very large instance descriptors.
       // This eliminates unwanted N^2 allocation and lookup behavior.
-      Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+      Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
       if (obj->IsFailure()) return obj;
     }
   }
@@ -1473,7 +1473,7 @@ Object* JSObject::ConvertDescriptorToField(String* name,
                                            PropertyAttributes attributes) {
   if (map()->unused_property_fields() == 0 &&
       properties()->length() > kMaxFastProperties) {
-    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (obj->IsFailure()) return obj;
     return ReplaceSlowProperty(name, new_value, attributes);
   }
@@ -2124,15 +2124,22 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 }
 
 
-Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
+Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
+                                      int expected_additional_properties) {
   if (!HasFastProperties()) return this;
 
   // The global object is always normalized.
   ASSERT(!IsGlobalObject());
 
   // Allocate new content.
+  int property_count = map()->NumberOfDescribedProperties();
+  if (expected_additional_properties > 0) {
+    property_count += expected_additional_properties;
+  } else {
+    property_count += 2;  // Make space for two more properties.
+  }
   Object* obj =
-      StringDictionary::Allocate(map()->NumberOfDescribedProperties() * 2 + 4);
+      StringDictionary::Allocate(property_count * 2);
   if (obj->IsFailure()) return obj;
   StringDictionary* dictionary = StringDictionary::cast(obj);
 
@@ -2272,7 +2279,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name, DeleteMode mode) {
   if (!result.IsValid()) return Heap::true_value();
 
   // Normalize object if needed.
-  Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
   if (obj->IsFailure()) return obj;
 
   return DeleteNormalizedProperty(name, mode);
@@ -2469,7 +2476,7 @@ Object* JSObject::DeleteProperty(String* name, DeleteMode mode) {
                                                       mode);
     }
     // Normalize object if needed.
-    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (obj->IsFailure()) return obj;
     // Make sure the properties are normalized before removing the entry.
     return DeleteNormalizedProperty(name, mode);
@@ -2802,7 +2809,7 @@ Object* JSObject::DefineGetterSetter(String* name,
     set_elements(NumberDictionary::cast(dict));
   } else {
     // Normalize object to make this operation simple.
-    Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+    Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
     if (ok->IsFailure()) return ok;
 
     // For the global object allocate a new map to invalidate the global inline

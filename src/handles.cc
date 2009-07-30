@@ -164,8 +164,11 @@ void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
 
 
 void NormalizeProperties(Handle<JSObject> object,
-                         PropertyNormalizationMode mode) {
-  CALL_HEAP_FUNCTION_VOID(object->NormalizeProperties(mode));
+                         PropertyNormalizationMode mode,
+                         int expected_additional_properties) {
+  CALL_HEAP_FUNCTION_VOID(object->NormalizeProperties(
+      mode,
+      expected_additional_properties));
 }
 
 
@@ -651,13 +654,17 @@ bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag) {
 
 OptimizedObjectForAddingMultipleProperties::
 OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
+                                           int expected_additional_properties,
                                            bool condition) {
   object_ = object;
   if (condition && object_->HasFastProperties()) {
     // Normalize the properties of object to avoid n^2 behavior
-    // when extending the object multiple properties.
+    // when extending the object multiple properties. Indicate the number of
+    // properties to be added.
     unused_property_fields_ = object->map()->unused_property_fields();
-    NormalizeProperties(object_, KEEP_INOBJECT_PROPERTIES);
+    NormalizeProperties(object_,
+                        KEEP_INOBJECT_PROPERTIES,
+                        expected_additional_properties);
     has_been_transformed_ = true;
 
   } else {

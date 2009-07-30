@@ -1584,8 +1584,11 @@ class JSObject: public HeapObject {
                       PropertyAttributes attributes);
 
   // Convert the object to use the canonical dictionary
-  // representation.
-  Object* NormalizeProperties(PropertyNormalizationMode mode);
+  // representation. If the object is expected to have additional properties
+  // added this number can be indicated to have the backing store allocated to
+  // an initial capacity for holding these properties.
+  Object* NormalizeProperties(PropertyNormalizationMode mode,
+                              int expected_additional_properties);
   Object* NormalizeElements();
 
   // Transform slow named properties to fast variants.

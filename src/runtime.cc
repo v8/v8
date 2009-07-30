@@ -268,6 +268,7 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
   {  // Add the constant properties to the boilerplate.
     int length = constant_properties->length();
     OptimizedObjectForAddingMultipleProperties opt(boilerplate,
+                                                   length / 2,
                                                    !is_result_from_cache);
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
@@ -3033,7 +3034,7 @@ static Object* Runtime_ToSlowProperties(Arguments args) {
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
   }
   return *object;
 }
