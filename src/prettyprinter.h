@@ -52,7 +52,7 @@ class PrettyPrinter: public AstVisitor {
   // Individual nodes
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
  private:
@@ -87,7 +87,7 @@ class AstPrinter: public PrettyPrinter {
   // Individual nodes
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
  private:
   friend class IndentedScope;

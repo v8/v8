@@ -104,7 +104,7 @@ class TargetCollector;
 class MaterializedLiteral;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
-NODE_LIST(DEF_FORWARD_DECLARATION)
+AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
 
@@ -1707,7 +1707,7 @@ class AstVisitor BASE_EMBEDDED {
   // Individual nodes
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node) = 0;
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
  private:
