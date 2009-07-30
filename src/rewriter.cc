@@ -59,7 +59,7 @@ class AstOptimizer: public AstVisitor {
   // Node visitors.
 #define DEF_VISIT(type) \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
   DISALLOW_COPY_AND_ASSIGN(AstOptimizer);
@@ -557,7 +557,7 @@ class Processor: public AstVisitor {
   // Node visitors.
 #define DEF_VISIT(type) \
   virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
+  AST_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 };
 

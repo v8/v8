@@ -521,10 +521,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\jsregexp-inl.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\jsregexp.cc"
 				>
 			</File>

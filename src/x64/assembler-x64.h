@@ -292,6 +292,7 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
+  times_half_pointer_size = times_4,
   times_pointer_size = times_8
 };
 
@@ -632,9 +633,13 @@ class Assembler : public Malloced {
 
   // Sign-extends rax into rdx:rax.
   void cqo();
+  // Sign-extends eax into edx:eax.
+  void cdq();
 
   // Divide rdx:rax by src.  Quotient in rax, remainder in rdx.
-  void idiv(Register src);
+  void idivq(Register src);
+  // Divide edx:eax by lower 32 bits of src.  Quotient in eax, rem. in edx.
+  void idivl(Register src);
 
   // Signed multiply instructions.
   void imul(Register src);                               // rdx:rax = rax * src.

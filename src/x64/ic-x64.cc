@@ -87,8 +87,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
 
   // Check that the properties array is a dictionary.
   __ movq(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
-  __ Cmp(FieldOperand(r0, HeapObject::kMapOffset),
-         Factory::hash_table_map());
+  __ Cmp(FieldOperand(r0, HeapObject::kMapOffset), Factory::hash_table_map());
   __ j(not_equal, miss_label);
 
   // Compute the capacity mask.
@@ -160,16 +159,64 @@ static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
 }
 
 
-void KeyedLoadIC::ClearInlinedVersion(Address address) {
-  // TODO(X64): Implement this when LoadIC is enabled.
+// One byte opcode for test eax,0xXXXXXXXX.
+static const byte kTestEaxByte = 0xA9;
+
+
+static bool PatchInlinedMapCheck(Address address, Object* map) {
+  // Arguments are address of start of call sequence that called
+  // the IC,
+  Address test_instruction_address =
+      address + Assembler::kTargetAddrToReturnAddrDist;
+  // The keyed load has a fast inlined case if the IC call instruction
+  // is immediately followed by a test instruction.
+  if (*test_instruction_address != kTestEaxByte) return false;
+
+  // Fetch the offset from the test instruction to the map compare
+  // instructions (starting with the 64-bit immediate mov of the map
+  // address). This offset is stored in the last 4 bytes of the 5
+  // byte test instruction.
+  Address delta_address = test_instruction_address + 1;
+  int delta = *reinterpret_cast<int*>(delta_address);
+  // Compute the map address.  The map address is in the last 8 bytes
+  // of the 10-byte immediate mov instruction (incl. REX prefix), so we add 2
+  // to the offset to get the map address.
+  Address map_address = test_instruction_address + delta + 2;
+  // Patch the map check.
+  *(reinterpret_cast<Object**>(map_address)) = map;
+  return true;
 }
+
+
+bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
+}
+
+
+bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
+  return PatchInlinedMapCheck(address, map);
+}
+
+
+void KeyedLoadIC::ClearInlinedVersion(Address address) {
+  // Insert null as the map to check for to make sure the map check fails
+  // sending control flow to the IC instead of the inlined version.
+  PatchInlinedLoad(address, Heap::null_value());
+}
+
 
 void KeyedStoreIC::ClearInlinedVersion(Address address) {
-  // TODO(X64): Implement this when LoadIC is enabled.
+  // Insert null as the elements map to check for.  This will make
+  // sure that the elements fast-case map check fails so that control
+  // flows to the IC instead of the inlined version.
+  PatchInlinedStore(address, Heap::null_value());
 }
 
+
 void KeyedStoreIC::RestoreInlinedVersion(Address address) {
-  UNIMPLEMENTED();
+  // Restore the fast-case elements map check so that the inlined
+  // version can be used again.
+  PatchInlinedStore(address, Heap::fixed_array_map());
 }
 
 
@@ -183,12 +230,10 @@ void KeyedLoadIC::Generate(MacroAssembler* masm,
 
   __ movq(rax, Operand(rsp, kPointerSize));
   __ movq(rcx, Operand(rsp, 2 * kPointerSize));
-
-  // Move the return address below the arguments.
   __ pop(rbx);
-  __ push(rcx);
-  __ push(rax);
-  __ push(rbx);
+  __ push(rcx);  // receiver
+  __ push(rax);  // name
+  __ push(rbx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 2);
@@ -245,8 +290,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&index_int);
   __ movq(rcx, FieldOperand(rcx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
-  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::hash_table_map());
-  __ j(equal, &slow);
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
+  __ j(not_equal, &slow);
   // Check that the key (index) is within bounds.
   __ cmpl(rax, FieldOperand(rcx, FixedArray::kLengthOffset));
   __ j(below, &fast);  // Unsigned comparison rejects negative indices.
@@ -302,64 +347,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ret(0);
 }
 
+
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rsp[0] : return address
   //  -- rsp[8] : name
   //  -- rsp[16] : receiver
   // -----------------------------------
-
-  Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
+  Generate(masm, ExternalReference(IC_Utility(kKeyedLoadIC_Miss)));
 }
 
-bool KeyedLoadIC::PatchInlinedLoad(Address address, Object* map) {
-  // Never patch the map in the map check, so the check always fails.
-  return false;
-}
-
-bool KeyedStoreIC::PatchInlinedStore(Address address, Object* map) {
-  // Never patch the map in the map check, so the check always fails.
-  return false;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   AccessorInfo* callback) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
-                                                   JSObject* object,
-                                                   JSObject* holder,
-                                                   Object* callback) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* object,
-                                                      JSObject* holder,
-                                                      String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
-
-Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
-  UNIMPLEMENTED();
-  return NULL;
-}
 
 void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   // ----------- S t a t e -------------
@@ -369,19 +366,35 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   //  -- rsp[16] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(rcx);
-  __ push(Operand(rsp, 1 * kPointerSize));
-  __ push(Operand(rsp, 1 * kPointerSize));
-  __ push(rax);
-  __ push(rcx);
+  __ push(Operand(rsp, 1 * kPointerSize));  // receiver
+  __ push(Operand(rsp, 1 * kPointerSize));  // key
+  __ push(rax);  // value
+  __ push(rcx);  // return address
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(f, 3);
 }
 
+
 void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kKeyedStoreIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rax     : value
+  //  -- rcx     : transition map
+  //  -- rsp[0]  : return address
+  //  -- rsp[8]  : key
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(Operand(rsp, 1 * kPointerSize));  // receiver
+  __ push(rcx);  // transition map
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
 }
 
 
@@ -424,8 +437,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rbx: index (as a smi)
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
-  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::hash_table_map());
-  __ j(equal, &slow);
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
+  __ j(not_equal, &slow);
   // Untag the key (for checking against untagged length in the fixed array).
   __ movl(rdx, rbx);
   __ sarl(rdx, Immediate(kSmiTagSize));
@@ -475,8 +488,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rdx: JSArray
   // rbx: index (as a smi)
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::hash_table_map());
-  __ j(equal, &slow);
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset), Factory::fixed_array_map());
+  __ j(not_equal, &slow);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
@@ -495,15 +508,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ movq(rdx, rax);
   __ RecordWrite(rcx, 0, rdx, rbx);
   __ ret(0);
-}
-
-
-Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
-                                                  int index,
-                                                  Map* transition,
-                                                  String* name) {
-  UNIMPLEMENTED();
-  return NULL;
 }
 
 
@@ -571,7 +575,10 @@ const int LoadIC::kOffsetToLoadInstruction = 20;
 
 
 void LoadIC::ClearInlinedVersion(Address address) {
-  // TODO(X64): Implement this when LoadIC is enabled.
+  // Reset the map check of the inlined inobject property load (if
+  // present) to guarantee failure by holding an invalid map (the null
+  // value).  The offset can be patched to anything.
+  PatchInlinedLoad(address, Heap::null_value(), kMaxInt);
 }
 
 
@@ -584,11 +591,10 @@ void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
   __ movq(rax, Operand(rsp, kPointerSize));
 
-  // Move the return address below the arguments.
   __ pop(rbx);
-  __ push(rax);
-  __ push(rcx);
-  __ push(rbx);
+  __ push(rax);  // receiver
+  __ push(rcx);  // name
+  __ push(rbx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 2);
@@ -638,13 +644,37 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
+
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
-bool LoadIC::PatchInlinedLoad(Address address, Object* map, int index) {
-  // TODO(X64): Implement this function.  Until then, the code is not patched.
-  return false;
+
+bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
+  // The address of the instruction following the call.
+  Address test_instruction_address =
+      address + Assembler::kTargetAddrToReturnAddrDist;
+  // If the instruction following the call is not a test eax, nothing
+  // was inlined.
+  if (*test_instruction_address != kTestEaxByte) return false;
+
+  Address delta_address = test_instruction_address + 1;
+  // The delta to the start of the map check instruction.
+  int delta = *reinterpret_cast<int*>(delta_address);
+
+  // The map address is the last 8 bytes of the 10-byte
+  // immediate move instruction, so we add 2 to get the
+  // offset to the last 8 bytes.
+  Address map_address = test_instruction_address + delta + 2;
+  *(reinterpret_cast<Object**>(map_address)) = map;
+
+  // The offset is in the 32-bit displacement of a seven byte
+  // memory-to-register move instruction (REX.W 0x88 ModR/M disp32),
+  // so we add 3 to get the offset of the displacement.
+  Address offset_address =
+      test_instruction_address + delta + kOffsetToLoadInstruction + 3;
+  *reinterpret_cast<int*>(offset_address) = offset - kHeapObjectTag;
+  return true;
 }
 
 void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
@@ -654,19 +684,33 @@ void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-  // Move the return address below the arguments.
   __ pop(rbx);
-  __ push(Operand(rsp, 0));
-  __ push(rcx);
-  __ push(rax);
-  __ push(rbx);
+  __ push(Operand(rsp, 0));  // receiver
+  __ push(rcx);  // name
+  __ push(rax);  // value
+  __ push(rbx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(f, 3);
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : Map (target of map transition)
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  __ pop(rbx);
+  __ push(Operand(rsp, 0));  // receiver
+  __ push(rcx);  // transition map
+  __ push(rax);  // value
+  __ push(rbx);  // return address
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {

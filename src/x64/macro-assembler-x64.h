@@ -164,6 +164,7 @@ class MacroAssembler: public Assembler {
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(const Operand& dst, Handle<Object> source);
   void Push(Handle<Object> source);
+  void Push(Smi* smi);
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);

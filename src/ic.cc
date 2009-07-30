@@ -737,8 +737,6 @@ Object* KeyedLoadIC::Load(State state,
       return TypeError("non_object_property_load", object, name);
     }
 
-    // TODO(X64): Enable specialized stubs for length and prototype lookup.
-#ifndef V8_TARGET_ARCH_X64
     if (FLAG_use_ic) {
       // Use specialized code for getting the length of strings.
       if (object->IsString() && name->Equals(Heap::length_symbol())) {
@@ -778,7 +776,6 @@ Object* KeyedLoadIC::Load(State state,
         return Accessors::FunctionGetPrototype(*object, 0);
       }
     }
-#endif  // !V8_TARGET_ARCH_X64
 
     // Check if the name is trivially convertible to an index and get
     // the element or char if so.
@@ -801,13 +798,9 @@ Object* KeyedLoadIC::Load(State state,
       }
     }
 
-    // TODO(X64): Enable inline caching for load.
-#ifndef V8_TARGET_ARCH_X64
-    // Update the inline cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
       UpdateCaches(&lookup, state, object, name);
     }
-#endif
 
     PropertyAttributes attr;
     if (lookup.IsValid() && lookup.type() == INTERCEPTOR) {
@@ -978,10 +971,6 @@ Object* StoreIC::Store(State state,
     return *value;
   }
 
-  // TODO(X64): Enable inline cache for StoreIC.
-#ifdef V8_TARGET_ARCH_X64
-  USE(&LookupForWrite);  // The compiler complains otherwise.
-#else
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
@@ -989,7 +978,6 @@ Object* StoreIC::Store(State state,
       UpdateCaches(&lookup, state, receiver, name, value);
     }
   }
-#endif
 
   // Set the property.
   return receiver->SetProperty(*name, *value, NONE);
@@ -1108,13 +1096,10 @@ Object* KeyedStoreIC::Store(State state,
     LookupResult lookup;
     receiver->LocalLookup(*name, &lookup);
 
-    // TODO(X64): Enable inline cache for KeyedStoreIC.
-#ifndef V8_TARGET_ARCH_X64
     // Update inline cache and stub cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
       UpdateCaches(&lookup, state, receiver, name, value);
     }
-#endif
 
     // Set the property.
     return receiver->SetProperty(*name, *value, NONE);

@@ -884,6 +884,21 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 }
 
 
+void Logger::HeapSampleJSConstructorEvent(const char* constructor,
+                                          int number, int bytes) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
+  LogMessageBuilder msg;
+  msg.Append("heap-js-cons-item,%s,%d,%d\n",
+             constructor != NULL ?
+                 (constructor[0] != '\0' ? constructor : "(anonymous)") :
+                 "(no_constructor)",
+             number, bytes);
+  msg.WriteToLogFile();
+#endif
+}
+
+
 void Logger::DebugTag(const char* call_site_tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log) return;

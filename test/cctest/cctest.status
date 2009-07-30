@@ -118,6 +118,7 @@ test-api/HugeConsStringOutOfMemory: CRASH || FAIL
 test-api/OutOfMemory: CRASH || FAIL
 test-api/OutOfMemoryNested: CRASH || FAIL
 test-api/Threading: CRASH || FAIL
+test-api/Threading2: PASS || TIMEOUT
 test-api/TryCatchSourceInfo: CRASH || FAIL
 test-api/RegExpInterruption: PASS || TIMEOUT
 test-api/RegExpStringModification: PASS || TIMEOUT

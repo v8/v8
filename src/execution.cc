@@ -592,14 +592,14 @@ Object* Execution::DebugBreakHelper() {
     ASSERT(!it.done());
     Object* fun = it.frame()->function();
     if (fun && fun->IsJSFunction()) {
-      GlobalObject* global = JSFunction::cast(fun)->context()->global();
       // Don't stop in builtin functions.
-      if (global == Top::context()->builtins()) {
-       return Heap::undefined_value();
+      if (JSFunction::cast(fun)->IsBuiltin()) {
+        return Heap::undefined_value();
       }
+      GlobalObject* global = JSFunction::cast(fun)->context()->global();
       // Don't stop in debugger functions.
       if (Debug::IsDebugGlobal(global)) {
-       return Heap::undefined_value();
+        return Heap::undefined_value();
       }
     }
   }

@@ -94,6 +94,7 @@ namespace internal {
     UndetectableMediumAsciiStringMap)                                          \
   V(Map, undetectable_long_ascii_string_map, UndetectableLongAsciiStringMap)   \
   V(Map, byte_array_map, ByteArrayMap)                                         \
+  V(Map, pixel_array_map, PixelArrayMap)                                       \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(Map, context_map, ContextMap)                                              \
@@ -109,6 +110,7 @@ namespace internal {
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
   V(Object, undefined_value, UndefinedValue)                                   \
+  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \
@@ -417,6 +419,14 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateByteArray(int length);
+
+  // Allocate a pixel array of the specified length
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocatePixelArray(int length,
+                                    uint8_t* external_pointer,
+                                    PretenureFlag pretenure);
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

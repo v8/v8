@@ -35,10 +35,14 @@
 # $ ./shell --log-gc script.js
 # $ tools/process-heap-prof.py v8.log | hp2ps -c > script-heap-graph.ps
 # ('-c' enables color, see hp2ps manual page for more options)
+# or
+# $ tools/process-heap-prof.py --js-cons-profile v8.log | hp2ps -c > script-heap-graph.ps
+# to get JS constructor profile
+
 
 import csv, sys, time
 
-def process_logfile(filename):
+def process_logfile(filename, itemname):
   first_call_time = None
   sample_time = 0.0
   sampling = False
@@ -63,11 +67,14 @@ def process_logfile(filename):
         elif row[0] == 'heap-sample-end' and row[1] == 'Heap':
           print('END_SAMPLE %.2f' % sample_time)
           sampling = False
-        elif row[0] == 'heap-sample-item' and sampling:
+        elif row[0] == itemname and sampling:
           print('%s %d' % (row[1], int(row[3])))
     finally:
       logfile.close()
   except:
     sys.exit('can\'t open %s' % filename)
 
-process_logfile(sys.argv[1])
+if sys.argv[1] == '--js-cons-profile':
+  process_logfile(sys.argv[2], 'heap-js-cons-item')
+else:
+  process_logfile(sys.argv[1], 'heap-sample-item')

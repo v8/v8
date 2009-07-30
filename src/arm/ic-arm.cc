@@ -582,8 +582,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
+  __ cmp(r3, Operand(Factory::fixed_array_map()));
+  __ b(ne, &slow);
   // Check that the key (index) is within bounds.
   __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
   __ cmp(r0, Operand(r3));
@@ -661,8 +661,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r3, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ cmp(r2, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
+  __ cmp(r2, Operand(Factory::fixed_array_map()));
+  __ b(ne, &slow);
   // Untag the key (for checking against untagged length in the fixed array).
   __ mov(r1, Operand(r1, ASR, kSmiTagSize));
   // Compute address to store into and check array bounds.
@@ -710,8 +710,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&array);
   __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ cmp(r1, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
+  __ cmp(r1, Operand(Factory::fixed_array_map()));
+  __ b(ne, &slow);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.

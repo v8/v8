@@ -71,9 +71,9 @@ void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
   Label ok;
-  testq(result, result);
+  testl(result, result);
   j(not_zero, &ok);
-  testq(op, op);
+  testl(op, op);
   j(sign, then_label);
   bind(&ok);
 }
@@ -151,6 +151,13 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
                                      int num_arguments) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : argument num_arguments - 1
+  //  ...
+  //  -- rsp[8 * num_arguments] : argument 0 (receiver)
+  // -----------------------------------
+
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
@@ -311,6 +318,17 @@ void MacroAssembler::Push(Handle<Object> source) {
 }
 
 
+void MacroAssembler::Push(Smi* source) {
+  if (IsUnsafeSmi(source)) {
+    LoadUnsafeSmi(kScratchRegister, source);
+    push(kScratchRegister);
+  } else {
+    int32_t smi = static_cast<int32_t>(reinterpret_cast<intptr_t>(source));
+    push(Immediate(smi));
+  }
+}
+
+
 void MacroAssembler::Jump(ExternalReference ext) {
   movq(kScratchRegister, ext);
   jmp(kScratchRegister);
@@ -356,6 +374,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   movq(kScratchRegister, code_object, rmode);
 #ifdef DEBUG
+  // Patch target is kPointer size bytes *before* target label.
   Label target;
   bind(&target);
 #endif
