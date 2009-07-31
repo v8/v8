@@ -3421,6 +3421,16 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 0);
+  ASSERT(kSmiTag == 0);  // RBP value is aligned, so it should look like Smi.
+  Result rbp_as_smi = allocator_->Allocate();
+  ASSERT(rbp_as_smi.is_valid());
+  __ movq(rbp_as_smi.reg(), rbp);
+  frame_->Push(&rbp_as_smi);
+}
+
+
 void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
@@ -6573,6 +6583,9 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, exit;
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  Label not_outermost_js, not_outermost_js_2;
+#endif
 
   // Setup frame.
   __ push(rbp);
@@ -6597,6 +6610,17 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
   __ load_rax(c_entry_fp);
   __ push(rax);
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If this is the outermost JS call, set js_entry_sp value.
+  ExternalReference js_entry_sp(Top::k_js_entry_sp_address);
+  __ load_rax(js_entry_sp);
+  __ testq(rax, rax);
+  __ j(not_zero, &not_outermost_js);
+  __ movq(rax, rbp);
+  __ store_rax(js_entry_sp);
+  __ bind(&not_outermost_js);
+#endif
 
   // Call a faked try-block that does the invoke.
   __ call(&invoke);
@@ -6639,6 +6663,16 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ pop(Operand(kScratchRegister, 0));
   // Pop next_sp.
   __ addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // If current EBP value is the same as js_entry_sp value, it means that
+  // the current function is the outermost.
+  __ movq(kScratchRegister, js_entry_sp);
+  __ cmpq(rbp, Operand(kScratchRegister, 0));
+  __ j(not_equal, &not_outermost_js_2);
+  __ movq(Operand(kScratchRegister, 0), Immediate(0));
+  __ bind(&not_outermost_js_2);
+#endif
 
   // Restore the top frame descriptor from the stack.
   __ bind(&exit);

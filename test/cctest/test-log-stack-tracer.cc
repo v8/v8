@@ -50,7 +50,7 @@ static void DoTrace(Address fp) {
   trace_env.sample->fp = reinterpret_cast<uintptr_t>(fp);
   // sp is only used to define stack high bound
   trace_env.sample->sp =
-      reinterpret_cast<unsigned int>(trace_env.sample) - 10240;
+      reinterpret_cast<uintptr_t>(trace_env.sample) - 10240;
   StackTracer::Trace(trace_env.sample);
 }
 
@@ -130,7 +130,10 @@ v8::Handle<v8::FunctionTemplate> TraceExtension::GetNativeFunction(
 
 Address TraceExtension::GetFP(const v8::Arguments& args) {
   CHECK_EQ(1, args.Length());
-  Address fp = reinterpret_cast<Address>(args[0]->Int32Value() << 2);
+  // CodeGenerator::GenerateGetFramePointer pushes EBP / RBP value
+  // on stack. In 64-bit mode we can't use Smi operations code because
+  // they check that value is within Smi bounds.
+  Address fp = *reinterpret_cast<Address*>(*args[0]);
   printf("Trace: %p\n", fp);
   return fp;
 }
@@ -330,8 +333,11 @@ static void CFuncDoTrace() {
   Address fp;
 #ifdef __GNUC__
   fp = reinterpret_cast<Address>(__builtin_frame_address(0));
-#elif defined _MSC_VER
+#elif defined _MSC_VER && defined V8_TARGET_ARCH_IA32
   __asm mov [fp], ebp  // NOLINT
+#elif defined _MSC_VER && defined V8_TARGET_ARCH_X64
+  // FIXME: I haven't really tried to compile it.
+  __asm movq [fp], rbp  // NOLINT
 #endif
   DoTrace(fp);
 }
