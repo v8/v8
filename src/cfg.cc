@@ -68,8 +68,9 @@ Cfg* Cfg::Build(FunctionLiteral* fun) {
   if (cfg == NULL) {
     BAILOUT("unsupported statement type");
   }
-
-  ASSERT(!cfg->has_exit());  // Return on all paths.
+  if (cfg->has_exit()) {
+    BAILOUT("control path without explicit return");
+  }
   cfg->PrependEntryNode(fun);
   return cfg;
 }

@@ -67,6 +67,9 @@ void EntryNode::Compile(MacroAssembler* masm) {
         __ push(kScratchRegister);
       }
     }
+    if (FLAG_trace) {
+      __ CallRuntime(Runtime::kTraceEnter, 0);
+    }
     if (FLAG_check_stack) {
       ExternalReference stack_limit =
           ExternalReference::address_of_stack_guard_limit();
@@ -91,6 +94,10 @@ void ExitNode::Compile(MacroAssembler* masm) {
   is_marked_ = true;
 
   Comment cmnt(masm, "[ ExitNode");
+  if (FLAG_trace) {
+    __ push(rax);
+    __ CallRuntime(Runtime::kTraceExit, 1);
+  }
   __ RecordJSReturn();
   __ movq(rsp, rbp);
   __ pop(rbp);

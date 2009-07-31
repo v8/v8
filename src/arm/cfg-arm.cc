@@ -62,6 +62,9 @@ void EntryNode::Compile(MacroAssembler* masm) {
         __ push(ip);
       }
     }
+    if (FLAG_trace) {
+      __ CallRuntime(Runtime::kTraceEnter, 0);
+    }
     if (FLAG_check_stack) {
       StackCheckStub stub;
       __ CallStub(&stub);
@@ -75,6 +78,10 @@ void ExitNode::Compile(MacroAssembler* masm) {
   ASSERT(!is_marked());
   is_marked_ = true;
   Comment cmnt(masm, "[ ExitNode");
+  if (FLAG_trace) {
+    __ push(r0);
+    __ CallRuntime(Runtime::kTraceExit, 1);
+  }
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
   __ add(sp, sp, Operand((parameter_count_ + 1) * kPointerSize));
