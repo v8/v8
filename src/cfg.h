@@ -38,6 +38,8 @@ namespace internal {
 // generated.
 class Value : public ZoneObject {
  public:
+  virtual ~Value() {}
+
   virtual void ToRegister(MacroAssembler* masm, Register reg) = 0;
 
 #ifdef DEBUG
@@ -51,7 +53,9 @@ class Constant : public Value {
  public:
   explicit Constant(Handle<Object> handle) : handle_(handle) {}
 
-  virtual void ToRegister(MacroAssembler* masm, Register reg);
+  virtual ~Constant() {}
+
+  void ToRegister(MacroAssembler* masm, Register reg);
 
 #ifdef DEBUG
   void Print();
@@ -67,6 +71,8 @@ class Constant : public Value {
 // be generated.
 class Instruction : public ZoneObject {
  public:
+  virtual ~Instruction() {}
+
   virtual void Compile(MacroAssembler* masm) = 0;
 
 #ifdef DEBUG
@@ -79,6 +85,8 @@ class Instruction : public ZoneObject {
 class ReturnInstr : public Instruction {
  public:
   explicit ReturnInstr(Value* value) : value_(value) {}
+
+  virtual ~ReturnInstr() {}
 
   void Compile(MacroAssembler* masm);
 
@@ -101,6 +109,8 @@ class CfgNode : public ZoneObject {
     number_ = -1;
 #endif
   }
+
+  virtual ~CfgNode() {}
 
   bool is_marked() { return is_marked_; }
 
@@ -137,6 +147,8 @@ class InstructionBlock : public CfgNode {
  public:
   InstructionBlock() : successor_(NULL), instructions_(4) {}
 
+  virtual ~InstructionBlock() {}
+
   static InstructionBlock* cast(CfgNode* node) {
     ASSERT(node->is_block());
     return reinterpret_cast<InstructionBlock*>(node);
@@ -172,6 +184,8 @@ class EntryNode : public CfgNode {
  public:
   EntryNode(FunctionLiteral* fun, InstructionBlock* succ);
 
+  virtual ~EntryNode() {}
+
   void Unmark();
 
   void Compile(MacroAssembler* masm);
@@ -192,6 +206,8 @@ class EntryNode : public CfgNode {
 class ExitNode : public CfgNode {
  public:
   explicit ExitNode(FunctionLiteral* fun);
+
+  virtual ~ExitNode() {}
 
   void Unmark();
 
