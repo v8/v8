@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "bootstrapper.h"
+#include "cfg.h"
 #include "codegen-inl.h"
 #include "compilation-cache.h"
 #include "compiler.h"
@@ -76,6 +77,21 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     // Signal a stack overflow by returning a null handle.  The stack
     // overflow exception will be thrown by the caller.
     return Handle<Code>::null();
+  }
+
+  if (FLAG_multipass) {
+    Cfg* cfg = Cfg::Build(literal);
+#ifdef DEBUG
+    if (FLAG_print_cfg && cfg != NULL) {
+      SmartPointer<char> name = literal->name()->ToCString();
+      PrintF("Function \"%s\":\n", *name);
+      cfg->Print();
+      PrintF("\n");
+    }
+#endif
+    if (cfg != NULL) {
+      return cfg->Compile(literal, script);
+    }
   }
 
   // Generate code and return it.
