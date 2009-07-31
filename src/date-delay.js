@@ -156,6 +156,8 @@ var DST_offset_cache = {
 
 // NOTE: The implementation relies on the fact that no time zones have
 // more than one daylight savings offset change per month.
+// This function must never be called with the argument NaN.
+// All uses of it are guarded so this does not happen.
 function DaylightSavingsOffset(t) {
   // Load the cache object from the builtins object.
   var cache = DST_offset_cache;
@@ -219,6 +221,7 @@ var timezone_cache_time = $NaN;
 var timezone_cache_timezone;
 
 function LocalTimezone(t) {
+  if (NUMBER_IS_NAN(t)) return "";
   if (t == timezone_cache_time) {
     return timezone_cache_timezone;
   }
@@ -464,9 +467,11 @@ var Date_cache = {
         value = cache.time;
       } else {
         value = DateParse(year);
-        cache.time = value;
-        cache.year = YearFromTime(LocalTimeNoCheck(value));
-        cache.string = year;
+        if (!NUMBER_IS_NAN(value)) {
+          cache.time = value;
+          cache.year = YearFromTime(LocalTimeNoCheck(value));
+          cache.string = year;
+        }
       }
 
     } else {
@@ -647,6 +652,7 @@ function TimeString(time) {
 
 
 function LocalTimezoneString(time) {
+  // time is not NaN because of checks in calling functions.
   var timezoneOffset = (local_time_offset + DaylightSavingsOffset(time)) / msPerMinute;
   var sign = (timezoneOffset >= 0) ? 1 : -1;
   var hours = FLOOR((sign * timezoneOffset)/60);
