@@ -282,7 +282,6 @@
         '../../src/jump-target.cc',
         '../../src/jump-target.h',
         '../../src/jump-target-inl.h',
-        '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
         '../../src/list-inl.h',
