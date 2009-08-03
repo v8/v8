@@ -505,7 +505,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // rax: value
   // rcx: FixedArray
   // rbx: index (as a smi)
-  __ movq(Operand(rcx, rbx, times_4, FixedArray::kHeaderSize - kHeapObjectTag),
+  __ movq(Operand(rcx, rbx, times_half_pointer_size,
+                  FixedArray::kHeaderSize - kHeapObjectTag),
          rax);
   // Update write barrier for the elements array address.
   __ movq(rdx, rax);
