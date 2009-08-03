@@ -63,7 +63,6 @@ test-api/TryCatchInTryFinally: FAIL
 
 
 [ $arch == x64 ]
-test-regexp/Graph: PASS || CRASH || FAIL
 test-decls/Present: CRASH || FAIL
 test-decls/Unknown: CRASH || FAIL
 test-decls/Appearing: CRASH || FAIL
