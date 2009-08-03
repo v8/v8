@@ -80,7 +80,8 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
   }
 
   if (FLAG_multipass) {
-    Cfg* cfg = Cfg::Build(literal);
+    CfgGlobals scope(literal);
+    Cfg* cfg = Cfg::Build();
 #ifdef DEBUG
     if (FLAG_print_cfg && cfg != NULL) {
       SmartPointer<char> name = literal->name()->ToCString();
@@ -90,7 +91,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     }
 #endif
     if (cfg != NULL) {
-      return cfg->Compile(literal, script);
+      return cfg->Compile(script);
     }
   }
 

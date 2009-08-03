@@ -36,32 +36,37 @@ namespace v8 {
 namespace internal {
 
 
-ExitNode* Cfg::global_exit_ = NULL;
+CfgGlobals* CfgGlobals::top_ = NULL;
 
 
-void CfgNode::Reset() {
+CfgGlobals::CfgGlobals(FunctionLiteral* fun)
+    : global_fun_(fun),
+      global_exit_(new ExitNode()),
 #ifdef DEBUG
-  node_counter_ = 0;
+      node_counter_(0),
 #endif
-}
-
-
-void Cfg::Reset(FunctionLiteral* fun) {
-  global_exit_ = new ExitNode(fun);
-  CfgNode::Reset();
+      previous_(top_) {
+  top_ = this;
 }
 
 
 #define BAILOUT(reason)                         \
   do { return NULL; } while (false)
 
-Cfg* Cfg::Build(FunctionLiteral* fun) {
+Cfg* Cfg::Build() {
+  FunctionLiteral* fun = CfgGlobals::current()->fun();
+  if (fun->scope()->num_heap_slots() > 0) {
+    BAILOUT("function has context slots");
+  }
+  if (fun->scope()->arguments() != NULL) {
+    BAILOUT("function uses .arguments");
+  }
+
   ZoneList<Statement*>* body = fun->body();
   if (body->is_empty()) {
     BAILOUT("empty function body");
   }
 
-  Cfg::Reset(fun);
   StatementBuilder builder;
   builder.VisitStatements(body);
   Cfg* cfg = builder.cfg();
@@ -71,16 +76,16 @@ Cfg* Cfg::Build(FunctionLiteral* fun) {
   if (cfg->has_exit()) {
     BAILOUT("control path without explicit return");
   }
-  cfg->PrependEntryNode(fun);
+  cfg->PrependEntryNode();
   return cfg;
 }
 
 #undef BAILOUT
 
 
-void Cfg::PrependEntryNode(FunctionLiteral* fun) {
+void Cfg::PrependEntryNode() {
   ASSERT(!is_empty());
-  entry_ = new EntryNode(fun, InstructionBlock::cast(entry()));
+  entry_ = new EntryNode(InstructionBlock::cast(entry()));
 }
 
 
@@ -93,18 +98,9 @@ void Cfg::Append(Instruction* instr) {
 
 void Cfg::AppendReturnInstruction(Value* value) {
   Append(new ReturnInstr(value));
-  InstructionBlock::cast(exit_)->set_successor(global_exit_);
+  ExitNode* global_exit = CfgGlobals::current()->exit();
+  InstructionBlock::cast(exit_)->set_successor(global_exit);
   exit_ = NULL;
-}
-
-
-EntryNode::EntryNode(FunctionLiteral* fun, InstructionBlock* succ)
-    : successor_(succ), local_count_(fun->scope()->num_stack_slots()) {
-}
-
-
-ExitNode::ExitNode(FunctionLiteral* fun)
-    : parameter_count_(fun->scope()->num_parameters()) {
 }
 
 
@@ -124,16 +120,19 @@ void EntryNode::Unmark() {
 }
 
 
-void ExitNode::Unmark() {}
+void ExitNode::Unmark() {
+  is_marked_ = false;
+}
 
 
-Handle<Code> Cfg::Compile(FunctionLiteral* fun, Handle<Script> script) {
+Handle<Code> Cfg::Compile(Handle<Script> script) {
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler* masm = new MacroAssembler(NULL, kInitialBufferSize);
   entry()->Compile(masm);
   entry()->Unmark();
   CodeDesc desc;
   masm->GetCode(&desc);
+  FunctionLiteral* fun = CfgGlobals::current()->fun();
   ZoneScopeInfo info(fun->scope());
   InLoopFlag in_loop = fun->loop_nesting() ? IN_LOOP : NOT_IN_LOOP;
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
@@ -149,8 +148,9 @@ Handle<Code> Cfg::Compile(FunctionLiteral* fun, Handle<Script> script) {
       PrintF("--- Raw source ---\n");
       StringInputBuffer stream(String::cast(script->source()));
       stream.Seek(fun->start_position());
-      // fun->end_position() points to the last character in the stream. We
-      // need to compensate by adding one to calculate the length.
+      // fun->end_position() points to the last character in the
+      // stream. We need to compensate by adding one to calculate the
+      // length.
       int source_len = fun->end_position() - fun->start_position() + 1;
       for (int i = 0; i < source_len; i++) {
         if (stream.has_more()) PrintF("%c", stream.GetNext());
@@ -207,7 +207,15 @@ void ExpressionBuilder::VisitSlot(Slot* expr) {
 
 
 void ExpressionBuilder::VisitVariableProxy(VariableProxy* expr) {
-  BAILOUT("VariableProxy");
+  Expression* rewrite = expr->var()->rewrite();
+  if (rewrite == NULL || rewrite->AsSlot() == NULL) {
+    BAILOUT("unsupported variable (not a slot)");
+  }
+  Slot* slot = rewrite->AsSlot();
+  if (slot->type() != Slot::PARAMETER && slot->type() != Slot::LOCAL) {
+    BAILOUT("unsupported slot type (not a parameter or local)");
+  }
+  value_ = new SlotLocation(slot->type(), slot->index());
 }
 
 
@@ -416,7 +424,24 @@ void Cfg::Print() {
 
 
 void Constant::Print() {
+  PrintF("Constant(");
   handle_->Print();
+  PrintF(")");
+}
+
+
+void SlotLocation::Print() {
+  PrintF("Slot(");
+  switch (type_) {
+    case Slot::PARAMETER:
+      PrintF("PARAMETER, %d)", index_);
+      break;
+    case Slot::LOCAL:
+      PrintF("LOCAL, %d)", index_);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -425,9 +450,6 @@ void ReturnInstr::Print() {
   value_->Print();
   PrintF("\n");
 }
-
-
-int CfgNode::node_counter_ = 0;
 
 
 void InstructionBlock::Print() {

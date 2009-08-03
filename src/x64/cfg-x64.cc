@@ -60,10 +60,11 @@ void EntryNode::Compile(MacroAssembler* masm) {
     __ movq(rbp, rsp);
     __ push(rsi);
     __ push(rdi);
-    if (local_count_ > 0) {
+    int count = CfgGlobals::current()->fun()->scope()->num_stack_slots();
+    if (count > 0) {
       __ movq(kScratchRegister, Factory::undefined_value(),
               RelocInfo::EMBEDDED_OBJECT);
-      for (int i = 0; i < local_count_; i++) {
+      for (int i = 0; i < count; i++) {
         __ push(kScratchRegister);
       }
     }
@@ -101,7 +102,8 @@ void ExitNode::Compile(MacroAssembler* masm) {
   __ RecordJSReturn();
   __ movq(rsp, rbp);
   __ pop(rbp);
-  __ ret((parameter_count_ + 1) * kPointerSize);
+  int count = CfgGlobals::current()->fun()->scope()->num_parameters();
+  __ ret((count + 1) * kPointerSize);
   // Add padding that will be overwritten by a debugger breakpoint.
   // "movq rsp, rbp; pop rbp" has length 5.  "ret k" has length 2.
   const int kPadding = Debug::kX64JSReturnSequenceLength - 5 - 2;
@@ -119,6 +121,24 @@ void ReturnInstr::Compile(MacroAssembler* masm) {
 
 void Constant::ToRegister(MacroAssembler* masm, Register reg) {
   __ Move(reg, handle_);
+}
+
+
+void SlotLocation::ToRegister(MacroAssembler* masm, Register reg) {
+  switch (type_) {
+    case Slot::PARAMETER: {
+      int count = CfgGlobals::current()->fun()->scope()->num_parameters();
+      __ movq(reg, Operand(rbp, (1 + count - index_) * kPointerSize));
+      break;
+    }
+    case Slot::LOCAL: {
+      const int kOffset = JavaScriptFrameConstants::kLocal0Offset;
+      __ movq(reg, Operand(rbp, kOffset - index_ * kPointerSize));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 #undef __

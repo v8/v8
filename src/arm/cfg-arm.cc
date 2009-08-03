@@ -56,9 +56,10 @@ void EntryNode::Compile(MacroAssembler* masm) {
     Comment cmnt(masm, "[ EntryNode");
     __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
     __ add(fp, sp, Operand(2 * kPointerSize));
-    if (local_count_ > 0) {
+    int count = CfgGlobals::current()->fun()->scope()->num_stack_slots();
+    if (count > 0) {
       __ mov(ip, Operand(Factory::undefined_value()));
-      for (int i = 0; i < local_count_; i++) {
+      for (int i = 0; i < count; i++) {
         __ push(ip);
       }
     }
@@ -84,7 +85,8 @@ void ExitNode::Compile(MacroAssembler* masm) {
   }
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
-  __ add(sp, sp, Operand((parameter_count_ + 1) * kPointerSize));
+  int count = CfgGlobals::current()->fun()->scope()->num_parameters();
+  __ add(sp, sp, Operand((count + 1) * kPointerSize));
   __ Jump(lr);
 }
 
@@ -97,6 +99,24 @@ void ReturnInstr::Compile(MacroAssembler* masm) {
 
 void Constant::ToRegister(MacroAssembler* masm, Register reg) {
   __ mov(reg, Operand(handle_));
+}
+
+
+void SlotLocation::ToRegister(MacroAssembler* masm, Register reg) {
+  switch (type_) {
+    case Slot::PARAMETER: {
+      int count = CfgGlobals::current()->fun()->scope()->num_parameters();
+      __ ldr(reg, MemOperand(fp, (1 + count - index_) * kPointerSize));
+      break;
+    }
+    case Slot::LOCAL: {
+      const int kOffset = JavaScriptFrameConstants::kLocal0Offset;
+      __ ldr(reg, MemOperand(fp, kOffset - index_ * kPointerSize));
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 #undef __

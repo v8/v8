@@ -33,6 +33,47 @@
 namespace v8 {
 namespace internal {
 
+class ExitNode;
+
+// A convenient class to keep 'global' values when building a CFG.  Since
+// CFG construction can be invoked recursively, CFG globals are stacked.
+class CfgGlobals BASE_EMBEDDED {
+ public:
+  explicit CfgGlobals(FunctionLiteral* fun);
+
+  ~CfgGlobals() { top_ = previous_; }
+
+  static CfgGlobals* current() {
+    ASSERT(top_ != NULL);
+    return top_;
+  }
+
+  FunctionLiteral* fun() { return global_fun_; }
+
+  ExitNode* exit() { return global_exit_; }
+
+#ifdef DEBUG
+  int next_number() { return node_counter_++; }
+#endif
+
+ private:
+  static CfgGlobals* top_;
+
+  // Function literal currently compiling.
+  FunctionLiteral* global_fun_;
+
+  // Shared global exit node for all returns from the same function.
+  ExitNode* global_exit_;
+
+#ifdef DEBUG
+  // Used to number nodes when printing.
+  int node_counter_;
+#endif
+
+  CfgGlobals* previous_;
+};
+
+
 // Values appear in instructions.  They represent trivial source
 // expressions: ones with no side effects and that do not require code to be
 // generated.
@@ -63,6 +104,37 @@ class Constant : public Value {
 
  private:
   Handle<Object> handle_;
+};
+
+
+// Locations are values that can be stored into ('lvalues').
+class Location : public Value {
+ public:
+  virtual ~Location() {}
+
+  virtual void ToRegister(MacroAssembler* masm, Register reg) = 0;
+
+#ifdef DEBUG
+  virtual void Print() = 0;
+#endif
+};
+
+
+// SlotLocations represent parameters and stack-allocated (i.e.,
+// non-context) local variables.
+class SlotLocation : public Location {
+ public:
+  SlotLocation(Slot::Type type, int index) : type_(type), index_(index) {}
+
+  void ToRegister(MacroAssembler* masm, Register reg);
+
+#ifdef DEBUG
+  void Print();
+#endif
+
+ private:
+  Slot::Type type_;
+  int index_;
 };
 
 
@@ -114,8 +186,6 @@ class CfgNode : public ZoneObject {
 
   bool is_marked() { return is_marked_; }
 
-  static void Reset();
-
   virtual bool is_block() { return false; }
 
   virtual void Unmark() = 0;
@@ -124,7 +194,7 @@ class CfgNode : public ZoneObject {
 
 #ifdef DEBUG
   int number() {
-    if (number_ == -1) number_ = node_counter_++;
+    if (number_ == -1) number_ = CfgGlobals::current()->next_number();
     return number_;
   }
 
@@ -136,8 +206,6 @@ class CfgNode : public ZoneObject {
 
 #ifdef DEBUG
   int number_;
-
-  static int node_counter_;
 #endif
 };
 
@@ -182,7 +250,7 @@ class InstructionBlock : public CfgNode {
 // containing the function's first instruction.
 class EntryNode : public CfgNode {
  public:
-  EntryNode(FunctionLiteral* fun, InstructionBlock* succ);
+  explicit EntryNode(InstructionBlock* succ) : successor_(succ) {}
 
   virtual ~EntryNode() {}
 
@@ -196,7 +264,6 @@ class EntryNode : public CfgNode {
 
  private:
   InstructionBlock* successor_;
-  int local_count_;
 };
 
 
@@ -205,7 +272,7 @@ class EntryNode : public CfgNode {
 // the blocks returning from the function.
 class ExitNode : public CfgNode {
  public:
-  explicit ExitNode(FunctionLiteral* fun);
+  ExitNode() {}
 
   virtual ~ExitNode() {}
 
@@ -216,16 +283,13 @@ class ExitNode : public CfgNode {
 #ifdef DEBUG
   void Print();
 #endif
-
- private:
-  int parameter_count_;
 };
 
 
-// A CFG is a consists of a linked structure of nodes.  It has a single
-// entry node and optionally an exit node.  There is a distinguished global
-// exit node that is used as the successor of all blocks that return from
-// the function.
+// A CFG consists of a linked structure of nodes.  It has a single entry
+// node and optionally an exit node.  There is a distinguished global exit
+// node that is used as the successor of all blocks that return from the
+// function.
 //
 // Fragments of control-flow graphs, produced when traversing the statements
 // and expressions in the source AST, are represented by the same class.
@@ -241,7 +305,7 @@ class Cfg : public ZoneObject {
   explicit Cfg(InstructionBlock* block) : entry_(block), exit_(block) {}
 
   // Build the CFG for a function.
-  static Cfg* Build(FunctionLiteral* fun);
+  static Cfg* Build();
 
   // The entry and exit nodes.
   CfgNode* entry() { return entry_; }
@@ -256,7 +320,7 @@ class Cfg : public ZoneObject {
 
   // Add an entry node to a CFG fragment.  It is no longer a fragment
   // (instructions cannot be prepended).
-  void PrependEntryNode(FunctionLiteral* fun);
+  void PrependEntryNode();
 
   // Append an instruction to the end of a CFG fragment.  Assumes it has an
   // available exit.
@@ -266,7 +330,7 @@ class Cfg : public ZoneObject {
   // longer has an available exit node.
   void AppendReturnInstruction(Value* value);
 
-  Handle<Code> Compile(FunctionLiteral* fun, Handle<Script> script);
+  Handle<Code> Compile(Handle<Script> script);
 
 #ifdef DEBUG
   // Support for printing.
@@ -274,12 +338,6 @@ class Cfg : public ZoneObject {
 #endif
 
  private:
-  // Reset static variables before building the CFG for a function.
-  static void Reset(FunctionLiteral* fun);
-
-  // Shared global exit nodes for all returns from the same function.
-  static ExitNode* global_exit_;
-
   // Entry and exit nodes.
   CfgNode* entry_;
   CfgNode* exit_;
