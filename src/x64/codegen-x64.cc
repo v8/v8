@@ -6434,22 +6434,23 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   // Fetch top stack handler.
   ExternalReference handler_address(Top::k_handler_address);
   __ movq(kScratchRegister, handler_address);
-  __ movq(rdx, Operand(kScratchRegister, 0));
+  __ movq(rsp, Operand(kScratchRegister, 0));
 
   // Unwind the handlers until the ENTRY handler is found.
   Label loop, done;
   __ bind(&loop);
   // Load the type of the current stack handler.
-  __ cmpq(Operand(rdx, StackHandlerConstants::kStateOffset),
+  __ cmpq(Operand(rsp, StackHandlerConstants::kStateOffset),
          Immediate(StackHandler::ENTRY));
   __ j(equal, &done);
   // Fetch the next handler in the list.
-  __ movq(rdx, Operand(rdx, StackHandlerConstants::kNextOffset));
+  ASSERT(StackHandlerConstants::kNextOffset == 0);
+  __ pop(rsp);
   __ jmp(&loop);
   __ bind(&done);
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  __ movq(rax, Operand(rdx, StackHandlerConstants::kNextOffset));
+  __ pop(rax);
   __ store_rax(handler_address);
 
   // Set external caught exception to false.
@@ -6462,14 +6463,12 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   ExternalReference pending_exception(Top::k_pending_exception_address);
   __ store_rax(pending_exception);
 
-  // Restore the stack to the address of the ENTRY handler
-  __ movq(rsp, rdx);
-
   // Clear the context pointer;
   __ xor_(rsi, rsi);
 
   // Restore registers from handler.
-
+  ASSERT_EQ(StackHandlerConstants::kNextOffset + kPointerSize,
+            StackHandlerConstants::kFPOffset);
   __ pop(rbp);  // FP
   ASSERT_EQ(StackHandlerConstants::kFPOffset + kPointerSize,
             StackHandlerConstants::kStateOffset);

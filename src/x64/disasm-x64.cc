@@ -88,7 +88,7 @@ static ByteMnemonic two_operands_instr[] = {
   { 0x39, OPER_REG_OP_ORDER,      "cmp" },
   { 0x3A, BYTE_REG_OPER_OP_ORDER, "cmp" },
   { 0x3B, REG_OPER_OP_ORDER,      "cmp" },
-  { 0x8D, REG_OPER_OP_ORDER,      "lea" },
+  { 0x63, REG_OPER_OP_ORDER,      "movsxlq" },
   { 0x84, BYTE_REG_OPER_OP_ORDER, "test" },
   { 0x85, REG_OPER_OP_ORDER,      "test" },
   { 0x86, BYTE_REG_OPER_OP_ORDER, "xchg" },
@@ -97,6 +97,7 @@ static ByteMnemonic two_operands_instr[] = {
   { 0x89, OPER_REG_OP_ORDER,      "mov" },
   { 0x8A, BYTE_REG_OPER_OP_ORDER, "mov" },
   { 0x8B, REG_OPER_OP_ORDER,      "mov" },
+  { 0x8D, REG_OPER_OP_ORDER,      "lea" },
   { -1, UNSET_OP_ORDER, "" }
 };
 
