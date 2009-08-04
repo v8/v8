@@ -87,7 +87,7 @@ int64_t OS::Ticks() {
 
 
 const char* OS::LocalTimezone(double time) {
-  ASSERT(!isnan(time));
+  if (isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return "";
@@ -96,7 +96,7 @@ const char* OS::LocalTimezone(double time) {
 
 
 double OS::DaylightSavingsOffset(double time) {
-  ASSERT(!isnan(time));
+  if (isnan(time)) return nan_value();
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
   if (NULL == t) return nan_value();
