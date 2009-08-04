@@ -3434,6 +3434,7 @@ void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
+  __ push(rsi);
 
   // Make sure the frame is aligned like the OS expects.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
@@ -3446,11 +3447,12 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   // Call V8::RandomPositiveSmi().
   __ Call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
 
-  // Restore stack pointer from callee-saved register edi.
+  // Restore stack pointer from callee-saved register.
   if (kFrameAlignment > 0) {
     __ movq(rsp, rbx);
   }
 
+  __ pop(rsi);
   Result result = allocator_->Allocate(rax);
   frame_->Push(&result);
 }
@@ -6807,6 +6809,7 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm) {
   __ bind(&done);
 }
 
+
 void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
                                             Register lhs,
                                             Register rhs) {
@@ -6840,6 +6843,7 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 
   __ bind(&done);
 }
+
 
 void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
                                              Label* non_float) {
@@ -6877,6 +6881,7 @@ const char* GenericBinaryOpStub::GetName() {
     default:         return "GenericBinaryOpStub";
   }
 }
+
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (rax <op> rbx) and
@@ -7018,7 +7023,6 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
-
   if (flags_ == SMI_CODE_IN_STUB) {
     // The fast case smi code wasn't inlined in the stub caller
     // code. Generate it here to speed up common operations.
