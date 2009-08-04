@@ -606,8 +606,21 @@ void LoadIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
 
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  StubCompiler::GenerateLoadArrayLength(masm, rax, rdx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
+
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
@@ -650,8 +663,21 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
+
 
 
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
