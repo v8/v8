@@ -126,6 +126,7 @@ LIBRARY_FLAGS = {
     'os:linux': {
       'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
       'library:shared': {
+        'CPPDEFINES': ['V8_SHARED'],
         'LIBS': ['pthread']
       }
     },

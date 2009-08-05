@@ -85,11 +85,10 @@ typedef unsigned __int64 uint64_t;
 
 #include <stdint.h>
 
-// Setup for Linux shared library export. There is no need to destinguish
-// neither between building or using the V8 shared library nor between using
-// the shared or static V8 library as there is on Windows. Therefore there is
-// no checking of BUILDING_V8_SHARED and USING_V8_SHARED.
-#if defined(__GNUC__) && (__GNUC__ >= 4)
+// Setup for Linux shared library export. There is no need to distinguish
+// between building or using the V8 shared library, but we should not
+// export symbols when we are building a static library.
+#if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
 #define V8EXPORT __attribute__ ((visibility("default")))
 #define V8EXPORT_INLINE __attribute__ ((visibility("default")))
 #else  // defined(__GNUC__) && (__GNUC__ >= 4)
