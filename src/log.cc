@@ -989,7 +989,7 @@ void Logger::PauseProfiler(int flags) {
     FLAG_log_gc = false;
   }
   // Turn off logging if no active modules remain.
-  if (active_modules & ~flags == PROFILER_MODULE_NONE) {
+  if ((active_modules & ~flags) == PROFILER_MODULE_NONE) {
     is_logging_ = false;
   }
 }
