@@ -42,8 +42,10 @@ CfgGlobals* CfgGlobals::top_ = NULL;
 CfgGlobals::CfgGlobals(FunctionLiteral* fun)
     : global_fun_(fun),
       global_exit_(new ExitNode()),
+      effect_(new Effect()),
 #ifdef DEBUG
       node_counter_(0),
+      temp_counter_(0),
 #endif
       previous_(top_) {
   top_ = this;
@@ -73,6 +75,9 @@ Cfg* Cfg::Build() {
   if (cfg == NULL) {
     BAILOUT("unsupported statement type");
   }
+  if (cfg->is_empty()) {
+    BAILOUT("function body produces empty cfg");
+  }
   if (cfg->has_exit()) {
     BAILOUT("control path without explicit return");
   }
@@ -90,8 +95,10 @@ void Cfg::PrependEntryNode() {
 
 
 void Cfg::Append(Instruction* instr) {
-  ASSERT(has_exit());
-  ASSERT(!is_empty());
+  ASSERT(is_empty() || has_exit());
+  if (is_empty()) {
+    entry_ = exit_ = new InstructionBlock();
+  }
   InstructionBlock::cast(exit_)->Append(instr);
 }
 
@@ -101,6 +108,27 @@ void Cfg::AppendReturnInstruction(Value* value) {
   ExitNode* global_exit = CfgGlobals::current()->exit();
   InstructionBlock::cast(exit_)->set_successor(global_exit);
   exit_ = NULL;
+}
+
+
+void Cfg::Concatenate(Cfg* other) {
+  ASSERT(is_empty() || has_exit());
+  if (other->is_empty()) return;
+
+  if (is_empty()) {
+    entry_ = other->entry();
+    exit_ = other->exit();
+  } else {
+    // We have a pair of nonempty fragments and this has an available exit.
+    // Destructively glue the fragments together.
+    InstructionBlock* first = InstructionBlock::cast(exit_);
+    InstructionBlock* second = InstructionBlock::cast(other->entry());
+    first->instructions()->AddAll(*second->instructions());
+    if (second->successor() != NULL) {
+      first->set_successor(second->successor());
+      exit_ = other->exit();
+    }
+  }
 }
 
 
@@ -166,6 +194,26 @@ Handle<Code> Cfg::Compile(Handle<Script> script) {
 }
 
 
+void BinaryOpInstr::FastAllocate(TempLocation* temp) {
+  ASSERT(temp->where() == TempLocation::NOWHERE);
+  if (temp == val0_ || temp == val1_) {
+    temp->set_where(TempLocation::ACCUMULATOR);
+  } else {
+    temp->set_where(TempLocation::STACK);
+  }
+}
+
+
+void ReturnInstr::FastAllocate(TempLocation* temp) {
+  ASSERT(temp->where() == TempLocation::NOWHERE);
+  if (temp == value_) {
+    temp->set_where(TempLocation::ACCUMULATOR);
+  } else {
+    temp->set_where(TempLocation::STACK);
+  }
+}
+
+
 // The expression builder should not be used for declarations or statements.
 void ExpressionBuilder::VisitDeclaration(Declaration* decl) { UNREACHABLE(); }
 
@@ -178,12 +226,9 @@ STATEMENT_NODE_LIST(DEFINE_VISIT)
 // Macros (temporarily) handling unsupported expression types.
 #define BAILOUT(reason)                         \
   do {                                          \
-    value_ = NULL;                              \
+    cfg_ = NULL;                                \
     return;                                     \
   } while (false)
-
-#define CHECK_BAILOUT()                         \
-  if (value_ == NULL) { return; } else {}
 
 void ExpressionBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   BAILOUT("FunctionLiteral");
@@ -290,7 +335,46 @@ void ExpressionBuilder::VisitCountOperation(CountOperation* expr) {
 
 
 void ExpressionBuilder::VisitBinaryOperation(BinaryOperation* expr) {
-  BAILOUT("BinaryOperation");
+  Token::Value op = expr->op();
+  switch (op) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+      BAILOUT("unsupported binary operation");
+
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD: {
+      ExpressionBuilder left, right;
+      left.Build(expr->left());
+      if (left.cfg() == NULL) {
+        BAILOUT("unsupported left subexpression in binop");
+      }
+      right.Build(expr->right());
+      if (right.cfg() == NULL) {
+        BAILOUT("unsupported right subexpression in binop");
+      }
+
+      Location* temp = new TempLocation();
+      cfg_ = left.cfg();
+      cfg_->Concatenate(right.cfg());
+      cfg_->Append(new BinaryOpInstr(temp, op, left.value(), right.value()));
+
+      value_ = temp;
+      return;
+    }
+
+    default:
+      UNREACHABLE();
+  }
 }
 
 
@@ -304,7 +388,6 @@ void ExpressionBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 #undef BAILOUT
-#undef CHECK_BAILOUT
 
 
 // Macros (temporarily) handling unsupported statement types.
@@ -367,10 +450,13 @@ void StatementBuilder::VisitBreakStatement(BreakStatement* stmt) {
 
 void StatementBuilder::VisitReturnStatement(ReturnStatement* stmt) {
   ExpressionBuilder builder;
-  builder.Visit(stmt->expression());
-  Value* value = builder.value();
-  if (value == NULL) BAILOUT("unsupported expression type");
-  cfg_->AppendReturnInstruction(value);
+  builder.Build(stmt->expression());
+  if (builder.cfg() == NULL) {
+    BAILOUT("unsupported expression in return statement");
+  }
+
+  cfg_->Concatenate(builder.cfg());
+  cfg_->AppendReturnInstruction(builder.value());
 }
 
 
@@ -430,6 +516,11 @@ void Constant::Print() {
 }
 
 
+void Effect::Print() {
+  PrintF("Effect");
+}
+
+
 void SlotLocation::Print() {
   PrintF("Slot(");
   switch (type_) {
@@ -445,10 +536,26 @@ void SlotLocation::Print() {
 }
 
 
+void TempLocation::Print() {
+  PrintF("Temp(%d)", number());
+}
+
+
+void BinaryOpInstr::Print() {
+  PrintF("BinaryOp(");
+  loc_->Print();
+  PrintF(", %s, ", Token::Name(op_));
+  val0_->Print();
+  PrintF(", ");
+  val1_->Print();
+  PrintF(")\n");
+}
+
+
 void ReturnInstr::Print() {
-  PrintF("Return ");
+  PrintF("Return(");
   value_->Print();
-  PrintF("\n");
+  PrintF(")\n");
 }
 
 

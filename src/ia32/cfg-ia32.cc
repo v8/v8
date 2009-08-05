@@ -29,6 +29,7 @@
 
 #include "cfg.h"
 #include "codegen-inl.h"
+#include "codegen-ia32.h"
 #include "macro-assembler-ia32.h"
 
 namespace v8 {
@@ -42,6 +43,14 @@ void InstructionBlock::Compile(MacroAssembler* masm) {
   {
     Comment cmt(masm, "[ InstructionBlock");
     for (int i = 0, len = instructions_.length(); i < len; i++) {
+      // If the location of the current instruction is a temp, then the
+      // instruction cannot be in tail position in the block.  Allocate the
+      // temp based on peeking ahead to the next instruction.
+      Instruction* instr = instructions_[i];
+      Location* loc = instr->location();
+      if (loc->is_temporary()) {
+        instructions_[i+1]->FastAllocate(TempLocation::cast(loc));
+      }
       instructions_[i]->Compile(masm);
     }
   }
@@ -79,6 +88,7 @@ void EntryNode::Compile(MacroAssembler* masm) {
   }
   successor_->Compile(masm);
   if (FLAG_check_stack) {
+    Comment cmnt(masm, "[ Deferred Stack Check");
     __ bind(&deferred_enter);
     StackCheckStub stub;
     __ CallStub(&stub);
@@ -103,31 +113,120 @@ void ExitNode::Compile(MacroAssembler* masm) {
 }
 
 
-void ReturnInstr::Compile(MacroAssembler* masm) {
-  Comment cmnt(masm, "[ ReturnInstr");
-  value_->ToRegister(masm, eax);
+void BinaryOpInstr::Compile(MacroAssembler* masm) {
+  // The right-hand value should not be on the stack---if it is a
+  // compiler-generated temporary it is in the accumulator.
+  ASSERT(!val1_->is_on_stack());
+
+  Comment cmnt(masm, "[ BinaryOpInstr");
+  // We can overwrite one of the operands if it is a temporary.
+  OverwriteMode mode = NO_OVERWRITE;
+  if (val0_->is_temporary()) {
+    mode = OVERWRITE_LEFT;
+  } else if (val1_->is_temporary()) {
+    mode = OVERWRITE_RIGHT;
+  }
+
+  // Push both operands and call the specialized stub.
+  if (!val0_->is_on_stack()) {
+    val0_->Push(masm);
+  }
+  val1_->Push(masm);
+  GenericBinaryOpStub stub(op_, mode, SMI_CODE_IN_STUB);
+  __ CallStub(&stub);
+  loc_->Set(masm, eax);
 }
 
 
-void Constant::ToRegister(MacroAssembler* masm, Register reg) {
+void ReturnInstr::Compile(MacroAssembler* masm) {
+  // The location should be 'Effect'.  As a side effect, move the value to
+  // the accumulator.
+  Comment cmnt(masm, "[ ReturnInstr");
+  value_->Get(masm, eax);
+}
+
+
+void Constant::Get(MacroAssembler* masm, Register reg) {
   __ mov(reg, Immediate(handle_));
 }
 
 
-void SlotLocation::ToRegister(MacroAssembler* masm, Register reg) {
-  switch (type_) {
+void Constant::Push(MacroAssembler* masm) {
+  __ push(Immediate(handle_));
+}
+
+
+static Operand ToOperand(SlotLocation* loc) {
+  switch (loc->type()) {
     case Slot::PARAMETER: {
       int count = CfgGlobals::current()->fun()->scope()->num_parameters();
-      __ mov(reg, Operand(ebp, (1 + count - index_) * kPointerSize));
-      break;
+      return Operand(ebp, (1 + count - loc->index()) * kPointerSize);
     }
     case Slot::LOCAL: {
       const int kOffset = JavaScriptFrameConstants::kLocal0Offset;
-      __ mov(reg, Operand(ebp, kOffset - index_ * kPointerSize));
-      break;
+      return Operand(ebp, kOffset - loc->index() * kPointerSize);
     }
     default:
       UNREACHABLE();
+      return Operand(eax);
+  }
+}
+
+
+void SlotLocation::Get(MacroAssembler* masm, Register reg) {
+  __ mov(reg, ToOperand(this));
+}
+
+
+void SlotLocation::Set(MacroAssembler* masm, Register reg) {
+  __ mov(ToOperand(this), reg);
+}
+
+
+void SlotLocation::Push(MacroAssembler* masm) {
+  __ push(ToOperand(this));
+}
+
+
+void TempLocation::Get(MacroAssembler* masm, Register reg) {
+  switch (where_) {
+    case ACCUMULATOR:
+      if (!reg.is(eax)) __ mov(reg, eax);
+      break;
+    case STACK:
+      __ pop(reg);
+      break;
+    case NOWHERE:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+void TempLocation::Set(MacroAssembler* masm, Register reg) {
+  switch (where_) {
+    case ACCUMULATOR:
+      if (!reg.is(eax)) __ mov(eax, reg);
+      break;
+    case STACK:
+      __ push(reg);
+      break;
+    case NOWHERE:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+void TempLocation::Push(MacroAssembler* masm) {
+  switch (where_) {
+    case ACCUMULATOR:
+      __ push(eax);
+      break;
+    case STACK:
+    case NOWHERE:
+      UNREACHABLE();
+      break;
   }
 }
 

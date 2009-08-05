@@ -34,6 +34,47 @@ namespace v8 {
 namespace internal {
 
 class ExitNode;
+class Location;
+
+// Translate a source AST into a control-flow graph (CFG).  The CFG contains
+// single-entry, single-exit blocks of straight-line instructions and
+// administrative nodes.
+//
+// Instructions are described by the following grammar.
+//
+// <Instruction> ::=
+//     BinaryOpInstr <Location> Token::Value <Value> <Value>
+//   | ReturnInstr Effect <Value>
+//
+// Values are trivial expressions:
+//
+// <Value> ::= Constant | <Location>
+//
+// Locations are storable values ('lvalues').  They can be slots,
+// compiler-generated temporaries, or the special location 'Effect'
+// indicating that no value is needed.
+//
+// <Location> ::=
+//     SlotLocation Slot::Type <Index>
+//   | TempLocation
+//   | Effect
+
+
+// Administrative nodes: There are several types of 'administrative' nodes
+// that do not contain instructions and do not necessarily have a single
+// predecessor and a single successor.
+//
+// EntryNode: there is a distinguished entry node that has no predecessors
+// and a single successor.
+//
+// ExitNode: there is a distinguished exit node that has arbitrarily many
+// predecessors and no successor.
+//
+// JoinNode: join nodes have multiple predecessors and a single successor.
+//
+// BranchNode: branch nodes have a single predecessor and multiple
+// successors.
+
 
 // A convenient class to keep 'global' values when building a CFG.  Since
 // CFG construction can be invoked recursively, CFG globals are stacked.
@@ -48,40 +89,58 @@ class CfgGlobals BASE_EMBEDDED {
     return top_;
   }
 
+  // The function currently being compiled.
   FunctionLiteral* fun() { return global_fun_; }
 
+  // The shared global exit node for all exits from the function.
   ExitNode* exit() { return global_exit_; }
 
+  // A singleton effect location.
+  Location* effect_location() { return effect_; }
+
 #ifdef DEBUG
-  int next_number() { return node_counter_++; }
+  int next_node_number() { return node_counter_++; }
+  int next_temp_number() { return temp_counter_++; }
 #endif
 
  private:
   static CfgGlobals* top_;
-
-  // Function literal currently compiling.
   FunctionLiteral* global_fun_;
-
-  // Shared global exit node for all returns from the same function.
   ExitNode* global_exit_;
+  Location* effect_;
 
 #ifdef DEBUG
-  // Used to number nodes when printing.
+  // Used to number nodes and temporaries when printing.
   int node_counter_;
+  int temp_counter_;
 #endif
 
   CfgGlobals* previous_;
 };
 
 
-// Values appear in instructions.  They represent trivial source
-// expressions: ones with no side effects and that do not require code to be
-// generated.
+// Values represent trivial source expressions: ones with no side effects
+// and that do not require code to be generated.
 class Value : public ZoneObject {
  public:
   virtual ~Value() {}
 
-  virtual void ToRegister(MacroAssembler* masm, Register reg) = 0;
+  // Predicates:
+
+  // True if the value is a temporary allocated to the stack in
+  // fast-compilation mode.
+  virtual bool is_on_stack() { return false; }
+
+  // True if the value is a compiler-generated temporary location.
+  virtual bool is_temporary() { return false; }
+
+  // Support for fast-compilation mode:
+
+  // Move the value into a register.
+  virtual void Get(MacroAssembler* masm, Register reg) = 0;
+
+  // Push the value on the stack.
+  virtual void Push(MacroAssembler* masm) = 0;
 
 #ifdef DEBUG
   virtual void Print() = 0;
@@ -96,7 +155,9 @@ class Constant : public Value {
 
   virtual ~Constant() {}
 
-  void ToRegister(MacroAssembler* masm, Register reg);
+  // Support for fast-compilation mode.
+  void Get(MacroAssembler* masm, Register reg);
+  void Push(MacroAssembler* masm);
 
 #ifdef DEBUG
   void Print();
@@ -112,11 +173,47 @@ class Location : public Value {
  public:
   virtual ~Location() {}
 
-  virtual void ToRegister(MacroAssembler* masm, Register reg) = 0;
+  // Static factory function returning the singleton effect location.
+  static Location* Effect() {
+    return CfgGlobals::current()->effect_location();
+  }
+
+  // Support for fast-compilation mode:
+
+  // Assumes temporaries have been allocated.
+  virtual void Get(MacroAssembler* masm, Register reg) = 0;
+
+  // Store the value in a register to the location.  Assumes temporaries
+  // have been allocated.
+  virtual void Set(MacroAssembler* masm, Register reg) = 0;
+
+  // Assumes temporaries have been allocated, and if the value is a
+  // temporary it was not allocated to the stack.
+  virtual void Push(MacroAssembler* masm) = 0;
 
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
+};
+
+
+// Effect is a special (singleton) location that indicates the value of a
+// computation is not needed (though its side effects are).
+class Effect : public Location {
+ public:
+  // We should not try to emit code to read or write to Effect.
+  void Get(MacroAssembler* masm, Register reg) { UNREACHABLE(); }
+  void Set(MacroAssembler* masm, Register reg) { UNREACHABLE(); }
+  void Push(MacroAssembler* masm) { UNREACHABLE(); }
+
+#ifdef DEBUG
+  void Print();
+#endif
+
+ private:
+  Effect() {}
+
+  friend class CfgGlobals;
 };
 
 
@@ -126,7 +223,14 @@ class SlotLocation : public Location {
  public:
   SlotLocation(Slot::Type type, int index) : type_(type), index_(index) {}
 
-  void ToRegister(MacroAssembler* masm, Register reg);
+  // Accessors.
+  Slot::Type type() { return type_; }
+  int index() { return index_; }
+
+  // Support for fast-compilation mode.
+  void Get(MacroAssembler* masm, Register reg);
+  void Set(MacroAssembler* masm, Register reg);
+  void Push(MacroAssembler* masm);
 
 #ifdef DEBUG
   void Print();
@@ -138,29 +242,136 @@ class SlotLocation : public Location {
 };
 
 
+// TempLocations represent compiler generated temporaries.  They are
+// allocated to registers or memory either before code generation (in the
+// optimized-for-speed compiler) or on the fly during code generation (in
+// the optimized-for-space compiler).
+class TempLocation : public Location {
+ public:
+  // Fast-compilation mode allocation decisions.
+  enum Where {
+    NOWHERE,      // Not yet allocated.
+    ACCUMULATOR,  // Allocated to the dedicated accumulator register.
+    STACK         //   "   "   "   "  stack.
+  };
+
+  TempLocation() : where_(NOWHERE) {
+#ifdef DEBUG
+    number_ = -1;
+#endif
+  }
+
+  // Cast accessor.
+  static TempLocation* cast(Location* loc) {
+    ASSERT(loc->is_temporary());
+    return reinterpret_cast<TempLocation*>(loc);
+  }
+
+  // Accessors.
+  Where where() { return where_; }
+  void set_where(Where where) { where_ = where; }
+
+  // Predicates.
+  bool is_on_stack() { return where_ == STACK; }
+  bool is_temporary() { return true; }
+
+  // Support for fast-compilation mode.  Assume the temp has been allocated.
+  void Get(MacroAssembler* masm, Register reg);
+  void Set(MacroAssembler* masm, Register reg);
+  void Push(MacroAssembler* masm);
+
+#ifdef DEBUG
+  int number() {
+    if (number_ == -1) number_ = CfgGlobals::current()->next_temp_number();
+    return number_;
+  }
+
+  void Print();
+#endif
+
+ private:
+  Where where_;
+
+#ifdef DEBUG
+  int number_;
+#endif
+};
+
+
 // Instructions are computations.  The represent non-trivial source
 // expressions: typically ones that have side effects and require code to
 // be generated.
 class Instruction : public ZoneObject {
  public:
+  // Every instruction has a location where its result is stored (which may
+  // be Effect).
+  explicit Instruction(Location* loc) : loc_(loc) {}
+
   virtual ~Instruction() {}
 
+  // Accessors.
+  Location* location() { return loc_; }
+
+  // Support for fast-compilation mode:
+
+  // Emit code to perform the instruction.
   virtual void Compile(MacroAssembler* masm) = 0;
+
+  // Allocate a temporary which is the result of the immediate predecessor
+  // instruction.  It is allocated to the accumulator register if it is used
+  // as an operand to this instruction, otherwise to the stack.
+  virtual void FastAllocate(TempLocation* temp) = 0;
 
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
+
+ protected:
+  Location* loc_;
 };
 
 
-// Return a value.
+// Perform a (non-short-circuited) binary operation on a pair of values,
+// leaving the result in a location.
+class BinaryOpInstr : public Instruction {
+ public:
+  BinaryOpInstr(Location* loc, Token::Value op, Value* val0, Value* val1)
+      : Instruction(loc), op_(op), val0_(val0), val1_(val1) {
+  }
+
+  // Support for fast-compilation mode.
+  void Compile(MacroAssembler* masm);
+  void FastAllocate(TempLocation* temp);
+
+#ifdef DEBUG
+  void Print();
+#endif
+
+ private:
+  Token::Value op_;
+  Value* val0_;
+  Value* val1_;
+};
+
+
+// Return a value.  Has the side effect of moving its value into the return
+// value register.  Can only occur as the last instruction in an instruction
+// block, and implies that the block is closed (cannot have instructions
+// appended or graph fragments concatenated to the end) and that the block's
+// successor is the global exit node for the current function.
 class ReturnInstr : public Instruction {
  public:
-  explicit ReturnInstr(Value* value) : value_(value) {}
+  // Location is always Effect.
+  explicit ReturnInstr(Value* value)
+      : Instruction(CfgGlobals::current()->effect_location()),
+        value_(value) {
+  }
 
   virtual ~ReturnInstr() {}
 
+  // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
+  void FastAllocate(TempLocation* temp);
 
 #ifdef DEBUG
   void Print();
@@ -171,9 +382,7 @@ class ReturnInstr : public Instruction {
 };
 
 
-// Nodes make up control-flow graphs.  They contain single-entry,
-// single-exit blocks of instructions and administrative nodes making up the
-// graph structure.
+// Nodes make up control-flow graphs.
 class CfgNode : public ZoneObject {
  public:
   CfgNode() : is_marked_(false) {
@@ -184,17 +393,26 @@ class CfgNode : public ZoneObject {
 
   virtual ~CfgNode() {}
 
+  // Because CFGs contain cycles, nodes support marking during traversal
+  // (e.g., for printing or compilation).  The traversal functions will mark
+  // unmarked nodes and backtrack if they encounter a marked one.  After a
+  // traversal, the graph should be explicitly unmarked by calling Unmark on
+  // the entry node.
   bool is_marked() { return is_marked_; }
-
-  virtual bool is_block() { return false; }
-
   virtual void Unmark() = 0;
 
+  // Predicates:
+
+  // True if the node is an instruction block.
+  virtual bool is_block() { return false; }
+
+  // Support for fast-compilation mode.  Emit the instructions or control
+  // flow represented by the node.
   virtual void Compile(MacroAssembler* masm) = 0;
 
 #ifdef DEBUG
   int number() {
-    if (number_ == -1) number_ = CfgGlobals::current()->next_number();
+    if (number_ == -1) number_ = CfgGlobals::current()->next_node_number();
     return number_;
   }
 
@@ -217,22 +435,30 @@ class InstructionBlock : public CfgNode {
 
   virtual ~InstructionBlock() {}
 
+  void Unmark();
+
+  // Cast accessor.
   static InstructionBlock* cast(CfgNode* node) {
     ASSERT(node->is_block());
     return reinterpret_cast<InstructionBlock*>(node);
   }
+
+  bool is_block() { return true; }
+
+  // Accessors.
+  CfgNode* successor() { return successor_; }
 
   void set_successor(CfgNode* succ) {
     ASSERT(successor_ == NULL);
     successor_ = succ;
   }
 
-  bool is_block() { return true; }
+  ZoneList<Instruction*>* instructions() { return &instructions_; }
 
-  void Unmark();
-
+  // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
 
+  // Add an instruction to the end of the block.
   void Append(Instruction* instr) { instructions_.Add(instr); }
 
 #ifdef DEBUG
@@ -245,9 +471,7 @@ class InstructionBlock : public CfgNode {
 };
 
 
-// The CFG for a function has a distinguished entry node.  It has no
-// predecessors and a single successor.  The successor is the block
-// containing the function's first instruction.
+// An entry node (one per function).
 class EntryNode : public CfgNode {
  public:
   explicit EntryNode(InstructionBlock* succ) : successor_(succ) {}
@@ -256,6 +480,7 @@ class EntryNode : public CfgNode {
 
   void Unmark();
 
+  // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
 
 #ifdef DEBUG
@@ -267,9 +492,7 @@ class EntryNode : public CfgNode {
 };
 
 
-// The CFG for a function has a distinguished exit node.  It has no
-// successor and arbitrarily many predecessors.  The predecessors are all
-// the blocks returning from the function.
+// An exit node (one per function).
 class ExitNode : public CfgNode {
  public:
   ExitNode() {}
@@ -278,6 +501,7 @@ class ExitNode : public CfgNode {
 
   void Unmark();
 
+  // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
 
 #ifdef DEBUG
@@ -286,28 +510,36 @@ class ExitNode : public CfgNode {
 };
 
 
-// A CFG consists of a linked structure of nodes.  It has a single entry
-// node and optionally an exit node.  There is a distinguished global exit
-// node that is used as the successor of all blocks that return from the
-// function.
+// A CFG consists of a linked structure of nodes.  Nodes are linked by
+// pointing to their successors, always beginning with a (single) entry node
+// (not necessarily of type EntryNode).  If it is still possible to add
+// nodes to the end of the graph (i.e., there is a (single) path that does
+// not end with the global exit node), then the CFG has an exit node as
+// well.
 //
-// Fragments of control-flow graphs, produced when traversing the statements
-// and expressions in the source AST, are represented by the same class.
-// They have instruction blocks as both their entry and exit (if there is
-// one).  Instructions can always be prepended or appended to fragments, and
-// fragments can always be concatenated.
+// The empty CFG is represented by a NULL entry and a NULL exit.
 //
-// A singleton CFG fragment (i.e., with only one node) has the same node as
-// both entry and exit (if the exit is available).
+// We use the term 'open fragment' to mean a CFG whose entry and exits are
+// both instruction blocks.  It is always possible to add instructions and
+// nodes to the beginning or end of an open fragment.
+//
+// We use the term 'closed fragment' to mean a CFG whose entry is an
+// instruction block and whose exit is NULL (all paths go to the global
+// exit).
+//
+// We use the term 'fragment' to refer to a CFG that is known to be an open
+// or closed fragment.
 class Cfg : public ZoneObject {
  public:
-  // Create a singleton CFG fragment.
-  explicit Cfg(InstructionBlock* block) : entry_(block), exit_(block) {}
+  // Create an empty CFG fragment.
+  Cfg() : entry_(NULL), exit_(NULL) {}
 
-  // Build the CFG for a function.
+  // Build the CFG for a function.  The returned CFG begins with an
+  // EntryNode and all paths end with the ExitNode.
   static Cfg* Build();
 
-  // The entry and exit nodes.
+  // The entry and exit nodes of the CFG (not necessarily EntryNode and
+  // ExitNode).
   CfgNode* entry() { return entry_; }
   CfgNode* exit() { return exit_; }
 
@@ -318,18 +550,21 @@ class Cfg : public ZoneObject {
   // concatenated to).
   bool has_exit() { return exit_ != NULL; }
 
-  // Add an entry node to a CFG fragment.  It is no longer a fragment
-  // (instructions cannot be prepended).
+  // Add an EntryNode to a CFG fragment.  It is no longer a fragment
+  // (instructions can no longer be prepended).
   void PrependEntryNode();
 
-  // Append an instruction to the end of a CFG fragment.  Assumes it has an
-  // available exit.
+  // Append an instruction to the end of an open fragment.
   void Append(Instruction* instr);
 
-  // Appends a return instruction to the end of a CFG fragment.  It no
-  // longer has an available exit node.
+  // Appends a return instruction to the end of an open fragment and make
+  // it a closed fragment (the exit's successor becomes global exit node).
   void AppendReturnInstruction(Value* value);
 
+  // Glue an other CFG fragment to the end of this (open) fragment.
+  void Concatenate(Cfg* other);
+
+  // Support for compilation.  Compile the entire CFG.
   Handle<Code> Compile(Handle<Script> script);
 
 #ifdef DEBUG
@@ -344,12 +579,24 @@ class Cfg : public ZoneObject {
 };
 
 
-// An Expression Builder traverses a trivial expression and returns a value.
+// An ExpressionBuilder traverses an expression and returns an open CFG
+// fragment (currently a possibly empty list of instructions represented by
+// a singleton instruction block) and the expression's value.
+//
+// Failure is to build the CFG is indicated by a NULL CFG.
 class ExpressionBuilder : public AstVisitor {
  public:
-  ExpressionBuilder() : value_(new Constant(Handle<Object>::null())) {}
+  ExpressionBuilder() : value_(NULL), cfg_(NULL) {}
 
+  // Result accessors.
   Value* value() { return value_; }
+  Cfg* cfg() { return cfg_; }
+
+  void Build(Expression* expr) {
+    value_ = NULL;
+    cfg_ = new Cfg();
+    Visit(expr);
+  }
 
   // AST node visitors.
 #define DECLARE_VISIT(type) void Visit##type(type* node);
@@ -358,13 +605,16 @@ class ExpressionBuilder : public AstVisitor {
 
  private:
   Value* value_;
+  Cfg* cfg_;
 };
 
 
-// A StatementBuilder traverses a statement and returns a CFG.
+// A StatementBuilder maintains a CFG fragment accumulator.  When it visits
+// a statement, it concatenates the CFG for the statement to the end of the
+// accumulator.
 class StatementBuilder : public AstVisitor {
  public:
-  StatementBuilder() : cfg_(new Cfg(new InstructionBlock())) {}
+  StatementBuilder() : cfg_(new Cfg()) {}
 
   Cfg* cfg() { return cfg_; }
 
