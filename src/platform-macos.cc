@@ -519,7 +519,7 @@ class Sampler::PlatformData : public Malloced {
 #define REGISTER_FIELD(name) __r ## name
 #else
 #define REGISTER_FIELD(name) r ## name
-#endif // __DARWIN_UNIX03
+#endif  // __DARWIN_UNIX03
 #elif V8_HOST_ARCH_IA32
         thread_state_flavor_t flavor = i386_THREAD_STATE;
         i386_thread_state_t state;
@@ -528,7 +528,7 @@ class Sampler::PlatformData : public Malloced {
 #define REGISTER_FIELD(name) __e ## name
 #else
 #define REGISTER_FIELD(name) e ## name
-#endif // __DARWIN_UNIX03
+#endif  // __DARWIN_UNIX03
 #else
 #error Unsupported Mac OS X host architecture.
 #endif  // V8_HOST_ARCH
