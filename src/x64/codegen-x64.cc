@@ -169,6 +169,65 @@ class DeferredInlineSmiOperation: public DeferredCode {
 };
 
 
+class FloatingPointHelper : public AllStatic {
+ public:
+  // Code pattern for loading a floating point value. Input value must
+  // be either a smi or a heap number object (fp value). Requirements:
+  // operand on TOS+1. Returns operand as floating point number on FPU
+  // stack.
+  static void LoadFloatOperand(MacroAssembler* masm, Register scratch);
+
+  // Code pattern for loading a floating point value. Input value must
+  // be either a smi or a heap number object (fp value). Requirements:
+  // operand in src register. Returns operand as floating point number
+  // in XMM register
+  static void LoadFloatOperand(MacroAssembler* masm,
+                               Register src,
+                               XMMRegister dst);
+
+  // Code pattern for loading floating point values. Input values must
+  // be either smi or heap number objects (fp values). Requirements:
+  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
+  // floating point numbers in XMM registers.
+  static void LoadFloatOperands(MacroAssembler* masm,
+                                XMMRegister dst1,
+                                XMMRegister dst2);
+
+  // Code pattern for loading floating point values onto the fp stack.
+  // Input values must be either smi or heap number objects (fp values).
+  // Requirements:
+  // Register version: operands in registers lhs and rhs.
+  // Stack version: operands on TOS+1 and TOS+2.
+  // Returns operands as floating point numbers on fp stack.
+  static void LoadFloatOperands(MacroAssembler* masm);
+  static void LoadFloatOperands(MacroAssembler* masm,
+                                Register lhs,
+                                Register rhs);
+
+  // Code pattern for loading a floating point value and converting it
+  // to a 32 bit integer. Input value must be either a smi or a heap number
+  // object.
+  // Returns operands as 32-bit sign extended integers in a general purpose
+  // registers.
+  static void LoadInt32Operand(MacroAssembler* masm,
+                               const Operand& src,
+                               Register dst);
+
+  // Test if operands are smi or number objects (fp). Requirements:
+  // operand_1 in rax, operand_2 in rdx; falls through on float or smi
+  // operands, jumps to the non_float label otherwise.
+  static void CheckFloatOperands(MacroAssembler* masm,
+                                 Label* non_float);
+
+  // Allocate a heap number in new space with undefined value.
+  // Returns tagged pointer in result, or jumps to need_gc if new space is full.
+  static void AllocateHeapNumber(MacroAssembler* masm,
+                                 Label* need_gc,
+                                 Register scratch,
+                                 Register result);
+};
+
+
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation.
 
@@ -3531,11 +3590,58 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  // TODO(X64): Use inline floating point in the fast case.
+  JumpTarget done;
+  JumpTarget call_runtime;
   ASSERT(args->length() == 1);
 
-  // Load number.
+  // Load number and duplicate it.
   Load(args->at(0));
+  frame_->Dup();
+
+  // Get the number into an unaliased register and load it onto the
+  // floating point stack still leaving one copy on the frame.
+  Result number = frame_->Pop();
+  number.ToRegister();
+  frame_->Spill(number.reg());
+  FloatingPointHelper::LoadFloatOperand(masm_, number.reg());
+  number.Unuse();
+
+  // Perform the operation on the number.
+  switch (op) {
+    case SIN:
+      __ fsin();
+      break;
+    case COS:
+      __ fcos();
+      break;
+  }
+
+  // Go slow case if argument to operation is out of range.
+  Result eax_reg = allocator()->Allocate(rax);
+  ASSERT(eax_reg.is_valid());
+  __ fnstsw_ax();
+  __ testl(rax, Immediate(0x0400));  // Bit 10 is condition flag C2.
+  eax_reg.Unuse();
+  call_runtime.Branch(not_zero);
+
+  // Allocate heap number for result if possible.
+  Result scratch = allocator()->Allocate();
+  Result heap_number = allocator()->Allocate();
+  FloatingPointHelper::AllocateHeapNumber(masm_,
+                                          call_runtime.entry_label(),
+                                          scratch.reg(),
+                                          heap_number.reg());
+  scratch.Unuse();
+
+  // Store the result in the allocated heap number.
+  __ fstp_d(FieldOperand(heap_number.reg(), HeapNumber::kValueOffset));
+  // Replace the extra copy of the argument with the result.
+  frame_->SetElementAt(0, &heap_number);
+  done.Jump();
+
+  call_runtime.Bind();
+  // Free ST(0) which was not popped before calling into the runtime.
+  __ ffree(0);
   Result answer;
   switch (op) {
     case SIN:
@@ -3546,6 +3652,7 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
       break;
   }
   frame_->Push(&answer);
+  done.Bind();
 }
 
 
@@ -4604,57 +4711,6 @@ void CodeGenerator::Comparison(Condition cc,
     }
   }
 }
-
-
-class FloatingPointHelper : public AllStatic {
- public:
-  // Code pattern for loading a floating point value. Input value must
-  // be either a smi or a heap number object (fp value). Requirements:
-  // operand in src register. Returns operand as floating point number
-  // in XMM register
-  static void LoadFloatOperand(MacroAssembler* masm,
-                               Register src,
-                               XMMRegister dst);
-  // Code pattern for loading floating point values. Input values must
-  // be either smi or heap number objects (fp values). Requirements:
-  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
-  // floating point numbers in XMM registers.
-  static void LoadFloatOperands(MacroAssembler* masm,
-                                XMMRegister dst1,
-                                XMMRegister dst2);
-
-  // Code pattern for loading floating point values onto the fp stack.
-  // Input values must be either smi or heap number objects (fp values).
-  // Requirements:
-  // Register version: operands in registers lhs and rhs.
-  // Stack version: operands on TOS+1 and TOS+2.
-  // Returns operands as floating point numbers on fp stack.
-  static void LoadFloatOperands(MacroAssembler* masm);
-  static void LoadFloatOperands(MacroAssembler* masm,
-                                Register lhs,
-                                Register rhs);
-
-  // Code pattern for loading a floating point value and converting it
-  // to a 32 bit integer. Input value must be either a smi or a heap number
-  // object.
-  // Returns operands as 32-bit sign extended integers in a general purpose
-  // registers.
-  static void LoadInt32Operand(MacroAssembler* masm,
-                               const Operand& src,
-                               Register dst);
-
-  // Test if operands are smi or number objects (fp). Requirements:
-  // operand_1 in rax, operand_2 in rdx; falls through on float
-  // operands, jumps to the non_float label otherwise.
-  static void CheckFloatOperands(MacroAssembler* masm,
-                                 Label* non_float);
-  // Allocate a heap number in new space with undefined value.
-  // Returns tagged pointer in result, or jumps to need_gc if new space is full.
-  static void AllocateHeapNumber(MacroAssembler* masm,
-                                 Label* need_gc,
-                                 Register scratch,
-                                 Register result);
-};
 
 
 class DeferredInlineBinaryOperation: public DeferredCode {
@@ -6759,6 +6815,24 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
   // Tag old top and use as result.
 }
 
+
+void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
+                                           Register number) {
+  Label load_smi, done;
+
+  __ testl(number, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi);
+  __ fld_d(FieldOperand(number, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi);
+  __ sarl(number, Immediate(kSmiTagSize));
+  __ push(number);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(number);
+
+  __ bind(&done);
+}
 
 
 void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
