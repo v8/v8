@@ -754,9 +754,9 @@ class FloatingPointHelper : public AllStatic {
  public:
   // Code pattern for loading a floating point value. Input value must
   // be either a smi or a heap number object (fp value). Requirements:
-  // operand on TOS+1. Returns operand as floating point number on FPU
-  // stack.
-  static void LoadFloatOperand(MacroAssembler* masm, Register scratch);
+  // operand in register number. Returns operand as floating point number
+  // on FPU stack.
+  static void LoadFloatOperand(MacroAssembler* masm, Register number);
   // Code pattern for loading floating point values. Input values must
   // be either smi or heap number objects (fp values). Requirements:
   // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
@@ -5164,8 +5164,11 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   }
 
   // Go slow case if argument to operation is out of range.
+  Result eax_reg = allocator_->Allocate(eax);
+  ASSERT(eax_reg.is_valid());
   __ fnstsw_ax();
   __ sahf();
+  eax_reg.Unuse();
   call_runtime.Branch(parity_even, not_taken);
 
   // Allocate heap number for result if possible.
@@ -6964,19 +6967,19 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
 
 
 void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
-                                           Register scratch) {
+                                           Register number) {
   Label load_smi, done;
 
-  __ test(scratch, Immediate(kSmiTagMask));
+  __ test(number, Immediate(kSmiTagMask));
   __ j(zero, &load_smi, not_taken);
-  __ fld_d(FieldOperand(scratch, HeapNumber::kValueOffset));
+  __ fld_d(FieldOperand(number, HeapNumber::kValueOffset));
   __ jmp(&done);
 
   __ bind(&load_smi);
-  __ sar(scratch, kSmiTagSize);
-  __ push(scratch);
+  __ sar(number, kSmiTagSize);
+  __ push(number);
   __ fild_s(Operand(esp, 0));
-  __ pop(scratch);
+  __ pop(number);
 
   __ bind(&done);
 }
