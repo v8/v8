@@ -801,7 +801,7 @@ class Object BASE_EMBEDDED {
 
   // Returns true if this object is an instance of the specified
   // function template.
-  bool IsInstanceOf(FunctionTemplateInfo* type);
+  inline bool IsInstanceOf(FunctionTemplateInfo* type);
 
   inline bool IsStruct();
 #define DECLARE_STRUCT_PREDICATE(NAME, Name, name) inline bool Is##Name();

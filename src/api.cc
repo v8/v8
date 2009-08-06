@@ -1928,6 +1928,22 @@ Local<Value> v8::Object::GetPrototype() {
 }
 
 
+Local<Object> v8::Object::FindInstanceInPrototypeChain(
+    v8::Handle<FunctionTemplate> tmpl) {
+  ON_BAILOUT("v8::Object::FindInstanceInPrototypeChain()",
+             return Local<v8::Object>());
+  ENTER_V8;
+  i::JSObject* object = *Utils::OpenHandle(this);
+  i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
+  while (!object->IsInstanceOf(tmpl_info)) {
+    i::Object* prototype = object->GetPrototype();
+    if (!prototype->IsJSObject()) return Local<Object>();
+    object = i::JSObject::cast(prototype);
+  }
+  return Utils::ToLocal(i::Handle<i::JSObject>(object));
+}
+
+
 Local<Array> v8::Object::GetPropertyNames() {
   ON_BAILOUT("v8::Object::GetPropertyNames()", return Local<v8::Array>());
   ENTER_V8;
