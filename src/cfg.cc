@@ -424,7 +424,19 @@ void StatementBuilder::VisitBlock(Block* stmt) {
 
 
 void StatementBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
-  BAILOUT("ExpressionStatement");
+  ExpressionBuilder builder;
+  builder.Build(stmt->expression());
+  if (builder.cfg() == NULL) {
+    BAILOUT("unsupported expression in expression statement");
+  }
+  // Here's a temporary hack: we bang on the last instruction of the
+  // expression (if any) to set its location to Effect.
+  if (!builder.cfg()->is_empty()) {
+    InstructionBlock* block = InstructionBlock::cast(builder.cfg()->exit());
+    Instruction* instr = block->instructions()->last();
+    instr->set_location(CfgGlobals::current()->effect_location());
+  }
+  cfg_->Concatenate(builder.cfg());
 }
 
 

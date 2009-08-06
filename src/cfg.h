@@ -201,10 +201,12 @@ class Location : public Value {
 // computation is not needed (though its side effects are).
 class Effect : public Location {
  public:
-  // We should not try to emit code to read or write to Effect.
+  // We should not try to emit code to read Effect.
   void Get(MacroAssembler* masm, Register reg) { UNREACHABLE(); }
-  void Set(MacroAssembler* masm, Register reg) { UNREACHABLE(); }
   void Push(MacroAssembler* masm) { UNREACHABLE(); }
+
+  // Setting Effect is ignored.
+  void Set(MacroAssembler* masm, Register reg) {}
 
 #ifdef DEBUG
   void Print();
@@ -311,6 +313,7 @@ class Instruction : public ZoneObject {
 
   // Accessors.
   Location* location() { return loc_; }
+  void set_location(Location* loc) { loc_ = loc; }
 
   // Support for fast-compilation mode:
 
