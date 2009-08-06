@@ -97,6 +97,78 @@ CodeGenState::~CodeGenState() {
 }
 
 
+// -------------------------------------------------------------------------
+// Deferred code objects
+//
+// These subclasses of DeferredCode add pieces of code to the end of generated
+// code.  They are branched to from the generated code, and
+// keep some slower code out of the main body of the generated code.
+// Many of them call a code stub or a runtime function.
+
+class DeferredInlineSmiAdd: public DeferredCode {
+ public:
+  DeferredInlineSmiAdd(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAdd");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+class DeferredInlineSmiSub: public DeferredCode {
+ public:
+  DeferredInlineSmiSub(Register dst,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiSub");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
+// Call the appropriate binary operation stub to compute src op value
+// and leave the result in dst.
+class DeferredInlineSmiOperation: public DeferredCode {
+ public:
+  DeferredInlineSmiOperation(Token::Value op,
+                             Register dst,
+                             Register src,
+                             Smi* value,
+                             OverwriteMode overwrite_mode)
+      : op_(op),
+        dst_(dst),
+        src_(src),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiOperation");
+  }
+
+  virtual void Generate();
+
+ private:
+  Token::Value op_;
+  Register dst_;
+  Register src_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation.
 
@@ -4771,29 +4843,6 @@ void DeferredReferenceGetNamedValue::Generate() {
 }
 
 
-
-
-// The result of src + value is in dst.  It either overflowed or was not
-// smi tagged.  Undo the speculative addition and call the appropriate
-// specialized stub for add.  The result is left in dst.
-class DeferredInlineSmiAdd: public DeferredCode {
- public:
-  DeferredInlineSmiAdd(Register dst,
-                       Smi* value,
-                       OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiAdd");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
 void DeferredInlineSmiAdd::Generate() {
   __ push(dst_);
   __ push(Immediate(value_));
@@ -4825,7 +4874,7 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 
 
 void DeferredInlineSmiAddReversed::Generate() {
-  __ push(Immediate(value_));
+  __ push(Immediate(value_));  // Note: sign extended.
   __ push(dst_);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
   __ CallStub(&igostub);
@@ -4833,33 +4882,24 @@ void DeferredInlineSmiAddReversed::Generate() {
 }
 
 
-// The result of src - value is in dst.  It either overflowed or was not
-// smi tagged.  Undo the speculative subtraction and call the
-// appropriate specialized stub for subtract.  The result is left in
-// dst.
-class DeferredInlineSmiSub: public DeferredCode {
- public:
-  DeferredInlineSmiSub(Register dst,
-                       Smi* value,
-                       OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiSub");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
 void DeferredInlineSmiSub::Generate() {
   __ push(dst_);
-  __ push(Immediate(value_));
+  __ push(Immediate(value_));  // Note: sign extended.
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
   __ CallStub(&igostub);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
+}
+
+
+void DeferredInlineSmiOperation::Generate() {
+  __ push(src_);
+  __ push(Immediate(value_));  // Note: sign extended.
+  // For mod we don't generate all the Smi code inline.
+  GenericBinaryOpStub stub(
+      op_,
+      overwrite_mode_,
+      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
+  __ CallStub(&stub);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
@@ -4892,6 +4932,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 
   // Get the literal value.
   Smi* smi_value = Smi::cast(*value);
+  int int_value = smi_value->value();
 
   switch (op) {
     case Token::ADD: {
@@ -4921,6 +4962,36 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       break;
     }
     // TODO(X64): Move other implementations from ia32 to here.
+
+    // Generate inline code for mod of powers of 2 and negative powers of 2.
+    case Token::MOD:
+      if (!reversed &&
+          int_value != 0 &&
+          (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiOperation(op,
+                                                                operand->reg(),
+                                                                operand->reg(),
+                                                                smi_value,
+                                                                overwrite_mode);
+        // Check for negative or non-Smi left hand side.
+        __ testl(operand->reg(),
+                 Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000)));
+        deferred->Branch(not_zero);
+        if (int_value < 0) int_value = -int_value;
+        if (int_value == 1) {
+          __ movl(operand->reg(), Immediate(Smi::FromInt(0)));
+        } else {
+          __ and_(operand->reg(), Immediate((int_value << kSmiTagSize) - 1));
+        }
+        deferred->BindExit();
+        frame_->Push(operand);
+        break;  // This break only applies if we generated code for MOD.
+      }
+      // Fall through if we did not find a power of 2 on the right hand side!
+      // The next case must be the default.
+
     default: {
       Result constant_operand(value);
       if (reversed) {

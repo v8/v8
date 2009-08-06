@@ -601,6 +601,15 @@ class CodeGenerator: public AstVisitor {
 };
 
 
+// -------------------------------------------------------------------------
+// Code stubs
+//
+// These independent code objects are created once, and used multiple
+// times by generated code to perform common tasks, often the slow
+// case of a JavaScript operation.  They are all subclasses of CodeStub,
+// which is declared in code-stubs.h.
+
+
 // Flag that indicates whether or not the code that handles smi arguments
 // should be placed in the stub, inlined, or omitted entirely.
 enum GenericBinaryFlags {
