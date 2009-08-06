@@ -1669,7 +1669,7 @@ Object* Heap::AllocateSlicedString(String* buffer,
   int length = end - start;
 
   // If the resulting string is small make a sub string.
-  if (end - start <= String::kMinNonFlatLength) {
+  if (length <= String::kMinNonFlatLength) {
     return Heap::AllocateSubString(buffer, start, end);
   }
 

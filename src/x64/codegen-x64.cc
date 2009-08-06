@@ -5695,7 +5695,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ and_(rcx, Immediate(kStringSizeMask));
   __ cmpq(rcx, Immediate(kShortStringTag));
   __ j(not_equal, &true_result);  // Empty string is always short.
-  __ movq(rdx, FieldOperand(rax, String::kLengthOffset));
+  __ movl(rdx, FieldOperand(rax, String::kLengthOffset));
   __ shr(rdx, Immediate(String::kShortLengthShift));
   __ j(zero, &false_result);
   __ jmp(&true_result);
