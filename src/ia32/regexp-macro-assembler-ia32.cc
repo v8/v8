@@ -1254,7 +1254,7 @@ void RegExpMacroAssemblerIA32::SafeCall(Label* to) {
 
 
 void RegExpMacroAssemblerIA32::SafeReturn() {
-  __ add(Operand(esp,0), Immediate(masm_->CodeObject()));
+  __ add(Operand(esp, 0), Immediate(masm_->CodeObject()));
   __ ret(0);
 }
 
