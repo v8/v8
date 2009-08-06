@@ -436,6 +436,7 @@ void StatementBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
     Instruction* instr = block->instructions()->last();
     instr->set_location(CfgGlobals::current()->effect_location());
   }
+  cfg_->Append(new PositionInstr(stmt->statement_pos()));
   cfg_->Concatenate(builder.cfg());
 }
 
@@ -467,6 +468,7 @@ void StatementBuilder::VisitReturnStatement(ReturnStatement* stmt) {
     BAILOUT("unsupported expression in return statement");
   }
 
+  cfg_->Append(new PositionInstr(stmt->statement_pos()));
   cfg_->Concatenate(builder.cfg());
   cfg_->AppendReturnInstruction(builder.value());
 }

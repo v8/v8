@@ -306,7 +306,9 @@ class TempLocation : public Location {
 class Instruction : public ZoneObject {
  public:
   // Every instruction has a location where its result is stored (which may
-  // be Effect).
+  // be Effect, the default).
+  Instruction() : loc_(CfgGlobals::current()->effect_location()) {}
+
   explicit Instruction(Location* loc) : loc_(loc) {}
 
   virtual ~Instruction() {}
@@ -331,6 +333,30 @@ class Instruction : public ZoneObject {
 
  protected:
   Location* loc_;
+};
+
+
+// A phantom instruction that indicates the start of a statement.  It
+// causes the statement position to be recorded in the relocation
+// information but generates no code.
+class PositionInstr : public Instruction {
+ public:
+  explicit PositionInstr(int pos) : pos_(pos) {}
+
+  // Support for fast-compilation mode.
+  void Compile(MacroAssembler* masm);
+
+  // This should not be called.  The last instruction of the previous
+  // statement should not have a temporary as its location.
+  void FastAllocate(TempLocation* temp) { UNREACHABLE(); }
+
+#ifdef DEBUG
+  // Printing support.  Print nothing.
+  void Print() {}
+#endif
+
+ private:
+  int pos_;
 };
 
 
@@ -365,10 +391,7 @@ class BinaryOpInstr : public Instruction {
 class ReturnInstr : public Instruction {
  public:
   // Location is always Effect.
-  explicit ReturnInstr(Value* value)
-      : Instruction(CfgGlobals::current()->effect_location()),
-        value_(value) {
-  }
+  explicit ReturnInstr(Value* value) : value_(value) {}
 
   virtual ~ReturnInstr() {}
 

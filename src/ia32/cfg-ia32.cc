@@ -113,6 +113,14 @@ void ExitNode::Compile(MacroAssembler* masm) {
 }
 
 
+void PositionInstr::Compile(MacroAssembler* masm) {
+  if (FLAG_debug_info && pos_ != RelocInfo::kNoPosition) {
+    __ RecordStatementPosition(pos_);
+    __ RecordPosition(pos_);
+  }
+}
+
+
 void BinaryOpInstr::Compile(MacroAssembler* masm) {
   // The right-hand value should not be on the stack---if it is a
   // compiler-generated temporary it is in the accumulator.
