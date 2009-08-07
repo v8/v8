@@ -5605,9 +5605,20 @@ void Reference::GetValue(TypeofState typeof_state) {
         Comment cmnt(masm, "[ Inlined named property load");
         Result receiver = cgen_->frame()->Pop();
         receiver.ToRegister();
-
         Result value = cgen_->allocator()->Allocate();
         ASSERT(value.is_valid());
+        // Cannot use r12 for receiver, because that changes
+        // the distance between a call and a fixup location,
+        // due to a special encoding of r12 as r/m in a ModR/M byte.
+        if (receiver.reg().is(r12)) {
+          // Swap receiver and value.
+          __ movq(value.reg(), receiver.reg());
+          Result temp = receiver;
+          receiver = value;
+          value = temp;
+          cgen_->frame()->Spill(value.reg());  // r12 may have been shared.
+        }
+
         DeferredReferenceGetNamedValue* deferred =
             new DeferredReferenceGetNamedValue(value.reg(),
                                                receiver.reg(),
