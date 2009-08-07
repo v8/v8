@@ -103,7 +103,6 @@ void EntryNode::Compile(MacroAssembler* masm) {
 void ExitNode::Compile(MacroAssembler* masm) {
   ASSERT(!is_marked());
   is_marked_ = true;
-
   Comment cmnt(masm, "[ ExitNode");
   if (FLAG_trace) {
     __ push(rax);
@@ -120,19 +119,6 @@ void ExitNode::Compile(MacroAssembler* masm) {
   for (int i = 0; i < kPadding; ++i) {
     __ int3();
   }
-}
-
-
-void PositionInstr::Compile(MacroAssembler* masm) {
-  if (FLAG_debug_info && pos_ != RelocInfo::kNoPosition) {
-    __ RecordStatementPosition(pos_);
-    __ RecordPosition(pos_);
-  }
-}
-
-
-void MoveInstr::Compile(MacroAssembler* masm) {
-  location()->Move(masm, value());
 }
 
 
@@ -211,6 +197,11 @@ void SlotLocation::Set(MacroAssembler* masm, Register reg) {
 }
 
 
+void SlotLocation::Push(MacroAssembler* masm) {
+  __ push(ToOperand(this));
+}
+
+
 void SlotLocation::Move(MacroAssembler* masm, Value* value) {
   // We dispatch to the value because in some cases (temp or constant) we
   // can use special instruction sequences.
@@ -221,11 +212,6 @@ void SlotLocation::Move(MacroAssembler* masm, Value* value) {
 void SlotLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
   __ movq(kScratchRegister, ToOperand(this));
   __ movq(ToOperand(loc), kScratchRegister);
-}
-
-
-void SlotLocation::Push(MacroAssembler* masm) {
-  __ push(ToOperand(this));
 }
 
 

@@ -113,19 +113,6 @@ void ExitNode::Compile(MacroAssembler* masm) {
 }
 
 
-void PositionInstr::Compile(MacroAssembler* masm) {
-  if (FLAG_debug_info && pos_ != RelocInfo::kNoPosition) {
-    __ RecordStatementPosition(pos_);
-    __ RecordPosition(pos_);
-  }
-}
-
-
-void MoveInstr::Compile(MacroAssembler* masm) {
-  location()->Move(masm, value());
-}
-
-
 void BinaryOpInstr::Compile(MacroAssembler* masm) {
   // The right-hand value should not be on the stack---if it is a
   // compiler-generated temporary it is in the accumulator.
@@ -211,6 +198,7 @@ void SlotLocation::Move(MacroAssembler* masm, Value* value) {
   // we can use a single instruction.
   value->MoveToSlot(masm, this);
 }
+
 
 void SlotLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
   // The accumulator is not live across a MoveInstr.

@@ -230,6 +230,19 @@ void ReturnInstr::FastAllocate(TempLocation* temp) {
 }
 
 
+void PositionInstr::Compile(MacroAssembler* masm) {
+  if (FLAG_debug_info && pos_ != RelocInfo::kNoPosition) {
+    masm->RecordStatementPosition(pos_);
+    masm->RecordPosition(pos_);
+  }
+}
+
+
+void MoveInstr::Compile(MacroAssembler* masm) {
+  location()->Move(masm, value());
+}
+
+
 // The expression builder should not be used for declarations or statements.
 void ExpressionCfgBuilder::VisitDeclaration(Declaration* decl) {
   UNREACHABLE();
