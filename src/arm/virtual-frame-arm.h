@@ -52,20 +52,7 @@ class VirtualFrame : public ZoneObject {
   // generator is being transformed.
   class SpilledScope BASE_EMBEDDED {
    public:
-    SpilledScope() : previous_state_(cgen()->in_spilled_code()) {
-      ASSERT(cgen()->has_valid_frame());
-      cgen()->frame()->SpillAll();
-      cgen()->set_in_spilled_code(true);
-    }
-
-    ~SpilledScope() {
-      cgen()->set_in_spilled_code(previous_state_);
-    }
-
-   private:
-    bool previous_state_;
-
-    CodeGenerator* cgen() { return CodeGeneratorScope::Current(); }
+    SpilledScope() {}
   };
 
   // An illegal index into the virtual frame.

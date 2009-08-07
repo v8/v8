@@ -183,9 +183,6 @@ class CodeGenerator: public AstVisitor {
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
 
-  bool in_spilled_code() const { return in_spilled_code_; }
-  void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
-
   static const int kUnknownIntValue = -1;
 
  private:
@@ -222,11 +219,11 @@ class CodeGenerator: public AstVisitor {
   // reach the end of the statement (ie, it does not exit via break,
   // continue, return, or throw).  This function is used temporarily while
   // the code generator is being transformed.
-  void VisitAndSpill(Statement* statement);
+  inline void VisitAndSpill(Statement* statement);
 
   // Visit a list of statements and then spill the virtual frame if control
   // flow can reach the end of the list.
-  void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
+  inline void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
@@ -263,17 +260,17 @@ class CodeGenerator: public AstVisitor {
   // Generate code to push the value of an expression on top of the frame
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
-  void LoadAndSpill(Expression* expression,
-                    TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  inline void LoadAndSpill(Expression* expression,
+                           TypeofState typeof_state = NOT_INSIDE_TYPEOF);
 
   // Call LoadCondition and then spill the virtual frame unless control flow
   // cannot reach the end of the expression (ie, by emitting only
   // unconditional jumps to the control targets).
-  void LoadConditionAndSpill(Expression* expression,
-                             TypeofState typeof_state,
-                             JumpTarget* true_target,
-                             JumpTarget* false_target,
-                             bool force_control);
+  inline void LoadConditionAndSpill(Expression* expression,
+                                    TypeofState typeof_state,
+                                    JumpTarget* true_target,
+                                    JumpTarget* false_target,
+                                    bool force_control);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -404,12 +401,6 @@ class CodeGenerator: public AstVisitor {
   // function_return_ does not jump to the true function return, but rather
   // to some unlinking code).
   bool function_return_is_shadowed_;
-
-  // True when we are in code that expects the virtual frame to be fully
-  // spilled.  Some virtual frame function are disabled in DEBUG builds when
-  // called from spilled code, because they do not leave the virtual frame
-  // in a spilled state.
-  bool in_spilled_code_;
 
   static InlineRuntimeLUT kInlineRuntimeLUT[];
 
