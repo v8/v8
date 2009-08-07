@@ -210,9 +210,19 @@ void MoveInstr::FastAllocate(TempLocation* temp) {
 }
 
 
+void PropLoadInstr::FastAllocate(TempLocation* temp) {
+  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
+  if (temp == object() || temp == key()) {
+    temp->set_where(TempLocation::ACCUMULATOR);
+  } else {
+    temp->set_where(TempLocation::STACK);
+  }
+}
+
+
 void BinaryOpInstr::FastAllocate(TempLocation* temp) {
   ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
-  if (temp == value0() || temp == value1()) {
+  if (temp == left() || temp == right()) {
     temp->set_where(TempLocation::ACCUMULATOR);
   } else {
     temp->set_where(TempLocation::STACK);
@@ -222,7 +232,7 @@ void BinaryOpInstr::FastAllocate(TempLocation* temp) {
 
 void ReturnInstr::FastAllocate(TempLocation* temp) {
   ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
-  if (temp == value_) {
+  if (temp == value()) {
     temp->set_where(TempLocation::ACCUMULATOR);
   } else {
     temp->set_where(TempLocation::STACK);
@@ -369,7 +379,36 @@ void ExpressionCfgBuilder::VisitThrow(Throw* expr) {
 
 
 void ExpressionCfgBuilder::VisitProperty(Property* expr) {
-  BAILOUT("Property");
+  ExpressionCfgBuilder object, key;
+  object.Build(expr->obj(), NULL);
+  if (object.graph() == NULL) {
+    BAILOUT("unsupported object subexpression in propref");
+  }
+  key.Build(expr->key(), NULL);
+  if (key.graph() == NULL) {
+    BAILOUT("unsupported key subexpression in propref");
+  }
+
+  if (destination_ == NULL) destination_ = new TempLocation();
+
+  graph_ = object.graph();
+  // Insert a move to a fresh temporary if the object value is in a slot
+  // that's assigned in the key.
+  Location* temp = NULL;
+  if (object.value()->is_slot() &&
+      key.assigned_vars()->Contains(SlotLocation::cast(object.value()))) {
+    temp = new TempLocation();
+    graph()->Append(new MoveInstr(temp, object.value()));
+  }
+  graph()->Concatenate(key.graph());
+  graph()->Append(new PropLoadInstr(destination_,
+                                    temp == NULL ? object.value() : temp,
+                                    key.value()));
+
+  assigned_vars_ = *object.assigned_vars();
+  assigned_vars()->Union(key.assigned_vars());
+
+  value_ = destination_;
 }
 
 
@@ -640,13 +679,24 @@ void MoveInstr::Print() {
 }
 
 
+void PropLoadInstr::Print() {
+  PrintF("PropLoad(");
+  location()->Print();
+  PrintF(", ");
+  object()->Print();
+  PrintF(", ");
+  key()->Print();
+  PrintF(")\n");
+}
+
+
 void BinaryOpInstr::Print() {
   PrintF("BinaryOp(");
   location()->Print();
   PrintF(", %s, ", Token::Name(op()));
-  value0()->Print();
+  left()->Print();
   PrintF(", ");
-  value1()->Print();
+  right()->Print();
   PrintF(")\n");
 }
 

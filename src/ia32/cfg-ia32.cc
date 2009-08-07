@@ -113,25 +113,60 @@ void ExitNode::Compile(MacroAssembler* masm) {
 }
 
 
+void PropLoadInstr::Compile(MacroAssembler* masm) {
+  // The key should not be on the stack---if it is a compiler-generated
+  // temporary it is in the accumulator.
+  ASSERT(!key()->is_on_stack());
+
+  Comment cmnt(masm, "[ Load from Property");
+  // If the key is known at compile-time we may be able to use a load IC.
+  bool is_keyed_load = true;
+  if (key()->is_constant()) {
+    // Still use the keyed load IC if the key can be parsed as an integer so
+    // we will get into the case that handles [] on string objects.
+    Handle<Object> key_val = Constant::cast(key())->handle();
+    uint32_t ignored;
+    if (key_val->IsSymbol() &&
+        !String::cast(*key_val)->AsArrayIndex(&ignored)) {
+      is_keyed_load = false;
+    }
+  }
+
+  if (!object()->is_on_stack()) object()->Push(masm);
+  // A test eax instruction after the call indicates to the IC code that it
+  // was inlined.  Ensure there is not one here.
+  if (is_keyed_load) {
+    key()->Push(masm);
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+    __ pop(ebx);  // Discard key.
+  } else {
+    key()->Get(masm, ecx);
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+  }
+  __ pop(ebx);  // Discard receiver.
+  location()->Set(masm, eax);
+}
+
+
 void BinaryOpInstr::Compile(MacroAssembler* masm) {
   // The right-hand value should not be on the stack---if it is a
   // compiler-generated temporary it is in the accumulator.
-  ASSERT(!value1()->is_on_stack());
+  ASSERT(!right()->is_on_stack());
 
   Comment cmnt(masm, "[ BinaryOpInstr");
   // We can overwrite one of the operands if it is a temporary.
   OverwriteMode mode = NO_OVERWRITE;
-  if (value0()->is_temporary()) {
+  if (left()->is_temporary()) {
     mode = OVERWRITE_LEFT;
-  } else if (value1()->is_temporary()) {
+  } else if (right()->is_temporary()) {
     mode = OVERWRITE_RIGHT;
   }
 
   // Push both operands and call the specialized stub.
-  if (!value0()->is_on_stack()) {
-    value0()->Push(masm);
-  }
-  value1()->Push(masm);
+  if (!left()->is_on_stack()) left()->Push(masm);
+  right()->Push(masm);
   GenericBinaryOpStub stub(op(), mode, SMI_CODE_IN_STUB);
   __ CallStub(&stub);
   location()->Set(masm, eax);

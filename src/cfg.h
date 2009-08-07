@@ -43,10 +43,11 @@ class Location;
 // Instructions are described by the following grammar.
 //
 // <Instruction> ::=
-//     MoveInstr <Location> <Value>
-//   | BinaryOpInstr <Location> Token::Value <Value> <Value>
-//   | ReturnInstr Nowhere <Value>
-//   | PositionInstr <Int>
+//     Move <Location> <Value>
+//   | PropLoad <Location> <Value> <Value>
+//   | BinaryOp <Location> Token::Value <Value> <Value>
+//   | Return Nowhere <Value>
+//   | Position <Int>
 //
 // Values are trivial expressions:
 //
@@ -131,15 +132,13 @@ class Value : public ZoneObject {
 
   // Predicates:
 
+  virtual bool is_temporary() { return false; }
+  virtual bool is_slot() { return false; }
+  virtual bool is_constant() { return false; }
+
   // True if the value is a temporary allocated to the stack in
   // fast-compilation mode.
   virtual bool is_on_stack() { return false; }
-
-  // True if the value is a compiler-generated temporary location.
-  virtual bool is_temporary() { return false; }
-
-  // True if the value is a slot location.
-  virtual bool is_slot() { return false; }
 
   // Support for fast-compilation mode:
 
@@ -163,7 +162,17 @@ class Constant : public Value {
  public:
   explicit Constant(Handle<Object> handle) : handle_(handle) {}
 
-  virtual ~Constant() {}
+  // Cast accessor.
+  static Constant* cast(Value* value) {
+    ASSERT(value->is_constant());
+    return reinterpret_cast<Constant*>(value);
+  }
+
+  // Accessors.
+  Handle<Object> handle() { return handle_; }
+
+  // Predicates.
+  bool is_constant() { return true; }
 
   // Support for fast-compilation mode.
   void Get(MacroAssembler* masm, Register reg);
@@ -410,18 +419,43 @@ class MoveInstr : public Instruction {
 };
 
 
+// Load a property from a receiver, leaving the result in a location.
+class PropLoadInstr : public Instruction {
+ public:
+  PropLoadInstr(Location* loc, Value* object, Value* key)
+      : Instruction(loc), object_(object), key_(key) {
+  }
+
+  // Accessors.
+  Value* object() { return object_; }
+  Value* key() { return key_; }
+
+  // Support for fast-compilation mode.
+  void Compile(MacroAssembler* masm);
+  void FastAllocate(TempLocation* temp);
+
+#ifdef DEBUG
+  void Print();
+#endif
+
+ private:
+  Value* object_;
+  Value* key_;
+};
+
+
 // Perform a (non-short-circuited) binary operation on a pair of values,
 // leaving the result in a location.
 class BinaryOpInstr : public Instruction {
  public:
-  BinaryOpInstr(Location* loc, Token::Value op, Value* value0, Value* value1)
-      : Instruction(loc), op_(op), value0_(value0), value1_(value1) {
+  BinaryOpInstr(Location* loc, Token::Value op, Value* left, Value* right)
+      : Instruction(loc), op_(op), left_(left), right_(right) {
   }
 
   // Accessors.
   Token::Value op() { return op_; }
-  Value* value0() { return value0_; }
-  Value* value1() { return value1_; }
+  Value* left() { return left_; }
+  Value* right() { return right_; }
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
@@ -433,8 +467,8 @@ class BinaryOpInstr : public Instruction {
 
  private:
   Token::Value op_;
-  Value* value0_;
-  Value* value1_;
+  Value* left_;
+  Value* right_;
 };
 
 
@@ -448,6 +482,9 @@ class ReturnInstr : public Instruction {
   explicit ReturnInstr(Value* value) : value_(value) {}
 
   virtual ~ReturnInstr() {}
+
+  // Accessors.
+  Value* value() { return value_; }
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);

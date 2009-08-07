@@ -100,23 +100,60 @@ void ExitNode::Compile(MacroAssembler* masm) {
 }
 
 
+void PropLoadInstr::Compile(MacroAssembler* masm) {
+  // The key should not be on the stack---if it is a compiler-generated
+  // temporary it is in the accumulator.
+  ASSERT(!key()->is_on_stack());
+
+  Comment cmnt(masm, "[ Load from Property");
+  // If the key is known at compile-time we may be able to use a load IC.
+  bool is_keyed_load = true;
+  if (key()->is_constant()) {
+    // Still use the keyed load IC if the key can be parsed as an integer so
+    // we will get into the case that handles [] on string objects.
+    Handle<Object> key_val = Constant::cast(key())->handle();
+    uint32_t ignored;
+    if (key_val->IsSymbol() &&
+        !String::cast(*key_val)->AsArrayIndex(&ignored)) {
+      is_keyed_load = false;
+    }
+  }
+
+  if (!object()->is_on_stack()) object()->Push(masm);
+
+  if (is_keyed_load) {
+    key()->Push(masm);
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // Discard key and receiver.
+    __ add(sp, sp, Operand(2 * kPointerSize));
+  } else {
+    key()->Get(masm, r2);
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    __ pop();  // Discard receiver.
+  }
+  location()->Set(masm, r0);
+}
+
+
 void BinaryOpInstr::Compile(MacroAssembler* masm) {
   // The right-hand value should not be on the stack---if it is a
   // compiler-generated temporary it is in the accumulator.
-  ASSERT(!value1()->is_on_stack());
+  ASSERT(!right()->is_on_stack());
 
   Comment cmnt(masm, "[ BinaryOpInstr");
   // We can overwrite one of the operands if it is a temporary.
   OverwriteMode mode = NO_OVERWRITE;
-  if (value0()->is_temporary()) {
+  if (left()->is_temporary()) {
     mode = OVERWRITE_LEFT;
-  } else if (value1()->is_temporary()) {
+  } else if (right()->is_temporary()) {
     mode = OVERWRITE_RIGHT;
   }
 
   // Move left to r1 and right to r0.
-  value0()->Get(masm, r1);
-  value1()->Get(masm, r0);
+  left()->Get(masm, r1);
+  right()->Get(masm, r0);
   GenericBinaryOpStub stub(op(), mode);
   __ CallStub(&stub);
   location()->Set(masm, r0);
@@ -127,7 +164,7 @@ void ReturnInstr::Compile(MacroAssembler* masm) {
   // The location should be 'Effect'.  As a side effect, move the value to
   // the accumulator.
   Comment cmnt(masm, "[ ReturnInstr");
-  value_->Get(masm, r0);
+  value()->Get(masm, r0);
 }
 
 
