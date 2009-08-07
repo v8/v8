@@ -42,7 +42,7 @@ CfgGlobals* CfgGlobals::top_ = NULL;
 CfgGlobals::CfgGlobals(FunctionLiteral* fun)
     : global_fun_(fun),
       global_exit_(new ExitNode()),
-      effect_(new Effect()),
+      nowhere_(new Nowhere()),
 #ifdef DEBUG
       node_counter_(0),
       temp_counter_(0),
@@ -60,6 +60,12 @@ Cfg* Cfg::Build() {
   if (fun->scope()->num_heap_slots() > 0) {
     BAILOUT("function has context slots");
   }
+  if (fun->scope()->num_stack_slots() > kPointerSize) {
+    BAILOUT("function has too many locals");
+  }
+  if (fun->scope()->num_parameters() > kPointerSize - 1) {
+    BAILOUT("function has too many parameters");
+  }
   if (fun->scope()->arguments() != NULL) {
     BAILOUT("function uses .arguments");
   }
@@ -71,18 +77,18 @@ Cfg* Cfg::Build() {
 
   StatementBuilder builder;
   builder.VisitStatements(body);
-  Cfg* cfg = builder.cfg();
-  if (cfg == NULL) {
+  Cfg* graph = builder.graph();
+  if (graph == NULL) {
     BAILOUT("unsupported statement type");
   }
-  if (cfg->is_empty()) {
+  if (graph->is_empty()) {
     BAILOUT("function body produces empty cfg");
   }
-  if (cfg->has_exit()) {
+  if (graph->has_exit()) {
     BAILOUT("control path without explicit return");
   }
-  cfg->PrependEntryNode();
-  return cfg;
+  graph->PrependEntryNode();
+  return graph;
 }
 
 #undef BAILOUT
@@ -194,9 +200,19 @@ Handle<Code> Cfg::Compile(Handle<Script> script) {
 }
 
 
+void MoveInstr::FastAllocate(TempLocation* temp) {
+  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
+  if (temp == value()) {
+    temp->set_where(TempLocation::ACCUMULATOR);
+  } else {
+    temp->set_where(TempLocation::STACK);
+  }
+}
+
+
 void BinaryOpInstr::FastAllocate(TempLocation* temp) {
-  ASSERT(temp->where() == TempLocation::NOWHERE);
-  if (temp == val0_ || temp == val1_) {
+  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
+  if (temp == value0() || temp == value1()) {
     temp->set_where(TempLocation::ACCUMULATOR);
   } else {
     temp->set_where(TempLocation::STACK);
@@ -205,7 +221,7 @@ void BinaryOpInstr::FastAllocate(TempLocation* temp) {
 
 
 void ReturnInstr::FastAllocate(TempLocation* temp) {
-  ASSERT(temp->where() == TempLocation::NOWHERE);
+  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
   if (temp == value_) {
     temp->set_where(TempLocation::ACCUMULATOR);
   } else {
@@ -226,7 +242,7 @@ STATEMENT_NODE_LIST(DEFINE_VISIT)
 // Macros (temporarily) handling unsupported expression types.
 #define BAILOUT(reason)                         \
   do {                                          \
-    cfg_ = NULL;                                \
+    graph_ = NULL;                              \
     return;                                     \
   } while (false)
 
@@ -260,11 +276,13 @@ void ExpressionBuilder::VisitVariableProxy(VariableProxy* expr) {
   if (slot->type() != Slot::PARAMETER && slot->type() != Slot::LOCAL) {
     BAILOUT("unsupported slot type (not a parameter or local)");
   }
+  // Ignore the passed destination.
   value_ = new SlotLocation(slot->type(), slot->index());
 }
 
 
 void ExpressionBuilder::VisitLiteral(Literal* expr) {
+  // Ignore the passed destination.
   value_ = new Constant(expr->handle());
 }
 
@@ -290,7 +308,42 @@ void ExpressionBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 
 
 void ExpressionBuilder::VisitAssignment(Assignment* expr) {
-  BAILOUT("Assignment");
+  if (expr->op() != Token::ASSIGN && expr->op() != Token::INIT_VAR) {
+    BAILOUT("unsupported compound assignment");
+  }
+  Expression* lhs = expr->target();
+  if (lhs->AsProperty() != NULL) {
+    BAILOUT("unsupported property assignment");
+  }
+  Variable* var = lhs->AsVariableProxy()->AsVariable();
+  if (var == NULL) {
+    BAILOUT("unsupported invalid left-hand side");
+  }
+  if (var->is_global()) {
+    BAILOUT("unsupported global variable");
+  }
+  Slot* slot = var->slot();
+  ASSERT(slot != NULL);
+  if (slot->type() != Slot::PARAMETER && slot->type() != Slot::LOCAL) {
+    BAILOUT("unsupported slot lhs (not a parameter or local)");
+  }
+
+  ExpressionBuilder builder;
+  SlotLocation* loc = new SlotLocation(slot->type(), slot->index());
+  builder.Build(expr->value(), loc);
+  if (builder.graph() == NULL) {
+    BAILOUT("unsupported expression in assignment");
+  }
+  // If the expression did not come back in the slot location, append
+  // a move to the CFG.
+  graph_ = builder.graph();
+  if (builder.value() != loc) {
+    graph()->Append(new MoveInstr(loc, builder.value()));
+  }
+  // Record the assignment.
+  assigned_vars_.AddElement(loc);
+  // Ignore the destination passed to us.
+  value_ = loc;
 }
 
 
@@ -354,21 +407,35 @@ void ExpressionBuilder::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::DIV:
     case Token::MOD: {
       ExpressionBuilder left, right;
-      left.Build(expr->left());
-      if (left.cfg() == NULL) {
+      left.Build(expr->left(), NULL);
+      if (left.graph() == NULL) {
         BAILOUT("unsupported left subexpression in binop");
       }
-      right.Build(expr->right());
-      if (right.cfg() == NULL) {
+      right.Build(expr->right(), NULL);
+      if (right.graph() == NULL) {
         BAILOUT("unsupported right subexpression in binop");
       }
 
-      Location* temp = new TempLocation();
-      cfg_ = left.cfg();
-      cfg_->Concatenate(right.cfg());
-      cfg_->Append(new BinaryOpInstr(temp, op, left.value(), right.value()));
+      if (destination_ == NULL) destination_ = new TempLocation();
 
-      value_ = temp;
+      graph_ = left.graph();
+      // Insert a move to a fresh temporary if the left value is in a
+      // slot that's assigned on the right.
+      Location* temp = NULL;
+      if (left.value()->is_slot() &&
+          right.assigned_vars()->Contains(SlotLocation::cast(left.value()))) {
+        temp = new TempLocation();
+        graph()->Append(new MoveInstr(temp, left.value()));
+      }
+      graph()->Concatenate(right.graph());
+      graph()->Append(new BinaryOpInstr(destination_, op,
+                                        temp == NULL ? left.value() : temp,
+                                        right.value()));
+
+      assigned_vars_ = *left.assigned_vars();
+      assigned_vars()->Union(right.assigned_vars());
+
+      value_ = destination_;
       return;
     }
 
@@ -393,18 +460,18 @@ void ExpressionBuilder::VisitThisFunction(ThisFunction* expr) {
 // Macros (temporarily) handling unsupported statement types.
 #define BAILOUT(reason)                         \
   do {                                          \
-    cfg_ = NULL;                                \
+    graph_ = NULL;                              \
     return;                                     \
   } while (false)
 
 #define CHECK_BAILOUT()                         \
-  if (cfg_ == NULL) { return; } else {}
+  if (graph() == NULL) { return; } else {}
 
 void StatementBuilder::VisitStatements(ZoneList<Statement*>* stmts) {
   for (int i = 0, len = stmts->length(); i < len; i++) {
     Visit(stmts->at(i));
     CHECK_BAILOUT();
-    if (!cfg_->has_exit()) return;
+    if (!graph()->has_exit()) return;
   }
 }
 
@@ -425,19 +492,12 @@ void StatementBuilder::VisitBlock(Block* stmt) {
 
 void StatementBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
   ExpressionBuilder builder;
-  builder.Build(stmt->expression());
-  if (builder.cfg() == NULL) {
+  builder.Build(stmt->expression(), CfgGlobals::current()->nowhere());
+  if (builder.graph() == NULL) {
     BAILOUT("unsupported expression in expression statement");
   }
-  // Here's a temporary hack: we bang on the last instruction of the
-  // expression (if any) to set its location to Effect.
-  if (!builder.cfg()->is_empty()) {
-    InstructionBlock* block = InstructionBlock::cast(builder.cfg()->exit());
-    Instruction* instr = block->instructions()->last();
-    instr->set_location(CfgGlobals::current()->effect_location());
-  }
-  cfg_->Append(new PositionInstr(stmt->statement_pos()));
-  cfg_->Concatenate(builder.cfg());
+  graph()->Append(new PositionInstr(stmt->statement_pos()));
+  graph()->Concatenate(builder.graph());
 }
 
 
@@ -463,14 +523,14 @@ void StatementBuilder::VisitBreakStatement(BreakStatement* stmt) {
 
 void StatementBuilder::VisitReturnStatement(ReturnStatement* stmt) {
   ExpressionBuilder builder;
-  builder.Build(stmt->expression());
-  if (builder.cfg() == NULL) {
+  builder.Build(stmt->expression(), NULL);
+  if (builder.graph() == NULL) {
     BAILOUT("unsupported expression in return statement");
   }
 
-  cfg_->Append(new PositionInstr(stmt->statement_pos()));
-  cfg_->Concatenate(builder.cfg());
-  cfg_->AppendReturnInstruction(builder.value());
+  graph()->Append(new PositionInstr(stmt->statement_pos()));
+  graph()->Concatenate(builder.graph());
+  graph()->AppendReturnInstruction(builder.value());
 }
 
 
@@ -530,8 +590,8 @@ void Constant::Print() {
 }
 
 
-void Effect::Print() {
-  PrintF("Effect");
+void Nowhere::Print() {
+  PrintF("Nowhere");
 }
 
 
@@ -555,13 +615,22 @@ void TempLocation::Print() {
 }
 
 
+void MoveInstr::Print() {
+  PrintF("Move(");
+  location()->Print();
+  PrintF(", ");
+  value_->Print();
+  PrintF(")\n");
+}
+
+
 void BinaryOpInstr::Print() {
   PrintF("BinaryOp(");
-  loc_->Print();
-  PrintF(", %s, ", Token::Name(op_));
-  val0_->Print();
+  location()->Print();
+  PrintF(", %s, ", Token::Name(op()));
+  value0()->Print();
   PrintF(", ");
-  val1_->Print();
+  value1()->Print();
   PrintF(")\n");
 }
 

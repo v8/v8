@@ -43,21 +43,23 @@ class Location;
 // Instructions are described by the following grammar.
 //
 // <Instruction> ::=
-//     BinaryOpInstr <Location> Token::Value <Value> <Value>
-//   | ReturnInstr Effect <Value>
+//     MoveInstr <Location> <Value>
+//   | BinaryOpInstr <Location> Token::Value <Value> <Value>
+//   | ReturnInstr Nowhere <Value>
+//   | PositionInstr <Int>
 //
 // Values are trivial expressions:
 //
 // <Value> ::= Constant | <Location>
 //
 // Locations are storable values ('lvalues').  They can be slots,
-// compiler-generated temporaries, or the special location 'Effect'
+// compiler-generated temporaries, or the special location 'Nowhere'
 // indicating that no value is needed.
 //
 // <Location> ::=
 //     SlotLocation Slot::Type <Index>
 //   | TempLocation
-//   | Effect
+//   | Nowhere
 
 
 // Administrative nodes: There are several types of 'administrative' nodes
@@ -95,8 +97,8 @@ class CfgGlobals BASE_EMBEDDED {
   // The shared global exit node for all exits from the function.
   ExitNode* exit() { return global_exit_; }
 
-  // A singleton effect location.
-  Location* effect_location() { return effect_; }
+  // A singleton.
+  Location* nowhere() { return nowhere_; }
 
 #ifdef DEBUG
   int next_node_number() { return node_counter_++; }
@@ -107,7 +109,7 @@ class CfgGlobals BASE_EMBEDDED {
   static CfgGlobals* top_;
   FunctionLiteral* global_fun_;
   ExitNode* global_exit_;
-  Location* effect_;
+  Location* nowhere_;
 
 #ifdef DEBUG
   // Used to number nodes and temporaries when printing.
@@ -118,6 +120,8 @@ class CfgGlobals BASE_EMBEDDED {
   CfgGlobals* previous_;
 };
 
+
+class SlotLocation;
 
 // Values represent trivial source expressions: ones with no side effects
 // and that do not require code to be generated.
@@ -134,6 +138,9 @@ class Value : public ZoneObject {
   // True if the value is a compiler-generated temporary location.
   virtual bool is_temporary() { return false; }
 
+  // True if the value is a slot location.
+  virtual bool is_slot() { return false; }
+
   // Support for fast-compilation mode:
 
   // Move the value into a register.
@@ -141,6 +148,9 @@ class Value : public ZoneObject {
 
   // Push the value on the stack.
   virtual void Push(MacroAssembler* masm) = 0;
+
+  // Move the value into a slot location.
+  virtual void MoveToSlot(MacroAssembler* masm, SlotLocation* loc) = 0;
 
 #ifdef DEBUG
   virtual void Print() = 0;
@@ -158,6 +168,7 @@ class Constant : public Value {
   // Support for fast-compilation mode.
   void Get(MacroAssembler* masm, Register reg);
   void Push(MacroAssembler* masm);
+  void MoveToSlot(MacroAssembler* masm, SlotLocation* loc);
 
 #ifdef DEBUG
   void Print();
@@ -173,9 +184,9 @@ class Location : public Value {
  public:
   virtual ~Location() {}
 
-  // Static factory function returning the singleton effect location.
-  static Location* Effect() {
-    return CfgGlobals::current()->effect_location();
+  // Static factory function returning the singleton nowhere location.
+  static Location* Nowhere() {
+    return CfgGlobals::current()->nowhere();
   }
 
   // Support for fast-compilation mode:
@@ -191,29 +202,34 @@ class Location : public Value {
   // temporary it was not allocated to the stack.
   virtual void Push(MacroAssembler* masm) = 0;
 
+  // Emit code to move a value into this location.
+  virtual void Move(MacroAssembler* masm, Value* value) = 0;
+
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
 };
 
 
-// Effect is a special (singleton) location that indicates the value of a
+// Nowhere is a special (singleton) location that indicates the value of a
 // computation is not needed (though its side effects are).
-class Effect : public Location {
+class Nowhere : public Location {
  public:
-  // We should not try to emit code to read Effect.
+  // We should not try to emit code to read Nowhere.
   void Get(MacroAssembler* masm, Register reg) { UNREACHABLE(); }
   void Push(MacroAssembler* masm) { UNREACHABLE(); }
+  void MoveToSlot(MacroAssembler* masm, SlotLocation* loc) { UNREACHABLE(); }
 
-  // Setting Effect is ignored.
+  // Setting Nowhere is ignored.
   void Set(MacroAssembler* masm, Register reg) {}
+  void Move(MacroAssembler* masm, Value* value) {}
 
 #ifdef DEBUG
   void Print();
 #endif
 
  private:
-  Effect() {}
+  Nowhere() {}
 
   friend class CfgGlobals;
 };
@@ -225,14 +241,25 @@ class SlotLocation : public Location {
  public:
   SlotLocation(Slot::Type type, int index) : type_(type), index_(index) {}
 
+  // Cast accessor.
+  static SlotLocation* cast(Value* value) {
+    ASSERT(value->is_slot());
+    return reinterpret_cast<SlotLocation*>(value);
+  }
+
   // Accessors.
   Slot::Type type() { return type_; }
   int index() { return index_; }
+
+  // Predicates.
+  bool is_slot() { return true; }
 
   // Support for fast-compilation mode.
   void Get(MacroAssembler* masm, Register reg);
   void Set(MacroAssembler* masm, Register reg);
   void Push(MacroAssembler* masm);
+  void Move(MacroAssembler* masm, Value* value);
+  void MoveToSlot(MacroAssembler* masm, SlotLocation* loc);
 
 #ifdef DEBUG
   void Print();
@@ -252,21 +279,21 @@ class TempLocation : public Location {
  public:
   // Fast-compilation mode allocation decisions.
   enum Where {
-    NOWHERE,      // Not yet allocated.
-    ACCUMULATOR,  // Allocated to the dedicated accumulator register.
-    STACK         //   "   "   "   "  stack.
+    NOT_ALLOCATED,  // Not yet allocated.
+    ACCUMULATOR,    // Allocated to the dedicated accumulator register.
+    STACK           //   "   "   "   "  stack.
   };
 
-  TempLocation() : where_(NOWHERE) {
+  TempLocation() : where_(NOT_ALLOCATED) {
 #ifdef DEBUG
     number_ = -1;
 #endif
   }
 
   // Cast accessor.
-  static TempLocation* cast(Location* loc) {
-    ASSERT(loc->is_temporary());
-    return reinterpret_cast<TempLocation*>(loc);
+  static TempLocation* cast(Value* value) {
+    ASSERT(value->is_temporary());
+    return reinterpret_cast<TempLocation*>(value);
   }
 
   // Accessors.
@@ -281,6 +308,8 @@ class TempLocation : public Location {
   void Get(MacroAssembler* masm, Register reg);
   void Set(MacroAssembler* masm, Register reg);
   void Push(MacroAssembler* masm);
+  void Move(MacroAssembler* masm, Value* value);
+  void MoveToSlot(MacroAssembler* masm, SlotLocation* loc);
 
 #ifdef DEBUG
   int number() {
@@ -306,16 +335,16 @@ class TempLocation : public Location {
 class Instruction : public ZoneObject {
  public:
   // Every instruction has a location where its result is stored (which may
-  // be Effect, the default).
-  Instruction() : loc_(CfgGlobals::current()->effect_location()) {}
+  // be Nowhere, the default).
+  Instruction() : location_(CfgGlobals::current()->nowhere()) {}
 
-  explicit Instruction(Location* loc) : loc_(loc) {}
+  explicit Instruction(Location* location) : location_(location) {}
 
   virtual ~Instruction() {}
 
   // Accessors.
-  Location* location() { return loc_; }
-  void set_location(Location* loc) { loc_ = loc; }
+  Location* location() { return location_; }
+  void set_location(Location* location) { location_ = location; }
 
   // Support for fast-compilation mode:
 
@@ -332,7 +361,7 @@ class Instruction : public ZoneObject {
 #endif
 
  protected:
-  Location* loc_;
+  Location* location_;
 };
 
 
@@ -360,13 +389,39 @@ class PositionInstr : public Instruction {
 };
 
 
+// Move a value to a location.
+class MoveInstr : public Instruction {
+ public:
+  MoveInstr(Location* loc, Value* value) : Instruction(loc), value_(value) {}
+
+  // Accessors.
+  Value* value() { return value_; }
+
+  // Support for fast-compilation mode.
+  void Compile(MacroAssembler* masm);
+  void FastAllocate(TempLocation* temp);
+
+#ifdef DEBUG
+  void Print();
+#endif
+
+ private:
+  Value* value_;
+};
+
+
 // Perform a (non-short-circuited) binary operation on a pair of values,
 // leaving the result in a location.
 class BinaryOpInstr : public Instruction {
  public:
-  BinaryOpInstr(Location* loc, Token::Value op, Value* val0, Value* val1)
-      : Instruction(loc), op_(op), val0_(val0), val1_(val1) {
+  BinaryOpInstr(Location* loc, Token::Value op, Value* value0, Value* value1)
+      : Instruction(loc), op_(op), value0_(value0), value1_(value1) {
   }
+
+  // Accessors.
+  Token::Value op() { return op_; }
+  Value* value0() { return value0_; }
+  Value* value1() { return value1_; }
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
@@ -378,8 +433,8 @@ class BinaryOpInstr : public Instruction {
 
  private:
   Token::Value op_;
-  Value* val0_;
-  Value* val1_;
+  Value* value0_;
+  Value* value1_;
 };
 
 
@@ -390,7 +445,6 @@ class BinaryOpInstr : public Instruction {
 // successor is the global exit node for the current function.
 class ReturnInstr : public Instruction {
  public:
-  // Location is always Effect.
   explicit ReturnInstr(Value* value) : value_(value) {}
 
   virtual ~ReturnInstr() {}
@@ -605,6 +659,52 @@ class Cfg : public ZoneObject {
 };
 
 
+// An implementation of a set of locations (currently slot locations).
+class LocationSet BASE_EMBEDDED {
+ public:
+  // Construct an empty location set.
+  LocationSet() : parameters_(0), locals_(0) {}
+
+  // Raw accessors.
+  uintptr_t parameters() { return parameters_; }
+  uintptr_t locals() { return locals_; }
+
+  // Insert an element.
+  void AddElement(SlotLocation* location) {
+    if (location->type() == Slot::PARAMETER) {
+      // Parameter indexes begin with -1 ('this').
+      ASSERT(location->index() < kPointerSize - 1);
+      parameters_ |= (1 << (location->index() + 1));
+    } else {
+      ASSERT(location->type() == Slot::LOCAL);
+      ASSERT(location->index() < kPointerSize);
+      locals_ |= (1 << location->index());
+    }
+  }
+
+  // (Destructively) compute the union with another set.
+  void Union(LocationSet* other) {
+    parameters_ |= other->parameters();
+    locals_ |= other->locals();
+  }
+
+  bool Contains(SlotLocation* location) {
+    if (location->type() == Slot::PARAMETER) {
+      ASSERT(location->index() < kPointerSize - 1);
+      return (parameters_ & (1 << (location->index() + 1)));
+    } else {
+      ASSERT(location->type() == Slot::LOCAL);
+      ASSERT(location->index() < kPointerSize);
+      return (locals_ & (1 << location->index()));
+    }
+  }
+
+ private:
+  uintptr_t parameters_;
+  uintptr_t locals_;
+};
+
+
 // An ExpressionBuilder traverses an expression and returns an open CFG
 // fragment (currently a possibly empty list of instructions represented by
 // a singleton instruction block) and the expression's value.
@@ -612,15 +712,23 @@ class Cfg : public ZoneObject {
 // Failure is to build the CFG is indicated by a NULL CFG.
 class ExpressionBuilder : public AstVisitor {
  public:
-  ExpressionBuilder() : value_(NULL), cfg_(NULL) {}
+  ExpressionBuilder() : value_(NULL), graph_(NULL), destination_(NULL) {}
 
   // Result accessors.
   Value* value() { return value_; }
-  Cfg* cfg() { return cfg_; }
+  Cfg* graph() { return graph_; }
+  LocationSet* assigned_vars() { return &assigned_vars_; }
 
-  void Build(Expression* expr) {
+  // Build the cfg for an expression and remember its value.  The
+  // destination is a 'hint' where the value should go which may be ignored.
+  // NULL is used to indicate no preference.
+  //
+  // Concretely, if the expression needs to generate a temporary for its
+  // value, it should use the passed destination or generate one if NULL.
+  void Build(Expression* expr, Location* destination) {
     value_ = NULL;
-    cfg_ = new Cfg();
+    graph_ = new Cfg();
+    destination_ = destination;
     Visit(expr);
   }
 
@@ -630,8 +738,13 @@ class ExpressionBuilder : public AstVisitor {
 #undef DECLARE_VISIT
 
  private:
+  // State for the visitor.  Output parameters.
   Value* value_;
-  Cfg* cfg_;
+  Cfg* graph_;
+  LocationSet assigned_vars_;
+
+  // Input parameters.
+  Location* destination_;
 };
 
 
@@ -640,9 +753,9 @@ class ExpressionBuilder : public AstVisitor {
 // accumulator.
 class StatementBuilder : public AstVisitor {
  public:
-  StatementBuilder() : cfg_(new Cfg()) {}
+  StatementBuilder() : graph_(new Cfg()) {}
 
-  Cfg* cfg() { return cfg_; }
+  Cfg* graph() { return graph_; }
 
   void VisitStatements(ZoneList<Statement*>* stmts);
 
@@ -652,7 +765,7 @@ class StatementBuilder : public AstVisitor {
 #undef DECLARE_VISIT
 
  private:
-  Cfg* cfg_;
+  Cfg* graph_;
 };
 
 

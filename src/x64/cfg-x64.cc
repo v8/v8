@@ -131,28 +131,33 @@ void PositionInstr::Compile(MacroAssembler* masm) {
 }
 
 
+void MoveInstr::Compile(MacroAssembler* masm) {
+  location()->Move(masm, value());
+}
+
+
 void BinaryOpInstr::Compile(MacroAssembler* masm) {
   // The right-hand value should not be on the stack---if it is a
   // compiler-generated temporary it is in the accumulator.
-  ASSERT(!val1_->is_on_stack());
+  ASSERT(!value1()->is_on_stack());
 
   Comment cmnt(masm, "[ BinaryOpInstr");
   // We can overwrite one of the operands if it is a temporary.
   OverwriteMode mode = NO_OVERWRITE;
-  if (val0_->is_temporary()) {
+  if (value0()->is_temporary()) {
     mode = OVERWRITE_LEFT;
-  } else if (val1_->is_temporary()) {
+  } else if (value1()->is_temporary()) {
     mode = OVERWRITE_RIGHT;
   }
 
   // Push both operands and call the specialized stub.
-  if (!val0_->is_on_stack()) {
-    val0_->Push(masm);
+  if (!value0()->is_on_stack()) {
+    value0()->Push(masm);
   }
-  val1_->Push(masm);
-  GenericBinaryOpStub stub(op_, mode, SMI_CODE_IN_STUB);
+  value1()->Push(masm);
+  GenericBinaryOpStub stub(op(), mode, SMI_CODE_IN_STUB);
   __ CallStub(&stub);
-  loc_->Set(masm, rax);
+  location()->Set(masm, rax);
 }
 
 
@@ -191,6 +196,11 @@ static Operand ToOperand(SlotLocation* loc) {
 }
 
 
+void Constant::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  __ Move(ToOperand(loc), handle_);
+}
+
+
 void SlotLocation::Get(MacroAssembler* masm, Register reg) {
   __ movq(reg, ToOperand(this));
 }
@@ -198,6 +208,19 @@ void SlotLocation::Get(MacroAssembler* masm, Register reg) {
 
 void SlotLocation::Set(MacroAssembler* masm, Register reg) {
   __ movq(ToOperand(this), reg);
+}
+
+
+void SlotLocation::Move(MacroAssembler* masm, Value* value) {
+  // We dispatch to the value because in some cases (temp or constant) we
+  // can use special instruction sequences.
+  value->MoveToSlot(masm, this);
+}
+
+
+void SlotLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  __ movq(kScratchRegister, ToOperand(this));
+  __ movq(ToOperand(loc), kScratchRegister);
 }
 
 
@@ -214,9 +237,8 @@ void TempLocation::Get(MacroAssembler* masm, Register reg) {
     case STACK:
       __ pop(reg);
       break;
-    case NOWHERE:
+    case NOT_ALLOCATED:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -229,9 +251,8 @@ void TempLocation::Set(MacroAssembler* masm, Register reg) {
     case STACK:
       __ push(reg);
       break;
-    case NOWHERE:
+    case NOT_ALLOCATED:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -242,9 +263,36 @@ void TempLocation::Push(MacroAssembler* masm) {
       __ push(rax);
       break;
     case STACK:
-    case NOWHERE:
+    case NOT_ALLOCATED:
       UNREACHABLE();
+  }
+}
+
+
+void TempLocation::Move(MacroAssembler* masm, Value* value) {
+  switch (where_) {
+    case ACCUMULATOR:
+      value->Get(masm, rax);
       break;
+    case STACK:
+      value->Push(masm);
+      break;
+    case NOT_ALLOCATED:
+      UNREACHABLE();
+  }
+}
+
+
+void TempLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  switch (where_) {
+    case ACCUMULATOR:
+      __ movq(ToOperand(loc), rax);
+      break;
+    case STACK:
+      __ pop(ToOperand(loc));
+      break;
+    case NOT_ALLOCATED:
+      UNREACHABLE();
   }
 }
 

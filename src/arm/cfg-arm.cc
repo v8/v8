@@ -108,26 +108,31 @@ void PositionInstr::Compile(MacroAssembler* masm) {
 }
 
 
+void MoveInstr::Compile(MacroAssembler* masm) {
+  location()->Move(masm, value());
+}
+
+
 void BinaryOpInstr::Compile(MacroAssembler* masm) {
   // The right-hand value should not be on the stack---if it is a
   // compiler-generated temporary it is in the accumulator.
-  ASSERT(!val1_->is_on_stack());
+  ASSERT(!value1()->is_on_stack());
 
   Comment cmnt(masm, "[ BinaryOpInstr");
   // We can overwrite one of the operands if it is a temporary.
   OverwriteMode mode = NO_OVERWRITE;
-  if (val0_->is_temporary()) {
+  if (value0()->is_temporary()) {
     mode = OVERWRITE_LEFT;
-  } else if (val1_->is_temporary()) {
+  } else if (value1()->is_temporary()) {
     mode = OVERWRITE_RIGHT;
   }
 
   // Move left to r1 and right to r0.
-  val0_->Get(masm, r1);
-  val1_->Get(masm, r0);
-  GenericBinaryOpStub stub(op_, mode);
+  value0()->Get(masm, r1);
+  value1()->Get(masm, r0);
+  GenericBinaryOpStub stub(op(), mode);
   __ CallStub(&stub);
-  loc_->Set(masm, r0);
+  location()->Set(masm, r0);
 }
 
 
@@ -167,6 +172,12 @@ static MemOperand ToMemOperand(SlotLocation* loc) {
 }
 
 
+void Constant::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  __ mov(ip, Operand(handle_));
+  __ str(ip, ToMemOperand(loc));
+}
+
+
 void SlotLocation::Get(MacroAssembler* masm, Register reg) {
   __ ldr(reg, ToMemOperand(this));
 }
@@ -183,6 +194,18 @@ void SlotLocation::Push(MacroAssembler* masm) {
 }
 
 
+void SlotLocation::Move(MacroAssembler* masm, Value* value) {
+  // Double dispatch.
+  value->MoveToSlot(masm, this);
+}
+
+
+void SlotLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  __ ldr(ip, ToMemOperand(this));
+  __ str(ip, ToMemOperand(loc));
+}
+
+
 void TempLocation::Get(MacroAssembler* masm, Register reg) {
   switch (where_) {
     case ACCUMULATOR:
@@ -191,9 +214,8 @@ void TempLocation::Get(MacroAssembler* masm, Register reg) {
     case STACK:
       __ pop(reg);
       break;
-    case NOWHERE:
+    case NOT_ALLOCATED:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -206,9 +228,8 @@ void TempLocation::Set(MacroAssembler* masm, Register reg) {
     case STACK:
       __ push(reg);
       break;
-    case NOWHERE:
+    case NOT_ALLOCATED:
       UNREACHABLE();
-      break;
   }
 }
 
@@ -219,12 +240,37 @@ void TempLocation::Push(MacroAssembler* masm) {
       __ push(r0);
       break;
     case STACK:
-    case NOWHERE:
+    case NOT_ALLOCATED:
       UNREACHABLE();
-      break;
   }
 }
 
+
+void TempLocation::Move(MacroAssembler* masm, Value* value) {
+  switch (where_) {
+    case ACCUMULATOR:
+      value->Get(masm, r0);
+    case STACK:
+      value->Push(masm);
+      break;
+    case NOT_ALLOCATED:
+      UNREACHABLE();
+  }
+}
+
+
+void TempLocation::MoveToSlot(MacroAssembler* masm, SlotLocation* loc) {
+  switch (where_) {
+    case ACCUMULATOR:
+      __ str(r0, ToMemOperand(loc));
+    case STACK:
+      __ pop(ip);
+      __ str(ip, ToMemOperand(loc));
+      break;
+    case NOT_ALLOCATED:
+      UNREACHABLE();
+  }
+}
 
 #undef __
 
