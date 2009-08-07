@@ -1099,6 +1099,12 @@ class V8EXPORT Object : public Value {
   Local<Value> GetPrototype();
 
   /**
+   * Finds an instance of the given function template in the prototype
+   * chain.
+   */
+  Local<Object> FindInstanceInPrototypeChain(Handle<FunctionTemplate> tmpl);
+
+  /**
    * Call builtin Object.prototype.toString on this object.
    * This is different from Value::ToString() that may call
    * user-defined toString function. This one does not.
