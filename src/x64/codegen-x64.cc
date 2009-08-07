@@ -3482,10 +3482,161 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* a) {
-  // TODO(X64): Implement this function.
-  // Ignore arguments and return undefined, to signal failure.
-  frame_->Push(Factory::undefined_value());
+void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateFastCharCodeAt");
+  ASSERT(args->length() == 2);
+
+  Label slow_case;
+  Label end;
+  Label not_a_flat_string;
+  Label a_cons_string;
+  Label try_again_with_new_string;
+  Label ascii_string;
+  Label got_char_code;
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Result index = frame_->Pop();
+  Result object = frame_->Pop();
+
+  // Get register rcx to use as shift amount later.
+  Result shift_amount;
+  if (object.is_register() && object.reg().is(rcx)) {
+    Result fresh = allocator_->Allocate();
+    shift_amount = object;
+    object = fresh;
+    __ movq(object.reg(), rcx);
+  }
+  if (index.is_register() && index.reg().is(rcx)) {
+    Result fresh = allocator_->Allocate();
+    shift_amount = index;
+    index = fresh;
+    __ movq(index.reg(), rcx);
+  }
+  // There could be references to ecx in the frame. Allocating will
+  // spill them, otherwise spill explicitly.
+  if (shift_amount.is_valid()) {
+    frame_->Spill(rcx);
+  } else {
+    shift_amount = allocator()->Allocate(rcx);
+  }
+  ASSERT(shift_amount.is_register());
+  ASSERT(shift_amount.reg().is(rcx));
+  ASSERT(allocator_->count(rcx) == 1);
+
+  // We will mutate the index register and possibly the object register.
+  // The case where they are somehow the same register is handled
+  // because we only mutate them in the case where the receiver is a
+  // heap object and the index is not.
+  object.ToRegister();
+  index.ToRegister();
+  frame_->Spill(object.reg());
+  frame_->Spill(index.reg());
+
+  // We need a single extra temporary register.
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+
+  // There is no virtual frame effect from here up to the final result
+  // push.
+
+  // If the receiver is a smi trigger the slow case.
+  ASSERT(kSmiTag == 0);
+  __ testl(object.reg(), Immediate(kSmiTagMask));
+  __ j(zero, &slow_case);
+
+  // If the index is negative or non-smi trigger the slow case.
+  ASSERT(kSmiTag == 0);
+  __ testl(index.reg(),
+           Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000U)));
+  __ j(not_zero, &slow_case);
+  // Untag the index.
+  __ sarl(index.reg(), Immediate(kSmiTagSize));
+
+  __ bind(&try_again_with_new_string);
+  // Fetch the instance type of the receiver into rcx.
+  __ movq(rcx, FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzxbl(rcx, FieldOperand(rcx, Map::kInstanceTypeOffset));
+  // If the receiver is not a string trigger the slow case.
+  __ testb(rcx, Immediate(kIsNotStringMask));
+  __ j(not_zero, &slow_case);
+
+  // Here we make assumptions about the tag values and the shifts needed.
+  // See the comment in objects.h.
+  ASSERT(kLongStringTag == 0);
+  ASSERT(kMediumStringTag + String::kLongLengthShift ==
+         String::kMediumLengthShift);
+  ASSERT(kShortStringTag + String::kLongLengthShift ==
+         String::kShortLengthShift);
+  __ and_(rcx, Immediate(kStringSizeMask));
+  __ addq(rcx, Immediate(String::kLongLengthShift));
+  // Fetch the length field into the temporary register.
+  __ movl(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
+  __ shrl(temp.reg());  // The shift amount in ecx is implicit operand.
+  // Check for index out of range.
+  __ cmpl(index.reg(), temp.reg());
+  __ j(greater_equal, &slow_case);
+  // Reload the instance type (into the temp register this time)..
+  __ movq(temp.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzxbl(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+
+  // We need special handling for non-flat strings.
+  ASSERT(kSeqStringTag == 0);
+  __ testb(temp.reg(), Immediate(kStringRepresentationMask));
+  __ j(not_zero, &not_a_flat_string);
+  // Check for 1-byte or 2-byte string.
+  __ testb(temp.reg(), Immediate(kStringEncodingMask));
+  __ j(not_zero, &ascii_string);
+
+  // 2-byte string.
+  // Load the 2-byte character code into the temp register.
+  __ movzxwl(temp.reg(), FieldOperand(object.reg(),
+                                      index.reg(),
+                                      times_2,
+                                      SeqTwoByteString::kHeaderSize));
+  __ jmp(&got_char_code);
+
+  // ASCII string.
+  __ bind(&ascii_string);
+  // Load the byte into the temp register.
+  __ movzxbl(temp.reg(), FieldOperand(object.reg(),
+                                      index.reg(),
+                                      times_1,
+                                      SeqAsciiString::kHeaderSize));
+  __ bind(&got_char_code);
+  ASSERT(kSmiTag == 0);
+  __ shl(temp.reg(), Immediate(kSmiTagSize));
+  __ jmp(&end);
+
+  // Handle non-flat strings.
+  __ bind(&not_a_flat_string);
+  __ and_(temp.reg(), Immediate(kStringRepresentationMask));
+  __ cmpb(temp.reg(), Immediate(kConsStringTag));
+  __ j(equal, &a_cons_string);
+  __ cmpb(temp.reg(), Immediate(kSlicedStringTag));
+  __ j(not_equal, &slow_case);
+
+  // SlicedString.
+  // Add the offset to the index and trigger the slow case on overflow.
+  __ addl(index.reg(), FieldOperand(object.reg(), SlicedString::kStartOffset));
+  __ j(overflow, &slow_case);
+  // Getting the underlying string is done by running the cons string code.
+
+  // ConsString.
+  __ bind(&a_cons_string);
+  // Get the first of the two strings.  Both sliced and cons strings
+  // store their source string at the same offset.
+  ASSERT(SlicedString::kBufferOffset == ConsString::kFirstOffset);
+  __ movq(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
+  __ jmp(&try_again_with_new_string);
+
+  __ bind(&slow_case);
+  // Move the undefined value into the result register, which will
+  // trigger the slow case.
+  __ Move(temp.reg(), Factory::undefined_value());
+
+  __ bind(&end);
+  frame_->Push(&temp);
 }
 
 
@@ -4259,8 +4410,6 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
 
 
 void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
-  // TODO(X64): Enable more types of slot.
-
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
