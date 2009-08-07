@@ -659,7 +659,8 @@ class Cfg : public ZoneObject {
 };
 
 
-// An implementation of a set of locations (currently slot locations).
+// An implementation of a set of locations (currently slot locations), most
+// of the operations are destructive.
 class LocationSet BASE_EMBEDDED {
  public:
   // Construct an empty location set.
@@ -668,6 +669,11 @@ class LocationSet BASE_EMBEDDED {
   // Raw accessors.
   uintptr_t parameters() { return parameters_; }
   uintptr_t locals() { return locals_; }
+
+  // Make this the empty set.
+  void Empty() {
+    parameters_ = locals_ = 0;
+  }
 
   // Insert an element.
   void AddElement(SlotLocation* location) {
@@ -705,14 +711,14 @@ class LocationSet BASE_EMBEDDED {
 };
 
 
-// An ExpressionBuilder traverses an expression and returns an open CFG
+// An ExpressionCfgBuilder traverses an expression and returns an open CFG
 // fragment (currently a possibly empty list of instructions represented by
 // a singleton instruction block) and the expression's value.
 //
-// Failure is to build the CFG is indicated by a NULL CFG.
-class ExpressionBuilder : public AstVisitor {
+// Failure to build the CFG is indicated by a NULL CFG.
+class ExpressionCfgBuilder : public AstVisitor {
  public:
-  ExpressionBuilder() : value_(NULL), graph_(NULL), destination_(NULL) {}
+  ExpressionCfgBuilder() : destination_(NULL), value_(NULL), graph_(NULL) {}
 
   // Result accessors.
   Value* value() { return value_; }
@@ -728,6 +734,7 @@ class ExpressionBuilder : public AstVisitor {
   void Build(Expression* expr, Location* destination) {
     value_ = NULL;
     graph_ = new Cfg();
+    assigned_vars_.Empty();
     destination_ = destination;
     Visit(expr);
   }
@@ -738,22 +745,22 @@ class ExpressionBuilder : public AstVisitor {
 #undef DECLARE_VISIT
 
  private:
-  // State for the visitor.  Output parameters.
+  // State for the visitor.  Input parameters:
+  Location* destination_;
+
+  // Output parameters:
   Value* value_;
   Cfg* graph_;
   LocationSet assigned_vars_;
-
-  // Input parameters.
-  Location* destination_;
 };
 
 
-// A StatementBuilder maintains a CFG fragment accumulator.  When it visits
-// a statement, it concatenates the CFG for the statement to the end of the
-// accumulator.
-class StatementBuilder : public AstVisitor {
+// A StatementCfgBuilder maintains a CFG fragment accumulator.  When it
+// visits a statement, it concatenates the CFG for the statement to the end
+// of the accumulator.
+class StatementCfgBuilder : public AstVisitor {
  public:
-  StatementBuilder() : graph_(new Cfg()) {}
+  StatementCfgBuilder() : graph_(new Cfg()) {}
 
   Cfg* graph() { return graph_; }
 
@@ -765,6 +772,7 @@ class StatementBuilder : public AstVisitor {
 #undef DECLARE_VISIT
 
  private:
+  // State for the visitor.  Input/output parameter:
   Cfg* graph_;
 };
 

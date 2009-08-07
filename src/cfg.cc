@@ -75,7 +75,7 @@ Cfg* Cfg::Build() {
     BAILOUT("empty function body");
   }
 
-  StatementBuilder builder;
+  StatementCfgBuilder builder;
   builder.VisitStatements(body);
   Cfg* graph = builder.graph();
   if (graph == NULL) {
@@ -231,10 +231,12 @@ void ReturnInstr::FastAllocate(TempLocation* temp) {
 
 
 // The expression builder should not be used for declarations or statements.
-void ExpressionBuilder::VisitDeclaration(Declaration* decl) { UNREACHABLE(); }
+void ExpressionCfgBuilder::VisitDeclaration(Declaration* decl) {
+  UNREACHABLE();
+}
 
 #define DEFINE_VISIT(type)                                              \
-  void ExpressionBuilder::Visit##type(type* stmt) { UNREACHABLE(); }
+  void ExpressionCfgBuilder::Visit##type(type* stmt) { UNREACHABLE(); }
 STATEMENT_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
@@ -246,28 +248,28 @@ STATEMENT_NODE_LIST(DEFINE_VISIT)
     return;                                     \
   } while (false)
 
-void ExpressionBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
+void ExpressionCfgBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   BAILOUT("FunctionLiteral");
 }
 
 
-void ExpressionBuilder::VisitFunctionBoilerplateLiteral(
+void ExpressionCfgBuilder::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* expr) {
   BAILOUT("FunctionBoilerplateLiteral");
 }
 
 
-void ExpressionBuilder::VisitConditional(Conditional* expr) {
+void ExpressionCfgBuilder::VisitConditional(Conditional* expr) {
   BAILOUT("Conditional");
 }
 
 
-void ExpressionBuilder::VisitSlot(Slot* expr) {
+void ExpressionCfgBuilder::VisitSlot(Slot* expr) {
   BAILOUT("Slot");
 }
 
 
-void ExpressionBuilder::VisitVariableProxy(VariableProxy* expr) {
+void ExpressionCfgBuilder::VisitVariableProxy(VariableProxy* expr) {
   Expression* rewrite = expr->var()->rewrite();
   if (rewrite == NULL || rewrite->AsSlot() == NULL) {
     BAILOUT("unsupported variable (not a slot)");
@@ -281,33 +283,34 @@ void ExpressionBuilder::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
-void ExpressionBuilder::VisitLiteral(Literal* expr) {
+void ExpressionCfgBuilder::VisitLiteral(Literal* expr) {
   // Ignore the passed destination.
   value_ = new Constant(expr->handle());
 }
 
 
-void ExpressionBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
+void ExpressionCfgBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   BAILOUT("RegExpLiteral");
 }
 
 
-void ExpressionBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
+void ExpressionCfgBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   BAILOUT("ObjectLiteral");
 }
 
 
-void ExpressionBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
+void ExpressionCfgBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   BAILOUT("ArrayLiteral");
 }
 
 
-void ExpressionBuilder::VisitCatchExtensionObject(CatchExtensionObject* expr) {
+void ExpressionCfgBuilder::VisitCatchExtensionObject(
+    CatchExtensionObject* expr) {
   BAILOUT("CatchExtensionObject");
 }
 
 
-void ExpressionBuilder::VisitAssignment(Assignment* expr) {
+void ExpressionCfgBuilder::VisitAssignment(Assignment* expr) {
   if (expr->op() != Token::ASSIGN && expr->op() != Token::INIT_VAR) {
     BAILOUT("unsupported compound assignment");
   }
@@ -328,7 +331,7 @@ void ExpressionBuilder::VisitAssignment(Assignment* expr) {
     BAILOUT("unsupported slot lhs (not a parameter or local)");
   }
 
-  ExpressionBuilder builder;
+  ExpressionCfgBuilder builder;
   SlotLocation* loc = new SlotLocation(slot->type(), slot->index());
   builder.Build(expr->value(), loc);
   if (builder.graph() == NULL) {
@@ -347,47 +350,47 @@ void ExpressionBuilder::VisitAssignment(Assignment* expr) {
 }
 
 
-void ExpressionBuilder::VisitThrow(Throw* expr) {
+void ExpressionCfgBuilder::VisitThrow(Throw* expr) {
   BAILOUT("Throw");
 }
 
 
-void ExpressionBuilder::VisitProperty(Property* expr) {
+void ExpressionCfgBuilder::VisitProperty(Property* expr) {
   BAILOUT("Property");
 }
 
 
-void ExpressionBuilder::VisitCall(Call* expr) {
+void ExpressionCfgBuilder::VisitCall(Call* expr) {
   BAILOUT("Call");
 }
 
 
-void ExpressionBuilder::VisitCallEval(CallEval* expr) {
+void ExpressionCfgBuilder::VisitCallEval(CallEval* expr) {
   BAILOUT("CallEval");
 }
 
 
-void ExpressionBuilder::VisitCallNew(CallNew* expr) {
+void ExpressionCfgBuilder::VisitCallNew(CallNew* expr) {
   BAILOUT("CallNew");
 }
 
 
-void ExpressionBuilder::VisitCallRuntime(CallRuntime* expr) {
+void ExpressionCfgBuilder::VisitCallRuntime(CallRuntime* expr) {
   BAILOUT("CallRuntime");
 }
 
 
-void ExpressionBuilder::VisitUnaryOperation(UnaryOperation* expr) {
+void ExpressionCfgBuilder::VisitUnaryOperation(UnaryOperation* expr) {
   BAILOUT("UnaryOperation");
 }
 
 
-void ExpressionBuilder::VisitCountOperation(CountOperation* expr) {
+void ExpressionCfgBuilder::VisitCountOperation(CountOperation* expr) {
   BAILOUT("CountOperation");
 }
 
 
-void ExpressionBuilder::VisitBinaryOperation(BinaryOperation* expr) {
+void ExpressionCfgBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   Token::Value op = expr->op();
   switch (op) {
     case Token::COMMA:
@@ -406,7 +409,7 @@ void ExpressionBuilder::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::MUL:
     case Token::DIV:
     case Token::MOD: {
-      ExpressionBuilder left, right;
+      ExpressionCfgBuilder left, right;
       left.Build(expr->left(), NULL);
       if (left.graph() == NULL) {
         BAILOUT("unsupported left subexpression in binop");
@@ -445,12 +448,12 @@ void ExpressionBuilder::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
-void ExpressionBuilder::VisitCompareOperation(CompareOperation* expr) {
+void ExpressionCfgBuilder::VisitCompareOperation(CompareOperation* expr) {
   BAILOUT("CompareOperation");
 }
 
 
-void ExpressionBuilder::VisitThisFunction(ThisFunction* expr) {
+void ExpressionCfgBuilder::VisitThisFunction(ThisFunction* expr) {
   BAILOUT("ThisFunction");
 }
 
@@ -467,7 +470,7 @@ void ExpressionBuilder::VisitThisFunction(ThisFunction* expr) {
 #define CHECK_BAILOUT()                         \
   if (graph() == NULL) { return; } else {}
 
-void StatementBuilder::VisitStatements(ZoneList<Statement*>* stmts) {
+void StatementCfgBuilder::VisitStatements(ZoneList<Statement*>* stmts) {
   for (int i = 0, len = stmts->length(); i < len; i++) {
     Visit(stmts->at(i));
     CHECK_BAILOUT();
@@ -477,21 +480,21 @@ void StatementBuilder::VisitStatements(ZoneList<Statement*>* stmts) {
 
 
 // The statement builder should not be used for declarations or expressions.
-void StatementBuilder::VisitDeclaration(Declaration* decl) { UNREACHABLE(); }
+void StatementCfgBuilder::VisitDeclaration(Declaration* decl) { UNREACHABLE(); }
 
 #define DEFINE_VISIT(type)                                      \
-  void StatementBuilder::Visit##type(type* expr) { UNREACHABLE(); }
+  void StatementCfgBuilder::Visit##type(type* expr) { UNREACHABLE(); }
 EXPRESSION_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
 
-void StatementBuilder::VisitBlock(Block* stmt) {
+void StatementCfgBuilder::VisitBlock(Block* stmt) {
   VisitStatements(stmt->statements());
 }
 
 
-void StatementBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
-  ExpressionBuilder builder;
+void StatementCfgBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
+  ExpressionCfgBuilder builder;
   builder.Build(stmt->expression(), CfgGlobals::current()->nowhere());
   if (builder.graph() == NULL) {
     BAILOUT("unsupported expression in expression statement");
@@ -501,28 +504,28 @@ void StatementBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
 }
 
 
-void StatementBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
+void StatementCfgBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
   // Nothing to do.
 }
 
 
-void StatementBuilder::VisitIfStatement(IfStatement* stmt) {
+void StatementCfgBuilder::VisitIfStatement(IfStatement* stmt) {
   BAILOUT("IfStatement");
 }
 
 
-void StatementBuilder::VisitContinueStatement(ContinueStatement* stmt) {
+void StatementCfgBuilder::VisitContinueStatement(ContinueStatement* stmt) {
   BAILOUT("ContinueStatement");
 }
 
 
-void StatementBuilder::VisitBreakStatement(BreakStatement* stmt) {
+void StatementCfgBuilder::VisitBreakStatement(BreakStatement* stmt) {
   BAILOUT("BreakStatement");
 }
 
 
-void StatementBuilder::VisitReturnStatement(ReturnStatement* stmt) {
-  ExpressionBuilder builder;
+void StatementCfgBuilder::VisitReturnStatement(ReturnStatement* stmt) {
+  ExpressionCfgBuilder builder;
   builder.Build(stmt->expression(), NULL);
   if (builder.graph() == NULL) {
     BAILOUT("unsupported expression in return statement");
@@ -534,42 +537,42 @@ void StatementBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void StatementBuilder::VisitWithEnterStatement(WithEnterStatement* stmt) {
+void StatementCfgBuilder::VisitWithEnterStatement(WithEnterStatement* stmt) {
   BAILOUT("WithEnterStatement");
 }
 
 
-void StatementBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
+void StatementCfgBuilder::VisitWithExitStatement(WithExitStatement* stmt) {
   BAILOUT("WithExitStatement");
 }
 
 
-void StatementBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
+void StatementCfgBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   BAILOUT("SwitchStatement");
 }
 
 
-void StatementBuilder::VisitLoopStatement(LoopStatement* stmt) {
+void StatementCfgBuilder::VisitLoopStatement(LoopStatement* stmt) {
   BAILOUT("LoopStatement");
 }
 
 
-void StatementBuilder::VisitForInStatement(ForInStatement* stmt) {
+void StatementCfgBuilder::VisitForInStatement(ForInStatement* stmt) {
   BAILOUT("ForInStatement");
 }
 
 
-void StatementBuilder::VisitTryCatch(TryCatch* stmt) {
+void StatementCfgBuilder::VisitTryCatch(TryCatch* stmt) {
   BAILOUT("TryCatch");
 }
 
 
-void StatementBuilder::VisitTryFinally(TryFinally* stmt) {
+void StatementCfgBuilder::VisitTryFinally(TryFinally* stmt) {
   BAILOUT("TryFinally");
 }
 
 
-void StatementBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
+void StatementCfgBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
   BAILOUT("DebuggerStatement");
 }
 
