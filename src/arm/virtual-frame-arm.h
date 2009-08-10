@@ -112,12 +112,14 @@ class VirtualFrame : public ZoneObject {
     ASSERT(count >= 0);
     ASSERT(stack_pointer_ == element_count() - 1);
     stack_pointer_ -= count;
-    ForgetElements(count);
+    // On ARM, all elements are in memory, so there is no extra bookkeeping
+    // (registers, copies, etc.) beyond dropping the elements.
+    elements_.Rewind(stack_pointer_ + 1);
   }
 
-  // Forget count elements from the top of the frame without adjusting
-  // the stack pointer downward.  This is used, for example, before
-  // merging frames at break, continue, and return targets.
+  // Forget count elements from the top of the frame and adjust the stack
+  // pointer downward.  This is used, for example, before merging frames at
+  // break, continue, and return targets.
   void ForgetElements(int count);
 
   // Spill all values from the frame to memory.

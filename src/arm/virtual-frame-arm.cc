@@ -76,72 +76,23 @@ void VirtualFrame::SyncRange(int begin, int end) {
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
-  Comment cmnt(masm(), "[ Merge frame");
-  // We should always be merging the code generator's current frame to an
-  // expected frame.
-  ASSERT(cgen()->frame() == this);
-
-  // Adjust the stack pointer upward (toward the top of the virtual
-  // frame) if necessary.
-  if (stack_pointer_ < expected->stack_pointer_) {
-    int difference = expected->stack_pointer_ - stack_pointer_;
-    stack_pointer_ = expected->stack_pointer_;
-    __ sub(sp, sp, Operand(difference * kPointerSize));
-  }
-
-  MergeMoveRegistersToMemory(expected);
-  MergeMoveRegistersToRegisters(expected);
-  MergeMoveMemoryToRegisters(expected);
-
-  // Fix any sync bit problems from the bottom-up, stopping when we
-  // hit the stack pointer or the top of the frame if the stack
-  // pointer is floating above the frame.
-  int limit = Min(static_cast<int>(stack_pointer_), element_count() - 1);
-  for (int i = 0; i <= limit; i++) {
-    FrameElement source = elements_[i];
-    FrameElement target = expected->elements_[i];
-    if (source.is_synced() && !target.is_synced()) {
-      elements_[i].clear_sync();
-    } else if (!source.is_synced() && target.is_synced()) {
-      SyncElementAt(i);
-    }
-  }
-
-  // Adjust the stack point downard if necessary.
-  if (stack_pointer_ > expected->stack_pointer_) {
-    int difference = stack_pointer_ - expected->stack_pointer_;
-    stack_pointer_ = expected->stack_pointer_;
-    __ add(sp, sp, Operand(difference * kPointerSize));
-  }
-
-  // At this point, the frames should be identical.
+  // ARM frames are currently always in memory.
   ASSERT(Equals(expected));
 }
 
 
 void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
-  ASSERT(stack_pointer_ >= expected->stack_pointer_);
-
-  // Move registers, constants, and copies to memory.  Perform moves
-  // from the top downward in the frame in order to leave the backing
-  // stores of copies in registers.
-  // On ARM, all elements are in memory.
-
-#ifdef DEBUG
-  int start = Min(static_cast<int>(stack_pointer_), element_count() - 1);
-  for (int i = start; i >= 0; i--) {
-    ASSERT(elements_[i].is_memory());
-    ASSERT(expected->elements_[i].is_memory());
-  }
-#endif
+  UNREACHABLE();
 }
 
 
 void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
+  UNREACHABLE();
 }
 
 
 void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
+  UNREACHABLE();
 }
 
 
@@ -390,6 +341,7 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
 
 
 void VirtualFrame::Drop(int count) {
+  ASSERT(count >= 0);
   ASSERT(height() >= count);
   int num_virtual_elements = (element_count() - 1) - stack_pointer_;
 
