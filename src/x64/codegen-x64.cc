@@ -123,6 +123,27 @@ class DeferredInlineSmiAdd: public DeferredCode {
 };
 
 
+// The result of value + src is in dst.  It either overflowed or was not
+// smi tagged.  Undo the speculative addition and call the appropriate
+// specialized stub for add.  The result is left in dst.
+class DeferredInlineSmiAddReversed: public DeferredCode {
+ public:
+  DeferredInlineSmiAddReversed(Register dst,
+                               Smi* value,
+                               OverwriteMode overwrite_mode)
+      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+    set_comment("[ DeferredInlineSmiAddReversed");
+  }
+
+  virtual void Generate();
+
+ private:
+  Register dst_;
+  Smi* value_;
+  OverwriteMode overwrite_mode_;
+};
+
+
 class DeferredInlineSmiSub: public DeferredCode {
  public:
   DeferredInlineSmiSub(Register dst,
@@ -5057,27 +5078,6 @@ void DeferredInlineSmiAdd::Generate() {
 }
 
 
-// The result of value + src is in dst.  It either overflowed or was not
-// smi tagged.  Undo the speculative addition and call the appropriate
-// specialized stub for add.  The result is left in dst.
-class DeferredInlineSmiAddReversed: public DeferredCode {
- public:
-  DeferredInlineSmiAddReversed(Register dst,
-                               Smi* value,
-                               OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlineSmiAddReversed");
-  }
-
-  virtual void Generate();
-
- private:
-  Register dst_;
-  Smi* value_;
-  OverwriteMode overwrite_mode_;
-};
-
-
 void DeferredInlineSmiAddReversed::Generate() {
   __ push(Immediate(value_));  // Note: sign extended.
   __ push(dst_);
@@ -5164,6 +5164,32 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       __ bind(&add_success);
       deferred->BindExit();
       frame_->Push(operand);
+      break;
+    }
+
+    case Token::SUB: {
+      if (reversed) {
+        Result constant_operand(value);
+        LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                 overwrite_mode);
+      } else {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+        DeferredCode* deferred = new DeferredInlineSmiSub(operand->reg(),
+                                                          smi_value,
+                                                          overwrite_mode);
+        __ testl(operand->reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+        // A smi currently fits in a 32-bit Immediate.
+        __ subl(operand->reg(), Immediate(smi_value));
+        Label add_success;
+        __ j(no_overflow, &add_success);
+        __ addl(operand->reg(), Immediate(smi_value));
+        deferred->Jump();
+        __ bind(&add_success);
+        deferred->BindExit();
+        frame_->Push(operand);
+      }
       break;
     }
     // TODO(X64): Move other implementations from ia32 to here.
