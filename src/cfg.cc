@@ -200,43 +200,22 @@ Handle<Code> Cfg::Compile(Handle<Script> script) {
 }
 
 
-void MoveInstr::FastAllocate(TempLocation* temp) {
-  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
-  if (temp == value()) {
-    temp->set_where(TempLocation::ACCUMULATOR);
-  } else {
-    temp->set_where(TempLocation::STACK);
-  }
+void ZeroOperandInstruction::FastAllocate(TempLocation* temp) {
+  temp->set_where(TempLocation::STACK);
 }
 
 
-void PropLoadInstr::FastAllocate(TempLocation* temp) {
-  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
-  if (temp == object() || temp == key()) {
-    temp->set_where(TempLocation::ACCUMULATOR);
-  } else {
-    temp->set_where(TempLocation::STACK);
-  }
+void OneOperandInstruction::FastAllocate(TempLocation* temp) {
+  temp->set_where((temp == value_)
+                  ? TempLocation::ACCUMULATOR
+                  : TempLocation::STACK);
 }
 
 
-void BinaryOpInstr::FastAllocate(TempLocation* temp) {
-  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
-  if (temp == left() || temp == right()) {
-    temp->set_where(TempLocation::ACCUMULATOR);
-  } else {
-    temp->set_where(TempLocation::STACK);
-  }
-}
-
-
-void ReturnInstr::FastAllocate(TempLocation* temp) {
-  ASSERT(temp->where() == TempLocation::NOT_ALLOCATED);
-  if (temp == value()) {
-    temp->set_where(TempLocation::ACCUMULATOR);
-  } else {
-    temp->set_where(TempLocation::STACK);
-  }
+void TwoOperandInstruction::FastAllocate(TempLocation* temp) {
+  temp->set_where((temp == value0_ || temp == value1_)
+                  ? TempLocation::ACCUMULATOR
+                  : TempLocation::STACK);
 }
 
 
@@ -639,9 +618,8 @@ void Cfg::Print() {
 
 
 void Constant::Print() {
-  PrintF("Constant(");
+  PrintF("Constant ");
   handle_->Print();
-  PrintF(")");
 }
 
 
@@ -651,13 +629,13 @@ void Nowhere::Print() {
 
 
 void SlotLocation::Print() {
-  PrintF("Slot(");
+  PrintF("Slot ");
   switch (type_) {
     case Slot::PARAMETER:
-      PrintF("PARAMETER, %d)", index_);
+      PrintF("(PARAMETER, %d)", index_);
       break;
     case Slot::LOCAL:
-      PrintF("LOCAL, %d)", index_);
+      PrintF("(LOCAL, %d)", index_);
       break;
     default:
       UNREACHABLE();
@@ -666,45 +644,87 @@ void SlotLocation::Print() {
 
 
 void TempLocation::Print() {
-  PrintF("Temp(%d)", number());
+  PrintF("Temp %d", number());
+}
+
+
+void OneOperandInstruction::Print() {
+  PrintF("(");
+  location()->Print();
+  PrintF(", ");
+  value_->Print();
+  PrintF(")");
+}
+
+
+void TwoOperandInstruction::Print() {
+  PrintF("(");
+  location()->Print();
+  PrintF(", ");
+  value0_->Print();
+  PrintF(", ");
+  value1_->Print();
+  PrintF(")");
 }
 
 
 void MoveInstr::Print() {
-  PrintF("Move(");
-  location()->Print();
-  PrintF(", ");
-  value_->Print();
-  PrintF(")\n");
+  PrintF("Move              ");
+  OneOperandInstruction::Print();
+  PrintF("\n");
 }
 
 
 void PropLoadInstr::Print() {
-  PrintF("PropLoad(");
-  location()->Print();
-  PrintF(", ");
-  object()->Print();
-  PrintF(", ");
-  key()->Print();
-  PrintF(")\n");
+  PrintF("PropLoad          ");
+  TwoOperandInstruction::Print();
+  PrintF("\n");
 }
 
 
 void BinaryOpInstr::Print() {
-  PrintF("BinaryOp(");
-  location()->Print();
-  PrintF(", %s, ", Token::Name(op()));
-  left()->Print();
-  PrintF(", ");
-  right()->Print();
-  PrintF(")\n");
+  switch (op()) {
+    case Token::OR:
+      // Two character operand.
+      PrintF("BinaryOp[OR]      ");
+      break;
+    case Token::AND:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      // Three character operands.
+      PrintF("BinaryOp[%s]     ", Token::Name(op()));
+      break;
+    case Token::COMMA:
+      // Five character operand.
+      PrintF("BinaryOp[COMMA]   ");
+      break;
+    case Token::BIT_OR:
+      // Six character operand.
+      PrintF("BinaryOp[BIT_OR]  ");
+      break;
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+      // Seven character operands.
+      PrintF("BinaryOp[%s] ", Token::Name(op()));
+      break;
+    default:
+      UNREACHABLE();
+  }
+  TwoOperandInstruction::Print();
+  PrintF("\n");
 }
 
 
 void ReturnInstr::Print() {
-  PrintF("Return(");
-  value_->Print();
-  PrintF(")\n");
+  PrintF("Return            ");
+  OneOperandInstruction::Print();
+  PrintF("\n");
 }
 
 
@@ -715,7 +735,7 @@ void InstructionBlock::Print() {
     for (int i = 0, len = instructions_.length(); i < len; i++) {
       instructions_[i]->Print();
     }
-    PrintF("Goto L%d\n\n", successor_->number());
+    PrintF("Goto              L%d\n\n", successor_->number());
     successor_->Print();
   }
 }

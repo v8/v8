@@ -307,7 +307,10 @@ class TempLocation : public Location {
 
   // Accessors.
   Where where() { return where_; }
-  void set_where(Where where) { where_ = where; }
+  void set_where(Where where) {
+    ASSERT(where_ == TempLocation::NOT_ALLOCATED);
+    where_ = where;
+  }
 
   // Predicates.
   bool is_on_stack() { return where_ == STACK; }
@@ -343,14 +346,6 @@ class TempLocation : public Location {
 // be generated.
 class Instruction : public ZoneObject {
  public:
-  // Every instruction has a location where its result is stored (which may
-  // be Nowhere, the default).
-  Instruction() : location_(CfgGlobals::current()->nowhere()) {}
-
-  explicit Instruction(Location* location) : location_(location) {}
-
-  virtual ~Instruction() {}
-
   // Accessors.
   Location* location() { return location_; }
   void set_location(Location* location) { location_ = location; }
@@ -370,16 +365,84 @@ class Instruction : public ZoneObject {
 #endif
 
  protected:
+  // Every instruction has a location where its result is stored (which may
+  // be Nowhere).
+  explicit Instruction(Location* location) : location_(location) {}
+
+  virtual ~Instruction() {}
+
   Location* location_;
+};
+
+
+// Base class of instructions that have no input operands.
+class ZeroOperandInstruction : public Instruction {
+ public:
+  // Support for fast-compilation mode:
+  virtual void Compile(MacroAssembler* masm) = 0;
+  void FastAllocate(TempLocation* temp);
+
+#ifdef DEBUG
+  // Printing support: print the operands (nothing).
+  virtual void Print() {}
+#endif
+
+ protected:
+  explicit ZeroOperandInstruction(Location* loc) : Instruction(loc) {}
+};
+
+
+// Base class of instructions that have a single input operand.
+class OneOperandInstruction : public Instruction {
+ public:
+  // Support for fast-compilation mode:
+  virtual void Compile(MacroAssembler* masm) = 0;
+  void FastAllocate(TempLocation* temp);
+
+#ifdef DEBUG
+  // Printing support: print the operands.
+  virtual void Print();
+#endif
+
+ protected:
+  OneOperandInstruction(Location* loc, Value* value)
+      : Instruction(loc), value_(value) {
+  }
+
+  Value* value_;
+};
+
+
+// Base class of instructions that have two input operands.
+class TwoOperandInstruction : public Instruction {
+ protected:
+  // Support for fast-compilation mode:
+  virtual void Compile(MacroAssembler* masm) = 0;
+  void FastAllocate(TempLocation* temp);
+
+#ifdef DEBUG
+  // Printing support: print the operands.
+  virtual void Print();
+#endif
+
+ protected:
+  TwoOperandInstruction(Location* loc, Value* value0, Value* value1)
+      : Instruction(loc), value0_(value0), value1_(value1) {
+  }
+
+  Value* value0_;
+  Value* value1_;
 };
 
 
 // A phantom instruction that indicates the start of a statement.  It
 // causes the statement position to be recorded in the relocation
 // information but generates no code.
-class PositionInstr : public Instruction {
+class PositionInstr : public ZeroOperandInstruction {
  public:
-  explicit PositionInstr(int pos) : pos_(pos) {}
+  explicit PositionInstr(int pos)
+      : ZeroOperandInstruction(CfgGlobals::current()->nowhere()), pos_(pos) {
+  }
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
@@ -399,67 +462,60 @@ class PositionInstr : public Instruction {
 
 
 // Move a value to a location.
-class MoveInstr : public Instruction {
+class MoveInstr : public OneOperandInstruction {
  public:
-  MoveInstr(Location* loc, Value* value) : Instruction(loc), value_(value) {}
+  MoveInstr(Location* loc, Value* value)
+      : OneOperandInstruction(loc, value) {
+  }
 
   // Accessors.
   Value* value() { return value_; }
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
-  void FastAllocate(TempLocation* temp);
 
 #ifdef DEBUG
+  // Printing support.
   void Print();
 #endif
-
- private:
-  Value* value_;
 };
 
 
 // Load a property from a receiver, leaving the result in a location.
-class PropLoadInstr : public Instruction {
+class PropLoadInstr : public TwoOperandInstruction {
  public:
   PropLoadInstr(Location* loc, Value* object, Value* key)
-      : Instruction(loc), object_(object), key_(key) {
+      : TwoOperandInstruction(loc, object, key) {
   }
 
   // Accessors.
-  Value* object() { return object_; }
-  Value* key() { return key_; }
+  Value* object() { return value0_; }
+  Value* key() { return value1_; }
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
-  void FastAllocate(TempLocation* temp);
 
 #ifdef DEBUG
   void Print();
 #endif
-
- private:
-  Value* object_;
-  Value* key_;
 };
 
 
 // Perform a (non-short-circuited) binary operation on a pair of values,
 // leaving the result in a location.
-class BinaryOpInstr : public Instruction {
+class BinaryOpInstr : public TwoOperandInstruction {
  public:
   BinaryOpInstr(Location* loc, Token::Value op, Value* left, Value* right)
-      : Instruction(loc), op_(op), left_(left), right_(right) {
+      : TwoOperandInstruction(loc, left, right), op_(op) {
   }
 
   // Accessors.
+  Value* left() { return value0_; }
+  Value* right() { return value1_; }
   Token::Value op() { return op_; }
-  Value* left() { return left_; }
-  Value* right() { return right_; }
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
-  void FastAllocate(TempLocation* temp);
 
 #ifdef DEBUG
   void Print();
@@ -467,8 +523,6 @@ class BinaryOpInstr : public Instruction {
 
  private:
   Token::Value op_;
-  Value* left_;
-  Value* right_;
 };
 
 
@@ -477,9 +531,11 @@ class BinaryOpInstr : public Instruction {
 // block, and implies that the block is closed (cannot have instructions
 // appended or graph fragments concatenated to the end) and that the block's
 // successor is the global exit node for the current function.
-class ReturnInstr : public Instruction {
+class ReturnInstr : public OneOperandInstruction {
  public:
-  explicit ReturnInstr(Value* value) : value_(value) {}
+  explicit ReturnInstr(Value* value)
+      : OneOperandInstruction(CfgGlobals::current()->nowhere(), value) {
+  }
 
   virtual ~ReturnInstr() {}
 
@@ -488,14 +544,10 @@ class ReturnInstr : public Instruction {
 
   // Support for fast-compilation mode.
   void Compile(MacroAssembler* masm);
-  void FastAllocate(TempLocation* temp);
 
 #ifdef DEBUG
   void Print();
 #endif
-
- private:
-  Value* value_;
 };
 
 
