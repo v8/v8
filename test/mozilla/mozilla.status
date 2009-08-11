@@ -810,9 +810,3 @@ ecma_3/RegExp/regress-209067: SKIP
 # when the 64-bit port is fully debugged.
 
 js1_2/regexp/regress-9141: FAIL
-js1_5/Regress/regress-211590: CRASH
-js1_5/Regress/regress-303213: PASS || CRASH
-js1_5/extensions/regress-336410-2: CRASH
-js1_5/extensions/regress-336410-1: CRASH
-js1_5/Function/regress-338001: FAIL || CRASH
-js1_5/extensions/regress-371636: CRASH
