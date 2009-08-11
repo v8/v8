@@ -186,76 +186,62 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-Result VirtualFrame::RawCallStub(CodeStub* stub) {
+void VirtualFrame::RawCallStub(CodeStub* stub) {
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallStub(stub);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
+void VirtualFrame::CallStub(CodeStub* stub, Result* arg) {
   PrepareForCall(0, 0);
   arg->Unuse();
-  return RawCallStub(stub);
+  RawCallStub(stub);
 }
 
 
-Result VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
+void VirtualFrame::CallStub(CodeStub* stub, Result* arg0, Result* arg1) {
   PrepareForCall(0, 0);
   arg0->Unuse();
   arg1->Unuse();
-  return RawCallStub(stub);
+  RawCallStub(stub);
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
+void VirtualFrame::CallRuntime(Runtime::Function* f, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(f, arg_count);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
+void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
   PrepareForCall(arg_count, arg_count);
   ASSERT(cgen()->HasValidEntryRegisters());
   __ CallRuntime(id, arg_count);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
-                                   InvokeJSFlags flags,
-                                   Result* arg_count_register,
-                                   int arg_count) {
+void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                 InvokeJSFlags flags,
+                                 Result* arg_count_register,
+                                 int arg_count) {
   ASSERT(arg_count_register->reg().is(r0));
   PrepareForCall(arg_count, arg_count);
   arg_count_register->Unuse();
   __ InvokeBuiltin(id, flags);
-  Result result = cgen()->allocator()->Allocate(r0);
-  return result;
 }
 
 
-Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
+void VirtualFrame::RawCallCodeObject(Handle<Code> code,
                                        RelocInfo::Mode rmode) {
   ASSERT(cgen()->HasValidEntryRegisters());
   __ Call(code, rmode);
-  Result result = cgen()->allocator()->Allocate(r0);
-  ASSERT(result.is_valid());
-  return result;
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    int dropped_args) {
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  int dropped_args) {
   int spilled_args = 0;
   switch (code->kind()) {
     case Code::CALL_IC:
@@ -276,14 +262,14 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
       break;
   }
   PrepareForCall(spilled_args, dropped_args);
-  return RawCallCodeObject(code, rmode);
+  RawCallCodeObject(code, rmode);
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg,
-                                    int dropped_args) {
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  Result* arg,
+                                  int dropped_args) {
   int spilled_args = 0;
   switch (code->kind()) {
     case Code::LOAD_IC:
@@ -304,15 +290,15 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
   }
   PrepareForCall(spilled_args, dropped_args);
   arg->Unuse();
-  return RawCallCodeObject(code, rmode);
+  RawCallCodeObject(code, rmode);
 }
 
 
-Result VirtualFrame::CallCodeObject(Handle<Code> code,
-                                    RelocInfo::Mode rmode,
-                                    Result* arg0,
-                                    Result* arg1,
-                                    int dropped_args) {
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  Result* arg0,
+                                  Result* arg1,
+                                  int dropped_args) {
   int spilled_args = 1;
   switch (code->kind()) {
     case Code::STORE_IC:
@@ -336,7 +322,7 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
   PrepareForCall(spilled_args, dropped_args);
   arg0->Unuse();
   arg1->Unuse();
-  return RawCallCodeObject(code, rmode);
+  RawCallCodeObject(code, rmode);
 }
 
 

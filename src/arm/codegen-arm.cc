@@ -1036,11 +1036,7 @@ void CodeGenerator::Comparison(Condition cc,
   // We call with 0 args because there are 0 on the stack.
   CompareStub stub(cc, strict);
   frame_->CallStub(&stub, 0);
-
-  Result result = allocator_->Allocate(r0);
-  ASSERT(result.is_valid());
-  __ cmp(result.reg(), Operand(0));
-  result.Unuse();
+  __ cmp(r0, Operand(0));
   exit.Jump();
 
   // Do smi comparisons by pointer comparison.
@@ -1749,9 +1745,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   primitive.Bind();
   frame_->EmitPush(r0);
-  Result arg_count = allocator_->Allocate(r0);
-  ASSERT(arg_count.is_valid());
-  __ mov(arg_count.reg(), Operand(0));
+  Result arg_count(r0);
+  __ mov(r0, Operand(0));
   frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS, &arg_count, 1);
 
   jsobject.Bind();
@@ -1832,15 +1827,10 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ ldr(r0, frame_->ElementAt(4));  // push enumerable
   frame_->EmitPush(r0);
   frame_->EmitPush(r3);  // push entry
-  Result arg_count_register = allocator_->Allocate(r0);
-  ASSERT(arg_count_register.is_valid());
-  __ mov(arg_count_register.reg(), Operand(1));
-  Result result = frame_->InvokeBuiltin(Builtins::FILTER_KEY,
-                                        CALL_JS,
-                                        &arg_count_register,
-                                        2);
-  __ mov(r3, Operand(result.reg()));
-  result.Unuse();
+  Result arg_count_reg(r0);
+  __ mov(r0, Operand(1));
+  frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS, &arg_count_reg, 2);
+  __ mov(r3, Operand(r0));
 
   // If the property has been removed while iterating, we just skip it.
   __ cmp(r3, Operand(Factory::null_value()));
@@ -2433,9 +2423,8 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   // Load the global object.
   LoadGlobal();
   // Setup the name register.
-  Result name = allocator_->Allocate(r2);
-  ASSERT(name.is_valid());  // We are in spilled code.
-  __ mov(name.reg(), Operand(slot->var()->name()));
+  Result name(r2);
+  __ mov(r2, Operand(slot->var()->name()));
   // Call IC stub.
   if (typeof_state == INSIDE_TYPEOF) {
     frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, &name, 0);
@@ -2775,9 +2764,8 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
   Comment cmnt(masm_, "[ CatchExtensionObject");
   LoadAndSpill(node->key());
   LoadAndSpill(node->value());
-  Result result =
-      frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  frame_->EmitPush(result.reg());
+  frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->EmitPush(r0);
   ASSERT(frame_->height() == original_height + 1);
 }
 
@@ -3117,24 +3105,22 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   }
 
   // r0: the number of arguments.
-  Result num_args = allocator_->Allocate(r0);
-  ASSERT(num_args.is_valid());
-  __ mov(num_args.reg(), Operand(arg_count));
+  Result num_args(r0);
+  __ mov(r0, Operand(arg_count));
 
   // Load the function into r1 as per calling convention.
-  Result function = allocator_->Allocate(r1);
-  ASSERT(function.is_valid());
-  __ ldr(function.reg(), frame_->ElementAt(arg_count + 1));
+  Result function(r1);
+  __ ldr(r1, frame_->ElementAt(arg_count + 1));
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   CodeForSourcePosition(node->position());
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
-  Result result = frame_->CallCodeObject(ic,
-                                         RelocInfo::CONSTRUCT_CALL,
-                                         &num_args,
-                                         &function,
-                                         arg_count + 1);
+  frame_->CallCodeObject(ic,
+                         RelocInfo::CONSTRUCT_CALL,
+                         &num_args,
+                         &function,
+                         arg_count + 1);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, frame_->Top());
@@ -3477,9 +3463,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       LoadAndSpill(property->obj());
       LoadAndSpill(property->key());
-      Result arg_count = allocator_->Allocate(r0);
-      ASSERT(arg_count.is_valid());
-      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+      Result arg_count(r0);
+      __ mov(r0, Operand(1));  // not counting receiver
       frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
     } else if (variable != NULL) {
@@ -3488,9 +3473,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         LoadGlobal();
         __ mov(r0, Operand(variable->name()));
         frame_->EmitPush(r0);
-        Result arg_count = allocator_->Allocate(r0);
-        ASSERT(arg_count.is_valid());
-        __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+        Result arg_count(r0);
+        __ mov(r0, Operand(1));  // not counting receiver
         frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
@@ -3503,9 +3487,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         frame_->EmitPush(r0);
         __ mov(r0, Operand(variable->name()));
         frame_->EmitPush(r0);
-        Result arg_count = allocator_->Allocate(r0);
-        ASSERT(arg_count.is_valid());
-        __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+        Result arg_count(r0);
+        __ mov(r0, Operand(1));  // not counting receiver
         frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
       } else {
@@ -3556,9 +3539,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         smi_label.Branch(eq);
 
         frame_->EmitPush(r0);
-        Result arg_count = allocator_->Allocate(r0);
-        ASSERT(arg_count.is_valid());
-        __ mov(arg_count.reg(), Operand(0));  // not counting receiver
+        Result arg_count(r0);
+        __ mov(r0, Operand(0));  // not counting receiver
         frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_JS, &arg_count, 1);
 
         continue_label.Jump();
@@ -3581,9 +3563,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ tst(r0, Operand(kSmiTagMask));
         continue_label.Branch(eq);
         frame_->EmitPush(r0);
-        Result arg_count = allocator_->Allocate(r0);
-        ASSERT(arg_count.is_valid());
-        __ mov(arg_count.reg(), Operand(0));  // not counting receiver
+        Result arg_count(r0);
+        __ mov(r0, Operand(0));  // not counting receiver
         frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, &arg_count, 1);
         continue_label.Bind();
         break;
@@ -3669,9 +3650,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     {
       // Convert the operand to a number.
       frame_->EmitPush(r0);
-      Result arg_count = allocator_->Allocate(r0);
-      ASSERT(arg_count.is_valid());
-      __ mov(arg_count.reg(), Operand(0));
+      Result arg_count(r0);
+      __ mov(r0, Operand(0));
       frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, &arg_count, 1);
     }
     if (is_postfix) {
@@ -4048,14 +4028,10 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::IN: {
       LoadAndSpill(left);
       LoadAndSpill(right);
-      Result arg_count = allocator_->Allocate(r0);
-      ASSERT(arg_count.is_valid());
-      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
-      Result result = frame_->InvokeBuiltin(Builtins::IN,
-                                            CALL_JS,
-                                            &arg_count,
-                                            2);
-      frame_->EmitPush(result.reg());
+      Result arg_count(r0);
+      __ mov(r0, Operand(1));  // not counting receiver
+      frame_->InvokeBuiltin(Builtins::IN, CALL_JS, &arg_count, 2);
+      frame_->EmitPush(r0);
       break;
     }
 
@@ -4063,9 +4039,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       LoadAndSpill(left);
       LoadAndSpill(right);
       InstanceofStub stub;
-      Result result = frame_->CallStub(&stub, 2);
+      frame_->CallStub(&stub, 2);
       // At this point if instanceof succeeded then r0 == 0.
-      __ tst(result.reg(), Operand(result.reg()));
+      __ tst(r0, Operand(r0));
       cc_reg_ = eq;
       break;
     }
@@ -4135,15 +4111,14 @@ void Reference::GetValue(TypeofState typeof_state) {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
       // Setup the name register.
-      Result name_reg = cgen_->allocator()->Allocate(r2);
-      ASSERT(name_reg.is_valid());
-      __ mov(name_reg.reg(), Operand(name));
+      Result name_reg(r2);
+      __ mov(r2, Operand(name));
       ASSERT(var == NULL || var->is_global());
       RelocInfo::Mode rmode = (var == NULL)
                             ? RelocInfo::CODE_TARGET
                             : RelocInfo::CODE_TARGET_CONTEXT;
-      Result answer = frame->CallCodeObject(ic, rmode, &name_reg, 0);
-      frame->EmitPush(answer.reg());
+      frame->CallCodeObject(ic, rmode, &name_reg, 0);
+      frame->EmitPush(r0);
       break;
     }
 
@@ -4162,8 +4137,8 @@ void Reference::GetValue(TypeofState typeof_state) {
       RelocInfo::Mode rmode = (var == NULL)
                             ? RelocInfo::CODE_TARGET
                             : RelocInfo::CODE_TARGET_CONTEXT;
-      Result answer = frame->CallCodeObject(ic, rmode, 0);
-      frame->EmitPush(answer.reg());
+      frame->CallCodeObject(ic, rmode, 0);
+      frame->EmitPush(r0);
       break;
     }
 
@@ -4272,20 +4247,18 @@ void Reference::SetValue(InitState init_state) {
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       Handle<String> name(GetName());
 
-      Result value = cgen_->allocator()->Allocate(r0);
-      ASSERT(value.is_valid());
-      frame->EmitPop(value.reg());
+      Result value(r0);
+      frame->EmitPop(r0);
 
       // Setup the name register.
-      Result property_name = cgen_->allocator()->Allocate(r2);
-      ASSERT(property_name.is_valid());
-      __ mov(property_name.reg(), Operand(name));
-      Result answer = frame->CallCodeObject(ic,
-                                            RelocInfo::CODE_TARGET,
-                                            &value,
-                                            &property_name,
-                                            0);
-      frame->EmitPush(answer.reg());
+      Result property_name(r2);
+      __ mov(r2, Operand(name));
+      frame->CallCodeObject(ic,
+                            RelocInfo::CODE_TARGET,
+                            &value,
+                            &property_name,
+                            0);
+      frame->EmitPush(r0);
       break;
     }
 
@@ -4298,12 +4271,10 @@ void Reference::SetValue(InitState init_state) {
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      Result value = cgen_->allocator()->Allocate(r0);
-      ASSERT(value.is_valid());
-      frame->EmitPop(value.reg());  // value
-      Result result =
-          frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, 0);
-      frame->EmitPush(result.reg());
+      Result value(r0);
+      frame->EmitPop(r0);  // value
+      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, 0);
+      frame->EmitPush(r0);
       break;
     }
 

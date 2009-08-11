@@ -283,46 +283,46 @@ class VirtualFrame : public ZoneObject {
 
   // Call stub given the number of arguments it expects on (and
   // removes from) the stack.
-  Result CallStub(CodeStub* stub, int arg_count) {
+  void CallStub(CodeStub* stub, int arg_count) {
     PrepareForCall(arg_count, arg_count);
-    return RawCallStub(stub);
+    RawCallStub(stub);
   }
 
   // Call stub that expects its argument in r0.  The argument is given
   // as a result which must be the register r0.
-  Result CallStub(CodeStub* stub, Result* arg);
+  void CallStub(CodeStub* stub, Result* arg);
 
   // Call stub that expects its arguments in r1 and r0.  The arguments
   // are given as results which must be the appropriate registers.
-  Result CallStub(CodeStub* stub, Result* arg0, Result* arg1);
+  void CallStub(CodeStub* stub, Result* arg0, Result* arg1);
 
   // Call runtime given the number of arguments expected on (and
   // removed from) the stack.
-  Result CallRuntime(Runtime::Function* f, int arg_count);
-  Result CallRuntime(Runtime::FunctionId id, int arg_count);
+  void CallRuntime(Runtime::Function* f, int arg_count);
+  void CallRuntime(Runtime::FunctionId id, int arg_count);
 
   // Invoke builtin given the number of arguments it expects on (and
   // removes from) the stack.
-  Result InvokeBuiltin(Builtins::JavaScript id,
-                       InvokeJSFlags flag,
-                       Result* arg_count_register,
-                       int arg_count);
+  void InvokeBuiltin(Builtins::JavaScript id,
+                     InvokeJSFlags flag,
+                     Result* arg_count_register,
+                     int arg_count);
 
   // Call into an IC stub given the number of arguments it removes
   // from the stack.  Register arguments are passed as results and
   // consumed by the call.
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        int dropped_args);
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        Result* arg,
-                        int dropped_args);
-  Result CallCodeObject(Handle<Code> ic,
-                        RelocInfo::Mode rmode,
-                        Result* arg0,
-                        Result* arg1,
-                        int dropped_args);
+  void CallCodeObject(Handle<Code> ic,
+                      RelocInfo::Mode rmode,
+                      int dropped_args);
+  void CallCodeObject(Handle<Code> ic,
+                      RelocInfo::Mode rmode,
+                      Result* arg,
+                      int dropped_args);
+  void CallCodeObject(Handle<Code> ic,
+                      RelocInfo::Mode rmode,
+                      Result* arg0,
+                      Result* arg1,
+                      int dropped_args);
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers
@@ -506,11 +506,11 @@ class VirtualFrame : public ZoneObject {
 
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).
-  Result RawCallStub(CodeStub* stub);
+  void RawCallStub(CodeStub* stub);
 
   // Calls a code object which has already been prepared for calling
   // (via PrepareForCall).
-  Result RawCallCodeObject(Handle<Code> code, RelocInfo::Mode rmode);
+  void RawCallCodeObject(Handle<Code> code, RelocInfo::Mode rmode);
 
   bool Equals(VirtualFrame* other);
 
