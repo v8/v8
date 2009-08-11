@@ -60,10 +60,10 @@ Cfg* Cfg::Build() {
   if (fun->scope()->num_heap_slots() > 0) {
     BAILOUT("function has context slots");
   }
-  if (fun->scope()->num_stack_slots() > kPointerSize) {
+  if (fun->scope()->num_stack_slots() > kBitsPerPointer) {
     BAILOUT("function has too many locals");
   }
-  if (fun->scope()->num_parameters() > kPointerSize - 1) {
+  if (fun->scope()->num_parameters() > kBitsPerPointer - 1) {
     BAILOUT("function has too many parameters");
   }
   if (fun->scope()->arguments() != NULL) {
@@ -320,6 +320,7 @@ void ExpressionCfgBuilder::VisitAssignment(Assignment* expr) {
   if (lhs->AsProperty() != NULL) {
     BAILOUT("unsupported property assignment");
   }
+
   Variable* var = lhs->AsVariableProxy()->AsVariable();
   if (var == NULL) {
     BAILOUT("unsupported invalid left-hand side");
@@ -333,6 +334,7 @@ void ExpressionCfgBuilder::VisitAssignment(Assignment* expr) {
     BAILOUT("unsupported slot lhs (not a parameter or local)");
   }
 
+  // Parameter and local slot assignments.
   ExpressionCfgBuilder builder;
   SlotLocation* loc = new SlotLocation(slot->type(), slot->index());
   builder.Build(expr->value(), loc);
@@ -361,11 +363,11 @@ void ExpressionCfgBuilder::VisitProperty(Property* expr) {
   ExpressionCfgBuilder object, key;
   object.Build(expr->obj(), NULL);
   if (object.graph() == NULL) {
-    BAILOUT("unsupported object subexpression in propref");
+    BAILOUT("unsupported object subexpression in propload");
   }
   key.Build(expr->key(), NULL);
   if (key.graph() == NULL) {
-    BAILOUT("unsupported key subexpression in propref");
+    BAILOUT("unsupported key subexpression in propload");
   }
 
   if (destination_ == NULL) destination_ = new TempLocation();

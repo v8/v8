@@ -415,7 +415,7 @@ class OneOperandInstruction : public Instruction {
 
 // Base class of instructions that have two input operands.
 class TwoOperandInstruction : public Instruction {
- protected:
+ public:
   // Support for fast-compilation mode:
   virtual void Compile(MacroAssembler* masm) = 0;
   void FastAllocate(TempLocation* temp);
@@ -768,11 +768,11 @@ class LocationSet BASE_EMBEDDED {
   void AddElement(SlotLocation* location) {
     if (location->type() == Slot::PARAMETER) {
       // Parameter indexes begin with -1 ('this').
-      ASSERT(location->index() < kPointerSize - 1);
+      ASSERT(location->index() < kBitsPerPointer - 1);
       parameters_ |= (1 << (location->index() + 1));
     } else {
       ASSERT(location->type() == Slot::LOCAL);
-      ASSERT(location->index() < kPointerSize);
+      ASSERT(location->index() < kBitsPerPointer);
       locals_ |= (1 << location->index());
     }
   }
@@ -785,11 +785,11 @@ class LocationSet BASE_EMBEDDED {
 
   bool Contains(SlotLocation* location) {
     if (location->type() == Slot::PARAMETER) {
-      ASSERT(location->index() < kPointerSize - 1);
+      ASSERT(location->index() < kBitsPerPointer - 1);
       return (parameters_ & (1 << (location->index() + 1)));
     } else {
       ASSERT(location->type() == Slot::LOCAL);
-      ASSERT(location->index() < kPointerSize);
+      ASSERT(location->index() < kBitsPerPointer);
       return (locals_ & (1 << location->index()));
     }
   }
@@ -834,7 +834,7 @@ class ExpressionCfgBuilder : public AstVisitor {
 #undef DECLARE_VISIT
 
  private:
-  // State for the visitor.  Input parameters:
+  // State for the visitor.  Input parameter:
   Location* destination_;
 
   // Output parameters:
