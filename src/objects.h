@@ -4038,8 +4038,8 @@ class SlicedString: public String {
   // Layout description
 #if V8_HOST_ARCH_64_BIT
   // Optimizations expect buffer to be located at same offset as a ConsString's
-  // first substring. In 64 bit mode we have room for the size before the
-  // buffer.
+  // first substring. In 64 bit mode we have room for the start offset before
+  // the buffer.
   static const int kStartOffset = String::kSize;
   static const int kBufferOffset = kStartOffset + kIntSize;
   static const int kSize = kBufferOffset + kPointerSize;
