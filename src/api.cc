@@ -3041,7 +3041,10 @@ bool v8::String::CanMakeExternal() {
   if (IsDeadCheck("v8::String::CanMakeExternal()")) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   int size = obj->Size();  // Byte size of the original string.
-  return (size >= i::ExternalString::kSize) && !obj->IsExternalString();
+  if (size < i::ExternalString::kSize)
+    return false;
+  i::StringShape shape(*obj);
+  return !shape.IsExternal();
 }
 
 
