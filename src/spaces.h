@@ -1574,7 +1574,7 @@ class FixedSpace : public PagedSpace {
   // Give a fixed sized block of memory to the space's free list.
   void Free(Address start) {
     free_list_.Free(start);
-    accounting_stats_.DeallocateBytes(Map::kSize);
+    accounting_stats_.DeallocateBytes(object_size_in_bytes_);
   }
 
   // Prepares for a mark-compact GC.

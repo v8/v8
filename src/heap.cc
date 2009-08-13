@@ -277,7 +277,9 @@ void Heap::GarbageCollectionPrologue() {
 int Heap::SizeOfObjects() {
   int total = 0;
   AllSpaces spaces;
-  while (Space* space = spaces.next()) total += space->Size();
+  while (Space* space = spaces.next()) {
+    total += space->Size();
+  }
   return total;
 }
 

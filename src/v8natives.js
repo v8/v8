@@ -46,12 +46,16 @@ const $isFinite = GlobalIsFinite;
 
 // Helper function used to install functions on objects.
 function InstallFunctions(object, attributes, functions) {
+  if (functions.length >= 8) {
+    %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
+  }
   for (var i = 0; i < functions.length; i += 2) {
     var key = functions[i];
     var f = functions[i + 1];
     %FunctionSetName(f, key);
     %SetProperty(object, key, f, attributes);
   }
+  %TransformToFastProperties(object);
 }
 
 // Emulates JSC by installing functions on a hidden prototype that
@@ -454,8 +458,10 @@ function NumberToJSON(key) {
 
 function SetupNumber() {
   // Setup the constructor property on the Number prototype object.
+  %OptimizeObjectForAddingMultipleProperties($Number.prototype, 8);
   %SetProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
+  %OptimizeObjectForAddingMultipleProperties($Number, 5);
   // ECMA-262 section 15.7.3.1.
   %SetProperty($Number,
                "MAX_VALUE",

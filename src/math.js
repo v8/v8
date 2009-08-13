@@ -184,6 +184,7 @@ function MathTan(x) {
 function SetupMath() {
   // Setup math constants.
   // ECMA-262, section 15.8.1.1.
+  %OptimizeObjectForAddingMultipleProperties($Math, 26);
   %SetProperty($Math,
                "E",
                2.7182818284590452354,
