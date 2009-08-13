@@ -457,8 +457,8 @@ function NumberToJSON(key) {
 // ----------------------------------------------------------------------------
 
 function SetupNumber() {
-  // Setup the constructor property on the Number prototype object.
   %OptimizeObjectForAddingMultipleProperties($Number.prototype, 8);
+  // Setup the constructor property on the Number prototype object.
   %SetProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
   %OptimizeObjectForAddingMultipleProperties($Number, 5);
@@ -485,6 +485,7 @@ function SetupNumber() {
                "POSITIVE_INFINITY",
                1/0,
                DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %TransformToFastProperties($Number);
 
   // Setup non-enumerable functions on the Number prototype object.
   InstallFunctions($Number.prototype, DONT_ENUM, $Array(
