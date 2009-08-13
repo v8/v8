@@ -726,47 +726,25 @@ void PagedSpace::Shrink() {
   Page* top_page = AllocationTopPage();
   ASSERT(top_page->is_valid());
 
-  // Loop over the pages from the top page to the end of the space to count
-  // the number of pages to keep and find the last page to keep.
-  int free_pages = 0;
-  int pages_to_keep = 0;  // Of the free pages.
-  Page* last_page_to_keep = top_page;
-  Page* current_page = top_page->next_page();
-  // Loop over the pages to the end of the space.
-  while (current_page->is_valid()) {
-#if defined(ANDROID)
-    // Free all chunks if possible
-#else
-    // Advance last_page_to_keep every other step to end up at the midpoint.
-    if ((free_pages & 0x1) == 1) {
-      pages_to_keep++;
-      last_page_to_keep = last_page_to_keep->next_page();
-    }
-#endif
-    free_pages++;
-    current_page = current_page->next_page();
+  // Count the number of pages we would like to free.
+  int pages_to_free = 0;
+  for (Page* p = top_page->next_page(); p->is_valid(); p = p->next_page()) {
+    pages_to_free++;
   }
 
-  // Free pages after last_page_to_keep, and adjust the next_page link.
-  Page* p = MemoryAllocator::FreePages(last_page_to_keep->next_page());
-  MemoryAllocator::SetNextPage(last_page_to_keep, p);
+  // Free pages after top_page.
+  Page* p = MemoryAllocator::FreePages(top_page->next_page());
+  MemoryAllocator::SetNextPage(top_page, p);
 
-  // Since pages are only freed in whole chunks, we may have kept more
-  // than pages_to_keep.  Count the extra pages and cache the new last
-  // page in the space.
-  last_page_ = last_page_to_keep;
-  while (p->is_valid()) {
-    pages_to_keep++;
+  // Find out how many pages we failed to free and update last_page_.
+  // Please note pages can only be freed in whole chunks.
+  last_page_ = top_page;
+  for (Page* p = top_page->next_page(); p->is_valid(); p = p->next_page()) {
+    pages_to_free--;
     last_page_ = p;
-    p = p->next_page();
   }
 
-  // The difference between free_pages and pages_to_keep is the number of
-  // pages actually freed.
-  ASSERT(pages_to_keep <= free_pages);
-  int bytes_freed = (free_pages - pages_to_keep) * Page::kObjectAreaSize;
-  accounting_stats_.ShrinkSpace(bytes_freed);
-
+  accounting_stats_.ShrinkSpace(pages_to_free * Page::kObjectAreaSize);
   ASSERT(Capacity() == CountTotalPages() * Page::kObjectAreaSize);
 }
 
