@@ -157,7 +157,12 @@ uint32_t V8::Random() {
 }
 
 void V8::IdleNotification(bool is_high_priority) {
-  // todo(bak): Reduce memory footprint.
+  if (!FLAG_use_idle_notification) return;
+  // Ignore high priority instances of V8.
+  if (is_high_priority) return;
+
+  // Uncommit unused memory in new space.
+  Heap::UncommitFromSpace();
 }
 
 
