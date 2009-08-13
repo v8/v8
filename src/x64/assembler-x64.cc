@@ -1608,6 +1608,11 @@ void Assembler::testl(Register dst, Register src) {
 
 
 void Assembler::testl(Register reg, Immediate mask) {
+  // testl with a mask that fits in the low byte is exactly testb.
+  if (is_uint8(mask.value_)) {
+    testb(reg, mask);
+    return;
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (reg.is(rax)) {
@@ -1623,6 +1628,11 @@ void Assembler::testl(Register reg, Immediate mask) {
 
 
 void Assembler::testl(const Operand& op, Immediate mask) {
+  // testl with a mask that fits in the low byte is exactly testb.
+  if (is_uint8(mask.value_)) {
+    testb(op, mask);
+    return;
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(rax, op);
