@@ -156,6 +156,10 @@ uint32_t V8::Random() {
   return (hi << 16) + (lo & 0xFFFF);
 }
 
+void V8::IdleNotification(bool is_high_priority) {
+  // todo(bak): Reduce memory footprint.
+}
+
 
 Smi* V8::RandomPositiveSmi() {
   uint32_t random = Random();

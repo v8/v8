@@ -2558,6 +2558,10 @@ bool v8::V8::Dispose() {
 }
 
 
+void  v8::V8::IdleNotification(bool is_high_priority) {
+  i::V8::IdleNotification(is_high_priority);
+}
+
 const char* v8::V8::GetVersion() {
   static v8::internal::EmbeddedVector<char, 128> buffer;
   v8::internal::Version::GetString(buffer);
