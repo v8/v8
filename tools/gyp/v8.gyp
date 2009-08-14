@@ -436,7 +436,7 @@
             '../../src/ia32/virtual-frame-ia32.h',
           ],
         }],
-        ['target_arch=="x32" and v8_regexp=="native"', {
+        ['target_arch=="ia32" and v8_regexp=="native"', {
           'sources': [
             '../../src/ia32/regexp-macro-assembler-ia32.cc',
             '../../src/ia32/regexp-macro-assembler-ia32.h',
