@@ -74,7 +74,7 @@ class RegExpStack {
 
  private:
   // Artificial limit used when no memory has been allocated.
-  static const uintptr_t kMemoryTop = -1;
+  static const uintptr_t kMemoryTop = static_cast<uintptr_t>(-1);
 
   // Minimal size of allocated stack area.
   static const size_t kMinimumStackSize = 1 * KB;
