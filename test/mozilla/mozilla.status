@@ -803,10 +803,3 @@ ecma/Expressions/11.7.3: SKIP
 ecma/Expressions/11.10-3: SKIP
 ecma/Expressions/11.7.1: SKIP
 ecma_3/RegExp/regress-209067: SKIP
-
-[ $ARCH == x64 ]
-
-# Tests that fail on the 64-bit port.  This section should be empty
-# when the 64-bit port is fully debugged.
-
-js1_2/regexp/regress-9141: FAIL

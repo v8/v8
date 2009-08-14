@@ -113,6 +113,7 @@ test-debug/DebuggerUnload: CRASH || FAIL
 test-debug/DebuggerHostDispatch: CRASH || FAIL
 test-debug/DebugBreakInMessageHandler: CRASH || FAIL
 test-debug/NoDebugBreakInAfterCompileMessageHandler: CRASH || FAIL
+test-debug/RegExpDebugBreak: FAIL
 test-api/Threading: CRASH || FAIL
 test-api/Threading2: PASS || TIMEOUT
 test-api/TryCatchSourceInfo: CRASH || FAIL
