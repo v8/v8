@@ -169,7 +169,7 @@ LIBRARY_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
-      'CCFLAGS':      ['-fno-strict-aliasing', '-m64'],
+      'CCFLAGS':      ['-m64'],
       'LINKFLAGS':    ['-m64'],
     },
     'prof:oprofile': {
