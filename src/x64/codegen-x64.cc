@@ -3084,33 +3084,16 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
                                                   is_increment);
     }
 
-    // If we have a free register, combine the smi and overflow checks.
-    Result tmp = allocator_->AllocateWithoutSpilling();
-    ASSERT(kSmiTagMask == 1 && kSmiTag == 0);
-    if (tmp.is_valid()) {
-      __ movl(tmp.reg(), Immediate(kSmiTagMask));
-    }
-
-    // Try incrementing or decrementing the smi.
     __ movq(kScratchRegister, new_value.reg());
     if (is_increment) {
       __ addl(kScratchRegister, Immediate(Smi::FromInt(1)));
     } else {
       __ subl(kScratchRegister, Immediate(Smi::FromInt(1)));
     }
-
-    // Go to the deferred case if the result overflows or is non-smi.
-    if (tmp.is_valid()){
-      __ cmovl(overflow, kScratchRegister, tmp.reg());
-      __ testl(kScratchRegister, tmp.reg());
-      tmp.Unuse();
-      deferred->Branch(not_zero);
-    } else {
-      deferred->Branch(overflow);
-      __ testl(kScratchRegister, Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
-    }
-
+    // Smi test.
+    deferred->Branch(overflow);
+    __ testl(kScratchRegister, Immediate(kSmiTagMask));
+    deferred->Branch(not_zero);
     __ movq(new_value.reg(), kScratchRegister);
     deferred->BindExit();
 
