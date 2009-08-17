@@ -278,6 +278,11 @@ js1_2/regexp/beginLine: FAIL_OK
 js1_2/regexp/endLine: FAIL_OK
 
 
+# To be compatible with safari typeof a regexp yields 'function';
+# in firefox it yields 'object'.
+js1_2/function/regexparg-1: FAIL_OK
+
+
 # Date trouble?
 js1_5/Date/regress-301738-02: FAIL_OK
 

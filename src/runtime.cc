@@ -3099,7 +3099,7 @@ static Object* Runtime_Typeof(Arguments args) {
       }
       ASSERT(heap_obj->IsUndefined());
       return Heap::undefined_symbol();
-    case JS_FUNCTION_TYPE:
+    case JS_FUNCTION_TYPE: case JS_REGEXP_TYPE:
       return Heap::function_symbol();
     default:
       // For any kind of object not handled above, the spec rule for
