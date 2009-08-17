@@ -3595,10 +3595,10 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
 }
 
 
-Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
-                          v8::Handle<v8::Value> data) {
-  if (!i::V8::IsRunning()) return Handle<Value>();
-  ON_BAILOUT("v8::Debug::Call()", return Handle<Value>());
+Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
+                         v8::Handle<v8::Value> data) {
+  if (!i::V8::IsRunning()) return Local<Value>();
+  ON_BAILOUT("v8::Debug::Call()", return Local<Value>());
   ENTER_V8;
   i::Handle<i::Object> result;
   EXCEPTION_PREAMBLE();
@@ -3613,6 +3613,28 @@ Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
   }
   EXCEPTION_BAILOUT_CHECK(Local<Value>());
   return Utils::ToLocal(result);
+}
+
+
+Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
+  if (!i::V8::IsRunning()) return Local<Value>();
+  ON_BAILOUT("v8::Debug::GetMirror()", return Local<Value>());
+  ENTER_V8;
+  v8::HandleScope scope;
+  i::Debug::Load();
+  i::Handle<i::JSObject> debug(i::Debug::debug_context()->global());
+  i::Handle<i::String> name = i::Factory::LookupAsciiSymbol("MakeMirror");
+  i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);
+  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
+  v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
+  const int kArgc = 1;
+  v8::Handle<v8::Value> argv[kArgc] = { obj };
+  EXCEPTION_PREAMBLE();
+  v8::Handle<v8::Value> result = v8_fun->Call(Utils::ToLocal(debug),
+                                              kArgc,
+                                              argv);
+  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  return scope.Close(result);
 }
 
 
