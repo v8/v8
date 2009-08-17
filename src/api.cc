@@ -1058,11 +1058,11 @@ ScriptData* ScriptData::New(unsigned* data, int length) {
 // --- S c r i p t ---
 
 
-Local<Script> Script::Compile(v8::Handle<String> source,
-                              v8::ScriptOrigin* origin,
-                              v8::ScriptData* script_data) {
-  ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
-  LOG_API("Script::Compile");
+Local<Script> Script::New(v8::Handle<String> source,
+                          v8::ScriptOrigin* origin,
+                          v8::ScriptData* script_data) {
+  ON_BAILOUT("v8::Script::New()", return Local<Script>());
+  LOG_API("Script::New");
   ENTER_V8;
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Handle<i::Object> name_obj;
@@ -1096,6 +1096,27 @@ Local<Script> Script::Compile(v8::Handle<String> source,
                                                               pre_data);
   has_pending_exception = boilerplate.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Script>());
+  return Local<Script>(ToApi<Script>(boilerplate));
+}
+
+
+Local<Script> Script::New(v8::Handle<String> source,
+                          v8::Handle<Value> file_name) {
+  ScriptOrigin origin(file_name);
+  return New(source, &origin);
+}
+
+
+Local<Script> Script::Compile(v8::Handle<String> source,
+                              v8::ScriptOrigin* origin,
+                              v8::ScriptData* script_data) {
+  ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
+  LOG_API("Script::Compile");
+  ENTER_V8;
+  Local<Script> generic = New(source, origin, script_data);
+  if (generic.IsEmpty())
+    return generic;
+  i::Handle<i::JSFunction> boilerplate = Utils::OpenHandle(*generic);
   i::Handle<i::JSFunction> result =
       i::Factory::NewFunctionFromBoilerplate(boilerplate,
                                              i::Top::global_context());
@@ -1118,6 +1139,10 @@ Local<Value> Script::Run() {
   {
     HandleScope scope;
     i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
+    if (fun->IsBoilerplate()) {
+      fun = i::Factory::NewFunctionFromBoilerplate(fun,
+                                                   i::Top::global_context());
+    }
     EXCEPTION_PREAMBLE();
     i::Handle<i::Object> receiver(i::Top::context()->global_proxy());
     i::Handle<i::Object> result =
