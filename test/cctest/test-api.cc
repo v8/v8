@@ -7753,3 +7753,16 @@ THREADED_TEST(ScriptContextDependence) {
   CHECK_EQ(dep->Run()->Int32Value(), 100);
   CHECK_EQ(indep->Run()->Int32Value(), 101);
 }
+
+THREADED_TEST(StackTrace) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  const char *source = "function foo() { FAIL.FAIL; }; foo();";
+  v8::Handle<v8::String> src = v8::String::New(source);
+  v8::Handle<v8::String> origin = v8::String::New("stack-trace-test");
+  v8::Script::New(src, origin)->Run();
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value stack(try_catch.StackTrace());
+  CHECK(strstr(*stack, "at foo (stack-trace-test") != NULL);
+}

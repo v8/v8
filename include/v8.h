@@ -2290,6 +2290,12 @@ class V8EXPORT TryCatch {
   Local<Value> Exception() const;
 
   /**
+   * Returns the .stack property of the thrown object.  If no .stack
+   * property is present an empty handle is returned.
+   */
+  Local<Value> StackTrace() const;
+
+  /**
    * Returns the message associated with this exception.  If there is
    * no message associated an empty handle is returned.
    *

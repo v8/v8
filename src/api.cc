@@ -1219,6 +1219,22 @@ v8::Local<Value> v8::TryCatch::Exception() const {
 }
 
 
+v8::Local<Value> v8::TryCatch::StackTrace() const {
+  if (HasCaught()) {
+    i::Object* raw_obj = reinterpret_cast<i::Object*>(exception_);
+    if (!raw_obj->IsJSObject()) return v8::Local<Value>();
+    v8::HandleScope scope;
+    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj));
+    i::Handle<i::String> name = i::Factory::LookupAsciiSymbol("stack");
+    if (!obj->HasProperty(*name))
+      return v8::Local<Value>();
+    return scope.Close(v8::Utils::ToLocal(i::GetProperty(obj, name)));
+  } else {
+    return v8::Local<Value>();
+  }
+}
+
+
 v8::Local<v8::Message> v8::TryCatch::Message() const {
   if (HasCaught() && message_ != i::Smi::FromInt(0)) {
     i::Object* message = reinterpret_cast<i::Object*>(message_);
