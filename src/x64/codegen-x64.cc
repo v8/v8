@@ -7529,11 +7529,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // Reserve space for converted numbers.
       __ subq(rsp, Immediate(2 * kPointerSize));
 
-      bool use_sse3 = CpuFeatures::IsSupported(CpuFeatures::SSE3);
-      if (use_sse3) {
+      if (use_sse3_) {
         // Truncate the operands to 32-bit integers and check for
         // exceptions in doing so.
-         CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        CpuFeatures::Scope scope(CpuFeatures::SSE3);
         __ fisttp_s(Operand(rsp, 0 * kPointerSize));
         __ fisttp_s(Operand(rsp, 1 * kPointerSize));
         __ fnstsw_ax();
@@ -7618,7 +7617,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // the runtime system.
       __ bind(&operand_conversion_failure);
       __ addq(rsp, Immediate(2 * kPointerSize));
-      if (use_sse3) {
+      if (use_sse3_) {
         // If we've used the SSE3 instructions for truncating the
         // floating point values to integers and it failed, we have a
         // pending #IA exception. Clear it.

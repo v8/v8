@@ -47,7 +47,7 @@ const $isFinite = GlobalIsFinite;
 // Helper function used to install functions on objects.
 function InstallFunctions(object, attributes, functions) {
   if (functions.length >= 8) {
-    %OptimizeObjectForAddingMultipleProperties(object, functions.length / 2);
+    %OptimizeObjectForAddingMultipleProperties(object, functions.length >> 1);
   }
   for (var i = 0; i < functions.length; i += 2) {
     var key = functions[i];
