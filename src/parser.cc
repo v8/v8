@@ -97,7 +97,7 @@ class Parser {
 
   // Pre-parse the program from the character stream; returns true on
   // success, false if a stack-overflow happened during parsing.
-  bool PreParseProgram(unibrow::CharacterStream* stream);
+  bool PreParseProgram(Handle<String> source, unibrow::CharacterStream* stream);
 
   void ReportMessage(const char* message, Vector<const char*> args);
   virtual void ReportMessageAt(Scanner::Location loc,
@@ -1167,13 +1167,14 @@ Parser::Parser(Handle<Script> script,
 }
 
 
-bool Parser::PreParseProgram(unibrow::CharacterStream* stream) {
+bool Parser::PreParseProgram(Handle<String> source,
+                             unibrow::CharacterStream* stream) {
   HistogramTimerScope timer(&Counters::pre_parse);
   StackGuard guard;
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
-  scanner_.Init(Handle<String>(), stream, 0);
+  scanner_.Init(source, stream, 0);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
   DummyScope top_scope;
@@ -4593,7 +4594,8 @@ unsigned* ScriptDataImpl::Data() {
 }
 
 
-ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
+ScriptDataImpl* PreParse(Handle<String> source,
+                         unibrow::CharacterStream* stream,
                          v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
@@ -4601,7 +4603,7 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
       FLAG_allow_natives_syntax ||
       Bootstrapper::IsActive();
   PreParser parser(no_script, allow_natives_syntax, extension);
-  if (!parser.PreParseProgram(stream)) return NULL;
+  if (!parser.PreParseProgram(source, stream)) return NULL;
   // The list owns the backing store so we need to clone the vector.
   // That way, the result will be exactly the right size rather than
   // the expected 50% too large.

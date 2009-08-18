@@ -266,7 +266,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     if (pre_data == NULL && source_length >= FLAG_min_preparse_length) {
       Access<SafeStringInputBuffer> buf(&safe_string_input_buffer);
       buf->Reset(source.location());
-      pre_data = PreParse(buf.value(), extension);
+      pre_data = PreParse(source, buf.value(), extension);
     }
 
     // Create a script object describing the script to be compiled.
