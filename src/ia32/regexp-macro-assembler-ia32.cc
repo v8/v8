@@ -38,6 +38,7 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_NATIVE_REGEXP
 /*
  * This assembler uses the following register assignment convention
  * - edx : current character. Must be loaded using LoadCurrentCharacter
@@ -1172,4 +1173,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
 
 
 #undef __
+
+#endif  // V8_NATIVE_REGEXP
+
 }}  // namespace v8::internal

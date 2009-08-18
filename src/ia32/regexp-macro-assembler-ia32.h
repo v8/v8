@@ -31,6 +31,14 @@
 namespace v8 {
 namespace internal {
 
+#ifndef V8_NATIVE_REGEXP
+class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
+ public:
+  RegExpMacroAssemblerIA32() { }
+  virtual ~RegExpMacroAssemblerIA32() { }
+};
+
+#else
 class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerIA32(Mode mode, int registers_to_save);
@@ -224,6 +232,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   Label check_preempt_label_;
   Label stack_overflow_label_;
 };
+#endif  // V8_NATIVE_REGEXP
 
 }}  // namespace v8::internal
 
