@@ -731,9 +731,6 @@ class Heap : public AllStatic {
   // Update the next script id.
   static inline void SetLastScriptId(Object* last_script_id);
 
-  // Generated code can embed this address to get access to the roots.
-  static Object** roots_address() { return roots_; }
-
 #ifdef DEBUG
   static void Print();
   static void PrintHandles();
@@ -840,26 +837,6 @@ class Heap : public AllStatic {
            > old_gen_allocation_limit_;
   }
 
-  // Declare all the root indices.
-  enum RootListIndex {
-#define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
-    STRONG_ROOT_LIST(ROOT_INDEX_DECLARATION)
-#undef ROOT_INDEX_DECLARATION
-
-// Utility type maps
-#define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
-  STRUCT_LIST(DECLARE_STRUCT_MAP)
-#undef DECLARE_STRUCT_MAP
-
-#define SYMBOL_INDEX_DECLARATION(name, str) k##name##RootIndex,
-    SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
-#undef SYMBOL_DECLARATION
-
-    kSymbolTableRootIndex,
-    kStrongRootListLength = kSymbolTableRootIndex,
-    kRootListLength
-  };
-
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
@@ -939,6 +916,26 @@ class Heap : public AllStatic {
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   static int old_gen_exhausted_;
+
+  // Declare all the root indices.
+  enum RootListIndex {
+#define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
+    STRONG_ROOT_LIST(ROOT_INDEX_DECLARATION)
+#undef ROOT_INDEX_DECLARATION
+
+// Utility type maps
+#define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
+  STRUCT_LIST(DECLARE_STRUCT_MAP)
+#undef DECLARE_STRUCT_MAP
+
+#define SYMBOL_INDEX_DECLARATION(name, str) k##name##RootIndex,
+    SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
+#undef SYMBOL_DECLARATION
+
+    kSymbolTableRootIndex,
+    kStrongRootListLength = kSymbolTableRootIndex,
+    kRootListLength
+  };
 
   static Object* roots_[kRootListLength];
 

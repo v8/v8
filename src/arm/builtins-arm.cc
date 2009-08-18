@@ -214,12 +214,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Enter an internal frame.
   __ EnterInternalFrame();
 
-  // Set up the context from the function argument.
+  // Setup the context from the function argument.
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-
-  // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address();
-  __ mov(r10, Operand(roots_address));
 
   // Push the function and the receiver onto the stack.
   __ push(r1);
@@ -243,7 +239,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Initialize all JavaScript callee-saved registers, since they will be seen
   // by the garbage collector as part of handlers.
-  __ LoadRoot(r4, Heap::kUndefinedValueRootIndex);
+  __ mov(r4, Operand(Factory::undefined_value()));
   __ mov(r5, Operand(r4));
   __ mov(r6, Operand(r4));
   __ mov(r7, Operand(r4));
@@ -286,7 +282,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label done;
     __ tst(r0, Operand(r0));
     __ b(ne, &done);
-    __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+    __ mov(r2, Operand(Factory::undefined_value()));
     __ push(r2);
     __ add(r0, r0, Operand(1));
     __ bind(&done);
@@ -327,10 +323,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ tst(r2, Operand(kSmiTagMask));
     __ b(eq, &call_to_object);
 
-    __ LoadRoot(r3, Heap::kNullValueRootIndex);
+    __ mov(r3, Operand(Factory::null_value()));
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
-    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+    __ mov(r3, Operand(Factory::undefined_value()));
     __ cmp(r2, r3);
     __ b(eq, &use_global_receiver);
 
@@ -496,10 +492,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ ldr(r0, MemOperand(fp, kRecvOffset));
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &call_to_object);
-  __ LoadRoot(r1, Heap::kNullValueRootIndex);
+  __ mov(r1, Operand(Factory::null_value()));
   __ cmp(r0, r1);
   __ b(eq, &use_global_receiver);
-  __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
+  __ mov(r1, Operand(Factory::undefined_value()));
   __ cmp(r0, r1);
   __ b(eq, &use_global_receiver);
 
@@ -669,7 +665,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     // r1: function
     // r2: expected number of arguments
     // r3: code entry to call
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ mov(ip, Operand(Factory::undefined_value()));
     __ sub(r2, fp, Operand(r2, LSL, kPointerSizeLog2));
     __ sub(r2, r2, Operand(4 * kPointerSize));  // Adjust for frame.
 

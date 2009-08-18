@@ -139,7 +139,7 @@ void VirtualFrame::AllocateStackSlots() {
     Comment cmnt(masm(), "[ Allocate space for locals");
     Adjust(count);
       // Initialize stack slots with 'undefined' value.
-    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ mov(ip, Operand(Factory::undefined_value()));
     for (int i = 0; i < count; i++) {
       __ push(ip);
     }

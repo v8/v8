@@ -87,8 +87,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Check that the properties array is a dictionary.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kPropertiesOffset));
   __ ldr(r3, FieldMemOperand(t0, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kHashTableMapRootIndex);
-  __ cmp(r3, ip);
+  __ cmp(r3, Operand(Factory::hash_table_map()));
   __ b(ne, miss);
 
   // Compute the capacity mask.
@@ -255,11 +254,9 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Check for boolean.
   __ bind(&non_string);
-  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ cmp(r1, ip);
+  __ cmp(r1, Operand(Factory::true_value()));
   __ b(eq, &boolean);
-  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  __ cmp(r1, ip);
+  __ cmp(r1, Operand(Factory::false_value()));
   __ b(ne, &miss);
   __ bind(&boolean);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
@@ -585,8 +582,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(r3, ip);
+  __ cmp(r3, Operand(Factory::fixed_array_map()));
   __ b(ne, &slow);
   // Check that the key (index) is within bounds.
   __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
@@ -605,8 +601,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&fast);
   __ add(r3, r1, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
-  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  __ cmp(r0, ip);
+  __ cmp(r0, Operand(Factory::the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
   // to ensure the prototype chain is searched.
   __ b(eq, &slow);
@@ -666,8 +661,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldr(r3, FieldMemOperand(r3, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(r2, ip);
+  __ cmp(r2, Operand(Factory::fixed_array_map()));
   __ b(ne, &slow);
   // Untag the key (for checking against untagged length in the fixed array).
   __ mov(r1, Operand(r1, ASR, kSmiTagSize));
@@ -716,8 +710,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&array);
   __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-  __ cmp(r1, ip);
+  __ cmp(r1, Operand(Factory::fixed_array_map()));
   __ b(ne, &slow);
 
   // Check the key against the length in the array, compute the
