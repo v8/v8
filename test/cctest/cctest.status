@@ -63,15 +63,8 @@ test-api/TryCatchInTryFinally: FAIL
 
 
 [ $arch == x64 ]
-test-decls/Present: CRASH || FAIL
-test-decls/Unknown: CRASH || FAIL
-test-decls/Appearing: CRASH || FAIL
-test-decls/Absent: CRASH || FAIL
 test-debug/DebugStub: CRASH || FAIL
-test-decls/AbsentInPrototype: CRASH || FAIL
-test-decls/Reappearing: CRASH || FAIL
 test-debug/DebugInfo: CRASH || FAIL
-test-decls/ExistsInPrototype: CRASH || FAIL
 test-debug/BreakPointICStore: CRASH || FAIL
 test-debug/BreakPointICLoad: CRASH || FAIL
 test-debug/BreakPointICCall: CRASH || FAIL
