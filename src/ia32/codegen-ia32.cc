@@ -7670,16 +7670,11 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
 
-  // Call into the runtime system. Collect garbage before the call if
-  // running with --gc-greedy set.
-  if (FLAG_gc_greedy) {
-    Failure* failure = Failure::RetryAfterGC(0);
-    __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
-  }
+  // Call into the runtime system.
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               FLAG_gc_greedy,
+               false,
                false);
 
   // Do space-specific GC and retry runtime call.

@@ -35,7 +35,7 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
-  // TODO(1238487): Don't pass the function in a static variable.
+  // TODO(428): Don't pass the function in a static variable.
   ExternalReference passed = ExternalReference::builtin_passed_function();
   __ movq(kScratchRegister, passed.address(), RelocInfo::EXTERNAL_REFERENCE);
   __ movq(Operand(kScratchRegister, 0), rdi);
