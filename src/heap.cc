@@ -1054,6 +1054,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_constructor(null_value());
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
+  map->set_pre_allocated_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
@@ -1611,6 +1612,9 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_start_position_and_type(0);
   share->set_debug_info(undefined_value());
   share->set_inferred_name(empty_string());
+  share->set_compiler_hints(0);
+  share->set_this_property_assignments_count(0);
+  share->set_this_property_assignments(undefined_value());
   return result;
 }
 
@@ -2050,16 +2054,10 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 Object* Heap::AllocateInitialMap(JSFunction* fun) {
   ASSERT(!fun->has_initial_map());
 
-  // First create a new map with the expected number of properties being
-  // allocated in-object.
-  int expected_nof_properties = fun->shared()->expected_nof_properties();
-  int instance_size = JSObject::kHeaderSize +
-                      expected_nof_properties * kPointerSize;
-  if (instance_size > JSObject::kMaxInstanceSize) {
-    instance_size = JSObject::kMaxInstanceSize;
-    expected_nof_properties = (instance_size - JSObject::kHeaderSize) /
-                              kPointerSize;
-  }
+  // First create a new map with the size and number of in-object properties
+  // suggested by the function.
+  int instance_size = fun->shared()->CalculateInstanceSize();
+  int in_object_properties = fun->shared()->CalculateInObjectProperties();
   Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE, instance_size);
   if (map_obj->IsFailure()) return map_obj;
 
@@ -2072,9 +2070,33 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
     if (prototype->IsFailure()) return prototype;
   }
   Map* map = Map::cast(map_obj);
-  map->set_inobject_properties(expected_nof_properties);
-  map->set_unused_property_fields(expected_nof_properties);
+  map->set_inobject_properties(in_object_properties);
+  map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
+
+  // If the function has only simple this property assignments add field
+  // descriptors for these to the initial map as the object cannot be
+  // constructed without having these properties.
+  ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
+  if (fun->shared()->has_only_this_property_assignments() &&
+      fun->shared()->this_property_assignments_count() > 0) {
+    int count = fun->shared()->this_property_assignments_count();
+    if (count > in_object_properties) {
+      count = in_object_properties;
+    }
+    DescriptorArray* descriptors = *Factory::NewDescriptorArray(count);
+    if (descriptors->IsFailure()) return descriptors;
+    for (int i = 0; i < count; i++) {
+      String* name = fun->shared()->GetThisPropertyAssignmentName(i);
+      ASSERT(name->IsSymbol());
+      FieldDescriptor field(name, i, NONE);
+      descriptors->Set(i, &field);
+    }
+    descriptors->Sort();
+    map->set_instance_descriptors(descriptors);
+    map->set_pre_allocated_property_fields(count);
+    map->set_unused_property_fields(in_object_properties - count);
+  }
   return map;
 }
 
@@ -2106,7 +2128,11 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_BUILTINS_OBJECT_TYPE);
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  int prop_size =
+      map->pre_allocated_property_fields() +
+      map->unused_property_fields() -
+      map->inobject_properties();
+  ASSERT(prop_size >= 0);
   Object* properties = AllocateFixedArray(prop_size, pretenure);
   if (properties->IsFailure()) return properties;
 
@@ -2599,6 +2625,7 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
 
 
 Object* Heap::AllocateFixedArray(int length) {
+  ASSERT(length >= 0);
   if (length == 0) return empty_fixed_array();
   Object* result = AllocateRawFixedArray(length);
   if (!result->IsFailure()) {

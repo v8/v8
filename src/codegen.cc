@@ -255,6 +255,10 @@ void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
   fun->shared()->set_is_expression(lit->is_expression());
   fun->shared()->set_is_toplevel(is_toplevel);
   fun->shared()->set_inferred_name(*lit->inferred_name());
+  fun->shared()->SetThisPropertyAssignmentsInfo(
+      lit->has_only_this_property_assignments(),
+      lit->has_only_simple_this_property_assignments(),
+      *lit->this_property_assignments());
 }
 
 

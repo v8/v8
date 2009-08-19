@@ -585,12 +585,16 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rax: initial map
     // rbx: JSObject
     // rdi: start of next object
+    // Calculate total properties described map.
     __ movzxbq(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
-    __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
+    __ movzxbq(rcx, FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
+    __ addq(rdx, rcx);
     // Calculate unused properties past the end of the in-object properties.
+    __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
     __ subq(rdx, rcx);
     // Done if no extra properties are to be allocated.
     __ j(zero, &allocated);
+    __ Assert(positive, "Property allocation count failed.");
 
     // Scale the number of elements by pointer size and add the header for
     // FixedArrays to the start of the next object calculation from above.
@@ -726,6 +730,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ pop(rcx);
   __ lea(rsp, Operand(rsp, rbx, times_4, 1 * kPointerSize));  // 1 ~ receiver
   __ push(rcx);
+  __ IncrementCounter(&Counters::constructed_objects, 1);
   __ ret(0);
 }
 

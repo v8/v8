@@ -4380,6 +4380,8 @@ static Object* Runtime_NewObject(Arguments args) {
     Handle<Code> stub = ComputeConstructStub(map);
     function->shared()->set_construct_stub(*stub);
   }
+  Counters::constructed_objects.Increment();
+  Counters::constructed_objects_runtime.Increment();
   return *result;
 }
 
