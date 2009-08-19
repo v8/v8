@@ -376,7 +376,7 @@ class Scope: public ZoneObject {
 
 class DummyScope : public Scope {
  public:
-   DummyScope() : Scope(GLOBAL_SCOPE) {
+  DummyScope() : Scope(GLOBAL_SCOPE) {
     outer_scope_ = this;
   }
 
