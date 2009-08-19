@@ -661,11 +661,11 @@ void Heap::Scavenge() {
 
   if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
       survived_since_last_expansion_ > new_space_.Capacity()) {
-    // Double the size of new space if there is room to grow and enough
+    // Grow the size of new space if there is room to grow and enough
     // data has survived scavenge since the last expansion.
-    // TODO(1240712): NewSpace::Double has a return value which is
+    // TODO(1240712): NewSpace::Grow has a return value which is
     // ignored here.
-    new_space_.Double();
+    new_space_.Grow();
     survived_since_last_expansion_ = 0;
   }
 

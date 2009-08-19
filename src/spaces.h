@@ -1004,11 +1004,11 @@ class SemiSpace : public Space {
   // True if the space has been set up but not torn down.
   bool HasBeenSetup() { return start_ != NULL; }
 
-  // Double the size of the semispace by committing extra virtual memory.
+  // Grow the size of the semispace by committing extra virtual memory.
   // Assumes that the caller has checked that the semispace has not reached
   // its maximum capacity (and thus there is space available in the reserved
   // address range to grow).
-  bool Double();
+  bool Grow();
 
   // Returns the start address of the space.
   Address low() { return start_; }
@@ -1050,6 +1050,13 @@ class SemiSpace : public Space {
   virtual void Print();
   virtual void Verify();
 #endif
+
+  // Returns the current capacity of the semi space.
+  int Capacity() { return capacity_; }
+
+  // Returns the maximum capacity of the semi space.
+  int MaximumCapacity() { return maximum_capacity_; }
+
 
  private:
   // The current and maximum capacity of the space.
@@ -1144,9 +1151,9 @@ class NewSpace : public Space {
   // Flip the pair of spaces.
   void Flip();
 
-  // Doubles the capacity of the semispaces.  Assumes that they are not at
+  // Grow the capacity of the semispaces.  Assumes that they are not at
   // their maximum capacity.  Returns a flag indicating success or failure.
-  bool Double();
+  bool Grow();
 
   // True if the address or object lies in the address range of either
   // semispace (not necessarily below the allocation pointer).
@@ -1161,12 +1168,18 @@ class NewSpace : public Space {
   // Return the allocated bytes in the active semispace.
   virtual int Size() { return top() - bottom(); }
   // Return the current capacity of a semispace.
-  int Capacity() { return capacity_; }
+  int Capacity() {
+    ASSERT(to_space_.Capacity() == from_space_.Capacity());
+    return to_space_.Capacity();
+  }
   // Return the available bytes without growing in the active semispace.
   int Available() { return Capacity() - Size(); }
 
   // Return the maximum capacity of a semispace.
-  int MaximumCapacity() { return maximum_capacity_; }
+  int MaximumCapacity() {
+    ASSERT(to_space_.MaximumCapacity() == from_space_.MaximumCapacity());
+    return to_space_.MaximumCapacity();
+  }
 
   // Return the address of the allocation pointer in the active semispace.
   Address top() { return allocation_info_.top; }
@@ -1272,10 +1285,6 @@ class NewSpace : public Space {
   }
 
  private:
-  // The current and maximum capacities of a semispace.
-  int capacity_;
-  int maximum_capacity_;
-
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
