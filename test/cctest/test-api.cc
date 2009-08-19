@@ -6217,6 +6217,35 @@ TEST(DontLeakGlobalObjects) {
 }
 
 
+v8::Persistent<v8::Object> some_object;
+v8::Persistent<v8::Object> bad_handle;
+
+void NewPersistentHandleCallback(v8::Persistent<v8::Value>, void*) {
+  v8::HandleScope scope;
+  bad_handle = v8::Persistent<v8::Object>::New(some_object);
+}
+
+
+THREADED_TEST(NewPersistentHandleFromWeakCallback) {
+  LocalContext context;
+
+  v8::Persistent<v8::Object> handle1, handle2;
+  {
+    v8::HandleScope scope;
+    some_object = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+  // Note: order is implementation dependent alas: currently
+  // global handle nodes are processed by PostGarbageCollectionProcessing
+  // in reverse allocation order, so if second allocated handle is deleted,
+  // weak callback of the first handle would be able to 'reallocate' it.
+  handle1.MakeWeak(NULL, NewPersistentHandleCallback);
+  handle2.Dispose();
+  i::Heap::CollectAllGarbage();
+}
+
+
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
   v8::V8::Initialize();
 

@@ -156,6 +156,10 @@ class GlobalHandles::Node : public Malloced {
     if (func != NULL) {
       v8::Persistent<v8::Object> object = ToApi<v8::Object>(handle());
       {
+        // Forbid reuse of destroyed nodes as they might be already deallocated.
+        // It's fine though to reuse nodes that were destroyed in weak callback
+        // as those cannot be deallocated until we are back from the callback.
+        set_first_free(NULL);
         // Leaving V8.
         VMState state(EXTERNAL);
         func(object, par);
