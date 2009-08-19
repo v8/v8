@@ -1004,11 +1004,11 @@ class SemiSpace : public Space {
   // True if the space has been set up but not torn down.
   bool HasBeenSetup() { return start_ != NULL; }
 
-  // Grow the size of the semispace by committing extra virtual memory.
+  // Double the size of the semispace by committing extra virtual memory.
   // Assumes that the caller has checked that the semispace has not reached
   // its maximum capacity (and thus there is space available in the reserved
   // address range to grow).
-  bool Grow();
+  bool Double();
 
   // Returns the start address of the space.
   Address low() { return start_; }
@@ -1050,9 +1050,6 @@ class SemiSpace : public Space {
   virtual void Print();
   virtual void Verify();
 #endif
-
-  // Returns the current capacity of the semi space.
-  int Capacity() { return capacity_; }
 
  private:
   // The current and maximum capacity of the space.
@@ -1147,9 +1144,9 @@ class NewSpace : public Space {
   // Flip the pair of spaces.
   void Flip();
 
-  // Grow the capacity of the semispaces.  Assumes that they are not at
+  // Doubles the capacity of the semispaces.  Assumes that they are not at
   // their maximum capacity.  Returns a flag indicating success or failure.
-  bool Grow();
+  bool Double();
 
   // True if the address or object lies in the address range of either
   // semispace (not necessarily below the allocation pointer).
