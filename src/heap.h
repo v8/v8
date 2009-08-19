@@ -111,6 +111,7 @@ namespace internal {
   V(Object, nan_value, NanValue)                                               \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
+  V(Object, termination_exception, TerminationException)                       \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Object, null_value, NullValue)                                             \
   V(Object, true_value, TrueValue)                                             \

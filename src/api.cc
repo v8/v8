@@ -75,7 +75,7 @@ namespace v8 {
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
       bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
-      i::Top::optional_reschedule_exception(call_depth_is_zero);               \
+      i::Top::OptionalRescheduleException(call_depth_is_zero, false);        \
       return value;                                                            \
     }                                                                          \
   } while (false)
@@ -1205,6 +1205,11 @@ v8::TryCatch::~TryCatch() {
 
 bool v8::TryCatch::HasCaught() const {
   return !reinterpret_cast<i::Object*>(exception_)->IsTheHole();
+}
+
+
+bool v8::TryCatch::CanContinue() const {
+  return can_continue_;
 }
 
 
@@ -3353,6 +3358,34 @@ int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 #endif
   return 0;
 }
+
+
+int V8::GetCurrentThreadId() {
+  API_ENTRY_CHECK("V8::GetCurrentThreadId()");
+  EnsureInitialized("V8::GetCurrentThreadId()");
+  return i::Top::thread_id();
+}
+
+
+void V8::TerminateExecution(int thread_id) {
+  if (!i::V8::IsRunning()) return;
+  API_ENTRY_CHECK("V8::GetCurrentThreadId()");
+  // If the thread_id identifies the current thread just terminate
+  // execution right away.  Otherwise, ask the thread manager to
+  // terminate the thread with the given id if any.
+  if (thread_id == i::Top::thread_id()) {
+    i::StackGuard::TerminateExecution();
+  } else {
+    i::ThreadManager::TerminateExecution(thread_id);
+  }
+}
+
+
+void V8::TerminateExecution() {
+  if (!i::V8::IsRunning()) return;
+  i::StackGuard::TerminateExecution();
+}
+
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");

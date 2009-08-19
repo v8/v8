@@ -1412,6 +1412,9 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   set_no_interceptor_result_sentinel(obj);
 
+  obj = CreateOddball(oddball_map(), "termination_exception", Smi::FromInt(-3));
+  if (obj->IsFailure()) return false;
+  set_termination_exception(obj);
 
   // Allocate the empty string.
   obj = AllocateRawAsciiString(0, TENURED);
