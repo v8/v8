@@ -178,6 +178,13 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 }
 
 
+void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
+  // Patch the code at the current address with the supplied instructions.
+  for (int i = 0; i < instruction_count; i++) {
+    *(pc_ + i) = *(instructions + i);
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
@@ -1068,6 +1075,16 @@ void Assembler::jmp(Register target) {
   }
   emit(0xFF);
   emit_modrm(0x4, target);
+}
+
+
+void Assembler::jmp(const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Opcode FF/4 m64
+  emit_optional_rex_32(src);
+  emit(0xFF);
+  emit_operand(0x4, src);
 }
 
 

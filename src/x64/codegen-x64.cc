@@ -500,17 +500,19 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
   return_value->ToRegister(rax);
 
   // Add a label for checking the size of the code used for returning.
+#ifdef DEBUG
   Label check_exit_codesize;
   masm_->bind(&check_exit_codesize);
+#endif
 
   // Leave the frame and return popping the arguments and the
   // receiver.
   frame_->Exit();
   masm_->ret((scope_->num_parameters() + 1) * kPointerSize);
   // Add padding that will be overwritten by a debugger breakpoint.
-  // frame_->Exit() generates "movq rsp, rbp; pop rbp" length 5.
-  // "ret k" has length 2.
-  const int kPadding = Debug::kX64JSReturnSequenceLength - 5 - 2;
+  // frame_->Exit() generates "movq rsp, rbp; pop rbp; ret k"
+  // with length 7 (3 + 1 + 3).
+  const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
   for (int i = 0; i < kPadding; ++i) {
     masm_->int3();
   }
@@ -5731,6 +5733,13 @@ void Reference::GetValue(TypeofState typeof_state) {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   MacroAssembler* masm = cgen_->masm();
+
+  // Record the source position for the property load.
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    cgen_->CodeForSourcePosition(property->position());
+  }
+
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Load from Slot");

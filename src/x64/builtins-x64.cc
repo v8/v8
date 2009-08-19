@@ -505,7 +505,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   Label rt_call, allocated;
   if (FLAG_inline_new) {
     Label undo_allocation;
-    // TODO(X64): Enable debugger support, using debug_step_in_fp.
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    ExternalReference debug_step_in_fp =
+        ExternalReference::debug_step_in_fp_address();
+    __ movq(kScratchRegister, debug_step_in_fp);
+    __ cmpq(Operand(kScratchRegister, 0), Immediate(0));
+    __ j(not_equal, &rt_call);
+#endif
 
     // Verified that the constructor is a JSFunction.
     // Load the initial map and verify that it is in fact a map.
@@ -828,10 +835,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code.
   if (is_construct) {
     // Expects rdi to hold function pointer.
-    __ movq(kScratchRegister,
-            Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
+    __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
             RelocInfo::CODE_TARGET);
-    __ call(kScratchRegister);
   } else {
     ParameterCount actual(rax);
     // Function must be in rdi.

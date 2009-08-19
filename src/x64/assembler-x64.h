@@ -442,8 +442,10 @@ class Assembler : public Malloced {
 
   // Distance between the address of the code target in the call instruction
   // and the return address.  Checked in the debug build.
-  static const int kTargetAddrToReturnAddrDist = 3 + kPointerSize;
-
+  static const int kPatchReturnSequenceLength = 3 + kPointerSize;
+  // Distance between start of patched return sequence and the emitted address
+  // to jump to (movq = REX.W 0xB8+r.).
+  static const int kPatchReturnSequenceAddressOffset = 2;
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -916,6 +918,9 @@ class Assembler : public Malloced {
 
   // Jump near absolute indirect (r64)
   void jmp(Register adr);
+
+  // Jump near absolute indirect (m64)
+  void jmp(const Operand& src);
 
   // Conditional jumps
   void j(Condition cc, Label* L);
