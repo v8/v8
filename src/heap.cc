@@ -315,11 +315,13 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage() {
+void Heap::CollectAllGarbage(bool force_compaction) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
+  MarkCompactCollector::SetForceCompaction(force_compaction);
   CollectGarbage(0, OLD_POINTER_SPACE);
+  MarkCompactCollector::SetForceCompaction(false);
 }
 
 

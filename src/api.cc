@@ -2604,9 +2604,17 @@ bool v8::V8::Dispose() {
 }
 
 
-void  v8::V8::IdleNotification(bool is_high_priority) {
+void v8::V8::IdleNotification(bool is_high_priority) {
   i::V8::IdleNotification(is_high_priority);
 }
+
+
+void v8::V8::LowMemoryNotification() {
+#if defined(ANDROID)
+  i::Heap::CollectAllGarbage(true);
+#endif
+}
+
 
 const char* v8::V8::GetVersion() {
   static v8::internal::EmbeddedVector<char, 128> buffer;

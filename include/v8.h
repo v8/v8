@@ -2284,6 +2284,12 @@ class V8EXPORT V8 {
    */
   static void IdleNotification(bool is_high_priority);
 
+  /**
+   * Optional notification that the system is running low on memory.
+   * V8 uses these notifications to attempt to free memory.
+   */
+  static void LowMemoryNotification();
+
  private:
   V8();
 

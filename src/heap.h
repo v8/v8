@@ -627,8 +627,9 @@ class Heap : public AllStatic {
   // Returns whether required_space bytes are available after the collection.
   static bool CollectGarbage(int required_space, AllocationSpace space);
 
-  // Performs a full garbage collection.
-  static void CollectAllGarbage();
+  // Performs a full garbage collection. Force compaction if the
+  // parameter is true.
+  static void CollectAllGarbage(bool force_compaction = false);
 
   // Performs a full garbage collection if a context has been disposed
   // since the last time the check was performed.
