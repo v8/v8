@@ -104,7 +104,6 @@
 	  ['OS=="mac"', {
 	    'xcode_settings': {
 	      'GCC_OPTIMIZATION_LEVEL': '3',
-	      'OTHER_CFLAGS': [ '-fomit-frame-pointer' ],
 	    },
 	  }],
           ['OS=="win"', {
