@@ -2843,7 +2843,7 @@ TEST(ErrorReporting) {
 
 static const char* js_code_causing_huge_string_flattening =
     "var str = 'X';"
-    "for (var i = 0; i < 29; i++) {"
+    "for (var i = 0; i < 30; i++) {"
     "  str = str + str;"
     "}"
     "str.match(/X/);";
