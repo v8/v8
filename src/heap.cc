@@ -73,7 +73,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
-#elseif defined(V8_TARGET_ARCH_X64)
+#elif defined(V8_TARGET_ARCH_X64)
 int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
