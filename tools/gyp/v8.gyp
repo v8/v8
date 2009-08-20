@@ -101,6 +101,11 @@
               '-fno-rtti',
             ],
           }],
+	  ['OS=="mac"', {
+	    'xcode_settings': {
+	      'GCC_OPTIMIZATION_LEVEL': '3',
+	    },
+	  }],
           ['OS=="win"', {
             'msvs_configuration_attributes': {
               'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
