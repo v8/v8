@@ -6246,6 +6246,29 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
 }
 
 
+v8::Persistent<v8::Object> to_be_disposed;
+
+void DisposeAndForceGcCallback(v8::Persistent<v8::Value> handle, void*) {
+  to_be_disposed.Dispose();
+  i::Heap::CollectAllGarbage();
+}
+
+
+THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
+  LocalContext context;
+
+  v8::Persistent<v8::Object> handle1, handle2;
+  {
+    v8::HandleScope scope;
+    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+  handle1.MakeWeak(NULL, DisposeAndForceGcCallback);
+  to_be_disposed = handle2;
+  i::Heap::CollectAllGarbage();
+}
+
+
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
   v8::V8::Initialize();
 
