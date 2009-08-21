@@ -7150,6 +7150,30 @@ THREADED_TEST(MorphCompositeStringTest) {
 }
 
 
+TEST(CompileExternalTwoByteSource) {
+  v8::HandleScope scope;
+  LocalContext context;
+
+  // This is a very short list of sources, which currently is to check for a
+  // regression caused by r2703.
+  const char* ascii_sources[] = {
+    "0.5",
+    "-0.5",   // This mainly testes PushBack in the Scanner.
+    "--0.5",  // This mainly testes PushBack in the Scanner.
+    NULL
+  };
+
+  // Compile the sources as external two byte strings.
+  for (int i = 0; ascii_sources[i] != NULL; i++) {
+    uint16_t* two_byte_string = AsciiToTwoByteString(ascii_sources[i]);
+    UC16VectorResource uc16_resource(
+        i::Vector<const uint16_t>(two_byte_string, strlen(ascii_sources[i])));
+    v8::Local<v8::String> source = v8::String::NewExternal(&uc16_resource);
+    v8::Script::Compile(source);
+  }
+}
+
+
 class RegExpStringModificationTest {
  public:
   RegExpStringModificationTest()
