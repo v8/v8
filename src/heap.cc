@@ -2089,8 +2089,9 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
     if (count > in_object_properties) {
       count = in_object_properties;
     }
-    DescriptorArray* descriptors = *Factory::NewDescriptorArray(count);
-    if (descriptors->IsFailure()) return descriptors;
+    Object* descriptors_obj = DescriptorArray::Allocate(count);
+    if (descriptors_obj->IsFailure()) return descriptors_obj;
+    DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
     for (int i = 0; i < count; i++) {
       String* name = fun->shared()->GetThisPropertyAssignmentName(i);
       ASSERT(name->IsSymbol());
