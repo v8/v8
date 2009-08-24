@@ -4586,7 +4586,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
                          : RelocInfo::CODE_TARGET_CONTEXT;
   Result answer = frame_->CallLoadIC(mode);
   // A test rax instruction following the call signals that the inobject
-  // property case was inlined.  Ensure that there is not a test eax
+  // property case was inlined.  Ensure that there is not a test rax
   // instruction here.
   masm_->nop();
   // Discard the global object. The result is in answer.
