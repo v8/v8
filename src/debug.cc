@@ -317,10 +317,10 @@ void BreakLocationIterator::ClearDebugBreak() {
 void BreakLocationIterator::PrepareStepIn() {
   HandleScope scope;
 
-  // Step in can only be prepared if currently positioned on an IC call or
-  // construct call.
+  // Step in can only be prepared if currently positioned on an IC call,
+  // construct call or CallFunction stub call.
   Address target = rinfo()->target_address();
-  Code* code = Code::GetCodeFromTargetAddress(target);
+  Handle<Code> code(Code::GetCodeFromTargetAddress(target));
   if (code->is_call_stub()) {
     // Step in through IC call is handled by the runtime system. Therefore make
     // sure that the any current IC is cleared and the runtime system is
@@ -334,11 +334,27 @@ void BreakLocationIterator::PrepareStepIn() {
       rinfo()->set_target_address(stub->entry());
     }
   } else {
+#ifdef DEBUG
+    Handle<Code> maybe_call_function_stub = code;
+    if (IsDebugBreak()) {
+      Address original_target = original_rinfo()->target_address();
+      maybe_call_function_stub =
+          Handle<Code>(Code::GetCodeFromTargetAddress(original_target));
+    }
+    bool is_call_function_stub =
+        (maybe_call_function_stub->kind() == Code::STUB &&
+         maybe_call_function_stub->major_key() == CodeStub::CallFunction);
+
     // Step in through construct call requires no changes to the running code.
     // Step in through getters/setters should already be prepared as well
     // because caller of this function (Debug::PrepareStep) is expected to
     // flood the top frame's function with one shot breakpoints.
-    ASSERT(RelocInfo::IsConstructCall(rmode()) || code->is_inline_cache_stub());
+    // Step in through CallFunction stub should also be prepared by caller of
+    // this function (Debug::PrepareStep) which should flood target function
+    // with breakpoints.
+    ASSERT(RelocInfo::IsConstructCall(rmode()) || code->is_inline_cache_stub()
+           || is_call_function_stub);
+#endif
   }
 }
 
@@ -1092,6 +1108,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   bool is_call_target = false;
   bool is_load_or_store = false;
   bool is_inline_cache_stub = false;
+  Handle<Code> call_function_stub;
   if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
     Address target = it.rinfo()->target_address();
     Code* code = Code::GetCodeFromTargetAddress(target);
@@ -1101,6 +1118,22 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
     if (code->is_inline_cache_stub()) {
       is_inline_cache_stub = true;
       is_load_or_store = !is_call_target;
+    }
+
+    // Check if target code is CallFunction stub.
+    Code* maybe_call_function_stub = code;
+    // If there is a breakpoint at this line look at the original code to
+    // check if it is a CallFunction stub.
+    if (it.IsDebugBreak()) {
+      Address original_target = it.original_rinfo()->target_address();
+      maybe_call_function_stub =
+          Code::GetCodeFromTargetAddress(original_target);
+    }
+    if (maybe_call_function_stub->kind() == Code::STUB &&
+        maybe_call_function_stub->major_key() == CodeStub::CallFunction) {
+      // Save reference to the code as we may need it to find out arguments
+      // count for 'step in' later.
+      call_function_stub = Handle<Code>(maybe_call_function_stub);
     }
   }
 
@@ -1114,7 +1147,8 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       JSFunction* function = JSFunction::cast(frames_it.frame()->function());
       FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
     }
-  } else if (!(is_inline_cache_stub || RelocInfo::IsConstructCall(it.rmode()))
+  } else if (!(is_inline_cache_stub || RelocInfo::IsConstructCall(it.rmode()) ||
+               !call_function_stub.is_null())
              || step_action == StepNext || step_action == StepMin) {
     // Step next or step min.
 
@@ -1126,6 +1160,43 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
         debug_info->code()->SourceStatementPosition(frame->pc());
     thread_local_.last_fp_ = frame->fp();
   } else {
+    // If it's CallFunction stub ensure target function is compiled and flood
+    // it with one shot breakpoints.
+    if (!call_function_stub.is_null()) {
+      // Find out number of arguments from the stub minor key.
+      // Reverse lookup required as the minor key cannot be retrieved
+      // from the code object.
+      Handle<Object> obj(
+          Heap::code_stubs()->SlowReverseLookup(*call_function_stub));
+      ASSERT(*obj != Heap::undefined_value());
+      ASSERT(obj->IsSmi());
+      // Get the STUB key and extract major and minor key.
+      uint32_t key = Smi::cast(*obj)->value();
+      int call_function_arg_count = CodeStub::MinorKeyFromKey(key);
+      ASSERT(call_function_stub->major_key() ==
+             CodeStub::MajorKeyFromKey(key));
+
+      // Find target function on the expression stack.
+      // Expression stack lools like this (top to bottom):
+      // argN
+      // ...
+      // arg0
+      // Receiver
+      // Function to call
+      int expressions_count = frame->ComputeExpressionsCount();
+      ASSERT(expressions_count - 2 - call_function_arg_count >= 0);
+      Object* fun = frame->GetExpression(
+          expressions_count - 2 - call_function_arg_count);
+      if (fun->IsJSFunction()) {
+        Handle<JSFunction> js_function(JSFunction::cast(fun));
+        // Don't step into builtins.
+        if (!js_function->IsBuiltin()) {
+          // It will also compile target function if it's not compiled yet.
+          FloodWithOneShot(Handle<SharedFunctionInfo>(js_function->shared()));
+        }
+      }
+    }
+
     // Fill the current function with one-shot break points even for step in on
     // a call target as the function called might be a native function for
     // which step in will not stop. It also prepares for stepping in
