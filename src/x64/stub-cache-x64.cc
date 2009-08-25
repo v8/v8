@@ -1738,6 +1738,18 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
 }
 
 
+Object* ConstructStubCompiler::CompileConstructStub(
+    SharedFunctionInfo* shared) {
+  // Not implemented yet - just jump to generic stub.
+  Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
+  Handle<Code> generic_construct_stub(code);
+  __ Jump(generic_construct_stub, RelocInfo::CODE_TARGET);
+
+  // Return the generated code.
+  return GetCode();
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

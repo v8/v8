@@ -4800,7 +4800,6 @@ void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
     bool only_this_property_assignments,
     bool only_simple_this_property_assignments,
     FixedArray* assignments) {
-  ASSERT(this_property_assignments()->IsUndefined());
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kHasOnlyThisPropertyAssignments,
                                      only_this_property_assignments));
@@ -4812,6 +4811,18 @@ void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
 }
 
 
+void SharedFunctionInfo::ClearThisPropertyAssignmentsInfo() {
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kHasOnlyThisPropertyAssignments,
+                                     false));
+  set_compiler_hints(BooleanBit::set(compiler_hints(),
+                                     kHasOnlySimpleThisPropertyAssignments,
+                                     false));
+  set_this_property_assignments(Heap::undefined_value());
+  set_this_property_assignments_count(0);
+}
+
+
 String* SharedFunctionInfo::GetThisPropertyAssignmentName(int index) {
   Object* obj = this_property_assignments();
   ASSERT(obj->IsFixedArray());
@@ -4820,6 +4831,32 @@ String* SharedFunctionInfo::GetThisPropertyAssignmentName(int index) {
   ASSERT(obj->IsString());
   return String::cast(obj);
 }
+
+
+bool SharedFunctionInfo::IsThisPropertyAssignmentArgument(int index) {
+  Object* obj = this_property_assignments();
+  ASSERT(obj->IsFixedArray());
+  ASSERT(index < this_property_assignments_count());
+  obj = FixedArray::cast(obj)->get(index * 3 + 1);
+  return Smi::cast(obj)->value() != -1;
+}
+
+
+int SharedFunctionInfo::GetThisPropertyAssignmentArgument(int index) {
+  ASSERT(IsThisPropertyAssignmentArgument(index));
+  Object* obj =
+      FixedArray::cast(this_property_assignments())->get(index * 3 + 1);
+  return Smi::cast(obj)->value();
+}
+
+
+Object* SharedFunctionInfo::GetThisPropertyAssignmentConstant(int index) {
+  ASSERT(!IsThisPropertyAssignmentArgument(index));
+  Object* obj =
+      FixedArray::cast(this_property_assignments())->get(index * 3 + 2);
+  return obj;
+}
+
 
 
 // Support function for printing the source code to a StringStream
