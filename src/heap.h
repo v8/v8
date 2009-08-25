@@ -629,7 +629,7 @@ class Heap : public AllStatic {
 
   // Performs a full garbage collection. Force compaction if the
   // parameter is true.
-  static void CollectAllGarbage(bool force_compaction = false);
+  static void CollectAllGarbage(bool force_compaction);
 
   // Performs a full garbage collection if a context has been disposed
   // since the last time the check was performed.
@@ -840,6 +840,39 @@ class Heap : public AllStatic {
   static bool OldGenerationAllocationLimitReached() {
     return (PromotedSpaceSize() + PromotedExternalMemorySize())
            > old_gen_allocation_limit_;
+  }
+
+  // Can be called when the embedding application is idle.
+  static bool IdleNotification() {
+    static const int kIdlesBeforeCollection = 7;
+    static int number_idle_notifications = 0;
+    static int last_gc_count = gc_count_;
+
+    bool finished = false;
+
+    if (last_gc_count == gc_count_) {
+      number_idle_notifications++;
+    } else {
+      number_idle_notifications = 0;
+      last_gc_count = gc_count_;
+    }
+
+    if (number_idle_notifications >= kIdlesBeforeCollection) {
+      // The first time through we collect without forcing compaction.
+      // The second time through we force compaction and quit.
+      bool force_compaction =
+          number_idle_notifications > kIdlesBeforeCollection;
+      CollectAllGarbage(force_compaction);
+      last_gc_count = gc_count_;
+      if (force_compaction) {
+        number_idle_notifications = 0;
+        finished = true;
+      }
+    }
+
+    // Uncommit unused memory in new space.
+    Heap::UncommitFromSpace();
+    return finished;
   }
 
   // Declare all the root indices.

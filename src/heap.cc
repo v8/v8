@@ -332,7 +332,7 @@ void Heap::CollectAllGarbageIfContextDisposed() {
   // informed decisions about when to force a collection.
   if (!FLAG_expose_gc && context_disposed_pending_) {
     HistogramTimerScope scope(&Counters::gc_context);
-    CollectAllGarbage();
+    CollectAllGarbage(false);
   }
   context_disposed_pending_ = false;
 }
