@@ -466,14 +466,9 @@ Debug.source = function(f) {
   return %FunctionGetSourceCode(f);
 };
 
-Debug.disassemble = function(f) {
+Debug.assembler = function(f) {
   if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
-  return %DebugDisassembleFunction(f);
-};
-
-Debug.disassembleConstructor = function(f) {
-  if (!IS_FUNCTION(f)) throw new Error('Parameters have wrong types.');
-  return %DebugDisassembleConstructor(f);
+  return %FunctionGetAssemblerCode(f);
 };
 
 Debug.sourcePosition = function(f) {

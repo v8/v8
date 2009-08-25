@@ -3108,9 +3108,6 @@ class SharedFunctionInfo: public HeapObject {
       bool has_only_simple_this_property_assignments,
       FixedArray* this_property_assignments);
 
-  // Clear information on assignments of the form this.x = ...;
-  void ClearThisPropertyAssignmentsInfo();
-
   // Indicate that this function only consists of assignments of the form
   // this.x = ...;.
   inline bool has_only_this_property_assignments();
@@ -3125,9 +3122,6 @@ class SharedFunctionInfo: public HeapObject {
   inline int this_property_assignments_count();
   inline void set_this_property_assignments_count(int value);
   String* GetThisPropertyAssignmentName(int index);
-  bool IsThisPropertyAssignmentArgument(int index);
-  int GetThisPropertyAssignmentArgument(int index);
-  Object* GetThisPropertyAssignmentConstant(int index);
 
   // [source code]: Source code for the function.
   bool HasSourceCode();

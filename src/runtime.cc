@@ -45,7 +45,6 @@
 #include "v8threads.h"
 #include "smart-pointer.h"
 #include "parser.h"
-#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -1236,9 +1235,6 @@ static Object* Runtime_SetCode(Arguments args) {
     // Array, and Object, and some web code
     // doesn't like seeing source code for constructors.
     target->shared()->set_script(Heap::undefined_value());
-    // Clear the optimization hints related to the compiled code as these are no
-    // longer valid when the code is overwritten.
-    target->shared()->ClearThisPropertyAssignmentsInfo();
     context = Handle<Context>(fun->context());
 
     // Make sure we get a fresh copy of the literal vector to avoid
@@ -4330,21 +4326,11 @@ static Object* Runtime_NewClosure(Arguments args) {
 }
 
 
-static Code* ComputeConstructStub(Handle<SharedFunctionInfo> shared) {
+static Handle<Code> ComputeConstructStub(Handle<Map> map) {
   // TODO(385): Change this to create a construct stub specialized for
   // the given map to make allocation of simple objects - and maybe
   // arrays - much faster.
-  if (FLAG_inline_new
-      && shared->has_only_simple_this_property_assignments()) {
-    ConstructStubCompiler compiler;
-    Object* code = compiler.CompileConstructStub(*shared);
-    if (code->IsFailure()) {
-      return Builtins::builtin(Builtins::JSConstructStubGeneric);
-    }
-    return Code::cast(code);
-  }
-
-  return Builtins::builtin(Builtins::JSConstructStubGeneric);
+  return Handle<Code>(Builtins::builtin(Builtins::JSConstructStubGeneric));
 }
 
 
@@ -4387,25 +4373,15 @@ static Object* Runtime_NewObject(Arguments args) {
     }
   }
 
-  // The function should be compiled for the optimization hints to be available.
-  if (!function->shared()->is_compiled()) {
-    CompileLazyShared(Handle<SharedFunctionInfo>(function->shared()),
-                                                 CLEAR_EXCEPTION,
-                                                 0);
-  }
-
   bool first_allocation = !function->has_initial_map();
   Handle<JSObject> result = Factory::NewJSObject(function);
   if (first_allocation) {
     Handle<Map> map = Handle<Map>(function->initial_map());
-    Handle<Code> stub = Handle<Code>(
-        ComputeConstructStub(Handle<SharedFunctionInfo>(function->shared())));
+    Handle<Code> stub = ComputeConstructStub(map);
     function->shared()->set_construct_stub(*stub);
   }
-
   Counters::constructed_objects.Increment();
   Counters::constructed_objects_runtime.Increment();
-
   return *result;
 }
 
@@ -7410,7 +7386,7 @@ static Object* Runtime_SystemBreak(Arguments args) {
 }
 
 
-static Object* Runtime_DebugDisassembleFunction(Arguments args) {
+static Object* Runtime_FunctionGetAssemblerCode(Arguments args) {
 #ifdef DEBUG
   HandleScope scope;
   ASSERT(args.length() == 1);
@@ -7420,21 +7396,6 @@ static Object* Runtime_DebugDisassembleFunction(Arguments args) {
     return Failure::Exception();
   }
   func->code()->PrintLn();
-#endif  // DEBUG
-  return Heap::undefined_value();
-}
-
-
-static Object* Runtime_DebugDisassembleConstructor(Arguments args) {
-#ifdef DEBUG
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  // Get the function and make sure it is compiled.
-  CONVERT_ARG_CHECKED(JSFunction, func, 0);
-  if (!func->is_compiled() && !CompileLazy(func, KEEP_EXCEPTION)) {
-    return Failure::Exception();
-  }
-  func->shared()->construct_stub()->PrintLn();
 #endif  // DEBUG
   return Heap::undefined_value();
 }

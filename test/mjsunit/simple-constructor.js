@@ -53,11 +53,9 @@ function f4(x) {
 }
 
 o1_1 = new f1();
-assertEquals(1, o1_1.x, "1");
 o1_2 = new f1();
-assertEquals(1, o1_1.x, "2");
-assertArrayEquals(["x"], props(o1_1), "3");
-assertArrayEquals(["x"], props(o1_2), "4");
+assertArrayEquals(["x"], props(o1_1));
+assertArrayEquals(["x"], props(o1_2));
 
 o2_1 = new f2(0);
 o2_2 = new f2(0);
@@ -78,46 +76,3 @@ o4_1_1 = new f4(1);
 o4_1_2 = new f4(1);
 assertArrayEquals(["x", "y"], props(o4_1_1));
 assertArrayEquals(["x", "y"], props(o4_1_2));
-
-function f5(x, y) {
-  this.x = x;
-  this.y = y;
-}
-
-function f6(x, y) {
-  this.y = y;
-  this.x = x;
-}
-
-function f7(x, y, z) {
-  this.x = x;
-  this.y = y;
-}
-
-function testArgs(fun) {
-  obj = new fun();
-  assertArrayEquals(["x", "y"], props(obj));
-  assertEquals(void 0, obj.x);
-  assertEquals(void 0, obj.y);
-
-  obj = new fun("x");
-  assertArrayEquals(["x", "y"], props(obj));
-  assertEquals("x", obj.x);
-  assertEquals(void 0, obj.y);
-
-  obj = new fun("x", "y");
-  assertArrayEquals(["x", "y"], props(obj));
-  assertEquals("x", obj.x);
-  assertEquals("y", obj.y);
-
-  obj = new fun("x", "y", "z");
-  assertArrayEquals(["x", "y"], props(obj));
-  assertEquals("x", obj.x);
-  assertEquals("y", obj.y);
-}
-
-for (var i = 0; i < 10; i++) {
-  testArgs(f5);
-  testArgs(f6);
-  testArgs(f7);
-}
