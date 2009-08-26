@@ -1097,4 +1097,11 @@ Object* CallStubCompiler::GetCode(PropertyType type, String* name) {
 }
 
 
+Object* ConstructStubCompiler::GetCode() {
+  Code::Flags flags = Code::ComputeFlags(Code::STUB);
+  return GetCodeWithFlags(flags, "ConstructStub");
+}
+
+
+
 } }  // namespace v8::internal

@@ -132,7 +132,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Make sure that the maximum heap object size will never cause us
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
+    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
     ExternalReference new_space_allocation_top =
         ExternalReference::new_space_allocation_top_address();
     __ mov(ebx, Operand::StaticVariable(new_space_allocation_top));
