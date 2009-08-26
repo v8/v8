@@ -756,7 +756,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // an internal frame and the pushed function and receiver, and
   // register rax and rbx holds the argument count and argument array,
   // while rdi holds the function pointer and rsi the context.
-#ifdef __MSVC__
+#ifdef _WIN64
   // MSVC parameters in:
   // rcx : entry (ignored)
   // rdx : function
@@ -766,7 +766,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Clear the context before we push it when entering the JS frame.
   __ xor_(rsi, rsi);
-  // Enter an internal frame.
   __ EnterInternalFrame();
 
   // Load the function context into rsi.
@@ -783,7 +782,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ movq(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
   // Load the function pointer into rdi.
   __ movq(rdi, rdx);
-#else  // !defined(__MSVC__)
+#else  // !defined(_WIN64)
   // GCC parameters in:
   // rdi : entry (ignored)
   // rsi : function
@@ -807,7 +806,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Load the number of arguments and setup pointer to the arguments.
   __ movq(rax, rcx);
   __ movq(rbx, r8);
-#endif  // __MSVC__
+#endif  // _WIN64
   // Current stack contents:
   // [rsp + 2 * kPointerSize ... ]: Internal frame
   // [rsp + kPointerSize]         : function

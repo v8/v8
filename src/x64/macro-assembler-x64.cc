@@ -994,8 +994,11 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   }
 #endif
 
-  // Reserve space for two arguments: argc and argv
-  subq(rsp, Immediate(2 * kPointerSize));
+  // Reserve space for the Arguments object.  The Windows 64-bit ABI
+  // requires us to pass this structure as a pointer to its location on
+  // the stack.  We also need backing space for the pointer, even though
+  // it is passed in a register.
+  subq(rsp, Immediate(3 * kPointerSize));
 
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();

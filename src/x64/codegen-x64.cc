@@ -3564,7 +3564,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   // If the index is negative or non-smi trigger the slow case.
   ASSERT(kSmiTag == 0);
   __ testl(index.reg(),
-           Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000U)));
+           Immediate(static_cast<uint32_t>(kSmiTagMask | 0x80000000U)));
   __ j(not_zero, &slow_case);
   // Untag the index.
   __ sarl(index.reg(), Immediate(kSmiTagSize));
@@ -5354,7 +5354,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                                 overwrite_mode);
         // Check for negative or non-Smi left hand side.
         __ testl(operand->reg(),
-                 Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000)));
+                 Immediate(static_cast<uint32_t>(kSmiTagMask | 0x80000000)));
         deferred->Branch(not_zero);
         if (int_value < 0) int_value = -int_value;
         if (int_value == 1) {
@@ -5894,7 +5894,7 @@ void Reference::GetValue(TypeofState typeof_state) {
 
         // Check that the key is a non-negative smi.
         __ testl(key.reg(),
-                 Immediate(static_cast<int32_t>(kSmiTagMask | 0x80000000u)));
+                 Immediate(static_cast<uint32_t>(kSmiTagMask | 0x80000000u)));
         deferred->Branch(not_zero);
 
         // Get the elements array from the receiver and check that it
@@ -6763,10 +6763,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     // Pass failure code returned from last attempt as first argument to GC.
-#ifdef __MSVC__
-    __ movq(rcx, rax);  // argc.
-#else  // ! defined(__MSVC__)
-    __ movq(rdi, rax);  // argv.
+#ifdef _WIN64
+    __ movq(rcx, rax);
+#else  // ! defined(_WIN64)
+    __ movq(rdi, rax);
 #endif
     __ movq(kScratchRegister,
             FUNCTION_ADDR(Runtime::PerformGC),
@@ -6782,11 +6782,14 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 
   // Call C function.
-#ifdef __MSVC__
-  // MSVC passes arguments in rcx, rdx, r8, r9
-  __ movq(rcx, r14);  // argc.
-  __ movq(rdx, r15);  // argv.
-#else  // ! defined(__MSVC__)
+#ifdef _WIN64
+  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
+  // Store Arguments object on stack
+  __ movq(Operand(rsp, 1 * kPointerSize), r14);  // argc.
+  __ movq(Operand(rsp, 2 * kPointerSize), r15);  // argv.
+  // Pass a pointer to the Arguments object as the first argument.
+  __ lea(rcx, Operand(rsp, 1 * kPointerSize));
+#else  // ! defined(_WIN64)
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
   __ movq(rsi, r15);  // argv.

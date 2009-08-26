@@ -319,7 +319,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
   } else {
     ASSERT(mode_ == UC16);
     // Save important/volatile registers before calling C function.
-#ifndef __MSVC__
+#ifndef _WIN64
     // Callee save on Win64
     __ push(rsi);
     __ push(rdi);
@@ -333,7 +333,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   Address byte_offset1 - Address captured substring's start.
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
-#ifdef __MSVC__
+#ifdef _WIN64
     // Compute and set byte_offset1 (start of capture).
     __ lea(rcx, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
@@ -356,7 +356,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_->CodeObject());
     __ pop(backtrack_stackpointer());
-#ifndef __MSVC__
+#ifndef _WIN64
     __ pop(rdi);
     __ pop(rsi);
 #endif
@@ -604,7 +604,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ movq(rbp, rsp);
   // Save parameters and callee-save registers. Order here should correspond
   //  to order of kBackup_ebx etc.
-#ifdef __MSVC__
+#ifdef _WIN64
   // MSVC passes arguments in rcx, rdx, r8, r9, with backing stack slots.
   // Store register parameters in pre-allocated stack slots,
   __ movq(Operand(rbp, kInputString), rcx);
@@ -740,7 +740,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Exit and return rax
   __ bind(&exit_label_);
 
-#ifdef __MSVC__
+#ifdef _WIN64
   // Restore callee save registers.
   __ lea(rsp, Operand(rbp, kLastCalleeSaveRegister));
   __ pop(rbx);
@@ -794,7 +794,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
     Label grow_failed;
     // Save registers before calling C function
-#ifndef __MSVC__
+#ifndef _WIN64
     // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.
     __ push(rsi);
     __ push(rdi);
@@ -803,7 +803,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     // Call GrowStack(backtrack_stackpointer())
     int num_arguments = 2;
     FrameAlign(num_arguments);
-#ifdef __MSVC__
+#ifdef _WIN64
     // Microsoft passes parameters in rcx, rdx.
     // First argument, backtrack stackpointer, is already in rcx.
     __ lea(rdx, Operand(rbp, kStackHighEnd));  // Second argument
@@ -821,7 +821,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ movq(backtrack_stackpointer(), rax);
     // Restore saved registers and continue.
     __ Move(code_object_pointer(), masm_->CodeObject());
-#ifndef __MSVC__
+#ifndef _WIN64
     __ pop(rdi);
     __ pop(rsi);
 #endif
@@ -980,7 +980,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   // store anything volatile in a C call or overwritten by this function.
   int num_arguments = 3;
   FrameAlign(num_arguments);
-#ifdef __MSVC__
+#ifdef _WIN64
   // Second argument: Code* of self. (Do this before overwriting r8).
   __ movq(rdx, code_object_pointer());
   // Third argument: RegExp code frame pointer.
@@ -1242,10 +1242,10 @@ void RegExpMacroAssemblerX64::FrameAlign(int num_arguments) {
   // (on Win64 only) and the original value of rsp.
   __ movq(kScratchRegister, rsp);
   ASSERT(IsPowerOf2(frameAlignment));
-#ifdef __MSVC__
+#ifdef _WIN64
   // Allocate space for parameters and old rsp.
   __ subq(rsp, Immediate((num_arguments + 1) * kPointerSize));
-  __ and_(rsp, -frameAlignment);
+  __ and_(rsp, Immediate(-frameAlignment));
   __ movq(Operand(rsp, num_arguments * kPointerSize), kScratchRegister);
 #else
   // Allocate space for old rsp.
@@ -1264,7 +1264,7 @@ void RegExpMacroAssemblerX64::CallCFunction(Address function_address,
   __ movq(rax, reinterpret_cast<intptr_t>(function_address), RelocInfo::NONE);
   __ call(rax);
   ASSERT(OS::ActivationFrameAlignment() != 0);
-#ifdef __MSVC__
+#ifdef _WIN64
   __ movq(rsp, Operand(rsp, num_arguments * kPointerSize));
 #else
   __ pop(rsp);
