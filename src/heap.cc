@@ -3256,6 +3256,13 @@ bool Heap::Setup(bool create_heap_objects) {
 }
 
 
+void Heap::SetStackLimit(intptr_t limit) {
+  // Set up the special root array entry containing the stack guard.
+  // This is actually an address, but the tag makes the GC ignore it.
+  set_stack_limit(Smi::FromInt(limit >> kSmiTagSize));
+}
+
+
 void Heap::TearDown() {
   GlobalHandles::TearDown();
 

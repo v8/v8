@@ -1110,8 +1110,10 @@ void CodeGenerator::CheckStack() {
   VirtualFrame::SpilledScope spilled_scope;
   if (FLAG_check_stack) {
     Comment cmnt(masm_, "[ check stack");
+    __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+    __ cmp(sp, Operand(ip));
     StackCheckStub stub;
-    frame_->CallStub(&stub, 0);
+    __ CallStub(&stub, lo);  // Call the stub if lower.
   }
 }
 
@@ -5623,17 +5625,11 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
-  Label within_limit;
-  __ mov(ip, Operand(ExternalReference::address_of_stack_guard_limit()));
-  __ ldr(ip, MemOperand(ip));
-  __ cmp(sp, Operand(ip));
-  __ b(hs, &within_limit);
   // Do tail-call to runtime routine.  Runtime routines expect at least one
   // argument, so give it a Smi.
   __ mov(r0, Operand(Smi::FromInt(0)));
   __ push(r0);
   __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
-  __ bind(&within_limit);
 
   __ StubReturn(1);
 }
