@@ -2923,6 +2923,17 @@ Object* Map::CopyDropDescriptors() {
   // Please note instance_type and instance_size are set when allocated.
   Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
+
+  // If the map has pre-allocated properties always start out with a descriptor
+  // array describing these properties.
+  if (pre_allocated_property_fields() > 0) {
+    ASSERT(constructor()->IsJSFunction());
+    JSFunction* ctor = JSFunction::cast(constructor());
+    Map::cast(result)->set_instance_descriptors(
+        ctor->initial_map()->instance_descriptors());
+    Map::cast(result)->set_pre_allocated_property_fields(
+        pre_allocated_property_fields());
+  }
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->set_bit_field2(bit_field2());
   Map::cast(result)->ClearCodeCache();
@@ -4800,7 +4811,6 @@ void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
     bool only_this_property_assignments,
     bool only_simple_this_property_assignments,
     FixedArray* assignments) {
-  ASSERT(this_property_assignments()->IsUndefined());
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kHasOnlyThisPropertyAssignments,
                                      only_this_property_assignments));

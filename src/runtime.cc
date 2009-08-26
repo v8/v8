@@ -4373,6 +4373,13 @@ static Object* Runtime_NewObject(Arguments args) {
     }
   }
 
+  // The function should be compiled for the optimization hints to be available.
+  if (!function->shared()->is_compiled()) {
+     CompileLazyShared(Handle<SharedFunctionInfo>(function->shared()),
+                                                  CLEAR_EXCEPTION,
+                                                  0);
+  }
+
   bool first_allocation = !function->has_initial_map();
   Handle<JSObject> result = Factory::NewJSObject(function);
   if (first_allocation) {

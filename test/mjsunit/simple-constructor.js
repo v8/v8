@@ -76,3 +76,20 @@ o4_1_1 = new f4(1);
 o4_1_2 = new f4(1);
 assertArrayEquals(["x", "y"], props(o4_1_1));
 assertArrayEquals(["x", "y"], props(o4_1_2));
+
+function g(){
+  this.x=1
+}
+
+o = new g();
+assertEquals(1, o.x);
+o = new g();
+assertEquals(1, o.x);
+g.prototype = {y:2}
+o = new g();
+assertEquals(1, o.x);
+assertEquals(2, o.y);
+o = new g();
+assertEquals(1, o.x);
+assertEquals(2, o.y);
+
