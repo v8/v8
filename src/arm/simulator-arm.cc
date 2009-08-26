@@ -1051,7 +1051,6 @@ void Simulator::SoftwareInterrupt(Instr* instr) {
         }
         set_register(r0, lo_res);
         set_register(r1, hi_res);
-        set_register(r0, result);
       }
       set_register(lr, saved_lr);
       set_pc(get_register(lr));

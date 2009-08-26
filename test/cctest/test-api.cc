@@ -7815,6 +7815,7 @@ THREADED_TEST(PixelArray) {
   free(pixel_data);
 }
 
+
 THREADED_TEST(ScriptContextDependence) {
   v8::HandleScope scope;
   LocalContext c1;
@@ -7830,6 +7831,7 @@ THREADED_TEST(ScriptContextDependence) {
   CHECK_EQ(indep->Run()->Int32Value(), 101);
 }
 
+
 THREADED_TEST(StackTrace) {
   v8::HandleScope scope;
   LocalContext context;
@@ -7841,4 +7843,12 @@ THREADED_TEST(StackTrace) {
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(try_catch.StackTrace());
   CHECK(strstr(*stack, "at foo (stack-trace-test") != NULL);
+}
+
+
+// Test that idle notification can be handled when V8 has not yet been
+// set up.
+THREADED_TEST(IdleNotification) {
+  for (int i = 0; i < 100; i++) v8::V8::IdleNotification(true);
+  for (int i = 0; i < 100; i++) v8::V8::IdleNotification(false);
 }
