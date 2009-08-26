@@ -3253,13 +3253,15 @@ bool Heap::Setup(bool create_heap_objects) {
 
 
 void Heap::SetStackLimit(intptr_t limit) {
-  // We don't use this on x86-64 yet, but we need to remove the top
-  // bits or it won't be a valid Smi.  This has no effect on 32 bit
-  // architectures.
-  limit &= 0xfffffffful;
+  // We don't use the stack limit in the roots array on x86-64 yet, but since
+  // pointers are generally out of range of Smis we should set the value either.
+#if !V8_HOST_ARCH_64_BIT
   // Set up the special root array entry containing the stack guard.
   // This is actually an address, but the tag makes the GC ignore it.
   set_stack_limit(Smi::FromInt(limit >> kSmiTagSize));
+#else
+  set_stack_limit(Smi::FromInt(0));
+#endif
 }
 
 
