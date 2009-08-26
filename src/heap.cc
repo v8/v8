@@ -3257,6 +3257,10 @@ bool Heap::Setup(bool create_heap_objects) {
 
 
 void Heap::SetStackLimit(intptr_t limit) {
+  // We don't use this on x86-64 yet, but we need to remove the top
+  // bits or it won't be a valid Smi.  This has no effect on 32 bit
+  // architectures.
+  limit &= 0xfffffffful;
   // Set up the special root array entry containing the stack guard.
   // This is actually an address, but the tag makes the GC ignore it.
   set_stack_limit(Smi::FromInt(limit >> kSmiTagSize));
