@@ -2605,12 +2605,14 @@ bool v8::V8::Dispose() {
 
 
 bool v8::V8::IdleNotification(bool is_high_priority) {
+  if (!i::V8::IsRunning()) return false;
   return i::V8::IdleNotification(is_high_priority);
 }
 
 
 void v8::V8::LowMemoryNotification() {
 #if defined(ANDROID)
+  if (!i::V8::IsRunning()) return;
   i::Heap::CollectAllGarbage(true);
 #endif
 }
