@@ -1234,6 +1234,8 @@ class HeapObject: public Object {
   static const int kMapOffset = Object::kHeaderSize;
   static const int kHeaderSize = kMapOffset + kPointerSize;
 
+  STATIC_CHECK(kMapOffset == Internals::kHeapObjectMapOffset);
+
  protected:
   // helpers for calling an ObjectVisitor to iterate over pointers in the
   // half-open range [start, end) specified as integer offsets
@@ -1663,6 +1665,8 @@ class JSObject: public HeapObject {
   static const int kPropertiesOffset = HeapObject::kHeaderSize;
   static const int kElementsOffset = kPropertiesOffset + kPointerSize;
   static const int kHeaderSize = kElementsOffset + kPointerSize;
+
+  STATIC_CHECK(kHeaderSize == Internals::kJSObjectHeaderSize);
 
   Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
@@ -2897,6 +2901,8 @@ class Map: public HeapObject {
   static const int kBitFieldOffset = kInstanceAttributesOffset + 2;
   static const int kBitField2Offset = kInstanceAttributesOffset + 3;
 
+  STATIC_CHECK(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
+
   // Bit positions for bit field.
   static const int kUnused = 0;  // To be used for marking recently used maps.
   static const int kHasNonInstancePrototype = 1;
@@ -4128,6 +4134,8 @@ class ExternalString: public String {
   static const int kResourceOffset = POINTER_SIZE_ALIGN(String::kSize);
   static const int kSize = kResourceOffset + kPointerSize;
 
+  STATIC_CHECK(kResourceOffset == Internals::kStringResourceOffset);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalString);
 };
@@ -4340,6 +4348,8 @@ class Proxy: public HeapObject {
 
   static const int kProxyOffset = HeapObject::kHeaderSize;
   static const int kSize = kProxyOffset + kPointerSize;
+
+  STATIC_CHECK(kProxyOffset == Internals::kProxyProxyOffset);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Proxy);

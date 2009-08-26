@@ -105,6 +105,9 @@ LIBRARY_FLAGS = {
       'arch:x64' : {
         'CPPDEFINES': ['V8_NATIVE_REGEXP']
       }
+    },
+    'mode:debug': {
+      'CPPDEFINES': ['V8_ENABLE_CHECKS']
     }
   },
   'gcc': {

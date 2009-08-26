@@ -134,17 +134,6 @@ const intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 const intptr_t kPointerAlignment = (1 << kPointerSizeLog2);
 const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 
-// Tag information for HeapObject.
-const int kHeapObjectTag = 1;
-const int kHeapObjectTagSize = 2;
-const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
-
-
-// Tag information for Smi.
-const int kSmiTag = 0;
-const int kSmiTagSize = 1;
-const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
-
 
 // Tag information for Failure.
 const int kFailureTag = 3;
@@ -428,9 +417,6 @@ enum StateTag {
 
 #define HAS_FAILURE_TAG(value) \
   ((reinterpret_cast<intptr_t>(value) & kFailureTagMask) == kFailureTag)
-
-#define HAS_HEAP_OBJECT_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) == kHeapObjectTag)
 
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \

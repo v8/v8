@@ -2983,7 +2983,7 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
 
 #ifdef DEBUG
 void Heap::ZapFromSpace() {
-  ASSERT(HAS_HEAP_OBJECT_TAG(kFromSpaceZapValue));
+  ASSERT(reinterpret_cast<Object*>(kFromSpaceZapValue)->IsHeapObject());
   for (Address a = new_space_.FromSpaceLow();
        a < new_space_.FromSpaceHigh();
        a += kPointerSize) {

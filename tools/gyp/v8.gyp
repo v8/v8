@@ -66,6 +66,7 @@
           'DEBUG',
           '_DEBUG',
           'ENABLE_DISASSEMBLER',
+          'V8_ENABLE_CHECKS'
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
