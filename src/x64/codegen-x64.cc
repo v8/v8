@@ -3473,7 +3473,7 @@ void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   // Skip the arguments adaptor frame if it exists.
   Label check_frame_marker;
   __ cmpq(Operand(fp.reg(), StandardFrameConstants::kContextOffset),
-          Immediate(ArgumentsAdaptorFrame::SENTINEL));
+          Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &check_frame_marker);
   __ movq(fp.reg(), Operand(fp.reg(), StandardFrameConstants::kCallerFPOffset));
 
@@ -6618,7 +6618,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   Label runtime;
   __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
   __ movq(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
-  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmpq(rcx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &runtime);
   // Value in rcx is Smi encoded.
 
@@ -6651,7 +6651,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   Label adaptor;
   __ movq(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
   __ movq(rcx, Operand(rbx, StandardFrameConstants::kContextOffset));
-  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmpq(rcx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &adaptor);
 
   // Check index against formal parameters count limit passed in
@@ -6701,7 +6701,7 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   Label adaptor;
   __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
   __ movq(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
-  __ cmpq(rcx, Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmpq(rcx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &adaptor);
 
   // Nothing to do: The formal number of parameters has already been
@@ -7015,11 +7015,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ push(rbp);
   __ movq(rbp, rsp);
 
-  // Save callee-saved registers (X64 calling conventions).
+  // Push the stack frame type marker twice.
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  // Push something that is not an arguments adaptor.
-  __ push(Immediate(ArgumentsAdaptorFrame::NON_SENTINEL));
-  __ push(Immediate(Smi::FromInt(marker)));  // @ function offset
+  __ push(Immediate(Smi::FromInt(marker)));  // context slot
+  __ push(Immediate(Smi::FromInt(marker)));  // function slot
+  // Save callee-saved registers (X64 calling conventions).
   __ push(r12);
   __ push(r13);
   __ push(r14);

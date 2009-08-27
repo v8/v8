@@ -92,10 +92,12 @@ class StandardFrameConstants : public AllStatic {
 
 class JavaScriptFrameConstants : public AllStatic {
  public:
+  // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
   static const int kSavedRegistersOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
+  // Caller SP-relative.
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
 };

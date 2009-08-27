@@ -669,7 +669,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ mov(ebp, Operand(esp));
 
   // Store the arguments adaptor context sentinel.
-  __ push(Immediate(ArgumentsAdaptorFrame::SENTINEL));
+  __ push(Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Push the function on the stack.
   __ push(edi);

@@ -3324,7 +3324,7 @@ void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   // Skip the arguments adaptor frame if it exists.
   Label check_frame_marker;
   __ ldr(r1, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r1, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &check_frame_marker);
   __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
 
@@ -5980,9 +5980,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r2: receiver
   // r3: argc
   // r4: argv
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ mov(r8, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  __ mov(r7, Operand(~ArgumentsAdaptorFrame::SENTINEL));
+  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  __ mov(r7, Operand(Smi::FromInt(marker)));
   __ mov(r6, Operand(Smi::FromInt(marker)));
   __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
   __ ldr(r5, MemOperand(r5));
@@ -6139,7 +6139,7 @@ void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   Label adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(eq, &adaptor);
 
   // Nothing to do: The formal number of parameters has already been
@@ -6168,7 +6168,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   Label adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(eq, &adaptor);
 
   // Check index against formal parameters count limit passed in
@@ -6210,7 +6210,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   Label runtime;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &runtime);
 
   // Patch the arguments.length and the parameters pointer.
