@@ -918,6 +918,21 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 }
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  // Get the receiver from the stack and probe the stub cache.
+  __ movq(rdx, Operand(rsp, kPointerSize));
+  Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
+                                         NOT_IN_LOOP,
+                                         MONOMORPHIC);
+  StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
+
+  // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
 }
 
