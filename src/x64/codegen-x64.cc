@@ -649,6 +649,196 @@ void DeferredReferenceSetKeyedValue::Generate() {
 }
 
 
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#ifdef DEBUG
+  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
+#endif
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
+};
+
+
+void CodeGenerator::CallApplyLazy(Property* apply,
+                                  Expression* receiver,
+                                  VariableProxy* arguments,
+                                  int position) {
+  ASSERT(ArgumentsMode() == LAZY_ARGUMENTS_ALLOCATION);
+  ASSERT(arguments->IsArguments());
+
+  JumpTarget slow, done;
+
+  // Load the apply function onto the stack. This will usually
+  // give us a megamorphic load site. Not super, but it works.
+  Reference ref(this, apply);
+  ref.GetValue(NOT_INSIDE_TYPEOF);
+  ASSERT(ref.type() == Reference::NAMED);
+
+  // Load the receiver and the existing arguments object onto the
+  // expression stack. Avoid allocating the arguments object here.
+  Load(receiver);
+  LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+
+  // Emit the source position information after having loaded the
+  // receiver and the arguments.
+  CodeForSourcePosition(position);
+
+  // Check if the arguments object has been lazily allocated
+  // already. If so, just use that instead of copying the arguments
+  // from the stack. This also deals with cases where a local variable
+  // named 'arguments' has been introduced.
+  frame_->Dup();
+  Result probe = frame_->Pop();
+  bool try_lazy = true;
+  if (probe.is_constant()) {
+    try_lazy = probe.handle()->IsTheHole();
+  } else {
+    __ Cmp(probe.reg(), Factory::the_hole_value());
+    probe.Unuse();
+    slow.Branch(not_equal);
+  }
+
+  if (try_lazy) {
+    JumpTarget build_args;
+
+    // Get rid of the arguments object probe.
+    frame_->Drop();
+
+    // Before messing with the execution stack, we sync all
+    // elements. This is bound to happen anyway because we're
+    // about to call a function.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+
+    // Check that the receiver really is a JavaScript object.
+    { frame_->PushElementAt(0);
+      Result receiver = frame_->Pop();
+      receiver.ToRegister();
+      __ testl(receiver.reg(), Immediate(kSmiTagMask));
+      build_args.Branch(zero);
+      // We allow all JSObjects including JSFunctions.  As long as
+      // JS_FUNCTION_TYPE is the last instance type and it is right
+      // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
+      // bound.
+      ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+      ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
+      __ CmpObjectType(receiver.reg(), FIRST_JS_OBJECT_TYPE, kScratchRegister);
+      build_args.Branch(below);
+    }
+
+    // Verify that we're invoking Function.prototype.apply.
+    { frame_->PushElementAt(1);
+      Result apply = frame_->Pop();
+      apply.ToRegister();
+      __ testl(apply.reg(), Immediate(kSmiTagMask));
+      build_args.Branch(zero);
+      Result tmp = allocator_->Allocate();
+      __ CmpObjectType(apply.reg(), JS_FUNCTION_TYPE, tmp.reg());
+      build_args.Branch(not_equal);
+      __ movq(tmp.reg(),
+              FieldOperand(apply.reg(), JSFunction::kSharedFunctionInfoOffset));
+      Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
+      __ Cmp(FieldOperand(tmp.reg(), SharedFunctionInfo::kCodeOffset),
+             apply_code);
+      build_args.Branch(not_equal);
+    }
+
+    // Get the function receiver from the stack. Check that it
+    // really is a function.
+    __ movq(rdi, Operand(rsp, 2 * kPointerSize));
+    __ testl(rdi, Immediate(kSmiTagMask));
+    build_args.Branch(zero);
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    build_args.Branch(not_equal);
+
+    // Copy the arguments to this function possibly from the
+    // adaptor frame below it.
+    Label invoke, adapted;
+    __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+    __ movq(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
+    __ cmpq(rcx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ j(equal, &adapted);
+
+    // No arguments adaptor frame. Copy fixed number of arguments.
+    __ movq(rax, Immediate(scope_->num_parameters()));
+    for (int i = 0; i < scope_->num_parameters(); i++) {
+      __ push(frame_->ParameterAt(i));
+    }
+    __ jmp(&invoke);
+
+    // Arguments adaptor frame present. Copy arguments from there, but
+    // avoid copying too many arguments to avoid stack overflows.
+    __ bind(&adapted);
+    static const uint32_t kArgumentsLimit = 1 * KB;
+    __ movq(rax, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ shrl(rax, Immediate(kSmiTagSize));
+    __ movq(rcx, rax);
+    __ cmpq(rax, Immediate(kArgumentsLimit));
+    build_args.Branch(above);
+
+    // Loop through the arguments pushing them onto the execution
+    // stack. We don't inform the virtual frame of the push, so we don't
+    // have to worry about getting rid of the elements from the virtual
+    // frame.
+    Label loop;
+    __ bind(&loop);
+    __ testl(rcx, rcx);
+    __ j(zero, &invoke);
+    __ push(Operand(rdx, rcx, times_pointer_size, 1 * kPointerSize));
+    __ decl(rcx);
+    __ jmp(&loop);
+
+    // Invoke the function. The virtual frame knows about the receiver
+    // so make sure to forget that explicitly.
+    __ bind(&invoke);
+    ParameterCount actual(rax);
+    __ InvokeFunction(rdi, actual, CALL_FUNCTION);
+    frame_->Forget(1);
+    Result result = allocator()->Allocate(rax);
+    frame_->SetElementAt(0, &result);
+    done.Jump();
+
+    // Slow-case: Allocate the arguments object since we know it isn't
+    // there, and fall-through to the slow-case where we call
+    // Function.prototype.apply.
+    build_args.Bind();
+    Result arguments_object = StoreArgumentsObject(false);
+    frame_->Push(&arguments_object);
+    slow.Bind();
+  }
+
+  // Flip the apply function and the function to call on the stack, so
+  // the function looks like the receiver of the apply call. This way,
+  // the generic Function.prototype.apply implementation can deal with
+  // the call like it usually does.
+  Result a2 = frame_->Pop();
+  Result a1 = frame_->Pop();
+  Result ap = frame_->Pop();
+  Result fn = frame_->Pop();
+  frame_->Push(&ap);
+  frame_->Push(&fn);
+  frame_->Push(&a1);
+  frame_->Push(&a2);
+  CallFunctionStub call_function(2, NOT_IN_LOOP);
+  Result res = frame_->CallStub(&call_function, 3);
+  frame_->Push(&res);
+
+  // All done. Restore context register after call.
+  if (try_lazy) done.Bind();
+  frame_->RestoreContextRegister();
+}
+
+
 class DeferredStackCheck: public DeferredCode {
  public:
   DeferredStackCheck() {
@@ -676,27 +866,6 @@ void CodeGenerator::CheckStack() {
     deferred->BindExit();
   }
 }
-
-
-class CallFunctionStub: public CodeStub {
- public:
-  CallFunctionStub(int argc, InLoopFlag in_loop)
-      : argc_(argc), in_loop_(in_loop) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int argc_;
-  InLoopFlag in_loop_;
-
-#ifdef DEBUG
-  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
-#endif
-
-  Major MajorKey() { return CallFunction; }
-  int MinorKey() { return argc_; }
-  InLoopFlag InLoop() { return in_loop_; }
-};
 
 
 void CodeGenerator::VisitAndSpill(Statement* statement) {
@@ -2612,27 +2781,40 @@ void CodeGenerator::VisitCall(Call* node) {
       // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
       // ------------------------------------------------------------------
 
-      // TODO(X64): Consider optimizing Function.prototype.apply calls
-      // with arguments object. Requires lazy arguments allocation;
-      // see http://codereview.chromium.org/147075.
+      Handle<String> name = Handle<String>::cast(literal->handle());
 
-      // Push the name of the function and the receiver onto the stack.
-      frame_->Push(literal->handle());
-      Load(property->obj());
+      if (ArgumentsMode() == LAZY_ARGUMENTS_ALLOCATION &&
+          name->IsEqualTo(CStrVector("apply")) &&
+          args->length() == 2 &&
+          args->at(1)->AsVariableProxy() != NULL &&
+          args->at(1)->AsVariableProxy()->IsArguments()) {
+        // Use the optimized Function.prototype.apply that avoids
+        // allocating lazily allocated arguments objects.
+        CallApplyLazy(property,
+                      args->at(0),
+                      args->at(1)->AsVariableProxy(),
+                      node->position());
 
-      // Load the arguments.
-      int arg_count = args->length();
-      for (int i = 0; i < arg_count; i++) {
-        Load(args->at(i));
+      } else {
+        // Push the name of the function and the receiver onto the stack.
+        frame_->Push(name);
+        Load(property->obj());
+
+        // Load the arguments.
+        int arg_count = args->length();
+        for (int i = 0; i < arg_count; i++) {
+          Load(args->at(i));
+        }
+
+        // Call the IC initialization code.
+        CodeForSourcePosition(node->position());
+        Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET,
+                                           arg_count,
+                                           loop_nesting());
+        frame_->RestoreContextRegister();
+        // Replace the function on the stack with the result.
+        frame_->SetElementAt(0, &result);
       }
-
-      // Call the IC initialization code.
-      CodeForSourcePosition(node->position());
-      Result result =
-          frame_->CallCallIC(RelocInfo::CODE_TARGET, arg_count, loop_nesting());
-      frame_->RestoreContextRegister();
-      // Replace the function on the stack with the result.
-      frame_->SetElementAt(0, &result);
 
     } else {
       // -------------------------------------------
