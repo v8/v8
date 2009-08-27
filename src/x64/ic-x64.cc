@@ -785,7 +785,19 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  StubCompiler::GenerateLoadFunctionPrototype(masm, rax, rdx, rbx, &miss);
+  __ bind(&miss);
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
@@ -805,7 +817,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   StubCache::GenerateProbe(masm, flags, rax, rcx, rbx, rdx);
 
   // Cache miss: Jump to runtime.
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
 
 
