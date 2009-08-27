@@ -181,17 +181,25 @@ LIBRARY_FLAGS = {
   },
   'msvc': {
     'all': {
-      'DIALECTFLAGS': ['/nologo'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '/GR-', '/Gy'],
-      'CPPDEFINES':   ['WIN32', '_USE_32BIT_TIME_T'],
-      'LINKFLAGS':    ['/NOLOGO', '/MACHINE:X86', '/INCREMENTAL:NO',
-          '/NXCOMPAT', '/IGNORE:4221'],
-      'ARFLAGS':      ['/NOLOGO'],
+      'CPPDEFINES':   ['WIN32'],
+      'LINKFLAGS':    ['/INCREMENTAL:NO', '/NXCOMPAT', '/IGNORE:4221'],
       'CCPDBFLAGS':   ['/Zi']
     },
+    'verbose:off': {
+      'DIALECTFLAGS': ['/nologo'],
+      'ARFLAGS':      ['/NOLOGO']
+    },
     'arch:ia32': {
-      'CPPDEFINES':   ['V8_TARGET_ARCH_IA32']
+      'CPPDEFINES':   ['V8_TARGET_ARCH_IA32', '_USE_32BIT_TIME_T'],
+      'LINKFLAGS':    ['/MACHINE:X86'],
+      'ARFLAGS':      ['/MACHINE:X86']
+    },
+    'arch:x64': {
+      'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
+      'LINKFLAGS':    ['/MACHINE:X64'],
+      'ARFLAGS':      ['/MACHINE:X64']
     },
     'mode:debug': {
       'CCFLAGS':      ['/Od', '/Gm'],
@@ -253,11 +261,13 @@ V8_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
-      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800']
+      'WARNINGFLAGS': ['/WX', '/wd4355', '/wd4800']
     },
-    'library:shared': {
-      'CPPDEFINES':   ['BUILDING_V8_SHARED'],
-      'LIBS': ['winmm', 'ws2_32']
+    'arch:ia32': {
+      'WARNINGFLAGS': ['/W3']
+    },
+    'arch:x64': {
+      'WARNINGFLAGS': ['/W2']
     },
     'arch:arm': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_ARM'],
@@ -355,7 +365,10 @@ CCTEST_EXTRA_FLAGS = {
     },
     'arch:ia32': {
       'CPPDEFINES': ['V8_TARGET_ARCH_IA32']
-    }
+    },
+    'arch:x64': {
+      'CPPDEFINES':   ['V8_TARGET_ARCH_X64']
+    },
   }
 }
 
@@ -420,9 +433,14 @@ SAMPLE_FLAGS = {
   },
   'msvc': {
     'all': {
-      'CCFLAGS': ['/nologo'],
-      'LINKFLAGS': ['/nologo'],
       'LIBS': ['winmm', 'ws2_32']
+    },
+    'verbose:off': {
+      'CCFLAGS': ['/nologo'],
+      'LINKFLAGS': ['/NOLOGO']
+    },
+    'verbose:on': {
+      'LINKFLAGS': ['/VERBOSE']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -445,7 +463,12 @@ SAMPLE_FLAGS = {
       }
     },
     'arch:ia32': {
-      'CPPDEFINES':     ['V8_TARGET_ARCH_IA32']
+      'CPPDEFINES': ['V8_TARGET_ARCH_IA32'],
+      'LINKFLAGS': ['/MACHINE:X86']
+    },
+    'arch:x64': {
+      'CPPDEFINES': ['V8_TARGET_ARCH_X64'],
+      'LINKFLAGS': ['/MACHINE:X64']
     },
     'mode:debug': {
       'CCFLAGS':   ['/Od'],
@@ -588,6 +611,11 @@ SIMPLE_OPTIONS = {
     'values': ['dumb', 'readline'],
     'default': 'dumb',
     'help': 'the console to use for the d8 shell'
+  },
+  'verbose': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'more output from compiler and linker'
   }
 }
 
