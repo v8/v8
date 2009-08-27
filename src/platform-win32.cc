@@ -1318,9 +1318,9 @@ double OS::nan_value() {
 
 int OS::ActivationFrameAlignment() {
 #ifdef _WIN64
-  return 16;  // C math library requires the stack to be 16-byte aligned.
+  return 16;  // Windows 64-bit ABI requires the stack to be 16-byte aligned.
 #else
-  return 8;  // Floating-point math runs faster if stack is at least 8-byte aligned.
+  return 8;  // Floating-point math runs faster with 8-byte alignment.
 #endif
 }
 
