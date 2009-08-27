@@ -6947,18 +6947,21 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
                                              Register scratch1,
                                              Register scratch2,
                                              Register result) {
-  // Allocate heap number in new space.
-  __ AllocateObjectInNewSpace(HeapNumber::kSize,
-                              result,
-                              scratch1,
-                              scratch2,
-                              need_gc,
-                              false);
-  
-  // Set the map and tag the result.
+  ExternalReference allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+  ExternalReference allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  __ mov(Operand(scratch1), Immediate(allocation_top));
+  __ mov(result, Operand(scratch1, 0));
+  __ lea(scratch2, Operand(result, HeapNumber::kSize));  // scratch2: new top
+  __ cmp(scratch2, Operand::StaticVariable(allocation_limit));
+  __ j(above, need_gc, not_taken);
+
+  __ mov(Operand(scratch1, 0), scratch2);  // store new top
   __ mov(Operand(result, HeapObject::kMapOffset),
          Immediate(Factory::heap_number_map()));
-  __ or_(Operand(result), Immediate(kHeapObjectTag));
+  // Tag old top and use as result.
+  __ add(Operand(result), Immediate(kHeapObjectTag));
 }
 
 

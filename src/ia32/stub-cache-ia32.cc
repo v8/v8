@@ -1786,7 +1786,17 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // Make sure that the maximum heap object size will never cause us
   // problems here.
   ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
-  __ AllocateObjectInNewSpace(ecx, edx, ecx, no_reg, &generic_stub_call, false);
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+  __ mov(edx, Operand::StaticVariable(new_space_allocation_top));
+  __ add(ecx, Operand(edx));  // Calculate new top.
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
+  __ j(above_equal, &generic_stub_call);
+
+  // Update new space top.
+  __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // ebx: initial map
@@ -1850,9 +1860,9 @@ Object* ConstructStubCompiler::CompileConstructStub(
   __ mov(ebx, eax);
   __ pop(eax);
 
-  // Remove caller arguments and receiver from the stack and return.
+  // Remove caller arguments from the stack and return.
   __ pop(ecx);
-  __ lea(esp, Operand(esp, ebx, times_pointer_size, 1 * kPointerSize));
+  __ lea(esp, Operand(esp, ebx, times_4, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ IncrementCounter(&Counters::constructed_objects, 1);
   __ IncrementCounter(&Counters::constructed_objects_stub, 1);
