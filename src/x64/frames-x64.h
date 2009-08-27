@@ -60,8 +60,7 @@ class StackHandlerConstants : public AllStatic {
 class EntryFrameConstants : public AllStatic {
  public:
   static const int kCallerFPOffset      = -10 * kPointerSize;
-  // TODO(X64): Add unit test for kArgvOffset.
-  static const int kArgvOffset          = 5 * kPointerSize;
+  static const int kArgvOffset          = 6 * kPointerSize;
 };
 
 
