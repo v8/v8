@@ -133,14 +133,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
-    ExternalReference new_space_allocation_top =
-        ExternalReference::new_space_allocation_top_address();
-    __ mov(ebx, Operand::StaticVariable(new_space_allocation_top));
-    __ add(edi, Operand(ebx));  // Calculate new top
-    ExternalReference new_space_allocation_limit =
-        ExternalReference::new_space_allocation_limit_address();
-    __ cmp(edi, Operand::StaticVariable(new_space_allocation_limit));
-    __ j(above_equal, &rt_call);
+    __ AllocateObjectInNewSpace(edi, ebx, edi, no_reg, &rt_call, false);
     // Allocated the JSObject, now initialize the fields.
     // eax: initial map
     // ebx: JSObject
@@ -173,7 +166,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // ebx: JSObject
     // edi: start of next object
     __ or_(Operand(ebx), Immediate(kHeapObjectTag));
-    __ mov(Operand::StaticVariable(new_space_allocation_top), edi);
 
     // Check if a non-empty properties array is needed.
     // Allocate and initialize a FixedArray if it is.
@@ -198,10 +190,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // edx: number of elements in properties array
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >
            (FixedArray::kHeaderSize + 255*kPointerSize));
-    __ lea(ecx, Operand(edi, edx, times_pointer_size, FixedArray::kHeaderSize));
-    __ cmp(ecx, Operand::StaticVariable(new_space_allocation_limit));
-    __ j(above_equal, &undo_allocation);
-    __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
+    __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
+                                times_pointer_size,
+                                edx,
+                                edi,
+                                ecx,
+                                no_reg,
+                                &undo_allocation,
+                                true);
 
     // Initialize the FixedArray.
     // ebx: JSObject
@@ -245,8 +241,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // allocated objects unused properties.
     // ebx: JSObject (previous new top)
     __ bind(&undo_allocation);
-    __ xor_(Operand(ebx), Immediate(kHeapObjectTag));  // clear the heap tag
-    __ mov(Operand::StaticVariable(new_space_allocation_top), ebx);
+    __ UndoAllocationInNewSpace(ebx);
   }
 
   // Allocate the new receiver object using the runtime call.
