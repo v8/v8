@@ -7324,24 +7324,20 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
                                              Label* need_gc,
                                              Register scratch,
                                              Register result) {
-  ExternalReference allocation_top =
-      ExternalReference::new_space_allocation_top_address();
-  ExternalReference allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
-  __ movq(scratch, allocation_top);  // scratch: address of allocation top.
-  __ movq(result, Operand(scratch, 0));
-  __ addq(result, Immediate(HeapNumber::kSize));  // New top.
-  __ movq(kScratchRegister, allocation_limit);
-  __ cmpq(result, Operand(kScratchRegister, 0));
-  __ j(above, need_gc);
+  // Allocate heap number in new space.
+  __ AllocateObjectInNewSpace(HeapNumber::kSize,
+                              result,
+                              scratch,
+                              no_reg,
+                              need_gc,
+                              false);
 
-  __ movq(Operand(scratch, 0), result);  // store new top
-  __ addq(result, Immediate(kHeapObjectTag - HeapNumber::kSize));
+  // Set the map and tag the result.
+  __ addq(result, Immediate(kHeapObjectTag));
   __ movq(kScratchRegister,
           Factory::heap_number_map(),
           RelocInfo::EMBEDDED_OBJECT);
   __ movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
-  // Tag old top and use as result.
 }
 
 

@@ -669,14 +669,14 @@ void MacroAssembler::AllocateObjectInNewSpace(
   ASSERT(!result.is(result_end));
 
   // Load address of new object into result.
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address();
   LoadAllocationTopHelper(result,
                           result_end,
                           scratch,
                           result_contains_top_on_entry);
 
   // Calculate new top and bail out if new space is exhausted.
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
   lea(result_end, Operand(result, object_size));
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required, not_taken);

@@ -542,16 +542,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
-    ExternalReference new_space_allocation_top =
-        ExternalReference::new_space_allocation_top_address();
-    __ movq(kScratchRegister, new_space_allocation_top);
-    __ movq(rbx, Operand(kScratchRegister, 0));
-    __ addq(rdi, rbx);  // Calculate new top
-    ExternalReference new_space_allocation_limit =
-        ExternalReference::new_space_allocation_limit_address();
-    __ movq(kScratchRegister, new_space_allocation_limit);
-    __ cmpq(rdi, Operand(kScratchRegister, 0));
-    __ j(above_equal, &rt_call);
+    __ AllocateObjectInNewSpace(rdi, rbx, rdi, no_reg, &rt_call, false);
     // Allocated the JSObject, now initialize the fields.
     // rax: initial map
     // rbx: JSObject (not HeapObject tagged - the actual address).
@@ -576,16 +567,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       __ j(less, &loop);
     }
 
-    // Mostly done with the JSObject. Add the heap tag and store the new top, so
-    // that we can continue and jump into the continuation code at any time from
-    // now on. Any failures need to undo the setting of the new top, so that the
-    // heap is in a consistent state and verifiable.
+    // Add the object tag to make the JSObject real, so that we can continue and
+    // jump into the continuation code at any time from now on. Any failures
+    // need to undo the allocation, so that the heap is in a consistent state
+    // and verifiable.
     // rax: initial map
     // rbx: JSObject
     // rdi: start of next object
     __ or_(rbx, Immediate(kHeapObjectTag));
-    __ movq(kScratchRegister, new_space_allocation_top);
-    __ movq(Operand(kScratchRegister, 0), rdi);
 
     // Check if a non-empty properties array is needed.
     // Allocate and initialize a FixedArray if it is.
@@ -610,11 +599,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rdx: number of elements in properties array
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >
            (FixedArray::kHeaderSize + 255*kPointerSize));
-    __ lea(rax, Operand(rdi, rdx, times_pointer_size, FixedArray::kHeaderSize));
-    __ movq(kScratchRegister, new_space_allocation_limit);
-    __ cmpq(rax, Operand(kScratchRegister, 0));
-    __ j(above_equal, &undo_allocation);
-    __ store_rax(new_space_allocation_top);
+    __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
+                                times_pointer_size,
+                                rdx,
+                                rdi,
+                                rax,
+                                no_reg,
+                                &undo_allocation,
+                                true);
 
     // Initialize the FixedArray.
     // rbx: JSObject
@@ -659,9 +651,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // allocated objects unused properties.
     // rbx: JSObject (previous new top)
     __ bind(&undo_allocation);
-    __ xor_(rbx, Immediate(kHeapObjectTag));  // clear the heap tag
-    __ movq(kScratchRegister, new_space_allocation_top);
-    __ movq(Operand(kScratchRegister, 0), rbx);
+    __ UndoAllocationInNewSpace(rbx);
   }
 
   // Allocate the new receiver object using the runtime call.

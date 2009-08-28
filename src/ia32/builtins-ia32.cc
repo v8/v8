@@ -158,10 +158,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
       __ j(less, &loop);
     }
 
-    // Mostly done with the JSObject. Add the heap tag and store the new top, so
-    // that we can continue and jump into the continuation code at any time from
-    // now on. Any failures need to undo the setting of the new top, so that the
-    // heap is in a consistent state and verifiable.
+    // Add the object tag to make the JSObject real, so that we can continue and
+    // jump into the continuation code at any time from now on. Any failures
+    // need to undo the allocation, so that the heap is in a consistent state
+    // and verifiable.
     // eax: initial map
     // ebx: JSObject
     // edi: start of next object

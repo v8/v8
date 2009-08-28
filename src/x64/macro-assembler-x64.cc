@@ -1204,4 +1204,156 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::LoadAllocationTopHelper(
+    Register result,
+    Register result_end,
+    Register scratch,
+    bool result_contains_top_on_entry) {
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+
+  // Just return if allocation top is already known.
+  if (result_contains_top_on_entry) {
+    // No use of scratch if allocation top is provided.
+    ASSERT(scratch.is(no_reg));
+    return;
+  }
+
+  // Move address of new object to result. Use scratch register if available.
+  if (scratch.is(no_reg)) {
+    movq(kScratchRegister, new_space_allocation_top);
+    movq(result, Operand(kScratchRegister, 0));
+  } else {
+    ASSERT(!scratch.is(result_end));
+    movq(scratch, new_space_allocation_top);
+    movq(result, Operand(scratch, 0));
+  }
+}
+
+
+void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
+                                               Register scratch) {
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+
+  // Update new top.
+  if (result_end.is(rax)) {
+    // rax can be stored directly to a memory location.
+    store_rax(new_space_allocation_top);
+  } else {
+    // Register required - use scratch provided if available.
+    if (scratch.is(no_reg)) {
+      movq(kScratchRegister, new_space_allocation_top);
+      movq(Operand(kScratchRegister, 0), result_end);
+    } else {
+      movq(Operand(scratch, 0), result_end);
+    }
+  }
+}
+
+
+void MacroAssembler::AllocateObjectInNewSpace(
+    int object_size,
+    Register result,
+    Register result_end,
+    Register scratch,
+    Label* gc_required,
+    bool result_contains_top_on_entry) {
+  ASSERT(!result.is(result_end));
+
+  // Load address of new object into result.
+  LoadAllocationTopHelper(result,
+                          result_end,
+                          scratch,
+                          result_contains_top_on_entry);
+
+  // Calculate new top and bail out if new space is exhausted.
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  lea(result_end, Operand(result, object_size));
+  movq(kScratchRegister, new_space_allocation_limit);
+  cmpq(result_end, Operand(kScratchRegister, 0));
+  j(above, gc_required);
+
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
+}
+
+
+void MacroAssembler::AllocateObjectInNewSpace(
+    int header_size,
+    ScaleFactor element_size,
+    Register element_count,
+    Register result,
+    Register result_end,
+    Register scratch,
+    Label* gc_required,
+    bool result_contains_top_on_entry) {
+  ASSERT(!result.is(result_end));
+
+  // Load address of new object into result.
+  LoadAllocationTopHelper(result,
+                          result_end,
+                          scratch,
+                          result_contains_top_on_entry);
+
+  // Calculate new top and bail out if new space is exhausted.
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  lea(result_end, Operand(result, element_count, element_size, header_size));
+  movq(kScratchRegister, new_space_allocation_limit);
+  cmpq(result_end, Operand(kScratchRegister, 0));
+  j(above, gc_required);
+
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
+}
+
+
+void MacroAssembler::AllocateObjectInNewSpace(
+    Register object_size,
+    Register result,
+    Register result_end,
+    Register scratch,
+    Label* gc_required,
+    bool result_contains_top_on_entry) {
+
+  // Load address of new object into result.
+  LoadAllocationTopHelper(result,
+                          result_end,
+                          scratch,
+                          result_contains_top_on_entry);
+
+
+  // Calculate new top and bail out if new space is exhausted.
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  if (!object_size.is(result_end)) {
+    movq(result_end, object_size);
+  }
+  addq(result_end, result);
+  movq(kScratchRegister, new_space_allocation_limit);
+  cmpq(result_end, Operand(kScratchRegister, 0));
+  j(above, gc_required);
+
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
+}
+
+
+void MacroAssembler::UndoAllocationInNewSpace(Register object) {
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+
+  // Make sure the object has no tag before resetting top.
+  and_(object, Immediate(~kHeapObjectTagMask));
+  movq(kScratchRegister, new_space_allocation_top);
+#ifdef DEBUG
+  cmpq(object, Operand(kScratchRegister, 0));
+  Check(below, "Undo allocation of non allocated memory");
+#endif
+  movq(Operand(kScratchRegister, 0), object);
+}
+
+
 } }  // namespace v8::internal
