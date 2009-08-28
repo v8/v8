@@ -831,7 +831,52 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
+
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rcx    : name
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : receiver
+  // -----------------------------------
+
+  Label miss, probe, global;
+
+  __ movq(rax, Operand(rsp, kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &miss);
+
+  // Check that the receiver is a valid JS object.
+  __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
+  __ j(less, &miss);
+
+  // If this assert fails, we have to check upper bound too.
+  ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+
+  // Check for access to global object (unlikely).
+  __ CmpInstanceType(rbx, JS_GLOBAL_PROXY_TYPE);
+  __ j(equal, &global);
+
+  // Check for non-global object that requires access check.
+  __ testl(FieldOperand(rbx, Map::kBitFieldOffset),
+          Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_zero, &miss);
+
+  // Search the dictionary placing the result in eax.
+  __ bind(&probe);
+  GenerateDictionaryLoad(masm, &miss, rdx, rax, rbx, rcx);
+  GenerateCheckNonObjectOrLoaded(masm, &miss, rax);
+  __ ret(0);
+
+  // Global object access: Check access rights.
+  __ bind(&global);
+  __ CheckAccessGlobalProxy(rax, rdx, &miss);
+  __ jmp(&probe);
+
+  // Cache miss: Restore receiver from stack and jump to runtime.
+  __ bind(&miss);
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
