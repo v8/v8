@@ -2929,8 +2929,11 @@ Object* Map::CopyDropDescriptors() {
   if (pre_allocated_property_fields() > 0) {
     ASSERT(constructor()->IsJSFunction());
     JSFunction* ctor = JSFunction::cast(constructor());
+    Object* descriptors =
+        ctor->initial_map()->instance_descriptors()->RemoveTransitions();
+    if (descriptors->IsFailure()) return descriptors;
     Map::cast(result)->set_instance_descriptors(
-        ctor->initial_map()->instance_descriptors());
+        DescriptorArray::cast(descriptors));
     Map::cast(result)->set_pre_allocated_property_fields(
         pre_allocated_property_fields());
   }
