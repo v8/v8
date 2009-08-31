@@ -5682,9 +5682,9 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
     __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
   } else {
     AllocateHeapNumber(masm, &slow, r1, r2, r3);
-    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-    __ str(r2, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
+    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
     __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+    __ str(r3, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
     __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
     __ str(r2, FieldMemOperand(r1, HeapNumber::kExponentOffset));
     __ mov(r0, Operand(r1));

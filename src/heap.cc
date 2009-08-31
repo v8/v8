@@ -39,6 +39,9 @@
 #include "scanner.h"
 #include "scopeinfo.h"
 #include "v8threads.h"
+#if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
+#include "regexp-macro-assembler.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -1320,6 +1323,14 @@ void Heap::CreateCEntryStub() {
 }
 
 
+#if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
+void Heap::CreateRegExpCEntryStub() {
+  RegExpCEntryStub stub;
+  set_re_c_entry_code(*stub.GetCode());
+}
+#endif
+
+
 void Heap::CreateCEntryDebugBreakStub() {
   CEntryDebugBreakStub stub;
   set_c_entry_debug_break_code(*stub.GetCode());
@@ -1356,6 +1367,9 @@ void Heap::CreateFixedStubs() {
   Heap::CreateCEntryDebugBreakStub();
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
+#if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
+  Heap::CreateRegExpCEntryStub();
+#endif
 }
 
 

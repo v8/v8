@@ -47,7 +47,14 @@ namespace internal {
 #define V8_HOST_ARCH_ARM 1
 #define V8_HOST_ARCH_32_BIT 1
 #else
-#error Your architecture was not detected as supported by v8
+#error Your host architecture was not detected as supported by v8
+#endif
+
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+#define V8_TARGET_CAN_READ_UNALIGNED 1
+#elif V8_TARGET_ARCH_ARM
+#else
+#error Your target architecture is not supported by v8
 #endif
 
 // Support for alternative bool type. This is only enabled if the code is

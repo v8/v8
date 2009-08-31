@@ -99,12 +99,7 @@ LIBRARY_FLAGS = {
     'CPPDEFINES':   ['ENABLE_LOGGING_AND_PROFILING'],
     'CPPPATH': [join(root_dir, 'src')],
     'regexp:native': {
-      'arch:ia32' : {
         'CPPDEFINES': ['V8_NATIVE_REGEXP']
-      },
-      'arch:x64' : {
-        'CPPDEFINES': ['V8_NATIVE_REGEXP']
-      }
     },
     'mode:debug': {
       'CPPDEFINES': ['V8_ENABLE_CHECKS']

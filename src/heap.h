@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 // Defines all the roots in Heap.
-#define STRONG_ROOT_LIST(V)                                                    \
+#define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
   /* Cluster the most popular ones in a few cache lines here at the top. */    \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Object, undefined_value, UndefinedValue)                                   \
@@ -136,6 +136,13 @@ namespace internal {
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
 
+#if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
+#define STRONG_ROOT_LIST(V)                                                    \
+  UNCONDITIONAL_STRONG_ROOT_LIST(V)                                            \
+  V(Code, re_c_entry_code, RegExpCEntryCode)
+#else
+#define STRONG_ROOT_LIST(V) UNCONDITIONAL_STRONG_ROOT_LIST(V)
+#endif
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -1025,6 +1032,8 @@ class Heap : public AllStatic {
   static void CreateCEntryDebugBreakStub();
   static void CreateJSEntryStub();
   static void CreateJSConstructEntryStub();
+  static void CreateRegExpCEntryStub();
+
   static void CreateFixedStubs();
 
   static Object* CreateOddball(Map* map,
