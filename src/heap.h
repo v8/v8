@@ -35,8 +35,21 @@ namespace internal {
 
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                                                    \
-  V(Map, meta_map, MetaMap)                                                    \
+  /* Cluster the most popular ones in a few cache lines here at the top. */    \
+  V(Smi, stack_limit, StackLimit)                                              \
+  V(Object, undefined_value, UndefinedValue)                                   \
+  V(Object, the_hole_value, TheHoleValue)                                      \
+  V(Object, null_value, NullValue)                                             \
+  V(Object, true_value, TrueValue)                                             \
+  V(Object, false_value, FalseValue)                                           \
   V(Map, heap_number_map, HeapNumberMap)                                       \
+  V(Map, global_context_map, GlobalContextMap)                                 \
+  V(Map, fixed_array_map, FixedArrayMap)                                       \
+  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
+  V(Map, meta_map, MetaMap)                                                    \
+  V(Object, termination_exception, TerminationException)                       \
+  V(Map, hash_table_map, HashTableMap)                                         \
+  V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(Map, short_string_map, ShortStringMap)                                     \
   V(Map, medium_string_map, MediumStringMap)                                   \
   V(Map, long_string_map, LongStringMap)                                       \
@@ -95,11 +108,8 @@ namespace internal {
   V(Map, undetectable_long_ascii_string_map, UndetectableLongAsciiStringMap)   \
   V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, pixel_array_map, PixelArrayMap)                                       \
-  V(Map, fixed_array_map, FixedArrayMap)                                       \
-  V(Map, hash_table_map, HashTableMap)                                         \
   V(Map, context_map, ContextMap)                                              \
   V(Map, catch_context_map, CatchContextMap)                                   \
-  V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
@@ -109,17 +119,9 @@ namespace internal {
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
-  V(Object, undefined_value, UndefinedValue)                                   \
-  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
-  V(Object, termination_exception, TerminationException)                       \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
-  V(Object, null_value, NullValue)                                             \
-  V(Object, true_value, TrueValue)                                             \
-  V(Object, false_value, FalseValue)                                           \
   V(String, empty_string, EmptyString)                                         \
-  V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
-  V(Object, the_hole_value, TheHoleValue)                                      \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Proxy, prototype_accessors, PrototypeAccessors)                            \
@@ -133,7 +135,6 @@ namespace internal {
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
-  V(Smi, stack_limit, StackLimit)
 
 
 #define ROOT_LIST(V)                                  \

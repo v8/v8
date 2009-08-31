@@ -434,7 +434,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                                            holder_obj);
 
     Label interceptor_failed;
-    __ Cmp(rax, Factory::no_interceptor_result_sentinel());
+    __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
     __ j(equal, &interceptor_failed);
     __ LeaveInternalFrame();
     __ ret(0);
@@ -612,7 +612,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ pop(receiver);  // restore holder
     __ LeaveInternalFrame();
 
-    __ Cmp(rax, Factory::no_interceptor_result_sentinel());
+    __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
     Label invoke;
     __ j(not_equal, &invoke);
 
@@ -755,9 +755,9 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     case BOOLEAN_CHECK: {
       Label fast;
       // Check that the object is a boolean.
-      __ Cmp(rdx, Factory::true_value());
+      __ CompareRoot(rdx, Heap::kTrueValueRootIndex);
       __ j(equal, &fast);
-      __ Cmp(rdx, Factory::false_value());
+      __ CompareRoot(rdx, Heap::kFalseValueRootIndex);
       __ j(not_equal, &miss);
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.
@@ -1125,10 +1125,10 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
-    __ Cmp(rax, Factory::the_hole_value());
+    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
     __ j(equal, &miss);
   } else if (FLAG_debug_code) {
-    __ Cmp(rax, Factory::the_hole_value());
+    __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 

@@ -537,7 +537,6 @@ bool CodeGenerator::HasValidEntryRegisters() {
       && (allocator()->count(r11) == (frame()->is_used(r11) ? 1 : 0))
       && (allocator()->count(r14) == (frame()->is_used(r14) ? 1 : 0))
       && (allocator()->count(r15) == (frame()->is_used(r15) ? 1 : 0))
-      && (allocator()->count(r13) == (frame()->is_used(r13) ? 1 : 0))
       && (allocator()->count(r12) == (frame()->is_used(r12) ? 1 : 0));
 }
 #endif
@@ -858,10 +857,7 @@ void DeferredStackCheck::Generate() {
 void CodeGenerator::CheckStack() {
   if (FLAG_check_stack) {
     DeferredStackCheck* deferred = new DeferredStackCheck;
-    ExternalReference stack_guard_limit =
-        ExternalReference::address_of_stack_guard_limit();
-    __ movq(kScratchRegister, stack_guard_limit);
-    __ cmpq(rsp, Operand(kScratchRegister, 0));
+    __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     deferred->Branch(below);
     deferred->BindExit();
   }
@@ -941,9 +937,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      __ movq(kScratchRegister, Factory::the_hole_value(),
-              RelocInfo::EMBEDDED_OBJECT);
-      frame_->EmitPush(kScratchRegister);
+      frame_->EmitPush(Heap::kTheHoleValueRootIndex);
     } else if (node->fun() != NULL) {
       Load(node->fun());
     } else {
@@ -1649,9 +1643,9 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPop(rax);
 
   // rax: value to be iterated over
-  __ Cmp(rax, Factory::undefined_value());
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
   exit.Branch(equal);
-  __ Cmp(rax, Factory::null_value());
+  __ CompareRoot(rax, Heap::kNullValueRootIndex);
   exit.Branch(equal);
 
   // Stack layout in body:
@@ -1687,7 +1681,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Runtime::kGetPropertyNamesFast)
   __ movq(rdx, rax);
   __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ Cmp(rcx, Factory::meta_map());
+  __ CompareRoot(rcx, Heap::kMetaMapRootIndex);
   fixed_array.Branch(not_equal);
 
   // Get enum cache
@@ -1756,7 +1750,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ movq(rbx, rax);
 
   // If the property has been removed while iterating, we just skip it.
-  __ Cmp(rbx, Factory::null_value());
+  __ CompareRoot(rbx, Heap::kNullValueRootIndex);
   node->continue_target()->Branch(equal);
 
   end_del_check.Bind();
@@ -2031,10 +2025,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
     // Fake a top of stack value (unneeded when FALLING) and set the
     // state in ecx, then jump around the unlink blocks if any.
-    __ movq(kScratchRegister,
-            Factory::undefined_value(),
-            RelocInfo::EMBEDDED_OBJECT);
-    frame_->EmitPush(kScratchRegister);
+    frame_->EmitPush(Heap::kUndefinedValueRootIndex);
     __ movq(rcx, Immediate(Smi::FromInt(FALLING)));
     if (nof_unlinks > 0) {
       finally_block.Jump();
@@ -2079,10 +2070,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         frame_->EmitPush(rax);
       } else {
         // Fake TOS for targets that shadowed breaks and continues.
-        __ movq(kScratchRegister,
-                Factory::undefined_value(),
-                RelocInfo::EMBEDDED_OBJECT);
-        frame_->EmitPush(kScratchRegister);
+        frame_->EmitPush(Heap::kUndefinedValueRootIndex);
       }
       __ movq(rcx, Immediate(Smi::FromInt(JUMPING + i)));
       if (--nof_unlinks > 0) {
@@ -2324,7 +2312,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   // jump to the deferred code passing the literals array.
   DeferredRegExpLiteral* deferred =
       new DeferredRegExpLiteral(boilerplate.reg(), literals.reg(), node);
-  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  __ CompareRoot(boilerplate.reg(), Heap::kUndefinedValueRootIndex);
   deferred->Branch(equal);
   deferred->BindExit();
   literals.Unuse();
@@ -2395,7 +2383,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // If so, jump to the deferred code passing the literals array.
   DeferredObjectLiteral* deferred =
       new DeferredObjectLiteral(boilerplate.reg(), literals.reg(), node);
-  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  __ CompareRoot(boilerplate.reg(), Heap::kUndefinedValueRootIndex);
   deferred->Branch(equal);
   deferred->BindExit();
   literals.Unuse();
@@ -2528,7 +2516,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   // If so, jump to the deferred code passing the literals array.
   DeferredArrayLiteral* deferred =
       new DeferredArrayLiteral(boilerplate.reg(), literals.reg(), node);
-  __ Cmp(boilerplate.reg(), Factory::undefined_value());
+  __ CompareRoot(boilerplate.reg(), Heap::kUndefinedValueRootIndex);
   deferred->Branch(equal);
   deferred->BindExit();
   literals.Unuse();
@@ -3486,7 +3474,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->true_target()->Branch(zero);
       frame_->Spill(answer.reg());
       __ movq(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ Cmp(answer.reg(), Factory::heap_number_map());
+      __ CompareRoot(answer.reg(), Heap::kHeapNumberMapRootIndex);
       answer.Unuse();
       destination()->Split(equal);
 
@@ -3505,14 +3493,14 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->Split(below);  // Unsigned byte comparison needed.
 
     } else if (check->Equals(Heap::boolean_symbol())) {
-      __ Cmp(answer.reg(), Factory::true_value());
+      __ CompareRoot(answer.reg(), Heap::kTrueValueRootIndex);
       destination()->true_target()->Branch(equal);
-      __ Cmp(answer.reg(), Factory::false_value());
+      __ CompareRoot(answer.reg(), Heap::kFalseValueRootIndex);
       answer.Unuse();
       destination()->Split(equal);
 
     } else if (check->Equals(Heap::undefined_symbol())) {
-      __ Cmp(answer.reg(), Factory::undefined_value());
+      __ CompareRoot(answer.reg(), Heap::kUndefinedValueRootIndex);
       destination()->true_target()->Branch(equal);
 
       __ testl(answer.reg(), Immediate(kSmiTagMask));
@@ -3537,7 +3525,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     } else if (check->Equals(Heap::object_symbol())) {
       __ testl(answer.reg(), Immediate(kSmiTagMask));
       destination()->false_target()->Branch(zero);
-      __ Cmp(answer.reg(), Factory::null_value());
+      __ CompareRoot(answer.reg(), Heap::kNullValueRootIndex);
       destination()->true_target()->Branch(equal);
 
       // It can be an undetectable object.
@@ -3831,7 +3819,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ bind(&slow_case);
   // Move the undefined value into the result register, which will
   // trigger the slow case.
-  __ Move(temp.reg(), Factory::undefined_value());
+  __ LoadRoot(temp.reg(), Heap::kUndefinedValueRootIndex);
 
   __ bind(&end);
   frame_->Push(&temp);
@@ -4274,15 +4262,15 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   // Fast case checks.
 
   // 'false' => false.
-  __ Cmp(value.reg(), Factory::false_value());
+  __ CompareRoot(value.reg(), Heap::kFalseValueRootIndex);
   dest->false_target()->Branch(equal);
 
   // 'true' => true.
-  __ Cmp(value.reg(), Factory::true_value());
+  __ CompareRoot(value.reg(), Heap::kTrueValueRootIndex);
   dest->true_target()->Branch(equal);
 
   // 'undefined' => false.
-  __ Cmp(value.reg(), Factory::undefined_value());
+  __ CompareRoot(value.reg(), Heap::kUndefinedValueRootIndex);
   dest->false_target()->Branch(equal);
 
   // Smi => false iff zero.
@@ -4501,10 +4489,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
                                                  value,
                                                  &slow));
         if (potential_slot->var()->mode() == Variable::CONST) {
-          __ Cmp(value.reg(), Factory::the_hole_value());
+          __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
           done.Branch(not_equal, &value);
-          __ movq(value.reg(), Factory::undefined_value(),
-                  RelocInfo::EMBEDDED_OBJECT);
+          __ LoadRoot(value.reg(), Heap::kUndefinedValueRootIndex);
         }
         // There is always control flow to slow from
         // ContextSlotOperandCheckExtensions so we have to jump around
@@ -4542,9 +4529,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     Comment cmnt(masm_, "[ Load const");
     JumpTarget exit;
     __ movq(rcx, SlotOperand(slot, rcx));
-    __ Cmp(rcx, Factory::the_hole_value());
+    __ CompareRoot(rcx, Heap::kTheHoleValueRootIndex);
     exit.Branch(not_equal);
-    __ movq(rcx, Factory::undefined_value(), RelocInfo::EMBEDDED_OBJECT);
+    __ LoadRoot(rcx, Heap::kUndefinedValueRootIndex);
     exit.Bind();
     frame_->EmitPush(rcx);
 
@@ -4598,7 +4585,7 @@ void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
   // indicates that we haven't loaded the arguments object yet, we
   // need to do it now.
   JumpTarget exit;
-  __ Cmp(value.reg(), Factory::the_hole_value());
+  __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
   frame_->Push(&value);
   exit.Branch(not_equal);
   Result arguments = StoreArgumentsObject(false);
@@ -4659,7 +4646,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       VirtualFrame::SpilledScope spilled_scope;
       Comment cmnt(masm_, "[ Init const");
       __ movq(rcx, SlotOperand(slot, rcx));
-      __ Cmp(rcx, Factory::the_hole_value());
+      __ CompareRoot(rcx, Heap::kTheHoleValueRootIndex);
       exit.Branch(not_equal);
     }
 
@@ -4743,7 +4730,7 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
       __ movq(tmp.reg(), context);
     }
     // Load map for comparison into register, outside loop.
-    __ Move(kScratchRegister, Factory::global_context_map());
+    __ LoadRoot(kScratchRegister, Heap::kGlobalContextMapRootIndex);
     __ bind(&next);
     // Terminate at global context.
     __ cmpq(kScratchRegister, FieldOperand(tmp.reg(), HeapObject::kMapOffset));
@@ -4847,7 +4834,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
         // been assigned a proper value.
         skip_arguments = !arguments.handle()->IsTheHole();
       } else {
-        __ Cmp(arguments.reg(), Factory::the_hole_value());
+        __ CompareRoot(arguments.reg(), Heap::kTheHoleValueRootIndex);
         arguments.Unuse();
         done.Branch(not_equal);
       }
@@ -4985,7 +4972,7 @@ void CodeGenerator::Comparison(Condition cc,
     right_side.Unuse();
     left_side.Unuse();
     operand.ToRegister();
-    __ Cmp(operand.reg(), Factory::null_value());
+    __ CompareRoot(operand.reg(), Heap::kNullValueRootIndex);
     if (strict) {
       operand.Unuse();
       dest->Split(equal);
@@ -4993,7 +4980,7 @@ void CodeGenerator::Comparison(Condition cc,
       // The 'null' value is only equal to 'undefined' if using non-strict
       // comparisons.
       dest->true_target()->Branch(equal);
-      __ Cmp(operand.reg(), Factory::undefined_value());
+      __ CompareRoot(operand.reg(), Heap::kUndefinedValueRootIndex);
       dest->true_target()->Branch(equal);
       __ testl(operand.reg(), Immediate(kSmiTagMask));
       dest->false_target()->Branch(equal);
@@ -6113,7 +6100,7 @@ void Reference::GetValue(TypeofState typeof_state) {
                         FixedArray::kHeaderSize - kHeapObjectTag));
         elements.Unuse();
         index.Unuse();
-        __ Cmp(value.reg(), Factory::the_hole_value());
+        __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
         deferred->Branch(equal);
         __ IncrementCounter(&Counters::keyed_load_inline, 1);
 
@@ -6322,7 +6309,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ movq(rax, Operand(rsp, 1 * kPointerSize));
 
   // 'null' => false.
-  __ Cmp(rax, Factory::null_value());
+  __ CompareRoot(rax, Heap::kNullValueRootIndex);
   __ j(equal, &false_result);
 
   // Get the map and type of the heap object.
@@ -6353,7 +6340,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ bind(&not_string);
   // HeapNumber => false iff +0, -0, or NaN.
   // These three cases set C3 when compared to zero in the FPU.
-  __ Cmp(rdx, Factory::heap_number_map());
+  __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &true_result);
   // TODO(x64): Don't use fp stack, use MMX registers?
   __ fldz();  // Load zero onto fp stack
@@ -6766,7 +6753,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // Loop through the prototype chain looking for the function prototype.
   Label loop, is_instance, is_not_instance;
-  __ Move(kScratchRegister, Factory::null_value());
+  __ LoadRoot(kScratchRegister, Heap::kNullValueRootIndex);
   __ bind(&loop);
   __ cmpq(rcx, rbx);
   __ j(equal, &is_instance);
@@ -7020,7 +7007,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
-  __ Cmp(rax, Factory::termination_exception());
+  __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
   __ j(equal, throw_termination_exception);
 
   // Handle normal exception.
@@ -7334,9 +7321,7 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
 
   // Set the map and tag the result.
   __ addq(result, Immediate(kHeapObjectTag));
-  __ movq(kScratchRegister,
-          Factory::heap_number_map(),
-          RelocInfo::EMBEDDED_OBJECT);
+  __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
   __ movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 

@@ -139,9 +139,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Fill remaining expected arguments with undefined values.
     Label fill;
-    __ movq(kScratchRegister,
-            Factory::undefined_value(),
-            RelocInfo::EMBEDDED_OBJECT);
+    __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
     __ bind(&fill);
     __ incq(rcx);
     __ push(kScratchRegister);
@@ -218,9 +216,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ testl(rbx, Immediate(kSmiTagMask));
     __ j(zero, &call_to_object);
 
-    __ Cmp(rbx, Factory::null_value());
+    __ CompareRoot(rbx, Heap::kNullValueRootIndex);
     __ j(equal, &use_global_receiver);
-    __ Cmp(rbx, Factory::undefined_value());
+    __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
     __ j(equal, &use_global_receiver);
 
     __ CmpObjectType(rbx, FIRST_JS_OBJECT_TYPE, rcx);
@@ -386,9 +384,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ movq(rbx, Operand(rbp, kReceiverOffset));
   __ testl(rbx, Immediate(kSmiTagMask));
   __ j(zero, &call_to_object);
-  __ Cmp(rbx, Factory::null_value());
+  __ CompareRoot(rbx, Heap::kNullValueRootIndex);
   __ j(equal, &use_global_receiver);
-  __ Cmp(rbx, Factory::undefined_value());
+  __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
   __ j(equal, &use_global_receiver);
 
   // If given receiver is already a JavaScript object then there's no
@@ -548,7 +546,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rbx: JSObject (not HeapObject tagged - the actual address).
     // rdi: start of next object
     __ movq(Operand(rbx, JSObject::kMapOffset), rax);
-    __ Move(rcx, Factory::empty_fixed_array());
+    __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
     __ movq(Operand(rbx, JSObject::kPropertiesOffset), rcx);
     __ movq(Operand(rbx, JSObject::kElementsOffset), rcx);
     // Set extra fields in the newly allocated object.
@@ -556,7 +554,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rbx: JSObject
     // rdi: start of next object
     { Label loop, entry;
-      __ Move(rdx, Factory::undefined_value());
+      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
       __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -613,7 +611,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rdi: FixedArray
     // rdx: number of elements
     // rax: start of next object
-    __ Move(rcx, Factory::fixed_array_map());
+    __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
     __ movq(Operand(rdi, JSObject::kMapOffset), rcx);  // setup the map
     __ movl(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
 
@@ -623,7 +621,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rax: start of next object
     // rdx: number of elements
     { Label loop, entry;
-      __ Move(rdx, Factory::undefined_value());
+      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
       __ lea(rcx, Operand(rdi, FixedArray::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -797,6 +795,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ movq(rax, rcx);
   __ movq(rbx, r8);
 #endif  // _WIN64
+
+  // Set up the roots register.
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ movq(r13, roots_address);
+
   // Current stack contents:
   // [rsp + 2 * kPointerSize ... ]: Internal frame
   // [rsp + kPointerSize]         : function

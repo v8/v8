@@ -66,6 +66,10 @@ class MacroAssembler: public Assembler {
  public:
   MacroAssembler(void* buffer, int size);
 
+  void LoadRoot(Register destination, Heap::RootListIndex index);
+  void CompareRoot(Register with, Heap::RootListIndex index);
+  void PushRoot(Heap::RootListIndex index);
+
   // ---------------------------------------------------------------------------
   // GC Support
 

@@ -46,6 +46,22 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 }
 
 
+void MacroAssembler::LoadRoot(Register destination,
+                              Heap::RootListIndex index) {
+  movq(destination, Operand(r13, index << kPointerSizeLog2));
+}
+
+
+void MacroAssembler::PushRoot(Heap::RootListIndex index) {
+  push(Operand(r13, index << kPointerSizeLog2));
+}
+
+
+void MacroAssembler::CompareRoot(Register with,
+                                 Heap::RootListIndex index) {
+  cmpq(with, Operand(r13, index << kPointerSizeLog2));
+}
+
 
 static void RecordWriteHelper(MacroAssembler* masm,
                               Register object,
@@ -276,7 +292,7 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
   if (num_arguments > 0) {
     addq(rsp, Immediate(num_arguments * kPointerSize));
   }
-  movq(rax, Factory::undefined_value(), RelocInfo::EMBEDDED_OBJECT);
+  LoadRoot(rax, Heap::kUndefinedValueRootIndex);
 }
 
 
@@ -628,7 +644,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // If the prototype or initial map is the hole, don't return it and
   // simply miss the cache instead. This will allow us to allocate a
   // prototype object on-demand in the runtime system.
-  Cmp(result, Factory::the_hole_value());
+  CompareRoot(result, Heap::kTheHoleValueRootIndex);
   j(equal, miss);
 
   // If the function does not have an initial map, we're done.
@@ -1182,12 +1198,12 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     // Preserve original value of holder_reg.
     push(holder_reg);
     movq(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
-    Cmp(holder_reg, Factory::null_value());
+    CompareRoot(holder_reg, Heap::kNullValueRootIndex);
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
     // Read the first word and compare to global_context_map(),
     movq(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
-    Cmp(holder_reg, Factory::global_context_map());
+    CompareRoot(holder_reg, Heap::kGlobalContextMapRootIndex);
     Check(equal, "JSGlobalObject::global_context should be a global context.");
     pop(holder_reg);
   }
