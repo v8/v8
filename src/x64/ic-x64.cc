@@ -849,7 +849,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Check that the receiver is a valid JS object.
   __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rbx);
-  __ j(less, &miss);
+  __ j(below, &miss);
 
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
