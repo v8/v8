@@ -1383,12 +1383,32 @@ class AssertNoAllocation {
   bool old_state_;
 };
 
+class DisableAssertNoAllocation {
+ public:
+  DisableAssertNoAllocation() {
+    old_state_ = Heap::allow_allocation(true);
+  }
+
+  ~DisableAssertNoAllocation() {
+    Heap::allow_allocation(old_state_);
+  }
+
+ private:
+  bool old_state_;
+};
+
 #else  // ndef DEBUG
 
 class AssertNoAllocation {
  public:
   AssertNoAllocation() { }
   ~AssertNoAllocation() { }
+};
+
+class DisableAssertNoAllocation {
+ public:
+  DisableAssertNoAllocation() { }
+  ~DisableAssertNoAllocation() { }
 };
 
 #endif

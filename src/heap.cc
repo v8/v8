@@ -444,7 +444,10 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
 void Heap::PostGarbageCollectionProcessing() {
   // Process weak handles post gc.
-  GlobalHandles::PostGarbageCollectionProcessing();
+  {
+    DisableAssertNoAllocation allow_allocation;
+    GlobalHandles::PostGarbageCollectionProcessing();
+  }
   // Update flat string readers.
   FlatStringReader::PostGarbageCollectionProcessing();
 }
