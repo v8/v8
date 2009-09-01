@@ -6377,7 +6377,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
         // One operand is a smi.
 
         // Check whether the non-smi is a heap number.
-        ASSERT_EQ(1, kSmiTagMask);
+        ASSERT_EQ(static_cast<intptr_t>(1), kSmiTagMask);
         // rcx still holds rax & kSmiTag, which is either zero or one.
         __ decq(rcx);  // If rax is a smi, all 1s, else all 0s.
         __ movq(rbx, rdx);
@@ -7559,18 +7559,29 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ fild_s(Operand(rsp, 0 * kPointerSize));
         __ fucompp();
         __ fnstsw_ax();
-        __ sahf();  // TODO(X64): Not available.
-        __ j(not_zero, &operand_conversion_failure);
-        __ j(parity_even, &operand_conversion_failure);
-
+        if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
+          __ sahf();
+          __ j(not_zero, &operand_conversion_failure);
+          __ j(parity_even, &operand_conversion_failure);
+        } else {
+          __ and_(rax, Immediate(0x4400));
+          __ cmpl(rax, Immediate(0x4000));
+          __ j(not_zero, &operand_conversion_failure);
+        }
         // Check if left operand is int32.
         __ fist_s(Operand(rsp, 1 * kPointerSize));
         __ fild_s(Operand(rsp, 1 * kPointerSize));
         __ fucompp();
         __ fnstsw_ax();
-        __ sahf();  // TODO(X64): Not available. Test bits in ax directly
-        __ j(not_zero, &operand_conversion_failure);
-        __ j(parity_even, &operand_conversion_failure);
+        if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
+          __ sahf();
+          __ j(not_zero, &operand_conversion_failure);
+          __ j(parity_even, &operand_conversion_failure);
+        } else {
+          __ and_(rax, Immediate(0x4400));
+          __ cmpl(rax, Immediate(0x4000));
+          __ j(not_zero, &operand_conversion_failure);
+        }
       }
 
       // Get int32 operands and perform bitop.
