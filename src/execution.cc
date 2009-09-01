@@ -156,9 +156,12 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     ASSERT(catcher.HasCaught());
     ASSERT(Top::has_pending_exception());
     ASSERT(Top::external_caught_exception());
-    bool is_bottom_call = HandleScopeImplementer::instance()->CallDepthIsZero();
-    Top::OptionalRescheduleException(is_bottom_call, true);
-    result = v8::Utils::OpenHandle(*catcher.Exception());
+    if (Top::pending_exception() == Heap::termination_exception()) {
+      result = Factory::termination_exception();
+    } else {
+      result = v8::Utils::OpenHandle(*catcher.Exception());
+    }
+    Top::OptionalRescheduleException(true);
   }
 
   ASSERT(!Top::has_pending_exception());

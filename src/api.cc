@@ -75,7 +75,7 @@ namespace v8 {
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
       bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
-      i::Top::OptionalRescheduleException(call_depth_is_zero, false);        \
+      i::Top::OptionalRescheduleException(call_depth_is_zero);                 \
       return value;                                                            \
     }                                                                          \
   } while (false)
