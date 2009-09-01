@@ -600,8 +600,14 @@ void MacroAssembler::FCmp() {
   fcompp();
   push(rax);
   fnstsw_ax();
-  // TODO(X64): Check that sahf is safe to use, using CPUProbe.
-  sahf();
+  if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
+    sahf();
+  } else {
+    shrl(rax, Immediate(8));
+    and_(rax, Immediate(0xFF));
+    push(rax);
+    popfq();
+  }
   pop(rax);
 }
 
