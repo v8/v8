@@ -88,144 +88,23 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // Enter a construct frame.
   __ EnterConstructFrame();
 
-  // Preserve the two incoming parameters on the stack.
+  // Preserve the two incoming parameters
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ push(r0);  // Smi-tagged arguments count.
-  __ push(r1);  // Constructor function.
+  __ push(r0);  // smi-tagged arguments count
+  __ push(r1);  // constructor function
 
-  // Use r7 for holding undefined which is used in several places below.
-  __ LoadRoot(r7, Heap::kUndefinedValueRootIndex);
-
-  // Try to allocate the object without transitioning into C code. If any of the
-  // preconditions is not met, the code bails out to the runtime call.
-  Label rt_call, allocated;
-  if (FLAG_inline_new) {
-    Label undo_allocation;
-#ifdef ENABLE_DEBUGGER_SUPPORT
-    ExternalReference debug_step_in_fp =
-        ExternalReference::debug_step_in_fp_address();
-    __ mov(r2, Operand(debug_step_in_fp));
-    __ ldr(r2, MemOperand(r2));
-    __ tst(r2, r2);
-    __ b(nz, &rt_call);
-#endif
-
-    // Load the initial map and verify that it is in fact a map.
-    // r1: constructor function
-    // r7: undefined
-    __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-    __ tst(r2, Operand(kSmiTagMask));
-    __ b(eq, &rt_call);
-    __ CompareObjectType(r2, r3, r4, MAP_TYPE);
-    __ b(ne, &rt_call);
-
-    // Check that the constructor is not constructing a JSFunction (see comments
-    // in Runtime_NewObject in runtime.cc). In which case the initial map's
-    // instance type would be JS_FUNCTION_TYPE.
-    // r1: constructor function
-    // r2: initial map
-    // r7: undefined
-    __ CompareInstanceType(r2, r3, JS_FUNCTION_TYPE);
-    __ b(eq, &rt_call);
-
-    // Now allocate the JSObject on the heap.
-    // r1: constructor function
-    // r2: initial map
-    // r7: undefined
-    __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
-    // Make sure that the maximum heap object size will never cause us
-    // problem here, because it is always greater than the maximum
-    // instance size that can be represented in a byte.
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
-    __ AllocateObjectInNewSpace(r3, r4, r5, r6, &rt_call, false);
-    // Allocated the JSObject, now initialize the fields. Map is set to initial
-    // map and properties and elements are set to empty fixed array.
-    // r1: constructor function
-    // r2: initial map
-    // r3: object size
-    // r4: JSObject (not tagged)
-    // r7: undefined
-    __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
-    __ mov(r5, r4);
-    ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
-    __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
-    ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
-    __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
-    ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
-    __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
-
-    // Fill all the in-object properties with undefined.
-    // r1: constructor function
-    // r2: initial map
-    // r3: object size (in words)
-    // r4: JSObject (not tagged)
-    // r5: First in-object property of JSObject (not tagged)
-    // r7: undefined
-    __ add(r6, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
-    ASSERT_EQ(12, JSObject::kHeaderSize);
-    { Label loop, entry;
-      __ b(&entry);
-      __ bind(&loop);
-      __ str(r7, MemOperand(r5, kPointerSize, PostIndex));
-      __ bind(&entry);
-      __ cmp(r5, Operand(r6));
-      __ b(lt, &loop);
-    }
-
-    // Add the object tag to make the JSObject real, so that we can continue and
-    // jump into the continuation code at any time from now on. Any failures
-    // need to undo the allocation, so that the heap is in a consistent state
-    // and verifiable.
-    __ add(r4, r4, Operand(kHeapObjectTag));
-
-    // Check if a non-empty properties array is needed. Continue with allocated
-    // object if not fall through to runtime call if it is.
-    // r1: constructor function
-    // r2: initial map
-    // r4: JSObject
-    // r5: start of next object (not tagged)
-    // r7: undefined
-    __ ldrb(r3, FieldMemOperand(r2, Map::kUnusedPropertyFieldsOffset));
-    // The field instance sizes contains both pre-allocated property fields and
-    // in-object properties.
-    __ ldr(r0, FieldMemOperand(r2, Map::kInstanceSizesOffset));
-    __ and_(r6,
-            r0,
-            Operand(0x000000FF << Map::kPreAllocatedPropertyFieldsByte * 8));
-    __ add(r3, r3, Operand(r6, LSR, Map::kPreAllocatedPropertyFieldsByte * 8));
-    __ and_(r6, r0, Operand(0x000000FF << Map::kInObjectPropertiesByte * 8));
-    __ sub(r3, r3, Operand(r6, LSR, Map::kInObjectPropertiesByte * 8), SetCC);
-
-    // Done if no extra properties are to be allocated.
-    __ b(eq, &allocated);
-    __ Assert(pl, "Property allocation count failed.");
-
-    // Undo the setting of the new top so that the heap is verifiable. For
-    // example, the map's unused properties potentially do not match the
-    // allocated objects unused properties.
-    // r4: JSObject (previous new top)
-    __ bind(&undo_allocation);
-    __ UndoAllocationInNewSpace(r4, r5);
-  }
-
-  // Allocate the new receiver object using the runtime call.
-  __ bind(&rt_call);
+  // Allocate the new receiver object.
   __ push(r1);  // argument for Runtime_NewObject
   __ CallRuntime(Runtime::kNewObject, 1);
-  __ mov(r4, r0);
-
-  // Receiver for constructor call allocated.
-  // r4: JSObject
-  __ bind(&allocated);
-  __ push(r4);
+  __ push(r0);  // save the receiver
 
   // Push the function and the allocated receiver from the stack.
   // sp[0]: receiver (newly allocated object)
   // sp[1]: constructor function
   // sp[2]: number of arguments (smi-tagged)
   __ ldr(r1, MemOperand(sp, kPointerSize));
-  __ push(r1);  // Constructor function.
-  __ push(r4);  // Receiver.
+  __ push(r1);  // function
+  __ push(r0);  // receiver
 
   // Reload the number of arguments from the stack.
   // r1: constructor function
@@ -315,7 +194,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ LeaveConstructFrame();
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
-  __ IncrementCounter(&Counters::constructed_objects, 1, r1, r2);
   __ Jump(lr);
 }
 
