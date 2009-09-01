@@ -1010,12 +1010,6 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   }
 #endif
 
-  // Reserve space for the Arguments object.  The Windows 64-bit ABI
-  // requires us to pass this structure as a pointer to its location on
-  // the stack.  We also need backing space for the pointer, even though
-  // it is passed in a register.
-  subq(rsp, Immediate(3 * kPointerSize));
-
   // Get the required frame alignment for the OS.
   static const int kFrameAlignment = OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
@@ -1023,6 +1017,17 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
     movq(kScratchRegister, Immediate(-kFrameAlignment));
     and_(rsp, kScratchRegister);
   }
+
+#ifdef _WIN64
+  // Reserve space for the Arguments object.  The Windows 64-bit ABI
+  // requires us to pass this structure as a pointer to its location on
+  // the stack.  The structure contains 2 pointers.
+  // The structure on the stack must be 16-byte aligned.
+  // We also need backing space for 4 parameters, even though
+  // we only pass one parameter, and it is in a register.
+  subq(rsp, Immediate(6 * kPointerSize));
+  ASSERT(kFrameAlignment == 2 * kPointerSize);  // Change the padding if needed.
+#endif
 
   // Patch the saved entry sp.
   movq(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);

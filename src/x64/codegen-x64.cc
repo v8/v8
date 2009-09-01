@@ -6953,11 +6953,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Call C function.
 #ifdef _WIN64
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9
-  // Store Arguments object on stack
-  __ movq(Operand(rsp, 1 * kPointerSize), r14);  // argc.
-  __ movq(Operand(rsp, 2 * kPointerSize), r15);  // argv.
+  // Store Arguments object on stack, below the 4 WIN64 ABI parameter slots.
+  __ movq(Operand(rsp, 4 * kPointerSize), r14);  // argc.
+  __ movq(Operand(rsp, 5 * kPointerSize), r15);  // argv.
   // Pass a pointer to the Arguments object as the first argument.
-  __ lea(rcx, Operand(rsp, 1 * kPointerSize));
+  __ lea(rcx, Operand(rsp, 4 * kPointerSize));
 #else  // ! defined(_WIN64)
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
   __ movq(rdi, r14);  // argc.
