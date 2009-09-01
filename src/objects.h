@@ -2891,8 +2891,12 @@ class Map: public HeapObject {
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
-  static const int kInObjectPropertiesOffset = kInstanceSizesOffset + 1;
-  static const int kPreAllocatedPropertyFieldsOffset = kInstanceSizesOffset + 2;
+  static const int kInObjectPropertiesByte = 1;
+  static const int kInObjectPropertiesOffset =
+      kInstanceSizesOffset + kInObjectPropertiesByte;
+  static const int kPreAllocatedPropertyFieldsByte = 2;
+  static const int kPreAllocatedPropertyFieldsOffset =
+      kInstanceSizesOffset + kPreAllocatedPropertyFieldsByte;
   // The byte at position 3 is not in use at the moment.
 
   // Byte offsets within kInstanceAttributesOffset attributes.

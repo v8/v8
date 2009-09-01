@@ -4950,7 +4950,7 @@ static void AllocateHeapNumber(
     Register scratch2) {  // Another scratch register.
   // Allocate an object in the heap for the heap number and tag it as a heap
   // object.
-  __ AllocateObjectInNewSpace(HeapNumber::kSize,
+  __ AllocateObjectInNewSpace(HeapNumber::kSize / kPointerSize,
                               result,
                               scratch1,
                               scratch2,

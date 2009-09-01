@@ -190,16 +190,28 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Allocation support
 
-  // Allocate an object in new space. If the new space is exhausted control
-  // continues at the gc_required label. The allocated object is returned in
-  // result. If the flag tag_allocated_object is true the result is tagged as
-  // as a heap object.
+  // Allocate an object in new space. The object_size is specified in words (not
+  // bytes). If the new space is exhausted control continues at the gc_required
+  // label. The allocated object is returned in result. If the flag
+  // tag_allocated_object is true the result is tagged as as a heap object.
   void AllocateObjectInNewSpace(int object_size,
                                 Register result,
                                 Register scratch1,
                                 Register scratch2,
                                 Label* gc_required,
                                 bool tag_allocated_object);
+  void AllocateObjectInNewSpace(Register object_size,
+                                Register result,
+                                Register scratch1,
+                                Register scratch2,
+                                Label* gc_required,
+                                bool tag_allocated_object);
+
+  // Undo allocation in new space. The object passed and objects allocated after
+  // it will no longer be allocated. The caller must make sure that no pointers
+  // are left to the object(s) no longer allocated as they would be invalid when
+  // allocation is undone.
+  void UndoAllocationInNewSpace(Register object, Register scratch);
 
   // ---------------------------------------------------------------------------
   // Support functions.
@@ -220,11 +232,20 @@ class MacroAssembler: public Assembler {
   // It leaves the map in the map register (unless the type_reg and map register
   // are the same register).  It leaves the heap object in the heap_object
   // register unless the heap_object register is the same register as one of the
-  // other // registers.
+  // other registers.
   void CompareObjectType(Register heap_object,
                          Register map,
                          Register type_reg,
                          InstanceType type);
+
+  // Compare instance type in a map.  map contains a valid map object whose
+  // object type should be compared with the given type.  This both
+  // sets the flags and leaves the object type in the type_reg register.  It
+  // leaves the heap object in the heap_object register unless the heap_object
+  // register is the same register as type_reg.
+  void CompareInstanceType(Register map,
+                           Register type_reg,
+                           InstanceType type);
 
   inline void BranchOnSmi(Register value, Label* smi_label) {
     tst(value, Operand(kSmiTagMask));
