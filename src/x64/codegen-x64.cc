@@ -6377,7 +6377,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
         // One operand is a smi.
 
         // Check whether the non-smi is a heap number.
-        ASSERT_EQ(static_cast<intptr_t>(1), kSmiTagMask);
+        ASSERT_EQ(1, kSmiTagMask);
         // rcx still holds rax & kSmiTag, which is either zero or one.
         __ decq(rcx);  // If rax is a smi, all 1s, else all 0s.
         __ movq(rbx, rdx);
