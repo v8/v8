@@ -28,25 +28,20 @@
 
 // Two fp numbers that have the same hash value (see TranscendentalCache
 // in heap.h).
-var x = 0x123456789ABCD;
-var y = 0x1134567899BCD;
+var x = 0x123456789ABCD / 0x2000000000000;
+var y = 0x1134567899BCD / 0x2000000000000;
 
-assertEquals(-0.5582508193778007, Math.sin(x));
-assertEquals(-0.7367701055966746, Math.sin(y));
+assertEquals(0.5386962702923196, Math.sin(x));
+assertEquals(0.5121094149171027, Math.sin(y));
 
-assertEquals(-0.8296722380940645, Math.cos(x));
-assertEquals(-0.6761433365042245, Math.cos(y));
+assertEquals(0.8425000465122504, Math.cos(x));
+assertEquals(0.8589202216464942, Math.cos(y));
 
-assertEquals(0.6728570557696649, Math.tan(x));
-assertEquals(1.0896655573149632, Math.tan(y));
+assertEquals(0.6394020659374369, Math.tan(x));
+assertEquals(0.5962246574372441, Math.tan(y));
 
-assertEquals(33.400141709152514, Math.log(x));
-assertEquals(33.343643692997280, Math.log(y));
-
-// These also have the same hash value but they are < 1 so they can be
-// used for the asin and other functions.
-x = 0x123456789ABCD / 0x2000000000000;
-y = 0x1134567899BCD / 0x2000000000000;
+assertEquals(-0.5640701382848059, Math.log(x));
+assertEquals(-0.6205681544400349, Math.log(y));
 
 assertEquals(0.6051541873165459, Math.asin(x));
 assertEquals(0.5676343396849298, Math.asin(y));
@@ -59,5 +54,3 @@ assertEquals(0.4933034078249788, Math.atan(y));
 
 assertEquals(1.7663034013841883, Math.exp(x));
 assertEquals(1.7119599587777090, Math.exp(y));
-
-print("OK");
