@@ -791,7 +791,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
-  __ IncrementCounter(&Counters::call_global_inline, 1, r1, r3);
+  __ IncrementCounter(&Counters::call_global_inline, 1, r2, r3);
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
