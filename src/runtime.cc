@@ -4058,7 +4058,7 @@ static Object* Runtime_Math_acos(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(acos(x));
+  return TranscendentalCache::Get(TranscendentalCache::ACOS, x);
 }
 
 
@@ -4067,7 +4067,7 @@ static Object* Runtime_Math_asin(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(asin(x));
+  return TranscendentalCache::Get(TranscendentalCache::ASIN, x);
 }
 
 
@@ -4076,7 +4076,7 @@ static Object* Runtime_Math_atan(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(atan(x));
+  return TranscendentalCache::Get(TranscendentalCache::ATAN, x);
 }
 
 
@@ -4117,7 +4117,7 @@ static Object* Runtime_Math_cos(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(cos(x));
+  return TranscendentalCache::Get(TranscendentalCache::COS, x);
 }
 
 
@@ -4126,7 +4126,7 @@ static Object* Runtime_Math_exp(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(exp(x));
+  return TranscendentalCache::Get(TranscendentalCache::EXP, x);
 }
 
 
@@ -4144,7 +4144,7 @@ static Object* Runtime_Math_log(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(log(x));
+  return TranscendentalCache::Get(TranscendentalCache::LOG, x);
 }
 
 
@@ -4232,7 +4232,7 @@ static Object* Runtime_Math_sin(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(sin(x));
+  return TranscendentalCache::Get(TranscendentalCache::SIN, x);
 }
 
 
@@ -4250,7 +4250,7 @@ static Object* Runtime_Math_tan(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
-  return Heap::AllocateHeapNumber(tan(x));
+  return TranscendentalCache::Get(TranscendentalCache::TAN, x);
 }
 
 

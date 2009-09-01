@@ -28,7 +28,10 @@
 #ifndef V8_HEAP_H_
 #define V8_HEAP_H_
 
+#include <math.h>
+
 #include "zone-inl.h"
+
 
 namespace v8 {
 namespace internal {
@@ -1518,6 +1521,91 @@ class GCTracer BASE_EMBEDDED {
   // was no previous full GC.
   int previous_marked_count_;
 };
+
+
+class TranscendentalCache {
+ public:
+  enum Type {ACOS, ASIN, ATAN, COS, EXP, LOG, SIN, TAN, kNumberOfCaches};
+
+  explicit TranscendentalCache(Type t);
+
+  // Returns a heap number with f(input), where f is a math function specified
+  // by the 'type' argument.
+  static inline Object* Get(Type type, double input) {
+    TranscendentalCache* cache = caches_[type];
+    if (cache == NULL) {
+      caches_[type] = cache = new TranscendentalCache(type);
+    }
+    return cache->Get(input);
+  }
+
+  // The cache contains raw Object pointers.  This method disposes of
+  // them before a garbage collection.
+  static void Clear();
+
+ private:
+  inline Object* Get(double input) {
+    Converter c;
+    c.dbl = input;
+    int hash = Hash(c);
+    Element e = elements_[hash];
+    if (e.in[0] == c.integers[0] &&
+        e.in[1] == c.integers[1]) {
+      ASSERT(e.output != NULL);
+      return e.output;
+    }
+    double answer = Calculate(input);
+    Object* heap_number = Heap::AllocateHeapNumber(answer);
+    if (!heap_number->IsFailure()) {
+      elements_[hash].in[0] = c.integers[0];
+      elements_[hash].in[1] = c.integers[1];
+      elements_[hash].output = heap_number;
+    }
+    return heap_number;
+  }
+
+  inline double Calculate(double input) {
+    switch (type_) {
+      case ACOS:
+        return acos(input);
+      case ASIN:
+        return asin(input);
+      case ATAN:
+        return atan(input);
+      case COS:
+        return cos(input);
+      case EXP:
+        return exp(input);
+      case LOG:
+        return log(input);
+      case SIN:
+        return sin(input);
+      case TAN:
+        return tan(input);
+      default:
+        return 0.0;  // Never happens.
+    }
+  }
+  static const int kCacheSize = 512;
+  struct Element {
+    uint32_t in[2];
+    Object* output;
+  };
+  union Converter {
+    double dbl;
+    uint32_t integers[2];
+  };
+  inline static int Hash(const Converter& c) {
+    uint32_t hash = (c.integers[0] ^ c.integers[1]);
+    hash ^= hash >> 16;
+    hash ^= hash >> 8;
+    return (hash & (kCacheSize - 1));
+  }
+  static TranscendentalCache* caches_[kNumberOfCaches];
+  Element elements_[kCacheSize];
+  Type type_;
+};
+
 
 } }  // namespace v8::internal
 
