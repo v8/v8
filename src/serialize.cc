@@ -1257,7 +1257,7 @@ Address Serializer::PutObject(HeapObject* obj) {
 
   // Write out the object prologue: type, size, and simulated address of obj.
   writer_->PutC('[');
-  CHECK_EQ(static_cast<intptr_t>(0), size & kObjectAlignmentMask);
+  CHECK_EQ(0, static_cast<int>(size & kObjectAlignmentMask));
   writer_->PutInt(type);
   writer_->PutInt(size >> kObjectAlignmentBits);
   PutEncodedAddress(addr);  // encodes AllocationSpace
