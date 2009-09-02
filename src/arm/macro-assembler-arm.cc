@@ -790,7 +790,7 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
       ExternalReference::new_space_allocation_limit_address();
   mov(scratch2, Operand(new_space_allocation_limit));
   ldr(scratch2, MemOperand(scratch2));
-  add(result, result, Operand(object_size));
+  add(result, result, Operand(object_size * kPointerSize));
   cmp(result, Operand(scratch2));
   b(hi, gc_required);
 
@@ -799,10 +799,72 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
 
   // Tag and adjust back to start of new object.
   if (tag_allocated_object) {
-    sub(result, result, Operand(object_size - kHeapObjectTag));
+    sub(result, result, Operand((object_size * kPointerSize) -
+                                kHeapObjectTag));
   } else {
-    sub(result, result, Operand(object_size));
+    sub(result, result, Operand(object_size * kPointerSize));
   }
+}
+
+
+void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
+                                              Register result,
+                                              Register scratch1,
+                                              Register scratch2,
+                                              Label* gc_required,
+                                              bool tag_allocated_object) {
+  ASSERT(!result.is(scratch1));
+  ASSERT(!scratch1.is(scratch2));
+
+  // Load address of new object into result and allocation top address into
+  // scratch1.
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+  mov(scratch1, Operand(new_space_allocation_top));
+  ldr(result, MemOperand(scratch1));
+
+  // Calculate new top and bail out if new space is exhausted. Use result
+  // to calculate the new top. Object size is in words so a shift is required to
+  // get the number of bytes
+  ExternalReference new_space_allocation_limit =
+      ExternalReference::new_space_allocation_limit_address();
+  mov(scratch2, Operand(new_space_allocation_limit));
+  ldr(scratch2, MemOperand(scratch2));
+  add(result, result, Operand(object_size, LSL, kPointerSizeLog2));
+
+  cmp(result, Operand(scratch2));
+  b(hi, gc_required);
+
+  // Update allocation top. result temporarily holds the new top,
+  str(result, MemOperand(scratch1));
+
+  // Tag and adjust back to start of new object.
+  if (tag_allocated_object) {
+    sub(result, result, Operand(object_size, LSL, kPointerSizeLog2));
+    add(result, result, Operand(kHeapObjectTag));
+  } else {
+    sub(result, result, Operand(object_size, LSL, kPointerSizeLog2));
+  }
+}
+
+
+void MacroAssembler::UndoAllocationInNewSpace(Register object,
+                                              Register scratch) {
+  ExternalReference new_space_allocation_top =
+      ExternalReference::new_space_allocation_top_address();
+
+  // Make sure the object has no tag before resetting top.
+  and_(object, object, Operand(~kHeapObjectTagMask));
+#ifdef DEBUG
+  // Check that the object un-allocated is below the current top.
+  mov(scratch, Operand(new_space_allocation_top));
+  ldr(scratch, MemOperand(scratch));
+  cmp(object, scratch);
+  Check(lt, "Undo allocation of non allocated memory");
+#endif
+  // Write the address of the object to un-allocate as the current top.
+  mov(scratch, Operand(new_space_allocation_top));
+  str(object, MemOperand(scratch));
 }
 
 
@@ -811,6 +873,13 @@ void MacroAssembler::CompareObjectType(Register function,
                                        Register type_reg,
                                        InstanceType type) {
   ldr(map, FieldMemOperand(function, HeapObject::kMapOffset));
+  CompareInstanceType(map, type_reg, type);
+}
+
+
+void MacroAssembler::CompareInstanceType(Register map,
+                                         Register type_reg,
+                                         InstanceType type) {
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   cmp(type_reg, Operand(type));
 }
