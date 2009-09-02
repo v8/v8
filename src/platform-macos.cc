@@ -214,7 +214,10 @@ void OS::LogSharedLibraryAddresses() {
 #if V8_HOST_ARCH_X64
     uint64_t size;
     char* code_ptr = getsectdatafromheader_64(
-        (mach_header_64*)header, SEG_TEXT, SECT_TEXT, &size);
+        reinterpret_cast<const mach_header_64*>(header),
+        SEG_TEXT,
+        SECT_TEXT,
+        &size);
 #else
     unsigned int size;
     char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
