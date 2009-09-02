@@ -6386,7 +6386,7 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
         if (answer >= Smi::kMinValue && answer <= Smi::kMaxValue) {
           // If the product is zero and the non-zero factor is negative,
           // the spec requires us to return floating point negative zero.
-          if (answer != 0 || (left >= 0 && right >= 0)) {
+          if (answer != 0 || (left + right) >= 0) {
             answer_object = Smi::FromInt(static_cast<int>(answer));
           }
         }
@@ -6454,24 +6454,54 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 void UnarySubStub::Generate(MacroAssembler* masm) {
   Label slow;
   Label done;
-
+  Label try_float;
+  Label special;
   // Check whether the value is a smi.
   __ testl(rax, Immediate(kSmiTagMask));
-  // TODO(X64): Add inline code that handles floats, as on ia32 platform.
-  __ j(not_zero, &slow);
+  __ j(not_zero, &try_float);
+
   // Enter runtime system if the value of the smi is zero
   // to make sure that we switch between 0 and -0.
   // Also enter it if the value of the smi is Smi::kMinValue
   __ testl(rax, Immediate(0x7FFFFFFE));
-  __ j(zero, &slow);
+  __ j(zero, &special);
   __ neg(rax);
   __ jmp(&done);
+
+  __ bind(&special);
+  // Either zero or -0x4000000, neither of which become a smi when negated.
+  __ testl(rax, rax);
+  __ j(not_zero, &slow);
+  __ Move(rax, Factory::minus_zero_value());
+  __ jmp(&done);
+
   // Enter runtime system.
   __ bind(&slow);
   __ pop(rcx);  // pop return address
   __ push(rax);
   __ push(rcx);  // push return address
   __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+  __ jmp(&done);
+
+  // Try floating point case.
+  __ bind(&try_float);
+  __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ Cmp(rdx, Factory::heap_number_map());
+  __ j(not_equal, &slow);
+  // Operand is a float, negate its value by flipping sign bit.
+  __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ movq(kScratchRegister, Immediate(0x01));
+  __ shl(kScratchRegister, Immediate(63));
+  __ xor_(rdx, kScratchRegister);  // Flip sign.
+  // rdx is value to store.
+  if (overwrite_) {
+    __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
+  } else {
+    FloatingPointHelper::AllocateHeapNumber(masm, &slow, rbx, rcx);
+    // rcx: allocated 'empty' number
+    __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
+    __ movq(rax, rcx);
+  }
 
   __ bind(&done);
   __ StubReturn(1);
