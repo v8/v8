@@ -211,8 +211,14 @@ void OS::LogSharedLibraryAddresses() {
   for (unsigned int i = 0; i < images_count; ++i) {
     const mach_header* header = _dyld_get_image_header(i);
     if (header == NULL) continue;
+#if V8_HOST_ARCH_X64
+    uint64_t size;
+    char* code_ptr = getsectdatafromheader_64(
+        (mach_header_64*)header, SEG_TEXT, SECT_TEXT, &size);
+#else
     unsigned int size;
     char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
+#endif
     if (code_ptr == NULL) continue;
     const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
