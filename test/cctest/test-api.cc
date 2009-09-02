@@ -2673,40 +2673,67 @@ THREADED_TEST(SimpleExtensions) {
 }
 
 
-static const char* kEvalExtensionSource =
-  "function UseEval() {"
+static const char* kEvalExtensionSource1 =
+  "function UseEval1() {"
   "  var x = 42;"
   "  return eval('x');"
   "}";
 
 
+static const char* kEvalExtensionSource2 =
+  "(function() {"
+  "  var x = 42;"
+  "  function e() {"
+  "    return eval('x');"
+  "  }"
+  "  this.UseEval2 = e;"
+  "})()";
+
+
 THREADED_TEST(UseEvalFromExtension) {
   v8::HandleScope handle_scope;
-  v8::RegisterExtension(new Extension("evaltest", kEvalExtensionSource));
-  const char* extension_names[] = { "evaltest" };
-  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::RegisterExtension(new Extension("evaltest1", kEvalExtensionSource1));
+  v8::RegisterExtension(new Extension("evaltest2", kEvalExtensionSource2));
+  const char* extension_names[] = { "evaltest1", "evaltest2" };
+  v8::ExtensionConfiguration extensions(2, extension_names);
   v8::Handle<Context> context = Context::New(&extensions);
   Context::Scope lock(context);
-  v8::Handle<Value> result = Script::Compile(v8_str("UseEval()"))->Run();
+  v8::Handle<Value> result = Script::Compile(v8_str("UseEval1()"))->Run();
+  CHECK_EQ(result, v8::Integer::New(42));
+  result = Script::Compile(v8_str("UseEval2()"))->Run();
   CHECK_EQ(result, v8::Integer::New(42));
 }
 
 
-static const char* kWithExtensionSource =
-  "function UseWith() {"
+static const char* kWithExtensionSource1 =
+  "function UseWith1() {"
   "  var x = 42;"
   "  with({x:87}) { return x; }"
   "}";
 
 
+
+static const char* kWithExtensionSource2 =
+  "(function() {"
+  "  var x = 42;"
+  "  function e() {"
+  "    with ({x:87}) { return x; }"
+  "  }"
+  "  this.UseWith2 = e;"
+  "})()";
+
+
 THREADED_TEST(UseWithFromExtension) {
   v8::HandleScope handle_scope;
-  v8::RegisterExtension(new Extension("withtest", kWithExtensionSource));
-  const char* extension_names[] = { "withtest" };
-  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::RegisterExtension(new Extension("withtest1", kWithExtensionSource1));
+  v8::RegisterExtension(new Extension("withtest2", kWithExtensionSource2));
+  const char* extension_names[] = { "withtest1", "withtest2" };
+  v8::ExtensionConfiguration extensions(2, extension_names);
   v8::Handle<Context> context = Context::New(&extensions);
   Context::Scope lock(context);
-  v8::Handle<Value> result = Script::Compile(v8_str("UseWith()"))->Run();
+  v8::Handle<Value> result = Script::Compile(v8_str("UseWith1()"))->Run();
+  CHECK_EQ(result, v8::Integer::New(87));
+  result = Script::Compile(v8_str("UseWith2()"))->Run();
   CHECK_EQ(result, v8::Integer::New(87));
 }
 
