@@ -132,15 +132,6 @@ int RegExpMacroAssemblerARM::stack_limit_slack()  {
 }
 
 
-bool RegExpMacroAssemblerARM::CanReadUnaligned() {
-#if V8_TARGET_CAN_READ_UNALIGNED
-  return true;
-#else
-  return false;
-#endif
-}
-
-
 void RegExpMacroAssemblerARM::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     Label inside_string;

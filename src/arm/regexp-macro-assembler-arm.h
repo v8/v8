@@ -45,7 +45,6 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   RegExpMacroAssemblerARM(Mode mode, int registers_to_save);
   virtual ~RegExpMacroAssemblerARM();
   virtual int stack_limit_slack();
-  virtual bool CanReadUnaligned();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);
   virtual void Backtrack();

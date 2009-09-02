@@ -1723,8 +1723,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   GetQuickCheckDetails(details, compiler, 0, trace->at_start() == Trace::FALSE);
   if (details->cannot_match()) return false;
   if (!details->Rationalize(compiler->ascii())) return false;
-  if (details->characters() > 1 &&
-      !compiler->macro_assembler()->CanReadUnaligned()) return false;
+  ASSERT(details->characters() == 1 ||
+         compiler->macro_assembler()->CanReadUnaligned());
   uint32_t mask = details->mask();
   uint32_t value = details->value();
 
