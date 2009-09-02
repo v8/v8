@@ -3528,9 +3528,13 @@ class JSRegExp: public JSObject {
 
   static const int kAtomDataSize = kAtomPatternIndex + 1;
 
-  // Irregexp compiled code or bytecode for ASCII.
+  // Irregexp compiled code or bytecode for ASCII. If compilation
+  // fails, this fields hold an exception object that should be
+  // thrown if the regexp is used again.
   static const int kIrregexpASCIICodeIndex = kDataIndex;
-  // Irregexp compiled code or bytecode for UC16.
+  // Irregexp compiled code or bytecode for UC16.  If compilation
+  // fails, this fields hold an exception object that should be
+  // thrown if the regexp is used again.
   static const int kIrregexpUC16CodeIndex = kDataIndex + 1;
   // Maximal number of registers used by either ASCII or UC16.
   // Only used to check that there is enough stack space
