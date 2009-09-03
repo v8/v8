@@ -278,7 +278,10 @@ void Debugger::Debug() {
                 if (i <= 10) {
                   PrintF("%3s: 0x%08x %d\n", reg_names[i], value, value);
                 } else {
-                  PrintF("%3s: 0x%08x %d\n", reg_names[15 + 16 - i], value, value);
+                  PrintF("%3s: 0x%08x %d\n",
+                         reg_names[15 + 16 - i],
+                         value,
+                         value);
                 }
               }
             }
