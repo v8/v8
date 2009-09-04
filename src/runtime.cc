@@ -4612,7 +4612,7 @@ static JSObject* ComputeReceiverForNonGlobal(JSObject* holder) {
 
 static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   HandleScope scope;
-  ASSERT(args.length() == 2);
+  ASSERT_EQ(2, args.length());
 
   if (!args[0]->IsContext() || !args[1]->IsString()) {
     return MakePair(Top::ThrowIllegalOperation(), NULL);
