@@ -1201,18 +1201,23 @@ void Serializer::PutGlobalHandleStack(const List<Handle<Object> >& stack) {
 
 
 void Serializer::PutContextStack() {
-  List<Handle<Object> > contexts(2);
+  List<Context*> contexts(2);
   while (HandleScopeImplementer::instance()->HasSavedContexts()) {
-    Handle<Object> context =
+    Context* context =
       HandleScopeImplementer::instance()->RestoreContext();
     contexts.Add(context);
   }
   for (int i = contexts.length() - 1; i >= 0; i--) {
     HandleScopeImplementer::instance()->SaveContext(contexts[i]);
   }
-  PutGlobalHandleStack(contexts);
+  writer_->PutC('[');
+  writer_->PutInt(contexts.length());
+  if (!contexts.is_empty()) {
+    Object** start = reinterpret_cast<Object**>(&contexts.first());
+    VisitPointers(start, start + contexts.length());
+  }
+  writer_->PutC(']');
 }
-
 
 void Serializer::PutEncodedAddress(Address addr) {
   writer_->PutC('P');
@@ -1541,9 +1546,15 @@ void Deserializer::GetGlobalHandleStack(List<Handle<Object> >* stack) {
 
 
 void Deserializer::GetContextStack() {
-  List<Handle<Object> > entered_contexts(2);
-  GetGlobalHandleStack(&entered_contexts);
-  for (int i = 0; i < entered_contexts.length(); i++) {
+  reader_.ExpectC('[');
+  int count = reader_.GetInt();
+  List<Context*> entered_contexts(count);
+  if (count > 0) {
+    Object** start = reinterpret_cast<Object**>(&entered_contexts.first());
+    VisitPointers(start, start + count);
+  }
+  reader_.ExpectC(']');
+  for (int i = 0; i < count; i++) {
     HandleScopeImplementer::instance()->SaveContext(entered_contexts[i]);
   }
 }
