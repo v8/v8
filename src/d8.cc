@@ -159,7 +159,7 @@ Handle<Value> Shell::Write(const Arguments& args) {
       printf(" ");
     }
     v8::String::Utf8Value str(args[i]);
-    fwrite(*str, sizeof(*str), str.length(), stdout);
+    fwrite(*str, sizeof(char), str.length(), stdout);
   }
   return Undefined();
 }
