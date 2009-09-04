@@ -159,8 +159,7 @@ Handle<Value> Shell::Write(const Arguments& args) {
       printf(" ");
     }
     v8::String::Utf8Value str(args[i]);
-    const char* cstr = ToCString(str);
-    printf("%s", cstr);
+    fwrite(*str, sizeof(*str), str.length(), stdout);
   }
   return Undefined();
 }
