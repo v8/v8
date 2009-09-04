@@ -1210,6 +1210,7 @@ void Serializer::PutContextStack() {
   for (int i = contexts.length() - 1; i >= 0; i--) {
     HandleScopeImplementer::instance()->SaveContext(contexts[i]);
   }
+  writer_->PutC('C');
   writer_->PutC('[');
   writer_->PutInt(contexts.length());
   if (!contexts.is_empty()) {
@@ -1546,7 +1547,8 @@ void Deserializer::GetGlobalHandleStack(List<Handle<Object> >* stack) {
 
 
 void Deserializer::GetContextStack() {
-  reader_.ExpectC('[');
+  reader_.ExpectC('C');
+  CHECK_EQ(reader_.GetC(), '[');
   int count = reader_.GetInt();
   List<Context*> entered_contexts(count);
   if (count > 0) {
