@@ -1344,7 +1344,6 @@ void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
                                               Register scratch,
                                               Label* gc_required,
                                               AllocationFlags flags) {
-
   // Load address of new object into result.
   LoadAllocationTopHelper(result, result_end, scratch, flags);
 
