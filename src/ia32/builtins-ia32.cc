@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -133,7 +133,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
-    __ AllocateObjectInNewSpace(edi, ebx, edi, no_reg, &rt_call, false);
+    __ AllocateObjectInNewSpace(edi,
+                                ebx,
+                                edi,
+                                no_reg,
+                                &rt_call,
+                                NO_ALLOCATION_FLAGS);
     // Allocated the JSObject, now initialize the fields.
     // eax: initial map
     // ebx: JSObject
@@ -197,7 +202,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
                                 ecx,
                                 no_reg,
                                 &undo_allocation,
-                                true);
+                                RESULT_CONTAINS_TOP);
 
     // Initialize the FixedArray.
     // ebx: JSObject
@@ -245,10 +250,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   }
 
   // Allocate the new receiver object using the runtime call.
-  // edi: function (constructor)
   __ bind(&rt_call);
   // Must restore edi (constructor) before calling runtime.
   __ mov(edi, Operand(esp, 0));
+  // edi: function (constructor)
   __ push(edi);
   __ CallRuntime(Runtime::kNewObject, 1);
   __ mov(ebx, Operand(eax));  // store result in ebx

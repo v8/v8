@@ -540,7 +540,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
     ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
-    __ AllocateObjectInNewSpace(rdi, rbx, rdi, no_reg, &rt_call, false);
+    __ AllocateObjectInNewSpace(rdi,
+                                rbx,
+                                rdi,
+                                no_reg,
+                                &rt_call,
+                                NO_ALLOCATION_FLAGS);
     // Allocated the JSObject, now initialize the fields.
     // rax: initial map
     // rbx: JSObject (not HeapObject tagged - the actual address).
@@ -604,7 +609,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
                                 rax,
                                 no_reg,
                                 &undo_allocation,
-                                true);
+                                RESULT_CONTAINS_TOP);
 
     // Initialize the FixedArray.
     // rbx: JSObject

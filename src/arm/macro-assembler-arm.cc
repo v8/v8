@@ -773,7 +773,7 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
                                               Register scratch1,
                                               Register scratch2,
                                               Label* gc_required,
-                                              bool tag_allocated_object) {
+                                              AllocationFlags flags) {
   ASSERT(!result.is(scratch1));
   ASSERT(!scratch1.is(scratch2));
 
@@ -782,7 +782,18 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
   mov(scratch1, Operand(new_space_allocation_top));
-  ldr(result, MemOperand(scratch1));
+  if ((flags & RESULT_CONTAINS_TOP) == 0) {
+    ldr(result, MemOperand(scratch1));
+  } else {
+#ifdef DEBUG
+    // Assert that result actually contains top on entry. scratch2 is used
+    // immediately below so this use of scratch2 does not cause difference with
+    // respect to register content between debug and release mode.
+    ldr(scratch2, MemOperand(scratch1));
+    cmp(result, scratch2);
+    Check(eq, "Unexpected allocation top");
+#endif
+  }
 
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top.
@@ -798,7 +809,7 @@ void MacroAssembler::AllocateObjectInNewSpace(int object_size,
   str(result, MemOperand(scratch1));
 
   // Tag and adjust back to start of new object.
-  if (tag_allocated_object) {
+  if ((flags & TAG_OBJECT) != 0) {
     sub(result, result, Operand((object_size * kPointerSize) -
                                 kHeapObjectTag));
   } else {
@@ -812,7 +823,7 @@ void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
                                               Register scratch1,
                                               Register scratch2,
                                               Label* gc_required,
-                                              bool tag_allocated_object) {
+                                              AllocationFlags flags) {
   ASSERT(!result.is(scratch1));
   ASSERT(!scratch1.is(scratch2));
 
@@ -821,7 +832,18 @@ void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
   mov(scratch1, Operand(new_space_allocation_top));
-  ldr(result, MemOperand(scratch1));
+  if ((flags & RESULT_CONTAINS_TOP) == 0) {
+    ldr(result, MemOperand(scratch1));
+  } else {
+#ifdef DEBUG
+    // Assert that result actually contains top on entry. scratch2 is used
+    // immediately below so this use of scratch2 does not cause difference with
+    // respect to register content between debug and release mode.
+    ldr(scratch2, MemOperand(scratch1));
+    cmp(result, scratch2);
+    Check(eq, "Unexpected allocation top");
+#endif
+  }
 
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top. Object size is in words so a shift is required to
@@ -831,19 +853,18 @@ void MacroAssembler::AllocateObjectInNewSpace(Register object_size,
   mov(scratch2, Operand(new_space_allocation_limit));
   ldr(scratch2, MemOperand(scratch2));
   add(result, result, Operand(object_size, LSL, kPointerSizeLog2));
-
   cmp(result, Operand(scratch2));
   b(hi, gc_required);
 
   // Update allocation top. result temporarily holds the new top,
   str(result, MemOperand(scratch1));
 
-  // Tag and adjust back to start of new object.
-  if (tag_allocated_object) {
-    sub(result, result, Operand(object_size, LSL, kPointerSizeLog2));
+  // Adjust back to start of new object.
+  sub(result, result, Operand(object_size, LSL, kPointerSizeLog2));
+
+  // Tag object if requested.
+  if ((flags & TAG_OBJECT) != 0) {
     add(result, result, Operand(kHeapObjectTag));
-  } else {
-    sub(result, result, Operand(object_size, LSL, kPointerSizeLog2));
   }
 }
 

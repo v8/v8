@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -133,11 +133,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // r2: initial map
     // r7: undefined
     __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
-    // Make sure that the maximum heap object size will never cause us
-    // problem here, because it is always greater than the maximum
-    // instance size that can be represented in a byte.
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
-    __ AllocateObjectInNewSpace(r3, r4, r5, r6, &rt_call, false);
+    __ AllocateObjectInNewSpace(r3, r4, r5, r6, &rt_call, NO_ALLOCATION_FLAGS);
 
     // Allocated the JSObject, now initialize the fields. Map is set to initial
     // map and properties and elements are set to empty fixed array.
@@ -163,7 +159,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // r5: First in-object property of JSObject (not tagged)
     // r7: undefined
     __ add(r6, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
-    ASSERT_EQ(12, JSObject::kHeaderSize);
+    ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
     { Label loop, entry;
       __ b(&entry);
       __ bind(&loop);
@@ -182,7 +178,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // Check if a non-empty properties array is needed. Continue with allocated
     // object if not fall through to runtime call if it is.
     // r1: constructor function
-    // r2: initial map
     // r4: JSObject
     // r5: start of next object (not tagged)
     // r7: undefined
@@ -199,7 +194,66 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     // Done if no extra properties are to be allocated.
     __ b(eq, &allocated);
-    __ Assert(al, "Property allocation count failed.");
+    __ Assert(pl, "Property allocation count failed.");
+
+    // Scale the number of elements by pointer size and add the header for
+    // FixedArrays to the start of the next object calculation from above.
+    // r1: constructor
+    // r3: number of elements in properties array
+    // r4: JSObject
+    // r5: start of next object
+    // r7: undefined
+    __ add(r0, r3, Operand(FixedArray::kHeaderSize / kPointerSize));
+    __ AllocateObjectInNewSpace(r0,
+                                r5,
+                                r6,
+                                r2,
+                                &undo_allocation,
+                                RESULT_CONTAINS_TOP);
+
+    // Initialize the FixedArray.
+    // r1: constructor
+    // r3: number of elements in properties array
+    // r4: JSObject
+    // r5: FixedArray (not tagged)
+    // r7: undefined
+    __ LoadRoot(r6, Heap::kFixedArrayMapRootIndex);
+    __ mov(r2, r5);
+    ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
+    __ str(r6, MemOperand(r2, kPointerSize, PostIndex));
+    ASSERT_EQ(1 * kPointerSize, Array::kLengthOffset);
+    __ str(r3, MemOperand(r2, kPointerSize, PostIndex));
+
+    // Initialize the fields to undefined.
+    // r1: constructor function
+    // r2: First element of FixedArray (not tagged)
+    // r3: number of elements in properties array
+    // r4: JSObject
+    // r5: FixedArray (not tagged)
+    // r7: undefined
+    __ add(r6, r2, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
+    ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
+    { Label loop, entry;
+      __ b(&entry);
+      __ bind(&loop);
+      __ str(r7, MemOperand(r2, kPointerSize, PostIndex));
+      __ bind(&entry);
+      __ cmp(r2, Operand(r6));
+      __ b(lt, &loop);
+    }
+
+    // Store the initialized FixedArray into the properties field of
+    // the JSObject
+    // r1: constructor function
+    // r4: JSObject
+    // r5: FixedArray (not tagged)
+    __ add(r5, r5, Operand(kHeapObjectTag));  // Add the heap tag.
+    __ str(r5, FieldMemOperand(r4, JSObject::kPropertiesOffset));
+
+    // Continue with JSObject being successfully allocated
+    // r1: constructor function
+    // r4: JSObject
+    __ jmp(&allocated);
 
     // Undo the setting of the new top so that the heap is verifiable. For
     // example, the map's unused properties potentially do not match the
@@ -210,6 +264,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   }
 
   // Allocate the new receiver object using the runtime call.
+  // r1: constructor function
   __ bind(&rt_call);
   __ push(r1);  // argument for Runtime_NewObject
   __ CallRuntime(Runtime::kNewObject, 1);

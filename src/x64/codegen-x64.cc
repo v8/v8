@@ -7347,10 +7347,9 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
                               scratch,
                               no_reg,
                               need_gc,
-                              false);
+                              TAG_OBJECT);
 
   // Set the map and tag the result.
-  __ addq(result, Immediate(kHeapObjectTag));
   __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
   __ movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }

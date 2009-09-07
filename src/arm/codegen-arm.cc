@@ -4955,7 +4955,7 @@ static void AllocateHeapNumber(
                               scratch1,
                               scratch2,
                               need_gc,
-                              true);
+                              TAG_OBJECT);
 
   // Get heap number map and store it in the allocated object.
   __ LoadRoot(scratch1, Heap::kHeapNumberMapRootIndex);

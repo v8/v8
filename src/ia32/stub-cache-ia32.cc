@@ -1786,7 +1786,12 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // Make sure that the maximum heap object size will never cause us
   // problems here.
   ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
-  __ AllocateObjectInNewSpace(ecx, edx, ecx, no_reg, &generic_stub_call, false);
+  __ AllocateObjectInNewSpace(ecx,
+                              edx,
+                              ecx,
+                              no_reg,
+                              &generic_stub_call,
+                              NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
   // ebx: initial map
