@@ -536,10 +536,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
     __ shl(rdi, Immediate(kPointerSizeLog2));
     // rdi: size of new object
-    // Make sure that the maximum heap object size will never cause us
-    // problem here, because it is always greater than the maximum
-    // instance size that can be represented in a byte.
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >= (1 << kBitsPerByte));
     __ AllocateObjectInNewSpace(rdi,
                                 rbx,
                                 rdi,
@@ -600,8 +596,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rbx: JSObject
     // rdi: start of next object (will be start of FixedArray)
     // rdx: number of elements in properties array
-    ASSERT(Heap::MaxObjectSizeInPagedSpace() >
-           (FixedArray::kHeaderSize + 255*kPointerSize));
     __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
                                 times_pointer_size,
                                 rdx,

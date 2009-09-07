@@ -1783,9 +1783,6 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // ebx: initial map
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ shl(ecx, kPointerSizeLog2);
-  // Make sure that the maximum heap object size will never cause us
-  // problems here.
-  ASSERT(Heap::MaxObjectSizeInPagedSpace() >= JSObject::kMaxInstanceSize);
   __ AllocateObjectInNewSpace(ecx,
                               edx,
                               ecx,

@@ -631,6 +631,11 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
   if ((flags & RESULT_CONTAINS_TOP) != 0) {
     // No use of scratch if allocation top is provided.
     ASSERT(scratch.is(no_reg));
+#ifdef DEBUG
+    // Assert that result actually contains top on entry.
+    cmp(result, Operand::StaticVariable(new_space_allocation_top));
+    Check(equal, "Unexpected allocation top");
+#endif
     return;
   }
 
