@@ -4562,8 +4562,8 @@ static Object* Runtime_LookupContext(Arguments args) {
 // variants where a 64-bit value is returned in two 32-bit registers
 // (edx:eax on ia32, r1:r0 on ARM).
 // In AMD-64 calling convention a struct of two pointers is returned in rdx:rax.
-// In Win64 calling convention, a struct of two pointers is returned in space passed
-// as a hidden first parameter.
+// In Win64 calling convention, a struct of two pointers is returned in memory,
+// allocated by the caller, and passed as a pointer in a hidden first parameter.
 #ifdef V8_HOST_ARCH_64_BIT
 struct ObjectPair {
   Object* x;
