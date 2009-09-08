@@ -6341,7 +6341,12 @@ class ScopeIterator {
     ScopeTypeGlobal = 0,
     ScopeTypeLocal,
     ScopeTypeWith,
-    ScopeTypeClosure
+    ScopeTypeClosure,
+    // Every catch block contains an implicit with block (its parameter is
+    // a JSContextExtensionObject) that extends current scope with a variable
+    // holding exception object. Such with blocks are treated as scopes of their
+    // own type.
+    ScopeTypeCatch
   };
 
   explicit ScopeIterator(JavaScriptFrame* frame)
@@ -6417,7 +6422,14 @@ class ScopeIterator {
       return ScopeTypeClosure;
     }
     ASSERT(context_->has_extension());
-    ASSERT(!context_->extension()->IsJSContextExtensionObject());
+    // Current scope is either an explicit with statement or a with statement
+    // implicitely generated for a catch block.
+    // If the extension object here is a JSContextExtensionObject then
+    // current with statement is one frome a catch block otherwise it's a
+    // regular with statement.
+    if (context_->extension()->IsJSContextExtensionObject()) {
+      return ScopeTypeCatch;
+    }
     return ScopeTypeWith;
   }
 
@@ -6432,6 +6444,7 @@ class ScopeIterator {
         return MaterializeLocalScope(frame_);
         break;
       case ScopeIterator::ScopeTypeWith:
+      case ScopeIterator::ScopeTypeCatch:
         // Return the with object.
         return Handle<JSObject>(CurrentContext()->extension());
         break;
@@ -6482,6 +6495,14 @@ class ScopeIterator {
 
       case ScopeIterator::ScopeTypeWith: {
         PrintF("With:\n");
+        Handle<JSObject> extension =
+            Handle<JSObject>(CurrentContext()->extension());
+        extension->Print();
+        break;
+      }
+
+      case ScopeIterator::ScopeTypeCatch: {
+        PrintF("Catch:\n");
         Handle<JSObject> extension =
             Handle<JSObject>(CurrentContext()->extension());
         extension->Print();
