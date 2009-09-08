@@ -87,15 +87,15 @@ class MacroAssembler: public Assembler {
   void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
   // Enter specific kind of exit frame; either EXIT or
-  // EXIT_DEBUG. Expects the number of arguments in register eax and
-  // sets up the number of arguments in register edi and the pointer
-  // to the first argument in register esi.
-  void EnterExitFrame(StackFrame::Type type);
+  // EXIT_DEBUG. Expects the number of arguments in register rax and
+  // sets up the number of arguments in register rdi and the pointer
+  // to the first argument in register rsi.
+  void EnterExitFrame(StackFrame::Type type, int result_size = 1);
 
-  // Leave the current exit frame. Expects the return value in
-  // register eax:edx (untouched) and the pointer to the first
-  // argument in register esi.
-  void LeaveExitFrame(StackFrame::Type type);
+  // Leave the current exit frame. Expects/provides the return value in
+  // register rax:rdx (untouched) and the pointer to the first
+  // argument in register rsi.
+  void LeaveExitFrame(StackFrame::Type type, int result_size = 1);
 
 
   // ---------------------------------------------------------------------------
@@ -298,10 +298,12 @@ class MacroAssembler: public Assembler {
   // Tail call of a runtime routine (jump).
   // Like JumpToBuiltin, but also takes care of passing the number
   // of arguments.
-  void TailCallRuntime(const ExternalReference& ext, int num_arguments);
+  void TailCallRuntime(const ExternalReference& ext,
+                       int num_arguments,
+                       int result_size);
 
   // Jump to the builtin routine.
-  void JumpToBuiltin(const ExternalReference& ext);
+  void JumpToBuiltin(const ExternalReference& ext, int result_size);
 
 
   // ---------------------------------------------------------------------------

@@ -478,7 +478,7 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference load_callback_property =
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallRuntime(load_callback_property, 5);
+  __ TailCallRuntime(load_callback_property, 5, 1);
 }
 
 
@@ -514,7 +514,7 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference load_ic_property =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad));
-  __ TailCallRuntime(load_ic_property, 5);
+  __ TailCallRuntime(load_ic_property, 5, 1);
 }
 
 
@@ -884,7 +884,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
       ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
-  __ TailCallRuntime(store_callback_property, 4);
+  __ TailCallRuntime(store_callback_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -936,7 +936,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ TailCallRuntime(store_ic_property, 3);
+  __ TailCallRuntime(store_ic_property, 3, 1);
 
   // Handle store cache miss.
   __ bind(&miss);

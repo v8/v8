@@ -1319,7 +1319,7 @@ bool Heap::CreateApiObjects() {
 
 
 void Heap::CreateCEntryStub() {
-  CEntryStub stub;
+  CEntryStub stub(1);
   set_c_entry_code(*stub.GetCode());
 }
 

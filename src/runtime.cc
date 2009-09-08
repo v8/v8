@@ -4556,22 +4556,25 @@ static Object* Runtime_LookupContext(Arguments args) {
 }
 
 
-// A mechanism to return pairs of Object*'s. This is somewhat
-// compiler-dependent as it assumes that a 64-bit value (a long long)
-// is returned via two registers (edx:eax on ia32). Both the ia32 and
-// arm platform support this; it is mostly an issue of "coaxing" the
-// compiler to do the right thing.
-//
-// TODO(1236026): This is a non-portable hack that should be removed.
+// A mechanism to return a pair of Object pointers in registers (if possible).
+// How this is achieved is calling convention-dependent.
+// All currently supported x86 compiles uses calling conventions that are cdecl
+// variants where a 64-bit value is returned in two 32-bit registers
+// (edx:eax on ia32, r1:r0 on ARM).
+// In AMD-64 calling convention a struct of two pointers is returned in rdx:rax.
+// In Win64 calling convention, a struct of two pointers is returned in space passed
+// as a hidden first parameter.
 #ifdef V8_HOST_ARCH_64_BIT
-// Tested with GCC, not with MSVC.
 struct ObjectPair {
   Object* x;
   Object* y;
 };
+
 static inline ObjectPair MakePair(Object* x, Object* y) {
   ObjectPair result = {x, y};
-  return result;  // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
+  // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
+  // In Win64 they are assigned to a hidden first argument.
+  return result;
 }
 #else
 typedef uint64_t ObjectPair;
@@ -4580,8 +4583,6 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
       (reinterpret_cast<ObjectPair>(y) << 32);
 }
 #endif
-
-
 
 
 static inline Object* Unhole(Object* x, PropertyAttributes attributes) {
@@ -7619,7 +7620,7 @@ static Object* Runtime_ListNatives(Arguments args) {
   HandleScope scope;
   Handle<JSArray> result = Factory::NewJSArray(0);
   int index = 0;
-#define ADD_ENTRY(Name, argc)                                                \
+#define ADD_ENTRY(Name, argc, ressize)                                       \
   {                                                                          \
     HandleScope inner;                                                       \
     Handle<String> name =                                                    \
@@ -7655,13 +7656,13 @@ static Object* Runtime_IS_VAR(Arguments args) {
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 
-#define F(name, nargs)                                                 \
+#define F(name, nargs, ressize)                                           \
   { #name, "RuntimeStub_" #name, FUNCTION_ADDR(Runtime_##name), nargs, \
-    static_cast<int>(Runtime::k##name) },
+    static_cast<int>(Runtime::k##name), ressize },
 
 static Runtime::Function Runtime_functions[] = {
   RUNTIME_FUNCTION_LIST(F)
-  { NULL, NULL, NULL, 0, -1 }
+  { NULL, NULL, NULL, 0, -1, 0 }
 };
 
 #undef F

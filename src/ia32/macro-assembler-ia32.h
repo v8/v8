@@ -256,7 +256,9 @@ class MacroAssembler: public Assembler {
   // Tail call of a runtime routine (jump).
   // Like JumpToBuiltin, but also takes care of passing the number
   // of arguments.
-  void TailCallRuntime(const ExternalReference& ext, int num_arguments);
+  void TailCallRuntime(const ExternalReference& ext,
+                       int num_arguments,
+                       int result_size);
 
   // Jump to the builtin routine.
   void JumpToBuiltin(const ExternalReference& ext);

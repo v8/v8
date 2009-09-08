@@ -612,7 +612,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // MSVC passes arguments in rcx, rdx, r8, r9, with backing stack slots.
   // Store register parameters in pre-allocated stack slots,
   __ movq(Operand(rbp, kInputString), rcx);
-  __ movzxlq(Operand(rbp, kStartIndex), rdx);  // Passed as int in eax.
+  __ movq(Operand(rbp, kStartIndex), rdx);  // Passed as int32 in edx.
   __ movq(Operand(rbp, kInputStart), r8);
   __ movq(Operand(rbp, kInputEnd), r9);
   // Callee-save on Win64.

@@ -541,7 +541,7 @@ void ExternalReferenceTable::PopulateTable() {
 #undef DEF_ENTRY_A
 
   // Runtime functions
-#define RUNTIME_ENTRY(name, nargs) \
+#define RUNTIME_ENTRY(name, nargs, ressize) \
   { RUNTIME_FUNCTION, \
     Runtime::k##name, \
     "Runtime::" #name },

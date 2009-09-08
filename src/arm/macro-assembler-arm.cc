@@ -999,7 +999,8 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 
 
 void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments) {
+                                     int num_arguments,
+                                     int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
@@ -1015,7 +1016,7 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& builtin) {
   ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
 #endif
   mov(r1, Operand(builtin));
-  CEntryStub stub;
+  CEntryStub stub(1);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

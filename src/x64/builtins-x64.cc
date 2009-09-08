@@ -44,7 +44,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   // rax, but JumpToBuiltin expects rax to contain the number of
   // arguments including the receiver.
   __ incq(rax);
-  __ JumpToBuiltin(ExternalReference(id));
+  __ JumpToBuiltin(ExternalReference(id), 1);
 }
 
 

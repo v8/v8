@@ -896,7 +896,8 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 
 
 void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments) {
+                                     int num_arguments,
+                                     int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
@@ -909,7 +910,7 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
 void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
-  CEntryStub ces;
+  CEntryStub ces(1);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
