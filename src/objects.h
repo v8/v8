@@ -2634,8 +2634,8 @@ class Code: public HeapObject {
   // the layout of the code object into account.
   int ExecutableSize() {
     // Check that the assumptions about the layout of the code object holds.
-    ASSERT_EQ(instruction_start() - address(),
-              static_cast<intptr_t>(Code::kHeaderSize));
+    ASSERT_EQ(static_cast<int>(instruction_start() - address()),
+              Code::kHeaderSize);
     return instruction_size() + Code::kHeaderSize;
   }
 
