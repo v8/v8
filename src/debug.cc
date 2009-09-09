@@ -1199,7 +1199,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   if (it.IsExit() || step_action == StepOut) {
     if (step_action == StepOut) {
       // Skip step_count frames starting with the current one.
-      while(step_count-- > 0 && !frames_it.done()) {
+      while (step_count-- > 0 && !frames_it.done()) {
         frames_it.Advance();
       }
     } else {
@@ -1207,8 +1207,8 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       frames_it.Advance();
     }
     // Skip builtin functions on the stack.
-    while(!frames_it.done() &&
-          JSFunction::cast(frames_it.frame()->function())->IsBuiltin()) {
+    while (!frames_it.done() &&
+           JSFunction::cast(frames_it.frame()->function())->IsBuiltin()) {
       frames_it.Advance();
     }
     // Step out: If there is a JavaScript caller frame, we need to
