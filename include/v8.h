@@ -1024,8 +1024,8 @@ class V8EXPORT String : public Primitive {
    public:
     explicit Value(Handle<v8::Value> obj);
     ~Value();
-    uint16_t* operator*() const { return str_; }
-    const uint16_t* operator*() { return str_; }
+    uint16_t* operator*() { return str_; }
+    const uint16_t* operator*() const { return str_; }
     int length() const { return length_; }
    private:
     uint16_t* str_;
