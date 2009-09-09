@@ -2795,7 +2795,9 @@ STRUCT_LIST(MAKE_CASE)
 
 
 bool Heap::IdleNotification() {
-  static const int kIdlesBeforeCollection = 7;
+  static const int kIdlesBeforeScavenge = 4;
+  static const int kIdlesBeforeMarkSweep = 7;
+  static const int kIdlesBeforeMarkCompact = 8;
   static int number_idle_notifications = 0;
   static int last_gc_count = gc_count_;
 
@@ -2808,19 +2810,22 @@ bool Heap::IdleNotification() {
     last_gc_count = gc_count_;
   }
 
-  if (number_idle_notifications >= kIdlesBeforeCollection) {
-    // The first time through we collect without forcing compaction.
-    // The second time through we force compaction and quit.
-    bool force_compaction =
-        number_idle_notifications > kIdlesBeforeCollection;
-    CollectAllGarbage(force_compaction);
+  if (number_idle_notifications == kIdlesBeforeScavenge) {
+    CollectGarbage(0, NEW_SPACE);
+    new_space_.Shrink();
     last_gc_count = gc_count_;
-    if (force_compaction) {
-      // Shrink new space.
-      new_space_.Shrink();
-      number_idle_notifications = 0;
-      finished = true;
-    }
+
+  } else if (number_idle_notifications == kIdlesBeforeMarkSweep) {
+    CollectAllGarbage(false);
+    new_space_.Shrink();
+    last_gc_count = gc_count_;
+
+  } else if (number_idle_notifications == kIdlesBeforeMarkCompact) {
+    CollectAllGarbage(true);
+    new_space_.Shrink();
+    last_gc_count = gc_count_;
+    number_idle_notifications = 0;
+    finished = true;
   }
 
   // Uncommit unused memory in new space.
