@@ -563,7 +563,6 @@ bool Debug::break_on_exception_ = false;
 bool Debug::break_on_uncaught_exception_ = true;
 
 Handle<Context> Debug::debug_context_ = Handle<Context>();
-Code* Debug::debug_break_return_entry_ = NULL;
 Code* Debug::debug_break_return_ = NULL;
 
 
@@ -644,11 +643,6 @@ void ScriptCache::HandleWeakScript(v8::Persistent<v8::Value> obj, void* data) {
 void Debug::Setup(bool create_heap_objects) {
   ThreadInit();
   if (create_heap_objects) {
-    // Get code to handle entry to debug break on return.
-    debug_break_return_entry_ =
-        Builtins::builtin(Builtins::Return_DebugBreakEntry);
-    ASSERT(debug_break_return_entry_->IsCode());
-
     // Get code to handle debug break on return.
     debug_break_return_ =
         Builtins::builtin(Builtins::Return_DebugBreak);
@@ -810,7 +804,6 @@ void Debug::PreemptionWhileInDebugger() {
 
 
 void Debug::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_entry_)));
   v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_)));
 }
 
@@ -1614,26 +1607,25 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   Address addr = frame->pc() - Assembler::kPatchReturnSequenceLength;
 
   // Check if the location is at JS exit.
-  bool at_js_exit = false;
+  bool at_js_return = false;
+  bool break_at_js_return_active = false;
   RelocIterator it(debug_info->code());
   while (!it.done()) {
     if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
-      at_js_exit = (it.rinfo()->pc() ==
-                        addr - Assembler::kPatchReturnSequenceAddressOffset);
+      at_js_return = (it.rinfo()->pc() ==
+          addr - Assembler::kPatchReturnSequenceAddressOffset);
+      break_at_js_return_active = it.rinfo()->IsCallInstruction();
     }
     it.next();
   }
 
   // Handle the jump to continue execution after break point depending on the
   // break location.
-  if (at_js_exit) {
-    // First check if the call in the code is still the debug break return
-    // entry code. If it is the break point is still active. If not the break
-    // point was removed during break point processing.
-    if (Assembler::target_address_at(addr) ==
-        debug_break_return_entry()->entry()) {
-      // Break point still active. Jump to the corresponding place in the
-      // original code.
+  if (at_js_return) {
+    // If the break point as return is still active jump to the corresponding
+    // place in the original code. If not the break point was removed during
+    // break point processing.
+    if (break_at_js_return_active) {
       addr +=  original_code->instruction_start() - code->instruction_start();
     }
 

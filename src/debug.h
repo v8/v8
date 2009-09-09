@@ -335,10 +335,8 @@ class Debug {
     return &registers_[r];
   }
 
-  // Address of the debug break return entry code.
-  static Code* debug_break_return_entry() { return debug_break_return_entry_; }
-
-  // Support for getting the address of the debug break on return code.
+  // Access to the debug break on return code.
+  static Code* debug_break_return() { return debug_break_return_; }
   static Code** debug_break_return_address() {
     return &debug_break_return_;
   }
@@ -385,7 +383,6 @@ class Debug {
   static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
   static void GenerateConstructCallDebugBreak(MacroAssembler* masm);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
-  static void GenerateReturnDebugBreakEntry(MacroAssembler* masm);
   static void GenerateStubNoRegistersDebugBreak(MacroAssembler* masm);
 
   // Called from stub-cache.cc.
@@ -468,9 +465,6 @@ class Debug {
   static JSCallerSavedBuffer registers_;
   static ThreadLocal thread_local_;
   static void ThreadInit();
-
-  // Code object for debug break return entry code.
-  static Code* debug_break_return_entry_;
 
   // Code to call for handling debug break on return.
   static Code* debug_break_return_;
