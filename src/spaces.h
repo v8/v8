@@ -445,13 +445,9 @@ class MemoryAllocator : public AllStatic {
 
   // Due to encoding limitation, we can only have 8K chunks.
   static const int kMaxNofChunks = 1 << Page::kPageSizeBits;
-  // If a chunk has at least 32 pages, the maximum heap size is about
-  // 8 * 1024 * 32 * 8K = 2G bytes.
-#if defined(ANDROID)
+  // If a chunk has at least 16 pages, the maximum heap size is about
+  // 8k * 8K * 16 = 1G bytes.
   static const int kPagesPerChunk = 16;
-#else
-  static const int kPagesPerChunk = 64;
-#endif
   static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
 
  private:
