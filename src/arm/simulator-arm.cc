@@ -70,6 +70,7 @@ class Debugger {
 
   Simulator* sim_;
 
+  int32_t GetRegisterValue(int regnum);
   bool GetValue(const char* desc, int32_t* value);
 
   // Set or delete a breakpoint. Returns true if successful.
@@ -132,43 +133,19 @@ void Debugger::Stop(Instr* instr) {
 #endif
 
 
-// The order of these are important, see the handling of the 'print all'
-// debugger command.
-static const char* reg_names[] = {  "r0",  "r1",  "r2",  "r3",
-                                    "r4",  "r5",  "r6",  "r7",
-                                    "r8",  "r9", "r10", "r11",
-                                   "r12", "r13", "r14", "r15",
-                                    "pc",  "lr",  "sp",  "ip",
-                                    "fp",  "sl", ""};
-
-static int   reg_nums[]  = {           0,     1,     2,     3,
-                                       4,     5,     6,     7,
-                                       8,     9,    10,    11,
-                                      12,    13,    14,    15,
-                                      15,    14,    13,    12,
-                                      11,    10};
-
-
-static int RegNameToRegNum(const char* name) {
-  int reg = 0;
-  while (*reg_names[reg] != 0) {
-    if (strcmp(reg_names[reg], name) == 0) {
-      return reg_nums[reg];
-    }
-    reg++;
+int32_t Debugger::GetRegisterValue(int regnum) {
+  if (regnum == kPCRegister) {
+    return sim_->get_pc();
+  } else {
+    return sim_->get_register(regnum);
   }
-  return -1;
 }
 
 
 bool Debugger::GetValue(const char* desc, int32_t* value) {
-  int regnum = RegNameToRegNum(desc);
-  if (regnum >= 0) {
-    if (regnum == 15) {
-      *value = sim_->get_pc();
-    } else {
-      *value = sim_->get_register(regnum);
-    }
+  int regnum = Registers::Number(desc);
+  if (regnum != kNoRegister) {
+    *value = GetRegisterValue(regnum);
     return true;
   } else {
     return SScanF(desc, "%i", value) == 1;
@@ -273,17 +250,9 @@ void Debugger::Debug() {
         if (args == 2) {
           int32_t value;
           if (strcmp(arg1, "all") == 0) {
-            for (int i = 0; i <= 15; i++) {
-              if (GetValue(reg_names[i], &value)) {
-                if (i <= 10) {
-                  PrintF("%3s: 0x%08x %d\n", reg_names[i], value, value);
-                } else {
-                  PrintF("%3s: 0x%08x %d\n",
-                         reg_names[15 + 16 - i],
-                         value,
-                         value);
-                }
-              }
+            for (int i = 0; i < kNumRegisters; i++) {
+              value = GetRegisterValue(i);
+              PrintF("%3s: 0x%08x %10d\n", Registers::Name(i), value, value);
             }
           } else {
             if (GetValue(arg1, &value)) {
@@ -301,7 +270,6 @@ void Debugger::Debug() {
           int32_t value;
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
-            USE(obj);
             PrintF("%s: \n", arg1);
 #ifdef DEBUG
             obj->PrintLn();
