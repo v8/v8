@@ -56,6 +56,7 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
 #if defined(USE_THUMB_INTERWORK)
 #if !defined(__ARM_ARCH_5T__) && \
   !defined(__ARM_ARCH_5TE__) &&  \
+  !defined(__ARM_ARCH_6__) &&  \
   !defined(__ARM_ARCH_7A__) &&   \
   !defined(__ARM_ARCH_7__)
 // add tests for other versions above v5t as required

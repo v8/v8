@@ -70,7 +70,7 @@ const int kPageAndOffsetMask = (1 << kPageAndOffsetBits) - 1;
 
 // These values are special allocation space tags used for
 // serialization.
-// Mar the pages executable on platforms that support it.
+// Mark the pages executable on platforms that support it.
 const int kLargeCode = LAST_SPACE + 1;
 // Allocate extra remembered-set bits.
 const int kLargeFixedArray = LAST_SPACE + 2;
