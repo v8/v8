@@ -3554,7 +3554,7 @@ namespace {
 class JSConstructorProfile BASE_EMBEDDED {
  public:
   JSConstructorProfile() : zscope_(DELETE_ON_EXIT) {}
-  void CollectStats(JSObject* obj);
+  void CollectStats(HeapObject* obj);
   void PrintStats();
   // Used by ZoneSplayTree::ForEach.
   void Call(String* name, const NumberAndSizeInfo& number_and_size);
@@ -3599,33 +3599,36 @@ int JSConstructorProfile::CalculateJSObjectNetworkSize(JSObject* obj) {
 
 void JSConstructorProfile::Call(String* name,
                                 const NumberAndSizeInfo& number_and_size) {
-  SmartPointer<char> s_name;
-  if (name != NULL) {
-    s_name = name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  }
+  ASSERT(name != NULL);
+  SmartPointer<char> s_name(
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
   LOG(HeapSampleJSConstructorEvent(*s_name,
                                    number_and_size.number(),
                                    number_and_size.bytes()));
 }
 
 
-void JSConstructorProfile::CollectStats(JSObject* obj) {
-  String* constructor_func = NULL;
-  if (obj->map()->constructor()->IsJSFunction()) {
-    JSFunction* constructor = JSFunction::cast(obj->map()->constructor());
-    SharedFunctionInfo* sfi = constructor->shared();
-    String* name = String::cast(sfi->name());
-    constructor_func = name->length() > 0 ? name : sfi->inferred_name();
-  } else if (obj->IsJSFunction()) {
-    constructor_func = Heap::function_class_symbol();
+void JSConstructorProfile::CollectStats(HeapObject* obj) {
+  String* constructor = NULL;
+  int size;
+  if (obj->IsString()) {
+    constructor = Heap::String_symbol();
+    size = obj->Size();
+  } else if (obj->IsJSObject()) {
+    JSObject* js_obj = JSObject::cast(obj);
+    constructor = js_obj->constructor_name();
+    size = CalculateJSObjectNetworkSize(js_obj);
+  } else {
+    return;
   }
+
   JSObjectsInfoTree::Locator loc;
-  if (!js_objects_info_tree_.Find(constructor_func, &loc)) {
-    js_objects_info_tree_.Insert(constructor_func, &loc);
+  if (!js_objects_info_tree_.Find(constructor, &loc)) {
+    js_objects_info_tree_.Insert(constructor, &loc);
   }
   NumberAndSizeInfo number_and_size = loc.value();
   number_and_size.increment_number(1);
-  number_and_size.increment_bytes(CalculateJSObjectNetworkSize(obj));
+  number_and_size.increment_bytes(size);
   loc.set_value(number_and_size);
 }
 
@@ -3667,9 +3670,7 @@ void HeapProfiler::WriteSample() {
   while (iterator.has_next()) {
     HeapObject* obj = iterator.next();
     CollectStats(obj, info);
-    if (obj->IsJSObject()) {
-      js_cons_profile.CollectStats(JSObject::cast(obj));
-    }
+    js_cons_profile.CollectStats(obj);
   }
 
   // Lump all the string types together.
