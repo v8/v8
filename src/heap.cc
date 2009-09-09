@@ -77,11 +77,11 @@ int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 #elif defined(V8_TARGET_ARCH_X64)
-int Heap::semispace_size_  = 8*MB;
+int Heap::semispace_size_  = 16*MB;
 int Heap::old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
 #else
-int Heap::semispace_size_  = 4*MB;
+int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 #endif
