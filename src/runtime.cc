@@ -6821,8 +6821,20 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
               target_start_position = start_position;
               target = shared;
             } else {
-              if (target_start_position < start_position &&
-                  shared->end_position() < target->end_position()) {
+              if (target_start_position == start_position &&
+                  shared->end_position() == target->end_position()) {
+                  // If a top-level function contain only one function
+                  // declartion the source for the top-level and the function is
+                  // the same. In that case prefer the non top-level function.
+                if (!shared->is_toplevel()) {
+                  target_start_position = start_position;
+                  target = shared;
+                }
+              } else if (target_start_position <= start_position &&
+                         shared->end_position() <= target->end_position()) {
+                // This containment check includes equality as a function inside
+                // a top-level function can share either start or end position
+                // with the top-level function.
                 target_start_position = start_position;
                 target = shared;
               }

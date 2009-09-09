@@ -3105,9 +3105,7 @@ class SharedFunctionInfo: public HeapObject {
   inline bool is_expression();
   inline void set_is_expression(bool value);
 
-  // Is this function a top-level function. Used for accessing the
-  // caller of functions. Top-level functions (scripts, evals) are
-  // returned as null; see JSFunction::GetCallerAccessor(...).
+  // Is this function a top-level function (scripts, evals).
   inline bool is_toplevel();
   inline void set_is_toplevel(bool value);
 
