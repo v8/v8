@@ -6934,7 +6934,8 @@ static Object* Runtime_ChangeBreakOnException(Arguments args) {
 // Prepare for stepping
 // args[0]: break id for checking execution state
 // args[1]: step action from the enumeration StepAction
-// args[2]: number of times to perform the step
+// args[2]: number of times to perform the step, for step out it is the number
+//          of frames to step down.
 static Object* Runtime_PrepareStep(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
@@ -6960,6 +6961,9 @@ static Object* Runtime_PrepareStep(Arguments args) {
   if (step_count < 1) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }
+
+  // Clear all current stepping setup.
+  Debug::ClearStepping();
 
   // Prepare step.
   Debug::PrepareStep(static_cast<StepAction>(step_action), step_count);

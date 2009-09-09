@@ -282,6 +282,9 @@ class Debug {
   static Address step_in_fp() { return thread_local_.step_into_fp_; }
   static Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
 
+  static bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
+  static Address step_out_fp() { return thread_local_.step_out_fp_; }
+
   static EnterDebugger* debugger_entry() {
     return thread_local_.debugger_entry_;
   }
@@ -393,6 +396,8 @@ class Debug {
   static void ClearOneShot();
   static void ActivateStepIn(StackFrame* frame);
   static void ClearStepIn();
+  static void ActivateStepOut(StackFrame* frame);
+  static void ClearStepOut();
   static void ClearStepNext();
   // Returns whether the compile succeeded.
   static bool EnsureCompiled(Handle<SharedFunctionInfo> shared);
@@ -444,6 +449,10 @@ class Debug {
 
     // Frame pointer for frame from which step in was performed.
     Address step_into_fp_;
+
+    // Frame pointer for the frame where debugger should be called when current
+    // step out action is completed.
+    Address step_out_fp_;
 
     // Storage location for jump when exiting debug break calls.
     Address after_break_target_;

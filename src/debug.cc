@@ -518,6 +518,7 @@ void Debug::ThreadInit() {
   thread_local_.step_count_ = 0;
   thread_local_.last_fp_ = 0;
   thread_local_.step_into_fp_ = 0;
+  thread_local_.step_out_fp_ = 0;
   thread_local_.after_break_target_ = 0;
   thread_local_.debugger_entry_ = NULL;
   thread_local_.pending_interrupts_ = 0;
@@ -864,11 +865,18 @@ Object* Debug::Break(Arguments args) {
     break_points_hit = CheckBreakPoints(break_point_objects);
   }
 
-  // Notify debugger if a real break point is triggered or if performing single
-  // stepping with no more steps to perform. Otherwise do another step.
-  if (!break_points_hit->IsUndefined() ||
-    (thread_local_.last_step_action_ != StepNone &&
-     thread_local_.step_count_ == 0)) {
+  // If step out is active skip everything until the frame where we need to step
+  // out to is reached, unless real breakpoint is hit.
+  if (Debug::StepOutActive() && frame->fp() != Debug::step_out_fp() &&
+      break_points_hit->IsUndefined() ) {
+      // Step count should always be 0 for StepOut.
+      ASSERT(thread_local_.step_count_ == 0);
+  } else if (!break_points_hit->IsUndefined() ||
+             (thread_local_.last_step_action_ != StepNone &&
+              thread_local_.step_count_ == 0)) {
+    // Notify debugger if a real break point is triggered or if performing
+    // single stepping with no more steps to perform. Otherwise do another step.
+
     // Clear all current stepping setup.
     ClearStepping();
 
@@ -1104,7 +1112,13 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
 
   // Remember this step action and count.
   thread_local_.last_step_action_ = step_action;
-  thread_local_.step_count_ = step_count;
+  if (step_action == StepOut) {
+    // For step out target frame will be found on the stack so there is no need
+    // to set step counter for it. It's expected to always be 0 for StepOut.
+    thread_local_.step_count_ = 0;
+  } else {
+    thread_local_.step_count_ = step_count;
+  }
 
   // Get the frame where the execution has stopped and skip the debug frame if
   // any. The debug frame will only be present if execution was stopped due to
@@ -1183,13 +1197,28 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
 
   // If this is the last break code target step out is the only possibility.
   if (it.IsExit() || step_action == StepOut) {
+    if (step_action == StepOut) {
+      // Skip step_count frames starting with the current one.
+      while(step_count-- > 0 && !frames_it.done()) {
+        frames_it.Advance();
+      }
+    } else {
+      ASSERT(it.IsExit());
+      frames_it.Advance();
+    }
+    // Skip builtin functions on the stack.
+    while(!frames_it.done() &&
+          JSFunction::cast(frames_it.frame()->function())->IsBuiltin()) {
+      frames_it.Advance();
+    }
     // Step out: If there is a JavaScript caller frame, we need to
     // flood it with breakpoints.
-    frames_it.Advance();
     if (!frames_it.done()) {
       // Fill the function to return to with one-shot break points.
       JSFunction* function = JSFunction::cast(frames_it.frame()->function());
       FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
+      // Set target frame pointer.
+      ActivateStepOut(frames_it.frame());
     }
   } else if (!(is_inline_cache_stub || RelocInfo::IsConstructCall(it.rmode()) ||
                !call_function_stub.is_null())
@@ -1445,6 +1474,7 @@ void Debug::ClearStepping() {
   // Clear the various stepping setup.
   ClearOneShot();
   ClearStepIn();
+  ClearStepOut();
   ClearStepNext();
 
   // Clear multiple step counter.
@@ -1472,12 +1502,24 @@ void Debug::ClearOneShot() {
 
 
 void Debug::ActivateStepIn(StackFrame* frame) {
+  ASSERT(!StepOutActive());
   thread_local_.step_into_fp_ = frame->fp();
 }
 
 
 void Debug::ClearStepIn() {
   thread_local_.step_into_fp_ = 0;
+}
+
+
+void Debug::ActivateStepOut(StackFrame* frame) {
+  ASSERT(!StepInActive());
+  thread_local_.step_out_fp_ = frame->fp();
+}
+
+
+void Debug::ClearStepOut() {
+  thread_local_.step_out_fp_ = 0;
 }
 
 
