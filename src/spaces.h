@@ -446,7 +446,7 @@ class MemoryAllocator : public AllStatic {
   // Due to encoding limitation, we can only have 8K chunks.
   static const int kMaxNofChunks = 1 << Page::kPageSizeBits;
   // If a chunk has at least 16 pages, the maximum heap size is about
-  // 8k * 8K * 16 = 1G bytes.
+  // 8K * 8K * 16 = 1G bytes.
   static const int kPagesPerChunk = 16;
   static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
 
