@@ -852,7 +852,7 @@ class Assembler : public Malloced {
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) : assembler_(assembler) {
-    if (assembler_->buffer_overflow()) assembler_->GrowBuffer();
+    if (assembler_->overflow()) assembler_->GrowBuffer();
 #ifdef DEBUG
     space_before_ = assembler_->available_space();
 #endif
