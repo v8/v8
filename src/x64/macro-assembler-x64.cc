@@ -2087,4 +2087,25 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+CodePatcher::CodePatcher(byte* address, int size)
+    : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
+  // Create a new macro assembler pointing to the address of the code to patch.
+  // The size is adjusted with kGap on order for the assembler to generate size
+  // bytes of instructions without failing with buffer size constraints.
+  ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+
+
+CodePatcher::~CodePatcher() {
+  // Indicate that code has changed.
+  CPU::FlushICache(address_, size_);
+
+  // Check that the code was patched as expected.
+  ASSERT(masm_.pc_ == address_ + size_);
+  ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
+}
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+
 } }  // namespace v8::internal

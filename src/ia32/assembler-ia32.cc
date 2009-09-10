@@ -157,6 +157,9 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   for (int i = 0; i < instruction_count; i++) {
     *(pc_ + i) = *(instructions + i);
   }
+
+  // Indicate that code has changed.
+  CPU::FlushICache(pc_, instruction_count);
 }
 
 
@@ -164,11 +167,23 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 // Additional guard int3 instructions can be added if required.
 void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
   // Call instruction takes up 5 bytes and int3 takes up one byte.
-  int code_size = 5 + guard_bytes;
+  static const int kCallCodeSize = 5;
+  int code_size = kCallCodeSize + guard_bytes;
+
+  // Create a code patcher.
+  CodePatcher patcher(pc_, code_size);
+
+  // Add a label for checking the size of the code used for returning.
+#ifdef DEBUG
+  Label check_codesize;
+  patcher.masm()->bind(&check_codesize);
+#endif
 
   // Patch the code.
-  CodePatcher patcher(pc_, code_size);
   patcher.masm()->call(target, RelocInfo::NONE);
+
+  // Check that the size of the code generated is as expected.
+  ASSERT_EQ(kCallCodeSize, patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 
   // Add the requested number of int3 instructions after the call.
   for (int i = 0; i < guard_bytes; i++) {

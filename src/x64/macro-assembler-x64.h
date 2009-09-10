@@ -589,6 +589,28 @@ class MacroAssembler: public Assembler {
 };
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+// The code patcher is used to patch (typically) small parts of code e.g. for
+// debugging and other types of instrumentation. When using the code patcher
+// the exact number of bytes specified must be emitted. Is not legal to emit
+// relocation information. If any of these constraints are violated it causes
+// an assertion.
+class CodePatcher {
+ public:
+  CodePatcher(byte* address, int size);
+  virtual ~CodePatcher();
+
+  // Macro assembler to emit code.
+  MacroAssembler* masm() { return &masm_; }
+
+ private:
+  byte* address_;  // The address of the code being patched.
+  int size_;  // Number of bytes of the expected patch size.
+  MacroAssembler masm_;  // Macro assembler used to generate the code.
+};
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
