@@ -183,7 +183,8 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
   patcher.masm()->call(target, RelocInfo::NONE);
 
   // Check that the size of the code generated is as expected.
-  ASSERT_EQ(kCallCodeSize, patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
+  ASSERT_EQ(kCallCodeSize,
+            patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 
   // Add the requested number of int3 instructions after the call.
   for (int i = 0; i < guard_bytes; i++) {
