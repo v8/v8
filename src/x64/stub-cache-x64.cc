@@ -163,8 +163,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   ASSERT(!scratch.is(name));
 
   // Check that the receiver isn't a smi.
-  __ testl(receiver, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(receiver, &miss);
 
   // Get the map of the receiver and compute the hash.
   __ movl(scratch, FieldOperand(name, String::kLengthOffset));
@@ -204,8 +203,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Register scratch,
                                       Label* miss_label) {
   // Check that the object isn't a smi.
-  __ testl(receiver_reg, Immediate(kSmiTagMask));
-  __ j(zero, miss_label);
+  __ JumpIfSmi(receiver_reg, miss_label);
 
   // Check that the map of the object hasn't changed.
   __ Cmp(FieldOperand(receiver_reg, HeapObject::kMapOffset),
@@ -275,8 +273,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
                                            Register scratch,
                                            Label* miss_label) {
   // Check that the receiver isn't a smi.
-  __ testl(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label);
+  __ JumpIfSmi(receiver, miss_label);
 
   // Check that the object is a JS array.
   __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
@@ -296,8 +293,7 @@ static void GenerateStringCheck(MacroAssembler* masm,
                                 Label* smi,
                                 Label* non_string_object) {
   // Check that the object isn't a smi.
-  __ testl(receiver, Immediate(kSmiTagMask));
-  __ j(zero, smi);
+  __ JumpIfSmi(receiver, smi);
 
   // Check that the object is a string.
   __ movq(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -325,7 +321,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   // rcx is also the receiver.
   __ lea(rcx, Operand(scratch, String::kLongLengthShift));
   __ shr(rax);  // rcx is implicit shift register.
-  __ shl(rax, Immediate(kSmiTagSize));
+  __ Integer32ToSmi(rax, rax);
   __ ret(0);
 
   // Check if the object is a JSValue wrapper.
@@ -535,8 +531,7 @@ static void CompileLoadInterceptor(Compiler* compiler,
   ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
 
   // Check that the receiver isn't a smi.
-  __ testl(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
   Register reg =
@@ -701,8 +696,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
-    __ testl(rdx, Immediate(kSmiTagMask));
-    __ j(zero, &miss);
+    __ JumpIfSmi(rdx, &miss);
   }
 
   // Make sure that it's okay not to patch the on stack receiver
@@ -738,8 +732,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     case NUMBER_CHECK: {
       Label fast;
       // Check that the object is a smi or a heap number.
-      __ testl(rdx, Immediate(kSmiTagMask));
-      __ j(zero, &fast);
+      __ JumpIfSmi(rdx, &fast);
       __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
       __ j(not_equal, &miss);
       __ bind(&fast);
@@ -830,8 +823,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
   // Check that the receiver isn't a smi.
-  __ testl(rdx, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(rdx, &miss);
 
   // Do the right check and compute the holder register.
   Register reg =
@@ -841,8 +833,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   GenerateFastPropertyLoad(masm(), rdi, reg, holder, index);
 
   // Check that the function really is a function.
-  __ testl(rdi, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(rdi, &miss);
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rbx);
   __ j(not_equal, &miss);
 
@@ -899,8 +890,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
   // Check that the function really is a function.
-  __ testl(rax, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(rax, &miss);
   __ CmpObjectType(rax, JS_FUNCTION_TYPE, rbx);
   __ j(not_equal, &miss);
 
@@ -952,8 +942,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
   if (object != holder) {
-    __ testl(rdx, Immediate(kSmiTagMask));
-    __ j(zero, &miss);
+    __ JumpIfSmi(rdx, &miss);
   }
 
   // Check that the maps haven't changed.
@@ -1112,8 +1101,7 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // object which can only happen for contextual loads. In this case,
   // the receiver cannot be a smi.
   if (object != holder) {
-    __ testl(rax, Immediate(kSmiTagMask));
-    __ j(zero, &miss);
+    __ JumpIfSmi(rax, &miss);
   }
 
   // Check that the maps haven't changed.
@@ -1335,8 +1323,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ movq(rbx, Operand(rsp, 1 * kPointerSize));
 
   // Check that the object isn't a smi.
-  __ testl(rbx, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(rbx, &miss);
 
   // Check that the map of the object hasn't changed.
   __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
@@ -1424,8 +1411,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ movq(rbx, Operand(rsp, 1 * kPointerSize));
 
   // Check that the object isn't a smi.
-  __ testl(rbx, Immediate(kSmiTagMask));
-  __ j(zero, &miss);
+  __ JumpIfSmi(rbx, &miss);
 
   // Check that the map of the object hasn't changed.
   __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
@@ -1631,8 +1617,7 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
                                         String* name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
-  __ testl(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
   Register reg =
@@ -1701,8 +1686,7 @@ void StubCompiler::GenerateLoadField(JSObject* object,
                                      String* name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
-  __ testl(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check the prototype chain.
   Register reg =
@@ -1724,8 +1708,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
                                         String* name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
-  __ testl(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss);
+  __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
   Register reg =
@@ -1766,8 +1749,7 @@ Object* ConstructStubCompiler::CompileConstructStub(
   // Load the initial map and verify that it is in fact a map.
   __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
   // Will both indicate a NULL and a Smi.
-  __ testq(rbx, Immediate(kSmiTagMask));
-  __ j(zero, &generic_stub_call);
+  __ JumpIfSmi(rbx, &generic_stub_call);
   __ CmpObjectType(rbx, MAP_TYPE, rcx);
   __ j(not_equal, &generic_stub_call);
 

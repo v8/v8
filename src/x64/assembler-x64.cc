@@ -366,7 +366,7 @@ void Assembler::bind(Label* L) {
 
 
 void Assembler::GrowBuffer() {
-  ASSERT(overflow());  // should not call this otherwise
+  ASSERT(buffer_overflow());  // should not call this otherwise
   if (!own_buffer_) FATAL("external code buffer is too small");
 
   // compute new buffer size
@@ -428,7 +428,7 @@ void Assembler::GrowBuffer() {
     }
   }
 
-  ASSERT(!overflow());
+  ASSERT(!buffer_overflow());
 }
 
 
@@ -1405,6 +1405,15 @@ void Assembler::neg(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_rex_64(dst);
+  emit(0xF7);
+  emit_modrm(0x3, dst);
+}
+
+
+void Assembler::negl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
   emit(0xF7);
   emit_modrm(0x3, dst);
 }
