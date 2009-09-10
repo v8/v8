@@ -539,6 +539,7 @@ class Assembler : public Malloced {
   void cmp(Register reg, Handle<Object> handle);
   void cmp(Register reg, const Operand& op);
   void cmp(const Operand& op, const Immediate& imm);
+  void cmp(const Operand& op, Handle<Object> handle);
 
   void dec_b(Register dst);
 
@@ -718,6 +719,8 @@ class Assembler : public Malloced {
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
   void divsd(XMMRegister dst, XMMRegister src);
+
+  void comisd(XMMRegister dst, XMMRegister src);
 
   // Use either movsd or movlpd.
   void movdbl(XMMRegister dst, const Operand& src);

@@ -721,10 +721,10 @@ void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CMOV));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  UNIMPLEMENTED();
-  USE(cc);
-  USE(dst);
-  USE(src);
+  // Opcode: 0f 40 + cc /r
+  EMIT(0x0F);
+  EMIT(0x40 + cc);
+  emit_operand(dst, src);
 }
 
 
@@ -863,6 +863,13 @@ void Assembler::cmp(const Operand& op, const Immediate& imm) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_arith(7, op, imm);
+}
+
+
+void Assembler::cmp(const Operand& op, Handle<Object> handle) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_arith(7, op, Immediate(handle));
 }
 
 
@@ -1943,6 +1950,17 @@ void Assembler::divsd(XMMRegister dst, XMMRegister src) {
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x5E);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::comisd(XMMRegister dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x2F);
   emit_sse_operand(dst, src);
 }
 
