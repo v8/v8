@@ -1201,7 +1201,7 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #endif
   jmp(kScratchRegister);
 #ifdef DEBUG
-  ASSERT_EQ(kPatchReturnSequenceLength,
+  ASSERT_EQ(kCallTargetAddressOffset,
             SizeOfCodeGeneratedSince(&target) + kPointerSize);
 #endif
 }
@@ -1230,7 +1230,7 @@ void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #endif
   call(kScratchRegister);
 #ifdef DEBUG
-  ASSERT_EQ(kPatchReturnSequenceLength,
+  ASSERT_EQ(kCallTargetAddressOffset,
             SizeOfCodeGeneratedSince(&target) + kPointerSize);
 #endif
 }
@@ -1502,7 +1502,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
         Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry =
-        { pc_offset() - kPatchReturnSequenceLength, flags, name };
+        { pc_offset() - kCallTargetAddressOffset, flags, name };
     unresolved_.Add(entry);
   }
 }

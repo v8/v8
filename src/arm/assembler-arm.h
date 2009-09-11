@@ -435,7 +435,7 @@ class Assembler : public Malloced {
 
   // Distance between the instruction referring to the address of the call
   // target (ldr pc, [target addr in const pool]) and the return address
-  static const int kPatchReturnSequenceLength = sizeof(Instr);
+  static const int kCallTargetAddressOffset = sizeof(Instr);
   // Distance between start of patched return sequence and the emitted address
   // to jump to.
   static const int kPatchReturnSequenceAddressOffset = 1;
