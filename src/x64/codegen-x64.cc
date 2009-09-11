@@ -523,7 +523,6 @@ void CodeGenerator::GenerateReturnSequence(Result* return_value) {
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   DeleteFrame();
-
 }
 
 
