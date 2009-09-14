@@ -319,7 +319,7 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 
 
 void MacroAssembler::FCmp() {
-  fcompp();
+  fucompp();
   push(eax);
   fnstsw_ax();
   sahf();

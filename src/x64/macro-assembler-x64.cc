@@ -1280,7 +1280,7 @@ void MacroAssembler::Ret() {
 
 
 void MacroAssembler::FCmp() {
-  fcompp();
+  fucompp();
   push(rax);
   fnstsw_ax();
   if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
