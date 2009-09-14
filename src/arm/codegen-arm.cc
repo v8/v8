@@ -335,7 +335,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // expected by the debugger.
     ASSERT_EQ(kJSReturnSequenceLength,
               masm_->InstructionsGeneratedSince(&check_exit_codesize));
-
   }
 
   // Code generation state must be reset.
