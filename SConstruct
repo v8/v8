@@ -115,6 +115,10 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
     },
+    'visibility:hidden': {
+      # Use visibility=default to disable this.
+      'CXXFLAGS':     ['-fvisibility=hidden']
+    },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG'],
@@ -233,7 +237,6 @@ LIBRARY_FLAGS = {
 V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
-      'CXXFLAGS':     [], #['-fvisibility=hidden'],
       'WARNINGFLAGS': ['-Wall',
                        '-Werror',
                        '-W',
@@ -629,6 +632,11 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'off',
     'help': 'more output from compiler and linker'
+  },
+  'visibility': {
+    'values': ['default', 'hidden'],
+    'default': 'hidden',
+    'help': 'shared library symbol visibility'
   }
 }
 
