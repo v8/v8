@@ -47,17 +47,19 @@ static void ProbeTable(MacroAssembler* masm,
                        StubCache::Table table,
                        Register name,
                        Register offset) {
+  // The offset register must hold a *positive* smi.
   ExternalReference key_offset(SCTableReference::keyReference(table));
   Label miss;
 
   __ movq(kScratchRegister, key_offset);
+  SmiIndex index = masm->SmiToIndex(offset, offset, kPointerSizeLog2);
   // Check that the key in the entry matches the name.
-  __ cmpl(name, Operand(kScratchRegister, offset, times_4, 0));
+  __ cmpl(name, Operand(kScratchRegister, index.reg, index.scale, 0));
   __ j(not_equal, &miss);
   // Get the code entry from the cache.
   // Use key_offset + kPointerSize, rather than loading value_offset.
   __ movq(kScratchRegister,
-          Operand(kScratchRegister, offset, times_4, kPointerSize));
+          Operand(kScratchRegister, index.reg, index.scale, kPointerSize));
   // Check that the flags match what we're looking for.
   __ movl(offset, FieldOperand(kScratchRegister, Code::kFlagsOffset));
   __ and_(offset, Immediate(~Code::kFlagsNotUsedInLookup));

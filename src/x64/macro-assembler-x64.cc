@@ -1092,6 +1092,48 @@ void MacroAssembler::SelectNonSmi(Register dst,
 }
 
 
+SmiIndex MacroAssembler::SmiToIndex(Register dst, Register src, int shift) {
+  ASSERT(is_uint6(shift));
+  if (shift == 0) {  // times_1.
+    SmiToInteger32(dst, src);
+    return SmiIndex(dst, times_1);
+  }
+  if (shift <= 4) {  // 2 - 16 times multiplier is handled using ScaleFactor.
+    // We expect that all smis are actually zero-padded. If this holds after
+    // checking, this line can be omitted.
+    movl(dst, src);  // Ensure that the smi is zero-padded.
+    return SmiIndex(dst, static_cast<ScaleFactor>(shift - kSmiTagSize));
+  }
+  // Shift by shift-kSmiTagSize.
+  movl(dst, src);  // Ensure that the smi is zero-padded.
+  shl(dst, Immediate(shift - kSmiTagSize));
+  return SmiIndex(dst, times_1);
+}
+
+
+SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
+                                            Register src,
+                                            int shift) {
+  // Register src holds a positive smi.
+  ASSERT(is_uint6(shift));
+  if (shift == 0) {  // times_1.
+    SmiToInteger32(dst, src);
+    neg(dst);
+    return SmiIndex(dst, times_1);
+  }
+  if (shift <= 4) {  // 2 - 16 times multiplier is handled using ScaleFactor.
+    movl(dst, src);
+    neg(dst);
+    return SmiIndex(dst, static_cast<ScaleFactor>(shift - kSmiTagSize));
+  }
+  // Shift by shift-kSmiTagSize.
+  movl(dst, src);
+  neg(dst);
+  shl(dst, Immediate(shift - kSmiTagSize));
+  return SmiIndex(dst, times_1);
+}
+
+
 
 bool MacroAssembler::IsUnsafeSmi(Smi* value) {
   return false;

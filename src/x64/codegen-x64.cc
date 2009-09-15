@@ -1728,10 +1728,9 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Get the i'th entry of the array.
   __ movq(rdx, frame_->ElementAt(2));
-  // TODO(smi): Find a way to abstract indexing by a smi value.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  // Multiplier is times_4 since rax is already a Smi.
-  __ movq(rbx, FieldOperand(rdx, rax, times_4, FixedArray::kHeaderSize));
+  SmiIndex index = masm_->SmiToIndex(rbx, rax, kPointerSizeLog2);
+  __ movq(rbx,
+          FieldOperand(rdx, index.reg, index.scale, FixedArray::kHeaderSize));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case rax: current iteration count rbx: i'th entry
@@ -3886,7 +3885,9 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateGetFramePointer(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  ASSERT(kSmiTag == 0);  // RBP value is aligned, so it should look like Smi.
+  // RBP value is aligned, so it should be tagged as a smi (without necesarily
+  // being padded as a smi).
+  ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   Result rbp_as_smi = allocator_->Allocate();
   ASSERT(rbp_as_smi.is_valid());
   __ movq(rbp_as_smi.reg(), rbp);
@@ -6127,12 +6128,11 @@ void Reference::SetValue(InitState init_state) {
         deferred->Branch(not_equal);
 
         // Store the value.
-        ASSERT_EQ(1, kSmiTagSize);
-        ASSERT_EQ(0, kSmiTag);
-        // TODO(lrn) Find way to abstract indexing by smi.
-        __ movq(Operand(tmp.reg(),
-                        key.reg(),
-                        times_half_pointer_size,
+        SmiIndex index =
+            masm->SmiToIndex(kScratchRegister, key.reg(), kPointerSizeLog2);
+              __ movq(Operand(tmp.reg(),
+                        index.reg,
+                        index.scale,
                         FixedArray::kHeaderSize - kHeapObjectTag),
                 value.reg());
         __ IncrementCounter(&Counters::keyed_store_inline, 1);
@@ -6660,7 +6660,8 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // Patch the arguments.length and the parameters pointer.
   __ movq(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ movq(Operand(rsp, 1 * kPointerSize), rcx);
-  __ lea(rdx, Operand(rdx, rcx, times_4, kDisplacement));
+  SmiIndex index = masm->SmiToIndex(rcx, rcx, kPointerSizeLog2);
+  __ lea(rdx, Operand(rdx, index.reg, index.scale, kDisplacement));
   __ movq(Operand(rsp, 2 * kPointerSize), rdx);
 
   // Do the runtime call to allocate the arguments object.
@@ -6696,13 +6697,10 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
-  // Shifting code depends on SmiEncoding being equivalent to left shift:
-  // we multiply by four to get pointer alignment.
-  // TODO(smi): Find a way to abstract indexing by a smi.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ lea(rbx, Operand(rbp, rax, times_4, 0));
-  __ neg(rdx);  // TODO(smi): Abstract negative indexing too.
-  __ movq(rax, Operand(rbx, rdx, times_4, kDisplacement));
+  SmiIndex index = masm->SmiToIndex(rax, rax, kPointerSizeLog2);
+  __ lea(rbx, Operand(rbp, index.reg, index.scale, 0));
+  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
+  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
   __ Ret();
 
   // Arguments adaptor case: Check index against actual arguments
@@ -6714,13 +6712,10 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ j(above_equal, &slow);
 
   // Read the argument from the stack and return it.
-  // Shifting code depends on SmiEncoding being equivalent to left shift:
-  // we multiply by four to get pointer alignment.
-  // TODO(smi): Find a way to abstract indexing by a smi.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ lea(rbx, Operand(rbx, rcx, times_4, 0));
-  __ neg(rdx);
-  __ movq(rax, Operand(rbx, rdx, times_4, kDisplacement));
+  index = masm->SmiToIndex(rax, rcx, kPointerSizeLog2);
+  __ lea(rbx, Operand(rbx, index.reg, index.scale, 0));
+  index = masm->SmiToNegativeIndex(rdx, rdx, kPointerSizeLog2);
+  __ movq(rax, Operand(rbx, index.reg, index.scale, kDisplacement));
   __ Ret();
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments

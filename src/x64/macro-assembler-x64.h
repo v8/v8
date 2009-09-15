@@ -41,6 +41,13 @@ static const Register kScratchRegister = r10;
 // Forward declaration.
 class JumpTarget;
 
+struct SmiIndex {
+  SmiIndex(Register index_register, ScaleFactor scale)
+      : reg(index_register),
+        scale(scale) {}
+  Register reg;
+  ScaleFactor scale;
+};
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {
@@ -241,7 +248,7 @@ class MacroAssembler: public Assembler {
                       int32_t constant,
                       Label* on_not_smi_result);
 
-  // Negating a smi can give a negative zero or too larget positive value.
+  // Negating a smi can give a negative zero or too large positive value.
   void SmiNeg(Register dst,
               Register src,
               Label* on_not_smi_result);
@@ -253,6 +260,7 @@ class MacroAssembler: public Assembler {
               Register src1,
               Register src2,
               Label* on_not_smi_result);
+
   // Subtracts smi values and return the result as a smi.
   // If dst is src1, then src1 will be destroyed, even if
   // the operation is unsuccessful.
@@ -260,6 +268,7 @@ class MacroAssembler: public Assembler {
               Register src1,
               Register src2,
               Label* on_not_smi_result);
+
   // Multiplies smi values and return the result as a smi,
   // if possible.
   // If dst is src1, then src1 will be destroyed, even if
@@ -334,6 +343,19 @@ class MacroAssembler: public Assembler {
                     Register src1,
                     Register src2,
                     Label* on_not_smis);
+
+  // Converts, if necessary, a smi to a combination of number and
+  // multiplier to be used as a scaled index.
+  // The src register contains a *positive* smi value. The shift is the
+  // power of two to multiply the index value by (e.g.
+  // to index by smi-value * kPointerSize, pass the smi and kPointerSizeLog2).
+  // The returned index register may be either src or dst, depending
+  // on what is most efficient. If src and dst are different registers,
+  // src is always unchanged.
+  SmiIndex SmiToIndex(Register dst, Register src, int shift);
+
+  // Converts a positive smi to a negative index.
+  SmiIndex SmiToNegativeIndex(Register dst, Register src, int shift);
 
   // ---------------------------------------------------------------------------
   // Macro instructions
