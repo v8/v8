@@ -34,9 +34,6 @@
     'v8_use_snapshot%': 'true',
     'v8_regexp%': 'native',
   },
-  'includes': [
-    '../../../build/common.gypi',
-  ],
   'target_defaults': {
     'defines': [
       'ENABLE_LOGGING_AND_PROFILING',
