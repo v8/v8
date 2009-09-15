@@ -277,7 +277,7 @@ function ObjectLookupSetter(name) {
 
 
 function ObjectKeys(obj) {
-  if (!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj))
+  if ((!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj)) && !IS_FUNCTION(obj))
     throw MakeTypeError('object_keys_non_object', [obj]);
   return %LocalKeys(obj);
 }

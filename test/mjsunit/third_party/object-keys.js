@@ -49,6 +49,7 @@ assertEquals(Object.keys({__proto__:[1,2,3]}), []);
 var x = [];
 x.__proto__ = [1, 2, 3];
 assertEquals(Object.keys(x), []);
+assertEquals(Object.keys(function () {}), []);
 
 function argsTest(a, b, c) {
   assertEquals([], Object.keys(arguments));
