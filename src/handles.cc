@@ -527,7 +527,8 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
 }
 
 
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
+                                          KeyCollectionType type) {
   Handle<FixedArray> content = Factory::empty_fixed_array();
 
   JSObject* arguments_boilerplate =
@@ -575,6 +576,11 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
         if (!result.IsEmpty())
           content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
       }
+
+      // If we only want local properties we bail out after the first
+      // iteration.
+      if (type == LOCAL_ONLY)
+        break;
     }
   }
   return content;
@@ -583,7 +589,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
 
 Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
   Counters::for_in.Increment();
-  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object);
+  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object,
+                                                       INCLUDE_PROTOS);
   return Factory::NewJSArrayWithElements(elements);
 }
 

@@ -276,6 +276,13 @@ function ObjectLookupSetter(name) {
 }
 
 
+function ObjectKeys(obj) {
+  if (!IS_OBJECT(obj) || IS_NULL_OR_UNDEFINED(obj))
+    throw MakeTypeError('object_keys_non_object', [obj]);
+  return %LocalKeys(obj);
+}
+
+
 %SetCode($Object, function(x) {
   if (%_IsConstructCall()) {
     if (x == null) return this;
@@ -303,6 +310,9 @@ function SetupObject() {
     "__lookupGetter__", ObjectLookupGetter,
     "__defineSetter__", ObjectDefineSetter,
     "__lookupSetter__", ObjectLookupSetter
+  ));
+  InstallFunctions($Object, DONT_ENUM, $Array(
+    "keys", ObjectKeys
   ));
 }
 

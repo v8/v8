@@ -2992,12 +2992,29 @@ static Object* Runtime_GetPropertyNamesFast(Arguments args) {
 
   HandleScope scope;
   Handle<JSObject> object(raw_object);
-  Handle<FixedArray> content = GetKeysInFixedArrayFor(object);
+  Handle<FixedArray> content = GetKeysInFixedArrayFor(object,
+                                                      INCLUDE_PROTOS);
 
   // Test again, since cache may have been built by preceding call.
   if (object->IsSimpleEnum()) return object->map();
 
   return *content;
+}
+
+
+static Object* Runtime_LocalKeys(Arguments args) {
+  ASSERT_EQ(args.length(), 1);
+  CONVERT_CHECKED(JSObject, raw_object, args[0]);
+  HandleScope scope;
+  Handle<JSObject> object(raw_object);
+  Handle<FixedArray> contents = GetKeysInFixedArrayFor(object,
+                                                       LOCAL_ONLY);
+  // Some fast paths through GetKeysInFixedArrayFor reuse a cached
+  // property array and since the result is mutable we have to create
+  // a fresh clone on each invocation.
+  Handle<FixedArray> copy = Factory::NewFixedArray(contents->length());
+  contents->CopyTo(0, *copy, 0, contents->length());
+  return *Factory::NewJSArrayWithElements(copy);
 }
 
 
@@ -5516,7 +5533,7 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
   if (array->elements()->IsDictionary()) {
     // Create an array and get all the keys into it, then remove all the
     // keys that are not integers in the range 0 to length-1.
-    Handle<FixedArray> keys = GetKeysInFixedArrayFor(array);
+    Handle<FixedArray> keys = GetKeysInFixedArrayFor(array, INCLUDE_PROTOS);
     int keys_length = keys->length();
     for (int i = 0; i < keys_length; i++) {
       Object* key = keys->get(i);
@@ -6271,7 +6288,7 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
     if (function_context->has_extension() &&
         !function_context->IsGlobalContext()) {
       Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-      Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext);
+      Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
       for (int i = 0; i < keys->length(); i++) {
         // Names of variables introduced by eval are strings.
         ASSERT(keys->get(i)->IsString());
@@ -6320,7 +6337,7 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
   // be variables introduced by eval.
   if (context->has_extension()) {
     Handle<JSObject> ext(JSObject::cast(context->extension()));
-    Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext);
+    Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
     for (int i = 0; i < keys->length(); i++) {
       // Names of variables introduced by eval are strings.
       ASSERT(keys->get(i)->IsString());

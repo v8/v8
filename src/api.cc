@@ -1988,7 +1988,8 @@ Local<Array> v8::Object::GetPropertyNames() {
   ENTER_V8;
   v8::HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::FixedArray> value = i::GetKeysInFixedArrayFor(self);
+  i::Handle<i::FixedArray> value =
+      i::GetKeysInFixedArrayFor(self, i::INCLUDE_PROTOS);
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.

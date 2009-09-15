@@ -258,6 +258,8 @@ namespace internal {
   F(Abort, 2, 1) \
   /* Logging */ \
   F(Log, 2, 1) \
+  /* ES5 */ \
+  F(LocalKeys, 1, 1) \
   \
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1, 1)
