@@ -40,6 +40,7 @@
   'target_defaults': {
     'defines': [
       'ENABLE_LOGGING_AND_PROFILING',
+      'ENABLE_DEBUGGER_SUPPORT',
     ],
     'conditions': [
       ['target_arch=="arm"', {
