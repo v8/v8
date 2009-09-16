@@ -897,6 +897,16 @@ void Logger::HeapSampleJSConstructorEvent(const char* constructor,
 }
 
 
+void Logger::HeapSampleJSRetainersEvent(const char* event) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_gc) return;
+  LogMessageBuilder msg;
+  msg.Append("heap-js-ret-item,%s\n", event);
+  msg.WriteToLogFile();
+#endif
+}
+
+
 void Logger::DebugTag(const char* call_site_tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log) return;
