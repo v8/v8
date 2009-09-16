@@ -69,19 +69,19 @@ class ReferencesExtractor : public ObjectVisitor {
       const JSObjectsCluster& cluster, RetainerHeapProfile* profile)
       : cluster_(cluster),
         profile_(profile),
-        insideArray_(false) {
+        inside_array_(false) {
   }
 
   void VisitPointer(Object** o) {
     if ((*o)->IsJSObject() || (*o)->IsString()) {
       profile_->StoreReference(cluster_, *o);
-    } else if ((*o)->IsFixedArray() && !insideArray_) {
+    } else if ((*o)->IsFixedArray() && !inside_array_) {
       // Traverse one level deep for data members that are fixed arrays.
       // This covers the case of 'elements' and 'properties' of JSObject,
       // and function contexts.
-      insideArray_ = true;
+      inside_array_ = true;
       FixedArray::cast(*o)->Iterate(this);
-      insideArray_ = false;
+      inside_array_ = false;
     }
   }
 
@@ -92,7 +92,7 @@ class ReferencesExtractor : public ObjectVisitor {
  private:
   const JSObjectsCluster& cluster_;
   RetainerHeapProfile* profile_;
-  bool insideArray_;
+  bool inside_array_;
 };
 
 
@@ -226,8 +226,8 @@ inline int ClustersCoarser::ClusterBackRefs::Compare(
 
 ClustersCoarser::ClustersCoarser()
   : zscope_(DELETE_ON_EXIT),
-    simList_(ClustersCoarser::kInitialSimilarityListCapacity),
-    currentPair_(NULL) {
+    sim_list_(ClustersCoarser::kInitialSimilarityListCapacity),
+    current_pair_(NULL) {
 }
 
 
@@ -237,25 +237,25 @@ void ClustersCoarser::Call(
     // First level of retainer graph.
     if (!cluster.can_be_coarsed()) return;
     ClusterBackRefs pair(cluster);
-    ASSERT(currentPair_ == NULL);
-    currentPair_ = &pair;
-    currentSet_ = new JSObjectsClusterTree();
+    ASSERT(current_pair_ == NULL);
+    current_pair_ = &pair;
+    current_set_ = new JSObjectsClusterTree();
     tree->ForEach(this);
-    simList_.Add(pair);
-    currentPair_ = NULL;
-    currentSet_ = NULL;
+    sim_list_.Add(pair);
+    current_pair_ = NULL;
+    current_set_ = NULL;
   } else {
     // Second level of retainer graph.
-    ASSERT(currentPair_ != NULL);
-    ASSERT(currentSet_ != NULL);
+    ASSERT(current_pair_ != NULL);
+    ASSERT(current_set_ != NULL);
     JSObjectsCluster eq = GetCoarseEquivalent(cluster);
     JSObjectsClusterTree::Locator loc;
     if (!eq.is_null()) {
-      if (currentSet_->Find(eq, &loc)) return;
-      currentPair_->refs.Add(eq);
-      currentSet_->Insert(eq, &loc);
+      if (current_set_->Find(eq, &loc)) return;
+      current_pair_->refs.Add(eq);
+      current_set_->Insert(eq, &loc);
     } else {
-      currentPair_->refs.Add(cluster);
+      current_pair_->refs.Add(cluster);
     }
   }
 }
@@ -264,7 +264,7 @@ void ClustersCoarser::Call(
 void ClustersCoarser::Process(JSObjectsClusterTree* tree) {
   int last_eq_clusters = -1;
   for (int i = 0; i < kMaxPassesCount; ++i) {
-    simList_.Clear();
+    sim_list_.Clear();
     const int curr_eq_clusters = DoProcess(tree);
     // If no new cluster equivalents discovered, abort processing.
     if (last_eq_clusters == curr_eq_clusters) break;
@@ -280,7 +280,7 @@ int ClustersCoarser::DoProcess(JSObjectsClusterTree* tree) {
   // be considered equivalent. But we don't sort them explicitly
   // because we know that they come from a splay tree traversal, so
   // they are already sorted.
-  simList_.Sort(ClusterBackRefsCmp);
+  sim_list_.Sort(ClusterBackRefsCmp);
   return FillEqualityTree();
 }
 
@@ -289,7 +289,7 @@ JSObjectsCluster ClustersCoarser::GetCoarseEquivalent(
     const JSObjectsCluster& cluster) {
   if (!cluster.can_be_coarsed()) return JSObjectsCluster();
   EqualityTree::Locator loc;
-  return eqTree_.Find(cluster, &loc) ? loc.value() : JSObjectsCluster();
+  return eq_tree_.Find(cluster, &loc) ? loc.value() : JSObjectsCluster();
 }
 
 
@@ -301,28 +301,28 @@ bool ClustersCoarser::HasAnEquivalent(const JSObjectsCluster& cluster) {
 
 
 int ClustersCoarser::FillEqualityTree() {
-  int eqClustersCount = 0;
-  int eqTo = 0;
-  bool firstAdded = false;
-  for (int i = 1; i < simList_.length(); ++i) {
-    if (ClusterBackRefs::Compare(simList_[i], simList_[eqTo]) == 0) {
+  int eq_clusters_count = 0;
+  int eq_to = 0;
+  bool first_added = false;
+  for (int i = 1; i < sim_list_.length(); ++i) {
+    if (ClusterBackRefs::Compare(sim_list_[i], sim_list_[eq_to]) == 0) {
       EqualityTree::Locator loc;
-      if (!firstAdded) {
+      if (!first_added) {
         // Add self-equivalence, if we have more than one item in this
         // equivalence class.
-        eqTree_.Insert(simList_[eqTo].cluster, &loc);
-        loc.set_value(simList_[eqTo].cluster);
-        firstAdded = true;
+        eq_tree_.Insert(sim_list_[eq_to].cluster, &loc);
+        loc.set_value(sim_list_[eq_to].cluster);
+        first_added = true;
       }
-      eqTree_.Insert(simList_[i].cluster, &loc);
-      loc.set_value(simList_[eqTo].cluster);
-      ++eqClustersCount;
+      eq_tree_.Insert(sim_list_[i].cluster, &loc);
+      loc.set_value(sim_list_[eq_to].cluster);
+      ++eq_clusters_count;
     } else {
-      eqTo = i;
-      firstAdded = false;
+      eq_to = i;
+      first_added = false;
     }
   }
-  return eqClustersCount;
+  return eq_clusters_count;
 }
 
 
@@ -373,9 +373,9 @@ void RetainerHeapProfile::StoreReference(
   if (retainers_tree_.Insert(ref_cluster, &ref_loc)) {
     ref_loc.set_value(new JSObjectsClusterTree());
   }
-  JSObjectsClusterTree* referencedBy = ref_loc.value();
+  JSObjectsClusterTree* referenced_by = ref_loc.value();
   JSObjectsClusterTree::Locator obj_loc;
-  referencedBy->Insert(cluster, &obj_loc);
+  referenced_by->Insert(cluster, &obj_loc);
 }
 
 

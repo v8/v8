@@ -208,10 +208,10 @@ class ClustersCoarser BASE_EMBEDDED {
   static const int kMaxPassesCount = 10;
 
   ZoneScope zscope_;
-  SimilarityList simList_;
-  EqualityTree eqTree_;
-  ClusterBackRefs* currentPair_;
-  JSObjectsClusterTree* currentSet_;
+  SimilarityList sim_list_;
+  EqualityTree eq_tree_;
+  ClusterBackRefs* current_pair_;
+  JSObjectsClusterTree* current_set_;
 };
 
 
