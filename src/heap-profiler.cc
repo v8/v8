@@ -187,7 +187,7 @@ void JSObjectsCluster::DebugPrint(StringStream* accumulator) const {
 
 inline ClustersCoarser::ClusterBackRefs::ClusterBackRefs(
     const JSObjectsCluster& cluster_)
-    : cluster(cluster_), refs(INITIAL_BACKREFS_LIST_CAPACITY) {
+    : cluster(cluster_), refs(kInitialBackrefsListCapacity) {
 }
 
 
@@ -226,7 +226,7 @@ inline int ClustersCoarser::ClusterBackRefs::Compare(
 
 ClustersCoarser::ClustersCoarser()
   : zscope_(DELETE_ON_EXIT),
-    simList_(ClustersCoarser::INITIAL_SIMILARITY_LIST_CAPACITY),
+    simList_(ClustersCoarser::kInitialSimilarityListCapacity),
     currentPair_(NULL) {
 }
 
@@ -263,7 +263,7 @@ void ClustersCoarser::Call(
 
 void ClustersCoarser::Process(JSObjectsClusterTree* tree) {
   int last_eq_clusters = -1;
-  for (int i = 0; i < MAX_PASSES_COUNT; ++i) {
+  for (int i = 0; i < kMaxPassesCount; ++i) {
     simList_.Clear();
     const int curr_eq_clusters = DoProcess(tree);
     // If no new cluster equivalents discovered, abort processing.
@@ -339,8 +339,9 @@ RetainerHeapProfile::RetainerHeapProfile()
       retainers_printed_(0),
       current_printer_(NULL),
       current_stream_(NULL) {
+  JSObjectsCluster roots(JSObjectsCluster::ROOTS);
   ReferencesExtractor extractor(
-      JSObjectsCluster(JSObjectsCluster::ROOTS), this);
+      roots, this);
   Heap::IterateRoots(&extractor);
 }
 
@@ -384,8 +385,8 @@ void RetainerHeapProfile::CollectStats(HeapObject* obj) {
     ReferencesExtractor extractor(cluster, this);
     obj->Iterate(&extractor);
   } else if (obj->IsJSGlobalPropertyCell()) {
-    ReferencesExtractor extractor(
-        JSObjectsCluster(JSObjectsCluster::GLOBAL_PROPERTY), this);
+    JSObjectsCluster global_prop(JSObjectsCluster::GLOBAL_PROPERTY);
+    ReferencesExtractor extractor(global_prop, this);
     obj->Iterate(&extractor);
   }
 }
@@ -430,8 +431,8 @@ void RetainerHeapProfile::Call(
     // Second level of retainer graph.
     ASSERT(coarse_cluster_tree_ != NULL);
     ASSERT(current_stream_ != NULL);
-    if (retainers_printed_ >= MAX_RETAINERS_TO_PRINT) {
-      if (retainers_printed_ == MAX_RETAINERS_TO_PRINT) {
+    if (retainers_printed_ >= kMaxRetainersToPrint) {
+      if (retainers_printed_ == kMaxRetainersToPrint) {
         // TODO(mnaganov): Print the exact count.
         current_stream_->Add(",...");
         ++retainers_printed_;  // avoid printing ellipsis next time.

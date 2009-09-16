@@ -201,11 +201,11 @@ class ClustersCoarser BASE_EMBEDDED {
   int DoProcess(JSObjectsClusterTree* tree);
   int FillEqualityTree();
 
-  static const int INITIAL_BACKREFS_LIST_CAPACITY = 2;
-  static const int INITIAL_SIMILARITY_LIST_CAPACITY = 2000;
+  static const int kInitialBackrefsListCapacity = 2;
+  static const int kInitialSimilarityListCapacity = 2000;
   // Number of passes for finding equivalents. Limits the length of paths
   // that can be considered equivalent.
-  static const int MAX_PASSES_COUNT = 10;
+  static const int kMaxPassesCount = 10;
 
   ZoneScope zscope_;
   SimilarityList simList_;
@@ -237,7 +237,7 @@ class RetainerHeapProfile BASE_EMBEDDED {
   JSObjectsCluster Clusterize(Object* obj);
 
   // Limit on the number of retainers to be printed per cluster.
-  static const int MAX_RETAINERS_TO_PRINT = 50;
+  static const int kMaxRetainersToPrint = 50;
   ZoneScope zscope_;
   JSObjectsClusterTree retainers_tree_;
   ClustersCoarser coarser_;
