@@ -198,8 +198,8 @@ inline ClustersCoarser::ClusterBackRefs::ClusterBackRefs(
 }
 
 
-inline ClustersCoarser::ClusterBackRefs::ClusterBackRefs&
-ClustersCoarser::ClusterBackRefs::operator=(
+inline ClustersCoarser::ClusterBackRefs&
+    ClustersCoarser::ClusterBackRefs::operator=(
     const ClustersCoarser::ClusterBackRefs& src) {
   if (this == &src) return *this;
   cluster = src.cluster;
