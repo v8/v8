@@ -192,7 +192,7 @@ inline ClustersCoarser::ClusterBackRefs::ClusterBackRefs(
 
 
 inline ClustersCoarser::ClusterBackRefs::ClusterBackRefs(
-    const ClustersCoarser::ClusterBackRefs::ClusterBackRefs& src)
+    const ClustersCoarser::ClusterBackRefs& src)
     : cluster(src.cluster), refs(src.refs.capacity()) {
   refs.AddAll(src.refs);
 }
@@ -200,7 +200,7 @@ inline ClustersCoarser::ClusterBackRefs::ClusterBackRefs(
 
 inline ClustersCoarser::ClusterBackRefs::ClusterBackRefs&
 ClustersCoarser::ClusterBackRefs::operator=(
-    const ClustersCoarser::ClusterBackRefs::ClusterBackRefs& src) {
+    const ClustersCoarser::ClusterBackRefs& src) {
   if (this == &src) return *this;
   cluster = src.cluster;
   refs.Clear();
@@ -210,8 +210,8 @@ ClustersCoarser::ClusterBackRefs::operator=(
 
 
 inline int ClustersCoarser::ClusterBackRefs::Compare(
-    const ClustersCoarser::ClusterBackRefs::ClusterBackRefs& a,
-    const ClustersCoarser::ClusterBackRefs::ClusterBackRefs& b) {
+    const ClustersCoarser::ClusterBackRefs& a,
+    const ClustersCoarser::ClusterBackRefs& b) {
   int cmp = JSObjectsCluster::CompareConstructors(a.cluster, b.cluster);
   if (cmp != 0) return cmp;
   if (a.refs.length() < b.refs.length()) return -1;
