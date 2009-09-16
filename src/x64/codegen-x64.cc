@@ -6320,7 +6320,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   // Also enter it if the value of the smi is Smi::kMinValue
   __ testl(rax, Immediate(0x7FFFFFFE));
   __ j(zero, &special);
-  __ neg(rax);
+  __ negl(rax);
   __ jmp(&done);
 
   __ bind(&special);
