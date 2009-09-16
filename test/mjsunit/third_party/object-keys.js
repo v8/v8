@@ -52,7 +52,7 @@ assertEquals(Object.keys(x), []);
 assertEquals(Object.keys(function () {}), []);
 
 function argsTest(a, b, c) {
-  assertEquals([], Object.keys(arguments));
+  assertEquals([0, 1, 2], Object.keys(arguments));
 }
 
 argsTest(1, 2, 3);
