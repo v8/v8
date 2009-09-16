@@ -41,6 +41,7 @@ big-object-literal: PASS, SKIP if ($arch == arm)
 # Slow tests which times out in debug mode.
 try: PASS, SKIP if $mode == debug
 debug-scripts-request: PASS, SKIP if $mode == debug
+array-constructor: PASS, SKIP if $mode == debug
 
 # Flaky test that can hit compilation-time stack overflow in debug mode.
 unicode-test: PASS, (PASS || FAIL) if $mode == debug

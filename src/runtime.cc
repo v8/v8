@@ -5755,55 +5755,51 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   int length = LocalPrototypeChainLength(*obj);
 
   // Try local lookup on each of the objects.
-  LookupResult result;
   Handle<JSObject> jsproto = obj;
   for (int i = 0; i < length; i++) {
+    LookupResult result;
     jsproto->LocalLookup(*name, &result);
     if (result.IsProperty()) {
-      break;
+      // LookupResult is not GC safe as it holds raw object pointers.
+      // GC can happen later in this code so put the required fields into
+      // local variables using handles when required for later use.
+      PropertyType result_type = result.type();
+      Handle<Object> result_callback_obj;
+      if (result_type == CALLBACKS) {
+        result_callback_obj = Handle<Object>(result.GetCallbackObject());
+      }
+      Smi* property_details = result.GetPropertyDetails().AsSmi();
+      // DebugLookupResultValue can cause GC so details from LookupResult needs
+      // to be copied to handles before this.
+      bool caught_exception = false;
+      Object* raw_value = DebugLookupResultValue(*obj, *name, &result,
+                                                 &caught_exception);
+      if (raw_value->IsFailure()) return raw_value;
+      Handle<Object> value(raw_value);
+
+      // If the callback object is a fixed array then it contains JavaScript
+      // getter and/or setter.
+      bool hasJavaScriptAccessors = result_type == CALLBACKS &&
+                                    result_callback_obj->IsFixedArray();
+      Handle<FixedArray> details =
+          Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
+      details->set(0, *value);
+      details->set(1, property_details);
+      if (hasJavaScriptAccessors) {
+        details->set(2,
+                     caught_exception ? Heap::true_value()
+                                      : Heap::false_value());
+        details->set(3, FixedArray::cast(*result_callback_obj)->get(0));
+        details->set(4, FixedArray::cast(*result_callback_obj)->get(1));
+      }
+
+      return *Factory::NewJSArrayWithElements(details);
     }
     if (i < length - 1) {
       jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
     }
   }
 
-  if (result.IsProperty()) {
-    // LookupResult is not GC safe as all its members are raw object pointers.
-    // When calling DebugLookupResultValue GC can happen as this might invoke
-    // callbacks. After the call to DebugLookupResultValue the callback object
-    // in the LookupResult might still be needed. Put it into a handle for later
-    // use.
-    PropertyType result_type = result.type();
-    Handle<Object> result_callback_obj;
-    if (result_type == CALLBACKS) {
-      result_callback_obj = Handle<Object>(result.GetCallbackObject());
-    }
-
-    // Find the actual value. Don't use result after this call as it's content
-    // can be invalid.
-    bool caught_exception = false;
-    Object* value = DebugLookupResultValue(*obj, *name, &result,
-                                           &caught_exception);
-    if (value->IsFailure()) return value;
-    Handle<Object> value_handle(value);
-
-    // If the callback object is a fixed array then it contains JavaScript
-    // getter and/or setter.
-    bool hasJavaScriptAccessors = result_type == CALLBACKS &&
-                                  result_callback_obj->IsFixedArray();
-    Handle<FixedArray> details =
-        Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
-    details->set(0, *value_handle);
-    details->set(1, result.GetPropertyDetails().AsSmi());
-    if (hasJavaScriptAccessors) {
-      details->set(2,
-                   caught_exception ? Heap::true_value() : Heap::false_value());
-      details->set(3, FixedArray::cast(result.GetCallbackObject())->get(0));
-      details->set(4, FixedArray::cast(result.GetCallbackObject())->get(1));
-    }
-
-    return *Factory::NewJSArrayWithElements(details);
-  }
   return Heap::undefined_value();
 }
 
