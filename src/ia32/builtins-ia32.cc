@@ -740,7 +740,10 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ mov(FieldOperand(scratch1, Array::kLengthOffset), Immediate(holes));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
-  if (holes <= 4) {
+  // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
+  static const int kLoopUnfoldLimit = 4
+  ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
+  if (holes <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
     __ mov(scratch3, Factory::the_hole_value());
@@ -1068,7 +1071,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     __ Assert(equal, "Unexpected initial map for Array function");
   }
 
-  // Run the native code for the Array function called as constructor.
+  // Run the native code for the Array function called as a normal function.
   ArrayNativeCode(masm, false, &generic_array_code);
 
   // Jump to the generic array code in case the specialized code cannot handle
@@ -1110,7 +1113,6 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  GenerateLoadArrayFunction(masm, edi);
   Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
