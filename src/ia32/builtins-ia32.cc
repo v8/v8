@@ -741,7 +741,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
 
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
-  static const int kLoopUnfoldLimit = 4
+  static const int kLoopUnfoldLimit = 4;
   ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
   if (holes <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
