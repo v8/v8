@@ -1427,6 +1427,10 @@ class JSObject: public HeapObject {
 
   // Tells whether this object needs to be loaded.
   inline bool IsLoaded();
+  
+  // Returns true if this is an instance of an api function and has
+  // been modified since it was created.  May give false positives.
+  bool IsDirty();
 
   bool HasProperty(String* name) {
     return GetPropertyAttribute(name) != ABSENT;

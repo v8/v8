@@ -476,6 +476,21 @@ Object* JSObject::DeleteNormalizedProperty(String* name, DeleteMode mode) {
 }
 
 
+bool JSObject::IsDirty() {
+  Object* cons_obj = map()->constructor();
+  if (!cons_obj->IsJSFunction())
+    return true;
+  JSFunction* fun = JSFunction::cast(cons_obj);
+  if (!fun->shared()->function_data()->IsFunctionTemplateInfo())
+    return true;
+  // If the object is fully fast case and has the same map it was
+  // created with then no changes can have been made to it.
+  return map() != fun->initial_map()
+      || !HasFastElements()
+      || !HasFastProperties();
+}
+
+
 Object* Object::GetProperty(Object* receiver,
                             LookupResult* result,
                             String* name,
