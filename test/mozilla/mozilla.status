@@ -569,11 +569,6 @@ js1_5/Array/regress-350256-02: FAIL
 ecma_3/Function/regress-137181: FAIL
 
 
-# Tests that rely on specific details of function decompilation or
-# print strings for errors. Non-ECMA behavior.
-js1_4/Regress/function-003: FAIL
-
-
 # 'export' and 'import' are not keywords in V8.
 ecma_2/Exceptions/lexical-010: FAIL
 ecma_2/Exceptions/lexical-022: FAIL
