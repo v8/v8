@@ -1208,6 +1208,14 @@ static Object* Runtime_FunctionIsAPIFunction(Arguments args) {
                                                       : Heap::false_value();
 }
 
+static Object* Runtime_FunctionIsBuiltin(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  return f->IsBuiltin() ? Heap::true_value() : Heap::false_value();
+}
+
 
 static Object* Runtime_SetCode(Arguments args) {
   HandleScope scope;

@@ -524,7 +524,7 @@ function FunctionSourceString(func) {
   }
 
   var source = %FunctionGetSourceCode(func);
-  if (!IS_STRING(source)) {
+  if (!IS_STRING(source) || %FunctionIsBuiltin(func)) {
     var name = %FunctionGetName(func);
     if (name) {
       // Mimic what KJS does.
@@ -534,12 +534,6 @@ function FunctionSourceString(func) {
     }
   }
 
-  // Censor occurrences of internal calls.  We do that for all
-  // functions and don't cache under the assumption that people rarly
-  // convert functions to strings.  Note that we (apparently) can't
-  // use regular expression literals in natives files.
-  var regexp = ORIGINAL_REGEXP("%(\\w+\\()", "gm");
-  if (source.match(regexp)) source = source.replace(regexp, "$1");
   var name = %FunctionGetName(func);
   return 'function ' + name + source;
 }

@@ -171,6 +171,7 @@ namespace internal {
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetPositionForOffset, 2, 1) \
   F(FunctionIsAPIFunction, 1, 1) \
+  F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
   F(CollectStackTrace, 2, 1) \
   \
