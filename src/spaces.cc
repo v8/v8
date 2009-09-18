@@ -1906,7 +1906,7 @@ void OldSpace::ReportStatistics() {
       int rset = Memory::int_at(rset_addr);
       if (rset != 0) {
         // Bits were set
-        int intoff = rset_addr - p->address();
+        int intoff = rset_addr - p->address() - Page::kRSetOffset;
         int bitoff = 0;
         for (; bitoff < kBitsPerInt; ++bitoff) {
           if ((rset & (1 << bitoff)) != 0) {
@@ -2171,7 +2171,7 @@ void FixedSpace::ReportStatistics() {
       int rset = Memory::int_at(rset_addr);
       if (rset != 0) {
         // Bits were set
-        int intoff = rset_addr - p->address();
+        int intoff = rset_addr - p->address() - Page::kRSetOffset;
         int bitoff = 0;
         for (; bitoff < kBitsPerInt; ++bitoff) {
           if ((rset & (1 << bitoff)) != 0) {
