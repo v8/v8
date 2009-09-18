@@ -316,7 +316,9 @@ void LogMessageBuilder::AppendStringPart(const char* str, int len) {
     ASSERT(len >= 0);
     if (len == 0) return;
   }
-  strncpy(Log::message_buffer_ + pos_, str, len);
+  Vector<char> buf(Log::message_buffer_ + pos_,
+                   Log::kMessageBufferSize - pos_);
+  OS::StrNCpy(buf, str, len);
   pos_ += len;
   ASSERT(pos_ <= Log::kMessageBufferSize);
 }
