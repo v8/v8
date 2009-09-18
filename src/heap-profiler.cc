@@ -37,18 +37,70 @@ namespace internal {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 namespace {
 
-// JSStatsHelper provides service functions for examining
-// JS objects allocated on heap. It is run during garbage
-// collection cycle, thus it doesn't need to use handles.
-class JSStatsHelper {
+// Clusterizer is a set of helper functions for converting
+// object references into clusters.
+class Clusterizer : public AllStatic {
  public:
-  static int CalculateNetworkSize(JSObject* obj);
+  static JSObjectsCluster Clusterize(HeapObject* obj) {
+    return Clusterize(obj, true);
+  }
+  static void InsertIntoTree(JSObjectsClusterTree* tree,
+                             HeapObject* obj, bool fine_grain);
+  static void InsertReferenceIntoTree(JSObjectsClusterTree* tree,
+                                      const JSObjectsCluster& cluster) {
+    InsertIntoTree(tree, cluster, 0);
+  }
+
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSStatsHelper);
+  static JSObjectsCluster Clusterize(HeapObject* obj, bool fine_grain);
+  static int CalculateNetworkSize(JSObject* obj);
+  static int GetObjectSize(HeapObject* obj) {
+    return obj->IsJSObject() ?
+        CalculateNetworkSize(JSObject::cast(obj)) : obj->Size();
+  }
+  static void InsertIntoTree(JSObjectsClusterTree* tree,
+                             const JSObjectsCluster& cluster, int size);
 };
 
 
-int JSStatsHelper::CalculateNetworkSize(JSObject* obj) {
+JSObjectsCluster Clusterizer::Clusterize(HeapObject* obj, bool fine_grain) {
+  if (obj->IsJSObject()) {
+    JSObject* js_obj = JSObject::cast(obj);
+    String* constructor = JSObject::cast(js_obj)->constructor_name();
+    // Differentiate Object and Array instances.
+    if (fine_grain && (constructor == Heap::Object_symbol() ||
+                       constructor == Heap::Array_symbol())) {
+      return JSObjectsCluster(constructor, obj);
+    } else {
+      return JSObjectsCluster(constructor);
+    }
+  } else if (obj->IsString()) {
+    return JSObjectsCluster(Heap::String_symbol());
+  }
+  return JSObjectsCluster();
+}
+
+
+void Clusterizer::InsertIntoTree(JSObjectsClusterTree* tree,
+                                 HeapObject* obj, bool fine_grain) {
+  JSObjectsCluster cluster = Clusterize(obj, fine_grain);
+  if (cluster.is_null()) return;
+  InsertIntoTree(tree, cluster, GetObjectSize(obj));
+}
+
+
+void Clusterizer::InsertIntoTree(JSObjectsClusterTree* tree,
+                                 const JSObjectsCluster& cluster, int size) {
+  JSObjectsClusterTree::Locator loc;
+  tree->Insert(cluster, &loc);
+  NumberAndSizeInfo number_and_size = loc.value();
+  number_and_size.increment_number(1);
+  number_and_size.increment_bytes(size);
+  loc.set_value(number_and_size);
+}
+
+
+int Clusterizer::CalculateNetworkSize(JSObject* obj) {
   int size = obj->Size();
   // If 'properties' and 'elements' are non-empty (thus, non-shared),
   // take their size into account.
@@ -65,8 +117,8 @@ int JSStatsHelper::CalculateNetworkSize(JSObject* obj) {
 // A helper class for recording back references.
 class ReferencesExtractor : public ObjectVisitor {
  public:
-  ReferencesExtractor(
-      const JSObjectsCluster& cluster, RetainerHeapProfile* profile)
+  ReferencesExtractor(const JSObjectsCluster& cluster,
+                      RetainerHeapProfile* profile)
       : cluster_(cluster),
         profile_(profile),
         inside_array_(false) {
@@ -74,7 +126,7 @@ class ReferencesExtractor : public ObjectVisitor {
 
   void VisitPointer(Object** o) {
     if ((*o)->IsJSObject() || (*o)->IsString()) {
-      profile_->StoreReference(cluster_, *o);
+      profile_->StoreReference(cluster_, HeapObject::cast(*o));
     } else if ((*o)->IsFixedArray() && !inside_array_) {
       // Traverse one level deep for data members that are fixed arrays.
       // This covers the case of 'elements' and 'properties' of JSObject,
@@ -99,18 +151,47 @@ class ReferencesExtractor : public ObjectVisitor {
 // A printer interface implementation for the Retainers profile.
 class RetainersPrinter : public RetainerHeapProfile::Printer {
  public:
-  void PrintRetainers(const StringStream& retainers) {
-    LOG(HeapSampleJSRetainersEvent(*(retainers.ToCString())));
+  void PrintRetainers(const JSObjectsCluster& cluster,
+                      const StringStream& retainers) {
+    HeapStringAllocator allocator;
+    StringStream stream(&allocator);
+    cluster.Print(&stream);
+    LOG(HeapSampleJSRetainersEvent(
+        *(stream.ToCString()), *(retainers.ToCString())));
   }
 };
+
+
+class RetainerTreePrinter BASE_EMBEDDED {
+ public:
+  explicit RetainerTreePrinter(StringStream* stream) : stream_(stream) {}
+  void Call(const JSObjectsCluster& cluster,
+            const NumberAndSizeInfo& number_and_size) {
+    Print(stream_, cluster, number_and_size);
+  }
+  static void Print(StringStream* stream,
+                    const JSObjectsCluster& cluster,
+                    const NumberAndSizeInfo& numNNber_and_size);
+
+ private:
+  StringStream* stream_;
+};
+
+
+void RetainerTreePrinter::Print(StringStream* stream,
+                                const JSObjectsCluster& cluster,
+                                const NumberAndSizeInfo& number_and_size) {
+  stream->Put(',');
+  cluster.Print(stream);
+  stream->Add(";%d", number_and_size.number());
+}
+
 
 }  // namespace
 
 
-const ConstructorHeapProfile::TreeConfig::Key
-    ConstructorHeapProfile::TreeConfig::kNoKey = NULL;
-const ConstructorHeapProfile::TreeConfig::Value
-    ConstructorHeapProfile::TreeConfig::kNoValue;
+const JSObjectsClusterTreeConfig::Key JSObjectsClusterTreeConfig::kNoKey;
+const JSObjectsClusterTreeConfig::Value JSObjectsClusterTreeConfig::kNoValue;
 
 
 ConstructorHeapProfile::ConstructorHeapProfile()
@@ -118,39 +199,19 @@ ConstructorHeapProfile::ConstructorHeapProfile()
 }
 
 
-void ConstructorHeapProfile::Call(String* name,
-                                const NumberAndSizeInfo& number_and_size) {
-  ASSERT(name != NULL);
-  SmartPointer<char> s_name(
-      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
-  LOG(HeapSampleJSConstructorEvent(*s_name,
+void ConstructorHeapProfile::Call(const JSObjectsCluster& cluster,
+                                  const NumberAndSizeInfo& number_and_size) {
+  HeapStringAllocator allocator;
+  StringStream stream(&allocator);
+  cluster.Print(&stream);
+  LOG(HeapSampleJSConstructorEvent(*(stream.ToCString()),
                                    number_and_size.number(),
                                    number_and_size.bytes()));
 }
 
 
 void ConstructorHeapProfile::CollectStats(HeapObject* obj) {
-  String* constructor = NULL;
-  int size;
-  if (obj->IsString()) {
-    constructor = Heap::String_symbol();
-    size = obj->Size();
-  } else if (obj->IsJSObject()) {
-    JSObject* js_obj = JSObject::cast(obj);
-    constructor = js_obj->constructor_name();
-    size = JSStatsHelper::CalculateNetworkSize(js_obj);
-  } else {
-    return;
-  }
-
-  JSObjectsInfoTree::Locator loc;
-  if (!js_objects_info_tree_.Find(constructor, &loc)) {
-    js_objects_info_tree_.Insert(constructor, &loc);
-  }
-  NumberAndSizeInfo number_and_size = loc.value();
-  number_and_size.increment_number(1);
-  number_and_size.increment_bytes(size);
-  loc.set_value(number_and_size);
+  Clusterizer::InsertIntoTree(&js_objects_info_tree_, obj, false);
 }
 
 
@@ -231,37 +292,37 @@ ClustersCoarser::ClustersCoarser()
 }
 
 
-void ClustersCoarser::Call(
-    const JSObjectsCluster& cluster, JSObjectsClusterTree* tree) {
-  if (tree != NULL) {
-    // First level of retainer graph.
-    if (!cluster.can_be_coarsed()) return;
-    ClusterBackRefs pair(cluster);
-    ASSERT(current_pair_ == NULL);
-    current_pair_ = &pair;
-    current_set_ = new JSObjectsClusterTree();
-    tree->ForEach(this);
-    sim_list_.Add(pair);
-    current_pair_ = NULL;
-    current_set_ = NULL;
+void ClustersCoarser::Call(const JSObjectsCluster& cluster,
+                           JSObjectsClusterTree* tree) {
+  if (!cluster.can_be_coarsed()) return;
+  ClusterBackRefs pair(cluster);
+  ASSERT(current_pair_ == NULL);
+  current_pair_ = &pair;
+  current_set_ = new JSObjectsRetainerTree();
+  tree->ForEach(this);
+  sim_list_.Add(pair);
+  current_pair_ = NULL;
+  current_set_ = NULL;
+}
+
+
+void ClustersCoarser::Call(const JSObjectsCluster& cluster,
+                           const NumberAndSizeInfo& number_and_size) {
+  ASSERT(current_pair_ != NULL);
+  ASSERT(current_set_ != NULL);
+  JSObjectsCluster eq = GetCoarseEquivalent(cluster);
+  JSObjectsRetainerTree::Locator loc;
+  if (!eq.is_null()) {
+    if (current_set_->Find(eq, &loc)) return;
+    current_pair_->refs.Add(eq);
+    current_set_->Insert(eq, &loc);
   } else {
-    // Second level of retainer graph.
-    ASSERT(current_pair_ != NULL);
-    ASSERT(current_set_ != NULL);
-    JSObjectsCluster eq = GetCoarseEquivalent(cluster);
-    JSObjectsClusterTree::Locator loc;
-    if (!eq.is_null()) {
-      if (current_set_->Find(eq, &loc)) return;
-      current_pair_->refs.Add(eq);
-      current_set_->Insert(eq, &loc);
-    } else {
-      current_pair_->refs.Add(cluster);
-    }
+    current_pair_->refs.Add(cluster);
   }
 }
 
 
-void ClustersCoarser::Process(JSObjectsClusterTree* tree) {
+void ClustersCoarser::Process(JSObjectsRetainerTree* tree) {
   int last_eq_clusters = -1;
   for (int i = 0; i < kMaxPassesCount; ++i) {
     sim_list_.Clear();
@@ -273,7 +334,7 @@ void ClustersCoarser::Process(JSObjectsClusterTree* tree) {
 }
 
 
-int ClustersCoarser::DoProcess(JSObjectsClusterTree* tree) {
+int ClustersCoarser::DoProcess(JSObjectsRetainerTree* tree) {
   tree->ForEach(this);
   // To sort similarity list properly, references list of a cluster is
   // required to be sorted, thus 'O1 <- A, B' and 'O2 <- B, A' would
@@ -328,60 +389,37 @@ int ClustersCoarser::FillEqualityTree() {
 
 const JSObjectsCluster ClustersCoarser::ClusterEqualityConfig::kNoKey;
 const JSObjectsCluster ClustersCoarser::ClusterEqualityConfig::kNoValue;
-const JSObjectsClusterTreeConfig::Key JSObjectsClusterTreeConfig::kNoKey;
-const JSObjectsClusterTreeConfig::Value JSObjectsClusterTreeConfig::kNoValue =
+const JSObjectsRetainerTreeConfig::Key JSObjectsRetainerTreeConfig::kNoKey;
+const JSObjectsRetainerTreeConfig::Value JSObjectsRetainerTreeConfig::kNoValue =
     NULL;
 
 
 RetainerHeapProfile::RetainerHeapProfile()
     : zscope_(DELETE_ON_EXIT),
       coarse_cluster_tree_(NULL),
-      retainers_printed_(0),
       current_printer_(NULL),
       current_stream_(NULL) {
   JSObjectsCluster roots(JSObjectsCluster::ROOTS);
-  ReferencesExtractor extractor(
-      roots, this);
+  ReferencesExtractor extractor(roots, this);
   Heap::IterateRoots(&extractor);
 }
 
 
-JSObjectsCluster RetainerHeapProfile::Clusterize(Object* obj) {
-  if (obj->IsJSObject()) {
-    String* constructor = JSObject::cast(obj)->constructor_name();
-    // Differentiate Object and Array instances.
-    if (constructor == Heap::Object_symbol() ||
-        constructor == Heap::Array_symbol()) {
-      return JSObjectsCluster(constructor, obj);
-    } else {
-      return JSObjectsCluster(constructor);
-    }
-  } else if (obj->IsString()) {
-    return JSObjectsCluster(Heap::String_symbol());
-  } else {
-    UNREACHABLE();
-    return JSObjectsCluster();
-  }
-}
-
-
-void RetainerHeapProfile::StoreReference(
-    const JSObjectsCluster& cluster,
-    Object* ref) {
-  JSObjectsCluster ref_cluster = Clusterize(ref);
-  JSObjectsClusterTree::Locator ref_loc;
+void RetainerHeapProfile::StoreReference(const JSObjectsCluster& cluster,
+                                         HeapObject* ref) {
+  JSObjectsCluster ref_cluster = Clusterizer::Clusterize(ref);
+  JSObjectsRetainerTree::Locator ref_loc;
   if (retainers_tree_.Insert(ref_cluster, &ref_loc)) {
     ref_loc.set_value(new JSObjectsClusterTree());
   }
   JSObjectsClusterTree* referenced_by = ref_loc.value();
-  JSObjectsClusterTree::Locator obj_loc;
-  referenced_by->Insert(cluster, &obj_loc);
+  Clusterizer::InsertReferenceIntoTree(referenced_by, cluster);
 }
 
 
 void RetainerHeapProfile::CollectStats(HeapObject* obj) {
   if (obj->IsJSObject()) {
-    const JSObjectsCluster cluster = Clusterize(JSObject::cast(obj));
+    const JSObjectsCluster cluster = Clusterizer::Clusterize(obj);
     ReferencesExtractor extractor(cluster, this);
     obj->Iterate(&extractor);
   } else if (obj->IsJSGlobalPropertyCell()) {
@@ -408,50 +446,40 @@ void RetainerHeapProfile::PrintStats() {
 }
 
 
-void RetainerHeapProfile::Call(
-    const JSObjectsCluster& cluster,
-    JSObjectsClusterTree* tree) {
-  ASSERT(current_printer_ != NULL);
-  if (tree != NULL) {
-    // First level of retainer graph.
-    if (coarser_.HasAnEquivalent(cluster)) return;
-    ASSERT(current_stream_ == NULL);
-    HeapStringAllocator allocator;
-    StringStream stream(&allocator);
-    current_stream_ = &stream;
-    cluster.Print(current_stream_);
-    ASSERT(coarse_cluster_tree_ == NULL);
-    coarse_cluster_tree_ = new JSObjectsClusterTree();
-    retainers_printed_ = 0;
-    tree->ForEach(this);
-    coarse_cluster_tree_ = NULL;
-    current_printer_->PrintRetainers(stream);
-    current_stream_ = NULL;
+void RetainerHeapProfile::Call(const JSObjectsCluster& cluster,
+                               JSObjectsClusterTree* tree) {
+  // First level of retainer graph.
+  if (coarser_.HasAnEquivalent(cluster)) return;
+  ASSERT(current_stream_ == NULL);
+  HeapStringAllocator allocator;
+  StringStream stream(&allocator);
+  current_stream_ = &stream;
+  ASSERT(coarse_cluster_tree_ == NULL);
+  coarse_cluster_tree_ = new JSObjectsClusterTree();
+  tree->ForEach(this);
+  // Print aggregated counts and sizes.
+  RetainerTreePrinter printer(current_stream_);
+  coarse_cluster_tree_->ForEach(&printer);
+  coarse_cluster_tree_ = NULL;
+  current_printer_->PrintRetainers(cluster, stream);
+  current_stream_ = NULL;
+}
+
+
+void RetainerHeapProfile::Call(const JSObjectsCluster& cluster,
+                               const NumberAndSizeInfo& number_and_size) {
+  ASSERT(coarse_cluster_tree_ != NULL);
+  ASSERT(current_stream_ != NULL);
+  JSObjectsCluster eq = coarser_.GetCoarseEquivalent(cluster);
+  if (eq.is_null()) {
+    RetainerTreePrinter::Print(current_stream_, cluster, number_and_size);
   } else {
-    // Second level of retainer graph.
-    ASSERT(coarse_cluster_tree_ != NULL);
-    ASSERT(current_stream_ != NULL);
-    if (retainers_printed_ >= kMaxRetainersToPrint) {
-      if (retainers_printed_ == kMaxRetainersToPrint) {
-        // TODO(mnaganov): Print the exact count.
-        current_stream_->Add(",...");
-        ++retainers_printed_;  // avoid printing ellipsis next time.
-      }
-      return;
-    }
-    JSObjectsCluster eq = coarser_.GetCoarseEquivalent(cluster);
-    if (eq.is_null()) {
-      current_stream_->Put(',');
-      cluster.Print(current_stream_);
-      ++retainers_printed_;
-    } else {
-      JSObjectsClusterTree::Locator loc;
-      if (coarse_cluster_tree_->Insert(eq, &loc)) {
-        current_stream_->Put(',');
-        eq.Print(current_stream_);
-        ++retainers_printed_;
-      }
-    }
+    // Aggregate counts and sizes for equivalent clusters.
+    JSObjectsClusterTree::Locator loc;
+    coarse_cluster_tree_->Insert(eq, &loc);
+    NumberAndSizeInfo eq_number_and_size = loc.value();
+    eq_number_and_size.increment_number(number_and_size.number());
+    loc.set_value(eq_number_and_size);
   }
 }
 

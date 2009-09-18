@@ -46,41 +46,11 @@ class HeapProfiler {
 };
 
 
-// ConstructorHeapProfile is responsible for gathering and logging
-// "constructor profile" of JS objects allocated on heap.
-// It is run during garbage collection cycle, thus it doesn't need
-// to use handles.
-class ConstructorHeapProfile BASE_EMBEDDED {
- public:
-  ConstructorHeapProfile();
-  virtual ~ConstructorHeapProfile() {}
-  void CollectStats(HeapObject* obj);
-  void PrintStats();
-  // Used by ZoneSplayTree::ForEach. Made virtual to allow overriding in tests.
-  virtual void Call(String* name, const NumberAndSizeInfo& number_and_size);
-
- private:
-  struct TreeConfig {
-    typedef String* Key;
-    typedef NumberAndSizeInfo Value;
-    static const Key kNoKey;
-    static const Value kNoValue;
-    static int Compare(const Key& a, const Key& b) {
-      // Strings are unique, so it is sufficient to compare their pointers.
-      return a == b ? 0 : (a < b ? -1 : 1);
-    }
-  };
-  typedef ZoneSplayTree<TreeConfig> JSObjectsInfoTree;
-
-  ZoneScope zscope_;
-  JSObjectsInfoTree js_objects_info_tree_;
-};
-
-
 // JSObjectsCluster describes a group of JS objects that are
-// considered equivalent in terms of retainer profile.
+// considered equivalent in terms of a particular profile.
 class JSObjectsCluster BASE_EMBEDDED {
  public:
+  // These special cases are used in retainer profile.
   enum SpecialCase {
     ROOTS = 1,
     GLOBAL_PROPERTY = 2
@@ -94,8 +64,8 @@ class JSObjectsCluster BASE_EMBEDDED {
   JSObjectsCluster(String* constructor, Object* instance)
       : constructor_(constructor), instance_(instance) {}
 
-  static int CompareConstructors(
-      const JSObjectsCluster& a, const JSObjectsCluster& b) {
+  static int CompareConstructors(const JSObjectsCluster& a,
+                                 const JSObjectsCluster& b) {
     // Strings are unique, so it is sufficient to compare their pointers.
     return a.constructor_ == b.constructor_ ? 0
         : (a.constructor_ < b.constructor_ ? -1 : 1);
@@ -110,6 +80,7 @@ class JSObjectsCluster BASE_EMBEDDED {
 
   bool is_null() const { return constructor_ == NULL; }
   bool can_be_coarsed() const { return instance_ != NULL; }
+  String* constructor() const { return constructor_; }
 
   void Print(StringStream* accumulator) const;
   // Allows null clusters to be printed.
@@ -133,14 +104,47 @@ class JSObjectsCluster BASE_EMBEDDED {
 };
 
 
-struct JSObjectsClusterTreeConfig;
+struct JSObjectsClusterTreeConfig {
+  typedef JSObjectsCluster Key;
+  typedef NumberAndSizeInfo Value;
+  static const Key kNoKey;
+  static const Value kNoValue;
+  static int Compare(const Key& a, const Key& b) {
+    return Key::Compare(a, b);
+  }
+};
 typedef ZoneSplayTree<JSObjectsClusterTreeConfig> JSObjectsClusterTree;
 
-// JSObjectsClusterTree is used to represent retainer graphs using
-// adjacency list form. That is, the first level maps JS object
-// clusters to adjacency lists, which in their turn are degenerate
-// JSObjectsClusterTrees (their values are NULLs.)
-struct JSObjectsClusterTreeConfig {
+
+// ConstructorHeapProfile is responsible for gathering and logging
+// "constructor profile" of JS objects allocated on heap.
+// It is run during garbage collection cycle, thus it doesn't need
+// to use handles.
+class ConstructorHeapProfile BASE_EMBEDDED {
+ public:
+  ConstructorHeapProfile();
+  virtual ~ConstructorHeapProfile() {}
+  void CollectStats(HeapObject* obj);
+  void PrintStats();
+  // Used by ZoneSplayTree::ForEach. Made virtual to allow overriding in tests.
+  virtual void Call(const JSObjectsCluster& cluster,
+                    const NumberAndSizeInfo& number_and_size);
+
+ private:
+  ZoneScope zscope_;
+  JSObjectsClusterTree js_objects_info_tree_;
+};
+
+
+// JSObjectsRetainerTree is used to represent retainer graphs using
+// adjacency list form:
+//
+//   Cluster -> (Cluster -> NumberAndSizeInfo)
+//
+// Subordinate splay trees are stored by pointer. They are zone-allocated,
+// so it isn't needed to manage their lifetime.
+//
+struct JSObjectsRetainerTreeConfig {
   typedef JSObjectsCluster Key;
   typedef JSObjectsClusterTree* Value;
   static const Key kNoKey;
@@ -149,6 +153,7 @@ struct JSObjectsClusterTreeConfig {
     return Key::Compare(a, b);
   }
 };
+typedef ZoneSplayTree<JSObjectsRetainerTreeConfig> JSObjectsRetainerTree;
 
 
 class ClustersCoarser BASE_EMBEDDED {
@@ -156,7 +161,7 @@ class ClustersCoarser BASE_EMBEDDED {
   ClustersCoarser();
 
   // Processes a given retainer graph.
-  void Process(JSObjectsClusterTree* tree);
+  void Process(JSObjectsRetainerTree* tree);
 
   // Returns an equivalent cluster (can be the cluster itself).
   // If the given cluster doesn't have an equivalent, returns null cluster.
@@ -165,8 +170,10 @@ class ClustersCoarser BASE_EMBEDDED {
   // skipped in some cases.
   bool HasAnEquivalent(const JSObjectsCluster& cluster);
 
-  // Used by ZoneSplayTree::ForEach.
+  // Used by JSObjectsRetainerTree::ForEach.
   void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree);
+  void Call(const JSObjectsCluster& cluster,
+            const NumberAndSizeInfo& number_and_size);
 
  private:
   // Stores a list of back references for a cluster.
@@ -194,11 +201,11 @@ class ClustersCoarser BASE_EMBEDDED {
   };
   typedef ZoneSplayTree<ClusterEqualityConfig> EqualityTree;
 
-  static int ClusterBackRefsCmp(
-      const ClusterBackRefs* a, const ClusterBackRefs* b) {
+  static int ClusterBackRefsCmp(const ClusterBackRefs* a,
+                                const ClusterBackRefs* b) {
     return ClusterBackRefs::Compare(*a, *b);
   }
-  int DoProcess(JSObjectsClusterTree* tree);
+  int DoProcess(JSObjectsRetainerTree* tree);
   int FillEqualityTree();
 
   static const int kInitialBackrefsListCapacity = 2;
@@ -211,7 +218,7 @@ class ClustersCoarser BASE_EMBEDDED {
   SimilarityList sim_list_;
   EqualityTree eq_tree_;
   ClusterBackRefs* current_pair_;
-  JSObjectsClusterTree* current_set_;
+  JSObjectsRetainerTree* current_set_;
 };
 
 
@@ -224,31 +231,31 @@ class RetainerHeapProfile BASE_EMBEDDED {
   class Printer {
    public:
     virtual ~Printer() {}
-    virtual void PrintRetainers(const StringStream& retainers) = 0;
+    virtual void PrintRetainers(const JSObjectsCluster& cluster,
+                                const StringStream& retainers) = 0;
   };
 
   RetainerHeapProfile();
   void CollectStats(HeapObject* obj);
   void PrintStats();
   void DebugPrintStats(Printer* printer);
-  void StoreReference(const JSObjectsCluster& cluster, Object* ref);
+  void StoreReference(const JSObjectsCluster& cluster, HeapObject* ref);
 
  private:
-  JSObjectsCluster Clusterize(Object* obj);
-
   // Limit on the number of retainers to be printed per cluster.
   static const int kMaxRetainersToPrint = 50;
   ZoneScope zscope_;
-  JSObjectsClusterTree retainers_tree_;
+  JSObjectsRetainerTree retainers_tree_;
   ClustersCoarser coarser_;
   // TODO(mnaganov): Use some helper class to hold these state variables.
   JSObjectsClusterTree* coarse_cluster_tree_;
-  int retainers_printed_;
   Printer* current_printer_;
   StringStream* current_stream_;
  public:
-  // Used by JSObjectsClusterTree::ForEach.
+  // Used by JSObjectsRetainerTree::ForEach.
   void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree);
+  void Call(const JSObjectsCluster& cluster,
+            const NumberAndSizeInfo& number_and_size);
 };
 
 

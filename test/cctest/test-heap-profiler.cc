@@ -12,6 +12,7 @@
 namespace i = v8::internal;
 using i::ClustersCoarser;
 using i::JSObjectsCluster;
+using i::JSObjectsRetainerTree;
 using i::JSObjectsClusterTree;
 using i::RetainerHeapProfile;
 
@@ -31,9 +32,9 @@ class ConstructorHeapProfileTestHelper : public i::ConstructorHeapProfile {
       f_count_(0) {
   }
 
-  void Call(i::String* name, const i::NumberAndSizeInfo& number_and_size) {
-    CHECK(name != NULL);
-    if (f_name_->Equals(name)) {
+  void Call(const JSObjectsCluster& cluster,
+            const i::NumberAndSizeInfo& number_and_size) {
+    if (f_name_->Equals(cluster.constructor())) {
       CHECK_EQ(f_count_, 0);
       f_count_ = number_and_size.number();
       CHECK_GT(f_count_, 0);
@@ -74,7 +75,7 @@ TEST(ConstructorProfile) {
 
 
 static JSObjectsCluster AddHeapObjectToTree(
-    JSObjectsClusterTree* tree,
+    JSObjectsRetainerTree* tree,
     i::String* constructor,
     int instance,
     JSObjectsCluster* ref1 = NULL,
@@ -82,10 +83,11 @@ static JSObjectsCluster AddHeapObjectToTree(
     JSObjectsCluster* ref3 = NULL) {
   JSObjectsCluster o(constructor, reinterpret_cast<i::Object*>(instance));
   JSObjectsClusterTree* o_tree = new JSObjectsClusterTree();
-  JSObjectsClusterTree::Locator loc;
-  if (ref1 != NULL) o_tree->Insert(*ref1, &loc);
-  if (ref2 != NULL) o_tree->Insert(*ref2, &loc);
-  if (ref3 != NULL) o_tree->Insert(*ref3, &loc);
+  JSObjectsClusterTree::Locator o_loc;
+  if (ref1 != NULL) o_tree->Insert(*ref1, &o_loc);
+  if (ref2 != NULL) o_tree->Insert(*ref2, &o_loc);
+  if (ref3 != NULL) o_tree->Insert(*ref3, &o_loc);
+  JSObjectsRetainerTree::Locator loc;
   tree->Insert(o, &loc);
   loc.set_value(o_tree);
   return o;
@@ -137,7 +139,7 @@ TEST(ClustersCoarserSimple) {
 
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
-  JSObjectsClusterTree tree;
+  JSObjectsRetainerTree tree;
   JSObjectsCluster function(i::Heap::function_class_symbol());
   JSObjectsCluster a(*i::Factory::NewStringFromAscii(i::CStrVector("A")));
   JSObjectsCluster b(*i::Factory::NewStringFromAscii(i::CStrVector("B")));
@@ -176,7 +178,7 @@ TEST(ClustersCoarserMultipleConstructors) {
 
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
-  JSObjectsClusterTree tree;
+  JSObjectsRetainerTree tree;
   JSObjectsCluster function(i::Heap::function_class_symbol());
 
   // o1 <- Function
@@ -207,7 +209,7 @@ TEST(ClustersCoarserPathsTraversal) {
 
   i::ZoneScope zn_scope(i::DELETE_ON_EXIT);
 
-  JSObjectsClusterTree tree;
+  JSObjectsRetainerTree tree;
 
   // On the following graph:
   //
@@ -257,7 +259,9 @@ class RetainerProfilePrinter : public RetainerHeapProfile::Printer {
  public:
   RetainerProfilePrinter() : stream_(&allocator_), lines_(100) {}
 
-  void PrintRetainers(const i::StringStream& retainers) {
+  void PrintRetainers(const JSObjectsCluster& cluster,
+                      const i::StringStream& retainers) {
+    cluster.Print(&stream_);
     stream_.Add("%s", *(retainers.ToCString()));
     stream_.Put('\0');
   }
@@ -304,8 +308,10 @@ TEST(RetainerProfile) {
   CompileAndRunScript(
       "function A() {}\n"
       "function B(x) { this.x = x; }\n"
+      "function C(x) { this.x1 = x; this.x2 = x; }\n"
       "var a = new A();\n"
-      "var b = new B(a);\n");
+      "var b1 = new B(a), b2 = new B(a);\n"
+      "var c = new C(a);");
 
   RetainerHeapProfile ret_profile;
   i::AssertNoAllocation no_alloc;
@@ -316,8 +322,9 @@ TEST(RetainerProfile) {
   }
   RetainerProfilePrinter printer;
   ret_profile.DebugPrintStats(&printer);
-  CHECK_EQ("(global property),B", printer.GetRetainers("A"));
-  CHECK_EQ("(global property)", printer.GetRetainers("B"));
+  CHECK_EQ("(global property);1,B;2,C;2", printer.GetRetainers("A"));
+  CHECK_EQ("(global property);2", printer.GetRetainers("B"));
+  CHECK_EQ("(global property);1", printer.GetRetainers("C"));
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
