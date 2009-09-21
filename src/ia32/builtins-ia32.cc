@@ -740,7 +740,10 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   __ mov(FieldOperand(scratch1, Array::kLengthOffset), Immediate(holes));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
-  if (holes <= 4) {
+  // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
+  static const int kLoopUnfoldLimit = 4;
+  ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
+  if (holes <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
     __ mov(scratch3, Factory::the_hole_value());
@@ -836,8 +839,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ lea(elements_array, Operand(result, JSArray::kSize));
   __ mov(FieldOperand(result, JSArray::kElementsOffset), elements_array);
 
-  // Initialize the fixed array and fill it with holes. FixedArray length is not
-  // stored as a smi.
+  // Initialize the fixed array. FixedArray length is not stored as a smi.
   // result: JSObject
   // elements_array: elements array
   // elements_array_end: start of next object
@@ -909,7 +911,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   push_count++;
   __ push(eax);
 
-  // Check for array construction with zero arguments or one.
+  // Check for array construction with zero arguments.
   __ test(eax, Operand(eax));
   __ j(not_zero, &argc_one_or_more);
 
@@ -1005,8 +1007,8 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // Location of the last argument
   __ lea(edi, Operand(esp, 2 * kPointerSize));
 
-  // Location of the first array element (fill_with_holes is false, so the
-  // FixedArray is returned).
+  // Location of the first array element (Parameter fill_with_holes to
+  // AllocateJSArrayis false, so the FixedArray is returned in ecx).
   __ lea(edx, Operand(ecx, FixedArray::kHeaderSize - kHeapObjectTag));
 
   // ebx: argc
@@ -1068,7 +1070,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     __ Assert(equal, "Unexpected initial map for Array function");
   }
 
-  // Run the native code for the Array function called as constructor.
+  // Run the native code for the Array function called as a normal function.
   ArrayNativeCode(masm, false, &generic_array_code);
 
   // Jump to the generic array code in case the specialized code cannot handle
@@ -1105,12 +1107,11 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
   }
 
   // Run the native code for the Array function called as constructor.
-  ArrayNativeCode(masm, false, &generic_constructor);
+  ArrayNativeCode(masm, true, &generic_constructor);
 
   // Jump to the generic construct code in case the specialized code cannot
   // handle the construction.
   __ bind(&generic_constructor);
-  GenerateLoadArrayFunction(masm, edi);
   Code* code = Builtins::builtin(Builtins::JSConstructStubGeneric);
   Handle<Code> generic_construct_stub(code);
   __ jmp(generic_construct_stub, RelocInfo::CODE_TARGET);
