@@ -935,10 +935,6 @@ class ReferenceUpdater: public ObjectVisitor {
     }
   }
 
-  // Do not assert that code targets have been converted to object pointers.
-  virtual void BeginCodeIteration(Code* code) {
-  }
-
   virtual void VisitCodeTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());

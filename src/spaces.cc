@@ -827,13 +827,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
         // have their remembered set bits set if required as determined
         // by the visitor.
         int size = object->Size();
-        if (object->IsCode()) {
-          Code::cast(object)->ConvertICTargetsFromAddressToObject();
-          object->IterateBody(map->instance_type(), size, visitor);
-          Code::cast(object)->ConvertICTargetsFromObjectToAddress();
-        } else {
-          object->IterateBody(map->instance_type(), size, visitor);
-        }
+        object->IterateBody(map->instance_type(), size, visitor);
 
         current += size;
       }
@@ -2574,11 +2568,9 @@ void LargeObjectSpace::Verify() {
     // Byte arrays and strings don't have interior pointers.
     if (object->IsCode()) {
       VerifyPointersVisitor code_visitor;
-      Code::cast(object)->ConvertICTargetsFromAddressToObject();
       object->IterateBody(map->instance_type(),
                           object->Size(),
                           &code_visitor);
-      Code::cast(object)->ConvertICTargetsFromObjectToAddress();
     } else if (object->IsFixedArray()) {
       // We loop over fixed arrays ourselves, rather then using the visitor,
       // because the visitor doesn't support the start/offset iteration

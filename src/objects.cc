@@ -4955,60 +4955,25 @@ void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
 }
 
 
-void ObjectVisitor::BeginCodeIteration(Code* code) {
-  ASSERT(code->ic_flag() == Code::IC_TARGET_IS_OBJECT);
-}
-
-
 void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
-  VisitPointer(rinfo->target_object_address());
+  Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  Object* old_target = target;
+  VisitPointer(&target);
+  CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
 }
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->IsCallInstruction());
-  VisitPointer(rinfo->call_object_address());
-}
-
-
-// Convert relocatable targets from address to code object address. This is
-// mainly IC call targets but for debugging straight-line code can be replaced
-// with a call instruction which also has to be relocated.
-void Code::ConvertICTargetsFromAddressToObject() {
-  ASSERT(ic_flag() == IC_TARGET_IS_ADDRESS);
-
-  for (RelocIterator it(this, RelocInfo::kCodeTargetMask);
-       !it.done(); it.next()) {
-    Address ic_addr = it.rinfo()->target_address();
-    ASSERT(ic_addr != NULL);
-    HeapObject* code = Code::GetCodeFromTargetAddress(ic_addr);
-    ASSERT(code->IsHeapObject());
-    it.rinfo()->set_target_object(code);
-  }
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (Debug::has_break_points()) {
-    for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
-         !it.done();
-         it.next()) {
-      if (it.rinfo()->IsCallInstruction()) {
-        Address addr = it.rinfo()->call_address();
-        ASSERT(addr != NULL);
-        HeapObject* code = Code::GetCodeFromTargetAddress(addr);
-        ASSERT(code->IsHeapObject());
-        it.rinfo()->set_call_object(code);
-      }
-    }
-  }
-#endif
-  set_ic_flag(IC_TARGET_IS_OBJECT);
+  Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
+  Object* old_target = target;
+  VisitPointer(&target);
+  CHECK_EQ(target, old_target);  // VisitPointer doesn't change Code* *target.
 }
 
 
 void Code::CodeIterateBody(ObjectVisitor* v) {
-  v->BeginCodeIteration(this);
-
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
@@ -5035,38 +5000,6 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   }
 
   ScopeInfo<>::IterateScopeInfo(this, v);
-
-  v->EndCodeIteration(this);
-}
-
-
-void Code::ConvertICTargetsFromObjectToAddress() {
-  ASSERT(ic_flag() == IC_TARGET_IS_OBJECT);
-
-  for (RelocIterator it(this, RelocInfo::kCodeTargetMask);
-       !it.done(); it.next()) {
-    // We cannot use the safe cast (Code::cast) here, because we may be in
-    // the middle of relocating old objects during GC and the map pointer in
-    // the code object may be mangled
-    Code* code = reinterpret_cast<Code*>(it.rinfo()->target_object());
-    ASSERT((code != NULL) && code->IsHeapObject());
-    it.rinfo()->set_target_address(code->instruction_start());
-  }
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (Debug::has_break_points()) {
-    for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
-         !it.done();
-         it.next()) {
-      if (it.rinfo()->IsCallInstruction()) {
-        Code* code = reinterpret_cast<Code*>(it.rinfo()->call_object());
-        ASSERT((code != NULL) && code->IsHeapObject());
-        it.rinfo()->set_call_address(code->instruction_start());
-      }
-    }
-  }
-#endif
-  set_ic_flag(IC_TARGET_IS_ADDRESS);
 }
 
 

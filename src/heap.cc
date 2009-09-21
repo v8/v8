@@ -637,15 +637,7 @@ static void VerifyNonPointerSpacePointers() {
   HeapObjectIterator code_it(Heap::code_space());
   while (code_it.has_next()) {
     HeapObject* object = code_it.next();
-    if (object->IsCode()) {
-      Code::cast(object)->ConvertICTargetsFromAddressToObject();
-      object->Iterate(&v);
-      Code::cast(object)->ConvertICTargetsFromObjectToAddress();
-    } else {
-      // If we find non-code objects in code space (e.g., free list
-      // nodes) we want to verify them as well.
-      object->Iterate(&v);
-    }
+    object->Iterate(&v);
   }
 
   HeapObjectIterator data_it(Heap::old_data_space());
@@ -1935,7 +1927,6 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   code->set_relocation_size(desc.reloc_size);
   code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
-  code->set_ic_flag(Code::IC_TARGET_IS_ADDRESS);
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -3587,10 +3578,6 @@ static void MarkObjectRecursively(Object** p) {
     return;
   }
 
-  if (obj->IsCode()) {
-    Code::cast(obj)->ConvertICTargetsFromAddressToObject();
-  }
-
   // not visited yet
   Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
 
@@ -3646,10 +3633,6 @@ static void UnmarkObjectRecursively(Object** p) {
   obj->IterateBody(Map::cast(map_p)->instance_type(),
                    obj->SizeFromMap(Map::cast(map_p)),
                    &unmark_visitor);
-
-  if (obj->IsCode()) {
-    Code::cast(obj)->ConvertICTargetsFromObjectToAddress();
-  }
 }
 
 
