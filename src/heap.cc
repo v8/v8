@@ -3035,63 +3035,49 @@ bool Heap::Setup(bool create_heap_objects) {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  // Setup memory allocator and allocate an initial chunk of memory.  The
-  // initial chunk is double the size of the new space to ensure that we can
-  // find a pair of semispaces that are contiguous and aligned to their size.
+  // Setup memory allocator and reserve a chunk of memory for new
+  // space.  The chunk is double the size of the new space to ensure
+  // that we can find a pair of semispaces that are contiguous and
+  // aligned to their size.
   if (!MemoryAllocator::Setup(MaxCapacity())) return false;
-  void* chunk
-      = MemoryAllocator::ReserveInitialChunk(2 * young_generation_size_);
+  void* chunk =
+      MemoryAllocator::ReserveInitialChunk(2 * young_generation_size_);
   if (chunk == NULL) return false;
 
-  // Put the initial chunk of the old space at the start of the initial
-  // chunk, then the two new space semispaces, then the initial chunk of
-  // code space.  Align the pair of semispaces to their size, which must be
-  // a power of 2.
+  // Align the pair of semispaces to their size, which must be a power
+  // of 2.
   ASSERT(IsPowerOf2(young_generation_size_));
-  Address code_space_start = reinterpret_cast<Address>(chunk);
-  Address new_space_start = RoundUp(code_space_start, young_generation_size_);
-  Address old_space_start = new_space_start + young_generation_size_;
-  int code_space_size = new_space_start - code_space_start;
-  int old_space_size = young_generation_size_ - code_space_size;
-
-  // Initialize new space.
+  Address new_space_start =
+      RoundUp(reinterpret_cast<byte*>(chunk), young_generation_size_);
   if (!new_space_.Setup(new_space_start, young_generation_size_)) return false;
 
-  // Initialize old space, set the maximum capacity to the old generation
-  // size. It will not contain code.
+  // Initialize old pointer space.
   old_pointer_space_ =
       new OldSpace(old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
   if (old_pointer_space_ == NULL) return false;
-  if (!old_pointer_space_->Setup(old_space_start, old_space_size >> 1)) {
-    return false;
-  }
+  if (!old_pointer_space_->Setup(NULL, 0)) return false;
+
+  // Initialize old data space.
   old_data_space_ =
       new OldSpace(old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
   if (old_data_space_ == NULL) return false;
-  if (!old_data_space_->Setup(old_space_start + (old_space_size >> 1),
-                              old_space_size >> 1)) {
-    return false;
-  }
+  if (!old_data_space_->Setup(NULL, 0)) return false;
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
   code_space_ =
       new OldSpace(old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
-  if (!code_space_->Setup(code_space_start, code_space_size)) return false;
+  if (!code_space_->Setup(NULL, 0)) return false;
 
   // Initialize map space.
   map_space_ = new MapSpace(kMaxMapSpaceSize, MAP_SPACE);
   if (map_space_ == NULL) return false;
-  // Setting up a paged space without giving it a virtual memory range big
-  // enough to hold at least a page will cause it to allocate.
   if (!map_space_->Setup(NULL, 0)) return false;
 
   // Initialize global property cell space.
   cell_space_ = new CellSpace(old_generation_size_, CELL_SPACE);
   if (cell_space_ == NULL) return false;
-  // Setting up a paged space without giving it a virtual memory range big
-  // enough to hold at least a page will cause it to allocate.
   if (!cell_space_->Setup(NULL, 0)) return false;
 
   // The large object code space may contain code or data.  We set the memory
