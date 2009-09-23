@@ -1191,6 +1191,7 @@ v8::TryCatch::TryCatch()
       exception_(i::Heap::the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
+      can_continue_(true),
       capture_message_(true),
       js_handler_(NULL) {
   i::Top::RegisterTryCatchHandler(this);
