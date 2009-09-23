@@ -4389,6 +4389,9 @@ class JSArray: public JSObject {
   void JSArrayVerify();
 #endif
 
+  // Number of element slots to pre-allocate for an empty array.
+  static const int kPreallocatedArrayElements = 4;
+
   // Layout description.
   static const int kLengthOffset = JSObject::kHeaderSize;
   static const int kSize = kLengthOffset + kPointerSize;
