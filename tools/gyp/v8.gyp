@@ -87,7 +87,7 @@
               '-O3',
             ],
             'conditions': [
-              [ 'gcc_version=="44"', {
+              [ 'gcc_version==44', {
                 'cflags': [
                   # Avoid gcc 4.4 strict aliasing issues in dtoa.c
                   '-fno-strict-aliasing',
