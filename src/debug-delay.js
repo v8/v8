@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// jsminify this file, js2c: jsmin
-
 // Default number of frames to include in the response to backtrace request.
 const kDefaultBacktraceLength = 10;
 
@@ -35,7 +33,7 @@ const Debug = {};
 // Regular expression to skip "crud" at the beginning of a source line which is
 // not really code. Currently the regular expression matches whitespace and
 // comments.
-const sourceLineBeginningSkip = /^(?:[ \v\h]*(?:\/\*.*?\*\/)*)*/;
+const sourceLineBeginningSkip = /^(?:\s*(?:\/\*.*?\*\/)*)*/;
 
 // Debug events which can occour in the V8 JavaScript engine. These originate
 // from the API include file debug.h.
