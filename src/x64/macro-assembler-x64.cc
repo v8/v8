@@ -519,6 +519,18 @@ void MacroAssembler::JumpIfSmiEqualsConstant(Register src,
 }
 
 
+void MacroAssembler::JumpIfSmiGreaterEqualsConstant(Register src,
+                                                    int constant,
+                                                    Label* on_greater_equals) {
+  if (Smi::IsValid(constant)) {
+    Condition are_greater_equal = CheckSmiGreaterEqualsConstant(src, constant);
+    j(are_greater_equal, on_greater_equals);
+  } else if (constant < Smi::kMinValue){
+    jmp(on_greater_equals);
+  }
+}
+
+
 void MacroAssembler::JumpIfNotValidSmiValue(Register src, Label* on_invalid) {
   Condition is_valid = CheckInteger32ValidSmiValue(src);
   j(ReverseCondition(is_valid), on_invalid);
@@ -595,6 +607,22 @@ Condition MacroAssembler::CheckSmiEqualsConstant(Register src, int constant) {
   if (Smi::IsValid(constant)) {
     cmpl(src, Immediate(Smi::FromInt(constant)));
     return zero;
+  }
+  // Can't be equal.
+  UNREACHABLE();
+  return no_condition;
+}
+
+
+Condition MacroAssembler::CheckSmiGreaterEqualsConstant(Register src,
+                                                        int constant) {
+  if (constant == 0) {
+    testl(src, Immediate(static_cast<uint32_t>(0x80000000u)));
+    return positive;
+  }
+  if (Smi::IsValid(constant)) {
+    cmpl(src, Immediate(Smi::FromInt(constant)));
+    return greater_equal;
   }
   // Can't be equal.
   UNREACHABLE();

@@ -193,6 +193,9 @@ class MacroAssembler: public Assembler {
   // Check whether a tagged smi is equal to a constant.
   Condition CheckSmiEqualsConstant(Register src, int constant);
 
+  // Check whether a tagged smi is greater than or equal to a constant.
+  Condition CheckSmiGreaterEqualsConstant(Register src, int constant);
+
   // Checks whether an 32-bit integer value is a valid for conversion
   // to a smi.
   Condition CheckInteger32ValidSmiValue(Register src);
@@ -215,6 +218,12 @@ class MacroAssembler: public Assembler {
   // Jump to label if the value is a tagged smi with value equal
   // to the constant.
   void JumpIfSmiEqualsConstant(Register src, int constant, Label* on_equals);
+
+  // Jump to label if the value is a tagged smi with value greater than or equal
+  // to the constant.
+  void JumpIfSmiGreaterEqualsConstant(Register src,
+                                      int constant,
+                                      Label* on_equals);
 
   // Jump if either or both register are not smi values.
   void JumpIfNotBothSmi(Register src1, Register src2, Label* on_not_both_smi);

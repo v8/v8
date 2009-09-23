@@ -687,6 +687,10 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x4, dst, src);
   }
 
+  void andl(Register dst, Immediate src) {
+    immediate_arithmetic_op_32(0x4, dst, src);
+  }
+
   void decq(Register dst);
   void decq(const Operand& dst);
   void decl(Register dst);
