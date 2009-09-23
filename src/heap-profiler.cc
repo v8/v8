@@ -67,10 +67,9 @@ JSObjectsCluster Clusterizer::Clusterize(HeapObject* obj, bool fine_grain) {
   if (obj->IsJSObject()) {
     JSObject* js_obj = JSObject::cast(obj);
     String* constructor = JSObject::cast(js_obj)->constructor_name();
-    // Differentiate Array, Function, and Object instances.
+    // Differentiate Object and Array instances.
     if (fine_grain && (constructor == Heap::Object_symbol() ||
-                       constructor == Heap::Array_symbol() ||
-                       constructor == Heap::function_class_symbol())) {
+                       constructor == Heap::Array_symbol())) {
       return JSObjectsCluster(constructor, obj);
     } else {
       return JSObjectsCluster(constructor);
