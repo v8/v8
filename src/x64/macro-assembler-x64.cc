@@ -525,7 +525,7 @@ void MacroAssembler::JumpIfSmiGreaterEqualsConstant(Register src,
   if (Smi::IsValid(constant)) {
     Condition are_greater_equal = CheckSmiGreaterEqualsConstant(src, constant);
     j(are_greater_equal, on_greater_equals);
-  } else if (constant < Smi::kMinValue){
+  } else if (constant < Smi::kMinValue) {
     jmp(on_greater_equals);
   }
 }
