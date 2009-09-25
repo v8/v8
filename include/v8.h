@@ -1207,6 +1207,13 @@ class V8EXPORT Object : public Value {
    */
   Handle<Value> GetRealNamedPropertyInPrototypeChain(Handle<String> key);
 
+  /**
+   * If result.IsEmpty() no real property was located on the object or
+   * in the prototype chain.
+   * This means interceptors in the prototype chain are not called.
+   */
+  Handle<Value> GetRealNamedProperty(Handle<String> key);
+
   /** Tests for a named lookup interceptor.*/
   bool HasNamedLookupInterceptor();
 

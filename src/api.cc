@@ -2142,6 +2142,25 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
 }
 
 
+Handle<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
+  ON_BAILOUT("v8::Object::GetRealNamedProperty()", return Local<Value>());
+  ENTER_V8;
+  i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
+  i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
+  i::LookupResult lookup;
+  self_obj->LookupRealNamedProperty(*key_obj, &lookup);
+  if (lookup.IsValid()) {
+    PropertyAttributes attributes;
+    i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
+                                                      &lookup,
+                                                      *key_obj,
+                                                      &attributes));
+    return Utils::ToLocal(result);
+  }
+  return Local<Value>();  // No real property was found in prototype chain.
+}
+
+
 // Turns on access checks by copying the map and setting the check flag.
 // Because the object gets a new map, existing inline cache caching
 // the old map of this object will fail.
