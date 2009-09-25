@@ -4522,6 +4522,7 @@ TEST(DebuggerAgent) {
   // with the client connected.
   ok = i::Debugger::StartAgent("test", kPort2);
   CHECK(ok);
+  i::Debugger::WaitForAgent();
   i::Socket* client = i::OS::CreateSocket();
   ok = client->Connect("localhost", port2_str);
   CHECK(ok);

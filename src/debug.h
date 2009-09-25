@@ -645,6 +645,9 @@ class Debugger {
   // Stop the debugger agent.
   static void StopAgent();
 
+  // Blocks until the agent has started listening for connections
+  static void WaitForAgent();
+
   // Unload the debugger if possible. Only called when no debugger is currently
   // active.
   static void UnloadDebugger();
