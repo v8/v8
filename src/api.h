@@ -369,6 +369,9 @@ class HandleScopeImplementer {
     ASSERT(blocks_.length() == 0);
     ASSERT(entered_contexts_.length() == 0);
     ASSERT(saved_contexts_.length() == 0);
+    blocks_.Free();
+    entered_contexts_.Free();
+    saved_contexts_.Free();
     if (spare_ != NULL) {
       DeleteArray(spare_);
       spare_ = NULL;
