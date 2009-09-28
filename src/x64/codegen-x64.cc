@@ -913,7 +913,6 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
-  CodeForStatementPosition(node);
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
   Slot* slot = var->slot();
@@ -2592,7 +2591,6 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
-  CodeForStatementPosition(node);
 
   { Reference target(this, node->target());
     if (target.is_illegal()) {
@@ -2674,8 +2672,6 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 
 void CodeGenerator::VisitThrow(Throw* node) {
   Comment cmnt(masm_, "[ Throw");
-  CodeForStatementPosition(node);
-
   Load(node->exception());
   Result result = frame_->CallRuntime(Runtime::kThrow, 1);
   frame_->Push(&result);
@@ -2693,8 +2689,6 @@ void CodeGenerator::VisitCall(Call* node) {
   Comment cmnt(masm_, "[ Call");
 
   ZoneList<Expression*>* args = node->arguments();
-
-  CodeForStatementPosition(node);
 
   // Check if the function is a variable or a property.
   Expression* function = node->expression();
@@ -2855,8 +2849,6 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   ZoneList<Expression*>* args = node->arguments();
   Expression* function = node->expression();
 
-  CodeForStatementPosition(node);
-
   // Prepare the stack for the call to the resolved function.
   Load(function);
 
@@ -2908,7 +2900,6 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
   Comment cmnt(masm_, "[ CallNew");
-  CodeForStatementPosition(node);
 
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the

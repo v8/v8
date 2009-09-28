@@ -116,7 +116,6 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 class AstNode: public ZoneObject {
  public:
-  AstNode(): statement_pos_(RelocInfo::kNoPosition) { }
   virtual ~AstNode() { }
   virtual void Accept(AstVisitor* v) = 0;
 
@@ -140,21 +139,23 @@ class AstNode: public ZoneObject {
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
   virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
   virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
+};
+
+
+class Statement: public AstNode {
+ public:
+  Statement() : statement_pos_(RelocInfo::kNoPosition) {}
+
+  virtual Statement* AsStatement()  { return this; }
+  virtual ReturnStatement* AsReturnStatement() { return NULL; }
+
+  bool IsEmpty() { return AsEmptyStatement() != NULL; }
 
   void set_statement_pos(int statement_pos) { statement_pos_ = statement_pos; }
   int statement_pos() const { return statement_pos_; }
 
  private:
   int statement_pos_;
-};
-
-
-class Statement: public AstNode {
- public:
-  virtual Statement* AsStatement()  { return this; }
-  virtual ReturnStatement* AsReturnStatement() { return NULL; }
-
-  bool IsEmpty() { return AsEmptyStatement() != NULL; }
 };
 
 

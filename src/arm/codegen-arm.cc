@@ -1188,7 +1188,6 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
 #endif
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Declaration");
-  CodeForStatementPosition(node);
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
   Slot* slot = var->slot();
@@ -2811,7 +2810,6 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 #endif
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Assignment");
-  CodeForStatementPosition(node);
 
   { Reference target(this, node->target());
     if (target.is_illegal()) {
@@ -2911,9 +2909,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
   ZoneList<Expression*>* args = node->arguments();
 
-  CodeForStatementPosition(node);
   // Standard function call.
-
   // Check if the function is a variable or a property.
   Expression* function = node->expression();
   Variable* var = function->AsVariableProxy()->AsVariable();
@@ -3067,8 +3063,6 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   ZoneList<Expression*>* args = node->arguments();
   Expression* function = node->expression();
 
-  CodeForStatementPosition(node);
-
   // Prepare stack for call to resolved function.
   LoadAndSpill(function);
   __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
@@ -3118,7 +3112,6 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 #endif
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ CallNew");
-  CodeForStatementPosition(node);
 
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
