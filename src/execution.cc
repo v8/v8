@@ -407,6 +407,10 @@ char* StackGuard::RestoreStackGuard(char* from) {
 }
 
 
+void StackGuard::FreeThreadResources() {
+}
+
+
 // --- C a l l s   t o   n a t i v e s ---
 
 #define RETURN_NATIVE_CALL(name, argc, argv, has_pending_exception) \

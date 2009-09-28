@@ -354,6 +354,7 @@ class Debug {
   static char* ArchiveDebug(char* to);
   static char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
+  static void FreeThreadResources() { }
 
   // Mirror cache handling.
   static void ClearMirrorCache();

@@ -159,6 +159,7 @@ class StackGuard BASE_EMBEDDED {
   static char* ArchiveStackGuard(char* to);
   static char* RestoreStackGuard(char* from);
   static int ArchiveSpacePerThread();
+  static void FreeThreadResources();
 
   static bool IsStackOverflow();
   static bool IsPreempted();

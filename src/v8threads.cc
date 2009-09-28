@@ -77,7 +77,9 @@ bool Locker::IsLocked() {
 Locker::~Locker() {
   ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
   if (has_lock_) {
-    if (!top_level_) {
+    if (top_level_) {
+      internal::ThreadManager::FreeThreadResources();
+    } else {
       internal::ThreadManager::ArchiveThread();
     }
     internal::ThreadManager::Unlock();
@@ -281,6 +283,18 @@ void ThreadManager::EagerlyArchiveThread() {
   to = Bootstrapper::ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
+}
+
+
+void ThreadManager::FreeThreadResources() {
+  HandleScopeImplementer::FreeThreadResources();
+  Top::FreeThreadResources();
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug::FreeThreadResources();
+#endif
+  StackGuard::FreeThreadResources();
+  RegExpStack::FreeThreadResources();
+  Bootstrapper::FreeThreadResources();
 }
 
 

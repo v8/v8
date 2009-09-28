@@ -71,7 +71,7 @@ namespace v8 {
     thread_local.DecrementCallDepth();                                         \
     if (has_pending_exception) {                                               \
       if (thread_local.CallDepthIsZero() && i::Top::is_out_of_memory()) {      \
-        if (!thread_local.IgnoreOutOfMemory())                                 \
+        if (!thread_local.ignore_out_of_memory())                              \
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
       bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
@@ -3208,7 +3208,7 @@ Local<Integer> v8::Integer::New(int32_t value) {
 
 
 void V8::IgnoreOutOfMemoryException() {
-  thread_local.SetIgnoreOutOfMemory(true);
+  thread_local.set_ignore_out_of_memory(true);
 }
 
 
@@ -3690,6 +3690,11 @@ HandleScopeImplementer* HandleScopeImplementer::instance() {
 }
 
 
+void HandleScopeImplementer::FreeThreadResources() {
+  thread_local.Free();
+}
+
+
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
   return thread_local.ArchiveThreadHelper(storage);
 }
@@ -3701,7 +3706,7 @@ char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
-  Initialize();
+  ResetAfterArchive();
   current->Initialize();
 
   return storage + ArchiveSpacePerThread();
@@ -3727,14 +3732,14 @@ char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
 
 void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
   // Iterate over all handles in the blocks except for the last.
-  for (int i = Blocks()->length() - 2; i >= 0; --i) {
-    Object** block = Blocks()->at(i);
+  for (int i = blocks()->length() - 2; i >= 0; --i) {
+    Object** block = blocks()->at(i);
     v->VisitPointers(block, &block[kHandleBlockSize]);
   }
 
   // Iterate over live handles in the last block (if any).
-  if (!Blocks()->is_empty()) {
-    v->VisitPointers(Blocks()->last(), handle_scope_data_.next);
+  if (!blocks()->is_empty()) {
+    v->VisitPointers(blocks()->last(), handle_scope_data_.next);
   }
 
   if (!saved_contexts_.is_empty()) {

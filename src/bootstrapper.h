@@ -74,6 +74,7 @@ class Bootstrapper : public AllStatic {
   static int ArchiveSpacePerThread();
   static char* ArchiveState(char* to);
   static char* RestoreState(char* from);
+  static void FreeThreadResources();
 };
 
 }}  // namespace v8::internal

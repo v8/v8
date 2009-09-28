@@ -1586,6 +1586,12 @@ char* Bootstrapper::RestoreState(char* from) {
 }
 
 
+// Called when the top-level V8 mutex is destroyed.
+void Bootstrapper::FreeThreadResources() {
+  ASSERT(Genesis::current() == NULL);
+}
+
+
 // Reserve space for statics needing saving and restoring.
 int Genesis::ArchiveSpacePerThread() {
   return sizeof(current_);

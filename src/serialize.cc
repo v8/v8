@@ -1062,7 +1062,7 @@ void Serializer::Serialize() {
   // No active threads.
   CHECK_EQ(NULL, ThreadState::FirstInUse());
   // No active or weak handles.
-  CHECK(HandleScopeImplementer::instance()->Blocks()->is_empty());
+  CHECK(HandleScopeImplementer::instance()->blocks()->is_empty());
   CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
   // We need a counter function during serialization to resolve the
   // references to counters in the code on the heap.
@@ -1395,7 +1395,7 @@ void Deserializer::Deserialize() {
   // No active threads.
   ASSERT_EQ(NULL, ThreadState::FirstInUse());
   // No active handles.
-  ASSERT(HandleScopeImplementer::instance()->Blocks()->is_empty());
+  ASSERT(HandleScopeImplementer::instance()->blocks()->is_empty());
   reference_decoder_ = new ExternalReferenceDecoder();
   // By setting linear allocation only, we forbid the use of free list
   // allocation which is not predicted by SimulatedAddress.

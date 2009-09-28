@@ -46,10 +46,10 @@ v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
 
 
 int HandleScope::NumberOfHandles() {
-  int n = HandleScopeImplementer::instance()->Blocks()->length();
+  int n = HandleScopeImplementer::instance()->blocks()->length();
   if (n == 0) return 0;
   return ((n - 1) * kHandleBlockSize) +
-      (current_.next - HandleScopeImplementer::instance()->Blocks()->last());
+      (current_.next - HandleScopeImplementer::instance()->blocks()->last());
 }
 
 
@@ -67,8 +67,8 @@ Object** HandleScope::Extend() {
   HandleScopeImplementer* impl = HandleScopeImplementer::instance();
   // If there's more room in the last block, we use that. This is used
   // for fast creation of scopes after scope barriers.
-  if (!impl->Blocks()->is_empty()) {
-    Object** limit = &impl->Blocks()->last()[kHandleBlockSize];
+  if (!impl->blocks()->is_empty()) {
+    Object** limit = &impl->blocks()->last()[kHandleBlockSize];
     if (current_.limit != limit) {
       current_.limit = limit;
     }
@@ -81,7 +81,7 @@ Object** HandleScope::Extend() {
     result = impl->GetSpareOrNewBlock();
     // Add the extension to the global list of blocks, but count the
     // extension as part of the current scope.
-    impl->Blocks()->Add(result);
+    impl->blocks()->Add(result);
     current_.extensions++;
     current_.limit = &result[kHandleBlockSize];
   }
