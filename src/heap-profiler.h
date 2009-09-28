@@ -242,20 +242,9 @@ class RetainerHeapProfile BASE_EMBEDDED {
   void StoreReference(const JSObjectsCluster& cluster, HeapObject* ref);
 
  private:
-  // Limit on the number of retainers to be printed per cluster.
-  static const int kMaxRetainersToPrint = 50;
   ZoneScope zscope_;
   JSObjectsRetainerTree retainers_tree_;
   ClustersCoarser coarser_;
-  // TODO(mnaganov): Use some helper class to hold these state variables.
-  JSObjectsClusterTree* coarse_cluster_tree_;
-  Printer* current_printer_;
-  StringStream* current_stream_;
- public:
-  // Used by JSObjectsRetainerTree::ForEach.
-  void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree);
-  void Call(const JSObjectsCluster& cluster,
-            const NumberAndSizeInfo& number_and_size);
 };
 
 

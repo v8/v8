@@ -162,30 +162,137 @@ class RetainersPrinter : public RetainerHeapProfile::Printer {
 };
 
 
-class RetainerTreePrinter BASE_EMBEDDED {
+// Visitor for printing a cluster tree.
+class ClusterTreePrinter BASE_EMBEDDED {
  public:
-  explicit RetainerTreePrinter(StringStream* stream) : stream_(stream) {}
+  explicit ClusterTreePrinter(StringStream* stream) : stream_(stream) {}
   void Call(const JSObjectsCluster& cluster,
             const NumberAndSizeInfo& number_and_size) {
     Print(stream_, cluster, number_and_size);
   }
   static void Print(StringStream* stream,
                     const JSObjectsCluster& cluster,
-                    const NumberAndSizeInfo& numNNber_and_size);
+                    const NumberAndSizeInfo& number_and_size);
 
  private:
   StringStream* stream_;
 };
 
 
-void RetainerTreePrinter::Print(StringStream* stream,
-                                const JSObjectsCluster& cluster,
-                                const NumberAndSizeInfo& number_and_size) {
+void ClusterTreePrinter::Print(StringStream* stream,
+                               const JSObjectsCluster& cluster,
+                               const NumberAndSizeInfo& number_and_size) {
   stream->Put(',');
   cluster.Print(stream);
   stream->Add(";%d", number_and_size.number());
 }
 
+
+// Visitor for printing a retainer tree.
+class SimpleRetainerTreePrinter BASE_EMBEDDED {
+ public:
+  explicit SimpleRetainerTreePrinter(RetainerHeapProfile::Printer* printer)
+      : printer_(printer) {}
+  void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree);
+
+ private:
+  RetainerHeapProfile::Printer* printer_;
+};
+
+
+void SimpleRetainerTreePrinter::Call(const JSObjectsCluster& cluster,
+                                     JSObjectsClusterTree* tree) {
+  HeapStringAllocator allocator;
+  StringStream stream(&allocator);
+  ClusterTreePrinter retainers_printer(&stream);
+  tree->ForEach(&retainers_printer);
+  printer_->PrintRetainers(cluster, stream);
+}
+
+
+// Visitor for aggregating references count of equivalent clusters.
+class RetainersAggregator BASE_EMBEDDED {
+ public:
+  RetainersAggregator(ClustersCoarser* coarser, JSObjectsClusterTree* dest_tree)
+      : coarser_(coarser), dest_tree_(dest_tree) {}
+  void Call(const JSObjectsCluster& cluster,
+            const NumberAndSizeInfo& number_and_size);
+
+ private:
+  ClustersCoarser* coarser_;
+  JSObjectsClusterTree* dest_tree_;
+};
+
+
+void RetainersAggregator::Call(const JSObjectsCluster& cluster,
+                               const NumberAndSizeInfo& number_and_size) {
+  JSObjectsCluster eq = coarser_->GetCoarseEquivalent(cluster);
+  if (eq.is_null()) eq = cluster;
+  JSObjectsClusterTree::Locator loc;
+  dest_tree_->Insert(eq, &loc);
+  NumberAndSizeInfo aggregated_number = loc.value();
+  aggregated_number.increment_number(number_and_size.number());
+  loc.set_value(aggregated_number);
+}
+
+
+// Visitor for printing retainers tree. Aggregates equivalent retainer clusters.
+class AggregatingRetainerTreePrinter BASE_EMBEDDED {
+ public:
+  AggregatingRetainerTreePrinter(ClustersCoarser* coarser,
+                                 RetainerHeapProfile::Printer* printer)
+      : coarser_(coarser), printer_(printer) {}
+  void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree);
+
+ private:
+  ClustersCoarser* coarser_;
+  RetainerHeapProfile::Printer* printer_;
+};
+
+
+void AggregatingRetainerTreePrinter::Call(const JSObjectsCluster& cluster,
+                                          JSObjectsClusterTree* tree) {
+  if (!coarser_->GetCoarseEquivalent(cluster).is_null()) return;
+  JSObjectsClusterTree dest_tree_;
+  RetainersAggregator retainers_aggregator(coarser_, &dest_tree_);
+  tree->ForEach(&retainers_aggregator);
+  HeapStringAllocator allocator;
+  StringStream stream(&allocator);
+  ClusterTreePrinter retainers_printer(&stream);
+  dest_tree_.ForEach(&retainers_printer);
+  printer_->PrintRetainers(cluster, stream);
+}
+
+
+// A helper class for building a retainers tree, that aggregates
+// all equivalent clusters.
+class RetainerTreeAggregator BASE_EMBEDDED {
+ public:
+  explicit RetainerTreeAggregator(ClustersCoarser* coarser)
+      : coarser_(coarser) {}
+  void Process(JSObjectsRetainerTree* input_tree) {
+    input_tree->ForEach(this);
+  }
+  void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree);
+  JSObjectsRetainerTree& output_tree() { return output_tree_; }
+
+ private:
+  ClustersCoarser* coarser_;
+  JSObjectsRetainerTree output_tree_;
+};
+
+
+void RetainerTreeAggregator::Call(const JSObjectsCluster& cluster,
+                                  JSObjectsClusterTree* tree) {
+  JSObjectsCluster eq = coarser_->GetCoarseEquivalent(cluster);
+  if (eq.is_null()) return;
+  JSObjectsRetainerTree::Locator loc;
+  if (output_tree_.Insert(eq, &loc)) {
+    loc.set_value(new JSObjectsClusterTree());
+  }
+  RetainersAggregator retainers_aggregator(coarser_, loc.value());
+  tree->ForEach(&retainers_aggregator);
+}
 
 }  // namespace
 
@@ -356,8 +463,9 @@ JSObjectsCluster ClustersCoarser::GetCoarseEquivalent(
 
 bool ClustersCoarser::HasAnEquivalent(const JSObjectsCluster& cluster) {
   // Return true for coarsible clusters that have a non-identical equivalent.
-  return cluster.can_be_coarsed() &&
-      JSObjectsCluster::Compare(cluster, GetCoarseEquivalent(cluster)) != 0;
+  if (!cluster.can_be_coarsed()) return false;
+  JSObjectsCluster eq = GetCoarseEquivalent(cluster);
+  return !eq.is_null() && JSObjectsCluster::Compare(cluster, eq) != 0;
 }
 
 
@@ -395,10 +503,7 @@ const JSObjectsRetainerTreeConfig::Value JSObjectsRetainerTreeConfig::kNoValue =
 
 
 RetainerHeapProfile::RetainerHeapProfile()
-    : zscope_(DELETE_ON_EXIT),
-      coarse_cluster_tree_(NULL),
-      current_printer_(NULL),
-      current_stream_(NULL) {
+    : zscope_(DELETE_ON_EXIT) {
   JSObjectsCluster roots(JSObjectsCluster::ROOTS);
   ReferencesExtractor extractor(roots, this);
   Heap::IterateRoots(&extractor);
@@ -433,54 +538,21 @@ void RetainerHeapProfile::CollectStats(HeapObject* obj) {
 void RetainerHeapProfile::DebugPrintStats(
     RetainerHeapProfile::Printer* printer) {
   coarser_.Process(&retainers_tree_);
-  ASSERT(current_printer_ == NULL);
-  current_printer_ = printer;
-  retainers_tree_.ForEach(this);
-  current_printer_ = NULL;
+  // Print clusters that have no equivalents, aggregating their retainers.
+  AggregatingRetainerTreePrinter agg_printer(&coarser_, printer);
+  retainers_tree_.ForEach(&agg_printer);
+  // Now aggregate clusters that have equivalents...
+  RetainerTreeAggregator aggregator(&coarser_);
+  aggregator.Process(&retainers_tree_);
+  // ...and print them.
+  SimpleRetainerTreePrinter s_printer(printer);
+  aggregator.output_tree().ForEach(&s_printer);
 }
 
 
 void RetainerHeapProfile::PrintStats() {
   RetainersPrinter printer;
   DebugPrintStats(&printer);
-}
-
-
-void RetainerHeapProfile::Call(const JSObjectsCluster& cluster,
-                               JSObjectsClusterTree* tree) {
-  // First level of retainer graph.
-  if (coarser_.HasAnEquivalent(cluster)) return;
-  ASSERT(current_stream_ == NULL);
-  HeapStringAllocator allocator;
-  StringStream stream(&allocator);
-  current_stream_ = &stream;
-  ASSERT(coarse_cluster_tree_ == NULL);
-  coarse_cluster_tree_ = new JSObjectsClusterTree();
-  tree->ForEach(this);
-  // Print aggregated counts and sizes.
-  RetainerTreePrinter printer(current_stream_);
-  coarse_cluster_tree_->ForEach(&printer);
-  coarse_cluster_tree_ = NULL;
-  current_printer_->PrintRetainers(cluster, stream);
-  current_stream_ = NULL;
-}
-
-
-void RetainerHeapProfile::Call(const JSObjectsCluster& cluster,
-                               const NumberAndSizeInfo& number_and_size) {
-  ASSERT(coarse_cluster_tree_ != NULL);
-  ASSERT(current_stream_ != NULL);
-  JSObjectsCluster eq = coarser_.GetCoarseEquivalent(cluster);
-  if (eq.is_null()) {
-    RetainerTreePrinter::Print(current_stream_, cluster, number_and_size);
-  } else {
-    // Aggregate counts and sizes for equivalent clusters.
-    JSObjectsClusterTree::Locator loc;
-    coarse_cluster_tree_->Insert(eq, &loc);
-    NumberAndSizeInfo eq_number_and_size = loc.value();
-    eq_number_and_size.increment_number(number_and_size.number());
-    loc.set_value(eq_number_and_size);
-  }
 }
 
 
