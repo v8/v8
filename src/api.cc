@@ -1898,6 +1898,7 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
                      v8::PropertyAttribute attribs) {
   ON_BAILOUT("v8::Object::Set()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
@@ -1918,6 +1919,7 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
                           v8::PropertyAttribute attribs) {
   ON_BAILOUT("v8::Object::ForceSet()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
@@ -1936,6 +1938,7 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
 bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   ON_BAILOUT("v8::Object::ForceDelete()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE();
@@ -2121,7 +2124,7 @@ bool v8::Object::HasIndexedLookupInterceptor() {
 }
 
 
-Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
+Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       Handle<String> key) {
   ON_BAILOUT("v8::Object::GetRealNamedPropertyInPrototypeChain()",
              return Local<Value>());
@@ -2142,7 +2145,7 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
 }
 
 
-Handle<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
+Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   ON_BAILOUT("v8::Object::GetRealNamedProperty()", return Local<Value>());
   ENTER_V8;
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
@@ -2167,6 +2170,7 @@ Handle<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
 void v8::Object::TurnOnAccessCheck() {
   ON_BAILOUT("v8::Object::TurnOnAccessCheck()", return);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
 
   i::Handle<i::Map> new_map =
@@ -2196,6 +2200,7 @@ Local<v8::Object> v8::Object::Clone() {
 int v8::Object::GetIdentityHash() {
   ON_BAILOUT("v8::Object::GetIdentityHash()", return 0);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
   i::Handle<i::Object> hash_symbol = i::Factory::identity_hash_symbol();
@@ -2225,6 +2230,7 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
                                 v8::Handle<v8::Value> value) {
   ON_BAILOUT("v8::Object::SetHiddenValue()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
@@ -2264,6 +2270,7 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
 bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
   ON_BAILOUT("v8::DeleteHiddenValue()", return false);
   ENTER_V8;
+  HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, false));
   if (hidden_props->IsUndefined()) {
@@ -2278,6 +2285,7 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
   ON_BAILOUT("v8::SetElementsToPixelData()", return);
   ENTER_V8;
+  HandleScope scope;
   if (!ApiCheck(i::Smi::IsValid(length),
                 "v8::Object::SetIndexedPropertiesToPixelData()",
                 "length exceeds max acceptable value")) {
