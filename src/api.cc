@@ -2759,7 +2759,9 @@ v8::Local<v8::Context> Context::GetCurrent() {
 
 v8::Local<v8::Context> Context::GetCalling() {
   if (IsDeadCheck("v8::Context::GetCalling()")) return Local<Context>();
-  i::Handle<i::Context> context(i::Top::GetCallingGlobalContext());
+  i::Handle<i::Object> calling = i::Top::GetCallingGlobalContext();
+  if (calling.is_null()) return Local<Context>();
+  i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
   return Utils::ToLocal(context);
 }
 
