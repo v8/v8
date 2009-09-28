@@ -1632,8 +1632,7 @@ Object* Deserializer::GetObject() {
   obj->IterateBody(type, size, this);
 
   if (type == CODE_TYPE) {
-    Code* code = Code::cast(obj);
-    LOG(CodeMoveEvent(a, code->address()));
+    LOG(CodeMoveEvent(a, obj->address()));
   }
   objects_++;
   return o;
