@@ -44,10 +44,10 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   __ str(r1, MemOperand(ip, 0));
 
   // The actual argument count has already been loaded into register
-  // r0, but JumpToBuiltin expects r0 to contain the number of
+  // r0, but JumpToRuntime expects r0 to contain the number of
   // arguments including the receiver.
   __ add(r0, r0, Operand(1));
-  __ JumpToBuiltin(ExternalReference(id));
+  __ JumpToRuntime(ExternalReference(id));
 }
 
 

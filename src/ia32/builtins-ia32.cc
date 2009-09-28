@@ -42,10 +42,10 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   __ mov(Operand::StaticVariable(passed), edi);
 
   // The actual argument count has already been loaded into register
-  // eax, but JumpToBuiltin expects eax to contain the number of
+  // eax, but JumpToRuntime expects eax to contain the number of
   // arguments including the receiver.
   __ inc(eax);
-  __ JumpToBuiltin(ExternalReference(id));
+  __ JumpToRuntime(ExternalReference(id));
 }
 
 

@@ -903,11 +903,11 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(eax, Immediate(num_arguments));
-  JumpToBuiltin(ext);
+  JumpToRuntime(ext);
 }
 
 
-void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
+void MacroAssembler::JumpToRuntime(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);

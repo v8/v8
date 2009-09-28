@@ -332,11 +332,11 @@ void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   movq(rax, Immediate(num_arguments));
-  JumpToBuiltin(ext, result_size);
+  JumpToRuntime(ext, result_size);
 }
 
 
-void MacroAssembler::JumpToBuiltin(const ExternalReference& ext,
+void MacroAssembler::JumpToRuntime(const ExternalReference& ext,
                                    int result_size) {
   // Set the entry point and jump to the C entry runtime stub.
   movq(rbx, ext);

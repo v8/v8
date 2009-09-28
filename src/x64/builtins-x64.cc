@@ -41,10 +41,10 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   __ movq(Operand(kScratchRegister, 0), rdi);
 
   // The actual argument count has already been loaded into register
-  // rax, but JumpToBuiltin expects rax to contain the number of
+  // rax, but JumpToRuntime expects rax to contain the number of
   // arguments including the receiver.
   __ incq(rax);
-  __ JumpToBuiltin(ExternalReference(id), 1);
+  __ JumpToRuntime(ExternalReference(id), 1);
 }
 
 

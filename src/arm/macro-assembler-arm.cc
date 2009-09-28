@@ -1001,11 +1001,11 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   mov(r0, Operand(num_arguments));
-  JumpToBuiltin(ext);
+  JumpToRuntime(ext);
 }
 
 
-void MacroAssembler::JumpToBuiltin(const ExternalReference& builtin) {
+void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
 #if defined(__thumb__)
   // Thumb mode builtin.
   ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);
