@@ -333,6 +333,8 @@ void JSObjectsCluster::Print(StringStream* accumulator) const {
     accumulator->Add("(roots)");
   } else if (constructor_ == FromSpecialCase(GLOBAL_PROPERTY)) {
     accumulator->Add("(global property)");
+  } else if (constructor_ == FromSpecialCase(SELF)) {
+    accumulator->Add("(self)");
   } else {
     SmartPointer<char> s_name(
         constructor_->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
@@ -393,9 +395,11 @@ inline int ClustersCoarser::ClusterBackRefs::Compare(
 
 
 ClustersCoarser::ClustersCoarser()
-  : zscope_(DELETE_ON_EXIT),
-    sim_list_(ClustersCoarser::kInitialSimilarityListCapacity),
-    current_pair_(NULL) {
+    : zscope_(DELETE_ON_EXIT),
+      sim_list_(ClustersCoarser::kInitialSimilarityListCapacity),
+      current_pair_(NULL),
+      current_set_(NULL),
+      self_(NULL) {
 }
 
 
@@ -406,10 +410,12 @@ void ClustersCoarser::Call(const JSObjectsCluster& cluster,
   ASSERT(current_pair_ == NULL);
   current_pair_ = &pair;
   current_set_ = new JSObjectsRetainerTree();
+  self_ = &cluster;
   tree->ForEach(this);
   sim_list_.Add(pair);
   current_pair_ = NULL;
   current_set_ = NULL;
+  self_ = NULL;
 }
 
 
@@ -417,8 +423,13 @@ void ClustersCoarser::Call(const JSObjectsCluster& cluster,
                            const NumberAndSizeInfo& number_and_size) {
   ASSERT(current_pair_ != NULL);
   ASSERT(current_set_ != NULL);
-  JSObjectsCluster eq = GetCoarseEquivalent(cluster);
+  ASSERT(self_ != NULL);
   JSObjectsRetainerTree::Locator loc;
+  if (JSObjectsCluster::Compare(*self_, cluster) == 0) {
+    current_pair_->refs.Add(JSObjectsCluster(JSObjectsCluster::SELF));
+    return;
+  }
+  JSObjectsCluster eq = GetCoarseEquivalent(cluster);
   if (!eq.is_null()) {
     if (current_set_->Find(eq, &loc)) return;
     current_pair_->refs.Add(eq);
@@ -443,11 +454,7 @@ void ClustersCoarser::Process(JSObjectsRetainerTree* tree) {
 
 int ClustersCoarser::DoProcess(JSObjectsRetainerTree* tree) {
   tree->ForEach(this);
-  // To sort similarity list properly, references list of a cluster is
-  // required to be sorted, thus 'O1 <- A, B' and 'O2 <- B, A' would
-  // be considered equivalent. But we don't sort them explicitly
-  // because we know that they come from a splay tree traversal, so
-  // they are already sorted.
+  sim_list_.Iterate(ClusterBackRefs::SortRefsIterator);
   sim_list_.Sort(ClusterBackRefsCmp);
   return FillEqualityTree();
 }
