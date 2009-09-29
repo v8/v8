@@ -211,7 +211,7 @@ enum PropertyNormalizationMode {
 // NOTE: Everything following JS_VALUE_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
-#define INSTANCE_TYPE_LIST(V)                   \
+#define INSTANCE_TYPE_LIST_ALL(V)               \
   V(SHORT_SYMBOL_TYPE)                          \
   V(MEDIUM_SYMBOL_TYPE)                         \
   V(LONG_SYMBOL_TYPE)                           \
@@ -282,8 +282,6 @@ enum PropertyNormalizationMode {
   V(OBJECT_TEMPLATE_INFO_TYPE)                  \
   V(SIGNATURE_INFO_TYPE)                        \
   V(TYPE_SWITCH_INFO_TYPE)                      \
-  V(DEBUG_INFO_TYPE)                            \
-  V(BREAK_POINT_INFO_TYPE)                      \
   V(SCRIPT_TYPE)                                \
                                                 \
   V(JS_VALUE_TYPE)                              \
@@ -297,6 +295,17 @@ enum PropertyNormalizationMode {
                                                 \
   V(JS_FUNCTION_TYPE)                           \
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+#define INSTANCE_TYPE_LIST_DEBUGGER(V)          \
+  V(DEBUG_INFO_TYPE)                            \
+  V(BREAK_POINT_INFO_TYPE)
+#else
+#define INSTANCE_TYPE_LIST_DEBUGGER(V)
+#endif
+
+#define INSTANCE_TYPE_LIST(V)                   \
+  INSTANCE_TYPE_LIST_ALL(V)                     \
+  INSTANCE_TYPE_LIST_DEBUGGER(V)
 
 
 // Since string types are not consecutive, this macro is used to
@@ -673,8 +682,10 @@ enum InstanceType {
   OBJECT_TEMPLATE_INFO_TYPE,
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
+#ifdef ENABLE_DEBUGGER_SUPPORT
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
+#endif
   SCRIPT_TYPE,
 
   JS_VALUE_TYPE,
