@@ -760,7 +760,7 @@ class Object BASE_EMBEDDED {
   inline bool IsExternalAsciiString();
   inline bool IsSeqTwoByteString();
   inline bool IsSeqAsciiString();
-#endif // DEBUG
+#endif  // DEBUG
   inline bool IsConsString();
 
   inline bool IsNumber();
