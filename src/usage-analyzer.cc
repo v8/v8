@@ -75,7 +75,6 @@ class UsageComputer: public AstVisitor {
   void VisitThrow(Throw* node);
   void VisitProperty(Property* node);
   void VisitCall(Call* node);
-  void VisitCallEval(CallEval* node);
   void VisitCallNew(CallNew* node);
   void VisitCallRuntime(CallRuntime* node);
   void VisitUnaryOperation(UnaryOperation* node);
@@ -326,11 +325,6 @@ void UsageComputer::VisitProperty(Property* node) {
 void UsageComputer::VisitCall(Call* node) {
   Read(node->expression());
   ReadList(node->arguments());
-}
-
-
-void UsageComputer::VisitCallEval(CallEval* node) {
-  VisitCall(node);
 }
 
 

@@ -798,12 +798,6 @@ class ParserFactory BASE_EMBEDDED {
     return Call::sentinel();
   }
 
-  virtual Expression* NewCallEval(Expression* expression,
-                                  ZoneList<Expression*>* arguments,
-                                  int pos) {
-    return CallEval::sentinel();
-  }
-
   virtual Statement* EmptyStatement() {
     return NULL;
   }
@@ -852,12 +846,6 @@ class AstBuildingParserFactory : public ParserFactory {
                               ZoneList<Expression*>* arguments,
                               int pos) {
     return new Call(expression, arguments, pos);
-  }
-
-  virtual Expression* NewCallEval(Expression* expression,
-                                  ZoneList<Expression*>* arguments,
-                                  int pos) {
-    return new CallEval(expression, arguments, pos);
   }
 
   virtual Statement* EmptyStatement();
@@ -3074,8 +3062,6 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // declared in the current scope chain. These calls are marked as
         // potentially direct eval calls. Whether they are actually direct calls
         // to eval is determined at run time.
-
-        bool is_potentially_direct_eval = false;
         if (!is_pre_parsing_) {
           VariableProxy* callee = result->AsVariableProxy();
           if (callee != NULL && callee->IsVariable(Factory::eval_symbol())) {
@@ -3083,16 +3069,10 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
             Variable* var = top_scope_->Lookup(name);
             if (var == NULL) {
               top_scope_->RecordEvalCall();
-              is_potentially_direct_eval = true;
             }
           }
         }
-
-        if (is_potentially_direct_eval) {
-          result = factory()->NewCallEval(result, args, pos);
-        } else {
-          result = factory()->NewCall(result, args, pos);
-        }
+        result = factory()->NewCall(result, args, pos);
         break;
       }
 

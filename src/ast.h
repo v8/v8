@@ -85,7 +85,6 @@ namespace internal {
   V(Throw)                                      \
   V(Property)                                   \
   V(Call)                                       \
-  V(CallEval)                                   \
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
@@ -988,24 +987,6 @@ class CallNew: public Call {
       : Call(expression, arguments, pos) { }
 
   virtual void Accept(AstVisitor* v);
-};
-
-
-// The CallEval class represents a call of the form 'eval(...)' where eval
-// cannot be seen to be overwritten at compile time. It is potentially a
-// direct (i.e. not aliased) eval call. The real nature of the call is
-// determined at runtime.
-class CallEval: public Call {
- public:
-  CallEval(Expression* expression, ZoneList<Expression*>* arguments, int pos)
-      : Call(expression, arguments, pos) { }
-
-  virtual void Accept(AstVisitor* v);
-
-  static CallEval* sentinel() { return &sentinel_; }
-
- private:
-  static CallEval sentinel_;
 };
 
 

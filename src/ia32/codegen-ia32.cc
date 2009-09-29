@@ -4431,10 +4431,10 @@ void CodeGenerator::VisitProperty(Property* node) {
 void CodeGenerator::VisitCall(Call* node) {
   Comment cmnt(masm_, "[ Call");
 
+  Expression* function = node->expression();
   ZoneList<Expression*>* args = node->arguments();
 
   // Check if the function is a variable or a property.
-  Expression* function = node->expression();
   Variable* var = function->AsVariableProxy()->AsVariable();
   Property* property = function->AsProperty();
 
@@ -4447,7 +4447,63 @@ void CodeGenerator::VisitCall(Call* node) {
   // is resolved in cache misses (this also holds for megamorphic calls).
   // ------------------------------------------------------------------------
 
-  if (var != NULL && !var->is_this() && var->is_global()) {
+  if (var != NULL && var->is_possibly_eval()) {
+    // ----------------------------------
+    // JavaScript example: 'eval(arg)'  // eval is not known to be shadowed
+    // ----------------------------------
+
+    // In a call to eval, we first call %ResolvePossiblyDirectEval to
+    // resolve the function we need to call and the receiver of the
+    // call.  Then we call the resolved function using the given
+    // arguments.
+
+    // Prepare the stack for the call to the resolved function.
+    Load(function);
+
+    // Allocate a frame slot for the receiver.
+    frame_->Push(Factory::undefined_value());
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      Load(args->at(i));
+    }
+
+    // Prepare the stack for the call to ResolvePossiblyDirectEval.
+    frame_->PushElementAt(arg_count + 1);
+    if (arg_count > 0) {
+      frame_->PushElementAt(arg_count);
+    } else {
+      frame_->Push(Factory::undefined_value());
+    }
+
+    // Resolve the call.
+    Result result =
+        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+
+    // Touch up the stack with the right values for the function and the
+    // receiver.  Use a scratch register to avoid destroying the result.
+    Result scratch = allocator_->Allocate();
+    ASSERT(scratch.is_valid());
+    __ mov(scratch.reg(), FieldOperand(result.reg(), FixedArray::kHeaderSize));
+    frame_->SetElementAt(arg_count + 1, &scratch);
+
+    // We can reuse the result register now.
+    frame_->Spill(result.reg());
+    __ mov(result.reg(),
+           FieldOperand(result.reg(), FixedArray::kHeaderSize + kPointerSize));
+    frame_->SetElementAt(arg_count, &result);
+
+    // Call the function.
+    CodeForSourcePosition(node->position());
+    InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+    CallFunctionStub call_function(arg_count, in_loop);
+    result = frame_->CallStub(&call_function, arg_count + 1);
+
+    // Restore the context and overwrite the function on the stack with
+    // the result.
+    frame_->RestoreContextRegister();
+    frame_->SetElementAt(0, &result);
+
+  } else if (var != NULL && !var->is_this() && var->is_global()) {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
@@ -4612,64 +4668,6 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   CodeForSourcePosition(node->position());
   Result result = frame_->CallConstructor(arg_count);
   // Replace the function on the stack with the result.
-  frame_->SetElementAt(0, &result);
-}
-
-
-void CodeGenerator::VisitCallEval(CallEval* node) {
-  Comment cmnt(masm_, "[ CallEval");
-
-  // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
-  // the function we need to call and the receiver of the call.
-  // Then we call the resolved function using the given arguments.
-
-  ZoneList<Expression*>* args = node->arguments();
-  Expression* function = node->expression();
-
-  // Prepare the stack for the call to the resolved function.
-  Load(function);
-
-  // Allocate a frame slot for the receiver.
-  frame_->Push(Factory::undefined_value());
-  int arg_count = args->length();
-  for (int i = 0; i < arg_count; i++) {
-    Load(args->at(i));
-  }
-
-  // Prepare the stack for the call to ResolvePossiblyDirectEval.
-  frame_->PushElementAt(arg_count + 1);
-  if (arg_count > 0) {
-    frame_->PushElementAt(arg_count);
-  } else {
-    frame_->Push(Factory::undefined_value());
-  }
-
-  // Resolve the call.
-  Result result =
-      frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
-
-  // Touch up the stack with the right values for the function and the
-  // receiver.  Use a scratch register to avoid destroying the result.
-  Result scratch = allocator_->Allocate();
-  ASSERT(scratch.is_valid());
-  __ mov(scratch.reg(), FieldOperand(result.reg(), FixedArray::kHeaderSize));
-  frame_->SetElementAt(arg_count + 1, &scratch);
-
-  // We can reuse the result register now.
-  frame_->Spill(result.reg());
-  __ mov(result.reg(),
-         FieldOperand(result.reg(), FixedArray::kHeaderSize + kPointerSize));
-  frame_->SetElementAt(arg_count, &result);
-
-  // Call the function.
-  CodeForSourcePosition(node->position());
-  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub call_function(arg_count, in_loop);
-  result = frame_->CallStub(&call_function, arg_count + 1);
-
-  // Restore the context and overwrite the function on the stack with
-  // the result.
-  frame_->RestoreContextRegister();
   frame_->SetElementAt(0, &result);
 }
 

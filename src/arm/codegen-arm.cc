@@ -2907,11 +2907,11 @@ void CodeGenerator::VisitCall(Call* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Call");
 
+  Expression* function = node->expression();
   ZoneList<Expression*>* args = node->arguments();
 
   // Standard function call.
   // Check if the function is a variable or a property.
-  Expression* function = node->expression();
   Variable* var = function->AsVariableProxy()->AsVariable();
   Property* property = function->AsProperty();
 
@@ -2924,7 +2924,56 @@ void CodeGenerator::VisitCall(Call* node) {
   // is resolved in cache misses (this also holds for megamorphic calls).
   // ------------------------------------------------------------------------
 
-  if (var != NULL && !var->is_this() && var->is_global()) {
+  if (var != NULL && var->is_possibly_eval()) {
+    // ----------------------------------
+    // JavaScript example: 'eval(arg)'  // eval is not known to be shadowed
+    // ----------------------------------
+
+    // In a call to eval, we first call %ResolvePossiblyDirectEval to
+    // resolve the function we need to call and the receiver of the
+    // call.  Then we call the resolved function using the given
+    // arguments.
+    // Prepare stack for call to resolved function.
+    LoadAndSpill(function);
+    __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+    frame_->EmitPush(r2);  // Slot for receiver
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      LoadAndSpill(args->at(i));
+    }
+
+    // Prepare stack for call to ResolvePossiblyDirectEval.
+    __ ldr(r1, MemOperand(sp, arg_count * kPointerSize + kPointerSize));
+    frame_->EmitPush(r1);
+    if (arg_count > 0) {
+      __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
+      frame_->EmitPush(r1);
+    } else {
+      frame_->EmitPush(r2);
+    }
+
+    // Resolve the call.
+    frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+
+    // Touch up stack with the right values for the function and the receiver.
+    __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize));
+    __ str(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
+    __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize + kPointerSize));
+    __ str(r1, MemOperand(sp, arg_count * kPointerSize));
+
+    // Call the function.
+    CodeForSourcePosition(node->position());
+
+    InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
+    CallFunctionStub call_function(arg_count, in_loop);
+    frame_->CallStub(&call_function, arg_count + 1);
+
+    __ ldr(cp, frame_->Context());
+    // Remove the function from the stack.
+    frame_->Drop();
+    frame_->EmitPush(r0);
+
+  } else if (var != NULL && !var->is_this() && var->is_global()) {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
@@ -3045,63 +3094,6 @@ void CodeGenerator::VisitCall(Call* node) {
     CallWithArguments(args, node->position());
     frame_->EmitPush(r0);
   }
-  ASSERT(frame_->height() == original_height + 1);
-}
-
-
-void CodeGenerator::VisitCallEval(CallEval* node) {
-#ifdef DEBUG
-  int original_height = frame_->height();
-#endif
-  VirtualFrame::SpilledScope spilled_scope;
-  Comment cmnt(masm_, "[ CallEval");
-
-  // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
-  // the function we need to call and the receiver of the call.
-  // Then we call the resolved function using the given arguments.
-
-  ZoneList<Expression*>* args = node->arguments();
-  Expression* function = node->expression();
-
-  // Prepare stack for call to resolved function.
-  LoadAndSpill(function);
-  __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
-  frame_->EmitPush(r2);  // Slot for receiver
-  int arg_count = args->length();
-  for (int i = 0; i < arg_count; i++) {
-    LoadAndSpill(args->at(i));
-  }
-
-  // Prepare stack for call to ResolvePossiblyDirectEval.
-  __ ldr(r1, MemOperand(sp, arg_count * kPointerSize + kPointerSize));
-  frame_->EmitPush(r1);
-  if (arg_count > 0) {
-    __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
-    frame_->EmitPush(r1);
-  } else {
-    frame_->EmitPush(r2);
-  }
-
-  // Resolve the call.
-  frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
-
-  // Touch up stack with the right values for the function and the receiver.
-  __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize));
-  __ str(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-  __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize + kPointerSize));
-  __ str(r1, MemOperand(sp, arg_count * kPointerSize));
-
-  // Call the function.
-  CodeForSourcePosition(node->position());
-
-  InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub call_function(arg_count, in_loop);
-  frame_->CallStub(&call_function, arg_count + 1);
-
-  __ ldr(cp, frame_->Context());
-  // Remove the function from the stack.
-  frame_->Drop();
-  frame_->EmitPush(r0);
   ASSERT(frame_->height() == original_height + 1);
 }
 

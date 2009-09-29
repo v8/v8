@@ -398,11 +398,6 @@ void ExpressionCfgBuilder::VisitCall(Call* expr) {
 }
 
 
-void ExpressionCfgBuilder::VisitCallEval(CallEval* expr) {
-  BAILOUT("CallEval");
-}
-
-
 void ExpressionCfgBuilder::VisitCallNew(CallNew* expr) {
   BAILOUT("CallNew");
 }
