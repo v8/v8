@@ -954,12 +954,8 @@ class Property: public Expression {
 
 class Call: public Expression {
  public:
-  Call(Expression* expression,
-       ZoneList<Expression*>* arguments,
-       int pos)
-      : expression_(expression),
-        arguments_(arguments),
-        pos_(pos) { }
+  Call(Expression* expression, ZoneList<Expression*>* arguments, int pos)
+      : expression_(expression), arguments_(arguments), pos_(pos) { }
 
   virtual void Accept(AstVisitor* v);
 
@@ -981,12 +977,21 @@ class Call: public Expression {
 };
 
 
-class CallNew: public Call {
+class CallNew: public Expression {
  public:
   CallNew(Expression* expression, ZoneList<Expression*>* arguments, int pos)
-      : Call(expression, arguments, pos) { }
+      : expression_(expression), arguments_(arguments), pos_(pos) { }
 
   virtual void Accept(AstVisitor* v);
+
+  Expression* expression() const { return expression_; }
+  ZoneList<Expression*>* arguments() const { return arguments_; }
+  int position() { return pos_; }
+
+ private:
+  Expression* expression_;
+  ZoneList<Expression*>* arguments_;
+  int pos_;
 };
 
 
