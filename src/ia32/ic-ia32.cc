@@ -416,6 +416,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ sar(ebx, kSmiTagSize);  // Untag the index.
   __ cmp(ebx, FieldOperand(ecx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
+  __ mov(edx, eax);  // Save the value.
   __ sar(eax, kSmiTagSize);  // Untag the value.
   {  // Clamp the value to [0..255].
     Label done, check_255;
@@ -431,6 +432,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   }
   __ mov(ecx, FieldOperand(ecx, PixelArray::kExternalPointerOffset));
   __ mov_b(Operand(ecx, ebx, times_1, 0), eax);
+  __ mov(eax, edx);  // Return the original value.
   __ ret(0);
 
   // Extra capacity case: Check if there is extra capacity to
