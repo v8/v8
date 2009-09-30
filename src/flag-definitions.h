@@ -133,7 +133,6 @@ DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "Minimum length for automatic enable preparsing")
-DEFINE_bool(multipass, false, "use the multipass code generator")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
