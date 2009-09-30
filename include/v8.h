@@ -1574,7 +1574,10 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> host,
 /**
  * A FunctionTemplate is used to create functions at runtime. There
  * can only be one function created from a FunctionTemplate in a
- * context.
+ * context.  The lifetime of the created function is equal to the
+ * lifetime of the context.  So in case the embedder needs to create
+ * temporary functions that can be collected using Scripts is
+ * preferred.
  *
  * A FunctionTemplate can have properties, these properties are added to the
  * function object when it is created.
