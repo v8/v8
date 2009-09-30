@@ -175,30 +175,30 @@ class MacroAssembler: public Assembler {
   // and result_end have not yet been tagged as heap objects. If
   // result_contains_top_on_entry is true the contnt of result is known to be
   // the allocation top on entry (could be result_end from a previous call to
-  // AllocateObjectInNewSpace). If result_contains_top_on_entry is true scratch
+  // AllocateInNewSpace). If result_contains_top_on_entry is true scratch
   // should be no_reg as it is never used.
-  void AllocateObjectInNewSpace(int object_size,
-                                Register result,
-                                Register result_end,
-                                Register scratch,
-                                Label* gc_required,
-                                AllocationFlags flags);
+  void AllocateInNewSpace(int object_size,
+                          Register result,
+                          Register result_end,
+                          Register scratch,
+                          Label* gc_required,
+                          AllocationFlags flags);
 
-  void AllocateObjectInNewSpace(int header_size,
-                                ScaleFactor element_size,
-                                Register element_count,
-                                Register result,
-                                Register result_end,
-                                Register scratch,
-                                Label* gc_required,
-                                AllocationFlags flags);
+  void AllocateInNewSpace(int header_size,
+                          ScaleFactor element_size,
+                          Register element_count,
+                          Register result,
+                          Register result_end,
+                          Register scratch,
+                          Label* gc_required,
+                          AllocationFlags flags);
 
-  void AllocateObjectInNewSpace(Register object_size,
-                                Register result,
-                                Register result_end,
-                                Register scratch,
-                                Label* gc_required,
-                                AllocationFlags flags);
+  void AllocateInNewSpace(Register object_size,
+                          Register result,
+                          Register result_end,
+                          Register scratch,
+                          Label* gc_required,
+                          AllocationFlags flags);
 
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. Make sure that no pointers are left to the

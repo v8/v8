@@ -491,12 +491,12 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   if (initial_capacity > 0) {
     size += FixedArray::SizeFor(initial_capacity);
   }
-  __ AllocateObjectInNewSpace(size,
-                              result,
-                              scratch2,
-                              scratch3,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(size,
+                        result,
+                        scratch2,
+                        scratch3,
+                        gc_required,
+                        TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
@@ -592,26 +592,26 @@ static void AllocateJSArray(MacroAssembler* masm,
   // If an empty array is requested allocate a small elements array anyway. This
   // keeps the code below free of special casing for the empty array.
   int size = JSArray::kSize + FixedArray::SizeFor(kPreallocatedArrayElements);
-  __ AllocateObjectInNewSpace(size,
-                              result,
-                              elements_array_end,
-                              scratch,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(size,
+                        result,
+                        elements_array_end,
+                        scratch,
+                        gc_required,
+                        TAG_OBJECT);
   __ jmp(&allocated);
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
   __ bind(&not_empty);
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ AllocateObjectInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                              times_half_pointer_size,  // array_size is a smi.
-                              array_size,
-                              result,
-                              elements_array_end,
-                              scratch,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
+                        times_half_pointer_size,  // array_size is a smi.
+                        array_size,
+                        result,
+                        elements_array_end,
+                        scratch,
+                        gc_required,
+                        TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
@@ -960,12 +960,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
     __ shl(rdi, Immediate(kPointerSizeLog2));
     // rdi: size of new object
-    __ AllocateObjectInNewSpace(rdi,
-                                rbx,
-                                rdi,
-                                no_reg,
-                                &rt_call,
-                                NO_ALLOCATION_FLAGS);
+    __ AllocateInNewSpace(rdi,
+                          rbx,
+                          rdi,
+                          no_reg,
+                          &rt_call,
+                          NO_ALLOCATION_FLAGS);
     // Allocated the JSObject, now initialize the fields.
     // rax: initial map
     // rbx: JSObject (not HeapObject tagged - the actual address).
@@ -1020,14 +1020,14 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // rbx: JSObject
     // rdi: start of next object (will be start of FixedArray)
     // rdx: number of elements in properties array
-    __ AllocateObjectInNewSpace(FixedArray::kHeaderSize,
-                                times_pointer_size,
-                                rdx,
-                                rdi,
-                                rax,
-                                no_reg,
-                                &undo_allocation,
-                                RESULT_CONTAINS_TOP);
+    __ AllocateInNewSpace(FixedArray::kHeaderSize,
+                          times_pointer_size,
+                          rdx,
+                          rdi,
+                          rax,
+                          no_reg,
+                          &undo_allocation,
+                          RESULT_CONTAINS_TOP);
 
     // Initialize the FixedArray.
     // rbx: JSObject

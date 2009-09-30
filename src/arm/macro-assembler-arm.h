@@ -171,18 +171,18 @@ class MacroAssembler: public Assembler {
   // bytes). If the new space is exhausted control continues at the gc_required
   // label. The allocated object is returned in result. If the flag
   // tag_allocated_object is true the result is tagged as as a heap object.
-  void AllocateObjectInNewSpace(int object_size,
-                                Register result,
-                                Register scratch1,
-                                Register scratch2,
-                                Label* gc_required,
-                                AllocationFlags flags);
-  void AllocateObjectInNewSpace(Register object_size,
-                                Register result,
-                                Register scratch1,
-                                Register scratch2,
-                                Label* gc_required,
-                                AllocationFlags flags);
+  void AllocateInNewSpace(int object_size,
+                          Register result,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* gc_required,
+                          AllocationFlags flags);
+  void AllocateInNewSpace(Register object_size,
+                          Register result,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* gc_required,
+                          AllocationFlags flags);
 
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. The caller must make sure that no pointers

@@ -90,12 +90,12 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
   int size = JSArray::kSize + FixedArray::SizeFor(initial_capacity);
-  __ AllocateObjectInNewSpace(size / kPointerSize,
-                              result,
-                              scratch2,
-                              scratch3,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(size / kPointerSize,
+                        result,
+                        scratch2,
+                        scratch3,
+                        gc_required,
+                        TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
@@ -174,12 +174,12 @@ static void AllocateJSArray(MacroAssembler* masm,
   // keeps the code below free of special casing for the empty array.
   int size = JSArray::kSize +
              FixedArray::SizeFor(JSArray::kPreallocatedArrayElements);
-  __ AllocateObjectInNewSpace(size / kPointerSize,
-                              result,
-                              elements_array_end,
-                              scratch1,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(size / kPointerSize,
+                        result,
+                        elements_array_end,
+                        scratch1,
+                        gc_required,
+                        TAG_OBJECT);
   __ jmp(&allocated);
 
   // Allocate the JSArray object together with space for a FixedArray with the
@@ -191,12 +191,12 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ add(elements_array_end,
          elements_array_end,
          Operand(array_size, ASR, kSmiTagSize));
-  __ AllocateObjectInNewSpace(elements_array_end,
-                              result,
-                              scratch1,
-                              scratch2,
-                              gc_required,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(elements_array_end,
+                        result,
+                        scratch1,
+                        scratch2,
+                        gc_required,
+                        TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
@@ -540,7 +540,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // r2: initial map
     // r7: undefined
     __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
-    __ AllocateObjectInNewSpace(r3, r4, r5, r6, &rt_call, NO_ALLOCATION_FLAGS);
+    __ AllocateInNewSpace(r3, r4, r5, r6, &rt_call, NO_ALLOCATION_FLAGS);
 
     // Allocated the JSObject, now initialize the fields. Map is set to initial
     // map and properties and elements are set to empty fixed array.
@@ -611,12 +611,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // r5: start of next object
     // r7: undefined
     __ add(r0, r3, Operand(FixedArray::kHeaderSize / kPointerSize));
-    __ AllocateObjectInNewSpace(r0,
-                                r5,
-                                r6,
-                                r2,
-                                &undo_allocation,
-                                RESULT_CONTAINS_TOP);
+    __ AllocateInNewSpace(r0,
+                          r5,
+                          r6,
+                          r2,
+                          &undo_allocation,
+                          RESULT_CONTAINS_TOP);
 
     // Initialize the FixedArray.
     // r1: constructor

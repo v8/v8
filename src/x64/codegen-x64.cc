@@ -7196,12 +7196,12 @@ void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
                                              Register scratch,
                                              Register result) {
   // Allocate heap number in new space.
-  __ AllocateObjectInNewSpace(HeapNumber::kSize,
-                              result,
-                              scratch,
-                              no_reg,
-                              need_gc,
-                              TAG_OBJECT);
+  __ AllocateInNewSpace(HeapNumber::kSize,
+                        result,
+                        scratch,
+                        no_reg,
+                        need_gc,
+                        TAG_OBJECT);
 
   // Set the map and tag the result.
   __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
