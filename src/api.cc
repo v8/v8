@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "arguments.h"
 #include "bootstrapper.h"
 #include "compiler.h"
 #include "debug.h"

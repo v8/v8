@@ -29,6 +29,7 @@
 
 #include "accessors.h"
 #include "api.h"
+#include "arguments.h"
 #include "bootstrapper.h"
 #include "compiler.h"
 #include "debug.h"
@@ -479,15 +480,17 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
 }
 
 
+void CustomArguments::IterateInstance(ObjectVisitor* v) {
+  v->VisitPointers(values_, values_ + 4);
+}
+
+
 // Compute the property keys from the interceptor.
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
                                                  Handle<JSObject> object) {
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
-  Handle<Object> data(interceptor->data());
-  v8::AccessorInfo info(
-    v8::Utils::ToLocal(receiver),
-    v8::Utils::ToLocal(data),
-    v8::Utils::ToLocal(object));
+  CustomArguments args(interceptor->data(), *receiver, *object);
+  v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::NamedPropertyEnumerator enum_fun =
@@ -507,11 +510,8 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
 v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
                                                    Handle<JSObject> object) {
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
-  Handle<Object> data(interceptor->data());
-  v8::AccessorInfo info(
-    v8::Utils::ToLocal(receiver),
-    v8::Utils::ToLocal(data),
-    v8::Utils::ToLocal(object));
+  CustomArguments args(interceptor->data(), *receiver, *object);
+  v8::AccessorInfo info(args.end());
   v8::Handle<v8::Array> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::IndexedPropertyEnumerator enum_fun =

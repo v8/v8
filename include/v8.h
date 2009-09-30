@@ -130,6 +130,7 @@ class Data;
 namespace internal {
 
 class Object;
+class Arguments;
 
 }
 
@@ -1408,17 +1409,13 @@ class V8EXPORT Arguments {
  */
 class V8EXPORT AccessorInfo {
  public:
-  inline AccessorInfo(Local<Object> self,
-                      Local<Value> data,
-                      Local<Object> holder)
-      : self_(self), data_(data), holder_(holder) { }
+  inline AccessorInfo(internal::Object** args)
+      : args_(args) { }
   inline Local<Value> Data() const;
   inline Local<Object> This() const;
   inline Local<Object> Holder() const;
  private:
-  Local<Object> self_;
-  Local<Value> data_;
-  Local<Object> holder_;
+  internal::Object** args_;
 };
 
 
@@ -2873,21 +2870,6 @@ int Arguments::Length() const {
 }
 
 
-Local<Value> AccessorInfo::Data() const {
-  return data_;
-}
-
-
-Local<Object> AccessorInfo::This() const {
-  return self_;
-}
-
-
-Local<Object> AccessorInfo::Holder() const {
-  return holder_;
-}
-
-
 template <class T>
 Local<T> HandleScope::Close(Handle<T> value) {
   internal::Object** before = reinterpret_cast<internal::Object**>(*value);
@@ -3082,6 +3064,21 @@ External* External::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<External*>(value);
+}
+
+
+Local<Value> AccessorInfo::Data() const {
+  return Local<Value>(reinterpret_cast<Value*>(&args_[-3]));
+}
+
+
+Local<Object> AccessorInfo::This() const {
+  return Local<Object>(reinterpret_cast<Object*>(&args_[0]));
+}
+
+
+Local<Object> AccessorInfo::Holder() const {
+  return Local<Object>(reinterpret_cast<Object*>(&args_[-1]));
 }
 
 

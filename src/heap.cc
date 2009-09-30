@@ -497,8 +497,8 @@ void Heap::PostGarbageCollectionProcessing() {
     DisableAssertNoAllocation allow_allocation;
     GlobalHandles::PostGarbageCollectionProcessing();
   }
-  // Update flat string readers.
-  FlatStringReader::PostGarbageCollectionProcessing();
+  // Update relocatables.
+  Relocatable::PostGarbageCollectionProcessing();
 }
 
 
@@ -3088,6 +3088,8 @@ void Heap::IterateStrongRoots(ObjectVisitor* v) {
   SYNCHRONIZE_TAG("bootstrapper");
   Top::Iterate(v);
   SYNCHRONIZE_TAG("top");
+  Relocatable::Iterate(v);
+  SYNCHRONIZE_TAG("relocatable");
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::Iterate(v);

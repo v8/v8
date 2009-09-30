@@ -4219,25 +4219,44 @@ class ExternalTwoByteString: public ExternalString {
 };
 
 
+// Utility superclass for stack-allocated objects that must be updated
+// on gc.  It provides two ways for the gc to update instances, either
+// iterating or updating after gc.
+class Relocatable BASE_EMBEDDED {
+public:
+  inline Relocatable() : prev_(top_) { top_ = this; }
+  virtual ~Relocatable() { ASSERT_EQ(top_, this); top_ = prev_; }
+  virtual void IterateInstance(ObjectVisitor* v) { }
+  virtual void PostGarbageCollection() { }
+
+  static void PostGarbageCollectionProcessing();
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
+  static void Iterate(ObjectVisitor* v);
+  static void Iterate(ObjectVisitor* v, Relocatable* top);
+  static char* Iterate(ObjectVisitor* v, char* t);
+private:
+  static Relocatable* top_;
+  Relocatable* prev_;
+};
+
+
 // A flat string reader provides random access to the contents of a
 // string independent of the character width of the string.  The handle
 // must be valid as long as the reader is being used.
-class FlatStringReader BASE_EMBEDDED {
+class FlatStringReader : public Relocatable {
  public:
   explicit FlatStringReader(Handle<String> str);
   explicit FlatStringReader(Vector<const char> input);
-  ~FlatStringReader();
-  void RefreshState();
+  void PostGarbageCollection();
   inline uc32 Get(int index);
   int length() { return length_; }
-  static void PostGarbageCollectionProcessing();
  private:
   String** str_;
   bool is_ascii_;
   int length_;
   const void* start_;
-  FlatStringReader* prev_;
-  static FlatStringReader* top_;
 };
 
 

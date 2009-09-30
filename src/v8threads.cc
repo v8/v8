@@ -146,6 +146,7 @@ bool ThreadManager::RestoreThread() {
   char* from = state->data();
   from = HandleScopeImplementer::RestoreThread(from);
   from = Top::RestoreThread(from);
+  from = Relocatable::RestoreState(from);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   from = Debug::RestoreDebug(from);
 #endif
@@ -185,7 +186,8 @@ static int ArchiveSpacePerThread() {
 #endif
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
-                   Bootstrapper::ArchiveSpacePerThread();
+                   Bootstrapper::ArchiveSpacePerThread() +
+                    Relocatable::ArchiveSpacePerThread();
 }
 
 
@@ -275,6 +277,7 @@ void ThreadManager::EagerlyArchiveThread() {
   // in ThreadManager::Iterate(ObjectVisitor*).
   to = HandleScopeImplementer::ArchiveThread(to);
   to = Top::ArchiveThread(to);
+  to = Relocatable::ArchiveState(to);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   to = Debug::ArchiveDebug(to);
 #endif
@@ -311,6 +314,7 @@ void ThreadManager::Iterate(ObjectVisitor* v) {
     char* data = state->data();
     data = HandleScopeImplementer::Iterate(v, data);
     data = Top::Iterate(v, data);
+    data = Relocatable::Iterate(v, data);
   }
 }
 
