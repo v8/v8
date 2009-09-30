@@ -7729,6 +7729,42 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(1503, result->Int32Value());
   result = CompileRun("pixels[1]");
   CHECK_EQ(1, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = 0;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(0, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = 255;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(8 * 255, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = 256 + i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(2076, result->Int32Value());
+
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += pixels[i] = pixels[i] = i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
   result = CompileRun("var sum = 0;"
                       "for (var i = 0; i < 8; i++) {"
                       "  sum += pixels[i];"
@@ -7838,6 +7874,9 @@ THREADED_TEST(PixelArray) {
                       "js_array.concat(pixels);");
   CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
   CHECK_EQ(23, v8::Object::Cast(*result)->Get(v8_str("1"))->Int32Value());
+
+  result = CompileRun("pixels[1] = 23;");
+  CHECK_EQ(23, result->Int32Value());
 
   free(pixel_data);
 }
