@@ -2447,20 +2447,14 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  // Flatten the string for efficiency.  This applies whether we are
-  // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlattenIfNotFlat();
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
   if (end < 0) return 0;
-  write_input_buffer.Reset(start, *str);
-  int i;
-  for (i = 0; i < end; i++)
-    buffer[i] = write_input_buffer.GetNext();
-  if (length == -1 || i < length)
-    buffer[i] = '\0';
-  return i;
+  i::String::WriteToFlat(*str, buffer, start, end);
+  if (length == -1 || end < length)
+    buffer[end] = '\0';
+  return end;
 }
 
 
