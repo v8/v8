@@ -63,6 +63,13 @@ void MacroAssembler::CompareRoot(Register with,
 }
 
 
+void MacroAssembler::CompareRoot(Operand with,
+                                 Heap::RootListIndex index) {
+  LoadRoot(kScratchRegister, index);
+  cmpq(with, kScratchRegister);
+}
+
+
 static void RecordWriteHelper(MacroAssembler* masm,
                               Register object,
                               Register addr,
