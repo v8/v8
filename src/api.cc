@@ -342,9 +342,12 @@ ResourceConstraints::ResourceConstraints()
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
-  bool result = i::Heap::ConfigureHeap(constraints->max_young_space_size(),
-                                       constraints->max_old_space_size());
-  if (!result) return false;
+  int semispace_size = constraints->max_young_space_size();
+  int old_gen_size = constraints->max_old_space_size();
+  if (semispace_size != 0 || old_gen_size != 0) {
+    bool result = i::Heap::ConfigureHeap(semispace_size, old_gen_size);
+    if (!result) return false;
+  }
   if (constraints->stack_limit() != NULL) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
     i::StackGuard::SetStackLimit(limit);

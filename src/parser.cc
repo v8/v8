@@ -1184,7 +1184,6 @@ Parser::Parser(Handle<Script> script,
 bool Parser::PreParseProgram(Handle<String> source,
                              unibrow::CharacterStream* stream) {
   HistogramTimerScope timer(&Counters::pre_parse);
-  StackGuard guard;
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
@@ -4775,8 +4774,6 @@ bool ParseRegExp(FlatStringReader* input,
                  bool multiline,
                  RegExpCompileData* result) {
   ASSERT(result != NULL);
-  // Make sure we have a stack guard.
-  StackGuard guard;
   RegExpParser parser(input, &result->error, multiline);
   RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {

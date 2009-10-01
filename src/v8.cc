@@ -71,6 +71,14 @@ bool V8::Initialize(Deserializer *des) {
   ::assembler::arm::Simulator::Initialize();
 #endif
 
+  { // NOLINT
+    // Ensure that the thread has a valid stack guard.  The v8::Locker object
+    // will ensure this too, but we don't have to use lockers if we are only
+    // using one thread.
+    ExecutionAccess lock;
+    StackGuard::InitThread(lock);
+  }
+
   // Setup the object heap
   ASSERT(!Heap::HasBeenSetup());
   if (!Heap::Setup(create_heap_objects)) {

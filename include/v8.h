@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2007-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1981,8 +1981,13 @@ Handle<Boolean> V8EXPORT False();
 
 
 /**
- * A set of constraints that specifies the limits of the runtime's
- * memory use.
+ * A set of constraints that specifies the limits of the runtime's memory use.
+ * You must set the heap size before initializing the VM - the size cannot be
+ * adjusted after the VM is initialized.
+ *
+ * If you are using threads then you should hold the V8::Locker lock while
+ * setting the stack limit and you must set a non-default stack limit separately
+ * for each thread.
  */
 class V8EXPORT ResourceConstraints {
  public:
@@ -1992,6 +1997,7 @@ class V8EXPORT ResourceConstraints {
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
   uint32_t* stack_limit() const { return stack_limit_; }
+  // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
  private:
   int max_young_space_size_;
@@ -2199,7 +2205,8 @@ class V8EXPORT V8 {
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to
-   * initialize from scratch.
+   * initialize from scratch.  This function is called implicitly if
+   * you use the API without calling it first.
    */
   static bool Initialize();
 
@@ -2749,15 +2756,15 @@ class Internals {
     return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
             kHeapObjectTag);
   }
-  
+
   static inline bool HasSmiTag(internal::Object* value) {
     return ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag);
   }
-  
+
   static inline int SmiValue(internal::Object* value) {
     return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> kSmiTagSize;
   }
-  
+
   static inline bool IsExternalTwoByteString(int instance_type) {
     int representation = (instance_type & kFullStringRepresentationMask);
     return representation == kExternalTwoByteRepresentationTag;

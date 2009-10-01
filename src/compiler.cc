@@ -104,8 +104,6 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                        ScriptDataImpl* pre_data) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
-  // Make sure we have an initial stack limit.
-  StackGuard guard;
   PostponeInterruptsScope postpone;
 
   ASSERT(!i::Top::global_context().is_null());
@@ -334,8 +332,6 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
-  // Make sure we have an initial stack limit.
-  StackGuard guard;
   PostponeInterruptsScope postpone;
 
   // Compute name, source code and script data.

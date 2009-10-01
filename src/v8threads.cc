@@ -60,6 +60,10 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
     // get the saved state for this thread and restore it.
     if (internal::ThreadManager::RestoreThread()) {
       top_level_ = false;
+    } else {
+      internal::ExecutionAccess access;
+      internal::StackGuard::ClearThread(access);
+      internal::StackGuard::InitThread(access);
     }
   }
   ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
@@ -141,6 +145,8 @@ bool ThreadManager::RestoreThread() {
   ThreadState* state =
       reinterpret_cast<ThreadState*>(Thread::GetThreadLocal(thread_state_key));
   if (state == NULL) {
+    // This is a new thread.
+    StackGuard::InitThread(access);
     return false;
   }
   char* from = state->data();
