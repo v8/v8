@@ -63,7 +63,7 @@ class Arguments BASE_EMBEDDED {
 
   // Get the total number of arguments including the receiver.
   int length() const { return length_; }
-  
+
   Object** arguments() { return arguments_; }
 
  private:
@@ -76,7 +76,7 @@ class Arguments BASE_EMBEDDED {
 // accessed through an Arguments object the same way the actual stack
 // can.
 class CustomArguments : public Relocatable {
-public:
+ public:
   inline CustomArguments(Object *data,
                          JSObject *self,
                          JSObject *holder) {
@@ -87,7 +87,7 @@ public:
   }
   void IterateInstance(ObjectVisitor* v);
   Object** end() { return values_ + 3; }
-private:
+ private:
   Object* values_[4];
 };
 
