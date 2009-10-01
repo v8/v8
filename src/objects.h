@@ -4227,7 +4227,8 @@ class Relocatable BASE_EMBEDDED {
   inline Relocatable() : prev_(top_) { top_ = this; }
   virtual ~Relocatable() {
     ASSERT_EQ(top_, this);
-    top_ = prev_; }
+    top_ = prev_;
+  }
   virtual void IterateInstance(ObjectVisitor* v) { }
   virtual void PostGarbageCollection() { }
 
