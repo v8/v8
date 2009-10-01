@@ -77,14 +77,17 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 int Heap::semispace_size_  = 512*KB;
 int Heap::old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
+size_t Heap::code_range_size_ = 0;
 #elif defined(V8_TARGET_ARCH_X64)
 int Heap::semispace_size_  = 16*MB;
 int Heap::old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
+size_t Heap::code_range_size_ = V8_UINT64_C(2)*GB;
 #else
 int Heap::semispace_size_  = 8*MB;
 int Heap::old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
+size_t Heap::code_range_size_ = 0;
 #endif
 
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
@@ -1923,6 +1926,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // Initialize the object
   HeapObject::cast(result)->set_map(code_map());
   Code* code = Code::cast(result);
+  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_size(desc.reloc_size);
   code->set_sinfo_size(sinfo_size);
@@ -1967,6 +1971,7 @@ Object* Heap::CopyCode(Code* code) {
             obj_size);
   // Relocate the copy.
   Code* new_code = Code::cast(result);
+  ASSERT(!CodeRange::exists() || CodeRange::contains(code->address()));
   new_code->Relocate(new_addr - old_addr);
   return new_code;
 }
@@ -3214,6 +3219,14 @@ bool Heap::Setup(bool create_heap_objects) {
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
+  // On 64-bit platform(s), we put all code objects in a 2 GB range of
+  // virtual address space, so that they can call each other with near calls.
+  if (code_range_size_ > 0) {
+    if (!CodeRange::Setup(code_range_size_)) {
+      return false;
+    }
+  }
+
   code_space_ =
       new OldSpace(old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
