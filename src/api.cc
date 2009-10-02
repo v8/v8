@@ -107,9 +107,6 @@ int i::Internals::kProxyType = PROXY_TYPE;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
-#ifdef DEBUG
-  i::PrintF("Fatal Error: %s: %s\n", location, message);
-#endif
   ENTER_V8;
   API_Fatal(location, message);
 }
@@ -2606,7 +2603,9 @@ bool v8::V8::Dispose() {
 
 
 bool v8::V8::IdleNotification(bool is_high_priority) {
-  if (!i::V8::IsRunning()) return false;
+  // Returning true tells the caller that it need not
+  // continue to call IdleNotification.
+  if (!i::V8::IsRunning()) return true;
   return i::V8::IdleNotification(is_high_priority);
 }
 

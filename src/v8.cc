@@ -170,9 +170,11 @@ uint32_t V8::Random() {
 
 
 bool V8::IdleNotification(bool is_high_priority) {
-  if (!FLAG_use_idle_notification) return false;
+  // Returning true tells the caller that there is no need to call
+  // IdleNotification again.
+  if (!FLAG_use_idle_notification) return true;
   // Ignore high priority instances of V8.
-  if (is_high_priority) return false;
+  if (is_high_priority) return true;
 
   // Tell the heap that it may want to adjust.
   return Heap::IdleNotification();
