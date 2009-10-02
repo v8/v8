@@ -107,6 +107,9 @@ int i::Internals::kProxyType = PROXY_TYPE;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
+#ifdef DEBUG
+  i::PrintF("Fatal Error: %s: %s\n", location, message);
+#endif
   ENTER_V8;
   API_Fatal(location, message);
 }

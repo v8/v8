@@ -43,7 +43,14 @@ static Object* AllocateAfterFailures() {
   NewSpace* new_space = Heap::new_space();
   static const int kNewSpaceFillerSize = ByteArray::SizeFor(0);
   while (new_space->Available() > kNewSpaceFillerSize) {
+    int available_before = new_space->Available();
     CHECK(!Heap::AllocateByteArray(0)->IsFailure());
+    if (available_before == new_space->Available()) {
+      // It seems that we are avoiding new space allocations when
+      // allocation is forced, so no need to fill up new space
+      // in order to make the test harder.
+      break;
+    }
   }
   CHECK(!Heap::AllocateByteArray(100)->IsFailure());
   CHECK(!Heap::AllocateFixedArray(100, NOT_TENURED)->IsFailure());

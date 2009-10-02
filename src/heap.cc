@@ -1250,6 +1250,10 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // spaces.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
+
   Object* result = AllocateRaw(HeapNumber::kSize, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
@@ -1261,7 +1265,8 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 Object* Heap::AllocateHeapNumber(double value) {
   // Use general version, if we're forced to always allocate.
-  if (always_allocate()) return AllocateHeapNumber(value, NOT_TENURED);
+  if (always_allocate()) return AllocateHeapNumber(value, TENURED);
+
   // This version of AllocateHeapNumber is optimized for
   // allocation in new space.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
@@ -1862,6 +1867,9 @@ Object* Heap::AllocateByteArray(int length) {
   AllocationSpace space =
       size > MaxObjectSizeInPagedSpace() ? LO_SPACE : NEW_SPACE;
 
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = LO_SPACE;
+
   Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
 
   if (result->IsFailure()) return result;
@@ -1888,6 +1896,9 @@ Object* Heap::AllocatePixelArray(int length,
                                  uint8_t* external_pointer,
                                  PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
 
   Object* result = AllocateRaw(PixelArray::kAlignedSize, space, OLD_DATA_SPACE);
 
@@ -2532,13 +2543,17 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
+
   int size = SeqAsciiString::SizeFor(length);
 
   Object* result = Failure::OutOfMemoryException();
   if (space == NEW_SPACE) {
     result = size <= kMaxObjectSizeInNewSpace
         ? new_space_.AllocateRaw(size)
-        : lo_space_->AllocateRawFixedArray(size);
+        : lo_space_->AllocateRaw(size);
   } else {
     if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
     result = AllocateRaw(size, space, OLD_DATA_SPACE);
@@ -2565,13 +2580,17 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
+
   int size = SeqTwoByteString::SizeFor(length);
 
   Object* result = Failure::OutOfMemoryException();
   if (space == NEW_SPACE) {
     result = size <= kMaxObjectSizeInNewSpace
         ? new_space_.AllocateRaw(size)
-        : lo_space_->AllocateRawFixedArray(size);
+        : lo_space_->AllocateRaw(size);
   } else {
     if (size > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
     result = AllocateRaw(size, space, OLD_DATA_SPACE);
@@ -2609,7 +2628,7 @@ Object* Heap::AllocateEmptyFixedArray() {
 
 Object* Heap::AllocateRawFixedArray(int length) {
   // Use the general function if we're forced to always allocate.
-  if (always_allocate()) return AllocateFixedArray(length, NOT_TENURED);
+  if (always_allocate()) return AllocateFixedArray(length, TENURED);
   // Allocate the raw data for a fixed array.
   int size = FixedArray::SizeFor(length);
   return size <= kMaxObjectSizeInNewSpace
@@ -2661,6 +2680,9 @@ Object* Heap::AllocateFixedArray(int length) {
 Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   ASSERT(empty_fixed_array()->IsFixedArray());
   if (length == 0) return empty_fixed_array();
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) pretenure = TENURED;
 
   int size = FixedArray::SizeFor(length);
   Object* result = Failure::OutOfMemoryException();
