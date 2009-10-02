@@ -96,6 +96,8 @@ class MacroAssembler: public Assembler {
   // Leave the current exit frame. Expects the return value in r0.
   void LeaveExitFrame(StackFrame::Type type);
 
+  // Align the stack by optionally pushing a Smi zero.
+  void AlignStack(int offset);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes

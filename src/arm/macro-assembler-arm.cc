@@ -291,27 +291,8 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
 
   // Align the stack at this point.  After this point we have 5 pushes,
   // so in fact we have to unalign here!  See also the assert on the
-  // alignment immediately below.
-#if defined(V8_HOST_ARCH_ARM)
-  // Running on the real platform. Use the alignment as mandated by the local
-  // environment.
-  // Note: This will break if we ever start generating snapshots on one ARM
-  // platform for another ARM platform with a different alignment.
-  int activation_frame_alignment = OS::ActivationFrameAlignment();
-#else  // defined(V8_HOST_ARCH_ARM)
-  // If we are using the simulator then we should always align to the expected
-  // alignment. As the simulator is used to generate snapshots we do not know
-  // if the target platform will need alignment, so we will always align at
-  // this point here.
-  int activation_frame_alignment = 2 * kPointerSize;
-#endif  // defined(V8_HOST_ARCH_ARM)
-  if (activation_frame_alignment != kPointerSize) {
-    // This code needs to be made more general if this assert doesn't hold.
-    ASSERT(activation_frame_alignment == 2 * kPointerSize);
-    mov(r7, Operand(Smi::FromInt(0)));
-    tst(sp, Operand(activation_frame_alignment - 1));
-    push(r7, eq);  // Conditional push instruction.
-  }
+  // alignment in AlignStack.
+  AlignStack(1);
 
   // Push in reverse order: caller_fp, sp_on_exit, and caller_pc.
   stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
@@ -340,6 +321,30 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
     CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
   }
 #endif
+}
+
+
+void MacroAssembler::AlignStack(int offset) {
+#if defined(V8_HOST_ARCH_ARM)
+  // Running on the real platform. Use the alignment as mandated by the local
+  // environment.
+  // Note: This will break if we ever start generating snapshots on one ARM
+  // platform for another ARM platform with a different alignment.
+  int activation_frame_alignment = OS::ActivationFrameAlignment();
+#else  // defined(V8_HOST_ARCH_ARM)
+  // If we are using the simulator then we should always align to the expected
+  // alignment. As the simulator is used to generate snapshots we do not know
+  // if the target platform will need alignment, so we will always align at
+  // this point here.
+  int activation_frame_alignment = 2 * kPointerSize;
+#endif  // defined(V8_HOST_ARCH_ARM)
+  if (activation_frame_alignment != kPointerSize) {
+    // This code needs to be made more general if this assert doesn't hold.
+    ASSERT(activation_frame_alignment == 2 * kPointerSize);
+    mov(r7, Operand(Smi::FromInt(0)));
+    tst(sp, Operand(activation_frame_alignment - offset));
+    push(r7, eq);  // Conditional push instruction.
+  }
 }
 
 

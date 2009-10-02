@@ -5061,11 +5061,14 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // r5: Address of heap number for result.
   __ push(lr);   // For later.
   __ push(r5);   // Address of heap number that is answer.
+  __ AlignStack(0);
   // Call C routine that may not cause GC or other trouble.
   __ mov(r5, Operand(ExternalReference::double_fp_operation(operation)));
   __ Call(r5);
+  __ pop(r4);  // Address of heap number.
+  __ cmp(r4, Operand(Smi::FromInt(0)));
+  __ pop(r4, eq);  // Conditional pop instruction to get rid of alignment push.
   // Store answer in the overwritable heap number.
-  __ pop(r4);
 #if !defined(USE_ARM_EABI)
   // Double returned in fp coprocessor register 0 and 1, encoded as register
   // cr8.  Offsets must be divisible by 4 for coprocessor so we need to
