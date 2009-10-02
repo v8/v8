@@ -7148,7 +7148,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // the function being debugged.
   // function(arguments,__source__) {return eval(__source__);}
   static const char* source_str =
-      "function(arguments,__source__){return eval(__source__);}";
+      "(function(arguments,__source__){return eval(__source__);})";
   static const int source_str_length = strlen(source_str);
   Handle<String> function_source =
       Factory::NewStringFromAscii(Vector<const char>(source_str,

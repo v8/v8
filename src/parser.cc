@@ -1924,31 +1924,20 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 
 
 Statement* Parser::ParseFunctionDeclaration(bool* ok) {
-  // Parse a function literal. We may or may not have a function name.
-  // If we have a name we use it as the variable name for the function
-  // (a function declaration) and not as the function name of a function
-  // expression.
-
+  // FunctionDeclaration ::
+  //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int function_token_position = scanner().location().beg_pos;
-
-  Handle<String> name;
-  if (peek() == Token::IDENTIFIER) name = ParseIdentifier(CHECK_OK);
-  FunctionLiteral* fun = ParseFunctionLiteral(name, function_token_position,
-                                              DECLARATION, CHECK_OK);
-
-  if (name.is_null()) {
-    // We don't have a name - it is always an anonymous function
-    // expression.
-    return NEW(ExpressionStatement(fun));
-  } else {
-    // We have a name so even if we're not at the top-level of the
-    // global or a function scope, we treat is as such and introduce
-    // the function with it's initial value upon entering the
-    // corresponding scope.
-    Declare(name, Variable::VAR, fun, true, CHECK_OK);
-    return factory()->EmptyStatement();
-  }
+  Handle<String> name = ParseIdentifier(CHECK_OK);
+  FunctionLiteral* fun = ParseFunctionLiteral(name,
+                                              function_token_position,
+                                              DECLARATION,
+                                              CHECK_OK);
+  // Even if we're not at the top-level of the global or a function
+  // scope, we treat is as such and introduce the function with it's
+  // initial value upon entering the corresponding scope.
+  Declare(name, Variable::VAR, fun, true, CHECK_OK);
+  return factory()->EmptyStatement();
 }
 
 
