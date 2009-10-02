@@ -882,6 +882,8 @@ class Heap : public AllStatic {
     kRootListLength
   };
 
+  static Object* NumberToString(Object* number);
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;

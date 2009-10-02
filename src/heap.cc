@@ -1587,6 +1587,31 @@ Object* Heap::SmiOrNumberFromDouble(double value,
 }
 
 
+Object* Heap::NumberToString(Object* number) {
+  Object* cached = GetNumberStringCache(number);
+  if (cached != undefined_value()) {
+    return cached;
+  }
+
+  char arr[100];
+  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  const char* str;
+  if (number->IsSmi()) {
+    int num = Smi::cast(number)->value();
+    str = IntToCString(num, buffer);
+  } else {
+    double num = HeapNumber::cast(number)->value();
+    str = DoubleToCString(num, buffer);
+  }
+  Object* result = AllocateStringFromAscii(CStrVector(str));
+
+  if (!result->IsFailure()) {
+    SetNumberStringCache(number, String::cast(result));
+  }
+  return result;
+}
+
+
 Object* Heap::NewNumberFromDouble(double value, PretenureFlag pretenure) {
   return SmiOrNumberFromDouble(value,
                                true /* number object must be new */,

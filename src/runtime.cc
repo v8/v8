@@ -3020,8 +3020,20 @@ static Object* Runtime_LocalKeys(Arguments args) {
   // Some fast paths through GetKeysInFixedArrayFor reuse a cached
   // property array and since the result is mutable we have to create
   // a fresh clone on each invocation.
-  Handle<FixedArray> copy = Factory::NewFixedArray(contents->length());
-  contents->CopyTo(0, *copy, 0, contents->length());
+  int length = contents->length();
+  Handle<FixedArray> copy = Factory::NewFixedArray(length);
+  for (int i = 0; i < length; i++) {
+    Object* entry = contents->get(i);
+    if (entry->IsString()) {
+      copy->set(i, entry);
+    } else {
+      ASSERT(entry->IsNumber());
+      HandleScope scope;
+      Handle<Object> entry_handle(entry);
+      Handle<Object> entry_str = Factory::NumberToString(entry_handle);
+      copy->set(i, *entry_str);
+    }
+  }
   return *Factory::NewJSArrayWithElements(copy);
 }
 
@@ -3587,27 +3599,7 @@ static Object* Runtime_NumberToString(Arguments args) {
   Object* number = args[0];
   RUNTIME_ASSERT(number->IsNumber());
 
-  Object* cached = Heap::GetNumberStringCache(number);
-  if (cached != Heap::undefined_value()) {
-    return cached;
-  }
-
-  char arr[100];
-  Vector<char> buffer(arr, ARRAY_SIZE(arr));
-  const char* str;
-  if (number->IsSmi()) {
-    int num = Smi::cast(number)->value();
-    str = IntToCString(num, buffer);
-  } else {
-    double num = HeapNumber::cast(number)->value();
-    str = DoubleToCString(num, buffer);
-  }
-  Object* result = Heap::AllocateStringFromAscii(CStrVector(str));
-
-  if (!result->IsFailure()) {
-    Heap::SetNumberStringCache(number, String::cast(result));
-  }
-  return result;
+  return Heap::NumberToString(number);
 }
 
 
