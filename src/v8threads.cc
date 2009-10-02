@@ -56,6 +56,12 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
   if (!internal::ThreadManager::IsLockedByCurrentThread()) {
     internal::ThreadManager::Lock();
     has_lock_ = true;
+    // Make sure that V8 is initialized.  Archiving of threads interferes
+    // with deserialization by adding additional root pointers, so we must
+    // initialize here, before anyone can call ~Locker() or Unlocker().
+    if (!internal::V8::IsRunning()) {
+      V8::Initialize();
+    }
     // This may be a locker within an unlocker in which case we have to
     // get the saved state for this thread and restore it.
     if (internal::ThreadManager::RestoreThread()) {
