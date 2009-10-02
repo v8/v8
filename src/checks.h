@@ -80,6 +80,7 @@ static inline void CheckEqualsHelper(const char* file, int line,
   }
 }
 
+#if !V8_HOST_ARCH_64_BIT
 // Helper function used by the CHECK_EQ function when given int64_t
 // arguments.  Should not be called directly.
 static inline void CheckEqualsHelper(const char* file, int line,
@@ -98,6 +99,7 @@ static inline void CheckEqualsHelper(const char* file, int line,
              uint32_t(value >> 32), uint32_t(value));
   }
 }
+#endif
 
 
 // Helper function used by the CHECK_NE function when given int
