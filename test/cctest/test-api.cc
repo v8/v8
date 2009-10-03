@@ -702,18 +702,12 @@ THREADED_TEST(PropertyHandler) {
 }
 
 
-#if V8_HOST_ARCH_64_BIT
-# define CAST_TO_INT64(x) (int(x))
-#else
-# define CAST_TO_INT64(x) (int64_t(x))
-#endif
-
 THREADED_TEST(TinyInteger) {
   v8::HandleScope scope;
   LocalContext env;
   int32_t value = 239;
   Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(CAST_TO_INT64(value), value_obj->Value());
+  CHECK_INT64_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -724,7 +718,7 @@ THREADED_TEST(BigSmiInteger) {
   CHECK(i::Smi::IsValid(value));
   CHECK(!i::Smi::IsValid(value + 1));
   Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(CAST_TO_INT64(value), value_obj->Value());
+  CHECK_INT64_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -734,7 +728,7 @@ THREADED_TEST(BigInteger) {
   int32_t value = (1 << 30) + 1;
   CHECK(!i::Smi::IsValid(value));
   Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(CAST_TO_INT64(value), value_obj->Value());
+  CHECK_INT64_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -743,7 +737,7 @@ THREADED_TEST(TinyUnsignedInteger) {
   LocalContext env;
   uint32_t value = 239;
   Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(CAST_TO_INT64(value), value_obj->Value());
+  CHECK_INT64_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -754,7 +748,7 @@ THREADED_TEST(BigUnsignedSmiInteger) {
   CHECK(i::Smi::IsValid(value));
   CHECK(!i::Smi::IsValid(value + 1));
   Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(CAST_TO_INT64(value), value_obj->Value());
+  CHECK_INT64_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -764,7 +758,7 @@ THREADED_TEST(BigUnsignedInteger) {
   uint32_t value = (1 << 30) + 1;
   CHECK(!i::Smi::IsValid(value));
   Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(CAST_TO_INT64(value), value_obj->Value());
+  CHECK_INT64_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
@@ -773,7 +767,7 @@ THREADED_TEST(OutOfSignedRangeUnsignedInteger) {
   LocalContext env;
   uint32_t value = uint32_t(0xffffffff);
   Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(CAST_TO_INT64(value), value_obj->Value());
+  CHECK_INT64_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 
