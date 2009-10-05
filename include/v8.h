@@ -1063,7 +1063,6 @@ class V8EXPORT Number : public Primitive {
 class V8EXPORT Integer : public Number {
  public:
   static Local<Integer> New(int32_t value);
-  static inline Local<Integer> New(uint32_t value);
   int64_t Value() const;
   static inline Integer* Cast(v8::Value* obj);
  private:
@@ -3024,16 +3023,6 @@ Number* Number::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Number*>(value);
-}
-
-
-Local<Integer> Integer::New(uint32_t value) {
-  // If highest bit is not set, chances are it's SMI.
-  bool could_be_smi = (value & (1 << 31)) == 0;
-  if (could_be_smi) {
-    return Integer::New(static_cast<int32_t>(value));
-  }
-  return Local<Integer>::Cast(Number::New(value));
 }
 
 
