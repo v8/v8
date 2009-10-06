@@ -1051,7 +1051,6 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
     int argc = Builtins::GetArgumentsCount(id);
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry = { pc_offset() - kInstrSize, flags, name };
     unresolved_.Add(entry);
@@ -1069,7 +1068,6 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
     int argc = Builtins::GetArgumentsCount(id);
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(true);
     Unresolved entry = { pc_offset() - kInstrSize, flags, name };
     unresolved_.Add(entry);

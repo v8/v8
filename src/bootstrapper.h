@@ -66,9 +66,8 @@ class Bootstrapper : public AllStatic {
   static bool IsActive();
 
   // Encoding/decoding support for fixup flags.
-  class FixupFlagsIsPCRelative: public BitField<bool, 0, 1> {};
-  class FixupFlagsUseCodeObject: public BitField<bool, 1, 1> {};
-  class FixupFlagsArgumentsCount: public BitField<uint32_t, 2, 32-2> {};
+  class FixupFlagsUseCodeObject: public BitField<bool, 0, 1> {};
+  class FixupFlagsArgumentsCount: public BitField<uint32_t, 1, 32-1> {};
 
   // Support for thread preemption.
   static int ArchiveSpacePerThread();

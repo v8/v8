@@ -947,7 +947,7 @@ class ReferenceUpdater: public ObjectVisitor {
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(encoded_target));
     ASSERT(reinterpret_cast<uintptr_t>(encoded_target) == small_target);
     data_32_bit_.Add(small_target);
- }
+  }
 
 
   virtual void VisitExternalReferences(Address* start, Address* end) {
