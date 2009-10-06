@@ -2602,11 +2602,11 @@ bool v8::V8::Dispose() {
 }
 
 
-bool v8::V8::IdleNotification(bool is_high_priority) {
+bool v8::V8::IdleNotification() {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
   if (!i::V8::IsRunning()) return true;
-  return i::V8::IdleNotification(is_high_priority);
+  return i::V8::IdleNotification();
 }
 
 
