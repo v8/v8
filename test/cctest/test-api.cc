@@ -7913,11 +7913,15 @@ THREADED_TEST(StackTrace) {
 }
 
 
-// Test that idle notification can be handled when V8 has not yet been
-// set up.
+// Test that idle notification can be handled and eventually returns true.
 THREADED_TEST(IdleNotification) {
-  for (int i = 0; i < 100; i++)
-    CHECK(v8::V8::IdleNotification());
+  bool rv = false;
+  for (int i = 0; i < 100; i++) {
+    rv = v8::V8::IdleNotification();
+    if (rv)
+      break;
+  }
+  CHECK(rv == true);
 }
 
 
