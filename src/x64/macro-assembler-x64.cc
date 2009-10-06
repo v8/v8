@@ -348,8 +348,7 @@ void MacroAssembler::JumpToRuntime(const ExternalReference& ext,
   // Set the entry point and jump to the C entry runtime stub.
   movq(rbx, ext);
   CEntryStub ces(result_size);
-  movq(kScratchRegister, ces.GetCode(), RelocInfo::CODE_TARGET);
-  jmp(kScratchRegister);
+  jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -1270,17 +1269,8 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
 
 
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
-  ASSERT(RelocInfo::IsCodeTarget(rmode));
-  movq(kScratchRegister, code_object, rmode);
-#ifdef DEBUG
-  Label target;
-  bind(&target);
-#endif
-  jmp(kScratchRegister);
-#ifdef DEBUG
-  ASSERT_EQ(kCallTargetAddressOffset,
-            SizeOfCodeGeneratedSince(&target) + kPointerSize);
-#endif
+  // TODO(X64): Inline this
+  jmp(code_object, rmode);
 }
 
 
@@ -1299,17 +1289,7 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 void MacroAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   WriteRecordedPositions();
-  movq(kScratchRegister, code_object, rmode);
-#ifdef DEBUG
-  // Patch target is kPointer size bytes *before* target label.
-  Label target;
-  bind(&target);
-#endif
-  call(kScratchRegister);
-#ifdef DEBUG
-  ASSERT_EQ(kCallTargetAddressOffset,
-            SizeOfCodeGeneratedSince(&target) + kPointerSize);
-#endif
+  call(code_object, rmode);
 }
 
 
@@ -1576,7 +1556,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
         Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry =
         { pc_offset() - kCallTargetAddressOffset, flags, name };

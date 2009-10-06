@@ -5051,15 +5051,16 @@ void Code::CopyFrom(const CodeDesc& desc) {
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;
+  Assembler* origin = desc.origin;  // Needed to find target_object on X64.
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
-      Object** p = reinterpret_cast<Object**>(it.rinfo()->target_object());
+      Handle<Object> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p);
     } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
       // pointers to the first instruction in the code object
-      Object** p = reinterpret_cast<Object**>(it.rinfo()->target_object());
+      Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code* code = Code::cast(*p);
       it.rinfo()->set_target_address(code->instruction_start());
     } else {
