@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function foo(f) { eval(f); }
 
-// Ensure that compiling a declaration of a function does not crash.
-foo("(function (x) { with ({x: []}) function x(){} })");
+// A function expression with no parenthesis around it is not a valid
+// expression statement.
+assertThrows("eval('function() {}')");
