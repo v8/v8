@@ -455,14 +455,16 @@ void VirtualFrame::Enter() {
   Comment cmnt(masm(), "[ Enter JS frame");
 
 #ifdef DEBUG
-  // Verify that edi contains a JS function.  The following code
-  // relies on eax being available for use.
-  __ test(edi, Immediate(kSmiTagMask));
-  __ Check(not_zero,
-           "VirtualFrame::Enter - edi is not a function (smi check).");
-  __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
-  __ Check(equal,
-           "VirtualFrame::Enter - edi is not a function (map check).");
+  if (FLAG_debug_code) {
+    // Verify that edi contains a JS function.  The following code
+    // relies on eax being available for use.
+    __ test(edi, Immediate(kSmiTagMask));
+    __ Check(not_zero,
+             "VirtualFrame::Enter - edi is not a function (smi check).");
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
+    __ Check(equal,
+             "VirtualFrame::Enter - edi is not a function (map check).");
+  }
 #endif
 
   EmitPush(ebp);

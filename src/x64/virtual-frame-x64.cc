@@ -63,14 +63,16 @@ void VirtualFrame::Enter() {
   Comment cmnt(masm(), "[ Enter JS frame");
 
 #ifdef DEBUG
-  // Verify that rdi contains a JS function.  The following code
-  // relies on rax being available for use.
-  Condition not_smi = masm()->CheckNotSmi(rdi);
-  __ Check(not_smi,
-           "VirtualFrame::Enter - rdi is not a function (smi check).");
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
-  __ Check(equal,
-           "VirtualFrame::Enter - rdi is not a function (map check).");
+  if (FLAG_debug_code) {
+    // Verify that rdi contains a JS function.  The following code
+    // relies on rax being available for use.
+    Condition not_smi = masm()->CheckNotSmi(rdi);
+    __ Check(not_smi,
+             "VirtualFrame::Enter - rdi is not a function (smi check).");
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
+    __ Check(equal,
+             "VirtualFrame::Enter - rdi is not a function (map check).");
+  }
 #endif
 
   EmitPush(rbp);
