@@ -1679,8 +1679,8 @@ Object* Heap::AllocateConsString(String* first, String* second) {
       && second->IsAsciiRepresentation();
 
   // Make sure that an out of memory exception is thrown if the length
-  // of the new cons string is too large to fit in a Smi.
-  if (length > Smi::kMaxValue || length < -0) {
+  // of the new cons string is too large.
+  if (length > String::kMaxLength || length < 0) {
     Top::context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }

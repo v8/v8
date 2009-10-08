@@ -174,7 +174,7 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['-m32']
     },
     'arch:x64': {
-      'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
+      'CPPDEFINES':   ['V8_TARGET_ARCH_X64', 'V8_LONG_SMI'],
       'CCFLAGS':      ['-m64'],
       'LINKFLAGS':    ['-m64'],
     },
@@ -200,7 +200,7 @@ LIBRARY_FLAGS = {
       'ARFLAGS':      ['/MACHINE:X86']
     },
     'arch:x64': {
-      'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
+      'CPPDEFINES':   ['V8_TARGET_ARCH_X64', 'V8_LONG_SMI'],
       'LINKFLAGS':    ['/MACHINE:X64'],
       'ARFLAGS':      ['/MACHINE:X64']
     },

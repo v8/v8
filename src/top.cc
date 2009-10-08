@@ -54,6 +54,7 @@ Address Top::get_address_from_id(Top::AddressId id) {
   return top_addresses[id];
 }
 
+
 char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
   ThreadLocalTop* thread = reinterpret_cast<ThreadLocalTop*>(thread_storage);
   Iterate(v, thread);

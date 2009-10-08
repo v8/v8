@@ -1810,7 +1810,7 @@ TEST(HugeConsStringOutOfMemory) {
   // Build huge string. This should fail with out of memory exception.
   Local<Value> result = CompileRun(
     "var str = Array.prototype.join.call({length: 513}, \"A\").toUpperCase();"
-    "for (var i = 0; i < 21; i++) { str = str + str; }");
+    "for (var i = 0; i < 22; i++) { str = str + str; }");
 
   // Check for out of memory state.
   CHECK(result.IsEmpty());

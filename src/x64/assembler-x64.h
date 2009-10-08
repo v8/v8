@@ -222,13 +222,18 @@ enum Condition {
   less_equal    = 14,
   greater       = 15,
 
+  // Fake conditions that are handled by the
+  // opcodes using them.
+  always        = 16,
+  never         = 17,
   // aliases
   carry         = below,
   not_carry     = above_equal,
   zero          = equal,
   not_zero      = not_equal,
   sign          = negative,
-  not_sign      = positive
+  not_sign      = positive,
+  last_condition = greater
 };
 
 
@@ -284,7 +289,6 @@ inline Hint NegateHint(Hint hint) {
 class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
-  inline explicit Immediate(Smi* value);
 
  private:
   int32_t value_;
@@ -699,6 +703,11 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_32(0x4, dst, src);
   }
 
+  void andl(Register dst, Register src) {
+    arithmetic_op_32(0x23, dst, src);
+  }
+
+
   void decq(Register dst);
   void decq(const Operand& dst);
   void decl(Register dst);
@@ -760,12 +769,34 @@ class Assembler : public Malloced {
     immediate_arithmetic_op(0x1, dst, src);
   }
 
+  void orl(Register dst, Immediate src) {
+    immediate_arithmetic_op_32(0x1, dst, src);
+  }
+
   void or_(const Operand& dst, Immediate src) {
     immediate_arithmetic_op(0x1, dst, src);
   }
 
+  void orl(const Operand& dst, Immediate src) {
+    immediate_arithmetic_op_32(0x1, dst, src);
+  }
 
-  void rcl(Register dst, uint8_t imm8);
+
+  void rcl(Register dst, Immediate imm8) {
+    shift(dst, imm8, 0x2);
+  }
+
+  void rol(Register dst, Immediate imm8) {
+    shift(dst, imm8, 0x0);
+  }
+
+  void rcr(Register dst, Immediate imm8) {
+    shift(dst, imm8, 0x3);
+  }
+
+  void ror(Register dst, Immediate imm8) {
+    shift(dst, imm8, 0x1);
+  }
 
   // Shifts dst:src left by cl bits, affecting only dst.
   void shld(Register dst, Register src);
@@ -866,6 +897,7 @@ class Assembler : public Malloced {
     immediate_arithmetic_op_8(0x5, dst, src);
   }
 
+  void testb(Register dst, Register src);
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);
   void testl(Register dst, Register src);
@@ -904,6 +936,7 @@ class Assembler : public Malloced {
   void bts(const Operand& dst, Register src);
 
   // Miscellaneous
+  void clc();
   void cpuid();
   void hlt();
   void int3();

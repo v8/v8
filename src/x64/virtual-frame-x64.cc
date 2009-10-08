@@ -199,6 +199,14 @@ void VirtualFrame::EmitPush(Immediate immediate) {
 }
 
 
+void VirtualFrame::EmitPush(Smi* smi_value) {
+  ASSERT(stack_pointer_ == element_count() - 1);
+  elements_.Add(FrameElement::MemoryElement());
+  stack_pointer_++;
+  __ Push(smi_value);
+}
+
+
 void VirtualFrame::EmitPush(Handle<Object> value) {
   ASSERT(stack_pointer_ == element_count() - 1);
   elements_.Add(FrameElement::MemoryElement());
@@ -843,7 +851,7 @@ void VirtualFrame::SyncElementByPushing(int index) {
 
   switch (element.type()) {
     case FrameElement::INVALID:
-      __ push(Immediate(Smi::FromInt(0)));
+      __ Push(Smi::FromInt(0));
       break;
 
     case FrameElement::MEMORY:
@@ -1007,7 +1015,7 @@ Result VirtualFrame::CallConstructor(int arg_count) {
   function.ToRegister(rdi);
 
   // Constructors are called with the number of arguments in register
-  // eax for now. Another option would be to have separate construct
+  // rax for now. Another option would be to have separate construct
   // call trampolines per different arguments counts encountered.
   Result num_args = cgen()->allocator()->Allocate(rax);
   ASSERT(num_args.is_valid());

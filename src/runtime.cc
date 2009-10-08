@@ -522,7 +522,7 @@ static Object* Runtime_GetTemplateField(Arguments args) {
   RUNTIME_ASSERT(type ==  FUNCTION_TEMPLATE_INFO_TYPE ||
                  type ==  OBJECT_TEMPLATE_INFO_TYPE);
   RUNTIME_ASSERT(offset > 0);
-  if (type ==  FUNCTION_TEMPLATE_INFO_TYPE) {
+  if (type == FUNCTION_TEMPLATE_INFO_TYPE) {
     RUNTIME_ASSERT(offset < FunctionTemplateInfo::kSize);
   } else {
     RUNTIME_ASSERT(offset < ObjectTemplateInfo::kSize);
@@ -3252,8 +3252,8 @@ static Object* Runtime_URIEscape(Arguments args) {
       } else {
         escaped_length += 3;
       }
-      // We don't allow strings that are longer than Smi range.
-      if (!Smi::IsValid(escaped_length)) {
+      // We don't allow strings that are longer than a maximal length.
+      if (escaped_length > String::kMaxLength) {
         Top::context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
       }
@@ -3804,16 +3804,16 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
-      if (!Smi::IsValid(element_length + position)) {
-        Top::context()->mark_out_of_memory();
-        return Failure::OutOfMemoryException();
-      }
       position += element_length;
       if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
       return Top::Throw(Heap::illegal_argument_symbol());
+    }
+    if (position > String::kMaxLength) {
+      Top::context()->mark_out_of_memory();
+      return Failure::OutOfMemoryException();
     }
   }
 

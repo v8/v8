@@ -904,10 +904,10 @@ class Object BASE_EMBEDDED {
 
 // Smi represents integer Numbers that can be stored in 31 bits.
 // Smis are immediate which means they are NOT allocated in the heap.
-// Smi stands for small integer.
 // The this pointer has the following format: [31 bit signed int] 0
-// On 64-bit, the top 32 bits of the pointer is allowed to have any
-// value.
+// For long smis it has the following format:
+//     [32 bit signed int] [31 bits zero padding] 0
+// Smi stands for small integer.
 class Smi: public Object {
  public:
   // Returns the integer value.
@@ -921,8 +921,6 @@ class Smi: public Object {
   // Returns whether value can be represented in a Smi.
   static inline bool IsValid(intptr_t value);
 
-  static inline bool IsIntptrValid(intptr_t);
-
   // Casting.
   static inline Smi* cast(Object* object);
 
@@ -933,10 +931,8 @@ class Smi: public Object {
   void SmiVerify();
 #endif
 
-  static const int kSmiNumBits = 31;
-  // Min and max limits for Smi values.
-  static const int kMinValue = -(1 << (kSmiNumBits - 1));
-  static const int kMaxValue = (1 << (kSmiNumBits - 1)) - 1;
+  static const int kMinValue = (-1 << (kSmiValueSize - 1));
+  static const int kMaxValue = -(kMinValue + 1);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Smi);
@@ -2495,6 +2491,9 @@ class PixelArray: public Array {
   void PixelArrayVerify();
 #endif  // DEBUG
 
+  // Maximal acceptable length for a pixel array.
+  static const int kMaxLength = 0x3fffffff;
+
   // PixelArray headers are not quadword aligned.
   static const int kExternalPointerOffset = Array::kAlignedSize;
   static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
@@ -3849,6 +3848,8 @@ class String: public HeapObject {
   static const int kShortLengthShift = kHashShift + kShortStringTag;
   static const int kMediumLengthShift = kHashShift + kMediumStringTag;
   static const int kLongLengthShift = kHashShift + kLongStringTag;
+  // Maximal string length that can be stored in the hash/length field.
+  static const int kMaxLength = (1 << (32 - kLongLengthShift)) - 1;
 
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;

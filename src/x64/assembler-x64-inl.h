@@ -38,11 +38,6 @@ Condition NegateCondition(Condition cc) {
   return static_cast<Condition>(cc ^ 1);
 }
 
-// -----------------------------------------------------------------------------
-
-Immediate::Immediate(Smi* value) {
-  value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
-}
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler

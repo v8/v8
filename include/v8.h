@@ -2719,12 +2719,24 @@ const int kHeapObjectTag = 1;
 const int kHeapObjectTagSize = 2;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 
-
+#ifdef V8_LONG_SMI
+#ifndef V8_TARGET_ARCH_X64
+#error "Large smis on non-64-bit platform."
+#endif
 // Tag information for Smi.
 const int kSmiTag = 0;
 const int kSmiTagSize = 1;
 const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
-
+const int kSmiShiftSize = 31;
+const int kSmiValueSize = 32;
+#else
+// Tag information for Smi.
+const int kSmiTag = 0;
+const int kSmiTagSize = 1;
+const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
+const int kSmiShiftSize = 0;
+const int kSmiValueSize = 31;
+#endif
 
 /**
  * This class exports constants and functionality from within v8 that
@@ -2761,7 +2773,15 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> kSmiTagSize;
+#ifdef V8_LONG_SMI
+    int shift_bits = kSmiTagSize + kSmiShiftSize;
+    // Shift down and throw away top 32 bits.
+    return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
+#else
+    int shift_bits = kSmiTagSize + kSmiShiftSize;
+    // Throw away top 32 bits and shift down (requires >> to be sign extending).
+    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
+#endif
   }
 
   static inline bool IsExternalTwoByteString(int instance_type) {

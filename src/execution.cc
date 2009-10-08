@@ -96,8 +96,11 @@ static Handle<Object> Invoke(bool construct,
     JSEntryFunction entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
 
     // Call the function through the right JS entry stub.
-    value = CALL_GENERATED_CODE(entry, func->code()->entry(), *func,
-                                *receiver, argc, args);
+    byte* entry_address= func->code()->entry();
+    JSFunction* function = *func;
+    Object* receiver_pointer = *receiver;
+    value = CALL_GENERATED_CODE(entry, entry_address, function,
+                                receiver_pointer, argc, args);
   }
 
 #ifdef DEBUG

@@ -744,15 +744,17 @@ int Smi::value() {
 
 Smi* Smi::FromInt(int value) {
   ASSERT(Smi::IsValid(value));
+  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
   intptr_t tagged_value =
-      (static_cast<intptr_t>(value) << kSmiTagSize) | kSmiTag;
+      (static_cast<intptr_t>(value) << smi_shift_bits) | kSmiTag;
   return reinterpret_cast<Smi*>(tagged_value);
 }
 
 
 Smi* Smi::FromIntptr(intptr_t value) {
   ASSERT(Smi::IsValid(value));
-  return reinterpret_cast<Smi*>((value << kSmiTagSize) | kSmiTag);
+  int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
+  return reinterpret_cast<Smi*>((value << smi_shift_bits) | kSmiTag);
 }
 
 
@@ -832,6 +834,11 @@ bool Smi::IsValid(intptr_t value) {
 #ifdef DEBUG
   bool in_range = (value >= kMinValue) && (value <= kMaxValue);
 #endif
+
+#ifdef V8_LONG_SMI
+  // To be representable as a long smi, the value must be a 32-bit integer.
+  bool result = (value == static_cast<int32_t>(value));
+#else
   // To be representable as an tagged small integer, the two
   // most-significant bits of 'value' must be either 00 or 11 due to
   // sign-extension. To check this we add 01 to the two
@@ -843,20 +850,8 @@ bool Smi::IsValid(intptr_t value) {
   // in fact doesn't work correctly with gcc4.1.1 in some cases: The
   // compiler may produce undefined results in case of signed integer
   // overflow. The computation must be done w/ unsigned ints.
-  bool result =
-      ((static_cast<unsigned int>(value) + 0x40000000U) & 0x80000000U) == 0;
-  ASSERT(result == in_range);
-  return result;
-}
-
-
-bool Smi::IsIntptrValid(intptr_t value) {
-#ifdef DEBUG
-  bool in_range = (value >= kMinValue) && (value <= kMaxValue);
+  bool result = (static_cast<uintptr_t>(value + 0x40000000U) < 0x80000000U);
 #endif
-  // See Smi::IsValid(int) for description.
-  bool result =
-      ((static_cast<uintptr_t>(value) + 0x40000000U) < 0x80000000U);
   ASSERT(result == in_range);
   return result;
 }

@@ -2290,7 +2290,7 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
   ON_BAILOUT("v8::SetElementsToPixelData()", return);
   ENTER_V8;
   HandleScope scope;
-  if (!ApiCheck(i::Smi::IsValid(length),
+  if (!ApiCheck(length <= i::PixelArray::kMaxLength,
                 "v8::Object::SetIndexedPropertiesToPixelData()",
                 "length exceeds max acceptable value")) {
     return;
@@ -2849,7 +2849,7 @@ Local<Value> v8::External::Wrap(void* data) {
     intptr_t data_value =
         static_cast<intptr_t>(data_ptr >> i::Internals::kAlignedPointerShift);
     STATIC_ASSERT(sizeof(data_ptr) == sizeof(data_value));
-    if (i::Smi::IsIntptrValid(data_value)) {
+    if (i::Smi::IsValid(data_value)) {
       i::Handle<i::Object> obj(i::Smi::FromIntptr(data_value));
       return Utils::ToLocal(obj);
     }
