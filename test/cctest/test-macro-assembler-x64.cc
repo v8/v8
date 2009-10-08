@@ -109,7 +109,7 @@ TEST(Smi) {
         CHECK_EQ(smi_from_int, smi_from_intptr);
       }
       int smi_value = smi_from_intptr->value();
-      CHECK_EQ(number, smi_value);
+      CHECK_EQ(number, static_cast<intptr_t>(smi_value));
     }
   }
 }

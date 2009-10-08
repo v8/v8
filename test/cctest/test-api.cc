@@ -713,21 +713,27 @@ THREADED_TEST(BigSmiInteger) {
   v8::HandleScope scope;
   LocalContext env;
   int32_t value = i::Smi::kMaxValue;
-  CHECK(i::Smi::IsValid(value));
-  CHECK(!i::Smi::IsValid(value + 1));
-  Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+  // We cannot add one to a Smi::kMaxValue without wrapping.
+  if (i::kSmiValueSize < 32) {
+    CHECK(i::Smi::IsValid(value));
+    CHECK(!i::Smi::IsValid(value + 1));
+    Local<v8::Integer> value_obj = v8::Integer::New(value);
+    CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+  }
 }
 
 
 THREADED_TEST(BigInteger) {
   v8::HandleScope scope;
   LocalContext env;
-  int32_t value = i::Smi::kMaxValue + 1;
-  CHECK(value > i::Smi::kMaxValue);
-  CHECK(!i::Smi::IsValid(value));
-  Local<v8::Integer> value_obj = v8::Integer::New(value);
-  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+  // We cannot add one to a Smi::kMaxValue without wrapping.
+  if (i::kSmiValueSize < 32) {
+    int32_t value = i::Smi::kMaxValue + 1;
+    CHECK(value > i::Smi::kMaxValue);
+    CHECK(!i::Smi::IsValid(value));
+    Local<v8::Integer> value_obj = v8::Integer::New(value);
+    CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+  }
 }
 
 
