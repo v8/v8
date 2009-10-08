@@ -96,7 +96,7 @@ private:
 //
 #define FLAG FLAG_FULL
 
-// assembler-ia32.cc / assembler-arm.cc
+// assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
             "generate extra code (comments, assertions) for debugging")
 DEFINE_bool(emit_branch_hints, false, "emit branch hints")
@@ -104,6 +104,16 @@ DEFINE_bool(push_pop_elimination, true,
             "eliminate redundant push/pops in assembly code")
 DEFINE_bool(print_push_pop_elimination, false,
             "print elimination of redundant push/pops in assembly code")
+DEFINE_bool(enable_sse2, true,
+            "enable use of SSE2 instructions if available")
+DEFINE_bool(enable_sse3, true,
+            "enable use of SSE3 instructions if available")
+DEFINE_bool(enable_cmov, true,
+            "enable use of CMOV instruction if available")
+DEFINE_bool(enable_rdtsc, true,
+            "enable use of RDTSC instruction if available")
+DEFINE_bool(enable_sahf, true,
+            "enable use of SAHF instruction if available (X64 only)")
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")

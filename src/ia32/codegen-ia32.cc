@@ -824,10 +824,8 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void DeferredInlineBinaryOperation::Generate() {
-  __ push(left_);
-  __ push(right_);
-  GenericBinaryOpStub stub(op_, mode_, SMI_CODE_INLINED);
-  __ CallStub(&stub);
+  GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -856,16 +854,16 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
       // Bit operations always assume they likely operate on Smis. Still only
       // generate the inline Smi check code if this operation is part of a loop.
       flags = (loop_nesting() > 0)
-              ? SMI_CODE_INLINED
-              : SMI_CODE_IN_STUB;
+              ? NO_SMI_CODE_IN_STUB
+              : NO_GENERIC_BINARY_FLAGS;
       break;
 
     default:
       // By default only inline the Smi check code for likely smis if this
       // operation is part of a loop.
       flags = ((loop_nesting() > 0) && type->IsLikelySmi())
-              ? SMI_CODE_INLINED
-              : SMI_CODE_IN_STUB;
+              ? NO_SMI_CODE_IN_STUB
+              : NO_GENERIC_BINARY_FLAGS;
       break;
   }
 
@@ -924,16 +922,15 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  if (flags == SMI_CODE_INLINED && !generate_no_smi_code) {
+  if (((flags & NO_SMI_CODE_IN_STUB) != 0) && !generate_no_smi_code) {
     LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
   } else {
     frame_->Push(&left);
     frame_->Push(&right);
     // If we know the arguments aren't smis, use the binary operation stub
     // that does not check for the fast smi case.
-    // The same stub is used for NO_SMI_CODE and SMI_CODE_INLINED.
     if (generate_no_smi_code) {
-      flags = SMI_CODE_INLINED;
+      flags = NO_SMI_CODE_IN_STUB;
     }
     GenericBinaryOpStub stub(op, overwrite_mode, flags);
     Result answer = frame_->CallStub(&stub, 2);
@@ -1376,14 +1373,12 @@ class DeferredInlineSmiOperation: public DeferredCode {
 
 
 void DeferredInlineSmiOperation::Generate() {
-  __ push(src_);
-  __ push(Immediate(value_));
   // For mod we don't generate all the Smi code inline.
   GenericBinaryOpStub stub(
       op_,
       overwrite_mode_,
-      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
-  __ CallStub(&stub);
+      (op_ == Token::MOD) ? NO_GENERIC_BINARY_FLAGS : NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, src_, value_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -1417,10 +1412,8 @@ class DeferredInlineSmiOperationReversed: public DeferredCode {
 
 
 void DeferredInlineSmiOperationReversed::Generate() {
-  __ push(Immediate(value_));
-  __ push(src_);
-  GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(op_, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, value_, src_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -1449,10 +1442,8 @@ class DeferredInlineSmiAdd: public DeferredCode {
 void DeferredInlineSmiAdd::Generate() {
   // Undo the optimistic add operation and call the shared stub.
   __ sub(Operand(dst_), Immediate(value_));
-  __ push(dst_);
-  __ push(Immediate(value_));
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -1481,10 +1472,8 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 void DeferredInlineSmiAddReversed::Generate() {
   // Undo the optimistic add operation and call the shared stub.
   __ sub(Operand(dst_), Immediate(value_));
-  __ push(Immediate(value_));
-  __ push(dst_);
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, value_, dst_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -1514,10 +1503,8 @@ class DeferredInlineSmiSub: public DeferredCode {
 void DeferredInlineSmiSub::Generate() {
   // Undo the optimistic sub operation and call the shared stub.
   __ add(Operand(dst_), Immediate(value_));
-  __ push(dst_);
-  __ push(Immediate(value_));
-  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
 
@@ -6523,6 +6510,116 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Register left,
+    Register right) {
+  if (!ArgsInRegistersSupported()) {
+    // Only pass arguments in registers if there is no smi code in the stub.
+    __ push(left);
+    __ push(right);
+  } else {
+    // The calling convention with registers is left in edx and right in eax.
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+    if (!(left.is(edx) && right.is(eax))) {
+      if (left.is(eax) && right.is(edx)) {
+        if (IsOperationCommutative()) {
+          SetArgsReversed();
+        } else {
+          __ xchg(left, right);
+        }
+      } else if (left.is(edx)) {
+        __ mov(eax, right);
+      } else if (left.is(eax)) {
+        if (IsOperationCommutative()) {
+          __ mov(edx, right);
+          SetArgsReversed();
+        } else {
+          __ mov(edx, left);
+          __ mov(eax, right);
+        }
+      } else if (right.is(edx)) {
+        if (IsOperationCommutative()) {
+          __ mov(eax, left);
+          SetArgsReversed();
+        } else {
+          __ mov(eax, right);
+          __ mov(edx, left);
+        }
+      } else if (right.is(eax)) {
+        __ mov(edx, left);
+      } else {
+        __ mov(edx, left);
+        __ mov(eax, right);
+      }
+    }
+
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Register left,
+    Smi* right) {
+  if (!ArgsInRegistersSupported()) {
+    // Only pass arguments in registers if there is no smi code in the stub.
+    __ push(left);
+    __ push(Immediate(right));
+  } else {
+    // Adapt arguments to the calling convention left in edx and right in eax.
+    if (left.is(edx)) {
+      __ mov(eax, Immediate(right));
+    } else if (left.is(eax) && IsOperationCommutative()) {
+      __ mov(edx, Immediate(right));
+      SetArgsReversed();
+    } else {
+      __ mov(edx, left);
+      __ mov(eax, Immediate(right));
+    }
+
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Smi* left,
+    Register right) {
+  if (flags_ != NO_SMI_CODE_IN_STUB) {
+    // Only pass arguments in registers if there is no smi code in the stub.
+    __ push(Immediate(left));
+    __ push(right);
+  } else {
+    // Adapt arguments to the calling convention left in edx and right in eax.
+    bool is_commutative = (op_ == (Token::ADD) || (op_ == Token::MUL));
+    if (right.is(eax)) {
+      __ mov(edx, Immediate(left));
+    } else if (right.is(edx) && is_commutative) {
+        __ mov(eax, Immediate(left));
+    } else {
+      __ mov(edx, Immediate(left));
+      __ mov(eax, right);
+    }
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (eax <op> ebx) and
   // leave result in register eax.
@@ -6670,22 +6767,23 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
 
-  if (flags_ == SMI_CODE_IN_STUB) {
-    // The fast case smi code wasn't inlined in the stub caller
-    // code. Generate it here to speed up common operations.
-    Label slow;
-    __ mov(ebx, Operand(esp, 1 * kPointerSize));  // get y
-    __ mov(eax, Operand(esp, 2 * kPointerSize));  // get x
-    GenerateSmiCode(masm, &slow);
-    __ ret(2 * kPointerSize);  // remove both operands
+  __ IncrementCounter(&Counters::generic_binary_stub_calls, 1);
 
+  // Generate fast case smi code if requested. This flag is set when the fast
+  // case smi code is not generated by the caller. Generating it here will speed
+  // up common operations.
+  if (HasSmiCodeInStub()) {
+    Label slow;
+    __ mov(ebx, Operand(esp, 1 * kPointerSize));
+    __ mov(eax, Operand(esp, 2 * kPointerSize));
+    GenerateSmiCode(masm, &slow);
+    GenerateReturn(masm);
     // Too bad. The fast case smi code didn't succeed.
     __ bind(&slow);
   }
 
-  // Setup registers.
-  __ mov(eax, Operand(esp, 1 * kPointerSize));  // get y
-  __ mov(edx, Operand(esp, 2 * kPointerSize));  // get x
+  // Make sure the arguments are in edx and eax.
+  GenerateLoadArguments(masm);
 
   // Floating point case.
   switch (op_) {
@@ -6719,19 +6817,24 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             __ test(eax, Immediate(kSmiTagMask));
             __ j(not_zero, &skip_allocation, not_taken);
             // Fall through!
-          case NO_OVERWRITE:
+          case NO_OVERWRITE: {
+            // Allocate a heap number for the result. Keep eax and edx intact
+            // for the possible runtime call.
             FloatingPointHelper::AllocateHeapNumber(masm,
                                                     &call_runtime,
                                                     ecx,
-                                                    edx,
-                                                    eax);
+                                                    no_reg,
+                                                    ebx);
+            // Now eax can be overwritten losing one of the arguments as we are
+            // now done and will not need it any more.
+            __ mov(eax, ebx);
             __ bind(&skip_allocation);
             break;
+          }
           default: UNREACHABLE();
         }
         __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
-        __ ret(2 * kPointerSize);
-
+        GenerateReturn(masm);
       } else {  // SSE2 not available, use FPU.
         FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
         // Allocate a heap number, if needed.
@@ -6747,11 +6850,16 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             __ j(not_zero, &skip_allocation, not_taken);
             // Fall through!
           case NO_OVERWRITE:
+            // Allocate a heap number for the result. Keep eax and edx intact
+            // for the possible runtime call.
             FloatingPointHelper::AllocateHeapNumber(masm,
                                                     &call_runtime,
                                                     ecx,
-                                                    edx,
-                                                    eax);
+                                                    no_reg,
+                                                    ebx);
+            // Now eax can be overwritten losing one of the arguments as we are
+            // now done and will not need it any more.
+            __ mov(eax, ebx);
             __ bind(&skip_allocation);
             break;
           default: UNREACHABLE();
@@ -6766,7 +6874,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-        __ ret(2 * kPointerSize);
+        GenerateReturn(masm);
       }
     }
     case Token::MOD: {
@@ -6899,8 +7007,20 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   }
 
   // If all else fails, use the runtime system to get the correct
-  // result.
+  // result. If arguments was passed in registers now place them on the
+  // stack in the correct order.
   __ bind(&call_runtime);
+  if (HasArgumentsInRegisters()) {
+    __ pop(ecx);
+    if (HasArgumentsReversed()) {
+      __ push(eax);
+      __ push(edx);
+    } else {
+      __ push(edx);
+      __ push(eax);
+    }
+    __ push(ecx);
+  }
   switch (op_) {
     case Token::ADD: {
       // Test for string arguments before calling runtime.
@@ -6973,6 +7093,26 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       break;
     default:
       UNREACHABLE();
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateLoadArguments(MacroAssembler* masm) {
+  // If arguments are not passed in registers read them from the stack.
+  if (!HasArgumentsInRegisters()) {
+    __ mov(eax, Operand(esp, 1 * kPointerSize));
+    __ mov(edx, Operand(esp, 2 * kPointerSize));
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
+  // If arguments are not passed in registers remove them from the stack before
+  // returning.
+  if (!HasArgumentsInRegisters()) {
+    __ ret(2 * kPointerSize);  // Remove both operands
+  } else {
+    __ ret(0);
   }
 }
 

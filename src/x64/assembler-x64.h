@@ -376,6 +376,11 @@ class CpuFeatures : public AllStatic {
   static void Probe();
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(Feature f) {
+    if (f == SSE2 && !FLAG_enable_sse2) return false;
+    if (f == SSE3 && !FLAG_enable_sse3) return false;
+    if (f == CMOV && !FLAG_enable_cmov) return false;
+    if (f == RDTSC && !FLAG_enable_rdtsc) return false;
+    if (f == SAHF && !FLAG_enable_sahf) return false;
     return (supported_ & (V8_UINT64_C(1) << f)) != 0;
   }
   // Check whether a feature is currently enabled.

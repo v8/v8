@@ -604,47 +604,62 @@ class CodeGenerator: public AstVisitor {
 };
 
 
-// Flag that indicates whether or not the code that handles smi arguments
-// should be placed in the stub, inlined, or omitted entirely.
+// Flag that indicates whether how to generate code for the stub.
 enum GenericBinaryFlags {
-  SMI_CODE_IN_STUB,
-  SMI_CODE_INLINED
+  NO_GENERIC_BINARY_FLAGS = 0,
+  NO_SMI_CODE_IN_STUB = 1 << 0  // Omit smi code in stub.
 };
 
 
 class GenericBinaryOpStub: public CodeStub {
  public:
-  GenericBinaryOpStub(Token::Value op,
+  GenericBinaryOpStub(Token::Value operation,
                       OverwriteMode mode,
                       GenericBinaryFlags flags)
-      : op_(op), mode_(mode), flags_(flags) {
+      : op_(operation),
+        mode_(mode),
+        flags_(flags),
+        args_in_registers_(false),
+        args_reversed_(false) {
     use_sse3_ = CpuFeatures::IsSupported(CpuFeatures::SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 
-  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
+  // Generate code to call the stub with the supplied arguments. This will add
+  // code at the call site to prepare arguments either in registers or on the
+  // stack together with the actual call.
+  void GenerateCall(MacroAssembler* masm, Register left, Register right);
+  void GenerateCall(MacroAssembler* masm, Register left, Smi* right);
+  void GenerateCall(MacroAssembler* masm, Smi* left, Register right);
 
  private:
   Token::Value op_;
   OverwriteMode mode_;
   GenericBinaryFlags flags_;
+  bool args_in_registers_;  // Arguments passed in registers not on the stack.
+  bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
 
   const char* GetName();
 
 #ifdef DEBUG
   void Print() {
-    PrintF("GenericBinaryOpStub (op %s), (mode %d, flags %d)\n",
+    PrintF("GenericBinaryOpStub (op %s), "
+           "(mode %d, flags %d, registers %d, reversed %d)\n",
            Token::String(op_),
            static_cast<int>(mode_),
-           static_cast<int>(flags_));
+           static_cast<int>(flags_),
+           static_cast<int>(args_in_registers_),
+           static_cast<int>(args_reversed_));
   }
 #endif
 
-  // Minor key encoding in 16 bits FSOOOOOOOOOOOOMM.
+  // Minor key encoding in 16 bits FRASOOOOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 12> {};
-  class SSE3Bits: public BitField<bool, 14, 1> {};
+  class OpBits: public BitField<Token::Value, 2, 10> {};
+  class SSE3Bits: public BitField<bool, 12, 1> {};
+  class ArgsInRegistersBits: public BitField<bool, 13, 1> {};
+  class ArgsReversedBits: public BitField<bool, 14, 1> {};
   class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
 
   Major MajorKey() { return GenericBinaryOp; }
@@ -653,9 +668,30 @@ class GenericBinaryOpStub: public CodeStub {
     return OpBits::encode(op_)
            | ModeBits::encode(mode_)
            | FlagBits::encode(flags_)
-           | SSE3Bits::encode(use_sse3_);
+           | SSE3Bits::encode(use_sse3_)
+           | ArgsInRegistersBits::encode(args_in_registers_)
+           | ArgsReversedBits::encode(args_reversed_);
   }
+
   void Generate(MacroAssembler* masm);
+  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
+  void GenerateLoadArguments(MacroAssembler* masm);
+  void GenerateReturn(MacroAssembler* masm);
+
+  bool ArgsInRegistersSupported() {
+    return ((op_ == Token::ADD) || (op_ == Token::SUB)
+             || (op_ == Token::MUL) || (op_ == Token::DIV))
+            && flags_ != NO_SMI_CODE_IN_STUB;
+  }
+  bool IsOperationCommutative() {
+    return (op_ == Token::ADD) || (op_ == Token::MUL);
+  }
+
+  void SetArgsInRegisters() { args_in_registers_ = true; }
+  void SetArgsReversed() { args_reversed_ = true; }
+  bool HasSmiCodeInStub() { return (flags_ & NO_SMI_CODE_IN_STUB) == 0; }
+  bool HasArgumentsInRegisters() { return args_in_registers_; }
+  bool HasArgumentsReversed() { return args_reversed_; }
 };
 
 
