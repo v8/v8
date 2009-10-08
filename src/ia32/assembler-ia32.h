@@ -590,6 +590,7 @@ class Assembler : public Malloced {
   void shr(Register dst);
   void shr_cl(Register dst);
 
+  void subb(const Operand& dst, int8_t imm8);
   void sub(const Operand& dst, const Immediate& x);
   void sub(Register dst, const Operand& src);
   void sub(const Operand& dst, Register src);

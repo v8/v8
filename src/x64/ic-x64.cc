@@ -491,11 +491,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
     Label done, is_negative;
     __ testl(rax, Immediate(0xFFFFFF00));
     __ j(zero, &done);
-    __ j(negative, &is_negative);
-    __ movl(rax, Immediate(255));
-    __ jmp(&done);
-    __ bind(&is_negative);
-    __ xorl(rax, rax);  // Clear rax.
+    __ setcc(negative, rax);  // 1 if negative, 0 if positive.
+    __ decb(rax);  // 0 if negative, 255 if positive.
     __ bind(&done);
   }
   __ movq(rcx, FieldOperand(rcx, PixelArray::kExternalPointerOffset));

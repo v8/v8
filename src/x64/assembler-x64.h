@@ -703,6 +703,8 @@ class Assembler : public Malloced {
   void decq(const Operand& dst);
   void decl(Register dst);
   void decl(const Operand& dst);
+  void decb(Register dst);
+  void decb(const Operand& dst);
 
   // Sign-extends rax into rdx:rax.
   void cqo();

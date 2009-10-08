@@ -913,6 +913,27 @@ void Assembler::decl(const Operand& dst) {
 }
 
 
+void Assembler::decb(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (dst.code() > 3) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst);
+  }
+  emit(0xFE);
+  emit_modrm(0x1, dst);
+}
+
+
+void Assembler::decb(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(dst);
+  emit(0xFE);
+  emit_operand(1, dst);
+}
+
+
 void Assembler::enter(Immediate size) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
