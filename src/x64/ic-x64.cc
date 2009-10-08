@@ -488,7 +488,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ movq(rdx, rax);  // Save the value.
   __ SmiToInteger32(rax, rax);
   {  // Clamp the value to [0..255].
-    Label done, is_negative;
+    Label done;
     __ testl(rax, Immediate(0xFFFFFF00));
     __ j(zero, &done);
     __ setcc(negative, rax);  // 1 if negative, 0 if positive.

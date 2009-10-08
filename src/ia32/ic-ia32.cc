@@ -423,7 +423,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edx, eax);  // Save the value.
   __ sar(eax, kSmiTagSize);  // Untag the value.
   {  // Clamp the value to [0..255].
-    Label done, is_negative;
+    Label done;
     __ test(eax, Immediate(0xFFFFFF00));
     __ j(zero, &done);
     __ setcc(negative, eax);  // 1 if negative, 0 if positive.
