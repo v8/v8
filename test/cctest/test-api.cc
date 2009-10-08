@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
-
 #include "v8.h"
 
 #include "api.h"
@@ -699,6 +697,79 @@ THREADED_TEST(PropertyHandler) {
   CHECK_EQ(900, getter->Run()->Int32Value());
   Local<Script> setter = v8_compile("obj.foo = 901;");
   CHECK_EQ(901, setter->Run()->Int32Value());
+}
+
+
+THREADED_TEST(TinyInteger) {
+  v8::HandleScope scope;
+  LocalContext env;
+  int32_t value = 239;
+  Local<v8::Integer> value_obj = v8::Integer::New(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+}
+
+
+THREADED_TEST(BigSmiInteger) {
+  v8::HandleScope scope;
+  LocalContext env;
+  int32_t value = i::Smi::kMaxValue;
+  CHECK(i::Smi::IsValid(value));
+  CHECK(!i::Smi::IsValid(value + 1));
+  Local<v8::Integer> value_obj = v8::Integer::New(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+}
+
+
+THREADED_TEST(BigInteger) {
+  v8::HandleScope scope;
+  LocalContext env;
+  int32_t value = i::Smi::kMaxValue + 1;
+  CHECK(value > i::Smi::kMaxValue);
+  CHECK(!i::Smi::IsValid(value));
+  Local<v8::Integer> value_obj = v8::Integer::New(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+}
+
+
+THREADED_TEST(TinyUnsignedInteger) {
+  v8::HandleScope scope;
+  LocalContext env;
+  uint32_t value = 239;
+  Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+}
+
+
+THREADED_TEST(BigUnsignedSmiInteger) {
+  v8::HandleScope scope;
+  LocalContext env;
+  uint32_t value = static_cast<uint32_t>(i::Smi::kMaxValue);
+  CHECK(i::Smi::IsValid(value));
+  CHECK(!i::Smi::IsValid(value + 1));
+  Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+}
+
+
+THREADED_TEST(BigUnsignedInteger) {
+  v8::HandleScope scope;
+  LocalContext env;
+  uint32_t value = static_cast<uint32_t>(i::Smi::kMaxValue) + 1;
+  CHECK(value > static_cast<uint32_t>(i::Smi::kMaxValue));
+  CHECK(!i::Smi::IsValid(value));
+  Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
+}
+
+
+THREADED_TEST(OutOfSignedRangeUnsignedInteger) {
+  v8::HandleScope scope;
+  LocalContext env;
+  uint32_t INT32_MAX_AS_UINT = (1U << 31) - 1;
+  uint32_t value = INT32_MAX_AS_UINT + 1;
+  CHECK(value > INT32_MAX_AS_UINT);  // No overflow.
+  Local<v8::Integer> value_obj = v8::Integer::NewFromUnsigned(value);
+  CHECK_EQ(static_cast<int64_t>(value), value_obj->Value());
 }
 
 

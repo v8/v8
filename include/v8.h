@@ -1063,6 +1063,7 @@ class V8EXPORT Number : public Primitive {
 class V8EXPORT Integer : public Number {
  public:
   static Local<Integer> New(int32_t value);
+  static inline Local<Integer> NewFromUnsigned(uint32_t value);
   int64_t Value() const;
   static inline Integer* Cast(v8::Value* obj);
  private:
@@ -3042,6 +3043,15 @@ Number* Number::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Number*>(value);
+}
+
+
+Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
+  bool fits_into_int32_t = (value & (1 << 31)) == 0;
+  if (fits_into_int32_t) {
+    return Integer::New(static_cast<int32_t>(value));
+  }
+  return Local<Integer>::Cast(Number::New(value));
 }
 
 
