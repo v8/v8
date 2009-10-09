@@ -2760,7 +2760,9 @@ v8::Local<v8::Context> Context::GetEntered() {
 
 v8::Local<v8::Context> Context::GetCurrent() {
   if (IsDeadCheck("v8::Context::GetCurrent()")) return Local<Context>();
-  i::Handle<i::Context> context(i::Top::global_context());
+  i::Handle<i::Object> current = i::Top::global_context();
+  if (current.is_null()) return Local<Context>();
+  i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
   return Utils::ToLocal(context);
 }
 
