@@ -6562,6 +6562,10 @@ class RegExpKey : public HashTableKey {
       : string_(string),
         flags_(Smi::FromInt(flags.value())) { }
 
+  // Rather than storing the key in the hash table, a pointer to the
+  // stored value is stored where the key should be.  IsMatch then
+  // compares the search key to the found object, rather than comparing
+  // a key to a key.
   bool IsMatch(Object* obj) {
     FixedArray* val = FixedArray::cast(obj);
     return string_->Equals(String::cast(val->get(JSRegExp::kSourceIndex)))
@@ -7221,6 +7225,8 @@ Object* CompilationCacheTable::PutRegExp(String* src,
   CompilationCacheTable* cache =
       reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(key.Hash());
+  // We store the value in the key slot, and compare the search key
+  // to the stored value with a custon IsMatch function during lookups.
   cache->set(EntryToIndex(entry), value);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();

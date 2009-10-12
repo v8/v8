@@ -2032,33 +2032,33 @@ class DescriptorArray: public FixedArray {
 //     // The Element size indicates number of elements per entry.
 //     static const int kEntrySize = ..;
 //   };
-// table.  The prefix size indicates an amount of memory in the
+// The prefix size indicates an amount of memory in the
 // beginning of the backing storage that can be used for non-element
 // information by subclasses.
 
 template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
-  // Returns the number of elements in the dictionary.
+  // Returns the number of elements in the hash table.
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
   }
 
-  // Returns the capacity of the dictionary.
+  // Returns the capacity of the hash table.
   int Capacity() {
     return Smi::cast(get(kCapacityIndex))->value();
   }
 
   // ElementAdded should be called whenever an element is added to a
-  // dictionary.
+  // hash table.
   void ElementAdded() { SetNumberOfElements(NumberOfElements() + 1); }
 
   // ElementRemoved should be called whenever an element is removed from
-  // a dictionary.
+  // a hash table.
   void ElementRemoved() { SetNumberOfElements(NumberOfElements() - 1); }
   void ElementsRemoved(int n) { SetNumberOfElements(NumberOfElements() - n); }
 
-  // Returns a new array for dictionary usage. Might return Failure.
+  // Returns a new HashTable object. Might return Failure.
   static Object* Allocate(int at_least_space_for);
 
   // Returns the key at entry.
@@ -2108,7 +2108,7 @@ class HashTable: public FixedArray {
     return (entry * kEntrySize) + kElementsStartIndex;
   }
 
-  // Update the number of elements in the dictionary.
+  // Update the number of elements in the hash table.
   void SetNumberOfElements(int nof) {
     fast_set(this, kNumberOfElementsIndex, Smi::FromInt(nof));
   }
@@ -2144,7 +2144,7 @@ class HashTableKey {
   virtual uint32_t Hash() = 0;
   // Returns the hash value for object.
   virtual uint32_t HashForObject(Object* key) = 0;
-  // Returns the key object for storing into the dictionary.
+  // Returns the key object for storing into the hash table.
   // If allocations fails a failure object is returned.
   virtual Object* AsObject() = 0;
   // Required.
@@ -3574,6 +3574,7 @@ class CompilationCacheShape {
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
 };
+
 
 class CompilationCacheTable: public HashTable<CompilationCacheShape,
                                               HashTableKey*> {
