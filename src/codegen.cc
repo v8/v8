@@ -140,15 +140,18 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 #ifdef DEBUG
   bool print_source = false;
   bool print_ast = false;
+  bool print_json_ast = false;
   const char* ftype;
 
   if (Bootstrapper::IsActive()) {
     print_source = FLAG_print_builtin_source;
     print_ast = FLAG_print_builtin_ast;
+    print_json_ast = FLAG_print_builtin_json_ast;
     ftype = "builtin";
   } else {
     print_source = FLAG_print_source;
     print_ast = FLAG_print_ast;
+    print_json_ast = FLAG_print_json_ast;
     ftype = "user-defined";
   }
 
@@ -164,6 +167,11 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 
   if (print_ast) {
     PrintF("--- AST ---\n%s\n", AstPrinter().PrintProgram(flit));
+  }
+
+  if (print_json_ast) {
+    JsonAstBuilder builder;
+    PrintF("%s", builder.BuildProgram(flit));
   }
 #endif  // DEBUG
 

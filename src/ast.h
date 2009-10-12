@@ -1732,6 +1732,7 @@ class AstVisitor BASE_EMBEDDED {
   void Visit(AstNode* node) { node->Accept(this); }
 
   // Iteration
+  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
   virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 

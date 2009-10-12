@@ -273,6 +273,9 @@ DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
 DEFINE_bool(print_ast, false, "print source AST")
 DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
+DEFINE_bool(print_json_ast, false, "print source AST as JSON")
+DEFINE_bool(print_builtin_json_ast, false,
+            "print source AST for builtins as JSON")
 DEFINE_bool(trace_calls, false, "trace calls")
 DEFINE_bool(trace_builtin_calls, false, "trace builtins calls")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")

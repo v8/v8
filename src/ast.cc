@@ -173,6 +173,13 @@ void TargetCollector::AddTarget(BreakTarget* target) {
 // Implementation of AstVisitor
 
 
+void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
+  for (int i = 0; i < declarations->length(); i++) {
+    Visit(declarations->at(i));
+  }
+}
+
+
 void AstVisitor::VisitStatements(ZoneList<Statement*>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     Visit(statements->at(i));
