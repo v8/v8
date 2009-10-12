@@ -3005,6 +3005,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
           loop.Jump();
         }
       }
+      break;
     case DONT_KNOW:
       if (test_at_bottom) {
         if (node->continue_target()->is_linked()) {
@@ -3031,6 +3032,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
           }
         }
       }
+      break;
     case ALWAYS_FALSE:
       UNREACHABLE();
       break;
