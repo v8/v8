@@ -835,7 +835,7 @@ bool Smi::IsValid(intptr_t value) {
   bool in_range = (value >= kMinValue) && (value <= kMaxValue);
 #endif
 
-#ifdef V8_LONG_SMI
+#ifdef V8_TARGET_ARCH_X64
   // To be representable as a long smi, the value must be a 32-bit integer.
   bool result = (value == static_cast<int32_t>(value));
 #else

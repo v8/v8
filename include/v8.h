@@ -756,7 +756,7 @@ class V8EXPORT Value : public Data {
   /** JS == */
   bool Equals(Handle<Value> that) const;
   bool StrictEquals(Handle<Value> that) const;
-  
+
  private:
   inline bool QuickIsString() const;
   bool FullIsString() const;
@@ -1036,7 +1036,7 @@ class V8EXPORT String : public Primitive {
     Value(const Value&);
     void operator=(const Value&);
   };
-  
+
  private:
   void VerifyExternalStringResource(ExternalStringResource* val) const;
   static void CheckCast(v8::Value* obj);
@@ -1194,7 +1194,7 @@ class V8EXPORT Object : public Value {
 
   /** Gets a native pointer from an internal field. */
   inline void* GetPointerFromInternalField(int index);
-  
+
   /** Sets a native pointer in an internal field. */
   void SetPointerInInternalField(int index, void* value);
 
@@ -1247,7 +1247,7 @@ class V8EXPORT Object : public Value {
   bool SetHiddenValue(Handle<String> key, Handle<Value> value);
   Local<Value> GetHiddenValue(Handle<String> key);
   bool DeleteHiddenValue(Handle<String> key);
-  
+
   /**
    * Returns true if this is an instance of an api function (one
    * created from a function created from a function template) and has
@@ -1281,7 +1281,7 @@ class V8EXPORT Object : public Value {
 
   /**
    * If quick access to the internal field is possible this method
-   * returns the value.  Otherwise an empty handle is returned. 
+   * returns the value.  Otherwise an empty handle is returned.
    */
   inline Local<Value> UncheckedGetInternalField(int index);
 };
@@ -2720,10 +2720,7 @@ const int kHeapObjectTag = 1;
 const int kHeapObjectTagSize = 2;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 
-#ifdef V8_LONG_SMI
-#ifndef V8_TARGET_ARCH_X64
-#error "Large smis on non-64-bit platform."
-#endif
+#ifdef V8_TARGET_ARCH_X64
 // Tag information for Smi.
 const int kSmiTag = 0;
 const int kSmiTagSize = 1;
@@ -2774,7 +2771,7 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-#ifdef V8_LONG_SMI
+#ifdef V8_TARGET_ARCH_X64
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Shift down and throw away top 32 bits.
     return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
