@@ -91,20 +91,6 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
-#ifdef DEBUG
-
-const char* LoopStatement::OperatorString() const {
-  switch (type()) {
-    case DO_LOOP: return "DO";
-    case FOR_LOOP: return "FOR";
-    case WHILE_LOOP: return "WHILE";
-  }
-  return NULL;
-}
-
-#endif  // DEBUG
-
-
 Token::Value Assignment::binary_op() const {
   switch (op_) {
     case Token::ASSIGN_BIT_OR: return Token::BIT_OR;

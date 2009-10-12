@@ -64,10 +64,12 @@ namespace internal {
   V(WithEnterStatement)                         \
   V(WithExitStatement)                          \
   V(SwitchStatement)                            \
-  V(LoopStatement)                              \
+  V(DoWhileStatement)                           \
+  V(WhileStatement)                             \
+  V(ForStatement)                               \
   V(ForInStatement)                             \
-  V(TryCatch)                                   \
-  V(TryFinally)                                 \
+  V(TryCatchStatement)                          \
+  V(TryFinallyStatement)                        \
   V(DebuggerStatement)
 
 #define EXPRESSION_NODE_LIST(V)                 \
@@ -294,13 +296,59 @@ class IterationStatement: public BreakableStatement {
 };
 
 
-class LoopStatement: public IterationStatement {
+class DoWhileStatement: public IterationStatement {
  public:
-  enum Type { DO_LOOP, FOR_LOOP, WHILE_LOOP };
+  explicit DoWhileStatement(ZoneStringList* labels)
+      : IterationStatement(labels), cond_(NULL) {
+  }
 
-  LoopStatement(ZoneStringList* labels, Type type)
+  void Initialize(Expression* cond, Statement* body) {
+    IterationStatement::Initialize(body);
+    cond_ = cond;
+  }
+
+  virtual void Accept(AstVisitor* v);
+
+  Expression* cond() const { return cond_; }
+
+ private:
+  Expression* cond_;
+};
+
+
+class WhileStatement: public IterationStatement {
+ public:
+  explicit WhileStatement(ZoneStringList* labels)
       : IterationStatement(labels),
-        type_(type),
+        cond_(NULL),
+        may_have_function_literal_(true) {
+  }
+
+  void Initialize(Expression* cond, Statement* body) {
+    IterationStatement::Initialize(body);
+    cond_ = cond;
+  }
+
+  virtual void Accept(AstVisitor* v);
+
+  Expression* cond() const { return cond_; }
+  bool may_have_function_literal() const {
+    return may_have_function_literal_;
+  }
+
+ private:
+  Expression* cond_;
+  // True if there is a function literal subexpression in the condition.
+  bool may_have_function_literal_;
+
+  friend class AstOptimizer;
+};
+
+
+class ForStatement: public IterationStatement {
+ public:
+  explicit ForStatement(ZoneStringList* labels)
+      : IterationStatement(labels),
         init_(NULL),
         cond_(NULL),
         next_(NULL),
@@ -311,8 +359,6 @@ class LoopStatement: public IterationStatement {
                   Expression* cond,
                   Statement* next,
                   Statement* body) {
-    ASSERT(init == NULL || type_ == FOR_LOOP);
-    ASSERT(next == NULL || type_ == FOR_LOOP);
     IterationStatement::Initialize(body);
     init_ = init;
     cond_ = cond;
@@ -321,7 +367,6 @@ class LoopStatement: public IterationStatement {
 
   virtual void Accept(AstVisitor* v);
 
-  Type type() const  { return type_; }
   Statement* init() const  { return init_; }
   Expression* cond() const  { return cond_; }
   Statement* next() const  { return next_; }
@@ -329,12 +374,7 @@ class LoopStatement: public IterationStatement {
     return may_have_function_literal_;
   }
 
-#ifdef DEBUG
-  const char* OperatorString() const;
-#endif
-
  private:
-  Type type_;
   Statement* init_;
   Expression* cond_;
   Statement* next_;
@@ -569,9 +609,11 @@ class TryStatement: public Statement {
 };
 
 
-class TryCatch: public TryStatement {
+class TryCatchStatement: public TryStatement {
  public:
-  TryCatch(Block* try_block, Expression* catch_var, Block* catch_block)
+  TryCatchStatement(Block* try_block,
+                    Expression* catch_var,
+                    Block* catch_block)
       : TryStatement(try_block),
         catch_var_(catch_var),
         catch_block_(catch_block) {
@@ -589,9 +631,9 @@ class TryCatch: public TryStatement {
 };
 
 
-class TryFinally: public TryStatement {
+class TryFinallyStatement: public TryStatement {
  public:
-  TryFinally(Block* try_block, Block* finally_block)
+  TryFinallyStatement(Block* try_block, Block* finally_block)
       : TryStatement(try_block),
         finally_block_(finally_block) { }
 

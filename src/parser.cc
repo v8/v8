@@ -177,8 +177,8 @@ class Parser {
   Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);
-  LoopStatement* ParseDoStatement(ZoneStringList* labels, bool* ok);
-  LoopStatement* ParseWhileStatement(ZoneStringList* labels, bool* ok);
+  DoWhileStatement* ParseDoWhileStatement(ZoneStringList* labels, bool* ok);
+  WhileStatement* ParseWhileStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseForStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseThrowStatement(bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
@@ -1692,7 +1692,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       break;
 
     case Token::DO:
-      stmt = ParseDoStatement(labels, ok);
+      stmt = ParseDoWhileStatement(labels, ok);
       break;
 
     case Token::WHILE:
@@ -2361,7 +2361,7 @@ Block* Parser::WithHelper(Expression* obj,
     exit->AddStatement(NEW(WithExitStatement()));
 
     // Return a try-finally statement.
-    TryFinally* wrapper = NEW(TryFinally(body, exit));
+    TryFinallyStatement* wrapper = NEW(TryFinallyStatement(body, exit));
     wrapper->set_escaping_targets(collector.targets());
     result->AddStatement(wrapper);
   }
@@ -2537,7 +2537,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   //   'try { try { } catch { } } finally { }'
 
   if (!is_pre_parsing_ && catch_block != NULL && finally_block != NULL) {
-    TryCatch* statement = NEW(TryCatch(try_block, catch_var, catch_block));
+    TryCatchStatement* statement =
+        NEW(TryCatchStatement(try_block, catch_var, catch_block));
     statement->set_escaping_targets(collector.targets());
     try_block = NEW(Block(NULL, 1, false));
     try_block->AddStatement(statement);
@@ -2548,11 +2549,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (!is_pre_parsing_) {
     if (catch_block != NULL) {
       ASSERT(finally_block == NULL);
-      result = NEW(TryCatch(try_block, catch_var, catch_block));
+      result = NEW(TryCatchStatement(try_block, catch_var, catch_block));
       result->set_escaping_targets(collector.targets());
     } else {
       ASSERT(finally_block != NULL);
-      result = NEW(TryFinally(try_block, finally_block));
+      result = NEW(TryFinallyStatement(try_block, finally_block));
       // Add the jump targets of the try block and the catch block.
       for (int i = 0; i < collector.targets()->length(); i++) {
         catch_collector.AddTarget(collector.targets()->at(i));
@@ -2565,11 +2566,12 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 }
 
 
-LoopStatement* Parser::ParseDoStatement(ZoneStringList* labels, bool* ok) {
+DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
+                                                bool* ok) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
 
-  LoopStatement* loop = NEW(LoopStatement(labels, LoopStatement::DO_LOOP));
+  DoWhileStatement* loop = NEW(DoWhileStatement(labels));
   Target target(this, loop);
 
   Expect(Token::DO, CHECK_OK);
@@ -2585,16 +2587,16 @@ LoopStatement* Parser::ParseDoStatement(ZoneStringList* labels, bool* ok) {
   // ExpectSemicolon() functionality here.
   if (peek() == Token::SEMICOLON) Consume(Token::SEMICOLON);
 
-  if (loop) loop->Initialize(NULL, cond, NULL, body);
+  if (loop != NULL) loop->Initialize(cond, body);
   return loop;
 }
 
 
-LoopStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
+WhileStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
 
-  LoopStatement* loop = NEW(LoopStatement(labels, LoopStatement::WHILE_LOOP));
+  WhileStatement* loop = NEW(WhileStatement(labels));
   Target target(this, loop);
 
   Expect(Token::WHILE, CHECK_OK);
@@ -2603,7 +2605,7 @@ LoopStatement* Parser::ParseWhileStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::RPAREN, CHECK_OK);
   Statement* body = ParseStatement(NULL, CHECK_OK);
 
-  if (loop) loop->Initialize(NULL, cond, NULL, body);
+  if (loop != NULL) loop->Initialize(cond, body);
   return loop;
 }
 
@@ -2676,7 +2678,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   }
 
   // Standard 'for' loop
-  LoopStatement* loop = NEW(LoopStatement(labels, LoopStatement::FOR_LOOP));
+  ForStatement* loop = NEW(ForStatement(labels));
   Target target(this, loop);
 
   // Parsed initializer at this point.

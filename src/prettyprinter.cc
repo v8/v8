@@ -147,46 +147,42 @@ void PrettyPrinter::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void PrettyPrinter::VisitLoopStatement(LoopStatement* node) {
+void PrettyPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
   PrintLabels(node->labels());
-  switch (node->type()) {
-    case LoopStatement::DO_LOOP:
-      ASSERT(node->init() == NULL);
-      ASSERT(node->next() == NULL);
-      Print("do ");
-      Visit(node->body());
-      Print(" while (");
-      Visit(node->cond());
-      Print(");");
-      break;
+  Print("do ");
+  Visit(node->body());
+  Print(" while (");
+  Visit(node->cond());
+  Print(");");
+}
 
-    case LoopStatement::FOR_LOOP:
-      Print("for (");
-      if (node->init() != NULL) {
-        Visit(node->init());
-        Print(" ");
-      } else {
-        Print("; ");
-      }
-      if (node->cond() != NULL)
-        Visit(node->cond());
-      Print("; ");
-      if (node->next() != NULL)
-        Visit(node->next());  // prints extra ';', unfortunately
-      // to fix: should use Expression for next
-      Print(") ");
-      Visit(node->body());
-      break;
 
-    case LoopStatement::WHILE_LOOP:
-      ASSERT(node->init() == NULL);
-      ASSERT(node->next() == NULL);
-      Print("while (");
-      Visit(node->cond());
-      Print(") ");
-      Visit(node->body());
-      break;
+void PrettyPrinter::VisitWhileStatement(WhileStatement* node) {
+  PrintLabels(node->labels());
+  Print("while (");
+  Visit(node->cond());
+  Print(") ");
+  Visit(node->body());
+}
+
+
+void PrettyPrinter::VisitForStatement(ForStatement* node) {
+  PrintLabels(node->labels());
+  Print("for (");
+  if (node->init() != NULL) {
+    Visit(node->init());
+    Print(" ");
+  } else {
+    Print("; ");
   }
+  if (node->cond() != NULL) Visit(node->cond());
+  Print("; ");
+  if (node->next() != NULL) {
+    Visit(node->next());  // prints extra ';', unfortunately
+    // to fix: should use Expression for next
+  }
+  Print(") ");
+  Visit(node->body());
 }
 
 
@@ -201,7 +197,7 @@ void PrettyPrinter::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void PrettyPrinter::VisitTryCatch(TryCatch* node) {
+void PrettyPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   Print("try ");
   Visit(node->try_block());
   Print(" catch (");
@@ -211,7 +207,7 @@ void PrettyPrinter::VisitTryCatch(TryCatch* node) {
 }
 
 
-void PrettyPrinter::VisitTryFinally(TryFinally* node) {
+void PrettyPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
   Print("try ");
   Visit(node->try_block());
   Print(" finally ");
@@ -841,12 +837,28 @@ void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void AstPrinter::VisitLoopStatement(LoopStatement* node) {
-  IndentedScope indent(node->OperatorString());
+void AstPrinter::VisitDoWhileStatement(DoWhileStatement* node) {
+  IndentedScope indent("DO");
+  PrintLabelsIndented(NULL, node->labels());
+  PrintIndentedVisit("BODY", node->body());
+  PrintIndentedVisit("COND", node->cond());
+}
+
+
+void AstPrinter::VisitWhileStatement(WhileStatement* node) {
+  IndentedScope indent("WHILE");
+  PrintLabelsIndented(NULL, node->labels());
+  PrintIndentedVisit("COND", node->cond());
+  PrintIndentedVisit("BODY", node->body());
+}
+
+
+void AstPrinter::VisitForStatement(ForStatement* node) {
+  IndentedScope indent("FOR");
   PrintLabelsIndented(NULL, node->labels());
   if (node->init()) PrintIndentedVisit("INIT", node->init());
   if (node->cond()) PrintIndentedVisit("COND", node->cond());
-  if (node->body()) PrintIndentedVisit("BODY", node->body());
+  PrintIndentedVisit("BODY", node->body());
   if (node->next()) PrintIndentedVisit("NEXT", node->next());
 }
 
@@ -859,7 +871,7 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void AstPrinter::VisitTryCatch(TryCatch* node) {
+void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent("TRY CATCH");
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndentedVisit("CATCHVAR", node->catch_var());
@@ -867,7 +879,7 @@ void AstPrinter::VisitTryCatch(TryCatch* node) {
 }
 
 
-void AstPrinter::VisitTryFinally(TryFinally* node) {
+void AstPrinter::VisitTryFinallyStatement(TryFinallyStatement* node) {
   IndentedScope indent("TRY FINALLY");
   PrintIndentedVisit("TRY", node->try_block());
   PrintIndentedVisit("FINALLY", node->finally_block());

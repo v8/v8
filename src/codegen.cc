@@ -469,6 +469,25 @@ bool CodeGenerator::PatchInlineRuntimeEntry(Handle<String> name,
 }
 
 
+// Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
+// known result for the test expression, with no side effects.
+CodeGenerator::ConditionAnalysis CodeGenerator::AnalyzeCondition(
+    Expression* cond) {
+  if (cond == NULL) return ALWAYS_TRUE;
+
+  Literal* lit = cond->AsLiteral();
+  if (lit == NULL) return DONT_KNOW;
+
+  if (lit->IsTrue()) {
+    return ALWAYS_TRUE;
+  } else if (lit->IsFalse()) {
+    return ALWAYS_FALSE;
+  }
+
+  return DONT_KNOW;
+}
+
+
 static inline void RecordPositions(CodeGenerator* cgen, int pos) {
   if (pos != RelocInfo::kNoPosition) {
     cgen->masm()->RecordStatementPosition(pos);

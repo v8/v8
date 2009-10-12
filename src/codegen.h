@@ -61,6 +61,7 @@
 //   FindInlineRuntimeLUT
 //   CheckForInlineRuntimeCall
 //   PatchInlineRuntimeEntry
+//   AnalyzeCondition
 //   CodeForFunctionPosition
 //   CodeForReturnPosition
 //   CodeForStatementPosition

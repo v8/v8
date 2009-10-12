@@ -365,6 +365,14 @@ class CodeGenerator: public AstVisitor {
   inline void GenerateMathSin(ZoneList<Expression*>* args);
   inline void GenerateMathCos(ZoneList<Expression*>* args);
 
+  // Simple condition analysis.
+  enum ConditionAnalysis {
+    ALWAYS_TRUE,
+    ALWAYS_FALSE,
+    DONT_KNOW
+  };
+  ConditionAnalysis AnalyzeCondition(Expression* cond);
+
   // Methods used to indicate which source code is generated for. Source
   // positions are collected by the assembler and emitted with the relocation
   // information.
