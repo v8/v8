@@ -3567,7 +3567,7 @@ int GetEvaluateIntResult(char *message) {
     return -1;
   }
   int res = -1;
-  sscanf(pos + strlen(value), "%d", &res);
+  res = atoi(pos + strlen(value));
   return res;
 }
 
@@ -3580,7 +3580,7 @@ int GetBreakpointIdFromBreakEventMessage(char *message) {
     return -1;
   }
   int res = -1;
-  sscanf(pos + strlen(breakpoints), "%d", &res);
+  res = atoi(pos + strlen(breakpoints));
   return res;
 }
 
