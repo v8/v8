@@ -3584,6 +3584,36 @@ static Object* Runtime_StringToUpperCase(Arguments args) {
   return ConvertCase<unibrow::ToUppercase>(args, &to_upper_mapping);
 }
 
+static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
+  return unibrow::WhiteSpace::Is(c) || c == 0x200b;
+}
+
+static Object* Runtime_StringTrim(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  CONVERT_CHECKED(String, s, args[0]);
+  CONVERT_BOOLEAN_CHECKED(trimLeft, args[1]);
+  CONVERT_BOOLEAN_CHECKED(trimRight, args[2]);
+
+  s->TryFlattenIfNotFlat();
+  int length = s->length();
+
+  int left = 0;
+  if (trimLeft) {
+    while (left < length && IsTrimWhiteSpace(s->Get(left))) {
+      left++;
+    }
+  }
+
+  int right = length;
+  if (trimRight) {
+    while (right > left && IsTrimWhiteSpace(s->Get(right - 1))) {
+      right--;
+    }
+  }
+  return s->Slice(left, right);
+}
 
 bool Runtime::IsUpperCaseChar(uint16_t ch) {
   unibrow::uchar chars[unibrow::ToUppercase::kMaxWidth];
