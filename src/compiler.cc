@@ -197,7 +197,6 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   Handle<JSFunction> fun =
       Factory::NewFunctionBoilerplate(lit->name(),
                                       lit->materialized_literal_count(),
-                                      lit->contains_array_literal(),
                                       code);
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());

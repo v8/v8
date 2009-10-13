@@ -1254,7 +1254,6 @@ class FunctionLiteral: public Expression {
                   Scope* scope,
                   ZoneList<Statement*>* body,
                   int materialized_literal_count,
-                  bool contains_array_literal,
                   int expected_property_count,
                   bool has_only_this_property_assignments,
                   bool has_only_simple_this_property_assignments,
@@ -1267,7 +1266,6 @@ class FunctionLiteral: public Expression {
         scope_(scope),
         body_(body),
         materialized_literal_count_(materialized_literal_count),
-        contains_array_literal_(contains_array_literal),
         expected_property_count_(expected_property_count),
         has_only_this_property_assignments_(has_only_this_property_assignments),
         has_only_simple_this_property_assignments_(
@@ -1300,7 +1298,6 @@ class FunctionLiteral: public Expression {
   bool is_expression() const { return is_expression_; }
 
   int materialized_literal_count() { return materialized_literal_count_; }
-  bool contains_array_literal() { return contains_array_literal_; }
   int expected_property_count() { return expected_property_count_; }
   bool has_only_this_property_assignments() {
       return has_only_this_property_assignments_;
@@ -1335,7 +1332,6 @@ class FunctionLiteral: public Expression {
   Scope* scope_;
   ZoneList<Statement*>* body_;
   int materialized_literal_count_;
-  bool contains_array_literal_;
   int expected_property_count_;
   bool has_only_this_property_assignments_;
   bool has_only_simple_this_property_assignments_;
