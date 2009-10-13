@@ -96,7 +96,7 @@ assertEquals(rightTrimString.trim(),      testString);
 assertEquals(rightTrimString.trimLeft(),  testString);
 assertEquals(rightTrimString.trimRight(), rightTrimString);
 
-var testValues = [0, Infinity, NaN, true, false, ({}), ['an','array']
+var testValues = [0, Infinity, NaN, true, false, ({}), ['an','array'],
   ({toString:function(){return 'wibble'}})
 ];
 
