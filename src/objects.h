@@ -32,6 +32,9 @@
 #include "code-stubs.h"
 #include "smart-pointer.h"
 #include "unicode-inl.h"
+#if V8_TARGET_ARCH_ARM
+#include "arm/constants-arm.h"
+#endif
 
 //
 // All object types in the V8 JavaScript are described in this file.
@@ -1287,7 +1290,7 @@ class HeapNumber: public HeapObject {
   // is a mixture of sign, exponent and mantissa.  Our current platforms are all
   // little endian apart from non-EABI arm which is little endian with big
   // endian floating point word ordering!
-#if !defined(V8_HOST_ARCH_ARM) || __ARM_EABI__
+#if !defined(V8_HOST_ARCH_ARM) || defined(USE_ARM_EABI)
   static const int kMantissaOffset = kValueOffset;
   static const int kExponentOffset = kValueOffset + 4;
 #else
