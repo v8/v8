@@ -386,7 +386,8 @@ void StackGuard::ThreadLocal::Initialize() {
   if (initial_climit_ == kIllegalLimit) {
     // Takes the address of the limit variable in order to find out where
     // the top of stack is right now.
-    intptr_t limit = reinterpret_cast<intptr_t>(&limit) - kLimitSize;
+    uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - kLimitSize;
+    ASSERT(reinterpret_cast<uintptr_t>(&limit) > kLimitSize);
     initial_jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
     jslimit_ = SimulatorStack::JsLimitFromCLimit(limit);
     initial_climit_ = limit;

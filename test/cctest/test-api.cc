@@ -728,7 +728,10 @@ THREADED_TEST(BigInteger) {
   LocalContext env;
   // We cannot add one to a Smi::kMaxValue without wrapping.
   if (i::kSmiValueSize < 32) {
-    int32_t value = i::Smi::kMaxValue + 1;
+    // The casts allow this to compile, even if Smi::kMaxValue is 2^31-1.
+    // The code will not be run in that case, due to the "if" guard.
+    int32_t value =
+        static_cast<int32_t>(static_cast<uint32_t>(i::Smi::kMaxValue) + 1);
     CHECK(value > i::Smi::kMaxValue);
     CHECK(!i::Smi::IsValid(value));
     Local<v8::Integer> value_obj = v8::Integer::New(value);
