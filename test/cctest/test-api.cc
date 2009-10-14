@@ -572,6 +572,44 @@ THREADED_TEST(UsingExternalAsciiString) {
 }
 
 
+THREADED_TEST(StringConcat) {
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    const char* one_byte_string_1 = "function a_times_t";
+    const char* two_byte_string_1 = "wo_plus_b(a, b) {return ";
+    const char* one_byte_extern_1 = "a * 2 + b;} a_times_two_plus_b(4, 8) + ";
+    const char* two_byte_extern_1 = "a_times_two_plus_b(4, 8) + ";
+    const char* one_byte_string_2 = "a_times_two_plus_b(4, 8) + ";
+    const char* two_byte_string_2 = "a_times_two_plus_b(4, 8) + ";
+    const char* two_byte_extern_2 = "a_times_two_plus_b(1, 2);";
+    Local<String> left = v8_str(one_byte_string_1);
+    Local<String> right = String::New(AsciiToTwoByteString(two_byte_string_1));
+    Local<String> source = String::Concat(left, right);
+    right = String::NewExternal(
+        new TestAsciiResource(i::StrDup(one_byte_extern_1)));
+    source = String::Concat(source, right);
+    right = String::NewExternal(
+        new TestResource(AsciiToTwoByteString(two_byte_extern_1)));
+    source = String::Concat(source, right);
+    right = v8_str(one_byte_string_2);
+    source = String::Concat(source, right);
+    right = String::New(AsciiToTwoByteString(two_byte_string_2));
+    source = String::Concat(source, right);
+    right = String::NewExternal(
+        new TestResource(AsciiToTwoByteString(two_byte_extern_2)));
+    source = String::Concat(source, right);
+    Local<Script> script = Script::Compile(source);
+    Local<Value> value = script->Run();
+    CHECK(value->IsNumber());
+    CHECK_EQ(68, value->Int32Value());
+  }
+  v8::internal::CompilationCache::Clear();
+  i::Heap::CollectAllGarbage(false);
+  i::Heap::CollectAllGarbage(false);
+}
+
+
 THREADED_TEST(GlobalProperties) {
   v8::HandleScope scope;
   LocalContext env;

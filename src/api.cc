@@ -2926,6 +2926,18 @@ Local<String> v8::String::New(const char* data, int length) {
 }
 
 
+Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
+  EnsureInitialized("v8::String::New()");
+  LOG_API("String::New(char)");
+  ENTER_V8;
+  i::Handle<i::String> left_string = Utils::OpenHandle(*left);
+  i::Handle<i::String> right_string = Utils::OpenHandle(*right);
+  i::Handle<i::String> result = i::Factory::NewConsString(left_string,
+                                                          right_string);
+  return Utils::ToLocal(result);
+}
+
+
 Local<String> v8::String::NewUndetectable(const char* data, int length) {
   EnsureInitialized("v8::String::NewUndetectable()");
   LOG_API("String::NewUndetectable(char)");

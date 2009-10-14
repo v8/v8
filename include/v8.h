@@ -919,6 +919,12 @@ class V8EXPORT String : public Primitive {
   static Local<String> NewSymbol(const char* data, int length = -1);
 
   /**
+   * Creates a new string by concatenating the left and the right strings
+   * passed in as parameters.
+   */
+  static Local<String> Concat(Handle<String> left, Handle<String>right);
+
+  /**
    * Creates a new external string using the data defined in the given
    * resource. The resource is deleted when the external string is no
    * longer live on V8's heap. The caller of this function should not
