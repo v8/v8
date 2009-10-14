@@ -36,6 +36,8 @@
 // The contract  to the shared code is that the the CodeGenerator is a subclass
 // of Visitor and that the following methods are available publicly:
 //   MakeCode
+//   MakeCodePrologue
+//   MakeCodeEpilogue
 //   SetFunctionInfo
 //   masm
 //   frame

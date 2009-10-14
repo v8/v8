@@ -414,6 +414,8 @@
             '../../src/ia32',
           ],
           'sources': [
+            '../../src/fast-codegen.cc',
+            '../../src/fast-codegen.h',
             '../../src/ia32/assembler-ia32-inl.h',
             '../../src/ia32/assembler-ia32.cc',
             '../../src/ia32/assembler-ia32.h',
@@ -423,6 +425,7 @@
             '../../src/ia32/cpu-ia32.cc',
             '../../src/ia32/debug-ia32.cc',
             '../../src/ia32/disasm-ia32.cc',
+            '../../src/ia32/fast-codegen.cc',
             '../../src/ia32/frames-ia32.cc',
             '../../src/ia32/frames-ia32.h',
             '../../src/ia32/ic-ia32.cc',

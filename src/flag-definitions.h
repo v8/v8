@@ -142,7 +142,11 @@ DEFINE_bool(debug_info, true, "add debug information to compiled functions")
 // compiler.cc
 DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
-           "Minimum length for automatic enable preparsing")
+           "minimum length for automatic enable preparsing")
+DEFINE_bool(fast_compiler, true,
+            "use the fast-mode compiler for some top-level code")
+DEFINE_bool(trace_bailout, false,
+            "print reasons for failing to use fast compilation")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")

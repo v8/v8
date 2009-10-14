@@ -52,8 +52,8 @@ namespace internal {
   HT(variable_allocation, V8.VariableAllocation)                      \
   HT(ast_optimization, V8.ASTOptimization)                            \
   HT(code_generation, V8.CodeGeneration)                              \
-  HT(deferred_code_generation, V8.DeferredCodeGeneration)             \
-  HT(code_creation, V8.CodeCreation)
+  HT(deferred_code_generation, V8.DeferredCodeGeneration)
+
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
 // Intellisense to crash.  It was broken into two macros (each of length 40

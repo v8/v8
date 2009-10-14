@@ -125,18 +125,7 @@ void CodeGenerator::DeleteFrame() {
 }
 
 
-// Generate the code. Takes a function literal, generates code for it, assemble
-// all the pieces into a Code object. This function is only to be called by
-// the compiler.cc code.
-Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
-                                     Handle<Script> script,
-                                     bool is_eval) {
-#ifdef ENABLE_DISASSEMBLER
-  bool print_code = Bootstrapper::IsActive()
-      ? FLAG_print_builtin_code
-      : FLAG_print_code;
-#endif
-
+void CodeGenerator::MakeCodePrologue(FunctionLiteral* fun) {
 #ifdef DEBUG
   bool print_source = false;
   bool print_ast = false;
@@ -157,75 +146,90 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 
   if (FLAG_trace_codegen || print_source || print_ast) {
     PrintF("*** Generate code for %s function: ", ftype);
-    flit->name()->ShortPrint();
+    fun->name()->ShortPrint();
     PrintF(" ***\n");
   }
 
   if (print_source) {
-    PrintF("--- Source from AST ---\n%s\n", PrettyPrinter().PrintProgram(flit));
+    PrintF("--- Source from AST ---\n%s\n", PrettyPrinter().PrintProgram(fun));
   }
 
   if (print_ast) {
-    PrintF("--- AST ---\n%s\n", AstPrinter().PrintProgram(flit));
+    PrintF("--- AST ---\n%s\n", AstPrinter().PrintProgram(fun));
   }
 
   if (print_json_ast) {
     JsonAstBuilder builder;
-    PrintF("%s", builder.BuildProgram(flit));
+    PrintF("%s", builder.BuildProgram(fun));
   }
 #endif  // DEBUG
+}
 
-  // Generate code.
-  const int initial_buffer_size = 4 * KB;
-  CodeGenerator cgen(initial_buffer_size, script, is_eval);
-  CodeGeneratorScope scope(&cgen);
-  cgen.GenCode(flit);
-  if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
-    return Handle<Code>::null();
-  }
 
-  // Allocate and install the code.  Time the rest of this function as
-  // code creation.
-  HistogramTimerScope timer(&Counters::code_creation);
+Handle<Code> CodeGenerator::MakeCodeEpilogue(FunctionLiteral* fun,
+                                             MacroAssembler* masm,
+                                             Code::Flags flags,
+                                             Handle<Script> script) {
+  // Allocate and install the code.
   CodeDesc desc;
-  cgen.masm()->GetCode(&desc);
-  ZoneScopeInfo sinfo(flit->scope());
-  InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
-  Handle<Code> code = Factory::NewCode(desc,
-                                       &sinfo,
-                                       flags,
-                                       cgen.masm()->CodeObject());
+  masm->GetCode(&desc);
+  ZoneScopeInfo sinfo(fun->scope());
+  Handle<Code> code =
+      Factory::NewCode(desc, &sinfo, flags, masm->CodeObject());
 
   // Add unresolved entries in the code to the fixup list.
-  Bootstrapper::AddFixup(*code, cgen.masm());
+  Bootstrapper::AddFixup(*code, masm);
 
 #ifdef ENABLE_DISASSEMBLER
+  bool print_code = Bootstrapper::IsActive()
+      ? FLAG_print_builtin_code
+      : FLAG_print_code;
   if (print_code) {
     // Print the source code if available.
     if (!script->IsUndefined() && !script->source()->IsUndefined()) {
       PrintF("--- Raw source ---\n");
       StringInputBuffer stream(String::cast(script->source()));
-      stream.Seek(flit->start_position());
-      // flit->end_position() points to the last character in the stream. We
+      stream.Seek(fun->start_position());
+      // fun->end_position() points to the last character in the stream. We
       // need to compensate by adding one to calculate the length.
-      int source_len = flit->end_position() - flit->start_position() + 1;
+      int source_len = fun->end_position() - fun->start_position() + 1;
       for (int i = 0; i < source_len; i++) {
         if (stream.has_more()) PrintF("%c", stream.GetNext());
       }
       PrintF("\n\n");
     }
     PrintF("--- Code ---\n");
-    code->Disassemble(*flit->name()->ToCString());
+    code->Disassemble(*fun->name()->ToCString());
   }
 #endif  // ENABLE_DISASSEMBLER
 
   if (!code.is_null()) {
     Counters::total_compiled_code_size.Increment(code->instruction_size());
   }
-
   return code;
+}
+
+
+// Generate the code. Takes a function literal, generates code for it, assemble
+// all the pieces into a Code object. This function is only to be called by
+// the compiler.cc code.
+Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
+                                     Handle<Script> script,
+                                     bool is_eval) {
+  MakeCodePrologue(fun);
+  // Generate code.
+  const int kInitialBufferSize = 4 * KB;
+  CodeGenerator cgen(kInitialBufferSize, script, is_eval);
+  CodeGeneratorScope scope(&cgen);
+  cgen.GenCode(fun);
+  if (cgen.HasStackOverflow()) {
+    ASSERT(!Top::has_pending_exception());
+    return Handle<Code>::null();
+  }
+
+  InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
+  return MakeCodeEpilogue(fun, cgen.masm(), flags, script);
 }
 
 

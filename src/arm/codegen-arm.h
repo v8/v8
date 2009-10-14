@@ -147,6 +147,15 @@ class CodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
+  // Printing of AST, etc. as requested by flags.
+  static void MakeCodePrologue(FunctionLiteral* fun);
+
+  // Allocate and install the code.
+  static Handle<Code> MakeCodeEpilogue(FunctionLiteral* fun,
+                                       MacroAssembler* masm,
+                                       Code::Flags flags,
+                                       Handle<Script> script);
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
 #endif
