@@ -1426,6 +1426,44 @@ THREADED_TEST(InternalFieldsNativePointers) {
 }
 
 
+THREADED_TEST(InternalFieldsNativePointersAndExternal) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetInternalFieldCount(1);
+  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
+  CHECK_EQ(1, obj->InternalFieldCount());
+  CHECK(obj->GetPointerFromInternalField(0) == NULL);
+
+  char* data = new char[100];
+
+  void* aligned = data;
+  CHECK_EQ(0, reinterpret_cast<uintptr_t>(aligned) & 0x1);
+  void* unaligned = data + 1;
+  CHECK_EQ(1, reinterpret_cast<uintptr_t>(unaligned) & 0x1);
+
+  obj->SetPointerInInternalField(0, aligned);
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(aligned, v8::External::Unwrap(obj->GetInternalField(0)));
+
+  obj->SetPointerInInternalField(0, unaligned);
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(unaligned, v8::External::Unwrap(obj->GetInternalField(0)));
+
+  obj->SetInternalField(0, v8::External::Wrap(aligned));
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
+
+  obj->SetInternalField(0, v8::External::Wrap(unaligned));
+  i::Heap::CollectAllGarbage(false);
+  CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
+
+  delete[] data;
+}
+
+
 THREADED_TEST(IdentityHash) {
   v8::HandleScope scope;
   LocalContext env;

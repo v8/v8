@@ -1278,6 +1278,7 @@ class V8EXPORT Object : public Value {
   Object();
   static void CheckCast(Value* obj);
   Local<Value> CheckedGetInternalField(int index);
+  void* SlowGetPointerFromInternalField(int index);
 
   /**
    * If quick access to the internal field is possible this method
@@ -2753,7 +2754,6 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * sizeof(void*);
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x03;
-  static const int kAlignedPointerShift = 2;
 
   // These constants are compiler dependent so their values must be
   // defined within the implementation.
@@ -2780,6 +2780,22 @@ class Internals {
     // Throw away top 32 bits and shift down (requires >> to be sign extending).
     return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
 #endif
+  }
+
+  static inline int GetInstanceType(internal::Object* obj) {
+    typedef internal::Object O;
+    O* map = ReadField<O*>(obj, kHeapObjectMapOffset);
+    return ReadField<uint8_t>(map, kMapInstanceTypeOffset);
+  }
+
+  static inline void* GetExternalPointer(internal::Object* obj) {
+    if (HasSmiTag(obj)) {
+      return obj;
+    } else if (GetInstanceType(obj) == kProxyType) {
+      return ReadField<void*>(obj, kProxyProxyOffset);
+    } else {
+      return NULL;
+    }
   }
 
   static inline bool IsExternalTwoByteString(int instance_type) {
@@ -2939,9 +2955,7 @@ Local<Value> Object::UncheckedGetInternalField(int index) {
   typedef internal::Object O;
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(this);
-  O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
-  int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
-  if (instance_type == I::kJSObjectType) {
+  if (I::GetInstanceType(obj) == I::kJSObjectType) {
     // If the object is a plain JSObject, which is the common case,
     // we know where to find the internal fields and can return the
     // value directly.
@@ -2966,25 +2980,27 @@ void* External::Unwrap(Handle<v8::Value> obj) {
 
 void* External::QuickUnwrap(Handle<v8::Value> wrapper) {
   typedef internal::Object O;
-  typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(const_cast<v8::Value*>(*wrapper));
-  if (I::HasSmiTag(obj)) {
-    int value = I::SmiValue(obj) << I::kAlignedPointerShift;
-    return reinterpret_cast<void*>(value);
-  } else {
-    O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
-    int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
-    if (instance_type == I::kProxyType) {
-      return I::ReadField<void*>(obj, I::kProxyProxyOffset);
-    } else {
-      return NULL;
-    }
-  }
+  return internal::Internals::GetExternalPointer(obj);
 }
 
 
 void* Object::GetPointerFromInternalField(int index) {
-  return External::Unwrap(GetInternalField(index));
+  typedef internal::Object O;
+  typedef internal::Internals I;
+
+  O* obj = *reinterpret_cast<O**>(this);
+
+  if (I::GetInstanceType(obj) == I::kJSObjectType) {
+    // If the object is a plain JSObject, which is the common case,
+    // we know where to find the internal fields and can return the
+    // value directly.
+    int offset = I::kJSObjectHeaderSize + (sizeof(void*) * index);
+    O* value = I::ReadField<O*>(obj, offset);
+    return I::GetExternalPointer(value);
+  }
+
+  return SlowGetPointerFromInternalField(index);
 }
 
 
@@ -3000,10 +3016,8 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
   typedef internal::Object O;
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
-  O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
-  int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
   String::ExternalStringResource* result;
-  if (I::IsExternalTwoByteString(instance_type)) {
+  if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
     void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
     result = reinterpret_cast<String::ExternalStringResource*>(value);
   } else {
@@ -3029,9 +3043,7 @@ bool Value::QuickIsString() const {
   typedef internal::Internals I;
   O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
   if (!I::HasHeapObjectTag(obj)) return false;
-  O* map = I::ReadField<O*>(obj, I::kHeapObjectMapOffset);
-  int instance_type = I::ReadField<uint8_t>(map, I::kMapInstanceTypeOffset);
-  return (instance_type < I::kFirstNonstringType);
+  return (I::GetInstanceType(obj) < I::kFirstNonstringType);
 }
 
 
