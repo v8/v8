@@ -5341,8 +5341,8 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     switch (op) {
       case Token::SUB: {
         bool overwrite =
-            (node->AsBinaryOperation() != NULL &&
-             node->AsBinaryOperation()->ResultOverwriteAllowed());
+          (node->expression()->AsBinaryOperation() != NULL &&
+           node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
         UnarySubStub stub(overwrite);
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
