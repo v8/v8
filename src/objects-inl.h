@@ -778,7 +778,7 @@ int Failure::requested() const {
       kFailureTypeTagSize + kSpaceTagSize - kObjectAlignmentBits;
   STATIC_ASSERT(kShiftBits >= 0);
   ASSERT(type() == RETRY_AFTER_GC);
-  return value() >> kShiftBits;
+  return static_cast<int>(value() >> kShiftBits);
 }
 
 
@@ -804,29 +804,31 @@ Failure* Failure::OutOfMemoryException() {
 }
 
 
-int Failure::value() const {
-  return static_cast<int>(reinterpret_cast<intptr_t>(this) >> kFailureTagSize);
+intptr_t Failure::value() const {
+  return reinterpret_cast<intptr_t>(this) >> kFailureTagSize;
 }
 
 
 Failure* Failure::RetryAfterGC(int requested_bytes) {
   // Assert that the space encoding fits in the three bytes allotted for it.
   ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
-  int requested = requested_bytes >> kObjectAlignmentBits;
+  intptr_t requested = requested_bytes >> kObjectAlignmentBits;
+  int tag_bits = kSpaceTagSize + kFailureTypeTagSize;
+  if (((requested << tag_bits) >> tag_bits) != requested) {
+    // No room for entire requested size in the bits. Round down to
+    // maximally representable size.
+    requested = static_cast<intptr_t>(
+                    (~static_cast<uintptr_t>(0)) >> (tag_bits + 1));
+  }
   int value = (requested << kSpaceTagSize) | NEW_SPACE;
-  ASSERT(value >> kSpaceTagSize == requested);
-  ASSERT(Smi::IsValid(value));
-  ASSERT(value == ((value << kFailureTypeTagSize) >> kFailureTypeTagSize));
-  ASSERT(Smi::IsValid(value << kFailureTypeTagSize));
   return Construct(RETRY_AFTER_GC, value);
 }
 
 
-Failure* Failure::Construct(Type type, int value) {
-  int info = (value << kFailureTypeTagSize) | type;
+Failure* Failure::Construct(Type type, intptr_t value) {
+  intptr_t info = (static_cast<intptr_t>(value) << kFailureTypeTagSize) | type;
   ASSERT(((info << kFailureTagSize) >> kFailureTagSize) == info);
-  return reinterpret_cast<Failure*>(
-      (static_cast<intptr_t>(info) << kFailureTagSize) | kFailureTag);
+  return reinterpret_cast<Failure*>((info << kFailureTagSize) | kFailureTag);
 }
 
 

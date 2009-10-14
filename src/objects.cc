@@ -618,12 +618,12 @@ void Smi::SmiPrint(StringStream* accumulator) {
 
 
 void Failure::FailurePrint(StringStream* accumulator) {
-  accumulator->Add("Failure(%d)", value());
+  accumulator->Add("Failure(%p)", reinterpret_cast<void*>(value()));
 }
 
 
 void Failure::FailurePrint() {
-  PrintF("Failure(%d)", value());
+  PrintF("Failure(%p)", reinterpret_cast<void*>(value()));
 }
 
 

@@ -948,10 +948,10 @@ class Smi: public Object {
 //
 // Failures are a single word, encoded as follows:
 // +-------------------------+---+--+--+
-// |rrrrrrrrrrrrrrrrrrrrrrrrr|sss|tt|11|
+// |...rrrrrrrrrrrrrrrrrrrrrr|sss|tt|11|
 // +-------------------------+---+--+--+
-//  3                       7 6 4 32 10
-//  1
+//                          7 6 4 32 10
+//
 //
 // The low two bits, 0-1, are the failure tag, 11.  The next two bits,
 // 2-3, are a failure type tag 'tt' with possible values:
@@ -1013,8 +1013,8 @@ class Failure: public Object {
 #endif
 
  private:
-  inline int value() const;
-  static inline Failure* Construct(Type type, int value = 0);
+  inline intptr_t value() const;
+  static inline Failure* Construct(Type type, intptr_t value = 0);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Failure);
 };
