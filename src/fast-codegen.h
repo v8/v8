@@ -28,14 +28,13 @@
 #ifndef V8_FAST_CODEGEN_H_
 #define V8_FAST_CODEGEN_H_
 
-#ifndef V8_TARGET_ARCH_ARM
-
 #include "v8.h"
 
 #include "ast.h"
 
 namespace v8 {
 namespace internal {
+
 
 class FastCodeGenerator: public AstVisitor {
  public:
@@ -61,7 +60,7 @@ class FastCodeGenerator: public AstVisitor {
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };
 
+
 } }  // namespace v8::internal
 
-#endif  // !defined(V8_TARGET_ARCH_ARM)
 #endif  // V8_FAST_CODEGEN_H_

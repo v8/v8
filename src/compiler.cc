@@ -41,7 +41,6 @@
 namespace v8 {
 namespace internal {
 
-#ifndef V8_TARGET_ARCH_ARM
 
 class CodeGenSelector: public AstVisitor {
  public:
@@ -63,8 +62,6 @@ class CodeGenSelector: public AstVisitor {
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenSelector);
 };
-
-#endif
 
 
 static Handle<Code> MakeCode(FunctionLiteral* literal,
@@ -106,7 +103,6 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
   }
 
   // Generate code and return it.
-#ifndef V8_TARGET_ARCH_ARM
   if (FLAG_fast_compiler) {
     CodeGenSelector selector;
     CodeGenSelector::CodeGenTag code_gen = selector.Select(literal);
@@ -115,8 +111,6 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     }
     ASSERT(code_gen == CodeGenSelector::NORMAL);
   }
-#endif
-
   return CodeGenerator::MakeCode(literal, script, is_eval);
 }
 
@@ -453,8 +447,6 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
 }
 
 
-#ifndef V8_TARGET_ARCH_ARM
-
 CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
 
@@ -717,8 +709,6 @@ void CodeGenSelector::VisitThisFunction(ThisFunction* expr) {
 
 #undef BAILOUT
 #undef CHECK_BAILOUT
-
-#endif  // !defined(V8_TARGET_ARCH_ARM)
 
 
 } }  // namespace v8::internal

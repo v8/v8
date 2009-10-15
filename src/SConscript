@@ -56,6 +56,7 @@ SOURCES = {
     disassembler.cc
     execution.cc
     factory.cc
+    fast-codegen.cc
     flags.cc
     frame-element.cc
     frames.cc
@@ -112,6 +113,7 @@ SOURCES = {
     arm/cpu-arm.cc
     arm/debug-arm.cc
     arm/disasm-arm.cc
+    arm/fast-codegen-arm.cc
     arm/frames-arm.cc
     arm/ic-arm.cc
     arm/jump-target-arm.cc
@@ -122,7 +124,6 @@ SOURCES = {
     arm/virtual-frame-arm.cc
     """),
   'arch:ia32': Split("""
-    fast-codegen.cc
     ia32/assembler-ia32.cc
     ia32/builtins-ia32.cc
     ia32/codegen-ia32.cc
@@ -140,7 +141,6 @@ SOURCES = {
     ia32/virtual-frame-ia32.cc
     """),
   'arch:x64': Split("""
-    fast-codegen.cc
     x64/assembler-x64.cc
     x64/builtins-x64.cc
     x64/codegen-x64.cc
