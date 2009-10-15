@@ -29,61 +29,57 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
-// Make sure that the backtrace command can be processed when the receiver is
-// undefined.
-listenerCalled = false;
+// Simple function which stores the last debug event.
+listenerComplete = false;
 exception = false;
 
-function ParsedResponse(json) {
-  this.response_ = eval('(' + json + ')');
-  this.refs_ = [];
-  if (this.response_.refs) {
-    for (var i = 0; i < this.response_.refs.length; i++) {
-      this.refs_[this.response_.refs[i].handle] = this.response_.refs[i];
-    }
+var base_backtrace_request = '"seq":0,"type":"request","command":"backtrace"'
+var base_suspend_request = '"seq":0,"type":"request","command":"suspend"'
+
+function safeEval(code) {
+  try {
+    return eval('(' + code + ')');
+  } catch (e) {
+    assertEquals(void 0, e);
+    return undefined;
   }
 }
 
+function testArguments(exec_state) {
+  // Get the debug command processor in running state.
+  var dcp = exec_state.debugCommandProcessor(true);
 
-ParsedResponse.prototype.response = function() {
-  return this.response_;
+  assertTrue(dcp.isRunning());
+
+  var backtrace_request = '{' + base_backtrace_request + '}'
+  var backtrace_response = safeEval(dcp.processDebugJSONRequest(backtrace_request));
+
+  assertTrue(backtrace_response.success);
+
+  assertTrue(backtrace_response.running, backtrace_request + ' -> expected running');
+
+  assertTrue(dcp.isRunning());
+
+  var suspend_request = '{' + base_suspend_request + '}'
+  var suspend_response = safeEval(dcp.processDebugJSONRequest(suspend_request));
+
+  assertTrue(suspend_response.success);
+
+  assertFalse(suspend_response.running, suspend_request + ' -> expected not running');
+
+  assertFalse(dcp.isRunning());
 }
-
-
-ParsedResponse.prototype.body = function() {
-  return this.response_.body;
-}
-
-
-ParsedResponse.prototype.lookup = function(handle) {
-  return this.refs_[handle];
-}
-
 
 function listener(event, exec_state, event_data, data) {
   try {
-  if (event == Debug.DebugEvent.Exception)
-  {
-    // The expected backtrace is
-    // 1: g
-    // 0: [anonymous]
-    
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor(false);
+    if (event == Debug.DebugEvent.Break) {
 
-    // Get the backtrace.
-    var json;
-    json = '{"seq":0,"type":"request","command":"backtrace"}'
-    var response = new ParsedResponse(dcp.processDebugJSONRequest(json));
-    var backtrace = response.body();
-    assertEquals(2, backtrace.totalFrames);
-    assertEquals(2, backtrace.frames.length);
+      // Test simple suspend request.
+      testArguments(exec_state);
 
-    assertEquals("g", response.lookup(backtrace.frames[0].func.ref).name);
-    assertEquals("", response.lookup(backtrace.frames[1].func.ref).name);
-
-    listenerCalled = true;
-  }
+      // Indicate that all was processed.
+      listenerComplete = true;
+    }
   } catch (e) {
     exception = e
   };
@@ -92,19 +88,9 @@ function listener(event, exec_state, event_data, data) {
 // Add the debug event listener.
 Debug.setListener(listener);
 
-// Call method on undefined.
-function g() {
-  (void 0).f();
-};
+// Stop debugger and check that suspend command changes running flag.
+debugger;
 
-// Break on the exception to do a backtrace with undefined as receiver.
-Debug.setBreakOnException(true);
-try {
-  g();
-} catch(e) {
-  // Ignore the exception "Cannot call method 'x' of undefined"
-}
-
-assertFalse(exception, "exception in listener", exception)
+assertFalse(exception, "exception in listener")
 // Make sure that the debug event listener vas invoked.
-assertTrue(listenerCalled, "listener not called");
+assertTrue(listenerComplete, "listener did not run to completion");
