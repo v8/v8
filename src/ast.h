@@ -30,12 +30,11 @@
 
 #include "execution.h"
 #include "factory.h"
+#include "jsregexp.h"
+#include "jump-target.h"
 #include "runtime.h"
 #include "token.h"
 #include "variables.h"
-#include "macro-assembler.h"
-#include "jsregexp.h"
-#include "jump-target.h"
 
 namespace v8 {
 namespace internal {
