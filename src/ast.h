@@ -28,6 +28,7 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
+#include "location.h"
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"
@@ -161,6 +162,8 @@ class Statement: public AstNode {
 
 class Expression: public AstNode {
  public:
+  Expression() : location_(Location::Temporary()) {}
+
   virtual Expression* AsExpression()  { return this; }
 
   virtual bool IsValidJSON() { return false; }
@@ -174,8 +177,12 @@ class Expression: public AstNode {
   // Static type information for this expression.
   SmiAnalysis* type() { return &type_; }
 
+  Location location() { return location_; }
+  void set_location(Location loc) { location_ = loc; }
+
  private:
   SmiAnalysis type_;
+  Location location_;
 };
 
 

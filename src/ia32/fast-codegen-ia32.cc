@@ -98,7 +98,6 @@ void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   Comment cmnt(masm_, "[ ExpressionStatement");
   SetStatementPosition(stmt);
   Visit(stmt->expression());
-  __ pop(eax);
 }
 
 
@@ -118,13 +117,21 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 
 void FastCodeGenerator::VisitSlot(Slot* expr) {
   Comment cmnt(masm_, "[ Slot");
-  __ push(Operand(ebp, SlotOffset(expr)));
+  if (expr->location().is_temporary()) {
+    __ push(Operand(ebp, SlotOffset(expr)));
+  } else {
+    ASSERT(expr->location().is_nowhere());
+  }
 }
 
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
-  __ push(Immediate(expr->handle()));
+  if (expr->location().is_temporary()) {
+    __ push(Immediate(expr->handle()));
+  } else {
+    ASSERT(expr->location().is_nowhere());
+  }
 }
 
 
@@ -135,8 +142,14 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   ASSERT(var != NULL && var->slot() != NULL);
-  __ mov(eax, Operand(esp, 0));
-  __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+
+  if (expr->location().is_temporary()) {
+    __ mov(eax, Operand(esp, 0));
+    __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+  } else {
+    ASSERT(expr->location().is_nowhere());
+    __ pop(Operand(ebp, SlotOffset(var->slot())));
+  }
 }
 
 

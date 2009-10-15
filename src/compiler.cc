@@ -499,7 +499,10 @@ void CodeGenSelector::VisitBlock(Block* stmt) {
 
 
 void CodeGenSelector::VisitExpressionStatement(ExpressionStatement* stmt) {
-  Visit(stmt->expression());
+  Expression* expr = stmt->expression();
+  Visit(expr);
+  CHECK_BAILOUT;
+  expr->set_location(Location::Nowhere());
 }
 
 

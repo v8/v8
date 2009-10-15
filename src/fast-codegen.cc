@@ -194,6 +194,9 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   Expression* rewrite = expr->var()->rewrite();
   ASSERT(rewrite != NULL);
+
+  // Forward to the proxy's rewrite.
+  rewrite->set_location(expr->location());
   Visit(rewrite);
 }
 

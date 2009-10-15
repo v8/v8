@@ -561,6 +561,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\location.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\log.cc"
 				>
 			</File>
