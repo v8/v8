@@ -140,12 +140,14 @@ SOURCES = {
     ia32/virtual-frame-ia32.cc
     """),
   'arch:x64': Split("""
+    fast-codegen.cc
     x64/assembler-x64.cc
     x64/builtins-x64.cc
     x64/codegen-x64.cc
     x64/cpu-x64.cc
     x64/debug-x64.cc
     x64/disasm-x64.cc
+    x64/fast-codegen-x64.cc
     x64/frames-x64.cc
     x64/ic-x64.cc
     x64/jump-target-x64.cc

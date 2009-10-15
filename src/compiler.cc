@@ -41,7 +41,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_TARGET_ARCH_IA32
+#ifndef V8_TARGET_ARCH_ARM
 
 class CodeGenSelector: public AstVisitor {
  public:
@@ -106,7 +106,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
   }
 
   // Generate code and return it.
-#ifdef V8_TARGET_ARCH_IA32
+#ifndef V8_TARGET_ARCH_ARM
   if (FLAG_fast_compiler) {
     CodeGenSelector selector;
     CodeGenSelector::CodeGenTag code_gen = selector.Select(literal);
@@ -453,7 +453,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
 }
 
 
-#ifdef V8_TARGET_ARCH_IA32
+#ifndef V8_TARGET_ARCH_ARM
 
 CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
@@ -718,7 +718,7 @@ void CodeGenSelector::VisitThisFunction(ThisFunction* expr) {
 #undef BAILOUT
 #undef CHECK_BAILOUT
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // !defined(V8_TARGET_ARCH_ARM)
 
 
 } }  // namespace v8::internal

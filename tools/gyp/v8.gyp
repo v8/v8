@@ -445,6 +445,8 @@
             '../../src/x64',
           ],
           'sources': [
+            '../../src/fast-codegen.cc',
+            '../../src/fast-codegen.h',
             '../../src/x64/assembler-x64-inl.h',
             '../../src/x64/assembler-x64.cc',
             '../../src/x64/assembler-x64.h',
@@ -454,6 +456,7 @@
             '../../src/x64/cpu-x64.cc',
             '../../src/x64/debug-x64.cc',
             '../../src/x64/disasm-x64.cc',
+            '../../src/x64/fast-codegen-x64.cc',
             '../../src/x64/frames-x64.cc',
             '../../src/x64/frames-x64.h',
             '../../src/x64/ic-x64.cc',

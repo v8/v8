@@ -163,6 +163,14 @@ void FastCodeGenerator::VisitConditional(Conditional* expr) {
 }
 
 
+void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+  Comment cmnt(masm_, "[ VariableProxy");
+  Expression* rewrite = expr->var()->rewrite();
+  ASSERT(rewrite != NULL);
+  Visit(rewrite);
+}
+
+
 void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   UNREACHABLE();
 }

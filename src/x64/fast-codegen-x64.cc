@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
+#include "debug.h"
 #include "fast-codegen.h"
 
 namespace v8 {
@@ -41,33 +42,32 @@ namespace internal {
 // formal parameter count expected by the function.
 //
 // The live registers are:
-//   o edi: the JS function object being called (ie, ourselves)
-//   o esi: our context
-//   o ebp: our caller's frame pointer
+//   o rdi: the JS function object being called (ie, ourselves)
+//   o rsi: our context
+//   o rbp: our caller's frame pointer
+//   o rsp: stack pointer (pointing to return address)
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
-// frames-ia32.h for its layout.
+// frames-x64.h for its layout.
 void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   function_ = fun;
 
-  __ push(ebp);  // Caller's frame pointer.
-  __ mov(ebp, esp);
-  __ push(esi);  // Callee's context.
-  __ push(edi);  // Callee's JS Function.
+  __ push(rbp);  // Caller's frame pointer.
+  __ movq(rbp, rsp);
+  __ push(rsi);  // Callee's context.
+  __ push(rdi);  // Callee's JS Function.
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = fun->scope()->num_stack_slots();
     for (int i = 0; i < locals_count; i++) {
-      __ push(Immediate(Factory::undefined_value()));
+      __ PushRoot(Heap::kUndefinedValueRootIndex);
     }
   }
 
   { Comment cmnt(masm_, "[ Stack check");
     Label ok;
-    ExternalReference stack_guard_limit =
-        ExternalReference::address_of_stack_guard_limit();
-    __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
-    __ j(above_equal, &ok, taken);
+    __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+    __ j(above_equal, &ok);
     StackCheckStub stub;
     __ CallStub(&stub);
     __ bind(&ok);
@@ -80,13 +80,22 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   { Comment cmnt(masm_, "[ return <undefined>;");
     // Emit a 'return undefined' in case control fell off the end of the
     // body.
-    __ mov(eax, Factory::undefined_value());
+    __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
     __ RecordJSReturn();
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.
-    __ mov(esp, ebp);
-    __ pop(ebp);
+    __ movq(rsp, rbp);
+    __ pop(rbp);
     __ ret((fun->scope()->num_parameters() + 1) * kPointerSize);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    // Add padding that will be overwritten by a debugger breakpoint.  We
+    // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
+    // (3 + 1 + 3).
+    const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+    for (int i = 0; i < kPadding; ++i) {
+      masm_->int3();
+    }
+#endif
   }
 }
 
@@ -94,32 +103,41 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   Comment cmnt(masm_, "[ ExpressionStatement");
   Visit(stmt->expression());
-  __ pop(eax);
+  __ pop(rax);
 }
 
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   Visit(stmt->expression());
-  __ pop(eax);
+  __ pop(rax);
   __ RecordJSReturn();
   // Do not use the leave instruction here because it is too short to
   // patch with the code required by the debugger.
-  __ mov(esp, ebp);
-  __ pop(ebp);
+  __ movq(rsp, rbp);
+  __ pop(rbp);
   __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Add padding that will be overwritten by a debugger breakpoint.  We
+  // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
+  // (3 + 1 + 3).
+  const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+  for (int i = 0; i < kPadding; ++i) {
+    masm_->int3();
+  }
+#endif
 }
 
 
 void FastCodeGenerator::VisitSlot(Slot* expr) {
   Comment cmnt(masm_, "[ Slot");
-  __ push(Operand(ebp, SlotOffset(expr)));
+  __ push(Operand(rbp, SlotOffset(expr)));
 }
 
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
-  __ push(Immediate(expr->handle()));
+  __ Push(expr->handle());
 }
 
 
@@ -131,8 +149,8 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   ASSERT(var != NULL && var->slot() != NULL);
-  __ mov(eax, Operand(esp, 0));
-  __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+  __ movq(rax, Operand(rsp, 0));
+  __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
 }
 
 

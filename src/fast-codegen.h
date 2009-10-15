@@ -28,7 +28,7 @@
 #ifndef V8_FAST_CODEGEN_H_
 #define V8_FAST_CODEGEN_H_
 
-#ifdef V8_TARGET_ARCH_IA32
+#ifndef V8_TARGET_ARCH_ARM
 
 #include "v8.h"
 
@@ -63,5 +63,5 @@ class FastCodeGenerator: public AstVisitor {
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // !defined(V8_TARGET_ARCH_ARM)
 #endif  // V8_FAST_CODEGEN_H_
