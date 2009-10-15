@@ -49,6 +49,11 @@ class FastCodeGenerator: public AstVisitor {
  private:
   int SlotOffset(Slot* slot);
 
+  void SetFunctionPosition(FunctionLiteral* fun);
+  void SetReturnPosition(FunctionLiteral* fun);
+  void SetStatementPosition(Statement* stmt);
+  void SetSourcePosition(int pos);
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)

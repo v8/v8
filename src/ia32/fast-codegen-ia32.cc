@@ -50,6 +50,7 @@ namespace internal {
 // frames-ia32.h for its layout.
 void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   function_ = fun;
+  SetFunctionPosition(fun);
 
   __ push(ebp);  // Caller's frame pointer.
   __ mov(ebp, esp);
@@ -82,6 +83,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // Emit a 'return undefined' in case control fell off the end of the
     // body.
     __ mov(eax, Factory::undefined_value());
+    SetReturnPosition(fun);
     __ RecordJSReturn();
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.
@@ -94,6 +96,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   Comment cmnt(masm_, "[ ExpressionStatement");
+  SetStatementPosition(stmt);
   Visit(stmt->expression());
   __ pop(eax);
 }
@@ -101,6 +104,7 @@ void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
+  SetStatementPosition(stmt);
   Visit(stmt->expression());
   __ pop(eax);
   __ RecordJSReturn();
@@ -127,7 +131,6 @@ void FastCodeGenerator::VisitLiteral(Literal* expr) {
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
-
   Visit(expr->value());
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();

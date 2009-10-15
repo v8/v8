@@ -48,6 +48,7 @@
 //   AddDeferred
 //   in_spilled_code
 //   set_in_spilled_code
+//   RecordPositions
 //
 // These methods are either used privately by the shared code or implemented as
 // shared code:

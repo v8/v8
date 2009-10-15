@@ -51,6 +51,7 @@ namespace internal {
 // frames-arm.h for its layout.
 void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   function_ = fun;
+  // ARM does NOT call SetFunctionPosition.
 
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
   // Adjust fp to point to caller's fp.
@@ -92,6 +93,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // Emit a 'return undefined' in case control fell off the end of the
     // body.
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+    SetReturnPosition(fun);
     __ RecordJSReturn();
     __ mov(sp, fp);
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
@@ -104,6 +106,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   Comment cmnt(masm_, "[ ExpressionStatement");
+  SetStatementPosition(stmt);
   Visit(stmt->expression());
   __ pop();
 }
@@ -111,6 +114,7 @@ void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
+  SetStatementPosition(stmt);
   Visit(stmt->expression());
   __ pop(r0);
   __ RecordJSReturn();

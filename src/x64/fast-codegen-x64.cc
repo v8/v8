@@ -51,6 +51,7 @@ namespace internal {
 // frames-x64.h for its layout.
 void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   function_ = fun;
+  SetFunctionPosition(fun);
 
   __ push(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
@@ -81,6 +82,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // Emit a 'return undefined' in case control fell off the end of the
     // body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+    SetReturnPosition(fun);
     __ RecordJSReturn();
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.
@@ -102,6 +104,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   Comment cmnt(masm_, "[ ExpressionStatement");
+  SetStatementPosition(stmt);
   Visit(stmt->expression());
   __ pop(rax);
 }
@@ -109,6 +112,7 @@ void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
+  SetStatementPosition(stmt);
   Visit(stmt->expression());
   __ pop(rax);
   __ RecordJSReturn();

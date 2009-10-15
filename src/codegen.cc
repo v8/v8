@@ -499,26 +499,26 @@ CodeGenerator::ConditionAnalysis CodeGenerator::AnalyzeCondition(
 }
 
 
-static inline void RecordPositions(CodeGenerator* cgen, int pos) {
+void CodeGenerator::RecordPositions(MacroAssembler* masm, int pos) {
   if (pos != RelocInfo::kNoPosition) {
-    cgen->masm()->RecordStatementPosition(pos);
-    cgen->masm()->RecordPosition(pos);
+    masm->RecordStatementPosition(pos);
+    masm->RecordPosition(pos);
   }
 }
 
 
 void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) RecordPositions(this, fun->start_position());
+  if (FLAG_debug_info) RecordPositions(masm(), fun->start_position());
 }
 
 
 void CodeGenerator::CodeForReturnPosition(FunctionLiteral* fun) {
-  if (FLAG_debug_info) RecordPositions(this, fun->end_position());
+  if (FLAG_debug_info) RecordPositions(masm(), fun->end_position());
 }
 
 
 void CodeGenerator::CodeForStatementPosition(Statement* stmt) {
-  if (FLAG_debug_info) RecordPositions(this, stmt->statement_pos());
+  if (FLAG_debug_info) RecordPositions(masm(), stmt->statement_pos());
 }
 
 

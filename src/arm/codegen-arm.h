@@ -165,6 +165,8 @@ class CodeGenerator: public AstVisitor {
                               bool is_toplevel,
                               Handle<Script> script);
 
+  static void RecordPositions(MacroAssembler* masm, int pos);
+
   // Accessors
   MacroAssembler* masm() { return masm_; }
 

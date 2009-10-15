@@ -66,6 +66,33 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
   return offset;
 }
 
+void FastCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
+  if (FLAG_debug_info) {
+    CodeGenerator::RecordPositions(masm_, fun->start_position());
+  }
+}
+
+
+void FastCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
+  if (FLAG_debug_info) {
+    CodeGenerator::RecordPositions(masm_, fun->end_position());
+  }
+}
+
+
+void FastCodeGenerator::SetStatementPosition(Statement* stmt) {
+  if (FLAG_debug_info) {
+    CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+  }
+}
+
+
+void FastCodeGenerator::SetSourcePosition(int pos) {
+  if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
+    masm_->RecordPosition(pos);
+  }
+}
+
 
 void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
   UNREACHABLE();
