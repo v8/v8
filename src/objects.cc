@@ -4983,7 +4983,8 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->IsCallInstruction());
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
+         rinfo->IsPatchedReturnSequence());
   Object* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
   Object* old_target = target;
   VisitPointer(&target);
@@ -5009,7 +5010,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
     } else if (Debug::has_break_points() &&
                RelocInfo::IsJSReturn(rmode) &&
-               it.rinfo()->IsCallInstruction()) {
+               it.rinfo()->IsPatchedReturnSequence()) {
       v->VisitDebugTarget(it.rinfo());
 #endif
     } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
@@ -5047,7 +5048,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
           desc.reloc_size);
 
   // unbox handles and relocate
-  int delta = instruction_start() - desc.buffer;
+  intptr_t delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;

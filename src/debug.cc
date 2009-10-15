@@ -1614,7 +1614,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
       at_js_return = (it.rinfo()->pc() ==
           addr - Assembler::kPatchReturnSequenceAddressOffset);
-      break_at_js_return_active = it.rinfo()->IsCallInstruction();
+      break_at_js_return_active = it.rinfo()->IsPatchedReturnSequence();
     }
     it.next();
   }
