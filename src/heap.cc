@@ -2021,6 +2021,7 @@ Object* Heap::Allocate(Map* map, AllocationSpace space) {
                                TargetSpaceId(map->instance_type()));
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
+  ProducerHeapProfile::RecordJSObjectAllocation(result);
   return result;
 }
 
@@ -2342,6 +2343,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
     JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
   }
   // Return the new clone.
+  ProducerHeapProfile::RecordJSObjectAllocation(clone);
   return clone;
 }
 
@@ -3307,6 +3309,9 @@ bool Heap::Setup(bool create_heap_objects) {
 
   LOG(IntEvent("heap-capacity", Capacity()));
   LOG(IntEvent("heap-available", Available()));
+
+  // This should be called only after initial objects have been created.
+  ProducerHeapProfile::Setup();
 
   return true;
 }

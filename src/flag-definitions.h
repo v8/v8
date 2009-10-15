@@ -350,6 +350,7 @@ DEFINE_bool(log_gc, false,
 DEFINE_bool(log_handles, false, "Log global handle events.")
 DEFINE_bool(log_state_changes, false, "Log state changes.")
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
+DEFINE_bool(log_producers, false, "Log stack traces of JS objects allocations.")
 DEFINE_bool(compress_log, false,
             "Compress log to save space (makes log less human-readable).")
 DEFINE_bool(prof, false,
