@@ -125,13 +125,20 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitSlot(Slot* expr) {
-  Comment cmnt(masm_, "[ Slot");
-  if (expr->location().is_temporary()) {
-    __ ldr(ip, MemOperand(fp, SlotOffset(expr)));
-    __ push(ip);
-  } else {
-    ASSERT(expr->location().is_nowhere());
+void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+  Comment cmnt(masm_, "[ VariableProxy");
+  Expression* rewrite = expr->var()->rewrite();
+  ASSERT(rewrite != NULL);
+
+  Slot* slot = rewrite->AsSlot();
+  ASSERT(slot != NULL);
+  { Comment cmnt(masm_, "[ Slot");
+    if (expr->location().is_temporary()) {
+      __ ldr(ip, MemOperand(fp, SlotOffset(slot)));
+      __ push(ip);
+    } else {
+      ASSERT(expr->location().is_nowhere());
+    }
   }
 }
 

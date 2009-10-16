@@ -190,14 +190,9 @@ void FastCodeGenerator::VisitConditional(Conditional* expr) {
 }
 
 
-void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
-  Comment cmnt(masm_, "[ VariableProxy");
-  Expression* rewrite = expr->var()->rewrite();
-  ASSERT(rewrite != NULL);
-
-  // Forward to the proxy's rewrite.
-  rewrite->set_location(expr->location());
-  Visit(rewrite);
+void FastCodeGenerator::VisitSlot(Slot* expr) {
+  // Slots do not appear directly in the AST.
+  UNREACHABLE();
 }
 
 
