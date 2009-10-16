@@ -2727,21 +2727,37 @@ const int kHeapObjectTag = 1;
 const int kHeapObjectTagSize = 2;
 const intptr_t kHeapObjectTagMask = (1 << kHeapObjectTagSize) - 1;
 
-#ifdef V8_TARGET_ARCH_X64
 // Tag information for Smi.
 const int kSmiTag = 0;
 const int kSmiTagSize = 1;
 const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
-const int kSmiShiftSize = 31;
-const int kSmiValueSize = 32;
-#else
-// Tag information for Smi.
-const int kSmiTag = 0;
-const int kSmiTagSize = 1;
-const intptr_t kSmiTagMask = (1 << kSmiTagSize) - 1;
-const int kSmiShiftSize = 0;
-const int kSmiValueSize = 31;
-#endif
+
+template <size_t ptr_size> struct SmiConstants;
+
+// Smi constants for 32-bit systems.
+template <> struct SmiConstants<4> {
+  static const int kSmiShiftSize = 0;
+  static const int kSmiValueSize = 31;
+  static inline int SmiToInt(internal::Object* value) {
+    int shift_bits = kSmiTagSize + kSmiShiftSize;
+    // Throw away top 32 bits and shift down (requires >> to be sign extending).
+    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
+  }
+};
+
+// Smi constants for 64-bit systems.
+template <> struct SmiConstants<8> {
+  static const int kSmiShiftSize = 31;
+  static const int kSmiValueSize = 32;
+  static inline int SmiToInt(internal::Object* value) {
+    int shift_bits = kSmiTagSize + kSmiShiftSize;
+    // Shift down and throw away top 32 bits.
+    return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
+  }
+};
+
+const int kSmiShiftSize = SmiConstants<sizeof(void*)>::kSmiShiftSize;
+const int kSmiValueSize = SmiConstants<sizeof(void*)>::kSmiValueSize;
 
 /**
  * This class exports constants and functionality from within v8 that
@@ -2777,15 +2793,7 @@ class Internals {
   }
 
   static inline int SmiValue(internal::Object* value) {
-#ifdef V8_TARGET_ARCH_X64
-    int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Shift down and throw away top 32 bits.
-    return static_cast<int>(reinterpret_cast<intptr_t>(value) >> shift_bits);
-#else
-    int shift_bits = kSmiTagSize + kSmiShiftSize;
-    // Throw away top 32 bits and shift down (requires >> to be sign extending).
-    return static_cast<int>(reinterpret_cast<intptr_t>(value)) >> shift_bits;
-#endif
+    return SmiConstants<sizeof(void*)>::SmiToInt(value);
   }
 
   static inline int GetInstanceType(internal::Object* obj) {
