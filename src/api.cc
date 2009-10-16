@@ -3241,6 +3241,17 @@ Local<Integer> v8::Integer::New(int32_t value) {
 }
 
 
+Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
+  bool fits_into_int32_t = (value & (1 << 31)) == 0;
+  if (fits_into_int32_t) {
+    return Integer::New(static_cast<int32_t>(value));
+  }
+  ENTER_V8;
+  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  return Utils::IntegerToLocal(result);
+}
+
+
 void V8::IgnoreOutOfMemoryException() {
   thread_local.set_ignore_out_of_memory(true);
 }
