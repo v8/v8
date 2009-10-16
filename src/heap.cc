@@ -478,7 +478,13 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   Counters::objs_since_last_young.Set(0);
 
-  PostGarbageCollectionProcessing();
+  if (collector == MARK_COMPACTOR) {
+    DisableAssertNoAllocation allow_allocation;
+    GlobalHandles::PostGarbageCollectionProcessing();
+  }
+
+  // Update relocatables.
+  Relocatable::PostGarbageCollectionProcessing();
 
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
@@ -491,17 +497,6 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     global_gc_epilogue_callback_();
   }
   VerifySymbolTable();
-}
-
-
-void Heap::PostGarbageCollectionProcessing() {
-  // Process weak handles post gc.
-  {
-    DisableAssertNoAllocation allow_allocation;
-    GlobalHandles::PostGarbageCollectionProcessing();
-  }
-  // Update relocatables.
-  Relocatable::PostGarbageCollectionProcessing();
 }
 
 
