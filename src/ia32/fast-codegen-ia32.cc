@@ -104,8 +104,19 @@ void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
-  Visit(stmt->expression());
-  __ pop(eax);
+  Expression* expr = stmt->expression();
+  Visit(expr);
+
+  // Complete the statement based on the location of the subexpression.
+  Location source = expr->location();
+  ASSERT(!source.is_nowhere());
+  if (source.is_temporary()) {
+    __ pop(eax);
+  } else {
+    ASSERT(source.is_constant());
+    ASSERT(expr->AsLiteral() != NULL);
+    __ mov(eax, expr->AsLiteral()->handle());
+  }
   __ RecordJSReturn();
   // Do not use the leave instruction here because it is too short to
   // patch with the code required by the debugger.
@@ -132,30 +143,45 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
-void FastCodeGenerator::VisitLiteral(Literal* expr) {
-  Comment cmnt(masm_, "[ Literal");
-  if (expr->location().is_temporary()) {
-    __ push(Immediate(expr->handle()));
-  } else {
-    ASSERT(expr->location().is_nowhere());
-  }
-}
-
-
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
-  Visit(expr->value());
+  Expression* rhs = expr->value();
+  Visit(rhs);
 
+  // Left-hand side is always a (parameter or local) slot.
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   ASSERT(var != NULL && var->slot() != NULL);
 
-  if (expr->location().is_temporary()) {
-    __ mov(eax, Operand(esp, 0));
-    __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+  // Complete the assignment based on the location of the right-hand-side
+  // value and the desired location of the assignment value.
+  Location destination = expr->location();
+  Location source = rhs->location();
+  ASSERT(!destination.is_constant());
+  ASSERT(!source.is_nowhere());
+
+  if (source.is_temporary()) {
+    if (destination.is_temporary()) {
+      // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side temporary
+      // on the stack.
+      __ mov(eax, Operand(esp, 0));
+      __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+    } else {
+      ASSERT(destination.is_nowhere());
+      // Case 'var = temp'.  Discard right-hand-side temporary.
+      __ pop(Operand(ebp, SlotOffset(var->slot())));
+    }
   } else {
-    ASSERT(expr->location().is_nowhere());
-    __ pop(Operand(ebp, SlotOffset(var->slot())));
+    ASSERT(source.is_constant());
+    ASSERT(rhs->AsLiteral() != NULL);
+    // Two cases: 'temp <- (var = constant)', or 'var = constant' with a
+    // discarded result.  Always perform the assignment.
+    __ mov(eax, rhs->AsLiteral()->handle());
+    __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+    if (destination.is_temporary()) {
+      // Case 'temp <- (var = constant)'.  Save result.
+      __ push(eax);
+    }
   }
 }
 

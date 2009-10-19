@@ -41,6 +41,7 @@ class Location BASE_EMBEDDED {
 
   bool is_temporary() { return type_ == TEMP; }
   bool is_nowhere() { return type_ == NOWHERE; }
+  bool is_constant() { return type_ == CONSTANT; }
 
  private:
   enum Type { TEMP, NOWHERE, CONSTANT };

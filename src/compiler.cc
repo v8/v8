@@ -614,6 +614,7 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
 
 void CodeGenSelector::VisitLiteral(Literal* expr) {
   // All literals are supported.
+  expr->set_location(Location::Constant());
 }
 
 
