@@ -1249,34 +1249,6 @@ void MacroAssembler::JumpIfNotBothSmi(Register src1, Register src2,
   j(NegateCondition(both_smi), on_not_both_smi);
 }
 
-bool MacroAssembler::IsUnsafeSmi(Smi* value) {
-  return false;
-}
-
-
-void MacroAssembler::LoadUnsafeSmi(Register dst, Smi* source) {
-  UNIMPLEMENTED();
-}
-
-
-void MacroAssembler::Move(Register dst, Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(dst, source);
-  } else {
-    Set(dst, reinterpret_cast<int64_t>(source));
-  }
-}
-
-
-void MacroAssembler::Move(const Operand& dst, Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(kScratchRegister, source);
-    movq(dst, kScratchRegister);
-  } else {
-    Set(dst, reinterpret_cast<int64_t>(source));
-  }
-}
-
 
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
   ASSERT(!source->IsFailure());
@@ -1332,33 +1304,23 @@ void MacroAssembler::Push(Handle<Object> source) {
 
 
 void MacroAssembler::Push(Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(kScratchRegister, source);
-    push(kScratchRegister);
+  intptr_t smi = reinterpret_cast<intptr_t>(source);
+  if (is_int32(smi)) {
+    push(Immediate(static_cast<int32_t>(smi)));
   } else {
-    intptr_t smi = reinterpret_cast<intptr_t>(source);
-    if (is_int32(smi)) {
-      push(Immediate(static_cast<int32_t>(smi)));
-    } else {
-      Set(kScratchRegister, smi);
-      push(kScratchRegister);
-    }
+    Set(kScratchRegister, smi);
+    push(kScratchRegister);
   }
 }
 
 
 void MacroAssembler::Test(const Operand& src, Smi* source) {
-  if (IsUnsafeSmi(source)) {
-    LoadUnsafeSmi(kScratchRegister, source);
-    testq(src, kScratchRegister);
+  intptr_t smi = reinterpret_cast<intptr_t>(source);
+  if (is_int32(smi)) {
+    testl(src, Immediate(static_cast<int32_t>(smi)));
   } else {
-    intptr_t smi = reinterpret_cast<intptr_t>(source);
-    if (is_int32(smi)) {
-      testl(src, Immediate(static_cast<int32_t>(smi)));
-    } else {
-      Move(kScratchRegister, source);
-      testq(src, kScratchRegister);
-    }
+    Move(kScratchRegister, source);
+    testq(src, kScratchRegister);
   }
 }
 

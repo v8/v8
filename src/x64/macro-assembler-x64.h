@@ -374,12 +374,15 @@ class MacroAssembler: public Assembler {
   // Converts a positive smi to a negative index.
   SmiIndex SmiToNegativeIndex(Register dst, Register src, int shift);
 
-  bool IsUnsafeSmi(Smi* value);
-  void LoadUnsafeSmi(Register dst, Smi* source);
-
   // Basic Smi operations.
-  void Move(Register dst, Smi* source);
-  void Move(const Operand& dst, Smi* source);
+  void Move(Register dst, Smi* source) {
+    Set(dst, reinterpret_cast<int64_t>(source));
+  }
+
+  void Move(const Operand& dst, Smi* source) {
+    Set(dst, reinterpret_cast<int64_t>(source));
+  }
+
   void Push(Smi* smi);
   void Test(const Operand& dst, Smi* source);
 
@@ -391,14 +394,6 @@ class MacroAssembler: public Assembler {
   void Set(const Operand& dst, int64_t x);
 
   // Handle support
-  bool IsUnsafeSmi(Handle<Object> value) {
-    return IsUnsafeSmi(Smi::cast(*value));
-  }
-
-  void LoadUnsafeSmi(Register dst, Handle<Object> source) {
-    LoadUnsafeSmi(dst, Smi::cast(*source));
-  }
-
   void Move(Register dst, Handle<Object> source);
   void Move(const Operand& dst, Handle<Object> source);
   void Cmp(Register dst, Handle<Object> source);
