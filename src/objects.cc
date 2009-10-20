@@ -751,7 +751,7 @@ Object* String::TryFlatten() {
 
 bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 #ifdef DEBUG
-  {  // NOLINT (presubmit.py gets confused about if and braces)
+  if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
     SmartPointer<uc16> smart_chars = this->ToWideCString();
@@ -794,7 +794,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 #ifdef DEBUG
-  {  // NOLINT (presubmit.py gets confused about if and braces)
+  if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     ASSERT(static_cast<size_t>(this->length()) == resource->length());
     SmartPointer<char> smart_chars = this->ToCString();
