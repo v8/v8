@@ -1435,6 +1435,8 @@ class FreeListNode: public HeapObject {
     return reinterpret_cast<FreeListNode*>(HeapObject::FromAddress(address));
   }
 
+  static inline bool IsFreeListNode(HeapObject* object);
+
   // Set the size in bytes, which can be read with HeapObject::Size().  This
   // function also writes a map to the first word of the block so that it
   // looks like a heap object to the garbage collector and heap iteration

@@ -1540,8 +1540,7 @@ void FreeListNode::set_size(int size_in_bytes) {
 
 
 Address FreeListNode::next() {
-  ASSERT(map() == Heap::raw_unchecked_byte_array_map() ||
-         map() == Heap::raw_unchecked_two_pointer_filler_map());
+  ASSERT(IsFreeListNode(this));
   if (map() == Heap::raw_unchecked_byte_array_map()) {
     ASSERT(Size() >= kNextOffset + kPointerSize);
     return Memory::Address_at(address() + kNextOffset);
@@ -1552,8 +1551,7 @@ Address FreeListNode::next() {
 
 
 void FreeListNode::set_next(Address next) {
-  ASSERT(map() == Heap::raw_unchecked_byte_array_map() ||
-         map() == Heap::raw_unchecked_two_pointer_filler_map());
+  ASSERT(IsFreeListNode(this));
   if (map() == Heap::raw_unchecked_byte_array_map()) {
     ASSERT(Size() >= kNextOffset + kPointerSize);
     Memory::Address_at(address() + kNextOffset) = next;
