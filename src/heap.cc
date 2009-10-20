@@ -127,6 +127,19 @@ int Heap::Capacity() {
 }
 
 
+int Heap::CommittedMemory() {
+  if (!HasBeenSetup()) return 0;
+
+  return new_space_.CommittedMemory() +
+      old_pointer_space_->CommittedMemory() +
+      old_data_space_->CommittedMemory() +
+      code_space_->CommittedMemory() +
+      map_space_->CommittedMemory() +
+      cell_space_->CommittedMemory() +
+      lo_space_->Size();
+}
+
+
 int Heap::Available() {
   if (!HasBeenSetup()) return 0;
 
@@ -222,19 +235,34 @@ void Heap::ReportStatisticsBeforeGC() {
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
   PrintF("Memory allocator,   used: %8d, available: %8d\n",
-         MemoryAllocator::Size(), MemoryAllocator::Available());
+         MemoryAllocator::Size(),
+         MemoryAllocator::Available());
   PrintF("New space,          used: %8d, available: %8d\n",
-         Heap::new_space_.Size(), new_space_.Available());
-  PrintF("Old pointers,       used: %8d, available: %8d\n",
-         old_pointer_space_->Size(), old_pointer_space_->Available());
-  PrintF("Old data space,     used: %8d, available: %8d\n",
-         old_data_space_->Size(), old_data_space_->Available());
-  PrintF("Code space,         used: %8d, available: %8d\n",
-         code_space_->Size(), code_space_->Available());
-  PrintF("Map space,          used: %8d, available: %8d\n",
-         map_space_->Size(), map_space_->Available());
+         Heap::new_space_.Size(),
+         new_space_.Available());
+  PrintF("Old pointers,       used: %8d, available: %8d, waste: %8d\n",
+         old_pointer_space_->Size(),
+         old_pointer_space_->Available(),
+         old_pointer_space_->Waste());
+  PrintF("Old data space,     used: %8d, available: %8d, waste: %8d\n",
+         old_data_space_->Size(),
+         old_data_space_->Available(),
+         old_data_space_->Waste());
+  PrintF("Code space,         used: %8d, available: %8d, waste: %8d\n",
+         code_space_->Size(),
+         code_space_->Available(),
+         code_space_->Waste());
+  PrintF("Map space,          used: %8d, available: %8d, waste: %8d\n",
+         map_space_->Size(),
+         map_space_->Available(),
+         map_space_->Waste());
+  PrintF("Cell space,         used: %8d, available: %8d, waste: %8d\n",
+         cell_space_->Size(),
+         cell_space_->Available(),
+         cell_space_->Waste());
   PrintF("Large object space, used: %8d, avaialble: %8d\n",
-         lo_space_->Size(), lo_space_->Available());
+         lo_space_->Size(),
+         lo_space_->Available());
 }
 #endif
 

@@ -8153,3 +8153,15 @@ TEST(SetResourceConstraintsInThread) {
     CHECK(stack_limit == set_limit);
   }
 }
+
+
+THREADED_TEST(GetHeapStatistics) {
+  v8::HandleScope scope;
+  LocalContext c1;
+  v8::HeapStatistics heap_statistics;
+  CHECK_EQ(heap_statistics.total_heap_size(), 0);
+  CHECK_EQ(heap_statistics.used_heap_size(), 0);
+  v8::V8::GetHeapStatistics(&heap_statistics);
+  CHECK_NE(heap_statistics.total_heap_size(), 0);
+  CHECK_NE(heap_statistics.used_heap_size(), 0);
+}

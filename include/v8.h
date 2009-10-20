@@ -2103,6 +2103,29 @@ enum ProfilerModules {
 
 
 /**
+ * Collection of V8 heap information.
+ *
+ * Instances of this class can be passed to v8::V8::HeapStatistics to
+ * get heap statistics from V8.
+ */
+class V8EXPORT HeapStatistics {
+ public:
+  HeapStatistics();
+  size_t total_heap_size() { return total_heap_size_; }
+  size_t used_heap_size() { return used_heap_size_; }
+
+ private:
+  void set_total_heap_size(size_t size) { total_heap_size_ = size; }
+  void set_used_heap_size(size_t size) { used_heap_size_ = size; }
+
+  size_t total_heap_size_;
+  size_t used_heap_size_;
+
+  friend class V8;
+};
+
+
+/**
  * Container class for static utility functions.
  */
 class V8EXPORT V8 {
@@ -2352,6 +2375,10 @@ class V8EXPORT V8 {
    */
   static bool Dispose();
 
+  /**
+   * Get statistics about the heap memory usage.
+   */
+  static void GetHeapStatistics(HeapStatistics* heap_statistics);
 
   /**
    * Optional notification that the embedder is idle.

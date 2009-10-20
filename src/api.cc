@@ -2611,6 +2611,15 @@ bool v8::V8::Dispose() {
 }
 
 
+HeapStatistics::HeapStatistics(): total_heap_size_(0), used_heap_size_(0) { }
+
+
+void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
+  heap_statistics->set_total_heap_size(i::Heap::CommittedMemory());
+  heap_statistics->set_used_heap_size(i::Heap::SizeOfObjects());
+}
+
+
 bool v8::V8::IdleNotification() {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.

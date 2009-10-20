@@ -260,6 +260,9 @@ class Heap : public AllStatic {
   // more spaces are needed until it reaches the limit.
   static int Capacity();
 
+  // Returns the amount of memory currently committed for the heap.
+  static int CommittedMemory();
+
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
   // all available bytes. Check MaxHeapObjectSize() instead.
