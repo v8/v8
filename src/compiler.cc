@@ -456,7 +456,6 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
 
   if (!scope->declarations()->is_empty()) return NORMAL;
   if (fun->materialized_literal_count() > 0) return NORMAL;
-  if (fun->body()->is_empty()) return NORMAL;
 
   has_supported_syntax_ = true;
   VisitStatements(fun->body());
