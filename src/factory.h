@@ -155,8 +155,15 @@ class Factory : public AllStatic {
   static Handle<ByteArray> NewByteArray(int length,
                                         PretenureFlag pretenure = NOT_TENURED);
 
-  static Handle<PixelArray> NewPixelArray(int length,
+  static Handle<PixelArray> NewPixelArray(
+      int length,
       uint8_t* external_pointer,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  static Handle<ExternalArray> NewExternalArray(
+      int length,
+      ExternalArrayType array_type,
+      void* external_pointer,
       PretenureFlag pretenure = NOT_TENURED);
 
   static Handle<Map> NewMap(InstanceType type, int instance_size);
@@ -244,6 +251,8 @@ class Factory : public AllStatic {
   static Handle<Object> NewRangeError(const char* type,
                                       Vector< Handle<Object> > args);
   static Handle<Object> NewRangeError(Handle<String> message);
+
+  static Handle<Object> NewIndexError(uint32_t index);
 
   static Handle<Object> NewSyntaxError(const char* type, Handle<JSArray> args);
   static Handle<Object> NewSyntaxError(Handle<String> message);

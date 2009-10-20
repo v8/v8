@@ -360,6 +360,65 @@ bool Object::IsPixelArray() {
 }
 
 
+bool Object::IsExternalArray() {
+  if (!Object::IsHeapObject())
+    return false;
+  InstanceType instance_type =
+      HeapObject::cast(this)->map()->instance_type();
+  return (instance_type >= EXTERNAL_BYTE_ARRAY_TYPE &&
+          instance_type <= EXTERNAL_FLOAT_ARRAY_TYPE);
+}
+
+
+bool Object::IsExternalByteArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_BYTE_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalUnsignedByteArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalShortArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_SHORT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalUnsignedShortArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalIntArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_INT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalUnsignedIntArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_UNSIGNED_INT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalFloatArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_FLOAT_ARRAY_TYPE;
+}
+
+
 bool Object::IsFailure() {
   return HAS_FAILURE_TAG(this);
 }
@@ -1084,14 +1143,16 @@ ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 Array* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
   // In the assert below Dictionary is covered under FixedArray.
-  ASSERT(array->IsFixedArray() || array->IsPixelArray());
+  ASSERT(array->IsFixedArray() || array->IsPixelArray() ||
+         array->IsExternalArray());
   return reinterpret_cast<Array*>(array);
 }
 
 
 void JSObject::set_elements(Array* value, WriteBarrierMode mode) {
   // In the assert below Dictionary is covered under FixedArray.
-  ASSERT(value->IsFixedArray() || value->IsPixelArray());
+  ASSERT(value->IsFixedArray() || value->IsPixelArray() ||
+         value->IsExternalArray());
   WRITE_FIELD(this, kElementsOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kElementsOffset, mode);
 }
@@ -1554,6 +1615,14 @@ CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(Proxy)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(PixelArray)
+CAST_ACCESSOR(ExternalArray)
+CAST_ACCESSOR(ExternalByteArray)
+CAST_ACCESSOR(ExternalUnsignedByteArray)
+CAST_ACCESSOR(ExternalShortArray)
+CAST_ACCESSOR(ExternalUnsignedShortArray)
+CAST_ACCESSOR(ExternalIntArray)
+CAST_ACCESSOR(ExternalUnsignedIntArray)
+CAST_ACCESSOR(ExternalFloatArray)
 CAST_ACCESSOR(Struct)
 
 
@@ -1934,6 +2003,116 @@ uint8_t PixelArray::get(int index) {
 void PixelArray::set(int index, uint8_t value) {
   ASSERT((index >= 0) && (index < this->length()));
   uint8_t* ptr = external_pointer();
+  ptr[index] = value;
+}
+
+
+void* ExternalArray::external_pointer() {
+  intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
+  return reinterpret_cast<void*>(ptr);
+}
+
+
+void ExternalArray::set_external_pointer(void* value, WriteBarrierMode mode) {
+  intptr_t ptr = reinterpret_cast<intptr_t>(value);
+  WRITE_INTPTR_FIELD(this, kExternalPointerOffset, ptr);
+}
+
+
+int8_t ExternalByteArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int8_t* ptr = static_cast<int8_t*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalByteArray::set(int index, int8_t value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int8_t* ptr = static_cast<int8_t*>(external_pointer());
+  ptr[index] = value;
+}
+
+
+uint8_t ExternalUnsignedByteArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint8_t* ptr = static_cast<uint8_t*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalUnsignedByteArray::set(int index, uint8_t value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint8_t* ptr = static_cast<uint8_t*>(external_pointer());
+  ptr[index] = value;
+}
+
+
+int16_t ExternalShortArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int16_t* ptr = static_cast<int16_t*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalShortArray::set(int index, int16_t value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int16_t* ptr = static_cast<int16_t*>(external_pointer());
+  ptr[index] = value;
+}
+
+
+uint16_t ExternalUnsignedShortArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint16_t* ptr = static_cast<uint16_t*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalUnsignedShortArray::set(int index, uint16_t value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint16_t* ptr = static_cast<uint16_t*>(external_pointer());
+  ptr[index] = value;
+}
+
+
+int32_t ExternalIntArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int32_t* ptr = static_cast<int32_t*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalIntArray::set(int index, int32_t value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  int32_t* ptr = static_cast<int32_t*>(external_pointer());
+  ptr[index] = value;
+}
+
+
+uint32_t ExternalUnsignedIntArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint32_t* ptr = static_cast<uint32_t*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalUnsignedIntArray::set(int index, uint32_t value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  uint32_t* ptr = static_cast<uint32_t*>(external_pointer());
+  ptr[index] = value;
+}
+
+
+float ExternalFloatArray::get(int index) {
+  ASSERT((index >= 0) && (index < this->length()));
+  float* ptr = static_cast<float*>(external_pointer());
+  return ptr[index];
+}
+
+
+void ExternalFloatArray::set(int index, float value) {
+  ASSERT((index >= 0) && (index < this->length()));
+  float* ptr = static_cast<float*>(external_pointer());
   ptr[index] = value;
 }
 
@@ -2646,6 +2825,25 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
     ASSERT(array->IsDictionary());
     return DICTIONARY_ELEMENTS;
   }
+  if (array->IsExternalArray()) {
+    switch (array->map()->instance_type()) {
+      case EXTERNAL_BYTE_ARRAY_TYPE:
+        return EXTERNAL_BYTE_ELEMENTS;
+      case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+        return EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+      case EXTERNAL_SHORT_ARRAY_TYPE:
+        return EXTERNAL_SHORT_ELEMENTS;
+      case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+        return EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+      case EXTERNAL_INT_ARRAY_TYPE:
+        return EXTERNAL_INT_ELEMENTS;
+      case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+        return EXTERNAL_UNSIGNED_INT_ELEMENTS;
+      default:
+        ASSERT(array->map()->instance_type() == EXTERNAL_FLOAT_ARRAY_TYPE);
+        return EXTERNAL_FLOAT_ELEMENTS;
+    }
+  }
   ASSERT(array->IsPixelArray());
   return PIXEL_ELEMENTS;
 }
@@ -2663,6 +2861,52 @@ bool JSObject::HasDictionaryElements() {
 
 bool JSObject::HasPixelElements() {
   return GetElementsKind() == PIXEL_ELEMENTS;
+}
+
+
+bool JSObject::HasExternalArrayElements() {
+  return (HasExternalByteElements() ||
+          HasExternalUnsignedByteElements() ||
+          HasExternalShortElements() ||
+          HasExternalUnsignedShortElements() ||
+          HasExternalIntElements() ||
+          HasExternalUnsignedIntElements() ||
+          HasExternalFloatElements());
+}
+
+
+bool JSObject::HasExternalByteElements() {
+  return GetElementsKind() == EXTERNAL_BYTE_ELEMENTS;
+}
+
+
+bool JSObject::HasExternalUnsignedByteElements() {
+  return GetElementsKind() == EXTERNAL_UNSIGNED_BYTE_ELEMENTS;
+}
+
+
+bool JSObject::HasExternalShortElements() {
+  return GetElementsKind() == EXTERNAL_SHORT_ELEMENTS;
+}
+
+
+bool JSObject::HasExternalUnsignedShortElements() {
+  return GetElementsKind() == EXTERNAL_UNSIGNED_SHORT_ELEMENTS;
+}
+
+
+bool JSObject::HasExternalIntElements() {
+  return GetElementsKind() == EXTERNAL_INT_ELEMENTS;
+}
+
+
+bool JSObject::HasExternalUnsignedIntElements() {
+  return GetElementsKind() == EXTERNAL_UNSIGNED_INT_ELEMENTS;
+}
+
+
+bool JSObject::HasExternalFloatElements() {
+  return GetElementsKind() == EXTERNAL_FLOAT_ELEMENTS;
 }
 
 

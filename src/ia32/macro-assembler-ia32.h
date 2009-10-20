@@ -206,6 +206,15 @@ class MacroAssembler: public Assembler {
   // un-done.
   void UndoAllocationInNewSpace(Register object);
 
+  // Allocate a heap number in new space with undefined value. The
+  // register scratch2 can be passed as no_reg; the others must be
+  // valid registers. Returns tagged pointer in result register, or
+  // jumps to gc_required if new space is full.
+  void AllocateHeapNumber(Register result,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* gc_required);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 

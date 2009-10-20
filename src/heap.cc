@@ -1218,6 +1218,41 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   set_pixel_array_map(Map::cast(obj));
 
+  obj = AllocateMap(EXTERNAL_BYTE_ARRAY_TYPE,
+                    ExternalArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_external_byte_array_map(Map::cast(obj));
+
+  obj = AllocateMap(EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
+                    ExternalArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_external_unsigned_byte_array_map(Map::cast(obj));
+
+  obj = AllocateMap(EXTERNAL_SHORT_ARRAY_TYPE,
+                    ExternalArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_external_short_array_map(Map::cast(obj));
+
+  obj = AllocateMap(EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE,
+                    ExternalArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_external_unsigned_short_array_map(Map::cast(obj));
+
+  obj = AllocateMap(EXTERNAL_INT_ARRAY_TYPE,
+                    ExternalArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_external_int_array_map(Map::cast(obj));
+
+  obj = AllocateMap(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
+                    ExternalArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_external_unsigned_int_array_map(Map::cast(obj));
+
+  obj = AllocateMap(EXTERNAL_FLOAT_ARRAY_TYPE,
+                    ExternalArray::kAlignedSize);
+  if (obj->IsFailure()) return false;
+  set_external_float_array_map(Map::cast(obj));
+
   obj = AllocateMap(CODE_TYPE, Code::kHeaderSize);
   if (obj->IsFailure()) return false;
   set_code_map(Map::cast(obj));
@@ -1638,6 +1673,35 @@ Object* Heap::NumberToString(Object* number) {
 }
 
 
+Map* Heap::MapForExternalArrayType(ExternalArrayType array_type) {
+  return Map::cast(roots_[RootIndexForExternalArrayType(array_type)]);
+}
+
+
+Heap::RootListIndex Heap::RootIndexForExternalArrayType(
+    ExternalArrayType array_type) {
+  switch (array_type) {
+    case kExternalByteArray:
+      return kExternalByteArrayMapRootIndex;
+    case kExternalUnsignedByteArray:
+      return kExternalUnsignedByteArrayMapRootIndex;
+    case kExternalShortArray:
+      return kExternalShortArrayMapRootIndex;
+    case kExternalUnsignedShortArray:
+      return kExternalUnsignedShortArrayMapRootIndex;
+    case kExternalIntArray:
+      return kExternalIntArrayMapRootIndex;
+    case kExternalUnsignedIntArray:
+      return kExternalUnsignedIntArrayMapRootIndex;
+    case kExternalFloatArray:
+      return kExternalFloatArrayMapRootIndex;
+    default:
+      UNREACHABLE();
+      return kUndefinedValueRootIndex;
+  }
+}
+
+
 Object* Heap::NewNumberFromDouble(double value, PretenureFlag pretenure) {
   return SmiOrNumberFromDouble(value,
                                true /* number object must be new */,
@@ -1958,6 +2022,31 @@ Object* Heap::AllocatePixelArray(int length,
   reinterpret_cast<PixelArray*>(result)->set_map(pixel_array_map());
   reinterpret_cast<PixelArray*>(result)->set_length(length);
   reinterpret_cast<PixelArray*>(result)->set_external_pointer(external_pointer);
+
+  return result;
+}
+
+
+Object* Heap::AllocateExternalArray(int length,
+                                    ExternalArrayType array_type,
+                                    void* external_pointer,
+                                    PretenureFlag pretenure) {
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+
+  // New space can't cope with forced allocation.
+  if (always_allocate()) space = OLD_DATA_SPACE;
+
+  Object* result = AllocateRaw(ExternalArray::kAlignedSize,
+                               space,
+                               OLD_DATA_SPACE);
+
+  if (result->IsFailure()) return result;
+
+  reinterpret_cast<ExternalArray*>(result)->set_map(
+      MapForExternalArrayType(array_type));
+  reinterpret_cast<ExternalArray*>(result)->set_length(length);
+  reinterpret_cast<ExternalArray*>(result)->set_external_pointer(
+      external_pointer);
 
   return result;
 }

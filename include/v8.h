@@ -1126,6 +1126,16 @@ enum PropertyAttribute {
   DontDelete = 1 << 2
 };
 
+enum ExternalArrayType {
+  kExternalByteArray = 1,
+  kExternalUnsignedByteArray,
+  kExternalShortArray,
+  kExternalUnsignedShortArray,
+  kExternalIntArray,
+  kExternalUnsignedIntArray,
+  kExternalFloatArray
+};
+
 /**
  * A JavaScript object (ECMA-262, 4.3.3)
  */
@@ -1277,6 +1287,17 @@ class V8EXPORT Object : public Value {
    *       the backing store is preserved while V8 has a reference.
    */
   void SetIndexedPropertiesToPixelData(uint8_t* data, int length);
+
+  /**
+   * Set the backing store of the indexed properties to be managed by the
+   * embedding layer. Access to the indexed properties will follow the rules
+   * spelled out for the CanvasArray subtypes in the WebGL specification.
+   * Note: The embedding program still owns the data and needs to ensure that
+   *       the backing store is preserved while V8 has a reference.
+   */
+  void SetIndexedPropertiesToExternalArrayData(void* data,
+                                               ExternalArrayType array_type,
+                                               int number_of_elements);
 
   static Local<Object> New();
   static inline Object* Cast(Value* obj);

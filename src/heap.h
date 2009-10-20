@@ -111,6 +111,13 @@ namespace internal {
   V(Map, undetectable_long_ascii_string_map, UndetectableLongAsciiStringMap)   \
   V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, pixel_array_map, PixelArrayMap)                                       \
+  V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
+  V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
+  V(Map, external_short_array_map, ExternalShortArrayMap)                      \
+  V(Map, external_unsigned_short_array_map, ExternalUnsignedShortArrayMap)     \
+  V(Map, external_int_array_map, ExternalIntArrayMap)                          \
+  V(Map, external_unsigned_int_array_map, ExternalUnsignedIntArrayMap)         \
+  V(Map, external_float_array_map, ExternalFloatArrayMap)                      \
   V(Map, context_map, ContextMap)                                              \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, code_map, CodeMap)                                                    \
@@ -451,6 +458,15 @@ class Heap : public AllStatic {
   static Object* AllocatePixelArray(int length,
                                     uint8_t* external_pointer,
                                     PretenureFlag pretenure);
+
+  // Allocates an external array of the specified length and type.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateExternalArray(int length,
+                                       ExternalArrayType array_type,
+                                       void* external_pointer,
+                                       PretenureFlag pretenure);
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -883,6 +899,10 @@ class Heap : public AllStatic {
   };
 
   static Object* NumberToString(Object* number);
+
+  static Map* MapForExternalArrayType(ExternalArrayType array_type);
+  static RootListIndex RootIndexForExternalArrayType(
+      ExternalArrayType array_type);
 
  private:
   static int semispace_size_;

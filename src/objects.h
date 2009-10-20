@@ -56,6 +56,14 @@
 //       - Array
 //         - ByteArray
 //         - PixelArray
+//         - ExternalArray
+//           - ExternalByteArray
+//           - ExternalUnsignedByteArray
+//           - ExternalShortArray
+//           - ExternalUnsignedShortArray
+//           - ExternalIntArray
+//           - ExternalUnsignedIntArray
+//           - ExternalFloatArray
 //         - FixedArray
 //           - DescriptorArray
 //           - HashTable
@@ -274,6 +282,16 @@ enum PropertyNormalizationMode {
   V(PROXY_TYPE)                                 \
   V(BYTE_ARRAY_TYPE)                            \
   V(PIXEL_ARRAY_TYPE)                           \
+  /* Note: the order of these external array */ \
+  /* types is relied upon in */                 \
+  /* Object::IsExternalArray(). */              \
+  V(EXTERNAL_BYTE_ARRAY_TYPE)                   \
+  V(EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)          \
+  V(EXTERNAL_SHORT_ARRAY_TYPE)                  \
+  V(EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)         \
+  V(EXTERNAL_INT_ARRAY_TYPE)                    \
+  V(EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)           \
+  V(EXTERNAL_FLOAT_ARRAY_TYPE)                  \
   V(FILLER_TYPE)                                \
                                                 \
   V(ACCESSOR_INFO_TYPE)                         \
@@ -673,6 +691,13 @@ enum InstanceType {
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   PIXEL_ARRAY_TYPE,
+  EXTERNAL_BYTE_ARRAY_TYPE,
+  EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
+  EXTERNAL_SHORT_ARRAY_TYPE,
+  EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE,
+  EXTERNAL_INT_ARRAY_TYPE,
+  EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
+  EXTERNAL_FLOAT_ARRAY_TYPE,
   FILLER_TYPE,
   SMI_TYPE,
 
@@ -780,6 +805,14 @@ class Object BASE_EMBEDDED {
   inline bool IsNumber();
   inline bool IsByteArray();
   inline bool IsPixelArray();
+  inline bool IsExternalArray();
+  inline bool IsExternalByteArray();
+  inline bool IsExternalUnsignedByteArray();
+  inline bool IsExternalShortArray();
+  inline bool IsExternalUnsignedShortArray();
+  inline bool IsExternalIntArray();
+  inline bool IsExternalUnsignedIntArray();
+  inline bool IsExternalFloatArray();
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
   inline bool IsOutOfMemoryFailure();
@@ -1323,7 +1356,14 @@ class JSObject: public HeapObject {
   enum ElementsKind {
     FAST_ELEMENTS,
     DICTIONARY_ELEMENTS,
-    PIXEL_ELEMENTS
+    PIXEL_ELEMENTS,
+    EXTERNAL_BYTE_ELEMENTS,
+    EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
+    EXTERNAL_SHORT_ELEMENTS,
+    EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
+    EXTERNAL_INT_ELEMENTS,
+    EXTERNAL_UNSIGNED_INT_ELEMENTS,
+    EXTERNAL_FLOAT_ELEMENTS
   };
 
   // [properties]: Backing storage for properties.
@@ -1343,6 +1383,14 @@ class JSObject: public HeapObject {
   inline bool HasFastElements();
   inline bool HasDictionaryElements();
   inline bool HasPixelElements();
+  inline bool HasExternalArrayElements();
+  inline bool HasExternalByteElements();
+  inline bool HasExternalUnsignedByteElements();
+  inline bool HasExternalShortElements();
+  inline bool HasExternalUnsignedShortElements();
+  inline bool HasExternalIntElements();
+  inline bool HasExternalUnsignedIntElements();
+  inline bool HasExternalFloatElements();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Collects elements starting at index 0.
@@ -2504,6 +2552,200 @@ class PixelArray: public Array {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PixelArray);
+};
+
+
+// An ExternalArray represents a fixed-size array of primitive values
+// which live outside the JavaScript heap. Its subclasses are used to
+// implement the CanvasArray types being defined in the WebGL
+// specification. As of this writing the first public draft is not yet
+// available, but Khronos members can access the draft at:
+//   https://cvs.khronos.org/svn/repos/3dweb/trunk/doc/spec/WebGL-spec.html
+//
+// The semantics of these arrays differ from CanvasPixelArray.
+// Out-of-range values passed to the setter are converted via a C
+// cast, not clamping. Out-of-range indices cause exceptions to be
+// raised rather than being silently ignored.
+class ExternalArray: public Array {
+ public:
+  // [external_pointer]: The pointer to the external memory area backing this
+  // external array.
+  DECL_ACCESSORS(external_pointer, void)  // Pointer to the data store.
+
+  // Casting.
+  static inline ExternalArray* cast(Object* obj);
+
+  // Maximal acceptable length for an external array.
+  static const int kMaxLength = 0x3fffffff;
+
+  // ExternalArray headers are not quadword aligned.
+  static const int kExternalPointerOffset = Array::kAlignedSize;
+  static const int kHeaderSize = kExternalPointerOffset + kPointerSize;
+  static const int kAlignedSize = OBJECT_SIZE_ALIGN(kHeaderSize);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalArray);
+};
+
+
+class ExternalByteArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline int8_t get(int index);
+  inline void set(int index, int8_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalByteArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void ExternalByteArrayPrint();
+  void ExternalByteArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalByteArray);
+};
+
+
+class ExternalUnsignedByteArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline uint8_t get(int index);
+  inline void set(int index, uint8_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalUnsignedByteArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void ExternalUnsignedByteArrayPrint();
+  void ExternalUnsignedByteArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedByteArray);
+};
+
+
+class ExternalShortArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline int16_t get(int index);
+  inline void set(int index, int16_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalShortArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void ExternalShortArrayPrint();
+  void ExternalShortArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalShortArray);
+};
+
+
+class ExternalUnsignedShortArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline uint16_t get(int index);
+  inline void set(int index, uint16_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalUnsignedShortArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void ExternalUnsignedShortArrayPrint();
+  void ExternalUnsignedShortArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedShortArray);
+};
+
+
+class ExternalIntArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline int32_t get(int index);
+  inline void set(int index, int32_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalIntArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void ExternalIntArrayPrint();
+  void ExternalIntArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalIntArray);
+};
+
+
+class ExternalUnsignedIntArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline uint32_t get(int index);
+  inline void set(int index, uint32_t value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalUnsignedIntArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void ExternalUnsignedIntArrayPrint();
+  void ExternalUnsignedIntArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalUnsignedIntArray);
+};
+
+
+class ExternalFloatArray: public ExternalArray {
+ public:
+  // Setter and getter.
+  inline float get(int index);
+  inline void set(int index, float value);
+
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
+  Object* SetValue(uint32_t index, Object* value);
+
+  // Casting.
+  static inline ExternalFloatArray* cast(Object* obj);
+
+#ifdef DEBUG
+  void ExternalFloatArrayPrint();
+  void ExternalFloatArrayVerify();
+#endif  // DEBUG
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalFloatArray);
 };
 
 

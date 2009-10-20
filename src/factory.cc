@@ -222,6 +222,18 @@ Handle<PixelArray> Factory::NewPixelArray(int length,
 }
 
 
+Handle<ExternalArray> Factory::NewExternalArray(int length,
+                                                ExternalArrayType array_type,
+                                                void* external_pointer,
+                                                PretenureFlag pretenure) {
+  ASSERT(0 <= length);
+  CALL_HEAP_FUNCTION(Heap::AllocateExternalArray(length,
+                                                 array_type,
+                                                 external_pointer,
+                                                 pretenure), ExternalArray);
+}
+
+
 Handle<Map> Factory::NewMap(InstanceType type, int instance_size) {
   CALL_HEAP_FUNCTION(Heap::AllocateMap(type, instance_size), Map);
 }
@@ -348,6 +360,14 @@ Handle<Object> Factory::NewRangeError(const char* type,
 
 Handle<Object> Factory::NewRangeError(Handle<String> message) {
   return NewError("$RangeError", message);
+}
+
+
+Handle<Object> Factory::NewIndexError(uint32_t index) {
+  Handle<Object> indexHandle = Handle<Object>(Heap::NumberFromUint32(index));
+  return NewRangeError("invalid_array_index",
+                       HandleVector<Object>(&indexHandle,
+                                            1));
 }
 
 

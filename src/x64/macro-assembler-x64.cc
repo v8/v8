@@ -580,6 +580,14 @@ Condition MacroAssembler::CheckInteger32ValidSmiValue(Register src) {
 }
 
 
+Condition MacroAssembler::CheckUInteger32ValidSmiValue(Register src) {
+  // An unsigned 32-bit integer value is valid as long as the high bit
+  // is not set.
+  testq(src, Immediate(0x80000000));
+  return zero;
+}
+
+
 void MacroAssembler::SmiNeg(Register dst, Register src, Label* on_smi_result) {
   if (dst.is(src)) {
     ASSERT(!dst.is(kScratchRegister));
@@ -1239,6 +1247,13 @@ void MacroAssembler::JumpIfSmiEqualsConstant(Register src,
 
 void MacroAssembler::JumpIfNotValidSmiValue(Register src, Label* on_invalid) {
   Condition is_valid = CheckInteger32ValidSmiValue(src);
+  j(NegateCondition(is_valid), on_invalid);
+}
+
+
+void MacroAssembler::JumpIfUIntNotValidSmiValue(Register src,
+                                                Label* on_invalid) {
+  Condition is_valid = CheckUInteger32ValidSmiValue(src);
   j(NegateCondition(is_valid), on_invalid);
 }
 
@@ -2210,6 +2225,23 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object) {
   Check(below, "Undo allocation of non allocated memory");
 #endif
   movq(Operand(kScratchRegister, 0), object);
+}
+
+
+void MacroAssembler::AllocateHeapNumber(Register result,
+                                        Register scratch,
+                                        Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(HeapNumber::kSize,
+                     result,
+                     scratch,
+                     no_reg,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map.
+  LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
+  movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 
 

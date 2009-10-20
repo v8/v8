@@ -513,6 +513,10 @@ class Assembler : public Malloced {
   void movb(Register dst, Immediate imm);
   void movb(const Operand& dst, Register src);
 
+  // Move the low 16 bits of a 64-bit register value to a 16-bit
+  // memory location.
+  void movw(const Operand& dst, Register src);
+
   void movl(Register dst, Register src);
   void movl(Register dst, const Operand& src);
   void movl(const Operand& dst, Register src);
@@ -542,10 +546,13 @@ class Assembler : public Malloced {
   void movq(Register dst, ExternalReference ext);
   void movq(Register dst, Handle<Object> handle, RelocInfo::Mode rmode);
 
+  void movsxbq(Register dst, const Operand& src);
+  void movsxwq(Register dst, const Operand& src);
   void movsxlq(Register dst, Register src);
   void movsxlq(Register dst, const Operand& src);
   void movzxbq(Register dst, const Operand& src);
   void movzxbl(Register dst, const Operand& src);
+  void movzxwq(Register dst, const Operand& src);
   void movzxwl(Register dst, const Operand& src);
 
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.

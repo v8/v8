@@ -2306,6 +2306,30 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
 }
 
 
+void v8::Object::SetIndexedPropertiesToExternalArrayData(
+    void* data,
+    ExternalArrayType array_type,
+    int length) {
+  ON_BAILOUT("v8::SetIndexedPropertiesToExternalArrayData()", return);
+  ENTER_V8;
+  HandleScope scope;
+  if (!ApiCheck(length <= i::ExternalArray::kMaxLength,
+                "v8::Object::SetIndexedPropertiesToExternalArrayData()",
+                "length exceeds max acceptable value")) {
+    return;
+  }
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  if (!ApiCheck(!self->IsJSArray(),
+                "v8::Object::SetIndexedPropertiesToExternalArrayData()",
+                "JSArray is not supported")) {
+    return;
+  }
+  i::Handle<i::ExternalArray> array =
+      i::Factory::NewExternalArray(length, array_type, data);
+  self->set_elements(*array);
+}
+
+
 Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }

@@ -207,11 +207,18 @@ class MacroAssembler: public Assembler {
   // to a smi.
   Condition CheckInteger32ValidSmiValue(Register src);
 
+  // Checks whether an 32-bit unsigned integer value is a valid for
+  // conversion to a smi.
+  Condition CheckUInteger32ValidSmiValue(Register src);
+
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
 
   // Jump if the value cannot be represented by a smi.
   void JumpIfNotValidSmiValue(Register src, Label* on_invalid);
+
+  // Jump if the unsigned integer value cannot be represented by a smi.
+  void JumpIfUIntNotValidSmiValue(Register src, Label* on_invalid);
 
   // Jump to label if the value is a tagged smi.
   void JumpIfSmi(Register src, Label* on_smi);
@@ -497,6 +504,13 @@ class MacroAssembler: public Assembler {
   // object(s) no longer allocated as they would be invalid when allocation is
   // un-done.
   void UndoAllocationInNewSpace(Register object);
+
+  // Allocate a heap number in new space with undefined value. Returns
+  // tagged pointer in result register, or jumps to gc_required if new
+  // space is full.
+  void AllocateHeapNumber(Register result,
+                          Register scratch,
+                          Label* gc_required);
 
   // ---------------------------------------------------------------------------
   // Support functions.

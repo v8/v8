@@ -159,6 +159,7 @@ function FormatMessage(message) {
       reduce_no_initial:            "Reduce of empty array with no initial value",
       // RangeError
       invalid_array_length:         "Invalid array length",
+      invalid_array_index:          "Invalid array index %0",  // Currently for CanvasArray types only
       stack_overflow:               "Maximum call stack size exceeded",
       apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
       // SyntaxError

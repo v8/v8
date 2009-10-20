@@ -773,13 +773,6 @@ class FloatingPointHelper : public AllStatic {
   // either operand is not a number.  Operands are in edx and eax.
   // Leaves operands unchanged.
   static void LoadSse2Operands(MacroAssembler* masm, Label* not_numbers);
-  // Allocate a heap number in new space with undefined value.
-  // Returns tagged pointer in eax, or jumps to need_gc if new space is full.
-  static void AllocateHeapNumber(MacroAssembler* masm,
-                                 Label* need_gc,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Register result);
 };
 
 
@@ -5175,11 +5168,10 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   Result scratch1 = allocator()->Allocate();
   Result scratch2 = allocator()->Allocate();
   Result heap_number = allocator()->Allocate();
-  FloatingPointHelper::AllocateHeapNumber(masm_,
-                                          call_runtime.entry_label(),
-                                          scratch1.reg(),
-                                          scratch2.reg(),
-                                          heap_number.reg());
+  __ AllocateHeapNumber(heap_number.reg(),
+                        scratch1.reg(),
+                        scratch2.reg(),
+                        call_runtime.entry_label());
   scratch1.Unuse();
   scratch2.Unuse();
 
@@ -6836,11 +6828,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           case NO_OVERWRITE: {
             // Allocate a heap number for the result. Keep eax and edx intact
             // for the possible runtime call.
-            FloatingPointHelper::AllocateHeapNumber(masm,
-                                                    &call_runtime,
-                                                    ecx,
-                                                    no_reg,
-                                                    ebx);
+            __ AllocateHeapNumber(ebx, ecx, no_reg, &call_runtime);
             // Now eax can be overwritten losing one of the arguments as we are
             // now done and will not need it any more.
             __ mov(eax, ebx);
@@ -6868,11 +6856,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           case NO_OVERWRITE:
             // Allocate a heap number for the result. Keep eax and edx intact
             // for the possible runtime call.
-            FloatingPointHelper::AllocateHeapNumber(masm,
-                                                    &call_runtime,
-                                                    ecx,
-                                                    no_reg,
-                                                    ebx);
+            __ AllocateHeapNumber(ebx, ecx, no_reg, &call_runtime);
             // Now eax can be overwritten losing one of the arguments as we are
             // now done and will not need it any more.
             __ mov(eax, ebx);
@@ -6982,8 +6966,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             __ j(not_zero, &skip_allocation, not_taken);
             // Fall through!
           case NO_OVERWRITE:
-            FloatingPointHelper::AllocateHeapNumber(masm, &call_runtime,
-                                                    ecx, edx, eax);
+            __ AllocateHeapNumber(eax, ecx, edx, &call_runtime);
             __ bind(&skip_allocation);
             break;
           default: UNREACHABLE();
@@ -7130,25 +7113,6 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
   } else {
     __ ret(0);
   }
-}
-
-
-void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
-                                             Label* need_gc,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Register result) {
-  // Allocate heap number in new space.
-  __ AllocateInNewSpace(HeapNumber::kSize,
-                        result,
-                        scratch1,
-                        scratch2,
-                        need_gc,
-                        TAG_OBJECT);
-
-  // Set the map.
-  __ mov(FieldOperand(result, HeapObject::kMapOffset),
-         Immediate(Factory::heap_number_map()));
 }
 
 
@@ -7308,7 +7272,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   } else {
     __ mov(edx, Operand(eax));
     // edx: operand
-    FloatingPointHelper::AllocateHeapNumber(masm, &undo, ebx, ecx, eax);
+    __ AllocateHeapNumber(eax, ebx, ecx, &undo);
     // eax: allocated 'empty' number
     __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
     __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.

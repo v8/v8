@@ -301,7 +301,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
-  KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
+  Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
 
   __ bind(&check_string);
   // The key is not a smi.
@@ -339,6 +339,12 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ and_(eax, (1 << String::kShortLengthShift) - 1);
   __ shr(eax, String::kLongLengthShift);
   __ jmp(&index_int);
+}
+
+
+void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
+                                        ExternalArrayType array_type) {
+  GenerateGeneric(masm);
 }
 
 
@@ -395,15 +401,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ebx: index (as a smi)
   __ j(below, &fast, taken);
 
-  // Slow case: Push extra copies of the arguments (3).
+  // Slow case: call runtime.
   __ bind(&slow);
-  __ pop(ecx);
-  __ push(Operand(esp, 1 * kPointerSize));
-  __ push(Operand(esp, 1 * kPointerSize));
-  __ push(eax);
-  __ push(ecx);
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3, 1);
+  Generate(masm, ExternalReference(Runtime::kSetProperty));
 
   // Check whether the elements is a pixel array.
   // eax: value
@@ -482,6 +482,12 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edx, Operand(eax));
   __ RecordWrite(ecx, 0, edx, ebx);
   __ ret(0);
+}
+
+
+void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
+                                         ExternalArrayType array_type) {
+  GenerateGeneric(masm);
 }
 
 

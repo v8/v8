@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <limits.h>
+
 #include "v8.h"
 
 #include "api.h"
@@ -33,6 +35,7 @@
 #include "snapshot.h"
 #include "platform.h"
 #include "top.h"
+#include "utils.h"
 #include "cctest.h"
 
 static bool IsNaN(double x) {
@@ -8036,6 +8039,324 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(23, result->Int32Value());
 
   free(pixel_data);
+}
+
+
+template <class ExternalArrayClass, class ElementType>
+static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
+                                    int64_t low,
+                                    int64_t high) {
+  v8::HandleScope scope;
+  LocalContext context;
+  const int kElementCount = 40;
+  int element_size = 0;
+  switch (array_type) {
+    case v8::kExternalByteArray:
+    case v8::kExternalUnsignedByteArray:
+      element_size = 1;
+      break;
+    case v8::kExternalShortArray:
+    case v8::kExternalUnsignedShortArray:
+      element_size = 2;
+      break;
+    case v8::kExternalIntArray:
+    case v8::kExternalUnsignedIntArray:
+    case v8::kExternalFloatArray:
+      element_size = 4;
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  ElementType* array_data =
+      static_cast<ElementType*>(malloc(kElementCount * element_size));
+  i::Handle<ExternalArrayClass> array =
+      i::Handle<ExternalArrayClass>::cast(
+          i::Factory::NewExternalArray(kElementCount, array_type, array_data));
+  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    array->set(i, static_cast<ElementType>(i));
+  }
+  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  for (int i = 0; i < kElementCount; i++) {
+    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array->get(i)));
+    CHECK_EQ(static_cast<int64_t>(i), static_cast<int64_t>(array_data[i]));
+  }
+
+  v8::Handle<v8::Object> obj = v8::Object::New();
+  i::Handle<i::JSObject> jsobj = v8::Utils::OpenHandle(*obj);
+  // Set the elements to be the external array.
+  obj->SetIndexedPropertiesToExternalArrayData(array_data,
+                                               array_type,
+                                               kElementCount);
+  CHECK_EQ(1, static_cast<int>(jsobj->GetElement(1)->Number()));
+  obj->Set(v8_str("field"), v8::Int32::New(1503));
+  context->Global()->Set(v8_str("ext_array"), obj);
+  v8::Handle<v8::Value> result = CompileRun("ext_array.field");
+  CHECK_EQ(1503, result->Int32Value());
+  result = CompileRun("ext_array[1]");
+  CHECK_EQ(1, result->Int32Value());
+
+  // Check pass through of assigned smis
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i] = ext_array[i] = -i;"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
+  // Check assigned smis
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  ext_array[i] = i;"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  // Check assigned smis in reverse order
+  result = CompileRun("for (var i = 8; --i >= 0; ) {"
+                      "  ext_array[i] = i;"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  // Check pass through of assigned HeapNumbers
+  result = CompileRun("var sum = 0;"
+                      "for (var i = 0; i < 16; i+=2) {"
+                      "  sum += ext_array[i] = ext_array[i] = (-i * 0.5);"
+                      "}"
+                      "sum;");
+  CHECK_EQ(-28, result->Int32Value());
+
+  // Check assigned HeapNumbers
+  result = CompileRun("for (var i = 0; i < 16; i+=2) {"
+                      "  ext_array[i] = (i * 0.5);"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 16; i+=2) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  // Check assigned HeapNumbers in reverse order
+  result = CompileRun("for (var i = 14; i >= 0; i-=2) {"
+                      "  ext_array[i] = (i * 0.5);"
+                      "}"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 16; i+=2) {"
+                      "  sum += ext_array[i];"
+                      "}"
+                      "sum;");
+  CHECK_EQ(28, result->Int32Value());
+
+  i::ScopedVector<char> test_buf(1024);
+
+  // Check legal boundary conditions.
+  // The repeated loads and stores ensure the ICs are exercised.
+  const char* boundary_program =
+      "var res = 0;"
+      "for (var i = 0; i < 16; i++) {"
+      "  ext_array[i] = %lld;"
+      "  if (i > 8) {"
+      "    res = ext_array[i];"
+      "  }"
+      "}"
+      "res;";
+  i::OS::SNPrintF(test_buf,
+                  boundary_program,
+                  low);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(low, result->IntegerValue());
+
+  i::OS::SNPrintF(test_buf,
+                  boundary_program,
+                  high);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(high, result->IntegerValue());
+
+  // Check misprediction of type in IC.
+  result = CompileRun("var tmp_array = ext_array;"
+                      "var sum = 0;"
+                      "for (var i = 0; i < 8; i++) {"
+                      "  tmp_array[i] = i;"
+                      "  sum += tmp_array[i];"
+                      "  if (i == 4) {"
+                      "    tmp_array = {};"
+                      "  }"
+                      "}"
+                      "sum;");
+  i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
+  CHECK_EQ(28, result->Int32Value());
+
+  // Check out-of-range loads.
+  result = CompileRun("var caught_exception = false;"
+                      "try {"
+                      "  ext_array[-1];"
+                      "} catch (e) {"
+                      "  caught_exception = true;"
+                      "}"
+                      "caught_exception;");
+  CHECK_EQ(true, result->BooleanValue());
+
+  i::OS::SNPrintF(test_buf,
+                  "var caught_exception = false;"
+                  "try {"
+                  "  ext_array[%d];"
+                  "} catch (e) {"
+                  "  caught_exception = true;"
+                  "}"
+                  "caught_exception;",
+                  kElementCount);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(true, result->BooleanValue());
+
+  // Check out-of-range stores.
+  result = CompileRun("var caught_exception = false;"
+                      "try {"
+                      "  ext_array[-1] = 1;"
+                      "} catch (e) {"
+                      "  caught_exception = true;"
+                      "}"
+                      "caught_exception;");
+  CHECK_EQ(true, result->BooleanValue());
+
+  i::OS::SNPrintF(test_buf,
+                  "var caught_exception = false;"
+                  "try {"
+                  "  ext_array[%d] = 1;"
+                  "} catch (e) {"
+                  "  caught_exception = true;"
+                  "}"
+                  "caught_exception;",
+                  kElementCount);
+  result = CompileRun(test_buf.start());
+  CHECK_EQ(true, result->BooleanValue());
+
+  // TODO(kbr): check what happens during IC misses on the type of the object.
+  // Re-assign array object halfway through a loop.
+
+  // Check other boundary conditions, values and operations.
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  ext_array[7] = undefined;"
+                      "}"
+                      "ext_array[7];");
+  CHECK_EQ(0, result->Int32Value());
+  CHECK_EQ(0, static_cast<int>(jsobj->GetElement(7)->Number()));
+
+  result = CompileRun("for (var i = 0; i < 8; i++) {"
+                      "  ext_array[6] = '2.3';"
+                      "}"
+                      "ext_array[6];");
+  CHECK_EQ(2, result->Int32Value());
+  CHECK_EQ(2, static_cast<int>(jsobj->GetElement(6)->Number()));
+
+  // Result for storing NaNs and +/-Infinity isn't defined for these
+  // types; they do not have the clamping behavior CanvasPixelArray
+  // specifies.
+
+  result = CompileRun("ext_array[3] = 33;"
+                      "delete ext_array[3];"
+                      "ext_array[3];");
+  CHECK_EQ(33, result->Int32Value());
+
+  result = CompileRun("ext_array[0] = 10; ext_array[1] = 11;"
+                      "ext_array[2] = 12; ext_array[3] = 13;"
+                      "ext_array.__defineGetter__('2',"
+                      "function() { return 120; });"
+                      "ext_array[2];");
+  CHECK_EQ(12, result->Int32Value());
+
+  result = CompileRun("var js_array = new Array(40);"
+                      "js_array[0] = 77;"
+                      "js_array;");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+
+  result = CompileRun("ext_array[1] = 23;"
+                      "ext_array.__proto__ = [];"
+                      "js_array.__proto__ = ext_array;"
+                      "js_array.concat(ext_array);");
+  CHECK_EQ(77, v8::Object::Cast(*result)->Get(v8_str("0"))->Int32Value());
+  CHECK_EQ(23, v8::Object::Cast(*result)->Get(v8_str("1"))->Int32Value());
+
+  result = CompileRun("ext_array[1] = 23;");
+  CHECK_EQ(23, result->Int32Value());
+
+  free(array_data);
+}
+
+
+THREADED_TEST(ExternalByteArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalByteArray, int8_t>(
+      v8::kExternalByteArray,
+      -128,
+      127);
+}
+
+
+THREADED_TEST(ExternalUnsignedByteArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalUnsignedByteArray, uint8_t>(
+      v8::kExternalUnsignedByteArray,
+      0,
+      255);
+}
+
+
+THREADED_TEST(ExternalShortArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalShortArray, int16_t>(
+      v8::kExternalShortArray,
+      -32768,
+      32767);
+}
+
+
+THREADED_TEST(ExternalUnsignedShortArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalUnsignedShortArray, uint16_t>(
+      v8::kExternalUnsignedShortArray,
+      0,
+      65535);
+}
+
+
+THREADED_TEST(ExternalIntArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalIntArray, int32_t>(
+      v8::kExternalIntArray,
+      INT_MIN,   // -2147483648
+      INT_MAX);  //  2147483647
+}
+
+
+THREADED_TEST(ExternalUnsignedIntArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalUnsignedIntArray, uint32_t>(
+      v8::kExternalUnsignedIntArray,
+      0,
+      UINT_MAX);  // 4294967295
+}
+
+
+THREADED_TEST(ExternalFloatArray) {
+  ExternalArrayTestHelper<v8::internal::ExternalFloatArray, float>(
+      v8::kExternalFloatArray,
+      -500,
+      500);
+}
+
+
+THREADED_TEST(ExternalArrays) {
+  TestExternalByteArray();
+  TestExternalUnsignedByteArray();
+  TestExternalShortArray();
+  TestExternalUnsignedShortArray();
+  TestExternalIntArray();
+  TestExternalUnsignedIntArray();
+  TestExternalFloatArray();
 }
 
 

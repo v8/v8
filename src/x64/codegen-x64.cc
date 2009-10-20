@@ -240,13 +240,6 @@ class FloatingPointHelper : public AllStatic {
   // operands, jumps to the non_float label otherwise.
   static void CheckNumberOperands(MacroAssembler* masm,
                                   Label* non_float);
-
-  // Allocate a heap number in new space with undefined value.
-  // Returns tagged pointer in result, or jumps to need_gc if new space is full.
-  static void AllocateHeapNumber(MacroAssembler* masm,
-                                 Label* need_gc,
-                                 Register scratch,
-                                 Register result);
 };
 
 
@@ -3975,10 +3968,9 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   // Allocate heap number for result if possible.
   Result scratch = allocator()->Allocate();
   Result heap_number = allocator()->Allocate();
-  FloatingPointHelper::AllocateHeapNumber(masm_,
-                                          call_runtime.entry_label(),
-                                          scratch.reg(),
-                                          heap_number.reg());
+  __ AllocateHeapNumber(heap_number.reg(),
+                        scratch.reg(),
+                        call_runtime.entry_label());
   scratch.Unuse();
 
   // Store the result in the allocated heap number.
@@ -6363,7 +6355,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   if (overwrite_) {
     __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
   } else {
-    FloatingPointHelper::AllocateHeapNumber(masm, &slow, rbx, rcx);
+    __ AllocateHeapNumber(rcx, rbx, &slow);
     // rcx: allocated 'empty' number
     __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
     __ movq(rax, rcx);
@@ -7210,24 +7202,6 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-void FloatingPointHelper::AllocateHeapNumber(MacroAssembler* masm,
-                                             Label* need_gc,
-                                             Register scratch,
-                                             Register result) {
-  // Allocate heap number in new space.
-  __ AllocateInNewSpace(HeapNumber::kSize,
-                        result,
-                        scratch,
-                        no_reg,
-                        need_gc,
-                        TAG_OBJECT);
-
-  // Set the map and tag the result.
-  __ LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
-  __ movq(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
-}
-
-
 void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
                                            Register number) {
   Label load_smi, done;
@@ -7487,10 +7461,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           __ JumpIfNotSmi(rax, &skip_allocation);
           // Fall through!
         case NO_OVERWRITE:
-          FloatingPointHelper::AllocateHeapNumber(masm,
-                                                  &call_runtime,
-                                                  rcx,
-                                                  rax);
+          __ AllocateHeapNumber(rax, rcx, &call_runtime);
           __ bind(&skip_allocation);
           break;
         default: UNREACHABLE();
@@ -7606,8 +7577,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
             __ JumpIfNotSmi(rax, &skip_allocation);
             // Fall through!
           case NO_OVERWRITE:
-            FloatingPointHelper::AllocateHeapNumber(masm, &call_runtime,
-                                                    rcx, rax);
+            __ AllocateHeapNumber(rax, rcx, &call_runtime);
             __ bind(&skip_allocation);
             break;
           default: UNREACHABLE();

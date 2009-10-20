@@ -767,6 +767,24 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object) {
 }
 
 
+void MacroAssembler::AllocateHeapNumber(Register result,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(HeapNumber::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::heap_number_map()));
+}
+
+
 void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
                                       Register result,
                                       Register op,

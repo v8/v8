@@ -274,6 +274,41 @@ void PixelArray::PixelArrayPrint() {
 }
 
 
+void ExternalByteArray::ExternalByteArrayPrint() {
+  PrintF("external byte array");
+}
+
+
+void ExternalUnsignedByteArray::ExternalUnsignedByteArrayPrint() {
+  PrintF("external unsigned byte array");
+}
+
+
+void ExternalShortArray::ExternalShortArrayPrint() {
+  PrintF("external short array");
+}
+
+
+void ExternalUnsignedShortArray::ExternalUnsignedShortArrayPrint() {
+  PrintF("external unsigned short array");
+}
+
+
+void ExternalIntArray::ExternalIntArrayPrint() {
+  PrintF("external int array");
+}
+
+
+void ExternalUnsignedIntArray::ExternalUnsignedIntArrayPrint() {
+  PrintF("external unsigned int array");
+}
+
+
+void ExternalFloatArray::ExternalFloatArrayPrint() {
+  PrintF("external float array");
+}
+
+
 void ByteArray::ByteArrayVerify() {
   ASSERT(IsByteArray());
 }
@@ -281,6 +316,41 @@ void ByteArray::ByteArrayVerify() {
 
 void PixelArray::PixelArrayVerify() {
   ASSERT(IsPixelArray());
+}
+
+
+void ExternalByteArray::ExternalByteArrayVerify() {
+  ASSERT(IsExternalByteArray());
+}
+
+
+void ExternalUnsignedByteArray::ExternalUnsignedByteArrayVerify() {
+  ASSERT(IsExternalUnsignedByteArray());
+}
+
+
+void ExternalShortArray::ExternalShortArrayVerify() {
+  ASSERT(IsExternalShortArray());
+}
+
+
+void ExternalUnsignedShortArray::ExternalUnsignedShortArrayVerify() {
+  ASSERT(IsExternalUnsignedShortArray());
+}
+
+
+void ExternalIntArray::ExternalIntArrayVerify() {
+  ASSERT(IsExternalIntArray());
+}
+
+
+void ExternalUnsignedIntArray::ExternalUnsignedIntArrayVerify() {
+  ASSERT(IsExternalUnsignedIntArray());
+}
+
+
+void ExternalFloatArray::ExternalFloatArrayVerify() {
+  ASSERT(IsExternalFloatArray());
 }
 
 
@@ -342,6 +412,58 @@ void JSObject::PrintElements() {
       PixelArray* p = PixelArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
         PrintF("   %d: %d\n", i, p->get(i));
+      }
+      break;
+    }
+    case EXTERNAL_BYTE_ELEMENTS: {
+      ExternalByteArray* p = ExternalByteArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %d\n", i, static_cast<int>(p->get(i)));
+      }
+      break;
+    }
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
+      ExternalUnsignedByteArray* p =
+          ExternalUnsignedByteArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %d\n", i, static_cast<int>(p->get(i)));
+      }
+      break;
+    }
+    case EXTERNAL_SHORT_ELEMENTS: {
+      ExternalShortArray* p = ExternalShortArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %d\n", i, static_cast<int>(p->get(i)));
+      }
+      break;
+    }
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
+      ExternalUnsignedShortArray* p =
+          ExternalUnsignedShortArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %d\n", i, static_cast<int>(p->get(i)));
+      }
+      break;
+    }
+    case EXTERNAL_INT_ELEMENTS: {
+      ExternalIntArray* p = ExternalIntArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %d\n", i, static_cast<int>(p->get(i)));
+      }
+      break;
+    }
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+      ExternalUnsignedIntArray* p =
+          ExternalUnsignedIntArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %d\n", i, static_cast<int>(p->get(i)));
+      }
+      break;
+    }
+    case EXTERNAL_FLOAT_ELEMENTS: {
+      ExternalFloatArray* p = ExternalFloatArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        PrintF("   %d: %f\n", i, p->get(i));
       }
       break;
     }
@@ -433,6 +555,16 @@ static const char* TypeToString(InstanceType type) {
     case FIXED_ARRAY_TYPE: return "FIXED_ARRAY";
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
     case PIXEL_ARRAY_TYPE: return "PIXEL_ARRAY";
+    case EXTERNAL_BYTE_ARRAY_TYPE: return "EXTERNAL_BYTE_ARRAY";
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      return "EXTERNAL_UNSIGNED_BYTE_ARRAY";
+    case EXTERNAL_SHORT_ARRAY_TYPE: return "EXTERNAL_SHORT_ARRAY";
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      return "EXTERNAL_UNSIGNED_SHORT_ARRAY";
+    case EXTERNAL_INT_ARRAY_TYPE: return "EXTERNAL_INT_ARRAY";
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      return "EXTERNAL_UNSIGNED_INT_ARRAY";
+    case EXTERNAL_FLOAT_ARRAY_TYPE: return "EXTERNAL_FLOAT_ARRAY";
     case FILLER_TYPE: return "FILLER";
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";

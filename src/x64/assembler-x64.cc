@@ -1255,6 +1255,15 @@ void Assembler::movb(const Operand& dst, Register src) {
   emit_operand(src, dst);
 }
 
+void Assembler::movw(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(src, dst);
+  emit(0x89);
+  emit_operand(src, dst);
+}
+
 void Assembler::movl(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1439,6 +1448,26 @@ void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
 }
 
 
+void Assembler::movsxbq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBE);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movsxwq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xBF);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::movsxlq(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1473,6 +1502,16 @@ void Assembler::movzxbl(Register dst, const Operand& src) {
   emit_optional_rex_32(dst, src);
   emit(0x0F);
   emit(0xB6);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movzxwq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0xB7);
   emit_operand(dst, src);
 }
 
@@ -2021,7 +2060,7 @@ void Assembler::fistp_d(const Operand& adr) {
   last_pc_ = pc_;
   emit_optional_rex_32(adr);
   emit(0xDF);
-  emit_operand(8, adr);
+  emit_operand(7, adr);
 }
 
 
