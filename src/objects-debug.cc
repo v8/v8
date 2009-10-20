@@ -117,6 +117,27 @@ void HeapObject::HeapObjectPrint() {
     case PIXEL_ARRAY_TYPE:
       PixelArray::cast(this)->PixelArrayPrint();
       break;
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      ExternalByteArray::cast(this)->ExternalByteArrayPrint();
+      break;
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      ExternalUnsignedByteArray::cast(this)->ExternalUnsignedByteArrayPrint();
+      break;
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      ExternalShortArray::cast(this)->ExternalShortArrayPrint();
+      break;
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      ExternalUnsignedShortArray::cast(this)->ExternalUnsignedShortArrayPrint();
+      break;
+    case EXTERNAL_INT_ARRAY_TYPE:
+      ExternalIntArray::cast(this)->ExternalIntArrayPrint();
+      break;
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      ExternalUnsignedIntArray::cast(this)->ExternalUnsignedIntArrayPrint();
+      break;
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
+      ExternalFloatArray::cast(this)->ExternalFloatArrayPrint();
+      break;
     case FILLER_TYPE:
       PrintF("filler");
       break;
@@ -195,6 +216,28 @@ void HeapObject::HeapObjectVerify() {
       break;
     case PIXEL_ARRAY_TYPE:
       PixelArray::cast(this)->PixelArrayVerify();
+      break;
+    case EXTERNAL_BYTE_ARRAY_TYPE:
+      ExternalByteArray::cast(this)->ExternalByteArrayVerify();
+      break;
+    case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
+      ExternalUnsignedByteArray::cast(this)->ExternalUnsignedByteArrayVerify();
+      break;
+    case EXTERNAL_SHORT_ARRAY_TYPE:
+      ExternalShortArray::cast(this)->ExternalShortArrayVerify();
+      break;
+    case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
+      ExternalUnsignedShortArray::cast(this)->
+          ExternalUnsignedShortArrayVerify();
+      break;
+    case EXTERNAL_INT_ARRAY_TYPE:
+      ExternalIntArray::cast(this)->ExternalIntArrayVerify();
+      break;
+    case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
+      ExternalUnsignedIntArray::cast(this)->ExternalUnsignedIntArrayVerify();
+      break;
+    case EXTERNAL_FLOAT_ARRAY_TYPE:
+      ExternalFloatArray::cast(this)->ExternalFloatArrayVerify();
       break;
     case CODE_TYPE:
       Code::cast(this)->CodeVerify();
