@@ -255,7 +255,7 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 
 
 void VirtualFrame::RawCallCodeObject(Handle<Code> code,
-                                       RelocInfo::Mode rmode) {
+                                     RelocInfo::Mode rmode) {
   ASSERT(cgen()->HasValidEntryRegisters());
   __ Call(code, rmode);
 }

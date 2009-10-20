@@ -242,7 +242,7 @@ class CodeGenerator: public AstVisitor {
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
 
-  MemOperand ContextOperand(Register context, int index) const {
+  static MemOperand ContextOperand(Register context, int index) {
     return MemOperand(context, Context::SlotOffset(index));
   }
 
@@ -254,7 +254,7 @@ class CodeGenerator: public AstVisitor {
                                                JumpTarget* slow);
 
   // Expressions
-  MemOperand GlobalObject() const  {
+  static MemOperand GlobalObject()  {
     return ContextOperand(cp, Context::GLOBAL_INDEX);
   }
 
@@ -425,6 +425,7 @@ class CodeGenerator: public AstVisitor {
   friend class VirtualFrame;
   friend class JumpTarget;
   friend class Reference;
+  friend class FastCodeGenerator;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

@@ -160,9 +160,10 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Expression* rhs = expr->value();
   Visit(rhs);
 
-  // Left-hand side is always a (parameter or local) slot.
+  // Left-hand side can only be a global or a (parameter or local) slot.
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  ASSERT(var != NULL && var->slot() != NULL);
+  ASSERT(var != NULL);
+  ASSERT(var->is_global() || var->slot() != NULL);
 
   // Complete the assignment based on the location of the right-hand-side
   // value and the desired location of the assignment value.
@@ -171,27 +172,53 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   ASSERT(!destination.is_constant());
   ASSERT(!source.is_nowhere());
 
-  if (source.is_temporary()) {
+  if (var->is_global()) {
+    // Assignment to a global variable, use inline caching.  Right-hand-side
+    // value is passed in r0, variable name in r2, and the global object on
+    // the stack.
+    if (source.is_temporary()) {
+      __ pop(r0);
+    } else {
+      ASSERT(source.is_constant());
+      ASSERT(rhs->AsLiteral() != NULL);
+      __ mov(r0, Operand(rhs->AsLiteral()->handle()));
+    }
+    __ mov(r2, Operand(var->name()));
+    __ ldr(ip, CodeGenerator::GlobalObject());
+    __ push(ip);
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // Overwrite the global object on the stack with the result if needed.
     if (destination.is_temporary()) {
-      // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side temporary
-      // on the stack.
-      __ ldr(ip, MemOperand(sp));
+      __ str(r0, MemOperand(sp));
     } else {
       ASSERT(destination.is_nowhere());
-      // Case 'var = temp'.  Discard right-hand-side temporary.
-      __ pop(ip);
+      __ pop();
     }
-    __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
+
   } else {
-    ASSERT(source.is_constant());
-    ASSERT(rhs->AsLiteral() != NULL);
-    // Two cases: 'temp <- (var = constant)', or 'var = constant' with a
-    // discarded result.  Always perform the assignment.
-    __ mov(ip, Operand(rhs->AsLiteral()->handle()));
-    __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
-    if (destination.is_temporary()) {
-      // Case 'temp <- (var = constant)'.  Save result.
-      __ push(ip);
+    if (source.is_temporary()) {
+      if (destination.is_temporary()) {
+        // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
+        // temporary on the stack.
+        __ ldr(ip, MemOperand(sp));
+      } else {
+        ASSERT(destination.is_nowhere());
+        // Case 'var = temp'.  Discard right-hand-side temporary.
+        __ pop(ip);
+      }
+      __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
+    } else {
+      ASSERT(source.is_constant());
+      ASSERT(rhs->AsLiteral() != NULL);
+      // Two cases: 'temp <- (var = constant)', or 'var = constant' with a
+      // discarded result.  Always perform the assignment.
+      __ mov(ip, Operand(rhs->AsLiteral()->handle()));
+      __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
+      if (destination.is_temporary()) {
+        // Case 'temp <- (var = constant)'.  Save result.
+        __ push(ip);
+      }
     }
   }
 }

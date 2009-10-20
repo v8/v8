@@ -396,7 +396,7 @@ class CodeGenerator: public AstVisitor {
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
 
-  Operand ContextOperand(Register context, int index) const {
+  static Operand ContextOperand(Register context, int index) {
     return Operand(context, Context::SlotOffset(index));
   }
 
@@ -407,7 +407,7 @@ class CodeGenerator: public AstVisitor {
                                             JumpTarget* slow);
 
   // Expressions
-  Operand GlobalObject() const {
+  static Operand GlobalObject() {
     return ContextOperand(esi, Context::GLOBAL_INDEX);
   }
 
@@ -616,6 +616,7 @@ class CodeGenerator: public AstVisitor {
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
+  friend class FastCodeGenerator;
 
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 

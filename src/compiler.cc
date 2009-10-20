@@ -649,12 +649,14 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
   }
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  if (var == NULL || var->is_global()) BAILOUT("non-variable assignment");
+  if (var == NULL) BAILOUT("non-variable assignment");
 
-  ASSERT(var->slot() != NULL);
-  Slot::Type type = var->slot()->type();
-  if (type != Slot::PARAMETER && type != Slot::LOCAL) {
-    BAILOUT("non-parameter/non-local slot assignment");
+  if (!var->is_global()) {
+    ASSERT(var->slot() != NULL);
+    Slot::Type type = var->slot()->type();
+    if (type != Slot::PARAMETER && type != Slot::LOCAL) {
+      BAILOUT("non-parameter/non-local slot assignment");
+    }
   }
 
   Visit(expr->value());
