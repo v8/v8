@@ -6531,7 +6531,7 @@ void GenericBinaryOpStub::GenerateCall(
     Register left,
     Register right) {
   if (!ArgsInRegistersSupported()) {
-    // Only pass arguments in registers if there is no smi code in the stub.
+    // Pass arguments on the stack.
     __ push(left);
     __ push(right);
   } else {
@@ -6584,7 +6584,7 @@ void GenericBinaryOpStub::GenerateCall(
     Register left,
     Smi* right) {
   if (!ArgsInRegistersSupported()) {
-    // Only pass arguments in registers if there is no smi code in the stub.
+    // Pass arguments on the stack.
     __ push(left);
     __ push(Immediate(right));
   } else {
@@ -6612,8 +6612,8 @@ void GenericBinaryOpStub::GenerateCall(
     MacroAssembler* masm,
     Smi* left,
     Register right) {
-  if (flags_ != NO_SMI_CODE_IN_STUB) {
-    // Only pass arguments in registers if there is no smi code in the stub.
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
     __ push(Immediate(left));
     __ push(right);
   } else {
