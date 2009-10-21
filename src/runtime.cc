@@ -7766,6 +7766,18 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
 }
 
 
+// Returns V8 version as a string.
+static Object* Runtime_GetV8Version(Arguments args) {
+  ASSERT_EQ(args.length(), 0);
+
+  NoHandleAllocation ha;
+
+  const char* version_string = v8::V8::GetVersion();
+
+  return Heap::AllocateStringFromAscii(CStrVector(version_string), NOT_TENURED);
+}
+
+
 static Object* Runtime_Abort(Arguments args) {
   ASSERT(args.length() == 2);
   OS::PrintError("abort: %s\n", reinterpret_cast<char*>(args[0]) +

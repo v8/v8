@@ -175,6 +175,7 @@ namespace internal {
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
   F(CollectStackTrace, 2, 1) \
+  F(GetV8Version, 0, 1) \
   \
   F(ClassOf, 1, 1) \
   F(SetCode, 2, 1) \
