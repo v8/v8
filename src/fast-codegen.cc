@@ -192,7 +192,8 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
 
 
 void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ EmptyStatement");
+  SetStatementPosition(stmt);
 }
 
 

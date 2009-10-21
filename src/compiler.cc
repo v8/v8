@@ -526,7 +526,7 @@ void CodeGenSelector::VisitExpressionStatement(ExpressionStatement* stmt) {
 
 
 void CodeGenSelector::VisitEmptyStatement(EmptyStatement* stmt) {
-  BAILOUT("EmptyStatement");
+  // EmptyStatement is supported.
 }
 
 
