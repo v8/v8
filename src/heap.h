@@ -235,7 +235,7 @@ class Heap : public AllStatic {
  public:
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
-  static bool ConfigureHeap(int semispace_size, int old_gen_size);
+  static bool ConfigureHeap(int max_semispace_size, int max_old_gen_size);
   static bool ConfigureHeapDefault();
 
   // Initializes the global object heap. If create_heap_objects is true,
@@ -254,14 +254,18 @@ class Heap : public AllStatic {
   // Returns whether Setup has been called.
   static bool HasBeenSetup();
 
-  // Returns the maximum heap capacity.
-  static int MaxCapacity() {
-    return young_generation_size_ + old_generation_size_;
+  // Returns the maximum amount of memory reserved for the heap.  For
+  // the young generation, we reserve 4 times the amount needed for a
+  // semi space.  The young generation consists of two semi spaces and
+  // we reserve twice the amount needed for those in order to ensure
+  // that new space can be aligned to its size.
+  static int MaxReserved() {
+    return 4 * reserved_semispace_size_ + max_old_generation_size_;
   }
-  static int SemiSpaceSize() { return semispace_size_; }
+  static int MaxSemiSpaceSize() { return max_semispace_size_; }
+  static int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   static int InitialSemiSpaceSize() { return initial_semispace_size_; }
-  static int YoungGenerationSize() { return young_generation_size_; }
-  static int OldGenerationSize() { return old_generation_size_; }
+  static int MaxOldGenerationSize() { return max_old_generation_size_; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -905,10 +909,10 @@ class Heap : public AllStatic {
       ExternalArrayType array_type);
 
  private:
-  static int semispace_size_;
+  static int reserved_semispace_size_;
+  static int max_semispace_size_;
   static int initial_semispace_size_;
-  static int young_generation_size_;
-  static int old_generation_size_;
+  static int max_old_generation_size_;
   static size_t code_range_size_;
 
   // For keeping track of how much data has survived

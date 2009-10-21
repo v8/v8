@@ -39,6 +39,7 @@
 #include "natives.h"
 #include "scanner.h"
 #include "scopeinfo.h"
+#include "snapshot.h"
 #include "v8threads.h"
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
 #include "regexp-macro-assembler.h"
@@ -74,28 +75,35 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
 #if defined(ANDROID)
-int Heap::semispace_size_  = 512*KB;
-int Heap::old_generation_size_ = 128*MB;
+int Heap::max_semispace_size_  = 512*KB;
+int Heap::max_old_generation_size_ = 128*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 size_t Heap::code_range_size_ = 0;
 #elif defined(V8_TARGET_ARCH_X64)
-int Heap::semispace_size_  = 16*MB;
-int Heap::old_generation_size_ = 1*GB;
+int Heap::max_semispace_size_  = 16*MB;
+int Heap::max_old_generation_size_ = 1*GB;
 int Heap::initial_semispace_size_ = 1*MB;
 size_t Heap::code_range_size_ = 512*MB;
 #else
-int Heap::semispace_size_  = 8*MB;
-int Heap::old_generation_size_ = 512*MB;
+int Heap::max_semispace_size_  = 8*MB;
+int Heap::max_old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 512*KB;
 size_t Heap::code_range_size_ = 0;
 #endif
+
+// The snapshot semispace size will be the default semispace size if
+// snapshotting is used and will be the requested semispace size as
+// set up by ConfigureHeap otherwise.
+int Heap::reserved_semispace_size_ = Heap::max_semispace_size_;
 
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap.
-int Heap::young_generation_size_ = 0;  // Will be 2 * semispace_size_.
+
+// Will be 4 * reserved_semispace_size_ to ensure that young
+// generation can be aligned to its size.
 int Heap::survived_since_last_expansion_ = 0;
 int Heap::external_allocation_limit_ = 0;
 
@@ -3297,21 +3305,37 @@ static bool heap_configured = false;
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(int semispace_size, int old_gen_size) {
+bool Heap::ConfigureHeap(int max_semispace_size, int max_old_gen_size) {
   if (HasBeenSetup()) return false;
 
-  if (semispace_size > 0) semispace_size_ = semispace_size;
-  if (old_gen_size > 0) old_generation_size_ = old_gen_size;
+  if (max_semispace_size > 0) max_semispace_size_ = max_semispace_size;
+
+  if (Snapshot::IsEnabled()) {
+    // If we are using a snapshot we always reserve the default amount
+    // of memory for each semispace because code in the snapshot has
+    // write-barrier code that relies on the size and alignment of new
+    // space.  We therefore cannot use a larger max semispace size
+    // than the default reserved semispace size.
+    if (max_semispace_size_ > reserved_semispace_size_) {
+      max_semispace_size_ = reserved_semispace_size_;
+    }
+  } else {
+    // If we are not using snapshots we reserve space for the actual
+    // max semispace size.
+    reserved_semispace_size_ = max_semispace_size_;
+  }
+
+  if (max_old_gen_size > 0) max_old_generation_size_ = max_old_gen_size;
 
   // The new space size must be a power of two to support single-bit testing
   // for containment.
-  semispace_size_ = RoundUpToPowerOf2(semispace_size_);
-  initial_semispace_size_ = Min(initial_semispace_size_, semispace_size_);
-  young_generation_size_ = 2 * semispace_size_;
-  external_allocation_limit_ = 10 * semispace_size_;
+  max_semispace_size_ = RoundUpToPowerOf2(max_semispace_size_);
+  reserved_semispace_size_ = RoundUpToPowerOf2(reserved_semispace_size_);
+  initial_semispace_size_ = Min(initial_semispace_size_, max_semispace_size_);
+  external_allocation_limit_ = 10 * max_semispace_size_;
 
   // The old generation is paged.
-  old_generation_size_ = RoundUp(old_generation_size_, Page::kPageSize);
+  max_old_generation_size_ = RoundUp(max_old_generation_size_, Page::kPageSize);
 
   heap_configured = true;
   return true;
@@ -3319,7 +3343,7 @@ bool Heap::ConfigureHeap(int semispace_size, int old_gen_size) {
 
 
 bool Heap::ConfigureHeapDefault() {
-  return ConfigureHeap(FLAG_new_space_size, FLAG_old_space_size);
+  return ConfigureHeap(FLAG_max_new_space_size / 2, FLAG_max_old_space_size);
 }
 
 
@@ -3355,30 +3379,29 @@ bool Heap::Setup(bool create_heap_objects) {
   }
 
   // Setup memory allocator and reserve a chunk of memory for new
-  // space.  The chunk is double the size of the new space to ensure
-  // that we can find a pair of semispaces that are contiguous and
-  // aligned to their size.
-  if (!MemoryAllocator::Setup(MaxCapacity())) return false;
+  // space.  The chunk is double the size of the requested reserved
+  // new space size to ensure that we can find a pair of semispaces that
+  // are contiguous and aligned to their size.
+  if (!MemoryAllocator::Setup(MaxReserved())) return false;
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(2 * young_generation_size_);
+      MemoryAllocator::ReserveInitialChunk(4 * reserved_semispace_size_);
   if (chunk == NULL) return false;
 
   // Align the pair of semispaces to their size, which must be a power
   // of 2.
-  ASSERT(IsPowerOf2(young_generation_size_));
   Address new_space_start =
-      RoundUp(reinterpret_cast<byte*>(chunk), young_generation_size_);
-  if (!new_space_.Setup(new_space_start, young_generation_size_)) return false;
+      RoundUp(reinterpret_cast<byte*>(chunk), 2 * reserved_semispace_size_);
+  if (!new_space_.Setup(new_space_start, 2 * reserved_semispace_size_)) return false;
 
   // Initialize old pointer space.
   old_pointer_space_ =
-      new OldSpace(old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
+      new OldSpace(max_old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
   if (old_pointer_space_ == NULL) return false;
   if (!old_pointer_space_->Setup(NULL, 0)) return false;
 
   // Initialize old data space.
   old_data_space_ =
-      new OldSpace(old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
+      new OldSpace(max_old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
   if (old_data_space_ == NULL) return false;
   if (!old_data_space_->Setup(NULL, 0)) return false;
 
@@ -3393,7 +3416,7 @@ bool Heap::Setup(bool create_heap_objects) {
   }
 
   code_space_ =
-      new OldSpace(old_generation_size_, CODE_SPACE, EXECUTABLE);
+      new OldSpace(max_old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
   if (!code_space_->Setup(NULL, 0)) return false;
 
@@ -3403,7 +3426,7 @@ bool Heap::Setup(bool create_heap_objects) {
   if (!map_space_->Setup(NULL, 0)) return false;
 
   // Initialize global property cell space.
-  cell_space_ = new CellSpace(old_generation_size_, CELL_SPACE);
+  cell_space_ = new CellSpace(max_old_generation_size_, CELL_SPACE);
   if (cell_space_ == NULL) return false;
   if (!cell_space_->Setup(NULL, 0)) return false;
 

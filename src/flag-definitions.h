@@ -163,8 +163,8 @@ DEFINE_int(max_stack_trace_source_length, 300,
            "maximum length of function source code printed in a stack trace.")
 
 // heap.cc
-DEFINE_int(new_space_size, 0, "size of (each semispace in) the new generation")
-DEFINE_int(old_space_size, 0, "size of the old generation")
+DEFINE_int(max_new_space_size, 0, "max size of the new generation")
+DEFINE_int(max_old_space_size, 0, "max size of the old generation")
 DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,

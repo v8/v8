@@ -982,7 +982,7 @@ bool NewSpace::Setup(Address start, int size) {
   // To support fast containment testing in the new space, the size of
   // this chunk must be a power of two and it must be aligned to its size.
   int initial_semispace_capacity = Heap::InitialSemiSpaceSize();
-  int maximum_semispace_capacity = Heap::SemiSpaceSize();
+  int maximum_semispace_capacity = Heap::MaxSemiSpaceSize();
 
   ASSERT(initial_semispace_capacity <= maximum_semispace_capacity);
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
@@ -998,7 +998,7 @@ bool NewSpace::Setup(Address start, int size) {
 #undef SET_NAME
 #endif
 
-  ASSERT(size == 2 * maximum_semispace_capacity);
+  ASSERT(size == 2 * Heap::ReservedSemiSpaceSize());
   ASSERT(IsAddressAligned(start, size, 0));
 
   if (!to_space_.Setup(start,
