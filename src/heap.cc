@@ -3391,7 +3391,9 @@ bool Heap::Setup(bool create_heap_objects) {
   // of 2.
   Address new_space_start =
       RoundUp(reinterpret_cast<byte*>(chunk), 2 * reserved_semispace_size_);
-  if (!new_space_.Setup(new_space_start, 2 * reserved_semispace_size_)) return false;
+  if (!new_space_.Setup(new_space_start, 2 * reserved_semispace_size_)) {
+    return false;
+  }
 
   // Initialize old pointer space.
   old_pointer_space_ =
