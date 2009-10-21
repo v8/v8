@@ -330,10 +330,11 @@ class CodeGenerator: public AstVisitor {
                                       const InlineRuntimeLUT& new_entry,
                                       InlineRuntimeLUT* old_entry);
 
+  static Handle<Code> ComputeLazyCompile(int argc);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
-  Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
+  static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.
@@ -426,6 +427,7 @@ class CodeGenerator: public AstVisitor {
   friend class JumpTarget;
   friend class Reference;
   friend class FastCodeGenerator;
+  friend class CodeGenSelector;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

@@ -38,16 +38,22 @@ namespace internal {
 
 class FastCodeGenerator: public AstVisitor {
  public:
-  explicit FastCodeGenerator(MacroAssembler* masm)
-      : masm_(masm), function_(NULL) {
+  FastCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
+    : masm_(masm), function_(NULL), script_(script), is_eval_(is_eval) {
   }
 
-  static Handle<Code> MakeCode(FunctionLiteral* fun, Handle<Script> script);
+  static Handle<Code> MakeCode(FunctionLiteral* fun,
+                               Handle<Script> script,
+                               bool is_eval);
 
   void Generate(FunctionLiteral* fun);
 
  private:
   int SlotOffset(Slot* slot);
+
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
+  void DeclareGlobals(Handle<FixedArray> pairs);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -61,6 +67,8 @@ class FastCodeGenerator: public AstVisitor {
 
   MacroAssembler* masm_;
   FunctionLiteral* function_;
+  Handle<Script> script_;
+  bool is_eval_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

@@ -51,6 +51,7 @@ class CodeGenSelector: public AstVisitor {
   CodeGenTag Select(FunctionLiteral* fun);
 
  private:
+  void VisitDeclarations(ZoneList<Declaration*>* decls);
   void VisitStatements(ZoneList<Statement*>* stmts);
 
   // AST node visit functions.
@@ -107,7 +108,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     CodeGenSelector selector;
     CodeGenSelector::CodeGenTag code_gen = selector.Select(literal);
     if (code_gen == CodeGenSelector::FAST) {
-      return FastCodeGenerator::MakeCode(literal, script);
+      return FastCodeGenerator::MakeCode(literal, script, is_eval);
     }
     ASSERT(code_gen == CodeGenSelector::NORMAL);
   }
@@ -450,14 +451,22 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
 CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
 
-  if (!scope->is_global_scope()) return NORMAL;
+  if (!scope->is_global_scope()) {
+    if (FLAG_trace_bailout) PrintF("Non-global scope\n");
+    return NORMAL;
+  }
   ASSERT(scope->num_heap_slots() == 0);
   ASSERT(scope->arguments() == NULL);
 
-  if (!scope->declarations()->is_empty()) return NORMAL;
-  if (fun->materialized_literal_count() > 0) return NORMAL;
+  if (fun->materialized_literal_count() > 0) {
+    if (FLAG_trace_bailout) PrintF("Unsupported literal\n");
+    return NORMAL;
+  }
 
   has_supported_syntax_ = true;
+  VisitDeclarations(fun->scope()->declarations());
+  if (!has_supported_syntax_) return NORMAL;
+
   VisitStatements(fun->body());
   return has_supported_syntax_ ? FAST : NORMAL;
 }
@@ -479,21 +488,32 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
   } while (false)
 
 
+void CodeGenSelector::VisitDeclarations(ZoneList<Declaration*>* decls) {
+  for (int i = 0; i < decls->length(); i++) {
+    Visit(decls->at(i));
+    CHECK_BAILOUT;
+  }
+}
+
+
 void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
   for (int i = 0, len = stmts->length(); i < len; i++) {
-    CHECK_BAILOUT;
     Visit(stmts->at(i));
+    CHECK_BAILOUT;
   }
 }
 
 
 void CodeGenSelector::VisitDeclaration(Declaration* decl) {
-  BAILOUT("Declaration");
+  Variable* var = decl->proxy()->var();
+  if (!var->is_global() || var->mode() == Variable::CONST) {
+    BAILOUT("Non-global declaration");
+  }
 }
 
 
 void CodeGenSelector::VisitBlock(Block* stmt) {
-  BAILOUT("Block");
+  VisitStatements(stmt->statements());
 }
 
 
@@ -581,7 +601,9 @@ void CodeGenSelector::VisitDebuggerStatement(DebuggerStatement* stmt) {
 
 
 void CodeGenSelector::VisitFunctionLiteral(FunctionLiteral* expr) {
-  BAILOUT("FunctionLiteral");
+  if (!expr->AllowsLazyCompilation()) {
+    BAILOUT("FunctionLiteral does not allow lazy compilation");
+  }
 }
 
 
@@ -674,7 +696,25 @@ void CodeGenSelector::VisitProperty(Property* expr) {
 
 
 void CodeGenSelector::VisitCall(Call* expr) {
-  BAILOUT("Call");
+  Expression* fun = expr->expression();
+  ZoneList<Expression*>* args = expr->arguments();
+  Variable* var = fun->AsVariableProxy()->AsVariable();
+
+  // Check for supported calls
+  if (var != NULL && var->is_possibly_eval()) {
+    BAILOUT("Call to a function named 'eval'");
+  } else if (var != NULL && !var->is_this() && var->is_global()) {
+    // ----------------------------------
+    // JavaScript example: 'foo(1, 2, 3)'  // foo is global
+    // ----------------------------------
+  } else {
+    BAILOUT("Call to a non-global function");
+  }
+  // Check all arguments to the call
+  for (int i = 0; i < args->length(); i++) {
+    Visit(args->at(i));
+    CHECK_BAILOUT;
+  }
 }
 
 
@@ -684,7 +724,17 @@ void CodeGenSelector::VisitCallNew(CallNew* expr) {
 
 
 void CodeGenSelector::VisitCallRuntime(CallRuntime* expr) {
-  BAILOUT("CallRuntime");
+  // In case of JS runtime function bail out.
+  if (expr->function() == NULL) BAILOUT("CallRuntime");
+  // Check for inline runtime call
+  if (expr->name()->Get(0) == '_' &&
+      CodeGenerator::FindInlineRuntimeLUT(expr->name()) != NULL) {
+    BAILOUT("InlineRuntimeCall");
+  }
+  for (int i = 0; i < expr->arguments()->length(); i++) {
+    Visit(expr->arguments()->at(i));
+    CHECK_BAILOUT;
+  }
 }
 
 

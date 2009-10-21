@@ -85,6 +85,10 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
            lo);
   }
 
+  { Comment cmnt(masm_, "[ Declarations");
+    VisitDeclarations(fun->scope()->declarations());
+  }
+
   { Comment cmnt(masm_, "[ Body");
     VisitStatements(fun->body());
   }
@@ -101,6 +105,25 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
     __ Jump(lr);
   }
+}
+
+
+void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+  // Call the runtime to declare the globals.
+  __ mov(r0, Operand(pairs));
+  __ push(r0);
+  __ push(cp);  // The context is the second argument.
+  __ mov(r0, Operand(Smi::FromInt(is_eval_ ? 1 : 0)));
+  __ push(r0);
+  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  // Return value is ignored.
+}
+
+
+void FastCodeGenerator::VisitBlock(Block* stmt) {
+  Comment cmnt(masm_, "[ Block");
+  SetStatementPosition(stmt);
+  VisitStatements(stmt->statements());
 }
 
 
@@ -133,6 +156,29 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     int num_parameters = function_->scope()->num_parameters();
   __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
   __ Jump(lr);
+}
+
+
+void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
+  Comment cmnt(masm_, "[ FunctionLiteral");
+
+  // Build the function boilerplate and instantiate it.
+  Handle<JSFunction> boilerplate = BuildBoilerplate(expr);
+  if (HasStackOverflow()) return;
+
+  ASSERT(boilerplate->IsBoilerplate());
+
+  // Create a new closure.
+  __ mov(r0, Operand(boilerplate));
+  __ push(r0);
+  __ push(cp);
+  __ CallRuntime(Runtime::kNewClosure, 2);
+
+  if (expr->location().is_temporary()) {
+    __ push(r0);
+  } else {
+    ASSERT(expr->location().is_nowhere());
+  }
 }
 
 
@@ -220,6 +266,74 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
         __ push(ip);
       }
     }
+  }
+}
+
+
+void FastCodeGenerator::VisitCall(Call* expr) {
+  Comment cmnt(masm_, "[ Call");
+  Expression* fun = expr->expression();
+  ZoneList<Expression*>* args = expr->arguments();
+  Variable* var = fun->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL && !var->is_this() && var->is_global());
+  ASSERT(!var->is_possibly_eval());
+
+  __ mov(r0, Operand(var->name()));
+  __ push(r0);
+  // Push global object (receiver)
+  __ ldr(r0, CodeGenerator::GlobalObject());
+  __ push(r0);
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Visit(args->at(i));
+    ASSERT(!args->at(i)->location().is_nowhere());
+    if (args->at(i)->location().is_constant()) {
+      ASSERT(args->at(i)->AsLiteral() != NULL);
+      __ mov(r0, Operand(args->at(i)->AsLiteral()->handle()));
+      __ push(r0);
+    }
+  }
+  // Record source position for debugger
+  SetSourcePosition(expr->position());
+  // Call the IC initialization code.
+  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
+                                                         NOT_IN_LOOP);
+  __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+  // Restore context register.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  if (expr->location().is_temporary()) {
+    __ str(r0, MemOperand(sp));
+  } else {
+    ASSERT(expr->location().is_nowhere());
+    __ pop();
+  }
+}
+
+
+void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
+  Comment cmnt(masm_, "[ CallRuntime");
+  ZoneList<Expression*>* args = expr->arguments();
+  Runtime::Function* function = expr->function();
+
+  ASSERT(function != NULL);
+
+  // Push the arguments ("left-to-right").
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Visit(args->at(i));
+    ASSERT(!args->at(i)->location().is_nowhere());
+    if (args->at(i)->location().is_constant()) {
+      ASSERT(args->at(i)->AsLiteral() != NULL);
+      __ mov(r0, Operand(args->at(i)->AsLiteral()->handle()));
+      __ push(r0);
+    }
+  }
+
+  __ CallRuntime(function, arg_count);
+  if (expr->location().is_temporary()) {
+    __ push(r0);
+  } else {
+    ASSERT(expr->location().is_nowhere());
   }
 }
 

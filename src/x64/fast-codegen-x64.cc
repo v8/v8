@@ -74,6 +74,10 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     __ bind(&ok);
   }
 
+  { Comment cmnt(masm_, "[ Declarations");
+    VisitDeclarations(fun->scope()->declarations());
+  }
+
   { Comment cmnt(masm_, "[ Body");
     VisitStatements(fun->body());
   }
@@ -99,6 +103,23 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     }
 #endif
   }
+}
+
+
+void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+  // Call the runtime to declare the globals.
+  __ Push(pairs);
+  __ push(rsi);  // The context is the second argument.
+  __ Push(Smi::FromInt(is_eval_ ? 1 : 0));
+  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  // Return value is ignored.
+}
+
+
+void FastCodeGenerator::VisitBlock(Block* stmt) {
+  Comment cmnt(masm_, "[ Block");
+  SetStatementPosition(stmt);
+  VisitStatements(stmt->statements());
 }
 
 
@@ -140,6 +161,28 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     masm_->int3();
   }
 #endif
+}
+
+
+void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
+  Comment cmnt(masm_, "[ FunctionLiteral");
+
+  // Build the function boilerplate and instantiate it.
+  Handle<JSFunction> boilerplate = BuildBoilerplate(expr);
+  if (HasStackOverflow()) return;
+
+  ASSERT(boilerplate->IsBoilerplate());
+
+  // Create a new closure.
+  __ Push(boilerplate);
+  __ push(rsi);
+  __ CallRuntime(Runtime::kNewClosure, 2);
+
+  if (expr->location().is_temporary()) {
+    __ push(rax);
+  } else {
+    ASSERT(expr->location().is_nowhere());
+  }
 }
 
 
@@ -223,6 +266,70 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
         __ push(kScratchRegister);
       }
     }
+  }
+}
+
+
+void FastCodeGenerator::VisitCall(Call* expr) {
+  Expression* fun = expr->expression();
+  ZoneList<Expression*>* args = expr->arguments();
+  Variable* var = fun->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL && !var->is_this() && var->is_global());
+  ASSERT(!var->is_possibly_eval());
+
+  __ Push(var->name());
+  // Push global object (receiver).
+  __ push(CodeGenerator::GlobalObject());
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Visit(args->at(i));
+    ASSERT(!args->at(i)->location().is_nowhere());
+    if (args->at(i)->location().is_constant()) {
+      ASSERT(args->at(i)->AsLiteral() != NULL);
+      __ Push(args->at(i)->AsLiteral()->handle());
+    }
+  }
+  // Record source position for debugger
+  SetSourcePosition(expr->position());
+  // Call the IC initialization code.
+  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
+                                                         NOT_IN_LOOP);
+  __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+  // Restore context register.
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  // Discard the function left on TOS.
+  if (expr->location().is_temporary()) {
+    __ movq(Operand(rsp, 0), rax);
+  } else {
+    ASSERT(expr->location().is_nowhere());
+    __ pop(rax);
+  }
+}
+
+
+void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
+  Comment cmnt(masm_, "[ CallRuntime");
+  ZoneList<Expression*>* args = expr->arguments();
+  Runtime::Function* function = expr->function();
+
+  ASSERT(function != NULL);
+
+  // Push the arguments ("left-to-right").
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Visit(args->at(i));
+    ASSERT(!args->at(i)->location().is_nowhere());
+    if (args->at(i)->location().is_constant()) {
+      ASSERT(args->at(i)->AsLiteral() != NULL);
+      __ Push(args->at(i)->AsLiteral()->handle());
+    }
+  }
+
+  __ CallRuntime(function, arg_count);
+  if (expr->location().is_temporary()) {
+    __ push(rax);
+  } else {
+    ASSERT(expr->location().is_nowhere());
   }
 }
 

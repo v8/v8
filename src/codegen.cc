@@ -274,7 +274,7 @@ void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
 }
 
 
-static Handle<Code> ComputeLazyCompile(int argc) {
+Handle<Code> CodeGenerator::ComputeLazyCompile(int argc) {
   CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
 }
 
