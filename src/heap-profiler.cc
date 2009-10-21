@@ -603,7 +603,7 @@ static void PrintProducerStackTrace(Object* obj, void* trace) {
 void HeapProfiler::WriteSample() {
   LOG(HeapSampleBeginEvent("Heap", "allocated"));
   LOG(HeapSampleStats(
-      "Heap", "allocated", Heap::Capacity(), Heap::SizeOfObjects()));
+      "Heap", "allocated", Heap::CommittedMemory(), Heap::SizeOfObjects()));
 
   HistogramInfo info[LAST_TYPE+1];
 #define DEF_TYPE_NAME(name) info[name].set_name(#name);
