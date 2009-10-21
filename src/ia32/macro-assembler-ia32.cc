@@ -319,11 +319,17 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 
 
 void MacroAssembler::FCmp() {
-  fucompp();
-  push(eax);
-  fnstsw_ax();
-  sahf();
-  pop(eax);
+  if (CpuFeatures::IsSupported(CpuFeatures::CMOV)) {
+    fucomip();
+    ffree(0);
+    fincstp();
+  } else {
+    fucompp();
+    push(eax);
+    fnstsw_ax();
+    sahf();
+    pop(eax);
+  }
 }
 
 

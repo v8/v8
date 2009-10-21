@@ -1850,6 +1850,14 @@ void Assembler::fucompp() {
 }
 
 
+void Assembler::fucomip() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDF);
+  EMIT(0xE9);
+}
+
+
 void Assembler::fcompp() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

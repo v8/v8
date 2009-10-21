@@ -6500,11 +6500,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &true_result);
   __ fldz();
   __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
-  __ fucompp();
-  __ push(eax);
-  __ fnstsw_ax();
-  __ sahf();
-  __ pop(eax);
+  __ FCmp();
   __ j(zero, &false_result);
   // Fall through to |true_result|.
 
@@ -6908,18 +6904,14 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         // Check if right operand is int32.
         __ fist_s(Operand(esp, 0 * kPointerSize));
         __ fild_s(Operand(esp, 0 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        __ sahf();
+        __ FCmp();
         __ j(not_zero, &operand_conversion_failure);
         __ j(parity_even, &operand_conversion_failure);
 
         // Check if left operand is int32.
         __ fist_s(Operand(esp, 1 * kPointerSize));
         __ fild_s(Operand(esp, 1 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        __ sahf();
+        __ FCmp();
         __ j(not_zero, &operand_conversion_failure);
         __ j(parity_even, &operand_conversion_failure);
       }

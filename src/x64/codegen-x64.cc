@@ -6206,16 +6206,11 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // These three cases set C3 when compared to zero in the FPU.
   __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &true_result);
-  // TODO(x64): Don't use fp stack, use MMX registers?
   __ fldz();  // Load zero onto fp stack
   // Load heap-number double value onto fp stack
   __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ fucompp();  // Compare and pop both values.
-  __ movq(kScratchRegister, rax);
-  __ fnstsw_ax();  // Store fp status word in ax, no checking for exceptions.
-  __ testl(rax, Immediate(0x4000));  // Test FP condition flag C3, bit 16.
-  __ movq(rax, kScratchRegister);
-  __ j(not_zero, &false_result);
+  __ FCmp();
+  __ j(zero, &false_result);
   // Fall through to |true_result|.
 
   // Return 1/0 for true/false in rax.
@@ -7512,31 +7507,16 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         // Check if right operand is int32.
         __ fist_s(Operand(rsp, 0 * kPointerSize));
         __ fild_s(Operand(rsp, 0 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
-          __ sahf();
-          __ j(not_zero, &operand_conversion_failure);
-          __ j(parity_even, &operand_conversion_failure);
-        } else {
-          __ and_(rax, Immediate(0x4400));
-          __ cmpl(rax, Immediate(0x4000));
-          __ j(not_zero, &operand_conversion_failure);
-        }
+        __ FCmp();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
+
         // Check if left operand is int32.
         __ fist_s(Operand(rsp, 1 * kPointerSize));
         __ fild_s(Operand(rsp, 1 * kPointerSize));
-        __ fucompp();
-        __ fnstsw_ax();
-        if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
-          __ sahf();
-          __ j(not_zero, &operand_conversion_failure);
-          __ j(parity_even, &operand_conversion_failure);
-        } else {
-          __ and_(rax, Immediate(0x4400));
-          __ cmpl(rax, Immediate(0x4000));
-          __ j(not_zero, &operand_conversion_failure);
-        }
+        __ FCmp();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
       }
 
       // Get int32 operands and perform bitop.

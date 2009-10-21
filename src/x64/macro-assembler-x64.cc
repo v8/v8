@@ -1421,18 +1421,9 @@ void MacroAssembler::Ret() {
 
 
 void MacroAssembler::FCmp() {
-  fucompp();
-  push(rax);
-  fnstsw_ax();
-  if (CpuFeatures::IsSupported(CpuFeatures::SAHF)) {
-    sahf();
-  } else {
-    shrl(rax, Immediate(8));
-    and_(rax, Immediate(0xFF));
-    push(rax);
-    popfq();
-  }
-  pop(rax);
+  fucomip();
+  ffree(0);
+  fincstp();
 }
 
 
