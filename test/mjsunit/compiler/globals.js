@@ -42,3 +42,14 @@ assertEquals(1, g);
 // Test a second store.
 assertEquals("2", eval('g = "2"'));
 assertEquals("2", g);
+
+// Test a load.
+assertEquals("2", eval('g'));
+
+// Test that patching the IC in the compiled code works.
+assertEquals("2", eval('g'));
+assertEquals("2", eval('g'));
+
+// Test a second load.
+g = 3;
+assertEquals(3, eval('g'));

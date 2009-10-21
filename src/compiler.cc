@@ -628,8 +628,7 @@ void CodeGenSelector::VisitSlot(Slot* expr) {
 
 void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
   Expression* rewrite = expr->var()->rewrite();
-  if (rewrite == NULL) BAILOUT("global variable reference");
-  Visit(rewrite);
+  if (rewrite != NULL) Visit(rewrite);
 }
 
 

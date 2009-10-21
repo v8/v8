@@ -189,11 +189,30 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   Expression* rewrite = expr->var()->rewrite();
-  ASSERT(rewrite != NULL);
+  if (rewrite == NULL) {
+    Comment cmnt(masm_, "Global variable");
+    // Use inline caching. Variable name is passed in rcx and the global
+    // object on the stack.
+    __ push(CodeGenerator::GlobalObject());
+    __ Move(rcx, expr->name());
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
-  Slot* slot = rewrite->AsSlot();
-  ASSERT(slot != NULL);
-  { Comment cmnt(masm_, "[ Slot");
+    // A test rax instruction following the call is used by the IC to
+    // indicate that the inobject property case was inlined.  Ensure there
+    // is no test rax instruction here.
+    if (expr->location().is_temporary()) {
+      // Replace the global object with the result.
+      __ movq(Operand(rsp, 0), rax);
+    } else {
+      ASSERT(expr->location().is_nowhere());
+      __ pop(rax);
+    }
+
+  } else {
+    Comment cmnt(masm_, "Stack slot");
+    Slot* slot = rewrite->AsSlot();
+    ASSERT(slot != NULL);
     if (expr->location().is_temporary()) {
       __ push(Operand(rbp, SlotOffset(slot)));
     } else {

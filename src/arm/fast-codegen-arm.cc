@@ -185,11 +185,27 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   Expression* rewrite = expr->var()->rewrite();
-  ASSERT(rewrite != NULL);
+  if (rewrite == NULL) {
+    Comment cmnt(masm_, "Global variable");
+    // Use inline caching. Variable name is passed in r2 and the global
+    // object on the stack.
+    __ ldr(ip, CodeGenerator::GlobalObject());
+    __ push(ip);
+    __ mov(r2, Operand(expr->name()));
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    if (expr->location().is_temporary()) {
+      // Replace the global object with the result.
+      __ str(r0, MemOperand(sp));
+    } else {
+      ASSERT(expr->location().is_nowhere());
+      __ pop();
+    }
 
-  Slot* slot = rewrite->AsSlot();
-  ASSERT(slot != NULL);
-  { Comment cmnt(masm_, "[ Slot");
+  } else {
+    Comment cmnt(masm_, "Stack slot");
+    Slot* slot = rewrite->AsSlot();
+    ASSERT(slot != NULL);
     if (expr->location().is_temporary()) {
       __ ldr(ip, MemOperand(fp, SlotOffset(slot)));
       __ push(ip);
