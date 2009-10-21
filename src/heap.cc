@@ -2133,7 +2133,9 @@ Object* Heap::Allocate(Map* map, AllocationSpace space) {
                                TargetSpaceId(map->instance_type()));
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
+#ifdef ENABLE_LOGGING_AND_PROFILING
   ProducerHeapProfile::RecordJSObjectAllocation(result);
+#endif
   return result;
 }
 
@@ -2455,7 +2457,9 @@ Object* Heap::CopyJSObject(JSObject* source) {
     JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
   }
   // Return the new clone.
+#ifdef ENABLE_LOGGING_AND_PROFILING
   ProducerHeapProfile::RecordJSObjectAllocation(clone);
+#endif
   return clone;
 }
 
@@ -3422,8 +3426,10 @@ bool Heap::Setup(bool create_heap_objects) {
   LOG(IntEvent("heap-capacity", Capacity()));
   LOG(IntEvent("heap-available", Available()));
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
   // This should be called only after initial objects have been created.
   ProducerHeapProfile::Setup();
+#endif
 
   return true;
 }
