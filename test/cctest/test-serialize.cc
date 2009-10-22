@@ -286,3 +286,22 @@ DEPENDENT_TEST(DeserializeExtensions, Serialize) {
   v8::Local<v8::Value> value = script->Run();
   CHECK(value->IsUndefined());
 }
+
+
+extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
+
+
+TEST(TestThatAlwaysSucceeds) {
+}
+
+
+TEST(TestThatAlwaysFails) {
+  bool ArtificialFailure = false;
+  CHECK(ArtificialFailure);
+}
+
+
+DEPENDENT_TEST(DependentTestThatAlwaysFails, TestThatAlwaysSucceeds) {
+  bool ArtificialFailure2 = false;
+  CHECK(ArtificialFailure2);
+}

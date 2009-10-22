@@ -326,6 +326,7 @@ class CommandOutput(object):
     self.timed_out = timed_out
     self.stdout = stdout
     self.stderr = stderr
+    self.failed = None
 
 
 class TestCase(object):
@@ -333,7 +334,6 @@ class TestCase(object):
   def __init__(self, context, path):
     self.path = path
     self.context = context
-    self.failed = None
     self.duration = None
 
   def IsNegative(self):
@@ -343,9 +343,9 @@ class TestCase(object):
     return cmp(other.duration, self.duration)
 
   def DidFail(self, output):
-    if self.failed is None:
-      self.failed = self.IsFailureOutput(output)
-    return self.failed
+    if output.failed is None:
+      output.failed = self.IsFailureOutput(output)
+    return output.failed
 
   def IsFailureOutput(self, output):
     return output.exit_code != 0
