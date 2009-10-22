@@ -127,6 +127,7 @@ var knownProblems = {
   "IS_VAR": true,
   "ResolvePossiblyDirectEval": true,
   "Log": true,
+  "DeclareGlobals": true,
 
   "CollectStackTrace": true
 };
