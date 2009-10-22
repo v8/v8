@@ -7313,7 +7313,7 @@ static Object* ExternalArrayIntSetter(ExternalArrayClass* receiver,
       cast_value = static_cast<ValueType>(int_value);
     } else if (value->IsHeapNumber()) {
       double double_value = HeapNumber::cast(value)->value();
-      cast_value = static_cast<ValueType>(double_value);
+      cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
     } else {
       // Clamp undefined to zero (default). All other types have been
       // converted to a number type further up in the call chain.
@@ -7365,7 +7365,7 @@ Object* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
       cast_value = static_cast<uint32_t>(int_value);
     } else if (value->IsHeapNumber()) {
       double double_value = HeapNumber::cast(value)->value();
-      cast_value = static_cast<uint32_t>(double_value);
+      cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
     } else {
       // Clamp undefined to zero (default). All other types have been
       // converted to a number type further up in the call chain.

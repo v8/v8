@@ -574,11 +574,11 @@ void Assembler::immediate_arithmetic_op_16(byte subcode,
     emit(src.value_);
   } else if (dst.is(rax)) {
     emit(0x05 | (subcode << 3));
-    emitl(src.value_);
+    emitw(src.value_);
   } else {
     emit(0x81);
     emit_modrm(subcode, dst);
-    emitl(src.value_);
+    emitw(src.value_);
   }
 }
 
@@ -597,7 +597,7 @@ void Assembler::immediate_arithmetic_op_16(byte subcode,
   } else {
     emit(0x81);
     emit_operand(subcode, dst);
-    emitl(src.value_);
+    emitw(src.value_);
   }
 }
 
@@ -2226,6 +2226,14 @@ void Assembler::fucompp() {
   last_pc_ = pc_;
   emit(0xDA);
   emit(0xE9);
+}
+
+
+void Assembler::fucomi(int i) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0xDB);
+  emit(0xE8 + i);
 }
 
 

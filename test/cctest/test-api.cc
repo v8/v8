@@ -8197,15 +8197,6 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   CHECK_EQ(28, result->Int32Value());
 
   // Check out-of-range loads.
-  result = CompileRun("var caught_exception = false;"
-                      "try {"
-                      "  ext_array[-1];"
-                      "} catch (e) {"
-                      "  caught_exception = true;"
-                      "}"
-                      "caught_exception;");
-  CHECK_EQ(true, result->BooleanValue());
-
   i::OS::SNPrintF(test_buf,
                   "var caught_exception = false;"
                   "try {"
@@ -8219,15 +8210,6 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   CHECK_EQ(true, result->BooleanValue());
 
   // Check out-of-range stores.
-  result = CompileRun("var caught_exception = false;"
-                      "try {"
-                      "  ext_array[-1] = 1;"
-                      "} catch (e) {"
-                      "  caught_exception = true;"
-                      "}"
-                      "caught_exception;");
-  CHECK_EQ(true, result->BooleanValue());
-
   i::OS::SNPrintF(test_buf,
                   "var caught_exception = false;"
                   "try {"
@@ -8239,9 +8221,6 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                   kElementCount);
   result = CompileRun(test_buf.start());
   CHECK_EQ(true, result->BooleanValue());
-
-  // TODO(kbr): check what happens during IC misses on the type of the object.
-  // Re-assign array object halfway through a loop.
 
   // Check other boundary conditions, values and operations.
   result = CompileRun("for (var i = 0; i < 8; i++) {"
@@ -8258,9 +8237,39 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   CHECK_EQ(2, result->Int32Value());
   CHECK_EQ(2, static_cast<int>(jsobj->GetElement(6)->Number()));
 
-  // Result for storing NaNs and +/-Infinity isn't defined for these
-  // types; they do not have the clamping behavior CanvasPixelArray
-  // specifies.
+  if (array_type != v8::kExternalFloatArray) {
+    // Though the specification doesn't state it, be explicit about
+    // converting NaNs and +/-Infinity to zero.
+    result = CompileRun("for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = 5;"
+                        "}"
+                        "for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = NaN;"
+                        "}"
+                        "ext_array[5];");
+    CHECK_EQ(0, result->Int32Value());
+    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+
+    result = CompileRun("for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = 5;"
+                        "}"
+                        "for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = Infinity;"
+                        "}"
+                        "ext_array[5];");
+    CHECK_EQ(0, result->Int32Value());
+    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+
+    result = CompileRun("for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = 5;"
+                        "}"
+                        "for (var i = 0; i < 8; i++) {"
+                        "  ext_array[i] = -Infinity;"
+                        "}"
+                        "ext_array[5];");
+    CHECK_EQ(0, result->Int32Value());
+    CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(5))->value());
+  }
 
   result = CompileRun("ext_array[3] = 33;"
                       "delete ext_array[3];"

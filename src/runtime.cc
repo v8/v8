@@ -2580,18 +2580,6 @@ Object* Runtime::GetObjectProperty(Handle<Object> object, Handle<Object> key) {
     return GetElementOrCharAt(object, index);
   }
 
-  // If the target object is a JSObject and has an ExternalArray as
-  // its elements, we need to check for negative indices and report
-  // exceptions. Indices larger than the array's length will be caught
-  // elsewhere.
-  if (key->IsSmi() && Smi::cast(*key)->value() < 0) {
-    if (object->IsJSObject() &&
-        JSObject::cast(*object)->HasExternalArrayElements()) {
-      uint32_t index = static_cast<uint32_t>(Smi::cast(*key)->value());
-      return Top::Throw(*Factory::NewIndexError(index));
-    }
-  }
-
   // Convert the key to a string - possibly by calling back into JavaScript.
   Handle<String> name;
   if (key->IsString()) {
@@ -2724,18 +2712,6 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
     Handle<Object> result = SetElement(js_object, index, value);
     if (result.is_null()) return Failure::Exception();
     return *value;
-  }
-
-  // If the target object is a JSObject and has an ExternalArray as
-  // its elements, we need to check for negative indices and report
-  // exceptions. Indices larger than the array's length will be caught
-  // elsewhere.
-  if (key->IsSmi() && Smi::cast(*key)->value() < 0) {
-    if (object->IsJSObject() &&
-        JSObject::cast(*object)->HasExternalArrayElements()) {
-      uint32_t index = static_cast<uint32_t>(Smi::cast(*key)->value());
-      return Top::Throw(*Factory::NewIndexError(index));
-    }
   }
 
   if (key->IsString()) {

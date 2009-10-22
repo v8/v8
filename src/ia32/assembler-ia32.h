@@ -702,6 +702,7 @@ class Assembler : public Malloced {
   void ftst();
   void fucomp(int i);
   void fucompp();
+  void fucomi(int i);
   void fucomip();
   void fcompp();
   void fnstsw_ax();
