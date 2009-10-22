@@ -458,11 +458,6 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
   ASSERT(scope->num_heap_slots() == 0);
   ASSERT(scope->arguments() == NULL);
 
-  if (fun->materialized_literal_count() > 0) {
-    if (FLAG_trace_bailout) PrintF("Unsupported literal\n");
-    return NORMAL;
-  }
-
   has_supported_syntax_ = true;
   VisitDeclarations(fun->scope()->declarations());
   if (!has_supported_syntax_) return NORMAL;
@@ -639,7 +634,7 @@ void CodeGenSelector::VisitLiteral(Literal* expr) {
 
 
 void CodeGenSelector::VisitRegExpLiteral(RegExpLiteral* expr) {
-  BAILOUT("RegExpLiteral");
+  // RegexpLiterals are supported.
 }
 
 

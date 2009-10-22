@@ -206,6 +206,37 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
+  Comment cmnt(masm_, "[ RegExp Literal");
+  Label done;
+  // Registers will be used as follows:
+  // edi = JS function.
+  // ebx = literals array.
+  // eax = regexp literal.
+  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ mov(ebx, FieldOperand(edi, JSFunction::kLiteralsOffset));
+  int literal_offset =
+    FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+  __ mov(eax, FieldOperand(ebx, literal_offset));
+  __ cmp(eax, Factory::undefined_value());
+  __ j(not_equal, &done);
+  // Create regexp literal using runtime function
+  // Result will be in eax.
+  __ push(ebx);
+  __ push(Immediate(Smi::FromInt(expr->literal_index())));
+  __ push(Immediate(expr->pattern()));
+  __ push(Immediate(expr->flags()));
+  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  // Label done:
+  __ bind(&done);
+  if (expr->location().is_temporary()) {
+    __ push(eax);
+  } else {
+    ASSERT(expr->location().is_nowhere());
+  }
+}
+
+
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
@@ -328,6 +359,10 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     if (args->at(i)->location().is_constant()) {
       ASSERT(args->at(i)->AsLiteral() != NULL);
       __ push(Immediate(args->at(i)->AsLiteral()->handle()));
+    } else {
+      ASSERT(args->at(i)->location().is_temporary());
+      // If location is temporary, it is already on the stack,
+      // so nothing to do here.
     }
   }
 

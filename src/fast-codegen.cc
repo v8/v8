@@ -284,11 +284,6 @@ void FastCodeGenerator::VisitLiteral(Literal* expr) {
 }
 
 
-void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   UNREACHABLE();
 }
