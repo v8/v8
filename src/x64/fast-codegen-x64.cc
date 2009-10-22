@@ -79,6 +79,10 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     VisitDeclarations(fun->scope()->declarations());
   }
 
+  if (FLAG_trace) {
+    __ CallRuntime(Runtime::kTraceEnter, 0);
+  }
+
   { Comment cmnt(masm_, "[ Body");
     VisitStatements(fun->body());
   }
@@ -88,7 +92,12 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
     SetReturnPosition(fun);
+    if (FLAG_trace) {
+      __ push(rax);
+      __ CallRuntime(Runtime::kTraceExit, 1);
+    }
     __ RecordJSReturn();
+
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.
     __ movq(rsp, rbp);
@@ -147,6 +156,11 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     ASSERT(expr->AsLiteral() != NULL);
     __ Move(rax, expr->AsLiteral()->handle());
   }
+  if (FLAG_trace) {
+    __ push(rax);
+    __ CallRuntime(Runtime::kTraceExit, 1);
+  }
+
   __ RecordJSReturn();
   // Do not use the leave instruction here because it is too short to
   // patch with the code required by the debugger.

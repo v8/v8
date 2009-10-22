@@ -90,6 +90,10 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     VisitDeclarations(fun->scope()->declarations());
   }
 
+  if (FLAG_trace) {
+    __ CallRuntime(Runtime::kTraceEnter, 0);
+  }
+
   { Comment cmnt(masm_, "[ Body");
     VisitStatements(fun->body());
   }
@@ -99,6 +103,13 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // body.
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
     SetReturnPosition(fun);
+    if (FLAG_trace) {
+      // Push the return value on the stack as the parameter.
+      // Runtime::TraceExit returns its parameter in r0.
+      __ push(r0);
+      __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+
     __ RecordJSReturn();
     __ mov(sp, fp);
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
@@ -150,6 +161,14 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     ASSERT(expr->AsLiteral() != NULL);
     __ mov(r0, Operand(expr->AsLiteral()->handle()));
   }
+
+  if (FLAG_trace) {
+    // Push the return value on the stack as the parameter.
+    // Runtime::TraceExit returns its parameter in r0.
+    __ push(r0);
+    __ CallRuntime(Runtime::kTraceExit, 1);
+  }
+
   __ RecordJSReturn();
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());

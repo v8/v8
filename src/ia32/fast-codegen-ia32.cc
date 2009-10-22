@@ -80,6 +80,10 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     VisitDeclarations(fun->scope()->declarations());
   }
 
+  if (FLAG_trace) {
+    __ CallRuntime(Runtime::kTraceEnter, 0);
+  }
+
   { Comment cmnt(masm_, "[ Body");
     VisitStatements(fun->body());
   }
@@ -89,6 +93,11 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // body.
     __ mov(eax, Factory::undefined_value());
     SetReturnPosition(fun);
+
+    if (FLAG_trace) {
+      __ push(eax);
+      __ CallRuntime(Runtime::kTraceExit, 1);
+    }
     __ RecordJSReturn();
     // Do not use the leave instruction here because it is too short to
     // patch with the code required by the debugger.
@@ -139,7 +148,12 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     ASSERT(expr->AsLiteral() != NULL);
     __ mov(eax, expr->AsLiteral()->handle());
   }
+  if (FLAG_trace) {
+    __ push(eax);
+    __ CallRuntime(Runtime::kTraceExit, 1);
+  }
   __ RecordJSReturn();
+
   // Do not use the leave instruction here because it is too short to
   // patch with the code required by the debugger.
   __ mov(esp, ebp);
