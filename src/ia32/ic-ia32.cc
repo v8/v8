@@ -430,7 +430,6 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 
   if (array_type == kExternalIntArray ||
       array_type == kExternalUnsignedIntArray) {
-
     // For the Int and UnsignedInt array types, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
@@ -755,15 +754,15 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
     __ j(parity_even, &is_nan);
 
     if (array_type != kExternalUnsignedIntArray) {
-      __ push(eax); // Make room on stack
+      __ push(eax);  // Make room on stack
       __ fistp_s(Operand(esp, 0));
       __ pop(eax);
     } else {
       // fistp stores values as signed integers.
       // To represent the entire range, we need to store as a 64-bit
       // int and discard the high 32 bits.
-      __ push(eax); // Make room on stack
-      __ push(eax); // Make room on stack
+      __ push(eax);  // Make room on stack
+      __ push(eax);  // Make room on stack
       __ fistp_d(Operand(esp, 0));
       __ pop(eax);
       __ mov(Operand(esp, 0), eax);

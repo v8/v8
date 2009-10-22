@@ -442,7 +442,6 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 
   if (array_type == kExternalIntArray ||
       array_type == kExternalUnsignedIntArray) {
-
     // For the Int and UnsignedInt array types, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
@@ -798,7 +797,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
     __ fucomi(0);
     __ j(parity_even, &is_nan);
 
-    __ push(rax); // Make room on stack
+    __ push(rax);  // Make room on stack
     __ fistp_d(Operand(rsp, 0));
     __ pop(rax);
     // rax: untagged integer value
