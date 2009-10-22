@@ -1172,9 +1172,9 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   VirtualFrame::SpilledScope spilled_scope;
+  frame_->EmitPush(cp);
   __ mov(r0, Operand(pairs));
   frame_->EmitPush(r0);
-  frame_->EmitPush(cp);
   __ mov(r0, Operand(Smi::FromInt(is_eval() ? 1 : 0)));
   frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
@@ -2255,12 +2255,10 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(boilerplate->IsBoilerplate());
 
-  // Push the boilerplate on the stack.
-  __ mov(r0, Operand(boilerplate));
-  frame_->EmitPush(r0);
-
   // Create a new closure.
   frame_->EmitPush(cp);
+  __ mov(r0, Operand(boilerplate));
+  frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->EmitPush(r0);
 }

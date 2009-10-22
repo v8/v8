@@ -29,6 +29,7 @@
 
 #include "codegen-inl.h"
 #include "fast-codegen.h"
+#include "parser.h"
 
 namespace v8 {
 namespace internal {
@@ -100,8 +101,8 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
+  __ push(esi);  // The context is the first argument.
   __ push(Immediate(pairs));
-  __ push(esi);  // The context is the second argument.
   __ push(Immediate(Smi::FromInt(is_eval_ ? 1 : 0)));
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
@@ -157,8 +158,8 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // Create a new closure.
-  __ push(Immediate(boilerplate));
   __ push(esi);
+  __ push(Immediate(boilerplate));
   __ CallRuntime(Runtime::kNewClosure, 2);
 
   if (expr->location().is_temporary()) {
@@ -190,7 +191,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
       __ mov(Operand(esp, 0), eax);
     } else {
       ASSERT(expr->location().is_nowhere());
-      __ pop(eax);
+      __ add(Operand(esp), Immediate(kPointerSize));
     }
 
   } else {
@@ -237,6 +238,76 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
+  Comment cmnt(masm_, "[ ArrayLiteral");
+  Label make_clone;
+
+  // Fetch the function's literals array.
+  __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ mov(ebx, FieldOperand(ebx, JSFunction::kLiteralsOffset));
+  // Check if the literal's boilerplate has been instantiated.
+  int offset =
+      FixedArray::kHeaderSize + (expr->literal_index() * kPointerSize);
+  __ mov(eax, FieldOperand(ebx, offset));
+  __ cmp(eax, Factory::undefined_value());
+  __ j(not_equal, &make_clone);
+
+  // Instantiate the boilerplate.
+  __ push(ebx);
+  __ push(Immediate(Smi::FromInt(expr->literal_index())));
+  __ push(Immediate(expr->literals()));
+  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+
+  __ bind(&make_clone);
+  // Clone the boilerplate.
+  __ push(eax);
+  if (expr->depth() > 1) {
+    __ CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+  } else {
+    __ CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
+  }
+
+  bool result_saved = false;  // Is the result saved to the stack?
+
+  // Emit code to evaluate all the non-constant subexpressions and to store
+  // them into the newly cloned array.
+  ZoneList<Expression*>* subexprs = expr->values();
+  for (int i = 0, len = subexprs->length(); i < len; i++) {
+    Expression* subexpr = subexprs->at(i);
+    // If the subexpression is a literal or a simple materialized literal it
+    // is already set in the cloned array.
+    if (subexpr->AsLiteral() != NULL ||
+        CompileTimeValue::IsCompileTimeValue(subexpr)) {
+      continue;
+    }
+
+    if (!result_saved) {
+      __ push(eax);
+      result_saved = true;
+    }
+    Visit(subexpr);
+    ASSERT(subexpr->location().is_temporary());
+
+    // Store the subexpression value in the array's elements.
+    __ pop(eax);  // Subexpression value.
+    __ mov(ebx, Operand(esp, 0));  // Copy of array literal.
+    __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
+    int offset = FixedArray::kHeaderSize + (i * kPointerSize);
+    __ mov(FieldOperand(ebx, offset), eax);
+
+    // Update the write barrier for the array store.
+    __ RecordWrite(ebx, offset, eax, ecx);
+  }
+
+  Location destination = expr->location();
+  if (destination.is_nowhere() && result_saved) {
+    __ add(Operand(esp), Immediate(kPointerSize));
+  } else if (destination.is_temporary() && !result_saved) {
+    __ push(eax);
+  }
+}
+
+
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
@@ -275,7 +346,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       __ mov(Operand(esp, 0), eax);
     } else {
       ASSERT(destination.is_nowhere());
-      __ pop(eax);
+      __ add(Operand(esp), Immediate(kPointerSize));
     }
 
   } else {
@@ -339,7 +410,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
     __ mov(Operand(esp, 0), eax);
   } else {
     ASSERT(expr->location().is_nowhere());
-    __ pop(eax);
+    __ add(Operand(esp), Immediate(kPointerSize));
   }
 }
 

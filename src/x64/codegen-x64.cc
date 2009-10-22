@@ -270,8 +270,8 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   frame_->SyncRange(0, frame_->element_count() - 1);
 
   __ movq(kScratchRegister, pairs, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(rsi);  // The context is the first argument.
   frame_->EmitPush(kScratchRegister);
-  frame_->EmitPush(rsi);  // The context is the second argument.
   frame_->EmitPush(Smi::FromInt(is_eval() ? 1 : 0));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
@@ -2177,12 +2177,10 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
   frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Push the boilerplate on the stack.
-  __ movq(kScratchRegister, boilerplate, RelocInfo::EMBEDDED_OBJECT);
-  frame_->EmitPush(kScratchRegister);
-
   // Create a new closure.
   frame_->EmitPush(rsi);
+  __ movq(kScratchRegister, boilerplate, RelocInfo::EMBEDDED_OBJECT);
+  frame_->EmitPush(kScratchRegister);
   Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->Push(&result);
 }

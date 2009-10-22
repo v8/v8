@@ -644,7 +644,14 @@ void CodeGenSelector::VisitObjectLiteral(ObjectLiteral* expr) {
 
 
 void CodeGenSelector::VisitArrayLiteral(ArrayLiteral* expr) {
-  BAILOUT("ArrayLiteral");
+  ZoneList<Expression*>* subexprs = expr->values();
+  for (int i = 0, len = subexprs->length(); i < len; i++) {
+    Expression* subexpr = subexprs->at(i);
+    if (subexpr->AsLiteral() != NULL) continue;
+    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
+    Visit(subexpr);
+    CHECK_BAILOUT;
+  }
 }
 
 

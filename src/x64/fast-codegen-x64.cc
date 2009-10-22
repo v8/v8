@@ -30,6 +30,7 @@
 #include "codegen-inl.h"
 #include "debug.h"
 #include "fast-codegen.h"
+#include "parser.h"
 
 namespace v8 {
 namespace internal {
@@ -108,8 +109,8 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
+  __ push(rsi);  // The context is the first argument.
   __ Push(pairs);
-  __ push(rsi);  // The context is the second argument.
   __ Push(Smi::FromInt(is_eval_ ? 1 : 0));
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
@@ -174,8 +175,8 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // Create a new closure.
-  __ Push(boilerplate);
   __ push(rsi);
+  __ Push(boilerplate);
   __ CallRuntime(Runtime::kNewClosure, 2);
 
   if (expr->location().is_temporary()) {
@@ -206,7 +207,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
       __ movq(Operand(rsp, 0), rax);
     } else {
       ASSERT(expr->location().is_nowhere());
-      __ pop(rax);
+      __ addq(rsp, Immediate(kPointerSize));
     }
 
   } else {
@@ -253,6 +254,76 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
+void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
+  Comment cmnt(masm_, "[ ArrayLiteral");
+  Label make_clone;
+
+  // Fetch the function's literals array.
+  __ movq(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rbx, FieldOperand(rbx, JSFunction::kLiteralsOffset));
+  // Check if the literal's boilerplate has been instantiated.
+  int offset =
+      FixedArray::kHeaderSize + (expr->literal_index() * kPointerSize);
+  __ movq(rax, FieldOperand(rbx, offset));
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, &make_clone);
+
+  // Instantiate the boilerplate.
+  __ push(rbx);
+  __ Push(Smi::FromInt(expr->literal_index()));
+  __ Push(expr->literals());
+  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+
+  __ bind(&make_clone);
+  // Clone the boilerplate.
+  __ push(rax);
+  if (expr->depth() > 1) {
+    __ CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+  } else {
+    __ CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
+  }
+
+  bool result_saved = false;  // Is the result saved to the stack?
+
+  // Emit code to evaluate all the non-constant subexpressions and to store
+  // them into the newly cloned array.
+  ZoneList<Expression*>* subexprs = expr->values();
+  for (int i = 0, len = subexprs->length(); i < len; i++) {
+    Expression* subexpr = subexprs->at(i);
+    // If the subexpression is a literal or a simple materialized literal it
+    // is already set in the cloned array.
+    if (subexpr->AsLiteral() != NULL ||
+        CompileTimeValue::IsCompileTimeValue(subexpr)) {
+      continue;
+    }
+
+    if (!result_saved) {
+      __ push(rax);
+      result_saved = true;
+    }
+    Visit(subexpr);
+    ASSERT(subexpr->location().is_temporary());
+
+    // Store the subexpression value in the array's elements.
+    __ pop(rax);  // Subexpression value.
+    __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
+    __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
+    int offset = FixedArray::kHeaderSize + (i * kPointerSize);
+    __ movq(FieldOperand(rbx, offset), rax);
+
+    // Update the write barrier for the array store.
+    __ RecordWrite(rbx, offset, rax, rcx);
+  }
+
+  Location destination = expr->location();
+  if (destination.is_nowhere() && result_saved) {
+    __ addq(rsp, Immediate(kPointerSize));
+  } else if (destination.is_temporary() && !result_saved) {
+    __ push(rax);
+  }
+}
+
+
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
@@ -290,7 +361,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
     if (destination.is_temporary()) {
       __ movq(Operand(rsp, 0), rax);
     } else {
-      __ pop(rax);
+      __ addq(rsp, Immediate(kPointerSize));
     }
   } else {
     if (source.is_temporary()) {
@@ -352,7 +423,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
     __ movq(Operand(rsp, 0), rax);
   } else {
     ASSERT(expr->location().is_nowhere());
-    __ pop(rax);
+    __ addq(rsp, Immediate(kPointerSize));
   }
 }
 

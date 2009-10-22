@@ -2275,8 +2275,8 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // allow us to push the arguments directly into place.
   frame_->SyncRange(0, frame_->element_count() - 1);
 
+  frame_->EmitPush(esi);  // The context is the first argument.
   frame_->EmitPush(Immediate(pairs));
-  frame_->EmitPush(esi);  // The context is the second argument.
   frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
   Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
@@ -3576,11 +3576,9 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
   frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Push the boilerplate on the stack.
-  frame_->EmitPush(Immediate(boilerplate));
-
   // Create a new closure.
   frame_->EmitPush(esi);
+  frame_->EmitPush(Immediate(boilerplate));
   Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
   frame_->Push(&result);
 }

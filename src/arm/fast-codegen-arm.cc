@@ -29,6 +29,7 @@
 
 #include "codegen-inl.h"
 #include "fast-codegen.h"
+#include "parser.h"
 
 namespace v8 {
 namespace internal {
@@ -110,11 +111,10 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
-  __ mov(r0, Operand(pairs));
-  __ push(r0);
-  __ push(cp);  // The context is the second argument.
+  // The context is the first argument.
+  __ mov(r1, Operand(pairs));
   __ mov(r0, Operand(Smi::FromInt(is_eval_ ? 1 : 0)));
-  __ push(r0);
+  __ stm(db_w, sp, cp.bit() | r1.bit() | r0.bit());
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
@@ -153,7 +153,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   __ RecordJSReturn();
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
-    int num_parameters = function_->scope()->num_parameters();
+  int num_parameters = function_->scope()->num_parameters();
   __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
   __ Jump(lr);
 }
@@ -170,8 +170,7 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Create a new closure.
   __ mov(r0, Operand(boilerplate));
-  __ push(r0);
-  __ push(cp);
+  __ stm(db_w, sp, cp.bit() | r0.bit());
   __ CallRuntime(Runtime::kNewClosure, 2);
 
   if (expr->location().is_temporary()) {
@@ -215,6 +214,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   }
 }
 
+
 void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExp Literal");
   Label done;
@@ -244,6 +244,80 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
     ASSERT(expr->location().is_nowhere());
   }
 }
+
+
+void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
+  Comment cmnt(masm_, "[ ArrayLiteral");
+  Label make_clone;
+
+  // Fetch the function's literals array.
+  __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
+  // Check if the literal's boilerplate has been instantiated.
+  int offset =
+      FixedArray::kHeaderSize + (expr->literal_index() * kPointerSize);
+  __ ldr(r0, FieldMemOperand(r3, offset));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, ip);
+  __ b(&make_clone, ne);
+
+  // Instantiate the boilerplate.
+  __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
+  __ mov(r1, Operand(expr->literals()));
+  __ stm(db_w, sp, r3.bit() | r2.bit() | r1.bit());
+  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
+
+  __ bind(&make_clone);
+  // Clone the boilerplate.
+  __ push(r0);
+  if (expr->depth() > 1) {
+    __ CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+  } else {
+    __ CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
+  }
+
+  bool result_saved = false;  // Is the result saved to the stack?
+
+  // Emit code to evaluate all the non-constant subexpressions and to store
+  // them into the newly cloned array.
+  ZoneList<Expression*>* subexprs = expr->values();
+  for (int i = 0, len = subexprs->length(); i < len; i++) {
+    Expression* subexpr = subexprs->at(i);
+    // If the subexpression is a literal or a simple materialized literal it
+    // is already set in the cloned array.
+    if (subexpr->AsLiteral() != NULL ||
+        CompileTimeValue::IsCompileTimeValue(subexpr)) {
+      continue;
+    }
+
+    if (!result_saved) {
+      __ push(r0);
+      result_saved = true;
+    }
+    Visit(subexpr);
+    ASSERT(subexpr->location().is_temporary());
+
+    // Store the subexpression value in the array's elements.
+    __ pop(r0);  // Subexpression value.
+    __ ldr(r1, MemOperand(sp));  // Copy of array literal.
+    __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
+    int offset = FixedArray::kHeaderSize + (i * kPointerSize);
+    __ str(r0, FieldMemOperand(r1, offset));
+
+    // Update the write barrier for the array store with r0 as the scratch
+    // register.
+    __ mov(r2, Operand(offset));
+    __ RecordWrite(r1, r2, r0);
+  }
+
+  Location destination = expr->location();
+  if (destination.is_nowhere() && result_saved) {
+    __ pop();
+  } else if (destination.is_temporary() && !result_saved) {
+    __ push(r0);
+  }
+}
+
 
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
@@ -323,11 +397,10 @@ void FastCodeGenerator::VisitCall(Call* expr) {
   ASSERT(var != NULL && !var->is_this() && var->is_global());
   ASSERT(!var->is_possibly_eval());
 
-  __ mov(r0, Operand(var->name()));
-  __ push(r0);
-  // Push global object (receiver)
+  __ mov(r1, Operand(var->name()));
+  // Push global object as receiver.
   __ ldr(r0, CodeGenerator::GlobalObject());
-  __ push(r0);
+  __ stm(db_w, sp, r1.bit() | r0.bit());
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));

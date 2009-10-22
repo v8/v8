@@ -33,3 +33,20 @@ assertEquals(null, eval("null"));
 assertEquals("abc", eval("'abc'"));
 
 assertEquals(8, eval("6;'abc';8"));
+
+// Test some materialized array literals.
+assertEquals([1,2,3,4], eval('[1,2,3,4]'));
+assertEquals([[1,2],3,4], eval('[[1,2],3,4]'));
+assertEquals([1,[2,3,4]], eval('[1,[2,3,4]]'));
+
+assertEquals([1,2,3,4], eval('var a=1, b=2; [a,b,3,4]'))
+assertEquals([1,2,3,4], eval('var a=1, b=2, c = [a,b,3,4]; c'));
+
+function double(x) { return x + x; }
+var s = 'var a = 1, b = 2; [double(a), double(b), double(3), double(4)]';
+assertEquals([2,4,6,8], eval(s));
+
+// Test array literals in effect context.
+assertEquals(17, eval('[1,2,3,4]; 17'));
+assertEquals(19, eval('var a=1, b=2; [a,b,3,4]; 19'));
+assertEquals(23, eval('var a=1, b=2; c=23; [a,b,3,4]; c'));

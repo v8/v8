@@ -577,8 +577,8 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
   HandleScope scope;
   Handle<GlobalObject> global = Handle<GlobalObject>(Top::context()->global());
 
-  CONVERT_ARG_CHECKED(FixedArray, pairs, 0);
-  Handle<Context> context = args.at<Context>(1);
+  Handle<Context> context = args.at<Context>(0);
+  CONVERT_ARG_CHECKED(FixedArray, pairs, 1);
   bool is_eval = Smi::cast(args[2])->value() == 1;
 
   // Compute the property attributes. According to ECMA-262, section
@@ -4391,8 +4391,8 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
 static Object* Runtime_NewClosure(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(JSFunction, boilerplate, 0);
-  CONVERT_ARG_CHECKED(Context, context, 1);
+  CONVERT_ARG_CHECKED(Context, context, 0);
+  CONVERT_ARG_CHECKED(JSFunction, boilerplate, 1);
 
   Handle<JSFunction> result =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);

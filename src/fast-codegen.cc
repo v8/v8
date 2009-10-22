@@ -289,11 +289,6 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 }
 
 
-void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   UNREACHABLE();
 }
