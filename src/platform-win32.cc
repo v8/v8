@@ -48,10 +48,10 @@
 #ifndef NOMCX
 #define NOMCX
 #endif
-// Require Windows 2000 or higher (this is required for the IsDebuggerPresent
+// Require Windows XP or higher (this is required for the RtlCaptureContext
 // function to be present).
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x500
+#define _WIN32_WINNT 0x501
 #endif
 
 #include <windows.h>
@@ -1208,22 +1208,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 
   // Capture current context.
   CONTEXT context;
-  memset(&context, 0, sizeof(context));
-  context.ContextFlags = CONTEXT_CONTROL;
-  context.ContextFlags = CONTEXT_CONTROL;
-#ifdef  _WIN64
-  // TODO(X64): Implement context capture.
-#else
-  __asm    call x
-  __asm x: pop eax
-  __asm    mov context.Eip, eax
-  __asm    mov context.Ebp, ebp
-  __asm    mov context.Esp, esp
-  // NOTE: At some point, we could use RtlCaptureContext(&context) to
-  // capture the context instead of inline assembler. However it is
-  // only available on XP, Vista, Server 2003 and Server 2008 which
-  // might not be sufficient.
-#endif
+  RtlCaptureContext(&context);
 
   // Initialize the stack walking
   STACKFRAME64 stack_frame;
