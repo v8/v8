@@ -1013,6 +1013,7 @@ class Assembler : public Malloced {
 
   void fstp_s(const Operand& adr);
   void fstp_d(const Operand& adr);
+  void fstp(int index);
 
   void fild_s(const Operand& adr);
   void fild_d(const Operand& adr);
@@ -1066,8 +1067,7 @@ class Assembler : public Malloced {
 
   // SSE2 instructions
   void movsd(const Operand& dst, XMMRegister src);
-  void movsd(Register src, XMMRegister dst);
-  void movsd(XMMRegister dst, Register src);
+  void movsd(XMMRegister src, XMMRegister dst);
   void movsd(XMMRegister src, const Operand& dst);
 
   void cvttss2si(Register dst, const Operand& src);

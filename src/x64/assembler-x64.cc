@@ -2009,6 +2009,14 @@ void Assembler::fstp_d(const Operand& adr) {
 }
 
 
+void Assembler::fstp(int index) {
+  ASSERT(is_uint3(index));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_farith(0xDD, 0xD8, index);
+}
+
+
 void Assembler::fild_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2313,18 +2321,7 @@ void Assembler::movsd(const Operand& dst, XMMRegister src) {
 }
 
 
-void Assembler::movsd(Register dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  emit(0xF2);  // double
-  emit_optional_rex_32(src, dst);
-  emit(0x0F);
-  emit(0x11);  // store
-  emit_sse_operand(src, dst);
-}
-
-
-void Assembler::movsd(XMMRegister dst, Register src) {
+void Assembler::movsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0xF2);  // double

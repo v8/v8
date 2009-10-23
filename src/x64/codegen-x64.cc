@@ -7643,6 +7643,98 @@ int CompareStub::MinorKey() {
   return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
 }
 
+#undef __
+
+#define __ masm.
+
+#ifdef _WIN64
+typedef double (*ModuloFunction)(double, double);
+// Define custom fmod implementation.
+ModuloFunction CreateModuloFunction() {
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
+                                                 &actual_size,
+                                                 true));
+  CHECK(buffer);
+  Assembler masm(buffer, actual_size);
+  // Generated code is put into a fixed, unmovable, buffer, and not into
+  // the V8 heap. We can't, and don't, refer to any relocatable addresses
+  // (e.g. the JavaScript nan-object).
+
+  // Windows 64 ABI passes double arguments in xmm0, xmm1 and
+  // returns result in xmm0.
+  // Argument backing space is allocated on the stack above
+  // the return address.
+
+  // Compute x mod y.
+  // Load y and x (use argument backing store as temporary storage).
+  __ movsd(Operand(rsp, kPointerSize * 2), xmm1);
+  __ movsd(Operand(rsp, kPointerSize), xmm0);
+  __ fld_d(Operand(rsp, kPointerSize * 2));
+  __ fld_d(Operand(rsp, kPointerSize));
+
+  // Clear exception flags before operation.
+  {
+    Label no_exceptions;
+    __ fwait();
+    __ fnstsw_ax();
+    // Clear if Illegal Operand or Zero Division exceptions are set.
+    __ testb(rax, Immediate(5));
+    __ j(zero, &no_exceptions);
+    __ fnclex();
+    __ bind(&no_exceptions);
+  }
+
+  // Compute st(0) % st(1)
+  {
+    Label partial_remainder_loop;
+    __ bind(&partial_remainder_loop);
+    __ fprem();
+    __ fwait();
+    __ fnstsw_ax();
+    __ testl(rax, Immediate(0x400 /* C2 */));
+    // If C2 is set, computation only has partial result. Loop to
+    // continue computation.
+    __ j(not_zero, &partial_remainder_loop);
+  }
+
+  Label valid_result;
+  Label return_result;
+  // If Invalid Operand or Zero Division exceptions are set,
+  // return NaN.
+  __ testb(rax, Immediate(5));
+  __ j(zero, &valid_result);
+  __ fstp(0);  // Drop result in st(0).
+  int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
+  __ movq(rcx, kNaNValue, RelocInfo::NONE);
+  __ movq(Operand(rsp, kPointerSize), rcx);
+  __ movsd(xmm0, Operand(rsp, kPointerSize));
+  __ jmp(&return_result);
+
+  // If result is valid, return that.
+  __ bind(&valid_result);
+  __ fstp_d(Operand(rsp, kPointerSize));
+  __ movsd(xmm0, Operand(rsp, kPointerSize));
+
+  // Clean up FPU stack and exceptions and return xmm0
+  __ bind(&return_result);
+  __ fstp(0);  // Unload y.
+  {
+    Label no_exceptions;
+    __ testb(rax, Immediate(0x3f /* Any Exception*/));
+    __ j(zero, &no_exceptions);
+    __ fnclex();
+    __ bind(&no_exceptions);
+  }
+  __ ret(0);
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  // Call the function from C++.
+  return FUNCTION_CAST<ModuloFunction>(buffer);
+}
+
+#endif
 
 #undef __
 

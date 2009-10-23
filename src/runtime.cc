@@ -3742,14 +3742,7 @@ static Object* Runtime_NumberMod(Arguments args) {
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
 
-#if defined WIN32 || defined _WIN64
-  // Workaround MS fmod bugs. ECMA-262 says:
-  // dividend is finite and divisor is an infinity => result equals dividend
-  // dividend is a zero and divisor is nonzero finite => result equals dividend
-  if (!(isfinite(x) && (!isfinite(y) && !isnan(y))) &&
-      !(x == 0 && (y != 0 && isfinite(y))))
-#endif
-  x = fmod(x, y);
+  x = modulo(x, y);
   // NewNumberFromDouble may return a Smi instead of a Number object
   return Heap::NewNumberFromDouble(x);
 }

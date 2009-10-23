@@ -223,6 +223,31 @@ double ceiling(double x) {
   return ceil(x);
 }
 
+#ifdef _WIN64
+typedef double (*ModuloFunction)(double, double);
+
+// Defined in codegen-x64.cc.
+ModuloFunction CreateModuloFunction();
+
+double modulo(double x, double y) {
+  static ModuloFunction function = CreateModuloFunction();
+  return function(x, y);
+}
+#else  // Win32
+
+double modulo(double x, double y) {
+  // Workaround MS fmod bugs. ECMA-262 says:
+  // dividend is finite and divisor is an infinity => result equals dividend
+  // dividend is a zero and divisor is nonzero finite => result equals dividend
+  if (!(isfinite(x) && (!isfinite(y) && !isnan(y))) &&
+      !(x == 0 && (y != 0 && isfinite(y)))) {
+    x = fmod(x, y);
+  }
+  return x;
+}
+
+#endif  // _WIN64
+
 // ----------------------------------------------------------------------------
 // The Time class represents time on win32. A timestamp is represented as
 // a 64-bit integer in 100 nano-seconds since January 1, 1601 (UTC). JavaScript

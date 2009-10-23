@@ -860,12 +860,22 @@ int DisassemblerX64::FPUInstruction(byte* data) {
       return count + 1;
     }
   } else if (b1 == 0xDD) {
-    if ((b2 & 0xF8) == 0xC0) {
-      AppendToBuffer("ffree st%d", b2 & 0x7);
+    int mod, regop, rm;
+    get_modrm(*(data + 1), &mod, &regop, &rm);
+    if (mod == 3) {
+      switch (regop) {
+        case 0:
+          AppendToBuffer("ffree st%d", rm & 7);
+          break;
+        case 2:
+          AppendToBuffer("fstp st%d", rm & 7);
+          break;
+        default:
+          UnimplementedInstruction();
+          break;
+      }
       return 2;
     } else {
-      int mod, regop, rm;
-      get_modrm(*(data + 1), &mod, &regop, &rm);
       const char* mnem = "?";
       switch (regop) {
         case 0:
