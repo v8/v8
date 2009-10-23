@@ -2256,9 +2256,8 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   // descriptors for these to the initial map as the object cannot be
   // constructed without having these properties.
   ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (fun->shared()->has_only_this_property_assignments() &&
-      fun->shared()->this_property_assignments_count() > 0 &&
-      fun->shared()->has_only_simple_this_property_assignments()) {
+  if (fun->shared()->has_only_simple_this_property_assignments() &&
+      fun->shared()->this_property_assignments_count() > 0) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
       count = in_object_properties;
