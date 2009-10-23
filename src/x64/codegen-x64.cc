@@ -6850,6 +6850,15 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // Check for failure result.
   Label failure_returned;
   ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+#ifdef _WIN64
+  // If return value is on the stack, pop it to registers.
+  if (result_size_ > 1) {
+    ASSERT_EQ(2, result_size_);
+    // Position above 4 argument mirrors and arguments object.
+    __ movq(rax, Operand(rsp, 6 * kPointerSize));
+    __ movq(rdx, Operand(rsp, 7 * kPointerSize));
+  }
+#endif
   __ lea(rcx, Operand(rax, 1));
   // Lower 2 bits of rcx are 0 iff rax has failure tag.
   __ testl(rcx, Immediate(kFailureTagMask));
@@ -7707,13 +7716,13 @@ ModuloFunction CreateModuloFunction() {
   // Clean up FPU stack and exceptions and return xmm0
   __ bind(&return_result);
   __ fstp(0);  // Unload y.
-  {
-    Label no_exceptions;
-    __ testb(rax, Immediate(0x3f /* Any Exception*/));
-    __ j(zero, &no_exceptions);
-    __ fnclex();
-    __ bind(&no_exceptions);
-  }
+
+  Label clear_exceptions;
+  __ testb(rax, Immediate(0x3f /* Any Exception*/));
+  __ j(not_zero, &clear_exceptions);
+  __ ret(0);
+  __ bind(&clear_exceptions);
+  __ fnclex();
   __ ret(0);
 
   CodeDesc desc;

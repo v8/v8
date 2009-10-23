@@ -1880,16 +1880,6 @@ void MacroAssembler::LeaveExitFrame(StackFrame::Type type, int result_size) {
   movq(rcx, Operand(rbp, 1 * kPointerSize));
   movq(rbp, Operand(rbp, 0 * kPointerSize));
 
-#ifdef _WIN64
-  // If return value is on the stack, pop it to registers.
-  if (result_size > 1) {
-    ASSERT_EQ(2, result_size);
-    // Position above 4 argument mirrors and arguments object.
-    movq(rax, Operand(rsp, 6 * kPointerSize));
-    movq(rdx, Operand(rsp, 7 * kPointerSize));
-  }
-#endif
-
   // Pop everything up to and including the arguments and the receiver
   // from the caller stack.
   lea(rsp, Operand(r15, 1 * kPointerSize));
