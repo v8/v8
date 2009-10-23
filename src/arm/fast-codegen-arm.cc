@@ -479,4 +479,61 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 
+void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
+  // Compile a short-circuited boolean or operation in a non-test
+  // context.
+  ASSERT(expr->op() == Token::OR);
+  // Compile (e0 || e1) as if it were
+  // (let (temp = e0) temp ? temp : e1).
+
+  Label done;
+  Location destination = expr->location();
+  ASSERT(!destination.is_constant());
+
+  Expression* left = expr->left();
+  Location left_source = left->location();
+  ASSERT(!left_source.is_nowhere());
+
+  Expression* right = expr->right();
+  Location right_source = right->location();
+  ASSERT(!right_source.is_nowhere());
+
+  Visit(left);
+  // Call the runtime to find the boolean value of the left-hand
+  // subexpression.  Duplicate the value if it may be needed as the final
+  // result.
+  if (left_source.is_temporary()) {
+    if (destination.is_temporary()) {
+      __ ldr(r0, MemOperand(sp));
+      __ push(r0);
+    }
+  } else {
+    ASSERT(left->AsLiteral() != NULL);
+    __ mov(r0, Operand(left->AsLiteral()->handle()));
+    __ push(r0);
+    if (destination.is_temporary()) __ push(r0);
+  }
+  // The left-hand value is in on top of the stack.  It is duplicated on the
+  // stack iff the destination location is temporary.
+  __ CallRuntime(Runtime::kToBool, 1);
+  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  __ cmp(r0, ip);
+  __ b(eq, &done);
+
+  // Discard the left-hand value if present on the stack.
+  if (destination.is_temporary()) __ pop();
+  Visit(right);
+
+  // Save or discard the right-hand value as needed.
+  if (destination.is_temporary() && right_source.is_constant()) {
+    ASSERT(right->AsLiteral() != NULL);
+    __ mov(ip, Operand(right->AsLiteral()->handle()));
+    __ push(ip);
+  } else if (destination.is_nowhere() && right_source.is_temporary()) {
+    __ pop();
+  }
+
+  __ bind(&done);
+}
+
 } }  // namespace v8::internal

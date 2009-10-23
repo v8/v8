@@ -473,4 +473,87 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 
+void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
+  // Compile a short-circuited boolean or operation in a non-test
+  // context.
+  ASSERT(expr->op() == Token::OR);
+  // Compile (e0 || e1) as if it were
+  // (let (temp = e0) temp ? temp : e1).
+
+  Label eval_right, done;
+  Location destination = expr->location();
+  ASSERT(!destination.is_constant());
+
+  Expression* left = expr->left();
+  Location left_source = left->location();
+  ASSERT(!left_source.is_nowhere());
+
+  Expression* right = expr->right();
+  Location right_source = right->location();
+  ASSERT(!right_source.is_nowhere());
+
+  Visit(left);
+  // Use the shared ToBoolean stub to find the boolean value of the
+  // left-hand subexpression.  Load the value into rax to perform some
+  // inlined checks assumed by the stub.
+  if (left_source.is_temporary()) {
+    if (destination.is_temporary()) {
+      // Copy the left-hand value into rax because we may need it as the
+      // final result.
+      __ movq(rax, Operand(rsp, 0));
+    } else {
+      // Pop the left-hand value into rax because we will not need it as the
+      // final result.
+      __ pop(rax);
+    }
+  } else {
+    // Load the left-hand value into rax.  Put it on the stack if we may
+    // need it.
+    ASSERT(left->AsLiteral() != NULL);
+    __ Move(rax, left->AsLiteral()->handle());
+    if (destination.is_temporary()) __ push(rax);
+  }
+  // The left-hand value is in rax.  It is also on the stack iff the
+  // destination location is temporary.
+
+  // Perform fast checks assumed by the stub.
+  // The undefined value is false.
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(equal, &eval_right);
+  __ CompareRoot(rax, Heap::kTrueValueRootIndex);  // True is true.
+  __ j(equal, &done);
+  __ CompareRoot(rax, Heap::kFalseValueRootIndex);  // False is false.
+  __ j(equal, &eval_right);
+  ASSERT(kSmiTag == 0);
+  __ SmiCompare(rax, Smi::FromInt(0));  // The smi zero is false.
+  __ j(equal, &eval_right);
+  Condition is_smi = masm_->CheckSmi(rax);  // All other smis are true.
+  __ j(is_smi, &done);
+
+  // Call the stub for all other cases.
+  __ push(rax);
+  ToBooleanStub stub;
+  __ CallStub(&stub);
+  __ testq(rax, rax);  // The stub returns nonzero for true.
+  __ j(not_zero, &done);
+
+  __ bind(&eval_right);
+  // Discard the left-hand value if present on the stack.
+  if (destination.is_temporary()) {
+    __ addq(rsp, Immediate(kPointerSize));
+  }
+  Visit(right);
+
+  // Save or discard the right-hand value as needed.
+  if (destination.is_temporary() && right_source.is_constant()) {
+    ASSERT(right->AsLiteral() != NULL);
+    __ Push(right->AsLiteral()->handle());
+  } else if (destination.is_nowhere() && right_source.is_temporary()) {
+    __ addq(rsp, Immediate(kPointerSize));
+  }
+
+  __ bind(&done);
+}
+
+
 } }  // namespace v8::internal

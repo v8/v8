@@ -635,6 +635,18 @@ class CodeGenerator: public AstVisitor {
 // which is declared in code-stubs.h.
 
 
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
+};
+
+
 // Flag that indicates whether or not the code that handles smi arguments
 // should be placed in the stub, inlined, or omitted entirely.
 enum GenericBinaryFlags {

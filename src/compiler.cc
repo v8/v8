@@ -750,7 +750,16 @@ void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
 
 
 void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
-  BAILOUT("BinaryOperation");
+  switch (expr->op()) {
+    case Token::OR:
+      Visit(expr->left());
+      CHECK_BAILOUT;
+      Visit(expr->right());
+      break;
+
+    default:
+      BAILOUT("Unsupported binary operation");
+  }
 }
 
 

@@ -319,11 +319,6 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
 }
 
 
-void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   UNREACHABLE();
 }

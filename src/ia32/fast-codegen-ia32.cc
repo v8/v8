@@ -460,4 +460,86 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 
+void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
+  // Compile a short-circuited boolean or operation in a non-test
+  // context.
+  ASSERT(expr->op() == Token::OR);
+  // Compile (e0 || e1) as if it were
+  // (let (temp = e0) temp ? temp : e1).
+
+  Label eval_right, done;
+  Location destination = expr->location();
+  ASSERT(!destination.is_constant());
+
+  Expression* left = expr->left();
+  Location left_source = left->location();
+  ASSERT(!left_source.is_nowhere());
+
+  Expression* right = expr->right();
+  Location right_source = right->location();
+  ASSERT(!right_source.is_nowhere());
+
+  Visit(left);
+  // Use the shared ToBoolean stub to find the boolean value of the
+  // left-hand subexpression.  Load the value into eax to perform some
+  // inlined checks assumed by the stub.
+  if (left_source.is_temporary()) {
+    if (destination.is_temporary()) {
+      // Copy the left-hand value into eax because we may need it as the
+      // final result.
+      __ mov(eax, Operand(esp, 0));
+    } else {
+      // Pop the left-hand value into eax because we will not need it as the
+      // final result.
+      __ pop(eax);
+    }
+  } else {
+    // Load the left-hand value into eax.  Put it on the stack if we may
+    // need it.
+    ASSERT(left->AsLiteral() != NULL);
+    __ mov(eax, left->AsLiteral()->handle());
+    if (destination.is_temporary()) __ push(eax);
+  }
+  // The left-hand value is in eax.  It is also on the stack iff the
+  // destination location is temporary.
+
+  // Perform fast checks assumed by the stub.
+  __ cmp(eax, Factory::undefined_value());  // The undefined value is false.
+  __ j(equal, &eval_right);
+  __ cmp(eax, Factory::true_value());  // True is true.
+  __ j(equal, &done);
+  __ cmp(eax, Factory::false_value());  // False is false.
+  __ j(equal, &eval_right);
+  ASSERT(kSmiTag == 0);
+  __ test(eax, Operand(eax));  // The smi zero is false.
+  __ j(zero, &eval_right);
+  __ test(eax, Immediate(kSmiTagMask));  // All other smis are true.
+  __ j(zero, &done);
+
+  // Call the stub for all other cases.
+  __ push(eax);
+  ToBooleanStub stub;
+  __ CallStub(&stub);
+  __ test(eax, Operand(eax));  // The stub returns nonzero for true.
+  __ j(not_zero, &done);
+
+  __ bind(&eval_right);
+  // Discard the left-hand value if present on the stack.
+  if (destination.is_temporary()) {
+    __ add(Operand(esp), Immediate(kPointerSize));
+  }
+  Visit(right);
+
+  // Save or discard the right-hand value as needed.
+  if (destination.is_temporary() && right_source.is_constant()) {
+    ASSERT(right->AsLiteral() != NULL);
+    __ push(Immediate(right->AsLiteral()->handle()));
+  } else if (destination.is_nowhere() && right_source.is_temporary()) {
+    __ add(Operand(esp), Immediate(kPointerSize));
+  }
+
+  __ bind(&done);
+}
+
+
 } }  // namespace v8::internal
