@@ -252,8 +252,6 @@ class Factory : public AllStatic {
                                       Vector< Handle<Object> > args);
   static Handle<Object> NewRangeError(Handle<String> message);
 
-  static Handle<Object> NewIndexError(uint32_t index);
-
   static Handle<Object> NewSyntaxError(const char* type, Handle<JSArray> args);
   static Handle<Object> NewSyntaxError(Handle<String> message);
 

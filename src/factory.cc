@@ -363,14 +363,6 @@ Handle<Object> Factory::NewRangeError(Handle<String> message) {
 }
 
 
-Handle<Object> Factory::NewIndexError(uint32_t index) {
-  Handle<Object> indexHandle = Handle<Object>(Heap::NumberFromUint32(index));
-  return NewRangeError("invalid_array_index",
-                       HandleVector<Object>(&indexHandle,
-                                            1));
-}
-
-
 Handle<Object> Factory::NewSyntaxError(const char* type, Handle<JSArray> args) {
   return NewError("MakeSyntaxError", type, args);
 }

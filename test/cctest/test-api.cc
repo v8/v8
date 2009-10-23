@@ -8196,7 +8196,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
   CHECK_EQ(28, result->Int32Value());
 
-  // Check out-of-range loads.
+  // Make sure out-of-range loads do not throw.
   i::OS::SNPrintF(test_buf,
                   "var caught_exception = false;"
                   "try {"
@@ -8207,9 +8207,9 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                   "caught_exception;",
                   kElementCount);
   result = CompileRun(test_buf.start());
-  CHECK_EQ(true, result->BooleanValue());
+  CHECK_EQ(false, result->BooleanValue());
 
-  // Check out-of-range stores.
+  // Make sure out-of-range stores do not throw.
   i::OS::SNPrintF(test_buf,
                   "var caught_exception = false;"
                   "try {"
@@ -8220,7 +8220,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                   "caught_exception;",
                   kElementCount);
   result = CompileRun(test_buf.start());
-  CHECK_EQ(true, result->BooleanValue());
+  CHECK_EQ(false, result->BooleanValue());
 
   // Check other boundary conditions, values and operations.
   result = CompileRun("for (var i = 0; i < 8; i++) {"

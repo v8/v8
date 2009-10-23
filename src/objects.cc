@@ -6050,7 +6050,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         int8_t value = array->get(index);
         return Smi::FromInt(value);
       }
-      return Top::Throw(*Factory::NewIndexError(index));
+      break;
     }
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
       ExternalUnsignedByteArray* array =
@@ -6059,7 +6059,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         uint8_t value = array->get(index);
         return Smi::FromInt(value);
       }
-      return Top::Throw(*Factory::NewIndexError(index));
+      break;
     }
     case EXTERNAL_SHORT_ELEMENTS: {
       ExternalShortArray* array = ExternalShortArray::cast(elements());
@@ -6067,7 +6067,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         int16_t value = array->get(index);
         return Smi::FromInt(value);
       }
-      return Top::Throw(*Factory::NewIndexError(index));
+      break;
     }
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
       ExternalUnsignedShortArray* array =
@@ -6076,7 +6076,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         uint16_t value = array->get(index);
         return Smi::FromInt(value);
       }
-      return Top::Throw(*Factory::NewIndexError(index));
+      break;
     }
     case EXTERNAL_INT_ELEMENTS: {
       ExternalIntArray* array = ExternalIntArray::cast(elements());
@@ -6084,7 +6084,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         int32_t value = array->get(index);
         return Heap::NumberFromInt32(value);
       }
-      return Top::Throw(*Factory::NewIndexError(index));
+      break;
     }
     case EXTERNAL_UNSIGNED_INT_ELEMENTS: {
       ExternalUnsignedIntArray* array =
@@ -6093,7 +6093,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         uint32_t value = array->get(index);
         return Heap::NumberFromUint32(value);
       }
-      return Top::Throw(*Factory::NewIndexError(index));
+      break;
     }
     case EXTERNAL_FLOAT_ELEMENTS: {
       ExternalFloatArray* array = ExternalFloatArray::cast(elements());
@@ -6101,7 +6101,7 @@ Object* JSObject::GetElementWithReceiver(JSObject* receiver, uint32_t index) {
         float value = array->get(index);
         return Heap::AllocateHeapNumber(value);
       }
-      return Top::Throw(*Factory::NewIndexError(index));
+      break;
     }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary* dictionary = element_dictionary();
@@ -7320,8 +7320,6 @@ static Object* ExternalArrayIntSetter(ExternalArrayClass* receiver,
       ASSERT(value->IsUndefined());
     }
     receiver->set(index, cast_value);
-  } else {
-    return Top::Throw(*Factory::NewIndexError(index));
   }
   return Heap::NumberFromInt32(cast_value);
 }
@@ -7372,8 +7370,6 @@ Object* ExternalUnsignedIntArray::SetValue(uint32_t index, Object* value) {
       ASSERT(value->IsUndefined());
     }
     set(index, cast_value);
-  } else {
-    return Top::Throw(*Factory::NewIndexError(index));
   }
   return Heap::NumberFromUint32(cast_value);
 }
@@ -7394,8 +7390,6 @@ Object* ExternalFloatArray::SetValue(uint32_t index, Object* value) {
       ASSERT(value->IsUndefined());
     }
     set(index, cast_value);
-  } else {
-    return Top::Throw(*Factory::NewIndexError(index));
   }
   return Heap::AllocateHeapNumber(cast_value);
 }
