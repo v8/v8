@@ -639,7 +639,13 @@ void CodeGenSelector::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 
 void CodeGenSelector::VisitObjectLiteral(ObjectLiteral* expr) {
-  BAILOUT("ObjectLiteral");
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ObjectLiteral::Property* property = expr->properties()->at(i);
+    Visit(property->key());
+    CHECK_BAILOUT;
+    Visit(property->value());
+    CHECK_BAILOUT;
+  }
 }
 
 

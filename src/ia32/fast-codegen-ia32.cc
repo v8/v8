@@ -221,6 +221,108 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
+  Comment cmnt(masm_, "[ ObjectLiteral");
+  Label exists;
+  // Registers will be used as follows:
+  // edi = JS function.
+  // ebx = literals array.
+  // eax = boilerplate
+
+  __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ mov(ebx, FieldOperand(edi, JSFunction::kLiteralsOffset));
+  int literal_offset =
+      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
+  __ mov(eax, FieldOperand(ebx, literal_offset));
+  __ cmp(eax, Factory::undefined_value());
+  __ j(not_equal, &exists);
+  // Create boilerplate if it does not exist.
+  // Literal array (0).
+  __ push(ebx);
+  // Literal index (1).
+  __ push(Immediate(Smi::FromInt(expr->literal_index())));
+  // Constant properties (2).
+  __ push(Immediate(expr->constant_properties()));
+  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  __ bind(&exists);
+  // eax contains boilerplate.
+  // Clone boilerplate.
+  __ push(eax);
+  if (expr->depth() == 1) {
+    __ CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
+  } else {
+    __ CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+  }
+
+  // If result_saved == true: the result is saved on top of the stack.
+  // If result_saved == false: the result not on the stack, just is in eax.
+  bool result_saved = false;
+
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ObjectLiteral::Property* property = expr->properties()->at(i);
+    Literal* key = property->key();
+    Expression* value = property->value();
+    if (property->kind() == ObjectLiteral::Property::CONSTANT) continue;
+    if (property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL &&
+        CompileTimeValue::IsCompileTimeValue(value)) {
+      continue;
+    }
+    if (!result_saved) {
+      __ push(eax);  // Save result on the stack
+      result_saved = true;
+    }
+    switch (property->kind()) {
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:  // fall through
+        ASSERT(!CompileTimeValue::IsCompileTimeValue(value));
+      case ObjectLiteral::Property::COMPUTED:
+        if (key->handle()->IsSymbol()) {
+          Visit(value);
+          ASSERT(value->location().is_temporary());
+          __ pop(eax);
+          __ mov(ecx, Immediate(key->handle()));
+          Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+          __ call(ic, RelocInfo::CODE_TARGET);
+          // StoreIC leaves the receiver on the stack.
+          break;
+        }
+        // fall through
+      case ObjectLiteral::Property::PROTOTYPE:
+        __ push(eax);
+        Visit(key);
+        if (key->location().is_constant()) {
+          __ push(Immediate(key->handle()));
+        }
+        Visit(value);
+        ASSERT(value->location().is_temporary());
+        __ CallRuntime(Runtime::kSetProperty, 3);
+        __ mov(eax, Operand(esp, 0));  // Restore result into eax.
+        break;
+      case ObjectLiteral::Property::SETTER:  // fall through
+      case ObjectLiteral::Property::GETTER:
+        __ push(eax);
+        Visit(key);
+        if (key->location().is_constant()) {
+          __ push(Immediate(key->handle()));
+        }
+        __ push(Immediate(property->kind() == ObjectLiteral::Property::SETTER ?
+                          Smi::FromInt(1) :
+                          Smi::FromInt(0)));
+        Visit(value);
+        ASSERT(value->location().is_temporary());
+        __ CallRuntime(Runtime::kDefineAccessor, 4);
+        __ mov(eax, Operand(esp, 0));  // Restore result into eax.
+        break;
+      default: UNREACHABLE();
+    }
+  }
+  if (expr->location().is_nowhere() && result_saved) {
+    __ add(Operand(esp), Immediate(kPointerSize));
+  } else if (expr->location().is_temporary() && !result_saved) {
+    __ push(eax);
+  }
+}
+
+
 void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExp Literal");
   Label done;
