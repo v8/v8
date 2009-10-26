@@ -2653,10 +2653,8 @@ bool v8::V8::IdleNotification() {
 
 
 void v8::V8::LowMemoryNotification() {
-#if defined(ANDROID)
   if (!i::V8::IsRunning()) return;
   i::Heap::CollectAllGarbage(true);
-#endif
 }
 
 
