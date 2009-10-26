@@ -2417,6 +2417,7 @@ ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
 ACCESSORS(AccessorInfo, flag, Smi, kFlagOffset)
+ACCESSORS(AccessorInfo, load_stub_cache, Object, kLoadStubCacheOffset)
 
 ACCESSORS(AccessCheckInfo, named_callback, Object, kNamedCallbackOffset)
 ACCESSORS(AccessCheckInfo, indexed_callback, Object, kIndexedCallbackOffset)

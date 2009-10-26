@@ -7699,11 +7699,66 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 }
 
 
+void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
+  Label get_result;
+  Label prologue;
+  Label promote_scheduled_exception;
+  __ EnterApiExitFrame(ExitFrame::MODE_NORMAL, kStackSpace, kArgc);
+  ASSERT_EQ(kArgc, 4);
+  // The function expects three arguments to be passed but we allocate
+  // four to get space for the output cell.  The argument slots are filled
+  // as follows:
+  //
+  //   3: output cell
+  //   2: arguments pointer
+  //   1: name
+  //   0: pointer to the output cell
+  //
+  // Note that this is one more "argument" than the function expects
+  // so the out cell will have to be popped explicitly after returning
+  // from the function.
+  __ mov(Operand(esp, 1 * kPointerSize), ebx);  // name.
+  __ mov(Operand(esp, 2 * kPointerSize), eax);  // arguments pointer.
+  __ mov(ebx, esp);
+  __ add(Operand(ebx), Immediate(3 * kPointerSize));
+  __ mov(Operand(esp, 0 * kPointerSize), ebx);  // output
+  __ mov(Operand(esp, 3 * kPointerSize), Immediate(0));  // out cell.
+  __ mov(eax, Immediate(ExternalReference(fun())));
+  // Call the api function!
+  __ call(Operand(eax));
+  // Check if the function scheduled an exception.
+  ExternalReference scheduled_exception_address =
+      ExternalReference::scheduled_exception_address();
+  __ cmp(Operand::StaticVariable(scheduled_exception_address),
+         Immediate(Factory::the_hole_value()));
+  __ j(not_equal, &promote_scheduled_exception, not_taken);
+  // The returned value is a pointer to the handle holding the result.
+  // Dereference this to get to the handle.
+  __ mov(eax, Operand(eax, 0));
+  // Check if the result handle holds 0
+  __ test(eax, Operand(eax));
+  __ j(not_zero, &get_result, taken);
+  // It was zero; the result is undefined.
+  __ mov(eax, Factory::undefined_value());
+  __ jmp(&prologue);
+  // It was non-zero.  Dereference to get the result value.
+  __ bind(&get_result);
+  __ mov(eax, Operand(eax, 0));
+  __ bind(&prologue);
+  __ LeaveExitFrame(ExitFrame::MODE_NORMAL);
+  __ ret(0);
+  __ bind(&promote_scheduled_exception);
+  __ TailCallRuntime(ExternalReference(Runtime::kPromoteScheduledException),
+                     0,
+                     1);
+}
+
+
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
-                              StackFrame::Type frame_type,
+                              ExitFrame::Mode mode,
                               bool do_gc,
                               bool always_allocate_scope) {
   // eax: result parameter for PerformGC, if any
@@ -7753,7 +7808,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned, not_taken);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(frame_type);
+  __ LeaveExitFrame(mode);
   __ ret(0);
 
   // Handling of failure.
@@ -7852,12 +7907,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // of a proper result. The builtin entry handles this by performing
   // a garbage collection and retrying the builtin (twice).
 
-  StackFrame::Type frame_type = is_debug_break ?
-      StackFrame::EXIT_DEBUG :
-      StackFrame::EXIT;
+  ExitFrame::Mode mode = is_debug_break
+      ? ExitFrame::MODE_DEBUG
+      : ExitFrame::MODE_NORMAL;
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(frame_type);
+  __ EnterExitFrame(mode);
 
   // eax: result parameter for PerformGC, if any (setup below)
   // ebx: pointer to builtin function  (C callee-saved)
@@ -7875,7 +7930,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                false,
                false);
 
@@ -7884,7 +7939,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                false);
 
@@ -7895,7 +7950,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               frame_type,
+               mode,
                true,
                true);
 

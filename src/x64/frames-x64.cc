@@ -57,11 +57,7 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   state->sp = sp;
   state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
   // Determine frame type.
-  if (Memory::Address_at(fp + ExitFrameConstants::kDebugMarkOffset) != 0) {
-    return EXIT_DEBUG;
-  } else {
-    return EXIT;
-  }
+  return EXIT;
 }
 
 int JavaScriptFrame::GetProvidedParametersCount() const {
