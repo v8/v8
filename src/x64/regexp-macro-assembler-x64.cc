@@ -1287,11 +1287,6 @@ void RegExpMacroAssemblerX64::LoadCurrentCharacterUnchecked(int cp_offset,
   }
 }
 
-
-void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  __ int3();  // Unused on x64.
-}
-
 #undef __
 
 #endif  // V8_NATIVE_REGEXP

@@ -43,6 +43,7 @@
 #include "v8threads.h"
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
 #include "regexp-macro-assembler.h"
+#include "arm/regexp-macro-assembler-arm.h"
 #endif
 
 namespace v8 {

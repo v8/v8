@@ -1163,10 +1163,6 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
 }
 
 
-void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
-  __ int3();  // Unused on ia32.
-}
-
 #undef __
 
 #endif  // V8_NATIVE_REGEXP

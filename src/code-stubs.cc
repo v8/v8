@@ -96,46 +96,9 @@ Handle<Code> CodeStub::GetCode() {
 
 const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
-    case CallFunction:
-      return "CallFunction";
-    case GenericBinaryOp:
-      return "GenericBinaryOp";
-    case SmiOp:
-      return "SmiOp";
-    case Compare:
-      return "Compare";
-    case RecordWrite:
-      return "RecordWrite";
-    case StackCheck:
-      return "StackCheck";
-    case UnarySub:
-      return "UnarySub";
-    case RevertToNumber:
-      return "RevertToNumber";
-    case ToBoolean:
-      return "ToBoolean";
-    case Instanceof:
-      return "Instanceof";
-    case CounterOp:
-      return "CounterOp";
-    case ArgumentsAccess:
-      return "ArgumentsAccess";
-    case Runtime:
-      return "Runtime";
-    case CEntry:
-      return "CEntry";
-    case JSEntry:
-      return "JSEntry";
-    case GetProperty:
-      return "GetProperty";
-    case SetProperty:
-      return "SetProperty";
-    case InvokeBuiltin:
-      return "InvokeBuiltin";
-    case ConvertToDouble:
-      return "ConvertToDouble";
-    case WriteInt32ToHeapNumber:
-      return "WriteInt32ToHeapNumber";
+#define DEF_CASE(name) case name: return #name;
+    CODE_STUB_LIST_ALL(DEF_CASE)
+#undef DEF_CASE
     default:
       UNREACHABLE();
       return NULL;

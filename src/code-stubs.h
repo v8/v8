@@ -31,32 +31,50 @@
 namespace v8 {
 namespace internal {
 
+// List of code stubs used on all platforms. The order in this list is important
+// as only the stubs up to and including RecordWrite allows nested stub calls.
+#define CODE_STUB_LIST_ALL(V)  \
+  V(CallFunction)              \
+  V(GenericBinaryOp)           \
+  V(SmiOp)                     \
+  V(Compare)                   \
+  V(RecordWrite)               \
+  V(ConvertToDouble)           \
+  V(WriteInt32ToHeapNumber)    \
+  V(StackCheck)                \
+  V(UnarySub)                  \
+  V(RevertToNumber)            \
+  V(ToBoolean)                 \
+  V(Instanceof)                \
+  V(CounterOp)                 \
+  V(ArgumentsAccess)           \
+  V(Runtime)                   \
+  V(CEntry)                    \
+  V(JSEntry)
+
+// List of code stubs only used on ARM platforms.
+#ifdef V8_TARGET_ARCH_ARM
+#define CODE_STUB_LIST_ARM(V)  \
+  V(GetProperty)               \
+  V(SetProperty)               \
+  V(InvokeBuiltin)             \
+  V(RegExpCEntry)
+#else
+#define CODE_STUB_LIST_ARM(V)
+#endif
+
+// Combined list of code stubs.
+#define CODE_STUB_LIST(V)  \
+  CODE_STUB_LIST_ALL(V)    \
+  CODE_STUB_LIST_ARM(V)
 
 // Stub is base classes of all stubs.
 class CodeStub BASE_EMBEDDED {
  public:
   enum Major {
-    CallFunction,
-    GenericBinaryOp,
-    SmiOp,
-    Compare,
-    RecordWrite,  // Last stub that allows stub calls inside.
-    ConvertToDouble,
-    WriteInt32ToHeapNumber,
-    StackCheck,
-    UnarySub,
-    RevertToNumber,
-    ToBoolean,
-    Instanceof,
-    CounterOp,
-    ArgumentsAccess,
-    Runtime,
-    CEntry,
-    JSEntry,
-    GetProperty,   // ARM only
-    SetProperty,   // ARM only
-    InvokeBuiltin,  // ARM only
-    RegExpCEntry,  // ARM only
+#define DEF_ENUM(name) name,
+    CODE_STUB_LIST(DEF_ENUM)
+#undef DEF_ENUM
     NUMBER_OF_IDS
   };
 
