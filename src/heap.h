@@ -221,7 +221,8 @@ namespace internal {
   V(exec_symbol, "exec")                                                 \
   V(zero_symbol, "0")                                                    \
   V(global_eval_symbol, "GlobalEval")                                    \
-  V(identity_hash_symbol, "v8::IdentityHash")
+  V(identity_hash_symbol, "v8::IdentityHash")                            \
+  V(closure_symbol, "(closure)")
 
 
 // Forward declaration of the GCTracer class.

@@ -1251,7 +1251,8 @@ String* JSObject::class_name() {
 
 String* JSObject::constructor_name() {
   if (IsJSFunction()) {
-    return Heap::function_class_symbol();
+    return JSFunction::cast(this)->IsBoilerplate() ?
+      Heap::function_class_symbol() : Heap::closure_symbol();
   }
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
