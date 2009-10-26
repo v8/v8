@@ -920,7 +920,11 @@ class Assembler : public Malloced {
   void testq(Register dst, Immediate mask);
 
   void xor_(Register dst, Register src) {
-    arithmetic_op(0x33, dst, src);
+    if (dst.code() == src.code()) {
+      arithmetic_op_32(0x33, dst, src);
+    } else {
+      arithmetic_op(0x33, dst, src);
+    }
   }
 
   void xorl(Register dst, Register src) {
