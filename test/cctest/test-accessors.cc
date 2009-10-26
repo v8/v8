@@ -396,11 +396,11 @@ static v8::Handle<Value> StackCheck(Local<String> name,
   i::StackFrameIterator iter;
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
-    ASSERT(i != 0 || (frame->type() == i::StackFrame::EXIT));
-    ASSERT(frame->code()->IsCode());
+    CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
+    CHECK(frame->code()->IsCode());
     i::Address pc = frame->pc();
     i::Code* code = frame->code();
-    ASSERT(code->contains(pc));
+    CHECK(code->contains(pc));
     iter.Advance();
   }
   return v8::Undefined();
