@@ -148,7 +148,7 @@ class ReferencesExtractor : public ObjectVisitor {
       inside_array_ = true;
       FixedArray::cast(*o)->Iterate(this);
       inside_array_ = false;
-    } else {
+    } else if ((*o)->IsHeapObject()) {
       profile_->StoreReference(cluster_, HeapObject::cast(*o));
     }
   }
