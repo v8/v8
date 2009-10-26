@@ -54,16 +54,18 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   if (fp == 0) return NONE;
   // Compute frame type and stack pointer.
   Address sp = fp + ExitFrameConstants::kSPDisplacement;
-  const int offset = ExitFrameConstants::kCodeOffset;
-  Object* code = Memory::Object_at(fp + offset);
-  bool is_debug_exit = code->IsSmi();
-  if (is_debug_exit)
+  Type type;
+  if (Memory::Address_at(fp + ExitFrameConstants::kDebugMarkOffset) != 0) {
+    type = EXIT_DEBUG;
     sp -= kNumJSCallerSaved * kPointerSize;
+  } else {
+    type = EXIT;
+  }
   // Fill in the state.
   state->sp = sp;
   state->fp = fp;
   state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
-  return EXIT;
+  return type;
 }
 
 

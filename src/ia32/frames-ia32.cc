@@ -56,7 +56,12 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   state->fp = fp;
   state->sp = sp;
   state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
-  return EXIT;
+  // Determine frame type.
+  if (Memory::Address_at(fp + ExitFrameConstants::kDebugMarkOffset) != 0) {
+    return EXIT_DEBUG;
+  } else {
+    return EXIT;
+  }
 }
 
 
