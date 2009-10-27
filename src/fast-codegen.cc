@@ -279,11 +279,6 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 }
 
 
-void FastCodeGenerator::VisitLiteral(Literal* expr) {
-  // No code is emitted (here) for simple literals.
-}
-
-
 void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   UNREACHABLE();
 }

@@ -136,18 +136,15 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
-  Visit(expr);
-
-  // Complete the statement based on the location of the subexpression.
-  Location source = expr->location();
-  ASSERT(!source.is_nowhere());
-  if (source.is_temporary()) {
-    __ pop(eax);
-  } else {
-    ASSERT(source.is_constant());
-    ASSERT(expr->AsLiteral() != NULL);
+  // Complete the statement based on the type of the subexpression.
+  if (expr->AsLiteral() != NULL) {
     __ mov(eax, expr->AsLiteral()->handle());
+  } else {
+    Visit(expr);
+    ASSERT(expr->location().is_temporary());
+    __ pop(eax);
   }
+
   if (FLAG_trace) {
     __ push(eax);
     __ CallRuntime(Runtime::kTraceExit, 1);
@@ -221,6 +218,15 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
+void FastCodeGenerator::VisitLiteral(Literal* expr) {
+  if (expr->location().is_temporary()) {
+    __ push(Immediate(expr->handle()));
+  } else {
+    ASSERT(expr->location().is_nowhere());
+  }
+}
+
+
 void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
   Label exists;
@@ -289,9 +295,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::PROTOTYPE:
         __ push(eax);
         Visit(key);
-        if (key->location().is_constant()) {
-          __ push(Immediate(key->handle()));
-        }
+        ASSERT(key->location().is_temporary());
         Visit(value);
         ASSERT(value->location().is_temporary());
         __ CallRuntime(Runtime::kSetProperty, 3);
@@ -301,9 +305,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::GETTER:
         __ push(eax);
         Visit(key);
-        if (key->location().is_constant()) {
-          __ push(Immediate(key->handle()));
-        }
+        ASSERT(key->location().is_temporary());
         __ push(Immediate(property->kind() == ObjectLiteral::Property::SETTER ?
                           Smi::FromInt(1) :
                           Smi::FromInt(0)));
@@ -427,31 +429,26 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
-  Expression* rhs = expr->value();
-  Visit(rhs);
 
   // Left-hand side can only be a global or a (parameter or local) slot.
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->slot() != NULL);
 
-  // Complete the assignment based on the location of the right-hand-side
-  // value and the desired location of the assignment value.
+  Expression* rhs = expr->value();
   Location destination = expr->location();
-  Location source = rhs->location();
-  ASSERT(!destination.is_constant());
-  ASSERT(!source.is_nowhere());
-
   if (var->is_global()) {
     // Assignment to a global variable, use inline caching.  Right-hand-side
     // value is passed in eax, variable name in ecx, and the global object
     // on the stack.
-    if (source.is_temporary()) {
-      __ pop(eax);
-    } else {
-      ASSERT(source.is_constant());
-      ASSERT(rhs->AsLiteral() != NULL);
+
+    // Code for the right-hand-side expression depends on its type.
+    if (rhs->AsLiteral() != NULL) {
       __ mov(eax, rhs->AsLiteral()->handle());
+    } else {
+      ASSERT(rhs->location().is_temporary());
+      Visit(rhs);
+      __ pop(eax);
     }
     __ mov(ecx, var->name());
     __ push(CodeGenerator::GlobalObject());
@@ -464,10 +461,22 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       ASSERT(destination.is_nowhere());
       __ add(Operand(esp), Immediate(kPointerSize));
     }
-
   } else {
     // Local or parameter assignment.
-    if (source.is_temporary()) {
+
+    // Code for the right-hand side expression depends on its type.
+    if (rhs->AsLiteral() != NULL) {
+      // Two cases: 'temp <- (var = constant)', or 'var = constant' with a
+      // discarded result.  Always perform the assignment.
+      __ mov(eax, rhs->AsLiteral()->handle());
+      __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+      if (destination.is_temporary()) {
+        // Case 'temp <- (var = constant)'.  Save result.
+        __ push(eax);
+      }
+    } else {
+      ASSERT(rhs->location().is_temporary());
+      Visit(rhs);
       if (destination.is_temporary()) {
         // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
         // temporary on the stack.
@@ -477,17 +486,6 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
         ASSERT(destination.is_nowhere());
         // Case 'var = temp'.  Discard right-hand-side temporary.
         __ pop(Operand(ebp, SlotOffset(var->slot())));
-      }
-    } else {
-      ASSERT(source.is_constant());
-      ASSERT(rhs->AsLiteral() != NULL);
-      // Two cases: 'temp <- (var = constant)', or 'var = constant' with a
-      // discarded result.  Always perform the assignment.
-      __ mov(eax, rhs->AsLiteral()->handle());
-      __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
-      if (destination.is_temporary()) {
-        // Case 'temp <- (var = constant)'.  Save result.
-        __ push(eax);
       }
     }
   }
@@ -507,11 +505,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
-    ASSERT(!args->at(i)->location().is_nowhere());
-    if (args->at(i)->location().is_constant()) {
-      ASSERT(args->at(i)->AsLiteral() != NULL);
-      __ push(Immediate(args->at(i)->AsLiteral()->handle()));
-    }
+    ASSERT(args->at(i)->location().is_temporary());
   }
   // Record source position for debugger
   SetSourcePosition(expr->position());
@@ -542,15 +536,7 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
-    ASSERT(!args->at(i)->location().is_nowhere());
-    if (args->at(i)->location().is_constant()) {
-      ASSERT(args->at(i)->AsLiteral() != NULL);
-      __ push(Immediate(args->at(i)->AsLiteral()->handle()));
-    } else {
-      ASSERT(args->at(i)->location().is_temporary());
-      // If location is temporary, it is already on the stack,
-      // so nothing to do here.
-    }
+    ASSERT(args->at(i)->location().is_temporary());
   }
 
   __ CallRuntime(function, arg_count);
@@ -571,21 +557,21 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 
   Label eval_right, done;
   Location destination = expr->location();
-  ASSERT(!destination.is_constant());
-
   Expression* left = expr->left();
-  Location left_source = left->location();
-  ASSERT(!left_source.is_nowhere());
-
   Expression* right = expr->right();
-  Location right_source = right->location();
-  ASSERT(!right_source.is_nowhere());
 
-  Visit(left);
   // Use the shared ToBoolean stub to find the boolean value of the
   // left-hand subexpression.  Load the value into eax to perform some
   // inlined checks assumed by the stub.
-  if (left_source.is_temporary()) {
+
+  // Compile the left-hand value into eax.  Put it on the stack if we may
+  // need it as the value of the whole expression.
+  if (left->AsLiteral() != NULL) {
+    __ mov(eax, left->AsLiteral()->handle());
+    if (destination.is_temporary()) __ push(eax);
+  } else {
+    Visit(left);
+    ASSERT(left->location().is_temporary());
     if (destination.is_temporary()) {
       // Copy the left-hand value into eax because we may need it as the
       // final result.
@@ -595,12 +581,6 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
       // final result.
       __ pop(eax);
     }
-  } else {
-    // Load the left-hand value into eax.  Put it on the stack if we may
-    // need it.
-    ASSERT(left->AsLiteral() != NULL);
-    __ mov(eax, left->AsLiteral()->handle());
-    if (destination.is_temporary()) __ push(eax);
   }
   // The left-hand value is in eax.  It is also on the stack iff the
   // destination location is temporary.
@@ -630,14 +610,21 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   if (destination.is_temporary()) {
     __ add(Operand(esp), Immediate(kPointerSize));
   }
-  Visit(right);
-
   // Save or discard the right-hand value as needed.
-  if (destination.is_temporary() && right_source.is_constant()) {
-    ASSERT(right->AsLiteral() != NULL);
-    __ push(Immediate(right->AsLiteral()->handle()));
-  } else if (destination.is_nowhere() && right_source.is_temporary()) {
-    __ add(Operand(esp), Immediate(kPointerSize));
+  if (right->AsLiteral() != NULL) {
+    if (destination.is_temporary()) {
+      __ push(Immediate(right->AsLiteral()->handle()));
+    } else {
+      ASSERT(destination.is_nowhere());
+    }
+  } else {
+    Visit(right);
+    ASSERT(right->location().is_temporary());
+    if (destination.is_nowhere()) {
+      __ add(Operand(esp), Immediate(kPointerSize));
+    } else {
+      ASSERT(destination.is_temporary());
+    }
   }
 
   __ bind(&done);
