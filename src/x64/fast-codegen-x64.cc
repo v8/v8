@@ -317,7 +317,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::GETTER:
         __ push(rax);
         Visit(key);
-        ASSERT(key->location.is_temporary());
+        ASSERT(key->location().is_temporary());
         __ Push(property->kind() == ObjectLiteral::Property::SETTER ?
                 Smi::FromInt(1) :
                 Smi::FromInt(0));
