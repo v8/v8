@@ -6510,42 +6510,47 @@ void GenericBinaryOpStub::GenerateCall(
     __ push(right);
   } else {
     // The calling convention with registers is left in edx and right in eax.
-    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
-    if (!(left.is(edx) && right.is(eax))) {
-      if (left.is(eax) && right.is(edx)) {
+    Register left_arg = edx;
+    Register right_arg = eax;
+    if (!(left.is(left_arg) && right.is(right_arg))) {
+      if (left.is(right_arg) && right.is(left_arg)) {
         if (IsOperationCommutative()) {
           SetArgsReversed();
         } else {
           __ xchg(left, right);
         }
-      } else if (left.is(edx)) {
-        __ mov(eax, right);
-      } else if (left.is(eax)) {
+      } else if (left.is(left_arg)) {
+        __ mov(right_arg, right);
+      } else if (left.is(right_arg)) {
         if (IsOperationCommutative()) {
-          __ mov(edx, right);
+          __ mov(left_arg, right);
           SetArgsReversed();
         } else {
-          __ mov(edx, left);
-          __ mov(eax, right);
+          // Order of moves important to avoid destroying left argument.
+          __ mov(left_arg, left);
+          __ mov(right_arg, right);
         }
-      } else if (right.is(edx)) {
+      } else if (right.is(left_arg)) {
         if (IsOperationCommutative()) {
-          __ mov(eax, left);
+          __ mov(right_arg, left);
           SetArgsReversed();
         } else {
-          __ mov(eax, right);
-          __ mov(edx, left);
+          // Order of moves important to avoid destroying right argument.
+          __ mov(right_arg, right);
+          __ mov(left_arg, left);
         }
-      } else if (right.is(eax)) {
-        __ mov(edx, left);
+      } else if (right.is(right_arg)) {
+        __ mov(left_arg, left);
       } else {
-        __ mov(edx, left);
-        __ mov(eax, right);
+        // Order of moves is not important.
+        __ mov(left_arg, left);
+        __ mov(right_arg, right);
       }
     }
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
   }
 
   // Call the stub.
@@ -6562,19 +6567,22 @@ void GenericBinaryOpStub::GenerateCall(
     __ push(left);
     __ push(Immediate(right));
   } else {
-    // Adapt arguments to the calling convention left in edx and right in eax.
-    if (left.is(edx)) {
-      __ mov(eax, Immediate(right));
-    } else if (left.is(eax) && IsOperationCommutative()) {
-      __ mov(edx, Immediate(right));
+    // The calling convention with registers is left in edx and right in eax.
+    Register left_arg = edx;
+    Register right_arg = eax;
+    if (left.is(left_arg)) {
+      __ mov(right_arg, Immediate(right));
+    } else if (left.is(right_arg) && IsOperationCommutative()) {
+      __ mov(left_arg, Immediate(right));
       SetArgsReversed();
     } else {
-      __ mov(edx, left);
-      __ mov(eax, Immediate(right));
+      __ mov(left_arg, left);
+      __ mov(right_arg, Immediate(right));
     }
 
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
   }
 
   // Call the stub.
@@ -6591,18 +6599,21 @@ void GenericBinaryOpStub::GenerateCall(
     __ push(Immediate(left));
     __ push(right);
   } else {
-    // Adapt arguments to the calling convention left in edx and right in eax.
-    bool is_commutative = (op_ == (Token::ADD) || (op_ == Token::MUL));
-    if (right.is(eax)) {
-      __ mov(edx, Immediate(left));
-    } else if (right.is(edx) && is_commutative) {
-        __ mov(eax, Immediate(left));
+    // The calling convention with registers is left in edx and right in eax.
+    Register left_arg = edx;
+    Register right_arg = eax;
+    if (right.is(right_arg)) {
+      __ mov(left_arg, Immediate(left));
+    } else if (right.is(left_arg) && IsOperationCommutative()) {
+      __ mov(right_arg, Immediate(left));
+      SetArgsReversed();
     } else {
-      __ mov(edx, Immediate(left));
-      __ mov(eax, right);
+      __ mov(left_arg, Immediate(left));
+      __ mov(right_arg, right);
     }
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
   }
 
   // Call the stub.
@@ -6926,7 +6937,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // Tag smi result and return.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
       __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
-      __ ret(2 * kPointerSize);
+      GenerateReturn(masm);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.
       if (op_ != Token::SHR) {
@@ -6953,7 +6964,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ mov(Operand(esp, 1 * kPointerSize), ebx);
         __ fild_s(Operand(esp, 1 * kPointerSize));
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-        __ ret(2 * kPointerSize);
+        GenerateReturn(masm);
       }
 
       // Clear the FPU exception flag and reset the stack before calling
@@ -6985,7 +6996,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
   // If all else fails, use the runtime system to get the correct
   // result. If arguments was passed in registers now place them on the
-  // stack in the correct order.
+  // stack in the correct order below the return address.
   __ bind(&call_runtime);
   if (HasArgumentsInRegisters()) {
     __ pop(ecx);

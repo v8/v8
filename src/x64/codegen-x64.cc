@@ -5057,10 +5057,8 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void DeferredInlineBinaryOperation::Generate() {
-  __ push(left_);
-  __ push(right_);
-  GenericBinaryOpStub stub(op_, mode_, SMI_CODE_INLINED);
-  __ CallStub(&stub);
+  GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
@@ -5089,16 +5087,16 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
       // Bit operations always assume they likely operate on Smis. Still only
       // generate the inline Smi check code if this operation is part of a loop.
       flags = (loop_nesting() > 0)
-              ? SMI_CODE_INLINED
-              : SMI_CODE_IN_STUB;
+              ? NO_SMI_CODE_IN_STUB
+              : NO_GENERIC_BINARY_FLAGS;
       break;
 
     default:
       // By default only inline the Smi check code for likely smis if this
       // operation is part of a loop.
       flags = ((loop_nesting() > 0) && type->IsLikelySmi())
-              ? SMI_CODE_INLINED
-              : SMI_CODE_IN_STUB;
+              ? NO_SMI_CODE_IN_STUB
+              : NO_GENERIC_BINARY_FLAGS;
       break;
   }
 
@@ -5157,7 +5155,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  if (flags == SMI_CODE_INLINED && !generate_no_smi_code) {
+  if ((flags & NO_SMI_CODE_IN_STUB) != 0 && !generate_no_smi_code) {
     LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
   } else {
     frame_->Push(&left);
@@ -5166,7 +5164,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // that does not check for the fast smi case.
     // The same stub is used for NO_SMI_CODE and SMI_CODE_INLINED.
     if (generate_no_smi_code) {
-      flags = SMI_CODE_INLINED;
+      flags = NO_SMI_CODE_IN_STUB;
     }
     GenericBinaryOpStub stub(op, overwrite_mode, flags);
     Result answer = frame_->CallStub(&stub, 2);
@@ -5221,41 +5219,32 @@ void DeferredReferenceGetNamedValue::Generate() {
 
 
 void DeferredInlineSmiAdd::Generate() {
-  __ push(dst_);
-  __ Push(value_);
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
 void DeferredInlineSmiAddReversed::Generate() {
-  __ Push(value_);
-  __ push(dst_);
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, value_, dst_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
 void DeferredInlineSmiSub::Generate() {
-  __ push(dst_);
-  __ Push(value_);
-  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-  __ CallStub(&igostub);
-  if (!dst_.is(rax)) __ movq(dst_, rax);
+  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  igostub.GenerateCall(masm_, dst_, value_);
 }
 
 
 void DeferredInlineSmiOperation::Generate() {
-  __ push(src_);
-  __ Push(value_);
   // For mod we don't generate all the Smi code inline.
   GenericBinaryOpStub stub(
       op_,
       overwrite_mode_,
-      (op_ == Token::MOD) ? SMI_CODE_IN_STUB : SMI_CODE_INLINED);
-  __ CallStub(&stub);
+      (op_ == Token::MOD) ? NO_GENERIC_BINARY_FLAGS : NO_SMI_CODE_IN_STUB);
+  stub.GenerateCall(masm_, src_, value_);
   if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
@@ -7339,6 +7328,127 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Register left,
+    Register right) {
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
+    __ push(left);
+    __ push(right);
+  } else {
+    // The calling convention with registers is left in rdx and right in rax.
+    Register left_arg = rdx;
+    Register right_arg = rax;
+    if (!(left.is(left_arg) && right.is(right_arg))) {
+      if (left.is(right_arg) && right.is(left_arg)) {
+        if (IsOperationCommutative()) {
+          SetArgsReversed();
+        } else {
+          __ xchg(left, right);
+        }
+      } else if (left.is(left_arg)) {
+        __ movq(right_arg, right);
+      } else if (left.is(right_arg)) {
+        if (IsOperationCommutative()) {
+          __ movq(left_arg, right);
+          SetArgsReversed();
+        } else {
+          // Order of moves important to avoid destroying left argument.
+          __ movq(left_arg, left);
+          __ movq(right_arg, right);
+        }
+      } else if (right.is(left_arg)) {
+        if (IsOperationCommutative()) {
+          __ movq(right_arg, left);
+          SetArgsReversed();
+        } else {
+          // Order of moves important to avoid destroying right argument.
+          __ movq(right_arg, right);
+          __ movq(left_arg, left);
+        }
+      } else if (right.is(right_arg)) {
+        __ movq(left_arg, left);
+      } else {
+        // Order of moves is not important.
+        __ movq(left_arg, left);
+        __ movq(right_arg, right);
+      }
+    }
+
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Register left,
+    Smi* right) {
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
+    __ push(left);
+    __ Push(right);
+  } else {
+    // The calling convention with registers is left in rdx and right in rax.
+    Register left_arg = rdx;
+    Register right_arg = rax;
+    if (left.is(left_arg)) {
+      __ Move(right_arg, right);
+    } else if (left.is(right_arg) && IsOperationCommutative()) {
+      __ Move(left_arg, right);
+      SetArgsReversed();
+    } else {
+      __ movq(left_arg, left);
+      __ Move(right_arg, right);
+    }
+
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
+void GenericBinaryOpStub::GenerateCall(
+    MacroAssembler* masm,
+    Smi* left,
+    Register right) {
+  if (!ArgsInRegistersSupported()) {
+    // Pass arguments on the stack.
+    __ Push(left);
+    __ push(right);
+  } else {
+    // The calling convention with registers is left in rdx and right in rax.
+    Register left_arg = rdx;
+    Register right_arg = rax;
+    if (right.is(right_arg)) {
+      __ Move(left_arg, left);
+    } else if (right.is(left_arg) && IsOperationCommutative()) {
+      __ Move(right_arg, left);
+      SetArgsReversed();
+    } else {
+      __ Move(left_arg, left);
+      __ movq(right_arg, right);
+    }
+    // Update flags to indicate that arguments are in registers.
+    SetArgsInRegisters();
+    __ IncrementCounter(&Counters::generic_binary_stub_calls_regs, 1);
+  }
+
+  // Call the stub.
+  __ CallStub(this);
+}
+
+
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (rax <op> rbx) and
   // leave result in register rax.
@@ -7411,22 +7521,21 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
 
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
-  if (flags_ == SMI_CODE_IN_STUB) {
+  if (HasSmiCodeInStub()) {
     // The fast case smi code wasn't inlined in the stub caller
     // code. Generate it here to speed up common operations.
     Label slow;
     __ movq(rbx, Operand(rsp, 1 * kPointerSize));  // get y
     __ movq(rax, Operand(rsp, 2 * kPointerSize));  // get x
     GenerateSmiCode(masm, &slow);
-    __ ret(2 * kPointerSize);  // remove both operands
+    GenerateReturn(masm);
 
     // Too bad. The fast case smi code didn't succeed.
     __ bind(&slow);
   }
 
-  // Setup registers.
-  __ movq(rax, Operand(rsp, 1 * kPointerSize));  // get y
-  __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // get x
+  // Make sure the arguments are in rdx and rax.
+  GenerateLoadArguments(masm);
 
   // Floating point case.
   switch (op_) {
@@ -7450,7 +7559,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           __ JumpIfNotSmi(rax, &skip_allocation);
           // Fall through!
         case NO_OVERWRITE:
-          __ AllocateHeapNumber(rax, rcx, &call_runtime);
+          // Allocate a heap number for the result. Keep rax and rdx intact
+          // for the possible runtime call.
+          __ AllocateHeapNumber(rbx, rcx, &call_runtime);
+          __ movq(rax, rbx);
           __ bind(&skip_allocation);
           break;
         default: UNREACHABLE();
@@ -7466,7 +7578,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         default: UNREACHABLE();
       }
       __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm4);
-      __ ret(2 * kPointerSize);
+      GenerateReturn(masm);
     }
     case Token::MOD: {
       // For MOD we go directly to runtime in the non-smi case.
@@ -7534,7 +7646,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ JumpIfNotValidSmiValue(rax, &non_smi_result);
       // Tag smi result, if possible, and return.
       __ Integer32ToSmi(rax, rax);
-      __ ret(2 * kPointerSize);
+      GenerateReturn(masm);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.
       if (op_ != Token::SHR && non_smi_result.is_linked()) {
@@ -7560,7 +7672,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ movq(Operand(rsp, 1 * kPointerSize), rbx);
         __ fild_s(Operand(rsp, 1 * kPointerSize));
         __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
-        __ ret(2 * kPointerSize);
+        GenerateReturn(masm);
       }
 
       // Clear the FPU exception flag and reset the stack before calling
@@ -7591,8 +7703,20 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   }
 
   // If all else fails, use the runtime system to get the correct
-  // result.
+  // result. If arguments was passed in registers now place them on the
+  // stack in the correct order below the return address.
   __ bind(&call_runtime);
+  if (HasArgumentsInRegisters()) {
+    __ pop(rcx);
+    if (HasArgumentsReversed()) {
+      __ push(rax);
+      __ push(rdx);
+    } else {
+      __ push(rdx);
+      __ push(rax);
+    }
+    __ push(rcx);
+  }
   switch (op_) {
     case Token::ADD:
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
@@ -7629,6 +7753,26 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       break;
     default:
       UNREACHABLE();
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateLoadArguments(MacroAssembler* masm) {
+  // If arguments are not passed in registers read them from the stack.
+  if (!HasArgumentsInRegisters()) {
+    __ movq(rax, Operand(rsp, 1 * kPointerSize));
+    __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
+  // If arguments are not passed in registers remove them from the stack before
+  // returning.
+  if (!HasArgumentsInRegisters()) {
+    __ ret(2 * kPointerSize);  // Remove both operands
+  } else {
+    __ ret(0);
   }
 }
 
