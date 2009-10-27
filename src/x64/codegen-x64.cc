@@ -5235,6 +5235,7 @@ void DeferredInlineSmiAddReversed::Generate() {
 void DeferredInlineSmiSub::Generate() {
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
   igostub.GenerateCall(masm_, dst_, value_);
+  if (!dst_.is(rax)) __ movq(dst_, rax);
 }
 
 
