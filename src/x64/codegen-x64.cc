@@ -6379,19 +6379,18 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // not NaN.
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
-      // Read double representation into rax.
-      __ movq(rbx, V8_UINT64_C(0x7ff0000000000000), RelocInfo::NONE);
-      __ movq(rax, FieldOperand(rdx, HeapNumber::kValueOffset));
-      // Test that exponent bits are all set.
-      __ or_(rbx, rax);
-      __ cmpq(rbx, rax);
-      __ j(not_equal, &return_equal);
-      // Shift out flag and all exponent bits, retaining only mantissa.
-      __ shl(rax, Immediate(12));
-      // If all bits in the mantissa are zero the number is Infinity, and
-      // we return zero.  Otherwise it is a NaN, and we return non-zero.
-      // We cannot just return rax because only eax is tested on return.
-      __ setcc(not_zero, rax);
+      // We only allow QNaNs, which have bit 51 set (which also rules out
+      // the value being Infinity).
+
+      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+      // all bits in the mask are set. We only need to check the word
+      // that contains the exponent and high bit of the mantissa.
+      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+      __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
+      __ xorl(rax, rax);
+      __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
+      __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
+      __ setcc(above_equal, rax);
       __ ret(0);
 
       __ bind(&not_identical);

@@ -7400,20 +7400,19 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // not NaN.
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
+      // We only accept QNaNs, which have bit 51 set.
       // Read top bits of double representation (second word of value).
-      __ mov(eax, FieldOperand(edx, HeapNumber::kExponentOffset));
-      // Test that exponent bits are all set.
-      __ not_(eax);
-      __ test(eax, Immediate(0x7ff00000));
-      __ j(not_zero, &return_equal);
-      __ not_(eax);
 
-      // Shift out flag and all exponent bits, retaining only mantissa.
-      __ shl(eax, 12);
-      // Or with all low-bits of mantissa.
-      __ or_(eax, FieldOperand(edx, HeapNumber::kMantissaOffset));
-      // Return zero equal if all bits in mantissa is zero (it's an Infinity)
-      // and non-zero if not (it's a NaN).
+      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+      // all bits in the mask are set. We only need to check the word
+      // that contains the exponent and high bit of the mantissa.
+      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+      __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
+      __ xor_(eax, Operand(eax));
+      // Shift value and mask so kQuietNaNHighBitsMask applies to topmost bits.
+      __ add(edx, Operand(edx));
+      __ cmp(edx, kQuietNaNHighBitsMask << 1);
+      __ setcc(above_equal, eax);
       __ ret(0);
 
       __ bind(&not_identical);

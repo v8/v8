@@ -3183,6 +3183,10 @@ Local<v8::Object> v8::Object::New() {
 Local<v8::Value> v8::Date::New(double time) {
   EnsureInitialized("v8::Date::New()");
   LOG_API("Date::New");
+  if (isnan(time)) {
+    // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
+    time = i::OS::nan_value();
+  }
   ENTER_V8;
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> obj =
@@ -3255,6 +3259,10 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
 
 Local<Number> v8::Number::New(double value) {
   EnsureInitialized("v8::Number::New()");
+  if (isnan(value)) {
+    // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
+    value = i::OS::nan_value();
+  }
   ENTER_V8;
   i::Handle<i::Object> result = i::Factory::NewNumber(value);
   return Utils::NumberToLocal(result);

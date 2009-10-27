@@ -170,6 +170,15 @@ const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
 #endif
 
 
+// Constants relevant to double precision floating point numbers.
+
+// Quiet NaNs have bits 51 to 62 set, possibly the sign bit, and no
+// other bits set.
+const uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
+// If looking only at the top 32 bits, the QNaN mask is bits 19 to 30.
+const uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
+
+
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
 // (sorted alphabetically)

@@ -1318,7 +1318,9 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) { return 0; }
 
 double OS::nan_value() {
 #ifdef _MSC_VER
-  static const __int64 nanval = 0xfff8000000000000;
+  // Positive Quiet NaN with no payload (aka. Indeterminate) has all bits
+  // in mask set, so value equals mask.
+  static const __int64 nanval = kQuietNaNMask;
   return *reinterpret_cast<const double*>(&nanval);
 #else  // _MSC_VER
   return NAN;

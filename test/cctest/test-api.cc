@@ -8495,3 +8495,104 @@ THREADED_TEST(GetHeapStatistics) {
   CHECK_NE(heap_statistics.total_heap_size(), 0);
   CHECK_NE(heap_statistics.used_heap_size(), 0);
 }
+
+
+static double DoubleFromBits(uint64_t value) {
+  double target;
+  memcpy(&target, &value, sizeof(target));
+  return target;
+}
+
+
+static uint64_t DoubleToBits(double value) {
+  uint64_t target;
+  memcpy(&target, &value, sizeof(target));
+  return target;
+}
+
+
+static double DoubleToDateTime(double input) {
+  double date_limit = 864e13;
+  if (IsNaN(input) || input < -date_limit || input > date_limit) {
+    return i::OS::nan_value();
+  }
+  return (input < 0) ? -(floor(-input)) : floor(input);
+}
+
+// We don't have a consistent way to write 64-bit constants syntactically, so we
+// split them into two 32-bit constants and combine them programmatically.
+static double DoubleFromBits(uint32_t high_bits, uint32_t low_bits) {
+  return DoubleFromBits((static_cast<uint64_t>(high_bits) << 32) | low_bits);
+}
+
+
+THREADED_TEST(QuietSignalingNaNs) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+
+  // Special double values.
+  double snan = DoubleFromBits(0x7ff00000, 0x00000001);
+  double qnan = DoubleFromBits(0x7ff80000, 0x00000000);
+  double infinity = DoubleFromBits(0x7ff00000, 0x00000000);
+  double max_normal = DoubleFromBits(0x7fefffff, 0xffffffffu);
+  double min_normal = DoubleFromBits(0x00100000, 0x00000000);
+  double max_denormal = DoubleFromBits(0x000fffff, 0xffffffffu);
+  double min_denormal = DoubleFromBits(0x00000000, 0x00000001);
+
+  // Date values are capped at +/-100000000 days (times 864e5 ms per day)
+  // on either side of the epoch.
+  double date_limit = 864e13;
+
+  double test_values[] = {
+      snan,
+      qnan,
+      infinity,
+      max_normal,
+      date_limit + 1,
+      date_limit,
+      min_normal,
+      max_denormal,
+      min_denormal,
+      0,
+      -0,
+      -min_denormal,
+      -max_denormal,
+      -min_normal,
+      -date_limit,
+      -date_limit - 1,
+      -max_normal,
+      -infinity,
+      -qnan,
+      -snan
+  };
+  int num_test_values = 20;
+
+  for (int i = 0; i < num_test_values; i++) {
+    double test_value = test_values[i];
+
+    // Check that Number::New preserves non-NaNs and quiets SNaNs.
+    v8::Handle<v8::Value> number = v8::Number::New(test_value);
+    double stored_number = number->NumberValue();
+    if (!IsNaN(test_value)) {
+      CHECK_EQ(test_value, stored_number);
+    } else {
+      uint64_t stored_bits = DoubleToBits(stored_number);
+      // Check if quiet nan (bits 51..62 all set).
+      CHECK_EQ(0xfff, (stored_bits >> 51) & 0xfff);
+    }
+
+    // Check that Date::New preserves non-NaNs in the date range and
+    // quiets SNaNs.
+    v8::Handle<v8::Value> date = v8::Date::New(test_value);
+    double expected_stored_date = DoubleToDateTime(test_value);
+    double stored_date = date->NumberValue();
+    if (!IsNaN(expected_stored_date)) {
+      CHECK_EQ(expected_stored_date, stored_date);
+    } else {
+      uint64_t stored_bits = DoubleToBits(stored_date);
+      // Check if quiet nan (bits 51..62 all set).
+      CHECK_EQ(0xfff, (stored_bits >> 51) & 0xfff);
+    }
+  }
+}
