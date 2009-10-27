@@ -8593,7 +8593,7 @@ THREADED_TEST(QuietSignalingNaNs) {
     } else {
       uint64_t stored_bits = DoubleToBits(stored_number);
       // Check if quiet nan (bits 51..62 all set).
-      CHECK_EQ(0xfff, (stored_bits >> 51) & 0xfff);
+      CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
     }
 
     // Check that Date::New preserves non-NaNs in the date range and
@@ -8606,7 +8606,7 @@ THREADED_TEST(QuietSignalingNaNs) {
     } else {
       uint64_t stored_bits = DoubleToBits(stored_date);
       // Check if quiet nan (bits 51..62 all set).
-      CHECK_EQ(0xfff, (stored_bits >> 51) & 0xfff);
+      CHECK_EQ(0xfff, static_cast<int>((stored_bits >> 51) & 0xfff));
     }
   }
 }
