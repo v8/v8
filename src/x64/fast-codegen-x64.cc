@@ -116,6 +116,39 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 }
 
 
+void FastCodeGenerator::Move(Location destination, Slot* source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+    case Location::TEMP:
+      __ push(Operand(rbp, SlotOffset(source)));
+      break;
+  }
+}
+
+
+void FastCodeGenerator::Move(Location destination, Literal* expr) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+    case Location::TEMP:
+      __ Push(expr->handle());
+      break;
+  }
+}
+
+
+void FastCodeGenerator::Move(Slot* destination, Location source) {
+  switch (source.type()) {
+    case Location::NOWHERE:
+      UNREACHABLE();
+    case Location::TEMP:
+      __ pop(Operand(rbp, SlotOffset(destination)));
+      break;
+  }
+}
+
+
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ push(rsi);  // The context is the first argument.
@@ -123,20 +156,6 @@ void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ Push(Smi::FromInt(is_eval_ ? 1 : 0));
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
-}
-
-
-void FastCodeGenerator::VisitBlock(Block* stmt) {
-  Comment cmnt(masm_, "[ Block");
-  SetStatementPosition(stmt);
-  VisitStatements(stmt->statements());
-}
-
-
-void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
-  Comment cmnt(masm_, "[ ExpressionStatement");
-  SetStatementPosition(stmt);
-  Visit(stmt->expression());
 }
 
 
@@ -149,8 +168,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     __ Move(rax, expr->AsLiteral()->handle());
   } else {
     Visit(expr);
-    ASSERT(expr->location().is_temporary());
-    __ pop(rax);
+    Move(rax, expr->location());
   }
 
   if (FLAG_trace) {
@@ -189,12 +207,7 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   __ push(rsi);
   __ Push(boilerplate);
   __ CallRuntime(Runtime::kNewClosure, 2);
-
-  if (expr->location().is_temporary()) {
-    __ push(rax);
-  } else {
-    ASSERT(expr->location().is_nowhere());
-  }
+  Move(expr->location(), rax);
 }
 
 
@@ -213,32 +226,19 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     // A test rax instruction following the call is used by the IC to
     // indicate that the inobject property case was inlined.  Ensure there
     // is no test rax instruction here.
-    if (expr->location().is_temporary()) {
-      // Replace the global object with the result.
-      __ movq(Operand(rsp, 0), rax);
-    } else {
-      ASSERT(expr->location().is_nowhere());
-      __ addq(rsp, Immediate(kPointerSize));
+    switch (expr->location().type()) {
+      case Location::NOWHERE:
+        __ addq(rsp, Immediate(kPointerSize));
+        break;
+      case Location::TEMP:
+        // Replace the global object with the result.
+        __ movq(Operand(rsp, 0), rax);
+        break;
     }
 
   } else {
     Comment cmnt(masm_, "Stack slot");
-    Slot* slot = rewrite->AsSlot();
-    ASSERT(slot != NULL);
-    if (expr->location().is_temporary()) {
-      __ push(Operand(rbp, SlotOffset(slot)));
-    } else {
-      ASSERT(expr->location().is_nowhere());
-    }
-  }
-}
-
-
-void FastCodeGenerator::VisitLiteral(Literal* expr) {
-  if (expr->location().is_temporary()) {
-    __ Push(expr->handle());
-  } else {
-    ASSERT(expr->location().is_nowhere());
+    Move(expr->location(), rewrite->AsSlot());
   }
 }
 
@@ -329,10 +329,13 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       default: UNREACHABLE();
     }
   }
-  if (expr->location().is_nowhere() && result_saved) {
-    __ addq(rsp, Immediate(kPointerSize));
-  } else if (expr->location().is_temporary() && !result_saved) {
-    __ push(rax);
+  switch (expr->location().type()) {
+    case Location::NOWHERE:
+      if (result_saved) __ addq(rsp, Immediate(kPointerSize));
+      break;
+    case Location::TEMP:
+      if (!result_saved) __ push(rax);
+      break;
   }
 }
 
@@ -360,11 +363,7 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   // Label done:
   __ bind(&done);
-  if (expr->location().is_temporary()) {
-    __ push(rax);
-  } else {
-    ASSERT(expr->location().is_nowhere());
-  }
+  Move(expr->location(), rax);
 }
 
 
@@ -429,11 +428,13 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ RecordWrite(rbx, offset, rax, rcx);
   }
 
-  Location destination = expr->location();
-  if (destination.is_nowhere() && result_saved) {
-    __ addq(rsp, Immediate(kPointerSize));
-  } else if (destination.is_temporary() && !result_saved) {
-    __ push(rax);
+  switch (expr->location().type()) {
+    case Location::NOWHERE:
+      if (result_saved) __ addq(rsp, Immediate(kPointerSize));
+      break;
+    case Location::TEMP:
+      if (!result_saved) __ push(rax);
+      break;
   }
 }
 
@@ -467,10 +468,13 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    if (destination.is_temporary()) {
-      __ movq(Operand(rsp, 0), rax);
-    } else {
-      __ addq(rsp, Immediate(kPointerSize));
+    switch (expr->location().type()) {
+      case Location::NOWHERE:
+        __ addq(rsp, Immediate(kPointerSize));
+        break;
+      case Location::TEMP:
+        __ movq(Operand(rsp, 0), rax);
+        break;
     }
   } else {
     // Local or parameter assignment.
@@ -481,22 +485,21 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       // discarded result.  Always perform the assignment.
       __ Move(kScratchRegister, rhs->AsLiteral()->handle());
       __ movq(Operand(rbp, SlotOffset(var->slot())), kScratchRegister);
-      if (destination.is_temporary()) {
-        // Case 'temp <- (var = constant)'.  Save result.
-        __ push(kScratchRegister);
-      }
+      Move(expr->location(), kScratchRegister);
     } else {
       ASSERT(rhs->location().is_temporary());
       Visit(rhs);
-      if (destination.is_temporary()) {
-        // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side temporary
-        // on the stack.
-        __ movq(kScratchRegister, Operand(rsp, 0));
-        __ movq(Operand(rbp, SlotOffset(var->slot())), kScratchRegister);
-      } else {
-        ASSERT(destination.is_nowhere());
-        // Case 'var = temp'.  Discard right-hand-side temporary.
-        __ pop(Operand(rbp, SlotOffset(var->slot())));
+      switch (expr->location().type()) {
+        case Location::NOWHERE:
+          // Case 'var = temp'.  Discard right-hand-side temporary.
+          Move(var->slot(), rhs->location());
+          break;
+        case Location::TEMP:
+          // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
+          // temporary on the stack.
+          __ movq(kScratchRegister, Operand(rsp, 0));
+          __ movq(Operand(rbp, SlotOffset(var->slot())), kScratchRegister);
+          break;
       }
     }
   }
@@ -527,11 +530,13 @@ void FastCodeGenerator::VisitCall(Call* expr) {
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
-  if (expr->location().is_temporary()) {
-    __ movq(Operand(rsp, 0), rax);
-  } else {
-    ASSERT(expr->location().is_nowhere());
-    __ addq(rsp, Immediate(kPointerSize));
+  switch (expr->location().type()) {
+    case Location::NOWHERE:
+      __ addq(rsp, Immediate(kPointerSize));
+      break;
+    case Location::TEMP:
+      __ movq(Operand(rsp, 0), rax);
+      break;
   }
 }
 
@@ -551,11 +556,7 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   }
 
   __ CallRuntime(function, arg_count);
-  if (expr->location().is_temporary()) {
-    __ push(rax);
-  } else {
-    ASSERT(expr->location().is_nowhere());
-  }
+  Move(expr->location(), rax);
 }
 
 
@@ -583,14 +584,17 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   } else {
     Visit(left);
     ASSERT(left->location().is_temporary());
-    if (destination.is_temporary()) {
-      // Copy the left-hand value into rax because we may need it as the
-      // final result.
-      __ movq(rax, Operand(rsp, 0));
-    } else {
-      // Pop the left-hand value into rax because we will not need it as the
-      // final result.
-      __ pop(rax);
+    switch (destination.type()) {
+      case Location::NOWHERE:
+        // Pop the left-hand value into rax because we will not need it as the
+        // final result.
+        __ pop(rax);
+        break;
+      case Location::TEMP:
+        // Copy the left-hand value into rax because we may need it as the
+        // final result.
+        __ movq(rax, Operand(rsp, 0));
+        break;
     }
   }
   // The left-hand value is in rax.  It is also on the stack iff the
@@ -624,19 +628,10 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   }
   // Save or discard the right-hand value as needed.
   if (right->AsLiteral() != NULL) {
-    if (destination.is_temporary()) {
-      __ Push(right->AsLiteral()->handle());
-    } else {
-      ASSERT(destination.is_nowhere());
-    }
+    Move(destination, right->AsLiteral());
   } else {
     Visit(right);
-    ASSERT(right->location().is_temporary());
-    if (destination.is_nowhere()) {
-      __ addq(rsp, Immediate(kPointerSize));
-    } else {
-      ASSERT(destination.is_temporary());
-    }
+    Move(destination, right->location());
   }
 
   __ bind(&done);

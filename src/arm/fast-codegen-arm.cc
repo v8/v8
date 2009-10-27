@@ -120,6 +120,42 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 }
 
 
+void FastCodeGenerator::Move(Location destination, Slot* source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+    case Location::TEMP:
+      __ ldr(ip, MemOperand(fp, SlotOffset(source)));
+      __ push(ip);
+      break;
+  }
+}
+
+
+void FastCodeGenerator::Move(Location destination, Literal* expr) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+    case Location::TEMP:
+      __ mov(ip, Operand(expr->handle()));
+      __ push(ip);
+      break;
+  }
+}
+
+
+void FastCodeGenerator::Move(Slot* destination, Location source) {
+  switch (source.type()) {
+    case Location::NOWHERE:
+      UNREACHABLE();
+    case Location::TEMP:
+      __ pop(ip);
+      __ str(ip, MemOperand(fp, SlotOffset(destination)));
+      break;
+  }
+}
+
+
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   // The context is the first argument.
@@ -128,20 +164,6 @@ void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ stm(db_w, sp, cp.bit() | r1.bit() | r0.bit());
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
-}
-
-
-void FastCodeGenerator::VisitBlock(Block* stmt) {
-  Comment cmnt(masm_, "[ Block");
-  SetStatementPosition(stmt);
-  VisitStatements(stmt->statements());
-}
-
-
-void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
-  Comment cmnt(masm_, "[ ExpressionStatement");
-  SetStatementPosition(stmt);
-  Visit(stmt->expression());
 }
 
 
@@ -154,8 +176,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     __ mov(r0, Operand(expr->AsLiteral()->handle()));
   } else {
     Visit(expr);
-    ASSERT(expr->location().is_temporary());
-    __ pop(r0);
+    Move(r0, expr->location());
   }
 
   if (FLAG_trace) {
@@ -185,12 +206,7 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   __ mov(r0, Operand(boilerplate));
   __ stm(db_w, sp, cp.bit() | r0.bit());
   __ CallRuntime(Runtime::kNewClosure, 2);
-
-  if (expr->location().is_temporary()) {
-    __ push(r0);
-  } else {
-    ASSERT(expr->location().is_nowhere());
-  }
+  Move(expr->location(), r0);
 }
 
 
@@ -206,34 +222,19 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     __ mov(r2, Operand(expr->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-    if (expr->location().is_temporary()) {
-      // Replace the global object with the result.
-      __ str(r0, MemOperand(sp));
-    } else {
-      ASSERT(expr->location().is_nowhere());
-      __ pop();
+    switch (expr->location().type()) {
+      case Location::NOWHERE:
+        __ pop();
+        break;
+      case Location::TEMP:
+        // Replace the global object with the result.
+        __ str(r0, MemOperand(sp));
+        break;
     }
 
   } else {
     Comment cmnt(masm_, "Stack slot");
-    Slot* slot = rewrite->AsSlot();
-    ASSERT(slot != NULL);
-    if (expr->location().is_temporary()) {
-      __ ldr(ip, MemOperand(fp, SlotOffset(slot)));
-      __ push(ip);
-    } else {
-      ASSERT(expr->location().is_nowhere());
-    }
-  }
-}
-
-
-void FastCodeGenerator::VisitLiteral(Literal* expr) {
-  if (expr->location().is_temporary()) {
-    __ mov(ip, Operand(expr->AsLiteral()->handle()));
-    __ push(ip);
-  } else {
-    ASSERT(expr->location().is_nowhere());
+    Move(expr->location(), rewrite->AsSlot());
   }
 }
 
@@ -315,11 +316,13 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       default: UNREACHABLE();
     }
   }
-  if (expr->location().is_nowhere() && result_saved) {
-    __ pop();
-  } else if (expr->location().is_temporary() && !result_saved) {
-    ASSERT(expr->location().is_temporary());
-    __ push(r0);
+  switch (expr->location().type()) {
+    case Location::NOWHERE:
+      if (result_saved) __ pop();
+      break;
+    case Location::TEMP:
+      if (!result_saved) __ push(r0);
+      break;
   }
 }
 
@@ -347,11 +350,7 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ stm(db_w, sp, r4.bit() | r3.bit() | r2.bit() | r1.bit());
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   __ bind(&done);
-  if (expr->location().is_temporary()) {
-    __ push(r0);
-  } else {
-    ASSERT(expr->location().is_nowhere());
-  }
+  Move(expr->location(), r0);
 }
 
 
@@ -419,11 +418,13 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ RecordWrite(r1, r2, r0);
   }
 
-  Location destination = expr->location();
-  if (destination.is_nowhere() && result_saved) {
-    __ pop();
-  } else if (destination.is_temporary() && !result_saved) {
-    __ push(r0);
+  switch (expr->location().type()) {
+    case Location::NOWHERE:
+      if (result_saved) __ pop();
+      break;
+    case Location::TEMP:
+      if (!result_saved) __ push(r0);
+      break;
   }
 }
 
@@ -458,11 +459,13 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    if (destination.is_temporary()) {
-      __ str(r0, MemOperand(sp));
-    } else {
-      ASSERT(destination.is_nowhere());
-      __ pop();
+    switch (expr->location().type()) {
+      case Location::NOWHERE:
+        __ pop();
+        break;
+      case Location::TEMP:
+        __ str(r0, MemOperand(sp));
+        break;
     }
 
   } else {
@@ -474,22 +477,23 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       // discarded result.  Always perform the assignment.
       __ mov(ip, Operand(rhs->AsLiteral()->handle()));
       __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
-      if (destination.is_temporary()) {
-        // Case 'temp <- (var = constant)'.  Save result.
-        __ push(ip);
-      }
+      Move(expr->location(), ip);
     } else {
       ASSERT(rhs->location().is_temporary());
       Visit(rhs);
-      if (destination.is_temporary()) {
-        // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
-        // temporary on the stack.
-        __ ldr(ip, MemOperand(sp));
-      } else {
-        ASSERT(destination.is_nowhere());
-        // Case 'var = temp'.  Discard right-hand-side temporary.
-        __ pop(ip);
+      // Load right-hand side into ip.
+      switch (expr->location().type()) {
+        case Location::NOWHERE:
+          // Case 'var = temp'.  Discard right-hand-side temporary.
+          __ pop(ip);
+          break;
+        case Location::TEMP:
+          // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
+          // temporary on the stack.
+          __ ldr(ip, MemOperand(sp));
+          break;
       }
+      // Do the slot assignment.
       __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
     }
   }
@@ -521,11 +525,13 @@ void FastCodeGenerator::VisitCall(Call* expr) {
   __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  if (expr->location().is_temporary()) {
-    __ str(r0, MemOperand(sp));
-  } else {
-    ASSERT(expr->location().is_nowhere());
-    __ pop();
+  switch (expr->location().type()) {
+    case Location::NOWHERE:
+      __ pop();
+      break;
+    case Location::TEMP:
+      __ str(r0, MemOperand(sp));
+      break;
   }
 }
 
@@ -545,11 +551,7 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   }
 
   __ CallRuntime(function, arg_count);
-  if (expr->location().is_temporary()) {
-    __ push(r0);
-  } else {
-    ASSERT(expr->location().is_nowhere());
-  }
+  Move(expr->location(), r0);
 }
 
 
@@ -591,20 +593,10 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   if (destination.is_temporary()) __ pop();
   // Save or discard the right-hand value as needed.
   if (right->AsLiteral() != NULL) {
-    if (destination.is_temporary()) {
-      __ mov(ip, Operand(right->AsLiteral()->handle()));
-      __ push(ip);
-    } else {
-      ASSERT(destination.is_nowhere());
-    }
+    Move(destination, right->AsLiteral());
   } else {
     Visit(right);
-    ASSERT(right->location().is_temporary());
-    if (destination.is_nowhere()) {
-      __ pop();
-    } else {
-      ASSERT(destination.is_temporary());
-    }
+    Move(destination, right->location());
   }
 
   __ bind(&done);

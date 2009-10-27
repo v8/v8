@@ -51,6 +51,15 @@ class FastCodeGenerator: public AstVisitor {
  private:
   int SlotOffset(Slot* slot);
 
+  void Move(Location destination, Location source);
+
+  void Move(Location destination, Register source);
+  void Move(Location destination, Slot* source);
+  void Move(Location destination, Literal* source);
+
+  void Move(Register destination, Location source);
+  void Move(Slot* destination, Location source);
+
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
   void DeclareGlobals(Handle<FixedArray> pairs);

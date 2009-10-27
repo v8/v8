@@ -53,6 +53,7 @@ Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
 
 
 int FastCodeGenerator::SlotOffset(Slot* slot) {
+  ASSERT(slot != NULL);
   // Offset is negative because higher indexes are at lower addresses.
   int offset = -slot->index() * kPointerSize;
   // Adjust by a (parameter or local) base offset.
@@ -67,6 +68,48 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
       UNREACHABLE();
   }
   return offset;
+}
+
+
+void FastCodeGenerator::Move(Location destination, Location source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+
+    case Location::TEMP:
+      switch (source.type()) {
+        case Location::NOWHERE:
+          UNREACHABLE();
+        case Location::TEMP:
+          break;
+      }
+      break;
+  }
+}
+
+
+// All platform macro assemblers in {ia32,x64,arm} have a push(Register)
+// function.
+void FastCodeGenerator::Move(Location destination, Register source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      break;
+    case Location::TEMP:
+      masm_->push(source);
+      break;
+  }
+}
+
+
+// All platform macro assemblers in {ia32,x64,arm} have a pop(Register)
+// function.
+void FastCodeGenerator::Move(Register destination, Location source) {
+  switch (source.type()) {
+    case Location::NOWHERE:
+      UNREACHABLE();
+    case Location::TEMP:
+      masm_->pop(destination);
+  }
 }
 
 
@@ -191,6 +234,20 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
 }
 
 
+void FastCodeGenerator::VisitBlock(Block* stmt) {
+  Comment cmnt(masm_, "[ Block");
+  SetStatementPosition(stmt);
+  VisitStatements(stmt->statements());
+}
+
+
+void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
+  Comment cmnt(masm_, "[ ExpressionStatement");
+  SetStatementPosition(stmt);
+  Visit(stmt->expression());
+}
+
+
 void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
   Comment cmnt(masm_, "[ EmptyStatement");
   SetStatementPosition(stmt);
@@ -276,6 +333,11 @@ void FastCodeGenerator::VisitConditional(Conditional* expr) {
 void FastCodeGenerator::VisitSlot(Slot* expr) {
   // Slots do not appear directly in the AST.
   UNREACHABLE();
+}
+
+
+void FastCodeGenerator::VisitLiteral(Literal* expr) {
+  Move(expr->location(), expr);
 }
 
 
