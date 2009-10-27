@@ -32,6 +32,7 @@
 #include "api.h"
 #include "serialize.h"
 #include "snapshot.h"
+#include "platform.h"
 
 namespace v8 {
 namespace internal {
@@ -96,7 +97,7 @@ bool Snapshot::WriteToFile(const char* snapshot_file) {
 class FileByteSink : public SnapshotByteSink {
  public:
   explicit FileByteSink(const char* snapshot_file) {
-    fp_ = fopen(snapshot_file, "wb");
+    fp_ = OS::FOpen(snapshot_file, "wb");
     if (fp_ == NULL) {
       PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
       exit(1);
