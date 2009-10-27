@@ -351,11 +351,6 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FastCodeGenerator::VisitProperty(Property* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   UNREACHABLE();
 }

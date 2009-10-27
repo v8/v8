@@ -205,11 +205,12 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     __ mov(ecx, expr->name());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    // By emitting a nop we make sure that we do not have a test eax
+    // instruction after the call it is treated specially by the LoadIC code
+    // Remember that the assembler may choose to do peephole optimization
+    // (eg, push/pop elimination).
+    __ nop();
 
-    // A test eax instruction following the call is used by the IC to
-    // indicate that the inobject property case was inlined.  Ensure there
-    // is no test eax instruction here.  Remember that the assembler may
-    // choose to do peephole optimization (eg, push/pop elimination).
     switch (expr->location().type()) {
       case Location::NOWHERE:
         __ add(Operand(esp), Immediate(kPointerSize));
@@ -488,6 +489,46 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
           break;
       }
     }
+  }
+}
+
+
+void FastCodeGenerator::VisitProperty(Property* expr) {
+  Comment cmnt(masm_, "[ Property");
+  Expression* key = expr->key();
+  uint32_t dummy;
+
+  // Evaluate receiver.
+  Visit(expr->obj());
+
+  if (key->AsLiteral() != NULL && key->AsLiteral()->handle()->IsSymbol() &&
+      !String::cast(*(key->AsLiteral()->handle()))->AsArrayIndex(&dummy)) {
+    // Do a NAMED property load.
+    // The IC expects the property name in ecx and the receiver on the stack.
+    __ mov(ecx, Immediate(key->AsLiteral()->handle()));
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+    // By emitting a nop we make sure that we do not have a test eax
+    // instruction after the call it is treated specially by the LoadIC code.
+    __ nop();
+  } else {
+    // Do a KEYED property load.
+    Visit(expr->key());
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ call(ic, RelocInfo::CODE_TARGET);
+    // By emitting a nop we make sure that we do not have a "test eax,..."
+    // instruction after the call it is treated specially by the LoadIC code.
+    __ nop();
+    // Drop key left on the stack by IC.
+    __ add(Operand(esp), Immediate(kPointerSize));
+  }
+  switch (expr->location().type()) {
+    case Location::TEMP:
+      __ mov(Operand(esp, 0), eax);
+      break;
+    case Location::NOWHERE:
+      __ add(Operand(esp), Immediate(kPointerSize));
+      break;
   }
 }
 

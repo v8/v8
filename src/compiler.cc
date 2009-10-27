@@ -697,7 +697,9 @@ void CodeGenSelector::VisitThrow(Throw* expr) {
 
 
 void CodeGenSelector::VisitProperty(Property* expr) {
-  BAILOUT("Property");
+  Visit(expr->obj());
+  CHECK_BAILOUT;
+  Visit(expr->key());
 }
 
 

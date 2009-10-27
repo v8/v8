@@ -497,6 +497,45 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 
+void FastCodeGenerator::VisitProperty(Property* expr) {
+  Comment cmnt(masm_, "[ Property");
+  Expression* key = expr->key();
+  uint32_t dummy;
+
+  // Evaluate receiver.
+  Visit(expr->obj());
+
+  if (key->AsLiteral() != NULL && key->AsLiteral()->handle()->IsSymbol() &&
+      !String::cast(*(key->AsLiteral()->handle()))->AsArrayIndex(&dummy)) {
+    // Do a NAMED property load.
+    // The IC expects the property name in ecx and the receiver on the stack.
+    __ mov(r2, Operand(key->AsLiteral()->handle()));
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // By emitting a nop we make sure that we do not have a "test eax,..."
+    // instruction after the call it is treated specially by the LoadIC code.
+    __ nop();
+  } else {
+    // Do a KEYED property load.
+    Visit(expr->key());
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // By emitting a nop we make sure that we do not have a "test eax,..."
+    // instruction after the call it is treated specially by the LoadIC code.
+    __ nop();
+    // Drop key and receiver left on the stack by IC.
+    __ pop();
+  }
+  switch (expr->location().type()) {
+    case Location::TEMP:
+      __ str(r0, MemOperand(sp));
+      break;
+    case Location::NOWHERE:
+      __ pop();
+  }
+}
+
+
 void FastCodeGenerator::VisitCall(Call* expr) {
   Comment cmnt(masm_, "[ Call");
   Expression* fun = expr->expression();
