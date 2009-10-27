@@ -4797,6 +4797,12 @@ static Object* Runtime_ReThrow(Arguments args) {
 }
 
 
+static Object* Runtime_PromoteScheduledException(Arguments args) {
+  ASSERT_EQ(0, args.length());
+  return Top::PromoteScheduledException();
+}
+
+
 static Object* Runtime_ThrowReferenceError(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
@@ -7755,6 +7761,13 @@ static Object* Runtime_Abort(Arguments args) {
   OS::Abort();
   UNREACHABLE();
   return NULL;
+}
+
+
+static Object* Runtime_DeleteHandleScopeExtensions(Arguments args) {
+  ASSERT(args.length() == 0);
+  HandleScope::DeleteExtensions();
+  return Heap::undefined_value();
 }
 
 

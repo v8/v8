@@ -1787,9 +1787,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 }
 
 
-void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
-  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
-
+void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode, int result_size) {
   // Setup the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
@@ -1801,7 +1799,12 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
   // Reserve room for entry stack pointer and push the debug marker.
   ASSERT(ExitFrameConstants::kSPOffset == -1 * kPointerSize);
   push(Immediate(0));  // saved entry sp, patched before call
-  push(Immediate(type == StackFrame::EXIT_DEBUG ? 1 : 0));
+  if (mode == ExitFrame::MODE_DEBUG) {
+    push(Immediate(Smi::FromInt(0)));
+  } else {
+    movq(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
+    push(kScratchRegister);
+  }
 
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
@@ -1821,7 +1824,7 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Save the state of all registers to the stack from the memory
   // location. This is needed to allow nested break points.
-  if (type == StackFrame::EXIT_DEBUG) {
+  if (mode == ExitFrame::MODE_DEBUG) {
     // TODO(1243899): This should be symmetric to
     // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
     // correct here, but computed for the other call. Very error
@@ -1860,17 +1863,17 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type, int result_size) {
 }
 
 
-void MacroAssembler::LeaveExitFrame(StackFrame::Type type, int result_size) {
+void MacroAssembler::LeaveExitFrame(ExitFrame::Mode mode, int result_size) {
   // Registers:
   // r15 : argv
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Restore the memory copy of the registers by digging them out from
   // the stack. This is needed to allow nested break points.
-  if (type == StackFrame::EXIT_DEBUG) {
+  if (mode == ExitFrame::MODE_DEBUG) {
     // It's okay to clobber register rbx below because we don't need
     // the function pointer after this.
     const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
+    int kOffset = ExitFrameConstants::kCodeOffset - kCallerSavedSize;
     lea(rbx, Operand(rbp, kOffset));
     CopyRegistersFromStackToMemory(rbx, rcx, kJSCallerSaved);
   }
