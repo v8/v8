@@ -248,6 +248,7 @@ class Variable;
 class VariableProxy;
 class RelocInfo;
 class Deserializer;
+class GenericDeserializer;  // TODO(erikcorry): Get rid of this.
 class MessageLocation;
 class ObjectGroup;
 class TickSample;
@@ -272,7 +273,9 @@ enum AllocationSpace {
   LO_SPACE,             // Promoted large objects.
 
   FIRST_SPACE = NEW_SPACE,
-  LAST_SPACE = LO_SPACE
+  LAST_SPACE = LO_SPACE,
+  FIRST_PAGED_SPACE = OLD_POINTER_SPACE,
+  LAST_PAGED_SPACE = CELL_SPACE
 };
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;

@@ -452,8 +452,8 @@ class V8EXPORT HandleScope {
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
-  // This Data class is accessible internally through a typedef in the
-  // ImplementationUtilities class.
+  // This Data class is accessible internally as HandleScopeData through a
+  // typedef in the ImplementationUtilities class.
   class V8EXPORT Data {
    public:
     int extensions;

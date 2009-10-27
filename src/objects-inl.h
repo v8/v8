@@ -945,6 +945,25 @@ HeapObject* MapWord::ToForwardingAddress() {
 }
 
 
+bool MapWord::IsSerializationAddress() {
+  return HAS_SMI_TAG(reinterpret_cast<Object*>(value_));
+}
+
+
+MapWord MapWord::FromSerializationAddress(int raw) {
+  // When the map word is being used as a serialization address we Smi-encode
+  // the serialization address (which is always a smallish positive integer).
+  return MapWord(reinterpret_cast<uintptr_t>(Smi::FromInt(raw)));
+}
+
+
+int MapWord::ToSerializationAddress() {
+  // When the map word is being used as a serialization address we treat the
+  // map word as a Smi and get the small integer that it encodes.
+  return reinterpret_cast<Smi*>(value_)->value();
+}
+
+
 bool MapWord::IsMarked() {
   return (value_ & kMarkingMask) == 0;
 }

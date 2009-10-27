@@ -38,7 +38,13 @@ namespace internal {
 
 // Defines all the roots in Heap.
 #define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \
-  /* Cluster the most popular ones in a few cache lines here at the top. */    \
+  /* Put the byte array map early.  We need it to be in place by the time   */ \
+  /* the deserializer hits the next page, since it wants to put a byte      */ \
+  /* array in the unused space at the end of the page.                      */ \
+  V(Map, byte_array_map, ByteArrayMap)                                         \
+  V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
+  V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
+  /* Cluster the most popular ones in a few cache lines here at the top.    */ \
   V(Smi, stack_limit, StackLimit)                                              \
   V(Object, undefined_value, UndefinedValue)                                   \
   V(Object, the_hole_value, TheHoleValue)                                      \
@@ -109,7 +115,6 @@ namespace internal {
     undetectable_medium_ascii_string_map,                                      \
     UndetectableMediumAsciiStringMap)                                          \
   V(Map, undetectable_long_ascii_string_map, UndetectableLongAsciiStringMap)   \
-  V(Map, byte_array_map, ByteArrayMap)                                         \
   V(Map, pixel_array_map, PixelArrayMap)                                       \
   V(Map, external_byte_array_map, ExternalByteArrayMap)                        \
   V(Map, external_unsigned_byte_array_map, ExternalUnsignedByteArrayMap)       \
@@ -126,8 +131,6 @@ namespace internal {
   V(Map, boilerplate_function_map, BoilerplateFunctionMap)                     \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, proxy_map, ProxyMap)                                                  \
-  V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
-  V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Object, nan_value, NanValue)                                               \
   V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(String, empty_string, EmptyString)                                         \
@@ -304,6 +307,9 @@ class Heap : public AllStatic {
   static bool always_allocate() { return always_allocate_scope_depth_ != 0; }
   static Address always_allocate_scope_depth_address() {
     return reinterpret_cast<Address>(&always_allocate_scope_depth_);
+  }
+  static bool linear_allocation() {
+      return linear_allocation_scope_depth_ != 0;
   }
 
   static Address* NewSpaceAllocationTopAddress() {
@@ -750,7 +756,7 @@ class Heap : public AllStatic {
   static bool Contains(HeapObject* value);
 
   // Checks whether an address/object in a space.
-  // Currently used by tests and heap verification only.
+  // Currently used by tests, serialization and heap verification only.
   static bool InSpace(Address addr, AllocationSpace space);
   static bool InSpace(HeapObject* value, AllocationSpace space);
 
@@ -921,6 +927,7 @@ class Heap : public AllStatic {
   static int survived_since_last_expansion_;
 
   static int always_allocate_scope_depth_;
+  static int linear_allocation_scope_depth_;
   static bool context_disposed_pending_;
 
   static const int kMaxMapSpaceSize = 8*MB;
@@ -1136,6 +1143,7 @@ class Heap : public AllStatic {
   friend class Factory;
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
+  friend class LinearAllocationScope;
 };
 
 
@@ -1153,6 +1161,19 @@ class AlwaysAllocateScope {
   ~AlwaysAllocateScope() {
     Heap::always_allocate_scope_depth_--;
     ASSERT(Heap::always_allocate_scope_depth_ == 0);
+  }
+};
+
+
+class LinearAllocationScope {
+ public:
+  LinearAllocationScope() {
+    Heap::linear_allocation_scope_depth_++;
+  }
+
+  ~LinearAllocationScope() {
+    Heap::linear_allocation_scope_depth_--;
+    ASSERT(Heap::linear_allocation_scope_depth_ >= 0);
   }
 };
 

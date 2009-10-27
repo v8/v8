@@ -1527,7 +1527,9 @@ void FreeListNode::set_size(int size_in_bytes) {
   // correct size.
   if (size_in_bytes > ByteArray::kAlignedSize) {
     set_map(Heap::raw_unchecked_byte_array_map());
-    ByteArray::cast(this)->set_length(ByteArray::LengthFor(size_in_bytes));
+    // Can't use ByteArray::cast because it fails during deserialization.
+    ByteArray* this_as_byte_array = reinterpret_cast<ByteArray*>(this);
+    this_as_byte_array->set_length(ByteArray::LengthFor(size_in_bytes));
   } else if (size_in_bytes == kPointerSize) {
     set_map(Heap::raw_unchecked_one_pointer_filler_map());
   } else if (size_in_bytes == 2 * kPointerSize) {
@@ -1535,7 +1537,8 @@ void FreeListNode::set_size(int size_in_bytes) {
   } else {
     UNREACHABLE();
   }
-  ASSERT(Size() == size_in_bytes);
+  // We would like to ASSERT(Size() == size_in_bytes) but this would fail during
+  // deserialization because the byte array map is not done yet.
 }
 
 
@@ -1828,13 +1831,16 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
     return AllocateInNextPage(current_page, size_in_bytes);
   }
 
-  // There is no next page in this space.  Try free list allocation.
-  int wasted_bytes;
-  Object* result = free_list_.Allocate(size_in_bytes, &wasted_bytes);
-  accounting_stats_.WasteBytes(wasted_bytes);
-  if (!result->IsFailure()) {
-    accounting_stats_.AllocateBytes(size_in_bytes);
-    return HeapObject::cast(result);
+  // There is no next page in this space.  Try free list allocation unless that
+  // is currently forbidden.
+  if (!Heap::linear_allocation()) {
+    int wasted_bytes;
+    Object* result = free_list_.Allocate(size_in_bytes, &wasted_bytes);
+    accounting_stats_.WasteBytes(wasted_bytes);
+    if (!result->IsFailure()) {
+      accounting_stats_.AllocateBytes(size_in_bytes);
+      return HeapObject::cast(result);
+    }
   }
 
   // Free list allocation failed and there is no next page.  Fail if we have
@@ -2230,10 +2236,10 @@ HeapObject* FixedSpace::SlowAllocateRaw(int size_in_bytes) {
     return AllocateInNextPage(current_page, size_in_bytes);
   }
 
-  // There is no next page in this space.  Try free list allocation.
-  // The fixed space free list implicitly assumes that all free blocks
-  // are of the fixed size.
-  if (size_in_bytes == object_size_in_bytes_) {
+  // There is no next page in this space.  Try free list allocation unless
+  // that is currently forbidden.  The fixed space free list implicitly assumes
+  // that all free blocks are of the fixed size.
+  if (!Heap::linear_allocation()) {
     Object* result = free_list_.Allocate();
     if (!result->IsFailure()) {
       accounting_stats_.AllocateBytes(size_in_bytes);

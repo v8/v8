@@ -114,6 +114,7 @@ int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;
+int Heap::linear_allocation_scope_depth_ = 0;
 bool Heap::context_disposed_pending_ = false;
 
 #ifdef DEBUG
@@ -3243,60 +3244,53 @@ void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
 }
 
 
-#ifdef DEBUG
-#define SYNCHRONIZE_TAG(tag) v->Synchronize(tag)
-#else
-#define SYNCHRONIZE_TAG(tag)
-#endif
-
 void Heap::IterateRoots(ObjectVisitor* v) {
   IterateStrongRoots(v);
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
-  SYNCHRONIZE_TAG("symbol_table");
+  v->Synchronize("symbol_table");
 }
 
 
 void Heap::IterateStrongRoots(ObjectVisitor* v) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
-  SYNCHRONIZE_TAG("strong_root_list");
+  v->Synchronize("strong_root_list");
 
   v->VisitPointer(bit_cast<Object**, String**>(&hidden_symbol_));
-  SYNCHRONIZE_TAG("symbol");
+  v->Synchronize("symbol");
 
   Bootstrapper::Iterate(v);
-  SYNCHRONIZE_TAG("bootstrapper");
+  v->Synchronize("bootstrapper");
   Top::Iterate(v);
-  SYNCHRONIZE_TAG("top");
+  v->Synchronize("top");
   Relocatable::Iterate(v);
-  SYNCHRONIZE_TAG("relocatable");
+  v->Synchronize("relocatable");
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug::Iterate(v);
 #endif
-  SYNCHRONIZE_TAG("debug");
+  v->Synchronize("debug");
   CompilationCache::Iterate(v);
-  SYNCHRONIZE_TAG("compilationcache");
+  v->Synchronize("compilationcache");
 
   // Iterate over local handles in handle scopes.
   HandleScopeImplementer::Iterate(v);
-  SYNCHRONIZE_TAG("handlescope");
+  v->Synchronize("handlescope");
 
   // Iterate over the builtin code objects and code stubs in the heap. Note
   // that it is not strictly necessary to iterate over code objects on
   // scavenge collections.  We still do it here because this same function
   // is used by the mark-sweep collector and the deserializer.
   Builtins::IterateBuiltins(v);
-  SYNCHRONIZE_TAG("builtins");
+  v->Synchronize("builtins");
 
   // Iterate over global handles.
   GlobalHandles::IterateRoots(v);
-  SYNCHRONIZE_TAG("globalhandles");
+  v->Synchronize("globalhandles");
 
   // Iterate over pointers being held by inactive threads.
   ThreadManager::Iterate(v);
-  SYNCHRONIZE_TAG("threadmanager");
+  v->Synchronize("threadmanager");
 }
-#undef SYNCHRONIZE_TAG
 
 
 // Flag is set when the heap has been configured.  The heap can be repeatedly

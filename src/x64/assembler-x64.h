@@ -459,6 +459,8 @@ class Assembler : public Malloced {
   static inline Address target_address_at(Address pc);
   static inline void set_target_address_at(Address pc, Address target);
   inline Handle<Object> code_target_object_handle_at(Address pc);
+  // Number of bytes taken up by the branch target in the code.
+  static const int kCallTargetSize = 4;  // Use 32-bit displacement.
   // Distance between the address of the code target in the call instruction
   // and the return address pushed on the stack.
   static const int kCallTargetAddressOffset = 4;  // Use 32-bit displacement.
