@@ -536,6 +536,52 @@ void FastCodeGenerator::VisitCall(Call* expr) {
 }
 
 
+void FastCodeGenerator::VisitCallNew(CallNew* node) {
+  Comment cmnt(masm_, "[ CallNew");
+  // According to ECMA-262, section 11.2.2, page 44, the function
+  // expression in new calls must be evaluated before the
+  // arguments.
+  // Push function on the stack.
+  Visit(node->expression());
+  ASSERT(node->expression()->location().is_temporary());
+
+  // Push global object (receiver).
+  __ ldr(r0, CodeGenerator::GlobalObject());
+  __ push(r0);
+  // Push the arguments ("left-to-right") on the stack.
+  ZoneList<Expression*>* args = node->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Visit(args->at(i));
+    ASSERT(args->at(i)->location().is_temporary());
+    // If location is temporary, it is already on the stack,
+    // so nothing to do here.
+  }
+
+  // Call the construct call builtin that handles allocation and
+  // constructor invocation.
+  SetSourcePosition(node->position());
+
+  // Load function, arg_count into r1 and r0.
+  __ mov(r0, Operand(arg_count));
+  // Function is in esp[arg_count + 1].
+  __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
+
+  Handle<Code> construct_builtin(Builtins::builtin(Builtins::JSConstructCall));
+  __ Call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
+
+  // Replace function on TOS with result in r0, or pop it.
+  switch (node->location().type()) {
+    case Location::TEMP:
+      __ str(r0, MemOperand(sp, 0));
+      break;
+    case Location::NOWHERE:
+      __ pop();
+      break;
+  }
+}
+
+
 void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Comment cmnt(masm_, "[ CallRuntime");
   ZoneList<Expression*>* args = expr->arguments();

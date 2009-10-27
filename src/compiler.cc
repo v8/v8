@@ -725,7 +725,14 @@ void CodeGenSelector::VisitCall(Call* expr) {
 
 
 void CodeGenSelector::VisitCallNew(CallNew* expr) {
-  BAILOUT("CallNew");
+  Visit(expr->expression());
+  CHECK_BAILOUT;
+  ZoneList<Expression*>* args = expr->arguments();
+  // Check all arguments to the call
+  for (int i = 0; i < args->length(); i++) {
+    Visit(args->at(i));
+    CHECK_BAILOUT;
+  }
 }
 
 
