@@ -132,8 +132,6 @@ DEFINE_bool(stack_trace_on_abort, true,
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace, false, "trace function calls")
 DEFINE_bool(defer_negation, true, "defer negation operation")
-DEFINE_bool(check_stack, true,
-            "check stack for overflow, interrupt, breakpoint")
 
 // codegen.cc
 DEFINE_bool(lazy, true, "use lazy compilation")

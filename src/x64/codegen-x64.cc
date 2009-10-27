@@ -852,12 +852,10 @@ void DeferredStackCheck::Generate() {
 
 
 void CodeGenerator::CheckStack() {
-  if (FLAG_check_stack) {
-    DeferredStackCheck* deferred = new DeferredStackCheck;
-    __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
-    deferred->Branch(below);
-    deferred->BindExit();
-  }
+  DeferredStackCheck* deferred = new DeferredStackCheck;
+  __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+  deferred->Branch(below);
+  deferred->BindExit();
 }
 
 

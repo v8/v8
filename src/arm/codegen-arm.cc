@@ -1122,22 +1122,20 @@ void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
 
 void CodeGenerator::CheckStack() {
   VirtualFrame::SpilledScope spilled_scope;
-  if (FLAG_check_stack) {
-    Comment cmnt(masm_, "[ check stack");
-    __ LoadRoot(ip, Heap::kStackLimitRootIndex);
-    // Put the lr setup instruction in the delay slot.  kInstrSize is added to
-    // the implicit 8 byte offset that always applies to operations with pc and
-    // gives a return address 12 bytes down.
-    masm_->add(lr, pc, Operand(Assembler::kInstrSize));
-    masm_->cmp(sp, Operand(ip));
-    StackCheckStub stub;
-    // Call the stub if lower.
-    masm_->mov(pc,
-               Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
-                       RelocInfo::CODE_TARGET),
-               LeaveCC,
-               lo);
-  }
+  Comment cmnt(masm_, "[ check stack");
+  __ LoadRoot(ip, Heap::kStackLimitRootIndex);
+  // Put the lr setup instruction in the delay slot.  kInstrSize is added to
+  // the implicit 8 byte offset that always applies to operations with pc and
+  // gives a return address 12 bytes down.
+  masm_->add(lr, pc, Operand(Assembler::kInstrSize));
+  masm_->cmp(sp, Operand(ip));
+  StackCheckStub stub;
+  // Call the stub if lower.
+  masm_->mov(pc,
+             Operand(reinterpret_cast<intptr_t>(stub.GetCode().location()),
+                     RelocInfo::CODE_TARGET),
+             LeaveCC,
+             lo);
 }
 
 
