@@ -1800,7 +1800,7 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode, int result_size) {
   ASSERT(ExitFrameConstants::kSPOffset == -1 * kPointerSize);
   push(Immediate(0));  // saved entry sp, patched before call
   if (mode == ExitFrame::MODE_DEBUG) {
-    push(Immediate(Smi::FromInt(0)));
+    push(Immediate(0));
   } else {
     movq(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
     push(kScratchRegister);
