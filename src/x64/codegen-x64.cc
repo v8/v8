@@ -6842,7 +6842,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // If return value is on the stack, pop it to registers.
   if (result_size_ > 1) {
     ASSERT_EQ(2, result_size_);
-    // Position above 4 argument mirrors and arguments object.
+    // Read result values stored on stack. Result is stored
+    // above the four argument mirror slots and the two
+    // Arguments object slots.
     __ movq(rax, Operand(rsp, 6 * kPointerSize));
     __ movq(rdx, Operand(rsp, 7 * kPointerSize));
   }

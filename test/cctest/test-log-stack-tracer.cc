@@ -329,17 +329,16 @@ TEST(PureJSStackTrace) {
 }
 
 
-static void CFuncDoTrace() {
+static void CFuncDoTrace(byte dummy_parameter) {
   Address fp;
 #ifdef __GNUC__
   fp = reinterpret_cast<Address>(__builtin_frame_address(0));
-#elif defined _MSC_VER && defined V8_TARGET_ARCH_IA32
-  __asm mov [fp], ebp  // NOLINT
-#elif defined _MSC_VER && defined V8_TARGET_ARCH_X64
-  // TODO(X64): __asm extension is not supported by the Microsoft Visual C++
-  // 64-bit compiler.
-  fp = 0;
-  UNIMPLEMENTED();
+#elif defined _MSC_VER
+  // Approximate a frame pointer address. We compile without base pointers,
+  // so we can't trust ebp/rbp.
+  fp = &dummy_parameter - 2 * kPointerSize;
+#else
+#error Unexpected platform.
 #endif
   DoTrace(fp);
 }
@@ -347,7 +346,7 @@ static void CFuncDoTrace() {
 
 static int CFunc(int depth) {
   if (depth <= 0) {
-    CFuncDoTrace();
+    CFuncDoTrace(0);
     return 0;
   } else {
     return CFunc(depth - 1) + 1;
