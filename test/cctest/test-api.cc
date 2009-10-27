@@ -8499,14 +8499,28 @@ THREADED_TEST(GetHeapStatistics) {
 
 static double DoubleFromBits(uint64_t value) {
   double target;
+#ifdef BIG_ENDIAN_FLOATING_POINT
+  const int kIntSize = 4;
+  // Somebody swapped the lower and higher half of doubles.
+  memcpy(&target, reinterpret_cast<char*>(&value) + kIntSize, kIntSize);
+  memcpy(reinterpret_cast<char*>(&target) + kIntSize, &value, kIntSize);
+#else
   memcpy(&target, &value, sizeof(target));
+#endif
   return target;
 }
 
 
 static uint64_t DoubleToBits(double value) {
   uint64_t target;
+#ifdef BIG_ENDIAN_FLOATING_POINT
+  const int kIntSize = 4;
+  // Somebody swapped the lower and higher half of doubles.
+  memcpy(&target, reinterpret_cast<char*>(&value) + kIntSize, kIntSize);
+  memcpy(reinterpret_cast<char*>(&target) + kIntSize, &value, kIntSize);
+#else
   memcpy(&target, &value, sizeof(target));
+#endif
   return target;
 }
 
