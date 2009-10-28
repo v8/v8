@@ -839,7 +839,7 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
 
 void String::StringShortPrint(StringStream* accumulator) {
   int len = length();
-  if (len > kMaxMediumStringSize) {
+  if (len > kMaxMediumSize) {
     accumulator->Add("<Very long string[%u]>", len);
     return;
   }
@@ -4660,7 +4660,7 @@ static inline uint32_t HashField(uint32_t hash, bool is_array_index) {
 
 uint32_t StringHasher::GetHashField() {
   ASSERT(is_valid());
-  if (length_ <= String::kMaxShortStringSize) {
+  if (length_ <= String::kMaxShortSize) {
     uint32_t payload;
     if (is_array_index()) {
       payload = v8::internal::HashField(array_index(), true);
@@ -4669,7 +4669,7 @@ uint32_t StringHasher::GetHashField() {
     }
     return (payload & ((1 << String::kShortLengthShift) - 1)) |
            (length_ << String::kShortLengthShift);
-  } else if (length_ <= String::kMaxMediumStringSize) {
+  } else if (length_ <= String::kMaxMediumSize) {
     uint32_t payload = v8::internal::HashField(GetHash(), false);
     return (payload & ((1 << String::kMediumLengthShift) - 1)) |
            (length_ << String::kMediumLengthShift);

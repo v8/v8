@@ -1907,9 +1907,9 @@ void ExternalAsciiString::set_resource(
 Map* ExternalAsciiString::StringMap(int length) {
   Map* map;
   // Number of characters: determines the map.
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = Heap::short_external_ascii_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = Heap::medium_external_ascii_string_map();
   } else {
     map = Heap::long_external_ascii_string_map();
@@ -1921,9 +1921,9 @@ Map* ExternalAsciiString::StringMap(int length) {
 Map* ExternalAsciiString::SymbolMap(int length) {
   Map* map;
   // Number of characters: determines the map.
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = Heap::short_external_ascii_symbol_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = Heap::medium_external_ascii_symbol_map();
   } else {
     map = Heap::long_external_ascii_symbol_map();
@@ -1946,9 +1946,9 @@ void ExternalTwoByteString::set_resource(
 Map* ExternalTwoByteString::StringMap(int length) {
   Map* map;
   // Number of characters: determines the map.
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = Heap::short_external_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = Heap::medium_external_string_map();
   } else {
     map = Heap::long_external_string_map();
@@ -1960,9 +1960,9 @@ Map* ExternalTwoByteString::StringMap(int length) {
 Map* ExternalTwoByteString::SymbolMap(int length) {
   Map* map;
   // Number of characters: determines the map.
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = Heap::short_external_symbol_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = Heap::medium_external_symbol_map();
   } else {
     map = Heap::long_external_symbol_map();
@@ -2976,7 +2976,7 @@ StringHasher::StringHasher(int length)
 
 
 bool StringHasher::has_trivial_hash() {
-  return length_ > String::kMaxMediumStringSize;
+  return length_ > String::kMaxMediumSize;
 }
 
 

@@ -6958,7 +6958,7 @@ static void MorphAString(i::String* string,
     CHECK(string->map() == i::Heap::short_external_ascii_string_map() ||
           string->map() == i::Heap::medium_external_ascii_string_map());
     // Morph external string to be TwoByte string.
-    if (string->length() <= i::String::kMaxShortStringSize) {
+    if (string->length() <= i::String::kMaxShortSize) {
       string->set_map(i::Heap::short_external_string_map());
     } else {
       string->set_map(i::Heap::medium_external_string_map());
@@ -6971,7 +6971,7 @@ static void MorphAString(i::String* string,
     CHECK(string->map() == i::Heap::short_external_string_map() ||
           string->map() == i::Heap::medium_external_string_map());
     // Morph external string to be ASCII string.
-    if (string->length() <= i::String::kMaxShortStringSize) {
+    if (string->length() <= i::String::kMaxShortSize) {
       string->set_map(i::Heap::short_external_ascii_string_map());
     } else {
       string->set_map(i::Heap::medium_external_ascii_string_map());

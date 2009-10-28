@@ -1810,10 +1810,10 @@ Object* Heap::AllocateConsString(String* first, String* second) {
   }
 
   Map* map;
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = is_ascii ? short_cons_ascii_string_map()
       : short_cons_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = is_ascii ? medium_cons_ascii_string_map()
       : medium_cons_string_map();
   } else {
@@ -1843,11 +1843,11 @@ Object* Heap::AllocateSlicedString(String* buffer,
   }
 
   Map* map;
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = buffer->IsAsciiRepresentation() ?
       short_sliced_ascii_string_map() :
       short_sliced_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = buffer->IsAsciiRepresentation() ?
       medium_sliced_ascii_string_map() :
       medium_sliced_string_map();
@@ -1912,9 +1912,9 @@ Object* Heap::AllocateExternalStringFromAscii(
     ExternalAsciiString::Resource* resource) {
   Map* map;
   int length = resource->length();
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = short_external_ascii_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = medium_external_ascii_string_map();
   } else {
     map = long_external_ascii_string_map();
@@ -2659,18 +2659,18 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   Map* map;
 
   if (is_ascii) {
-    if (chars <= String::kMaxShortStringSize) {
+    if (chars <= String::kMaxShortSize) {
       map = short_ascii_symbol_map();
-    } else if (chars <= String::kMaxMediumStringSize) {
+    } else if (chars <= String::kMaxMediumSize) {
       map = medium_ascii_symbol_map();
     } else {
       map = long_ascii_symbol_map();
     }
     size = SeqAsciiString::SizeFor(chars);
   } else {
-    if (chars <= String::kMaxShortStringSize) {
+    if (chars <= String::kMaxShortSize) {
       map = short_symbol_map();
-    } else if (chars <= String::kMaxMediumStringSize) {
+    } else if (chars <= String::kMaxMediumSize) {
       map = medium_symbol_map();
     } else {
       map = long_symbol_map();
@@ -2720,9 +2720,9 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
   // Determine the map based on the string's length.
   Map* map;
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = short_ascii_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = medium_ascii_string_map();
   } else {
     map = long_ascii_string_map();
@@ -2757,9 +2757,9 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
 
   // Determine the map based on the string's length.
   Map* map;
-  if (length <= String::kMaxShortStringSize) {
+  if (length <= String::kMaxShortSize) {
     map = short_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
+  } else if (length <= String::kMaxMediumSize) {
     map = medium_string_map();
   } else {
     map = long_string_map();

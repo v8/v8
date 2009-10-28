@@ -4070,10 +4070,8 @@ class String: public HeapObject {
   static const int kSize = kLengthOffset + kIntSize;
   // Notice: kSize is not pointer-size aligned if pointers are 64-bit.
 
-  // Limits on sizes of different types of strings.
-  static const int kMaxShortStringSize = 63;
-  static const int kMaxMediumStringSize = 16383;
-
+  // Maximum number of characters to consider when trying to convert a string
+  // value into an array index.
   static const int kMaxArrayIndexSize = 10;
 
   // Max ascii char code.
@@ -4097,13 +4095,17 @@ class String: public HeapObject {
   // field.
   static const int kMaxCachedArrayIndexLength = 7;
 
-  // Shift constants for retriving length and hash code from
+  // Shift constants for retrieving length and hash code from
   // length/hash field.
   static const int kHashShift = kNofLengthBitFields;
   static const int kShortLengthShift = kHashShift + kShortStringTag;
   static const int kMediumLengthShift = kHashShift + kMediumStringTag;
   static const int kLongLengthShift = kHashShift + kLongStringTag;
-  // Maximal string length that can be stored in the hash/length field.
+
+  // Maximal string length that can be stored in the hash/length field for
+  // different types of strings.
+  static const int kMaxShortSize = (1 << (32 - kShortLengthShift)) - 1;
+  static const int kMaxMediumSize = (1 << (32 - kMediumLengthShift)) - 1;
   static const int kMaxLength = (1 << (32 - kLongLengthShift)) - 1;
 
   // Limit for truncation in short printing.
