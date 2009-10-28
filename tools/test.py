@@ -1094,6 +1094,8 @@ def BuildOptions():
       default=60, type="int")
   result.add_option("--arch", help='The architecture to run tests for',
       default='none')
+  result.add_option("--snapshot", help="Run the tests with snapshot turned on",
+      default=False, action="store_true")
   result.add_option("--simulator", help="Run tests with architecture simulator",
       default='none')
   result.add_option("--special-command", default=None)
@@ -1139,6 +1141,8 @@ def ProcessOptions(options):
     if options.arch == 'none':
       options.arch = ARCH_GUESS
     options.scons_flags.append("arch=" + options.arch)
+  if options.snapshot:
+    options.scons_flags.append("snapshot=on")
   return True
 
 
