@@ -47,6 +47,10 @@ test-serialize/DependentTestThatAlwaysFails: FAIL
 
 [ $arch == arm ]
 
+# New serialization doesn't work on ARM yet.
+test-serialize/Deserialize2: SKIP
+test-serialize/DeserializeAndRunScript2: SKIP
+
 # BUG(113): Test seems flaky on ARM.
 test-spaces/LargeObjectSpace: PASS || FAIL
 
