@@ -1949,8 +1949,8 @@ bool Deserializer2::ReadObject(Object** write_back) {
         Code* code_object = reinterpret_cast<Code*>(new_code_object);
         // Setting a branch/call to another code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
-        Assembler::set_target_address_at(location_of_branch_data,
-                                         code_object->instruction_start());
+        Assembler::set_target_at(location_of_branch_data,
+                                 code_object->instruction_start());
         location_of_branch_data += Assembler::kCallTargetSize;
         current = reinterpret_cast<Object**>(location_of_branch_data);
         break;
@@ -1972,8 +1972,8 @@ bool Deserializer2::ReadObject(Object** write_back) {
         Code* code_object = reinterpret_cast<Code*>(GetAddress(backref_space));
         // Setting a branch/call to previously decoded code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
-        Assembler::set_target_address_at(location_of_branch_data,
-                                         code_object->instruction_start());
+        Assembler::set_target_at(location_of_branch_data,
+                                 code_object->instruction_start());
         location_of_branch_data += Assembler::kCallTargetSize;
         current = reinterpret_cast<Object**>(location_of_branch_data);
         break;
@@ -2173,6 +2173,8 @@ void Serializer2::ObjectSerializer::OutputRawData(Address up_to) {
   Address object_start = object_->address();
   int up_to_offset = up_to - object_start;
   int skipped = up_to_offset - bytes_processed_so_far_;
+  // This assert will fail if the reloc info gives us the target_address_address
+  // locations in a non-ascending order.  Luckily that doesn't happen.
   ASSERT(skipped >= 0);
   if (skipped != 0) {
     sink_->Put(RAW_DATA_SERIALIZATION, "raw data");
