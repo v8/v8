@@ -141,6 +141,18 @@ void FastCodeGenerator::Move(Slot* destination, Location source) {
 }
 
 
+void FastCodeGenerator::DropAndMove(Location destination, Register source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      __ add(Operand(esp), Immediate(kPointerSize));
+      break;
+    case Location::TEMP:
+      __ mov(Operand(esp, 0), source);
+      break;
+  }
+}
+
+
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ push(esi);  // The context is the first argument.
@@ -211,16 +223,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     // (eg, push/pop elimination).
     __ nop();
 
-    switch (expr->location().type()) {
-      case Location::NOWHERE:
-        __ add(Operand(esp), Immediate(kPointerSize));
-        break;
-      case Location::TEMP:
-        // Replace the global object with the result.
-        __ mov(Operand(esp, 0), eax);
-        break;
-    }
-
+    DropAndMove(expr->location(), eax);
   } else {
     Comment cmnt(masm_, "Stack slot");
     Move(expr->location(), rewrite->AsSlot());
@@ -455,14 +458,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    switch (expr->location().type()) {
-      case Location::NOWHERE:
-        __ add(Operand(esp), Immediate(kPointerSize));
-        break;
-      case Location::TEMP:
-        __ mov(Operand(esp, 0), eax);
-        break;
-    }
+    DropAndMove(expr->location(), eax);
   } else {
     // Local or parameter assignment.
 
@@ -557,14 +553,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
-  switch (expr->location().type()) {
-    case Location::NOWHERE:
-      __ add(Operand(esp), Immediate(kPointerSize));
-      break;
-    case Location::TEMP:
-      __ mov(Operand(esp, 0), eax);
-      break;
-  }
+  DropAndMove(expr->location(), eax);
 }
 
 
@@ -603,14 +592,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* node) {
   __ call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
 
   // Replace function on TOS with result in eax, or pop it.
-  switch (node->location().type()) {
-    case Location::TEMP:
-      __ mov(Operand(esp, 0), eax);
-      break;
-    case Location::NOWHERE:
-      __ add(Operand(esp), Immediate(kPointerSize));
-      break;
-  }
+  DropAndMove(node->location(), eax);
 }
 
 

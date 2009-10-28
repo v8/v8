@@ -60,6 +60,10 @@ class FastCodeGenerator: public AstVisitor {
   void Move(Register destination, Location source);
   void Move(Slot* destination, Location source);
 
+  // Drop the TOS, and store source to destination.
+  // If destination is TOS, just overwrite TOS with source.
+  void DropAndMove(Location destination, Register source);
+
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
   void DeclareGlobals(Handle<FixedArray> pairs);

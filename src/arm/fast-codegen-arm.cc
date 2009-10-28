@@ -153,6 +153,18 @@ void FastCodeGenerator::Move(Slot* destination, Location source) {
 }
 
 
+void FastCodeGenerator::DropAndMove(Location destination, Register source) {
+  switch (destination.type()) {
+    case Location::NOWHERE:
+      __ pop();
+      break;
+    case Location::TEMP:
+      __ str(source, MemOperand(sp));
+      break;
+  }
+}
+
+
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   // The context is the first argument.
@@ -219,16 +231,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     __ mov(r2, Operand(expr->name()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-    switch (expr->location().type()) {
-      case Location::NOWHERE:
-        __ pop();
-        break;
-      case Location::TEMP:
-        // Replace the global object with the result.
-        __ str(r0, MemOperand(sp));
-        break;
-    }
-
+    DropAndMove(expr->location(), r0);
   } else {
     Comment cmnt(masm_, "Stack slot");
     Move(expr->location(), rewrite->AsSlot());
@@ -456,15 +459,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    switch (expr->location().type()) {
-      case Location::NOWHERE:
-        __ pop();
-        break;
-      case Location::TEMP:
-        __ str(r0, MemOperand(sp));
-        break;
-    }
-
+    DropAndMove(expr->location(), r0);
   } else {
     // Local or parameter assignment.
 
@@ -561,14 +556,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
   __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  switch (expr->location().type()) {
-    case Location::NOWHERE:
-      __ pop();
-      break;
-    case Location::TEMP:
-      __ str(r0, MemOperand(sp));
-      break;
-  }
+  DropAndMove(expr->location(), r0);
 }
 
 
@@ -607,14 +595,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* node) {
   __ Call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
 
   // Replace function on TOS with result in r0, or pop it.
-  switch (node->location().type()) {
-    case Location::TEMP:
-      __ str(r0, MemOperand(sp, 0));
-      break;
-    case Location::NOWHERE:
-      __ pop();
-      break;
-  }
+  DropAndMove(node->location(), r0);
 }
 
 
