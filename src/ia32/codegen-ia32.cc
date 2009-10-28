@@ -7748,9 +7748,8 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
     __ mov(Operand(esp, 0 * kPointerSize), ebx);  // output
     __ mov(Operand(esp, 3 * kPointerSize), Immediate(0));  // out cell.
   }
-  __ mov(eax, Immediate(ExternalReference(fun())));
   // Call the api function!
-  __ call(Operand(eax));
+  __ call(fun()->address(), RelocInfo::RUNTIME_ENTRY);
   // Check if the function scheduled an exception.
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address();
