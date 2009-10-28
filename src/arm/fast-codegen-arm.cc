@@ -497,6 +497,9 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   Expression* key = expr->key();
   uint32_t dummy;
 
+  // Record the source position for the property load.
+  SetSourcePosition(expr->position());
+
   // Evaluate receiver.
   Visit(expr->obj());
 
