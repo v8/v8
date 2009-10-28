@@ -275,13 +275,10 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
   for (int i = 0; i < expr->properties()->length(); i++) {
     ObjectLiteral::Property* property = expr->properties()->at(i);
+    if (property->IsCompileTimeValue()) continue;
+
     Literal* key = property->key();
     Expression* value = property->value();
-    if (property->kind() == ObjectLiteral::Property::CONSTANT) continue;
-    if (property->kind() == ObjectLiteral::Property::MATERIALIZED_LITERAL &&
-        CompileTimeValue::IsCompileTimeValue(value)) {
-      continue;
-    }
     if (!result_saved) {
       __ push(r0);  // Save result on stack
       result_saved = true;
