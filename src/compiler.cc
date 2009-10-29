@@ -849,12 +849,34 @@ void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
 
 void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
+    case Token::COMMA:
+      VisitAsEffect(expr->left());
+      CHECK_BAILOUT;
+      Visit(expr->right());  // Location is the same as the parent location.
+      break;
+
     case Token::OR:
       VisitAsValue(expr->left());
       CHECK_BAILOUT;
       // The location for the right subexpression is the same as for the
       // whole expression so we call Visit directly.
       Visit(expr->right());
+      break;
+
+    case Token::ADD:
+    case Token::SUB:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::MUL:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      VisitAsValue(expr->left());
+      CHECK_BAILOUT;
+      VisitAsValue(expr->right());
       break;
 
     default:

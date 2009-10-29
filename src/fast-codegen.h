@@ -78,6 +78,9 @@ class FastCodeGenerator: public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
+  // Handles the shortcutted logical binary operations in VisitBinaryOperation.
+  void EmitLogicalOperation(BinaryOperation* expr);
+
   MacroAssembler* masm_;
   FunctionLiteral* function_;
   Handle<Script> script_;

@@ -607,7 +607,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* node) {
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
     ASSERT(args->at(i)->location().is_value());
-    // If location is temporary, it is already on the stack,
+    // If location is value, it is already on the stack,
     // so nothing to do here.
   }
 
@@ -648,11 +648,57 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
 
 void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
-  // Compile a short-circuited boolean or operation in a non-test
-  // context.
-  ASSERT(expr->op() == Token::OR);
+  switch (expr->op()) {
+    case Token::COMMA:
+      ASSERT(expr->left()->location().is_effect());
+      ASSERT_EQ(expr->right()->location().type(), expr->location().type());
+      Visit(expr->left());
+      Visit(expr->right());
+      break;
+
+    case Token::OR:
+    case Token::AND:
+      EmitLogicalOperation(expr);
+      break;
+
+    case Token::ADD:
+    case Token::SUB:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::MUL:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      ASSERT(expr->left()->location().is_value());
+      ASSERT(expr->right()->location().is_value());
+
+      Visit(expr->left());
+      Visit(expr->right());
+      __ pop(r0);
+      __ pop(r1);
+      GenericBinaryOpStub stub(expr->op(),
+                               NO_OVERWRITE);
+      __ CallStub(&stub);
+      Move(expr->location(), r0);
+
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
+  // Compile a short-circuited boolean operation in a non-test context.
+
   // Compile (e0 || e1) as if it were
   // (let (temp = e0) temp ? temp : e1).
+  // Compile (e0 && e1) as if it were
+  // (let (temp = e0) !temp ? temp : e1).
 
   Label done;
   Location destination = expr->location();
@@ -675,9 +721,13 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
     }
   }
   // The left-hand value is in on top of the stack.  It is duplicated on the
-  // stack iff the destination location is temporary.
+  // stack iff the destination location is value.
   __ CallRuntime(Runtime::kToBool, 1);
-  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  if (expr->op() == Token::OR) {
+    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  } else {
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+  }
   __ cmp(r0, ip);
   __ b(eq, &done);
 

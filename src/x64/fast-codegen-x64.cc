@@ -593,7 +593,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* node) {
   // Push function on the stack.
   Visit(node->expression());
   ASSERT(node->expression()->location().is_value());
-  // If location is temporary, already on the stack,
+  // If location is value, already on the stack,
 
   // Push global object (receiver).
   __ push(CodeGenerator::GlobalObject());
@@ -604,7 +604,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* node) {
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
     ASSERT(args->at(i)->location().is_value());
-    // If location is temporary, it is already on the stack,
+    // If location is value, it is already on the stack,
     // so nothing to do here.
   }
 
@@ -645,13 +645,66 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
 
 void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
-  // Compile a short-circuited boolean or operation in a non-test
-  // context.
-  ASSERT(expr->op() == Token::OR);
+  switch (expr->op()) {
+    case Token::COMMA:
+      ASSERT(expr->left()->location().is_effect());
+      ASSERT_EQ(expr->right()->location().type(), expr->location().type());
+      Visit(expr->left());
+      Visit(expr->right());
+      break;
+
+    case Token::OR:
+    case Token::AND:
+      EmitLogicalOperation(expr);
+      break;
+
+    case Token::ADD:
+    case Token::SUB:
+    case Token::DIV:
+    case Token::MOD:
+    case Token::MUL:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      ASSERT(expr->left()->location().is_value());
+      ASSERT(expr->right()->location().is_value());
+
+      Visit(expr->left());
+      Visit(expr->right());
+      GenericBinaryOpStub stub(expr->op(),
+                               NO_OVERWRITE,
+                               NO_GENERIC_BINARY_FLAGS);
+      __ CallStub(&stub);
+      Move(expr->location(), kReturnRegister);
+
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
+  // Compile a short-circuited boolean operation in a non-test context.
+
   // Compile (e0 || e1) as if it were
   // (let (temp = e0) temp ? temp : e1).
+  // Compile (e0 && e1) as if it were
+  // (let (temp = e0) !temp ? temp : e1).
 
   Label eval_right, done;
+  Label *left_true, *left_false;  // Where to branch to if lhs has that value.
+  if (expr->op() == Token::OR) {
+    left_true = &done;
+    left_false = &eval_right;
+  } else {
+    left_true = &eval_right;
+    left_false = &done;
+  }
   Location destination = expr->location();
   Expression* left = expr->left();
   Expression* right = expr->right();
@@ -684,28 +737,32 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
     }
   }
   // The left-hand value is in rax.  It is also on the stack iff the
-  // destination location is temporary.
+  // destination location is value.
 
   // Perform fast checks assumed by the stub.
   // The undefined value is false.
   __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &eval_right);
+  __ j(equal, left_false);
   __ CompareRoot(rax, Heap::kTrueValueRootIndex);  // True is true.
-  __ j(equal, &done);
+  __ j(equal, left_true);
   __ CompareRoot(rax, Heap::kFalseValueRootIndex);  // False is false.
-  __ j(equal, &eval_right);
+  __ j(equal, left_false);
   ASSERT(kSmiTag == 0);
   __ SmiCompare(rax, Smi::FromInt(0));  // The smi zero is false.
-  __ j(equal, &eval_right);
+  __ j(equal, left_false);
   Condition is_smi = masm_->CheckSmi(rax);  // All other smis are true.
-  __ j(is_smi, &done);
+  __ j(is_smi, left_true);
 
   // Call the stub for all other cases.
   __ push(rax);
   ToBooleanStub stub;
   __ CallStub(&stub);
   __ testq(rax, rax);  // The stub returns nonzero for true.
-  __ j(not_zero, &done);
+  if (expr->op() == Token::OR) {
+    __ j(not_zero, &done);
+  } else {
+    __ j(zero, &done);
+  }
 
   __ bind(&eval_right);
   // Discard the left-hand value if present on the stack.
