@@ -3157,6 +3157,58 @@ THREADED_TEST(WeakReference) {
 }
 
 
+static bool in_scavenge = false;
+static int last = -1;
+
+static void ForceScavenge(v8::Persistent<v8::Value> obj, void* data) {
+  CHECK_EQ(-1, last);
+  last = 0;
+  obj.Dispose();
+  obj.Clear();
+  in_scavenge = true;
+  i::Heap::PerformScavenge();
+  in_scavenge = false;
+  *(reinterpret_cast<bool*>(data)) = true;
+}
+
+static void CheckIsNotInvokedInScavenge(v8::Persistent<v8::Value> obj,
+                                        void* data) {
+  CHECK_EQ(0, last);
+  last = 1;
+  *(reinterpret_cast<bool*>(data)) = in_scavenge;
+  obj.Dispose();
+  obj.Clear();
+}
+
+THREADED_TEST(NoWeakRefCallbacksInScavenge) {
+  // Test verifies that scavenge cannot invoke WeakReferenceCallbacks.
+  // Calling callbacks from scavenges is unsafe as objects held by those
+  // handlers might have become strongly reachable, but scavenge doesn't
+  // check that.
+  v8::Persistent<Context> context = Context::New();
+  Context::Scope context_scope(context);
+
+  v8::Persistent<v8::Object> object_a;
+  v8::Persistent<v8::Object> object_b;
+
+  {
+    v8::HandleScope handle_scope;
+    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+
+  bool object_a_disposed = false;
+  object_a.MakeWeak(&object_a_disposed, &ForceScavenge);
+  bool released_in_scavenge = false;
+  object_b.MakeWeak(&released_in_scavenge, &CheckIsNotInvokedInScavenge);
+
+  while (!object_a_disposed) {
+    i::Heap::CollectAllGarbage(false);
+  }
+  CHECK(!released_in_scavenge);
+}
+
+
 v8::Handle<Function> args_fun;
 
 
