@@ -73,14 +73,18 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 
 void FastCodeGenerator::Move(Location destination, Location source) {
   switch (destination.type()) {
-    case Location::NOWHERE:
+    case Location::UNINITIALIZED:
+      UNREACHABLE();
+
+    case Location::EFFECT:
       break;
 
-    case Location::TEMP:
+    case Location::VALUE:
       switch (source.type()) {
-        case Location::NOWHERE:
+        case Location::UNINITIALIZED:  // Fall through.
+        case Location::EFFECT:
           UNREACHABLE();
-        case Location::TEMP:
+        case Location::VALUE:
           break;
       }
       break;
@@ -92,9 +96,11 @@ void FastCodeGenerator::Move(Location destination, Location source) {
 // function.
 void FastCodeGenerator::Move(Location destination, Register source) {
   switch (destination.type()) {
-    case Location::NOWHERE:
+    case Location::UNINITIALIZED:
+      UNREACHABLE();
+    case Location::EFFECT:
       break;
-    case Location::TEMP:
+    case Location::VALUE:
       masm_->push(source);
       break;
   }
@@ -105,9 +111,10 @@ void FastCodeGenerator::Move(Location destination, Register source) {
 // function.
 void FastCodeGenerator::Move(Register destination, Location source) {
   switch (source.type()) {
-    case Location::NOWHERE:
+    case Location::UNINITIALIZED:  // Fall through.
+    case Location::EFFECT:
       UNREACHABLE();
-    case Location::TEMP:
+    case Location::VALUE:
       masm_->pop(destination);
   }
 }

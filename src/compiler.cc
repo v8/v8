@@ -48,7 +48,7 @@ class CodeGenSelector: public AstVisitor {
 
   CodeGenSelector()
       : has_supported_syntax_(true),
-        location_(Location::Nowhere()) {
+        location_(Location::Uninitialized()) {
   }
 
   CodeGenTag Select(FunctionLiteral* fun);
@@ -514,11 +514,11 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 
 
 void CodeGenSelector::VisitAsEffect(Expression* expr) {
-  if (location_.is_nowhere()) {
+  if (location_.is_effect()) {
     Visit(expr);
   } else {
     Location saved = location_;
-    location_ = Location::Nowhere();
+    location_ = Location::Effect();
     Visit(expr);
     location_ = saved;
   }
@@ -526,11 +526,11 @@ void CodeGenSelector::VisitAsEffect(Expression* expr) {
 
 
 void CodeGenSelector::VisitAsValue(Expression* expr) {
-  if (location_.is_temporary()) {
+  if (location_.is_value()) {
     Visit(expr);
   } else {
     Location saved = location_;
-    location_ = Location::Temporary();
+    location_ = Location::Value();
     Visit(expr);
     location_ = saved;
   }

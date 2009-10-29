@@ -35,13 +35,14 @@ namespace internal {
 
 class Location BASE_EMBEDDED {
  public:
-  enum Type { NOWHERE, TEMP };
+  enum Type { UNINITIALIZED, EFFECT, VALUE };
 
-  static Location Temporary() { return Location(TEMP); }
-  static Location Nowhere() { return Location(NOWHERE); }
+  static Location Uninitialized() { return Location(UNINITIALIZED); }
+  static Location Effect() { return Location(EFFECT); }
+  static Location Value() { return Location(VALUE); }
 
-  bool is_temporary() { return type_ == TEMP; }
-  bool is_nowhere() { return type_ == NOWHERE; }
+  bool is_effect() { return type_ == EFFECT; }
+  bool is_value() { return type_ == VALUE; }
 
   Type type() { return type_; }
 
