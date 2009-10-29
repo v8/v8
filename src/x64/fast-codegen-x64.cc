@@ -678,7 +678,7 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
                                NO_OVERWRITE,
                                NO_GENERIC_BINARY_FLAGS);
       __ CallStub(&stub);
-      Move(expr->location(), kReturnRegister);
+      Move(expr->location(), rax);
 
       break;
     }
