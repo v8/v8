@@ -110,11 +110,11 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::Move(Location destination, Slot* source) {
   switch (destination.type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       break;
-    case Location::VALUE:
+    case Location::kValue:
       __ push(Operand(ebp, SlotOffset(source)));
       break;
   }
@@ -123,11 +123,11 @@ void FastCodeGenerator::Move(Location destination, Slot* source) {
 
 void FastCodeGenerator::Move(Location destination, Literal* expr) {
   switch (destination.type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       break;
-    case Location::VALUE:
+    case Location::kValue:
       __ push(Immediate(expr->handle()));
       break;
   }
@@ -136,10 +136,10 @@ void FastCodeGenerator::Move(Location destination, Literal* expr) {
 
 void FastCodeGenerator::Move(Slot* destination, Location source) {
   switch (source.type()) {
-    case Location::UNINITIALIZED:  // Fall through.
-    case Location::EFFECT:
+    case Location::kUninitialized:  // Fall through.
+    case Location::kEffect:
       UNREACHABLE();
-    case Location::VALUE:
+    case Location::kValue:
       __ pop(Operand(ebp, SlotOffset(destination)));
       break;
   }
@@ -148,12 +148,12 @@ void FastCodeGenerator::Move(Slot* destination, Location source) {
 
 void FastCodeGenerator::DropAndMove(Location destination, Register source) {
   switch (destination.type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       __ add(Operand(esp), Immediate(kPointerSize));
       break;
-    case Location::VALUE:
+    case Location::kValue:
       __ mov(Operand(esp, 0), source);
       break;
   }
@@ -352,12 +352,12 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
   switch (expr->location().type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       if (result_saved) __ add(Operand(esp), Immediate(kPointerSize));
       break;
-    case Location::VALUE:
+    case Location::kValue:
       if (!result_saved) __ push(eax);
       break;
   }
@@ -426,12 +426,12 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   switch (expr->location().type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       if (result_saved) __ add(Operand(esp), Immediate(kPointerSize));
       break;
-    case Location::VALUE:
+    case Location::kValue:
       if (!result_saved) __ push(eax);
       break;
   }
@@ -481,13 +481,13 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       ASSERT(rhs->location().is_value());
       Visit(rhs);
       switch (expr->location().type()) {
-        case Location::UNINITIALIZED:
+        case Location::kUninitialized:
           UNREACHABLE();
-        case Location::EFFECT:
+        case Location::kEffect:
           // Case 'var = temp'.  Discard right-hand-side temporary.
           Move(var->slot(), rhs->location());
           break;
-        case Location::VALUE:
+        case Location::kValue:
           // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
           // temporary on the stack.
           __ mov(eax, Operand(esp, 0));
@@ -532,12 +532,12 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
     __ add(Operand(esp), Immediate(kPointerSize));
   }
   switch (expr->location().type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::VALUE:
+    case Location::kValue:
       __ mov(Operand(esp, 0), eax);
       break;
-    case Location::EFFECT:
+    case Location::kEffect:
       __ add(Operand(esp), Immediate(kPointerSize));
       break;
   }
@@ -706,14 +706,14 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
     Visit(left);
     ASSERT(left->location().is_value());
     switch (destination.type()) {
-      case Location::UNINITIALIZED:
+      case Location::kUninitialized:
         UNREACHABLE();
-      case Location::EFFECT:
+      case Location::kEffect:
         // Pop the left-hand value into eax because we will not need it as the
         // final result.
         __ pop(eax);
         break;
-      case Location::VALUE:
+      case Location::kValue:
         // Copy the left-hand value into eax because we may need it as the
         // final result.
         __ mov(eax, Operand(esp, 0));
@@ -753,12 +753,8 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
     __ add(Operand(esp), Immediate(kPointerSize));
   }
   // Save or discard the right-hand value as needed.
-  if (right->AsLiteral() != NULL) {
-    Move(destination, right->AsLiteral());
-  } else {
-    Visit(right);
-    Move(destination, right->location());
-  }
+  Visit(right);
+  ASSERT_EQ(destination.type(), right->location().type());
 
   __ bind(&done);
 }

@@ -51,8 +51,6 @@ class FastCodeGenerator: public AstVisitor {
  private:
   int SlotOffset(Slot* slot);
 
-  void Move(Location destination, Location source);
-
   void Move(Location destination, Register source);
   void Move(Location destination, Slot* source);
   void Move(Location destination, Literal* source);

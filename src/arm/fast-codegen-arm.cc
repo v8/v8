@@ -119,11 +119,11 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
 void FastCodeGenerator::Move(Location destination, Slot* source) {
   switch (destination.type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       break;
-    case Location::VALUE:
+    case Location::kValue:
       __ ldr(ip, MemOperand(fp, SlotOffset(source)));
       __ push(ip);
       break;
@@ -133,11 +133,11 @@ void FastCodeGenerator::Move(Location destination, Slot* source) {
 
 void FastCodeGenerator::Move(Location destination, Literal* expr) {
   switch (destination.type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       break;
-    case Location::VALUE:
+    case Location::kValue:
       __ mov(ip, Operand(expr->handle()));
       __ push(ip);
       break;
@@ -147,10 +147,10 @@ void FastCodeGenerator::Move(Location destination, Literal* expr) {
 
 void FastCodeGenerator::Move(Slot* destination, Location source) {
   switch (source.type()) {
-    case Location::UNINITIALIZED:  // Fall through.
-    case Location::EFFECT:
+    case Location::kUninitialized:  // Fall through.
+    case Location::kEffect:
       UNREACHABLE();
-    case Location::VALUE:
+    case Location::kValue:
       __ pop(ip);
       __ str(ip, MemOperand(fp, SlotOffset(destination)));
       break;
@@ -160,12 +160,12 @@ void FastCodeGenerator::Move(Slot* destination, Location source) {
 
 void FastCodeGenerator::DropAndMove(Location destination, Register source) {
   switch (destination.type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       __ pop();
       break;
-    case Location::VALUE:
+    case Location::kValue:
       __ str(source, MemOperand(sp));
       break;
   }
@@ -362,12 +362,12 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     }
   }
   switch (expr->location().type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       if (result_saved) __ pop();
       break;
-    case Location::VALUE:
+    case Location::kValue:
       if (!result_saved) __ push(r0);
       break;
   }
@@ -439,12 +439,12 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   switch (expr->location().type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::EFFECT:
+    case Location::kEffect:
       if (result_saved) __ pop();
       break;
-    case Location::VALUE:
+    case Location::kValue:
       if (!result_saved) __ push(r0);
       break;
   }
@@ -497,13 +497,13 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       Visit(rhs);
       // Load right-hand side into ip.
       switch (expr->location().type()) {
-        case Location::UNINITIALIZED:
+        case Location::kUninitialized:
           UNREACHABLE();
-        case Location::EFFECT:
+        case Location::kEffect:
           // Case 'var = temp'.  Discard right-hand-side temporary.
           __ pop(ip);
           break;
-        case Location::VALUE:
+        case Location::kValue:
           // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
           // temporary on the stack.
           __ ldr(ip, MemOperand(sp));
@@ -549,12 +549,12 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
     __ pop();
   }
   switch (expr->location().type()) {
-    case Location::UNINITIALIZED:
+    case Location::kUninitialized:
       UNREACHABLE();
-    case Location::VALUE:
+    case Location::kValue:
       __ str(r0, MemOperand(sp));
       break;
-    case Location::EFFECT:
+    case Location::kEffect:
       __ pop();
   }
 }
@@ -734,12 +734,8 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   // Discard the left-hand value if present on the stack.
   if (destination.is_value()) __ pop();
   // Save or discard the right-hand value as needed.
-  if (right->AsLiteral() != NULL) {
-    Move(destination, right->AsLiteral());
-  } else {
-    Visit(right);
-    Move(destination, right->location());
-  }
+  Visit(right);
+  ASSERT_EQ(destination.type(), right->location().type());
 
   __ bind(&done);
 }

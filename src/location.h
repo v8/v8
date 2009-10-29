@@ -35,14 +35,18 @@ namespace internal {
 
 class Location BASE_EMBEDDED {
  public:
-  enum Type { UNINITIALIZED, EFFECT, VALUE };
+  enum Type {
+    kUninitialized,
+    kEffect,
+    kValue
+  };
 
-  static Location Uninitialized() { return Location(UNINITIALIZED); }
-  static Location Effect() { return Location(EFFECT); }
-  static Location Value() { return Location(VALUE); }
+  static Location Uninitialized() { return Location(kUninitialized); }
+  static Location Effect() { return Location(kEffect); }
+  static Location Value() { return Location(kValue); }
 
-  bool is_effect() { return type_ == EFFECT; }
-  bool is_value() { return type_ == VALUE; }
+  bool is_effect() { return type_ == kEffect; }
+  bool is_value() { return type_ == kValue; }
 
   Type type() { return type_; }
 
