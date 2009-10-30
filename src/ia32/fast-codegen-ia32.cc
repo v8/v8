@@ -647,7 +647,7 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:
-      ASSERT_EQ(Expression::kValue, expr->left()->context());
+      ASSERT_EQ(Expression::kEffect, expr->left()->context());
       ASSERT_EQ(expr->context(), expr->right()->context());
       Visit(expr->left());
       Visit(expr->right());
