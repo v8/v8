@@ -1970,27 +1970,6 @@ void CodeGenerator::Comparison(Condition cc,
 }
 
 
-class CallFunctionStub: public CodeStub {
- public:
-  CallFunctionStub(int argc, InLoopFlag in_loop)
-      : argc_(argc), in_loop_(in_loop) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int argc_;
-  InLoopFlag in_loop_;
-
-#ifdef DEBUG
-  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
-#endif
-
-  Major MajorKey() { return CallFunction; }
-  int MinorKey() { return argc_; }
-  InLoopFlag InLoop() { return in_loop_; }
-};
-
-
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,

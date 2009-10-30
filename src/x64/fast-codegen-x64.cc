@@ -91,27 +91,36 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // Emit a 'return undefined' in case control fell off the end of the
     // body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+  }
+  { Comment cmnt(masm_, "Return sequence");
     SetReturnPosition(fun);
-    if (FLAG_trace) {
-      __ push(rax);
-      __ CallRuntime(Runtime::kTraceExit, 1);
-    }
-    __ RecordJSReturn();
 
-    // Do not use the leave instruction here because it is too short to
-    // patch with the code required by the debugger.
-    __ movq(rsp, rbp);
-    __ pop(rbp);
-    __ ret((fun->scope()->num_parameters() + 1) * kPointerSize);
+    if (return_label_.is_bound()) {
+      __ jmp(&return_label_);
+    } else {
+      __ bind(&return_label_);
+
+      if (FLAG_trace) {
+        __ push(rax);
+        __ CallRuntime(Runtime::kTraceExit, 1);
+      }
+      __ RecordJSReturn();
+
+      // Do not use the leave instruction here because it is too short to
+      // patch with the code required by the debugger.
+      __ movq(rsp, rbp);
+      __ pop(rbp);
+      __ ret((fun->scope()->num_parameters() + 1) * kPointerSize);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    // Add padding that will be overwritten by a debugger breakpoint.  We
-    // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
-    // (3 + 1 + 3).
-    const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
-    for (int i = 0; i < kPadding; ++i) {
-      masm_->int3();
-    }
+      // Add padding that will be overwritten by a debugger breakpoint.  We
+      // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
+      // (3 + 1 + 3).
+      const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+      for (int i = 0; i < kPadding; ++i) {
+        masm_->int3();
+      }
 #endif
+    }
   }
 }
 
@@ -179,26 +188,32 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     __ pop(rax);
   }
 
-  if (FLAG_trace) {
-    __ push(rax);
-    __ CallRuntime(Runtime::kTraceExit, 1);
-  }
+  if (return_label_.is_bound()) {
+    __ jmp(&return_label_);
+  } else {
+    __ bind(&return_label_);
 
-  __ RecordJSReturn();
-  // Do not use the leave instruction here because it is too short to
-  // patch with the code required by the debugger.
-  __ movq(rsp, rbp);
-  __ pop(rbp);
-  __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
+    if (FLAG_trace) {
+      __ push(rax);
+      __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+
+    __ RecordJSReturn();
+    // Do not use the leave instruction here because it is too short to
+    // patch with the code required by the debugger.
+    __ movq(rsp, rbp);
+    __ pop(rbp);
+    __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // Add padding that will be overwritten by a debugger breakpoint.  We
-  // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
-  // (3 + 1 + 3).
-  const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
-  for (int i = 0; i < kPadding; ++i) {
-    masm_->int3();
-  }
+    // Add padding that will be overwritten by a debugger breakpoint.  We
+    // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
+    // (3 + 1 + 3).
+    const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+    for (int i = 0; i < kPadding; ++i) {
+      masm_->int3();
+    }
 #endif
+  }
 }
 
 
@@ -495,6 +510,8 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       Visit(rhs);
       __ pop(rax);
     }
+    // Record position for debugger.
+    SetSourcePosition(expr->position());
     __ Move(rcx, var->name());
     __ push(CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
@@ -544,6 +561,7 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   // Evaluate receiver.
   Visit(expr->obj());
 
+
   if (key->AsLiteral() != NULL && key->AsLiteral()->handle()->IsSymbol() &&
       !String::cast(*(key->AsLiteral()->handle()))->AsArrayIndex(&dummy)) {
     // Do a NAMED property load.
@@ -569,31 +587,98 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
 }
 
 
-void FastCodeGenerator::VisitCall(Call* expr) {
-  Expression* fun = expr->expression();
+void FastCodeGenerator::EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info) {
+  // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
-  Variable* var = fun->AsVariableProxy()->AsVariable();
-  ASSERT(var != NULL && !var->is_this() && var->is_global());
-  ASSERT(!var->is_possibly_eval());
-
-  __ Push(var->name());
-  // Push global object (receiver).
-  __ push(CodeGenerator::GlobalObject());
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
     ASSERT_EQ(Expression::kValue, args->at(i)->context());
   }
-  // Record source position for debugger
+  // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
   Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
                                                          NOT_IN_LOOP);
-  __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+  __ call(ic, reloc_info);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
   DropAndMove(expr->context(), rax);
+}
+
+
+void FastCodeGenerator::EmitCallWithStub(Call* expr) {
+  // Code common for calls using the call stub.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Visit(args->at(i));
+  }
+  // Record source position for debugger.
+  SetSourcePosition(expr->position());
+  CallFunctionStub stub(arg_count, NOT_IN_LOOP);
+  __ CallStub(&stub);
+  // Restore context register.
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  // Discard the function left on TOS.
+  DropAndMove(expr->context(), rax);
+}
+
+
+void FastCodeGenerator::VisitCall(Call* expr) {
+  Expression* fun = expr->expression();
+
+  if (fun->AsProperty() != NULL) {
+    // Call on a property.
+    Property* prop = fun->AsProperty();
+    Literal* key = prop->key()->AsLiteral();
+    if (key != NULL && key->handle()->IsSymbol()) {
+      // Call on a named property: foo.x(1,2,3)
+      __ Push(key->handle());
+      Visit(prop->obj());
+      // Use call IC
+      EmitCallWithIC(expr, RelocInfo::CODE_TARGET);
+    } else {
+      // Call on a keyed property: foo[key](1,2,3)
+      // Use a keyed load IC followed by a call IC.
+      Visit(prop->obj());
+      Visit(prop->key());
+      // Record source position of property.
+      SetSourcePosition(prop->position());
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+      __ call(ic, RelocInfo::CODE_TARGET);
+      // By emitting a nop we make sure that we do not have a "test eax,..."
+      // instruction after the call it is treated specially by the LoadIC code.
+      __ nop();
+      // Drop key left on the stack by IC.
+      __ addq(rsp, Immediate(kPointerSize));
+      // Pop receiver.
+      __ pop(rbx);
+      // Push result (function).
+      __ push(rax);
+      // Push receiver object on stack.
+      if (prop->is_synthetic()) {
+        __ push(CodeGenerator::GlobalObject());
+      } else {
+        __ push(rbx);
+      }
+      EmitCallWithStub(expr);
+    }
+  } else if (fun->AsVariableProxy()->AsVariable() != NULL) {
+    // Call on a global variable
+    Variable* var = fun->AsVariableProxy()->AsVariable();
+    ASSERT(var != NULL && !var->is_this() && var->is_global());
+    ASSERT(!var->is_possibly_eval());
+    __ Push(var->name());
+    // Push global object (receiver).
+    __ push(CodeGenerator::GlobalObject());
+    EmitCallWithIC(expr, RelocInfo::CODE_TARGET_CONTEXT);
+  } else {
+    // Calls we cannot handle right now.
+    // Should bailout in the CodeGenSelector.
+    UNREACHABLE();
+  }
 }
 
 

@@ -433,6 +433,27 @@ class CodeGenerator: public AstVisitor {
 };
 
 
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) {}
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#if defined(DEBUG)
+  void Print() { PrintF("CallFunctionStub (argc %d)\n", argc_); }
+#endif  // defined(DEBUG)
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
+};
+
+
 class GenericBinaryOpStub : public CodeStub {
  public:
   GenericBinaryOpStub(Token::Value op,

@@ -63,6 +63,9 @@ class FastCodeGenerator: public AstVisitor {
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
   void DeclareGlobals(Handle<FixedArray> pairs);
 
+  void EmitCallWithStub(Call* expr);
+  void EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info);
+
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
@@ -80,6 +83,7 @@ class FastCodeGenerator: public AstVisitor {
   FunctionLiteral* function_;
   Handle<Script> script_;
   bool is_eval_;
+  Label return_label_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

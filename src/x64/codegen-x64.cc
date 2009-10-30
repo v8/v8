@@ -643,27 +643,6 @@ void DeferredReferenceSetKeyedValue::Generate() {
 }
 
 
-class CallFunctionStub: public CodeStub {
- public:
-  CallFunctionStub(int argc, InLoopFlag in_loop)
-      : argc_(argc), in_loop_(in_loop) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int argc_;
-  InLoopFlag in_loop_;
-
-#ifdef DEBUG
-  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
-#endif
-
-  Major MajorKey() { return CallFunction; }
-  int MinorKey() { return argc_; }
-  InLoopFlag InLoop() { return in_loop_; }
-};
-
-
 void CodeGenerator::CallApplyLazy(Property* apply,
                                   Expression* receiver,
                                   VariableProxy* arguments,

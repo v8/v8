@@ -99,20 +99,26 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // Emit a 'return undefined' in case control fell off the end of the
     // body.
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-    SetReturnPosition(fun);
-    if (FLAG_trace) {
-      // Push the return value on the stack as the parameter.
-      // Runtime::TraceExit returns its parameter in r0.
-      __ push(r0);
-      __ CallRuntime(Runtime::kTraceExit, 1);
+  }
+  { Comment cmnt(masm_, "Return sequence");
+    if (return_label_.is_bound()) {
+      __ b(&return_label_);
+    } else {
+      __ bind(&return_label_);
+      SetReturnPosition(fun);
+      if (FLAG_trace) {
+        // Push the return value on the stack as the parameter.
+        // Runtime::TraceExit returns its parameter in r0.
+        __ push(r0);
+        __ CallRuntime(Runtime::kTraceExit, 1);
+      }
+      __ RecordJSReturn();
+      __ mov(sp, fp);
+      __ ldm(ia_w, sp, fp.bit() | lr.bit());
+      int num_parameters = function_->scope()->num_parameters();
+      __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
+      __ Jump(lr);
     }
-
-    __ RecordJSReturn();
-    __ mov(sp, fp);
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
-    int num_parameters = function_->scope()->num_parameters();
-    __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
-    __ Jump(lr);
   }
 }
 
@@ -183,18 +189,21 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     Visit(expr);
     __ pop(r0);
   }
-
-  if (FLAG_trace) {
-    __ push(r0);
-    __ CallRuntime(Runtime::kTraceExit, 1);
+  if (return_label_.is_bound()) {
+    __ b(&return_label_);
+  } else {
+    __ bind(&return_label_);
+    if (FLAG_trace) {
+      __ push(r0);
+      __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+    __ RecordJSReturn();
+    __ mov(sp, fp);
+    __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    int num_parameters = function_->scope()->num_parameters();
+    __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
+    __ Jump(lr);
   }
-
-  __ RecordJSReturn();
-  __ mov(sp, fp);
-  __ ldm(ia_w, sp, fp.bit() | lr.bit());
-  int num_parameters = function_->scope()->num_parameters();
-  __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
-  __ Jump(lr);
 }
 
 
@@ -565,33 +574,94 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   DropAndMove(expr->context(), r0);
 }
 
-
-void FastCodeGenerator::VisitCall(Call* expr) {
-  Comment cmnt(masm_, "[ Call");
-  Expression* fun = expr->expression();
+void FastCodeGenerator::EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info) {
+  // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
-  Variable* var = fun->AsVariableProxy()->AsVariable();
-  ASSERT(var != NULL && !var->is_this() && var->is_global());
-  ASSERT(!var->is_possibly_eval());
-
-  __ mov(r1, Operand(var->name()));
-  // Push global object as receiver.
-  __ ldr(r0, CodeGenerator::GlobalObject());
-  __ stm(db_w, sp, r1.bit() | r0.bit());
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Visit(args->at(i));
     ASSERT_EQ(Expression::kValue, args->at(i)->context());
   }
-  // Record source position for debugger
+  // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
   Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
                                                          NOT_IN_LOOP);
-  __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+  __ Call(ic, reloc_info);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Discard the function left on TOS.
   DropAndMove(expr->context(), r0);
+}
+
+
+void FastCodeGenerator::EmitCallWithStub(Call* expr) {
+  // Code common for calls using the call stub.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    Visit(args->at(i));
+  }
+  // Record source position for debugger.
+  SetSourcePosition(expr->position());
+  CallFunctionStub stub(arg_count, NOT_IN_LOOP);
+  __ CallStub(&stub);
+  // Restore context register.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  // Discard the function left on TOS.
+  DropAndMove(expr->context(), r0);
+}
+
+
+void FastCodeGenerator::VisitCall(Call* expr) {
+  Expression* fun = expr->expression();
+
+  if (fun->AsProperty() != NULL) {
+    // Call on a property.
+    Property* prop = fun->AsProperty();
+    Literal* key = prop->key()->AsLiteral();
+    if (key != NULL && key->handle()->IsSymbol()) {
+      // Call on a named property: foo.x(1,2,3)
+      __ mov(r0, Operand(key->handle()));
+      __ push(r0);
+      Visit(prop->obj());
+      // Use call IC.
+      EmitCallWithIC(expr, RelocInfo::CODE_TARGET);
+    } else {
+      // Call on a keyed property : foo[key](1,2,3)
+      // Use a keyed load IC followed by a call IC.
+      Visit(prop->obj());
+      Visit(prop->key());
+      // Record source position of property.
+      SetSourcePosition(prop->position());
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+      __ Call(ic, RelocInfo::CODE_TARGET);
+      // Load receiver object into r1.
+      if (prop->is_synthetic()) {
+        __ ldr(r1, CodeGenerator::GlobalObject());
+      } else {
+        __ ldr(r1, MemOperand(sp, kPointerSize));
+      }
+      // Overwrite (object, key) with (function, receiver).
+      __ str(r0, MemOperand(sp, kPointerSize));
+      __ str(r1, MemOperand(sp));
+      EmitCallWithStub(expr);
+    }
+  } else if (fun->AsVariableProxy()->AsVariable() != NULL) {
+    // Call on a global variable
+    Variable* var = fun->AsVariableProxy()->AsVariable();
+    ASSERT(var != NULL && !var->is_this() && var->is_global());
+    ASSERT(!var->is_possibly_eval());
+    __ mov(r1, Operand(var->name()));
+    // Push global object as receiver.
+    __ ldr(r0, CodeGenerator::GlobalObject());
+    __ stm(db_w, sp, r1.bit() | r0.bit());
+    EmitCallWithIC(expr, RelocInfo::CODE_TARGET_CONTEXT);
+  } else {
+    // Calls we cannot handle right now.
+    // Should bailout in the CodeGenSelector.
+    UNREACHABLE();
+  }
 }
 
 

@@ -770,8 +770,23 @@ void CodeGenSelector::VisitCall(Call* expr) {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
+  } else if (fun->AsProperty() != NULL) {
+    // ------------------------------------------------------------------
+    // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
+    // ------------------------------------------------------------------
+    Property* prop = fun->AsProperty();
+    Literal* literal_key = prop->key()->AsLiteral();
+    if (literal_key != NULL && literal_key->handle()->IsSymbol()) {
+      ProcessExpression(prop->obj(), Expression::kValue);
+      CHECK_BAILOUT;
+    } else {
+      ProcessExpression(prop->obj(), Expression::kValue);
+      CHECK_BAILOUT;
+      ProcessExpression(prop->key(), Expression::kValue);
+      CHECK_BAILOUT;
+    }
   } else {
-    BAILOUT("Call to a non-global function");
+    BAILOUT("Unsupported call to a function");
   }
   // Check all arguments to the call.  (Relies on TEMP meaning STACK.)
   for (int i = 0; i < args->length(); i++) {

@@ -633,6 +633,25 @@ class CodeGenerator: public AstVisitor {
 // times by generated code to perform common tasks, often the slow
 // case of a JavaScript operation.  They are all subclasses of CodeStub,
 // which is declared in code-stubs.h.
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop)
+      : argc_(argc), in_loop_(in_loop) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+
+#ifdef DEBUG
+  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
+#endif
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+  InLoopFlag InLoop() { return in_loop_; }
+};
 
 
 class ToBooleanStub: public CodeStub {
