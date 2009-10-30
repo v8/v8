@@ -289,7 +289,27 @@ void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
-  UNREACHABLE();
+  // Expressions cannot recursively enter statements, there are no labels in
+  // the state.
+  ASSERT_EQ(NULL, true_label_);
+  ASSERT_EQ(NULL, false_label_);
+  Label then_part, else_part, done;
+
+  // Do not worry about optimizing for empty then or else bodies.
+  true_label_ = &then_part;
+  false_label_ = &else_part;
+  Visit(stmt->condition());
+  true_label_ = NULL;
+  false_label_ = NULL;
+
+  __ bind(&then_part);
+  Visit(stmt->then_statement());
+  __ jmp(&done);
+
+  __ bind(&else_part);
+  Visit(stmt->else_statement());
+
+  __ bind(&done);
 }
 
 

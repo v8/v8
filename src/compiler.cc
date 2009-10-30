@@ -538,7 +538,11 @@ void CodeGenSelector::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void CodeGenSelector::VisitIfStatement(IfStatement* stmt) {
-  BAILOUT("IfStatement");
+  ProcessExpression(stmt->condition(), Expression::kTest);
+  CHECK_BAILOUT;
+  Visit(stmt->then_statement());
+  CHECK_BAILOUT;
+  Visit(stmt->else_statement());
 }
 
 
