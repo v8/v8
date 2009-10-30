@@ -442,13 +442,44 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
 
-  // Left-hand side can only be a global or a (parameter or local) slot.
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  ASSERT(var != NULL);
-  ASSERT(var->is_global() || var->slot() != NULL);
+  // Record the source position for the assignment.
+  SetSourcePosition(expr->position());
 
+  // Left-hand side can only be a property, a global or
+  // a (parameter or local) slot.
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   Expression* rhs = expr->value();
-  if (var->is_global()) {
+  if (var == NULL) {
+    // Assignment to a property.
+    ASSERT(expr->target()->AsProperty() != NULL);
+    Property* prop = expr->target()->AsProperty();
+    Visit(prop->obj());
+    Literal* literal_key = prop->key()->AsLiteral();
+    uint32_t dummy;
+    if (literal_key != NULL &&
+        literal_key->handle()->IsSymbol() &&
+        !String::cast(*(literal_key->handle()))->AsArrayIndex(&dummy)) {
+      // NAMED property assignment
+      Visit(rhs);
+      Move(eax, rhs->location());
+      __ mov(ecx, Immediate(literal_key->handle()));
+      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      __ call(ic, RelocInfo::CODE_TARGET);
+      __ nop();
+    } else {
+      // KEYED property assignment
+      Visit(prop->key());
+      Visit(rhs);
+      Move(eax, rhs->location());
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      __ call(ic, RelocInfo::CODE_TARGET);
+      __ nop();
+      // Drop key from the stack
+      __ add(Operand(esp), Immediate(kPointerSize));
+    }
+    // Overwrite the receiver on the stack with the result if needed.
+    DropAndMove(expr->location(), eax);
+  } else if (var->is_global()) {
     // Assignment to a global variable, use inline caching.  Right-hand-side
     // value is passed in eax, variable name in ecx, and the global object
     // on the stack.
@@ -469,6 +500,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
     DropAndMove(expr->location(), eax);
   } else {
     // Local or parameter assignment.
+    ASSERT(var->slot() != NULL);
 
     // Code for the right-hand side expression depends on its type.
     if (rhs->AsLiteral() != NULL) {
@@ -509,7 +541,6 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
 
   // Evaluate receiver.
   Visit(expr->obj());
-
   if (key->AsLiteral() != NULL && key->AsLiteral()->handle()->IsSymbol() &&
       !String::cast(*(key->AsLiteral()->handle()))->AsArrayIndex(&dummy)) {
     // Do a NAMED property load.
@@ -531,16 +562,7 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
     // Drop key left on the stack by IC.
     __ add(Operand(esp), Immediate(kPointerSize));
   }
-  switch (expr->location().type()) {
-    case Location::kUninitialized:
-      UNREACHABLE();
-    case Location::kValue:
-      __ mov(Operand(esp, 0), eax);
-      break;
-    case Location::kEffect:
-      __ add(Operand(esp), Immediate(kPointerSize));
-      break;
-  }
+  DropAndMove(expr->location(), eax);
 }
 
 

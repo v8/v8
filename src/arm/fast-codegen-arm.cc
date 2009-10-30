@@ -455,14 +455,42 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
 
-  // Left-hand side can only be a global or a (parameter or local) slot.
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  ASSERT(var != NULL);
-  ASSERT(var->is_global() || var->slot() != NULL);
+  // Record the source position for the assignment.
+  SetSourcePosition(expr->position());
 
+  // Left-hand side can only be a property, a global or
+  // a (parameter or local) slot.
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   Expression* rhs = expr->value();
-  Location destination = expr->location();
-  if (var->is_global()) {
+  if (var == NULL) {
+    // Assignment to a property.
+    ASSERT(expr->target()->AsProperty() != NULL);
+    Property* prop = expr->target()->AsProperty();
+    Visit(prop->obj());
+    Literal* literal_key = prop->key()->AsLiteral();
+    uint32_t dummy;
+    if (literal_key != NULL &&
+        literal_key->handle()->IsSymbol() &&
+        !String::cast(*(literal_key->handle()))->AsArrayIndex(&dummy)) {
+      // NAMED property assignment
+      Visit(rhs);
+      Move(r0, rhs->location());
+      __ mov(r2, Operand(literal_key->handle()));
+      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      __ Call(ic, RelocInfo::CODE_TARGET);
+    } else {
+      // KEYED property assignment
+      Visit(prop->key());
+      Visit(rhs);
+      Move(r0, rhs->location());
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      __ Call(ic, RelocInfo::CODE_TARGET);
+      // Drop key from the stack
+      __ pop();
+    }
+    // Overwrite the receiver on the stack with the result if needed.
+    DropAndMove(expr->location(), r0);
+  } else if (var->is_global()) {
     // Assignment to a global variable, use inline caching.  Right-hand-side
     // value is passed in r0, variable name in r2, and the global object on
     // the stack.
@@ -534,29 +562,15 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
     __ mov(r2, Operand(key->AsLiteral()->handle()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
-    // By emitting a nop we make sure that we do not have a "test eax,..."
-    // instruction after the call it is treated specially by the LoadIC code.
-    __ nop();
   } else {
     // Do a KEYED property load.
     Visit(expr->key());
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
-    // By emitting a nop we make sure that we do not have a "test eax,..."
-    // instruction after the call it is treated specially by the LoadIC code.
-    __ nop();
     // Drop key and receiver left on the stack by IC.
     __ pop();
   }
-  switch (expr->location().type()) {
-    case Location::kUninitialized:
-      UNREACHABLE();
-    case Location::kValue:
-      __ str(r0, MemOperand(sp));
-      break;
-    case Location::kEffect:
-      __ pop();
-  }
+  DropAndMove(expr->location(), r0);
 }
 
 

@@ -741,8 +741,8 @@ void CodeGenSelector::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 
 
 void CodeGenSelector::VisitAssignment(Assignment* expr) {
-  // We support plain non-compound assignments to parameters and
-  // non-context (stack-allocated) locals.
+  // We support plain non-compound assignments to properties, parameters and
+  // non-context (stack-allocated) locals, and global variables.
   if (expr->starts_initialization_block() ||
       expr->ends_initialization_block()) {
     BAILOUT("initialization block start");
@@ -755,10 +755,14 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
   }
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  if (var == NULL) BAILOUT("non-variable assignment");
-
-  if (!var->is_global()) {
-    ASSERT(var->slot() != NULL);
+  if (var == NULL) {
+    Property* prop = expr->target()->AsProperty();
+    if (prop == NULL) BAILOUT("non-variable, non-property assignment");
+    VisitAsValue(prop->obj());
+    CHECK_BAILOUT;
+    VisitAsValue(prop->key());
+  } else if (!var->is_global()) {
+    if (var->slot() == NULL) BAILOUT("Assigment with an unsupported LHS.");
     Slot::Type type = var->slot()->type();
     if (type != Slot::PARAMETER && type != Slot::LOCAL) {
       BAILOUT("non-parameter/non-local slot assignment");
