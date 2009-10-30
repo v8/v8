@@ -73,28 +73,15 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 
 // All platform macro assemblers in {ia32,x64,arm} have a push(Register)
 // function.
-void FastCodeGenerator::Move(Location destination, Register source) {
-  switch (destination.type()) {
-    case Location::kUninitialized:
+void FastCodeGenerator::Move(Expression::Context context, Register source) {
+  switch (context) {
+    case Expression::kUninitialized:
       UNREACHABLE();
-    case Location::kEffect:
+    case Expression::kEffect:
       break;
-    case Location::kValue:
+    case Expression::kValue:
       masm_->push(source);
       break;
-  }
-}
-
-
-// All platform macro assemblers in {ia32,x64,arm} have a pop(Register)
-// function.
-void FastCodeGenerator::Move(Register destination, Location source) {
-  switch (source.type()) {
-    case Location::kUninitialized:  // Fall through.
-    case Location::kEffect:
-      UNREACHABLE();
-    case Location::kValue:
-      masm_->pop(destination);
   }
 }
 
@@ -323,7 +310,7 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
-  Move(expr->location(), expr);
+  Move(expr->context(), expr);
 }
 
 

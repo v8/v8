@@ -293,7 +293,6 @@
         '../../src/jsregexp.h',
         '../../src/list-inl.h',
         '../../src/list.h',
-        '../../src/location.h',
         '../../src/log-inl.h',
         '../../src/log-utils.cc',
         '../../src/log-utils.h',

@@ -28,7 +28,6 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
-#include "location.h"
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"
@@ -162,7 +161,13 @@ class Statement: public AstNode {
 
 class Expression: public AstNode {
  public:
-  Expression() : location_(Location::Uninitialized()) {}
+  enum Context {
+    kUninitialized,
+    kEffect,
+    kValue
+  };
+
+  Expression() : context_(kUninitialized) {}
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -177,12 +182,12 @@ class Expression: public AstNode {
   // Static type information for this expression.
   SmiAnalysis* type() { return &type_; }
 
-  Location location() { return location_; }
-  void set_location(Location loc) { location_ = loc; }
+  Context context() { return context_; }
+  void set_context(Context context) { context_ = context; }
 
  private:
   SmiAnalysis type_;
-  Location location_;
+  Context context_;
 };
 
 

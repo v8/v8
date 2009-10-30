@@ -48,22 +48,23 @@ class CodeGenSelector: public AstVisitor {
 
   CodeGenSelector()
       : has_supported_syntax_(true),
-        location_(Location::Uninitialized()) {
+        context_(Expression::kUninitialized) {
   }
 
   CodeGenTag Select(FunctionLiteral* fun);
 
  private:
+  // Visit an expression in a given expression context.
+  void ProcessExpression(Expression* expr, Expression::Context context) {
+    Expression::Context saved = context_;
+    context_ = context;
+    Visit(expr);
+    expr->set_context(context);
+    context_ = saved;
+  }
+
   void VisitDeclarations(ZoneList<Declaration*>* decls);
   void VisitStatements(ZoneList<Statement*>* stmts);
-
-  // Visit an expression in effect context with a desired location of
-  // nowhere.
-  void VisitAsEffect(Expression* expr);
-
-  // Visit an expression in value context with a desired location of
-  // temporary.
-  void VisitAsValue(Expression* expr);
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
@@ -72,8 +73,8 @@ class CodeGenSelector: public AstVisitor {
 
   bool has_supported_syntax_;
 
-  // The desired location of the currently visited expression.
-  Location location_;
+  // The desired expression context of the currently visited expression.
+  Expression::Context context_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenSelector);
 };
@@ -513,30 +514,6 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 }
 
 
-void CodeGenSelector::VisitAsEffect(Expression* expr) {
-  if (location_.is_effect()) {
-    Visit(expr);
-  } else {
-    Location saved = location_;
-    location_ = Location::Effect();
-    Visit(expr);
-    location_ = saved;
-  }
-}
-
-
-void CodeGenSelector::VisitAsValue(Expression* expr) {
-  if (location_.is_value()) {
-    Visit(expr);
-  } else {
-    Location saved = location_;
-    location_ = Location::Value();
-    Visit(expr);
-    location_ = saved;
-  }
-}
-
-
 void CodeGenSelector::VisitDeclaration(Declaration* decl) {
   Variable* var = decl->proxy()->var();
   if (!var->is_global() || var->mode() == Variable::CONST) {
@@ -551,7 +528,7 @@ void CodeGenSelector::VisitBlock(Block* stmt) {
 
 
 void CodeGenSelector::VisitExpressionStatement(ExpressionStatement* stmt) {
-  VisitAsEffect(stmt->expression());
+  ProcessExpression(stmt->expression(), Expression::kEffect);
 }
 
 
@@ -576,7 +553,7 @@ void CodeGenSelector::VisitBreakStatement(BreakStatement* stmt) {
 
 
 void CodeGenSelector::VisitReturnStatement(ReturnStatement* stmt) {
-  VisitAsValue(stmt->expression());
+  ProcessExpression(stmt->expression(), Expression::kValue);
 }
 
 
@@ -634,7 +611,6 @@ void CodeGenSelector::VisitFunctionLiteral(FunctionLiteral* expr) {
   if (!expr->AllowsLazyCompilation()) {
     BAILOUT("FunctionLiteral does not allow lazy compilation");
   }
-  expr->set_location(location_);
 }
 
 
@@ -671,17 +647,16 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
       BAILOUT("non-parameter/non-local slot reference");
     }
   }
-  expr->set_location(location_);
 }
 
 
 void CodeGenSelector::VisitLiteral(Literal* expr) {
-  expr->set_location(location_);
+  /* Nothing to do. */
 }
 
 
 void CodeGenSelector::VisitRegExpLiteral(RegExpLiteral* expr) {
-  expr->set_location(location_);
+  /* Nothing to do. */
 }
 
 
@@ -711,14 +686,13 @@ void CodeGenSelector::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::GETTER:  // Fall through.
       case ObjectLiteral::Property::SETTER:  // Fall through.
       case ObjectLiteral::Property::PROTOTYPE:
-        VisitAsValue(property->key());
+        ProcessExpression(property->key(), Expression::kValue);
         CHECK_BAILOUT;
         break;
     }
-    VisitAsValue(property->value());
+    ProcessExpression(property->value(), Expression::kValue);
     CHECK_BAILOUT;
   }
-  expr->set_location(location_);
 }
 
 
@@ -728,10 +702,9 @@ void CodeGenSelector::VisitArrayLiteral(ArrayLiteral* expr) {
     Expression* subexpr = subexprs->at(i);
     if (subexpr->AsLiteral() != NULL) continue;
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
-    VisitAsValue(subexpr);
+    ProcessExpression(subexpr, Expression::kValue);
     CHECK_BAILOUT;
   }
-  expr->set_location(location_);
 }
 
 
@@ -758,9 +731,9 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
   if (var == NULL) {
     Property* prop = expr->target()->AsProperty();
     if (prop == NULL) BAILOUT("non-variable, non-property assignment");
-    VisitAsValue(prop->obj());
+    ProcessExpression(prop->obj(), Expression::kValue);
     CHECK_BAILOUT;
-    VisitAsValue(prop->key());
+    ProcessExpression(prop->key(), Expression::kValue);
   } else if (!var->is_global()) {
     if (var->slot() == NULL) BAILOUT("Assigment with an unsupported LHS.");
     Slot::Type type = var->slot()->type();
@@ -769,8 +742,7 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
     }
   }
 
-  VisitAsValue(expr->value());
-  expr->set_location(location_);
+  ProcessExpression(expr->value(), Expression::kValue);
 }
 
 
@@ -780,10 +752,9 @@ void CodeGenSelector::VisitThrow(Throw* expr) {
 
 
 void CodeGenSelector::VisitProperty(Property* expr) {
-  VisitAsValue(expr->obj());
+  ProcessExpression(expr->obj(), Expression::kValue);
   CHECK_BAILOUT;
-  VisitAsValue(expr->key());
-  expr->set_location(location_);
+  ProcessExpression(expr->key(), Expression::kValue);
 }
 
 
@@ -804,23 +775,21 @@ void CodeGenSelector::VisitCall(Call* expr) {
   }
   // Check all arguments to the call.  (Relies on TEMP meaning STACK.)
   for (int i = 0; i < args->length(); i++) {
-    VisitAsValue(args->at(i));
+    ProcessExpression(args->at(i), Expression::kValue);
     CHECK_BAILOUT;
   }
-  expr->set_location(location_);
 }
 
 
 void CodeGenSelector::VisitCallNew(CallNew* expr) {
-  VisitAsValue(expr->expression());
+  ProcessExpression(expr->expression(), Expression::kValue);
   CHECK_BAILOUT;
   ZoneList<Expression*>* args = expr->arguments();
   // Check all arguments to the call
   for (int i = 0; i < args->length(); i++) {
-    VisitAsValue(args->at(i));
+    ProcessExpression(args->at(i), Expression::kValue);
     CHECK_BAILOUT;
   }
-  expr->set_location(location_);
 }
 
 
@@ -834,10 +803,9 @@ void CodeGenSelector::VisitCallRuntime(CallRuntime* expr) {
   }
   // Check all arguments to the call.  (Relies on TEMP meaning STACK.)
   for (int i = 0; i < expr->arguments()->length(); i++) {
-    VisitAsValue(expr->arguments()->at(i));
+    ProcessExpression(expr->arguments()->at(i), Expression::kValue);
     CHECK_BAILOUT;
   }
-  expr->set_location(location_);
 }
 
 
@@ -854,17 +822,15 @@ void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
 void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:
-      VisitAsEffect(expr->left());
+      ProcessExpression(expr->left(), Expression::kEffect);
       CHECK_BAILOUT;
-      Visit(expr->right());  // Location is the same as the parent location.
+      ProcessExpression(expr->right(), context_);
       break;
 
     case Token::OR:
-      VisitAsValue(expr->left());
+      ProcessExpression(expr->left(), Expression::kValue);
       CHECK_BAILOUT;
-      // The location for the right subexpression is the same as for the
-      // whole expression so we call Visit directly.
-      Visit(expr->right());
+      ProcessExpression(expr->right(), context_);
       break;
 
     case Token::ADD:
@@ -878,15 +844,14 @@ void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SHL:
     case Token::SHR:
     case Token::SAR:
-      VisitAsValue(expr->left());
+      ProcessExpression(expr->left(), Expression::kValue);
       CHECK_BAILOUT;
-      VisitAsValue(expr->right());
+      ProcessExpression(expr->right(), Expression::kValue);
       break;
 
     default:
       BAILOUT("Unsupported binary operation");
   }
-  expr->set_location(location_);
 }
 
 
