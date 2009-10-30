@@ -73,10 +73,12 @@ bool Snapshot::Initialize2(const char* snapshot_file) {
     if (!str) return false;
     Deserialize2(str, len);
     DeleteArray(str);
+    return true;
   } else if (size_ > 0) {
     Deserialize2(data_, size_);
+    return true;
   }
-  return true;
+  return false;
 }
 
 

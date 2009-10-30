@@ -440,12 +440,21 @@ class Assembler : public Malloced {
   inline static void set_target_address_at(Address pc, Address target);
 
   // This sets the branch destination (which is in the instruction on x86).
+  // This is for calls and branches within generated code.
   inline static void set_target_at(Address instruction_payload,
                                    Address target) {
     set_target_address_at(instruction_payload, target);
   }
 
+  // This sets the branch destination (which is in the instruction on x86).
+  // This is for calls and branches to runtime code.
+  inline static void set_external_target_at(Address instruction_payload,
+                                            Address target) {
+    set_target_address_at(instruction_payload, target);
+  }
+
   static const int kCallTargetSize = kPointerSize;
+  static const int kExternalTargetSize = kPointerSize;
 
   // Distance between the address of the code target in the call instruction
   // and the return address

@@ -399,6 +399,7 @@ void GlobalHandles::IterateRoots(ObjectVisitor* v) {
   }
 }
 
+
 void GlobalHandles::TearDown() {
   // Reset all the lists.
   set_head(NULL);

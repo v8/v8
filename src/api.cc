@@ -2621,11 +2621,12 @@ bool v8::V8::Initialize() {
   if (i::V8::IsRunning()) return true;
   ENTER_V8;
   HandleScope scope;
-  if (i::Snapshot::Initialize()) {
-    return true;
+  if (i::FLAG_new_snapshot) {
+    if (i::Snapshot::Initialize2()) return true;
   } else {
-    return i::V8::Initialize(NULL);
+    if (i::Snapshot::Initialize()) return true;
   }
+  return i::V8::Initialize(NULL);
 }
 
 

@@ -1927,10 +1927,8 @@ bool Deserializer2::ReadObject(Object** write_back) {
       case RAW_DATA_SERIALIZATION: {
         int size = source_->GetInt();
         byte* raw_data_out = reinterpret_cast<byte*>(current);
-        for (int j = 0; j < size; j++) {
-          *raw_data_out++ = source_->Get();
-        }
-        current = reinterpret_cast<Object**>(raw_data_out);
+        source_->CopyRaw(raw_data_out, size);
+        current = reinterpret_cast<Object**>(raw_data_out + size);
         break;
       }
       case OBJECT_SERIALIZATION: {
@@ -1982,6 +1980,15 @@ bool Deserializer2::ReadObject(Object** write_back) {
         int reference_id = source_->GetInt();
         Address address = external_reference_decoder_->Decode(reference_id);
         *current++ = reinterpret_cast<Object*>(address);
+        break;
+      }
+      case EXTERNAL_BRANCH_TARGET_SERIALIZATION: {
+        int reference_id = source_->GetInt();
+        Address address = external_reference_decoder_->Decode(reference_id);
+        Address location_of_branch_data = reinterpret_cast<Address>(current);
+        Assembler::set_external_target_at(location_of_branch_data, address);
+        location_of_branch_data += Assembler::kExternalTargetSize;
+        current = reinterpret_cast<Object**>(location_of_branch_data);
         break;
       }
       default:
@@ -2159,6 +2166,18 @@ void Serializer2::ObjectSerializer::VisitExternalReferences(Address* start,
 }
 
 
+void Serializer2::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
+  Address target_start = rinfo->target_address_address();
+  OutputRawData(target_start);
+  Address target = rinfo->target_address();
+  uint32_t encoding = serializer_->EncodeExternalReference(target);
+  CHECK(target == NULL ? encoding == 0 : encoding != 0);
+  sink_->Put(EXTERNAL_BRANCH_TARGET_SERIALIZATION, "External reference");
+  sink_->PutInt(encoding, "reference id");
+  bytes_processed_so_far_ += Assembler::kExternalTargetSize;
+}
+
+
 void Serializer2::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Address target_start = rinfo->target_address_address();
@@ -2183,8 +2202,8 @@ void Serializer2::ObjectSerializer::OutputRawData(Address up_to) {
       unsigned int data = object_start[bytes_processed_so_far_ + i];
       sink_->Put(data, "byte");
     }
+    bytes_processed_so_far_ += skipped;
   }
-  bytes_processed_so_far_ += skipped;
 }
 
 

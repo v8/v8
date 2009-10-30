@@ -196,6 +196,7 @@ DEFINE_bool(canonicalize_object_literal_maps, true,
 
 // mksnapshot.cc
 DEFINE_bool(h, false, "print this message")
+DEFINE_bool(new_snapshot, true, "use new snapshot implementation")
 
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")

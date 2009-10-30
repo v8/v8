@@ -197,15 +197,6 @@ static void Serialize2() {
 }
 
 
-// Test that the whole heap can be serialized when running from the
-// internal snapshot.
-// (Smoke test.)
-TEST(SerializeInternal) {
-  Snapshot::Initialize(NULL);
-  Serialize();
-}
-
-
 // Test that the whole heap can be serialized when running from a
 // bootstrapped heap.
 // (Smoke test.)

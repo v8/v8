@@ -363,6 +363,11 @@ class SnapshotByteSource {
     return data_[position_++];
   }
 
+  void CopyRaw(byte* to, int number_of_bytes) {
+    memcpy(to, data_ + position_, number_of_bytes);
+    position_ += number_of_bytes;
+  }
+
   int GetInt() {
     // A little unwind to catch the really small ints.
     int snapshot_byte = Get();
@@ -405,6 +410,7 @@ class SerDes: public GenericDeserializer {
     BACKREF_SERIALIZATION,
     CODE_BACKREF_SERIALIZATION,
     EXTERNAL_REFERENCE_SERIALIZATION,
+    EXTERNAL_BRANCH_TARGET_SERIALIZATION,
     SYNCHRONIZE
   };
   // Our Smi encoding is much more efficient for small positive integers than it
@@ -521,6 +527,7 @@ class Serializer2 : public SerDes {
     void VisitPointers(Object** start, Object** end);
     void VisitExternalReferences(Address* start, Address* end);
     void VisitCodeTarget(RelocInfo* target);
+    void VisitRuntimeEntry(RelocInfo* reloc);
 
    private:
     void OutputRawData(Address up_to);

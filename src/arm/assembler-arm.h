@@ -437,13 +437,25 @@ class Assembler : public Malloced {
   INLINE(static Address target_address_at(Address pc));
   INLINE(static void set_target_address_at(Address pc, Address target));
 
-  // Modify the code target address in a constant pool entry.
-  inline static void set_target_at(Address constant_pool_entry, Address target);
+  // This sets the branch destination (which is in the constant pool on ARM).
+  // This is for calls and branches within generated code.
+  inline static void set_target_at(Address constant_pool_entry,
+                                   Address target) {
+    set_target_address_at(constant_pool_entry, target);
+  }
+
+  // This sets the branch destination (which is in the constant pool on ARM).
+  // This is for calls and branches to runtime code.
+  inline static void set_external_target_at(Address constant_pool_entry,
+                                            Address target) {
+    set_target_address_at(constant_pool_entry, target);
+  }
 
   // Here we are patching the address in the constant pool, not the actual call
   // instruction.  The address in the constant pool is the same size as a
   // pointer.
   static const int kCallTargetSize = kPointerSize;
+  static const int kExternalTargetSize = kPointerSize;
 
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);

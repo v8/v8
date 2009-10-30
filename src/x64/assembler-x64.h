@@ -458,14 +458,25 @@ class Assembler : public Malloced {
   // the relative displacements stored in the code.
   static inline Address target_address_at(Address pc);
   static inline void set_target_address_at(Address pc, Address target);
+
   // This sets the branch destination (which is in the instruction on x64).
+  // This is for calls and branches within generated code.
   inline static void set_target_at(Address instruction_payload,
                                    Address target) {
     set_target_address_at(instruction_payload, target);
   }
+
+  // This sets the branch destination (which is a load instruction on x64).
+  // This is for calls and branches to runtime code.
+  inline static void set_external_target_at(Address instruction_payload,
+                                            Address target) {
+    *reinterpret_cast<Address*>(instruction_payload) = target;
+  }
+
   inline Handle<Object> code_target_object_handle_at(Address pc);
   // Number of bytes taken up by the branch target in the code.
-  static const int kCallTargetSize = 4;  // Use 32-bit displacement.
+  static const int kCallTargetSize = 4;      // Use 32-bit displacement.
+  static const int kExternalTargetSize = 8;  // Use 64-bit absolute.
   // Distance between the address of the code target in the call instruction
   // and the return address pushed on the stack.
   static const int kCallTargetAddressOffset = 4;  // Use 32-bit displacement.
