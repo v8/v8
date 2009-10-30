@@ -729,6 +729,31 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 
+void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
+  Comment cmnt(masm_, "[ UnaryOperation");
+
+  switch (expr->op()) {
+    case Token::VOID:
+      Visit(expr->expression());
+      ASSERT_EQ(Expression::kEffect, expr->expression()->context());
+      switch (expr->context()) {
+        case Expression::kUninitialized:
+          UNREACHABLE();
+          break;
+        case Expression::kValue:
+          __ push(Immediate(Factory::undefined_value()));
+          break;
+        case Expression::kEffect:
+          break;
+      }
+      break;
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   switch (expr->op()) {
     case Token::COMMA:

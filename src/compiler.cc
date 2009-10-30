@@ -825,7 +825,13 @@ void CodeGenSelector::VisitCallRuntime(CallRuntime* expr) {
 
 
 void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
-  BAILOUT("UnaryOperation");
+  switch (expr->op()) {
+    case Token::VOID:
+      ProcessExpression(expr->expression(), Expression::kEffect);
+      break;
+    default:
+      BAILOUT("UnaryOperation");
+  }
 }
 
 

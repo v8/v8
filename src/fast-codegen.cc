@@ -324,11 +324,6 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
   UNREACHABLE();
 }
