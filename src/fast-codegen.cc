@@ -35,6 +35,8 @@
 namespace v8 {
 namespace internal {
 
+#define __ ACCESS_MASM(masm_)
+
 Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
                                          Handle<Script> script,
                                          bool is_eval) {
@@ -68,21 +70,6 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
       UNREACHABLE();
   }
   return offset;
-}
-
-
-// All platform macro assemblers in {ia32,x64,arm} have a push(Register)
-// function.
-void FastCodeGenerator::Move(Expression::Context context, Register source) {
-  switch (context) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-    case Expression::kEffect:
-      break;
-    case Expression::kValue:
-      masm_->push(source);
-      break;
-  }
 }
 
 
@@ -199,6 +186,80 @@ void FastCodeGenerator::SetSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
     masm_->RecordPosition(pos);
   }
+}
+
+
+void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
+#ifdef DEBUG
+  Expression::Context expected = Expression::kUninitialized;
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:  // Fall through.
+    case Expression::kTest:
+      // The value of the left subexpression is not needed.
+      expected = Expression::kTest;
+      break;
+    case Expression::kValue:
+      // The value of the left subexpression is needed and its specific
+      // context depends on the operator.
+      expected = (expr->op() == Token::OR)
+          ? Expression::kValueTest
+          : Expression::kTestValue;
+      break;
+    case Expression::kValueTest:
+      // The value of the left subexpression is needed for OR.
+      expected = (expr->op() == Token::OR)
+          ? Expression::kValueTest
+          : Expression::kTest;
+      break;
+    case Expression::kTestValue:
+      // The value of the left subexpression is needed for AND.
+      expected = (expr->op() == Token::OR)
+          ? Expression::kTest
+          : Expression::kTestValue;
+      break;
+  }
+  ASSERT_EQ(expected, expr->left()->context());
+  ASSERT_EQ(expr->context(), expr->right()->context());
+#endif
+
+  Label eval_right, done;
+  Label* saved_true = true_label_;
+  Label* saved_false = false_label_;
+
+  // Set up the appropriate context for the left subexpression based on the
+  // operation and our own context.
+  if (expr->op() == Token::OR) {
+    // If there is no usable true label in the OR expression's context, use
+    // the end of this expression, otherwise inherit the same true label.
+    if (expr->context() == Expression::kEffect ||
+        expr->context() == Expression::kValue) {
+      true_label_ = &done;
+    }
+    // The false label is the label of the second subexpression.
+    false_label_ = &eval_right;
+  } else {
+    ASSERT_EQ(Token::AND, expr->op());
+    // The true label is the label of the second subexpression.
+    true_label_ = &eval_right;
+    // If there is no usable false label in the AND expression's context,
+    // use the end of the expression, otherwise inherit the same false
+    // label.
+    if (expr->context() == Expression::kEffect ||
+        expr->context() == Expression::kValue) {
+      false_label_ = &done;
+    }
+  }
+
+  Visit(expr->left());
+  true_label_ = saved_true;
+  false_label_ = saved_false;
+
+  __ bind(&eval_right);
+  Visit(expr->right());
+
+  __ bind(&done);
 }
 
 
@@ -337,6 +398,9 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   UNREACHABLE();
 }
+
+
+#undef __
 
 
 } }  // namespace v8::internal

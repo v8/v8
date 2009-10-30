@@ -162,9 +162,21 @@ class Statement: public AstNode {
 class Expression: public AstNode {
  public:
   enum Context {
+    // Not assigned a context yet, or else will not be visited during
+    // code generation.
     kUninitialized,
+    // Evaluated for its side effects.
     kEffect,
-    kValue
+    // Evaluated for its value (and side effects).
+    kValue,
+    // Evaluated for control flow (and side effects).
+    kTest,
+    // Evaluated for control flow and side effects.  Value is also
+    // needed if true.
+    kValueTest,
+    // Evaluated for control flow and side effects.  Value is also
+    // needed if false.
+    kTestValue
   };
 
   Expression() : context_(kUninitialized) {}

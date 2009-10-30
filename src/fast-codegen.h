@@ -39,7 +39,12 @@ namespace internal {
 class FastCodeGenerator: public AstVisitor {
  public:
   FastCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
-    : masm_(masm), function_(NULL), script_(script), is_eval_(is_eval) {
+      : masm_(masm),
+        function_(NULL),
+        script_(script),
+        is_eval_(is_eval),
+        true_label_(NULL),
+        false_label_(NULL) {
   }
 
   static Handle<Code> MakeCode(FunctionLiteral* fun,
@@ -58,6 +63,10 @@ class FastCodeGenerator: public AstVisitor {
   // Drop the TOS, and store source to destination.
   // If destination is TOS, just overwrite TOS with source.
   void DropAndMove(Expression::Context destination, Register source);
+
+  // Test the JavaScript value in source as if in a test context, compile
+  // control flow to a pair of labels.
+  void TestAndBranch(Register source, Label* true_label, Label* false_label);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
@@ -84,6 +93,9 @@ class FastCodeGenerator: public AstVisitor {
   Handle<Script> script_;
   bool is_eval_;
   Label return_label_;
+
+  Label* true_label_;
+  Label* false_label_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

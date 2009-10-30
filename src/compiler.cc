@@ -849,7 +849,45 @@ void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
       break;
 
     case Token::OR:
-      ProcessExpression(expr->left(), Expression::kValue);
+      switch (context_) {
+        case Expression::kUninitialized:
+          UNREACHABLE();
+        case Expression::kEffect:  // Fall through.
+        case Expression::kTest:  // Fall through.
+        case Expression::kTestValue:
+          // The left subexpression's value is not needed, it is in a pure
+          // test context.
+          ProcessExpression(expr->left(), Expression::kTest);
+          break;
+        case Expression::kValue:  // Fall through.
+        case Expression::kValueTest:
+          // The left subexpression's value is needed, it is in a hybrid
+          // value/test context.
+          ProcessExpression(expr->left(), Expression::kValueTest);
+          break;
+      }
+      CHECK_BAILOUT;
+      ProcessExpression(expr->right(), context_);
+      break;
+
+    case Token::AND:
+      switch (context_) {
+        case Expression::kUninitialized:
+          UNREACHABLE();
+        case Expression::kEffect:  // Fall through.
+        case Expression::kTest:  // Fall through.
+        case Expression::kValueTest:
+          // The left subexpression's value is not needed, it is in a pure
+          // test context.
+          ProcessExpression(expr->left(), Expression::kTest);
+          break;
+        case Expression::kValue:  // Fall through.
+        case Expression::kTestValue:
+          // The left subexpression's value is needed, it is in a hybrid
+          // test/value context.
+          ProcessExpression(expr->left(), Expression::kTestValue);
+          break;
+      }
       CHECK_BAILOUT;
       ProcessExpression(expr->right(), context_);
       break;

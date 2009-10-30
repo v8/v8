@@ -117,6 +117,39 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 }
 
 
+void FastCodeGenerator::Move(Expression::Context context, Register source) {
+  switch (context) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:
+      break;
+    case Expression::kValue:
+      __ push(source);
+      break;
+    case Expression::kTest:
+      TestAndBranch(source, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ push(source);
+      TestAndBranch(source, true_label_, &discard);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ push(source);
+      TestAndBranch(source, &discard, false_label_);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(true_label_);
+    }
+  }
+}
+
+
 void FastCodeGenerator::Move(Expression::Context context, Slot* source) {
   switch (context) {
     case Expression::kUninitialized:
@@ -125,6 +158,12 @@ void FastCodeGenerator::Move(Expression::Context context, Slot* source) {
       break;
     case Expression::kValue:
       __ push(Operand(ebp, SlotOffset(source)));
+      break;
+    case Expression::kTest:  // Fall through.
+    case Expression::kValueTest:  // Fall through.
+    case Expression::kTestValue:
+      __ mov(eax, Operand(ebp, SlotOffset(source)));
+      Move(context, eax);
       break;
   }
 }
@@ -138,6 +177,12 @@ void FastCodeGenerator::Move(Expression::Context context, Literal* expr) {
       break;
     case Expression::kValue:
       __ push(Immediate(expr->handle()));
+      break;
+    case Expression::kTest:  // Fall through.
+    case Expression::kValueTest:  // Fall through.
+    case Expression::kTestValue:
+      __ mov(eax, expr->handle());
+      Move(context, eax);
       break;
   }
 }
@@ -154,7 +199,60 @@ void FastCodeGenerator::DropAndMove(Expression::Context context,
     case Expression::kValue:
       __ mov(Operand(esp, 0), source);
       break;
+    case Expression::kTest:
+      ASSERT(!source.is(esp));
+      __ add(Operand(esp), Immediate(kPointerSize));
+      TestAndBranch(source, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ mov(Operand(esp, 0), source);
+      TestAndBranch(source, true_label_, &discard);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ mov(Operand(esp, 0), source);
+      TestAndBranch(source, &discard, false_label_);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(true_label_);
+      break;
+    }
   }
+}
+
+
+void FastCodeGenerator::TestAndBranch(Register source,
+                                      Label* true_label,
+                                      Label* false_label) {
+  ASSERT_NE(NULL, true_label);
+  ASSERT_NE(NULL, false_label);
+  // Use the shared ToBoolean stub to compile the value in the register into
+  // control flow to the code generator's true and false labels.  Perform
+  // the fast checks assumed by the stub.
+  __ cmp(source, Factory::undefined_value());  // The undefined value is false.
+  __ j(equal, false_label);
+  __ cmp(source, Factory::true_value());  // True is true.
+  __ j(equal, true_label);
+  __ cmp(source, Factory::false_value());  // False is false.
+  __ j(equal, false_label);
+  ASSERT_EQ(0, kSmiTag);
+  __ test(source, Operand(source));  // The smi zero is false.
+  __ j(zero, false_label);
+  __ test(source, Immediate(kSmiTagMask));  // All other smis are true.
+  __ j(zero, true_label);
+
+  // Call the stub for all other cases.
+  __ push(source);
+  ToBooleanStub stub;
+  __ CallStub(&stub);
+  __ test(eax, Operand(eax));  // The stub returns nonzero for true.
+  __ j(not_zero, true_label);
+  __ jmp(false_label);
 }
 
 
@@ -366,6 +464,28 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     case Expression::kValue:
       if (!result_saved) __ push(eax);
       break;
+    case Expression::kTest:
+      if (result_saved) __ pop(eax);
+      TestAndBranch(eax, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      if (!result_saved) __ push(eax);
+      TestAndBranch(eax, true_label_, &discard);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      if (!result_saved) __ push(eax);
+      TestAndBranch(eax, &discard, false_label_);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(true_label_);
+      break;
+    }
   }
 }
 
@@ -440,6 +560,28 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     case Expression::kValue:
       if (!result_saved) __ push(eax);
       break;
+    case Expression::kTest:
+      if (result_saved) __ pop(eax);
+      TestAndBranch(eax, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      if (!result_saved) __ push(eax);
+      TestAndBranch(eax, true_label_, &discard);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      if (!result_saved) __ push(eax);
+      TestAndBranch(eax, &discard, false_label_);
+      __ bind(&discard);
+      __ add(Operand(esp), Immediate(kPointerSize));
+      __ jmp(true_label_);
+      break;
+    }
   }
 }
 
@@ -535,6 +677,34 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
           __ mov(eax, Operand(esp, 0));
           __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
           break;
+        case Expression::kTest:
+          // Case 'if (var = temp) ...'.
+          __ pop(eax);
+          __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+          TestAndBranch(eax, true_label_, false_label_);
+          break;
+        case Expression::kValueTest: {
+          // Case '(var = temp) || ...' in value context.
+          Label discard;
+          __ mov(eax, Operand(esp, 0));
+          __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+          TestAndBranch(eax, true_label_, &discard);
+          __ bind(&discard);
+          __ add(Operand(esp), Immediate(kPointerSize));
+          __ jmp(false_label_);
+          break;
+        }
+        case Expression::kTestValue: {
+          // Case '(var = temp) && ...' in value context.
+          Label discard;
+          __ mov(eax, Operand(esp, 0));
+          __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+          TestAndBranch(eax, &discard, false_label_);
+          __ bind(&discard);
+          __ add(Operand(esp), Immediate(kPointerSize));
+          __ jmp(true_label_);
+          break;
+        }
       }
     }
   }
@@ -740,10 +910,18 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         case Expression::kUninitialized:
           UNREACHABLE();
           break;
+        case Expression::kEffect:
+          break;
         case Expression::kValue:
           __ push(Immediate(Factory::undefined_value()));
           break;
-        case Expression::kEffect:
+        case Expression::kTestValue:
+          // Value is false so it's needed.
+          __ push(Immediate(Factory::undefined_value()));
+          // Fall through.
+        case Expression::kTest:  // Fall through.
+        case Expression::kValueTest:
+          __ jmp(false_label_);
           break;
       }
       break;
@@ -798,90 +976,7 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
-void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
-  // Compile a short-circuited boolean operation in a non-test context.
-
-  // Compile (e0 || e1) or (e0 && e1) as if it were
-  // (let (temp = e0) temp [or !temp, for &&] ? temp : e1).
-
-  Label eval_right, done;
-  Label *left_true, *left_false;  // Where to branch to if lhs has that value.
-  if (expr->op() == Token::OR) {
-    left_true = &done;
-    left_false = &eval_right;
-  } else {
-    left_true = &eval_right;
-    left_false = &done;
-  }
-  Expression::Context context = expr->context();
-  Expression* left = expr->left();
-  Expression* right = expr->right();
-
-  // Use the shared ToBoolean stub to find the boolean value of the
-  // left-hand subexpression.  Load the value into eax to perform some
-  // inlined checks assumed by the stub.
-
-  // Compile the left-hand value into eax.  Put it on the stack if we may
-  // need it as the value of the whole expression.
-  if (left->AsLiteral() != NULL) {
-    __ mov(eax, left->AsLiteral()->handle());
-    if (context == Expression::kValue) __ push(eax);
-  } else {
-    Visit(left);
-    ASSERT_EQ(Expression::kValue, left->context());
-    switch (context) {
-      case Expression::kUninitialized:
-        UNREACHABLE();
-      case Expression::kEffect:
-        // Pop the left-hand value into eax because we will not need it as the
-        // final result.
-        __ pop(eax);
-        break;
-      case Expression::kValue:
-        // Copy the left-hand value into eax because we may need it as the
-        // final result.
-        __ mov(eax, Operand(esp, 0));
-        break;
-    }
-  }
-  // The left-hand value is in eax.  It is also on the stack iff the
-  // destination location is value.
-
-  // Perform fast checks assumed by the stub.
-  __ cmp(eax, Factory::undefined_value());  // The undefined value is false.
-  __ j(equal, left_false);
-  __ cmp(eax, Factory::true_value());  // True is true.
-  __ j(equal, left_true);
-  __ cmp(eax, Factory::false_value());  // False is false.
-  __ j(equal, left_false);
-  ASSERT_EQ(0, kSmiTag);
-  __ test(eax, Operand(eax));  // The smi zero is false.
-  __ j(zero, left_false);
-  __ test(eax, Immediate(kSmiTagMask));  // All other smis are true.
-  __ j(zero, left_true);
-
-  // Call the stub for all other cases.
-  __ push(eax);
-  ToBooleanStub stub;
-  __ CallStub(&stub);
-  __ test(eax, Operand(eax));  // The stub returns nonzero for true.
-  if (expr->op() == Token::OR) {
-    __ j(not_zero, &done);
-  } else {
-    __ j(zero, &done);
-  }
-
-  __ bind(&eval_right);
-  // Discard the left-hand value if present on the stack.
-  if (context == Expression::kValue) {
-    __ add(Operand(esp), Immediate(kPointerSize));
-  }
-  // Save or discard the right-hand value as needed.
-  Visit(right);
-  ASSERT_EQ(context, right->context());
-
-  __ bind(&done);
-}
+#undef __
 
 
 } }  // namespace v8::internal

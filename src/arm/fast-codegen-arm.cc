@@ -123,15 +123,51 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 }
 
 
-void FastCodeGenerator::Move(Expression::Context context, Slot* source) {
+void FastCodeGenerator::Move(Expression::Context context, Register source) {
   switch (context) {
     case Expression::kUninitialized:
       UNREACHABLE();
     case Expression::kEffect:
       break;
     case Expression::kValue:
+      __ push(source);
+      break;
+    case Expression::kTest:
+      TestAndBranch(source, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ push(source);
+      TestAndBranch(source, true_label_, &discard);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ push(source);
+      TestAndBranch(source, &discard, false_label_);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(true_label_);
+    }
+  }
+}
+
+
+void FastCodeGenerator::Move(Expression::Context context, Slot* source) {
+  switch (context) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:
+      break;
+    case Expression::kValue:  // Fall through.
+    case Expression::kTest:  // Fall through.
+    case Expression::kValueTest:  // Fall through.
+    case Expression::kTestValue:
       __ ldr(ip, MemOperand(fp, SlotOffset(source)));
-      __ push(ip);
+      Move(context, ip);
       break;
   }
 }
@@ -143,9 +179,12 @@ void FastCodeGenerator::Move(Expression::Context context, Literal* expr) {
       UNREACHABLE();
     case Expression::kEffect:
       break;
-    case Expression::kValue:
+    case Expression::kValue:  // Fall through.
+    case Expression::kTest:  // Fall through.
+    case Expression::kValueTest:  // Fall through.
+    case Expression::kTestValue:
       __ mov(ip, Operand(expr->handle()));
-      __ push(ip);
+      Move(context, ip);
       break;
   }
 }
@@ -162,7 +201,46 @@ void FastCodeGenerator::DropAndMove(Expression::Context context,
     case Expression::kValue:
       __ str(source, MemOperand(sp));
       break;
+    case Expression::kTest:
+      ASSERT(!source.is(sp));
+      __ pop();
+      TestAndBranch(source, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ str(source, MemOperand(sp));
+      TestAndBranch(source, true_label_, &discard);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ str(source, MemOperand(sp));
+      TestAndBranch(source, &discard, false_label_);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(true_label_);
+      break;
+    }
   }
+}
+
+
+void FastCodeGenerator::TestAndBranch(Register source,
+                                      Label* true_label,
+                                      Label* false_label) {
+  ASSERT_NE(NULL, true_label);
+  ASSERT_NE(NULL, false_label);
+  // Call the runtime to find the boolean value of the source and then
+  // translate it into control flow to the pair of labels.
+  __ push(source);
+  __ CallRuntime(Runtime::kToBool, 1);
+  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+  __ cmp(r0, ip);
+  __ b(eq, true_label);
+  __ jmp(false_label);
 }
 
 
@@ -369,6 +447,28 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     case Expression::kValue:
       if (!result_saved) __ push(r0);
       break;
+    case Expression::kTest:
+      if (result_saved) __ pop(r0);
+      TestAndBranch(r0, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      if (!result_saved) __ push(r0);
+      TestAndBranch(r0, true_label_, &discard);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      if (!result_saved) __ push(r0);
+      TestAndBranch(r0, &discard, false_label_);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(true_label_);
+      break;
+    }
   }
 }
 
@@ -446,6 +546,28 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     case Expression::kValue:
       if (!result_saved) __ push(r0);
       break;
+    case Expression::kTest:
+      if (result_saved) __ pop(r0);
+      TestAndBranch(r0, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      if (!result_saved) __ push(r0);
+      TestAndBranch(r0, true_label_, &discard);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      if (!result_saved) __ push(r0);
+      TestAndBranch(r0, &discard, false_label_);
+      __ bind(&discard);
+      __ pop();
+      __ jmp(true_label_);
+      break;
+    }
   }
 }
 
@@ -530,16 +652,44 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
           UNREACHABLE();
         case Expression::kEffect:
           // Case 'var = temp'.  Discard right-hand-side temporary.
-          __ pop(ip);
+          __ pop(r0);
+          __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
           break;
         case Expression::kValue:
           // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
           // temporary on the stack.
-          __ ldr(ip, MemOperand(sp));
+          __ ldr(r0, MemOperand(sp));
+          __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
           break;
+        case Expression::kTest:
+          // Case 'if (var = temp) ...'.
+          __ pop(r0);
+          __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+          TestAndBranch(r0, true_label_, false_label_);
+          break;
+        case Expression::kValueTest: {
+          // Case '(var = temp) || ...' in value context.
+          Label discard;
+          __ ldr(r0, MemOperand(sp));
+          __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+          TestAndBranch(r0, true_label_, &discard);
+          __ bind(&discard);
+          __ pop();
+          __ jmp(false_label_);
+          break;
+        }
+        case Expression::kTestValue: {
+          // Case '(var = temp) && ...' in value context.
+          Label discard;
+          __ ldr(r0, MemOperand(sp));
+          __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+          TestAndBranch(r0, &discard, false_label_);
+          __ bind(&discard);
+          __ pop();
+          __ jmp(true_label_);
+          break;
+        }
       }
-      // Do the slot assignment.
-      __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
     }
   }
 }
@@ -734,11 +884,19 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         case Expression::kUninitialized:
           UNREACHABLE();
           break;
+        case Expression::kEffect:
+          break;
         case Expression::kValue:
           __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
           __ push(ip);
           break;
-        case Expression::kEffect:
+        case Expression::kTestValue:
+          // Value is false so it's needed.
+          __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+          __ push(ip);
+        case Expression::kTest:  // Fall through.
+        case Expression::kValueTest:
+          __ jmp(false_label_);
           break;
       }
       break;
@@ -793,53 +951,5 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   }
 }
 
-
-void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
-  // Compile a short-circuited boolean operation in a non-test context.
-
-  // Compile (e0 || e1) as if it were
-  // (let (temp = e0) temp ? temp : e1).
-  // Compile (e0 && e1) as if it were
-  // (let (temp = e0) !temp ? temp : e1).
-
-  Label done;
-  Expression::Context context = expr->context();
-  Expression* left = expr->left();
-  Expression* right = expr->right();
-
-  // Call the runtime to find the boolean value of the left-hand
-  // subexpression.  Duplicate the value if it may be needed as the final
-  // result.
-  if (left->AsLiteral() != NULL) {
-    __ mov(r0, Operand(left->AsLiteral()->handle()));
-    __ push(r0);
-    if (context == Expression::kValue) __ push(r0);
-  } else {
-    Visit(left);
-    ASSERT_EQ(Expression::kValue, left->context());
-    if (context == Expression::kValue) {
-      __ ldr(r0, MemOperand(sp));
-      __ push(r0);
-    }
-  }
-  // The left-hand value is in on top of the stack.  It is duplicated on the
-  // stack iff the destination location is value.
-  __ CallRuntime(Runtime::kToBool, 1);
-  if (expr->op() == Token::OR) {
-    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  } else {
-    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  }
-  __ cmp(r0, ip);
-  __ b(eq, &done);
-
-  // Discard the left-hand value if present on the stack.
-  if (context == Expression::kValue) __ pop();
-  // Save or discard the right-hand value as needed.
-  Visit(right);
-  ASSERT_EQ(context, right->context());
-
-  __ bind(&done);
-}
 
 } }  // namespace v8::internal
