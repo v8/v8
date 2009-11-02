@@ -380,7 +380,36 @@ void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
 
 
 void FastCodeGenerator::VisitConditional(Conditional* expr) {
-  UNREACHABLE();
+  ASSERT_EQ(Expression::kTest, expr->condition()->context());
+  ASSERT_EQ(expr->context(), expr->then_expression()->context());
+  ASSERT_EQ(expr->context(), expr->else_expression()->context());
+
+
+  Label true_case, false_case, done;
+  Label* saved_true = true_label_;
+  Label* saved_false = false_label_;
+
+  true_label_ = &true_case;
+  false_label_ = &false_case;
+  Visit(expr->condition());
+  true_label_ = saved_true;
+  false_label_ = saved_false;
+
+  __ bind(&true_case);
+  Visit(expr->then_expression());
+  // If control flow falls through Visit, jump to done.
+  if (expr->context() == Expression::kEffect ||
+      expr->context() == Expression::kValue) {
+    __ jmp(&done);
+  }
+
+  __ bind(&false_case);
+  Visit(expr->else_expression());
+  // If control flow falls through Visit, merge it with true case here.
+  if (expr->context() == Expression::kEffect ||
+      expr->context() == Expression::kValue) {
+    __ bind(&done);
+  }
 }
 
 

@@ -625,7 +625,11 @@ void CodeGenSelector::VisitFunctionBoilerplateLiteral(
 
 
 void CodeGenSelector::VisitConditional(Conditional* expr) {
-  BAILOUT("Conditional");
+  ProcessExpression(expr->condition(), Expression::kTest);
+  CHECK_BAILOUT;
+  ProcessExpression(expr->then_expression(), context_);
+  CHECK_BAILOUT;
+  ProcessExpression(expr->else_expression(), context_);
 }
 
 
