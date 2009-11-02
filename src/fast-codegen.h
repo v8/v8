@@ -77,18 +77,17 @@ class FastCodeGenerator: public AstVisitor {
 
   // Platform-specific support for compiling assignments.
 
-  // Complete a variable assignment.  The right-hand-side value are expected
+  // Complete a variable assignment.  The right-hand-side value is expected
   // on top of the stack.
-  void EmitVariableAssignment(Expression::Context context, Variable* var);
+  void EmitVariableAssignment(Assignment* expr);
 
   // Complete a named property assignment.  The receiver and right-hand-side
   // value are expected on top of the stack.
-  void EmitNamedPropertyAssignment(Expression::Context context,
-                                   Handle<Object> name);
+  void EmitNamedPropertyAssignment(Assignment* expr);
 
   // Complete a keyed property assignment.  The reciever, key, and
   // right-hand-side value are expected on top of the stack.
-  void EmitKeyedPropertyAssignment(Expression::Context context);
+  void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);

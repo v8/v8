@@ -724,11 +724,6 @@ void CodeGenSelector::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 void CodeGenSelector::VisitAssignment(Assignment* expr) {
   // We support plain non-compound assignments to properties, parameters and
   // non-context (stack-allocated) locals, and global variables.
-  if (expr->starts_initialization_block() ||
-      expr->ends_initialization_block()) {
-    BAILOUT("initialization block start");
-  }
-
   Token::Value op = expr->op();
   if (op == Token::INIT_CONST) BAILOUT("initialize constant");
   if (op != Token::ASSIGN && op != Token::INIT_VAR) {

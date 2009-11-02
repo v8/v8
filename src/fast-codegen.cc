@@ -439,7 +439,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   if (var != NULL) {
     Visit(rhs);
     ASSERT_EQ(Expression::kValue, rhs->context());
-    EmitVariableAssignment(expr->context(), var);
+    EmitVariableAssignment(expr);
   } else if (prop != NULL) {
     // Assignment to a property.
     Visit(prop->obj());
@@ -450,14 +450,13 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       ASSERT(prop->key()->AsLiteral() != NULL);
       Visit(rhs);
       ASSERT_EQ(Expression::kValue, rhs->context());
-      EmitNamedPropertyAssignment(expr->context(),
-                                  prop->key()->AsLiteral()->handle());
+      EmitNamedPropertyAssignment(expr);
     } else {
       Visit(prop->key());
       ASSERT_EQ(Expression::kValue, prop->key()->context());
       Visit(rhs);
       ASSERT_EQ(Expression::kValue, rhs->context());
-      EmitKeyedPropertyAssignment(expr->context());
+      EmitKeyedPropertyAssignment(expr);
     }
   } else {
     UNREACHABLE();

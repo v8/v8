@@ -572,12 +572,14 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::EmitVariableAssignment(Expression::Context context,
-                                               Variable* var) {
+void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL);
+
   if (var->is_global()) {
-    // Assignment to a global variable, use inline caching.  Right-hand-side
-    // value is passed in r0, variable name in r2, and the global object
-    // on the stack.
+    // Assignment to a global variable.  Use inline caching for the
+    // assignment.  Right-hand-side value is passed in r0, variable name in
+    // r2, and the global object on the stack.
     __ pop(r0);
     __ mov(r2, Operand(var->name()));
     __ ldr(ip, CodeGenerator::GlobalObject());
@@ -585,9 +587,10 @@ void FastCodeGenerator::EmitVariableAssignment(Expression::Context context,
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    DropAndMove(context, r0);
+    DropAndMove(expr->context(), r0);
+
   } else {
-    switch (context) {
+    switch (expr->context()) {
       case Expression::kUninitialized:
         UNREACHABLE();
       case Expression::kEffect:
@@ -631,25 +634,69 @@ void FastCodeGenerator::EmitVariableAssignment(Expression::Context context,
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyAssignment(
-    Expression::Context context,
-    Handle<Object> name) {
+void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
+  // Assignment to a property, using a named store IC.
+  Property* prop = expr->target()->AsProperty();
+  ASSERT(prop != NULL);
+  ASSERT(prop->key()->AsLiteral() != NULL);
+
+  // If the assignment starts a block of assignments to the same object,
+  // change to slow case to avoid the quadratic behavior of repeatedly
+  // adding fast properties.
+  if (expr->starts_initialization_block()) {
+    __ ldr(ip, MemOperand(sp, kPointerSize));  // Receiver is under value.
+    __ push(ip);
+    __ CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
   __ pop(r0);
-  __ mov(r2, Operand(name));
+  __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  DropAndMove(context, r0);
+
+  // If the assignment ends an initialization block, revert to fast case.
+  if (expr->ends_initialization_block()) {
+    __ push(r0);  // Result of assignment, saved even if not needed.
+    __ ldr(ip, MemOperand(sp, kPointerSize));  // Receiver is under value.
+    __ push(ip);
+    __ CallRuntime(Runtime::kToFastProperties, 1);
+    __ pop(r0);
+  }
+
+  DropAndMove(expr->context(), r0);
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyAssignment(
-    Expression::Context context) {
+void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
+  // Assignment to a property, using a keyed store IC.
+
+  // If the assignment starts a block of assignments to the same object,
+  // change to slow case to avoid the quadratic behavior of repeatedly
+  // adding fast properties.
+  if (expr->starts_initialization_block()) {
+    // Reciever is under the key and value.
+    __ ldr(ip, MemOperand(sp, 2 * kPointerSize));
+    __ push(ip);
+    __ CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
   __ pop(r0);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
+
+  // If the assignment ends an initialization block, revert to fast case.
+  if (expr->ends_initialization_block()) {
+    __ push(r0);  // Result of assignment, saved even if not needed.
+    // Reciever is under the key and value.
+    __ ldr(ip, MemOperand(sp, 2 * kPointerSize));
+    __ push(ip);
+    __ CallRuntime(Runtime::kToFastProperties, 1);
+    __ pop(r0);
+  }
+
   // Receiver and key are still on stack.
   __ add(sp, sp, Operand(2 * kPointerSize));
-  Move(context, r0);
+  Move(expr->context(), r0);
 }
 
 

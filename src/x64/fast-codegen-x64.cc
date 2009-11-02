@@ -600,21 +600,24 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::EmitVariableAssignment(Expression::Context context,
-                                               Variable* var) {
+void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL);
+
   if (var->is_global()) {
-    // Assignment to a global variable, use inline caching.  Right-hand-side
-    // value is passed in rax, variable name in rcx, and the global object
-    // on the stack.
+    // Assignment to a global variable.  Use inline caching for the
+    // assignment.  Right-hand-side value is passed in rax, variable name in
+    // rcx, and the global object on the stack.
     __ pop(rax);
     __ Move(rcx, var->name());
     __ push(CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    DropAndMove(context, rax);
+    DropAndMove(expr->context(), rax);
+
   } else {
-    switch (context) {
+    switch (expr->context()) {
       case Expression::kUninitialized:
         UNREACHABLE();
       case Expression::kEffect:
@@ -657,28 +660,68 @@ void FastCodeGenerator::EmitVariableAssignment(Expression::Context context,
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyAssignment(
-    Expression::Context context,
-    Handle<Object> name) {
+void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
+  // Assignment to a property, using a named store IC.
+  Property* prop = expr->target()->AsProperty();
+  ASSERT(prop != NULL);
+  ASSERT(prop->key()->AsLiteral() != NULL);
+
+  // If the assignment starts a block of assignments to the same object,
+  // change to slow case to avoid the quadratic behavior of repeatedly
+  // adding fast properties.
+  if (expr->starts_initialization_block()) {
+    __ push(Operand(rsp, kPointerSize));  // Receiver is under value.
+    __ CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
   __ pop(rax);
-  __ Move(rcx, name);
+  __ Move(rcx, prop->key()->AsLiteral()->handle());
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  DropAndMove(context, rax);
+
+  // If the assignment ends an initialization block, revert to fast case.
+  if (expr->ends_initialization_block()) {
+    __ push(rax);  // Result of assignment, saved even if not needed.
+    __ push(Operand(rsp, kPointerSize));  // Receiver is under value.
+    __ CallRuntime(Runtime::kToFastProperties, 1);
+    __ pop(rax);
+  }
+
+  DropAndMove(expr->context(), rax);
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyAssignment(
-    Expression::Context context) {
+void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
+  // Assignment to a property, using a keyed store IC.
+
+  // If the assignment starts a block of assignments to the same object,
+  // change to slow case to avoid the quadratic behavior of repeatedly
+  // adding fast properties.
+  if (expr->starts_initialization_block()) {
+    // Reciever is under the key and value.
+    __ push(Operand(rsp, 2 * kPointerSize));
+    __ CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
   __ pop(rax);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   // This nop signals to the IC that there is no inlined code at the call
   // site for it to patch.
   __ nop();
+
+  // If the assignment ends an initialization block, revert to fast case.
+  if (expr->ends_initialization_block()) {
+    __ push(rax);  // Result of assignment, saved even if not needed.
+    // Reciever is under the key and value.
+    __ push(Operand(rsp, 2 * kPointerSize));
+    __ CallRuntime(Runtime::kToFastProperties, 1);
+    __ pop(rax);
+  }
+
   // Receiver and key are still on stack.
   __ addq(rsp, Immediate(2 * kPointerSize));
-  Move(context, rax);
+  Move(expr->context(), rax);
 }
 
 

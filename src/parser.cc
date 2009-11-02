@@ -1339,7 +1339,7 @@ class ParserFinder {
 
 
 // An InitializationBlockFinder finds and marks sequences of statements of the
-// form x.y.z.a = ...; x.y.z.b = ...; etc.
+// form expr.a = ...; expr.b = ...; etc.
 class InitializationBlockFinder : public ParserFinder {
  public:
   InitializationBlockFinder()
@@ -1367,7 +1367,7 @@ class InitializationBlockFinder : public ParserFinder {
  private:
   // Returns true if the expressions appear to denote the same object.
   // In the context of initialization blocks, we only consider expressions
-  // of the form 'x.y.z'.
+  // of the form 'expr.x' or expr["x"].
   static bool SameObject(Expression* e1, Expression* e2) {
     VariableProxy* v1 = e1->AsVariableProxy();
     VariableProxy* v2 = e2->AsVariableProxy();
