@@ -424,6 +424,47 @@ void FastCodeGenerator::VisitLiteral(Literal* expr) {
 }
 
 
+void FastCodeGenerator::VisitAssignment(Assignment* expr) {
+  Comment cmnt(masm_, "[ Assignment");
+  ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
+
+  // Record source code position of the (possible) IC call.
+  SetSourcePosition(expr->position());
+
+  Expression* rhs = expr->value();
+  // Left-hand side can only be a property, a global or a (parameter or
+  // local) slot.
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  Property* prop = expr->target()->AsProperty();
+  if (var != NULL) {
+    Visit(rhs);
+    ASSERT_EQ(Expression::kValue, rhs->context());
+    EmitVariableAssignment(expr->context(), var);
+  } else if (prop != NULL) {
+    // Assignment to a property.
+    Visit(prop->obj());
+    ASSERT_EQ(Expression::kValue, prop->obj()->context());
+    // Use the expression context of the key subexpression to detect whether
+    // we have decided to us a named or keyed IC.
+    if (prop->key()->context() == Expression::kUninitialized) {
+      ASSERT(prop->key()->AsLiteral() != NULL);
+      Visit(rhs);
+      ASSERT_EQ(Expression::kValue, rhs->context());
+      EmitNamedPropertyAssignment(expr->context(),
+                                  prop->key()->AsLiteral()->handle());
+    } else {
+      Visit(prop->key());
+      ASSERT_EQ(Expression::kValue, prop->key()->context());
+      Visit(rhs);
+      ASSERT_EQ(Expression::kValue, rhs->context());
+      EmitKeyedPropertyAssignment(expr->context());
+    }
+  } else {
+    UNREACHABLE();
+  }
+}
+
+
 void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   UNREACHABLE();
 }

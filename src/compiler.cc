@@ -736,18 +736,36 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
   }
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  if (var == NULL) {
-    Property* prop = expr->target()->AsProperty();
-    if (prop == NULL) BAILOUT("non-variable, non-property assignment");
+  Property* prop = expr->target()->AsProperty();
+  if (var != NULL) {
+    // All global variables are supported.
+    if (!var->is_global()) {
+      if (var->slot() == NULL) {
+        // This is a parameter that has rewritten to an arguments access.
+        BAILOUT("non-global/non-slot assignment");
+      }
+      Slot::Type type = var->slot()->type();
+      if (type != Slot::PARAMETER && type != Slot::LOCAL) {
+        BAILOUT("non-parameter/non-local slot assignment");
+      }
+    }
+  } else if (prop != NULL) {
     ProcessExpression(prop->obj(), Expression::kValue);
     CHECK_BAILOUT;
-    ProcessExpression(prop->key(), Expression::kValue);
-  } else if (!var->is_global()) {
-    if (var->slot() == NULL) BAILOUT("Assigment with an unsupported LHS.");
-    Slot::Type type = var->slot()->type();
-    if (type != Slot::PARAMETER && type != Slot::LOCAL) {
-      BAILOUT("non-parameter/non-local slot assignment");
+    // We will only visit the key during code generation for keyed property
+    // stores.  Leave its expression context uninitialized for named
+    // property stores.
+    Literal* lit = prop->key()->AsLiteral();
+    uint32_t ignored;
+    if (lit == NULL ||
+        !lit->handle()->IsSymbol() ||
+        String::cast(*(lit->handle()))->AsArrayIndex(&ignored)) {
+      ProcessExpression(prop->key(), Expression::kValue);
+      CHECK_BAILOUT;
     }
+  } else {
+    // This is a throw reference error.
+    BAILOUT("non-variable/non-property assignment");
   }
 
   ProcessExpression(expr->value(), Expression::kValue);

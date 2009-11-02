@@ -586,128 +586,85 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::VisitAssignment(Assignment* expr) {
-  Comment cmnt(masm_, "[ Assignment");
-  ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
-
-  // Record the source position for the assignment.
-  SetSourcePosition(expr->position());
-
-  // Left-hand side can only be a property, a global or
-  // a (parameter or local) slot.
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
-  Expression* rhs = expr->value();
-  if (var == NULL) {
-    // Assignment to a property.
-    ASSERT(expr->target()->AsProperty() != NULL);
-    Property* prop = expr->target()->AsProperty();
-    Visit(prop->obj());
-    Literal* literal_key = prop->key()->AsLiteral();
-    uint32_t dummy;
-    if (literal_key != NULL &&
-        literal_key->handle()->IsSymbol() &&
-        !String::cast(*(literal_key->handle()))->AsArrayIndex(&dummy)) {
-      // NAMED property assignment
-      Visit(rhs);
-      ASSERT_EQ(Expression::kValue, rhs->context());
-      __ pop(eax);
-      __ mov(ecx, Immediate(literal_key->handle()));
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      __ call(ic, RelocInfo::CODE_TARGET);
-      __ nop();
-    } else {
-      // KEYED property assignment
-      Visit(prop->key());
-      Visit(rhs);
-      ASSERT_EQ(Expression::kValue, rhs->context());
-      __ pop(eax);
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      __ call(ic, RelocInfo::CODE_TARGET);
-      __ nop();
-      // Drop key from the stack
-      __ add(Operand(esp), Immediate(kPointerSize));
-    }
-    // Overwrite the receiver on the stack with the result if needed.
-    DropAndMove(expr->context(), eax);
-  } else if (var->is_global()) {
+void FastCodeGenerator::EmitVariableAssignment(Expression::Context context,
+                                               Variable* var) {
+  if (var->is_global()) {
     // Assignment to a global variable, use inline caching.  Right-hand-side
     // value is passed in eax, variable name in ecx, and the global object
     // on the stack.
-
-    // Code for the right-hand-side expression depends on its type.
-    if (rhs->AsLiteral() != NULL) {
-      __ mov(eax, rhs->AsLiteral()->handle());
-    } else {
-      ASSERT_EQ(Expression::kValue, rhs->context());
-      Visit(rhs);
-      __ pop(eax);
-    }
-    // Record position for debugger.
-    SetSourcePosition(expr->position());
+    __ pop(eax);
     __ mov(ecx, var->name());
     __ push(CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    DropAndMove(expr->context(), eax);
+    DropAndMove(context, eax);
   } else {
-    // Local or parameter assignment.
-    ASSERT(var->slot() != NULL);
-
-    // Code for the right-hand side expression depends on its type.
-    if (rhs->AsLiteral() != NULL) {
-      // Two cases: 'temp <- (var = constant)', or 'var = constant' with a
-      // discarded result.  Always perform the assignment.
-      __ mov(eax, rhs->AsLiteral()->handle());
-      __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
-      Move(expr->context(), eax);
-    } else {
-      ASSERT_EQ(Expression::kValue, rhs->context());
-      Visit(rhs);
-      switch (expr->context()) {
-        case Expression::kUninitialized:
-          UNREACHABLE();
-        case Expression::kEffect:
-          // Case 'var = temp'.  Discard right-hand-side temporary.
-          __ pop(Operand(ebp, SlotOffset(var->slot())));
-          break;
-        case Expression::kValue:
-          // Case 'temp1 <- (var = temp0)'.  Preserve right-hand-side
-          // temporary on the stack.
-          __ mov(eax, Operand(esp, 0));
-          __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
-          break;
-        case Expression::kTest:
-          // Case 'if (var = temp) ...'.
-          __ pop(eax);
-          __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
-          TestAndBranch(eax, true_label_, false_label_);
-          break;
-        case Expression::kValueTest: {
-          // Case '(var = temp) || ...' in value context.
-          Label discard;
-          __ mov(eax, Operand(esp, 0));
-          __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
-          TestAndBranch(eax, true_label_, &discard);
-          __ bind(&discard);
-          __ add(Operand(esp), Immediate(kPointerSize));
-          __ jmp(false_label_);
-          break;
-        }
-        case Expression::kTestValue: {
-          // Case '(var = temp) && ...' in value context.
-          Label discard;
-          __ mov(eax, Operand(esp, 0));
-          __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
-          TestAndBranch(eax, &discard, false_label_);
-          __ bind(&discard);
-          __ add(Operand(esp), Immediate(kPointerSize));
-          __ jmp(true_label_);
-          break;
-        }
+    switch (context) {
+      case Expression::kUninitialized:
+        UNREACHABLE();
+      case Expression::kEffect:
+        // Perform assignment and discard value.
+        __ pop(Operand(ebp, SlotOffset(var->slot())));
+        break;
+      case Expression::kValue:
+        // Perform assignment and preserve value.
+        __ mov(eax, Operand(esp, 0));
+        __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+        break;
+      case Expression::kTest:
+        // Perform assignment and test (and discard) value.
+        __ pop(eax);
+        __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+        TestAndBranch(eax, true_label_, false_label_);
+        break;
+      case Expression::kValueTest: {
+        Label discard;
+        __ mov(eax, Operand(esp, 0));
+        __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+        TestAndBranch(eax, true_label_, &discard);
+        __ bind(&discard);
+        __ add(Operand(esp), Immediate(kPointerSize));
+        __ jmp(false_label_);
+        break;
+      }
+      case Expression::kTestValue: {
+        Label discard;
+        __ mov(eax, Operand(esp, 0));
+        __ mov(Operand(ebp, SlotOffset(var->slot())), eax);
+        TestAndBranch(eax, &discard, false_label_);
+        __ bind(&discard);
+        __ add(Operand(esp), Immediate(kPointerSize));
+        __ jmp(true_label_);
+        break;
       }
     }
   }
+}
+
+
+void FastCodeGenerator::EmitNamedPropertyAssignment(
+    Expression::Context context,
+    Handle<Object> name) {
+  __ pop(eax);
+  __ mov(ecx, name);
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  __ call(ic, RelocInfo::CODE_TARGET);
+  DropAndMove(context, eax);
+}
+
+
+void FastCodeGenerator::EmitKeyedPropertyAssignment(
+    Expression::Context context) {
+  __ pop(eax);
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  __ call(ic, RelocInfo::CODE_TARGET);
+  // This nop signals to the IC that there is no inlined code at the call
+  // site for it to patch.
+  __ nop();
+  // Receiver and key are still on stack.
+  __ add(Operand(esp), Immediate(2 * kPointerSize));
+  Move(context, eax);
 }
 
 
