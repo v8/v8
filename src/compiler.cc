@@ -837,6 +837,9 @@ void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::VOID:
       ProcessExpression(expr->expression(), Expression::kEffect);
       break;
+    case Token::NOT:
+      ProcessExpression(expr->expression(), Expression::kTest);
+      break;
     default:
       BAILOUT("UnaryOperation");
   }

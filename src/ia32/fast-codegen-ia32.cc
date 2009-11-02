@@ -926,6 +926,67 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       }
       break;
 
+    case Token::NOT: {
+      ASSERT_EQ(Expression::kTest, expr->expression()->context());
+
+      Label push_true;
+      Label push_false;
+      Label done;
+      Label* saved_true = true_label_;
+      Label* saved_false = false_label_;
+      switch (expr->context()) {
+        case Expression::kUninitialized:
+          UNREACHABLE();
+          break;
+
+        case Expression::kValue:
+          true_label_ = &push_false;
+          false_label_ = &push_true;
+          Visit(expr->expression());
+          __ bind(&push_true);
+          __ push(Immediate(Factory::true_value()));
+          __ jmp(&done);
+          __ bind(&push_false);
+          __ push(Immediate(Factory::false_value()));
+          __ bind(&done);
+          break;
+
+        case Expression::kEffect:
+          true_label_ = &done;
+          false_label_ = &done;
+          Visit(expr->expression());
+          __ bind(&done);
+          break;
+
+        case Expression::kTest:
+          true_label_ = saved_false;
+          false_label_ = saved_true;
+          Visit(expr->expression());
+          break;
+
+        case Expression::kValueTest:
+          true_label_ = saved_false;
+          false_label_ = &push_true;
+          Visit(expr->expression());
+          __ bind(&push_true);
+          __ push(Immediate(Factory::true_value()));
+          __ jmp(saved_true);
+          break;
+
+        case Expression::kTestValue:
+          true_label_ = &push_false;
+          false_label_ = saved_true;
+          Visit(expr->expression());
+          __ bind(&push_false);
+          __ push(Immediate(Factory::false_value()));
+          __ jmp(saved_false);
+          break;
+      }
+      true_label_ = saved_true;
+      false_label_ = saved_false;
+      break;
+    }
+
     default:
       UNREACHABLE();
   }
