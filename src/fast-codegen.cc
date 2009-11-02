@@ -501,11 +501,6 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
-  UNREACHABLE();
-}
-
-
 void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   UNREACHABLE();
 }

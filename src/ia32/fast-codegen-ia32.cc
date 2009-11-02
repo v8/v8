@@ -1124,6 +1124,164 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
+void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
+  ASSERT_EQ(Expression::kValue, expr->left()->context());
+  ASSERT_EQ(Expression::kValue, expr->right()->context());
+  Visit(expr->left());
+  Visit(expr->right());
+
+  // Convert current context to test context: Pre-test code.
+  Label push_true;
+  Label push_false;
+  Label done;
+  Label* saved_true = true_label_;
+  Label* saved_false = false_label_;
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+      break;
+
+    case Expression::kValue:
+      true_label_ = &push_true;
+      false_label_ = &push_false;
+      break;
+
+    case Expression::kEffect:
+      true_label_ = &done;
+      false_label_ = &done;
+      break;
+
+    case Expression::kTest:
+      break;
+
+    case Expression::kValueTest:
+      true_label_ = &push_true;
+      break;
+
+    case Expression::kTestValue:
+      false_label_ = &push_false;
+      break;
+  }
+  // Convert current context to test context: End pre-test code.
+
+  switch (expr->op()) {
+    case Token::IN: {
+      __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
+      __ cmp(eax, Factory::true_value());
+      __ j(equal, true_label_);
+      __ jmp(false_label_);
+      break;
+    }
+
+    case Token::INSTANCEOF: {
+      InstanceofStub stub;
+      __ CallStub(&stub);
+      __ test(eax, Operand(eax));
+      __ j(zero, true_label_);  // The stub returns 0 for true.
+      __ jmp(false_label_);
+      break;
+    }
+
+    default: {
+      Condition cc = no_condition;
+      bool strict = false;
+      switch (expr->op()) {
+        case Token::EQ_STRICT:
+          strict = true;
+          // Fall through
+        case Token::EQ:
+          cc = equal;
+          __ pop(eax);
+          __ pop(edx);
+          break;
+        case Token::LT:
+          cc = less;
+          __ pop(eax);
+          __ pop(edx);
+          break;
+        case Token::GT:
+          // Reverse left and right sizes to obtain ECMA-262 conversion order.
+          cc = less;
+          __ pop(edx);
+          __ pop(eax);
+         break;
+        case Token::LTE:
+          // Reverse left and right sizes to obtain ECMA-262 conversion order.
+          cc = greater_equal;
+          __ pop(edx);
+          __ pop(eax);
+          break;
+        case Token::GTE:
+          cc = greater_equal;
+          __ pop(eax);
+          __ pop(edx);
+          break;
+        case Token::IN:
+        case Token::INSTANCEOF:
+        default:
+          UNREACHABLE();
+      }
+
+      // The comparison stub expects the smi vs. smi case to be handled
+      // before it is called.
+      Label slow_case;
+      __ mov(ecx, Operand(edx));
+      __ or_(ecx, Operand(eax));
+      __ test(ecx, Immediate(kSmiTagMask));
+      __ j(not_zero, &slow_case, not_taken);
+      __ cmp(edx, Operand(eax));
+      __ j(cc, true_label_);
+      __ jmp(false_label_);
+
+      __ bind(&slow_case);
+      CompareStub stub(cc, strict);
+      __ CallStub(&stub);
+      __ test(eax, Operand(eax));
+      __ j(cc, true_label_);
+      __ jmp(false_label_);
+    }
+  }
+
+  // Convert current context to test context: Post-test code.
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+      break;
+
+    case Expression::kValue:
+      __ bind(&push_true);
+      __ push(Immediate(Factory::true_value()));
+      __ jmp(&done);
+      __ bind(&push_false);
+      __ push(Immediate(Factory::false_value()));
+      __ bind(&done);
+      break;
+
+    case Expression::kEffect:
+      __ bind(&done);
+      break;
+
+    case Expression::kTest:
+      break;
+
+    case Expression::kValueTest:
+      __ bind(&push_true);
+      __ push(Immediate(Factory::true_value()));
+      __ jmp(saved_true);
+      break;
+
+    case Expression::kTestValue:
+      __ bind(&push_false);
+      __ push(Immediate(Factory::false_value()));
+      __ jmp(saved_false);
+      break;
+  }
+  true_label_ = saved_true;
+  false_label_ = saved_false;
+  // Convert current context to test context: End post-test code.
+}
+
+
 #undef __
 
 

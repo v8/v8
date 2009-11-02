@@ -6580,11 +6580,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ jmp(&loop);
 
   __ bind(&is_instance);
-  __ xor_(rax, rax);
+  __ xorl(rax, rax);
   __ ret(2 * kPointerSize);
 
   __ bind(&is_not_instance);
-  __ Move(rax, Smi::FromInt(1));
+  __ movl(rax, Immediate(1));
   __ ret(2 * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.

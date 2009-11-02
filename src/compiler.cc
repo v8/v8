@@ -969,7 +969,9 @@ void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
 
 
 void CodeGenSelector::VisitCompareOperation(CompareOperation* expr) {
-  BAILOUT("CompareOperation");
+      ProcessExpression(expr->left(), Expression::kValue);
+      CHECK_BAILOUT;
+      ProcessExpression(expr->right(), Expression::kValue);
 }
 
 
