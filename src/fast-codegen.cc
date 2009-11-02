@@ -298,6 +298,7 @@ void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
   // Do not worry about optimizing for empty then or else bodies.
   true_label_ = &then_part;
   false_label_ = &else_part;
+  ASSERT(stmt->condition()->context() == Expression::kTest);
   Visit(stmt->condition());
   true_label_ = NULL;
   false_label_ = NULL;
@@ -349,7 +350,33 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
-  UNREACHABLE();
+  Label test, body, exit;
+  if (stmt->init() != NULL) Visit(stmt->init());
+
+  // Emit the test at the bottom of the loop (even if empty).
+  __ jmp(&test);
+  __ bind(&body);
+  Visit(stmt->body());
+  if (stmt->next() != NULL) Visit(stmt->next());
+
+  __ bind(&test);
+  if (stmt->cond() == NULL) {
+    // For an empty test jump to the top of the loop.
+    __ jmp(&body);
+  } else {
+    // We are not in an expression context because we have been compiling
+    // statements.  Set up a test expression context for the condition.
+    ASSERT_EQ(NULL, true_label_);
+    ASSERT_EQ(NULL, false_label_);
+    true_label_ = &body;
+    false_label_ = &exit;
+    ASSERT(stmt->cond()->context() == Expression::kTest);
+    Visit(stmt->cond());
+    true_label_ = NULL;
+    false_label_ = NULL;
+  }
+
+  __ bind(&exit);
 }
 
 
