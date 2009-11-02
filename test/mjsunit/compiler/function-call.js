@@ -46,3 +46,7 @@ c = "x";
 a = b[c](10);
 assertEquals(10, a);
 
+// Call on a function expression
+function g() { return f; }
+a = g()(8);
+assertEquals(8, a);

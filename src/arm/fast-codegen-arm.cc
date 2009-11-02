@@ -723,8 +723,13 @@ void FastCodeGenerator::EmitCallWithStub(Call* expr) {
 
 void FastCodeGenerator::VisitCall(Call* expr) {
   Expression* fun = expr->expression();
+  Variable* var = fun->AsVariableProxy()->AsVariable();
 
-  if (fun->AsProperty() != NULL) {
+  if (var != NULL &&
+      var->is_possibly_eval()) {
+    // Call to eval.
+    UNREACHABLE();
+  } else if (fun->AsProperty() != NULL) {
     // Call on a property.
     Property* prop = fun->AsProperty();
     Literal* key = prop->key()->AsLiteral();
@@ -755,9 +760,8 @@ void FastCodeGenerator::VisitCall(Call* expr) {
       __ str(r1, MemOperand(sp));
       EmitCallWithStub(expr);
     }
-  } else if (fun->AsVariableProxy()->AsVariable() != NULL) {
+  } else if (var != NULL) {
     // Call on a global variable
-    Variable* var = fun->AsVariableProxy()->AsVariable();
     ASSERT(var != NULL && !var->is_this() && var->is_global());
     ASSERT(!var->is_possibly_eval());
     __ mov(r1, Operand(var->name()));
@@ -765,10 +769,19 @@ void FastCodeGenerator::VisitCall(Call* expr) {
     __ ldr(r0, CodeGenerator::GlobalObject());
     __ stm(db_w, sp, r1.bit() | r0.bit());
     EmitCallWithIC(expr, RelocInfo::CODE_TARGET_CONTEXT);
-  } else {
-    // Calls we cannot handle right now.
-    // Should bailout in the CodeGenSelector.
+  } else if (var != NULL && var->slot() != NULL &&
+             var->slot()->type() == Slot::LOOKUP) {
+    // Call inside a with-statement
     UNREACHABLE();
+  } else {
+    // Call with an arbitrary function expression.
+    Visit(expr->expression());
+    // Load global receiver object.
+    __ ldr(r1, CodeGenerator::GlobalObject());
+    __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+    __ push(r1);
+    // Emit function call.
+    EmitCallWithStub(expr);
   }
 }
 
