@@ -1357,8 +1357,9 @@ class ReplacementStringBuilder {
           StringBuilderSubstringPosition::encode(from);
       AddElement(Smi::FromInt(encoded_slice));
     } else {
-      Handle<String> slice = Factory::NewStringSlice(subject_, from, to);
-      AddElement(*slice);
+      // Otherwise encode as two smis.
+      AddElement(Smi::FromInt(-length));
+      AddElement(Smi::FromInt(from));
     }
     IncrementCharacterCount(length);
   }
@@ -1750,8 +1751,9 @@ static Object* StringReplaceRegExpWithString(String* subject,
   int prev = 0;
 
   // Number of parts added by compiled replacement plus preceeding string
-  // and possibly suffix after last match.
-  const int parts_added_per_loop = compiled_replacement.parts() + 2;
+  // and possibly suffix after last match. It is possible for compiled
+  // replacements to use two elements when encoded as two smis.
+  const int parts_added_per_loop = compiled_replacement.parts() * 2 + 2;
   bool matched = true;
   do {
     ASSERT(last_match_info_handle->HasFastElements());
@@ -3766,9 +3768,21 @@ static inline void StringBuilderConcatHelper(String* special,
   for (int i = 0; i < array_length; i++) {
     Object* element = fixed_array->get(i);
     if (element->IsSmi()) {
+      // Smi encoding of position and length.
       int encoded_slice = Smi::cast(element)->value();
-      int pos = StringBuilderSubstringPosition::decode(encoded_slice);
-      int len = StringBuilderSubstringLength::decode(encoded_slice);
+      int pos;
+      int len;
+      if (encoded_slice > 0) {
+        // Position and length encoded in one smi.
+        pos = StringBuilderSubstringPosition::decode(encoded_slice);
+        len = StringBuilderSubstringLength::decode(encoded_slice);
+      } else {
+        // Position and length encoded in two smis.
+        Object* obj = fixed_array->get(++i);
+        ASSERT(obj->IsSmi());
+        pos = Smi::cast(obj)->value();
+        len = -encoded_slice;
+      }
       String::WriteToFlat(special,
                           sink + position,
                           pos,
@@ -3789,6 +3803,10 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
   CONVERT_CHECKED(String, special, args[1]);
+
+  // This assumption is used by the slice encoding in one or two smis.
+  ASSERT(Smi::kMaxValue >= String::kMaxLength);
+
   int special_length = special->length();
   Object* smi_array_length = array->length();
   if (!smi_array_length->IsSmi()) {
@@ -3816,13 +3834,29 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
     if (elt->IsSmi()) {
+      // Smi encoding of position and length.
       int len = Smi::cast(elt)->value();
-      int pos = len >> 11;
-      len &= 0x7ff;
-      if (pos + len > special_length) {
-        return Top::Throw(Heap::illegal_argument_symbol());
+      if (len > 0) {
+        // Position and length encoded in one smi.
+        int pos = len >> 11;
+        len &= 0x7ff;
+        if (pos + len > special_length) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
+        position += len;
+      } else {
+        // Position and length encoded in two smis.
+        position += (-len);
+        // Get the position and check that it is also a smi.
+        i++;
+        if (i >= array_length) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
+        Object* pos = fixed_array->get(i);
+        if (!pos->IsSmi()) {
+          return Top::Throw(Heap::illegal_argument_symbol());
+        }
       }
-      position += len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
