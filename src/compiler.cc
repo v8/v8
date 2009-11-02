@@ -847,7 +847,11 @@ void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
-  BAILOUT("CountOperation");
+  // We support postfix count operations on global variables.
+  if (expr->is_prefix()) BAILOUT("Prefix CountOperation");
+  Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
+  if (var == NULL || !var->is_global()) BAILOUT("non-global postincrement");
+  ProcessExpression(expr->expression(), Expression::kValue);
 }
 
 

@@ -914,6 +914,78 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Move(expr->context(), rax);
 }
 
+void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
+  VariableProxy* v = expr->expression()->AsVariableProxy();
+  ASSERT(v->AsVariable() != NULL);
+  ASSERT(v->AsVariable()->is_global());
+
+  Visit(v);
+
+  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kValue:  // Fall through
+    case Expression::kTest:  // Fall through
+    case Expression::kTestValue:  // Fall through
+    case Expression::kValueTest:
+      // Duplicate the result on the stack.
+      __ push(rax);
+      break;
+    case Expression::kEffect:
+      // Do not save result.
+      break;
+  }
+  // Call runtime for +1/-1.
+  __ push(rax);
+  __ Push(Smi::FromInt(1));
+  if (expr->op() == Token::INC) {
+    __ CallRuntime(Runtime::kNumberAdd, 2);
+  } else {
+    __ CallRuntime(Runtime::kNumberSub, 2);
+  }
+  // Call Store IC.
+  __ Move(rcx, v->AsVariable()->name());
+  __ push(CodeGenerator::GlobalObject());
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  __ call(ic, RelocInfo::CODE_TARGET);
+  // Restore up stack after store IC
+  __ addq(rsp, Immediate(kPointerSize));
+
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:  // Fall through
+    case Expression::kValue:
+      // Do nothing. Result in either on the stack for value context
+      // or discarded for effect context.
+      break;
+    case Expression::kTest:
+      __ pop(rax);
+      TestAndBranch(rax, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ movq(rax, Operand(rsp, 0));
+      TestAndBranch(rax, true_label_, &discard);
+      __ bind(&discard);
+      __ addq(rsp, Immediate(kPointerSize));
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ movq(rax, Operand(rsp, 0));
+      TestAndBranch(rax, &discard, false_label_);
+      __ bind(&discard);
+      __ addq(rsp, Immediate(kPointerSize));
+      __ jmp(true_label_);
+      break;
+    }
+  }
+}
+
 
 void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   Comment cmnt(masm_, "[ UnaryOperation");

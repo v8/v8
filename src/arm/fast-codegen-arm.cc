@@ -380,7 +380,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   }
 
   // If result_saved == true: the result is saved on top of the stack.
-  // If result_saved == false: the result is in eax.
+  // If result_saved == false: the result is in r0.
   bool result_saved = false;
 
   for (int i = 0; i < expr->properties()->length(); i++) {
@@ -968,6 +968,81 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     default:
       UNREACHABLE();
+  }
+}
+
+
+void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
+  VariableProxy* v = expr->expression()->AsVariableProxy();
+  ASSERT(v->AsVariable() != NULL);
+  ASSERT(v->AsVariable()->is_global());
+
+  Visit(v);
+
+  __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
+
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kValue:  // Fall through
+    case Expression::kTest:  // Fall through
+    case Expression::kTestValue:  // Fall through
+    case Expression::kValueTest:
+      // Duplicate the result on the stack.
+      __ push(r0);
+      break;
+    case Expression::kEffect:
+      // Do not save result.
+      break;
+  }
+  // Call runtime for +1/-1.
+  __ push(r0);
+  __ mov(ip, Operand(Smi::FromInt(1)));
+  __ push(ip);
+  if (expr->op() == Token::INC) {
+    __ CallRuntime(Runtime::kNumberAdd, 2);
+  } else {
+    __ CallRuntime(Runtime::kNumberSub, 2);
+  }
+  // Call Store IC.
+  __ mov(r2, Operand(v->AsVariable()->name()));
+  __ ldr(ip, CodeGenerator::GlobalObject());
+  __ push(ip);
+  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  // Restore up stack after store IC.
+  __ add(sp, sp, Operand(kPointerSize));
+
+  switch (expr->context()) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:  // Fall through
+    case Expression::kValue:
+      // Do nothing. Result in either on the stack for value context
+      // or discarded for effect context.
+      break;
+    case Expression::kTest:
+      __ pop(r0);
+      TestAndBranch(r0, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ ldr(r0, MemOperand(sp));
+      TestAndBranch(r0, true_label_, &discard);
+      __ bind(&discard);
+      __ add(sp, sp, Operand(kPointerSize));
+      __ b(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ ldr(r0, MemOperand(sp));
+      TestAndBranch(r0, &discard, false_label_);
+      __ bind(&discard);
+      __ add(sp, sp, Operand(kPointerSize));
+      __ b(true_label_);
+      break;
+    }
   }
 }
 
