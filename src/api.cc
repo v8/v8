@@ -1197,13 +1197,21 @@ v8::TryCatch::TryCatch()
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
+      rethrow_(false),
       js_handler_(NULL) {
   i::Top::RegisterTryCatchHandler(this);
 }
 
 
 v8::TryCatch::~TryCatch() {
-  i::Top::UnregisterTryCatchHandler(this);
+  if (rethrow_) {
+    v8::HandleScope scope;
+    v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
+    i::Top::UnregisterTryCatchHandler(this);
+    v8::ThrowException(exc);
+  } else {
+    i::Top::UnregisterTryCatchHandler(this);
+  }
 }
 
 
@@ -1214,6 +1222,13 @@ bool v8::TryCatch::HasCaught() const {
 
 bool v8::TryCatch::CanContinue() const {
   return can_continue_;
+}
+
+
+v8::Handle<v8::Value> v8::TryCatch::ReThrow() {
+  if (!HasCaught()) return v8::Local<v8::Value>();
+  rethrow_ = true;
+  return v8::Undefined();
 }
 
 
