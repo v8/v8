@@ -144,6 +144,9 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 // cp: callee's context
 
 void CodeGenerator::GenCode(FunctionLiteral* fun) {
+  // Record the position for debugging purposes.
+  CodeForFunctionPosition(fun);
+
   ZoneList<Statement*>* body = fun->body();
 
   // Initialize state.

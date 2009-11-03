@@ -52,7 +52,7 @@ namespace internal {
 // frames-arm.h for its layout.
 void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   function_ = fun;
-  // ARM does NOT call SetFunctionPosition.
+  SetFunctionPosition(fun);
 
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
   // Adjust fp to point to caller's fp.
