@@ -83,7 +83,8 @@ class CodeGenSelector: public AstVisitor {
 static Handle<Code> MakeCode(FunctionLiteral* literal,
                              Handle<Script> script,
                              Handle<Context> context,
-                             bool is_eval) {
+                             bool is_eval,
+                             Handle<SharedFunctionInfo> shared) {
   ASSERT(literal != NULL);
 
   // Rewrite the AST by introducing .result assignments where needed.
@@ -120,12 +121,21 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 
   // Generate code and return it.
   if (FLAG_fast_compiler) {
-    CodeGenSelector selector;
-    CodeGenSelector::CodeGenTag code_gen = selector.Select(literal);
-    if (code_gen == CodeGenSelector::FAST) {
-      return FastCodeGenerator::MakeCode(literal, script, is_eval);
+    // If there is no shared function info, try the fast code
+    // generator for code in the global scope.  Otherwise obey the
+    // explicit hint in the shared function info.
+    if (shared.is_null() && !literal->scope()->is_global_scope()) {
+      if (FLAG_trace_bailout) PrintF("Non-global scope\n");
+    } else if (!shared.is_null() && !shared->try_fast_codegen()) {
+      if (FLAG_trace_bailout) PrintF("No hint to try fast\n");
+    } else {
+      CodeGenSelector selector;
+      CodeGenSelector::CodeGenTag code_gen = selector.Select(literal);
+      if (code_gen == CodeGenSelector::FAST) {
+        return FastCodeGenerator::MakeCode(literal, script, is_eval);
+      }
+      ASSERT(code_gen == CodeGenSelector::NORMAL);
     }
-    ASSERT(code_gen == CodeGenSelector::NORMAL);
   }
   return CodeGenerator::MakeCode(literal, script, is_eval);
 }
@@ -210,7 +220,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   HistogramTimerScope timer(rate);
 
   // Compile the code.
-  Handle<Code> code = MakeCode(lit, script, context, is_eval);
+  Handle<Code> code = MakeCode(lit, script, context, is_eval,
+                               Handle<SharedFunctionInfo>::null());
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
@@ -411,7 +422,8 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   HistogramTimerScope timer(&Counters::compile_lazy);
 
   // Compile the code.
-  Handle<Code> code = MakeCode(lit, script, Handle<Context>::null(), false);
+  Handle<Code> code = MakeCode(lit, script, Handle<Context>::null(), false,
+                               shared);
 
   // Check for stack-overflow exception.
   if (code.is_null()) {
@@ -465,16 +477,17 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
 
 CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
-
-  if (!scope->is_global_scope()) {
-    if (FLAG_trace_bailout) PrintF("Non-global scope\n");
+  if (scope->num_heap_slots() != 0) {
+    if (FLAG_trace_bailout) PrintF("function has context slots\n");
     return NORMAL;
   }
-  ASSERT(scope->num_heap_slots() == 0);
-  ASSERT(scope->arguments() == NULL);
+  if (scope->arguments() != NULL) {
+    if (FLAG_trace_bailout) PrintF("function uses 'arguments'\n");
+    return NORMAL;
+  }
 
   has_supported_syntax_ = true;
-  VisitDeclarations(fun->scope()->declarations());
+  VisitDeclarations(scope->declarations());
   if (!has_supported_syntax_) return NORMAL;
 
   VisitStatements(fun->body());

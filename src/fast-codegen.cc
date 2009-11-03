@@ -75,6 +75,7 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 
 void FastCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
+  Comment cmnt(masm_, "[ Declarations");
   int length = declarations->length();
   int globals = 0;
   for (int i = 0; i < length; i++) {
@@ -289,6 +290,7 @@ void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 
 void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
+  Comment cmnt(masm_, "[ IfStatement");
   // Expressions cannot recursively enter statements, there are no labels in
   // the state.
   ASSERT_EQ(NULL, true_label_);
@@ -350,9 +352,11 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
+  Comment cmnt(masm_, "[ ForStatement");
   Label test, body, exit;
   if (stmt->init() != NULL) Visit(stmt->init());
 
+  increment_loop_depth();
   // Emit the test at the bottom of the loop (even if empty).
   __ jmp(&test);
   __ bind(&body);
@@ -377,6 +381,7 @@ void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
   }
 
   __ bind(&exit);
+  decrement_loop_depth();
 }
 
 
@@ -407,6 +412,7 @@ void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
 
 
 void FastCodeGenerator::VisitConditional(Conditional* expr) {
+  Comment cmnt(masm_, "[ Conditional");
   ASSERT_EQ(Expression::kTest, expr->condition()->context());
   ASSERT_EQ(expr->context(), expr->then_expression()->context());
   ASSERT_EQ(expr->context(), expr->else_expression()->context());
@@ -447,6 +453,7 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
+  Comment cmnt(masm_, "[ Literal");
   Move(expr->context(), expr);
 }
 

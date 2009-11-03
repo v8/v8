@@ -3386,6 +3386,9 @@ class SharedFunctionInfo: public HeapObject {
   // this.x = y; where y is either a constant or refers to an argument.
   inline bool has_only_simple_this_property_assignments();
 
+  inline bool try_fast_codegen();
+  inline void set_try_fast_codegen(bool flag);
+
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.
   DECL_ACCESSORS(this_property_assignments, Object)
@@ -3466,6 +3469,7 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in compiler_hints.
   static const int kHasOnlyThisPropertyAssignments = 0;
   static const int kHasOnlySimpleThisPropertyAssignments = 1;
+  static const int kTryFastCodegen = 2;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

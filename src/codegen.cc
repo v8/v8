@@ -271,6 +271,7 @@ void CodeGenerator::SetFunctionInfo(Handle<JSFunction> fun,
       lit->has_only_this_property_assignments(),
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
+  fun->shared()->set_try_fast_codegen(lit->try_fast_codegen());
 }
 
 

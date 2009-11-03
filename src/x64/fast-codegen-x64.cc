@@ -84,7 +84,9 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   }
 
   { Comment cmnt(masm_, "[ Body");
+    ASSERT(loop_depth() == 0);
     VisitStatements(fun->body());
+    ASSERT(loop_depth() == 0);
   }
 
   { Comment cmnt(masm_, "[ return <undefined>;");
@@ -360,7 +362,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 
 
 void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
-  Comment cmnt(masm_, "[ RegExp Literal");
+  Comment cmnt(masm_, "[ RegExpLiteral");
   Label done;
   // Registers will be used as follows:
   // rdi = JS function.
@@ -855,8 +857,16 @@ void FastCodeGenerator::VisitCall(Call* expr) {
       EmitCallWithStub(expr);
     }
   } else {
-    // Call to some other function expression.
-    Visit(expr->expression());
+    // Call to some other expression.  If the expression is an anonymous
+    // function literal not called in a loop, mark it as one that should
+    // also use the fast code generator.
+    FunctionLiteral* lit = fun->AsFunctionLiteral();
+    if (lit != NULL &&
+        lit->name()->Equals(Heap::empty_string()) &&
+        loop_depth() == 0) {
+      lit->set_try_fast_codegen(true);
+    }
+    Visit(fun);
     // Load global receiver object.
     __ movq(rbx, CodeGenerator::GlobalObject());
     __ push(FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
@@ -925,12 +935,12 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
-  VariableProxy* v = expr->expression()->AsVariableProxy();
-  ASSERT(v->AsVariable() != NULL);
-  ASSERT(v->AsVariable()->is_global());
+  Comment cmnt(masm_, "[ CountOperation");
+  VariableProxy* proxy = expr->expression()->AsVariableProxy();
+  ASSERT(proxy->AsVariable() != NULL);
+  ASSERT(proxy->AsVariable()->is_global());
 
-  Visit(v);
-
+  Visit(proxy);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
 
   switch (expr->context()) {
@@ -956,7 +966,7 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
     __ CallRuntime(Runtime::kNumberSub, 2);
   }
   // Call Store IC.
-  __ Move(rcx, v->AsVariable()->name());
+  __ Move(rcx, proxy->AsVariable()->name());
   __ push(CodeGenerator::GlobalObject());
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
@@ -999,7 +1009,6 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
 void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   Comment cmnt(masm_, "[ UnaryOperation");
-
   switch (expr->op()) {
     case Token::VOID:
       Visit(expr->expression());
@@ -1092,6 +1101,7 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
+  Comment cmnt(masm_, "[ BinaryOperation");
   switch (expr->op()) {
     case Token::COMMA:
       ASSERT_EQ(Expression::kEffect, expr->left()->context());
@@ -1136,6 +1146,7 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 
 
 void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
+  Comment cmnt(masm_, "[ CompareOperation");
   ASSERT_EQ(Expression::kValue, expr->left()->context());
   ASSERT_EQ(Expression::kValue, expr->right()->context());
   Visit(expr->left());

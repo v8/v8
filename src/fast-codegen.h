@@ -43,6 +43,7 @@ class FastCodeGenerator: public AstVisitor {
         function_(NULL),
         script_(script),
         is_eval_(is_eval),
+        loop_depth_(0),
         true_label_(NULL),
         false_label_(NULL) {
   }
@@ -94,6 +95,13 @@ class FastCodeGenerator: public AstVisitor {
   void SetStatementPosition(Statement* stmt);
   void SetSourcePosition(int pos);
 
+  int loop_depth() { return loop_depth_; }
+  void increment_loop_depth() { loop_depth_++; }
+  void decrement_loop_depth() {
+    ASSERT(loop_depth_ > 0);
+    loop_depth_--;
+  }
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
@@ -107,6 +115,7 @@ class FastCodeGenerator: public AstVisitor {
   Handle<Script> script_;
   bool is_eval_;
   Label return_label_;
+  int loop_depth_;
 
   Label* true_label_;
   Label* false_label_;
