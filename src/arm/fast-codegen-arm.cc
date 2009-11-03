@@ -769,30 +769,40 @@ void FastCodeGenerator::EmitCallWithStub(Call* expr) {
 
 
 void FastCodeGenerator::VisitCall(Call* expr) {
+  Comment cmnt(masm_, "[ Call");
   Expression* fun = expr->expression();
   Variable* var = fun->AsVariableProxy()->AsVariable();
 
-  if (var != NULL &&
-      var->is_possibly_eval()) {
-    // Call to eval.
+  if (var != NULL && var->is_possibly_eval()) {
+    // Call to the identifier 'eval'.
+    UNREACHABLE();
+  } else if (var != NULL && !var->is_this() && var->is_global()) {
+    // Call to a global variable.
+    __ mov(r1, Operand(var->name()));
+    // Push global object as receiver for the call IC lookup.
+    __ ldr(r0, CodeGenerator::GlobalObject());
+    __ stm(db_w, sp, r1.bit() | r0.bit());
+    EmitCallWithIC(expr, RelocInfo::CODE_TARGET_CONTEXT);
+  } else if (var != NULL && var->slot() != NULL &&
+             var->slot()->type() == Slot::LOOKUP) {
+    // Call to a lookup slot.
     UNREACHABLE();
   } else if (fun->AsProperty() != NULL) {
-    // Call on a property.
+    // Call to an object property.
     Property* prop = fun->AsProperty();
     Literal* key = prop->key()->AsLiteral();
     if (key != NULL && key->handle()->IsSymbol()) {
-      // Call on a named property: foo.x(1,2,3)
+      // Call to a named property, use call IC.
       __ mov(r0, Operand(key->handle()));
       __ push(r0);
       Visit(prop->obj());
-      // Use call IC.
       EmitCallWithIC(expr, RelocInfo::CODE_TARGET);
     } else {
-      // Call on a keyed property : foo[key](1,2,3)
-      // Use a keyed load IC followed by a call IC.
+      // Call to a keyed property, use keyed load IC followed by function
+      // call.
       Visit(prop->obj());
       Visit(prop->key());
-      // Record source position of property.
+      // Record source code position for IC call.
       SetSourcePosition(prop->position());
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
@@ -807,21 +817,8 @@ void FastCodeGenerator::VisitCall(Call* expr) {
       __ str(r1, MemOperand(sp));
       EmitCallWithStub(expr);
     }
-  } else if (var != NULL) {
-    // Call on a global variable
-    ASSERT(var != NULL && !var->is_this() && var->is_global());
-    ASSERT(!var->is_possibly_eval());
-    __ mov(r1, Operand(var->name()));
-    // Push global object as receiver.
-    __ ldr(r0, CodeGenerator::GlobalObject());
-    __ stm(db_w, sp, r1.bit() | r0.bit());
-    EmitCallWithIC(expr, RelocInfo::CODE_TARGET_CONTEXT);
-  } else if (var != NULL && var->slot() != NULL &&
-             var->slot()->type() == Slot::LOOKUP) {
-    // Call inside a with-statement
-    UNREACHABLE();
   } else {
-    // Call with an arbitrary function expression.
+    // Call to some other function expression.
     Visit(expr->expression());
     // Load global receiver object.
     __ ldr(r1, CodeGenerator::GlobalObject());

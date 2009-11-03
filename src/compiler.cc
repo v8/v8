@@ -800,18 +800,13 @@ void CodeGenSelector::VisitCall(Call* expr) {
 
   // Check for supported calls
   if (var != NULL && var->is_possibly_eval()) {
-    // ----------------------------------
-    // JavaScript example: 'eval(arg)'  // eval is not known to be shadowed
-    // ----------------------------------
-    BAILOUT("Call to a function named 'eval'");
+    BAILOUT("call to the identifier 'eval'");
   } else if (var != NULL && !var->is_this() && var->is_global()) {
-    // ----------------------------------
-    // JavaScript example: 'foo(1, 2, 3)'  // foo is global
-    // ----------------------------------
+    // Calls to global variables are supported.
+  } else if (var != NULL && var->slot() != NULL &&
+             var->slot()->type() == Slot::LOOKUP) {
+    BAILOUT("call to a lookup slot");
   } else if (fun->AsProperty() != NULL) {
-    // ------------------------------------------------------------------
-    // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
-    // ------------------------------------------------------------------
     Property* prop = fun->AsProperty();
     Literal* literal_key = prop->key()->AsLiteral();
     if (literal_key != NULL && literal_key->handle()->IsSymbol()) {
@@ -823,19 +818,11 @@ void CodeGenSelector::VisitCall(Call* expr) {
       ProcessExpression(prop->key(), Expression::kValue);
       CHECK_BAILOUT;
     }
-  } else if (var != NULL && var->slot() != NULL &&
-             var->slot()->type() == Slot::LOOKUP) {
-    // ----------------------------------
-    // JavaScript example: 'with (obj) foo(1, 2, 3)'  // foo is in obj
-    // ----------------------------------
-    BAILOUT("Call inside a with-statement");
   } else {
-    // ----------------------------------
-    // JavaScript example: 'foo(1, 2, 3)'  // foo is any expression, not global
-    // ----------------------------------
+    // Otherwise the call is supported if the function expression is.
     ProcessExpression(fun, Expression::kValue);
   }
-  // Check all arguments to the call.  (Relies on TEMP meaning STACK.)
+  // Check all arguments to the call.
   for (int i = 0; i < args->length(); i++) {
     ProcessExpression(args->at(i), Expression::kValue);
     CHECK_BAILOUT;
