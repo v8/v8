@@ -8674,17 +8674,29 @@ static v8::Handle<Value> SpaghettiIncident(const v8::Arguments& args) {
 }
 
 
-// Test that a stack overflow can be propagated down through a spaghetti
+// Test that an exception can be propagated down through a spaghetti
 // stack using ReThrow.
-THREADED_TEST(SpaghettiStackOverflow) {
+THREADED_TEST(SpaghettiStackReThrow) {
   v8::HandleScope scope;
   LocalContext context;
   context->Global()->Set(
       v8::String::New("s"),
       v8::FunctionTemplate::New(SpaghettiIncident)->GetFunction());
   v8::TryCatch try_catch;
-  CompileRun("var o = {toString: function () {return s(o);}}; s(o);");
+  CompileRun(
+      "var i = 0;"
+      "var o = {"
+      "  toString: function () {"
+      "    if (i == 10) {"
+      "      throw 'Hey!';"
+      "    } else {"
+      "      i++;"
+      "      return s(o);"
+      "    }"
+      "  }"
+      "};"
+      "s(o);");
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value value(try_catch.Exception());
-  CHECK_NE(0, strstr(*value, "RangeError"));
+  CHECK_EQ(0, strcmp(*value, "Hey!"));
 }
