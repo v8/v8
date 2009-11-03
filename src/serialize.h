@@ -396,6 +396,34 @@ class SnapshotByteSource {
   int position_;
 };
 
+// It is very common to have a reference to the object at word 10 in space 2,
+// the object at word 5 in space 2 and the object at word 28 in space 4.  This
+// only works for objects in the first page of a space.
+#define COMMON_REFERENCE_PATTERNS(f)                              \
+  f(kNumberOfSpaces, 2, 10)                                       \
+  f(kNumberOfSpaces + 1, 2, 5)                                    \
+  f(kNumberOfSpaces + 2, 4, 28)                                   \
+  f(kNumberOfSpaces + 3, 2, 21)                                   \
+  f(kNumberOfSpaces + 4, 2, 98)                                   \
+  f(kNumberOfSpaces + 5, 2, 67)                                   \
+  f(kNumberOfSpaces + 6, 4, 132)
+
+#define COMMON_RAW_LENGTHS(f)        \
+  f(1, 1)  \
+  f(2, 2)  \
+  f(3, 3)  \
+  f(4, 4)  \
+  f(5, 5)  \
+  f(6, 6)  \
+  f(7, 7)  \
+  f(8, 8)  \
+  f(9, 12)  \
+  f(10, 16) \
+  f(11, 20) \
+  f(12, 24) \
+  f(13, 28) \
+  f(14, 32) \
+  f(15, 36)
 
 // The SerDes class is a common superclass for Serializer2 and Deserializer2
 // which is used to store common constants and methods used by both.
@@ -403,24 +431,36 @@ class SnapshotByteSource {
 class SerDes: public GenericDeserializer {
  protected:
   enum DataType {
-    SMI_SERIALIZATION,
-    RAW_DATA_SERIALIZATION,
-    OBJECT_SERIALIZATION,
-    CODE_OBJECT_SERIALIZATION,
-    BACKREF_SERIALIZATION,
-    CODE_BACKREF_SERIALIZATION,
-    EXTERNAL_REFERENCE_SERIALIZATION,
-    EXTERNAL_BRANCH_TARGET_SERIALIZATION,
-    SYNCHRONIZE
+    RAW_DATA_SERIALIZATION = 0,
+    // And 15 common raw lengths.
+    OBJECT_SERIALIZATION = 16,
+    // One variant per space.
+    CODE_OBJECT_SERIALIZATION = 25,
+    // One per space (only code spaces in use).
+    EXTERNAL_REFERENCE_SERIALIZATION = 34,
+    EXTERNAL_BRANCH_TARGET_SERIALIZATION = 35,
+    SYNCHRONIZE = 36,
+    START_NEW_PAGE_SERIALIZATION = 37,
+    // Free: 38-47.
+    BACKREF_SERIALIZATION = 48,
+    // One per space, must be kSpaceMask aligned.
+    // Free: 57-63.
+    REFERENCE_SERIALIZATION = 64,
+    // One per space and common references.  Must be kSpaceMask aligned.
+    CODE_BACKREF_SERIALIZATION = 80,
+    // One per space, must be kSpaceMask aligned.
+    // Free: 89-95.
+    CODE_REFERENCE_SERIALIZATION = 96
+    // One per space, must be kSpaceMask aligned.
+    // Free: 105-255.
   };
-  // Our Smi encoding is much more efficient for small positive integers than it
-  // is for negative numbers so we add a bias before encoding and subtract it
-  // after encoding so that popular small negative Smis are efficiently encoded.
-  static const int kSmiBias = 16;
   static const int kLargeData = LAST_SPACE;
   static const int kLargeCode = kLargeData + 1;
   static const int kLargeFixedArray = kLargeCode + 1;
   static const int kNumberOfSpaces = kLargeFixedArray + 1;
+
+  // A bitmask for getting the space out of an instruction.
+  static const int kSpaceMask = 15;
 
   static inline bool SpaceIsLarge(int space) { return space >= kLargeData; }
   static inline bool SpaceIsPaged(int space) {
@@ -456,17 +496,11 @@ class Deserializer2: public SerDes {
     UNREACHABLE();
   }
 
-  int CurrentAllocationAddress(int space) {
-    // The three different kinds of large objects have different tags in the
-    // snapshot so the deserializer knows which kind of object to allocate,
-    // but they share a fullness_ entry.
-    if (SpaceIsLarge(space)) space = LO_SPACE;
-    return fullness_[space];
-  }
-
-  HeapObject* GetAddress(int space);
-  Address Allocate(int space, int size);
-  bool ReadObject(Object** write_back);
+  void ReadChunk(Object** start, Object** end, int space, Address address);
+  HeapObject* GetAddressFromStart(int space);
+  inline HeapObject* GetAddressFromEnd(int space);
+  Address Allocate(int space_number, Space* space, int size);
+  void ReadObject(int space_number, Space* space, Object** write_back);
 
   // Keep track of the pages in the paged spaces.
   // (In large object space we are keeping track of individual objects
@@ -476,11 +510,13 @@ class Deserializer2: public SerDes {
 
   SnapshotByteSource* source_;
   ExternalReferenceDecoder* external_reference_decoder_;
-  // Keep track of the fullness of each space in order to generate
-  // relative addresses for back references.  Large objects are
-  // just numbered sequentially since relative addresses make no
-  // sense in large object space.
-  int fullness_[LAST_SPACE + 1];
+  // This is the address of the next object that will be allocated in each
+  // space.  It is used to calculate the addresses of back-references.
+  Address high_water_[LAST_SPACE + 1];
+  // This is the address of the most recent object that was allocated.  It
+  // is used to set the location of the new page when we encounter a
+  // START_NEW_PAGE_SERIALIZATION tag.
+  Address last_object_address_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer2);
 };
@@ -490,6 +526,9 @@ class SnapshotByteSink {
  public:
   virtual ~SnapshotByteSink() { }
   virtual void Put(int byte, const char* description) = 0;
+  virtual void PutSection(int byte, const char* description) {
+    Put(byte, description);
+  }
   void PutInt(uintptr_t integer, const char* description);
 };
 
@@ -550,7 +589,7 @@ class Serializer2 : public SerDes {
   // for all large objects since you can't check the type of the object
   // once the map has been used for the serialization address.
   static int SpaceOfAlreadySerializedObject(HeapObject* object);
-  int Allocate(int space, int size);
+  int Allocate(int space, int size, bool* new_page_started);
   int CurrentAllocationAddress(int space) {
     if (SpaceIsLarge(space)) space = LO_SPACE;
     return fullness_[space];

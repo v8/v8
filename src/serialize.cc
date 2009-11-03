@@ -1767,55 +1767,31 @@ Object* Deserializer::Resolve(Address encoded) {
 Deserializer2::Deserializer2(SnapshotByteSource* source)
     : source_(source),
       external_reference_decoder_(NULL) {
-  for (int i = 0; i <= LAST_SPACE; i++) {
-    fullness_[i] = 0;
-  }
 }
 
 
 // This routine both allocates a new object, and also keeps
 // track of where objects have been allocated so that we can
 // fix back references when deserializing.
-Address Deserializer2::Allocate(int space_index, int size) {
-  HeapObject* new_object;
-  int old_fullness = CurrentAllocationAddress(space_index);
-  // When we start a new page we need to record its location.
-  bool record_page = (old_fullness == 0);
-  if (SpaceIsPaged(space_index)) {
-    PagedSpace* space;
-    switch (space_index) {
-      case OLD_DATA_SPACE: space = Heap::old_data_space(); break;
-      case OLD_POINTER_SPACE: space = Heap::old_pointer_space(); break;
-      case MAP_SPACE: space = Heap::map_space(); break;
-      case CODE_SPACE: space = Heap::code_space(); break;
-      case CELL_SPACE: space = Heap::cell_space(); break;
-      default: UNREACHABLE(); space = NULL; break;
+Address Deserializer2::Allocate(int space_index, Space* space, int size) {
+  Address address;
+  if (!SpaceIsLarge(space_index)) {
+    ASSERT(!SpaceIsPaged(space_index) ||
+           size <= Page::kPageSize - Page::kObjectStartOffset);
+    Object* new_allocation;
+    if (space_index == NEW_SPACE) {
+      new_allocation = reinterpret_cast<NewSpace*>(space)->AllocateRaw(size);
+    } else {
+      new_allocation = reinterpret_cast<PagedSpace*>(space)->AllocateRaw(size);
     }
-    ASSERT(size <= Page::kPageSize - Page::kObjectStartOffset);
-    int current_page = old_fullness >> Page::kPageSizeBits;
-    int new_fullness = old_fullness + size;
-    int new_page = new_fullness >> Page::kPageSizeBits;
-    // What is our new position within the current page.
-    int intra_page_offset = new_fullness - current_page * Page::kPageSize;
-    if (intra_page_offset > Page::kPageSize - Page::kObjectStartOffset) {
-      // This object will not fit in a page and we have to move to the next.
-      new_page = current_page + 1;
-      old_fullness = new_page << Page::kPageSizeBits;
-      new_fullness = old_fullness + size;
-      record_page = true;
-    }
-    fullness_[space_index] = new_fullness;
-    Object* new_allocation = space->AllocateRaw(size);
-    new_object = HeapObject::cast(new_allocation);
+    HeapObject* new_object = HeapObject::cast(new_allocation);
     ASSERT(!new_object->IsFailure());
-    ASSERT((reinterpret_cast<intptr_t>(new_object->address()) &
-            Page::kPageAlignmentMask) ==
-           (old_fullness & Page::kPageAlignmentMask) +
-            Page::kObjectStartOffset);
-  } else if (SpaceIsLarge(space_index)) {
+    address = new_object->address();
+    high_water_[space_index] = address + size;
+  } else {
+    ASSERT(SpaceIsLarge(space_index));
     ASSERT(size > Page::kPageSize - Page::kObjectStartOffset);
-    fullness_[LO_SPACE]++;
-    LargeObjectSpace* lo_space = Heap::lo_space();
+    LargeObjectSpace* lo_space = reinterpret_cast<LargeObjectSpace*>(space);
     Object* new_allocation;
     if (space_index == kLargeData) {
       new_allocation = lo_space->AllocateRaw(size);
@@ -1826,45 +1802,43 @@ Address Deserializer2::Allocate(int space_index, int size) {
       new_allocation = lo_space->AllocateRawCode(size);
     }
     ASSERT(!new_allocation->IsFailure());
-    new_object = HeapObject::cast(new_allocation);
-    record_page = true;
-    // The page recording below records all large objects in the same space.
-    space_index = LO_SPACE;
-  } else {
-    ASSERT(space_index == NEW_SPACE);
-    Object* new_allocation = Heap::new_space()->AllocateRaw(size);
-    fullness_[space_index] += size;
-    ASSERT(!new_allocation->IsFailure());
-    new_object = HeapObject::cast(new_allocation);
+    HeapObject* new_object = HeapObject::cast(new_allocation);
+    // Record all large objects in the same space.
+    address = new_object->address();
+    high_water_[LO_SPACE] = address + size;
   }
-  Address address = new_object->address();
-  if (record_page) {
-    pages_[space_index].Add(address);
-  }
+  last_object_address_ = address;
   return address;
 }
 
 
 // This returns the address of an object that has been described in the
 // snapshot as being offset bytes back in a particular space.
-HeapObject* Deserializer2::GetAddress(int space) {
+HeapObject* Deserializer2::GetAddressFromEnd(int space) {
+  int offset = source_->GetInt();
+  ASSERT(!SpaceIsLarge(space));
+  offset <<= kObjectAlignmentBits;
+  return HeapObject::FromAddress(high_water_[space] - offset);
+}
+
+
+// This returns the address of an object that has been described in the
+// snapshot as being offset bytes into a particular space.
+HeapObject* Deserializer2::GetAddressFromStart(int space) {
   int offset = source_->GetInt();
   if (SpaceIsLarge(space)) {
     // Large spaces have one object per 'page'.
-    return HeapObject::FromAddress(
-        pages_[LO_SPACE][fullness_[LO_SPACE] - offset]);
+    return HeapObject::FromAddress(pages_[LO_SPACE][offset]);
   }
   offset <<= kObjectAlignmentBits;
   if (space == NEW_SPACE) {
     // New space has only one space - numbered 0.
-    return HeapObject::FromAddress(
-        pages_[space][0] + fullness_[space] - offset);
+    return HeapObject::FromAddress(pages_[space][0] + offset);
   }
   ASSERT(SpaceIsPaged(space));
-  int virtual_address = fullness_[space] - offset;
-  int page_of_pointee = (virtual_address) >> Page::kPageSizeBits;
+  int page_of_pointee = offset >> Page::kPageSizeBits;
   Address object_address = pages_[space][page_of_pointee] +
-                           (virtual_address & Page::kPageAlignmentMask);
+                           (offset & Page::kPageAlignmentMask);
   return HeapObject::FromAddress(object_address);
 }
 
@@ -1888,20 +1862,11 @@ void Deserializer2::Deserialize() {
 
 
 // This is called on the roots.  It is the driver of the deserialization
-// process.
+// process.  It is also called on the body of each function.
 void Deserializer2::VisitPointers(Object** start, Object** end) {
-  for (Object** current = start; current < end; current++) {
-    DataType data = static_cast<DataType>(source_->Get());
-    if (data == SMI_SERIALIZATION) {
-      *current = Smi::FromInt(source_->GetInt() - kSmiBias);
-    } else if (data == BACKREF_SERIALIZATION) {
-      int space = source_->Get();
-      *current = GetAddress(space);
-    } else {
-      ASSERT(data == OBJECT_SERIALIZATION);
-      ReadObject(current);
-    }
-  }
+  // The space must be new space.  Any other space would cause ReadChunk to try
+  // to update the remembered using NULL as the address.
+  ReadChunk(start, end, NEW_SPACE, NULL);
 }
 
 
@@ -1911,19 +1876,46 @@ void Deserializer2::VisitPointers(Object** start, Object** end) {
 // written very late, which means the ByteArray map is not set up by the
 // time we need to use it to mark the space at the end of a page free (by
 // making it into a byte array).
-bool Deserializer2::ReadObject(Object** write_back) {
-  int space = source_->Get();
+void Deserializer2::ReadObject(int space_number,
+                               Space* space,
+                               Object** write_back) {
   int size = source_->GetInt() << kObjectAlignmentBits;
-  Address address = Allocate(space, size);
+  Address address = Allocate(space_number, space, size);
   *write_back = HeapObject::FromAddress(address);
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
+  ReadChunk(current, limit, space_number, address);
+}
+
+
+#define ONE_CASE_PER_SPACE(base_tag)   \
+  case (base_tag) + NEW_SPACE:         /* NOLINT */ \
+  case (base_tag) + OLD_POINTER_SPACE: /* NOLINT */ \
+  case (base_tag) + OLD_DATA_SPACE:    /* NOLINT */ \
+  case (base_tag) + CODE_SPACE:        /* NOLINT */ \
+  case (base_tag) + MAP_SPACE:         /* NOLINT */ \
+  case (base_tag) + CELL_SPACE:        /* NOLINT */ \
+  case (base_tag) + kLargeData:        /* NOLINT */ \
+  case (base_tag) + kLargeCode:        /* NOLINT */ \
+  case (base_tag) + kLargeFixedArray:  /* NOLINT */
+
+
+void Deserializer2::ReadChunk(Object** current,
+                              Object** limit,
+                              int space,
+                              Address address) {
   while (current < limit) {
-    DataType data = static_cast<DataType>(source_->Get());
+    int data = source_->Get();
     switch (data) {
-      case SMI_SERIALIZATION:
-        *current++ = Smi::FromInt(source_->GetInt() - kSmiBias);
-        break;
+#define RAW_CASE(index, size)                                      \
+      case RAW_DATA_SERIALIZATION + index: {                       \
+        byte* raw_data_out = reinterpret_cast<byte*>(current);     \
+        source_->CopyRaw(raw_data_out, size);                      \
+        current = reinterpret_cast<Object**>(raw_data_out + size); \
+        break;                                                     \
+      }
+      COMMON_RAW_LENGTHS(RAW_CASE)
+#undef RAW_CASE
       case RAW_DATA_SERIALIZATION: {
         int size = source_->GetInt();
         byte* raw_data_out = reinterpret_cast<byte*>(current);
@@ -1931,19 +1923,42 @@ bool Deserializer2::ReadObject(Object** write_back) {
         current = reinterpret_cast<Object**>(raw_data_out + size);
         break;
       }
-      case OBJECT_SERIALIZATION: {
-        // Recurse to unpack an object that is forward-referenced from here.
-        bool in_new_space = ReadObject(current);
-        if (in_new_space && space != NEW_SPACE) {
+      case OBJECT_SERIALIZATION + NEW_SPACE: {
+        ReadObject(NEW_SPACE, Heap::new_space(), current);
+        if (space != NEW_SPACE) {
           Heap::RecordWrite(address,
                             reinterpret_cast<Address>(current) - address);
         }
         current++;
         break;
       }
-      case CODE_OBJECT_SERIALIZATION: {
+      case OBJECT_SERIALIZATION + OLD_DATA_SPACE:
+        ReadObject(OLD_DATA_SPACE, Heap::old_data_space(), current++);
+        break;
+      case OBJECT_SERIALIZATION + OLD_POINTER_SPACE:
+        ReadObject(OLD_POINTER_SPACE, Heap::old_pointer_space(), current++);
+        break;
+      case OBJECT_SERIALIZATION + MAP_SPACE:
+        ReadObject(MAP_SPACE, Heap::map_space(), current++);
+        break;
+      case OBJECT_SERIALIZATION + CODE_SPACE:
+        ReadObject(CODE_SPACE, Heap::code_space(), current++);
+        break;
+      case OBJECT_SERIALIZATION + CELL_SPACE:
+        ReadObject(CELL_SPACE, Heap::cell_space(), current++);
+        break;
+      case OBJECT_SERIALIZATION + kLargeData:
+        ReadObject(kLargeData, Heap::lo_space(), current++);
+        break;
+      case OBJECT_SERIALIZATION + kLargeCode:
+        ReadObject(kLargeCode, Heap::lo_space(), current++);
+        break;
+      case OBJECT_SERIALIZATION + kLargeFixedArray:
+        ReadObject(kLargeFixedArray, Heap::lo_space(), current++);
+        break;
+      case CODE_OBJECT_SERIALIZATION + kLargeCode: {
         Object* new_code_object = NULL;
-        ReadObject(&new_code_object);
+        ReadObject(kLargeCode, Heap::lo_space(), &new_code_object);
         Code* code_object = reinterpret_cast<Code*>(new_code_object);
         // Setting a branch/call to another code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
@@ -1953,21 +1968,54 @@ bool Deserializer2::ReadObject(Object** write_back) {
         current = reinterpret_cast<Object**>(location_of_branch_data);
         break;
       }
-      case BACKREF_SERIALIZATION: {
+      case CODE_OBJECT_SERIALIZATION + CODE_SPACE: {
+        Object* new_code_object = NULL;
+        ReadObject(CODE_SPACE, Heap::code_space(), &new_code_object);
+        Code* code_object = reinterpret_cast<Code*>(new_code_object);
+        // Setting a branch/call to another code object from code.
+        Address location_of_branch_data = reinterpret_cast<Address>(current);
+        Assembler::set_target_at(location_of_branch_data,
+                                 code_object->instruction_start());
+        location_of_branch_data += Assembler::kCallTargetSize;
+        current = reinterpret_cast<Object**>(location_of_branch_data);
+        break;
+      }
+      ONE_CASE_PER_SPACE(BACKREF_SERIALIZATION) {
         // Write a backreference to an object we unpacked earlier.
-        int backref_space = source_->Get();
+        int backref_space = (data & kSpaceMask);
         if (backref_space == NEW_SPACE && space != NEW_SPACE) {
           Heap::RecordWrite(address,
                             reinterpret_cast<Address>(current) - address);
         }
-        *current++ = GetAddress(backref_space);
+        *current++ = GetAddressFromEnd(backref_space);
         break;
       }
-      case CODE_BACKREF_SERIALIZATION: {
-        int backref_space = source_->Get();
+      ONE_CASE_PER_SPACE(REFERENCE_SERIALIZATION) {
+        // Write a reference to an object we unpacked earlier.
+        int reference_space = (data & kSpaceMask);
+        if (reference_space == NEW_SPACE && space != NEW_SPACE) {
+          Heap::RecordWrite(address,
+                            reinterpret_cast<Address>(current) - address);
+        }
+        *current++ = GetAddressFromStart(reference_space);
+        break;
+      }
+#define COMMON_REFS_CASE(index, reference_space, address)                      \
+      case REFERENCE_SERIALIZATION + index: {                                  \
+        ASSERT(SpaceIsPaged(reference_space));                                 \
+        Address object_address =                                               \
+            pages_[reference_space][0] + (address << kObjectAlignmentBits);    \
+        *current++ = HeapObject::FromAddress(object_address);                  \
+        break;                                                                 \
+      }
+      COMMON_REFERENCE_PATTERNS(COMMON_REFS_CASE)
+#undef COMMON_REFS_CASE
+      ONE_CASE_PER_SPACE(CODE_BACKREF_SERIALIZATION) {
+        int backref_space = (data & kSpaceMask);
         // Can't use Code::cast because heap is not set up yet and assertions
         // will fail.
-        Code* code_object = reinterpret_cast<Code*>(GetAddress(backref_space));
+        Code* code_object =
+            reinterpret_cast<Code*>(GetAddressFromEnd(backref_space));
         // Setting a branch/call to previously decoded code object from code.
         Address location_of_branch_data = reinterpret_cast<Address>(current);
         Assembler::set_target_at(location_of_branch_data,
@@ -1975,7 +2023,21 @@ bool Deserializer2::ReadObject(Object** write_back) {
         location_of_branch_data += Assembler::kCallTargetSize;
         current = reinterpret_cast<Object**>(location_of_branch_data);
         break;
-        }
+      }
+      ONE_CASE_PER_SPACE(CODE_REFERENCE_SERIALIZATION) {
+        int backref_space = (data & kSpaceMask);
+        // Can't use Code::cast because heap is not set up yet and assertions
+        // will fail.
+        Code* code_object =
+            reinterpret_cast<Code*>(GetAddressFromStart(backref_space));
+        // Setting a branch/call to previously decoded code object from code.
+        Address location_of_branch_data = reinterpret_cast<Address>(current);
+        Assembler::set_target_at(location_of_branch_data,
+                                 code_object->instruction_start());
+        location_of_branch_data += Assembler::kCallTargetSize;
+        current = reinterpret_cast<Object**>(location_of_branch_data);
+        break;
+      }
       case EXTERNAL_REFERENCE_SERIALIZATION: {
         int reference_id = source_->GetInt();
         Address address = external_reference_decoder_->Decode(reference_id);
@@ -1991,12 +2053,16 @@ bool Deserializer2::ReadObject(Object** write_back) {
         current = reinterpret_cast<Object**>(location_of_branch_data);
         break;
       }
+      case START_NEW_PAGE_SERIALIZATION: {
+        int space = source_->Get();
+        pages_[space].Add(last_object_address_);
+        break;
+      }
       default:
         UNREACHABLE();
     }
   }
   ASSERT(current == limit);
-  return space == NEW_SPACE;
 }
 
 
@@ -2004,10 +2070,10 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
   const int max_shift = ((kPointerSize * kBitsPerByte) / 7) * 7;
   for (int shift = max_shift; shift > 0; shift -= 7) {
     if (integer >= 1u << shift) {
-      Put(((integer >> shift) & 0x7f) | 0x80, "intpart");
+      Put(((integer >> shift) & 0x7f) | 0x80, "IntPart");
     }
   }
-  Put(integer & 0x7f, "intlastpart");
+  PutSection(integer & 0x7f, "IntLastPart");
 }
 
 #ifdef DEBUG
@@ -2035,7 +2101,7 @@ void Serializer2::Synchronize(const char* tag) {
   int character;
   do {
     character = *tag++;
-    sink_->Put(character, "tagcharacter");
+    sink_->PutSection(character, "TagCharacter");
   } while (character != 0);
 }
 
@@ -2067,7 +2133,15 @@ void Serializer2::Serialize() {
 
 void Serializer2::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
-    SerializeObject(*current, TAGGED_REPRESENTATION);
+    if ((*current)->IsSmi()) {
+      sink_->Put(RAW_DATA_SERIALIZATION, "RawData");
+      sink_->PutInt(kPointerSize, "length");
+      for (int i = 0; i < kPointerSize; i++) {
+        sink_->Put(reinterpret_cast<byte*>(current)[i], "Byte");
+      }
+    } else {
+      SerializeObject(*current, TAGGED_REPRESENTATION);
+    }
   }
 }
 
@@ -2075,39 +2149,65 @@ void Serializer2::VisitPointers(Object** start, Object** end) {
 void Serializer2::SerializeObject(
     Object* o,
     ReferenceRepresentation reference_representation) {
-  if (o->IsHeapObject()) {
-    HeapObject* heap_object = HeapObject::cast(o);
-    MapWord map_word = heap_object->map_word();
-    if (map_word.IsSerializationAddress()) {
-      int space = SpaceOfAlreadySerializedObject(heap_object);
-      int offset =
-          CurrentAllocationAddress(space) - map_word.ToSerializationAddress();
-      // If we are actually dealing with real offsets (and not a numbering of
-      // all objects) then we should shift out the bits that are always 0.
-      if (!SpaceIsLarge(space)) offset >>= kObjectAlignmentBits;
-      if (reference_representation == CODE_TARGET_REPRESENTATION) {
-        sink_->Put(CODE_BACKREF_SERIALIZATION, "BackRefCodeSerialization");
-      } else {
-        ASSERT(reference_representation == TAGGED_REPRESENTATION);
-        sink_->Put(BACKREF_SERIALIZATION, "BackRefSerialization");
+  ASSERT(o->IsHeapObject());
+  HeapObject* heap_object = HeapObject::cast(o);
+  MapWord map_word = heap_object->map_word();
+  if (map_word.IsSerializationAddress()) {
+    int space = SpaceOfAlreadySerializedObject(heap_object);
+    int address = map_word.ToSerializationAddress();
+    int offset = CurrentAllocationAddress(space) - address;
+    bool from_start = true;
+    if (SpaceIsPaged(space)) {
+      if ((CurrentAllocationAddress(space) >> Page::kPageSizeBits) ==
+          (address >> Page::kPageSizeBits)) {
+        from_start = false;
+        address = offset;
       }
-      sink_->Put(space, "space");
-      sink_->PutInt(offset, "offset");
+    } else if (space == NEW_SPACE) {
+      if (offset < address) {
+        from_start = false;
+        address = offset;
+      }
+    }
+    // If we are actually dealing with real offsets (and not a numbering of
+    // all objects) then we should shift out the bits that are always 0.
+    if (!SpaceIsLarge(space)) address >>= kObjectAlignmentBits;
+    if (reference_representation == CODE_TARGET_REPRESENTATION) {
+      if (from_start) {
+        sink_->Put(CODE_REFERENCE_SERIALIZATION + space, "RefCodeSer");
+        sink_->PutInt(address, "address");
+      } else {
+        sink_->Put(CODE_BACKREF_SERIALIZATION + space, "BackRefCodeSer");
+        sink_->PutInt(address, "address");
+      }
     } else {
-      // Object has not yet been serialized.  Serialize it here.
-      ObjectSerializer serializer(this,
-                                  heap_object,
-                                  sink_,
-                                  reference_representation);
-      serializer.Serialize();
+      ASSERT(reference_representation == TAGGED_REPRESENTATION);
+      if (from_start) {
+#define COMMON_REFS_CASE(tag, common_space, common_offset)                 \
+        if (space == common_space && address == common_offset) {           \
+          sink_->PutSection(tag + REFERENCE_SERIALIZATION, "RefSer");      \
+        } else  /* NOLINT */
+        COMMON_REFERENCE_PATTERNS(COMMON_REFS_CASE)
+#undef COMMON_REFS_CASE
+        {  /* NOLINT */
+          sink_->Put(REFERENCE_SERIALIZATION + space, "RefSer");
+          sink_->PutInt(address, "address");
+        }
+      } else {
+        sink_->Put(BACKREF_SERIALIZATION + space, "BackRefSer");
+        sink_->PutInt(address, "address");
+      }
     }
   } else {
-    // Serialize a Smi.
-    unsigned int value = Smi::cast(o)->value() + kSmiBias;
-    sink_->Put(SMI_SERIALIZATION, "SmiSerialization");
-    sink_->PutInt(value, "smi");
+    // Object has not yet been serialized.  Serialize it here.
+    ObjectSerializer serializer(this,
+                                heap_object,
+                                sink_,
+                                reference_representation);
+    serializer.Serialize();
   }
 }
+
 
 
 void Serializer2::ObjectSerializer::Serialize() {
@@ -2115,19 +2215,23 @@ void Serializer2::ObjectSerializer::Serialize() {
   int size = object_->Size();
 
   if (reference_representation_ == TAGGED_REPRESENTATION) {
-    sink_->Put(OBJECT_SERIALIZATION, "ObjectSerialization");
+    sink_->Put(OBJECT_SERIALIZATION + space, "ObjectSerialization");
   } else {
     ASSERT(reference_representation_ == CODE_TARGET_REPRESENTATION);
-    sink_->Put(CODE_OBJECT_SERIALIZATION, "ObjectSerialization");
+    sink_->Put(CODE_OBJECT_SERIALIZATION + space, "ObjectSerialization");
   }
-  sink_->Put(space, "space");
   sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
 
   // Get the map before overwriting it.
   Map* map = object_->map();
   // Mark this object as already serialized.
-  object_->set_map_word(
-      MapWord::FromSerializationAddress(serializer_->Allocate(space, size)));
+  bool start_new_page;
+  object_->set_map_word(MapWord::FromSerializationAddress(
+      serializer_->Allocate(space, size, &start_new_page)));
+  if (start_new_page) {
+    sink_->Put(START_NEW_PAGE_SERIALIZATION, "NewPage");
+    sink_->PutSection(space, "NewPageSpace");
+  }
 
   // Serialize the map (first word of the object).
   serializer_->SerializeObject(map, TAGGED_REPRESENTATION);
@@ -2142,13 +2246,17 @@ void Serializer2::ObjectSerializer::Serialize() {
 
 void Serializer2::ObjectSerializer::VisitPointers(Object** start,
                                                   Object** end) {
-  Address pointers_start = reinterpret_cast<Address>(start);
-  OutputRawData(pointers_start);
+  Object** current = start;
+  while (current < end) {
+    while (current < end && (*current)->IsSmi()) current++;
+    OutputRawData(reinterpret_cast<Address>(current));
 
-  for (Object** current = start; current < end; current++) {
-    serializer_->SerializeObject(*current, TAGGED_REPRESENTATION);
+    while (current < end && !(*current)->IsSmi()) {
+      serializer_->SerializeObject(*current, TAGGED_REPRESENTATION);
+      bytes_processed_so_far_ += kPointerSize;
+      current++;
+    }
   }
-  bytes_processed_so_far_ += (end - start) * kPointerSize;
 }
 
 
@@ -2158,7 +2266,7 @@ void Serializer2::ObjectSerializer::VisitExternalReferences(Address* start,
   OutputRawData(references_start);
 
   for (Address* current = start; current < end; current++) {
-    sink_->Put(EXTERNAL_REFERENCE_SERIALIZATION, "External reference");
+    sink_->Put(EXTERNAL_REFERENCE_SERIALIZATION, "ExternalReference");
     int reference_id = serializer_->EncodeExternalReference(*current);
     sink_->PutInt(reference_id, "reference id");
   }
@@ -2172,7 +2280,7 @@ void Serializer2::ObjectSerializer::VisitRuntimeEntry(RelocInfo* rinfo) {
   Address target = rinfo->target_address();
   uint32_t encoding = serializer_->EncodeExternalReference(target);
   CHECK(target == NULL ? encoding == 0 : encoding != 0);
-  sink_->Put(EXTERNAL_BRANCH_TARGET_SERIALIZATION, "External reference");
+  sink_->Put(EXTERNAL_BRANCH_TARGET_SERIALIZATION, "ExternalReference");
   sink_->PutInt(encoding, "reference id");
   bytes_processed_so_far_ += Assembler::kExternalTargetSize;
 }
@@ -2196,11 +2304,20 @@ void Serializer2::ObjectSerializer::OutputRawData(Address up_to) {
   // locations in a non-ascending order.  Luckily that doesn't happen.
   ASSERT(skipped >= 0);
   if (skipped != 0) {
-    sink_->Put(RAW_DATA_SERIALIZATION, "raw data");
-    sink_->PutInt(skipped, "length");
+    Address base = object_start + bytes_processed_so_far_;
+#define RAW_CASE(index, length)                                                \
+    if (skipped == length) {                                                   \
+      sink_->PutSection(RAW_DATA_SERIALIZATION + index, "RawDataFixed");       \
+    } else  /* NOLINT */
+    COMMON_RAW_LENGTHS(RAW_CASE)
+#undef RAW_CASE
+    {  /* NOLINT */
+      sink_->Put(RAW_DATA_SERIALIZATION, "RawData");
+      sink_->PutInt(skipped, "length");
+    }
     for (int i = 0; i < skipped; i++) {
-      unsigned int data = object_start[bytes_processed_so_far_ + i];
-      sink_->Put(data, "byte");
+      unsigned int data = base[i];
+      sink_->PutSection(data, "Byte");
     }
     bytes_processed_so_far_ += skipped;
   }
@@ -2240,12 +2357,17 @@ int Serializer2::SpaceOfAlreadySerializedObject(HeapObject* object) {
 }
 
 
-int Serializer2::Allocate(int space, int size) {
+int Serializer2::Allocate(int space, int size, bool* new_page) {
   ASSERT(space >= 0 && space < kNumberOfSpaces);
   if (SpaceIsLarge(space)) {
     // In large object space we merely number the objects instead of trying to
     // determine some sort of address.
+    *new_page = true;
     return fullness_[LO_SPACE]++;
+  }
+  *new_page = false;
+  if (fullness_[space] == 0) {
+    *new_page = true;
   }
   if (SpaceIsPaged(space)) {
     // Paged spaces are a little special.  We encode their addresses as if the
@@ -2258,6 +2380,7 @@ int Serializer2::Allocate(int space, int size) {
     int used_in_this_page = (fullness_[space] & (Page::kPageSize - 1));
     ASSERT(size <= Page::kObjectAreaSize);
     if (used_in_this_page + size > Page::kObjectAreaSize) {
+      *new_page = true;
       fullness_[space] = RoundUp(fullness_[space], Page::kPageSize);
     }
   }

@@ -2910,7 +2910,8 @@ class Code: public HeapObject {
   void CodeVerify();
 #endif
   // Code entry points are aligned to 32 bytes.
-  static const int kCodeAlignment = 32;
+  static const int kCodeAlignmentBits = 5;
+  static const int kCodeAlignment = 1 << kCodeAlignmentBits;
   static const int kCodeAlignmentMask = kCodeAlignment - 1;
 
   // Layout description.
