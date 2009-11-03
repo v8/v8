@@ -8610,3 +8610,41 @@ THREADED_TEST(QuietSignalingNaNs) {
     }
   }
 }
+
+
+static v8::Handle<Value> SpaghettiIncident(const v8::Arguments& args) {
+  v8::HandleScope scope;
+  v8::TryCatch tc;
+  v8::Handle<v8::String> str = args[0]->ToString();
+  if (tc.HasCaught())
+    return tc.ReThrow();
+  return v8::Undefined();
+}
+
+
+// Test that an exception can be propagated down through a spaghetti
+// stack using ReThrow.
+THREADED_TEST(SpaghettiStackReThrow) {
+  v8::HandleScope scope;
+  LocalContext context;
+  context->Global()->Set(
+      v8::String::New("s"),
+      v8::FunctionTemplate::New(SpaghettiIncident)->GetFunction());
+  v8::TryCatch try_catch;
+  CompileRun(
+      "var i = 0;"
+      "var o = {"
+      "  toString: function () {"
+      "    if (i == 10) {"
+      "      throw 'Hey!';"
+      "    } else {"
+      "      i++;"
+      "      return s(o);"
+      "    }"
+      "  }"
+      "};"
+      "s(o);");
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value value(try_catch.Exception());
+  CHECK_EQ(0, strcmp(*value, "Hey!"));
+}
