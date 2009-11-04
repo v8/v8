@@ -377,6 +377,8 @@ class Debug {
   static const int kX64CallInstructionLength = 13;
   static const int kX64JSReturnSequenceLength = 13;
 
+  static const int kARMJSReturnSequenceLength = 4;
+
   // Code generator routines.
   static void GenerateLoadICDebugBreak(MacroAssembler* masm);
   static void GenerateStoreICDebugBreak(MacroAssembler* masm);

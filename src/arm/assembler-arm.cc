@@ -1318,6 +1318,11 @@ bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
 }
 
 
+void Assembler::BlockConstPoolFor(int instructions) {
+  BlockConstPoolBefore(pc_offset() + instructions * kInstrSize);
+}
+
+
 // Debugging
 void Assembler::RecordJSReturn() {
   WriteRecordedPositions();

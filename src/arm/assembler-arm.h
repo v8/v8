@@ -685,6 +685,10 @@ class Assembler : public Malloced {
   // Check whether an immediate fits an addressing mode 1 instruction.
   bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
 
+  // Postpone the generation of the constant pool for the specified number of
+  // instructions.
+  void BlockConstPoolFor(int instructions);
+
   // Debugging
 
   // Mark address of the ExitJSFrame code.

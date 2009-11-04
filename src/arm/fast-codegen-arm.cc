@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
+#include "debug.h"
 #include "fast-codegen.h"
 #include "parser.h"
 
@@ -118,34 +119,37 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
       __ push(r0);
       __ CallRuntime(Runtime::kTraceExit, 1);
     }
-#ifdef DEBUG
+
     // Add a label for checking the size of the code used for returning.
     Label check_exit_codesize;
     masm_->bind(&check_exit_codesize);
-#endif
+
+    // Calculate the exact length of the return sequence and make sure that
+    // the constant pool is not emitted inside of the return sequence.
+    int num_parameters = function_->scope()->num_parameters();
+    int32_t sp_delta = (num_parameters + 1) * kPointerSize;
+    int return_sequence_length = Debug::kARMJSReturnSequenceLength;
+    if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
+      // Additional mov instruction generated.
+      return_sequence_length++;
+    }
+    masm_->BlockConstPoolFor(return_sequence_length);
+
     CodeGenerator::RecordPositions(masm_, position);
     __ RecordJSReturn();
     __ mov(sp, fp);
     __ ldm(ia_w, sp, fp.bit() | lr.bit());
-    int num_parameters = function_->scope()->num_parameters();
-    __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
+    __ add(sp, sp, Operand(sp_delta));
     __ Jump(lr);
-#ifdef DEBUG
+
   // Check that the size of the code used for returning matches what is
   // expected by the debugger. The add instruction above is an addressing
   // mode 1 instruction where there are restrictions on which immediate values
   // can be encoded in the instruction and which immediate values requires
   // use of an additional instruction for moving the immediate to a temporary
   // register.
-  int expected_return_sequence_length = CodeGenerator::kJSReturnSequenceLength;
-  if (!masm_->ImmediateFitsAddrMode1Instruction((num_parameters + 1) *
-                                                kPointerSize)) {
-    // Additional mov instruction generated.
-    expected_return_sequence_length++;
-  }
   ASSERT_EQ(expected_return_sequence_length,
             masm_->InstructionsGeneratedSince(&check_exit_codesize));
-#endif
   }
 }
 

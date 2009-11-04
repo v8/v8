@@ -322,13 +322,22 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     Label check_exit_codesize;
     masm_->bind(&check_exit_codesize);
 
+    // Calculate the exact length of the return sequence and make sure that
+    // the constant pool is not emitted inside of the return sequence.
+    int32_t sp_delta = (scope_->num_parameters() + 1) * kPointerSize;
+    int return_sequence_length = Debug::kARMJSReturnSequenceLength;
+    if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
+      // Additional mov instruction generated.
+      return_sequence_length++;
+    }
+    masm_->BlockConstPoolFor(return_sequence_length);
+
     // Tear down the frame which will restore the caller's frame pointer and
     // the link register.
     frame_->Exit();
 
     // Here we use masm_-> instead of the __ macro to avoid the code coverage
     // tool from instrumenting as we rely on the code size here.
-    int32_t sp_delta = (scope_->num_parameters() + 1) * kPointerSize;
     masm_->add(sp, sp, Operand(sp_delta));
     masm_->Jump(lr);
 
@@ -338,15 +347,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // can be encoded in the instruction and which immediate values requires
     // use of an additional instruction for moving the immediate to a temporary
     // register.
-#ifdef DEBUG
-    int expected_return_sequence_length = kJSReturnSequenceLength;
-    if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
-      // Additional mov instruction generated.
-      expected_return_sequence_length++;
-    }
-    ASSERT_EQ(expected_return_sequence_length,
+    ASSERT_EQ(return_sequence_length,
               masm_->InstructionsGeneratedSince(&check_exit_codesize));
-#endif
   }
 
   // Code generation state must be reset.
