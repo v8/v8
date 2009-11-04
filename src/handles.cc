@@ -37,6 +37,7 @@
 #include "global-handles.h"
 #include "natives.h"
 #include "runtime.h"
+#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -684,6 +685,11 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
   } else {
     has_been_transformed_ = false;
   }
+}
+
+
+Handle<Code> ComputeLazyCompile(int argc) {
+  CALL_HEAP_FUNCTION(StubCache::ComputeLazyCompile(argc), Code);
 }
 
 

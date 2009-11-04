@@ -70,7 +70,6 @@ class FastCodeGenerator: public AstVisitor {
   void TestAndBranch(Register source, Label* true_label, Label* false_label);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
-  Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
   void DeclareGlobals(Handle<FixedArray> pairs);
 
   // Platform-specific return sequence

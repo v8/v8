@@ -38,9 +38,9 @@
 //   MakeCode
 //   MakeCodePrologue
 //   MakeCodeEpilogue
-//   SetFunctionInfo
 //   masm
 //   frame
+//   script
 //   has_valid_frame
 //   SetFrame
 //   DeleteFrame

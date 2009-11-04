@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
+#include "compiler.h"
 #include "fast-codegen.h"
 #include "parser.h"
 #include "debug.h"
@@ -299,7 +300,8 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate = BuildBoilerplate(expr);
+  Handle<JSFunction> boilerplate =
+      Compiler::BuildBoilerplate(expr, script_, this);
   if (HasStackOverflow()) return;
 
   ASSERT(boilerplate->IsBoilerplate());

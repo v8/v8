@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "codegen-inl.h"
+#include "compiler.h"
 #include "debug.h"
 #include "ic-inl.h"
 #include "parser.h"
@@ -2164,7 +2165,8 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
-  Handle<JSFunction> boilerplate = BuildBoilerplate(node);
+  Handle<JSFunction> boilerplate =
+      Compiler::BuildBoilerplate(node, script_, this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
   InstantiateBoilerplate(boilerplate);
@@ -4812,8 +4814,6 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
     // load to make sure we do not get reference errors.
     Slot global(variable, Slot::CONTEXT, Context::GLOBAL_INDEX);
     Literal key(variable->name());
-    // TODO(1241834): Fetch the position from the variable instead of using
-    // no position.
     Property property(&global, &key, RelocInfo::kNoPosition);
     Reference ref(this, &property);
     ref.GetValue();

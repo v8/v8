@@ -258,7 +258,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                       code);
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
-  CodeGenerator::SetFunctionInfo(fun, lit, true, script);
+  Compiler::SetFunctionInfo(fun, lit, true, script);
 
   // Hint to the runtime system used when allocating space for initial
   // property space by setting the expected number of properties for
@@ -472,6 +472,110 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
   return true;
+}
+
+
+Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
+                                              Handle<Script> script,
+                                              AstVisitor* caller) {
+#ifdef DEBUG
+  // We should not try to compile the same function literal more than
+  // once.
+  literal->mark_as_compiled();
+#endif
+
+  // Determine if the function can be lazily compiled. This is
+  // necessary to allow some of our builtin JS files to be lazily
+  // compiled. These builtins cannot be handled lazily by the parser,
+  // since we have to know if a function uses the special natives
+  // syntax, which is something the parser records.
+  bool allow_lazy = literal->AllowsLazyCompilation();
+
+  // Generate code
+  Handle<Code> code;
+  if (FLAG_lazy && allow_lazy) {
+    code = ComputeLazyCompile(literal->num_parameters());
+  } else {
+    // The bodies of function literals have not yet been visited by
+    // the AST optimizer/analyzer.
+    if (!Rewriter::Optimize(literal)) {
+      return Handle<JSFunction>::null();
+    }
+
+    // Generate code and return it.
+    if (FLAG_fast_compiler && literal->try_fast_codegen()) {
+      CodeGenSelector selector;
+      CodeGenSelector::CodeGenTag code_gen = selector.Select(literal);
+      if (code_gen == CodeGenSelector::FAST) {
+        code = FastCodeGenerator::MakeCode(literal,
+                                           script,
+                                           false);  // Not eval.
+      }
+      ASSERT(code_gen == CodeGenSelector::NORMAL);
+    } else {
+      code = CodeGenerator::MakeCode(literal,
+                                     script,
+                                     false);  // Not eval.
+    }
+
+    // Check for stack-overflow exception.
+    if (code.is_null()) {
+      caller->SetStackOverflow();
+      return Handle<JSFunction>::null();
+    }
+
+    // Function compilation complete.
+    LOG(CodeCreateEvent(Logger::FUNCTION_TAG, *code, *literal->name()));
+
+#ifdef ENABLE_OPROFILE_AGENT
+    OProfileAgent::CreateNativeCodeRegion(*node->name(),
+                                          code->instruction_start(),
+                                          code->instruction_size());
+#endif
+  }
+
+  // Create a boilerplate function.
+  Handle<JSFunction> function =
+      Factory::NewFunctionBoilerplate(literal->name(),
+                                      literal->materialized_literal_count(),
+                                      code);
+  SetFunctionInfo(function, literal, false, script);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Notify debugger that a new function has been added.
+  Debugger::OnNewFunction(function);
+#endif
+
+  // Set the expected number of properties for instances and return
+  // the resulting function.
+  SetExpectedNofPropertiesFromEstimate(function,
+                                       literal->expected_property_count());
+  return function;
+}
+
+
+// Sets the function info on a function.
+// The start_position points to the first '(' character after the function name
+// in the full script source. When counting characters in the script source the
+// the first character is number 0 (not 1).
+void Compiler::SetFunctionInfo(Handle<JSFunction> fun,
+                               FunctionLiteral* lit,
+                               bool is_toplevel,
+                               Handle<Script> script) {
+  fun->shared()->set_length(lit->num_parameters());
+  fun->shared()->set_formal_parameter_count(lit->num_parameters());
+  fun->shared()->set_script(*script);
+  fun->shared()->set_function_token_position(lit->function_token_position());
+  fun->shared()->set_start_position(lit->start_position());
+  fun->shared()->set_end_position(lit->end_position());
+  fun->shared()->set_is_expression(lit->is_expression());
+  fun->shared()->set_is_toplevel(is_toplevel);
+  fun->shared()->set_inferred_name(*lit->inferred_name());
+  fun->shared()->SetThisPropertyAssignmentsInfo(
+      lit->has_only_this_property_assignments(),
+      lit->has_only_simple_this_property_assignments(),
+      *lit->this_property_assignments());
+  fun->shared()->set_try_fast_codegen(lit->try_fast_codegen());
 }
 
 

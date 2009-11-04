@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "codegen-inl.h"
+#include "compiler.h"
 #include "fast-codegen.h"
 #include "stub-cache.h"
 #include "debug.h"
@@ -79,8 +80,8 @@ void FastCodeGenerator::VisitDeclarations(
   int length = declarations->length();
   int globals = 0;
   for (int i = 0; i < length; i++) {
-    Declaration* node = declarations->at(i);
-    Variable* var = node->proxy()->var();
+    Declaration* decl = declarations->at(i);
+    Variable* var = decl->proxy()->var();
     Slot* slot = var->slot();
 
     // If it was not possible to allocate the variable at compile
@@ -100,13 +101,13 @@ void FastCodeGenerator::VisitDeclarations(
   // Compute array of global variable and function declarations.
   Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
   for (int j = 0, i = 0; i < length; i++) {
-    Declaration* node = declarations->at(i);
-    Variable* var = node->proxy()->var();
+    Declaration* decl = declarations->at(i);
+    Variable* var = decl->proxy()->var();
     Slot* slot = var->slot();
 
     if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
       array->set(j++, *(var->name()));
-      if (node->fun() == NULL) {
+      if (decl->fun() == NULL) {
         if (var->mode() == Variable::CONST) {
           // In case this is const property use the hole.
           array->set_the_hole(j++);
@@ -114,7 +115,8 @@ void FastCodeGenerator::VisitDeclarations(
           array->set_undefined(j++);
         }
       } else {
-        Handle<JSFunction> function = BuildBoilerplate(node->fun());
+        Handle<JSFunction> function =
+            Compiler::BuildBoilerplate(decl->fun(), script_, this);
         // Check for stack-overflow exception.
         if (HasStackOverflow()) return;
         array->set(j++, *function);
@@ -125,40 +127,6 @@ void FastCodeGenerator::VisitDeclarations(
   // Invoke the platform-dependent code generator to do the actual
   // declaration the global variables and functions.
   DeclareGlobals(array);
-}
-
-Handle<JSFunction> FastCodeGenerator::BuildBoilerplate(FunctionLiteral* fun) {
-#ifdef DEBUG
-  // We should not try to compile the same function literal more than
-  // once.
-  fun->mark_as_compiled();
-#endif
-
-  // Generate code
-  Handle<Code> code = CodeGenerator::ComputeLazyCompile(fun->num_parameters());
-  // Check for stack-overflow exception.
-  if (code.is_null()) {
-    SetStackOverflow();
-    return Handle<JSFunction>::null();
-  }
-
-  // Create a boilerplate function.
-  Handle<JSFunction> function =
-      Factory::NewFunctionBoilerplate(fun->name(),
-                                      fun->materialized_literal_count(),
-                                      code);
-  CodeGenerator::SetFunctionInfo(function, fun, false, script_);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Notify debugger that a new function has been added.
-  Debugger::OnNewFunction(function);
-#endif
-
-  // Set the expected number of properties for instances and return
-  // the resulting function.
-  SetExpectedNofPropertiesFromEstimate(function,
-                                       fun->expected_property_count());
-  return function;
 }
 
 

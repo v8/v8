@@ -165,8 +165,8 @@ class CodeGenerator: public AstVisitor {
 
   // Accessors
   MacroAssembler* masm() { return masm_; }
-
   VirtualFrame* frame() const { return frame_; }
+  Handle<Script> script() { return script_; }
 
   bool has_valid_frame() const { return frame_ != NULL; }
 
@@ -319,7 +319,6 @@ class CodeGenerator: public AstVisitor {
                                       InlineRuntimeLUT* old_entry);
 
   static Handle<Code> ComputeLazyCompile(int argc);
-  Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   static Handle<Code> ComputeCallInitialize(int argc, InLoopFlag in_loop);
