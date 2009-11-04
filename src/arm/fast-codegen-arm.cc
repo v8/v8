@@ -142,14 +142,14 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
     __ add(sp, sp, Operand(sp_delta));
     __ Jump(lr);
 
-  // Check that the size of the code used for returning matches what is
-  // expected by the debugger. The add instruction above is an addressing
-  // mode 1 instruction where there are restrictions on which immediate values
-  // can be encoded in the instruction and which immediate values requires
-  // use of an additional instruction for moving the immediate to a temporary
-  // register.
-  ASSERT_EQ(expected_return_sequence_length,
-            masm_->InstructionsGeneratedSince(&check_exit_codesize));
+    // Check that the size of the code used for returning matches what is
+    // expected by the debugger. The add instruction above is an addressing
+    // mode 1 instruction where there are restrictions on which immediate values
+    // can be encoded in the instruction and which immediate values requires
+    // use of an additional instruction for moving the immediate to a temporary
+    // register.
+    ASSERT_EQ(return_sequence_length,
+              masm_->InstructionsGeneratedSince(&check_exit_codesize));
   }
 }
 
