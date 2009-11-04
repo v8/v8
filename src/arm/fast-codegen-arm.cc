@@ -130,7 +130,6 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
     int num_parameters = function_->scope()->num_parameters();
     __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
     __ Jump(lr);
-  }
 #ifdef DEBUG
   // Check that the size of the code used for returning matches what is
   // expected by the debugger. The add instruction above is an addressing
@@ -147,6 +146,7 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
   ASSERT_EQ(expected_return_sequence_length,
             masm_->InstructionsGeneratedSince(&check_exit_codesize));
 #endif
+  }
 }
 
 

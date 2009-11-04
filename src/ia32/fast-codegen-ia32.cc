@@ -30,6 +30,7 @@
 #include "codegen-inl.h"
 #include "fast-codegen.h"
 #include "parser.h"
+#include "debug.h"
 
 namespace v8 {
 namespace internal {
