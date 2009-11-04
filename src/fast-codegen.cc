@@ -369,7 +369,12 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void FastCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  UNREACHABLE();
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Comment cmnt(masm_, "[ DebuggerStatement");
+  SetStatementPosition(stmt);
+  __ CallRuntime(Runtime::kDebugBreak, 0);
+  // Ignore the return value.
+#endif
 }
 
 

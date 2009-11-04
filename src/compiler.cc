@@ -742,7 +742,7 @@ void CodeGenSelector::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void CodeGenSelector::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  BAILOUT("DebuggerStatement");
+  // Debugger statement is supported.
 }
 
 
