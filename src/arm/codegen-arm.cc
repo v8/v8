@@ -331,13 +331,25 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
 
     // Here we use masm_-> instead of the __ macro to avoid the code coverage
     // tool from instrumenting as we rely on the code size here.
-    masm_->add(sp, sp, Operand((scope_->num_parameters() + 1) * kPointerSize));
+    int32_t sp_delta = (scope_->num_parameters() + 1) * kPointerSize;
+    masm_->add(sp, sp, Operand(sp_delta));
     masm_->Jump(lr);
 
     // Check that the size of the code used for returning matches what is
-    // expected by the debugger.
-    ASSERT_EQ(kJSReturnSequenceLength,
+    // expected by the debugger. The add instruction above is an addressing
+    // mode 1 instruction where there are restrictions on which immediate values
+    // can be encoded in the instruction and which immediate values requires
+    // use of an additional instruction for moving the immediate to a temporary
+    // register.
+#ifdef DEBUG
+    int expected_return_sequence_length = kJSReturnSequenceLength;
+    if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
+      // Additional mov instruction generated.
+      expected_return_sequence_length++;
+    }
+    ASSERT_EQ(expected_return_sequence_length,
               masm_->InstructionsGeneratedSince(&check_exit_codesize));
+#endif
   }
 
   // Code generation state must be reset.

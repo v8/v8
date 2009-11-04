@@ -1311,6 +1311,13 @@ void Assembler::lea(Register dst,
 }
 
 
+bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
+  uint32_t dummy1;
+  uint32_t dummy2;
+  return fits_shifter(imm32, &dummy1, &dummy2, NULL);
+}
+
+
 // Debugging
 void Assembler::RecordJSReturn() {
   WriteRecordedPositions();

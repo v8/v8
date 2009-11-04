@@ -682,6 +682,9 @@ class Assembler : public Malloced {
     return (pc_offset() - l->pos()) / kInstrSize;
   }
 
+  // Check whether an immediate fits an addressing mode 1 instruction.
+  bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
+
   // Debugging
 
   // Mark address of the ExitJSFrame code.
