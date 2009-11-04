@@ -92,7 +92,6 @@ void DeferredCode::RestoreRegisters() {
 
 CodeGenState::CodeGenState(CodeGenerator* owner)
     : owner_(owner),
-      typeof_state_(NOT_INSIDE_TYPEOF),
       true_target_(NULL),
       false_target_(NULL),
       previous_(NULL) {
@@ -101,11 +100,9 @@ CodeGenState::CodeGenState(CodeGenerator* owner)
 
 
 CodeGenState::CodeGenState(CodeGenerator* owner,
-                           TypeofState typeof_state,
                            JumpTarget* true_target,
                            JumpTarget* false_target)
     : owner_(owner),
-      typeof_state_(typeof_state),
       true_target_(true_target),
       false_target_(false_target),
       previous_(owner->state()) {
@@ -457,14 +454,13 @@ MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(
 // register was set, has_cc() is true and cc_reg_ contains the condition to
 // test for 'true'.
 void CodeGenerator::LoadCondition(Expression* x,
-                                  TypeofState typeof_state,
                                   JumpTarget* true_target,
                                   JumpTarget* false_target,
                                   bool force_cc) {
   ASSERT(!has_cc());
   int original_height = frame_->height();
 
-  { CodeGenState new_state(this, typeof_state, true_target, false_target);
+  { CodeGenState new_state(this, true_target, false_target);
     Visit(x);
 
     // If we hit a stack overflow, we may not have actually visited
@@ -494,13 +490,13 @@ void CodeGenerator::LoadCondition(Expression* x,
 }
 
 
-void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
+void CodeGenerator::Load(Expression* expr) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
   JumpTarget true_target;
   JumpTarget false_target;
-  LoadCondition(x, typeof_state, &true_target, &false_target, false);
+  LoadCondition(expr, &true_target, &false_target, false);
 
   if (has_cc()) {
     // Convert cc_reg_ into a boolean value.
@@ -567,24 +563,29 @@ void CodeGenerator::LoadGlobalReceiver(Register scratch) {
 }
 
 
-// TODO(1241834): Get rid of this function in favor of just using Load, now
-// that we have the INSIDE_TYPEOF typeof state. => Need to handle global
-// variables w/o reference errors elsewhere.
-void CodeGenerator::LoadTypeofExpression(Expression* x) {
+void CodeGenerator::LoadTypeofExpression(Expression* expr) {
+  // Special handling of identifiers as subexpressions of typeof.
   VirtualFrame::SpilledScope spilled_scope;
-  Variable* variable = x->AsVariableProxy()->AsVariable();
+  Variable* variable = expr->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
-    // NOTE: This is somewhat nasty. We force the compiler to load
-    // the variable as if through '<global>.<variable>' to make sure we
-    // do not get reference errors.
+    // For a global variable we build the property reference
+    // <global>.<variable> and perform a (regular non-contextual) property
+    // load to make sure we do not get reference errors.
     Slot global(variable, Slot::CONTEXT, Context::GLOBAL_INDEX);
     Literal key(variable->name());
     // TODO(1241834): Fetch the position from the variable instead of using
     // no position.
     Property property(&global, &key, RelocInfo::kNoPosition);
-    LoadAndSpill(&property);
+    Reference ref(this, &property);
+    ref.GetValueAndSpill();
+  } else if (variable != NULL && variable->slot() != NULL) {
+    // For a variable that rewrites to a slot, we signal it is the immediate
+    // subexpression of a typeof.
+    LoadFromSlot(variable->slot(), INSIDE_TYPEOF);
+    frame_->SpillAll();
   } else {
-    LoadAndSpill(x, INSIDE_TYPEOF);
+    // Anything else can be handled normally.
+    LoadAndSpill(expr);
   }
 }
 
@@ -1291,8 +1292,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     JumpTarget then;
     JumpTarget else_;
     // if (cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &then, &else_, true);
+    LoadConditionAndSpill(node->condition(), &then, &else_, true);
     if (frame_ != NULL) {
       Branch(false, &else_);
     }
@@ -1315,8 +1315,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_else_stm);
     JumpTarget then;
     // if (cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &then, &exit, true);
+    LoadConditionAndSpill(node->condition(), &then, &exit, true);
     if (frame_ != NULL) {
       Branch(false, &exit);
     }
@@ -1331,8 +1330,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_then_stm);
     JumpTarget else_;
     // if (!cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &exit, &else_, true);
+    LoadConditionAndSpill(node->condition(), &exit, &else_, true);
     if (frame_ != NULL) {
       Branch(true, &exit);
     }
@@ -1346,8 +1344,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     Comment cmnt(masm_, "[ If");
     ASSERT(!has_then_stm && !has_else_stm);
     // if (cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &exit, &exit, false);
+    LoadConditionAndSpill(node->condition(), &exit, &exit, false);
     if (frame_ != NULL) {
       if (has_cc()) {
         cc_reg_ = al;
@@ -1585,8 +1582,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
         node->continue_target()->Bind();
       }
       if (has_valid_frame()) {
-        LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
-                              &body, node->break_target(), true);
+        LoadConditionAndSpill(node->cond(), &body, node->break_target(), true);
         if (has_valid_frame()) {
           // A invalid frame here indicates that control did not
           // fall out of the test expression.
@@ -1625,8 +1621,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
 
   if (info == DONT_KNOW) {
     JumpTarget body;
-    LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
-                          &body, node->break_target(), true);
+    LoadConditionAndSpill(node->cond(), &body, node->break_target(), true);
     if (has_valid_frame()) {
       // A NULL frame indicates that control did not fall out of the
       // test expression.
@@ -1685,8 +1680,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
   // If the test is always true, there is no need to compile it.
   if (info == DONT_KNOW) {
     JumpTarget body;
-    LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
-                          &body, node->break_target(), true);
+    LoadConditionAndSpill(node->cond(), &body, node->break_target(), true);
     if (has_valid_frame()) {
       Branch(false, node->break_target());
     }
@@ -2295,20 +2289,19 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
   JumpTarget then;
   JumpTarget else_;
-  LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                        &then, &else_, true);
+  LoadConditionAndSpill(node->condition(), &then, &else_, true);
   if (has_valid_frame()) {
     Branch(false, &else_);
   }
   if (has_valid_frame() || then.is_linked()) {
     then.Bind();
-    LoadAndSpill(node->then_expression(), typeof_state());
+    LoadAndSpill(node->then_expression());
   }
   if (else_.is_linked()) {
     JumpTarget exit;
     if (has_valid_frame()) exit.Jump();
     else_.Bind();
-    LoadAndSpill(node->else_expression(), typeof_state());
+    LoadAndSpill(node->else_expression());
     if (exit.is_linked()) exit.Bind();
   }
   ASSERT(frame_->height() == original_height + 1);
@@ -2375,10 +2368,6 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     frame_->EmitPush(r0);
 
   } else {
-    // Note: We would like to keep the assert below, but it fires because of
-    // some nasty code in LoadTypeofExpression() which should be removed...
-    // ASSERT(!slot->var()->is_dynamic());
-
     // Special handling for locals allocated in registers.
     __ ldr(r0, SlotOperand(slot, r2));
     frame_->EmitPush(r0);
@@ -2473,7 +2462,7 @@ void CodeGenerator::VisitSlot(Slot* node) {
 #endif
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlot(node, typeof_state());
+  LoadFromSlot(node, NOT_INSIDE_TYPEOF);
   ASSERT(frame_->height() == original_height + 1);
 }
 
@@ -2492,7 +2481,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   } else {
     ASSERT(var->is_global());
     Reference ref(this, node);
-    ref.GetValueAndSpill(typeof_state());
+    ref.GetValueAndSpill();
   }
   ASSERT(frame_->height() == original_height + 1);
 }
@@ -2828,7 +2817,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     } else {
       // +=, *= and similar binary assignments.
       // Get the old value of the lhs.
-      target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
+      target.GetValueAndSpill();
       Literal* literal = node->value()->AsLiteral();
       bool overwrite =
           (node->value()->AsBinaryOperation() != NULL &&
@@ -2893,7 +2882,7 @@ void CodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
 
   { Reference property(this, node);
-    property.GetValueAndSpill(typeof_state());
+    property.GetValueAndSpill();
   }
   ASSERT(frame_->height() == original_height + 1);
 }
@@ -3063,7 +3052,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      ref.GetValueAndSpill(NOT_INSIDE_TYPEOF);  // receiver
+      ref.GetValueAndSpill();  // receiver
 
       // Pass receiver to called function.
       if (property->is_synthetic()) {
@@ -3468,7 +3457,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
   if (op == Token::NOT) {
     LoadConditionAndSpill(node->expression(),
-                          NOT_INSIDE_TYPEOF,
                           false_target(),
                           true_target(),
                           true);
@@ -3629,7 +3617,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       ASSERT(frame_->height() == original_height + 1);
       return;
     }
-    target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
+    target.GetValueAndSpill();
     frame_->EmitPop(r0);
 
     JumpTarget slow;
@@ -3723,7 +3711,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   if (op == Token::AND) {
     JumpTarget is_true;
     LoadConditionAndSpill(node->left(),
-                          NOT_INSIDE_TYPEOF,
                           &is_true,
                           false_target(),
                           false);
@@ -3759,7 +3746,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       }
       is_true.Bind();
       LoadConditionAndSpill(node->right(),
-                            NOT_INSIDE_TYPEOF,
                             true_target(),
                             false_target(),
                             false);
@@ -3771,7 +3757,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   } else if (op == Token::OR) {
     JumpTarget is_false;
     LoadConditionAndSpill(node->left(),
-                          NOT_INSIDE_TYPEOF,
                           true_target(),
                           &is_false,
                           false);
@@ -3807,7 +3792,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       }
       is_false.Bind();
       LoadConditionAndSpill(node->right(),
-                            NOT_INSIDE_TYPEOF,
                             true_target(),
                             false_target(),
                             false);
@@ -4106,7 +4090,7 @@ Handle<String> Reference::GetName() {
 }
 
 
-void Reference::GetValue(TypeofState typeof_state) {
+void Reference::GetValue() {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   ASSERT(!cgen_->has_cc());
@@ -4121,16 +4105,11 @@ void Reference::GetValue(TypeofState typeof_state) {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlot(slot, typeof_state);
+      cgen_->LoadFromSlot(slot, NOT_INSIDE_TYPEOF);
       break;
     }
 
     case NAMED: {
-      // TODO(1241834): Make sure that this it is safe to ignore the
-      // distinction between expressions in a typeof and not in a typeof. If
-      // there is a chance that reference errors can be thrown below, we
-      // must distinguish between the two kinds of loads (typeof expression
-      // loads must not throw a reference error).
       VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from named Property");
       Handle<String> name(GetName());
@@ -4149,9 +4128,6 @@ void Reference::GetValue(TypeofState typeof_state) {
     }
 
     case KEYED: {
-      // TODO(1241834): Make sure that this it is safe to ignore the
-      // distinction between expressions in a typeof and not in a typeof.
-
       // TODO(181): Implement inlined version of array indexing once
       // loop nesting is properly tracked on ARM.
       VirtualFrame* frame = cgen_->frame();

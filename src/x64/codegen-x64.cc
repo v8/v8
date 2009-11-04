@@ -74,7 +74,6 @@ void DeferredCode::RestoreRegisters() {
 
 CodeGenState::CodeGenState(CodeGenerator* owner)
     : owner_(owner),
-      typeof_state_(NOT_INSIDE_TYPEOF),
       destination_(NULL),
       previous_(NULL) {
   owner_->set_state(this);
@@ -82,10 +81,8 @@ CodeGenState::CodeGenState(CodeGenerator* owner)
 
 
 CodeGenState::CodeGenState(CodeGenerator* owner,
-                           TypeofState typeof_state,
                            ControlDestination* destination)
     : owner_(owner),
-      typeof_state_(typeof_state),
       destination_(destination),
       previous_(owner->state()) {
   owner_->set_state(this);
@@ -655,7 +652,7 @@ void CodeGenerator::CallApplyLazy(Property* apply,
   // Load the apply function onto the stack. This will usually
   // give us a megamorphic load site. Not super, but it works.
   Reference ref(this, apply);
-  ref.GetValue(NOT_INSIDE_TYPEOF);
+  ref.GetValue();
   ASSERT(ref.type() == Reference::NAMED);
 
   // Load the receiver and the existing arguments object onto the
@@ -980,7 +977,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     JumpTarget then;
     JumpTarget else_;
     ControlDestination dest(&then, &else_, true);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+    LoadCondition(node->condition(), &dest, true);
 
     if (dest.false_was_fall_through()) {
       // The else target was bound, so we compile the else part first.
@@ -1007,7 +1004,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_else_stm);
     JumpTarget then;
     ControlDestination dest(&then, &exit, true);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+    LoadCondition(node->condition(), &dest, true);
 
     if (dest.false_was_fall_through()) {
       // The exit label was bound.  We may have dangling jumps to the
@@ -1027,7 +1024,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_then_stm);
     JumpTarget else_;
     ControlDestination dest(&exit, &else_, false);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+    LoadCondition(node->condition(), &dest, true);
 
     if (dest.true_was_fall_through()) {
       // The exit label was bound.  We may have dangling jumps to the
@@ -1049,7 +1046,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // or control flow effect).  LoadCondition is called without
     // forcing control flow.
     ControlDestination dest(&exit, &exit, true);
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, false);
+    LoadCondition(node->condition(), &dest, false);
     if (!dest.is_used()) {
       // We got a value on the frame rather than (or in addition to)
       // control flow.
@@ -1321,7 +1318,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
       }
       if (has_valid_frame()) {
         ControlDestination dest(&body, node->break_target(), false);
-        LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+        LoadCondition(node->cond(), &dest, true);
       }
       if (node->break_target()->is_linked()) {
         node->break_target()->Bind();
@@ -1378,7 +1375,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
       // Compile the test with the body as the true target and preferred
       // fall-through and with the break target as the false target.
       ControlDestination dest(&body, node->break_target(), true);
-      LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+      LoadCondition(node->cond(), &dest, true);
 
       if (dest.false_was_fall_through()) {
         // If we got the break target as fall-through, the test may have
@@ -1425,7 +1422,7 @@ void CodeGenerator::VisitWhileStatement(WhileStatement* node) {
           // The break target is the fall-through (body is a backward
           // jump from here and thus an invalid fall-through).
           ControlDestination dest(&body, node->break_target(), false);
-          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          LoadCondition(node->cond(), &dest, true);
         }
       } else {
         // If we have chosen not to recompile the test at the
@@ -1517,7 +1514,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
       // Compile the test with the body as the true target and preferred
       // fall-through and with the break target as the false target.
       ControlDestination dest(&body, node->break_target(), true);
-      LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+      LoadCondition(node->cond(), &dest, true);
 
       if (dest.false_was_fall_through()) {
         // If we got the break target as fall-through, the test may have
@@ -1587,7 +1584,7 @@ void CodeGenerator::VisitForStatement(ForStatement* node) {
           // The break target is the fall-through (body is a backward
           // jump from here).
           ControlDestination dest(&body, node->break_target(), false);
-          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          LoadCondition(node->cond(), &dest, true);
         }
       } else {
         // Otherwise, jump back to the test at the top.
@@ -2187,25 +2184,25 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   JumpTarget else_;
   JumpTarget exit;
   ControlDestination dest(&then, &else_, true);
-  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &dest, true);
+  LoadCondition(node->condition(), &dest, true);
 
   if (dest.false_was_fall_through()) {
     // The else target was bound, so we compile the else part first.
-    Load(node->else_expression(), typeof_state());
+    Load(node->else_expression());
 
     if (then.is_linked()) {
       exit.Jump();
       then.Bind();
-      Load(node->then_expression(), typeof_state());
+      Load(node->then_expression());
     }
   } else {
     // The then target was bound, so we compile the then part first.
-    Load(node->then_expression(), typeof_state());
+    Load(node->then_expression());
 
     if (else_.is_linked()) {
       exit.Jump();
       else_.Bind();
-      Load(node->else_expression(), typeof_state());
+      Load(node->else_expression());
     }
   }
 
@@ -2215,7 +2212,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlotCheckForArguments(node, typeof_state());
+  LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
 }
 
 
@@ -2228,7 +2225,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   } else {
     ASSERT(var->is_global());
     Reference ref(this, node);
-    ref.GetValue(typeof_state());
+    ref.GetValue();
   }
 }
 
@@ -2619,9 +2616,9 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       // the target, with an implicit promise that it will be written to again
       // before it is read.
       if (literal != NULL || (right_var != NULL && right_var != var)) {
-        target.TakeValue(NOT_INSIDE_TYPEOF);
+        target.TakeValue();
       } else {
-        target.GetValue(NOT_INSIDE_TYPEOF);
+        target.GetValue();
       }
       Load(node->value());
       GenericBinaryOperation(node->binary_op(),
@@ -2669,7 +2666,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
 void CodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
   Reference property(this, node);
-  property.GetValue(typeof_state());
+  property.GetValue();
 }
 
 
@@ -2855,7 +2852,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      ref.GetValue(NOT_INSIDE_TYPEOF);
+      ref.GetValue();
 
       // Pass receiver to called function.
       if (property->is_synthetic()) {
@@ -2961,9 +2958,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
-  // Note that because of NOT and an optimization in comparison of a typeof
-  // expression to a literal string, this function can fail to leave a value
-  // on top of the frame or in the cc register.
   Comment cmnt(masm_, "[ UnaryOperation");
 
   Token::Value op = node->op();
@@ -2972,7 +2966,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     // Swap the true and false targets but keep the same actual label
     // as the fall through.
     destination()->Invert();
-    LoadCondition(node->expression(), NOT_INSIDE_TYPEOF, destination(), true);
+    LoadCondition(node->expression(), destination(), true);
     // Swap the labels back.
     destination()->Invert();
 
@@ -3212,7 +3206,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       if (!is_postfix) frame_->Push(Smi::FromInt(0));
       return;
     }
-    target.TakeValue(NOT_INSIDE_TYPEOF);
+    target.TakeValue();
 
     Result new_value = frame_->Pop();
     new_value.ToRegister();
@@ -3270,9 +3264,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // TODO(X64): This code was copied verbatim from codegen-ia32.
   //     Either find a reason to change it or move it to a shared location.
 
-  // Note that due to an optimization in comparison operations (typeof
-  // compared to a string literal), we can evaluate a binary expression such
-  // as AND or OR and not leave a value on the frame or in the cc register.
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
 
@@ -3288,7 +3279,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   if (op == Token::AND) {
     JumpTarget is_true;
     ControlDestination dest(&is_true, destination()->false_target(), true);
-    LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
+    LoadCondition(node->left(), &dest, false);
 
     if (dest.false_was_fall_through()) {
       // The current false target was used as the fall-through.  If
@@ -3307,7 +3298,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
         is_true.Bind();
         // The left subexpression compiled to control flow, so the
         // right one is free to do so as well.
-        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+        LoadCondition(node->right(), destination(), false);
       } else {
         // We have actually just jumped to or bound the current false
         // target but the current control destination is not marked as
@@ -3318,7 +3309,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else if (dest.is_used()) {
       // The left subexpression compiled to control flow (and is_true
       // was just bound), so the right is free to do so as well.
-      LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      LoadCondition(node->right(), destination(), false);
 
     } else {
       // We have a materialized value on the frame, so we exit with
@@ -3351,7 +3342,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   } else if (op == Token::OR) {
     JumpTarget is_false;
     ControlDestination dest(destination()->true_target(), &is_false, false);
-    LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
+    LoadCondition(node->left(), &dest, false);
 
     if (dest.true_was_fall_through()) {
       // The current true target was used as the fall-through.  If
@@ -3370,7 +3361,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
         is_false.Bind();
         // The left subexpression compiled to control flow, so the
         // right one is free to do so as well.
-        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+        LoadCondition(node->right(), destination(), false);
       } else {
         // We have just jumped to or bound the current true target but
         // the current control destination is not marked as used.
@@ -3380,7 +3371,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else if (dest.is_used()) {
       // The left subexpression compiled to control flow (and is_false
       // was just bound), so the right is free to do so as well.
-      LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      LoadCondition(node->right(), destination(), false);
 
     } else {
       // We have a materialized value on the frame, so we exit with
@@ -4101,18 +4092,17 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 // -----------------------------------------------------------------------------
 // CodeGenerator implementation of Expressions
 
-void CodeGenerator::LoadAndSpill(Expression* expression,
-                                 TypeofState typeof_state) {
+void CodeGenerator::LoadAndSpill(Expression* expression) {
   // TODO(x64): No architecture specific code. Move to shared location.
   ASSERT(in_spilled_code());
   set_in_spilled_code(false);
-  Load(expression, typeof_state);
+  Load(expression);
   frame_->SpillAll();
   set_in_spilled_code(true);
 }
 
 
-void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
+void CodeGenerator::Load(Expression* expr) {
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
@@ -4120,7 +4110,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   JumpTarget true_target;
   JumpTarget false_target;
   ControlDestination dest(&true_target, &false_target, true);
-  LoadCondition(x, typeof_state, &dest, false);
+  LoadCondition(expr, &dest, false);
 
   if (dest.false_was_fall_through()) {
     // The false target was just bound.
@@ -4180,13 +4170,12 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 // partially compiled) into control flow to the control destination.
 // If force_control is true, control flow is forced.
 void CodeGenerator::LoadCondition(Expression* x,
-                                  TypeofState typeof_state,
                                   ControlDestination* dest,
                                   bool force_control) {
   ASSERT(!in_spilled_code());
   int original_height = frame_->height();
 
-  { CodeGenState new_state(this, typeof_state, dest);
+  { CodeGenState new_state(this, dest);
     Visit(x);
 
     // If we hit a stack overflow, we may not have actually visited
@@ -4814,23 +4803,27 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
 }
 
 
-// TODO(1241834): Get rid of this function in favor of just using Load, now
-// that we have the INSIDE_TYPEOF typeof state. => Need to handle global
-// variables w/o reference errors elsewhere.
-void CodeGenerator::LoadTypeofExpression(Expression* x) {
-  Variable* variable = x->AsVariableProxy()->AsVariable();
+void CodeGenerator::LoadTypeofExpression(Expression* expr) {
+  // Special handling of identifiers as subexpressions of typeof.
+  Variable* variable = expr->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
-    // NOTE: This is somewhat nasty. We force the compiler to load
-    // the variable as if through '<global>.<variable>' to make sure we
-    // do not get reference errors.
+    // For a global variable we build the property reference
+    // <global>.<variable> and perform a (regular non-contextual) property
+    // load to make sure we do not get reference errors.
     Slot global(variable, Slot::CONTEXT, Context::GLOBAL_INDEX);
     Literal key(variable->name());
     // TODO(1241834): Fetch the position from the variable instead of using
     // no position.
     Property property(&global, &key, RelocInfo::kNoPosition);
-    Load(&property);
+    Reference ref(this, &property);
+    ref.GetValue();
+  } else if (variable != NULL && variable->slot() != NULL) {
+    // For a variable that rewrites to a slot, we signal it is the immediate
+    // subexpression of a typeof.
+    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
   } else {
-    Load(x, INSIDE_TYPEOF);
+    // Anything else can be handled normally.
+    Load(expr);
   }
 }
 
@@ -5725,7 +5718,7 @@ Handle<String> Reference::GetName() {
 }
 
 
-void Reference::GetValue(TypeofState typeof_state) {
+void Reference::GetValue() {
   ASSERT(!cgen_->in_spilled_code());
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
@@ -5742,17 +5735,11 @@ void Reference::GetValue(TypeofState typeof_state) {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlotCheckForArguments(slot, typeof_state);
+      cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
       break;
     }
 
     case NAMED: {
-      // TODO(1241834): Make sure that it is safe to ignore the
-      // distinction between expressions in a typeof and not in a
-      // typeof. If there is a chance that reference errors can be
-      // thrown below, we must distinguish between the two kinds of
-      // loads (typeof expression loads must not throw a reference
-      // error).
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
@@ -5834,8 +5821,6 @@ void Reference::GetValue(TypeofState typeof_state) {
     }
 
     case KEYED: {
-      // TODO(1241834): Make sure that this it is safe to ignore the
-      // distinction between expressions in a typeof and not in a typeof.
       Comment cmnt(masm, "[ Load from keyed Property");
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
@@ -5957,7 +5942,7 @@ void Reference::GetValue(TypeofState typeof_state) {
 }
 
 
-void Reference::TakeValue(TypeofState typeof_state) {
+void Reference::TakeValue() {
   // TODO(X64): This function is completely architecture independent. Move
   // it somewhere shared.
 
@@ -5966,7 +5951,7 @@ void Reference::TakeValue(TypeofState typeof_state) {
   ASSERT(!cgen_->in_spilled_code());
   ASSERT(!is_illegal());
   if (type_ != SLOT) {
-    GetValue(typeof_state);
+    GetValue();
     return;
   }
 
@@ -5976,7 +5961,7 @@ void Reference::TakeValue(TypeofState typeof_state) {
       slot->type() == Slot::CONTEXT ||
       slot->var()->mode() == Variable::CONST ||
       slot->is_arguments()) {
-    GetValue(typeof_state);
+    GetValue();
     return;
   }
 

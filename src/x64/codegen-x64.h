@@ -77,12 +77,12 @@ class Reference BASE_EMBEDDED {
   // Generate code to push the value of the reference on top of the
   // expression stack.  The reference is expected to be already on top of
   // the expression stack, and it is left in place with its value above it.
-  void GetValue(TypeofState typeof_state);
+  void GetValue();
 
   // Like GetValue except that the slot is expected to be written to before
   // being read from again.  Thae value of the reference may be invalidated,
   // causing subsequent attempts to read it to fail.
-  void TakeValue(TypeofState typeof_state);
+  void TakeValue();
 
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
@@ -241,27 +241,19 @@ class CodeGenState BASE_EMBEDDED {
   explicit CodeGenState(CodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
-  // state.  The new state may or may not be inside a typeof, and has its
-  // own control destination.
-  CodeGenState(CodeGenerator* owner,
-               TypeofState typeof_state,
-               ControlDestination* destination);
+  // state.  The new state has its own control destination.
+  CodeGenState(CodeGenerator* owner, ControlDestination* destination);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
   ~CodeGenState();
 
   // Accessors for the state.
-  TypeofState typeof_state() const { return typeof_state_; }
   ControlDestination* destination() const { return destination_; }
 
  private:
   // The owning code generator.
   CodeGenerator* owner_;
-
-  // A flag indicating whether we are compiling the immediate subexpression
-  // of a typeof expression.
-  TypeofState typeof_state_;
 
   // A control destination in case the expression has a control-flow
   // effect.
@@ -353,7 +345,6 @@ class CodeGenerator: public AstVisitor {
   bool is_eval() { return is_eval_; }
 
   // State
-  TypeofState typeof_state() const { return state_->typeof_state(); }
   ControlDestination* destination() const { return state_->destination(); }
 
   // Track loop nesting level.
@@ -414,18 +405,16 @@ class CodeGenerator: public AstVisitor {
   }
 
   void LoadCondition(Expression* x,
-                     TypeofState typeof_state,
                      ControlDestination* destination,
                      bool force_control);
-  void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  void Load(Expression* expr);
   void LoadGlobal();
   void LoadGlobalReceiver();
 
   // Generate code to push the value of an expression on top of the frame
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
-  void LoadAndSpill(Expression* expression,
-                    TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  void LoadAndSpill(Expression* expression);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);

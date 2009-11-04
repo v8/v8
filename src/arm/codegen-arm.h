@@ -77,12 +77,12 @@ class Reference BASE_EMBEDDED {
   // Generate code to push the value of the reference on top of the
   // expression stack.  The reference is expected to be already on top of
   // the expression stack, and it is left in place with its value above it.
-  void GetValue(TypeofState typeof_state);
+  void GetValue();
 
   // Generate code to push the value of a reference on top of the expression
   // stack and then spill the stack frame.  This function is used temporarily
   // while the code generator is being transformed.
-  inline void GetValueAndSpill(TypeofState typeof_state);
+  inline void GetValueAndSpill();
 
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
@@ -112,10 +112,8 @@ class CodeGenState BASE_EMBEDDED {
   explicit CodeGenState(CodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
-  // state.  The new state has its own typeof state and pair of branch
-  // labels.
+  // state.  The new state has its own pair of branch labels.
   CodeGenState(CodeGenerator* owner,
-               TypeofState typeof_state,
                JumpTarget* true_target,
                JumpTarget* false_target);
 
@@ -123,13 +121,11 @@ class CodeGenState BASE_EMBEDDED {
   // previous state.
   ~CodeGenState();
 
-  TypeofState typeof_state() const { return typeof_state_; }
   JumpTarget* true_target() const { return true_target_; }
   JumpTarget* false_target() const { return false_target_; }
 
  private:
   CodeGenerator* owner_;
-  TypeofState typeof_state_;
   JumpTarget* true_target_;
   JumpTarget* false_target_;
   CodeGenState* previous_;
@@ -210,7 +206,6 @@ class CodeGenerator: public AstVisitor {
 
   // State
   bool has_cc() const  { return cc_reg_ != al; }
-  TypeofState typeof_state() const { return state_->typeof_state(); }
   JumpTarget* true_target() const  { return state_->true_target(); }
   JumpTarget* false_target() const  { return state_->false_target(); }
 
@@ -259,25 +254,22 @@ class CodeGenerator: public AstVisitor {
   }
 
   void LoadCondition(Expression* x,
-                     TypeofState typeof_state,
                      JumpTarget* true_target,
                      JumpTarget* false_target,
                      bool force_cc);
-  void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  void Load(Expression* expr);
   void LoadGlobal();
   void LoadGlobalReceiver(Register scratch);
 
   // Generate code to push the value of an expression on top of the frame
   // and then spill the frame fully to memory.  This function is used
   // temporarily while the code generator is being transformed.
-  inline void LoadAndSpill(Expression* expression,
-                           TypeofState typeof_state = NOT_INSIDE_TYPEOF);
+  inline void LoadAndSpill(Expression* expression);
 
   // Call LoadCondition and then spill the virtual frame unless control flow
   // cannot reach the end of the expression (ie, by emitting only
   // unconditional jumps to the control targets).
   inline void LoadConditionAndSpill(Expression* expression,
-                                    TypeofState typeof_state,
                                     JumpTarget* true_target,
                                     JumpTarget* false_target,
                                     bool force_control);
