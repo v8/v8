@@ -4724,6 +4724,7 @@ class AccessorInfo: public Struct {
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(name, Object)
   DECL_ACCESSORS(flag, Smi)
+  DECL_ACCESSORS(load_stub_cache, Object)
 
   inline bool all_can_read();
   inline void set_all_can_read(bool value);
@@ -4749,7 +4750,8 @@ class AccessorInfo: public Struct {
   static const int kDataOffset = kSetterOffset + kPointerSize;
   static const int kNameOffset = kDataOffset + kPointerSize;
   static const int kFlagOffset = kNameOffset + kPointerSize;
-  static const int kSize = kFlagOffset + kPointerSize;
+  static const int kLoadStubCacheOffset = kFlagOffset + kPointerSize;
+  static const int kSize = kLoadStubCacheOffset + kPointerSize;
 
  private:
   // Bit positions in flag.
