@@ -90,42 +90,50 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   }
 
   { Comment cmnt(masm_, "[ return <undefined>;");
-    // Emit a 'return undefined' in case control fell off the end of the
-    // body.
+    // Emit a 'return undefined' in case control fell off the end of the body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-  }
-  { Comment cmnt(masm_, "Return sequence");
-    SetReturnPosition(fun);
-
-    if (return_label_.is_bound()) {
-      __ jmp(&return_label_);
-    } else {
-      __ bind(&return_label_);
-
-      if (FLAG_trace) {
-        __ push(rax);
-        __ CallRuntime(Runtime::kTraceExit, 1);
-      }
-      __ RecordJSReturn();
-
-      // Do not use the leave instruction here because it is too short to
-      // patch with the code required by the debugger.
-      __ movq(rsp, rbp);
-      __ pop(rbp);
-      __ ret((fun->scope()->num_parameters() + 1) * kPointerSize);
-#ifdef ENABLE_DEBUGGER_SUPPORT
-      // Add padding that will be overwritten by a debugger breakpoint.  We
-      // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
-      // (3 + 1 + 3).
-      const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
-      for (int i = 0; i < kPadding; ++i) {
-        masm_->int3();
-      }
-#endif
-    }
+    EmitReturnSequence(function_->end_position());
   }
 }
 
+
+void FastCodeGenerator::EmitReturnSequence(int position) {
+  Comment cmnt(masm_, "[ Return sequence");
+  if (return_label_.is_bound()) {
+    __ jmp(&return_label_);
+  } else {
+    __ bind(&return_label_);
+    if (FLAG_trace) {
+      __ push(rax);
+      __ CallRuntime(Runtime::kTraceExit, 1);
+    }
+#ifdef DEBUG
+    // Add a label for checking the size of the code used for returning.
+    Label check_exit_codesize;
+    masm_->bind(&check_exit_codesize);
+#endif
+    CodeGenerator::RecordPositions(masm_, position);
+    __ RecordJSReturn();
+    // Do not use the leave instruction here because it is too short to
+    // patch with the code required by the debugger.
+    __ movq(rsp, rbp);
+    __ pop(rbp);
+    __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    // Add padding that will be overwritten by a debugger breakpoint.  We
+    // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
+    // (3 + 1 + 3).
+    const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+    for (int i = 0; i < kPadding; ++i) {
+      masm_->int3();
+    }
+    // Check that the size of the code used for returning matches what is
+    // expected by the debugger.
+    ASSERT_EQ(Debug::Debug::kX64JSReturnSequenceLength,
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+#endif
+  }
+}
 
 
 void FastCodeGenerator::Move(Expression::Context context, Register source) {
@@ -282,7 +290,6 @@ void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
-  SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
   if (expr->AsLiteral() != NULL) {
     __ Move(rax, expr->AsLiteral()->handle());
@@ -291,33 +298,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     ASSERT_EQ(Expression::kValue, expr->context());
     __ pop(rax);
   }
-
-  if (return_label_.is_bound()) {
-    __ jmp(&return_label_);
-  } else {
-    __ bind(&return_label_);
-
-    if (FLAG_trace) {
-      __ push(rax);
-      __ CallRuntime(Runtime::kTraceExit, 1);
-    }
-
-    __ RecordJSReturn();
-    // Do not use the leave instruction here because it is too short to
-    // patch with the code required by the debugger.
-    __ movq(rsp, rbp);
-    __ pop(rbp);
-    __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
-#ifdef ENABLE_DEBUGGER_SUPPORT
-    // Add padding that will be overwritten by a debugger breakpoint.  We
-    // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
-    // (3 + 1 + 3).
-    const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
-    for (int i = 0; i < kPadding; ++i) {
-      masm_->int3();
-    }
-#endif
-  }
+  EmitReturnSequence(stmt->statement_pos());
 }
 
 

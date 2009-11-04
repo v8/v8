@@ -91,30 +91,42 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   }
 
   { Comment cmnt(masm_, "[ return <undefined>;");
-    // Emit a 'return undefined' in case control fell off the end of the
-    // body.
+    // Emit a 'return undefined' in case control fell off the end of the body.
     __ mov(eax, Factory::undefined_value());
+    EmitReturnSequence(function_->end_position());
   }
-  { Comment cmnt(masm_, "[ Return sequence");
-    SetReturnPosition(fun);
+}
 
-    if (return_label_.is_bound()) {
-      __ jmp(&return_label_);
-    } else {
-      // Common return label
-      __ bind(&return_label_);
 
-      if (FLAG_trace) {
-        __ push(eax);
-        __ CallRuntime(Runtime::kTraceExit, 1);
-      }
-      __ RecordJSReturn();
-      // Do not use the leave instruction here because it is too short to
-      // patch with the code required by the debugger.
-      __ mov(esp, ebp);
-      __ pop(ebp);
-      __ ret((fun->scope()->num_parameters() + 1) * kPointerSize);
+void FastCodeGenerator::EmitReturnSequence(int position) {
+  Comment cmnt(masm_, "[ Return sequence");
+  if (return_label_.is_bound()) {
+    __ jmp(&return_label_);
+  } else {
+    // Common return label
+    __ bind(&return_label_);
+    if (FLAG_trace) {
+      __ push(eax);
+      __ CallRuntime(Runtime::kTraceExit, 1);
     }
+#ifdef DEBUG
+    // Add a label for checking the size of the code used for returning.
+    Label check_exit_codesize;
+    masm_->bind(&check_exit_codesize);
+#endif
+    CodeGenerator::RecordPositions(masm_, position);
+    __ RecordJSReturn();
+    // Do not use the leave instruction here because it is too short to
+    // patch with the code required by the debugger.
+    __ mov(esp, ebp);
+    __ pop(ebp);
+    __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    // Check that the size of the code used for returning matches what is
+    // expected by the debugger.
+    ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
+            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
+#endif
   }
 }
 
@@ -270,7 +282,6 @@ void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
-  SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
   if (expr->AsLiteral() != NULL) {
     __ mov(eax, expr->AsLiteral()->handle());
@@ -279,25 +290,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     Visit(expr);
     __ pop(eax);
   }
-
-  if (return_label_.is_bound()) {
-    __ jmp(&return_label_);
-  } else {
-    __ bind(&return_label_);
-
-      if (FLAG_trace) {
-        __ push(eax);
-        __ CallRuntime(Runtime::kTraceExit, 1);
-      }
-
-    __ RecordJSReturn();
-
-    // Do not use the leave instruction here because it is too short to
-    // patch with the code required by the debugger.
-    __ mov(esp, ebp);
-    __ pop(ebp);
-    __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
-  }
+  EmitReturnSequence(stmt->statement_pos());
 }
 
 

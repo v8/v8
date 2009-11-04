@@ -73,6 +73,10 @@ class FastCodeGenerator: public AstVisitor {
   Handle<JSFunction> BuildBoilerplate(FunctionLiteral* fun);
   void DeclareGlobals(Handle<FixedArray> pairs);
 
+  // Platform-specific return sequence
+  void EmitReturnSequence(int position);
+
+  // Platform-specific code sequences for calls
   void EmitCallWithStub(Call* expr);
   void EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info);
 

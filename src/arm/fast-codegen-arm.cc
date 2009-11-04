@@ -102,26 +102,51 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     // body.
     __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
   }
-  { Comment cmnt(masm_, "Return sequence");
-    if (return_label_.is_bound()) {
-      __ b(&return_label_);
-    } else {
-      __ bind(&return_label_);
-      SetReturnPosition(fun);
-      if (FLAG_trace) {
-        // Push the return value on the stack as the parameter.
-        // Runtime::TraceExit returns its parameter in r0.
-        __ push(r0);
-        __ CallRuntime(Runtime::kTraceExit, 1);
-      }
-      __ RecordJSReturn();
-      __ mov(sp, fp);
-      __ ldm(ia_w, sp, fp.bit() | lr.bit());
-      int num_parameters = function_->scope()->num_parameters();
-      __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
-      __ Jump(lr);
+  EmitReturnSequence(function_->end_position());
+}
+
+
+void FastCodeGenerator::EmitReturnSequence(int position) {
+  Comment cmnt(masm_, "[ Return sequence");
+  if (return_label_.is_bound()) {
+    __ b(&return_label_);
+  } else {
+    __ bind(&return_label_);
+    if (FLAG_trace) {
+      // Push the return value on the stack as the parameter.
+      // Runtime::TraceExit returns its parameter in r0.
+      __ push(r0);
+      __ CallRuntime(Runtime::kTraceExit, 1);
     }
+#ifdef DEBUG
+    // Add a label for checking the size of the code used for returning.
+    Label check_exit_codesize;
+    masm_->bind(&check_exit_codesize);
+#endif
+    CodeGenerator::RecordPositions(masm_, position);
+    __ RecordJSReturn();
+    __ mov(sp, fp);
+    __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    int num_parameters = function_->scope()->num_parameters();
+    __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
+    __ Jump(lr);
   }
+#ifdef DEBUG
+  // Check that the size of the code used for returning matches what is
+  // expected by the debugger. The add instruction above is an addressing
+  // mode 1 instruction where there are restrictions on which immediate values
+  // can be encoded in the instruction and which immediate values requires
+  // use of an additional instruction for moving the immediate to a temporary
+  // register.
+  int expected_return_sequence_length = CodeGenerator::kJSReturnSequenceLength;
+  if (!masm_->ImmediateFitsAddrMode1Instruction((num_parameters + 1) *
+                                                kPointerSize)) {
+    // Additional mov instruction generated.
+    expected_return_sequence_length++;
+  }
+  ASSERT_EQ(expected_return_sequence_length,
+            masm_->InstructionsGeneratedSince(&check_exit_codesize));
+#endif
 }
 
 
@@ -259,7 +284,6 @@ void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
-  SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
   // Complete the statement based on the type of the subexpression.
   if (expr->AsLiteral() != NULL) {
@@ -269,21 +293,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
     Visit(expr);
     __ pop(r0);
   }
-  if (return_label_.is_bound()) {
-    __ b(&return_label_);
-  } else {
-    __ bind(&return_label_);
-    if (FLAG_trace) {
-      __ push(r0);
-      __ CallRuntime(Runtime::kTraceExit, 1);
-    }
-    __ RecordJSReturn();
-    __ mov(sp, fp);
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
-    int num_parameters = function_->scope()->num_parameters();
-    __ add(sp, sp, Operand((num_parameters + 1) * kPointerSize));
-    __ Jump(lr);
-  }
+  EmitReturnSequence(stmt->statement_pos());
 }
 
 
