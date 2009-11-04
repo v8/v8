@@ -503,6 +503,7 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     }
 
     // Generate code and return it.
+    bool is_compiled = false;
     if (FLAG_fast_compiler && literal->try_fast_codegen()) {
       CodeGenSelector selector;
       CodeGenSelector::CodeGenTag code_gen = selector.Select(literal);
@@ -510,9 +511,12 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
         code = FastCodeGenerator::MakeCode(literal,
                                            script,
                                            false);  // Not eval.
+        is_compiled = true;
       }
-      ASSERT(code_gen == CodeGenSelector::NORMAL);
-    } else {
+    }
+
+    if (!is_compiled) {
+      // We didn't try the fast compiler, or we failed to select it.
       code = CodeGenerator::MakeCode(literal,
                                      script,
                                      false);  // Not eval.
