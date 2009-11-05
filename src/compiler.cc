@@ -585,6 +585,21 @@ void Compiler::SetFunctionInfo(Handle<JSFunction> fun,
 
 CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
+
+  if (scope->num_heap_slots() > 0) {
+    // We support functions with a local context if they do not have
+    // parameters that need to be copied into the context.
+    for (int i = 0, len = scope->num_parameters(); i < len; i++) {
+      Slot* slot = scope->parameter(i)->slot();
+      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+        if (FLAG_trace_bailout) {
+          PrintF("function has context-allocated parameters");
+        }
+        return NORMAL;
+      }
+    }
+  }
+
   if (scope->num_heap_slots() != 0) {
     if (FLAG_trace_bailout) PrintF("function has context slots\n");
     return NORMAL;

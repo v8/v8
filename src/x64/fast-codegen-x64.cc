@@ -67,6 +67,24 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     }
   }
 
+  // Possibly allocate a local context.
+  if (fun->scope()->num_heap_slots() > 0) {
+    Comment cmnt(masm_, "[ Allocate local context");
+    // Argument to NewContext is the function, still in rdi.
+    __ push(rdi);
+    __ CallRuntime(Runtime::kNewContext, 1);
+    // Context is returned in both rax and rsi.  It replaces the context
+    // passed to us.  It's saved in the stack and kept live in rsi.
+    __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
+#ifdef DEBUG
+    // Assert we do not have to copy any parameters into the context.
+    for (int i = 0, len = fun->scope()->num_parameters(); i < len; i++) {
+      Slot* slot = fun->scope()->parameter(i)->slot();
+      ASSERT(slot != NULL && slot->type() != Slot::CONTEXT);
+    }
+#endif
+  }
+
   { Comment cmnt(masm_, "[ Stack check");
     Label ok;
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);

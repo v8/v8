@@ -67,6 +67,24 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     }
   }
 
+  // Possibly allocate a local context.
+  if (fun->scope()->num_heap_slots() > 0) {
+    Comment cmnt(masm_, "[ Allocate local context");
+    // Argument to NewContext is the function, still in edi.
+    __ push(edi);
+    __ CallRuntime(Runtime::kNewContext, 1);
+    // Context is returned in both eax and esi.  It replaces the context
+    // passed to us.  It's saved in the stack and kept live in esi.
+    __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
+#ifdef DEBUG
+    // Assert we do not have to copy any parameters into the context.
+    for (int i = 0, len = fun->scope()->num_parameters(); i < len; i++) {
+      Slot* slot = fun->scope()->parameter(i)->slot();
+      ASSERT(slot != NULL && slot->type() != Slot::CONTEXT);
+    }
+#endif
+  }
+
   { Comment cmnt(masm_, "[ Declarations");
     VisitDeclarations(fun->scope()->declarations());
   }
