@@ -3455,14 +3455,18 @@ bool Heap::Setup(bool create_heap_objects) {
 }
 
 
-void Heap::SetStackLimit(intptr_t limit) {
+void Heap::SetStackLimits() {
   // On 64 bit machines, pointers are generally out of range of Smis.  We write
   // something that looks like an out of range Smi to the GC.
 
-  // Set up the special root array entry containing the stack guard.
-  // This is actually an address, but the tag makes the GC ignore it.
+  // Set up the special root array entries containing the stack limits.
+  // These are actually addresses, but the tag makes the GC ignore it.
   roots_[kStackLimitRootIndex] =
-    reinterpret_cast<Object*>((limit & ~kSmiTagMask) | kSmiTag);
+      reinterpret_cast<Object*>(
+          (StackGuard::jslimit() & ~kSmiTagMask) | kSmiTag);
+  roots_[kRealStackLimitRootIndex] =
+      reinterpret_cast<Object*>(
+          (StackGuard::real_jslimit() & ~kSmiTagMask) | kSmiTag);
 }
 
 

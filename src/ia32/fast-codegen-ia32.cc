@@ -91,9 +91,9 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
   { Comment cmnt(masm_, "[ Stack check");
     Label ok;
-    ExternalReference stack_guard_limit =
-        ExternalReference::address_of_stack_guard_limit();
-    __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
+    ExternalReference stack_limit =
+        ExternalReference::address_of_stack_limit();
+    __ cmp(esp, Operand::StaticVariable(stack_limit));
     __ j(above_equal, &ok, taken);
     StackCheckStub stub;
     __ CallStub(&stub);

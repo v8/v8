@@ -866,6 +866,26 @@ static void DebugEventBreak(v8::DebugEvent event,
 }
 
 
+// Debug event handler which re-issues a debug break until a limit has been
+// reached.
+int max_break_point_hit_count = 0;
+static void DebugEventBreakMax(v8::DebugEvent event,
+                               v8::Handle<v8::Object> exec_state,
+                               v8::Handle<v8::Object> event_data,
+                               v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
+
+  if (event == v8::Break && break_point_hit_count < max_break_point_hit_count) {
+    // Count the number of breaks.
+    break_point_hit_count++;
+
+    // Set the break flag again to come back here as soon as possible.
+    v8::Debug::DebugBreak();
+  }
+}
+
+
 // --- M e s s a g e   C a l l b a c k
 
 
@@ -5437,4 +5457,37 @@ TEST(GetMirror) {
               "runTest;"))->Run());
   v8::Handle<v8::Value> result = run_test->Call(env->Global(), 1, &obj);
   CHECK(result->IsTrue());
+}
+
+
+// Test that the debug break flag works with function.apply.
+TEST(DebugBreakFunctionApply) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Create a function for testing breaking in apply.
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function baz(x) { }"
+      "function bar(x) { baz(); }"
+      "function foo(){ bar.apply(this, [1]); }",
+      "foo");
+
+  // Register a debug event listener which steps and counts.
+  v8::Debug::SetDebugEventListener(DebugEventBreakMax);
+
+  // Set the debug break flag before calling the code using function.apply.
+  v8::Debug::DebugBreak();
+
+  // Limit the number of debug breaks. This is a regression test for issue 493
+  // where this test would enter an infinite loop.
+  break_point_hit_count = 0;
+  max_break_point_hit_count = 10000;  // 10000 => infinite loop.
+  foo->Call(env->Global(), 0, NULL);
+
+  // When keeping the debug break several break will happen.
+  CHECK_EQ(3, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
 }

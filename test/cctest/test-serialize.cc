@@ -123,13 +123,17 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference::the_hole_value_location();
   CHECK_EQ(make_code(UNCLASSIFIED, 2),
            encoder.Encode(the_hole_value_location.address()));
-  ExternalReference stack_guard_limit_address =
-      ExternalReference::address_of_stack_guard_limit();
+  ExternalReference stack_limit_address =
+      ExternalReference::address_of_stack_limit();
   CHECK_EQ(make_code(UNCLASSIFIED, 4),
-           encoder.Encode(stack_guard_limit_address.address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 10),
+           encoder.Encode(stack_limit_address.address()));
+  ExternalReference real_stack_limit_address =
+      ExternalReference::address_of_real_stack_limit();
+  CHECK_EQ(make_code(UNCLASSIFIED, 5),
+           encoder.Encode(real_stack_limit_address.address()));
+  CHECK_EQ(make_code(UNCLASSIFIED, 11),
            encoder.Encode(ExternalReference::debug_break().address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 6),
+  CHECK_EQ(make_code(UNCLASSIFIED, 7),
            encoder.Encode(ExternalReference::new_space_start().address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 3),
            encoder.Encode(ExternalReference::roots_address().address()));
@@ -158,12 +162,14 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(make_code(UNCLASSIFIED, 1)));
   CHECK_EQ(ExternalReference::the_hole_value_location().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 2)));
-  CHECK_EQ(ExternalReference::address_of_stack_guard_limit().address(),
+  CHECK_EQ(ExternalReference::address_of_stack_limit().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 4)));
+  CHECK_EQ(ExternalReference::address_of_real_stack_limit().address(),
+           decoder.Decode(make_code(UNCLASSIFIED, 5)));
   CHECK_EQ(ExternalReference::debug_break().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 10)));
+           decoder.Decode(make_code(UNCLASSIFIED, 11)));
   CHECK_EQ(ExternalReference::new_space_start().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 6)));
+           decoder.Decode(make_code(UNCLASSIFIED, 7)));
 }
 
 

@@ -408,7 +408,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference roots_address();
 
   // Static variable StackGuard::address_of_jslimit()
-  static ExternalReference address_of_stack_guard_limit();
+  static ExternalReference address_of_stack_limit();
+
+  // Static variable StackGuard::address_of_real_jslimit()
+  static ExternalReference address_of_real_stack_limit();
 
   // Static variable RegExpStack::limit_address()
   static ExternalReference address_of_regexp_stack_limit();

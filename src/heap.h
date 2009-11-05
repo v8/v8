@@ -148,6 +148,7 @@ namespace internal {
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
   V(Object, last_script_id, LastScriptId)                                      \
+  V(Smi, real_stack_limit, RealStackLimit)                                     \
 
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
 #define STRONG_ROOT_LIST(V)                                                    \
@@ -250,10 +251,10 @@ class Heap : public AllStatic {
   // Destroys all memory allocated by the heap.
   static void TearDown();
 
-  // Sets the stack limit in the roots_ array.  Some architectures generate code
-  // that looks here, because it is faster than loading from the static jslimit_
-  // variable.
-  static void SetStackLimit(intptr_t limit);
+  // Set the stack limit in the roots_ array.  Some architectures generate
+  // code that looks here, because it is faster than loading from the static
+  // jslimit_/real_jslimit_ variable in the StackGuard.
+  static void SetStackLimits();
 
   // Returns whether Setup has been called.
   static bool HasBeenSetup();

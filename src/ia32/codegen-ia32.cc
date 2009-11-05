@@ -2181,9 +2181,9 @@ void DeferredStackCheck::Generate() {
 
 void CodeGenerator::CheckStack() {
   DeferredStackCheck* deferred = new DeferredStackCheck;
-  ExternalReference stack_guard_limit =
-      ExternalReference::address_of_stack_guard_limit();
-  __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_limit();
+  __ cmp(esp, Operand::StaticVariable(stack_limit));
   deferred->Branch(below);
   deferred->BindExit();
 }

@@ -105,7 +105,7 @@ bool V8::Initialize(GenericDeserializer *des) {
 
   // Deserializing may put strange things in the root array's copy of the
   // stack guard.
-  Heap::SetStackLimit(StackGuard::jslimit());
+  Heap::SetStackLimits();
 
   // Setup the CPU support. Must be done after heap setup and after
   // any deserialization because we have to have the initial heap

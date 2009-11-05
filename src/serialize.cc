@@ -688,76 +688,80 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       3,
       "Heap::roots_address()");
-  Add(ExternalReference::address_of_stack_guard_limit().address(),
+  Add(ExternalReference::address_of_stack_limit().address(),
       UNCLASSIFIED,
       4,
       "StackGuard::address_of_jslimit()");
-  Add(ExternalReference::address_of_regexp_stack_limit().address(),
+  Add(ExternalReference::address_of_real_stack_limit().address(),
       UNCLASSIFIED,
       5,
+      "StackGuard::address_of_real_jslimit()");
+  Add(ExternalReference::address_of_regexp_stack_limit().address(),
+      UNCLASSIFIED,
+      6,
       "RegExpStack::limit_address()");
   Add(ExternalReference::new_space_start().address(),
       UNCLASSIFIED,
-      6,
+      7,
       "Heap::NewSpaceStart()");
   Add(ExternalReference::heap_always_allocate_scope_depth().address(),
       UNCLASSIFIED,
-      7,
+      8,
       "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address().address(),
       UNCLASSIFIED,
-      8,
+      9,
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address().address(),
       UNCLASSIFIED,
-      9,
+      10,
       "Heap::NewSpaceAllocationTopAddress()");
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Add(ExternalReference::debug_break().address(),
       UNCLASSIFIED,
-      10,
+      11,
       "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
-      11,
+      12,
       "Debug::step_in_fp_addr()");
 #endif
   Add(ExternalReference::double_fp_operation(Token::ADD).address(),
       UNCLASSIFIED,
-      12,
+      13,
       "add_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::SUB).address(),
       UNCLASSIFIED,
-      13,
+      14,
       "sub_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MUL).address(),
       UNCLASSIFIED,
-      14,
+      15,
       "mul_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::DIV).address(),
       UNCLASSIFIED,
-      15,
+      16,
       "div_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MOD).address(),
       UNCLASSIFIED,
-      16,
+      17,
       "mod_two_doubles");
   Add(ExternalReference::compare_doubles().address(),
       UNCLASSIFIED,
-      17,
+      18,
       "compare_doubles");
 #ifdef V8_NATIVE_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
       UNCLASSIFIED,
-      18,
+      19,
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
   Add(ExternalReference::re_check_stack_guard_state().address(),
       UNCLASSIFIED,
-      19,
+      20,
       "RegExpMacroAssembler*::CheckStackGuardState()");
   Add(ExternalReference::re_grow_stack().address(),
       UNCLASSIFIED,
-      20,
+      21,
       "NativeRegExpMacroAssembler::GrowStack()");
 #endif
 }
