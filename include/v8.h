@@ -129,8 +129,9 @@ class Data;
 
 namespace internal {
 
-class Object;
 class Arguments;
+class Object;
+class Top;
 
 }
 
@@ -2532,15 +2533,16 @@ class V8EXPORT TryCatch {
    */
   void SetCaptureMessage(bool value);
 
- public:
-  TryCatch* next_;
+ private:
+  void* next_;
   void* exception_;
   void* message_;
   bool is_verbose_ : 1;
   bool can_continue_ : 1;
   bool capture_message_ : 1;
   bool rethrow_ : 1;
-  void* js_handler_;
+
+  friend class v8::internal::Top;
 };
 
 

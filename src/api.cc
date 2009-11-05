@@ -1191,14 +1191,13 @@ void Script::SetData(v8::Handle<Value> data) {
 
 
 v8::TryCatch::TryCatch()
-    : next_(i::Top::try_catch_handler()),
+    : next_(i::Top::try_catch_handler_address()),
       exception_(i::Heap::the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
-      rethrow_(false),
-      js_handler_(NULL) {
+      rethrow_(false) {
   i::Top::RegisterTryCatchHandler(this);
 }
 

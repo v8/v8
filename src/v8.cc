@@ -30,12 +30,9 @@
 #include "bootstrapper.h"
 #include "debug.h"
 #include "serialize.h"
+#include "simulator.h"
 #include "stub-cache.h"
 #include "oprofile-agent.h"
-
-#if V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#endif
 
 namespace v8 {
 namespace internal {

@@ -30,13 +30,7 @@
 #include "assembler.h"
 #include "regexp-stack.h"
 #include "regexp-macro-assembler.h"
-#if V8_TARGET_ARCH_ARM
-#include "arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_IA32
-#include "ia32/simulator-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/simulator-x64.h"
-#endif
+#include "simulator.h"
 
 namespace v8 {
 namespace internal {

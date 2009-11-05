@@ -52,6 +52,12 @@ class SimulatorStack : public v8::internal::AllStatic {
   static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
     return c_limit;
   }
+
+  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+    return try_catch_address;
+  }
+
+  static inline void UnregisterCTryCatch() { }
 };
 
 
@@ -59,6 +65,10 @@ class SimulatorStack : public v8::internal::AllStatic {
 // expect seven int/pointer sized arguments and return an int.
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
   entry(p0, p1, p2, p3, p4, p5, p6)
+
+#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
+  reinterpret_cast<TryCatch*>(try_catch_address)
+
 
 #else  // defined(__arm__)
 
@@ -72,6 +82,11 @@ class SimulatorStack : public v8::internal::AllStatic {
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
   assembler::arm::Simulator::current()->Call( \
     FUNCTION_ADDR(entry), 7, p0, p1, p2, p3, p4, p5, p6)
+
+#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
+  try_catch_address == NULL ? \
+      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
+
 
 #include "constants-arm.h"
 
@@ -123,6 +138,12 @@ class Simulator {
   // generated RegExp code with 7 parameters. This is a convenience function,
   // which sets up the simulator state and grabs the result on return.
   int32_t Call(byte* entry, int argument_count, ...);
+
+  // Push an address onto the JS stack.
+  uintptr_t PushAddress(uintptr_t address);
+
+  // Pop an address from the JS stack.
+  uintptr_t PopAddress();
 
  private:
   enum special_values {
@@ -198,20 +219,20 @@ class Simulator {
   void SetFpResult(const double& result);
   void TrashCallerSaveRegisters();
 
-  // architecture state
+  // Architecture state.
   int32_t registers_[16];
   bool n_flag_;
   bool z_flag_;
   bool c_flag_;
   bool v_flag_;
 
-  // simulator support
+  // Simulator support.
   char* stack_;
   bool pc_modified_;
   int icount_;
   static bool initialized_;
 
-  // registered breakpoints
+  // Registered breakpoints.
   Instr* break_pc_;
   instr_t break_instr_;
 };
@@ -228,6 +249,15 @@ class SimulatorStack : public v8::internal::AllStatic {
  public:
   static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
     return assembler::arm::Simulator::current()->StackLimit();
+  }
+
+  static inline uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+    assembler::arm::Simulator* sim = assembler::arm::Simulator::current();
+    return sim->PushAddress(try_catch_address);
+  }
+
+  static inline void UnregisterCTryCatch() {
+    assembler::arm::Simulator::current()->PopAddress();
   }
 };
 
