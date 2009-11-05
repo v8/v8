@@ -3495,6 +3495,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->false_target()->Branch(is_smi);
       frame_->Spill(answer.reg());
       __ CmpObjectType(answer.reg(), JS_FUNCTION_TYPE, answer.reg());
+      destination()->true_target()->Branch(equal);
+      // Regular expressions are callable so typeof == 'function'.
+      __ CmpInstanceType(answer.reg(), JS_REGEXP_TYPE);
       answer.Unuse();
       destination()->Split(equal);
 
@@ -3504,9 +3507,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ CompareRoot(answer.reg(), Heap::kNullValueRootIndex);
       destination()->true_target()->Branch(equal);
 
+      // Regular expressions are typeof == 'function', not 'object'.
+      __ CmpObjectType(answer.reg(), JS_REGEXP_TYPE, kScratchRegister);
+      destination()->false_target()->Branch(equal);
+
       // It can be an undetectable object.
-      __ movq(kScratchRegister,
-              FieldOperand(answer.reg(), HeapObject::kMapOffset));
       __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
                Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);

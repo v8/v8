@@ -3978,28 +3978,35 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     } else if (check->Equals(Heap::function_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
       false_target()->Branch(eq);
-      __ CompareObjectType(r1, r1, r1, JS_FUNCTION_TYPE);
+      Register map_reg = r2;
+      __ CompareObjectType(r1, map_reg, r1, JS_FUNCTION_TYPE);
+      true_target()->Branch(eq);
+      // Regular expressions are callable so typeof == 'function'.
+      __ CompareInstanceType(map_reg, r1, JS_REGEXP_TYPE);
       cc_reg_ = eq;
 
     } else if (check->Equals(Heap::object_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
       false_target()->Branch(eq);
 
-      __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
       __ LoadRoot(ip, Heap::kNullValueRootIndex);
       __ cmp(r1, ip);
       true_target()->Branch(eq);
 
+      Register map_reg = r2;
+      __ CompareObjectType(r1, map_reg, r1, JS_REGEXP_TYPE);
+      false_target()->Branch(eq);
+
       // It can be an undetectable object.
-      __ ldrb(r1, FieldMemOperand(r2, Map::kBitFieldOffset));
+      __ ldrb(r1, FieldMemOperand(map_reg, Map::kBitFieldOffset));
       __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
       __ cmp(r1, Operand(1 << Map::kIsUndetectable));
       false_target()->Branch(eq);
 
-      __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-      __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
+      __ ldrb(r1, FieldMemOperand(map_reg, Map::kInstanceTypeOffset));
+      __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
       false_target()->Branch(lt);
-      __ cmp(r2, Operand(LAST_JS_OBJECT_TYPE));
+      __ cmp(r1, Operand(LAST_JS_OBJECT_TYPE));
       cc_reg_ = le;
 
     } else {

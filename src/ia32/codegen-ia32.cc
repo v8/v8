@@ -5777,6 +5777,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->false_target()->Branch(zero);
       frame_->Spill(answer.reg());
       __ CmpObjectType(answer.reg(), JS_FUNCTION_TYPE, answer.reg());
+      destination()->true_target()->Branch(equal);
+      // Regular expressions are callable so typeof == 'function'.
+      __ CmpInstanceType(answer.reg(), JS_REGEXP_TYPE);
       answer.Unuse();
       destination()->Split(equal);
 
@@ -5786,10 +5789,13 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ cmp(answer.reg(), Factory::null_value());
       destination()->true_target()->Branch(equal);
 
-      // It can be an undetectable object.
       Result map = allocator()->Allocate();
       ASSERT(map.is_valid());
-      __ mov(map.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      // Regular expressions are typeof == 'function', not 'object'.
+      __ CmpObjectType(answer.reg(), JS_REGEXP_TYPE, map.reg());
+      destination()->false_target()->Branch(equal);
+
+      // It can be an undetectable object.
       __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kBitFieldOffset));
       __ test(map.reg(), Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
