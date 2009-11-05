@@ -593,7 +593,7 @@ void MarkCompactCollector::MarkSymbolTable() {
 void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
-  Heap::IterateStrongRoots(visitor);
+  Heap::IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
 
   // Handle the symbol table specially.
   MarkSymbolTable();
@@ -1455,7 +1455,7 @@ void MarkCompactCollector::UpdatePointers() {
   state_ = UPDATE_POINTERS;
 #endif
   UpdatingVisitor updating_visitor;
-  Heap::IterateRoots(&updating_visitor);
+  Heap::IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
   GlobalHandles::IterateWeakRoots(&updating_visitor);
 
   int live_maps = IterateLiveObjects(Heap::map_space(),

@@ -95,8 +95,11 @@ class GlobalHandles : public AllStatic {
   // Process pending weak handles.
   static void PostGarbageCollectionProcessing();
 
+  // Iterates over all strong handles.
+  static void IterateStrongRoots(ObjectVisitor* v);
+
   // Iterates over all handles.
-  static void IterateRoots(ObjectVisitor* v);
+  static void IterateAllRoots(ObjectVisitor* v);
 
   // Iterates over all weak roots in heap.
   static void IterateWeakRoots(ObjectVisitor* v);

@@ -730,9 +730,9 @@ class Heap : public AllStatic {
   static String* hidden_symbol() { return hidden_symbol_; }
 
   // Iterates over all roots in the heap.
-  static void IterateRoots(ObjectVisitor* v);
+  static void IterateRoots(ObjectVisitor* v, VisitMode mode);
   // Iterates over all strong roots in the heap.
-  static void IterateStrongRoots(ObjectVisitor* v);
+  static void IterateStrongRoots(ObjectVisitor* v, VisitMode mode);
 
   // Iterates remembered set of an old space.
   static void IterateRSet(PagedSpace* space, ObjectSlotCallback callback);

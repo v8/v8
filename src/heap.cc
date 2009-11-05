@@ -733,10 +733,7 @@ void Heap::Scavenge() {
 
   ScavengeVisitor scavenge_visitor;
   // Copy roots.
-  IterateRoots(&scavenge_visitor);
-
-  // Copy objects reachable from weak pointers.
-  GlobalHandles::IterateWeakRoots(&scavenge_visitor);
+  IterateRoots(&scavenge_visitor, VISIT_ALL);
 
   // Copy objects reachable from the old generation.  By definition,
   // there are no intergenerational pointers in code or data spaces.
@@ -3117,7 +3114,7 @@ void Heap::Verify() {
   ASSERT(HasBeenSetup());
 
   VerifyPointersVisitor visitor;
-  IterateRoots(&visitor);
+  IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
   new_space_.Verify();
 
@@ -3244,14 +3241,14 @@ void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
 }
 
 
-void Heap::IterateRoots(ObjectVisitor* v) {
-  IterateStrongRoots(v);
+void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
+  IterateStrongRoots(v, mode);
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   v->Synchronize("symbol_table");
 }
 
 
-void Heap::IterateStrongRoots(ObjectVisitor* v) {
+void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize("strong_root_list");
 
@@ -3284,7 +3281,11 @@ void Heap::IterateStrongRoots(ObjectVisitor* v) {
   v->Synchronize("builtins");
 
   // Iterate over global handles.
-  GlobalHandles::IterateRoots(v);
+  if (mode == VISIT_ONLY_STRONG) {
+    GlobalHandles::IterateStrongRoots(v);
+  } else {
+    GlobalHandles::IterateAllRoots(v);
+  }
   v->Synchronize("globalhandles");
 
   // Iterate over pointers being held by inactive threads.
@@ -3893,7 +3894,7 @@ void Heap::TracePathToObject() {
   search_for_any_global = false;
 
   MarkRootVisitor root_visitor;
-  IterateRoots(&root_visitor);
+  IterateRoots(&root_visitor, VISIT_ONLY_STRONG);
 }
 
 
@@ -3905,7 +3906,7 @@ void Heap::TracePathToGlobal() {
   search_for_any_global = true;
 
   MarkRootVisitor root_visitor;
-  IterateRoots(&root_visitor);
+  IterateRoots(&root_visitor, VISIT_ONLY_STRONG);
 }
 #endif
 

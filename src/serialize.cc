@@ -1101,7 +1101,7 @@ void Serializer::Serialize() {
   InitializeAllocators();
   reference_encoder_ = new ExternalReferenceEncoder();
   PutHeader();
-  Heap::IterateRoots(this);
+  Heap::IterateRoots(this, VISIT_ONLY_STRONG);
   PutLog();
   PutContextStack();
   Disable();
@@ -1204,7 +1204,7 @@ void Serializer::PutHeader() {
   writer_->PutC('G');
   writer_->PutC('[');
   GlobalHandlesRetriever ghr(&global_handles_);
-  GlobalHandles::IterateRoots(&ghr);
+  GlobalHandles::IterateStrongRoots(&ghr);
   for (int i = 0; i < global_handles_.length(); i++) {
     writer_->PutC('N');
   }
@@ -1441,7 +1441,7 @@ class GlobalHandleDestroyer : public ObjectVisitor {
 void Deserializer::Deserialize() {
   // No global handles.
   NoGlobalHandlesChecker checker;
-  GlobalHandles::IterateRoots(&checker);
+  GlobalHandles::IterateStrongRoots(&checker);
   // No active threads.
   ASSERT_EQ(NULL, ThreadState::FirstInUse());
   // No active handles.
@@ -1450,12 +1450,12 @@ void Deserializer::Deserialize() {
   // By setting linear allocation only, we forbid the use of free list
   // allocation which is not predicted by SimulatedAddress.
   GetHeader();
-  Heap::IterateRoots(this);
+  Heap::IterateRoots(this, VISIT_ONLY_STRONG);
   GetContextStack();
   // Any global handles that have been set up by deserialization are leaked
   // since noone is keeping track of them.  So we discard them now.
   GlobalHandleDestroyer destroyer;
-  GlobalHandles::IterateRoots(&destroyer);
+  GlobalHandles::IterateStrongRoots(&destroyer);
 }
 
 
@@ -1858,7 +1858,7 @@ void Deserializer2::Deserialize() {
   ASSERT(HandleScopeImplementer::instance()->blocks()->is_empty());
   ASSERT(external_reference_decoder_ == NULL);
   external_reference_decoder_ = new ExternalReferenceDecoder();
-  Heap::IterateRoots(this);
+  Heap::IterateRoots(this, VISIT_ONLY_STRONG);
   ASSERT(source_->AtEOF());
   delete external_reference_decoder_;
   external_reference_decoder_ = NULL;
@@ -2129,7 +2129,7 @@ void Serializer2::Serialize() {
   CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
   ASSERT(external_reference_encoder_ == NULL);
   external_reference_encoder_ = new ExternalReferenceEncoder();
-  Heap::IterateRoots(this);
+  Heap::IterateRoots(this, VISIT_ONLY_STRONG);
   delete external_reference_encoder_;
   external_reference_encoder_ = NULL;
 }

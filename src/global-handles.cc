@@ -390,10 +390,19 @@ void GlobalHandles::PostGarbageCollectionProcessing() {
 }
 
 
-void GlobalHandles::IterateRoots(ObjectVisitor* v) {
-  // Traversal of global handles marked as NORMAL or NEAR_DEATH.
+void GlobalHandles::IterateStrongRoots(ObjectVisitor* v) {
+  // Traversal of global handles marked as NORMAL.
   for (Node* current = head_; current != NULL; current = current->next()) {
     if (current->state_ == Node::NORMAL) {
+      v->VisitPointer(&current->object_);
+    }
+  }
+}
+
+
+void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
+  for (Node* current = head_; current != NULL; current = current->next()) {
+    if (current->state_ != Node::DESTROYED) {
       v->VisitPointer(&current->object_);
     }
   }
