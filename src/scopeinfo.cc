@@ -100,8 +100,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
             break;
 
           case Slot::LOOKUP:
-          case Slot::GLOBAL:
-            // these are currently not used
+            // This is currently not used.
             UNREACHABLE();
             break;
         }

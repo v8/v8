@@ -952,11 +952,7 @@ class Slot: public Expression {
     // variable name in the context object on the heap,
     // with lookup starting at the current context. index()
     // is invalid.
-    LOOKUP,
-
-    // A property in the global object. var()->name() is
-    // the property name.
-    GLOBAL
+    LOOKUP
   };
 
   Slot(Variable* var, Type type, int index)
