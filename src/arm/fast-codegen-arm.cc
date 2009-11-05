@@ -732,7 +732,7 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   if (key->AsLiteral() != NULL && key->AsLiteral()->handle()->IsSymbol() &&
       !String::cast(*(key->AsLiteral()->handle()))->AsArrayIndex(&dummy)) {
     // Do a NAMED property load.
-    // The IC expects the property name in ecx and the receiver on the stack.
+    // The IC expects the property name in r2 and the receiver on the stack.
     __ mov(r2, Operand(key->AsLiteral()->handle()));
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
@@ -915,9 +915,9 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
 
 void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
-  Comment cmnt(masm_, "[ UnaryOperation");
   switch (expr->op()) {
-    case Token::VOID:
+    case Token::VOID: {
+      Comment cmnt(masm_, "[ UnaryOperation (VOID)");
       Visit(expr->expression());
       ASSERT_EQ(Expression::kEffect, expr->expression()->context());
       switch (expr->context()) {
@@ -940,8 +940,10 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           break;
       }
       break;
+    }
 
     case Token::NOT: {
+      Comment cmnt(masm_, "[ UnaryOperation (NOT)");
       ASSERT_EQ(Expression::kTest, expr->expression()->context());
 
       Label push_true;
@@ -1003,6 +1005,38 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       }
       true_label_ = saved_true;
       false_label_ = saved_false;
+      break;
+    }
+
+    case Token::TYPEOF: {
+      Comment cmnt(masm_, "[ UnaryOperation (TYPEOF)");
+      ASSERT_EQ(Expression::kValue, expr->expression()->context());
+
+      VariableProxy* proxy = expr->expression()->AsVariableProxy();
+      if (proxy != NULL && proxy->var()->is_global()) {
+        Comment cmnt(masm_, "Global variable");
+        __ ldr(r0, CodeGenerator::GlobalObject());
+        __ push(r0);
+        __ mov(r2, Operand(proxy->name()));
+        Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+        // Use a regular load, not a contextual load, to avoid a reference
+        // error.
+        __ Call(ic, RelocInfo::CODE_TARGET);
+        __ str(r0, MemOperand(sp));
+      } else if (proxy != NULL &&
+                 proxy->var()->slot() != NULL &&
+                 proxy->var()->slot()->type() == Slot::LOOKUP) {
+        __ mov(r0, Operand(proxy->name()));
+        __ stm(db_w, sp, cp.bit() | r0.bit());
+        __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+        __ push(r0);
+      } else {
+        // This expression cannot throw a reference error at the top level.
+        Visit(expr->expression());
+      }
+
+      __ CallRuntime(Runtime::kTypeof, 1);
+      Move(expr->context(), r0);
       break;
     }
 

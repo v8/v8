@@ -916,9 +916,9 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
 
 void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
-  Comment cmnt(masm_, "[ UnaryOperation");
   switch (expr->op()) {
-    case Token::VOID:
+    case Token::VOID: {
+      Comment cmnt(masm_, "[ UnaryOperation (VOID)");
       Visit(expr->expression());
       ASSERT_EQ(Expression::kEffect, expr->expression()->context());
       switch (expr->context()) {
@@ -940,8 +940,10 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           break;
       }
       break;
+    }
 
     case Token::NOT: {
+      Comment cmnt(masm_, "[ UnaryOperation (NOT)");
       ASSERT_EQ(Expression::kTest, expr->expression()->context());
 
       Label push_true;
@@ -999,6 +1001,37 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       }
       true_label_ = saved_true;
       false_label_ = saved_false;
+      break;
+    }
+
+    case Token::TYPEOF: {
+      Comment cmnt(masm_, "[ UnaryOperation (TYPEOF)");
+      ASSERT_EQ(Expression::kValue, expr->expression()->context());
+
+      VariableProxy* proxy = expr->expression()->AsVariableProxy();
+      if (proxy != NULL && proxy->var()->is_global()) {
+        Comment cmnt(masm_, "Global variable");
+        __ push(CodeGenerator::GlobalObject());
+        __ mov(ecx, Immediate(proxy->name()));
+        Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+        // Use a regular load, not a contextual load, to avoid a reference
+        // error.
+        __ call(ic, RelocInfo::CODE_TARGET);
+        __ mov(Operand(esp, 0), eax);
+      } else if (proxy != NULL &&
+                 proxy->var()->slot() != NULL &&
+                 proxy->var()->slot()->type() == Slot::LOOKUP) {
+        __ push(esi);
+        __ push(Immediate(proxy->name()));
+        __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+        __ push(eax);
+      } else {
+        // This expression cannot throw a reference error at the top level.
+        Visit(expr->expression());
+      }
+
+      __ CallRuntime(Runtime::kTypeof, 1);
+      Move(expr->context(), eax);
       break;
     }
 
