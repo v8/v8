@@ -1102,7 +1102,9 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       ASSERT_EQ(Expression::kValue, expr->expression()->context());
 
       VariableProxy* proxy = expr->expression()->AsVariableProxy();
-      if (proxy != NULL && proxy->var()->is_global()) {
+      if (proxy != NULL &&
+          !proxy->var()->is_this() &&
+          proxy->var()->is_global()) {
         Comment cmnt(masm_, "Global variable");
         __ push(CodeGenerator::GlobalObject());
         __ Move(rcx, proxy->name());
