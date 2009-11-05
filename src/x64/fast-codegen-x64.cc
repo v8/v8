@@ -297,6 +297,81 @@ void FastCodeGenerator::TestAndBranch(Register source,
 }
 
 
+void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
+  Variable* var = decl->proxy()->var();
+  ASSERT(var != NULL);  // Must have been resolved.
+  Slot* slot = var->slot();
+  ASSERT(slot != NULL);  // No global declarations here.
+
+  // We have 3 cases for slots: LOOKUP, LOCAL, CONTEXT.
+  switch (slot->type()) {
+    case Slot::LOOKUP: {
+      __ push(rsi);
+      __ Push(var->name());
+      // Declaration nodes are always introduced in one of two modes.
+      ASSERT(decl->mode() == Variable::VAR || decl->mode() == Variable::CONST);
+      PropertyAttributes attr = decl->mode() == Variable::VAR ?
+          NONE : READ_ONLY;
+      __ Push(Smi::FromInt(attr));
+      // Push initial value, if any.
+      // Note: For variables we must not push an initial value (such as
+      // 'undefined') because we may have a (legal) redeclaration and we
+      // must not destroy the current value.
+      if (decl->mode() == Variable::CONST) {
+        __ Push(Factory::the_hole_value());
+      } else if (decl->fun() != NULL) {
+        Visit(decl->fun());
+      } else {
+        __ Push(Smi::FromInt(0));  // no initial value!
+      }
+      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+      break;
+    }
+    case Slot::LOCAL:
+      if (decl->mode() == Variable::CONST) {
+        __ Move(Operand(rbp, SlotOffset(var->slot())),
+                Factory::the_hole_value());
+      } else if (decl->fun() != NULL) {
+        Visit(decl->fun());
+        __ pop(Operand(rbp, SlotOffset(var->slot())));
+      }
+      break;
+    case Slot::CONTEXT:
+      // The variable in the decl always resides in the current context.
+      ASSERT(function_->scope()->ContextChainLength(slot->var()->scope()) == 0);
+      if (decl->mode() == Variable::CONST) {
+        __ Move(rax, Factory::the_hole_value());
+        if (FLAG_debug_code) {
+          // Check if we have the correct context pointer.
+          __ movq(rbx, CodeGenerator::ContextOperand(
+              rsi, Context::FCONTEXT_INDEX));
+          __ cmpq(rbx, rsi);
+          __ Check(equal, "Unexpected declaration in current context.");
+        }
+        __ movq(CodeGenerator::ContextOperand(rsi, slot->index()), rax);
+        // No write barrier since the_hole_value is in old space.
+        ASSERT(Heap::InNewSpace(*Factory::the_hole_value()));
+      } else if (decl->fun() != NULL) {
+        Visit(decl->fun());
+        __ pop(rax);
+        if (FLAG_debug_code) {
+          // Check if we have the correct context pointer.
+          __ movq(rbx, CodeGenerator::ContextOperand(
+              rsi, Context::FCONTEXT_INDEX));
+          __ cmpq(rbx, rsi);
+          __ Check(equal, "Unexpected declaration in current context.");
+        }
+        __ movq(CodeGenerator::ContextOperand(rsi, slot->index()), rax);
+        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        __ RecordWrite(rsi, offset, rax, rcx);
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ push(rsi);  // The context is the first argument.

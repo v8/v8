@@ -88,45 +88,44 @@ void FastCodeGenerator::VisitDeclarations(
     // time, we need to "declare" it at runtime to make sure it
     // actually exists in the local context.
     if ((slot != NULL && slot->type() == Slot::LOOKUP) || !var->is_global()) {
-      UNREACHABLE();
+      VisitDeclaration(decl);
     } else {
       // Count global variables and functions for later processing
       globals++;
     }
   }
 
-  // Return in case of no declared global functions or variables.
-  if (globals == 0) return;
-
   // Compute array of global variable and function declarations.
-  Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
-  for (int j = 0, i = 0; i < length; i++) {
-    Declaration* decl = declarations->at(i);
-    Variable* var = decl->proxy()->var();
-    Slot* slot = var->slot();
+  // Do nothing in case of no declared global functions or variables.
+  if (globals > 0) {
+    Handle<FixedArray> array = Factory::NewFixedArray(2 * globals, TENURED);
+    for (int j = 0, i = 0; i < length; i++) {
+      Declaration* decl = declarations->at(i);
+      Variable* var = decl->proxy()->var();
+      Slot* slot = var->slot();
 
-    if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
-      array->set(j++, *(var->name()));
-      if (decl->fun() == NULL) {
-        if (var->mode() == Variable::CONST) {
-          // In case this is const property use the hole.
-          array->set_the_hole(j++);
+      if ((slot == NULL || slot->type() != Slot::LOOKUP) && var->is_global()) {
+        array->set(j++, *(var->name()));
+        if (decl->fun() == NULL) {
+          if (var->mode() == Variable::CONST) {
+            // In case this is const property use the hole.
+            array->set_the_hole(j++);
+          } else {
+            array->set_undefined(j++);
+          }
         } else {
-          array->set_undefined(j++);
+          Handle<JSFunction> function =
+              Compiler::BuildBoilerplate(decl->fun(), script_, this);
+          // Check for stack-overflow exception.
+          if (HasStackOverflow()) return;
+          array->set(j++, *function);
         }
-      } else {
-        Handle<JSFunction> function =
-            Compiler::BuildBoilerplate(decl->fun(), script_, this);
-        // Check for stack-overflow exception.
-        if (HasStackOverflow()) return;
-        array->set(j++, *function);
       }
     }
+    // Invoke the platform-dependent code generator to do the actual
+    // declaration the global variables and functions.
+    DeclareGlobals(array);
   }
-
-  // Invoke the platform-dependent code generator to do the actual
-  // declaration the global variables and functions.
-  DeclareGlobals(array);
 }
 
 
@@ -229,11 +228,6 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   Visit(expr->right());
 
   __ bind(&done);
-}
-
-
-void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
-  UNREACHABLE();
 }
 
 
