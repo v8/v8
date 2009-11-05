@@ -329,9 +329,7 @@ void KeywordMatcher::Step(uc32 input) {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(bool pre) : stack_overflow_(false), is_pre_parsing_(pre) {
-  Token::Initialize();
-}
+Scanner::Scanner(bool pre) : stack_overflow_(false), is_pre_parsing_(pre) { }
 
 
 void Scanner::Init(Handle<String> source, unibrow::CharacterStream* stream,
