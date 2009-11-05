@@ -600,10 +600,6 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
     }
   }
 
-  if (scope->num_heap_slots() != 0) {
-    if (FLAG_trace_bailout) PrintF("function has context slots\n");
-    return NORMAL;
-  }
   if (scope->arguments() != NULL) {
     if (FLAG_trace_bailout) PrintF("function uses 'arguments'\n");
     return NORMAL;
