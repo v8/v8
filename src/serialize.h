@@ -441,7 +441,8 @@ class SerDes: public GenericDeserializer {
     EXTERNAL_BRANCH_TARGET_SERIALIZATION = 35,
     SYNCHRONIZE = 36,
     START_NEW_PAGE_SERIALIZATION = 37,
-    // Free: 38-47.
+    NATIVES_STRING_RESOURCE = 38,
+    // Free: 39-47.
     BACKREF_SERIALIZATION = 48,
     // One per space, must be kSpaceMask aligned.
     // Free: 57-63.
@@ -567,6 +568,14 @@ class Serializer2 : public SerDes {
     void VisitExternalReferences(Address* start, Address* end);
     void VisitCodeTarget(RelocInfo* target);
     void VisitRuntimeEntry(RelocInfo* reloc);
+    // Used for seralizing the external strings that hold the natives source.
+    void VisitExternalAsciiString(
+        v8::String::ExternalAsciiStringResource** resource);
+    // We can't serialize a heap with external two byte strings.
+    void VisitExternalTwoByteString(
+        v8::String::ExternalStringResource** resource) {
+      UNREACHABLE();
+    }
 
    private:
     void OutputRawData(Address up_to);

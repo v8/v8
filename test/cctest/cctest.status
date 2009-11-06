@@ -35,9 +35,9 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 
 # This is about to go away anyway since new snapshot code is on the way.
 test-serialize/Deserialize: FAIL
-test-serialize/DeserializeAndRunScript: FAIL
-test-serialize/DeserializeNatives: FAIL
-test-serialize/DeserializeExtensions: FAIL
+test-serialize/DeserializeAndRunScript: FAIL || CRASH
+test-serialize/DeserializeNatives: FAIL || CRASH
+test-serialize/DeserializeExtensions: FAIL || CRASH
 
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.

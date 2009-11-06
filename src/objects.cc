@@ -1138,6 +1138,15 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       case kSlicedStringTag:
         reinterpret_cast<SlicedString*>(this)->SlicedStringIterateBody(v);
         break;
+      case kExternalStringTag:
+        if ((type & kStringEncodingMask) == kAsciiStringTag) {
+          reinterpret_cast<ExternalAsciiString*>(this)->
+              ExternalAsciiStringIterateBody(v);
+        } else {
+          reinterpret_cast<ExternalTwoByteString*>(this)->
+              ExternalTwoByteStringIterateBody(v);
+        }
+        break;
     }
     return;
   }
@@ -4146,13 +4155,13 @@ void String::ReadBlockIntoBuffer(String* input,
       return;
     case kExternalStringTag:
       if (input->IsAsciiRepresentation()) {
-         ExternalAsciiString::cast(input)->
-             ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
-       } else {
-         ExternalTwoByteString::cast(input)->
-             ExternalTwoByteStringReadBlockIntoBuffer(rbb,
-                                                      offset_ptr,
-                                                      max_chars);
+        ExternalAsciiString::cast(input)->
+            ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
+      } else {
+        ExternalTwoByteString::cast(input)->
+            ExternalTwoByteStringReadBlockIntoBuffer(rbb,
+                                                     offset_ptr,
+                                                     max_chars);
        }
        return;
     default:
@@ -4398,6 +4407,23 @@ void SlicedString::SlicedStringIterateBody(ObjectVisitor* v) {
   IteratePointer(v, kBufferOffset);
 }
 
+#define FIELD_ADDR(p, offset) \
+  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
+
+void ExternalAsciiString::ExternalAsciiStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalAsciiStringResource Resource;
+  v->VisitExternalAsciiString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+
+void ExternalTwoByteString::ExternalTwoByteStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalStringResource Resource;
+  v->VisitExternalTwoByteString(
+      reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+#undef FIELD_ADDR
 
 uint16_t SlicedString::SlicedStringGet(int index) {
   ASSERT(index >= 0 && index < this->length());

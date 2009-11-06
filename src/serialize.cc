@@ -39,6 +39,7 @@
 #include "stub-cache.h"
 #include "v8threads.h"
 #include "top.h"
+#include "bootstrapper.h"
 
 namespace v8 {
 namespace internal {
@@ -2062,6 +2063,14 @@ void Deserializer2::ReadChunk(Object** current,
         pages_[space].Add(last_object_address_);
         break;
       }
+      case NATIVES_STRING_RESOURCE: {
+        int index = source_->Get();
+        Vector<const char> source_vector = Natives::GetScriptSource(index);
+        NativesExternalStringResource* resource =
+            new NativesExternalStringResource(source_vector.start());
+        *current++ = reinterpret_cast<Object*>(resource);
+        break;
+      }
       default:
         UNREACHABLE();
     }
@@ -2253,7 +2262,7 @@ void Serializer2::ObjectSerializer::VisitPointers(Object** start,
   Object** current = start;
   while (current < end) {
     while (current < end && (*current)->IsSmi()) current++;
-    OutputRawData(reinterpret_cast<Address>(current));
+    if (current < end) OutputRawData(reinterpret_cast<Address>(current));
 
     while (current < end && !(*current)->IsSmi()) {
       serializer_->SerializeObject(*current, TAGGED_REPRESENTATION);
@@ -2297,6 +2306,33 @@ void Serializer2::ObjectSerializer::VisitCodeTarget(RelocInfo* rinfo) {
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(target, CODE_TARGET_REPRESENTATION);
   bytes_processed_so_far_ += Assembler::kCallTargetSize;
+}
+
+
+void Serializer2::ObjectSerializer::VisitExternalAsciiString(
+    v8::String::ExternalAsciiStringResource** resource_pointer) {
+  Address references_start = reinterpret_cast<Address>(resource_pointer);
+  OutputRawData(references_start);
+  for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+    // Use raw_unchecked when maps are munged.
+    Object* source = Heap::raw_unchecked_natives_source_cache()->get(i);
+    if (!source->IsUndefined()) {
+      // Don't use cast when maps are munged.
+      ExternalAsciiString* string =
+          reinterpret_cast<ExternalAsciiString*>(source);
+      typedef v8::String::ExternalAsciiStringResource Resource;
+      Resource* resource = string->resource();
+      if (resource == *resource_pointer) {
+        sink_->Put(NATIVES_STRING_RESOURCE, "NativesStringResource");
+        sink_->PutSection(i, "NativesStringResourceEnd");
+        bytes_processed_so_far_ += sizeof(resource);
+        return;
+      }
+    }
+  }
+  // One of the strings in the natives cache should match the resource.  We
+  // can't serialize any other kinds of external strings.
+  UNREACHABLE();
 }
 
 

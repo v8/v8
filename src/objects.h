@@ -790,7 +790,6 @@ class Object BASE_EMBEDDED {
   inline bool IsHeapNumber();
   inline bool IsString();
   inline bool IsSymbol();
-#ifdef DEBUG
   // See objects-inl.h for more details
   inline bool IsSeqString();
   inline bool IsSlicedString();
@@ -799,7 +798,6 @@ class Object BASE_EMBEDDED {
   inline bool IsExternalAsciiString();
   inline bool IsSeqTwoByteString();
   inline bool IsSeqAsciiString();
-#endif  // DEBUG
   inline bool IsConsString();
 
   inline bool IsNumber();
@@ -4438,6 +4436,9 @@ class ExternalAsciiString: public ExternalString {
   // Casting.
   static inline ExternalAsciiString* cast(Object* obj);
 
+  // Garbage collection support.
+  void ExternalAsciiStringIterateBody(ObjectVisitor* v);
+
   // Support for StringInputBuffer.
   const unibrow::byte* ExternalAsciiStringReadBlock(unsigned* remaining,
                                                     unsigned* offset,
@@ -4472,6 +4473,9 @@ class ExternalTwoByteString: public ExternalString {
 
   // Casting.
   static inline ExternalTwoByteString* cast(Object* obj);
+
+  // Garbage collection support.
+  void ExternalTwoByteStringIterateBody(ObjectVisitor* v);
 
   // Support for StringInputBuffer.
   void ExternalTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
@@ -5103,6 +5107,12 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits a runtime entry in the instruction stream.
   virtual void VisitRuntimeEntry(RelocInfo* rinfo) {}
+
+  // Visits the resource of an ASCII or two-byte string.
+  virtual void VisitExternalAsciiString(
+      v8::String::ExternalAsciiStringResource** resource) {}
+  virtual void VisitExternalTwoByteString(
+      v8::String::ExternalStringResource** resource) {}
 
   // Visits a debug call target in the instruction stream.
   virtual void VisitDebugTarget(RelocInfo* rinfo);
