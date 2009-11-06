@@ -156,8 +156,8 @@
       'target_name': 'v8_snapshot',
       'type': '<(library)',
       'dependencies': [
-        'mksnapshot',
-        'js2c',
+        'mksnapshot#host',
+        'js2c#host',
         'v8_base',
       ],
       'include_dirs+': [
@@ -183,8 +183,9 @@
     {
       'target_name': 'v8_nosnapshot',
       'type': '<(library)',
+      'toolsets': ['host', 'target'],
       'dependencies': [
-        'js2c',
+        'js2c#host',
         'v8_base',
       ],
       'include_dirs+': [
@@ -194,10 +195,21 @@
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '../../src/snapshot-empty.cc',
       ],
+      'conditions': [
+        # The ARM assembler assumes the host is 32 bits, so force building
+        # 32-bit host tools.
+        # TODO(piman): This assumes that the host is ia32 or amd64. Fixing the
+        # code would be better
+        ['target_arch=="arm" and _toolset=="host"', {
+          'cflags': ['-m32'],
+          'ldflags': ['-m32'],
+        }]
+      ]
     },
     {
       'target_name': 'v8_base',
       'type': '<(library)',
+      'toolsets': ['host', 'target'],
       'include_dirs+': [
         '../../src',
       ],
@@ -393,6 +405,7 @@
             '../../src/arm/codegen-arm.cc',
             '../../src/arm/codegen-arm.h',
             '../../src/arm/constants-arm.h',
+            '../../src/arm/constants-arm.cc',
             '../../src/arm/cpu-arm.cc',
             '../../src/arm/debug-arm.cc',
             '../../src/arm/disasm-arm.cc',
@@ -411,6 +424,16 @@
             '../../src/arm/virtual-frame-arm.cc',
             '../../src/arm/virtual-frame-arm.h',
           ],
+          'conditions': [
+            # The ARM assembler assumes the host is 32 bits, so force building
+            # 32-bit host tools.
+            # TODO(piman): This assumes that the host is ia32 or amd64. Fixing
+            # the code would be better
+            ['_toolset=="host"', {
+              'cflags': ['-m32'],
+              'ldflags': ['-m32'],
+            }]
+          ]
         }],
         ['target_arch=="ia32"', {
           'include_dirs+': [
@@ -507,6 +530,7 @@
     {
       'target_name': 'js2c',
       'type': 'none',
+      'toolsets': ['host'],
       'variables': {
         'library_files': [
           '../../src/runtime.js',
@@ -549,6 +573,7 @@
     {
       'target_name': 'mksnapshot',
       'type': 'executable',
+      'toolsets': ['host'],
       'dependencies': [
         'v8_nosnapshot',
       ],
@@ -558,6 +583,16 @@
       'sources': [
         '../../src/mksnapshot.cc',
       ],
+      'conditions': [
+        # The ARM assembler assumes the host is 32 bits, so force building
+        # 32-bit host tools.
+        # TODO(piman): This assumes that the host is ia32 or amd64. Fixing
+        # the code would be better
+        ['target_arch=="arm" and _toolset=="host"', {
+          'cflags': ['-m32'],
+          'ldflags': ['-m32'],
+        }]
+      ]
     },
     {
       'target_name': 'v8_shell',
