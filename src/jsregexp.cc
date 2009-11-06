@@ -2440,8 +2440,8 @@ void TextNode::MakeCaseIndependent() {
       RegExpCharacterClass* cc = elm.data.u_char_class;
       ZoneList<CharacterRange>* ranges = cc->ranges();
       int range_count = ranges->length();
-      for (int i = 0; i < range_count; i++) {
-        ranges->at(i).AddCaseEquivalents(ranges);
+      for (int j = 0; j < range_count; j++) {
+        ranges->at(j).AddCaseEquivalents(ranges);
       }
     }
   }
@@ -3961,7 +3961,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
     } else {
       start = pos;
     }
-    // Then we add the ranges on at a time, incrementing the current
+    // Then we add the ranges one at a time, incrementing the current
     // position to be after the last block each time.  The position
     // always points to the start of a block.
     while (pos < to()) {
@@ -3987,8 +3987,45 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
       }
       start = pos = block_end + 1;
     }
-  } else {
-    // TODO(plesner) when we've fixed the 2^11 bug in unibrow.
+  } else if (from() > 0 || to() < String::kMaxUC16CharCode) {
+    // Unibrow ranges don't work for high characters due to the "2^11 bug".
+    // Therefore we do something dumber for these ranges.  We don't bother
+    // if the range is 0-max (as encountered at the start of an unanchored
+    // regexp).
+    ZoneList<unibrow::uchar> *characters = new ZoneList<unibrow::uchar>(100);
+    int bottom = from();
+    int top = to();
+    for (int i = bottom; i <= top; i++) {
+      int length = uncanonicalize.get(i, '\0', chars);
+      for (int j = 0; j < length; j++) {
+        uc32 chr = chars[j];
+        if (chr != i && chr < bottom || chr > top) {
+          characters->Add(chr);
+        }
+      }
+    }
+    if (characters->length() > 0) {
+      int new_from = characters->at(0);
+      int new_to = new_from;
+      for (int i = 1; i < characters->length(); i++) {
+        int chr = characters->at(i);
+        if (chr == new_to + 1) {
+          new_to++;
+        } else {
+          if (new_to == new_from) {
+            ranges->Add(CharacterRange::Singleton(new_from));
+          } else {
+            ranges->Add(CharacterRange(new_from, new_to));
+          }
+          new_from = new_to = chr;
+        }
+      }
+      if (new_to == new_from) {
+        ranges->Add(CharacterRange::Singleton(new_from));
+      } else {
+        ranges->Add(CharacterRange(new_from, new_to));
+      }
+    }
   }
 }
 
