@@ -973,14 +973,18 @@ void MacroAssembler::PushHandleScope(Register scratch) {
 }
 
 
-void MacroAssembler::PopHandleScope(Register scratch) {
+void MacroAssembler::PopHandleScope(Register saved, Register scratch) {
   ExternalReference extensions_address =
         ExternalReference::handle_scope_extensions_address();
   Label write_back;
   mov(scratch, Operand::StaticVariable(extensions_address));
   cmp(Operand(scratch), Immediate(0));
   j(equal, &write_back);
+  // Calling a runtime function messes with registers so we save and
+  // restore any one we're asked not to change
+  if (saved.is_valid()) push(saved);
   CallRuntime(Runtime::kDeleteHandleScopeExtensions, 0);
+  if (saved.is_valid()) pop(saved);
 
   bind(&write_back);
   ExternalReference limit_address =

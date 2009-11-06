@@ -272,7 +272,10 @@ class MacroAssembler: public Assembler {
                        int result_size);
 
   void PushHandleScope(Register scratch);
-  void PopHandleScope(Register scratch);
+
+  // Pops a handle scope using the specified scratch register and
+  // ensuring that saved register, it is not no_reg, is left unchanged.
+  void PopHandleScope(Register saved, Register scratch);
 
   // Jump to a runtime routine.
   void JumpToRuntime(const ExternalReference& ext);

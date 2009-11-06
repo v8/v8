@@ -422,3 +422,29 @@ THREADED_TEST(StackIteration) {
       "  foo();"
       "}"))->Run();
 }
+
+
+static v8::Handle<Value> AllocateHandles(Local<String> name,
+                                         const AccessorInfo& info) {
+  for (int i = 0; i < i::kHandleBlockSize + 1; i++) {
+    v8::Local<v8::Value>::New(name);
+  }
+  return v8::Integer::New(100);
+}
+
+
+THREADED_TEST(HandleScopeSegment) {
+  // Check that we can return values past popping of handle scope
+  // segments.
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> obj = ObjectTemplate::New();
+  obj->SetAccessor(v8_str("xxx"), AllocateHandles);
+  LocalContext env;
+  env->Global()->Set(v8_str("obj"), obj->NewInstance());
+  v8::Handle<v8::Value> result = Script::Compile(String::New(
+      "var result;"
+      "for (var i = 0; i < 4; i++)"
+      "  result = obj.xxx;"
+      "result;"))->Run();
+  CHECK_EQ(100, result->Int32Value());
+}

@@ -804,8 +804,9 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   ApiGetterEntryStub stub(callback_handle, &fun);
   __ CallStub(&stub);
 
+  // We need to avoid using eax since that now holds the result.
   Register tmp = other.is(eax) ? reg : other;
-  __ PopHandleScope(tmp);
+  __ PopHandleScope(eax, tmp);
   __ LeaveInternalFrame();
 
   __ ret(0);
