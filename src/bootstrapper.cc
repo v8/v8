@@ -100,7 +100,7 @@ static List<char*>* delete_these_non_arrays_on_tear_down = NULL;
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   ASSERT(0 <= index && index < Natives::GetBuiltinsCount());
   if (Heap::natives_source_cache()->get(index)->IsUndefined()) {
-    if (!Snapshot::IsEnabled || FLAG_new_snapshot) {
+    if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
       if (delete_these_non_arrays_on_tear_down == NULL) {
         delete_these_non_arrays_on_tear_down = new List<char*>(2);
       }
