@@ -109,10 +109,4 @@ class SputnikTestConfiguration(test.TestConfiguration):
 
 
 def GetConfiguration(context, root):
-  checkout = join(root, 'sputniktests')
-  if not exists(checkout):
-    print "No checkout of sputniktests found. Check out the tests under"
-    print "v8/test/sputnik using:"
-    print "  svn co http://sputniktests.googlecode.com/svn/trunk/ sputniktests"
-    sys.exit(0)
   return SputnikTestConfiguration(context, root)
