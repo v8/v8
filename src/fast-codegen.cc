@@ -304,12 +304,53 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ DoWhileStatement");
+  increment_loop_depth();
+  Label body, exit;
+
+  // Emit the test at the bottom of the loop.
+  __ bind(&body);
+  Visit(stmt->body());
+
+  // We are not in an expression context because we have been compiling
+  // statements.  Set up a test expression context for the condition.
+  ASSERT_EQ(NULL, true_label_);
+  ASSERT_EQ(NULL, false_label_);
+  true_label_ = &body;
+  false_label_ = &exit;
+  ASSERT(stmt->cond()->context() == Expression::kTest);
+  Visit(stmt->cond());
+
+  __ bind(&exit);
+
+  decrement_loop_depth();
 }
 
 
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ WhileStatement");
+  increment_loop_depth();
+  Label test, body, exit;
+
+  // Emit the test at the bottom of the loop.
+  __ jmp(&test);
+
+  __ bind(&body);
+  Visit(stmt->body());
+
+  __ bind(&test);
+  // We are not in an expression context because we have been compiling
+  // statements.  Set up a test expression context for the condition.
+  ASSERT_EQ(NULL, true_label_);
+  ASSERT_EQ(NULL, false_label_);
+  true_label_ = &body;
+  false_label_ = &exit;
+  ASSERT(stmt->cond()->context() == Expression::kTest);
+  Visit(stmt->cond());
+
+  __ bind(&exit);
+
+  decrement_loop_depth();
 }
 
 

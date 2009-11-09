@@ -708,12 +708,20 @@ void CodeGenSelector::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void CodeGenSelector::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  BAILOUT("DoWhileStatement");
+  // We do not handle loops with breaks or continue statements in their
+  // body.  We will bailout when we hit those statements in the body.
+  ProcessExpression(stmt->cond(), Expression::kTest);
+  CHECK_BAILOUT;
+  Visit(stmt->body());
 }
 
 
 void CodeGenSelector::VisitWhileStatement(WhileStatement* stmt) {
-  BAILOUT("WhileStatement");
+  // We do not handle loops with breaks or continue statements in their
+  // body.  We will bailout when we hit those statements in the body.
+  ProcessExpression(stmt->cond(), Expression::kTest);
+  CHECK_BAILOUT;
+  Visit(stmt->body());
 }
 
 
