@@ -80,8 +80,7 @@ class Bootstrapper : public AllStatic {
 class NativesExternalStringResource
     : public v8::String::ExternalAsciiStringResource {
  public:
-  explicit NativesExternalStringResource(const char* source)
-      : data_(source), length_(strlen(source)) { }
+  explicit NativesExternalStringResource(const char* source);
 
   const char* data() const {
     return data_;

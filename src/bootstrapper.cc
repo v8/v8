@@ -97,21 +97,26 @@ static SourceCodeCache extensions_cache(Script::TYPE_EXTENSION);
 static List<char*>* delete_these_non_arrays_on_tear_down = NULL;
 
 
+NativesExternalStringResource::NativesExternalStringResource(const char* source)
+    : data_(source), length_(strlen(source)) {
+  if (delete_these_non_arrays_on_tear_down == NULL) {
+    delete_these_non_arrays_on_tear_down = new List<char*>(2);
+  }
+  // The resources are small objects and we only make a fixed number of
+  // them, but let's clean them up on exit for neatness.
+  delete_these_non_arrays_on_tear_down->
+      Add(reinterpret_cast<char*>(this));
+}
+
+
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   ASSERT(0 <= index && index < Natives::GetBuiltinsCount());
   if (Heap::natives_source_cache()->get(index)->IsUndefined()) {
     if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
-      if (delete_these_non_arrays_on_tear_down == NULL) {
-        delete_these_non_arrays_on_tear_down = new List<char*>(2);
-      }
       // We can use external strings for the natives.
       NativesExternalStringResource* resource =
           new NativesExternalStringResource(
               Natives::GetScriptSource(index).start());
-      // The resources are small objects and we only make a fixed number of
-      // them, but lets clean them up on exit for neatness.
-      delete_these_non_arrays_on_tear_down->
-          Add(reinterpret_cast<char*>(resource));
       Handle<String> source_code =
           Factory::NewExternalStringFromAscii(resource);
       Heap::natives_source_cache()->set(index, *source_code);
