@@ -650,16 +650,6 @@ void CodeGenSelector::VisitDeclaration(Declaration* decl) {
   if (decl->fun() != NULL) {
     ProcessExpression(decl->fun(), Expression::kValue);
   }
-  Variable* var = decl->proxy()->var();
-  ASSERT_NOT_NULL(var);
-  if ((!var->is_global() && decl->fun() != NULL)) {
-    BAILOUT("Non-global function declaration");
-  }
-  if ((!var->is_global() &&
-       var->slot() != NULL &&
-       var->slot()->type() == Slot::LOOKUP)) {
-    BAILOUT("Lookup slot encountered in declaration");
-  }
 }
 
 
