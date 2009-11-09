@@ -380,12 +380,19 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
   // Unfortunately, that means this code is nearly duplicated, here and in
   // jsregexp.cc.
   if (regexp.global) {
+    var numberOfCaptures = NUMBER_OF_CAPTURES(matchInfo) >> 1;
     var previous = 0;
     do {
-      result.addSpecialSlice(previous, matchInfo[CAPTURE0]);
       var startOfMatch = matchInfo[CAPTURE0];
+      result.addSpecialSlice(previous, startOfMatch);
       previous = matchInfo[CAPTURE1];
-      result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+      if (numberOfCaptures == 1) {
+        var match = SubString(subject, startOfMatch, previous);
+        // Don't call directly to avoid exposing the built-in global object.
+        result.add(replace.call(null, match, startOfMatch, subject));
+      } else {
+        result.add(ApplyReplacementFunction(replace, matchInfo, subject));
+      }
       // Can't use matchInfo any more from here, since the function could
       // overwrite it.
       // Continue with the next match.
