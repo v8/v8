@@ -757,9 +757,7 @@ void CodeGenSelector::VisitDebuggerStatement(DebuggerStatement* stmt) {
 
 
 void CodeGenSelector::VisitFunctionLiteral(FunctionLiteral* expr) {
-  if (!expr->AllowsLazyCompilation()) {
-    BAILOUT("FunctionLiteral does not allow lazy compilation");
-  }
+  // FunctionLiteral is supported.
 }
 
 
