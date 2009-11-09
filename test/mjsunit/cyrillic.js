@@ -60,6 +60,7 @@ function Range(from, to, flags) {
   return new RegExp("[" + from + "-" + to + "]", flags);
 }
 
+// Test Cyrillic and Greek separately.
 for (var lang = 0; lang < 2; lang++) {
   var chars = (lang == 0) ? cyrillic : greek;
 
@@ -99,13 +100,13 @@ for (var lang = 0; lang < 2; lang++) {
   }
 }
 
+// Test range that covers both greek and cyrillic characters.
 for (key in greek) {
   assertTrue(Range(greek.FIRST, cyrillic.last).test(greek[key]), 17 + key);
   if (cyrillic[key]) {
     assertTrue(Range(greek.FIRST, cyrillic.last).test(cyrillic[key]), 18 + key);
   }
 }
-
 
 for (var i = 0; i < 2; i++) {
   var ignore_case = (i == 0);
@@ -118,6 +119,8 @@ for (var i = 0; i < 2; i++) {
   assertTrue(Range(greek.first, cyrillic.LAST, flag).test(cyrillic.MIDDLE), 23);
   assertTrue(Range(greek.first, cyrillic.LAST, flag).test(cyrillic.LAST), 24);
 
+  // A range that covers the lower case greek letters and the upper case cyrillic
+  // letters.
   assertEquals(ignore_case, Range(greek.first, cyrillic.LAST, flag).test(greek.FIRST), 25);
   assertEquals(ignore_case, Range(greek.first, cyrillic.LAST, flag).test(greek.MIDDLE), 26);
   assertEquals(ignore_case, Range(greek.first, cyrillic.LAST, flag).test(greek.LAST), 27);
@@ -128,6 +131,10 @@ for (var i = 0; i < 2; i++) {
 }
 
 
+// Sigma is special because there are two lower case versions of the same upper
+// case character.  JS requires that case independece means that you should
+// convert everything to upper case, so the two sigma variants are equal to each
+// other in a case independt comparison.
 for (var i = 0; i < 2; i++) {
   var simple = (i != 0);
   var name = simple ? "" : "[]";
@@ -166,4 +173,36 @@ for (var i = 0; i < 2; i++) {
   assertTrue(new RegExp(regex, "i").test(SIGMA), 56 + name);
 }
 
-print("ok");
+
+// Test all non-ASCII characters individually to ensure that our optimizations
+// didn't break anything.
+for (var i = 0x80; i <= 0xfffe; i++) {
+  var c = String.fromCharCode(i);
+  var c2 = String.fromCharCode(i + 1);
+  var re = new RegExp("[" + c + "-" + c2 + "]", "i");
+  assertTrue(re.test(c), 57);
+}
+
+for (var add_non_ascii_character_to_subject = 0;
+     add_non_ascii_character_to_subject < 2;
+     add_non_ascii_character_to_subject++) {
+  var suffix = add_non_ascii_character_to_subject ? "\ufffe" : "";
+  // A range that covers both ASCII and non-ASCII.
+  for (var i = 0; i < 2; i++) {
+    var full = (i != 0);
+    var mixed = full ? "[a-\uffff]" : "[a-" + cyrillic.LAST + "]";
+    var f = full ? "f" : "c";
+    for (var j = 0; j < 2; j++) {
+      var ignore_case = (j == 0);
+      var flag = ignore_case ? "i" : "";
+      var re = new RegExp(mixed, flag);
+      assertEquals(ignore_case || (full && add_non_ascii_character_to_subject),
+                   re.test("A" + suffix),
+                   58 + flag + f);
+      assertTrue(re.test("a" + suffix), 59 + flag + f);
+      assertTrue(re.test("~" + suffix), 60 + flag + f);
+      assertTrue(re.test(cyrillic.MIDDLE), 61 + flag + f);
+      assertEquals(ignore_case || full, re.test(cyrillic.middle), 62 + flag + f);
+    }
+  }
+}
