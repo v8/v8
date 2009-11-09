@@ -41,7 +41,6 @@ class UTF8Buffer {
   ~UTF8Buffer();
 
   void AddChar(uc32 c) {
-    ASSERT_NOT_NULL(data_);
     if (cursor_ <= limit_ &&
         static_cast<unsigned>(c) <= unibrow::Utf8::kMaxOneByteChar) {
       *cursor_++ = static_cast<char>(c);
@@ -50,29 +49,16 @@ class UTF8Buffer {
     }
   }
 
-  void Reset() {
-    if (data_ == NULL) {
-      data_ = NewArray<char>(kInitialCapacity);
-      limit_ = ComputeLimit(data_, kInitialCapacity);
-    }
-    cursor_ = data_;
-  }
-
-  int pos() const {
-    ASSERT_NOT_NULL(data_);
-    return cursor_ - data_;
-  }
-
+  void Reset() { cursor_ = data_; }
+  int pos() const { return cursor_ - data_; }
   char* data() const { return data_; }
 
  private:
-  static const int kInitialCapacity = 256;
   char* data_;
   char* cursor_;
   char* limit_;
 
   int Capacity() const {
-    ASSERT_NOT_NULL(data_);
     return (limit_ - data_) + unibrow::Utf8::kMaxEncodedSize;
   }
 
@@ -292,30 +278,26 @@ class Scanner {
   // token returned by Next()). The string is 0-terminated and in
   // UTF-8 format; they may contain 0-characters. Literal strings are
   // collected for identifiers, strings, and numbers.
-  // These functions only give the correct result if the literal
-  // was scanned between calls to StartLiteral() and TerminateLiteral().
   const char* literal_string() const {
-    return current_.literal_buffer->data();
+    return &literals_.data()[current_.literal_pos];
   }
   int literal_length() const {
-    // Excluding terminal '\0' added by TerminateLiteral().
-    return current_.literal_buffer->pos() - 1;
+    return current_.literal_end - current_.literal_pos;
+  }
+
+  Vector<const char> next_literal() const {
+    return Vector<const char>(next_literal_string(), next_literal_length());
   }
 
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
   const char* next_literal_string() const {
-    return next_.literal_buffer->data();
+    return &literals_.data()[next_.literal_pos];
   }
   // Returns the length of the next token (that would be returned if
   // Next() were called).
   int next_literal_length() const {
-    return next_.literal_buffer->pos() - 1;
-  }
-
-  Vector<const char> next_literal() const {
-    return Vector<const char>(next_literal_string(),
-                              next_literal_length());
+    return next_.literal_end - next_.literal_pos;
   }
 
   // Scans the input as a regular expression pattern, previous
@@ -357,8 +339,7 @@ class Scanner {
 
   // Buffer to hold literal values (identifiers, strings, numbers)
   // using 0-terminated UTF-8 encoding.
-  UTF8Buffer literal_buffer_1_;
-  UTF8Buffer literal_buffer_2_;
+  UTF8Buffer literals_;
 
   bool stack_overflow_;
   static StaticResource<Utf8Decoder> utf8_decoder_;
@@ -370,7 +351,7 @@ class Scanner {
   struct TokenDesc {
     Token::Value token;
     Location location;
-    UTF8Buffer* literal_buffer;
+    int literal_pos, literal_end;
   };
 
   TokenDesc current_;  // desc for current token (as returned by Next())

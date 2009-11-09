@@ -49,7 +49,13 @@ StaticResource<Scanner::Utf8Decoder> Scanner::utf8_decoder_;
 // ----------------------------------------------------------------------------
 // UTF8Buffer
 
-UTF8Buffer::UTF8Buffer() : data_(NULL), limit_(NULL) { }
+UTF8Buffer::UTF8Buffer() {
+  static const int kInitialCapacity = 1 * KB;
+  data_ = NewArray<char>(kInitialCapacity);
+  limit_ = ComputeLimit(data_, kInitialCapacity);
+  Reset();
+  ASSERT(Capacity() == kInitialCapacity && pos() == 0);
+}
 
 
 UTF8Buffer::~UTF8Buffer() {
@@ -63,7 +69,7 @@ void UTF8Buffer::AddCharSlow(uc32 c) {
     int old_capacity = Capacity();
     int old_position = pos();
     int new_capacity =
-        Min(old_capacity * 3, old_capacity + kCapacityGrowthLimit);
+        Min(old_capacity * 2, old_capacity + kCapacityGrowthLimit);
     char* new_data = NewArray<char>(new_capacity);
     memcpy(new_data, data_, old_position);
     DeleteArray(data_);
@@ -340,6 +346,9 @@ void Scanner::Init(Handle<String> source, unibrow::CharacterStream* stream,
 
   position_ = position;
 
+  // Reset literals buffer
+  literals_.Reset();
+
   // Set c0_ (one character ahead)
   ASSERT(kCharacterLookaheadBufferSize == 1);
   Advance();
@@ -367,7 +376,6 @@ Token::Value Scanner::Next() {
   if (check.HasOverflowed()) {
     stack_overflow_ = true;
     next_.token = Token::ILLEGAL;
-    next_.literal_buffer = NULL;
   } else {
     Scan();
   }
@@ -376,23 +384,17 @@ Token::Value Scanner::Next() {
 
 
 void Scanner::StartLiteral() {
-  // Use the first buffer unless it's currently in use by the current_ token.
-  // In most cases we won't have two literals/identifiers in a row, so
-  // the second buffer won't be used very often and is unlikely to grow much.
-  UTF8Buffer* free_buffer =
-      (current_.literal_buffer != &literal_buffer_1_) ? &literal_buffer_1_
-                                                      : &literal_buffer_2_;
-  next_.literal_buffer = free_buffer;
-  free_buffer->Reset();
+  next_.literal_pos = literals_.pos();
 }
 
 
 void Scanner::AddChar(uc32 c) {
-  next_.literal_buffer->AddChar(c);
+  literals_.AddChar(c);
 }
 
 
 void Scanner::TerminateLiteral() {
+  next_.literal_end = literals_.pos();
   AddChar(0);
 }
 
