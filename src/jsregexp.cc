@@ -4077,7 +4077,7 @@ static void AddUncanonicals(ZoneList<CharacterRange>* ranges,
     int length = uncanonicalize.get(i, '\0', chars);
     for (int j = 0; j < length; j++) {
       uc32 chr = chars[j];
-      if (chr != i && chr < bottom || chr > top) {
+      if (chr != i && (chr < bottom || chr > top)) {
         characters->Add(chr);
       }
     }
