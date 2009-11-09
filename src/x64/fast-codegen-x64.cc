@@ -418,6 +418,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   Expression* rewrite = expr->var()->rewrite();
   if (rewrite == NULL) {
+    ASSERT(expr->var()->is_global());
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in rcx and the global
     // object on the stack.
@@ -425,14 +426,55 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     __ Move(rcx, expr->name());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-
     // A test rax instruction following the call is used by the IC to
     // indicate that the inobject property case was inlined.  Ensure there
     // is no test rax instruction here.
+    __ nop();
+
     DropAndMove(expr->context(), rax);
   } else {
-    Comment cmnt(masm_, "Stack slot");
-    Move(expr->context(), rewrite->AsSlot());
+    Slot* slot = rewrite->AsSlot();
+    ASSERT_NE(NULL, slot);
+    switch (slot->type()) {
+      case Slot::LOCAL:
+      case Slot::PARAMETER: {
+        Comment cmnt(masm_, "Stack slot");
+        Move(expr->context(), slot);
+        break;
+      }
+
+      case Slot::CONTEXT: {
+        Comment cmnt(masm_, "Context slot");
+         int chain_length =
+            function_->scope()->ContextChainLength(slot->var()->scope());
+        if (chain_length > 0) {
+          // Move up the chain of contexts to the context containing the slot.
+          __ movq(rax,
+                  Operand(rsi, Context::SlotOffset(Context::CLOSURE_INDEX)));
+          // Load the function context (which is the incoming, outer context).
+          __ movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
+          for (int i = 1; i < chain_length; i++) {
+            __ movq(rax,
+                    Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)));
+            __ movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
+          }
+          // The context may be an intermediate context, not a function context.
+          __ movq(rax,
+                  Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+        } else {  // Slot is in the current function context.
+          // The context may be an intermediate context, not a function context.
+          __ movq(rax,
+                  Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+        }
+        __ movq(rax, Operand(rax, Context::SlotOffset(slot->index())));
+        Move(expr->context(), rax);
+        break;
+      }
+
+      case Slot::LOOKUP:
+        UNREACHABLE();
+        break;
+    }
   }
 }
 
@@ -695,44 +737,96 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
     DropAndMove(expr->context(), rax);
 
   } else {
-    switch (expr->context()) {
-      case Expression::kUninitialized:
+    Slot* slot = var->slot();
+    ASSERT_NOT_NULL(slot);  // Variables rewritten as properties not handled.
+    switch (slot->type()) {
+      case Slot::LOCAL:
+      case Slot::PARAMETER: {
+        switch (expr->context()) {
+          case Expression::kUninitialized:
+            UNREACHABLE();
+          case Expression::kEffect:
+            // Perform assignment and discard value.
+            __ pop(Operand(rbp, SlotOffset(var->slot())));
+            break;
+          case Expression::kValue:
+            // Perform assignment and preserve value.
+            __ movq(rax, Operand(rsp, 0));
+            __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
+            break;
+          case Expression::kTest:
+            // Perform assignment and test (and discard) value.
+            __ pop(rax);
+            __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
+            TestAndBranch(rax, true_label_, false_label_);
+            break;
+          case Expression::kValueTest: {
+            Label discard;
+            __ movq(rax, Operand(rsp, 0));
+            __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
+            TestAndBranch(rax, true_label_, &discard);
+            __ bind(&discard);
+            __ addq(rsp, Immediate(kPointerSize));
+            __ jmp(false_label_);
+            break;
+          }
+          case Expression::kTestValue: {
+            Label discard;
+            __ movq(rax, Operand(rsp, 0));
+            __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
+            TestAndBranch(rax, &discard, false_label_);
+            __ bind(&discard);
+            __ addq(rsp, Immediate(kPointerSize));
+            __ jmp(true_label_);
+            break;
+          }
+        }
+        break;
+      }
+
+      case Slot::CONTEXT: {
+        int chain_length =
+            function_->scope()->ContextChainLength(slot->var()->scope());
+        if (chain_length > 0) {
+          // Move up the context chain to the context containing the slot.
+          __ movq(rax,
+                  Operand(rsi, Context::SlotOffset(Context::CLOSURE_INDEX)));
+          // Load the function context (which is the incoming, outer context).
+          __ movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
+          for (int i = 1; i < chain_length; i++) {
+            __ movq(rax,
+                    Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)));
+            __ movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
+          }
+        } else {  // Slot is in the current context.  Generate optimized code.
+          __ movq(rax, rsi);  // RecordWrite destroys the object register.
+        }
+        if (FLAG_debug_code) {
+          __ cmpq(rax,
+                  Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+          __ Check(equal, "Context Slot chain length wrong.");
+        }
+        __ pop(rcx);
+        __ movq(Operand(rax, Context::SlotOffset(slot->index())), rcx);
+
+        // RecordWrite may destroy all its register arguments.
+        if (expr->context() == Expression::kValue) {
+          __ push(rcx);
+        } else if (expr->context() != Expression::kEffect) {
+          __ movq(rdx, rcx);
+        }
+        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        __ RecordWrite(rax, offset, rcx, rbx);
+        if (expr->context() != Expression::kEffect &&
+            expr->context() != Expression::kValue) {
+          Move(expr->context(), rdx);
+        }
+        break;
+      }
+
+      case Slot::LOOKUP:
         UNREACHABLE();
-      case Expression::kEffect:
-        // Perform assignment and discard value.
-        __ pop(Operand(rbp, SlotOffset(var->slot())));
         break;
-      case Expression::kValue:
-        // Perform assignment and preserve value.
-        __ movq(rax, Operand(rsp, 0));
-        __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
-        break;
-      case Expression::kTest:
-        // Perform assignment and test (and discard) value.
-        __ pop(rax);
-        __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
-        TestAndBranch(rax, true_label_, false_label_);
-        break;
-      case Expression::kValueTest: {
-        Label discard;
-        __ movq(rax, Operand(rsp, 0));
-        __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
-        TestAndBranch(rax, true_label_, &discard);
-        __ bind(&discard);
-        __ addq(rsp, Immediate(kPointerSize));
-        __ jmp(false_label_);
-        break;
-      }
-      case Expression::kTestValue: {
-        Label discard;
-        __ movq(rax, Operand(rsp, 0));
-        __ movq(Operand(rbp, SlotOffset(var->slot())), rax);
-        TestAndBranch(rax, &discard, false_label_);
-        __ bind(&discard);
-        __ addq(rsp, Immediate(kPointerSize));
-        __ jmp(true_label_);
-        break;
-      }
     }
   }
 }

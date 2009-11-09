@@ -364,6 +364,7 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
         __ str(r0, CodeGenerator::ContextOperand(cp, slot->index()));
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
         __ mov(r2, Operand(offset));
+        // We know that we have written a function, which is not a smi.
         __ RecordWrite(cp, r2, r0);
       }
       break;
@@ -421,6 +422,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   Expression* rewrite = expr->var()->rewrite();
   if (rewrite == NULL) {
+    ASSERT(expr->var()->is_global());
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in r2 and the global
     // object on the stack.
@@ -431,8 +433,47 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     DropAndMove(expr->context(), r0);
   } else {
-    Comment cmnt(masm_, "Stack slot");
-    Move(expr->context(), rewrite->AsSlot());
+    Slot* slot = rewrite->AsSlot();
+    ASSERT_NE(NULL, slot);
+    switch (slot->type()) {
+      case Slot::LOCAL:
+      case Slot::PARAMETER: {
+        Comment cmnt(masm_, "Stack slot");
+        Move(expr->context(), rewrite->AsSlot());
+        break;
+      }
+
+      case Slot::CONTEXT: {
+        Comment cmnt(masm_, "Context slot");
+        int chain_length =
+            function_->scope()->ContextChainLength(slot->var()->scope());
+        if (chain_length > 0) {
+          // Move up the chain of contexts to the context containing the slot.
+          __ ldr(r0, CodeGenerator::ContextOperand(cp, Context::CLOSURE_INDEX));
+          // Load the function context (which is the incoming, outer context).
+          __ ldr(r0, FieldMemOperand(r0, JSFunction::kContextOffset));
+          for (int i = 1; i < chain_length; i++) {
+            __ ldr(r0,
+                   CodeGenerator::ContextOperand(r0, Context::CLOSURE_INDEX));
+            // Load the function context (which is the incoming, outer context).
+            __ ldr(r0, FieldMemOperand(r0, JSFunction::kContextOffset));
+          }
+          // The context may be an intermediate context, not a function context.
+          __ ldr(r0,
+                 CodeGenerator::ContextOperand(r0, Context::FCONTEXT_INDEX));
+        } else {  // Slot is in the current context.
+          __ ldr(r0,
+                 CodeGenerator::ContextOperand(cp, Context::FCONTEXT_INDEX));
+        }
+        __ ldr(r0, CodeGenerator::ContextOperand(r0, slot->index()));
+        Move(expr->context(), r0);
+        break;
+      }
+
+      case Slot::LOOKUP:
+        UNREACHABLE();
+        break;
+    }
   }
 }
 
@@ -705,45 +746,103 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
     DropAndMove(expr->context(), r0);
 
   } else {
-    switch (expr->context()) {
-      case Expression::kUninitialized:
+    Slot* slot = var->slot();
+    ASSERT_NOT_NULL(slot);  // Variables rewritten as properties not handled.
+    switch (slot->type()) {
+      case Slot::LOCAL:
+      case Slot::PARAMETER: {
+        switch (expr->context()) {
+          case Expression::kUninitialized:
+            UNREACHABLE();
+          case Expression::kEffect:
+            // Perform assignment and discard value.
+            __ pop(r0);
+            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            break;
+          case Expression::kValue:
+            // Perform assignment and preserve value.
+            __ ldr(r0, MemOperand(sp));
+            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            break;
+          case Expression::kTest:
+            // Perform assignment and test (and discard) value.
+            __ pop(r0);
+            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            TestAndBranch(r0, true_label_, false_label_);
+            break;
+          case Expression::kValueTest: {
+            Label discard;
+            __ ldr(r0, MemOperand(sp));
+            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            TestAndBranch(r0, true_label_, &discard);
+            __ bind(&discard);
+            __ pop();
+            __ jmp(false_label_);
+            break;
+          }
+          case Expression::kTestValue: {
+            Label discard;
+            __ ldr(r0, MemOperand(sp));
+            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            TestAndBranch(r0, &discard, false_label_);
+            __ bind(&discard);
+            __ pop();
+            __ jmp(true_label_);
+            break;
+          }
+        }
+        break;
+      }
+
+      case Slot::CONTEXT: {
+        int chain_length =
+            function_->scope()->ContextChainLength(slot->var()->scope());
+        if (chain_length > 0) {
+          // Move up the chain of contexts to the context containing the slot.
+          __ ldr(r0, CodeGenerator::ContextOperand(cp, Context::CLOSURE_INDEX));
+          // Load the function context (which is the incoming, outer context).
+          __ ldr(r0, FieldMemOperand(r0, JSFunction::kContextOffset));
+          for (int i = 1; i < chain_length; i++) {
+            __ ldr(r0,
+                   CodeGenerator::ContextOperand(r0, Context::CLOSURE_INDEX));
+            __ ldr(r0, FieldMemOperand(r0, JSFunction::kContextOffset));
+          }
+        } else {  // Slot is in the current context.  Generate optimized code.
+          __ mov(r0, cp);
+        }
+        // The context may be an intermediate context, not a function context.
+        __ ldr(r0, CodeGenerator::ContextOperand(r0, Context::FCONTEXT_INDEX));
+        __ pop(r1);
+        __ str(r1, CodeGenerator::ContextOperand(r0, slot->index()));
+
+        // RecordWrite may destroy all its register arguments.
+        if (expr->context() == Expression::kValue) {
+          __ push(r1);
+        } else if (expr->context() != Expression::kEffect) {
+          __ mov(r3, r1);
+        }
+        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+
+        // Update the write barrier for the array store with r0 as the scratch
+        // register.  Skip the write barrier if r0 is a smi.
+        // The smi test is part of RecordWrite on other platforms, not on arm.
+        Label exit;
+        __ tst(r0, Operand(kSmiTagMask));
+        __ b(eq, &exit);
+
+        __ mov(r2, Operand(offset));
+        __ RecordWrite(r0, r2, r1);
+        __ bind(&exit);
+        if (expr->context() != Expression::kEffect &&
+            expr->context() != Expression::kValue) {
+        Move(expr->context(), r3);
+        }
+        break;
+      }
+
+      case Slot::LOOKUP:
         UNREACHABLE();
-      case Expression::kEffect:
-        // Perform assignment and discard value.
-        __ pop(r0);
-        __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
         break;
-      case Expression::kValue:
-        // Perform assignment and preserve value.
-        __ ldr(r0, MemOperand(sp));
-        __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
-        break;
-      case Expression::kTest:
-        // Perform assignment and test (and discard) value.
-        __ pop(r0);
-        __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
-        TestAndBranch(r0, true_label_, false_label_);
-        break;
-      case Expression::kValueTest: {
-        Label discard;
-        __ ldr(r0, MemOperand(sp));
-        __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
-        TestAndBranch(r0, true_label_, &discard);
-        __ bind(&discard);
-        __ pop();
-        __ jmp(false_label_);
-        break;
-      }
-      case Expression::kTestValue: {
-        Label discard;
-        __ ldr(r0, MemOperand(sp));
-        __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
-        TestAndBranch(r0, &discard, false_label_);
-        __ bind(&discard);
-        __ pop();
-        __ jmp(true_label_);
-        break;
-      }
     }
   }
 }

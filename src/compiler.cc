@@ -650,6 +650,16 @@ void CodeGenSelector::VisitDeclaration(Declaration* decl) {
   if (decl->fun() != NULL) {
     ProcessExpression(decl->fun(), Expression::kValue);
   }
+  Variable* var = decl->proxy()->var();
+  ASSERT_NOT_NULL(var);
+  if ((!var->is_global() && decl->fun() != NULL)) {
+    BAILOUT("Non-global function declaration");
+  }
+  if ((!var->is_global() &&
+       var->slot() != NULL &&
+       var->slot()->type() == Slot::LOOKUP)) {
+    BAILOUT("Lookup slot encountered in declaration");
+  }
 }
 
 
@@ -794,8 +804,10 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
     }
 
     Slot::Type type = slot->type();
-    if (type != Slot::PARAMETER && type != Slot::LOCAL) {
-      BAILOUT("non-parameter/non-local slot reference");
+    // When LOOKUP slots are enabled, some currently dead code
+    // implementing unary typeof will become live.
+    if (type == Slot::LOOKUP) {
+      BAILOUT("Lookup slot");
     }
   }
 }
@@ -883,8 +895,8 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
         BAILOUT("non-global/non-slot assignment");
       }
       Slot::Type type = var->slot()->type();
-      if (type != Slot::PARAMETER && type != Slot::LOCAL) {
-        BAILOUT("non-parameter/non-local slot assignment");
+      if (type == Slot::LOOKUP) {
+        BAILOUT("Lookup slot");
       }
     }
   } else if (prop != NULL) {
