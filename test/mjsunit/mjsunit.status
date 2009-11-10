@@ -61,3 +61,7 @@ string-compare-alignment: PASS || FAIL
 
 # Times out often in release mode on ARM.
 array-splice: PASS || TIMEOUT
+
+# Issue 500
+string-indexof: PASS || TIMEOUT
+
