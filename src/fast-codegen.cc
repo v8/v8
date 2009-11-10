@@ -320,6 +320,8 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   false_label_ = &exit;
   ASSERT(stmt->cond()->context() == Expression::kTest);
   Visit(stmt->cond());
+  true_label_ = NULL;
+  false_label_ = NULL;
 
   __ bind(&exit);
 
@@ -347,6 +349,8 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   false_label_ = &exit;
   ASSERT(stmt->cond()->context() == Expression::kTest);
   Visit(stmt->cond());
+  true_label_ = NULL;
+  false_label_ = NULL;
 
   __ bind(&exit);
 
