@@ -42,6 +42,9 @@ big-object-literal: PASS, SKIP if ($arch == arm)
 # Issue 488: this test sometimes times out.
 array-constructor: PASS || TIMEOUT
 
+# Issue 499
+cyrillic: PASS, TIMEOUT if ($arch == arm)
+
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.
