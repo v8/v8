@@ -3487,7 +3487,7 @@ TEST(NoHiddenProperties) {
   grandProtoObj->SetHiddenValue(v8::String::New("v8::test-debug::c"),
                                 v8::Int32::New(13));
   env->Global()->Set(v8::String::New("grandProtoObj"), grandProtoObj);
-  
+
   // Setting prototypes: obj->protoObj->grandProtoObj
   protoObj->Set(v8::String::New("__proto__"), grandProtoObj);
   obj->Set(v8::String::New("__proto__"), protoObj);
