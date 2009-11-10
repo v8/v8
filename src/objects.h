@@ -78,7 +78,6 @@
 //           - SeqAsciiString
 //           - SeqTwoByteString
 //         - ConsString
-//         - SlicedString
 //         - ExternalString
 //           - ExternalAsciiString
 //           - ExternalTwoByteString
@@ -210,7 +209,7 @@ enum PropertyNormalizationMode {
 // considered TWO_BYTE.  It is not mentioned in the name.  ASCII encoding is
 // mentioned explicitly in the name.  Likewise, the default representation is
 // considered sequential.  It is not mentioned in the name.  The other
-// representations (eg, CONS, SLICED, EXTERNAL) are explicitly mentioned.
+// representations (eg, CONS, EXTERNAL) are explicitly mentioned.
 // Finally, the string is either a SYMBOL_TYPE (if it is a symbol) or a
 // STRING_TYPE (if it is not a symbol).
 //
@@ -235,12 +234,6 @@ enum PropertyNormalizationMode {
   V(SHORT_CONS_ASCII_SYMBOL_TYPE)               \
   V(MEDIUM_CONS_ASCII_SYMBOL_TYPE)              \
   V(LONG_CONS_ASCII_SYMBOL_TYPE)                \
-  V(SHORT_SLICED_SYMBOL_TYPE)                   \
-  V(MEDIUM_SLICED_SYMBOL_TYPE)                  \
-  V(LONG_SLICED_SYMBOL_TYPE)                    \
-  V(SHORT_SLICED_ASCII_SYMBOL_TYPE)             \
-  V(MEDIUM_SLICED_ASCII_SYMBOL_TYPE)            \
-  V(LONG_SLICED_ASCII_SYMBOL_TYPE)              \
   V(SHORT_EXTERNAL_SYMBOL_TYPE)                 \
   V(MEDIUM_EXTERNAL_SYMBOL_TYPE)                \
   V(LONG_EXTERNAL_SYMBOL_TYPE)                  \
@@ -259,12 +252,6 @@ enum PropertyNormalizationMode {
   V(SHORT_CONS_ASCII_STRING_TYPE)               \
   V(MEDIUM_CONS_ASCII_STRING_TYPE)              \
   V(LONG_CONS_ASCII_STRING_TYPE)                \
-  V(SHORT_SLICED_STRING_TYPE)                   \
-  V(MEDIUM_SLICED_STRING_TYPE)                  \
-  V(LONG_SLICED_STRING_TYPE)                    \
-  V(SHORT_SLICED_ASCII_STRING_TYPE)             \
-  V(MEDIUM_SLICED_ASCII_STRING_TYPE)            \
-  V(LONG_SLICED_ASCII_STRING_TYPE)              \
   V(SHORT_EXTERNAL_STRING_TYPE)                 \
   V(MEDIUM_EXTERNAL_STRING_TYPE)                \
   V(LONG_EXTERNAL_STRING_TYPE)                  \
@@ -380,30 +367,6 @@ enum PropertyNormalizationMode {
     ConsString::kSize,                                                         \
     long_cons_ascii_symbol,                                                    \
     LongConsAsciiSymbol)                                                       \
-  V(SHORT_SLICED_SYMBOL_TYPE,                                                  \
-    SlicedString::kSize,                                                       \
-    short_sliced_symbol,                                                       \
-    ShortSlicedSymbol)                                                         \
-  V(MEDIUM_SLICED_SYMBOL_TYPE,                                                 \
-    SlicedString::kSize,                                                       \
-    medium_sliced_symbol,                                                      \
-    MediumSlicedSymbol)                                                        \
-  V(LONG_SLICED_SYMBOL_TYPE,                                                   \
-    SlicedString::kSize,                                                       \
-    long_sliced_symbol,                                                        \
-    LongSlicedSymbol)                                                          \
-  V(SHORT_SLICED_ASCII_SYMBOL_TYPE,                                            \
-    SlicedString::kSize,                                                       \
-    short_sliced_ascii_symbol,                                                 \
-    ShortSlicedAsciiSymbol)                                                    \
-  V(MEDIUM_SLICED_ASCII_SYMBOL_TYPE,                                           \
-    SlicedString::kSize,                                                       \
-    medium_sliced_ascii_symbol,                                                \
-    MediumSlicedAsciiSymbol)                                                   \
-  V(LONG_SLICED_ASCII_SYMBOL_TYPE,                                             \
-    SlicedString::kSize,                                                       \
-    long_sliced_ascii_symbol,                                                  \
-    LongSlicedAsciiSymbol)                                                     \
   V(SHORT_EXTERNAL_SYMBOL_TYPE,                                                \
     ExternalTwoByteString::kSize,                                              \
     short_external_symbol,                                                     \
@@ -476,30 +439,6 @@ enum PropertyNormalizationMode {
     ConsString::kSize,                                                         \
     long_cons_ascii_string,                                                    \
     LongConsAsciiString)                                                       \
-  V(SHORT_SLICED_STRING_TYPE,                                                  \
-    SlicedString::kSize,                                                       \
-    short_sliced_string,                                                       \
-    ShortSlicedString)                                                         \
-  V(MEDIUM_SLICED_STRING_TYPE,                                                 \
-    SlicedString::kSize,                                                       \
-    medium_sliced_string,                                                      \
-    MediumSlicedString)                                                        \
-  V(LONG_SLICED_STRING_TYPE,                                                   \
-    SlicedString::kSize,                                                       \
-    long_sliced_string,                                                        \
-    LongSlicedString)                                                          \
-  V(SHORT_SLICED_ASCII_STRING_TYPE,                                            \
-    SlicedString::kSize,                                                       \
-    short_sliced_ascii_string,                                                 \
-    ShortSlicedAsciiString)                                                    \
-  V(MEDIUM_SLICED_ASCII_STRING_TYPE,                                           \
-    SlicedString::kSize,                                                       \
-    medium_sliced_ascii_string,                                                \
-    MediumSlicedAsciiString)                                                   \
-  V(LONG_SLICED_ASCII_STRING_TYPE,                                             \
-    SlicedString::kSize,                                                       \
-    long_sliced_ascii_string,                                                  \
-    LongSlicedAsciiString)                                                     \
   V(SHORT_EXTERNAL_STRING_TYPE,                                                \
     ExternalTwoByteString::kSize,                                              \
     short_external_string,                                                     \
@@ -591,7 +530,6 @@ const uint32_t kStringRepresentationMask = 0x03;
 enum StringRepresentationTag {
   kSeqStringTag = 0x0,
   kConsStringTag = 0x1,
-  kSlicedStringTag = 0x2,
   kExternalStringTag = 0x3
 };
 
@@ -627,15 +565,6 @@ enum InstanceType {
       kMediumStringTag | kAsciiStringTag | kSymbolTag | kConsStringTag,
   LONG_CONS_ASCII_SYMBOL_TYPE =
       kLongStringTag | kAsciiStringTag | kSymbolTag | kConsStringTag,
-  SHORT_SLICED_SYMBOL_TYPE = kShortStringTag | kSymbolTag | kSlicedStringTag,
-  MEDIUM_SLICED_SYMBOL_TYPE = kMediumStringTag | kSymbolTag | kSlicedStringTag,
-  LONG_SLICED_SYMBOL_TYPE = kLongStringTag | kSymbolTag | kSlicedStringTag,
-  SHORT_SLICED_ASCII_SYMBOL_TYPE =
-      kShortStringTag | kAsciiStringTag | kSymbolTag | kSlicedStringTag,
-  MEDIUM_SLICED_ASCII_SYMBOL_TYPE =
-      kMediumStringTag | kAsciiStringTag | kSymbolTag | kSlicedStringTag,
-  LONG_SLICED_ASCII_SYMBOL_TYPE =
-      kLongStringTag | kAsciiStringTag | kSymbolTag | kSlicedStringTag,
   SHORT_EXTERNAL_SYMBOL_TYPE =
       kShortStringTag | kSymbolTag | kExternalStringTag,
   MEDIUM_EXTERNAL_SYMBOL_TYPE =
@@ -662,15 +591,6 @@ enum InstanceType {
       kMediumStringTag | kAsciiStringTag | kConsStringTag,
   LONG_CONS_ASCII_STRING_TYPE =
       kLongStringTag | kAsciiStringTag | kConsStringTag,
-  SHORT_SLICED_STRING_TYPE = kShortStringTag | kSlicedStringTag,
-  MEDIUM_SLICED_STRING_TYPE = kMediumStringTag | kSlicedStringTag,
-  LONG_SLICED_STRING_TYPE = kLongStringTag | kSlicedStringTag,
-  SHORT_SLICED_ASCII_STRING_TYPE =
-      kShortStringTag | kAsciiStringTag | kSlicedStringTag,
-  MEDIUM_SLICED_ASCII_STRING_TYPE =
-      kMediumStringTag | kAsciiStringTag | kSlicedStringTag,
-  LONG_SLICED_ASCII_STRING_TYPE =
-      kLongStringTag | kAsciiStringTag | kSlicedStringTag,
   SHORT_EXTERNAL_STRING_TYPE = kShortStringTag | kExternalStringTag,
   MEDIUM_EXTERNAL_STRING_TYPE = kMediumStringTag | kExternalStringTag,
   LONG_EXTERNAL_STRING_TYPE = kLongStringTag | kExternalStringTag,
@@ -792,7 +712,6 @@ class Object BASE_EMBEDDED {
   inline bool IsSymbol();
   // See objects-inl.h for more details
   inline bool IsSeqString();
-  inline bool IsSlicedString();
   inline bool IsExternalString();
   inline bool IsExternalTwoByteString();
   inline bool IsExternalAsciiString();
@@ -3920,7 +3839,6 @@ class StringShape BASE_EMBEDDED {
   inline bool IsSequential();
   inline bool IsExternal();
   inline bool IsCons();
-  inline bool IsSliced();
   inline bool IsExternalAscii();
   inline bool IsExternalTwoByte();
   inline bool IsSequentialAscii();
@@ -3978,9 +3896,8 @@ class String: public HeapObject {
   inline uint16_t Get(int index);
 
   // Try to flatten the top level ConsString that is hiding behind this
-  // string.  This is a no-op unless the string is a ConsString or a
-  // SlicedString.  Flatten mutates the ConsString and might return a
-  // failure.
+  // string.  This is a no-op unless the string is a ConsString.  Flatten
+  // mutates the ConsString and might return a failure.
   Object* TryFlatten();
 
   // Try to flatten the string.  Checks first inline to see if it is necessary.
@@ -3996,8 +3913,8 @@ class String: public HeapObject {
   // ascii and two byte string types.
   bool MarkAsUndetectable();
 
-  // Slice the string and return a substring.
-  Object* Slice(int from, int to);
+  // Return a substring.
+  Object* SubString(int from, int to);
 
   // String equality operations.
   inline bool Equals(String* other);
@@ -4082,7 +3999,7 @@ class String: public HeapObject {
   static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
   static const int kMaxUC16CharCode = 0xffff;
 
-  // Minimum length for a cons or sliced string.
+  // Minimum length for a cons string.
   static const int kMinNonFlatLength = 13;
 
   // Mask constant for checking if a string has a computed hash code
@@ -4154,12 +4071,6 @@ class String: public HeapObject {
     unsigned       capacity;
     unsigned       remaining;
   };
-
-  // NOTE: If you call StringInputBuffer routines on strings that are
-  // too deeply nested trees of cons and slice strings, then this
-  // routine will overflow the stack. Strings that are merely deeply
-  // nested trees of cons strings do not have a problem apart from
-  // performance.
 
   static inline const unibrow::byte* ReadBlock(String* input,
                                                ReadBlockBuffer* buffer,
@@ -4342,56 +4253,6 @@ class ConsString: public String {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConsString);
-};
-
-
-// The SlicedString class describes string values that are slices of
-// some other string.  SlicedStrings consist of a reference to an
-// underlying heap-allocated string value, a start index, and the
-// length field common to all strings.
-class SlicedString: public String {
- public:
-  // The underlying string buffer.
-  inline String* buffer();
-  inline void set_buffer(String* buffer);
-
-  // The start index of the slice.
-  inline int start();
-  inline void set_start(int start);
-
-  // Dispatched behavior.
-  uint16_t SlicedStringGet(int index);
-
-  // Casting.
-  static inline SlicedString* cast(Object* obj);
-
-  // Garbage collection support.
-  void SlicedStringIterateBody(ObjectVisitor* v);
-
-  // Layout description
-#if V8_HOST_ARCH_64_BIT
-  // Optimizations expect buffer to be located at same offset as a ConsString's
-  // first substring. In 64 bit mode we have room for the start offset before
-  // the buffer.
-  static const int kStartOffset = String::kSize;
-  static const int kBufferOffset = kStartOffset + kIntSize;
-  static const int kSize = kBufferOffset + kPointerSize;
-#else
-  static const int kBufferOffset = String::kSize;
-  static const int kStartOffset = kBufferOffset + kPointerSize;
-  static const int kSize = kStartOffset + kIntSize;
-#endif
-
-  // Support for StringInputBuffer.
-  inline const unibrow::byte* SlicedStringReadBlock(ReadBlockBuffer* buffer,
-                                                    unsigned* offset_ptr,
-                                                    unsigned chars);
-  inline void SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                              unsigned* offset_ptr,
-                                              unsigned chars);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SlicedString);
 };
 
 

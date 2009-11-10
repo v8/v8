@@ -1763,10 +1763,14 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
 Object* Heap::AllocateConsString(String* first, String* second) {
   int first_length = first->length();
-  if (first_length == 0) return second;
+  if (first_length == 0) {
+    return second;
+  }
 
   int second_length = second->length();
-  if (second_length == 0) return first;
+  if (second_length == 0) {
+    return first;
+  }
 
   int length = first_length + second_length;
   bool is_ascii = first->IsAsciiRepresentation()
@@ -1829,43 +1833,6 @@ Object* Heap::AllocateConsString(String* first, String* second) {
 }
 
 
-Object* Heap::AllocateSlicedString(String* buffer,
-                                   int start,
-                                   int end) {
-  int length = end - start;
-
-  // If the resulting string is small make a sub string.
-  if (length <= String::kMinNonFlatLength) {
-    return Heap::AllocateSubString(buffer, start, end);
-  }
-
-  Map* map;
-  if (length <= String::kMaxShortSize) {
-    map = buffer->IsAsciiRepresentation() ?
-      short_sliced_ascii_string_map() :
-      short_sliced_string_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = buffer->IsAsciiRepresentation() ?
-      medium_sliced_ascii_string_map() :
-      medium_sliced_string_map();
-  } else {
-    map = buffer->IsAsciiRepresentation() ?
-      long_sliced_ascii_string_map() :
-      long_sliced_string_map();
-  }
-
-  Object* result = Allocate(map, NEW_SPACE);
-  if (result->IsFailure()) return result;
-
-  SlicedString* sliced_string = SlicedString::cast(result);
-  sliced_string->set_buffer(buffer);
-  sliced_string->set_start(start);
-  sliced_string->set_length(length);
-
-  return result;
-}
-
-
 Object* Heap::AllocateSubString(String* buffer,
                                 int start,
                                 int end) {
@@ -1885,22 +1852,19 @@ Object* Heap::AllocateSubString(String* buffer,
       ? AllocateRawAsciiString(length)
       : AllocateRawTwoByteString(length);
   if (result->IsFailure()) return result;
+  String* string_result = String::cast(result);
 
   // Copy the characters into the new object.
-  String* string_result = String::cast(result);
-  StringHasher hasher(length);
-  int i = 0;
-  for (; i < length && hasher.is_array_index(); i++) {
-    uc32 c = buffer->Get(start + i);
-    hasher.AddCharacter(c);
-    string_result->Set(i, c);
+  if (buffer->IsAsciiRepresentation()) {
+    ASSERT(string_result->IsAsciiRepresentation());
+    char* dest = SeqAsciiString::cast(string_result)->GetChars();
+    String::WriteToFlat(buffer, dest, start, end);
+  } else {
+    ASSERT(string_result->IsTwoByteRepresentation());
+    uc16* dest = SeqTwoByteString::cast(string_result)->GetChars();
+    String::WriteToFlat(buffer, dest, start, end);
   }
-  for (; i < length; i++) {
-    uc32 c = buffer->Get(start + i);
-    hasher.AddCharacterNoIndex(c);
-    string_result->Set(i, c);
-  }
-  string_result->set_length_field(hasher.GetHashField());
+
   return result;
 }
 
@@ -2598,20 +2562,6 @@ Map* Heap::SymbolMapForString(String* string) {
   }
   if (map == long_cons_ascii_string_map()) {
     return long_cons_ascii_symbol_map();
-  }
-
-  if (map == short_sliced_string_map()) return short_sliced_symbol_map();
-  if (map == medium_sliced_string_map()) return medium_sliced_symbol_map();
-  if (map == long_sliced_string_map()) return long_sliced_symbol_map();
-
-  if (map == short_sliced_ascii_string_map()) {
-    return short_sliced_ascii_symbol_map();
-  }
-  if (map == medium_sliced_ascii_string_map()) {
-    return medium_sliced_ascii_symbol_map();
-  }
-  if (map == long_sliced_ascii_string_map()) {
-    return long_sliced_ascii_symbol_map();
   }
 
   if (map == short_external_string_map()) {

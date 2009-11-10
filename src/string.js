@@ -180,7 +180,7 @@ function SubString(string, start, end) {
     }
     return %CharFromCode(char_code);
   }
-  return %StringSlice(string, start, end);
+  return %SubString(string, start, end);
 }
 
 

@@ -3656,7 +3656,6 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   Label slow_case;
   Label end;
   Label not_a_flat_string;
-  Label a_cons_string;
   Label try_again_with_new_string;
   Label ascii_string;
   Label got_char_code;
@@ -3774,21 +3773,10 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ bind(&not_a_flat_string);
   __ and_(temp.reg(), Immediate(kStringRepresentationMask));
   __ cmpb(temp.reg(), Immediate(kConsStringTag));
-  __ j(equal, &a_cons_string);
-  __ cmpb(temp.reg(), Immediate(kSlicedStringTag));
   __ j(not_equal, &slow_case);
 
-  // SlicedString.
-  // Add the offset to the index and trigger the slow case on overflow.
-  __ addl(index.reg(), FieldOperand(object.reg(), SlicedString::kStartOffset));
-  __ j(overflow, &slow_case);
-  // Getting the underlying string is done by running the cons string code.
-
   // ConsString.
-  __ bind(&a_cons_string);
-  // Get the first of the two strings.  Both sliced and cons strings
-  // store their source string at the same offset.
-  ASSERT(SlicedString::kBufferOffset == ConsString::kFirstOffset);
+  // Get the first of the two strings.
   __ movq(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
   __ jmp(&try_again_with_new_string);
 

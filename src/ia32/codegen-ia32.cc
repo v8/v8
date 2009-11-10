@@ -4677,10 +4677,10 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 
 // This generates code that performs a charCodeAt() call or returns
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
-// It can handle flat and sliced strings, 8 and 16 bit characters and
-// cons strings where the answer is found in the left hand branch of the
-// cons.  The slow case will flatten the string, which will ensure that
-// the answer is in the left hand side the next time around.
+// It can handle flat, 8 and 16 bit characters and cons strings where the
+// answer is found in the left hand branch of the cons.  The slow case will
+// flatten the string, which will ensure that the answer is in the left hand
+// side the next time around.
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   Comment(masm_, "[ GenerateFastCharCodeAt");
   ASSERT(args->length() == 2);
@@ -4688,7 +4688,6 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   Label slow_case;
   Label end;
   Label not_a_flat_string;
-  Label a_cons_string;
   Label try_again_with_new_string;
   Label ascii_string;
   Label got_char_code;
@@ -4810,21 +4809,10 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ bind(&not_a_flat_string);
   __ and_(temp.reg(), kStringRepresentationMask);
   __ cmp(temp.reg(), kConsStringTag);
-  __ j(equal, &a_cons_string);
-  __ cmp(temp.reg(), kSlicedStringTag);
   __ j(not_equal, &slow_case);
 
-  // SlicedString.
-  // Add the offset to the index and trigger the slow case on overflow.
-  __ add(index.reg(), FieldOperand(object.reg(), SlicedString::kStartOffset));
-  __ j(overflow, &slow_case);
-  // Getting the underlying string is done by running the cons string code.
-
   // ConsString.
-  __ bind(&a_cons_string);
-  // Get the first of the two strings.  Both sliced and cons strings
-  // store their source string at the same offset.
-  ASSERT(SlicedString::kBufferOffset == ConsString::kFirstOffset);
+  // Get the first of the two strings.
   __ mov(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
   __ jmp(&try_again_with_new_string);
 

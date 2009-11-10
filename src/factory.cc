@@ -106,10 +106,10 @@ Handle<String> Factory::NewConsString(Handle<String> first,
 }
 
 
-Handle<String> Factory::NewStringSlice(Handle<String> str,
-                                       int begin,
-                                       int end) {
-  CALL_HEAP_FUNCTION(str->Slice(begin, end), String);
+Handle<String> Factory::NewSubString(Handle<String> str,
+                                     int begin,
+                                     int end) {
+  CALL_HEAP_FUNCTION(str->SubString(begin, end), String);
 }
 
 

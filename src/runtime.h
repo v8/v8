@@ -149,7 +149,7 @@ namespace internal {
   F(StringIndexOf, 3, 1) \
   F(StringLastIndexOf, 3, 1) \
   F(StringLocaleCompare, 2, 1) \
-  F(StringSlice, 3, 1) \
+  F(SubString, 3, 1) \
   F(StringReplaceRegExpWithString, 4, 1) \
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \

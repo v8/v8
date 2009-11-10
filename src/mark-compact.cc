@@ -572,9 +572,8 @@ class SymbolMarkingVisitor : public ObjectVisitor {
 void MarkCompactCollector::MarkSymbolTable() {
   // Objects reachable from symbols are marked as live so as to ensure
   // that if the symbol itself remains alive after GC for any reason,
-  // and if it is a sliced string or a cons string backed by an
-  // external string (even indirectly), then the external string does
-  // not receive a weak reference callback.
+  // and if it is a cons string backed by an external string (even indirectly),
+  // then the external string does not receive a weak reference callback.
   SymbolTable* symbol_table = Heap::raw_unchecked_symbol_table();
   // Mark the symbol table itself.
   SetMark(symbol_table);

@@ -125,9 +125,9 @@ static inline bool SubStringEquals(String* str, int index, const char* other) {
   int end = index + other_length < str_length ?
             index + other_length :
             str_length;
-  Handle<String> slice =
-      Factory::NewStringSlice(Handle<String>(str), index, end);
-  return slice->IsEqualTo(Vector<const char>(other, other_length));
+  Handle<String> substring =
+      Factory::NewSubString(Handle<String>(str), index, end);
+  return substring->IsEqualTo(Vector<const char>(other, other_length));
 }
 
 

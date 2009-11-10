@@ -1643,16 +1643,14 @@ void CompiledReplacement::Compile(Handle<String> replacement,
                             capture_count,
                             subject_length);
   }
-  // Find substrings of replacement string and create them as String objects..
+  // Find substrings of replacement string and create them as String objects.
   int substring_index = 0;
   for (int i = 0, n = parts_.length(); i < n; i++) {
     int tag = parts_[i].tag;
     if (tag <= 0) {  // A replacement string slice.
       int from = -tag;
       int to = parts_[i].data;
-      replacement_substrings_.Add(Factory::NewStringSlice(replacement,
-                                                          from,
-                                                          to));
+      replacement_substrings_.Add(Factory::NewSubString(replacement, from, to));
       parts_[i].tag = REPLACEMENT_SUBSTRING;
       parts_[i].data = substring_index;
       substring_index++;
@@ -2351,7 +2349,7 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
 }
 
 
-static Object* Runtime_StringSlice(Arguments args) {
+static Object* Runtime_SubString(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
@@ -2365,7 +2363,7 @@ static Object* Runtime_StringSlice(Arguments args) {
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
-  return value->Slice(start, end);
+  return value->SubString(start, end);
 }
 
 
@@ -2412,7 +2410,7 @@ static Object* Runtime_StringMatch(Arguments args) {
   for (int i = 0; i < matches ; i++) {
     int from = offsets.at(i * 2);
     int to = offsets.at(i * 2 + 1);
-    elements->set(i, *Factory::NewStringSlice(subject, from, to));
+    elements->set(i, *Factory::NewSubString(subject, from, to));
   }
   Handle<JSArray> result = Factory::NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(matches));
@@ -3613,7 +3611,7 @@ static Object* Runtime_StringTrim(Arguments args) {
       right--;
     }
   }
-  return s->Slice(left, right);
+  return s->SubString(left, right);
 }
 
 bool Runtime::IsUpperCaseChar(uint16_t ch) {

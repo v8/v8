@@ -203,12 +203,6 @@ bool Object::IsExternalTwoByteString() {
 }
 
 
-bool Object::IsSlicedString() {
-  if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsSliced();
-}
-
-
 StringShape::StringShape(String* str)
   : type_(str->map()->instance_type()) {
   set_valid();
@@ -238,9 +232,6 @@ bool StringShape::IsSymbol() {
 
 bool String::IsAsciiRepresentation() {
   uint32_t type = map()->instance_type();
-  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
-    return SlicedString::cast(this)->buffer()->IsAsciiRepresentation();
-  }
   if ((type & kStringRepresentationMask) == kConsStringTag &&
       ConsString::cast(this)->second()->length() == 0) {
     return ConsString::cast(this)->first()->IsAsciiRepresentation();
@@ -251,9 +242,7 @@ bool String::IsAsciiRepresentation() {
 
 bool String::IsTwoByteRepresentation() {
   uint32_t type = map()->instance_type();
-  if ((type & kStringRepresentationMask) == kSlicedStringTag) {
-    return SlicedString::cast(this)->buffer()->IsTwoByteRepresentation();
-  } else if ((type & kStringRepresentationMask) == kConsStringTag &&
+  if ((type & kStringRepresentationMask) == kConsStringTag &&
              ConsString::cast(this)->second()->length() == 0) {
     return ConsString::cast(this)->first()->IsTwoByteRepresentation();
   }
@@ -263,11 +252,6 @@ bool String::IsTwoByteRepresentation() {
 
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
-}
-
-
-bool StringShape::IsSliced() {
-  return (type_ & kStringRepresentationMask) == kSlicedStringTag;
 }
 
 
@@ -1602,7 +1586,6 @@ CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(SeqAsciiString)
 CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(ConsString)
-CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalAsciiString)
 CAST_ACCESSOR(ExternalTwoByteString)
@@ -1713,9 +1696,6 @@ uint16_t String::Get(int index) {
     case kConsStringTag | kAsciiStringTag:
     case kConsStringTag | kTwoByteStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
-    case kSlicedStringTag | kAsciiStringTag:
-    case kSlicedStringTag | kTwoByteStringTag:
-      return SlicedString::cast(this)->SlicedStringGet(index);
     case kExternalStringTag | kAsciiStringTag:
       return ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index);
     case kExternalStringTag | kTwoByteStringTag:
@@ -1745,11 +1725,6 @@ bool String::IsFlat() {
       String* second = ConsString::cast(this)->second();
       // Only flattened strings have second part empty.
       return second->length() == 0;
-    }
-    case kSlicedStringTag: {
-      StringRepresentationTag tag =
-          StringShape(SlicedString::cast(this)->buffer()).representation_tag();
-      return tag == kSeqStringTag || tag == kExternalStringTag;
     }
     default:
       return true;
@@ -1861,27 +1836,6 @@ Object* ConsString::unchecked_second() {
 void ConsString::set_second(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, mode);
-}
-
-
-String* SlicedString::buffer() {
-  return String::cast(READ_FIELD(this, kBufferOffset));
-}
-
-
-void SlicedString::set_buffer(String* buffer) {
-  WRITE_FIELD(this, kBufferOffset, buffer);
-  WRITE_BARRIER(this, kBufferOffset);
-}
-
-
-int SlicedString::start() {
-  return READ_INT_FIELD(this, kStartOffset);
-}
-
-
-void SlicedString::set_start(int start) {
-  WRITE_INT_FIELD(this, kStartOffset, start);
 }
 
 

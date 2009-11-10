@@ -77,12 +77,6 @@ namespace internal {
   V(Map, short_cons_ascii_symbol_map, ShortConsAsciiSymbolMap)                 \
   V(Map, medium_cons_ascii_symbol_map, MediumConsAsciiSymbolMap)               \
   V(Map, long_cons_ascii_symbol_map, LongConsAsciiSymbolMap)                   \
-  V(Map, short_sliced_symbol_map, ShortSlicedSymbolMap)                        \
-  V(Map, medium_sliced_symbol_map, MediumSlicedSymbolMap)                      \
-  V(Map, long_sliced_symbol_map, LongSlicedSymbolMap)                          \
-  V(Map, short_sliced_ascii_symbol_map, ShortSlicedAsciiSymbolMap)             \
-  V(Map, medium_sliced_ascii_symbol_map, MediumSlicedAsciiSymbolMap)           \
-  V(Map, long_sliced_ascii_symbol_map, LongSlicedAsciiSymbolMap)               \
   V(Map, short_external_symbol_map, ShortExternalSymbolMap)                    \
   V(Map, medium_external_symbol_map, MediumExternalSymbolMap)                  \
   V(Map, long_external_symbol_map, LongExternalSymbolMap)                      \
@@ -95,12 +89,6 @@ namespace internal {
   V(Map, short_cons_ascii_string_map, ShortConsAsciiStringMap)                 \
   V(Map, medium_cons_ascii_string_map, MediumConsAsciiStringMap)               \
   V(Map, long_cons_ascii_string_map, LongConsAsciiStringMap)                   \
-  V(Map, short_sliced_string_map, ShortSlicedStringMap)                        \
-  V(Map, medium_sliced_string_map, MediumSlicedStringMap)                      \
-  V(Map, long_sliced_string_map, LongSlicedStringMap)                          \
-  V(Map, short_sliced_ascii_string_map, ShortSlicedAsciiStringMap)             \
-  V(Map, medium_sliced_ascii_string_map, MediumSlicedAsciiStringMap)           \
-  V(Map, long_sliced_ascii_string_map, LongSlicedAsciiStringMap)               \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map, medium_external_string_map, MediumExternalStringMap)                  \
   V(Map, long_external_string_map, LongExternalStringMap)                      \
@@ -586,16 +574,6 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateConsString(String* first, String* second);
-
-  // Allocates a new sliced string object which is a slice of an underlying
-  // string buffer stretching from the index start (inclusive) to the index
-  // end (exclusive).
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  static Object* AllocateSlicedString(String* buffer,
-                                      int start,
-                                      int end);
 
   // Allocates a new sub string object which is a substring of an underlying
   // string buffer stretching from the index start (inclusive) to the index

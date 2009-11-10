@@ -124,11 +124,6 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
 
   if (StringShape(subject_ptr).IsCons()) {
     subject_ptr = ConsString::cast(subject_ptr)->first();
-  } else if (StringShape(subject_ptr).IsSliced()) {
-    SlicedString* slice = SlicedString::cast(subject_ptr);
-    start_offset += slice->start();
-    end_offset += slice->start();
-    subject_ptr = slice->buffer();
   }
   // Ensure that an underlying string has the same ascii-ness.
   ASSERT(subject_ptr->IsAsciiRepresentation() == is_ascii);
