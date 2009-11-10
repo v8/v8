@@ -6002,11 +6002,30 @@ static Object* Runtime_DebugLocalPropertyNames(Arguments args) {
 
   // Get the property names.
   jsproto = obj;
+  int proto_with_hidden_properties = 0;
   for (int i = 0; i < length; i++) {
     jsproto->GetLocalPropertyNames(*names,
                                    i == 0 ? 0 : local_property_count[i - 1]);
+    if (!GetHiddenProperties(jsproto, false)->IsUndefined()) {
+      proto_with_hidden_properties++;
+    }
     if (i < length - 1) {
       jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  // Filter out name of hidden propeties object.
+  if (proto_with_hidden_properties > 0) {
+    Handle<FixedArray> old_names = names;
+    names = Factory::NewFixedArray(
+        names->length() - proto_with_hidden_properties);
+    int dest_pos = 0;
+    for (int i = 0; i < total_property_count; i++) {
+      Object* name = old_names->get(i);
+      if (name == Heap::hidden_symbol()) {
+        continue;
+      }
+      names->set(dest_pos++, name);
     }
   }
 
