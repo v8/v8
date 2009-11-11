@@ -196,10 +196,7 @@ $Object.prototype.constructor = $Object;
 
 // ECMA-262 - 15.2.4.2
 function ObjectToString() {
-  var c = %_ClassOf(this);
-  // Hide Arguments from the outside.
-  if (c === 'Arguments') c  = 'Object';
-  return "[object " + c + "]";
+  return "[object " + %_ClassOf(this) + "]";
 }
 
 
