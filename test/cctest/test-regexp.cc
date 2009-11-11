@@ -1466,7 +1466,7 @@ static void TestRangeCaseIndependence(CharacterRange input,
   ZoneScope zone_scope(DELETE_ON_EXIT);
   int count = expected.length();
   ZoneList<CharacterRange>* list = new ZoneList<CharacterRange>(count);
-  input.AddCaseEquivalents(list);
+  input.AddCaseEquivalents(list, false);
   CHECK_EQ(count, list->length());
   for (int i = 0; i < list->length(); i++) {
     CHECK_EQ(expected[i].from(), list->at(i).from());
