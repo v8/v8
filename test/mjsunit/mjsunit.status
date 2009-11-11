@@ -62,6 +62,6 @@ string-compare-alignment: PASS || FAIL
 # Times out often in release mode on ARM.
 array-splice: PASS || TIMEOUT
 
-# Issue 500
-string-indexof: PASS || TIMEOUT
+# Skip long running test in debug mode on ARM.
+string-indexof-2: PASS, SKIP if $mode == debug
 
