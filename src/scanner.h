@@ -60,7 +60,7 @@ class UTF8Buffer {
 
   int pos() const {
     ASSERT_NOT_NULL(data_);
-    return cursor_ - data_;
+    return static_cast<int>(cursor_ - data_);
   }
 
   char* data() const { return data_; }
@@ -73,7 +73,7 @@ class UTF8Buffer {
 
   int Capacity() const {
     ASSERT_NOT_NULL(data_);
-    return (limit_ - data_) + unibrow::Utf8::kMaxEncodedSize;
+    return static_cast<int>(limit_ - data_) + unibrow::Utf8::kMaxEncodedSize;
   }
 
   static char* ComputeLimit(char* data, int capacity) {

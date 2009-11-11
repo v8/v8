@@ -2223,8 +2223,8 @@ int Runtime::StringMatch(Handle<String> sub,
       if (pos == NULL) {
         return -1;
       }
-      return reinterpret_cast<const char*>(pos) - ascii_vector.start()
-          + start_index;
+      return static_cast<int>(reinterpret_cast<const char*>(pos)
+          - ascii_vector.start() + start_index);
     }
     return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
   }
@@ -6835,8 +6835,9 @@ static Object* Runtime_GetCFrames(Arguments args) {
 
     // Get the stack walk text for this frame.
     Handle<String> frame_text;
-    if (strlen(frames[i].text) > 0) {
-      Vector<const char> str(frames[i].text, strlen(frames[i].text));
+    int frame_text_length = StrLength(frames[i].text);
+    if (frame_text_length > 0) {
+      Vector<const char> str(frames[i].text, frame_text_length);
       frame_text = Factory::NewStringFromAscii(str);
     }
 
@@ -7303,7 +7304,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // function(arguments,__source__) {return eval(__source__);}
   static const char* source_str =
       "(function(arguments,__source__){return eval(__source__);})";
-  static const int source_str_length = strlen(source_str);
+  static const int source_str_length = StrLength(source_str);
   Handle<String> function_source =
       Factory::NewStringFromAscii(Vector<const char>(source_str,
                                                      source_str_length));
@@ -7768,7 +7769,7 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
       Object* fun = frame->function();
       Address pc = frame->pc();
       Address start = frame->code()->address();
-      Smi* offset = Smi::FromInt(pc - start);
+      Smi* offset = Smi::FromInt(static_cast<int>(pc - start));
       FixedArray* elements = FixedArray::cast(result->elements());
       if (cursor + 2 < elements->length()) {
         elements->set(cursor++, recv);
@@ -7834,7 +7835,8 @@ static Object* Runtime_ListNatives(Arguments args) {
   {                                                                          \
     HandleScope inner;                                                       \
     Handle<String> name =                                                    \
-      Factory::NewStringFromAscii(Vector<const char>(#Name, strlen(#Name))); \
+      Factory::NewStringFromAscii(                                           \
+          Vector<const char>(#Name, StrLength(#Name)));       \
     Handle<JSArray> pair = Factory::NewJSArray(0);                           \
     SetElement(pair, 0, name);                                               \
     SetElement(pair, 1, Handle<Smi>(Smi::FromInt(argc)));                    \

@@ -345,7 +345,8 @@ void SimulatedHeapSpace::InitCurrentHeap(AllocationSpace space) {
     case NEW_SPACE:
       current_ = RelativeAddress(space,
                                  0,
-                                 Heap::NewSpaceTop() - Heap::NewSpaceStart());
+                                 static_cast<int>(Heap::NewSpaceTop()
+                                     - Heap::NewSpaceStart()));
       break;
     case LO_SPACE:
       int page_index = 0;
@@ -576,7 +577,7 @@ void ExternalReferenceTable::PopulateTable() {
       Debug::k_debug_break_return_address << kDebugIdShift,
       "Debug::debug_break_return_address()");
   const char* debug_register_format = "Debug::register_address(%i)";
-  size_t dr_format_length = strlen(debug_register_format);
+  int dr_format_length = StrLength(debug_register_format);
   for (int i = 0; i < kNumJSCallerSaved; ++i) {
     Vector<char> name = Vector<char>::New(dr_format_length + 1);
     OS::SNPrintF(name, debug_register_format, i);
@@ -624,11 +625,11 @@ void ExternalReferenceTable::PopulateTable() {
 #undef C
   };
 
-  size_t top_format_length = strlen(top_address_format) - 2;
+  int top_format_length = StrLength(top_address_format) - 2;
   for (uint16_t i = 0; i < Top::k_top_address_count; ++i) {
     const char* address_name = AddressNames[i];
     Vector<char> name =
-        Vector<char>::New(top_format_length + strlen(address_name) + 1);
+        Vector<char>::New(top_format_length + StrLength(address_name) + 1);
     const char* chars = name.start();
     OS::SNPrintF(name, top_address_format, address_name);
     Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, chars);
@@ -924,7 +925,7 @@ void SnapshotWriter::Reserve(int bytes, int pos) {
 }
 
 int SnapshotWriter::InsertString(const char* s, int pos) {
-  int size = strlen(s);
+  int size = StrLength(s);
   pos = InsertC('[', pos);
   pos = InsertInt(size, pos);
   pos = InsertC(']', pos);
@@ -947,7 +948,8 @@ class ReferenceUpdater: public ObjectVisitor {
   virtual void VisitPointers(Object** start, Object** end) {
     for (Object** p = start; p < end; ++p) {
       if ((*p)->IsHeapObject()) {
-        offsets_.Add(reinterpret_cast<Address>(p) - obj_address_);
+        offsets_.Add(
+            static_cast<int>(reinterpret_cast<Address>(p) - obj_address_));
         Address a = serializer_->GetSavedAddress(HeapObject::cast(*p));
         addresses_.Add(a);
       }
@@ -959,7 +961,8 @@ class ReferenceUpdater: public ObjectVisitor {
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     Address encoded_target = serializer_->GetSavedAddress(target);
     // All calls and jumps are to code objects that encode into 32 bits.
-    offsets_32_bit_.Add(rinfo->target_address_address() - obj_address_);
+    offsets_32_bit_.Add(
+        static_cast<int>(rinfo->target_address_address() - obj_address_));
     uint32_t small_target =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(encoded_target));
     ASSERT(reinterpret_cast<uintptr_t>(encoded_target) == small_target);
@@ -971,7 +974,8 @@ class ReferenceUpdater: public ObjectVisitor {
     for (Address* p = start; p < end; ++p) {
       uint32_t code = reference_encoder_->Encode(*p);
       CHECK(*p == NULL ? code == 0 : code != 0);
-      offsets_.Add(reinterpret_cast<Address>(p) - obj_address_);
+      offsets_.Add(
+          static_cast<int>(reinterpret_cast<Address>(p) - obj_address_));
       addresses_.Add(reinterpret_cast<Address>(code));
     }
   }
@@ -980,7 +984,8 @@ class ReferenceUpdater: public ObjectVisitor {
     Address target = rinfo->target_address();
     uint32_t encoding = reference_encoder_->Encode(target);
     CHECK(target == NULL ? encoding == 0 : encoding != 0);
-    offsets_.Add(rinfo->target_address_address() - obj_address_);
+    offsets_.Add(
+        static_cast<int>(rinfo->target_address_address() - obj_address_));
     addresses_.Add(reinterpret_cast<Address>(encoding));
   }
 
@@ -1050,7 +1055,7 @@ static const int kMaxTagLength = 32;
 
 void Serializer::Synchronize(const char* tag) {
   if (FLAG_debug_serialization) {
-    int length = strlen(tag);
+    int length = StrLength(tag);
     ASSERT(length <= kMaxTagLength);
     writer_->PutC('S');
     writer_->PutInt(length);
@@ -1415,7 +1420,7 @@ void Deserializer::Synchronize(const char* tag) {
     int length = reader_.GetInt();
     ASSERT(length <= kMaxTagLength);
     reader_.GetBytes(reinterpret_cast<Address>(buf), length);
-    ASSERT_EQ(strlen(tag), length);
+    ASSERT_EQ(StrLength(tag), length);
     ASSERT(strncmp(tag, buf, length) == 0);
   }
 }
@@ -1931,8 +1936,8 @@ void Deserializer2::ReadChunk(Object** current,
       case OBJECT_SERIALIZATION + NEW_SPACE: {
         ReadObject(NEW_SPACE, Heap::new_space(), current);
         if (space != NEW_SPACE) {
-          Heap::RecordWrite(address,
-                            reinterpret_cast<Address>(current) - address);
+          Heap::RecordWrite(address, static_cast<int>(
+              reinterpret_cast<Address>(current) - address));
         }
         current++;
         break;
@@ -1989,8 +1994,8 @@ void Deserializer2::ReadChunk(Object** current,
         // Write a backreference to an object we unpacked earlier.
         int backref_space = (data & kSpaceMask);
         if (backref_space == NEW_SPACE && space != NEW_SPACE) {
-          Heap::RecordWrite(address,
-                            reinterpret_cast<Address>(current) - address);
+          Heap::RecordWrite(address, static_cast<int>(
+              reinterpret_cast<Address>(current) - address));
         }
         *current++ = GetAddressFromEnd(backref_space);
         break;
@@ -1999,8 +2004,8 @@ void Deserializer2::ReadChunk(Object** current,
         // Write a reference to an object we unpacked earlier.
         int reference_space = (data & kSpaceMask);
         if (reference_space == NEW_SPACE && space != NEW_SPACE) {
-          Heap::RecordWrite(address,
-                            reinterpret_cast<Address>(current) - address);
+          Heap::RecordWrite(address, static_cast<int>(
+              reinterpret_cast<Address>(current) - address));
         }
         *current++ = GetAddressFromStart(reference_space);
         break;
@@ -2082,7 +2087,7 @@ void Deserializer2::ReadChunk(Object** current,
 void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
   const int max_shift = ((kPointerSize * kBitsPerByte) / 7) * 7;
   for (int shift = max_shift; shift > 0; shift -= 7) {
-    if (integer >= 1u << shift) {
+    if (integer >= static_cast<uintptr_t>(1u) << shift) {
       Put(((integer >> shift) & 0x7f) | 0x80, "IntPart");
     }
   }
@@ -2283,7 +2288,7 @@ void Serializer2::ObjectSerializer::VisitExternalReferences(Address* start,
     int reference_id = serializer_->EncodeExternalReference(*current);
     sink_->PutInt(reference_id, "reference id");
   }
-  bytes_processed_so_far_ += (end - start) * kPointerSize;
+  bytes_processed_so_far_ += static_cast<int>((end - start) * kPointerSize);
 }
 
 
@@ -2338,7 +2343,7 @@ void Serializer2::ObjectSerializer::VisitExternalAsciiString(
 
 void Serializer2::ObjectSerializer::OutputRawData(Address up_to) {
   Address object_start = object_->address();
-  int up_to_offset = up_to - object_start;
+  int up_to_offset = static_cast<int>(up_to - object_start);
   int skipped = up_to_offset - bytes_processed_so_far_;
   // This assert will fail if the reloc info gives us the target_address_address
   // locations in a non-ascending order.  Luckily that doesn't happen.

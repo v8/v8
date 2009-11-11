@@ -4968,7 +4968,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
 }
 
 
-void Code::Relocate(int delta) {
+void Code::Relocate(intptr_t delta) {
   for (RelocIterator it(this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
@@ -5034,8 +5034,9 @@ int Code::SourcePosition(Address pc) {
     // Only look at positions after the current pc.
     if (it.rinfo()->pc() < pc) {
       // Get position and distance.
-      int dist = pc - it.rinfo()->pc();
-      int pos = it.rinfo()->data();
+
+      int dist = static_cast<int>(pc - it.rinfo()->pc());
+      int pos = static_cast<int>(it.rinfo()->data());
       // If this position is closer than the current candidate or if it has the
       // same distance as the current candidate and the position is higher then
       // this position is the new candidate.
@@ -5062,7 +5063,7 @@ int Code::SourceStatementPosition(Address pc) {
   RelocIterator it(this, RelocInfo::kPositionMask);
   while (!it.done()) {
     if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
-      int p = it.rinfo()->data();
+      int p = static_cast<int>(it.rinfo()->data());
       if (statement_position < p && p <= position) {
         statement_position = p;
       }

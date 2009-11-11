@@ -337,7 +337,8 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   ASSERT(desc->instr_size > 0);  // Zero-size code objects upset the system.
-  desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->reloc_size =
+      static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
   desc->origin = this;
 
   Counters::reloc_info_size.Increment(desc->reloc_size);
@@ -400,7 +401,8 @@ void Assembler::GrowBuffer() {
   // setup new buffer
   desc.buffer = NewArray<byte>(desc.buffer_size);
   desc.instr_size = pc_offset();
-  desc.reloc_size = (buffer_ + buffer_size_) - (reloc_info_writer.pos());
+  desc.reloc_size =
+      static_cast<int>((buffer_ + buffer_size_) - (reloc_info_writer.pos()));
 
   // Clear the buffer in debug mode. Use 'int3' instructions to make
   // sure to get into problems if we ever run uninitialized code.

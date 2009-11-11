@@ -53,7 +53,7 @@ using ::v8::internal::StepIn;  // From StepAction enum
 using ::v8::internal::StepNext;  // From StepAction enum
 using ::v8::internal::StepOut;  // From StepAction enum
 using ::v8::internal::Vector;
-
+using ::v8::internal::StrLength;
 
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80
@@ -800,14 +800,14 @@ static void DebugEventStepSequence(v8::DebugEvent event,
   if (event == v8::Break || event == v8::Exception) {
     // Check that the current function is the expected.
     CHECK(break_point_hit_count <
-          static_cast<int>(strlen(expected_step_sequence)));
+          StrLength(expected_step_sequence));
     const int argc = 1;
     v8::Handle<v8::Value> argv[argc] = { exec_state };
     v8::Handle<v8::Value> result = frame_function_name->Call(exec_state,
                                                              argc, argv);
     CHECK(result->IsString());
     v8::String::AsciiValue function_name(result->ToString());
-    CHECK_EQ(1, strlen(*function_name));
+    CHECK_EQ(1, StrLength(*function_name));
     CHECK_EQ((*function_name)[0],
               expected_step_sequence[break_point_hit_count]);
 
@@ -1931,7 +1931,7 @@ TEST(ScriptBreakPointLine) {
 
   // Chesk that a break point was hit when the script was run.
   CHECK_EQ(1, break_point_hit_count);
-  CHECK_EQ(0, strlen(last_function_hit));
+  CHECK_EQ(0, StrLength(last_function_hit));
 
   // Call f and check that the script break point.
   f->Call(env->Global(), 0, NULL);
@@ -1967,7 +1967,7 @@ TEST(ScriptBreakPointLine) {
   break_point_hit_count = 0;
   v8::Script::Compile(script, &origin)->Run();
   CHECK_EQ(2, break_point_hit_count);
-  CHECK_EQ(0, strlen(last_function_hit));
+  CHECK_EQ(0, StrLength(last_function_hit));
 
   // Set a break point in the code after the last function decleration.
   int sbp6 = SetScriptBreakPointByNameFromJS("test.html", 12, -1);
@@ -1976,7 +1976,7 @@ TEST(ScriptBreakPointLine) {
   break_point_hit_count = 0;
   v8::Script::Compile(script, &origin)->Run();
   CHECK_EQ(3, break_point_hit_count);
-  CHECK_EQ(0, strlen(last_function_hit));
+  CHECK_EQ(0, StrLength(last_function_hit));
 
   // Clear the last break points, and reload the script which should not hit any
   // break points.
@@ -2492,21 +2492,24 @@ TEST(StepInOutSimple) {
   break_point_hit_count = 0;
   expected_step_sequence = "abcbaca";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step next.
   step_action = StepNext;
   break_point_hit_count = 0;
   expected_step_sequence = "aaa";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step out.
   step_action = StepOut;
   break_point_hit_count = 0;
   expected_step_sequence = "a";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -2539,21 +2542,24 @@ TEST(StepInOutTree) {
   break_point_hit_count = 0;
   expected_step_sequence = "adacadabcbadacada";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step next.
   step_action = StepNext;
   break_point_hit_count = 0;
   expected_step_sequence = "aaaa";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of a with step out.
   step_action = StepOut;
   break_point_hit_count = 0;
   expected_step_sequence = "a";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -2585,7 +2591,8 @@ TEST(StepInOutBranch) {
   break_point_hit_count = 0;
   expected_step_sequence = "abaca";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -2952,7 +2959,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "aa";
   a->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of b + c.
   v8::Local<v8::Function> b = CompileFunction(&env, src, "b");
@@ -2961,7 +2969,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "bcc";
   b->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of d + e.
   v8::Local<v8::Function> d = CompileFunction(&env, src, "d");
@@ -2971,7 +2980,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "dded";
   d->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of d + e now with break on caught exceptions.
   ChangeBreakOnException(true, true);
@@ -2979,7 +2989,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "ddeed";
   d->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of f + g + h.
   v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
@@ -2989,7 +3000,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "ffghf";
   f->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Step through invocation of f + g + h now with break on caught exceptions.
   ChangeBreakOnException(true, true);
@@ -2997,7 +3009,8 @@ TEST(StepWithException) {
   break_point_hit_count = 0;
   expected_step_sequence = "ffghhf";
   f->Call(env->Global(), 0, NULL);
-  CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
+  CHECK_EQ(StrLength(expected_step_sequence),
+           break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -4792,7 +4805,8 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
 
   // Add empty body to request.
   const char* content_length_zero_header = "Content-Length:0\r\n";
-  client->Send(content_length_zero_header, strlen(content_length_zero_header));
+  client->Send(content_length_zero_header,
+               StrLength(content_length_zero_header));
   client->Send("\r\n", 2);
 
   // Wait until data is received.

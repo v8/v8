@@ -915,8 +915,9 @@ void Logger::HeapSampleJSRetainersEvent(
   // Event starts with comma, so we don't have it in the format string.
   static const char* event_text = "heap-js-ret-item,%s";
   // We take placeholder strings into account, but it's OK to be conservative.
-  static const int event_text_len = strlen(event_text);
-  const int cons_len = strlen(constructor), event_len = strlen(event);
+  static const int event_text_len = StrLength(event_text);
+  const int cons_len = StrLength(constructor);
+  const int event_len = StrLength(event);
   int pos = 0;
   // Retainer lists can be long. We may need to split them into multiple events.
   do {

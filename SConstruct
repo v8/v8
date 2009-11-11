@@ -273,7 +273,7 @@ V8_EXTRA_FLAGS = {
       'WARNINGFLAGS': ['/W3']
     },
     'arch:x64': {
-      'WARNINGFLAGS': ['/W2']
+      'WARNINGFLAGS': ['/W3']
     },
     'arch:arm': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_ARM'],

@@ -7759,7 +7759,7 @@ ModuloFunction CreateModuloFunction() {
                                                  &actual_size,
                                                  true));
   CHECK(buffer);
-  Assembler masm(buffer, actual_size);
+  Assembler masm(buffer, static_cast<int>(actual_size));
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
   // (e.g. the JavaScript nan-object).

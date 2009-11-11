@@ -436,7 +436,7 @@ int StandardFrame::ComputeExpressionsCount() const {
   Address limit = sp();
   ASSERT(base >= limit);  // stack grows downwards
   // Include register-allocated locals in number of expressions.
-  return (base - limit) / kPointerSize;
+  return static_cast<int>((base - limit) / kPointerSize);
 }
 
 
@@ -466,7 +466,7 @@ Object* JavaScriptFrame::GetParameter(int index) const {
 int JavaScriptFrame::ComputeParametersCount() const {
   Address base  = caller_sp() + JavaScriptFrameConstants::kReceiverOffset;
   Address limit = fp() + JavaScriptFrameConstants::kSavedRegistersOffset;
-  return (base - limit) / kPointerSize;
+  return static_cast<int>((base - limit) / kPointerSize);
 }
 
 

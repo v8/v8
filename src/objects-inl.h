@@ -855,7 +855,7 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
     requested = static_cast<intptr_t>(
                     (~static_cast<uintptr_t>(0)) >> (tag_bits + 1));
   }
-  int value = (requested << kSpaceTagSize) | NEW_SPACE;
+  int value = static_cast<int>(requested << kSpaceTagSize) | NEW_SPACE;
   return Construct(RETRY_AFTER_GC, value);
 }
 
@@ -1009,9 +1009,9 @@ Address MapWord::DecodeMapAddress(MapSpace* map_space) {
 int MapWord::DecodeOffset() {
   // The offset field is represented in the kForwardingOffsetBits
   // most-significant bits.
-  int offset = (value_ >> kForwardingOffsetShift) << kObjectAlignmentBits;
-  ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
-  return offset;
+  uintptr_t offset = (value_ >> kForwardingOffsetShift) << kObjectAlignmentBits;
+  ASSERT(offset < static_cast<uintptr_t>(Page::kObjectAreaSize));
+  return static_cast<int>(offset);
 }
 
 

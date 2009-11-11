@@ -31,6 +31,7 @@
 
 #include "token.h"
 #include "scanner.h"
+#include "utils.h"
 
 #include "cctest.h"
 
@@ -62,7 +63,7 @@ TEST(KeywordMatcher) {
   for (int i = 0; (key_token = keywords[i]).keyword != NULL; i++) {
     i::KeywordMatcher matcher;
     const char* keyword = key_token.keyword;
-    int length = strlen(keyword);
+    int length = i::StrLength(keyword);
     for (int j = 0; j < length; j++) {
       if (key_token.token == i::Token::INSTANCEOF && j == 2) {
         // "in" is a prefix of "instanceof". It's the only keyword
@@ -87,7 +88,7 @@ TEST(KeywordMatcher) {
   const char* future_keyword;
   for (int i = 0; (future_keyword = future_keywords[i]) != NULL; i++) {
     i::KeywordMatcher matcher;
-    int length = strlen(future_keyword);
+    int length = i::StrLength(future_keyword);
     for (int j = 0; j < length; j++) {
       matcher.AddChar(future_keyword[j]);
     }

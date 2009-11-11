@@ -254,9 +254,9 @@ THREADED_TEST(Script) {
 
 
 static uint16_t* AsciiToTwoByteString(const char* source) {
-  size_t array_length = strlen(source) + 1;
+  int array_length = i::StrLength(source) + 1;
   uint16_t* converted = i::NewArray<uint16_t>(array_length);
-  for (size_t i = 0; i < array_length; i++) converted[i] = source[i];
+  for (int i = 0; i < array_length; i++) converted[i] = source[i];
   return converted;
 }
 
@@ -6649,7 +6649,8 @@ TEST(PreCompile) {
   // a workaround for now to make this test not fail.
   v8::V8::Initialize();
   const char *script = "function foo(a) { return a+1; }";
-  v8::ScriptData *sd = v8::ScriptData::PreCompile(script, strlen(script));
+  v8::ScriptData *sd =
+      v8::ScriptData::PreCompile(script, i::StrLength(script));
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
   delete sd;
@@ -7045,9 +7046,10 @@ THREADED_TEST(MorphCompositeStringTest) {
     v8::HandleScope scope;
     LocalContext env;
     AsciiVectorResource ascii_resource(
-        i::Vector<const char>(c_string, strlen(c_string)));
+        i::Vector<const char>(c_string, i::StrLength(c_string)));
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string, strlen(c_string)));
+        i::Vector<const uint16_t>(two_byte_string,
+                                  i::StrLength(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
         i::Factory::NewExternalStringFromAscii(&ascii_resource)));
@@ -7105,7 +7107,8 @@ TEST(CompileExternalTwoByteSource) {
   for (int i = 0; ascii_sources[i] != NULL; i++) {
     uint16_t* two_byte_string = AsciiToTwoByteString(ascii_sources[i]);
     UC16VectorResource uc16_resource(
-        i::Vector<const uint16_t>(two_byte_string, strlen(ascii_sources[i])));
+        i::Vector<const uint16_t>(two_byte_string,
+                                  i::StrLength(ascii_sources[i])));
     v8::Local<v8::String> source = v8::String::NewExternal(&uc16_resource);
     v8::Script::Compile(source);
   }
@@ -8217,11 +8220,11 @@ THREADED_TEST(GetHeapStatistics) {
   v8::HandleScope scope;
   LocalContext c1;
   v8::HeapStatistics heap_statistics;
-  CHECK_EQ(heap_statistics.total_heap_size(), 0);
-  CHECK_EQ(heap_statistics.used_heap_size(), 0);
+  CHECK_EQ(static_cast<int>(heap_statistics.total_heap_size()), 0);
+  CHECK_EQ(static_cast<int>(heap_statistics.used_heap_size()), 0);
   v8::V8::GetHeapStatistics(&heap_statistics);
-  CHECK_NE(heap_statistics.total_heap_size(), 0);
-  CHECK_NE(heap_statistics.used_heap_size(), 0);
+  CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
+  CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
 }
 
 

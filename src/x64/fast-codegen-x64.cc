@@ -148,7 +148,7 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
     }
     // Check that the size of the code used for returning matches what is
     // expected by the debugger.
-    ASSERT_EQ(Debug::Debug::kX64JSReturnSequenceLength,
+    ASSERT_EQ(Debug::kX64JSReturnSequenceLength,
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   }

@@ -1073,7 +1073,7 @@ inline void EncodeForwardingAddressesInRange(Address start,
       }
 #endif
       if (!is_prev_alive) {  // Transition from non-live to live.
-        EncodeFreeRegion(free_start, current - free_start);
+        EncodeFreeRegion(free_start, static_cast<int>(current - free_start));
         is_prev_alive = true;
       }
     } else {  // Non-live object.
@@ -1087,7 +1087,9 @@ inline void EncodeForwardingAddressesInRange(Address start,
   }
 
   // If we ended on a free region, mark it.
-  if (!is_prev_alive) EncodeFreeRegion(free_start, end - free_start);
+  if (!is_prev_alive) {
+    EncodeFreeRegion(free_start, static_cast<int>(end - free_start));
+  }
 }
 
 
@@ -1168,7 +1170,7 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
         object->ClearMark();
         MarkCompactCollector::tracer()->decrement_marked_count();
         if (!is_previous_alive) {  // Transition from free to live.
-          dealloc(free_start, current - free_start);
+          dealloc(free_start, static_cast<int>(current - free_start));
           is_previous_alive = true;
         }
       } else {
@@ -1188,7 +1190,7 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
     // If the last region was not live we need to deallocate from
     // free_start to the allocation top in the page.
     if (!is_previous_alive) {
-      int free_size = p->AllocationTop() - free_start;
+      int free_size = static_cast<int>(p->AllocationTop() - free_start);
       if (free_size > 0) {
         dealloc(free_start, free_size);
       }

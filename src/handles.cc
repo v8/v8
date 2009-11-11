@@ -50,8 +50,8 @@ v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
 int HandleScope::NumberOfHandles() {
   int n = HandleScopeImplementer::instance()->blocks()->length();
   if (n == 0) return 0;
-  return ((n - 1) * kHandleBlockSize) +
-      (current_.next - HandleScopeImplementer::instance()->blocks()->last());
+  return ((n - 1) * kHandleBlockSize) + static_cast<int>(
+      (current_.next - HandleScopeImplementer::instance()->blocks()->last()));
 }
 
 

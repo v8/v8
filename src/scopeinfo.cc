@@ -418,7 +418,7 @@ int ScopeInfo<Allocator>::StackSlotIndex(Code* code, String* name) {
     Object** p0 = StackSlotEntriesAddr(code) + 1;
     Object** p = p0;
     while (*p != NULL) {
-      if (*p == name) return p - p0;
+      if (*p == name) return static_cast<int>(p - p0);
       p++;
     }
   }
@@ -449,7 +449,7 @@ int ScopeInfo<Allocator>::ContextSlotIndex(Code* code,
         ReadInt(p + 1, &v);
         Variable::Mode mode_value = static_cast<Variable::Mode>(v);
         if (mode != NULL) *mode = mode_value;
-        result = ((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
+        result = static_cast<int>((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
         ContextSlotCache::Update(code, name, mode_value, result);
         return result;
       }
@@ -481,7 +481,7 @@ int ScopeInfo<Allocator>::ParameterIndex(Code* code, String* name) {
     p = p0 + n;
     while (p > p0) {
       p--;
-      if (*p == name) return p - p0;
+      if (*p == name) return static_cast<int>(p - p0);
     }
   }
   return -1;

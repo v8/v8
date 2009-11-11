@@ -1131,7 +1131,7 @@ class Assembler : public Malloced {
   void RecordStatementPosition(int pos);
   void WriteRecordedPositions();
 
-  int pc_offset() const  { return pc_ - buffer_; }
+  int pc_offset() const  { return static_cast<int>(pc_ - buffer_); }
   int current_statement_position() const { return current_statement_position_; }
   int current_position() const  { return current_position_; }
 
@@ -1143,7 +1143,9 @@ class Assembler : public Malloced {
   }
 
   // Get the number of bytes available in the buffer.
-  inline int available_space() const { return reloc_info_writer.pos() - pc_; }
+  inline int available_space() const {
+    return static_cast<int>(reloc_info_writer.pos() - pc_);
+  }
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;

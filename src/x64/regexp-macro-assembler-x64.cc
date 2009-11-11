@@ -1079,7 +1079,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
     // If there is a difference, update the object pointer and start and end
     // addresses in the RegExp stack frame to match the new value.
     const byte* end_address = frame_entry<const byte* >(re_frame, kInputEnd);
-    int byte_length = end_address - start_address;
+    int byte_length = static_cast<int>(end_address - start_address);
     frame_entry<const String*>(re_frame, kInputString) = *subject;
     frame_entry<const byte*>(re_frame, kInputStart) = new_address;
     frame_entry<const byte*>(re_frame, kInputEnd) = new_address + byte_length;

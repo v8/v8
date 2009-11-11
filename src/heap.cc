@@ -1872,20 +1872,23 @@ Object* Heap::AllocateSubString(String* buffer,
 Object* Heap::AllocateExternalStringFromAscii(
     ExternalAsciiString::Resource* resource) {
   Map* map;
-  int length = resource->length();
-  if (length <= String::kMaxShortSize) {
+  size_t length = resource->length();
+  if (length <= static_cast<size_t>(String::kMaxShortSize)) {
     map = short_external_ascii_string_map();
-  } else if (length <= String::kMaxMediumSize) {
+  } else if (length <= static_cast<size_t>(String::kMaxMediumSize)) {
     map = medium_external_ascii_string_map();
-  } else {
+  } else if (length <= static_cast<size_t>(String::kMaxLength)) {
     map = long_external_ascii_string_map();
+  } else {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
   }
 
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalAsciiString* external_string = ExternalAsciiString::cast(result);
-  external_string->set_length(length);
+  external_string->set_length(static_cast<int>(length));
   external_string->set_resource(resource);
 
   return result;
@@ -1894,14 +1897,17 @@ Object* Heap::AllocateExternalStringFromAscii(
 
 Object* Heap::AllocateExternalStringFromTwoByte(
     ExternalTwoByteString::Resource* resource) {
-  int length = resource->length();
-
-  Map* map = ExternalTwoByteString::StringMap(length);
+  size_t length = resource->length();
+  if (length > static_cast<size_t>(String::kMaxLength)) {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
+  }
+  Map* map = ExternalTwoByteString::StringMap(static_cast<int>(length));
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalTwoByteString* external_string = ExternalTwoByteString::cast(result);
-  external_string->set_length(length);
+  external_string->set_length(static_cast<int>(length));
   external_string->set_resource(resource);
 
   return result;

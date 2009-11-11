@@ -48,7 +48,8 @@ namespace internal {
 class ObjectGroup : public Malloced {
  public:
   ObjectGroup() : objects_(4) {}
-  explicit ObjectGroup(size_t capacity) : objects_(capacity) {}
+  explicit ObjectGroup(size_t capacity)
+      : objects_(static_cast<int>(capacity)) { }
 
   List<Object**> objects_;
 };

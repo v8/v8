@@ -102,7 +102,9 @@ class BreakLocationIterator {
   void ClearAllDebugBreak();
 
 
-  inline int code_position() { return pc() - debug_info_->code()->entry(); }
+  inline int code_position() {
+    return static_cast<int>(pc() - debug_info_->code()->entry());
+  }
   inline int break_point() { return break_point_; }
   inline int position() { return position_; }
   inline int statement_position() { return statement_position_; }

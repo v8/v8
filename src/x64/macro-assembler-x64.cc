@@ -286,7 +286,7 @@ void MacroAssembler::Abort(const char* msg) {
   movq(kScratchRegister, p0, RelocInfo::NONE);
   push(kScratchRegister);
   movq(kScratchRegister,
-       reinterpret_cast<intptr_t>(Smi::FromInt(p1 - p0)),
+       reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(p1 - p0))),
        RelocInfo::NONE);
   push(kScratchRegister);
   CallRuntime(Runtime::kAbort, 2);
@@ -402,9 +402,9 @@ void MacroAssembler::Set(Register dst, int64_t x) {
   if (x == 0) {
     xor_(dst, dst);
   } else if (is_int32(x)) {
-    movq(dst, Immediate(x));
+    movq(dst, Immediate(static_cast<int32_t>(x)));
   } else if (is_uint32(x)) {
-    movl(dst, Immediate(x));
+    movl(dst, Immediate(static_cast<uint32_t>(x)));
   } else {
     movq(dst, x, RelocInfo::NONE);
   }
@@ -416,9 +416,9 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
     xor_(kScratchRegister, kScratchRegister);
     movq(dst, kScratchRegister);
   } else if (is_int32(x)) {
-    movq(dst, Immediate(x));
+    movq(dst, Immediate(static_cast<int32_t>(x)));
   } else if (is_uint32(x)) {
-    movl(dst, Immediate(x));
+    movl(dst, Immediate(static_cast<uint32_t>(x)));
   } else {
     movq(kScratchRegister, x, RelocInfo::NONE);
     movq(dst, kScratchRegister);

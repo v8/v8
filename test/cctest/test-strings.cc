@@ -292,8 +292,10 @@ TEST(Utf8Conversion) {
   v8::HandleScope handle_scope;
   // A simple ascii string
   const char* ascii_string = "abcdef12345";
-  int len = v8::String::New(ascii_string, strlen(ascii_string))->Utf8Length();
-  CHECK_EQ(strlen(ascii_string), len);
+  int len =
+      v8::String::New(ascii_string,
+                      StrLength(ascii_string))->Utf8Length();
+  CHECK_EQ(StrLength(ascii_string), len);
   // A mixed ascii and non-ascii string
   // U+02E4 -> CB A4
   // U+0064 -> 64

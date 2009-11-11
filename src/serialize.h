@@ -374,7 +374,7 @@ class SnapshotByteSource {
     if ((snapshot_byte & 0x80) == 0) {
       return snapshot_byte;
     }
-    uintptr_t accumulator = (snapshot_byte & 0x7f) << 7;
+    int accumulator = (snapshot_byte & 0x7f) << 7;
     while (true) {
       snapshot_byte = Get();
       if ((snapshot_byte & 0x80) == 0) {

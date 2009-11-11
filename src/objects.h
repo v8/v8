@@ -2790,7 +2790,7 @@ class Code: public HeapObject {
 
   // Relocate the code by delta bytes. Called to signal that this code
   // object has been moved by delta bytes.
-  void Relocate(int delta);
+  void Relocate(intptr_t delta);
 
   // Migrate code described by desc.
   void CopyFrom(const CodeDesc& desc);

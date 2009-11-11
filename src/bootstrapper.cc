@@ -98,7 +98,7 @@ static List<char*>* delete_these_non_arrays_on_tear_down = NULL;
 
 
 NativesExternalStringResource::NativesExternalStringResource(const char* source)
-    : data_(source), length_(strlen(source)) {
+    : data_(source), length_(StrLength(source)) {
   if (delete_these_non_arrays_on_tear_down == NULL) {
     delete_these_non_arrays_on_tear_down = new List<char*>(2);
   }

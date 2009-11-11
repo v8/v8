@@ -177,7 +177,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
     if (is_eval) {
       JavaScriptFrameIterator it;
       script->set_eval_from_function(it.frame()->function());
-      int offset = it.frame()->pc() - it.frame()->code()->instruction_start();
+      int offset = static_cast<int>(
+          it.frame()->pc() - it.frame()->code()->instruction_start());
       script->set_eval_from_instructions_offset(Smi::FromInt(offset));
     }
   }
