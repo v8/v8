@@ -790,6 +790,8 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
   // top of FPU stack: value
   if (array_type == kExternalFloatArray) {
     __ fstp_s(Operand(rcx, rbx, times_4, 0));
+    __ movq(rax, rdx);  // Return the original value.
+    __ ret(0);
   } else {
     // Need to perform float-to-int conversion.
     // Test the top of the FP stack for NaN.
