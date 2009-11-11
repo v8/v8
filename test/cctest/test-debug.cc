@@ -3425,6 +3425,75 @@ TEST(NativeGetterThrowingErrorPropertyMirror) {
 }
 
 
+// Test that hidden properties object is not returned as an unnamed property
+// among regular properties.
+// See http://crbug.com/26491
+TEST(NoHiddenProperties) {
+  // Create a V8 environment with debug access.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Create an object in the global scope.
+  const char* source = "var obj = {a: 1};";
+  v8::Script::Compile(v8::String::New(source))->Run();
+  v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(
+      env->Global()->Get(v8::String::New("obj")));
+  // Set a hidden property on the object.
+  obj->SetHiddenValue(v8::String::New("v8::test-debug::a"),
+                      v8::Int32::New(11));
+
+  // Get mirror for the object with property getter.
+  CompileRun("var obj_mirror = debug.MakeMirror(obj);");
+  CHECK(CompileRun(
+      "obj_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CompileRun("var named_names = obj_mirror.propertyNames();");
+  // There should be exactly one property. But there is also an unnamed
+  // property whose value is hidden properties dictionary. The latter
+  // property should not be in the list of reguar properties.
+  CHECK_EQ(1, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names[0] == 'a'")->BooleanValue());
+  CHECK(CompileRun(
+      "obj_mirror.property('a').value().value() == 1")->BooleanValue());
+
+  // Object created by t0 will become hidden prototype of object 'obj'.
+  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
+  t0->InstanceTemplate()->Set(v8::String::New("b"), v8::Number::New(2));
+  t0->SetHiddenPrototype(true);
+  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->InstanceTemplate()->Set(v8::String::New("c"), v8::Number::New(3));
+
+  // Create proto objects, add hidden properties to them and set them on
+  // the global object.
+  v8::Handle<v8::Object> protoObj = t0->GetFunction()->NewInstance();
+  protoObj->SetHiddenValue(v8::String::New("v8::test-debug::b"),
+                           v8::Int32::New(12));
+  env->Global()->Set(v8::String::New("protoObj"), protoObj);
+  v8::Handle<v8::Object> grandProtoObj = t1->GetFunction()->NewInstance();
+  grandProtoObj->SetHiddenValue(v8::String::New("v8::test-debug::c"),
+                                v8::Int32::New(13));
+  env->Global()->Set(v8::String::New("grandProtoObj"), grandProtoObj);
+
+  // Setting prototypes: obj->protoObj->grandProtoObj
+  protoObj->Set(v8::String::New("__proto__"), grandProtoObj);
+  obj->Set(v8::String::New("__proto__"), protoObj);
+
+  // Get mirror for the object with property getter.
+  CompileRun("var obj_mirror = debug.MakeMirror(obj);");
+  CHECK(CompileRun(
+      "obj_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CompileRun("var named_names = obj_mirror.propertyNames();");
+  // There should be exactly two properties - one from the object itself and
+  // another from its hidden prototype.
+  CHECK_EQ(2, CompileRun("named_names.length")->Int32Value());
+  CHECK(CompileRun("named_names.sort(); named_names[0] == 'a' &&"
+                   "named_names[1] == 'b'")->BooleanValue());
+  CHECK(CompileRun(
+      "obj_mirror.property('a').value().value() == 1")->BooleanValue());
+  CHECK(CompileRun(
+      "obj_mirror.property('b').value().value() == 2")->BooleanValue());
+}
+
 
 // Multithreaded tests of JSON debugger protocol
 
