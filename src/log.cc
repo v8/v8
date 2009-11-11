@@ -1121,6 +1121,48 @@ static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis) {
 }
 
 
+void Logger::LogCodeObject(Object* object) {
+  if (FLAG_log_code) {
+    Code* code_object = Code::cast(object);
+    LogEventsAndTags tag = Logger::STUB_TAG;
+    const char* description = "Unknown code from the snapshot";
+    switch (code_object->kind()) {
+      case Code::FUNCTION:
+        return;  // We log this later using LogCompiledFunctions.
+      case Code::STUB:
+        description = CodeStub::MajorName(code_object->major_key());
+        tag = Logger::STUB_TAG;
+        break;
+      case Code::BUILTIN:
+        description = "A builtin from the snapshot";
+        tag = Logger::BUILTIN_TAG;
+        break;
+      case Code::KEYED_LOAD_IC:
+        description = "A keyed load IC from the snapshot";
+        tag = Logger::KEYED_LOAD_IC_TAG;
+        break;
+      case Code::LOAD_IC:
+        description = "A load IC from the snapshot";
+        tag = Logger::LOAD_IC_TAG;
+        break;
+      case Code::STORE_IC:
+        description = "A store IC from the snapshot";
+        tag = Logger::STORE_IC_TAG;
+        break;
+      case Code::KEYED_STORE_IC:
+        description = "A keyed store IC from the snapshot";
+        tag = Logger::KEYED_STORE_IC_TAG;
+        break;
+      case Code::CALL_IC:
+        description = "A call IC from the snapshot";
+        tag = Logger::CALL_IC_TAG;
+        break;
+    }
+    LOG(CodeCreateEvent(tag, code_object, description));
+  }
+}
+
+
 void Logger::LogCompiledFunctions() {
   HandleScope scope;
   const int compiled_funcs_count = EnumerateCompiledFunctions(NULL);
