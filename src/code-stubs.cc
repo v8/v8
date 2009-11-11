@@ -117,7 +117,7 @@ Handle<Code> CodeStub::GetCode() {
 const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
 #define DEF_CASE(name) case name: return #name;
-    CODE_STUB_LIST_ALL(DEF_CASE)
+    CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
     default:
       UNREACHABLE();
