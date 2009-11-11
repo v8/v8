@@ -1140,7 +1140,8 @@ void Script::ScriptVerify() {
   VerifyPointer(data());
   VerifyPointer(wrapper());
   type()->SmiVerify();
-  VerifyPointer(line_ends());
+  VerifyPointer(line_ends_fixed_array());
+  VerifyPointer(line_ends_js_array());
   VerifyPointer(id());
 }
 

@@ -427,12 +427,12 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 // Init line_ends array with code positions of line ends inside script
 // source.
 void InitScriptLineEnds(Handle<Script> script) {
-  if (!script->line_ends()->IsUndefined()) return;
+  if (!script->line_ends_fixed_array()->IsUndefined()) return;
 
   if (!script->source()->IsString()) {
     ASSERT(script->source()->IsUndefined());
-    script->set_line_ends(*(Factory::NewJSArray(0)));
-    ASSERT(script->line_ends()->IsJSArray());
+    script->set_line_ends_fixed_array(*(Factory::NewFixedArray(0)));
+    ASSERT(script->line_ends_fixed_array()->IsFixedArray());
     return;
   }
 
@@ -465,9 +465,8 @@ void InitScriptLineEnds(Handle<Script> script) {
   }
   ASSERT(array_index == line_count);
 
-  Handle<JSArray> object = Factory::NewJSArrayWithElements(array);
-  script->set_line_ends(*object);
-  ASSERT(script->line_ends()->IsJSArray());
+  script->set_line_ends_fixed_array(*array);
+  ASSERT(script->line_ends_fixed_array()->IsFixedArray());
 }
 
 
@@ -475,17 +474,18 @@ void InitScriptLineEnds(Handle<Script> script) {
 int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
   AssertNoAllocation no_allocation;
-  JSArray* line_ends_array = JSArray::cast(script->line_ends());
-  const int line_ends_len = (Smi::cast(line_ends_array->length()))->value();
+  FixedArray* line_ends_array =
+      FixedArray::cast(script->line_ends_fixed_array());
+  const int line_ends_len = line_ends_array->length();
 
   int line = -1;
   if (line_ends_len > 0 &&
-      code_pos <= (Smi::cast(line_ends_array->GetElement(0)))->value()) {
+      code_pos <= (Smi::cast(line_ends_array->get(0)))->value()) {
     line = 0;
   } else {
     for (int i = 1; i < line_ends_len; ++i) {
-      if ((Smi::cast(line_ends_array->GetElement(i - 1)))->value() < code_pos &&
-          code_pos <= (Smi::cast(line_ends_array->GetElement(i)))->value()) {
+      if ((Smi::cast(line_ends_array->get(i - 1)))->value() < code_pos &&
+          code_pos <= (Smi::cast(line_ends_array->get(i)))->value()) {
         line = i;
         break;
       }

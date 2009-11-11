@@ -33,6 +33,7 @@
 #include "simulator.h"
 #include "stub-cache.h"
 #include "oprofile-agent.h"
+#include "log.h"
 
 namespace v8 {
 namespace internal {
@@ -113,6 +114,11 @@ bool V8::Initialize(GenericDeserializer *des) {
   CPU::Setup();
 
   OProfileAgent::Initialize();
+
+  if (FLAG_log_code) {
+    HandleScope scope;
+    Logger::LogCompiledFunctions();
+  }
 
   return true;
 }
