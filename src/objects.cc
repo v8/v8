@@ -4921,12 +4921,8 @@ int SharedFunctionInfo::CalculateInObjectProperties() {
 
 
 void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
-    bool only_this_property_assignments,
     bool only_simple_this_property_assignments,
     FixedArray* assignments) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kHasOnlyThisPropertyAssignments,
-                                     only_this_property_assignments));
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kHasOnlySimpleThisPropertyAssignments,
                                      only_simple_this_property_assignments));
@@ -4936,9 +4932,6 @@ void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
 
 
 void SharedFunctionInfo::ClearThisPropertyAssignmentsInfo() {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kHasOnlyThisPropertyAssignments,
-                                     false));
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kHasOnlySimpleThisPropertyAssignments,
                                      false));

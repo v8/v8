@@ -3371,16 +3371,11 @@ class SharedFunctionInfo: public HeapObject {
 
   // Add information on assignments of the form this.x = ...;
   void SetThisPropertyAssignmentsInfo(
-      bool has_only_this_property_assignments,
       bool has_only_simple_this_property_assignments,
       FixedArray* this_property_assignments);
 
   // Clear information on assignments of the form this.x = ...;
   void ClearThisPropertyAssignmentsInfo();
-
-  // Indicate that this function only consists of assignments of the form
-  // this.x = ...;.
-  inline bool has_only_this_property_assignments();
 
   // Indicate that this function only consists of assignments of the form
   // this.x = y; where y is either a constant or refers to an argument.
@@ -3464,8 +3459,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
-  static const int kHasOnlyThisPropertyAssignments = 0;
-  static const int kHasOnlySimpleThisPropertyAssignments = 1;
+  static const int kHasOnlySimpleThisPropertyAssignments = 0;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

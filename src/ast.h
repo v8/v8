@@ -1263,7 +1263,6 @@ class FunctionLiteral: public Expression {
                   ZoneList<Statement*>* body,
                   int materialized_literal_count,
                   int expected_property_count,
-                  bool has_only_this_property_assignments,
                   bool has_only_simple_this_property_assignments,
                   Handle<FixedArray> this_property_assignments,
                   int num_parameters,
@@ -1275,7 +1274,6 @@ class FunctionLiteral: public Expression {
         body_(body),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
-        has_only_this_property_assignments_(has_only_this_property_assignments),
         has_only_simple_this_property_assignments_(
             has_only_simple_this_property_assignments),
         this_property_assignments_(this_property_assignments),
@@ -1307,9 +1305,6 @@ class FunctionLiteral: public Expression {
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
-  bool has_only_this_property_assignments() {
-      return has_only_this_property_assignments_;
-  }
   bool has_only_simple_this_property_assignments() {
       return has_only_simple_this_property_assignments_;
   }
@@ -1341,7 +1336,6 @@ class FunctionLiteral: public Expression {
   ZoneList<Statement*>* body_;
   int materialized_literal_count_;
   int expected_property_count_;
-  bool has_only_this_property_assignments_;
   bool has_only_simple_this_property_assignments_;
   Handle<FixedArray> this_property_assignments_;
   int num_parameters_;

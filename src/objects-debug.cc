@@ -796,8 +796,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint() {
   PrintF("\n - debug info = ");
   debug_info()->ShortPrint();
   PrintF("\n - length = %d", length());
-  PrintF("\n - has_only_this_property_assignments = %d",
-         has_only_this_property_assignments());
   PrintF("\n - has_only_simple_this_property_assignments = %d",
          has_only_simple_this_property_assignments());
   PrintF("\n - this_property_assignments = ");
