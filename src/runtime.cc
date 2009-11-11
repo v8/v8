@@ -4368,8 +4368,6 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
 
   Object* result = Heap::AllocateArgumentsObject(callee, length);
   if (result->IsFailure()) return result;
-  ASSERT(Heap::InNewSpace(result));
-
   // Allocate the elements if needed.
   if (length > 0) {
     // Allocate the fixed array.
@@ -4382,8 +4380,7 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
     for (int i = 0; i < length; i++) {
       array->set(i, *--parameters, mode);
     }
-    JSObject::cast(result)->set_elements(FixedArray::cast(obj),
-                                         SKIP_WRITE_BARRIER);
+    JSObject::cast(result)->set_elements(FixedArray::cast(obj));
   }
   return result;
 }
