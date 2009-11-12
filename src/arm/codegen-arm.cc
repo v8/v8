@@ -4599,6 +4599,21 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
 }
 
 
+static void IntegerToDoubleConversionWithVFP3(MacroAssembler* masm,
+                                              Register inReg,
+                                              Register outHighReg,
+                                              Register outLowReg) {
+  // ARMv7 VFP3 instructions to implement integer to double conversion.
+  // This VFP3 implementation is known to work
+  // on ARMv7-VFP3 Snapdragon processor.
+
+  __ mov(r7, Operand(inReg, ASR, kSmiTagSize));
+  __ fmsr(s15, r7);
+  __ fsitod(d7, s15);
+  __ fmrrd(outLowReg, outHighReg, d7);
+}
+
+
 // See comment at call site.
 static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Label* rhs_not_nan,
@@ -4622,9 +4637,16 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
   // Rhs is a smi, lhs is a number.
   __ push(lr);
-  __ mov(r7, Operand(r1));
-  ConvertToDoubleStub stub1(r3, r2, r7, r6);
-  __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    IntegerToDoubleConversionWithVFP3(masm, r1, r3, r2);
+  } else {
+    __ mov(r7, Operand(r1));
+    ConvertToDoubleStub stub1(r3, r2, r7, r6);
+    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+  }
+
+
   // r3 and r2 are rhs as double.
   __ ldr(r1, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
   __ ldr(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
@@ -4652,9 +4674,15 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ push(lr);
   __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
   __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
-  __ mov(r7, Operand(r0));
-  ConvertToDoubleStub stub2(r1, r0, r7, r6);
-  __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    IntegerToDoubleConversionWithVFP3(masm, r0, r1, r0);
+  } else {
+    __ mov(r7, Operand(r0));
+    ConvertToDoubleStub stub2(r1, r0, r7, r6);
+    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+  }
+
   __ pop(lr);
   // Fall through to both_loaded_as_doubles.
 }
@@ -4857,9 +4885,25 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // fall through if neither is a NaN.  Also binds rhs_not_nan.
   EmitNanCheck(masm, &rhs_not_nan, cc_);
 
-  // Compares two doubles in r0, r1, r2, r3 that are not NaNs.  Returns the
-  // answer.  Never falls through.
-  EmitTwoNonNanDoubleComparison(masm, cc_);
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    // ARMv7 VFP3 instructions to implement double precision comparison.
+    // This VFP3 implementation is known to work on
+    // ARMv7-VFP3 Snapdragon processor.
+
+    __ fmdrr(d6, r0, r1);
+    __ fmdrr(d7, r2, r3);
+
+    __ fcmp(d6, d7);
+    __ vmrs(pc);
+    __ mov(r0, Operand(0), LeaveCC, eq);
+    __ mov(r0, Operand(1), LeaveCC, lt);
+    __ mvn(r0, Operand(0), LeaveCC, gt);
+    __ mov(pc, Operand(lr));
+  } else {
+    // Compares two doubles in r0, r1, r2, r3 that are not NaNs.  Returns the
+    // answer.  Never falls through.
+    EmitTwoNonNanDoubleComparison(masm, cc_);
+  }
 
   __ bind(&not_smis);
   // At this point we know we are dealing with two different objects,
@@ -4959,16 +5003,23 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // Since both are Smis there is no heap number to overwrite, so allocate.
   // The new heap number is in r5.  r6 and r7 are scratch.
   AllocateHeapNumber(masm, &slow, r5, r6, r7);
-  // Write Smi from r0 to r3 and r2 in double format.  r6 is scratch.
-  __ mov(r7, Operand(r0));
-  ConvertToDoubleStub stub1(r3, r2, r7, r6);
-  __ push(lr);
-  __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
-  // Write Smi from r1 to r1 and r0 in double format.  r6 is scratch.
-  __ mov(r7, Operand(r1));
-  ConvertToDoubleStub stub2(r1, r0, r7, r6);
-  __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
-  __ pop(lr);
+
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    IntegerToDoubleConversionWithVFP3(masm, r0, r3, r2);
+    IntegerToDoubleConversionWithVFP3(masm, r1, r1, r0);
+  } else {
+    // Write Smi from r0 to r3 and r2 in double format.  r6 is scratch.
+    __ mov(r7, Operand(r0));
+    ConvertToDoubleStub stub1(r3, r2, r7, r6);
+    __ push(lr);
+    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    // Write Smi from r1 to r1 and r0 in double format.  r6 is scratch.
+    __ mov(r7, Operand(r1));
+    ConvertToDoubleStub stub2(r1, r0, r7, r6);
+    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
+  }
+
   __ jmp(&do_the_call);  // Tail call.  No return.
 
   // We jump to here if something goes wrong (one param is not a number of any
@@ -5004,12 +5055,19 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     // We can't overwrite a Smi so get address of new heap number into r5.
     AllocateHeapNumber(masm, &slow, r5, r6, r7);
   }
-  // Write Smi from r0 to r3 and r2 in double format.
-  __ mov(r7, Operand(r0));
-  ConvertToDoubleStub stub3(r3, r2, r7, r6);
-  __ push(lr);
-  __ Call(stub3.GetCode(), RelocInfo::CODE_TARGET);
-  __ pop(lr);
+
+
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    IntegerToDoubleConversionWithVFP3(masm, r0, r3, r2);
+  } else {
+    // Write Smi from r0 to r3 and r2 in double format.
+    __ mov(r7, Operand(r0));
+    ConvertToDoubleStub stub3(r3, r2, r7, r6);
+    __ push(lr);
+    __ Call(stub3.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
+  }
+
   __ bind(&finished_loading_r0);
 
   // Move r1 to a double in r0-r1.
@@ -5029,12 +5087,18 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     // We can't overwrite a Smi so get address of new heap number into r5.
     AllocateHeapNumber(masm, &slow, r5, r6, r7);
   }
-  // Write Smi from r1 to r1 and r0 in double format.
-  __ mov(r7, Operand(r1));
-  ConvertToDoubleStub stub4(r1, r0, r7, r6);
-  __ push(lr);
-  __ Call(stub4.GetCode(), RelocInfo::CODE_TARGET);
-  __ pop(lr);
+
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    IntegerToDoubleConversionWithVFP3(masm, r1, r1, r0);
+  } else {
+    // Write Smi from r1 to r1 and r0 in double format.
+    __ mov(r7, Operand(r1));
+    ConvertToDoubleStub stub4(r1, r0, r7, r6);
+    __ push(lr);
+    __ Call(stub4.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
+  }
+
   __ bind(&finished_loading_r1);
 
   __ bind(&do_the_call);
@@ -5043,6 +5107,33 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // r2: Right value (least significant part of mantissa).
   // r3: Right value (sign, exponent, top of mantissa).
   // r5: Address of heap number for result.
+
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3) &&
+      ((Token::MUL == operation) ||
+       (Token::DIV == operation) ||
+       (Token::ADD == operation) ||
+       (Token::SUB == operation))) {
+     // ARMv7 VFP3 instructions to implement
+     // double precision, add, subtract, multiply, divide.
+     // This VFP3 implementation is known to work on
+     // ARMv7-VFP3 Snapdragon processor
+
+     __ fmdrr(d6, r0, r1);
+     __ fmdrr(d7, r2, r3);
+
+     if      (Token::MUL == operation) __ fmuld(d5, d6, d7);
+     else if (Token::DIV == operation) __ fdivd(d5, d6, d7);
+     else if (Token::ADD == operation) __ faddd(d5, d6, d7);
+     else if (Token::SUB == operation) __ fsubd(d5, d6, d7);
+
+     __ fmrrd(r0, r1, d5);
+
+     __ str(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
+     __ str(r1, FieldMemOperand(r5, HeapNumber::kValueOffset + 4));
+     __ mov(r0, Operand(r5));
+     __ mov(pc, lr);
+     return;
+  }
   __ push(lr);   // For later.
   __ push(r5);   // Address of heap number that is answer.
   __ AlignStack(0);
@@ -5111,37 +5202,49 @@ static void GetInt32(MacroAssembler* masm,
   __ sub(scratch2, scratch2, Operand(zero_exponent), SetCC);
   // Dest already has a Smi zero.
   __ b(lt, &done);
-  // We have a shifted exponent between 0 and 30 in scratch2.
-  __ mov(dest, Operand(scratch2, LSR, HeapNumber::kExponentShift));
-  // We now have the exponent in dest.  Subtract from 30 to get
-  // how much to shift down.
-  __ rsb(dest, dest, Operand(30));
-
+  if (!CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    // We have a shifted exponent between 0 and 30 in scratch2.
+    __ mov(dest, Operand(scratch2, LSR, HeapNumber::kExponentShift));
+    // We now have the exponent in dest.  Subtract from 30 to get
+    // how much to shift down.
+    __ rsb(dest, dest, Operand(30));
+  }
   __ bind(&right_exponent);
-  // Get the top bits of the mantissa.
-  __ and_(scratch2, scratch, Operand(HeapNumber::kMantissaMask));
-  // Put back the implicit 1.
-  __ orr(scratch2, scratch2, Operand(1 << HeapNumber::kExponentShift));
-  // Shift up the mantissa bits to take up the space the exponent used to take.
-  // We just orred in the implicit bit so that took care of one and we want to
-  // leave the sign bit 0 so we subtract 2 bits from the shift distance.
-  const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
-  __ mov(scratch2, Operand(scratch2, LSL, shift_distance));
-  // Put sign in zero flag.
-  __ tst(scratch, Operand(HeapNumber::kSignMask));
-  // Get the second half of the double.  For some exponents we don't actually
-  // need this because the bits get shifted out again, but it's probably slower
-  // to test than just to do it.
-  __ ldr(scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
-  // Shift down 22 bits to get the last 10 bits.
-  __ orr(scratch, scratch2, Operand(scratch, LSR, 32 - shift_distance));
-  // Move down according to the exponent.
-  __ mov(dest, Operand(scratch, LSR, dest));
-  // Fix sign if sign bit was set.
-  __ rsb(dest, dest, Operand(0), LeaveCC, ne);
+  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    // ARMv7 VFP3 instructions implementing double precision to integer
+    // conversion using round to zero.
+    // This VFP3 implementation is known to work on
+    // ARMv7-VFP3 Snapdragon processor.
+    __ ldr(scratch2, FieldMemOperand(source, HeapNumber::kMantissaOffset));
+    __ fmdrr(d7, scratch2, scratch);
+    __ ftosid(s15, d7);
+    __ fmrs(dest, s15);
+  } else {
+    // Get the top bits of the mantissa.
+    __ and_(scratch2, scratch, Operand(HeapNumber::kMantissaMask));
+    // Put back the implicit 1.
+    __ orr(scratch2, scratch2, Operand(1 << HeapNumber::kExponentShift));
+    // Shift up the mantissa bits to take up the space the exponent used to
+    // take. We just orred in the implicit bit so that took care of one and
+    // we want to leave the sign bit 0 so we subtract 2 bits from the shift
+    //  distance.
+    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
+    __ mov(scratch2, Operand(scratch2, LSL, shift_distance));
+    // Put sign in zero flag.
+    __ tst(scratch, Operand(HeapNumber::kSignMask));
+    // Get the second half of the double. For some exponents we don't
+    // actually need this because the bits get shifted out again, but
+    // it's probably slower to test than just to do it.
+    __ ldr(scratch, FieldMemOperand(source, HeapNumber::kMantissaOffset));
+    // Shift down 22 bits to get the last 10 bits.
+    __ orr(scratch, scratch2, Operand(scratch, LSR, 32 - shift_distance));
+    // Move down according to the exponent.
+    __ mov(dest, Operand(scratch, LSR, dest));
+    // Fix sign if sign bit was set.
+    __ rsb(dest, dest, Operand(0), LeaveCC, ne);
+  }
   __ bind(&done);
 }
-
 
 // For bitwise ops where the inputs are not both Smis we here try to determine
 // whether both inputs are either Smis or at least heap numbers that can be
@@ -5159,7 +5262,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
   __ b(eq, &r1_is_smi);  // It's a Smi so don't check it's a heap number.
   __ CompareObjectType(r1, r4, r4, HEAP_NUMBER_TYPE);
   __ b(ne, &slow);
-  GetInt32(masm, r1, r3, r4, r5, &slow);
+  GetInt32(masm, r1, r3, r5, r4, &slow);
   __ jmp(&done_checking_r1);
   __ bind(&r1_is_smi);
   __ mov(r3, Operand(r1, ASR, 1));
@@ -5169,7 +5272,7 @@ void GenericBinaryOpStub::HandleNonSmiBitwiseOp(MacroAssembler* masm) {
   __ b(eq, &r0_is_smi);  // It's a Smi so don't check it's a heap number.
   __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
   __ b(ne, &slow);
-  GetInt32(masm, r0, r2, r4, r5, &slow);
+  GetInt32(masm, r0, r2, r5, r4, &slow);
   __ jmp(&done_checking_r0);
   __ bind(&r0_is_smi);
   __ mov(r2, Operand(r0, ASR, 1));

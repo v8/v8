@@ -97,7 +97,6 @@ namespace arm {
 class Simulator {
  public:
   friend class Debugger;
-
   enum Register {
     no_reg = -1,
     r0 = 0, r1, r2, r3, r4, r5, r6, r7,
@@ -105,7 +104,15 @@ class Simulator {
     num_registers,
     sp = 13,
     lr = 14,
-    pc = 15
+    pc = 15,
+    s0 = 0, s1, s2, s3, s4, s5, s6, s7,
+    s8, s9, s10, s11, s12, s13, s14, s15,
+    s16, s17, s18, s19, s20, s21, s22, s23,
+    s24, s25, s26, s27, s28, s29, s30, s31,
+    num_s_registers = 32,
+    d0 = 0, d1, d2, d3, d4, d5, d6, d7,
+    d8, d9, d10, d11, d12, d13, d14, d15,
+    num_d_registers = 16
   };
 
   Simulator();
@@ -120,6 +127,16 @@ class Simulator {
   // instruction.
   void set_register(int reg, int32_t value);
   int32_t get_register(int reg) const;
+
+  // Support for VFP.
+  void set_s_register(int reg, unsigned int value);
+  unsigned int get_s_register(int reg) const;
+  void set_d_register_from_double(int dreg, const double& dbl);
+  double get_double_from_d_register(int dreg);
+  void set_s_register_from_float(int sreg, const float dbl);
+  float get_float_from_s_register(int sreg);
+  void set_s_register_from_sinteger(int reg, const int value);
+  int get_sinteger_from_s_register(int reg);
 
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int32_t value);
@@ -175,6 +192,10 @@ class Simulator {
                     int32_t right,
                     bool addition);
 
+  // Support for VFP.
+  void Compute_FPSCR_Flags(double val1, double val2);
+  void Copy_FPSCR_to_APSR();
+
   // Helper functions to decode common "addressing" modes
   int32_t GetShiftRm(Instr* instr, bool* carry_out);
   int32_t GetImm(Instr* instr, bool* carry_out);
@@ -206,6 +227,10 @@ class Simulator {
   void DecodeType7(Instr* instr);
   void DecodeUnconditional(Instr* instr);
 
+  // Support for VFP.
+  void DecodeTypeVFP(Instr* instr);
+  void DecodeType6CoprocessorIns(Instr* instr);
+
   // Executes one instruction.
   void InstructionDecode(Instr* instr);
 
@@ -225,6 +250,20 @@ class Simulator {
   bool z_flag_;
   bool c_flag_;
   bool v_flag_;
+
+  // VFP architecture state.
+  unsigned int vfp_register[32/*num_s_registers*/];
+  bool n_flag_FPSCR_;
+  bool z_flag_FPSCR_;
+  bool c_flag_FPSCR_;
+  bool v_flag_FPSCR_;
+
+  // VFP FP exception flags architecture state.
+  bool inv_op_vfp_flag_;
+  bool div_zero_vfp_flag_;
+  bool overflow_vfp_flag_;
+  bool underflow_vfp_flag_;
+  bool inexact_vfp_flag_;
 
   // Simulator support.
   char* stack_;

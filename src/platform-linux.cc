@@ -89,6 +89,46 @@ double OS::nan_value() {
 }
 
 
+bool OS::fgrep_vfp(const char* file_name, const char* string) {
+  // Simple detection of VFP at runtime for Linux.
+  // It is based on /proc/cpuinfo, which reveals hardware configuration
+  // to user-space applications.  According to ARM (mid 2009), no similar
+  // facility is universally available on the ARM architectures,
+  // so it's up to individual OSes to provide such.
+  //
+  // This is written as a straight shot one pass parser
+  // and not using STL string and ifstream because,
+  // on Linux, it's reading from a (non-mmap-able)
+  // character special device.
+
+  FILE* f = NULL;
+
+  if (NULL == (f = fopen(file_name, "r")))
+    return false;
+
+  const char* what = string;
+  int k;
+  while (EOF != (k = fgetc(f))) {
+    if (k == *what) {
+      ++what;
+      while ((*what != '\0') && (*what == fgetc(f))) {
+        ++what;
+      }
+      if (*what == '\0') {
+        fclose(f);
+        return true;
+      } else {
+        what = string;
+      }
+    }
+  }
+  fclose(f);
+
+  // Did not find string in the file file_name.
+  return false;
+}
+
+
 int OS::ActivationFrameAlignment() {
 #ifdef V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the

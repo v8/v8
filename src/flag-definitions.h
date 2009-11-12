@@ -114,6 +114,8 @@ DEFINE_bool(enable_rdtsc, true,
             "enable use of RDTSC instruction if available")
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
+DEFINE_bool(enable_vfp3, true,
+            "enable use of VFP3 instructions if available")
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
