@@ -1407,6 +1407,9 @@ class JSObject: public HeapObject {
   Object* GetPropertyPostInterceptor(JSObject* receiver,
                                      String* name,
                                      PropertyAttributes* attributes);
+  Object* GetLocalPropertyPostInterceptor(JSObject* receiver,
+                                          String* name,
+                                          PropertyAttributes* attributes);
   Object* GetLazyProperty(Object* receiver,
                           LookupResult* result,
                           String* name,
@@ -1428,6 +1431,27 @@ class JSObject: public HeapObject {
     return GetLocalPropertyAttribute(name) != ABSENT;
   }
 
+  // If the receiver is a JSGlobalProxy this method will return its prototype,
+  // otherwise the result is the receiver itself.
+  inline Object* BypassGlobalProxy();
+
+  // Accessors for hidden properties object.
+  //
+  // Hidden properties are not local properties of the object itself.
+  // Instead they are stored on an auxiliary JSObject stored as a local
+  // property with a special name Heap::hidden_symbol(). But if the
+  // receiver is a JSGlobalProxy then the auxiliary object is a property
+  // of its prototype.
+  //
+  // Has/Get/SetHiddenPropertiesObject methods don't allow the holder to be
+  // a JSGlobalProxy. Use BypassGlobalProxy method above to get to the real
+  // holder.
+  //
+  // These accessors do not touch interceptors or accessors.
+  inline bool HasHiddenPropertiesObject();
+  inline Object* GetHiddenPropertiesObject();
+  inline Object* SetHiddenPropertiesObject(Object* hidden_obj);
+  
   Object* DeleteProperty(String* name, DeleteMode mode);
   Object* DeleteElement(uint32_t index, DeleteMode mode);
   Object* DeleteLazyProperty(LookupResult* result,
