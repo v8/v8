@@ -320,7 +320,7 @@ class Registers {
 
   struct RegisterAlias {
     int reg;
-    const char *name;
+    const char* name;
   };
 
  private:

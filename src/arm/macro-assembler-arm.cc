@@ -976,6 +976,17 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
 }
 
 
+void MacroAssembler::IntegerToDoubleConversionWithVFP3(Register inReg,
+                                                       Register outHighReg,
+                                                       Register outLowReg) {
+  // ARMv7 VFP3 instructions to implement integer to double conversion.
+  mov(r7, Operand(inReg, ASR, kSmiTagSize));
+  fmsr(s15, r7);
+  fsitod(d7, s15);
+  fmrrd(outLowReg, outHighReg, d7);
+}
+
+
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // All parameters are on the stack.  r0 has the return value after call.
 

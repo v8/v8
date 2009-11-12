@@ -43,31 +43,30 @@ namespace v8 {
 namespace internal {
 
 // Safe default is no features.
-uint64_t CpuFeatures::supported_ = 0;
-uint64_t CpuFeatures::enabled_ = 0;
+unsigned CpuFeatures::supported_ = 0;
+unsigned CpuFeatures::enabled_ = 0;
 
 void CpuFeatures::Probe() {
-  // Perform runtime detection of VFP.
-  static const char* descriptive_file_linux = "/proc/cpuinfo";
+  // If the compiler is allowed to use vfp then we can use vfp too in our
+  // code generation.
+#if !defined(__arm__) || (defined(__VFP_FP__) && !defined(__SOFTFP__))
+  // The  supported flags for VFP are set to true for the following
+  // conditions, even without runtime detection of VFP:
+  // (1) For the simulator=arm build, always use VFP since
+  // the arm simulator has VFP support.
+  // (2) If V8 is being compiled with GCC with the vfp option turned on,
+  // always use VFP since the build system assumes that V8 will run on
+  // a platform that has VFP hardware.
+  supported_ |= 1u << VFP3;
+#else
+  if (Serializer::enabled()) return;  // No features if we might serialize.
 
-  #if !defined(__arm__) || (defined(__VFP_FP__) && !defined(__SOFTFP__))
-    // The  supported & enabled flags for VFP are set to true for the following
-    // conditions, even without runtime detection of VFP:
-    // (1) For the simulator=arm build, always use VFP since
-    // the arm simulator has VFP support.
-    // (2) If V8 is being compiled with GCC with the vfp option turned on,
-    // always use VFP since the build system assumes that V8 will run on
-    // a platform that has VFP hardware.
-    supported_ |= static_cast<uint64_t>(1) << VFP3;
-    enabled_ |= static_cast<uint64_t>(1) << VFP3;
-  #endif
-
-  if (OS::fgrep_vfp(descriptive_file_linux, "vfp")) {
+  if (OS::ArmCpuHasFeature(OS::VFP)) {
     // This implementation also sets the VFP flags if
     // runtime detection of VFP returns true.
-    supported_ |= static_cast<uint64_t>(1) << VFP3;
-    enabled_ |= static_cast<uint64_t>(1) << VFP3;
+    supported_ |= 1u << VFP3;
   }
+#endif
 }
 
 // -----------------------------------------------------------------------------

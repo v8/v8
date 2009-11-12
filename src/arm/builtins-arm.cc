@@ -284,7 +284,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 // Both registers are preserved by this code so no need to differentiate between
 // construct call and normal call.
 static void ArrayNativeCode(MacroAssembler* masm,
-                            Label *call_generic_code) {
+                            Label* call_generic_code) {
   Label argc_one_or_more, argc_two_or_more;
 
   // Check for array construction with zero arguments or one.

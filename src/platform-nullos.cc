@@ -155,6 +155,12 @@ double OS::nan_value() {
   return 0;
 }
 
+
+bool OS::ArmCpuHasFeature(OS:CpuFeature feature) {
+  UNIMPLEMENTED();
+}
+
+
 bool OS::IsOutsideAllocatedSpace(void* address) {
   UNIMPLEMENTED();
   return false;

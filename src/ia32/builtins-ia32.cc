@@ -881,7 +881,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 // be preserved.
 static void ArrayNativeCode(MacroAssembler* masm,
                             bool construct_call,
-                            Label *call_generic_code) {
+                            Label* call_generic_code) {
   Label argc_one_or_more, argc_two_or_more, prepare_generic_code_call;
 
   // Push the constructor and argc. No need to tag argc as a smi, as there will

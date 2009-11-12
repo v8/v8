@@ -435,16 +435,33 @@ class CpuFeatures : public AllStatic {
   static bool IsSupported(Feature f) {
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
 
-    return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return (supported_ & (1u << f)) != 0;
   }
   // Check whether a feature is currently enabled.
   static bool IsEnabled(Feature f) {
-    return (enabled_ & (static_cast<uint64_t>(1) << f)) != 0;
+    return (enabled_ & (1u << f)) != 0;
   }
+  // Enable a specified feature within a scope.
+  class Scope BASE_EMBEDDED {
+#ifdef DEBUG
+   public:
+    explicit Scope(Feature f) {
+      ASSERT(CpuFeatures::IsSupported(f));
+      old_enabled_ = CpuFeatures::enabled_;
+      CpuFeatures::enabled_ |= 1u << f;
+    }
+    ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
+   private:
+    unsigned old_enabled_;
+#else
+   public:
+    explicit Scope(Feature f) {}
+#endif
+  };
 
  private:
-  static uint64_t supported_;
-  static uint64_t enabled_;
+  static unsigned supported_;
+  static unsigned enabled_;
 };
 
 

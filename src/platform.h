@@ -250,8 +250,9 @@ class OS {
   // Returns the double constant NAN
   static double nan_value();
 
-  // Support runtime detection of VFP3 on linux platforms.
-  static bool fgrep_vfp(const char * file_name, const char * string);
+  // Support runtime detection of VFP3 on ARM CPUs.
+  enum CpuFeature { VFP };
+  static bool ArmCpuHasFeature(CpuFeature feature);
 
   // Returns the activation frame alignment constraint or zero if
   // the platform doesn't care. Guaranteed to be a power of two.

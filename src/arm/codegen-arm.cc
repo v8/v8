@@ -4472,7 +4472,7 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
 
 
 // See comment for class.
-void WriteInt32ToHeapNumberStub::Generate(MacroAssembler *masm) {
+void WriteInt32ToHeapNumberStub::Generate(MacroAssembler* masm) {
   Label max_negative_int;
   // the_int_ has the answer which is a signed int32 but not a Smi.
   // We test for the special value that has a different exponent.  This test
@@ -4599,21 +4599,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
 }
 
 
-static void IntegerToDoubleConversionWithVFP3(MacroAssembler* masm,
-                                              Register inReg,
-                                              Register outHighReg,
-                                              Register outLowReg) {
-  // ARMv7 VFP3 instructions to implement integer to double conversion.
-  // This VFP3 implementation is known to work
-  // on ARMv7-VFP3 Snapdragon processor.
-
-  __ mov(r7, Operand(inReg, ASR, kSmiTagSize));
-  __ fmsr(s15, r7);
-  __ fsitod(d7, s15);
-  __ fmrrd(outLowReg, outHighReg, d7);
-}
-
-
 // See comment at call site.
 static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Label* rhs_not_nan,
@@ -4639,7 +4624,8 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ push(lr);
 
   if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    IntegerToDoubleConversionWithVFP3(masm, r1, r3, r2);
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+    __ IntegerToDoubleConversionWithVFP3(r1, r3, r2);
   } else {
     __ mov(r7, Operand(r1));
     ConvertToDoubleStub stub1(r3, r2, r7, r6);
@@ -4676,7 +4662,8 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
 
   if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    IntegerToDoubleConversionWithVFP3(masm, r0, r1, r0);
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+    __ IntegerToDoubleConversionWithVFP3(r0, r1, r0);
   } else {
     __ mov(r7, Operand(r0));
     ConvertToDoubleStub stub2(r1, r0, r7, r6);
@@ -4886,10 +4873,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
   EmitNanCheck(masm, &rhs_not_nan, cc_);
 
   if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
     // ARMv7 VFP3 instructions to implement double precision comparison.
-    // This VFP3 implementation is known to work on
-    // ARMv7-VFP3 Snapdragon processor.
-
     __ fmdrr(d6, r0, r1);
     __ fmdrr(d7, r2, r3);
 
@@ -5005,8 +4990,9 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   AllocateHeapNumber(masm, &slow, r5, r6, r7);
 
   if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    IntegerToDoubleConversionWithVFP3(masm, r0, r3, r2);
-    IntegerToDoubleConversionWithVFP3(masm, r1, r1, r0);
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+    __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
+    __ IntegerToDoubleConversionWithVFP3(r1, r1, r0);
   } else {
     // Write Smi from r0 to r3 and r2 in double format.  r6 is scratch.
     __ mov(r7, Operand(r0));
@@ -5058,7 +5044,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
 
 
   if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    IntegerToDoubleConversionWithVFP3(masm, r0, r3, r2);
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+    __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
   } else {
     // Write Smi from r0 to r3 and r2 in double format.
     __ mov(r7, Operand(r0));
@@ -5089,7 +5076,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   }
 
   if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    IntegerToDoubleConversionWithVFP3(masm, r1, r1, r0);
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+    __ IntegerToDoubleConversionWithVFP3(r1, r1, r0);
   } else {
     // Write Smi from r1 to r1 and r0 in double format.
     __ mov(r7, Operand(r1));
@@ -5113,26 +5101,31 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
        (Token::DIV == operation) ||
        (Token::ADD == operation) ||
        (Token::SUB == operation))) {
-     // ARMv7 VFP3 instructions to implement
-     // double precision, add, subtract, multiply, divide.
-     // This VFP3 implementation is known to work on
-     // ARMv7-VFP3 Snapdragon processor
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+    // ARMv7 VFP3 instructions to implement
+    // double precision, add, subtract, multiply, divide.
+    __ fmdrr(d6, r0, r1);
+    __ fmdrr(d7, r2, r3);
 
-     __ fmdrr(d6, r0, r1);
-     __ fmdrr(d7, r2, r3);
+    if (Token::MUL == operation) {
+      __ fmuld(d5, d6, d7);
+    } else if (Token::DIV == operation) {
+      __ fdivd(d5, d6, d7);
+    } else if (Token::ADD == operation) {
+      __ faddd(d5, d6, d7);
+    } else if (Token::SUB == operation) {
+      __ fsubd(d5, d6, d7);
+    } else {
+      UNREACHABLE();
+    }
 
-     if      (Token::MUL == operation) __ fmuld(d5, d6, d7);
-     else if (Token::DIV == operation) __ fdivd(d5, d6, d7);
-     else if (Token::ADD == operation) __ faddd(d5, d6, d7);
-     else if (Token::SUB == operation) __ fsubd(d5, d6, d7);
+    __ fmrrd(r0, r1, d5);
 
-     __ fmrrd(r0, r1, d5);
-
-     __ str(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
-     __ str(r1, FieldMemOperand(r5, HeapNumber::kValueOffset + 4));
-     __ mov(r0, Operand(r5));
-     __ mov(pc, lr);
-     return;
+    __ str(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
+    __ str(r1, FieldMemOperand(r5, HeapNumber::kValueOffset + 4));
+    __ mov(r0, Operand(r5));
+    __ mov(pc, lr);
+    return;
   }
   __ push(lr);   // For later.
   __ push(r5);   // Address of heap number that is answer.
@@ -5211,10 +5204,9 @@ static void GetInt32(MacroAssembler* masm,
   }
   __ bind(&right_exponent);
   if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+    CpuFeatures::Scope scope(CpuFeatures::VFP3);
     // ARMv7 VFP3 instructions implementing double precision to integer
     // conversion using round to zero.
-    // This VFP3 implementation is known to work on
-    // ARMv7-VFP3 Snapdragon processor.
     __ ldr(scratch2, FieldMemOperand(source, HeapNumber::kMantissaOffset));
     __ fmdrr(d7, scratch2, scratch);
     __ ftosid(s15, d7);
@@ -5227,7 +5219,7 @@ static void GetInt32(MacroAssembler* masm,
     // Shift up the mantissa bits to take up the space the exponent used to
     // take. We just orred in the implicit bit so that took care of one and
     // we want to leave the sign bit 0 so we subtract 2 bits from the shift
-    //  distance.
+    // distance.
     const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
     __ mov(scratch2, Operand(scratch2, LSL, shift_distance));
     // Put sign in zero flag.

@@ -435,9 +435,9 @@ Simulator::Simulator() {
   v_flag_ = false;
 
   // Initializing VFP registers.
-  // All registers are initialized to zero to start with.
+  // All registers are initialized to zero to start with
   // even though s_registers_ & d_registers_ share the same
-  // physical registers in the target
+  // physical registers in the target.
   for (int i = 0; i < num_s_registers; i++) {
     vfp_register[i] = 0;
   }
@@ -567,16 +567,19 @@ int32_t Simulator::get_pc() const {
   return registers_[pc];
 }
 
+
 // Getting from and setting into VFP registers.
 void Simulator::set_s_register(int sreg, unsigned int value) {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
   vfp_register[sreg] = value;
 }
 
+
 unsigned int Simulator::get_s_register(int sreg) const {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
   return vfp_register[sreg];
 }
+
 
 void Simulator::set_s_register_from_float(int sreg, const float flt) {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
@@ -587,20 +590,22 @@ void Simulator::set_s_register_from_float(int sreg, const float flt) {
   memcpy(&vfp_register[sreg], buffer, sizeof(vfp_register[0]));
 }
 
+
 void Simulator::set_s_register_from_sinteger(int sreg, const int sint) {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
-  // Read the bits from the integer value
-  // into the unsigned integer element of vfp_register[] given by index=sreg.
+  // Read the bits from the integer value into the unsigned integer element of
+  // vfp_register[] given by index=sreg.
   char buffer[sizeof(vfp_register[0])];
   memcpy(buffer, &sint, sizeof(vfp_register[0]));
   memcpy(&vfp_register[sreg], buffer, sizeof(vfp_register[0]));
 }
 
+
 void Simulator::set_d_register_from_double(int dreg, const double& dbl) {
   ASSERT((dreg >= 0) && (dreg < num_d_registers));
-  // Read the bits from the double precision floating point value
-  // into the two consecutive unsigned integer elements of vfp_register[]
-  // given by index 2*sreg and 2*sreg+1.
+  // Read the bits from the double precision floating point value into the two
+  // consecutive unsigned integer elements of vfp_register[] given by index
+  // 2*sreg and 2*sreg+1.
   char buffer[2 * sizeof(vfp_register[0])];
   memcpy(buffer, &dbl, 2 * sizeof(vfp_register[0]));
 #ifndef BIG_ENDIAN_FLOATING_POINT
@@ -610,6 +615,7 @@ void Simulator::set_d_register_from_double(int dreg, const double& dbl) {
   memcpy(&vfp_register[dreg * 2 + 1], &buffer[0], sizeof(vfp_register[0]));
 #endif
 }
+
 
 float Simulator::get_float_from_s_register(int sreg) {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
@@ -623,6 +629,7 @@ float Simulator::get_float_from_s_register(int sreg) {
   return(sm_val);
 }
 
+
 int Simulator::get_sinteger_from_s_register(int sreg) {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
 
@@ -635,6 +642,7 @@ int Simulator::get_sinteger_from_s_register(int sreg) {
   return(sm_val);
 }
 
+
 double Simulator::get_double_from_d_register(int dreg) {
   ASSERT((dreg >= 0) && (dreg < num_d_registers));
 
@@ -642,11 +650,11 @@ double Simulator::get_double_from_d_register(int dreg) {
   // Read the bits from the unsigned integer vfp_register[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(vfp_register[0])];
-#ifndef BIG_ENDIAN_FLOATING_POINT
-  memcpy(buffer, &vfp_register[2 * dreg], 2 * sizeof(vfp_register[0]));
-#else
+#ifdef BIG_ENDIAN_FLOATING_POINT
   memcpy(&buffer[0], &vfp_register[2 * dreg + 1], sizeof(vfp_register[0]));
   memcpy(&buffer[4], &vfp_register[2 * dreg], sizeof(vfp_register[0]));
+#else
+  memcpy(buffer, &vfp_register[2 * dreg], 2 * sizeof(vfp_register[0]));
 #endif
   memcpy(&dm_val, buffer, 2 * sizeof(vfp_register[0]));
   return(dm_val);
@@ -879,9 +887,10 @@ bool Simulator::OverflowFrom(int32_t alu_out,
   return overflow;
 }
 
+
 // Support for VFP comparisons.
 void Simulator::Compute_FPSCR_Flags(double val1, double val2) {
-  // All Non-Nan cases
+  // All non-NaN cases.
   if (val1 == val2) {
     n_flag_FPSCR_ = false;
     z_flag_FPSCR_ = true;
@@ -908,7 +917,6 @@ void Simulator::Copy_FPSCR_to_APSR() {
   c_flag_ = c_flag_FPSCR_;
   v_flag_ = v_flag_FPSCR_;
 }
-
 
 
 // Addressing Mode 1 - Data-processing operands:
@@ -1293,7 +1301,7 @@ void Simulator::DecodeType01(Instr* instr) {
           }
         }
       } else {
-        UNIMPLEMENTED();  // not used by V8
+        UNIMPLEMENTED();  // Not used by V8.
       }
     } else {
       // extra load/store instructions
@@ -1952,9 +1960,9 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
       if (instr->Bits(15, 12) == 0xF)
         Copy_FPSCR_to_APSR();
       else
-        UNIMPLEMENTED();  // not used by V8 now
+        UNIMPLEMENTED();  // Not used by V8.
     } else {
-      UNIMPLEMENTED();  // not used by V8 now
+      UNIMPLEMENTED();  // Not used by V8.
     }
   } else if (instr->Bit(21) == 1) {
     if ((instr->Bit(20) == 0x1) &&
@@ -1985,7 +1993,7 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
       double dd_value = dn_value * dm_value;
       set_d_register_from_double(vd, dd_value);
     } else {
-      UNIMPLEMENTED();  // not used by V8 now
+      UNIMPLEMENTED();  // Not used by V8.
     }
   } else {
     if ((instr->Bit(20) == 0x0) &&
@@ -2004,15 +2012,14 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
                                                        instr->NField()));
       set_register(rt, int_value);
     } else {
-      UNIMPLEMENTED();  // not used by V8 now
+      UNIMPLEMENTED();  // Not used by V8.
     }
   }
 }
 
 
-
 // void Simulator::DecodeType6CoprocessorIns(Instr* instr)
-// Decode Type 6 coprocessor instructions
+// Decode Type 6 coprocessor instructions.
 // Dm = fmdrr(Rt, Rt2)
 // <Rt, Rt2> = fmrrd(Dm)
 void Simulator::DecodeType6CoprocessorIns(Instr* instr) {

@@ -89,7 +89,9 @@ double OS::nan_value() {
 }
 
 
-bool OS::fgrep_vfp(const char* file_name, const char* string) {
+bool OS::ArmCpuHasFeature(OS::CpuFeature feature) {
+  const char* search_string = NULL;
+  const char* file_name = "/proc/cpuinfo";
   // Simple detection of VFP at runtime for Linux.
   // It is based on /proc/cpuinfo, which reveals hardware configuration
   // to user-space applications.  According to ARM (mid 2009), no similar
@@ -100,13 +102,20 @@ bool OS::fgrep_vfp(const char* file_name, const char* string) {
   // and not using STL string and ifstream because,
   // on Linux, it's reading from a (non-mmap-able)
   // character special device.
+  switch (feature) {
+    case VFP:
+      search_string = "vfp";
+      break;
+    default:
+      UNREACHABLE();
+  }
 
   FILE* f = NULL;
+  const char* what = search_string;
 
   if (NULL == (f = fopen(file_name, "r")))
     return false;
 
-  const char* what = string;
   int k;
   while (EOF != (k = fgetc(f))) {
     if (k == *what) {
@@ -118,13 +127,13 @@ bool OS::fgrep_vfp(const char* file_name, const char* string) {
         fclose(f);
         return true;
       } else {
-        what = string;
+        what = search_string;
       }
     }
   }
   fclose(f);
 
-  // Did not find string in the file file_name.
+  // Did not find string in the proc file.
   return false;
 }
 
@@ -272,7 +281,7 @@ void OS::LogSharedLibraryAddresses() {
   // This function assumes that the layout of the file is as follows:
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
-  FILE *fp = fopen("/proc/self/maps", "r");
+  FILE* fp = fopen("/proc/self/maps", "r");
   if (fp == NULL) return;
 
   // Allocate enough room to be able to store a full file name.
@@ -643,7 +652,7 @@ typedef uint32_t __sigset_t;
 typedef struct sigcontext mcontext_t;
 typedef struct ucontext {
   uint32_t uc_flags;
-  struct ucontext *uc_link;
+  struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
   __sigset_t uc_sigmask;

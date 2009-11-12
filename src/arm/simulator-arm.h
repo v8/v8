@@ -252,7 +252,7 @@ class Simulator {
   bool v_flag_;
 
   // VFP architecture state.
-  unsigned int vfp_register[32/*num_s_registers*/];
+  unsigned int vfp_register[num_s_registers];
   bool n_flag_FPSCR_;
   bool z_flag_FPSCR_;
   bool c_flag_FPSCR_;

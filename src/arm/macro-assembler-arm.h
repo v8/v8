@@ -240,6 +240,11 @@ class MacroAssembler: public Assembler {
   // occurred.
   void IllegalOperation(int num_arguments);
 
+  // Uses VFP instructions to Convert a Smi to a double.
+  void IntegerToDoubleConversionWithVFP3(Register inReg,
+                                         Register outHighReg,
+                                         Register outLowReg);
+
 
   // ---------------------------------------------------------------------------
   // Runtime calls

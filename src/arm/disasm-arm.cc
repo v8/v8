@@ -336,6 +336,7 @@ int Decoder::FormatRegister(Instr* instr, const char* format) {
   return -1;
 }
 
+
 // Handle all VFP register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatVFPRegister(Instr* instr, const char* format) {
@@ -362,12 +363,11 @@ int Decoder::FormatVFPRegister(Instr* instr, const char* format) {
   return -1;
 }
 
+
 int Decoder::FormatVFPinstruction(Instr* instr, const char* format) {
     Print(format);
     return 0;
 }
-
-
 
 
 // FormatOption takes a formatting string and interprets it based on
@@ -897,10 +897,9 @@ void Decoder::DecodeUnconditional(Instr* instr) {
 
 
 // void Decoder::DecodeTypeVFP(Instr* instr)
-// Implements the following
-// VFP instructions
-// fmsr :Sn = Rt
-// fmrs :Rt = Sn
+// Implements the following VFP instructions:
+// fmsr: Sn = Rt
+// fmrs: Rt = Sn
 // fsitod: Dd = Sm
 // ftosid: Sd = Dm
 // Dd = faddd(Dn, Dm)
@@ -951,9 +950,9 @@ void Decoder::DecodeTypeVFP(Instr* instr) {
         if (instr->Bits(15, 12) == 0xF)
           Format(instr, "vmrs'cond APSR, FPSCR");
         else
-          Unknown(instr);  // not used by V8
+          Unknown(instr);  // Not used by V8.
     } else {
-      Unknown(instr);  // not used by V8
+      Unknown(instr);  // Not used by V8.
     }
   } else if (instr->Bit(21) == 1) {
     if ((instr->Bit(20) == 0x1) &&
@@ -975,7 +974,7 @@ void Decoder::DecodeTypeVFP(Instr* instr) {
                (instr->Bit(4) == 0)) {
       Format(instr, "vmul.f64'cond 'Dd, 'Dn, 'Dm");
     } else {
-      Unknown(instr);  // not used by V8
+      Unknown(instr);  // Not used by V8.
     }
   } else {
     if ((instr->Bit(20) == 0x0) &&
@@ -991,21 +990,20 @@ void Decoder::DecodeTypeVFP(Instr* instr) {
                (instr->Bits(3, 0) == 0x0)) {
       Format(instr, "vmov'cond 'rt, 'Sn");
     } else {
-      Unknown(instr);  // not used by V8
+      Unknown(instr);  // Not used by V8.
     }
   }
 }
 
 
-
-// Decode Type 6 coprocessor instructions
+// Decode Type 6 coprocessor instructions.
 // Dm = fmdrr(Rt, Rt2)
 // <Rt, Rt2> = fmrrd(Dm)
 void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
   ASSERT((instr->TypeField() == 6));
 
   if (instr->Bit(23) == 1) {
-     Unknown(instr);  // not used by V8
+     Unknown(instr);  // Not used by V8.
   } else if (instr->Bit(22) == 1) {
     if ((instr->Bits(27, 24) == 0xC) &&
         (instr->Bit(22) == 1) &&
@@ -1018,12 +1016,12 @@ void Decoder::DecodeType6CoprocessorIns(Instr* instr) {
         Format(instr, "vmov'cond 'rt, 'rn, 'Dm");
       }
     } else {
-      Unknown(instr);  // not used by V8
+      Unknown(instr);  // Not used by V8.
     }
   } else if (instr->Bit(21) == 1) {
-    Unknown(instr);  // not used by V8
+    Unknown(instr);  // Not used by V8.
   } else {
-    Unknown(instr);  // not used by V8
+    Unknown(instr);  // Not used by V8.
   }
 }
 
