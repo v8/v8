@@ -599,11 +599,6 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
     }
   }
 
-  if (scope->arguments() != NULL) {
-    if (FLAG_trace_bailout) PrintF("function uses 'arguments'\n");
-    return NORMAL;
-  }
-
   has_supported_syntax_ = true;
   VisitDeclarations(scope->declarations());
   if (!has_supported_syntax_) return NORMAL;
@@ -796,17 +791,21 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
   if (rewrite != NULL) {
     // Non-global.
     Slot* slot = rewrite->AsSlot();
-    if (slot == NULL) {
-      // This is a variable rewritten to an explicit property access
-      // on the arguments object.
-      BAILOUT("non-global/non-slot variable reference");
-    }
-
-    Slot::Type type = slot->type();
-    // When LOOKUP slots are enabled, some currently dead code
-    // implementing unary typeof will become live.
-    if (type == Slot::LOOKUP) {
-      BAILOUT("Lookup slot");
+    if (slot != NULL) {
+      Slot::Type type = slot->type();
+      // When LOOKUP slots are enabled, some currently dead code
+      // implementing unary typeof will become live.
+      if (type == Slot::LOOKUP) {
+        BAILOUT("Lookup slot");
+      }
+    } else {
+      Property* property = rewrite->AsProperty();
+      // In the presence of an arguments object, parameter variables
+      // are rewritten into property accesses on that object.
+      ASSERT_NOT_NULL(property);
+      ASSERT_NE(Expression::kUninitialized, context_);
+      Visit(property);
+      property->set_context(context_);
     }
   }
 }

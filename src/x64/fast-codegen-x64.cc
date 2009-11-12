@@ -62,16 +62,54 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = fun->scope()->num_stack_slots();
-    for (int i = 0; i < locals_count; i++) {
-      __ PushRoot(Heap::kUndefinedValueRootIndex);
+    if (locals_count <= 1) {
+      if (locals_count > 0) {
+        __ PushRoot(Heap::kUndefinedValueRootIndex);
+      }
+    } else {
+      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+      for (int i = 0; i < locals_count; i++) {
+        __ push(rdx);
+      }
     }
+  }
+
+  bool function_in_register = true;
+
+  Variable* arguments = fun->scope()->arguments()->AsVariable();
+  if (arguments != NULL) {
+    // Function uses arguments object.
+    Comment cmnt(masm_, "[ Allocate arguments object");
+    __ push(rdi);
+    // The receiver is just before the parameters on the caller's stack.
+    __ lea(rdx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
+                                 fun->num_parameters() * kPointerSize));
+    __ push(rdx);
+    __ Push(Smi::FromInt(fun->num_parameters()));
+    // Arguments to ArgumentsAccessStub:
+    //   function, receiver address, parameter count.
+    // The stub will rewrite receiver and parameter count if the previous
+    // stack frame was an arguments adapter frame.
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    __ CallStub(&stub);
+    // Store new arguments object in both "arguments" and ".arguments" slots.
+    __ movq(Operand(rbp, SlotOffset(arguments->slot())), rax);
+    Slot* dot_arguments_slot =
+        fun->scope()->arguments_shadow()->AsVariable()->slot();
+    __ movq(Operand(rbp, SlotOffset(dot_arguments_slot)), rax);
+    function_in_register = false;
   }
 
   // Possibly allocate a local context.
   if (fun->scope()->num_heap_slots() > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
-    // Argument to NewContext is the function, still in rdi.
-    __ push(rdi);
+    if (function_in_register) {
+      // Argument to NewContext is the function, still in rdi.
+      __ push(rdi);
+    } else {
+      // Argument to NewContext is the function, no longer in rdi.
+      __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+    }
     __ CallRuntime(Runtime::kNewContext, 1);
     // Context is returned in both rax and rsi.  It replaces the context
     // passed to us.  It's saved in the stack and kept live in rsi.
@@ -432,9 +470,8 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     __ nop();
 
     DropAndMove(expr->context(), rax);
-  } else {
+  } else if (rewrite->AsSlot() != NULL) {
     Slot* slot = rewrite->AsSlot();
-    ASSERT_NE(NULL, slot);
     switch (slot->type()) {
       case Slot::LOCAL:
       case Slot::PARAMETER: {
@@ -475,6 +512,13 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
         UNREACHABLE();
         break;
     }
+  } else {
+    // The parameter variable has been rewritten into an explict access to
+    // the arguments object.
+    Property* property = rewrite->AsProperty();
+    ASSERT_NOT_NULL(property);
+    ASSERT_EQ(expr->context(), property->context());
+    Visit(property);
   }
 }
 

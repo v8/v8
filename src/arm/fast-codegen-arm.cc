@@ -55,26 +55,56 @@ namespace internal {
 void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   function_ = fun;
   SetFunctionPosition(fun);
+  int locals_count = fun->scope()->num_stack_slots();
 
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  if (locals_count > 0) {
+      // Load undefined value here, so the value is ready for the loop below.
+      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  }
   // Adjust fp to point to caller's fp.
   __ add(fp, sp, Operand(2 * kPointerSize));
 
   { Comment cmnt(masm_, "[ Allocate locals");
-    int locals_count = fun->scope()->num_stack_slots();
-    if (locals_count > 0) {
-      __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-    }
-    __ LoadRoot(r2, Heap::kStackLimitRootIndex);
     for (int i = 0; i < locals_count; i++) {
       __ push(ip);
     }
   }
 
+  bool function_in_register = true;
+
+  Variable* arguments = fun->scope()->arguments()->AsVariable();
+  if (arguments != NULL) {
+    // Function uses arguments object.
+    Comment cmnt(masm_, "[ Allocate arguments object");
+    __ mov(r3, r1);
+    // Receiver is just before the parameters on the caller's stack.
+    __ add(r2, fp, Operand(StandardFrameConstants::kCallerSPOffset +
+                               fun->num_parameters() * kPointerSize));
+    __ mov(r1, Operand(Smi::FromInt(fun->num_parameters())));
+    __ stm(db_w, sp, r1.bit() | r2.bit() | r3.bit());
+
+    // Arguments to ArgumentsAccessStub:
+    //   function, receiver address, parameter count.
+    // The stub will rewrite receiever and parameter count if the previous
+    // stack frame was an arguments adapter frame.
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    __ CallStub(&stub);
+    __ str(r0, MemOperand(fp, SlotOffset(arguments->slot())));
+    Slot* dot_arguments_slot =
+        fun->scope()->arguments_shadow()->AsVariable()->slot();
+    __ str(r0, MemOperand(fp, SlotOffset(dot_arguments_slot)));
+    function_in_register = false;
+  }
+
   // Possibly allocate a local context.
   if (fun->scope()->num_heap_slots() > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
-    // Argument to NewContext is the function, still in r1.
+    if (!function_in_register) {
+      // Load this again, if it's used by the local context below.
+      __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    }
+    // Argument to NewContext is the function, which is in r1.
     __ push(r1);
     __ CallRuntime(Runtime::kNewContext, 1);
     // Context is returned in both r0 and cp.  It replaces the context
@@ -94,6 +124,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   // added to the implicit 8 byte offset that always applies to operations
   // with pc and gives a return address 12 bytes down.
   Comment cmnt(masm_, "[ Stack check");
+  __ LoadRoot(r2, Heap::kStackLimitRootIndex);
   __ add(lr, pc, Operand(Assembler::kInstrSize));
   __ cmp(sp, Operand(r2));
   StackCheckStub stub;
@@ -432,7 +463,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     DropAndMove(expr->context(), r0);
-  } else {
+  } else if (rewrite->AsSlot() != NULL) {
     Slot* slot = rewrite->AsSlot();
     ASSERT_NE(NULL, slot);
     switch (slot->type()) {
@@ -474,6 +505,13 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
         UNREACHABLE();
         break;
     }
+  } else {
+    // The parameter variable has been rewritten into an explict access to
+    // the arguments object.
+    Property* property = rewrite->AsProperty();
+    ASSERT_NOT_NULL(property);
+    ASSERT_EQ(expr->context(), property->context());
+    Visit(property);
   }
 }
 

@@ -67,11 +67,42 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     }
   }
 
+  bool function_in_register = true;
+
+  Variable* arguments = fun->scope()->arguments()->AsVariable();
+  if (arguments != NULL) {
+    // Function uses arguments object.
+    Comment cmnt(masm_, "[ Allocate arguments object");
+    __ push(edi);
+    // Receiver is just before the parameters on the caller's stack.
+    __ lea(edx, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
+                                 fun->num_parameters() * kPointerSize));
+    __ push(edx);
+    __ push(Immediate(Smi::FromInt(fun->num_parameters())));
+    // Arguments to ArgumentsAccessStub:
+    //   function, receiver address, parameter count.
+    // The stub will rewrite receiever and parameter count if the previous
+    // stack frame was an arguments adapter frame.
+    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+    __ CallStub(&stub);
+    __ mov(Operand(ebp, SlotOffset(arguments->slot())), eax);
+    Slot* dot_arguments_slot =
+        fun->scope()->arguments_shadow()->AsVariable()->slot();
+    __ mov(Operand(ebp, SlotOffset(dot_arguments_slot)), eax);
+
+    function_in_register = false;
+  }
+
   // Possibly allocate a local context.
   if (fun->scope()->num_heap_slots() > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
-    // Argument to NewContext is the function, still in edi.
-    __ push(edi);
+    if (function_in_register) {
+      // Argument to NewContext is the function, still in edi.
+      __ push(edi);
+    } else {
+      // Argument to NewContext is the function, no longer in edi.
+      __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+    }
     __ CallRuntime(Runtime::kNewContext, 1);
     // Context is returned in both eax and esi.  It replaces the context
     // passed to us.  It's saved in the stack and kept live in esi.
@@ -425,9 +456,8 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     __ nop();
 
     DropAndMove(expr->context(), eax);
-  } else {
+  } else if (rewrite->AsSlot() != NULL) {
     Slot* slot = rewrite->AsSlot();
-    ASSERT_NE(NULL, slot);
     switch (slot->type()) {
       case Slot::LOCAL:
       case Slot::PARAMETER: {
@@ -468,6 +498,13 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
         UNREACHABLE();
         break;
     }
+  } else {
+    // The parameter variable has been rewritten into an explict access to
+    // the arguments object.
+    Property* property = rewrite->AsProperty();
+    ASSERT_NOT_NULL(property);
+    ASSERT_EQ(expr->context(), property->context());
+    Visit(property);
   }
 }
 
