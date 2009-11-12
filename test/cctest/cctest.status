@@ -51,9 +51,6 @@ test-serialize/DependentTestThatAlwaysFails: FAIL
 test-serialize/Deserialize2: SKIP
 test-serialize/DeserializeAndRunScript2: SKIP
 
-# BUG(113): Test seems flaky on ARM.
-test-spaces/LargeObjectSpace: PASS || FAIL
-
 # BUG(240): Test seems flaky on ARM.
 test-api/RegExpInterruption: SKIP
 
