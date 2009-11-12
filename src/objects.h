@@ -1451,7 +1451,7 @@ class JSObject: public HeapObject {
   inline bool HasHiddenPropertiesObject();
   inline Object* GetHiddenPropertiesObject();
   inline Object* SetHiddenPropertiesObject(Object* hidden_obj);
-  
+
   Object* DeleteProperty(String* name, DeleteMode mode);
   Object* DeleteElement(uint32_t index, DeleteMode mode);
   Object* DeleteLazyProperty(LookupResult* result,
