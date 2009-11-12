@@ -55,10 +55,6 @@ array-constructor: PASS, SKIP if $mode == debug
 # Flaky test that can hit compilation-time stack overflow in debug mode.
 unicode-test: PASS, (PASS || FAIL) if $mode == debug
 
-# Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
-# Fails on real ARM hardware but not on the simulator.
-string-compare-alignment: PASS || FAIL
-
 # Times out often in release mode on ARM.
 array-splice: PASS || TIMEOUT
 
