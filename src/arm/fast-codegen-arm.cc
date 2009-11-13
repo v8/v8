@@ -123,7 +123,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
   // Put the lr setup instruction in the delay slot.  The kInstrSize is
   // added to the implicit 8 byte offset that always applies to operations
   // with pc and gives a return address 12 bytes down.
-  Comment cmnt(masm_, "[ Stack check");
+  { Comment cmnt(masm_, "[ Stack check");
   __ LoadRoot(r2, Heap::kStackLimitRootIndex);
   __ add(lr, pc, Operand(Assembler::kInstrSize));
   __ cmp(sp, Operand(r2));
@@ -133,6 +133,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
                  RelocInfo::CODE_TARGET),
          LeaveCC,
          lo);
+  }
 
   { Comment cmnt(masm_, "[ Declarations");
     VisitDeclarations(fun->scope()->declarations());
@@ -326,6 +327,7 @@ void FastCodeGenerator::TestAndBranch(Register source,
 
 
 void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
+  Comment cmnt(masm_, "[ Declaration");
   Variable* var = decl->proxy()->var();
   ASSERT(var != NULL);  // Must have been resolved.
   Slot* slot = var->slot();

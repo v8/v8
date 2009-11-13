@@ -76,7 +76,6 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 
 void FastCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
-  Comment cmnt(masm_, "[ Declarations");
   int length = declarations->length();
   int globals = 0;
   for (int i = 0; i < length; i++) {

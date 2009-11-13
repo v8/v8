@@ -322,6 +322,7 @@ void FastCodeGenerator::TestAndBranch(Register source,
 
 
 void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
+  Comment cmnt(masm_, "[ Declaration");
   Variable* var = decl->proxy()->var();
   ASSERT(var != NULL);  // Must have been resolved.
   Slot* slot = var->slot();
