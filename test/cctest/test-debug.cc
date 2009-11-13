@@ -2744,14 +2744,14 @@ TEST(PauseInScript) {
   // Set breakpoint in the script.
   SetScriptBreakPointByNameFromJS(script_name, 0, -1);
   break_point_hit_count = 0;
-  
+
   v8::ScriptOrigin origin(v8::String::New(script_name), v8::Integer::New(0));
   v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(src),
                                                       &origin);
   v8::Local<v8::Value> r = script->Run();
 
   CHECK(r->IsFunction());
-  CHECK_EQ(1, break_point_hit_count );
+  CHECK_EQ(1, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
