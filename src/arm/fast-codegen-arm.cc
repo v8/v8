@@ -864,10 +864,10 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
 
         // Update the write barrier for the array store with r0 as the scratch
-        // register.  Skip the write barrier if r0 is a smi.
+        // register.  Skip the write barrier if the value written (r1) is a smi.
         // The smi test is part of RecordWrite on other platforms, not on arm.
         Label exit;
-        __ tst(r0, Operand(kSmiTagMask));
+        __ tst(r1, Operand(kSmiTagMask));
         __ b(eq, &exit);
 
         __ mov(r2, Operand(offset));
