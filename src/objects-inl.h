@@ -3043,6 +3043,43 @@ PropertyAttributes JSObject::GetPropertyAttribute(String* key) {
   return GetPropertyAttributeWithReceiver(this, key);
 }
 
+// TODO(504): this may be useful in other places too where JSGlobalProxy
+// is used.
+Object* JSObject::BypassGlobalProxy() {
+  if (IsJSGlobalProxy()) {
+    Object* proto = GetPrototype();
+    if (proto->IsNull()) return Heap::undefined_value();
+    ASSERT(proto->IsJSGlobalObject());
+    return proto;
+  }
+  return this;
+}
+
+
+bool JSObject::HasHiddenPropertiesObject() {
+  ASSERT(!IsJSGlobalProxy());
+  return GetPropertyAttributePostInterceptor(this,
+                                             Heap::hidden_symbol(),
+                                             false) != ABSENT;
+}
+
+
+Object* JSObject::GetHiddenPropertiesObject() {
+  ASSERT(!IsJSGlobalProxy());
+  PropertyAttributes attributes;
+  return GetLocalPropertyPostInterceptor(this,
+                                         Heap::hidden_symbol(),
+                                         &attributes);
+}
+
+
+Object* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
+  ASSERT(!IsJSGlobalProxy());
+  return SetPropertyPostInterceptor(Heap::hidden_symbol(),
+                                    hidden_obj,
+                                    DONT_ENUM);
+}
+
 
 bool JSObject::HasElement(uint32_t index) {
   return HasElementWithReceiver(this, index);

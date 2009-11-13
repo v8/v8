@@ -6277,6 +6277,17 @@ Object* JSObject::GetPropertyPostInterceptor(JSObject* receiver,
   return pt->GetPropertyWithReceiver(receiver, name, attributes);
 }
 
+Object* JSObject::GetLocalPropertyPostInterceptor(
+    JSObject* receiver,
+    String* name,
+    PropertyAttributes* attributes) {
+  // Check local property in holder, ignore interceptor.
+  LookupResult result;
+  LocalLookupRealNamedProperty(name, &result);
+  if (!result.IsValid()) return Heap::undefined_value();
+  return GetProperty(receiver, &result, name, attributes);
+}
+
 
 Object* JSObject::GetPropertyWithInterceptor(
     JSObject* receiver,

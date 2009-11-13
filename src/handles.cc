@@ -285,7 +285,9 @@ Handle<Object> GetPrototype(Handle<Object> obj) {
 
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
                                    bool create_if_needed) {
-  Handle<String> key = Factory::hidden_symbol();
+  Object* holder = obj->BypassGlobalProxy();
+  if (holder->IsUndefined()) return Factory::undefined_value();
+  obj = Handle<JSObject>(JSObject::cast(holder));
 
   if (obj->HasFastProperties()) {
     // If the object has fast properties, check whether the first slot
@@ -294,7 +296,7 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = obj->map()->instance_descriptors();
     if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == *key) &&
+        (descriptors->GetKey(0) == Heap::hidden_symbol()) &&
         descriptors->IsProperty(0)) {
       ASSERT(descriptors->GetType(0) == FIELD);
       return Handle<Object>(obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
@@ -304,17 +306,17 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
   // Only attempt to find the hidden properties in the local object and not
   // in the prototype chain.  Note that HasLocalProperty() can cause a GC in
   // the general case in the presence of interceptors.
-  if (!obj->HasLocalProperty(*key)) {
+  if (!obj->HasHiddenPropertiesObject()) {
     // Hidden properties object not found. Allocate a new hidden properties
     // object if requested. Otherwise return the undefined value.
     if (create_if_needed) {
       Handle<Object> hidden_obj = Factory::NewJSObject(Top::object_function());
-      return SetProperty(obj, key, hidden_obj, DONT_ENUM);
+      return Handle<Object>(obj->SetHiddenPropertiesObject(*hidden_obj));
     } else {
       return Factory::undefined_value();
     }
   }
-  return GetProperty(obj, key);
+  return Handle<Object>(obj->GetHiddenPropertiesObject());
 }
 
 
