@@ -62,8 +62,13 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = fun->scope()->num_stack_slots();
-    for (int i = 0; i < locals_count; i++) {
+    if (locals_count == 1) {
       __ push(Immediate(Factory::undefined_value()));
+    } else if (locals_count > 1) {
+      __ mov(eax, Immediate(Factory::undefined_value()));
+      for (int i = 0; i < locals_count; i++) {
+       __ push(eax);
+      }
     }
   }
 
