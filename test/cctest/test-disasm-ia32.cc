@@ -105,13 +105,13 @@ TEST(DisasmIa320) {
   __ xor_(edx, 3);
   __ nop();
   {
-    CHECK(CpuFeatures::IsSupported(CpuFeatures::CPUID));
-    CpuFeatures::Scope fscope(CpuFeatures::CPUID);
+    CHECK(CpuFeatures::IsSupported(CPUID));
+    CpuFeatures::Scope fscope(CPUID);
     __ cpuid();
   }
   {
-    CHECK(CpuFeatures::IsSupported(CpuFeatures::RDTSC));
-    CpuFeatures::Scope fscope(CpuFeatures::RDTSC);
+    CHECK(CpuFeatures::IsSupported(RDTSC));
+    CpuFeatures::Scope fscope(RDTSC);
     __ rdtsc();
   }
   __ movsx_b(edx, Operand(ecx));
@@ -353,8 +353,8 @@ TEST(DisasmIa320) {
   __ fwait();
   __ nop();
   {
-    CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
-    CpuFeatures::Scope fscope(CpuFeatures::SSE2);
+    CHECK(CpuFeatures::IsSupported(SSE2));
+    CpuFeatures::Scope fscope(SSE2);
     __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
     __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ addsd(xmm1, xmm0);
@@ -368,8 +368,8 @@ TEST(DisasmIa320) {
 
   // cmov.
   {
-    CHECK(CpuFeatures::IsSupported(CpuFeatures::CMOV));
-    CpuFeatures::Scope use_cmov(CpuFeatures::CMOV);
+    CHECK(CpuFeatures::IsSupported(CMOV));
+    CpuFeatures::Scope use_cmov(CMOV);
     __ cmov(overflow, eax, Operand(eax, 0));
     __ cmov(no_overflow, eax, Operand(eax, 1));
     __ cmov(below, eax, Operand(eax, 2));

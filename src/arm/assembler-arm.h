@@ -41,6 +41,7 @@
 #define V8_ARM_ASSEMBLER_ARM_H_
 #include <stdio.h>
 #include "assembler.h"
+#include "serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -427,26 +428,29 @@ class MemOperand BASE_EMBEDDED {
 // Supported features must be enabled by a Scope before use.
 class CpuFeatures : public AllStatic {
  public:
-  enum Feature { VFP3 = 1 };
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
   static void Probe();
-  // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(Feature f) {
-    if (f == VFP3 && !FLAG_enable_vfp3) return false;
 
+  // Check whether a feature is supported by the target CPU.
+  static bool IsSupported(CpuFeature f) {
+    if (f == VFP3 && !FLAG_enable_vfp3) return false;
     return (supported_ & (1u << f)) != 0;
   }
+
   // Check whether a feature is currently enabled.
-  static bool IsEnabled(Feature f) {
+  static bool IsEnabled(CpuFeature f) {
     return (enabled_ & (1u << f)) != 0;
   }
+
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(Feature f) {
+    explicit Scope(CpuFeature f) {
       ASSERT(CpuFeatures::IsSupported(f));
+      ASSERT(!Serializer::enabled() ||
+             (found_by_runtime_probing_ & (1u << f)) == 0);
       old_enabled_ = CpuFeatures::enabled_;
       CpuFeatures::enabled_ |= 1u << f;
     }
@@ -455,13 +459,14 @@ class CpuFeatures : public AllStatic {
     unsigned old_enabled_;
 #else
    public:
-    explicit Scope(Feature f) {}
+    explicit Scope(CpuFeature f) {}
 #endif
   };
 
  private:
   static unsigned supported_;
   static unsigned enabled_;
+  static unsigned found_by_runtime_probing_;
 };
 
 

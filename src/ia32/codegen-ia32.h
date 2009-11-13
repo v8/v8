@@ -658,7 +658,7 @@ class GenericBinaryOpStub: public CodeStub {
         flags_(flags),
         args_in_registers_(false),
         args_reversed_(false) {
-    use_sse3_ = CpuFeatures::IsSupported(CpuFeatures::SSE3);
+    use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
 

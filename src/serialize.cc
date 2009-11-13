@@ -1048,6 +1048,7 @@ Serializer::~Serializer() {
 
 
 bool Serializer::serialization_enabled_ = false;
+bool Serializer::too_late_to_enable_now_ = false;
 
 
 #ifdef DEBUG

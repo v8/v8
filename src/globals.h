@@ -576,6 +576,17 @@ inline Dest bit_cast(const Source& source) {
 }
 
 
+// Feature flags bit positions. They are mostly based on the CPUID spec.
+// (We assign CPUID itself to one of the currently reserved bits --
+// feel free to change this if needed.)
+enum CpuFeature { SSE3 = 32,   // x86
+                  SSE2 = 26,   // x86
+                  CMOV = 15,   // x86
+                  RDTSC = 4,   // x86
+                  CPUID = 10,  // x86
+                  VFP3 = 1,    // ARM
+                  SAHF = 0};   // x86
+
 } }  // namespace v8::internal
 
 #endif  // V8_GLOBALS_H_

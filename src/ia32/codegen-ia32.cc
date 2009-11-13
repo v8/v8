@@ -6751,8 +6751,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // eax: y
       // edx: x
 
-      if (CpuFeatures::IsSupported(CpuFeatures::SSE2)) {
-        CpuFeatures::Scope use_sse2(CpuFeatures::SSE2);
+      if (CpuFeatures::IsSupported(SSE2)) {
+        CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSse2Operands(masm, &call_runtime);
 
         switch (op_) {
@@ -6847,7 +6847,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       if (use_sse3_) {
         // Truncate the operands to 32-bit integers and check for
         // exceptions in doing so.
-        CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        CpuFeatures::Scope scope(SSE3);
         __ fisttp_s(Operand(esp, 0 * kPointerSize));
         __ fisttp_s(Operand(esp, 1 * kPointerSize));
         __ fnstsw_ax();
@@ -7474,9 +7474,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Call builtin if operands are not floating point or smi.
   Label check_for_symbols;
   Label unordered;
-  if (CpuFeatures::IsSupported(CpuFeatures::SSE2)) {
-    CpuFeatures::Scope use_sse2(CpuFeatures::SSE2);
-    CpuFeatures::Scope use_cmov(CpuFeatures::CMOV);
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    CpuFeatures::Scope use_cmov(CMOV);
 
     FloatingPointHelper::LoadSse2Operands(masm, &check_for_symbols);
     __ comisd(xmm0, xmm1);

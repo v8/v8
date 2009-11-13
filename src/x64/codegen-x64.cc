@@ -7566,7 +7566,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       if (use_sse3_) {
         // Truncate the operands to 32-bit integers and check for
         // exceptions in doing so.
-        CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        CpuFeatures::Scope scope(SSE3);
         __ fisttp_s(Operand(rsp, 0 * kPointerSize));
         __ fisttp_s(Operand(rsp, 1 * kPointerSize));
         __ fnstsw_ax();

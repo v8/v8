@@ -84,12 +84,24 @@ void OS::Setup() {
 }
 
 
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+#if (defined(__VFP_FP__) && !defined(__SOFTFP__))
+  // Here gcc is telling us that we are on an ARM and gcc is assuming that we
+  // have VFP3 instructions.  If gcc can assume it then so can we.
+  return 1u << VFP3;
+#else
+  return 0;  // Linux runs on anything.
+#endif
+}
+
+
 double OS::nan_value() {
   return NAN;
 }
 
 
-bool OS::ArmCpuHasFeature(OS::CpuFeature feature) {
+#ifdef __arm__
+bool OS::ArmCpuHasFeature(CpuFeature feature) {
   const char* search_string = NULL;
   const char* file_name = "/proc/cpuinfo";
   // Simple detection of VFP at runtime for Linux.
@@ -103,7 +115,7 @@ bool OS::ArmCpuHasFeature(OS::CpuFeature feature) {
   // on Linux, it's reading from a (non-mmap-able)
   // character special device.
   switch (feature) {
-    case VFP:
+    case VFP3:
       search_string = "vfp";
       break;
     default:
@@ -136,6 +148,7 @@ bool OS::ArmCpuHasFeature(OS::CpuFeature feature) {
   // Did not find string in the proc file.
   return false;
 }
+#endif  // def __arm__
 
 
 int OS::ActivationFrameAlignment() {

@@ -192,7 +192,6 @@ static void Serialize() {
 
 
 static void Serialize2() {
-  Serializer::Enable();
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from v8natives.js and their addresses can be processed.  This
   // will clear the pending fixups array, which would otherwise contain GC roots
@@ -214,6 +213,7 @@ TEST(Serialize) {
 
 // Test that the whole heap can be serialized.
 TEST(Serialize2) {
+  Serializer::Enable();
   v8::V8::Initialize();
   Serialize2();
 }

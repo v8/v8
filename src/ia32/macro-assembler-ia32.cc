@@ -319,7 +319,7 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 
 
 void MacroAssembler::FCmp() {
-  if (CpuFeatures::IsSupported(CpuFeatures::CMOV)) {
+  if (CpuFeatures::IsSupported(CMOV)) {
     fucomip();
     ffree(0);
     fincstp();

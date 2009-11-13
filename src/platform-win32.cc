@@ -1316,6 +1316,11 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) { return 0; }
 #endif  // __MINGW32__
 
 
+uint64_t OS::CpuFeaturesImpliedByPlatform() {
+  return 0;  // Windows runs on anything.
+}
+
+
 double OS::nan_value() {
 #ifdef _MSC_VER
   // Positive Quiet NaN with no payload (aka. Indeterminate) has all bits

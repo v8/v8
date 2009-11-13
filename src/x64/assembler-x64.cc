@@ -80,11 +80,15 @@ XMMRegister xmm15 = { 15 };
 //   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
 uint64_t CpuFeatures::supported_ = kDefaultCpuFeatures;
 uint64_t CpuFeatures::enabled_ = 0;
+uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 void CpuFeatures::Probe()  {
   ASSERT(Heap::HasBeenSetup());
   ASSERT(supported_ == kDefaultCpuFeatures);
-  if (Serializer::enabled()) return;  // No features if we might serialize.
+  if (Serializer::enabled()) {
+    supported_ |= OS::CpuFeaturesImpliedByPlatform();
+    return;  // No features if we might serialize.
+  }
 
   Assembler assm(NULL, 0);
   Label cpuid, done;
@@ -160,6 +164,11 @@ void CpuFeatures::Probe()  {
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   supported_ = probe();
+  found_by_runtime_probing_ = supported_;
+  found_by_runtime_probing_ &= ~kDefaultCpuFeatures;
+  uint64_t os_guarantees = OS::CpuFeaturesImpliedByPlatform();
+  supported_ |= os_guarantees;
+  found_by_runtime_probing_ &= ~os_guarantees;
   // SSE2 and CMOV must be available on an X64 CPU.
   ASSERT(IsSupported(CPUID));
   ASSERT(IsSupported(SSE2));
@@ -889,7 +898,7 @@ void Assembler::cmpb_al(Immediate imm8) {
 
 
 void Assembler::cpuid() {
-  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::CPUID));
+  ASSERT(CpuFeatures::IsEnabled(CPUID));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit(0x0F);
@@ -2047,7 +2056,7 @@ void Assembler::fistp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_s(const Operand& adr) {
-  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::SSE3));
+  ASSERT(CpuFeatures::IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_optional_rex_32(adr);

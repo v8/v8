@@ -4623,8 +4623,8 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   // Rhs is a smi, lhs is a number.
   __ push(lr);
 
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
     __ IntegerToDoubleConversionWithVFP3(r1, r3, r2);
   } else {
     __ mov(r7, Operand(r1));
@@ -4661,8 +4661,8 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
   __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
 
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
     __ IntegerToDoubleConversionWithVFP3(r0, r1, r0);
   } else {
     __ mov(r7, Operand(r0));
@@ -4872,8 +4872,8 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // fall through if neither is a NaN.  Also binds rhs_not_nan.
   EmitNanCheck(masm, &rhs_not_nan, cc_);
 
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement double precision comparison.
     __ fmdrr(d6, r0, r1);
     __ fmdrr(d7, r2, r3);
@@ -4989,8 +4989,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // The new heap number is in r5.  r6 and r7 are scratch.
   AllocateHeapNumber(masm, &slow, r5, r6, r7);
 
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
     __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
     __ IntegerToDoubleConversionWithVFP3(r1, r1, r0);
   } else {
@@ -5043,8 +5043,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   }
 
 
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
     __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
   } else {
     // Write Smi from r0 to r3 and r2 in double format.
@@ -5075,8 +5075,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     AllocateHeapNumber(masm, &slow, r5, r6, r7);
   }
 
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
     __ IntegerToDoubleConversionWithVFP3(r1, r1, r0);
   } else {
     // Write Smi from r1 to r1 and r0 in double format.
@@ -5096,12 +5096,12 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // r3: Right value (sign, exponent, top of mantissa).
   // r5: Address of heap number for result.
 
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3) &&
+  if (CpuFeatures::IsSupported(VFP3) &&
       ((Token::MUL == operation) ||
        (Token::DIV == operation) ||
        (Token::ADD == operation) ||
        (Token::SUB == operation))) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+    CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement
     // double precision, add, subtract, multiply, divide.
     __ fmdrr(d6, r0, r1);
@@ -5195,7 +5195,7 @@ static void GetInt32(MacroAssembler* masm,
   __ sub(scratch2, scratch2, Operand(zero_exponent), SetCC);
   // Dest already has a Smi zero.
   __ b(lt, &done);
-  if (!CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
+  if (!CpuFeatures::IsSupported(VFP3)) {
     // We have a shifted exponent between 0 and 30 in scratch2.
     __ mov(dest, Operand(scratch2, LSR, HeapNumber::kExponentShift));
     // We now have the exponent in dest.  Subtract from 30 to get
@@ -5203,8 +5203,8 @@ static void GetInt32(MacroAssembler* masm,
     __ rsb(dest, dest, Operand(30));
   }
   __ bind(&right_exponent);
-  if (CpuFeatures::IsSupported(CpuFeatures::VFP3)) {
-    CpuFeatures::Scope scope(CpuFeatures::VFP3);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions implementing double precision to integer
     // conversion using round to zero.
     __ ldr(scratch2, FieldMemOperand(source, HeapNumber::kMantissaOffset));

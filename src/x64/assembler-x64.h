@@ -37,6 +37,8 @@
 #ifndef V8_X64_ASSEMBLER_X64_H_
 #define V8_X64_ASSEMBLER_X64_H_
 
+#include "serialize.h"
+
 namespace v8 {
 namespace internal {
 
@@ -362,20 +364,11 @@ class Operand BASE_EMBEDDED {
 //   }
 class CpuFeatures : public AllStatic {
  public:
-  // Feature flags bit positions. They are mostly based on the CPUID spec.
-  // (We assign CPUID itself to one of the currently reserved bits --
-  // feel free to change this if needed.)
-  enum Feature { SSE3 = 32,
-                 SSE2 = 26,
-                 CMOV = 15,
-                 RDTSC = 4,
-                 CPUID = 10,
-                 SAHF = 0};
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
   static void Probe();
   // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(Feature f) {
+  static bool IsSupported(CpuFeature f) {
     if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
@@ -384,33 +377,35 @@ class CpuFeatures : public AllStatic {
     return (supported_ & (V8_UINT64_C(1) << f)) != 0;
   }
   // Check whether a feature is currently enabled.
-  static bool IsEnabled(Feature f) {
+  static bool IsEnabled(CpuFeature f) {
     return (enabled_ & (V8_UINT64_C(1) << f)) != 0;
   }
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
    public:
-    explicit Scope(Feature f) {
+    explicit Scope(CpuFeature f) {
+      uint64_t mask = (V8_UINT64_C(1) << f);
       ASSERT(CpuFeatures::IsSupported(f));
+      ASSERT(!Serializer::enabled() || (found_by_runtime_probing_ & mask) == 0);
       old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= (V8_UINT64_C(1) << f);
+      CpuFeatures::enabled_ |= mask;
     }
     ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
    private:
     uint64_t old_enabled_;
 #else
    public:
-    explicit Scope(Feature f) {}
+    explicit Scope(CpuFeature f) {}
 #endif
   };
  private:
   // Safe defaults include SSE2 and CMOV for X64. It is always available, if
   // anyone checks, but they shouldn't need to check.
-  static const uint64_t kDefaultCpuFeatures =
-      (1 << CpuFeatures::SSE2 | 1 << CpuFeatures::CMOV);
+  static const uint64_t kDefaultCpuFeatures = (1 << SSE2 | 1 << CMOV);
   static uint64_t supported_;
   static uint64_t enabled_;
+  static uint64_t found_by_runtime_probing_;
 };
 
 

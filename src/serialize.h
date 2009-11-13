@@ -148,8 +148,17 @@ class Serializer: public ObjectVisitor {
 
   static bool enabled() { return serialization_enabled_; }
 
-  static void Enable() { serialization_enabled_ = true; }
+  static void Enable() {
+    if (!serialization_enabled_) {
+      ASSERT(!too_late_to_enable_now_);
+    }
+    serialization_enabled_ = true;
+  }
+
   static void Disable() { serialization_enabled_ = false; }
+  // Call this when you have made use of the fact that there is no serialization
+  // going on.
+  static void TooLateToEnableNow() { too_late_to_enable_now_ = true; }
 
  private:
   friend class ReferenceUpdater;
@@ -194,6 +203,8 @@ class Serializer: public ObjectVisitor {
   int objects_;  // number of objects serialized
 
   static bool serialization_enabled_;
+  // Did we already make use of the fact that serialization was not enabled?
+  static bool too_late_to_enable_now_;
 
   int flags_end_;  // The position right after the flags.
 
