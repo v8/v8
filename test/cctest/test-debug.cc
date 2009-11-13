@@ -2728,6 +2728,37 @@ TEST(DebugStepFunctionCall) {
 }
 
 
+// Tests that breakpoint will be hit if it's set in script.
+TEST(PauseInScript) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Register a debug event listener which counts.
+  v8::Debug::SetDebugEventListener(DebugEventCounter);
+
+  // Create a script that returns a function.
+  const char* src = "(function (evt) {})";
+  const char* script_name = "StepInHandlerTest";
+
+  // Set breakpoint in the script.
+  SetScriptBreakPointByNameFromJS(script_name, 0, -1);
+  break_point_hit_count = 0;
+  
+  v8::ScriptOrigin origin(v8::String::New(script_name), v8::Integer::New(0));
+  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(src),
+                                                      &origin);
+  v8::Local<v8::Value> r = script->Run();
+
+  CHECK(r->IsFunction());
+  CHECK_EQ(1, break_point_hit_count );
+
+  // Get rid of the debug event listener.
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 // Test break on exceptions. For each exception break combination the number
 // of debug event exception callbacks and message callbacks are collected. The
 // number of debug event exception callbacks are used to check that the
