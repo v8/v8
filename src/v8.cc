@@ -43,7 +43,7 @@ bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
 
-bool V8::Initialize(GenericDeserializer *des) {
+bool V8::Initialize(Deserializer *des) {
   bool create_heap_objects = des == NULL;
   if (has_been_disposed_ || has_fatal_error_) return false;
   if (IsRunning()) return true;
@@ -59,7 +59,6 @@ bool V8::Initialize(GenericDeserializer *des) {
 
   // Enable logging before setting up the heap
   Logger::Setup();
-  if (des) des->GetLog();
 
   // Setup the platform OS support.
   OS::Setup();

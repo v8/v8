@@ -252,7 +252,6 @@ class Variable;
 class VariableProxy;
 class RelocInfo;
 class Deserializer;
-class GenericDeserializer;  // TODO(erikcorry): Get rid of this.
 class MessageLocation;
 class ObjectGroup;
 class TickSample;

@@ -471,12 +471,16 @@ class ExternalReference BASE_EMBEDDED {
 
   static void* Redirect(void* address, bool fp_return = false) {
     if (redirector_ == NULL) return address;
-    return (*redirector_)(address, fp_return);
+    void* answer = (*redirector_)(address, fp_return);
+    return answer;
   }
 
   static void* Redirect(Address address_arg, bool fp_return = false) {
     void* address = reinterpret_cast<void*>(address_arg);
-    return redirector_ == NULL ? address : (*redirector_)(address, fp_return);
+    void* answer = (redirector_ == NULL) ?
+                   address :
+                   (*redirector_)(address, fp_return);
+    return answer;
   }
 
   void* address_;
