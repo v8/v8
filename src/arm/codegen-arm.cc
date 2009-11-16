@@ -4545,6 +4545,22 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
     if (cc != eq) {
       __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
       __ b(ge, slow);
+      // Normally here we fall through to return_equal, but undefined is
+      // special: (undefined == undefined) == true, but (undefined <= undefined)
+      // == false!  See ECMAScript 11.8.5.
+      if (cc == le || cc == ge) {
+        __ cmp(r4, Operand(ODDBALL_TYPE));
+        __ b(ne, &return_equal);
+        __ LoadRoot(r2, Heap::kUndefinedValueRootIndex);
+        __ cmp(r0, Operand(r2));
+        __ b(ne, &return_equal);
+        if (cc == le) {
+          __ mov(r0, Operand(GREATER));  // undefined <= undefined should fail.
+        } else  {
+          __ mov(r0, Operand(LESS));     // undefined >= undefined should fail.
+        }
+        __ mov(pc, Operand(lr));       // Return.
+      }
     }
   }
   __ bind(&return_equal);
