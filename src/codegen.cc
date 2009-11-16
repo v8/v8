@@ -431,6 +431,9 @@ void CodeGenerator::CodeForStatementPosition(Statement* stmt) {
   if (FLAG_debug_info) RecordPositions(masm(), stmt->statement_pos());
 }
 
+void CodeGenerator::CodeForDoWhileConditionPosition(DoWhileStatement* stmt) {
+  if (FLAG_debug_info) RecordPositions(masm(), stmt->condition_position());
+}
 
 void CodeGenerator::CodeForSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {

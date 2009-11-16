@@ -2449,6 +2449,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   CodeForStatementPosition(node);
   Load(node->expression());
   Result return_value = frame_->Pop();
+  masm()->WriteRecordedPositions();
   if (function_return_is_shadowed_) {
     function_return_.Jump(&return_value);
   } else {
@@ -2712,6 +2713,8 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
         node->continue_target()->Bind();
       }
       if (has_valid_frame()) {
+        Comment cmnt(masm_, "[ DoWhileCondition");
+        CodeForDoWhileConditionPosition(node);
         ControlDestination dest(&body, node->break_target(), false);
         LoadCondition(node->cond(), &dest, true);
       }

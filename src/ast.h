@@ -322,7 +322,7 @@ class IterationStatement: public BreakableStatement {
 class DoWhileStatement: public IterationStatement {
  public:
   explicit DoWhileStatement(ZoneStringList* labels)
-      : IterationStatement(labels), cond_(NULL) {
+      : IterationStatement(labels), cond_(NULL), condition_position_(-1) {
   }
 
   void Initialize(Expression* cond, Statement* body) {
@@ -334,8 +334,14 @@ class DoWhileStatement: public IterationStatement {
 
   Expression* cond() const { return cond_; }
 
+  // Position where condition expression starts. We need it to make
+  // the loop's condition a breakable location.
+  int condition_position() { return condition_position_; }
+  void set_condition_position(int pos) { condition_position_ = pos; }
+
  private:
   Expression* cond_;
+  int condition_position_;
 };
 
 

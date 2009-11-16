@@ -2542,6 +2542,12 @@ DoWhileStatement* Parser::ParseDoWhileStatement(ZoneStringList* labels,
   Statement* body = ParseStatement(NULL, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
+
+  if (loop != NULL) {
+    int position = scanner().location().beg_pos;
+    loop->set_condition_position(position);
+  }
+
   Expression* cond = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 

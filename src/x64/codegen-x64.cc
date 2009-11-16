@@ -1318,6 +1318,8 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
         node->continue_target()->Bind();
       }
       if (has_valid_frame()) {
+        Comment cmnt(masm_, "[ DoWhileCondition");
+        CodeForDoWhileConditionPosition(node);
         ControlDestination dest(&body, node->break_target(), false);
         LoadCondition(node->cond(), &dest, true);
       }
