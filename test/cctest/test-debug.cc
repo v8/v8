@@ -5605,3 +5605,86 @@ TEST(DebugBreakFunctionApply) {
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
 }
+
+
+v8::Handle<v8::Context> debugee_context;
+v8::Handle<v8::Context> debugger_context;
+
+
+// Property getter that checks that current and calling contexts
+// are both the debugee contexts.
+static v8::Handle<v8::Value> NamedGetterWithCallingContextCheck(
+    v8::Local<v8::String> name,
+    const v8::AccessorInfo& info) {
+  CHECK(strcmp(*v8::String::AsciiValue(name), "a") == 0);
+  v8::Handle<v8::Context> current = v8::Context::GetCurrent();
+  CHECK(current == debugee_context);
+  CHECK(current != debugger_context);
+  v8::Handle<v8::Context> calling = v8::Context::GetCalling();
+  CHECK(calling == debugee_context);
+  CHECK(calling != debugger_context);
+  return v8::Int32::New(1);
+}
+
+
+// Debug event listener that checks if the first argument of a function is
+// an object with property 'a' == 1. If the property has custom accessor
+// this handler will eventually invoke it.
+static void DebugEventGetAtgumentPropertyValue(
+    v8::DebugEvent event,
+    v8::Handle<v8::Object> exec_state,
+    v8::Handle<v8::Object> event_data,
+    v8::Handle<v8::Value> data) {
+  if (event == v8::Break) {
+    break_point_hit_count++;
+    CHECK(debugger_context == v8::Context::GetCurrent());
+    v8::Handle<v8::Function> func(v8::Function::Cast(*CompileRun(
+        "(function(exec_state) {\n"
+        "    return (exec_state.frame(0).argumentValue(0).property('a').\n"
+        "            value().value() == 1);\n"
+        "})")));
+    const int argc = 1;
+    v8::Handle<v8::Value> argv[argc] = { exec_state };
+    v8::Handle<v8::Value> result = func->Call(exec_state, argc, argv);
+    CHECK(result->IsTrue());
+  }
+}
+
+
+TEST(CallingContextIsNotDebugContext) {
+  // Create and enter a debugee context.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
+
+  // Save handles to the debugger and debugee contexts to be used in
+  // NamedGetterWithCallingContextCheck.
+  debugee_context = v8::Local<v8::Context>(*env);
+  debugger_context = v8::Utils::ToLocal(Debug::debug_context());
+
+  // Create object with 'a' property accessor.
+  v8::Handle<v8::ObjectTemplate> named = v8::ObjectTemplate::New();
+  named->SetAccessor(v8::String::New("a"),
+                     NamedGetterWithCallingContextCheck);
+  env->Global()->Set(v8::String::New("obj"),
+                     named->NewInstance());
+
+  // Register the debug event listener
+  v8::Debug::SetDebugEventListener(DebugEventGetAtgumentPropertyValue);
+
+  // Create a function that invokes debugger.
+  v8::Local<v8::Function> foo = CompileFunction(
+      &env,
+      "function bar(x) { debugger; }"
+      "function foo(){ bar(obj); }",
+      "foo");
+
+  break_point_hit_count = 0;
+  foo->Call(env->Global(), 0, NULL);
+  CHECK_EQ(1, break_point_hit_count);
+
+  v8::Debug::SetDebugEventListener(NULL);
+  debugee_context = v8::Handle<v8::Context>();
+  debugger_context = v8::Handle<v8::Context>();
+  CheckDebuggerUnloaded();
+}
