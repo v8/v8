@@ -42,8 +42,9 @@ big-object-literal: PASS, SKIP if ($arch == arm)
 # Issue 488: this test sometimes times out.
 array-constructor: PASS || TIMEOUT
 
-# Issue 499
-cyrillic: PASS, TIMEOUT if ($arch == arm)
+# Very slow on ARM, contains no architecture dependent code.
+unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm)
+
 
 [ $arch == arm ]
 
