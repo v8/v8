@@ -941,7 +941,7 @@ Handle<Context> Top::GetCallingGlobalContext() {
       }
     }
   }
-#endif  // ENABLE_DEBUGGER_SUPPORT  
+#endif  // ENABLE_DEBUGGER_SUPPORT
   if (it.done()) return Handle<Context>::null();
   JavaScriptFrame* frame = it.frame();
   Context* context = Context::cast(frame->context());

@@ -5616,7 +5616,7 @@ v8::Handle<v8::Context> debugger_context;
 static v8::Handle<v8::Value> NamedGetterWithCallingContextCheck(
     v8::Local<v8::String> name,
     const v8::AccessorInfo& info) {
-  CHECK(strcmp(*v8::String::AsciiValue(name), "a") == 0);
+  CHECK_EQ(0, strcmp(*v8::String::AsciiValue(name), "a"));
   v8::Handle<v8::Context> current = v8::Context::GetCurrent();
   CHECK(current == debugee_context);
   CHECK(current != debugger_context);
