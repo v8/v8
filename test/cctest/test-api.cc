@@ -6451,6 +6451,31 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
   i::Heap::CollectAllGarbage(false);
 }
 
+void DisposingCallback(v8::Persistent<v8::Value> handle, void*) {
+  handle.Dispose();
+}
+
+void HandleCreatingCallback(v8::Persistent<v8::Value> handle, void*) {
+  v8::HandleScope scope;
+  v8::Persistent<v8::Object>::New(v8::Object::New());
+}
+
+
+THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
+  LocalContext context;
+
+  v8::Persistent<v8::Object> handle1, handle2, handle3;
+  {
+    v8::HandleScope scope;
+    handle3 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle2 = v8::Persistent<v8::Object>::New(v8::Object::New());
+    handle1 = v8::Persistent<v8::Object>::New(v8::Object::New());
+  }
+  handle2.MakeWeak(NULL, DisposingCallback);
+  handle3.MakeWeak(NULL, HandleCreatingCallback);
+  i::Heap::CollectAllGarbage(false);
+}
+
 
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
   v8::V8::Initialize();

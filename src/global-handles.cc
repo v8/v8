@@ -165,6 +165,9 @@ class GlobalHandles::Node : public Malloced {
       // It's fine though to reuse nodes that were destroyed in weak callback
       // as those cannot be deallocated until we are back from the callback.
       set_first_free(NULL);
+      if (first_deallocated()) {
+        first_deallocated()->set_next(head());
+      }
       // Leaving V8.
       VMState state(EXTERNAL);
       func(object, par);
@@ -270,6 +273,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
     // Next try deallocated list
     result = first_deallocated();
     set_first_deallocated(result->next_free());
+    ASSERT(result->next() == head());
     set_head(result);
   } else {
     // Allocate a new node.

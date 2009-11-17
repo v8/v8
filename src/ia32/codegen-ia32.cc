@@ -3958,12 +3958,28 @@ void CodeGenerator::VisitLiteral(Literal* node) {
 }
 
 
-void CodeGenerator::LoadUnsafeSmi(Register target, Handle<Object> value) {
+void CodeGenerator::PushUnsafeSmi(Handle<Object> value) {
+  ASSERT(value->IsSmi());
+  int bits = reinterpret_cast<int>(*value);
+  __ push(Immediate(bits & 0x0000FFFF));
+  __ or_(Operand(esp, 0), Immediate(bits & 0xFFFF0000));
+}
+
+
+void CodeGenerator::StoreUnsafeSmiToLocal(int offset, Handle<Object> value) {
+  ASSERT(value->IsSmi());
+  int bits = reinterpret_cast<int>(*value);
+  __ mov(Operand(ebp, offset), Immediate(bits & 0x0000FFFF));
+  __ or_(Operand(ebp, offset), Immediate(bits & 0xFFFF0000));
+}
+
+
+void CodeGenerator::MoveUnsafeSmi(Register target, Handle<Object> value) {
   ASSERT(target.is_valid());
   ASSERT(value->IsSmi());
   int bits = reinterpret_cast<int>(*value);
   __ Set(target, Immediate(bits & 0x0000FFFF));
-  __ xor_(target, bits & 0xFFFF0000);
+  __ or_(target, bits & 0xFFFF0000);
 }
 
 

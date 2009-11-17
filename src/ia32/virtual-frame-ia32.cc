@@ -75,10 +75,7 @@ void VirtualFrame::SyncElementBelowStackPointer(int index) {
 
     case FrameElement::CONSTANT:
       if (cgen()->IsUnsafeSmi(element.handle())) {
-        Result temp = cgen()->allocator()->Allocate();
-        ASSERT(temp.is_valid());
-        cgen()->LoadUnsafeSmi(temp.reg(), element.handle());
-        __ mov(Operand(ebp, fp_relative(index)), temp.reg());
+        cgen()->StoreUnsafeSmiToLocal(fp_relative(index), element.handle());
       } else {
         __ Set(Operand(ebp, fp_relative(index)),
                Immediate(element.handle()));
@@ -127,10 +124,7 @@ void VirtualFrame::SyncElementByPushing(int index) {
 
     case FrameElement::CONSTANT:
       if (cgen()->IsUnsafeSmi(element.handle())) {
-        Result temp = cgen()->allocator()->Allocate();
-        ASSERT(temp.is_valid());
-        cgen()->LoadUnsafeSmi(temp.reg(), element.handle());
-        __ push(temp.reg());
+       cgen()->PushUnsafeSmi(element.handle());
       } else {
         __ push(Immediate(element.handle()));
       }
@@ -161,15 +155,16 @@ void VirtualFrame::SyncRange(int begin, int end) {
   // on the stack.
   int start = Min(begin, stack_pointer_ + 1);
 
-  // If positive we have to adjust the stack pointer.
-  int delta = end - stack_pointer_;
-  if (delta > 0) {
-    stack_pointer_ = end;
-    __ sub(Operand(esp), Immediate(delta * kPointerSize));
-  }
-
+  // Emit normal push instructions for elements above stack pointer
+  // and use mov instructions if we are below stack pointer.
   for (int i = start; i <= end; i++) {
-    if (!elements_[i].is_synced()) SyncElementBelowStackPointer(i);
+    if (!elements_[i].is_synced()) {
+      if (i <= stack_pointer_) {
+        SyncElementBelowStackPointer(i);
+      } else {
+        SyncElementByPushing(i);
+      }
+    }
   }
 }
 
@@ -198,7 +193,7 @@ void VirtualFrame::MakeMergable() {
         // Emit a move.
         if (element.is_constant()) {
           if (cgen()->IsUnsafeSmi(element.handle())) {
-            cgen()->LoadUnsafeSmi(fresh.reg(), element.handle());
+            cgen()->MoveUnsafeSmi(fresh.reg(), element.handle());
           } else {
             __ Set(fresh.reg(), Immediate(element.handle()));
           }
@@ -299,7 +294,7 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
           if (!source.is_synced()) {
             if (cgen()->IsUnsafeSmi(source.handle())) {
               esi_caches = i;
-              cgen()->LoadUnsafeSmi(esi, source.handle());
+              cgen()->MoveUnsafeSmi(esi, source.handle());
               __ mov(Operand(ebp, fp_relative(i)), esi);
             } else {
               __ Set(Operand(ebp, fp_relative(i)), Immediate(source.handle()));
@@ -407,7 +402,7 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame* expected) {
 
         case FrameElement::CONSTANT:
           if (cgen()->IsUnsafeSmi(source.handle())) {
-            cgen()->LoadUnsafeSmi(target_reg, source.handle());
+            cgen()->MoveUnsafeSmi(target_reg, source.handle());
           } else {
            __ Set(target_reg, Immediate(source.handle()));
           }

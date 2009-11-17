@@ -484,9 +484,11 @@ class CodeGenerator: public AstVisitor {
   // than 16 bits.
   static const int kMaxSmiInlinedBits = 16;
   bool IsUnsafeSmi(Handle<Object> value);
-  // Load an integer constant x into a register target using
+  // Load an integer constant x into a register target or into the stack using
   // at most 16 bits of user-controlled data per assembly operation.
-  void LoadUnsafeSmi(Register target, Handle<Object> value);
+  void MoveUnsafeSmi(Register target, Handle<Object> value);
+  void StoreUnsafeSmiToLocal(int offset, Handle<Object> value);
+  void PushUnsafeSmi(Handle<Object> value);
 
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 

@@ -1730,6 +1730,7 @@ Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate proxies in paged spaces.
   STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
+  if (always_allocate()) space = OLD_DATA_SPACE;
   Object* result = Allocate(proxy_map(), space);
   if (result->IsFailure()) return result;
 
@@ -1821,12 +1822,13 @@ Object* Heap::AllocateConsString(String* first, String* second) {
       : long_cons_string_map();
   }
 
-  Object* result = Allocate(map, NEW_SPACE);
+  Object* result = Allocate(map,
+                            always_allocate() ? OLD_POINTER_SPACE : NEW_SPACE);
   if (result->IsFailure()) return result;
-  ASSERT(InNewSpace(result));
   ConsString* cons_string = ConsString::cast(result);
-  cons_string->set_first(first, SKIP_WRITE_BARRIER);
-  cons_string->set_second(second, SKIP_WRITE_BARRIER);
+  WriteBarrierMode mode = cons_string->GetWriteBarrierMode();
+  cons_string->set_first(first, mode);
+  cons_string->set_second(second, mode);
   cons_string->set_length(length);
   return result;
 }
@@ -1920,7 +1922,8 @@ Object* Heap::AllocateExternalStringFromAscii(
     map = long_external_ascii_string_map();
   }
 
-  Object* result = Allocate(map, NEW_SPACE);
+  Object* result = Allocate(map,
+                            always_allocate() ? OLD_DATA_SPACE : NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalAsciiString* external_string = ExternalAsciiString::cast(result);
@@ -1936,7 +1939,8 @@ Object* Heap::AllocateExternalStringFromTwoByte(
   int length = resource->length();
 
   Map* map = ExternalTwoByteString::StringMap(length);
-  Object* result = Allocate(map, NEW_SPACE);
+  Object* result = Allocate(map,
+                            always_allocate() ? OLD_DATA_SPACE : NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalTwoByteString* external_string = ExternalTwoByteString::cast(result);
@@ -2321,6 +2325,7 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   AllocationSpace space =
       (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
   if (map->instance_size() > MaxObjectSizeInPagedSpace()) space = LO_SPACE;
+  if (always_allocate()) space = OLD_POINTER_SPACE;
   Object* obj = Allocate(map, space);
   if (obj->IsFailure()) return obj;
 
