@@ -3736,7 +3736,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ addq(rcx, Immediate(String::kLongLengthShift));
   // Fetch the length field into the temporary register.
   __ movl(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
-  __ shrl(temp.reg());  // The shift amount in ecx is implicit operand.
+  __ shrl_cl(temp.reg());
   // Check for index out of range.
   __ cmpl(index.reg(), temp.reg());
   __ j(greater_equal, &slow_case);
@@ -7597,9 +7597,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_OR:  __ orl(rax, rcx); break;
         case Token::BIT_AND: __ andl(rax, rcx); break;
         case Token::BIT_XOR: __ xorl(rax, rcx); break;
-        case Token::SAR: __ sarl(rax); break;
-        case Token::SHL: __ shll(rax); break;
-        case Token::SHR: __ shrl(rax); break;
+        case Token::SAR: __ sarl_cl(rax); break;
+        case Token::SHL: __ shll_cl(rax); break;
+        case Token::SHR: __ shrl_cl(rax); break;
         default: UNREACHABLE();
       }
       if (op_ == Token::SHR) {

@@ -597,19 +597,18 @@ class Assembler : public Malloced {
   void rcl(Register dst, uint8_t imm8);
 
   void sar(Register dst, uint8_t imm8);
-  void sar(Register dst);
+  void sar_cl(Register dst);
 
   void sbb(Register dst, const Operand& src);
 
   void shld(Register dst, const Operand& src);
 
   void shl(Register dst, uint8_t imm8);
-  void shl(Register dst);
+  void shl_cl(Register dst);
 
   void shrd(Register dst, const Operand& src);
 
   void shr(Register dst, uint8_t imm8);
-  void shr(Register dst);
   void shr_cl(Register dst);
 
   void subb(const Operand& dst, int8_t imm8);

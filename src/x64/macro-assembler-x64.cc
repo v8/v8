@@ -1078,7 +1078,7 @@ void MacroAssembler::SmiShiftLeft(Register dst,
   SmiToInteger32(rcx, src2);
   // Shift amount specified by lower 5 bits, not six as the shl opcode.
   and_(rcx, Immediate(0x1f));
-  shl(dst);
+  shl_cl(dst);
 }
 
 
@@ -1099,7 +1099,7 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   }
   SmiToInteger32(rcx, src2);
   orl(rcx, Immediate(kSmiShift));
-  shr(dst);  // Shift is rcx modulo 0x1f + 32.
+  shr_cl(dst);  // Shift is rcx modulo 0x1f + 32.
   shl(dst, Immediate(kSmiShift));
   testq(dst, dst);
   if (src1.is(rcx) || src2.is(rcx)) {
@@ -1135,7 +1135,7 @@ void MacroAssembler::SmiShiftArithmeticRight(Register dst,
   }
   SmiToInteger32(rcx, src2);
   orl(rcx, Immediate(kSmiShift));
-  sar(dst);  // Shift 32 + original rcx & 0x1f.
+  sar_cl(dst);  // Shift 32 + original rcx & 0x1f.
   shl(dst, Immediate(kSmiShift));
   if (src1.is(rcx)) {
     movq(src1, kScratchRegister);

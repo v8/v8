@@ -240,7 +240,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
   // ecx is also the receiver.
   __ lea(ecx, Operand(scratch, String::kLongLengthShift));
-  __ shr(eax);  // ecx is implicit shift register.
+  __ shr_cl(eax);
   __ shl(eax, kSmiTagSize);
   __ ret(0);
 

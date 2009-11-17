@@ -1188,12 +1188,12 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     // Perform the operation.
     switch (op) {
       case Token::SAR:
-        __ sar(answer.reg());
+        __ sar_cl(answer.reg());
         // No checks of result necessary
         break;
       case Token::SHR: {
         Label result_ok;
-        __ shr(answer.reg());
+        __ shr_cl(answer.reg());
         // Check that the *unsigned* result fits in a smi.  Neither of
         // the two high-order bits can be set:
         //  * 0x80000000: high bit would be lost when smi tagging.
@@ -1214,7 +1214,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       }
       case Token::SHL: {
         Label result_ok;
-        __ shl(answer.reg());
+        __ shl_cl(answer.reg());
         // Check that the *signed* result fits in a smi.
         __ cmp(answer.reg(), 0xc0000000);
         __ j(positive, &result_ok);
@@ -4788,7 +4788,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ add(Operand(ecx), Immediate(String::kLongLengthShift));
   // Fetch the length field into the temporary register.
   __ mov(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
-  __ shr(temp.reg());  // The shift amount in ecx is implicit operand.
+  __ shr_cl(temp.reg());
   // Check for index out of range.
   __ cmp(index.reg(), Operand(temp.reg()));
   __ j(greater_equal, &slow_case);
@@ -6705,11 +6705,11 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Perform the operation.
       switch (op_) {
         case Token::SAR:
-          __ sar(eax);
+          __ sar_cl(eax);
           // No checks of result necessary
           break;
         case Token::SHR:
-          __ shr(eax);
+          __ shr_cl(eax);
           // Check that the *unsigned* result fits in a smi.
           // Neither of the two high-order bits can be set:
           // - 0x80000000: high bit would be lost when smi tagging.
@@ -6720,7 +6720,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           __ j(not_zero, slow, not_taken);
           break;
         case Token::SHL:
-          __ shl(eax);
+          __ shl_cl(eax);
           // Check that the *signed* result fits in a smi.
           __ cmp(eax, 0xc0000000);
           __ j(sign, slow, not_taken);
@@ -6895,9 +6895,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_OR:  __ or_(eax, Operand(ecx)); break;
         case Token::BIT_AND: __ and_(eax, Operand(ecx)); break;
         case Token::BIT_XOR: __ xor_(eax, Operand(ecx)); break;
-        case Token::SAR: __ sar(eax); break;
-        case Token::SHL: __ shl(eax); break;
-        case Token::SHR: __ shr(eax); break;
+        case Token::SAR: __ sar_cl(eax); break;
+        case Token::SHL: __ shl_cl(eax); break;
+        case Token::SHR: __ shr_cl(eax); break;
         default: UNREACHABLE();
       }
       if (op_ == Token::SHR) {

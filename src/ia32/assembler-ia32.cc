@@ -1091,7 +1091,7 @@ void Assembler::sar(Register dst, uint8_t imm8) {
 }
 
 
-void Assembler::sar(Register dst) {
+void Assembler::sar_cl(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xD3);
@@ -1131,7 +1131,7 @@ void Assembler::shl(Register dst, uint8_t imm8) {
 }
 
 
-void Assembler::shl(Register dst) {
+void Assembler::shl_cl(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xD3);
@@ -1152,24 +1152,21 @@ void Assembler::shr(Register dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(is_uint5(imm8));  // illegal shift count
-  EMIT(0xC1);
-  EMIT(0xE8 | dst.code());
-  EMIT(imm8);
-}
-
-
-void Assembler::shr(Register dst) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  EMIT(0xD3);
-  EMIT(0xE8 | dst.code());
+  if (imm8 == 1) {
+    EMIT(0xD1);
+    EMIT(0xE8 | dst.code());
+  } else {
+    EMIT(0xC1);
+    EMIT(0xE8 | dst.code());
+    EMIT(imm8);
+  }
 }
 
 
 void Assembler::shr_cl(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xD1);
+  EMIT(0xD3);
   EMIT(0xE8 | dst.code());
 }
 

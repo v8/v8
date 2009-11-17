@@ -842,12 +842,12 @@ class Assembler : public Malloced {
   }
 
   // Shifts dst right, duplicating sign bit, by cl % 64 bits.
-  void sar(Register dst) {
+  void sar_cl(Register dst) {
     shift(dst, 0x7);
   }
 
   // Shifts dst right, duplicating sign bit, by cl % 64 bits.
-  void sarl(Register dst) {
+  void sarl_cl(Register dst) {
     shift_32(dst, 0x7);
   }
 
@@ -855,11 +855,11 @@ class Assembler : public Malloced {
     shift(dst, shift_amount, 0x4);
   }
 
-  void shl(Register dst) {
+  void shl_cl(Register dst) {
     shift(dst, 0x4);
   }
 
-  void shll(Register dst) {
+  void shll_cl(Register dst) {
     shift_32(dst, 0x4);
   }
 
@@ -871,11 +871,11 @@ class Assembler : public Malloced {
     shift(dst, shift_amount, 0x5);
   }
 
-  void shr(Register dst) {
+  void shr_cl(Register dst) {
     shift(dst, 0x5);
   }
 
-  void shrl(Register dst) {
+  void shrl_cl(Register dst) {
     shift_32(dst, 0x5);
   }
 

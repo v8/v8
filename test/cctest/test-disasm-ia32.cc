@@ -194,15 +194,15 @@ TEST(DisasmIa320) {
   __ rcl(edx, 7);
   __ sar(edx, 1);
   __ sar(edx, 6);
-  __ sar(edx);
+  __ sar_cl(edx);
   __ sbb(edx, Operand(ebx, ecx, times_4, 10000));
   __ shld(edx, Operand(ebx, ecx, times_4, 10000));
   __ shl(edx, 1);
   __ shl(edx, 6);
-  __ shl(edx);
+  __ shl_cl(edx);
   __ shrd(edx, Operand(ebx, ecx, times_4, 10000));
   __ shr(edx, 7);
-  __ shr(edx);
+  __ shr_cl(edx);
 
 
   // Immediates
