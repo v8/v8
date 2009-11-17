@@ -201,6 +201,7 @@ TEST(DisasmIa320) {
   __ shl(edx, 6);
   __ shl_cl(edx);
   __ shrd(edx, Operand(ebx, ecx, times_4, 10000));
+  __ shr(edx, 1);
   __ shr(edx, 7);
   __ shr_cl(edx);
 
