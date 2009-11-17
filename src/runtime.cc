@@ -3387,8 +3387,7 @@ static Object* Runtime_StringParseInt(Arguments args) {
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
-  CONVERT_DOUBLE_CHECKED(n, args[1]);
-  int radix = FastD2I(n);
+  CONVERT_SMI_CHECKED(radix, args[1]);
 
   s->TryFlattenIfNotFlat();
 

@@ -95,8 +95,8 @@ function GlobalParseInt(string, radix) {
     // they make parseInt on a string 1.4% slower (274ns vs 270ns).
     if (%_IsSmi(string)) return string;
     if (IS_NUMBER(string) &&
-        ((string < -0.01 && -1e9 < string) ||
-            (0.01 < string && string < 1e9))) {
+        ((0.01 < string && string < 1e9) ||
+            (-1e9 < string && string < -0.01))) {
       // Truncate number.
       return string | 0;
     }
