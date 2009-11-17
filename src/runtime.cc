@@ -1274,7 +1274,9 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject->TryFlattenIfNotFlat();
+  Object* flat = subject->TryFlatten();
+  if (flat->IsFailure()) return flat;
+  subject = String::cast(flat);
   if (i >= static_cast<uint32_t>(subject->length())) {
     return Heap::nan_value();
   }

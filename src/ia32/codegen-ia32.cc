@@ -4831,6 +4831,12 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ j(not_equal, &slow_case);
 
   // ConsString.
+  // Check that the right hand side is the empty string (ie if this is really a
+  // flat string in a cons string).  If that is not the case we would rather go
+  // to the runtime system now, to flatten the string.
+  __ mov(temp.reg(), FieldOperand(object.reg(), ConsString::kSecondOffset));
+  __ cmp(Operand(temp.reg()), Immediate(Handle<String>(Heap::empty_string())));
+  __ j(not_equal, &slow_case);
   // Get the first of the two strings.
   __ mov(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
   __ jmp(&try_again_with_new_string);
