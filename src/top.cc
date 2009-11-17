@@ -941,6 +941,19 @@ Handle<Context> Top::global_context() {
 
 Handle<Context> Top::GetCallingGlobalContext() {
   JavaScriptFrameIterator it;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  if (Debug::InDebugger()) {
+    while (!it.done()) {
+      JavaScriptFrame* frame = it.frame();
+      Context* context = Context::cast(frame->context());
+      if (context->global_context() == *Debug::debug_context()) {
+        it.Advance();
+      } else {
+        break;
+      }
+    }
+  }
+#endif  // ENABLE_DEBUGGER_SUPPORT
   if (it.done()) return Handle<Context>::null();
   JavaScriptFrame* frame = it.frame();
   Context* context = Context::cast(frame->context());
