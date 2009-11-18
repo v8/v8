@@ -37,6 +37,7 @@
 #include "platform.h"
 #include "serialize.h"
 #include "snapshot.h"
+#include "utils.h"
 #include "v8threads.h"
 #include "version.h"
 
@@ -1191,14 +1192,13 @@ void Script::SetData(v8::Handle<Value> data) {
 
 
 v8::TryCatch::TryCatch()
-    : next_(i::Top::try_catch_handler()),
+    : next_(i::Top::try_catch_handler_address()),
       exception_(i::Heap::the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
-      rethrow_(false),
-      js_handler_(NULL) {
+      rethrow_(false) {
   i::Top::RegisterTryCatchHandler(this);
 }
 
@@ -2047,11 +2047,11 @@ Local<String> v8::Object::ObjectProtoToString() {
       Local<String> str = Utils::ToLocal(class_name);
       const char* postfix = "]";
 
-      size_t prefix_len = strlen(prefix);
-      size_t str_len = str->Length();
-      size_t postfix_len = strlen(postfix);
+      int prefix_len = i::StrLength(prefix);
+      int str_len = str->Length();
+      int postfix_len = i::StrLength(postfix);
 
-      size_t buf_len = prefix_len + str_len + postfix_len;
+      int buf_len = prefix_len + str_len + postfix_len;
       char* buf = i::NewArray<char>(buf_len);
 
       // Write prefix.
@@ -2636,11 +2636,8 @@ bool v8::V8::Initialize() {
   if (i::V8::IsRunning()) return true;
   ENTER_V8;
   HandleScope scope;
-  if (i::Snapshot::Initialize()) {
-    return true;
-  } else {
-    return i::V8::Initialize(NULL);
-  }
+  if (i::Snapshot::Initialize()) return true;
+  return i::V8::Initialize(NULL);
 }
 
 
@@ -2965,7 +2962,7 @@ Local<String> v8::String::New(const char* data, int length) {
   LOG_API("String::New(char)");
   if (length == 0) return Empty();
   ENTER_V8;
-  if (length == -1) length = strlen(data);
+  if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
       i::Factory::NewStringFromUtf8(i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
@@ -2988,7 +2985,7 @@ Local<String> v8::String::NewUndetectable(const char* data, int length) {
   EnsureInitialized("v8::String::NewUndetectable()");
   LOG_API("String::NewUndetectable(char)");
   ENTER_V8;
-  if (length == -1) length = strlen(data);
+  if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
       i::Factory::NewStringFromUtf8(i::Vector<const char>(data, length));
   result->MarkAsUndetectable();
@@ -3056,7 +3053,8 @@ static void DisposeExternalString(v8::Persistent<v8::Value> obj,
     v8::String::ExternalStringResource* resource =
         reinterpret_cast<v8::String::ExternalStringResource*>(parameter);
     if (resource != NULL) {
-      const size_t total_size = resource->length() * sizeof(*resource->data());
+      const int total_size =
+          static_cast<int>(resource->length() * sizeof(*resource->data()));
       i::Counters::total_external_string_memory.Decrement(total_size);
 
       // The object will continue to live in the JavaScript heap until the
@@ -3086,7 +3084,8 @@ static void DisposeExternalAsciiString(v8::Persistent<v8::Value> obj,
     v8::String::ExternalAsciiStringResource* resource =
         reinterpret_cast<v8::String::ExternalAsciiStringResource*>(parameter);
     if (resource != NULL) {
-      const size_t total_size = resource->length() * sizeof(*resource->data());
+      const int total_size =
+          static_cast<int>(resource->length() * sizeof(*resource->data()));
       i::Counters::total_external_string_memory.Decrement(total_size);
 
       // The object will continue to live in the JavaScript heap until the
@@ -3108,7 +3107,8 @@ Local<String> v8::String::NewExternal(
   EnsureInitialized("v8::String::NewExternal()");
   LOG_API("String::NewExternal");
   ENTER_V8;
-  const size_t total_size = resource->length() * sizeof(*resource->data());
+  const int total_size =
+      static_cast<int>(resource->length() * sizeof(*resource->data()));
   i::Counters::total_external_string_memory.Increment(total_size);
   i::Handle<i::String> result = NewExternalStringHandle(resource);
   i::Handle<i::Object> handle = i::GlobalHandles::Create(*result);
@@ -3143,7 +3143,8 @@ Local<String> v8::String::NewExternal(
   EnsureInitialized("v8::String::NewExternal()");
   LOG_API("String::NewExternal");
   ENTER_V8;
-  const size_t total_size = resource->length() * sizeof(*resource->data());
+  const int total_size =
+      static_cast<int>(resource->length() * sizeof(*resource->data()));
   i::Counters::total_external_string_memory.Increment(total_size);
   i::Handle<i::String> result = NewExternalAsciiStringHandle(resource);
   i::Handle<i::Object> handle = i::GlobalHandles::Create(*result);
@@ -3265,7 +3266,7 @@ Local<String> v8::String::NewSymbol(const char* data, int length) {
   EnsureInitialized("v8::String::NewSymbol()");
   LOG_API("String::NewSymbol(char)");
   ENTER_V8;
-  if (length == -1) length = strlen(data);
+  if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
       i::Factory::LookupSymbol(i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
@@ -3730,6 +3731,14 @@ void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
   EnsureInitialized("v8::Debug::SetHostDispatchHandler");
   ENTER_V8;
   i::Debugger::SetHostDispatchHandler(handler, period);
+}
+
+
+void Debug::SetDebugMessageDispatchHandler(
+    DebugMessageDispatchHandler handler) {
+  EnsureInitialized("v8::Debug::SetDebugMessageDispatchHandler");
+  ENTER_V8;
+  i::Debugger::SetDebugMessageDispatchHandler(handler);
 }
 
 

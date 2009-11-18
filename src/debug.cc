@@ -108,12 +108,13 @@ void BreakLocationIterator::Next() {
     // current value of these.
     if (RelocInfo::IsPosition(rmode())) {
       if (RelocInfo::IsStatementPosition(rmode())) {
-        statement_position_ =
-            rinfo()->data() - debug_info_->shared()->start_position();
+        statement_position_ = static_cast<int>(
+            rinfo()->data() - debug_info_->shared()->start_position());
       }
       // Always update the position as we don't want that to be before the
       // statement position.
-      position_ = rinfo()->data() - debug_info_->shared()->start_position();
+      position_ = static_cast<int>(
+          rinfo()->data() - debug_info_->shared()->start_position());
       ASSERT(position_ >= 0);
       ASSERT(statement_position_ >= 0);
     }
@@ -182,7 +183,7 @@ void BreakLocationIterator::FindBreakLocationFromAddress(Address pc) {
     // Check if this break point is closer that what was previously found.
     if (this->pc() < pc && pc - this->pc() < distance) {
       closest_break_point = break_point();
-      distance = pc - this->pc();
+      distance = static_cast<int>(pc - this->pc());
       // Check whether we can't get any closer.
       if (distance == 0) break;
     }
@@ -1758,6 +1759,8 @@ bool Debugger::never_unload_debugger_ = false;
 v8::Debug::MessageHandler2 Debugger::message_handler_ = NULL;
 bool Debugger::debugger_unload_pending_ = false;
 v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+v8::Debug::DebugMessageDispatchHandler
+    Debugger::debug_message_dispatch_handler_ = NULL;
 int Debugger::host_dispatch_micros_ = 100 * 1000;
 DebuggerAgent* Debugger::agent_ = NULL;
 LockingCommandMessageQueue Debugger::command_queue_(kQueueInitialSize);
@@ -2398,6 +2401,12 @@ void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
 }
 
 
+void Debugger::SetDebugMessageDispatchHandler(
+    v8::Debug::DebugMessageDispatchHandler handler) {
+  debug_message_dispatch_handler_ = handler;
+}
+
+
 // Calls the registered debug message handler. This callback is part of the
 // public API.
 void Debugger::InvokeMessageHandler(MessageImpl message) {
@@ -2427,6 +2436,10 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
   // Set the debug command break flag to have the command processed.
   if (!Debug::InDebugger()) {
     StackGuard::DebugCommand();
+  }
+
+  if (Debugger::debug_message_dispatch_handler_ != NULL) {
+    Debugger::debug_message_dispatch_handler_();
   }
 }
 

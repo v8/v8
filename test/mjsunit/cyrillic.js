@@ -174,15 +174,6 @@ for (var i = 0; i < 2; i++) {
 }
 
 
-// Test all non-ASCII characters individually to ensure that our optimizations
-// didn't break anything.
-for (var i = 0x80; i <= 0xfffe; i++) {
-  var c = String.fromCharCode(i);
-  var c2 = String.fromCharCode(i + 1);
-  var re = new RegExp("[" + c + "-" + c2 + "]", "i");
-  assertTrue(re.test(c), 57);
-}
-
 for (var add_non_ascii_character_to_subject = 0;
      add_non_ascii_character_to_subject < 2;
      add_non_ascii_character_to_subject++) {

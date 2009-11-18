@@ -553,12 +553,6 @@ static const char* TypeToString(InstanceType type) {
     case SHORT_ASCII_SYMBOL_TYPE:
     case MEDIUM_ASCII_SYMBOL_TYPE:
     case LONG_ASCII_SYMBOL_TYPE: return "ASCII_SYMBOL";
-    case SHORT_SLICED_SYMBOL_TYPE:
-    case MEDIUM_SLICED_SYMBOL_TYPE:
-    case LONG_SLICED_SYMBOL_TYPE: return "SLICED_SYMBOL";
-    case SHORT_SLICED_ASCII_SYMBOL_TYPE:
-    case MEDIUM_SLICED_ASCII_SYMBOL_TYPE:
-    case LONG_SLICED_ASCII_SYMBOL_TYPE: return "SLICED_ASCII_SYMBOL";
     case SHORT_CONS_SYMBOL_TYPE:
     case MEDIUM_CONS_SYMBOL_TYPE:
     case LONG_CONS_SYMBOL_TYPE: return "CONS_SYMBOL";
@@ -583,12 +577,6 @@ static const char* TypeToString(InstanceType type) {
     case SHORT_CONS_ASCII_STRING_TYPE:
     case MEDIUM_CONS_ASCII_STRING_TYPE:
     case LONG_CONS_ASCII_STRING_TYPE: return "CONS_STRING";
-    case SHORT_SLICED_STRING_TYPE:
-    case MEDIUM_SLICED_STRING_TYPE:
-    case LONG_SLICED_STRING_TYPE:
-    case SHORT_SLICED_ASCII_STRING_TYPE:
-    case MEDIUM_SLICED_ASCII_STRING_TYPE:
-    case LONG_SLICED_ASCII_STRING_TYPE: return "SLICED_STRING";
     case SHORT_EXTERNAL_ASCII_STRING_TYPE:
     case MEDIUM_EXTERNAL_ASCII_STRING_TYPE:
     case LONG_EXTERNAL_ASCII_STRING_TYPE:
@@ -977,6 +965,7 @@ void AccessorInfo::AccessorInfoVerify() {
   VerifyPointer(name());
   VerifyPointer(data());
   VerifyPointer(flag());
+  VerifyPointer(load_stub_cache());
 }
 
 void AccessorInfo::AccessorInfoPrint() {
@@ -1151,7 +1140,8 @@ void Script::ScriptVerify() {
   VerifyPointer(data());
   VerifyPointer(wrapper());
   type()->SmiVerify();
-  VerifyPointer(line_ends());
+  VerifyPointer(line_ends_fixed_array());
+  VerifyPointer(line_ends_js_array());
   VerifyPointer(id());
 }
 
