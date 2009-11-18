@@ -3328,7 +3328,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   // 2-byte string.  We can add without shifting since the Smi tag size is the
   // log2 of the number of bytes in a two-byte character.
   ASSERT_EQ(1, kSmiTagSize);
-  ASSERT_EQ(1, kSmiShiftSize);
+  ASSERT_EQ(0, kSmiShiftSize);
   __ add(r1, r1, Operand(r0));
   __ ldrh(r0, FieldMemOperand(r1, SeqTwoByteString::kHeaderSize));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
