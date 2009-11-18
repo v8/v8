@@ -4691,6 +4691,71 @@ TEST(DebuggerHostDispatch) {
 }
 
 
+/* Test DebugMessageDispatch */
+/* In this test, the V8 thread waits for a message from the debug thread.
+ * The DebugMessageDispatchHandler is executed from the debugger thread
+ * which signals the V8 thread to wake up.
+ */
+
+class DebugMessageDispatchV8Thread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+class DebugMessageDispatchDebuggerThread : public v8::internal::Thread {
+ public:
+  void Run();
+};
+
+Barriers* debug_message_dispatch_barriers;
+
+
+static void DebugMessageHandler() {
+  debug_message_dispatch_barriers->semaphore_1->Signal();
+}
+
+
+void DebugMessageDispatchV8Thread::Run() {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  // Setup debug message dispatch handler.
+  v8::Debug::SetDebugMessageDispatchHandler(DebugMessageHandler);
+
+  CompileRun("var y = 1 + 2;\n");
+  debug_message_dispatch_barriers->barrier_1.Wait();
+  debug_message_dispatch_barriers->semaphore_1->Wait();
+  debug_message_dispatch_barriers->barrier_2.Wait();
+}
+
+
+void DebugMessageDispatchDebuggerThread::Run() {
+  debug_message_dispatch_barriers->barrier_1.Wait();
+  SendContinueCommand();
+  debug_message_dispatch_barriers->barrier_2.Wait();
+}
+
+DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
+DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
+
+
+TEST(DebuggerDebugMessageDispatch) {
+  i::FLAG_debugger_auto_break = true;
+
+  // Create a V8 environment
+  Barriers stack_allocated_debug_message_dispatch_barriers;
+  stack_allocated_debug_message_dispatch_barriers.Initialize();
+  debug_message_dispatch_barriers =
+      &stack_allocated_debug_message_dispatch_barriers;
+
+  debug_message_dispatch_v8_thread.Start();
+  debug_message_dispatch_debugger_thread.Start();
+
+  debug_message_dispatch_v8_thread.Join();
+  debug_message_dispatch_debugger_thread.Join();
+}
+
+
 TEST(DebuggerAgent) {
   // Make sure these ports is not used by other tests to allow tests to run in
   // parallel.

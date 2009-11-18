@@ -1759,6 +1759,8 @@ bool Debugger::never_unload_debugger_ = false;
 v8::Debug::MessageHandler2 Debugger::message_handler_ = NULL;
 bool Debugger::debugger_unload_pending_ = false;
 v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+v8::Debug::DebugMessageDispatchHandler
+    Debugger::debug_message_dispatch_handler_ = NULL;
 int Debugger::host_dispatch_micros_ = 100 * 1000;
 DebuggerAgent* Debugger::agent_ = NULL;
 LockingCommandMessageQueue Debugger::command_queue_(kQueueInitialSize);
@@ -2399,6 +2401,12 @@ void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
 }
 
 
+void Debugger::SetDebugMessageDispatchHandler(
+    v8::Debug::DebugMessageDispatchHandler handler) {
+  debug_message_dispatch_handler_ = handler;
+}
+
+
 // Calls the registered debug message handler. This callback is part of the
 // public API.
 void Debugger::InvokeMessageHandler(MessageImpl message) {
@@ -2428,6 +2436,10 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
   // Set the debug command break flag to have the command processed.
   if (!Debug::InDebugger()) {
     StackGuard::DebugCommand();
+  }
+
+  if (Debugger::debug_message_dispatch_handler_ != NULL) {
+    Debugger::debug_message_dispatch_handler_();
   }
 }
 
