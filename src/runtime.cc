@@ -1750,10 +1750,10 @@ static Object* StringReplaceRegExpWithString(String* subject,
   // Index of end of last match.
   int prev = 0;
 
-  // Number of parts added by compiled replacement plus preceeding string
-  // and possibly suffix after last match. It is possible for compiled
-  // replacements to use two elements when encoded as two smis.
-  const int parts_added_per_loop = compiled_replacement.parts() * 2 + 2;
+  // Number of parts added by compiled replacement plus preceeding
+  // string and possibly suffix after last match.  It is possible for
+  // all components to use two elements when encoded as two smis.
+  const int parts_added_per_loop = 2 * (compiled_replacement.parts() + 2);
   bool matched = true;
   do {
     ASSERT(last_match_info_handle->HasFastElements());
