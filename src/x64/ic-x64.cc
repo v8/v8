@@ -313,7 +313,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmpl(rax, FieldOperand(rcx, PixelArray::kLengthOffset));
   __ j(above_equal, &slow);
   __ movq(rcx, FieldOperand(rcx, PixelArray::kExternalPointerOffset));
-  __ movb(rax, Operand(rcx, rax, times_1, 0));
+  __ movzxbq(rax, Operand(rcx, rax, times_1, 0));
   __ Integer32ToSmi(rax, rax);
   __ ret(0);
 

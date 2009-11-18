@@ -7615,18 +7615,18 @@ THREADED_TEST(Regress16276) {
 THREADED_TEST(PixelArray) {
   v8::HandleScope scope;
   LocalContext context;
-  const int kElementCount = 40;
+  const int kElementCount = 260;
   uint8_t* pixel_data = reinterpret_cast<uint8_t*>(malloc(kElementCount));
   i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(kElementCount,
                                                               pixel_data);
   i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
-    pixels->set(i, i);
+    pixels->set(i, i % 256);
   }
   i::Heap::CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
-    CHECK_EQ(i, pixels->get(i));
-    CHECK_EQ(i, pixel_data[i]);
+    CHECK_EQ(i % 256, pixels->get(i));
+    CHECK_EQ(i % 256, pixel_data[i]);
   }
 
   v8::Handle<v8::Object> obj = v8::Object::New();
@@ -7789,6 +7789,15 @@ THREADED_TEST(PixelArray) {
 
   result = CompileRun("pixels[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
+
+  // Test for index greater than 255.  Regression test for:
+  // http://code.google.com/p/chromium/issues/detail?id=26337.
+  result = CompileRun("pixels[256] = 255;");
+  CHECK_EQ(255, result->Int32Value());
+  result = CompileRun("var i = 0;"
+                      "for (var j = 0; j < 8; j++) { i = pixels[256]; }"
+                      "i");
+  CHECK_EQ(255, result->Int32Value());
 
   free(pixel_data);
 }
