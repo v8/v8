@@ -311,7 +311,7 @@ Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
     // object if requested. Otherwise return the undefined value.
     if (create_if_needed) {
       Handle<Object> hidden_obj = Factory::NewJSObject(Top::object_function());
-      return Handle<Object>(obj->SetHiddenPropertiesObject(*hidden_obj));
+      CALL_HEAP_FUNCTION(obj->SetHiddenPropertiesObject(*hidden_obj), Object);
     } else {
       return Factory::undefined_value();
     }
