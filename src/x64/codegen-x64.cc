@@ -3745,10 +3745,11 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ movzxbl(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
 
   // We need special handling for non-flat strings.
-  ASSERT(kSeqStringTag == 0);
+  ASSERT_EQ(0, kSeqStringTag);
   __ testb(temp.reg(), Immediate(kStringRepresentationMask));
   __ j(not_zero, &not_a_flat_string);
   // Check for 1-byte or 2-byte string.
+  ASSERT_EQ(0, kTwoByteStringTag);
   __ testb(temp.reg(), Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string);
 

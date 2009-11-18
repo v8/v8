@@ -3286,7 +3286,82 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);
+  Comment(masm_, "[ GenerateFastCharCodeAt");
+
+  LoadAndSpill(args->at(0));
+  LoadAndSpill(args->at(1));
+  frame_->EmitPop(r0);  // Index.
+  frame_->EmitPop(r1);  // String.
+
+  Label slow, end, not_a_flat_string, ascii_string, try_again_with_new_string;
+
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &slow);  // The 'string' was a Smi.
+
+  ASSERT(kSmiTag == 0);
+  __ tst(r0, Operand(kSmiTagMask | 0x80000000u));
+  __ b(ne, &slow);  // The index was negative or not a Smi.
+
+  __ bind(&try_again_with_new_string);
+  __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
+  __ b(ge, &slow);
+
+  // Now r2 has the string type.
+  __ ldr(r3, FieldMemOperand(r1, String::kLengthOffset));
+  __ and_(r4, r2, Operand(kStringSizeMask));
+  __ add(r4, r4, Operand(String::kLongLengthShift));
+  __ mov(r3, Operand(r3, LSR, r4));
+  // Now r3 has the length of the string.  Compare with the index.
+  __ cmp(r3, Operand(r0, LSR, kSmiTagSize));
+  __ b(le, &slow);
+
+  // Here we know the index is in range.  Check that string is sequential.
+  ASSERT_EQ(0, kSeqStringTag);
+  __ tst(r2, Operand(kStringRepresentationMask));
+  __ b(ne, &not_a_flat_string);
+
+  // Check whether it is an ASCII string.
+  ASSERT_EQ(0, kTwoByteStringTag);
+  __ tst(r2, Operand(kStringEncodingMask));
+  __ b(ne, &ascii_string);
+
+  // 2-byte string.  We can add without shifting since the Smi tag size is the
+  // log2 of the number of bytes in a two-byte character.
+  ASSERT_EQ(1, kSmiTagSize);
+  ASSERT_EQ(1, kSmiShiftSize);
+  __ add(r1, r1, Operand(r0));
+  __ ldrh(r0, FieldMemOperand(r1, SeqTwoByteString::kHeaderSize));
+  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
+  __ jmp(&end);
+
+  __ bind(&ascii_string);
+  __ add(r1, r1, Operand(r0, LSR, kSmiTagSize));
+  __ ldrb(r0, FieldMemOperand(r1, SeqAsciiString::kHeaderSize));
+  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
+  __ jmp(&end);
+
+  __ bind(&not_a_flat_string);
+  __ and_(r2, r2, Operand(kStringRepresentationMask));
+  __ cmp(r2, Operand(kConsStringTag));
+  __ b(ne, &slow);
+
+  // ConsString.
+  // Check that the right hand side is the empty string (ie if this is really a
+  // flat string in a cons string).  If that is not the case we would rather go
+  // to the runtime system now, to flatten the string.
+  __ ldr(r2, FieldMemOperand(r1, ConsString::kSecondOffset));
+  __ LoadRoot(r3, Heap::kEmptyStringRootIndex);
+  __ cmp(r2, Operand(r3));
+  __ b(ne, &slow);
+
+  // Get the first of the two strings.
+  __ ldr(r1, FieldMemOperand(r1, ConsString::kFirstOffset));
+  __ jmp(&try_again_with_new_string);
+
+  __ bind(&slow);
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
+
+  __ bind(&end);
   frame_->EmitPush(r0);
 }
 
