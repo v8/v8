@@ -646,8 +646,9 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 
 
 void CodeGenSelector::VisitDeclaration(Declaration* decl) {
-  if (decl->fun() != NULL) {
-    ProcessExpression(decl->fun(), Expression::kValue);
+  Variable* var = decl->proxy()->var();
+  if (!var->is_global() || var->mode() == Variable::CONST) {
+    BAILOUT("Non-global declaration");
   }
 }
 
