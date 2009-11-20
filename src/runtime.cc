@@ -2356,12 +2356,20 @@ static Object* Runtime_SubString(Arguments args) {
   ASSERT(args.length() == 3);
 
   CONVERT_CHECKED(String, value, args[0]);
-  CONVERT_DOUBLE_CHECKED(from_number, args[1]);
-  CONVERT_DOUBLE_CHECKED(to_number, args[2]);
-
-  int start = FastD2I(from_number);
-  int end = FastD2I(to_number);
-
+  Object* from = args[1];
+  Object* to = args[2];
+  int start, end;
+  // We have a fast integer-only case here to avoid a conversion to double in
+  // the common case where from and to are Smis.
+  if (from->IsSmi() && to->IsSmi()) {
+    start = Smi::cast(from)->value();
+    end = Smi::cast(to)->value();
+  } else {
+    CONVERT_DOUBLE_CHECKED(from_number, from);
+    CONVERT_DOUBLE_CHECKED(to_number, to);
+    start = FastD2I(from_number);
+    end = FastD2I(to_number);
+  }
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
