@@ -638,24 +638,6 @@ void Logger::DeleteEvent(const char* name, void* object) {
 }
 
 
-void Logger::CallbackEvent(const char* class_name, const char* method_name,
-                           Address entry_point) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.Append("%s,%s,",
-             log_events_[CODE_CREATION_EVENT], log_events_[CALLBACK_TAG]);
-  msg.AppendAddress(entry_point);
-  msg.Append(",0,\"");
-  if (class_name != NULL) {
-    msg.Append("%s.", class_name);
-  }
-  msg.Append("%s\"\n", method_name);
-  msg.WriteToLogFile();
-#endif
-}
-
-
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 // A class that contains all common code dealing with record compression.
@@ -690,6 +672,26 @@ class CompressionHelper {
 };
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
+
+
+void Logger::CallbackEvent(String* name, Address entry_point) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,%s,",
+             log_events_[CODE_CREATION_EVENT], log_events_[CALLBACK_TAG]);
+  msg.AppendAddress(entry_point);
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  msg.Append(",0,\"%s\"", *str);
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
 
 
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
@@ -1090,7 +1092,6 @@ void Logger::ResumeProfiler(int flags) {
       LOG(UncheckedStringEvent("profiler", "resume"));
       FLAG_log_code = true;
       LogCompiledFunctions();
-      LogCallbacks();
       if (!FLAG_sliding_state_window) ticker_->Start();
     }
     profiler_->resume();
@@ -1211,77 +1212,28 @@ void Logger::LogCompiledFunctions() {
           LOG(CodeCreateEvent(Logger::SCRIPT_TAG,
                               shared->code(), *script_name));
         }
-        continue;
+      } else {
+        LOG(CodeCreateEvent(
+            Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
       }
+    } else if (shared->function_data()->IsFunctionTemplateInfo()) {
+      // API function.
+      FunctionTemplateInfo* fun_data =
+          FunctionTemplateInfo::cast(shared->function_data());
+      Object* raw_call_data = fun_data->call_code();
+      if (!raw_call_data->IsUndefined()) {
+        CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
+        Object* callback_obj = call_data->callback();
+        Address entry_point = v8::ToCData<Address>(callback_obj);
+        LOG(CallbackEvent(*func_name, entry_point));
+      }
+    } else {
+      LOG(CodeCreateEvent(
+          Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
     }
-    // If no script or script has no name.
-    LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, shared->code(), *func_name));
   }
 
   DeleteArray(sfis);
-}
-
-
-namespace {
-
-class FunctionTemplateInfosVisitor : public ObjectVisitor {
- public:
-  virtual ~FunctionTemplateInfosVisitor() {}
-  virtual void VisitPointers(Object** start, Object** end) {
-    for (Object** p = start; p < end; ++p) {
-      VisitFTI(*p);
-    }
-  }
-
- private:
-  void VisitFTI(Object* o) {
-    // The data about callbacks is in fact dynamically typed
-    // (Object ptrs are used), so we use runtime type checking
-    // to be sure that we retrieve the right thing.
-    if (!o->IsFunctionTemplateInfo())
-      return;
-    AssertNoAllocation no_alloc;
-    FunctionTemplateInfo* fti = FunctionTemplateInfo::cast(o);
-    if (!fti->prototype_template()->IsObjectTemplateInfo())
-      return;
-    SmartPointer<char> class_name;
-    if (fti->class_name()->IsString()) {
-      class_name = String::cast(fti->class_name())->
-          ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-    }
-    ObjectTemplateInfo* proto =
-        ObjectTemplateInfo::cast(fti->prototype_template());
-    NeanderArray props(Handle<Object>(proto->property_list()));
-    // Properties are triples: [property name, entry point, attributes].
-    // See Template::Set in api.cc.
-    for (int i = 0; i < props.length(); i += 3) {
-      if (!props.get(i)->IsString()
-          || !props.get(i + 1)->IsFunctionTemplateInfo())
-        continue;
-      FunctionTemplateInfo* native_fti =
-          FunctionTemplateInfo::cast(props.get(i + 1));
-      Object* raw_call_data = native_fti->call_code();
-      if (raw_call_data->IsUndefined())
-        continue;
-      CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
-      Object* callback_obj = call_data->callback();
-      Address entry_point = v8::ToCData<Address>(callback_obj);
-      SmartPointer<char> method_name(
-          String::cast(props.get(i))->
-          ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL));
-      LOG(CallbackEvent(*class_name, *method_name, entry_point));
-    }
-  }
-};
-
-}  // anonymous namespace
-
-
-void Logger::LogCallbacks() {
-  // We are looking for callbacks information exposed via persistent
-  // FunctionTemplate objects.
-  FunctionTemplateInfosVisitor visitor;
-  GlobalHandles::IterateStrongRoots(&visitor);
 }
 
 #endif

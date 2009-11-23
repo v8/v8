@@ -202,8 +202,7 @@ class Logger {
 
   // ==== Events logged by --log-code. ====
   // Emits a code event for a callback function.
-  static void CallbackEvent(const char* class_name, const char* method_name,
-                            Address entry_point);
+  static void CallbackEvent(String* name, Address entry_point);
   // Emits a code create event.
   static void CodeCreateEvent(LogEventsAndTags tag,
                               Code* code, const char* source);
@@ -271,10 +270,6 @@ class Logger {
   static void LogCompiledFunctions();
   // Used for logging stubs found in the snapshot.
   static void LogCodeObject(Object* code_object);
-  // Used for logging callback entry points to be able to reveal their
-  // names in call stacks when information about native code exports is
-  // inaccessible.
-  static void LogCallbacks();
 
  private:
 

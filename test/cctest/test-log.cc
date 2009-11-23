@@ -510,18 +510,22 @@ TEST(LogCallbacks) {
                                        signature),
              static_cast<v8::PropertyAttribute>(v8::DontDelete));
 
-  i::Logger::LogCallbacks();
+  env->Global()->Set(v8_str("Obj"), obj->GetFunction());
+  CompileAndRunScript("Obj.prototype.method1.toString();");
+
+  i::Logger::LogCompiledFunctions();
   log_pos = GetLogLines(log_pos, &buffer);
   CHECK_GT(log_pos, 0);
   buffer[log_pos] = 0;
 
   const char* callback_rec = "code-creation,Callback,";
-  const char* pos = strstr(buffer.start(), callback_rec);
+  char* pos = strstr(buffer.start(), callback_rec);
   CHECK_NE(NULL, pos);
   pos += strlen(callback_rec);
   EmbeddedVector<char, 100> ref_data;
   i::OS::SNPrintF(ref_data,
-                  "0x%" V8PRIxPTR ",0,\"Obj.method1\"\n", ObjMethod1);
+                  "0x%" V8PRIxPTR ",0,\"method1\"", ObjMethod1);
+  *(pos + strlen(ref_data.start())) = '\0';
   CHECK_EQ(ref_data.start(), pos);
 
   obj.Dispose();
