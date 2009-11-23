@@ -91,15 +91,20 @@ class CompressionHelper;
 class VMState BASE_EMBEDDED {
 #ifdef ENABLE_LOGGING_AND_PROFILING
  public:
-  inline explicit VMState(StateTag state);
+  inline VMState(StateTag state);
   inline ~VMState();
 
   StateTag state() { return state_; }
+  Address external_callback() { return external_callback_; }
+  void set_external_callback(Address external_callback) {
+    external_callback_ = external_callback;
+  }
 
  private:
   bool disabled_;
   StateTag state_;
   VMState* previous_;
+  Address external_callback_;
 #else
  public:
   explicit VMState(StateTag state) {}
@@ -333,6 +338,7 @@ class Logger {
   friend class TimeLog;
   friend class Profiler;
   friend class SlidingStateWindow;
+  friend class StackTracer;
   friend class VMState;
 
   friend class LoggerTestHelper;

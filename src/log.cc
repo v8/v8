@@ -155,12 +155,18 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
+  int i = 0;
+  const Address callback = Logger::current_state_ != NULL ?
+      Logger::current_state_->external_callback() : NULL;
+  if (callback != NULL) {
+    sample->stack[i++] = callback;
+  }
+
   SafeStackTraceFrameIterator it(
       reinterpret_cast<Address>(sample->fp),
       reinterpret_cast<Address>(sample->sp),
       reinterpret_cast<Address>(sample->sp),
       js_entry_sp);
-  int i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     sample->stack[i++] = it.frame()->pc();
     it.Advance();
@@ -683,7 +689,7 @@ void Logger::CallbackEvent(String* name, Address entry_point) {
   msg.AppendAddress(entry_point);
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append(",0,\"%s\"", *str);
+  msg.Append(",1,\"%s\"", *str);
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;

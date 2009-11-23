@@ -524,7 +524,7 @@ TEST(LogCallbacks) {
   pos += strlen(callback_rec);
   EmbeddedVector<char, 100> ref_data;
   i::OS::SNPrintF(ref_data,
-                  "0x%" V8PRIxPTR ",0,\"method1\"", ObjMethod1);
+                  "0x%" V8PRIxPTR ",1,\"method1\"", ObjMethod1);
   *(pos + strlen(ref_data.start())) = '\0';
   CHECK_EQ(ref_data.start(), pos);
 
