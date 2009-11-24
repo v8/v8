@@ -3308,9 +3308,6 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // Now r2 has the string type.
   __ ldr(r3, FieldMemOperand(r1, String::kLengthOffset));
-  __ and_(r4, r2, Operand(kStringSizeMask));
-  __ add(r4, r4, Operand(String::kLongLengthShift));
-  __ mov(r3, Operand(r3, LSR, r4));
   // Now r3 has the length of the string.  Compare with the index.
   __ cmp(r3, Operand(r0, LSR, kSmiTagSize));
   __ b(le, &slow);

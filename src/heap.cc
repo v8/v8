@@ -1187,34 +1187,14 @@ bool Heap::CreateInitialMaps() {
     roots_[entry.index] = Map::cast(obj);
   }
 
-  obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kAlignedSize);
+  obj = AllocateMap(STRING_TYPE, SeqTwoByteString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  set_undetectable_short_string_map(Map::cast(obj));
+  set_undetectable_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kAlignedSize);
+  obj = AllocateMap(ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
   if (obj->IsFailure()) return false;
-  set_undetectable_medium_string_map(Map::cast(obj));
-  Map::cast(obj)->set_is_undetectable();
-
-  obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kAlignedSize);
-  if (obj->IsFailure()) return false;
-  set_undetectable_long_string_map(Map::cast(obj));
-  Map::cast(obj)->set_is_undetectable();
-
-  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
-  if (obj->IsFailure()) return false;
-  set_undetectable_short_ascii_string_map(Map::cast(obj));
-  Map::cast(obj)->set_is_undetectable();
-
-  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
-  if (obj->IsFailure()) return false;
-  set_undetectable_medium_ascii_string_map(Map::cast(obj));
-  Map::cast(obj)->set_is_undetectable();
-
-  obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kAlignedSize);
-  if (obj->IsFailure()) return false;
-  set_undetectable_long_ascii_string_map(Map::cast(obj));
+  set_undetectable_ascii_string_map(Map::cast(obj));
   Map::cast(obj)->set_is_undetectable();
 
   obj = AllocateMap(BYTE_ARRAY_TYPE, ByteArray::kAlignedSize);
@@ -1856,26 +1836,17 @@ Object* Heap::AllocateConsString(String* first, String* second) {
     }
   }
 
-  Map* map;
-  if (length <= String::kMaxShortSize) {
-    map = is_ascii ? short_cons_ascii_string_map()
-      : short_cons_string_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = is_ascii ? medium_cons_ascii_string_map()
-      : medium_cons_string_map();
-  } else {
-    map = is_ascii ? long_cons_ascii_string_map()
-      : long_cons_string_map();
-  }
+  Map* map = is_ascii ? cons_ascii_string_map() : cons_string_map();
 
   Object* result = Allocate(map,
                             always_allocate() ? OLD_POINTER_SPACE : NEW_SPACE);
   if (result->IsFailure()) return result;
   ConsString* cons_string = ConsString::cast(result);
   WriteBarrierMode mode = cons_string->GetWriteBarrierMode();
+  cons_string->set_length(length);
+  cons_string->set_hash_field(String::kEmptyHashField);
   cons_string->set_first(first, mode);
   cons_string->set_second(second, mode);
-  cons_string->set_length(length);
   return result;
 }
 
@@ -1925,25 +1896,20 @@ Object* Heap::AllocateSubString(String* buffer,
 
 Object* Heap::AllocateExternalStringFromAscii(
     ExternalAsciiString::Resource* resource) {
-  Map* map;
   size_t length = resource->length();
-  if (length <= static_cast<size_t>(String::kMaxShortSize)) {
-    map = short_external_ascii_string_map();
-  } else if (length <= static_cast<size_t>(String::kMaxMediumSize)) {
-    map = medium_external_ascii_string_map();
-  } else if (length <= static_cast<size_t>(String::kMaxLength)) {
-    map = long_external_ascii_string_map();
-  } else {
+  if (length > static_cast<size_t>(String::kMaxLength)) {
     Top::context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
 
+  Map* map = external_ascii_string_map();
   Object* result = Allocate(map,
                             always_allocate() ? OLD_DATA_SPACE : NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalAsciiString* external_string = ExternalAsciiString::cast(result);
   external_string->set_length(static_cast<int>(length));
+  external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
 
   return result;
@@ -1957,13 +1923,15 @@ Object* Heap::AllocateExternalStringFromTwoByte(
     Top::context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
-  Map* map = ExternalTwoByteString::StringMap(static_cast<int>(length));
+
+  Map* map = Heap::external_string_map();
   Object* result = Allocate(map,
                             always_allocate() ? OLD_DATA_SPACE : NEW_SPACE);
   if (result->IsFailure()) return result;
 
   ExternalTwoByteString* external_string = ExternalTwoByteString::cast(result);
   external_string->set_length(static_cast<int>(length));
+  external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
 
   return result;
@@ -2604,48 +2572,12 @@ Map* Heap::SymbolMapForString(String* string) {
 
   // Find the corresponding symbol map for strings.
   Map* map = string->map();
-
-  if (map == short_ascii_string_map()) return short_ascii_symbol_map();
-  if (map == medium_ascii_string_map()) return medium_ascii_symbol_map();
-  if (map == long_ascii_string_map()) return long_ascii_symbol_map();
-
-  if (map == short_string_map()) return short_symbol_map();
-  if (map == medium_string_map()) return medium_symbol_map();
-  if (map == long_string_map()) return long_symbol_map();
-
-  if (map == short_cons_string_map()) return short_cons_symbol_map();
-  if (map == medium_cons_string_map()) return medium_cons_symbol_map();
-  if (map == long_cons_string_map()) return long_cons_symbol_map();
-
-  if (map == short_cons_ascii_string_map()) {
-    return short_cons_ascii_symbol_map();
-  }
-  if (map == medium_cons_ascii_string_map()) {
-    return medium_cons_ascii_symbol_map();
-  }
-  if (map == long_cons_ascii_string_map()) {
-    return long_cons_ascii_symbol_map();
-  }
-
-  if (map == short_external_string_map()) {
-    return short_external_symbol_map();
-  }
-  if (map == medium_external_string_map()) {
-    return medium_external_symbol_map();
-  }
-  if (map == long_external_string_map()) {
-    return long_external_symbol_map();
-  }
-
-  if (map == short_external_ascii_string_map()) {
-    return short_external_ascii_symbol_map();
-  }
-  if (map == medium_external_ascii_string_map()) {
-    return medium_external_ascii_symbol_map();
-  }
-  if (map == long_external_ascii_string_map()) {
-    return long_external_ascii_symbol_map();
-  }
+  if (map == ascii_string_map()) return ascii_symbol_map();
+  if (map == string_map()) return symbol_map();
+  if (map == cons_string_map()) return cons_symbol_map();
+  if (map == cons_ascii_string_map()) return cons_ascii_symbol_map();
+  if (map == external_string_map()) return external_symbol_map();
+  if (map == external_ascii_string_map()) return external_ascii_symbol_map();
 
   // No match found.
   return NULL;
@@ -2654,7 +2586,7 @@ Map* Heap::SymbolMapForString(String* string) {
 
 Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
                                      int chars,
-                                     uint32_t length_field) {
+                                     uint32_t hash_field) {
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
   // Determine whether the string is ascii.
@@ -2669,22 +2601,10 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   Map* map;
 
   if (is_ascii) {
-    if (chars <= String::kMaxShortSize) {
-      map = short_ascii_symbol_map();
-    } else if (chars <= String::kMaxMediumSize) {
-      map = medium_ascii_symbol_map();
-    } else {
-      map = long_ascii_symbol_map();
-    }
+    map = ascii_symbol_map();
     size = SeqAsciiString::SizeFor(chars);
   } else {
-    if (chars <= String::kMaxShortSize) {
-      map = short_symbol_map();
-    } else if (chars <= String::kMaxMediumSize) {
-      map = medium_symbol_map();
-    } else {
-      map = long_symbol_map();
-    }
+    map = symbol_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
 
@@ -2695,9 +2615,10 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   if (result->IsFailure()) return result;
 
   reinterpret_cast<HeapObject*>(result)->set_map(map);
-  // The hash value contains the length of the string.
+  // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
-  answer->set_length_field(length_field);
+  answer->set_length(chars);
+  answer->set_hash_field(hash_field);
 
   ASSERT_EQ(size, answer->Size());
 
@@ -2728,19 +2649,10 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   }
   if (result->IsFailure()) return result;
 
-  // Determine the map based on the string's length.
-  Map* map;
-  if (length <= String::kMaxShortSize) {
-    map = short_ascii_string_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = medium_ascii_string_map();
-  } else {
-    map = long_ascii_string_map();
-  }
-
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map(map);
+  HeapObject::cast(result)->set_map(ascii_string_map());
   String::cast(result)->set_length(length);
+  String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
   return result;
 }
@@ -2765,19 +2677,10 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
   }
   if (result->IsFailure()) return result;
 
-  // Determine the map based on the string's length.
-  Map* map;
-  if (length <= String::kMaxShortSize) {
-    map = short_string_map();
-  } else if (length <= String::kMaxMediumSize) {
-    map = medium_string_map();
-  } else {
-    map = long_string_map();
-  }
-
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map(map);
+  HeapObject::cast(result)->set_map(string_map());
   String::cast(result)->set_length(length);
+  String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
   return result;
 }

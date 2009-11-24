@@ -4777,18 +4777,8 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ test(ecx, Immediate(kIsNotStringMask));
   __ j(not_zero, &slow_case);
 
-  // Here we make assumptions about the tag values and the shifts needed.
-  // See the comment in objects.h.
-  ASSERT(kLongStringTag == 0);
-  ASSERT(kMediumStringTag + String::kLongLengthShift ==
-         String::kMediumLengthShift);
-  ASSERT(kShortStringTag + String::kLongLengthShift ==
-         String::kShortLengthShift);
-  __ and_(ecx, kStringSizeMask);
-  __ add(Operand(ecx), Immediate(String::kLongLengthShift));
   // Fetch the length field into the temporary register.
   __ mov(temp.reg(), FieldOperand(object.reg(), String::kLengthOffset));
-  __ shr_cl(temp.reg());
   // Check for index out of range.
   __ cmp(index.reg(), Operand(temp.reg()));
   __ j(greater_equal, &slow_case);
@@ -6502,11 +6492,8 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   // String value => false iff empty.
   __ cmp(ecx, FIRST_NONSTRING_TYPE);
   __ j(above_equal, &not_string);
-  __ and_(ecx, kStringSizeMask);
-  __ cmp(ecx, kShortStringTag);
-  __ j(not_equal, &true_result);  // Empty string is always short.
   __ mov(edx, FieldOperand(eax, String::kLengthOffset));
-  __ shr(edx, String::kShortLengthShift);
+  __ test(edx, Operand(edx));
   __ j(zero, &false_result);
   __ jmp(&true_result);
 

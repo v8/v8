@@ -3762,6 +3762,7 @@ static Object* Runtime_StringAdd(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, str1, args[0]);
   CONVERT_CHECKED(String, str2, args[1]);
+  Counters::cons_strings_runtime.Increment();
   return Heap::AllocateConsString(str1, str2);
 }
 
@@ -4987,6 +4988,9 @@ static Object* Runtime_DebugPrint(Arguments args) {
     PrintF("DebugPrint: ");
   }
   args[0]->Print();
+  if (args[0]->IsHeapObject()) {
+    HeapObject::cast(args[0])->map()->Print();
+  }
 #else
   // ShortPrint is available in release mode. Print is not.
   args[0]->ShortPrint();

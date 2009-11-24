@@ -7029,27 +7029,17 @@ static void MorphAString(i::String* string,
   CHECK(i::StringShape(string).IsExternal());
   if (string->IsAsciiRepresentation()) {
     // Check old map is not symbol or long.
-    CHECK(string->map() == i::Heap::short_external_ascii_string_map() ||
-          string->map() == i::Heap::medium_external_ascii_string_map());
+    CHECK(string->map() == i::Heap::external_ascii_string_map());
     // Morph external string to be TwoByte string.
-    if (string->length() <= i::String::kMaxShortSize) {
-      string->set_map(i::Heap::short_external_string_map());
-    } else {
-      string->set_map(i::Heap::medium_external_string_map());
-    }
+    string->set_map(i::Heap::external_string_map());
     i::ExternalTwoByteString* morphed =
          i::ExternalTwoByteString::cast(string);
     morphed->set_resource(uc16_resource);
   } else {
     // Check old map is not symbol or long.
-    CHECK(string->map() == i::Heap::short_external_string_map() ||
-          string->map() == i::Heap::medium_external_string_map());
+    CHECK(string->map() == i::Heap::external_string_map());
     // Morph external string to be ASCII string.
-    if (string->length() <= i::String::kMaxShortSize) {
-      string->set_map(i::Heap::short_external_ascii_string_map());
-    } else {
-      string->set_map(i::Heap::medium_external_ascii_string_map());
-    }
+    string->set_map(i::Heap::external_ascii_string_map());
     i::ExternalAsciiString* morphed =
          i::ExternalAsciiString::cast(string);
     morphed->set_resource(ascii_resource);
