@@ -3762,7 +3762,6 @@ static Object* Runtime_StringAdd(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, str1, args[0]);
   CONVERT_CHECKED(String, str2, args[1]);
-  Counters::cons_strings_runtime.Increment();
   return Heap::AllocateConsString(str1, str2);
 }
 
