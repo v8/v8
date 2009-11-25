@@ -8095,7 +8095,9 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
         static_cast<ElementType*>(malloc(kLargeElementCount * element_size));
     i::Handle<ExternalArrayClass> large_array =
         i::Handle<ExternalArrayClass>::cast(
-            i::Factory::NewExternalArray(kElementCount, array_type, array_data));
+            i::Factory::NewExternalArray(kLargeElementCount,
+                                         array_type,
+                                         array_data));
     v8::Handle<v8::Object> large_obj = v8::Object::New();
     // Set the elements to be the external array.
     large_obj->SetIndexedPropertiesToExternalArrayData(large_array_data,
