@@ -55,9 +55,9 @@ class SerializationAddressMapper {
 
   static int MappedTo(HeapObject* obj) {
     ASSERT(IsMapped(obj));
-    return reinterpret_cast<int>(serialization_map_->Lookup(Key(obj),
-                                 Hash(obj),
-                                 false)->value);
+    return reinterpret_cast<intptr_t>(serialization_map_->Lookup(Key(obj),
+                                      Hash(obj),
+                                      false)->value);
   }
 
   static void Map(HeapObject* obj, int to) {
@@ -81,7 +81,7 @@ class SerializationAddressMapper {
   }
 
   static uint32_t Hash(HeapObject* obj) {
-    return reinterpret_cast<uint32_t>(obj->address());
+    return reinterpret_cast<intptr_t>(obj->address());
   }
 
   static void* Key(HeapObject* obj) {
