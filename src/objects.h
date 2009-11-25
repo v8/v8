@@ -830,16 +830,6 @@ class MapWord BASE_EMBEDDED {
   // View this map word as a forwarding address.
   inline HeapObject* ToForwardingAddress();
 
-  // True if this map word is a serialization address.  This will only be the
-  // case during a destructive serialization of the heap.
-  inline bool IsSerializationAddress();
-
-  // Create a map word from a serialization address.
-  static inline MapWord FromSerializationAddress(int raw);
-
-  // View this map word as a serialization address.
-  inline int ToSerializationAddress();
-
   // Marking phase of full collection: the map word of live objects is
   // marked, and may be marked as overflowed (eg, the object is live, its
   // children have not been visited, and it does not fit in the marking
