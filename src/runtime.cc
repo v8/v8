@@ -788,51 +788,72 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   // case of callbacks in the prototype chain (this rules out using
   // SetProperty).  We have IgnoreAttributesAndSetLocalProperty for
   // this.
+  // Note that objects can have hidden prototypes, so we need to traverse
+  // the whole chain of hidden prototypes to do a 'local' lookup.
+  JSObject* real_holder = global;
   LookupResult lookup;
-  global->LocalLookup(*name, &lookup);
-  if (!lookup.IsProperty()) {
-    if (assign) {
-      return global->IgnoreAttributesAndSetLocalProperty(*name,
-                                                         args[1],
-                                                         attributes);
+  while (true) {
+    real_holder->LocalLookup(*name, &lookup);
+    if (lookup.IsProperty()) {
+      // Determine if this is a redeclaration of something read-only.
+      if (lookup.IsReadOnly()) {
+        // If we found readonly property on one of hidden prototypes,
+        // just shadow it.
+        if (real_holder != Top::context()->global()) break;
+        return ThrowRedeclarationError("const", name);
+      }
+
+      // Determine if this is a redeclaration of an intercepted read-only
+      // property and figure out if the property exists at all.
+      bool found = true;
+      PropertyType type = lookup.type();
+      if (type == INTERCEPTOR) {
+        HandleScope handle_scope;
+        Handle<JSObject> holder(real_holder);
+        PropertyAttributes intercepted = holder->GetPropertyAttribute(*name);
+        real_holder = *holder;
+        if (intercepted == ABSENT) {
+          // The interceptor claims the property isn't there. We need to
+          // make sure to introduce it.
+          found = false;
+        } else if ((intercepted & READ_ONLY) != 0) {
+          // The property is present, but read-only. Since we're trying to
+          // overwrite it with a variable declaration we must throw a
+          // re-declaration error.  However if we found readonly property
+          // on one of hidden prototypes, just shadow it.
+          if (real_holder != Top::context()->global()) break;
+          return ThrowRedeclarationError("const", name);
+        }
+      }
+
+      if (found && !assign) {
+        // The global property is there and we're not assigning any value
+        // to it. Just return.
+        return Heap::undefined_value();
+      }
+
+      // Assign the value (or undefined) to the property.
+      Object* value = (assign) ? args[1] : Heap::undefined_value();
+      return real_holder->SetProperty(&lookup, *name, value, attributes);
     }
-    return Heap::undefined_value();
+
+    Object* proto = real_holder->GetPrototype();
+    if (!proto->IsJSObject())
+      break;
+
+    if (!JSObject::cast(proto)->map()->is_hidden_prototype())
+      break;
+
+    real_holder = JSObject::cast(proto);
   }
 
-  // Determine if this is a redeclaration of something read-only.
-  if (lookup.IsReadOnly()) {
-    return ThrowRedeclarationError("const", name);
+  global = Top::context()->global();
+  if (assign) {
+    return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                       args[1],
+                                                       attributes);
   }
-
-  // Determine if this is a redeclaration of an intercepted read-only
-  // property and figure out if the property exists at all.
-  bool found = true;
-  PropertyType type = lookup.type();
-  if (type == INTERCEPTOR) {
-    PropertyAttributes intercepted = global->GetPropertyAttribute(*name);
-    if (intercepted == ABSENT) {
-      // The interceptor claims the property isn't there. We need to
-      // make sure to introduce it.
-      found = false;
-    } else if ((intercepted & READ_ONLY) != 0) {
-      // The property is present, but read-only. Since we're trying to
-      // overwrite it with a variable declaration we must throw a
-      // re-declaration error.
-      return ThrowRedeclarationError("const", name);
-    }
-    // Restore global object from context (in case of GC).
-    global = Top::context()->global();
-  }
-
-  if (found && !assign) {
-    // The global property is there and we're not assigning any value
-    // to it. Just return.
-    return Heap::undefined_value();
-  }
-
-  // Assign the value (or undefined) to the property.
-  Object* value = (assign) ? args[1] : Heap::undefined_value();
-  return global->SetProperty(&lookup, *name, value, attributes);
+  return Heap::undefined_value();
 }
 
 
