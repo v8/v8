@@ -46,6 +46,7 @@
 #if defined(__ARM_ARCH_5T__) || \
     defined(__ARM_ARCH_5TE__) || \
     defined(__ARM_ARCH_6__) || \
+    defined(__ARM_ARCH_6J__) || \
     defined(__ARM_ARCH_7A__) || \
     defined(__ARM_ARCH_7__)
 # define CAN_USE_ARMV5_INSTRUCTIONS 1
@@ -53,6 +54,7 @@
 #endif
 
 #if defined(__ARM_ARCH_6__) || \
+    defined(__ARM_ARCH_6J__) || \
     defined(__ARM_ARCH_7A__) || \
     defined(__ARM_ARCH_7__)
 # define CAN_USE_ARMV6_INSTRUCTIONS 1
