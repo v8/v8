@@ -2906,6 +2906,40 @@ THREADED_TEST(AutoExtensions) {
 }
 
 
+static const char* kSyntaxErrorInExtensionSource =
+    "[";
+
+
+// Test that a syntax error in an extension does not cause a fatal
+// error but results in an empty context.
+THREADED_TEST(SyntaxErrorExtensions) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("syntaxerror",
+                                      kSyntaxErrorInExtensionSource));
+  const char* extension_names[] = { "syntaxerror" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  CHECK(context.IsEmpty());
+}
+
+
+static const char* kExceptionInExtensionSource =
+    "throw 42";
+
+
+// Test that an exception when installing an extension does not cause
+// a fatal error but results in an empty context.
+THREADED_TEST(ExceptionExtensions) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("exception",
+                                      kExceptionInExtensionSource));
+  const char* extension_names[] = { "exception" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  CHECK(context.IsEmpty());
+}
+
+
 static void CheckDependencies(const char* name, const char* expected) {
   v8::HandleScope handle_scope;
   v8::ExtensionConfiguration config(1, &name);
