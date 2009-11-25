@@ -376,26 +376,26 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
         __ mov(r0, Operand(Factory::the_hole_value()));
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ ldr(r1, CodeGenerator::ContextOperand(
-              cp, Context::FCONTEXT_INDEX));
+          __ ldr(r1, CodeGenerator::ContextOperand(cp,
+                                                   Context::FCONTEXT_INDEX));
           __ cmp(r1, cp);
           __ Check(eq, "Unexpected declaration in current context.");
         }
         __ str(r0, CodeGenerator::ContextOperand(cp, slot->index()));
         // No write barrier since the_hole_value is in old space.
-        ASSERT(Heap::InNewSpace(*Factory::the_hole_value()));
+        ASSERT(!Heap::InNewSpace(*Factory::the_hole_value()));
       } else if (decl->fun() != NULL) {
         Visit(decl->fun());
         __ pop(r0);
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ ldr(r1, CodeGenerator::ContextOperand(
-              cp, Context::FCONTEXT_INDEX));
+          __ ldr(r1, CodeGenerator::ContextOperand(cp,
+                                                   Context::FCONTEXT_INDEX));
           __ cmp(r1, cp);
           __ Check(eq, "Unexpected declaration in current context.");
         }
         __ str(r0, CodeGenerator::ContextOperand(cp, slot->index()));
-        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        int offset = Context::SlotOffset(slot->index());
         __ mov(r2, Operand(offset));
         // We know that we have written a function, which is not a smi.
         __ RecordWrite(cp, r2, r0);

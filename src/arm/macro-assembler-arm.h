@@ -79,6 +79,11 @@ class MacroAssembler: public Assembler {
   void RecordWrite(Register object, Register offset, Register scratch);
 
   // ---------------------------------------------------------------------------
+  // Stack limit support
+
+  void StackLimitCheck(Label* on_stack_limit_hit);
+
+  // ---------------------------------------------------------------------------
   // Activation frames
 
   void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }

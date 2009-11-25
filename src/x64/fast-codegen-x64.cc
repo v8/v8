@@ -382,26 +382,26 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
         __ Move(rax, Factory::the_hole_value());
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ movq(rbx, CodeGenerator::ContextOperand(
-              rsi, Context::FCONTEXT_INDEX));
+          __ movq(rbx, CodeGenerator::ContextOperand(rsi,
+                                                     Context::FCONTEXT_INDEX));
           __ cmpq(rbx, rsi);
           __ Check(equal, "Unexpected declaration in current context.");
         }
         __ movq(CodeGenerator::ContextOperand(rsi, slot->index()), rax);
         // No write barrier since the_hole_value is in old space.
-        ASSERT(Heap::InNewSpace(*Factory::the_hole_value()));
+        ASSERT(!Heap::InNewSpace(*Factory::the_hole_value()));
       } else if (decl->fun() != NULL) {
         Visit(decl->fun());
         __ pop(rax);
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
-          __ movq(rbx, CodeGenerator::ContextOperand(
-              rsi, Context::FCONTEXT_INDEX));
+          __ movq(rbx, CodeGenerator::ContextOperand(rsi,
+                                                     Context::FCONTEXT_INDEX));
           __ cmpq(rbx, rsi);
           __ Check(equal, "Unexpected declaration in current context.");
         }
         __ movq(CodeGenerator::ContextOperand(rsi, slot->index()), rax);
-        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        int offset = Context::SlotOffset(slot->index());
         __ RecordWrite(rsi, offset, rax, rcx);
       }
       break;

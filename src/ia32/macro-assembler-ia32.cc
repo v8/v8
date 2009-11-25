@@ -213,6 +213,13 @@ void MacroAssembler::RecordWrite(Register object, int offset,
 }
 
 
+void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
+  cmp(esp,
+      Operand::StaticVariable(ExternalReference::address_of_stack_limit()));
+  j(below, on_stack_overflow);
+}
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::SaveRegistersToMemory(RegList regs) {
   ASSERT((regs & ~kJSCallerSaved) == 0);

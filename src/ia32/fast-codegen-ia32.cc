@@ -380,6 +380,7 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
         }
         __ mov(CodeGenerator::ContextOperand(esi, slot->index()), eax);
         // No write barrier since the_hole_value is in old space.
+        ASSERT(!Heap::InNewSpace(*Factory::the_hole_value()));
       } else if (decl->fun() != NULL) {
         Visit(decl->fun());
         __ pop(eax);
@@ -391,7 +392,7 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
           __ Check(equal, "Unexpected declaration in current context.");
         }
         __ mov(CodeGenerator::ContextOperand(esi, slot->index()), eax);
-        int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+        int offset = Context::SlotOffset(slot->index());
         __ RecordWrite(esi, offset, eax, ecx);
       }
       break;

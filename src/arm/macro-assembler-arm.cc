@@ -155,6 +155,15 @@ void MacroAssembler::Ret(Condition cond) {
 }
 
 
+void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
+  LoadRoot(ip, Heap::kStackLimitRootIndex);
+  cmp(sp, Operand(ip));
+  b(lo, on_stack_overflow);
+}
+
+
+
+
 void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
   // Empty the const pool.
   CheckConstPool(true, true);

@@ -98,6 +98,12 @@ class MacroAssembler: public Assembler {
 #endif
 
   // ---------------------------------------------------------------------------
+  // Stack limit support
+
+  // Do simple test for stack overflow. This doesn't handle an overflow.
+  void StackLimitCheck(Label* on_stack_limit_hit);
+
+  // ---------------------------------------------------------------------------
   // Activation frames
 
   void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
