@@ -154,9 +154,9 @@ DEFINE_bool(compilation_cache, true, "enable compilation cache")
 // debug.cc
 DEFINE_bool(remote_debugging, false, "enable remote debugging")
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response")
-DEFINE_bool(debugger_auto_break, false,
+DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
-            "in the queue (experimental)")
+            "in the queue")
 
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
