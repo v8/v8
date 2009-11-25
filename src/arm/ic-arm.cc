@@ -112,6 +112,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       // Add the probe offset (i + i * i) left shifted to avoid right shifting
       // the hash in a separate instruction. The value hash + i + i * i is right
       // shifted in the following and instruction.
+      ASSERT(StringDictionary::GetProbeOffset(i) <
+             1 << (32 - String::kHashFieldOffset));
       __ add(t1, t1, Operand(
           StringDictionary::GetProbeOffset(i) << String::kHashFieldOffset));
     }
