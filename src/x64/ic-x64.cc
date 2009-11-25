@@ -398,7 +398,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       __ movsxbq(rax, Operand(rcx, rax, times_1, 0));
       break;
     case kExternalUnsignedByteArray:
-      __ movb(rax, Operand(rcx, rax, times_1, 0));
+      __ movzxbq(rax, Operand(rcx, rax, times_1, 0));
       break;
     case kExternalShortArray:
       __ movsxwq(rax, Operand(rcx, rax, times_2, 0));

@@ -388,13 +388,13 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
       __ movsx_b(eax, Operand(ecx, eax, times_1, 0));
       break;
     case kExternalUnsignedByteArray:
-      __ mov_b(eax, Operand(ecx, eax, times_1, 0));
+      __ movzx_b(eax, Operand(ecx, eax, times_1, 0));
       break;
     case kExternalShortArray:
       __ movsx_w(eax, Operand(ecx, eax, times_2, 0));
       break;
     case kExternalUnsignedShortArray:
-      __ mov_w(eax, Operand(ecx, eax, times_2, 0));
+      __ movzx_w(eax, Operand(ecx, eax, times_2, 0));
       break;
     case kExternalIntArray:
     case kExternalUnsignedIntArray:

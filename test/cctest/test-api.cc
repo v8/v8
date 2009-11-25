@@ -8083,6 +8083,66 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   result = CompileRun("ext_array[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
 
+  // Test more complex manipulations which cause eax to contain values
+  // that won't be completely overwritten by loads from the arrays.
+  // This catches bugs in the instructions used for the KeyedLoadIC
+  // for byte and word types.
+  {
+    const int kXSize = 300;
+    const int kYSize = 300;
+    const int kLargeElementCount = kXSize * kYSize * 4;
+    ElementType* large_array_data =
+        static_cast<ElementType*>(malloc(kLargeElementCount * element_size));
+    i::Handle<ExternalArrayClass> large_array =
+        i::Handle<ExternalArrayClass>::cast(
+            i::Factory::NewExternalArray(kElementCount, array_type, array_data));
+    v8::Handle<v8::Object> large_obj = v8::Object::New();
+    // Set the elements to be the external array.
+    large_obj->SetIndexedPropertiesToExternalArrayData(large_array_data,
+                                                       array_type,
+                                                       kLargeElementCount);
+    context->Global()->Set(v8_str("large_array"), large_obj);
+    result = CompileRun("for (var y = 0; y < 300; y++) {"
+                        "  for (var x = 0; x < 300; x++) {"
+                        "    large_array[4 * 300 * y + 4 * x + 0] = 127;"
+                        "    large_array[4 * 300 * y + 4 * x + 1] = 0;"
+                        "    large_array[4 * 300 * y + 4 * x + 2] = 0;"
+                        "    large_array[4 * 300 * y + 4 * x + 3] = 127;"
+                        "  }"
+                        "}"
+                        "var failed = false;"
+                        "var offset = 0;"
+                        "for (var i = 0; i < 300; i++) {"
+                        "  if (large_array[4 * i] != 127 ||"
+                        "      large_array[4 * i + 1] != 0 ||"
+                        "      large_array[4 * i + 2] != 0 ||"
+                        "      large_array[4 * i + 3] != 127) {"
+                        "    failed = true;"
+                        "  }"
+                        "}"
+                        "offset = 150 * 300 * 4;"
+                        "for (var i = 0; i < 300; i++) {"
+                        "  if (large_array[offset + 4 * i] != 127 ||"
+                        "      large_array[offset + 4 * i + 1] != 0 ||"
+                        "      large_array[offset + 4 * i + 2] != 0 ||"
+                        "      large_array[offset + 4 * i + 3] != 127) {"
+                        "    failed = true;"
+                        "  }"
+                        "}"
+                        "offset = 298 * 300 * 4;"
+                        "for (var i = 0; i < 300; i++) {"
+                        "  if (large_array[offset + 4 * i] != 127 ||"
+                        "      large_array[offset + 4 * i + 1] != 0 ||"
+                        "      large_array[offset + 4 * i + 2] != 0 ||"
+                        "      large_array[offset + 4 * i + 3] != 127) {"
+                        "    failed = true;"
+                        "  }"
+                        "}"
+                        "!failed;");
+    CHECK_EQ(true, result->BooleanValue());
+    free(large_array_data);
+  }
+
   free(array_data);
 }
 
