@@ -599,11 +599,6 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
     }
   }
 
-  if (scope->arguments() != NULL) {
-    if (FLAG_trace_bailout) PrintF("function uses 'arguments'\n");
-    return NORMAL;
-  }
-
   has_supported_syntax_ = true;
   VisitDeclarations(scope->declarations());
   if (!has_supported_syntax_) return NORMAL;
@@ -802,7 +797,17 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
         BAILOUT("Lookup slot");
       }
     } else {
-      BAILOUT("access to arguments object");
+#ifdef DEBUG
+      // Only remaining possibility is a property where the object is
+      // a slotted variable and the key is a smi.
+      Property* property = rewrite->AsProperty();
+      ASSERT_NOT_NULL(property);
+      Variable* object = property->obj()->AsVariableProxy()->AsVariable();
+      ASSERT_NOT_NULL(object);
+      ASSERT_NOT_NULL(object->slot());
+      ASSERT_NOT_NULL(property->key()->AsLiteral());
+      ASSERT(property->key()->AsLiteral()->handle()->IsSmi());
+#endif
     }
   }
 }
@@ -886,12 +891,21 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
     // All global variables are supported.
     if (!var->is_global()) {
       if (var->slot() == NULL) {
-        // This is a parameter that has rewritten to an arguments access.
-        BAILOUT("non-global/non-slot assignment");
-      }
-      Slot::Type type = var->slot()->type();
-      if (type == Slot::LOOKUP) {
-        BAILOUT("Lookup slot");
+        Property* property = var->AsProperty();
+        if (property == NULL) {
+          BAILOUT("non-global/non-slot/non-property assignment");
+        }
+        if (property->obj()->AsSlot() == NULL) {
+          BAILOUT("variable rewritten to property non slot object assignment");
+        }
+        if (property->key()->AsLiteral() == NULL) {
+          BAILOUT("variable rewritten to property non literal key assignment");
+        }
+      } else {
+        Slot::Type type = var->slot()->type();
+        if (type == Slot::LOOKUP) {
+          BAILOUT("Lookup slot");
+        }
       }
     }
   } else if (prop != NULL) {

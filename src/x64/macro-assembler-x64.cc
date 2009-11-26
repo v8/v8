@@ -2235,6 +2235,25 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 }
 
 
+void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
+  if (context_chain_length > 0) {
+    // Move up the chain of contexts to the context containing the slot.
+    movq(dst, Operand(rsi, Context::SlotOffset(Context::CLOSURE_INDEX)));
+    // Load the function context (which is the incoming, outer context).
+    movq(rax, FieldOperand(rax, JSFunction::kContextOffset));
+    for (int i = 1; i < context_chain_length; i++) {
+      movq(dst, Operand(dst, Context::SlotOffset(Context::CLOSURE_INDEX)));
+      movq(dst, FieldOperand(dst, JSFunction::kContextOffset));
+    }
+    // The context may be an intermediate context, not a function context.
+    movq(dst, Operand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  } else {  // context is the current function context.
+    // The context may be an intermediate context, not a function context.
+    movq(dst, Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
+  }
+}
+
+
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.

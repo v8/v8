@@ -548,6 +548,9 @@ class MacroAssembler: public Assembler {
   // occurred.
   void IllegalOperation(int num_arguments);
 
+  // Find the function context up the context chain.
+  void LoadContext(Register dst, int context_chain_length);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 

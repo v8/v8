@@ -104,6 +104,8 @@ class MacroAssembler: public Assembler {
   // Align the stack by optionally pushing a Smi zero.
   void AlignStack(int offset);
 
+  void LoadContext(Register dst, int context_chain_length);
+
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 

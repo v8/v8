@@ -96,6 +96,8 @@ class MacroAssembler: public Assembler {
   // argument in register esi.
   void LeaveExitFrame(ExitFrame::Mode mode);
 
+  // Find the function context up the context chain.
+  void LoadContext(Register dst, int context_chain_length);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
