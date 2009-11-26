@@ -665,8 +665,9 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
   }
 
-  // If result_saved == true: the result is saved on top of the stack.
-  // If result_saved == false: the result is in r0.
+  // If result_saved == true: The result is saved on top of the
+  //  stack and in r0.
+  // If result_saved == false: The result not on the stack, just in r0.
   bool result_saved = false;
 
   for (int i = 0; i < expr->properties()->length(); i++) {
@@ -694,6 +695,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
           __ Call(ic, RelocInfo::CODE_TARGET);
           // StoreIC leaves the receiver on the stack.
+          __ ldr(r0, MemOperand(sp));  // Restore result into r0.
           break;
         }
         // Fall through.
@@ -705,7 +707,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         Visit(value);
         ASSERT_EQ(Expression::kValue, value->context());
         __ CallRuntime(Runtime::kSetProperty, 3);
-        __ ldr(r0, MemOperand(sp));  // Restore result into r0
+        __ ldr(r0, MemOperand(sp));  // Restore result into r0.
         break;
 
       case ObjectLiteral::Property::GETTER:  // Fall through.
