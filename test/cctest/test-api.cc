@@ -8495,3 +8495,107 @@ THREADED_TEST(SpaghettiStackReThrow) {
   v8::String::Utf8Value value(try_catch.Exception());
   CHECK_EQ(0, strcmp(*value, "Hey!"));
 }
+
+
+static int GetGlobalObjectsCount() {
+  int count = 0;
+  v8::internal::HeapIterator it;
+  while (it.has_next()) {
+    v8::internal::HeapObject* object = it.next();
+    if (object->IsJSGlobalObject()) {
+      count++;
+    }
+  }
+#ifdef DEBUG
+  if (count > 0) v8::internal::Heap::TracePathToGlobal();
+#endif
+  return count;
+}
+
+
+TEST(Bug528) {
+  v8::V8::Initialize();
+
+  v8::HandleScope scope;
+  v8::Persistent<Context> context;
+  int gc_count;
+
+  // Context-dependent context data creates reference from the compilation
+  // cache to the global object.
+  context = Context::New();
+  {
+    v8::HandleScope scope;
+
+    context->Enter();
+    Local<v8::Object> obj = v8::Object::New();
+    context->SetData(obj);
+    CompileRun("1");
+    context->Exit();
+  }
+  context.Dispose();
+  for (gc_count = 1; gc_count < 10; gc_count++) {
+    v8::internal::Heap::CollectAllGarbage(false);
+    if (GetGlobalObjectsCount() == 0) break;
+  }
+  CHECK_EQ(0, GetGlobalObjectsCount());
+
+  // Compilation cache size is different for Android.
+#if defined(ANDROID)
+  CHECK_EQ(1, gc_count);
+#else
+  CHECK_EQ(5, gc_count);
+#endif
+
+  // Eval in a function creates reference from the compilation cache to the
+  // global object.
+  context = Context::New();
+  {
+    v8::HandleScope scope;
+
+    context->Enter();
+    CompileRun("function f(){eval('1')}; f()");
+    context->Exit();
+  }
+  context.Dispose();
+  for (gc_count = 1; gc_count < 10; gc_count++) {
+    v8::internal::Heap::CollectAllGarbage(false);
+    if (GetGlobalObjectsCount() == 0) break;
+  } 
+  CHECK_EQ(0, GetGlobalObjectsCount());
+
+  // Compilation cache size is different for Android.
+#if defined(ANDROID)
+  CHECK_EQ(1, gc_count);
+#else
+  CHECK_EQ(2, gc_count);
+#endif
+
+  // Looking up the line number for an exception creates reference from the
+  // compilation cache to the global object.
+  context = Context::New();
+  {
+    v8::HandleScope scope;
+
+    context->Enter();
+    v8::TryCatch try_catch;
+    CompileRun("function f(){throw 1;}; f()");
+    CHECK(try_catch.HasCaught());
+    v8::Handle<v8::Message> message = try_catch.Message();
+    CHECK(!message.IsEmpty());
+    CHECK_EQ(1, message->GetLineNumber());
+    context->Exit();
+  }
+  context.Dispose();
+  for (gc_count = 1; gc_count < 10; gc_count++) {
+    v8::internal::Heap::CollectAllGarbage(false);
+    if (GetGlobalObjectsCount() == 0) break;
+  } 
+  CHECK_EQ(0, GetGlobalObjectsCount());
+
+  // Compilation cache size is different for Android.
+#if defined(ANDROID)
+  CHECK_EQ(2, gc_count);
+#else
+  CHECK_EQ(5, gc_count);
+#endif
+}
