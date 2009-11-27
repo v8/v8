@@ -8527,7 +8527,7 @@ TEST(Bug528) {
     v8::HandleScope scope;
 
     context->Enter();
-    Local<v8::Object> obj = v8::Object::New();
+    Local<v8::String> obj = v8::String::New("");
     context->SetData(obj);
     CompileRun("1");
     context->Exit();
@@ -8538,13 +8538,7 @@ TEST(Bug528) {
     if (GetGlobalObjectsCount() == 0) break;
   }
   CHECK_EQ(0, GetGlobalObjectsCount());
-
-  // Compilation cache size is different for Android.
-#if defined(ANDROID)
-  CHECK_EQ(1, gc_count);
-#else
-  CHECK_EQ(5, gc_count);
-#endif
+  CHECK_EQ(2, gc_count);
 
   // Eval in a function creates reference from the compilation cache to the
   // global object.
@@ -8562,13 +8556,7 @@ TEST(Bug528) {
     if (GetGlobalObjectsCount() == 0) break;
   }
   CHECK_EQ(0, GetGlobalObjectsCount());
-
-  // Compilation cache size is different for Android.
-#if defined(ANDROID)
-  CHECK_EQ(1, gc_count);
-#else
   CHECK_EQ(2, gc_count);
-#endif
 
   // Looking up the line number for an exception creates reference from the
   // compilation cache to the global object.
@@ -8591,11 +8579,5 @@ TEST(Bug528) {
     if (GetGlobalObjectsCount() == 0) break;
   }
   CHECK_EQ(0, GetGlobalObjectsCount());
-
-  // Compilation cache size is different for Android.
-#if defined(ANDROID)
   CHECK_EQ(2, gc_count);
-#else
-  CHECK_EQ(5, gc_count);
-#endif
 }

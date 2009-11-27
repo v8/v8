@@ -1116,8 +1116,7 @@ void Script::ScriptVerify() {
   VerifyPointer(data());
   VerifyPointer(wrapper());
   type()->SmiVerify();
-  VerifyPointer(line_ends_fixed_array());
-  VerifyPointer(line_ends_js_array());
+  VerifyPointer(line_ends());
   VerifyPointer(id());
 }
 
@@ -1144,10 +1143,8 @@ void Script::ScriptPrint() {
   wrapper()->ShortPrint();
   PrintF("\n - compilation type: ");
   compilation_type()->ShortPrint();
-  PrintF("\n - line ends fixed array: ");
-  line_ends_fixed_array()->ShortPrint();
-  PrintF("\n - line ends js array: ");
-  line_ends_js_array()->ShortPrint();
+  PrintF("\n - line ends: ");
+  line_ends()->ShortPrint();
   PrintF("\n - eval from function: ");
   eval_from_function()->ShortPrint();
   PrintF("\n - eval from instructions offset: ");

@@ -3003,10 +3003,7 @@ class Script: public Struct {
   DECL_ACCESSORS(compilation_type, Smi)
 
   // [line_ends]: FixedArray of line ends positions.
-  DECL_ACCESSORS(line_ends_fixed_array, Object)
-
-  // [line_ends]: JSArray of line ends positions.
-  DECL_ACCESSORS(line_ends_js_array, Object)
+  DECL_ACCESSORS(line_ends, Object)
 
   // [eval_from_function]: for eval scripts the funcion from which eval was
   // called.
@@ -3036,16 +3033,8 @@ class Script: public Struct {
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
-  // We have the line ends array both in FixedArray form and in JSArray form.
-  // The FixedArray form is useful when we don't have a context and so can't
-  // create a JSArray.  The JSArray form is useful when we want to see the
-  // array from JS code (e.g. debug-delay.js) which cannot handle unboxed
-  // FixedArray objects.
-  static const int kLineEndsFixedArrayOffset =
-      kCompilationTypeOffset + kPointerSize;
-  static const int kLineEndsJSArrayOffset =
-      kLineEndsFixedArrayOffset + kPointerSize;
-  static const int kIdOffset = kLineEndsJSArrayOffset + kPointerSize;
+  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
+  static const int kIdOffset = kLineEndsOffset + kPointerSize;
   static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
       kEvalFromFunctionOffset + kPointerSize;

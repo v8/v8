@@ -598,7 +598,7 @@ class V8EXPORT Script {
    * with the debugger as this data object is only available through the
    * debugger API.
    */
-  void SetData(Handle<Value> data);
+  void SetData(Handle<String> data);
 };
 
 
@@ -2634,7 +2634,7 @@ class V8EXPORT Context {
    * with the debugger to provide additional information on the context through
    * the debugger API.
    */
-  void SetData(Handle<Value> data);
+  void SetData(Handle<String> data);
   Local<Value> GetData();
 
   /**

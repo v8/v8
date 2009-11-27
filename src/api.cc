@@ -451,7 +451,7 @@ void Context::Exit() {
 }
 
 
-void Context::SetData(v8::Handle<Value> data) {
+void Context::SetData(v8::Handle<String> data) {
   if (IsDeadCheck("v8::Context::SetData()")) return;
   ENTER_V8;
   {
@@ -1175,7 +1175,7 @@ Local<Value> Script::Id() {
 }
 
 
-void Script::SetData(v8::Handle<Value> data) {
+void Script::SetData(v8::Handle<String> data) {
   ON_BAILOUT("v8::Script::SetData()", return);
   LOG_API("Script::SetData");
   {
