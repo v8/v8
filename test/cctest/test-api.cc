@@ -8560,7 +8560,7 @@ TEST(Bug528) {
   for (gc_count = 1; gc_count < 10; gc_count++) {
     v8::internal::Heap::CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 0) break;
-  } 
+  }
   CHECK_EQ(0, GetGlobalObjectsCount());
 
   // Compilation cache size is different for Android.
@@ -8589,7 +8589,7 @@ TEST(Bug528) {
   for (gc_count = 1; gc_count < 10; gc_count++) {
     v8::internal::Heap::CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 0) break;
-  } 
+  }
   CHECK_EQ(0, GetGlobalObjectsCount());
 
   // Compilation cache size is different for Android.
