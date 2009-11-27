@@ -993,8 +993,6 @@ void CodeGenSelector::VisitCallNew(CallNew* expr) {
 
 
 void CodeGenSelector::VisitCallRuntime(CallRuntime* expr) {
-  // In case of JS runtime function bail out.
-  if (expr->function() == NULL) BAILOUT("call JS runtime function");
   // Check for inline runtime call
   if (expr->name()->Get(0) == '_' &&
       CodeGenerator::FindInlineRuntimeLUT(expr->name()) != NULL) {

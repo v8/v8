@@ -1248,9 +1248,13 @@ void FastCodeGenerator::VisitCallNew(CallNew* expr) {
 void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Comment cmnt(masm_, "[ CallRuntime");
   ZoneList<Expression*>* args = expr->arguments();
-  Runtime::Function* function = expr->function();
 
-  ASSERT(function != NULL);
+  if (expr->is_jsruntime()) {
+    // Prepare for calling JS runtime function.
+    __ push(Immediate(expr->name()));
+    __ mov(eax, CodeGenerator::GlobalObject());
+    __ push(FieldOperand(eax, GlobalObject::kBuiltinsOffset));
+  }
 
   // Push the arguments ("left-to-right").
   int arg_count = args->length();
@@ -1259,8 +1263,20 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     ASSERT_EQ(Expression::kValue, args->at(i)->context());
   }
 
-  __ CallRuntime(function, arg_count);
-  Move(expr->context(), eax);
+  if (expr->is_jsruntime()) {
+    // Call the JS runtime function.
+    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
+                                                           NOT_IN_LOOP);
+    __ call(ic, RelocInfo::CODE_TARGET);
+      // Restore context register.
+    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    // Discard the function left on TOS.
+    DropAndMove(expr->context(), eax);
+  } else {
+    // Call the C runtime function.
+    __ CallRuntime(expr->function(), arg_count);
+    Move(expr->context(), eax);
+  }
 }
 
 
