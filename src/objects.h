@@ -3262,7 +3262,7 @@ class Script: public Struct {
   // [compilation]: how the the script was compiled.
   DECL_ACCESSORS(compilation_type, Smi)
 
-  // [line_ends]: array of line ends positions.
+  // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
 
   // [eval_from_function]: for eval scripts the funcion from which eval was

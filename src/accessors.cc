@@ -315,7 +315,11 @@ Object* Accessors::ScriptGetLineEnds(Object* object, void*) {
   HandleScope scope;
   Handle<Script> script(Script::cast(JSValue::cast(object)->value()));
   InitScriptLineEnds(script);
-  return script->line_ends();
+  ASSERT(script->line_ends()->IsFixedArray());
+  Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
+  Handle<FixedArray> copy = Factory::CopyFixedArray(line_ends);
+  Handle<JSArray> js_array = Factory::NewJSArrayWithElements(copy);
+  return *js_array;
 }
 
 
