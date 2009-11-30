@@ -1140,8 +1140,7 @@ void Script::ScriptVerify() {
   VerifyPointer(data());
   VerifyPointer(wrapper());
   type()->SmiVerify();
-  VerifyPointer(line_ends_fixed_array());
-  VerifyPointer(line_ends_js_array());
+  VerifyPointer(line_ends());
   VerifyPointer(id());
 }
 
@@ -1160,6 +1159,20 @@ void Script::ScriptPrint() {
   type()->ShortPrint();
   PrintF("\n - id: ");
   id()->ShortPrint();
+  PrintF("\n - data: ");
+  data()->ShortPrint();
+  PrintF("\n - context data: ");
+  context_data()->ShortPrint();
+  PrintF("\n - wrapper: ");
+  wrapper()->ShortPrint();
+  PrintF("\n - compilation type: ");
+  compilation_type()->ShortPrint();
+  PrintF("\n - line ends: ");
+  line_ends()->ShortPrint();
+  PrintF("\n - eval from function: ");
+  eval_from_function()->ShortPrint();
+  PrintF("\n - eval from instructions offset: ");
+  eval_from_instructions_offset()->ShortPrint();
   PrintF("\n");
 }
 

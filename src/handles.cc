@@ -429,12 +429,12 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
 // Init line_ends array with code positions of line ends inside script
 // source.
 void InitScriptLineEnds(Handle<Script> script) {
-  if (!script->line_ends_fixed_array()->IsUndefined()) return;
+  if (!script->line_ends()->IsUndefined()) return;
 
   if (!script->source()->IsString()) {
     ASSERT(script->source()->IsUndefined());
-    script->set_line_ends_fixed_array(*(Factory::NewFixedArray(0)));
-    ASSERT(script->line_ends_fixed_array()->IsFixedArray());
+    script->set_line_ends(*(Factory::NewFixedArray(0)));
+    ASSERT(script->line_ends()->IsFixedArray());
     return;
   }
 
@@ -467,8 +467,8 @@ void InitScriptLineEnds(Handle<Script> script) {
   }
   ASSERT(array_index == line_count);
 
-  script->set_line_ends_fixed_array(*array);
-  ASSERT(script->line_ends_fixed_array()->IsFixedArray());
+  script->set_line_ends(*array);
+  ASSERT(script->line_ends()->IsFixedArray());
 }
 
 
@@ -477,7 +477,7 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
   AssertNoAllocation no_allocation;
   FixedArray* line_ends_array =
-      FixedArray::cast(script->line_ends_fixed_array());
+      FixedArray::cast(script->line_ends());
   const int line_ends_len = line_ends_array->length();
 
   int line = -1;
