@@ -124,9 +124,12 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     // If there is no shared function info, try the fast code
     // generator for code in the global scope.  Otherwise obey the
     // explicit hint in the shared function info.
-    if (shared.is_null() && !literal->scope()->is_global_scope()) {
+    // If always_fast_compiler is true, always try the fast compiler.
+    if (shared.is_null() && !literal->scope()->is_global_scope() &&
+        !FLAG_always_fast_compiler) {
       if (FLAG_trace_bailout) PrintF("Non-global scope\n");
-    } else if (!shared.is_null() && !shared->try_fast_codegen()) {
+    } else if (!shared.is_null() && !shared->try_fast_codegen() &&
+               !FLAG_always_fast_compiler) {
       if (FLAG_trace_bailout) PrintF("No hint to try fast\n");
     } else {
       CodeGenSelector selector;

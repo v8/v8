@@ -147,6 +147,8 @@ DEFINE_bool(fast_compiler, true,
             "use the fast-mode compiler for some top-level code")
 DEFINE_bool(trace_bailout, false,
             "print reasons for failing to use fast compilation")
+DEFINE_bool(always_fast_compiler, false,
+            "always try using the fast compiler")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
