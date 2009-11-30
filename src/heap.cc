@@ -2901,6 +2901,11 @@ bool Heap::IdleNotification() {
     last_gc_count = gc_count_;
 
   } else if (number_idle_notifications == kIdlesBeforeMarkSweep) {
+    // Before doing the mark-sweep collections we clear the
+    // compilation cache to avoid hanging on to source code and
+    // generated code for cached functions.
+    CompilationCache::Clear();
+
     CollectAllGarbage(false);
     new_space_.Shrink();
     last_gc_count = gc_count_;
