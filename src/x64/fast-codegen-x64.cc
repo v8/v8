@@ -189,13 +189,13 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
     // Add padding that will be overwritten by a debugger breakpoint.  We
     // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
     // (3 + 1 + 3).
-    const int kPadding = Debug::kX64JSReturnSequenceLength - 7;
+    const int kPadding = Assembler::kJSReturnSequenceLength - 7;
     for (int i = 0; i < kPadding; ++i) {
       masm_->int3();
     }
     // Check that the size of the code used for returning matches what is
     // expected by the debugger.
-    ASSERT_EQ(Debug::kX64JSReturnSequenceLength,
+    ASSERT_EQ(Assembler::kJSReturnSequenceLength,
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   }

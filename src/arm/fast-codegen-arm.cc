@@ -188,7 +188,7 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
     // the constant pool is not emitted inside of the return sequence.
     int num_parameters = function_->scope()->num_parameters();
     int32_t sp_delta = (num_parameters + 1) * kPointerSize;
-    int return_sequence_length = Debug::kARMJSReturnSequenceLength;
+    int return_sequence_length = Assembler::kJSReturnSequenceLength;
     if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
       // Additional mov instruction generated.
       return_sequence_length++;

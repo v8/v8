@@ -326,7 +326,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // Calculate the exact length of the return sequence and make sure that
     // the constant pool is not emitted inside of the return sequence.
     int32_t sp_delta = (scope_->num_parameters() + 1) * kPointerSize;
-    int return_sequence_length = Debug::kARMJSReturnSequenceLength;
+    int return_sequence_length = Assembler::kJSReturnSequenceLength;
     if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
       // Additional mov instruction generated.
       return_sequence_length++;

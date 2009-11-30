@@ -187,7 +187,7 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Check that the size of the code used for returning matches what is
     // expected by the debugger.
-    ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
+    ASSERT_EQ(Assembler::kJSReturnSequenceLength,
             masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
 #endif
   }
