@@ -7691,8 +7691,31 @@ static Object* Runtime_FunctionGetInferredName(Arguments args) {
   CONVERT_CHECKED(JSFunction, f, args[0]);
   return f->shared()->inferred_name();
 }
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+
+static Object* Runtime_ProfilerResume(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(Smi, smi_modules, args[0]);
+  Logger::ResumeProfiler(smi_modules->value());
+  return Heap::undefined_value();
+}
+
+
+static Object* Runtime_ProfilerPause(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(Smi, smi_modules, args[0]);
+  Logger::PauseProfiler(smi_modules->value());
+  return Heap::undefined_value();
+}
+
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position
