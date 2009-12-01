@@ -171,7 +171,7 @@ function ConvertToLocaleString(e) {
     // See issue 877615.
     var e_obj = ToObject(e);
     if (IS_FUNCTION(e_obj.toLocaleString))
-      return e_obj.toLocaleString();
+      return ToString(e_obj.toLocaleString());
     else
       return ToString(e);
   }
