@@ -8525,7 +8525,7 @@ static int GetGlobalObjectsCount() {
 }
 
 
-TEST(Bug528) {
+TEST(Regress528) {
   v8::V8::Initialize();
 
   v8::HandleScope scope;
@@ -8580,8 +8580,8 @@ TEST(Bug528) {
     v8::internal::Heap::CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
-  CHECK_EQ(10, gc_count);  // Should be 1 or 2 when the bug is resolved.
-  CHECK_EQ(2, GetGlobalObjectsCount());  // Should be 1 when resolved.
+  CHECK_GE(2, gc_count);
+  CHECK_EQ(1, GetGlobalObjectsCount());
 
   // Looking up the line number for an exception creates reference from the
   // compilation cache to the global object.

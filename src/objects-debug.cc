@@ -1145,10 +1145,12 @@ void Script::ScriptPrint() {
   compilation_type()->ShortPrint();
   PrintF("\n - line ends: ");
   line_ends()->ShortPrint();
-  PrintF("\n - eval from function: ");
-  eval_from_function()->ShortPrint();
-  PrintF("\n - eval from instructions offset: ");
-  eval_from_instructions_offset()->ShortPrint();
+  PrintF("\n - eval from script: ");
+  eval_from_script()->ShortPrint();
+  PrintF("\n - eval from script position: ");
+  eval_from_script_position()->ShortPrint();
+  PrintF("\n - eval from function name: ");
+  eval_from_function_name()->ShortPrint();
   PrintF("\n");
 }
 

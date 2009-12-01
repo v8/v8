@@ -3005,9 +3005,9 @@ class Script: public Struct {
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
 
-  // [eval_from_function]: for eval scripts the funcion from which eval was
-  // called.
-  DECL_ACCESSORS(eval_from_function, Object)
+  // [eval_from_shared]: for eval scripts the shared funcion info for the
+  // function from which eval was called.
+  DECL_ACCESSORS(eval_from_shared, Object)
 
   // [eval_from_instructions_offset]: the instruction offset in the code for the
   // function from which eval was called where eval was called.
@@ -3035,9 +3035,9 @@ class Script: public Struct {
   static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
   static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
+  static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
-      kEvalFromFunctionOffset + kPointerSize;
+      kEvalFromSharedOffset + kPointerSize;
   static const int kSize = kEvalFrominstructionsOffsetOffset + kPointerSize;
 
  private:
