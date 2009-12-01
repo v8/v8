@@ -179,7 +179,6 @@ static Handle<JSFunction> MakeFunction(bool is_global,
     // called.
     if (is_eval) {
       JavaScriptFrameIterator it;
-      if (it.frame()->function()->IsJSFunction())
       script->set_eval_from_shared(
           JSFunction::cast(it.frame()->function())->shared());
       int offset = static_cast<int>(
