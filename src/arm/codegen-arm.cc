@@ -1560,7 +1560,7 @@ void CodeGenerator::VisitDoWhileStatement(DoWhileStatement* node) {
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   VisitAndSpill(node->body());
 
-      // Compile the test.
+  // Compile the test.
   switch (info) {
     case ALWAYS_TRUE:
       // If control can fall off the end of the body, jump back to the

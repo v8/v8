@@ -2633,33 +2633,24 @@ bool JSObject::ReferencesObject(Object* obj) {
 
 
 // Tests for the fast common case for property enumeration:
-// - this object has an enum cache
-// - this object has no elements
-// - no prototype has enumerable properties/elements
-// - neither this object nor any prototype has interceptors
+// - This object and all prototypes has an enum cache (which means that it has
+//   no interceptors and needs no access checks).
+// - This object has no elements.
+// - No prototype has enumerable properties/elements.
 bool JSObject::IsSimpleEnum() {
-  JSObject* arguments_boilerplate =
-      Top::context()->global_context()->arguments_boilerplate();
-  JSFunction* arguments_function =
-      JSFunction::cast(arguments_boilerplate->map()->constructor());
-  if (IsAccessCheckNeeded()) return false;
-  if (map()->constructor() == arguments_function) return false;
-
   for (Object* o = this;
        o != Heap::null_value();
        o = JSObject::cast(o)->GetPrototype()) {
     JSObject* curr = JSObject::cast(o);
-    if (!curr->HasFastProperties()) return false;
     if (!curr->map()->instance_descriptors()->HasEnumCache()) return false;
+    ASSERT(!curr->HasNamedInterceptor());
+    ASSERT(!curr->HasIndexedInterceptor());
+    ASSERT(!curr->IsAccessCheckNeeded());
     if (curr->NumberOfEnumElements() > 0) return false;
-    if (curr->HasNamedInterceptor()) return false;
-    if (curr->HasIndexedInterceptor()) return false;
     if (curr != this) {
       FixedArray* curr_fixed_array =
           FixedArray::cast(curr->map()->instance_descriptors()->GetEnumCache());
-      if (curr_fixed_array->length() > 0) {
-        return false;
-      }
+      if (curr_fixed_array->length() > 0) return false;
     }
   }
   return true;
@@ -6478,6 +6469,15 @@ int JSObject::NumberOfLocalElements(PropertyAttributes filter) {
 
 
 int JSObject::NumberOfEnumElements() {
+  // Fast case for objects with no elements.
+  if (!IsJSValue() && HasFastElements()) {
+    uint32_t length = IsJSArray() ?
+        static_cast<uint32_t>(
+            Smi::cast(JSArray::cast(this)->length())->value()) :
+        static_cast<uint32_t>(FixedArray::cast(elements())->length());
+    if (length == 0) return 0;
+  }
+  // Compute the number of enumerable elements.
   return NumberOfLocalElements(static_cast<PropertyAttributes>(DONT_ENUM));
 }
 
