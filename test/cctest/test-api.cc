@@ -8519,10 +8519,7 @@ static int GetGlobalObjectsCount() {
   v8::internal::HeapIterator it;
   while (it.has_next()) {
     v8::internal::HeapObject* object = it.next();
-    if (object->IsJSGlobalObject()) {
-      count++;
-      //object->PrintLn();
-    }
+    if (object->IsJSGlobalObject()) count++;
   }
   return count;
 }
@@ -8561,7 +8558,7 @@ TEST(Bug528) {
     v8::internal::Heap::CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
-  CHECK(gc_count <= 2);
+  CHECK_GE(2, gc_count);
   CHECK_EQ(1, GetGlobalObjectsCount());
 
   // Eval in a function creates reference from the compilation cache to the
@@ -8610,7 +8607,7 @@ TEST(Bug528) {
     v8::internal::Heap::CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
-  CHECK(gc_count <= 2);
+  CHECK_GE(2, gc_count);
   CHECK_EQ(1, GetGlobalObjectsCount());
 
   other_context.Dispose();
