@@ -105,7 +105,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ b(eq, &miss);
 
   // Get the map of the receiver and compute the hash.
-  __ ldr(scratch, FieldMemOperand(name, String::kLengthOffset));
+  __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
   __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, Operand(ip));
   __ eor(scratch, scratch, Operand(flags));

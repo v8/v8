@@ -115,7 +115,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
       ASSERT(StringDictionary::GetProbeOffset(i) <
              1 << (32 - String::kHashFieldOffset));
       __ add(t1, t1, Operand(
-          StringDictionary::GetProbeOffset(i) << String::kHashFieldOffset));
+          StringDictionary::GetProbeOffset(i) << String::kHashShift));
     }
     __ and_(t1, r3, Operand(t1, LSR, String::kHashShift));
 
