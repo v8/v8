@@ -149,6 +149,11 @@ LIBRARY_FLAGS = {
       'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
     },
+    'os:openbsd': {
+      'CPPPATH' : ['/usr/local/include'],
+      'LIBPATH' : ['/usr/local/lib'],
+      'CCFLAGS':      ['-ansi'],
+    },
     'os:win32': {
       'CCFLAGS':      ['-DWIN32'],
       'CXXFLAGS':     ['-DWIN32'],
@@ -299,6 +304,9 @@ MKSNAPSHOT_EXTRA_FLAGS = {
     'os:freebsd': {
       'LIBS': ['execinfo', 'pthread']
     },
+    'os:openbsd': {
+      'LIBS': ['execinfo', 'pthread']
+    },
     'os:win32': {
       'LIBS': ['winmm', 'ws2_32'],
     },
@@ -343,6 +351,9 @@ CCTEST_EXTRA_FLAGS = {
       'LIBS':         ['pthread'],
     },
     'os:freebsd': {
+      'LIBS':         ['execinfo', 'pthread']
+    },
+    'os:openbsd': {
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:win32': {
@@ -398,7 +409,11 @@ SAMPLE_FLAGS = {
     },
     'os:freebsd': {
       'LIBPATH' : ['/usr/local/lib'],
-      'LIBS':         ['execinfo', 'pthread']
+      'LIBS':     ['execinfo', 'pthread']
+    },
+    'os:openbsd': {
+      'LIBPATH' : ['/usr/local/lib'],
+      'LIBS':     ['execinfo', 'pthread']
     },
     'os:win32': {
       'LIBS':         ['winmm', 'ws2_32']
@@ -505,6 +520,9 @@ D8_FLAGS = {
     'os:freebsd': {
       'LIBS': ['pthread'],
     },
+    'os:openbsd': {
+      'LIBS': ['pthread'],
+    },
     'os:android': {
       'LIBPATH':     [ANDROID_TOP + '/out/target/product/generic/obj/lib'],
       'LINKFLAGS':    ANDROID_LINKFLAGS,
@@ -555,7 +573,7 @@ SIMPLE_OPTIONS = {
     'help': 'the toolchain to use (' + TOOLCHAIN_GUESS + ')'
   },
   'os': {
-    'values': ['freebsd', 'linux', 'macos', 'win32', 'android'],
+    'values': ['freebsd', 'linux', 'macos', 'win32', 'android', 'openbsd'],
     'default': OS_GUESS,
     'help': 'the os to build for (' + OS_GUESS + ')'
   },

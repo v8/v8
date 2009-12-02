@@ -27,7 +27,7 @@
 
 // Platform specific code for POSIX goes here. This is not a platform on its
 // own but contains the parts which are the same across POSIX platforms Linux,
-// Mac OS and FreeBSD.
+// Mac OS, FreeBSD and OpenBSD.
 
 #include <unistd.h>
 #include <errno.h>
