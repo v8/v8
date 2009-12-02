@@ -378,7 +378,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   // ExternalArray.
   // rax: index (as a smi)
   // rcx: JSObject
-  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ movq(rcx, FieldOperand(rcx, JSObject::kElementsOffset));
   __ CompareRoot(FieldOperand(rcx, HeapObject::kMapOffset),
                  Heap::RootIndexForExternalArrayType(array_type));
   __ j(not_equal, &slow);
