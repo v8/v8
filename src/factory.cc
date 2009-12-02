@@ -189,7 +189,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_compilation_type(Smi::FromInt(Script::COMPILATION_TYPE_HOST));
   script->set_wrapper(*wrapper);
   script->set_line_ends(Heap::undefined_value());
-  script->set_eval_from_function(Heap::undefined_value());
+  script->set_eval_from_shared(Heap::undefined_value());
   script->set_eval_from_instructions_offset(Smi::FromInt(0));
 
   return script;
