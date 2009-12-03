@@ -3056,13 +3056,59 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
   // eax: value to be iterated over
-  frame_->EmitPush(eax);  // push the object being iterated over (slot 4)
+  frame_->EmitPush(eax);  // Push the object being iterated over.
 
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  JumpTarget call_runtime;
+  JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+  JumpTarget check_prototype;
+  JumpTarget use_cache;
+  __ mov(ecx, eax);
+  loop.Bind();
+  // Check that there are no elements.
+  __ mov(edx, FieldOperand(ecx, JSObject::kElementsOffset));
+  __ cmp(Operand(edx), Immediate(Factory::empty_fixed_array()));
+  call_runtime.Branch(not_equal);
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in ebx for the subsequent
+  // prototype load.
+  __ mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOffset));
+  __ cmp(Operand(edx), Immediate(Factory::empty_descriptor_array()));
+  call_runtime.Branch(equal);
+  // Check that there in an enum cache in the non-empty instance
+  // descriptors.  This is the case if the next enumeration index
+  // field does not contain a smi.
+  __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumerationIndexOffset));
+  __ test(edx, Immediate(kSmiTagMask));
+  call_runtime.Branch(zero);
+  // For all objects but the receiver, check that the cache is empty.
+  __ cmp(ecx, Operand(eax));
+  check_prototype.Branch(equal);
+  __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ cmp(Operand(edx), Immediate(Factory::empty_fixed_array()));
+  call_runtime.Branch(not_equal);
+  check_prototype.Bind();
+  // Load the prototype from the map and loop if non-null.
+  __ mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
+  __ cmp(Operand(ecx), Immediate(Factory::null_value()));
+  loop.Branch(not_equal);
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
+  use_cache.Jump();
+
+  call_runtime.Bind();
+  // Call the runtime to get the property names for the object.
   frame_->EmitPush(eax);  // push the Object (slot 4) for the runtime call
   frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
-  // If we got a Map, we can do a fast modification check.
-  // Otherwise, we got a FixedArray, and we have to do a slow check.
+  // If we got a map from the runtime call, we can do a fast
+  // modification check. Otherwise, we got a fixed array, and we have
+  // to do a slow check.
   // eax: map or fixed array (result from call to
   // Runtime::kGetPropertyNamesFast)
   __ mov(edx, Operand(eax));
@@ -3070,9 +3116,13 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ cmp(ecx, Factory::meta_map());
   fixed_array.Branch(not_equal);
 
+  use_cache.Bind();
   // Get enum cache
-  // eax: map (result from call to Runtime::kGetPropertyNamesFast)
+  // eax: map (either the result from a call to
+  // Runtime::kGetPropertyNamesFast or has been fetched directly from
+  // the object)
   __ mov(ecx, Operand(eax));
+
   __ mov(ecx, FieldOperand(ecx, Map::kInstanceDescriptorsOffset));
   // Get the bridge array held in the enumeration index field.
   __ mov(ecx, FieldOperand(ecx, DescriptorArray::kEnumerationIndexOffset));

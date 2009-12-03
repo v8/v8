@@ -1662,8 +1662,54 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
   // rax: value to be iterated over
-  frame_->EmitPush(rax);  // push the object being iterated over (slot 4)
+  frame_->EmitPush(rax);  // Push the object being iterated over.
 
+
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  JumpTarget call_runtime;
+  JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+  JumpTarget check_prototype;
+  JumpTarget use_cache;
+  __ movq(rcx, rax);
+  loop.Bind();
+  // Check that there are no elements.
+  __ movq(rdx, FieldOperand(rcx, JSObject::kElementsOffset));
+  __ CompareRoot(rdx, Heap::kEmptyFixedArrayRootIndex);
+  call_runtime.Branch(not_equal);
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in ebx for the subsequent
+  // prototype load.
+  __ movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOffset));
+  __ CompareRoot(rdx, Heap::kEmptyDescriptorArrayRootIndex);
+  call_runtime.Branch(equal);
+  // Check that there in an enum cache in the non-empty instance
+  // descriptors.  This is the case if the next enumeration index
+  // field does not contain a smi.
+  __ movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumerationIndexOffset));
+  is_smi = masm_->CheckSmi(rdx);
+  call_runtime.Branch(is_smi);
+  // For all objects but the receiver, check that the cache is empty.
+  __ cmpq(rcx, rax);
+  check_prototype.Branch(equal);
+  __ movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ CompareRoot(rdx, Heap::kEmptyFixedArrayRootIndex);
+  call_runtime.Branch(not_equal);
+  check_prototype.Bind();
+  // Load the prototype from the map and loop if non-null.
+  __ movq(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
+  __ CompareRoot(rcx, Heap::kNullValueRootIndex);
+  loop.Branch(not_equal);
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  __ movq(rax, FieldOperand(rax, HeapObject::kMapOffset));
+  use_cache.Jump();
+
+  call_runtime.Bind();
+  // Call the runtime to get the property names for the object.
   frame_->EmitPush(rax);  // push the Object (slot 4) for the runtime call
   frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
@@ -1676,8 +1722,11 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ CompareRoot(rcx, Heap::kMetaMapRootIndex);
   fixed_array.Branch(not_equal);
 
+  use_cache.Bind();
   // Get enum cache
-  // rax: map (result from call to Runtime::kGetPropertyNamesFast)
+  // rax: map (either the result from a call to
+  // Runtime::kGetPropertyNamesFast or has been fetched directly from
+  // the object)
   __ movq(rcx, rax);
   __ movq(rcx, FieldOperand(rcx, Map::kInstanceDescriptorsOffset));
   // Get the bridge array held in the enumeration index field.

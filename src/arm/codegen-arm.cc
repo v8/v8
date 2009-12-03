@@ -1775,19 +1775,77 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
-  frame_->EmitPush(r0);  // duplicate the object being enumerated
-  frame_->EmitPush(r0);
+  // r0: value to be iterated over
+  frame_->EmitPush(r0);  // Push the object being iterated over.
+
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  JumpTarget call_runtime;
+  JumpTarget loop(JumpTarget::BIDIRECTIONAL);
+  JumpTarget check_prototype;
+  JumpTarget use_cache;
+  __ mov(r1, Operand(r0));
+  loop.Bind();
+  // Check that there are no elements.
+  __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ LoadRoot(r4, Heap::kEmptyFixedArrayRootIndex);
+  __ cmp(r2, r4);
+  call_runtime.Branch(ne);
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in r3 for the subsequent
+  // prototype load.
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldr(r2, FieldMemOperand(r3, Map::kInstanceDescriptorsOffset));
+  __ LoadRoot(ip, Heap::kEmptyDescriptorArrayRootIndex);
+  __ cmp(r2, ip);
+  call_runtime.Branch(eq);
+  // Check that there in an enum cache in the non-empty instance
+  // descriptors.  This is the case if the next enumeration index
+  // field does not contain a smi.
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumerationIndexOffset));
+  __ tst(r2, Operand(kSmiTagMask));
+  call_runtime.Branch(eq);
+  // For all objects but the receiver, check that the cache is empty.
+  // r4: empty fixed array root.
+  __ cmp(r1, r0);
+  check_prototype.Branch(eq);
+  __ ldr(r2, FieldMemOperand(r2, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ cmp(r2, r4);
+  call_runtime.Branch(ne);
+  check_prototype.Bind();
+  // Load the prototype from the map and loop if non-null.
+  __ ldr(r1, FieldMemOperand(r3, Map::kPrototypeOffset));
+  __ LoadRoot(ip, Heap::kNullValueRootIndex);
+  __ cmp(r1, ip);
+  loop.Branch(ne);
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+  use_cache.Jump();
+
+  call_runtime.Bind();
+  // Call the runtime to get the property names for the object.
+  frame_->EmitPush(r0);  // push the object (slot 4) for the runtime call
   frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
-  // If we got a Map, we can do a fast modification check.
-  // Otherwise, we got a FixedArray, and we have to do a slow check.
+  // If we got a map from the runtime call, we can do a fast
+  // modification check. Otherwise, we got a fixed array, and we have
+  // to do a slow check.
+  // r0: map or fixed array (result from call to
+  // Runtime::kGetPropertyNamesFast)
   __ mov(r2, Operand(r0));
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ LoadRoot(ip, Heap::kMetaMapRootIndex);
   __ cmp(r1, ip);
   fixed_array.Branch(ne);
 
+  use_cache.Bind();
   // Get enum cache
+  // r0: map (either the result from a call to
+  // Runtime::kGetPropertyNamesFast or has been fetched directly from
+  // the object)
   __ mov(r1, Operand(r0));
   __ ldr(r1, FieldMemOperand(r1, Map::kInstanceDescriptorsOffset));
   __ ldr(r1, FieldMemOperand(r1, DescriptorArray::kEnumerationIndexOffset));
@@ -6396,7 +6454,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ b(eq, &adaptor);
 
   // Check index against formal parameters count limit passed in
-  // through register eax. Use unsigned comparison to get negative
+  // through register r0. Use unsigned comparison to get negative
   // check for free.
   __ cmp(r1, r0);
   __ b(cs, &slow);
