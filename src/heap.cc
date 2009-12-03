@@ -3356,6 +3356,24 @@ bool Heap::ConfigureHeapDefault() {
 }
 
 
+void Heap::RecordStats(HeapStats* stats) {
+  stats->new_space_size = new_space_.Size();
+  stats->new_space_capacity = new_space_.Capacity();
+  stats->old_pointer_space_size = old_pointer_space_->Size();
+  stats->old_pointer_space_capacity = old_pointer_space_->Capacity();
+  stats->old_data_space_size = old_data_space_->Size();
+  stats->old_data_space_capacity = old_data_space_->Capacity();
+  stats->code_space_size = code_space_->Size();
+  stats->code_space_capacity = code_space_->Capacity();
+  stats->map_space_size = map_space_->Size();
+  stats->map_space_capacity = map_space_->Capacity();
+  stats->cell_space_size = cell_space_->Size();
+  stats->cell_space_capacity = cell_space_->Capacity();
+  stats->lo_space_size = lo_space_->Size();
+  GlobalHandles::RecordStats(stats);
+}
+
+
 int Heap::PromotedSpaceSize() {
   return old_pointer_space_->Size()
       + old_data_space_->Size()

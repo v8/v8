@@ -219,6 +219,7 @@ namespace internal {
 
 // Forward declaration of the GCTracer class.
 class GCTracer;
+class HeapStats;
 
 
 // The all static Heap captures the interface to the global object heap.
@@ -895,6 +896,8 @@ class Heap : public AllStatic {
   static RootListIndex RootIndexForExternalArrayType(
       ExternalArrayType array_type);
 
+  static void RecordStats(HeapStats* stats);
+
  private:
   static int reserved_semispace_size_;
   static int max_semispace_size_;
@@ -1124,6 +1127,28 @@ class Heap : public AllStatic {
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
   friend class LinearAllocationScope;
+};
+
+
+struct HeapStats {
+  int new_space_size;
+  int new_space_capacity;
+  int old_pointer_space_size;
+  int old_pointer_space_capacity;
+  int old_data_space_size;
+  int old_data_space_capacity;
+  int code_space_size;
+  int code_space_capacity;
+  int map_space_size;
+  int map_space_capacity;
+  int cell_space_size;
+  int cell_space_capacity;
+  int lo_space_size;
+  int global_handle_count;
+  int weak_global_handle_count;
+  int pending_global_handle_count;
+  int near_death_global_handle_count;
+  int destroyed_global_handle_count;
 };
 
 
