@@ -125,7 +125,8 @@ static FatalErrorCallback& GetFatalErrorHandler() {
 
 // When V8 cannot allocated memory FatalProcessOutOfMemory is called.
 // The default fatal error handler is called and execution is stopped.
-void i::V8::FatalProcessOutOfMemory(const char* location) {
+static void ExecuteFatalProcessOutOfMemory(const char* location,
+                                           i::HeapStats* heap_stats) {
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   {
@@ -134,6 +135,13 @@ void i::V8::FatalProcessOutOfMemory(const char* location) {
   }
   // If the callback returns, we stop execution.
   UNREACHABLE();
+}
+
+
+void i::V8::FatalProcessOutOfMemory(const char* location) {
+  i::HeapStats heap_stats;
+  i::Heap::RecordStats(&heap_stats);
+  ExecuteFatalProcessOutOfMemory(location, &heap_stats);
 }
 
 
