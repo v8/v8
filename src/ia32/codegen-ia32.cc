@@ -5212,6 +5212,18 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  StringAddStub stub(NO_STRING_ADD_FLAGS);
+  Result answer = frame_->CallStub(&stub, 2);
+  frame_->Push(&answer);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
@@ -7044,8 +7056,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, edx);
       __ j(above_equal, &string1);
 
-      // First and second argument are strings.
-      __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
+      // First and second argument are strings. Jump to the string add stub.
+      StringAddStub stub(NO_STRING_CHECK_IN_STUB);
+      __ TailCallStub(&stub);
 
       // Only first argument is a string.
       __ bind(&string1);
@@ -8171,6 +8184,224 @@ int CompareStub::MinorKey() {
   ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
   return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
 }
+
+
+void StringAddStub::Generate(MacroAssembler* masm) {
+  Label string_add_runtime;
+
+  // Load the two arguments.
+  __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
+
+  // Make sure that both arguments are strings if not known in advance.
+  if (string_check_) {
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, &string_add_runtime);
+    __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ebx);
+    __ j(above_equal, &string_add_runtime);
+
+    // First argument is a a string, test second.
+    __ test(edx, Immediate(kSmiTagMask));
+    __ j(zero, &string_add_runtime);
+    __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, ebx);
+    __ j(above_equal, &string_add_runtime);
+  }
+
+  // Both arguments are strings.
+  // eax: first string
+  // edx: second string
+  // Check if either of the strings are empty. In that case return the other.
+  Label second_not_zero_length, both_not_zero_length;
+  __ mov(ecx, FieldOperand(edx, String::kLengthOffset));
+  __ test(ecx, Operand(ecx));
+  __ j(not_zero, &second_not_zero_length);
+  // Second string is empty, result is first string which is already in eax.
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+  __ bind(&second_not_zero_length);
+  __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
+  __ test(ebx, Operand(ebx));
+  __ j(not_zero, &both_not_zero_length);
+  // First string is empty, result is second string which is in edx.
+  __ mov(eax, edx);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Both strings are non-empty.
+  // eax: first string
+  // ebx: length of first string
+  // ecx: length of second string
+  // edx: second string
+  // Look at the length of the result of adding the two strings.
+  Label string_add_flat_result;
+  __ bind(&both_not_zero_length);
+  __ add(ebx, Operand(ecx));
+  // Use the runtime system when adding two one character strings, as it
+  // contains optimizations for this specific case using the symbol table.
+  __ cmp(ebx, 2);
+  __ j(equal, &string_add_runtime);
+  // Check if resulting string will be flat.
+  __ cmp(ebx, String::kMinNonFlatLength);
+  __ j(below, &string_add_flat_result);
+  // Handle exceptionally long strings in the runtime system.
+  ASSERT((String::kMaxLength & 0x80000000) == 0);
+  __ cmp(ebx, String::kMaxLength);
+  __ j(above, &string_add_runtime);
+
+  // If result is not supposed to be flat allocate a cons string object. If both
+  // strings are ascii the result is an ascii cons string.
+  Label non_ascii, allocated;
+  __ mov(edi, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(edi, Map::kInstanceTypeOffset));
+  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
+  __ and_(ecx, Operand(edi));
+  __ test(ecx, Immediate(kAsciiStringTag));
+  __ j(zero, &non_ascii);
+  // Allocate an acsii cons string.
+  __ AllocateAsciiConsString(ecx, edi, no_reg, &string_add_runtime);
+  __ bind(&allocated);
+  // Fill the fields of the cons string.
+  __ mov(FieldOperand(ecx, ConsString::kLengthOffset), ebx);
+  __ mov(FieldOperand(ecx, ConsString::kHashFieldOffset),
+         Immediate(String::kEmptyHashField));
+  __ mov(FieldOperand(ecx, ConsString::kFirstOffset), eax);
+  __ mov(FieldOperand(ecx, ConsString::kSecondOffset), edx);
+  __ mov(eax, ecx);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+  __ bind(&non_ascii);
+  // Allocate a two byte cons string.
+  __ AllocateConsString(ecx, edi, no_reg, &string_add_runtime);
+  __ jmp(&allocated);
+
+  // Handle creating a flat result. First check that both strings are not
+  // external strings.
+  // eax: first string
+  // ebx: length of resulting flat string
+  // edx: second string
+  __ bind(&string_add_flat_result);
+  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ and_(ecx, kStringRepresentationMask);
+  __ cmp(ecx, kExternalStringTag);
+  __ j(equal, &string_add_runtime);
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ and_(ecx, kStringRepresentationMask);
+  __ cmp(ecx, kExternalStringTag);
+  __ j(equal, &string_add_runtime);
+  // Now check if both strings are ascii strings.
+  // eax: first string
+  // ebx: length of resulting flat string
+  // edx: second string
+  Label non_ascii_string_add_flat_result;
+  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  ASSERT(kAsciiStringTag != 0);
+  __ test(ecx, Immediate(kAsciiStringTag));
+  __ j(zero, &non_ascii_string_add_flat_result);
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ test(ecx, Immediate(kAsciiStringTag));
+  __ j(zero, &string_add_runtime);
+  // Both strings are ascii strings. As they are short they are both flat.
+  __ AllocateAsciiString(eax, ebx, ecx, edx, edi, &string_add_runtime);
+  // eax: result string
+  __ mov(ecx, eax);
+  // Locate first character of result.
+  __ add(Operand(ecx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // Load first argument and locate first character.
+  __ mov(edx, Operand(esp, 2 * kPointerSize));
+  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
+  __ add(Operand(edx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // eax: result string
+  // ecx: first character of result
+  // edx: first char of first argument
+  // edi: length of first argument
+  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
+  // Load second argument and locate first character.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));
+  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
+  __ add(Operand(edx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // eax: result string
+  // ecx: next character of result
+  // edx: first char of second argument
+  // edi: length of second argument
+  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Handle creating a flat two byte result.
+  // eax: first string - known to be two byte
+  // ebx: length of resulting flat string
+  // edx: second string
+  __ bind(&non_ascii_string_add_flat_result);
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ and_(ecx, kAsciiStringTag);
+  __ j(not_zero, &string_add_runtime);
+  // Both strings are two byte strings. As they are short they are both
+  // flat.
+  __ AllocateTwoByteString(eax, ebx, ecx, edx, edi, &string_add_runtime);
+  // eax: result string
+  __ mov(ecx, eax);
+  // Locate first character of result.
+  __ add(Operand(ecx),
+         Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // Load first argument and locate first character.
+  __ mov(edx, Operand(esp, 2 * kPointerSize));
+  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
+  __ add(Operand(edx),
+         Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // eax: result string
+  // ecx: first character of result
+  // edx: first char of first argument
+  // edi: length of first argument
+  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
+  // Load second argument and locate first character.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));
+  __ mov(edi, FieldOperand(edx, String::kLengthOffset));
+  __ add(Operand(edx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // eax: result string
+  // ecx: next character of result
+  // edx: first char of second argument
+  // edi: length of second argument
+  GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Just jump to runtime to add the two strings.
+  __ bind(&string_add_runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
+}
+
+
+void StringAddStub::GenerateCopyCharacters(MacroAssembler* masm,
+                                           Register dest,
+                                           Register src,
+                                           Register count,
+                                           Register scratch,
+                                           bool ascii) {
+  Label loop;
+  __ bind(&loop);
+  // This loop just copies one character at a time, as it is only used for very
+  // short strings.
+  if (ascii) {
+    __ mov_b(scratch, Operand(src, 0));
+    __ mov_b(Operand(dest, 0), scratch);
+    __ add(Operand(src), Immediate(1));
+    __ add(Operand(dest), Immediate(1));
+  } else {
+    __ mov_w(scratch, Operand(src, 0));
+    __ mov_w(Operand(dest, 0), scratch);
+    __ add(Operand(src), Immediate(2));
+    __ add(Operand(dest), Immediate(2));
+  }
+  __ sub(Operand(count), Immediate(1));
+  __ j(not_zero, &loop);
+}
+
 
 #undef __
 

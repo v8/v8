@@ -820,6 +820,104 @@ void MacroAssembler::AllocateHeapNumber(Register result,
 }
 
 
+void MacroAssembler::AllocateTwoByteString(Register result,
+                                           Register length,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
+  // Calculate the number of words needed for the number of characters in the
+  // string
+  mov(scratch1, length);
+  add(Operand(scratch1), Immediate(1));
+  shr(scratch1, 1);
+
+  // Allocate two byte string in new space.
+  AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
+                     times_4,
+                     scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::string_map()));
+  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(FieldOperand(result, String::kHashFieldOffset),
+      Immediate(String::kEmptyHashField));
+}
+
+
+void MacroAssembler::AllocateAsciiString(Register result,
+                                         Register length,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Label* gc_required) {
+  // Calculate the number of words needed for the number of characters in the
+  // string
+  mov(scratch1, length);
+  add(Operand(scratch1), Immediate(3));
+  shr(scratch1, 2);
+
+  // Allocate ascii string in new space.
+  AllocateInNewSpace(SeqAsciiString::kHeaderSize,
+                     times_4,
+                     scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::ascii_string_map()));
+  mov(FieldOperand(result, String::kLengthOffset), length);
+  mov(FieldOperand(result, String::kHashFieldOffset),
+      Immediate(String::kEmptyHashField));
+}
+
+
+void MacroAssembler::AllocateConsString(Register result,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(ConsString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::cons_string_map()));
+}
+
+
+void MacroAssembler::AllocateAsciiConsString(Register result,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(ConsString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(Factory::cons_ascii_string_map()));
+}
+
+
 void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
                                       Register result,
                                       Register op,
@@ -910,6 +1008,12 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
   call(stub->GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void MacroAssembler::TailCallStub(CodeStub* stub) {
+  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
+  jmp(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 

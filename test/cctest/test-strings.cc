@@ -376,7 +376,7 @@ TEST(ExternalShortStringAdd) {
     ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
     uc16* non_ascii = Zone::NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
-      non_ascii[j] = 1234;
+      non_ascii[j] = 0x1234;
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
@@ -389,20 +389,44 @@ TEST(ExternalShortStringAdd) {
 
   // Add the arrays with the short external strings in the global object.
   v8::Handle<v8::Object> global = env->Global();
-  global->Set(v8_str("ascii"), ascii_external_strings);
-  global->Set(v8_str("non_ascii"), non_ascii_external_strings);
+  global->Set(v8_str("external_ascii"), ascii_external_strings);
+  global->Set(v8_str("external_non_ascii"), non_ascii_external_strings);
+  global->Set(v8_str("max_length"), v8::Integer::New(kMaxLength));
 
   // Add short external ascii and non-ascii strings checking the result.
   static const char* source =
     "function test() {"
-    "  for (var i = 0; i <= 20; i++) {"
+    "  var ascii_chars = 'aaaaaaaaaaaaaaaaaaaa';"
+    "  var non_ascii_chars = '\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234';"  //NOLINT
+    "  if (ascii_chars.length != max_length) return 1;"
+    "  if (non_ascii_chars.length != max_length) return 2;"
+    "  var ascii = Array(max_length + 1);"
+    "  var non_ascii = Array(max_length + 1);"
+    "  for (var i = 0; i <= max_length; i++) {"
+    "    ascii[i] = ascii_chars.substring(0, i);"
+    "    non_ascii[i] = non_ascii_chars.substring(0, i);"
+    "  };"
+    "  for (var i = 0; i <= max_length; i++) {"
+    "    if (ascii[i] != external_ascii[i]) return 3;"
+    "    if (non_ascii[i] != external_non_ascii[i]) return 4;"
     "    for (var j = 0; j < i; j++) {"
-    "      if (non_ascii[i] != (non_ascii[j] + non_ascii[i - j])) return false;"
-    "      if (ascii[i] != (ascii[j] + ascii[i - j])) return false;"
+    "      if (external_ascii[i] !="
+    "          (external_ascii[j] + external_ascii[i - j])) return 5;"
+    "      if (external_non_ascii[i] !="
+    "          (external_non_ascii[j] + external_non_ascii[i - j])) return 6;"
+    "      if (non_ascii[i] != (non_ascii[j] + non_ascii[i - j])) return 7;"
+    "      if (ascii[i] != (ascii[j] + ascii[i - j])) return 8;"
+    "      if (ascii[i] != (external_ascii[j] + ascii[i - j])) return 9;"
+    "      if (ascii[i] != (ascii[j] + external_ascii[i - j])) return 10;"
+    "      if (non_ascii[i] !="
+    "          (external_non_ascii[j] + non_ascii[i - j])) return 11;"
+    "      if (non_ascii[i] !="
+    "          (non_ascii[j] + external_non_ascii[i - j])) return 12;"
     "    }"
     "  }"
-    "  return true;"
+    "  return 0;"
     "};"
     "test()";
-  CHECK(v8::Script::Compile(v8::String::New(source))->Run()->BooleanValue());
+  CHECK_EQ(0,
+           v8::Script::Compile(v8::String::New(source))->Run()->Int32Value());
 }
