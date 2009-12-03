@@ -88,11 +88,6 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 }
 
 
-double OS::nan_value() {
-  return NAN;
-}
-
-
 int OS::ActivationFrameAlignment() {
   // 16 byte alignment on OpenBSD
   return 16;
