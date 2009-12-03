@@ -7702,7 +7702,7 @@ static Object* Runtime_ProfilerResume(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  Logger::ResumeProfiler(smi_modules->value());
+  v8::V8::ResumeProfilerEx(smi_modules->value());
   return Heap::undefined_value();
 }
 
@@ -7712,7 +7712,7 @@ static Object* Runtime_ProfilerPause(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  Logger::PauseProfiler(smi_modules->value());
+  v8::V8::PauseProfilerEx(smi_modules->value());
   return Heap::undefined_value();
 }
 
