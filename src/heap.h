@@ -1130,7 +1130,8 @@ class Heap : public AllStatic {
 };
 
 
-struct HeapStats {
+class HeapStats {
+ public:
   int new_space_size;
   int new_space_capacity;
   int old_pointer_space_size;
