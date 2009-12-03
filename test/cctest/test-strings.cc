@@ -397,7 +397,7 @@ TEST(ExternalShortStringAdd) {
   static const char* source =
     "function test() {"
     "  var ascii_chars = 'aaaaaaaaaaaaaaaaaaaa';"
-    "  var non_ascii_chars = '\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234\u1234';"  //NOLINT
+    "  var non_ascii_chars = '\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234\\u1234';"  //NOLINT
     "  if (ascii_chars.length != max_length) return 1;"
     "  if (non_ascii_chars.length != max_length) return 2;"
     "  var ascii = Array(max_length + 1);"
