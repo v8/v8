@@ -505,35 +505,41 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   // Record source code position of the (possible) IC call.
   SetSourcePosition(expr->position());
 
-  Expression* rhs = expr->value();
-  // Left-hand side can only be a property, a global or a (parameter or
-  // local) slot.
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
   Property* prop = expr->target()->AsProperty();
-  if (var != NULL) {
-    Visit(rhs);
-    ASSERT_EQ(Expression::kValue, rhs->context());
-    EmitVariableAssignment(expr);
-  } else if (prop != NULL) {
-    // Assignment to a property.
-    Visit(prop->obj());
-    ASSERT_EQ(Expression::kValue, prop->obj()->context());
-    // Use the expression context of the key subexpression to detect whether
-    // we have decided to us a named or keyed IC.
-    if (prop->key()->context() == Expression::kUninitialized) {
-      ASSERT(prop->key()->AsLiteral() != NULL);
+  // In case of a property we use the uninitialized expression context
+  // of the key to detect a named property.
+  if (prop != NULL) {
+    assign_type = (prop->key()->context() == Expression::kUninitialized)
+        ? NAMED_PROPERTY
+        : KEYED_PROPERTY;
+  }
+
+  Expression* rhs = expr->value();
+  ASSERT_EQ(Expression::kValue, rhs->context());
+
+  switch (assign_type) {
+    case VARIABLE:
       Visit(rhs);
-      ASSERT_EQ(Expression::kValue, rhs->context());
+      EmitVariableAssignment(expr);
+      break;
+    case NAMED_PROPERTY:
+      Visit(prop->obj());
+      ASSERT_EQ(Expression::kValue, prop->obj()->context());
+      Visit(rhs);
       EmitNamedPropertyAssignment(expr);
-    } else {
+      break;
+    case KEYED_PROPERTY:
+      Visit(prop->obj());
+      ASSERT_EQ(Expression::kValue, prop->obj()->context());
       Visit(prop->key());
       ASSERT_EQ(Expression::kValue, prop->key()->context());
       Visit(rhs);
-      ASSERT_EQ(Expression::kValue, rhs->context());
       EmitKeyedPropertyAssignment(expr);
-    }
-  } else {
-    UNREACHABLE();
+      break;
   }
 }
 

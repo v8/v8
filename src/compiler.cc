@@ -891,28 +891,19 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   Property* prop = expr->target()->AsProperty();
+  ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
     // All global variables are supported.
     if (!var->is_global()) {
-      if (var->slot() == NULL) {
-        Property* property = var->AsProperty();
-        if (property == NULL) {
-          BAILOUT("non-global/non-slot/non-property assignment");
-        }
-        if (property->obj()->AsSlot() == NULL) {
-          BAILOUT("variable rewritten to property non slot object assignment");
-        }
-        if (property->key()->AsLiteral() == NULL) {
-          BAILOUT("variable rewritten to property non literal key assignment");
-        }
-      } else {
-        Slot::Type type = var->slot()->type();
-        if (type == Slot::LOOKUP) {
-          BAILOUT("Lookup slot");
-        }
+      ASSERT(var->slot() != NULL);
+      Slot::Type type = var->slot()->type();
+      if (type == Slot::LOOKUP) {
+        BAILOUT("Lookup slot");
       }
     }
   } else if (prop != NULL) {
+    ASSERT(prop->obj()->context() == Expression::kUninitialized ||
+           prop->obj()->context() == Expression::kValue);
     ProcessExpression(prop->obj(), Expression::kValue);
     CHECK_BAILOUT;
     // We will only visit the key during code generation for keyed property
@@ -923,6 +914,8 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
     if (lit == NULL ||
         !lit->handle()->IsSymbol() ||
         String::cast(*(lit->handle()))->AsArrayIndex(&ignored)) {
+      ASSERT(prop->key()->context() == Expression::kUninitialized ||
+             prop->key()->context() == Expression::kValue);
       ProcessExpression(prop->key(), Expression::kValue);
       CHECK_BAILOUT;
     }

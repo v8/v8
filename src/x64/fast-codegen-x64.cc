@@ -856,7 +856,7 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   ASSERT(var != NULL);
-
+  ASSERT(var->is_global() || var->slot() != NULL);
   if (var->is_global()) {
     // Assignment to a global variable.  Use inline caching for the
     // assignment.  Right-hand-side value is passed in rax, variable name in
@@ -960,36 +960,6 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
       case Slot::LOOKUP:
         UNREACHABLE();
         break;
-    }
-  } else {
-    Property* property = var->AsProperty();
-    ASSERT_NOT_NULL(property);
-    // A variable has been rewritten into a property on an object.
-
-    // Load object and key onto the stack.
-    Slot* object_slot = property->obj()->AsSlot();
-    ASSERT_NOT_NULL(object_slot);
-    Move(Expression::kValue, object_slot, rax);
-
-    Literal* key_literal = property->key()->AsLiteral();
-    ASSERT_NOT_NULL(key_literal);
-    Move(Expression::kValue, key_literal);
-
-    // Value to store was pushed before object and key on the stack.
-    __ movq(rax, Operand(rsp, 2 * kPointerSize));
-
-    // Arguments to ic is value in rax, object and key on stack.
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-    __ call(ic, RelocInfo::CODE_TARGET);
-
-    if (expr->context() == Expression::kEffect) {
-      __ addq(rsp, Immediate(3 * kPointerSize));
-    } else if (expr->context() == Expression::kValue) {
-      // Value is still on the stack in rsp[2 * kPointerSize]
-      __ addq(rsp, Immediate(2 * kPointerSize));
-    } else {
-      __ movq(rax, Operand(rsp, 2 * kPointerSize));
-      DropAndMove(expr->context(), rax, 3);
     }
   }
 }
