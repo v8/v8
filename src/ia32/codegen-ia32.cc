@@ -7091,7 +7091,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   switch (op_) {
     case Token::ADD: {
       // Test for string arguments before calling runtime.
-      Label not_strings, both_strings, not_string1, string1;
+      Label not_strings, not_string1, string1;
       Result answer;
       __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
       __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.

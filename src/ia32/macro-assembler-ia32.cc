@@ -687,6 +687,11 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
 
 void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                Register scratch) {
+  if (FLAG_debug_code) {
+    test(result_end, Immediate(kObjectAlignmentMask));
+    Check(zero, "Unaligned allocation in new space");
+  }
+
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
 
@@ -826,15 +831,18 @@ void MacroAssembler::AllocateTwoByteString(Register result,
                                            Register scratch2,
                                            Register scratch3,
                                            Label* gc_required) {
-  // Calculate the number of words needed for the number of characters in the
-  // string
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
   mov(scratch1, length);
-  add(Operand(scratch1), Immediate(1));
-  shr(scratch1, 1);
+  ASSERT(kShortSize == 2);
+  shl(scratch1, 1);
+  add(Operand(scratch1), Immediate(kObjectAlignmentMask));
+  and_(Operand(scratch1), Immediate(~kObjectAlignmentMask));
 
   // Allocate two byte string in new space.
   AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
-                     times_4,
+                     times_1,
                      scratch1,
                      result,
                      scratch2,
@@ -857,15 +865,17 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                          Register scratch2,
                                          Register scratch3,
                                          Label* gc_required) {
-  // Calculate the number of words needed for the number of characters in the
-  // string
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
   mov(scratch1, length);
-  add(Operand(scratch1), Immediate(3));
-  shr(scratch1, 2);
+  ASSERT(kCharSize == 1);
+  add(Operand(scratch1), Immediate(kObjectAlignmentMask));
+  and_(Operand(scratch1), Immediate(~kObjectAlignmentMask));
 
   // Allocate ascii string in new space.
   AllocateInNewSpace(SeqAsciiString::kHeaderSize,
-                     times_4,
+                     times_1,
                      scratch1,
                      result,
                      scratch2,
@@ -1383,11 +1393,15 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
+  // Disable stub call restrictions to always allow cals to abort.
+  set_allow_stub_calls(true);
+
   push(eax);
   push(Immediate(p0));
   push(Immediate(reinterpret_cast<intptr_t>(Smi::FromInt(p1 - p0))));
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
+  int3();
 }
 
 
