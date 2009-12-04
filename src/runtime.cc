@@ -719,12 +719,15 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
     if (*initial_value != NULL) {
       if (index >= 0) {
         // The variable or constant context slot should always be in
-        // the function context; not in any outer context nor in the
-        // arguments object.
-        ASSERT(holder.is_identical_to(context));
-        if (((attributes & READ_ONLY) == 0) ||
-            context->get(index)->IsTheHole()) {
-          context->set(index, *initial_value);
+        // the function context or the arguments object.
+        if (holder->IsContext()) {
+          ASSERT(holder.is_identical_to(context));
+          if (((attributes & READ_ONLY) == 0) ||
+              context->get(index)->IsTheHole()) {
+            context->set(index, *initial_value);
+          }
+        } else {
+          Handle<JSObject>::cast(holder)->SetElement(index, *initial_value);
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
