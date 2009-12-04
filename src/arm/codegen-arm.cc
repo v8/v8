@@ -5215,8 +5215,53 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // We jump to here if something goes wrong (one param is not a number of any
   // sort or new-space allocation fails).
   __ bind(&slow);
+
+  // Push arguments to the stack
   __ push(r1);
   __ push(r0);
+
+  if (Token::ADD == operation) {
+    // Test for string arguments before calling runtime.
+    // r1 : first argument
+    // r0 : second argument
+    // sp[0] : second argument
+    // sp[1] : first argument
+
+    Label not_strings, not_string1, string1;
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &not_string1);
+    __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
+    __ b(ge, &not_string1);
+
+    // First argument is a a string, test second.
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &string1);
+    __ CompareObjectType(r0, r2, r2, FIRST_NONSTRING_TYPE);
+    __ b(ge, &string1);
+
+    // First and second argument are strings.
+    __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
+
+    // Only first argument is a string.
+    __ bind(&string1);
+    __ mov(r0, Operand(2));  // Set number of arguments.
+    __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_JS);
+
+    // First argument was not a string, test second.
+    __ bind(&not_string1);
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &not_strings);
+    __ CompareObjectType(r0, r2, r2, FIRST_NONSTRING_TYPE);
+    __ b(ge, &not_strings);
+
+    // Only second argument is a string.
+    __ b(&not_strings);
+    __ mov(r0, Operand(2));  // Set number of arguments.
+    __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_JS);
+
+    __ bind(&not_strings);
+  }
+
   __ mov(r0, Operand(1));  // Set number of arguments.
   __ InvokeBuiltin(builtin, JUMP_JS);  // Tail call.  No return.
 

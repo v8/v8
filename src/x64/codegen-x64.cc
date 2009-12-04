@@ -7777,9 +7777,47 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     __ push(rcx);
   }
   switch (op_) {
-    case Token::ADD:
+    case Token::ADD: {
+      // Test for string arguments before calling runtime.
+      Label not_strings, both_strings, not_string1, string1;
+      Condition is_smi;
+      Result answer;
+      __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // First argument.
+      __ movq(rax, Operand(rsp, 1 * kPointerSize));  // Second argument.
+      is_smi = masm->CheckSmi(rdx);
+      __ j(is_smi, &not_string1);
+      __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rdx);
+      __ j(above_equal, &not_string1);
+
+      // First argument is a a string, test second.
+      is_smi = masm->CheckSmi(rax);
+      __ j(is_smi, &string1);
+      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      __ j(above_equal, &string1);
+
+      // First and second argument are strings.
+      Runtime::Function* f = Runtime::FunctionForId(Runtime::kStringAdd);
+      __ TailCallRuntime(ExternalReference(f), 2, f->result_size);
+
+      // Only first argument is a string.
+      __ bind(&string1);
+      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
+
+      // First argument was not a string, test second.
+      __ bind(&not_string1);
+      is_smi = masm->CheckSmi(rax);
+      __ j(is_smi, &not_strings);
+      __ CmpObjectType(rax, FIRST_NONSTRING_TYPE, rax);
+      __ j(above_equal, &not_strings);
+
+      // Only second argument is a string.
+      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
+
+      __ bind(&not_strings);
+      // Neither argument is a string.
       __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
       break;
+    }
     case Token::SUB:
       __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
       break;
