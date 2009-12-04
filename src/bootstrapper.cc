@@ -1346,8 +1346,6 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
   ASSERT(Top::has_pending_exception() != result);
   if (!result) {
     Top::clear_pending_exception();
-    v8::Utils::ReportApiFailure(
-        "v8::Context::New()", "Error installing extension");
   }
   current->set_state(v8::INSTALLED);
   return result;

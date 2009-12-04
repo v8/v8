@@ -2670,6 +2670,40 @@ THREADED_TEST(AutoExtensions) {
 }
 
 
+static const char* kSyntaxErrorInExtensionSource =
+    "[";
+
+
+// Test that a syntax error in an extension does not cause a fatal
+// error but results in an empty context.
+THREADED_TEST(SyntaxErrorExtensions) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("syntaxerror",
+                                      kSyntaxErrorInExtensionSource));
+  const char* extension_names[] = { "syntaxerror" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  CHECK(context.IsEmpty());
+}
+
+
+static const char* kExceptionInExtensionSource =
+    "throw 42";
+
+
+// Test that an exception when installing an extension does not cause
+// a fatal error but results in an empty context.
+THREADED_TEST(ExceptionExtensions) {
+  v8::HandleScope handle_scope;
+  v8::RegisterExtension(new Extension("exception",
+                                      kExceptionInExtensionSource));
+  const char* extension_names[] = { "exception" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context = Context::New(&extensions);
+  CHECK(context.IsEmpty());
+}
+
+
 static void CheckDependencies(const char* name, const char* expected) {
   v8::HandleScope handle_scope;
   v8::ExtensionConfiguration config(1, &name);
@@ -7029,27 +7063,17 @@ static void MorphAString(i::String* string,
   CHECK(i::StringShape(string).IsExternal());
   if (string->IsAsciiRepresentation()) {
     // Check old map is not symbol or long.
-    CHECK(string->map() == i::Heap::short_external_ascii_string_map() ||
-          string->map() == i::Heap::medium_external_ascii_string_map());
+    CHECK(string->map() == i::Heap::external_ascii_string_map());
     // Morph external string to be TwoByte string.
-    if (string->length() <= i::String::kMaxShortSize) {
-      string->set_map(i::Heap::short_external_string_map());
-    } else {
-      string->set_map(i::Heap::medium_external_string_map());
-    }
+    string->set_map(i::Heap::external_string_map());
     i::ExternalTwoByteString* morphed =
          i::ExternalTwoByteString::cast(string);
     morphed->set_resource(uc16_resource);
   } else {
     // Check old map is not symbol or long.
-    CHECK(string->map() == i::Heap::short_external_string_map() ||
-          string->map() == i::Heap::medium_external_string_map());
+    CHECK(string->map() == i::Heap::external_string_map());
     // Morph external string to be ASCII string.
-    if (string->length() <= i::String::kMaxShortSize) {
-      string->set_map(i::Heap::short_external_ascii_string_map());
-    } else {
-      string->set_map(i::Heap::medium_external_ascii_string_map());
-    }
+    string->set_map(i::Heap::external_ascii_string_map());
     i::ExternalAsciiString* morphed =
          i::ExternalAsciiString::cast(string);
     morphed->set_resource(ascii_resource);
@@ -8059,6 +8083,85 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   result = CompileRun("ext_array[1] = 23;");
   CHECK_EQ(23, result->Int32Value());
 
+  // Test more complex manipulations which cause eax to contain values
+  // that won't be completely overwritten by loads from the arrays.
+  // This catches bugs in the instructions used for the KeyedLoadIC
+  // for byte and word types.
+  {
+    const int kXSize = 300;
+    const int kYSize = 300;
+    const int kLargeElementCount = kXSize * kYSize * 4;
+    ElementType* large_array_data =
+        static_cast<ElementType*>(malloc(kLargeElementCount * element_size));
+    i::Handle<ExternalArrayClass> large_array =
+        i::Handle<ExternalArrayClass>::cast(
+            i::Factory::NewExternalArray(kLargeElementCount,
+                                         array_type,
+                                         array_data));
+    v8::Handle<v8::Object> large_obj = v8::Object::New();
+    // Set the elements to be the external array.
+    large_obj->SetIndexedPropertiesToExternalArrayData(large_array_data,
+                                                       array_type,
+                                                       kLargeElementCount);
+    context->Global()->Set(v8_str("large_array"), large_obj);
+    // Initialize contents of a few rows.
+    for (int x = 0; x < 300; x++) {
+      int row = 0;
+      int offset = row * 300 * 4;
+      large_array_data[offset + 4 * x + 0] = (ElementType) 127;
+      large_array_data[offset + 4 * x + 1] = (ElementType) 0;
+      large_array_data[offset + 4 * x + 2] = (ElementType) 0;
+      large_array_data[offset + 4 * x + 3] = (ElementType) 127;
+      row = 150;
+      offset = row * 300 * 4;
+      large_array_data[offset + 4 * x + 0] = (ElementType) 127;
+      large_array_data[offset + 4 * x + 1] = (ElementType) 0;
+      large_array_data[offset + 4 * x + 2] = (ElementType) 0;
+      large_array_data[offset + 4 * x + 3] = (ElementType) 127;
+      row = 298;
+      offset = row * 300 * 4;
+      large_array_data[offset + 4 * x + 0] = (ElementType) 127;
+      large_array_data[offset + 4 * x + 1] = (ElementType) 0;
+      large_array_data[offset + 4 * x + 2] = (ElementType) 0;
+      large_array_data[offset + 4 * x + 3] = (ElementType) 127;
+    }
+    // The goal of the code below is to make "offset" large enough
+    // that the computation of the index (which goes into eax) has
+    // high bits set which will not be overwritten by a byte or short
+    // load.
+    result = CompileRun("var failed = false;"
+                        "var offset = 0;"
+                        "for (var i = 0; i < 300; i++) {"
+                        "  if (large_array[4 * i] != 127 ||"
+                        "      large_array[4 * i + 1] != 0 ||"
+                        "      large_array[4 * i + 2] != 0 ||"
+                        "      large_array[4 * i + 3] != 127) {"
+                        "    failed = true;"
+                        "  }"
+                        "}"
+                        "offset = 150 * 300 * 4;"
+                        "for (var i = 0; i < 300; i++) {"
+                        "  if (large_array[offset + 4 * i] != 127 ||"
+                        "      large_array[offset + 4 * i + 1] != 0 ||"
+                        "      large_array[offset + 4 * i + 2] != 0 ||"
+                        "      large_array[offset + 4 * i + 3] != 127) {"
+                        "    failed = true;"
+                        "  }"
+                        "}"
+                        "offset = 298 * 300 * 4;"
+                        "for (var i = 0; i < 300; i++) {"
+                        "  if (large_array[offset + 4 * i] != 127 ||"
+                        "      large_array[offset + 4 * i + 1] != 0 ||"
+                        "      large_array[offset + 4 * i + 2] != 0 ||"
+                        "      large_array[offset + 4 * i + 3] != 127) {"
+                        "    failed = true;"
+                        "  }"
+                        "}"
+                        "!failed;");
+    CHECK_EQ(true, result->BooleanValue());
+    free(large_array_data);
+  }
+
   free(array_data);
 }
 
@@ -8477,7 +8580,7 @@ TEST(Regress528) {
     v8::internal::Heap::CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
-  CHECK(gc_count <= 2);
+  CHECK_GE(2, gc_count);
   CHECK_EQ(1, GetGlobalObjectsCount());
 
   // Looking up the line number for an exception creates reference from the
