@@ -794,15 +794,13 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   mov(scratch1, Operand(new_space_allocation_top));
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     ldr(result, MemOperand(scratch1));
-  } else {
-#ifdef DEBUG
+  } else if (FLAG_debug_code) {
     // Assert that result actually contains top on entry. scratch2 is used
     // immediately below so this use of scratch2 does not cause difference with
     // respect to register content between debug and release mode.
     ldr(scratch2, MemOperand(scratch1));
     cmp(result, scratch2);
     Check(eq, "Unexpected allocation top");
-#endif
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
@@ -815,7 +813,11 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   cmp(result, Operand(scratch2));
   b(hi, gc_required);
 
-  // Update allocation top. result temporarily holds the new top,
+  // Update allocation top. result temporarily holds the new top.
+  if (FLAG_debug_code) {
+    tst(result, Operand(kObjectAlignmentMask));
+    Check(eq, "Unaligned allocation in new space");
+  }
   str(result, MemOperand(scratch1));
 
   // Tag and adjust back to start of new object.
@@ -844,15 +846,13 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   mov(scratch1, Operand(new_space_allocation_top));
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     ldr(result, MemOperand(scratch1));
-  } else {
-#ifdef DEBUG
+  } else if (FLAG_debug_code) {
     // Assert that result actually contains top on entry. scratch2 is used
     // immediately below so this use of scratch2 does not cause difference with
     // respect to register content between debug and release mode.
     ldr(scratch2, MemOperand(scratch1));
     cmp(result, scratch2);
     Check(eq, "Unexpected allocation top");
-#endif
   }
 
   // Calculate new top and bail out if new space is exhausted. Use result
@@ -866,7 +866,11 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   cmp(result, Operand(scratch2));
   b(hi, gc_required);
 
-  // Update allocation top. result temporarily holds the new top,
+  // Update allocation top. result temporarily holds the new top.
+  if (FLAG_debug_code) {
+    tst(result, Operand(kObjectAlignmentMask));
+    Check(eq, "Unaligned allocation in new space");
+  }
   str(result, MemOperand(scratch1));
 
   // Adjust back to start of new object.
@@ -1162,6 +1166,9 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
+  // Disable stub call restrictions to always allow calls to abort.
+  set_allow_stub_calls(true);
+
   mov(r0, Operand(p0));
   push(r0);
   mov(r0, Operand(Smi::FromInt(p1 - p0)));

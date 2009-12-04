@@ -1393,7 +1393,7 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
-  // Disable stub call restrictions to always allow cals to abort.
+  // Disable stub call restrictions to always allow calls to abort.
   set_allow_stub_calls(true);
 
   push(eax);

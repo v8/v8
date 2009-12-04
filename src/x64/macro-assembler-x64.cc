@@ -288,6 +288,9 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
+  // Disable stub call restrictions to always allow calls to abort.
+  set_allow_stub_calls(true);
+
   push(rax);
   movq(kScratchRegister, p0, RelocInfo::NONE);
   push(kScratchRegister);
@@ -297,6 +300,7 @@ void MacroAssembler::Abort(const char* msg) {
   push(kScratchRegister);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
+  int3();
 }
 
 
@@ -2094,6 +2098,11 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
 
 void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                Register scratch) {
+  if (FLAG_debug_code) {
+    testq(result_end, Immediate(kObjectAlignmentMask));
+    Check(zero, "Unaligned allocation in new space");
+  }
+
   ExternalReference new_space_allocation_top =
       ExternalReference::new_space_allocation_top_address();
 
