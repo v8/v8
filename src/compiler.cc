@@ -596,7 +596,7 @@ CodeGenSelector::CodeGenTag CodeGenSelector::Select(FunctionLiteral* fun) {
       Slot* slot = scope->parameter(i)->slot();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
         if (FLAG_trace_bailout) {
-          PrintF("function has context-allocated parameters");
+          PrintF("Function has context-allocated parameters.\n");
         }
         return NORMAL;
       }
@@ -1123,7 +1123,7 @@ void CodeGenSelector::VisitCompareOperation(CompareOperation* expr) {
 
 
 void CodeGenSelector::VisitThisFunction(ThisFunction* expr) {
-  BAILOUT("ThisFunction");
+  // ThisFunction is supported.
 }
 
 #undef BAILOUT

@@ -1678,6 +1678,12 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
+void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
+  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  Move(expr->context(), rax);
+}
+
+
 #undef __
 
 

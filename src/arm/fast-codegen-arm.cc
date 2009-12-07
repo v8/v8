@@ -1696,6 +1696,11 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   // Convert current context to test context: End post-test code.
 }
 
+void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
+  __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  Move(expr->context(), r0);
+}
+
 
 #undef __
 

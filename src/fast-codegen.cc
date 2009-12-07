@@ -554,11 +554,6 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  UNREACHABLE();
-}
-
-
 #undef __
 
 
