@@ -645,6 +645,18 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 
 
 void CodeGenSelector::VisitDeclaration(Declaration* decl) {
+  Property* prop = decl->proxy()->AsProperty();
+  if (prop != NULL) {
+    // Property rewrites are shared, ensure we are not changing its
+    // expression context state.
+    ASSERT(prop->obj()->context() == Expression::kUninitialized ||
+           prop->obj()->context() == Expression::kValue);
+    ASSERT(prop->key()->context() == Expression::kUninitialized ||
+           prop->key()->context() == Expression::kValue);
+    ProcessExpression(prop->obj(), Expression::kValue);
+    ProcessExpression(prop->key(), Expression::kValue);
+  }
+
   if (decl->fun() != NULL) {
     ProcessExpression(decl->fun(), Expression::kValue);
   }

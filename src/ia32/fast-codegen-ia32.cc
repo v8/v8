@@ -412,46 +412,24 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
   Variable* var = decl->proxy()->var();
   ASSERT(var != NULL);  // Must have been resolved.
   Slot* slot = var->slot();
-  ASSERT(slot != NULL);  // No global declarations here.
+  Property* prop = var->AsProperty();
 
-  // We have 3 cases for slots: LOOKUP, LOCAL, CONTEXT.
-  switch (slot->type()) {
-    case Slot::LOOKUP: {
-      __ push(esi);
-      __ push(Immediate(var->name()));
-      // Declaration nodes are always introduced in one of two modes.
-      ASSERT(decl->mode() == Variable::VAR || decl->mode() == Variable::CONST);
-      PropertyAttributes attr =
-          (decl->mode() == Variable::VAR) ? NONE : READ_ONLY;
-      __ push(Immediate(Smi::FromInt(attr)));
-      // Push initial value, if any.
-      // Note: For variables we must not push an initial value (such as
-      // 'undefined') because we may have a (legal) redeclaration and we
-      // must not destroy the current value.
-      if (decl->mode() == Variable::CONST) {
-        __ push(Immediate(Factory::the_hole_value()));
-      } else if (decl->fun() != NULL) {
-        Visit(decl->fun());
-      } else {
-        __ push(Immediate(Smi::FromInt(0)));  // No initial value!
-      }
-      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
-      break;
-    }
-    case Slot::LOCAL:
-      if (decl->mode() == Variable::CONST) {
-        __ mov(Operand(ebp, SlotOffset(var->slot())),
-               Immediate(Factory::the_hole_value()));
-      } else if (decl->fun() != NULL) {
-        Visit(decl->fun());
-        __ pop(Operand(ebp, SlotOffset(var->slot())));
-      }
-      break;
-    case Slot::CONTEXT:
-      // The variable in the decl always resides in the current context.
-      ASSERT(function_->scope()->ContextChainLength(slot->var()->scope()) == 0);
-      if (decl->mode() == Variable::CONST) {
-        __ mov(eax, Immediate(Factory::the_hole_value()));
+  if (slot != NULL) {
+    switch (slot->type()) {
+      case Slot::PARAMETER:  // Fall through.
+      case Slot::LOCAL:
+        if (decl->mode() == Variable::CONST) {
+          __ mov(Operand(ebp, SlotOffset(var->slot())),
+                 Immediate(Factory::the_hole_value()));
+        } else if (decl->fun() != NULL) {
+          Visit(decl->fun());
+          __ pop(Operand(ebp, SlotOffset(var->slot())));
+        }
+        break;
+
+      case Slot::CONTEXT:
+        // The variable in the decl always resides in the current context.
+        ASSERT_EQ(0, function_->scope()->ContextChainLength(var->scope()));
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
           __ mov(ebx,
@@ -459,26 +437,70 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
           __ cmp(ebx, Operand(esi));
           __ Check(equal, "Unexpected declaration in current context.");
         }
-        __ mov(CodeGenerator::ContextOperand(esi, slot->index()), eax);
-        // No write barrier since the_hole_value is in old space.
-        ASSERT(!Heap::InNewSpace(*Factory::the_hole_value()));
-      } else if (decl->fun() != NULL) {
+        if (decl->mode() == Variable::CONST) {
+          __ mov(eax, Immediate(Factory::the_hole_value()));
+          __ mov(CodeGenerator::ContextOperand(esi, slot->index()), eax);
+          // No write barrier since the hole value is in old space.
+        } else if (decl->fun() != NULL) {
+          Visit(decl->fun());
+          __ pop(eax);
+          __ mov(CodeGenerator::ContextOperand(esi, slot->index()), eax);
+          int offset = Context::SlotOffset(slot->index());
+          __ RecordWrite(esi, offset, eax, ecx);
+        }
+        break;
+
+      case Slot::LOOKUP: {
+        __ push(esi);
+        __ push(Immediate(var->name()));
+        // Declaration nodes are always introduced in one of two modes.
+        ASSERT(decl->mode() == Variable::VAR ||
+               decl->mode() == Variable::CONST);
+        PropertyAttributes attr =
+            (decl->mode() == Variable::VAR) ? NONE : READ_ONLY;
+        __ push(Immediate(Smi::FromInt(attr)));
+        // Push initial value, if any.
+        // Note: For variables we must not push an initial value (such as
+        // 'undefined') because we may have a (legal) redeclaration and we
+        // must not destroy the current value.
+        if (decl->mode() == Variable::CONST) {
+          __ push(Immediate(Factory::the_hole_value()));
+        } else if (decl->fun() != NULL) {
+          Visit(decl->fun());
+        } else {
+          __ push(Immediate(Smi::FromInt(0)));  // No initial value!
+        }
+        __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+        break;
+      }
+    }
+
+  } else if (prop != NULL) {
+    if (decl->fun() != NULL || decl->mode() == Variable::CONST) {
+      // We are declaring a function or constant that rewrites to a
+      // property.  Use (keyed) IC to set the initial value.
+      ASSERT_EQ(Expression::kValue, prop->obj()->context());
+      Visit(prop->obj());
+      ASSERT_EQ(Expression::kValue, prop->key()->context());
+      Visit(prop->key());
+
+      if (decl->fun() != NULL) {
+        ASSERT_EQ(Expression::kValue, decl->fun()->context());
         Visit(decl->fun());
         __ pop(eax);
-        if (FLAG_debug_code) {
-          // Check if we have the correct context pointer.
-          __ mov(ebx,
-                 CodeGenerator::ContextOperand(esi, Context::FCONTEXT_INDEX));
-          __ cmp(ebx, Operand(esi));
-          __ Check(equal, "Unexpected declaration in current context.");
-        }
-        __ mov(CodeGenerator::ContextOperand(esi, slot->index()), eax);
-        int offset = Context::SlotOffset(slot->index());
-        __ RecordWrite(esi, offset, eax, ecx);
+      } else {
+        __ Set(eax, Immediate(Factory::the_hole_value()));
       }
-      break;
-    default:
-      UNREACHABLE();
+
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      __ call(ic, RelocInfo::CODE_TARGET);
+      // Absence of a test eax instruction following the call
+      // indicates that none of the load was inlined.
+
+      // Value in eax is ignored (declarations are statements).  Receiver
+      // and key on stack are discarded.
+      __ add(Operand(esp), Immediate(2 * kPointerSize));
+    }
   }
 }
 
