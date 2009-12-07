@@ -414,78 +414,98 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
   Variable* var = decl->proxy()->var();
   ASSERT(var != NULL);  // Must have been resolved.
   Slot* slot = var->slot();
-  ASSERT(slot != NULL);  // No global declarations here.
+  Property* prop = var->AsProperty();
 
-  // We have 3 cases for slots: LOOKUP, LOCAL, CONTEXT.
-  switch (slot->type()) {
-    case Slot::LOOKUP: {
-      __ mov(r2, Operand(var->name()));
-      // Declaration nodes are always introduced in one of two modes.
-      ASSERT(decl->mode() == Variable::VAR || decl->mode() == Variable::CONST);
-      PropertyAttributes attr = decl->mode() == Variable::VAR ?
-          NONE : READ_ONLY;
-      __ mov(r1, Operand(Smi::FromInt(attr)));
-      // Push initial value, if any.
-      // Note: For variables we must not push an initial value (such as
-      // 'undefined') because we may have a (legal) redeclaration and we
-      // must not destroy the current value.
-      if (decl->mode() == Variable::CONST) {
-        __ mov(r0, Operand(Factory::the_hole_value()));
-        __ stm(db_w, sp, cp.bit() | r2.bit() | r1.bit() | r0.bit());
-      } else if (decl->fun() != NULL) {
-        __ stm(db_w, sp, cp.bit() | r2.bit() | r1.bit());
-        Visit(decl->fun());  // Initial value for function decl.
-      } else {
-        __ mov(r0, Operand(Smi::FromInt(0)));  // No initial value!
-        __ stm(db_w, sp, cp.bit() | r2.bit() | r1.bit() | r0.bit());
+  if (slot != NULL) {
+    switch (slot->type()) {
+      case Slot::PARAMETER:  // Fall through.
+      case Slot::LOCAL:
+        if (decl->mode() == Variable::CONST) {
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
+        } else if (decl->fun() != NULL) {
+          Visit(decl->fun());
+          __ pop(ip);
+          __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
+        }
+        break;
+
+      case Slot::CONTEXT:
+        // The variable in the decl always resides in the current context.
+        ASSERT_EQ(0, function_->scope()->ContextChainLength(var->scope()));
+        if (FLAG_debug_code) {
+          // Check if we have the correct context pointer.
+          __ ldr(r1,
+                 CodeGenerator::ContextOperand(cp, Context::FCONTEXT_INDEX));
+          __ cmp(r1, cp);
+          __ Check(eq, "Unexpected declaration in current context.");
+        }
+        if (decl->mode() == Variable::CONST) {
+          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+          __ str(ip, CodeGenerator::ContextOperand(cp, slot->index()));
+          // No write barrier since the_hole_value is in old space.
+        } else if (decl->fun() != NULL) {
+          Visit(decl->fun());
+          __ pop(r0);
+          __ str(r0, CodeGenerator::ContextOperand(cp, slot->index()));
+          int offset = Context::SlotOffset(slot->index());
+          __ mov(r2, Operand(offset));
+          // We know that we have written a function, which is not a smi.
+          __ RecordWrite(cp, r2, r0);
+        }
+        break;
+
+      case Slot::LOOKUP: {
+        __ mov(r2, Operand(var->name()));
+        // Declaration nodes are always introduced in one of two modes.
+        ASSERT(decl->mode() == Variable::VAR ||
+               decl->mode() == Variable::CONST);
+        PropertyAttributes attr =
+            (decl->mode() == Variable::VAR) ? NONE : READ_ONLY;
+        __ mov(r1, Operand(Smi::FromInt(attr)));
+        // Push initial value, if any.
+        // Note: For variables we must not push an initial value (such as
+        // 'undefined') because we may have a (legal) redeclaration and we
+        // must not destroy the current value.
+        if (decl->mode() == Variable::CONST) {
+          __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
+          __ stm(db_w, sp, cp.bit() | r2.bit() | r1.bit() | r0.bit());
+        } else if (decl->fun() != NULL) {
+          __ stm(db_w, sp, cp.bit() | r2.bit() | r1.bit());
+          Visit(decl->fun());  // Initial value for function decl.
+        } else {
+          __ mov(r0, Operand(Smi::FromInt(0)));  // No initial value!
+          __ stm(db_w, sp, cp.bit() | r2.bit() | r1.bit() | r0.bit());
+        }
+        __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+        break;
       }
-      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
-      break;
     }
-    case Slot::LOCAL:
-      if (decl->mode() == Variable::CONST) {
-        __ mov(r0, Operand(Factory::the_hole_value()));
-        __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
-      } else if (decl->fun() != NULL) {
+
+  } else if (prop != NULL) {
+    if (decl->fun() != NULL || decl->mode() == Variable::CONST) {
+      // We are declaring a function or constant that rewrites to a
+      // property.  Use (keyed) IC to set the initial value.
+      ASSERT_EQ(Expression::kValue, prop->obj()->context());
+      Visit(prop->obj());
+      ASSERT_EQ(Expression::kValue, prop->key()->context());
+      Visit(prop->key());
+
+      if (decl->fun() != NULL) {
+        ASSERT_EQ(Expression::kValue, decl->fun()->context());
         Visit(decl->fun());
         __ pop(r0);
-        __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+      } else {
+        __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
       }
-      break;
-    case Slot::CONTEXT:
-      // The variable in the decl always resides in the current context.
-      ASSERT(function_->scope()->ContextChainLength(slot->var()->scope()) == 0);
-      if (decl->mode() == Variable::CONST) {
-        __ mov(r0, Operand(Factory::the_hole_value()));
-        if (FLAG_debug_code) {
-          // Check if we have the correct context pointer.
-          __ ldr(r1, CodeGenerator::ContextOperand(cp,
-                                                   Context::FCONTEXT_INDEX));
-          __ cmp(r1, cp);
-          __ Check(eq, "Unexpected declaration in current context.");
-        }
-        __ str(r0, CodeGenerator::ContextOperand(cp, slot->index()));
-        // No write barrier since the_hole_value is in old space.
-        ASSERT(!Heap::InNewSpace(*Factory::the_hole_value()));
-      } else if (decl->fun() != NULL) {
-        Visit(decl->fun());
-        __ pop(r0);
-        if (FLAG_debug_code) {
-          // Check if we have the correct context pointer.
-          __ ldr(r1, CodeGenerator::ContextOperand(cp,
-                                                   Context::FCONTEXT_INDEX));
-          __ cmp(r1, cp);
-          __ Check(eq, "Unexpected declaration in current context.");
-        }
-        __ str(r0, CodeGenerator::ContextOperand(cp, slot->index()));
-        int offset = Context::SlotOffset(slot->index());
-        __ mov(r2, Operand(offset));
-        // We know that we have written a function, which is not a smi.
-        __ RecordWrite(cp, r2, r0);
-      }
-      break;
-    default:
-      UNREACHABLE();
+
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      __ Call(ic, RelocInfo::CODE_TARGET);
+
+      // Value in r0 is ignored (declarations are statements).  Receiver
+      // and key on stack are discarded.
+      __ add(sp, sp, Operand(2 * kPointerSize));
+    }
   }
 }
 

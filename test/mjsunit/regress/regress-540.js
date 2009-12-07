@@ -29,6 +29,19 @@
 // See http://code.google.com/p/v8/issues/detail?id=540
 
 function f(x, y) { eval(x); return y(); }
-assertEquals(1, f("function y() { return 1; }",
-                  function () { return 0; }));
+var result = f("function y() { return 1; }", function () { return 0; })
+assertEquals(1, result);
 
+result =
+    (function (x) {
+      function x() { return 3; }
+      return x();
+    })(function () { return 2; });
+assertEquals(3, result);
+
+result =
+    (function (x) {
+      function x() { return 5; }
+      return arguments[0]();
+    })(function () { return 4; });
+assertEquals(5, result);
