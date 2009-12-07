@@ -34,11 +34,15 @@ assertEquals(1, Math.min(2, 1));
 assertEquals(1, Math.min(1, 2, 3));
 assertEquals(1, Math.min(3, 2, 1));
 assertEquals(1, Math.min(2, 3, 1));
+assertEquals(1.1, Math.min(1.1, 2.2, 3.3));
+assertEquals(1.1, Math.min(3.3, 2.2, 1.1));
+assertEquals(1.1, Math.min(2.2, 3.3, 1.1));
 
 var o = {};
 o.valueOf = function() { return 1; };
 assertEquals(1, Math.min(2, 3, '1'));
 assertEquals(1, Math.min(3, o, 2));
+assertEquals(1, Math.min(o, 2));
 assertEquals(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY / Math.min(-0, +0));
 assertEquals(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY / Math.min(+0, -0));
 assertEquals(Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY / Math.min(+0, -0, 1));
@@ -46,7 +50,9 @@ assertEquals(-1, Math.min(+0, -0, -1));
 assertEquals(-1, Math.min(-1, +0, -0));
 assertEquals(-1, Math.min(+0, -1, -0));
 assertEquals(-1, Math.min(-0, -1, +0));
-
+assertNaN(Math.min('oxen'));
+assertNaN(Math.min('oxen', 1));
+assertNaN(Math.min(1, 'oxen'));
 
 
 // Test Math.max().
@@ -58,11 +64,15 @@ assertEquals(2, Math.max(2, 1));
 assertEquals(3, Math.max(1, 2, 3));
 assertEquals(3, Math.max(3, 2, 1));
 assertEquals(3, Math.max(2, 3, 1));
+assertEquals(3.3, Math.max(1.1, 2.2, 3.3));
+assertEquals(3.3, Math.max(3.3, 2.2, 1.1));
+assertEquals(3.3, Math.max(2.2, 3.3, 1.1));
 
 var o = {};
 o.valueOf = function() { return 3; };
 assertEquals(3, Math.max(2, '3', 1));
 assertEquals(3, Math.max(1, o, 2));
+assertEquals(3, Math.max(o, 1));
 assertEquals(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY / Math.max(-0, +0));
 assertEquals(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY / Math.max(+0, -0));
 assertEquals(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY / Math.max(+0, -0, -1));
@@ -70,3 +80,6 @@ assertEquals(1, Math.max(+0, -0, +1));
 assertEquals(1, Math.max(+1, +0, -0));
 assertEquals(1, Math.max(+0, +1, -0));
 assertEquals(1, Math.max(-0, +1, +0));
+assertNaN(Math.max('oxen'));
+assertNaN(Math.max('oxen', 1));
+assertNaN(Math.max(1, 'oxen'));
