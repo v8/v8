@@ -56,6 +56,8 @@ class CodeGenSelector: public AstVisitor {
  private:
   // Visit an expression in a given expression context.
   void ProcessExpression(Expression* expr, Expression::Context context) {
+    ASSERT(expr->context() == Expression::kUninitialized ||
+           expr->context() == context);
     Expression::Context saved = context_;
     context_ = context;
     Visit(expr);
