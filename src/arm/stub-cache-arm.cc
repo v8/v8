@@ -446,7 +446,7 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
 }
 
 
-void StubCompiler::GenerateLoadCallback(JSObject* object,
+bool StubCompiler::GenerateLoadCallback(JSObject* object,
                                         JSObject* holder,
                                         Register receiver,
                                         Register name_reg,
@@ -454,7 +454,8 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
                                         Register scratch2,
                                         AccessorInfo* callback,
                                         String* name,
-                                        Label* miss) {
+                                        Label* miss,
+                                        Failure** failure) {
   // Check that the receiver isn't a smi.
   __ tst(receiver, Operand(kSmiTagMask));
   __ b(eq, miss);
@@ -476,6 +477,8 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   ExternalReference load_callback_property =
       ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
   __ TailCallRuntime(load_callback_property, 5, 1);
+
+  return true;
 }
 
 
@@ -1003,10 +1006,10 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
 }
 
 
-Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
+Object* LoadStubCompiler::CompileLoadCallback(String* name,
+                                              JSObject* object,
                                               JSObject* holder,
-                                              AccessorInfo* callback,
-                                              String* name) {
+                                              AccessorInfo* callback) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -1015,7 +1018,11 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
-  GenerateLoadCallback(object, holder, r0, r2, r3, r1, callback, name, &miss);
+  Failure* failure = Failure::InternalError();
+  bool success = GenerateLoadCallback(object, holder, r0, r2, r3, r1,
+                                      callback, name, &miss, &failure);
+  if (!success) return failure;
+
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -1168,7 +1175,11 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   __ cmp(r2, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  GenerateLoadCallback(receiver, holder, r0, r2, r3, r1, callback, name, &miss);
+  Failure* failure = Failure::InternalError();
+  bool success = GenerateLoadCallback(receiver, holder, r0, r2, r3, r1,
+                                      callback, name, &miss, &failure);
+  if (!success) return failure;
+
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
