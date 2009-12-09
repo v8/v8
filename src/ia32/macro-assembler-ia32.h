@@ -285,11 +285,21 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Runtime calls
 
-  // Call a code stub.
+  // Call a code stub.  Generate the code if necessary.
   void CallStub(CodeStub* stub);
 
-  // Tail call a code stub (jump).
+  // Call a code stub and return the code object called.  Try to generate
+  // the code if necessary.  Do not perform a GC but instead return a retry
+  // after GC failure.
+  Object* TryCallStub(CodeStub* stub);
+
+  // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);
+
+  // Tail call a code stub (jump) and return the code object called.  Try to
+  // generate the code if necessary.  Do not perform a GC but instead return
+  // a retry after GC failure.
+  Object* TryTailCallStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);
