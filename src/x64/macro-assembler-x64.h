@@ -518,6 +518,32 @@ class MacroAssembler: public Assembler {
                           Register scratch,
                           Label* gc_required);
 
+  // Allocate a sequential string. All the header fields of the string object
+  // are initialized.
+  void AllocateTwoByteString(Register result,
+                             Register length,
+                             Register scratch1,
+                             Register scratch2,
+                             Register scratch3,
+                             Label* gc_required);
+  void AllocateAsciiString(Register result,
+                           Register length,
+                           Register scratch1,
+                           Register scratch2,
+                           Register scratch3,
+                           Label* gc_required);
+
+  // Allocate a raw cons string object. Only the map field of the result is
+  // initialized.
+  void AllocateConsString(Register result,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* gc_required);
+  void AllocateAsciiConsString(Register result,
+                               Register scratch1,
+                               Register scratch2,
+                               Label* gc_required);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -556,6 +582,9 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.
   void CallStub(CodeStub* stub);
+
+  // Tail call a code stub (jump).
+  void TailCallStub(CodeStub* stub);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);

@@ -834,10 +834,9 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
   ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  mov(scratch1, length);
   ASSERT(kShortSize == 2);
-  shl(scratch1, 1);
-  add(Operand(scratch1), Immediate(kObjectAlignmentMask));
+  // scratch1 = length * 2 + kObjectAlignmentMask.
+  lea(scratch1, Operand(length, length, times_1, kObjectAlignmentMask));
   and_(Operand(scratch1), Immediate(~kObjectAlignmentMask));
 
   // Allocate two byte string in new space.

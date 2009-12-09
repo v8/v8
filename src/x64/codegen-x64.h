@@ -745,6 +745,36 @@ class GenericBinaryOpStub: public CodeStub {
 };
 
 
+// Flag that indicates how to generate code for the stub StringAddStub.
+enum StringAddFlags {
+  NO_STRING_ADD_FLAGS = 0,
+  NO_STRING_CHECK_IN_STUB = 1 << 0  // Omit string check in stub.
+};
+
+
+class StringAddStub: public CodeStub {
+ public:
+  explicit StringAddStub(StringAddFlags flags) {
+    string_check_ = ((flags & NO_STRING_CHECK_IN_STUB) == 0);
+  }
+
+ private:
+  Major MajorKey() { return StringAdd; }
+  int MinorKey() { return string_check_ ? 0 : 1; }
+
+  void Generate(MacroAssembler* masm);
+
+  void GenerateCopyCharacters(MacroAssembler* masm,
+                              Register desc,
+                              Register src,
+                              Register count,
+                              bool ascii);
+
+  // Should the stub check whether arguments are strings?
+  bool string_check_;
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_X64_CODEGEN_X64_H_

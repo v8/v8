@@ -760,11 +760,11 @@ class StringAddStub: public CodeStub {
   void Generate(MacroAssembler* masm);
 
   void GenerateCopyCharacters(MacroAssembler* masm,
-                                   Register desc,
-                                   Register src,
-                                   Register count,
-                                   Register scratch,
-                                   bool ascii);
+                              Register desc,
+                              Register src,
+                              Register count,
+                              Register scratch,
+                              bool ascii);
 
   // Should the stub check whether arguments are strings?
   bool string_check_;

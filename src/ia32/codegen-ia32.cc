@@ -8306,6 +8306,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
   __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
   __ and_(ecx, Operand(edi));
+  ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ test(ecx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii);
   // Allocate an acsii cons string.
@@ -8348,7 +8349,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label non_ascii_string_add_flat_result;
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  ASSERT(kAsciiStringTag != 0);
+  ASSERT(kStringEncodingMask == kAsciiStringTag);
   __ test(ecx, Immediate(kAsciiStringTag));
   __ j(zero, &non_ascii_string_add_flat_result);
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
