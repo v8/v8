@@ -168,6 +168,12 @@ class GlobalHandles::Node : public Malloced {
       if (first_deallocated()) {
         first_deallocated()->set_next(head());
       }
+      // Check that we are not passing a finalized external string to
+      // the callback.
+      ASSERT(!object_->IsExternalAsciiString() ||
+             ExternalAsciiString::cast(object_)->resource() != NULL);
+      ASSERT(!object_->IsExternalTwoByteString() ||
+             ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.
       VMState state(EXTERNAL);
       func(object, par);
@@ -506,6 +512,5 @@ void GlobalHandles::RemoveObjectGroups() {
   }
   object_groups->Clear();
 }
-
 
 } }  // namespace v8::internal

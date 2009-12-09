@@ -294,7 +294,7 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum VisitMode { VISIT_ALL, VISIT_ONLY_STRONG };
+enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
 
 
 // A CodeDesc describes a buffer holding instructions and relocation

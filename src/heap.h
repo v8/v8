@@ -566,6 +566,10 @@ class Heap : public AllStatic {
   static Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
 
+  // Finalizes an external string by deleting the associated external
+  // data and clearing the resource pointer.
+  static inline void FinalizeExternalString(String* string);
+
   // Allocates an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -778,7 +782,7 @@ class Heap : public AllStatic {
     return disallow_allocation_failure_;
   }
 
-  static void TracePathToObject();
+  static void TracePathToObject(Object* target);
   static void TracePathToGlobal();
 #endif
 
@@ -1039,6 +1043,9 @@ class Heap : public AllStatic {
 
   // Performs a minor collection in new generation.
   static void Scavenge();
+  static void ScavengeExternalStringTable();
+  static Address DoScavenge(ObjectVisitor* scavenge_visitor,
+                            Address new_space_front);
 
   // Performs a major collection in the whole heap.
   static void MarkCompact(GCTracer* tracer);
@@ -1622,6 +1629,39 @@ class TranscendentalCache {
   Type type_;
 };
 
+
+// External strings table is a place where all external strings are
+// registered.  We need to keep track of such strings to properly
+// finalize them.
+class ExternalStringTable : public AllStatic {
+ public:
+  // Registers an external string.
+  inline static void AddString(String* string);
+
+  inline static void Iterate(ObjectVisitor* v);
+
+  // Restores internal invariant and gets rid of collected strings.
+  // Must be called after each Iterate() that modified the strings.
+  static void CleanUp();
+
+  // Destroys all allocated memory.
+  static void TearDown();
+
+ private:
+  friend class Heap;
+
+  inline static void Verify();
+
+  inline static void AddOldString(String* string);
+
+  // Notifies the table that only a prefix of the new list is valid.
+  inline static void ShrinkNewStrings(int position);
+
+  // To speed up scavenge collections new space string are kept
+  // separate from old space strings.
+  static List<Object*> new_space_strings_;
+  static List<Object*> old_space_strings_;
+};
 
 } }  // namespace v8::internal
 
