@@ -657,32 +657,15 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
-  Label boilerplate_exists;
   __ ldr(r2, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
-  // r2 = literal array (0).
   __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
-  int literal_offset =
-      FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
-  __ ldr(r0, FieldMemOperand(r2, literal_offset));
-  // Check whether we need to materialize the object literal boilerplate.
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r0, Operand(ip));
-  __ b(ne, &boilerplate_exists);
-  // Create boilerplate if it does not exist.
-  // r1 = literal index (1).
   __ mov(r1, Operand(Smi::FromInt(expr->literal_index())));
-  // r0 = constant properties (2).
   __ mov(r0, Operand(expr->constant_properties()));
   __ stm(db_w, sp, r2.bit() | r1.bit() | r0.bit());
-  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  __ bind(&boilerplate_exists);
-  // r0 contains boilerplate.
-  // Clone boilerplate.
-  __ push(r0);
   if (expr->depth() > 1) {
-    __ CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+    __ CallRuntime(Runtime::kCreateObjectLiteral, 3);
   } else {
-    __ CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
+    __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
   }
 
   // If result_saved == true: The result is saved on top of the
@@ -783,32 +766,15 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
-  Label make_clone;
-
-  // Fetch the function's literals array.
   __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
-  // Check if the literal's boilerplate has been instantiated.
-  int offset =
-      FixedArray::kHeaderSize + (expr->literal_index() * kPointerSize);
-  __ ldr(r0, FieldMemOperand(r3, offset));
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r0, ip);
-  __ b(&make_clone, ne);
-
-  // Instantiate the boilerplate.
   __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r1, Operand(expr->literals()));
   __ stm(db_w, sp, r3.bit() | r2.bit() | r1.bit());
-  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
-
-  __ bind(&make_clone);
-  // Clone the boilerplate.
-  __ push(r0);
   if (expr->depth() > 1) {
-    __ CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
+    __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else {
-    __ CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
+    __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   }
 
   bool result_saved = false;  // Is the result saved to the stack?

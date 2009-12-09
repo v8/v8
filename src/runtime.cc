@@ -398,6 +398,82 @@ static Object* Runtime_CreateArrayLiteralBoilerplate(Arguments args) {
 }
 
 
+static Object* Runtime_CreateObjectLiteral(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return DeepCopyBoilerplate(JSObject::cast(*boilerplate));
+}
+
+
+static Object* Runtime_CreateObjectLiteralShallow(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return Heap::CopyJSObject(JSObject::cast(*boilerplate));
+}
+
+
+static Object* Runtime_CreateArrayLiteral(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, elements, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateArrayLiteralBoilerplate(literals, elements);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return DeepCopyBoilerplate(JSObject::cast(*boilerplate));
+}
+
+
+static Object* Runtime_CreateArrayLiteralShallow(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, elements, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateArrayLiteralBoilerplate(literals, elements);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return Heap::CopyJSObject(JSObject::cast(*boilerplate));
+}
+
+
 static Object* Runtime_CreateCatchExtensionObject(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[0]);
