@@ -178,6 +178,12 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
     },
+    'armvariant:thumb2': {
+      'CPPDEFINES':   ['V8_ARM_VARIANT_THUMB']
+    },
+    'armvariant:arm': {
+      'CPPDEFINES':   ['V8_ARM_VARIANT_ARM']
+    },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
       'CCFLAGS':      ['-m64'],
@@ -656,6 +662,11 @@ SIMPLE_OPTIONS = {
     'values': ['default', 'hidden'],
     'default': 'hidden',
     'help': 'shared library symbol visibility'
+  },
+  'armvariant': {
+    'values': ['arm', 'thumb2', 'none'],
+    'default': 'none',
+    'help': 'generate thumb2 instructions instead of arm instructions (default)'
   }
 }
 
@@ -839,6 +850,10 @@ def PostprocessOptions(options):
     # Print a warning if profiling is enabled without profiling support
     print "Warning: forcing profilingsupport on when prof is on"
     options['profilingsupport'] = 'on'
+  if (options['armvariant'] == 'none' and options['arch'] == 'arm'):
+    options['armvariant'] = 'arm'
+  if (options['armvariant'] != 'none' and options['arch'] != 'arm'):
+    options['armvariant'] = 'none'
 
 
 def ParseEnvOverrides(arg, imports):
