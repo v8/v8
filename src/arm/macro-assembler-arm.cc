@@ -994,9 +994,9 @@ void MacroAssembler::IntegerToDoubleConversionWithVFP3(Register inReg,
                                                        Register outLowReg) {
   // ARMv7 VFP3 instructions to implement integer to double conversion.
   mov(r7, Operand(inReg, ASR, kSmiTagSize));
-  fmsr(s15, r7);
-  fsitod(d7, s15);
-  fmrrd(outLowReg, outHighReg, d7);
+  vmov(s15, r7);
+  vcvt(d7, s15);
+  vmov(outLowReg, outHighReg, d7);
 }
 
 

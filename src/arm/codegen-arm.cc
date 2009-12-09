@@ -5061,10 +5061,10 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement double precision comparison.
-    __ fmdrr(d6, r0, r1);
-    __ fmdrr(d7, r2, r3);
+    __ vmov(d6, r0, r1);
+    __ vmov(d7, r2, r3);
 
-    __ fcmp(d6, d7);
+    __ vcmp(d6, d7);
     __ vmrs(pc);
     __ mov(r0, Operand(0), LeaveCC, eq);
     __ mov(r0, Operand(1), LeaveCC, lt);
@@ -5331,22 +5331,22 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement
     // double precision, add, subtract, multiply, divide.
-    __ fmdrr(d6, r0, r1);
-    __ fmdrr(d7, r2, r3);
+    __ vmov(d6, r0, r1);
+    __ vmov(d7, r2, r3);
 
     if (Token::MUL == operation) {
-      __ fmuld(d5, d6, d7);
+      __ vmul(d5, d6, d7);
     } else if (Token::DIV == operation) {
-      __ fdivd(d5, d6, d7);
+      __ vdiv(d5, d6, d7);
     } else if (Token::ADD == operation) {
-      __ faddd(d5, d6, d7);
+      __ vadd(d5, d6, d7);
     } else if (Token::SUB == operation) {
-      __ fsubd(d5, d6, d7);
+      __ vsub(d5, d6, d7);
     } else {
       UNREACHABLE();
     }
 
-    __ fmrrd(r0, r1, d5);
+    __ vmov(r0, r1, d5);
 
     __ str(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
     __ str(r1, FieldMemOperand(r5, HeapNumber::kValueOffset + 4));
@@ -5435,9 +5435,9 @@ static void GetInt32(MacroAssembler* masm,
     // ARMv7 VFP3 instructions implementing double precision to integer
     // conversion using round to zero.
     __ ldr(scratch2, FieldMemOperand(source, HeapNumber::kMantissaOffset));
-    __ fmdrr(d7, scratch2, scratch);
-    __ ftosid(s15, d7);
-    __ fmrs(dest, s15);
+    __ vmov(d7, scratch2, scratch);
+    __ vcvt(s15, d7);
+    __ vmov(dest, s15);
   } else {
     // Get the top bits of the mantissa.
     __ and_(scratch2, scratch, Operand(HeapNumber::kMantissaMask));
