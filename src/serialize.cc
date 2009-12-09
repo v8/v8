@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+/// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -55,9 +55,8 @@ class SerializationAddressMapper {
 
   static int MappedTo(HeapObject* obj) {
     ASSERT(IsMapped(obj));
-    return reinterpret_cast<intptr_t>(serialization_map_->Lookup(Key(obj),
-                                      Hash(obj),
-                                      false)->value);
+    return static_cast<int>(reinterpret_cast<intptr_t>(
+        serialization_map_->Lookup(Key(obj), Hash(obj), false)->value));
   }
 
   static void Map(HeapObject* obj, int to) {
@@ -81,7 +80,7 @@ class SerializationAddressMapper {
   }
 
   static uint32_t Hash(HeapObject* obj) {
-    return reinterpret_cast<intptr_t>(obj->address());
+    return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
   }
 
   static void* Key(HeapObject* obj) {
