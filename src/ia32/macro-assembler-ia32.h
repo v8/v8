@@ -149,6 +149,9 @@ class MacroAssembler: public Assembler {
   // address must be pushed before calling this helper.
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
+  // Unlink the stack handler on top of the stack from the try handler chain.
+  void PopTryHandler();
+
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -332,6 +335,12 @@ class MacroAssembler: public Assembler {
   // Utilities
 
   void Ret();
+
+  void Drop(int element_count);
+
+  void Call(Label* target) { call(target); }
+
+  void Move(Register target, Handle<Object> value);
 
   struct Unresolved {
     int pc;

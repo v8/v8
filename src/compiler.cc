@@ -690,12 +690,10 @@ void CodeGenSelector::VisitIfStatement(IfStatement* stmt) {
 
 
 void CodeGenSelector::VisitContinueStatement(ContinueStatement* stmt) {
-  BAILOUT("ContinueStatement");
 }
 
 
 void CodeGenSelector::VisitBreakStatement(BreakStatement* stmt) {
-  BAILOUT("BreakStatement");
 }
 
 

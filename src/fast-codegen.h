@@ -35,6 +35,8 @@
 namespace v8 {
 namespace internal {
 
+// -----------------------------------------------------------------------------
+// Fast code generator.
 
 class FastCodeGenerator: public AstVisitor {
  public:
@@ -43,6 +45,7 @@ class FastCodeGenerator: public AstVisitor {
         function_(NULL),
         script_(script),
         is_eval_(is_eval),
+        nesting_stack_(NULL),
         loop_depth_(0),
         true_label_(NULL),
         false_label_(NULL) {
@@ -55,6 +58,159 @@ class FastCodeGenerator: public AstVisitor {
   void Generate(FunctionLiteral* fun);
 
  private:
+  class Breakable;
+  class Iteration;
+  class TryCatch;
+  class TryFinally;
+  class Finally;
+  class ForIn;
+
+  class NestedStatement BASE_EMBEDDED {
+   public:
+    explicit NestedStatement(FastCodeGenerator* codegen) : codegen_(codegen) {
+      // Link into codegen's nesting stack.
+      previous_ = codegen->nesting_stack_;
+      codegen->nesting_stack_ = this;
+    }
+    virtual ~NestedStatement() {
+      // Unlink from codegen's nesting stack.
+      ASSERT_EQ(this, codegen_->nesting_stack_);
+      codegen_->nesting_stack_ = previous_;
+    }
+
+    virtual Breakable* AsBreakable() { return NULL; }
+    virtual Iteration* AsIteration() { return NULL; }
+    virtual TryCatch* AsTryCatch() { return NULL; }
+    virtual TryFinally* AsTryFinally() { return NULL; }
+    virtual Finally* AsFinally() { return NULL; }
+    virtual ForIn* AsForIn() { return NULL; }
+
+    virtual bool IsContinueTarget(Statement* target) { return false; }
+    virtual bool IsBreakTarget(Statement* target) { return false; }
+
+    // Generate code to leave the nested statement. This includes
+    // cleaning up any stack elements in use and restoring the
+    // stack to the expectations of the surrounding statements.
+    // Takes a number of stack elements currently on top of the
+    // nested statement's stack, and returns a number of stack
+    // elements left on top of the surrounding statement's stack.
+    // The generated code must preserve the result register (which
+    // contains the value in case of a return).
+    virtual int Exit(int stack_depth) {
+      // Default implementation for the case where there is
+      // nothing to clean up.
+      return stack_depth;
+    }
+    NestedStatement* outer() { return previous_; }
+   protected:
+    MacroAssembler* masm() { return codegen_->masm(); }
+   private:
+    FastCodeGenerator* codegen_;
+    NestedStatement* previous_;
+    DISALLOW_COPY_AND_ASSIGN(NestedStatement);
+  };
+
+  class Breakable : public NestedStatement {
+   public:
+    Breakable(FastCodeGenerator* codegen,
+              BreakableStatement* break_target)
+        : NestedStatement(codegen),
+          target_(break_target) {}
+    virtual ~Breakable() {}
+    virtual Breakable* AsBreakable() { return this; }
+    virtual bool IsBreakTarget(Statement* statement) {
+      return target_ == statement;
+    }
+    BreakableStatement* statement() { return target_; }
+    Label* break_target() { return &break_target_label_; }
+   private:
+    BreakableStatement* target_;
+    Label break_target_label_;
+    DISALLOW_COPY_AND_ASSIGN(Breakable);
+  };
+
+  class Iteration : public Breakable {
+   public:
+    Iteration(FastCodeGenerator* codegen,
+              IterationStatement* iteration_statement)
+        : Breakable(codegen, iteration_statement) {}
+    virtual ~Iteration() {}
+    virtual Iteration* AsIteration() { return this; }
+    virtual bool IsContinueTarget(Statement* statement) {
+      return this->statement() == statement;
+    }
+    Label* continue_target() { return &continue_target_label_; }
+   private:
+    Label continue_target_label_;
+    DISALLOW_COPY_AND_ASSIGN(Iteration);
+  };
+
+  // The environment inside the try block of a try/catch statement.
+  class TryCatch : public NestedStatement {
+   public:
+    explicit TryCatch(FastCodeGenerator* codegen, Label* catch_entry)
+        : NestedStatement(codegen), catch_entry_(catch_entry) { }
+    virtual ~TryCatch() {}
+    virtual TryCatch* AsTryCatch() { return this; }
+    Label* catch_entry() { return catch_entry_; }
+    virtual int Exit(int stack_depth);
+   private:
+    Label* catch_entry_;
+    DISALLOW_COPY_AND_ASSIGN(TryCatch);
+  };
+
+  // The environment inside the try block of a try/finally statement.
+  class TryFinally : public NestedStatement {
+   public:
+    explicit TryFinally(FastCodeGenerator* codegen, Label* finally_entry)
+        : NestedStatement(codegen), finally_entry_(finally_entry) { }
+    virtual ~TryFinally() {}
+    virtual TryFinally* AsTryFinally() { return this; }
+    Label* finally_entry() { return finally_entry_; }
+    virtual int Exit(int stack_depth);
+   private:
+    Label* finally_entry_;
+    DISALLOW_COPY_AND_ASSIGN(TryFinally);
+  };
+
+  // A FinallyEnvironment represents being inside a finally block.
+  // Abnormal termination of the finally block needs to clean up
+  // the block's parameters from the stack.
+  class Finally : public NestedStatement {
+   public:
+    explicit Finally(FastCodeGenerator* codegen) : NestedStatement(codegen) { }
+    virtual ~Finally() {}
+    virtual Finally* AsFinally() { return this; }
+    virtual int Exit(int stack_depth) {
+      return stack_depth + kFinallyStackElementCount;
+    }
+   private:
+    // Number of extra stack slots occupied during a finally block.
+    static const int kFinallyStackElementCount = 2;
+    DISALLOW_COPY_AND_ASSIGN(Finally);
+  };
+
+  // A ForInEnvironment represents being inside a for-in loop.
+  // Abnormal termination of the for-in block needs to clean up
+  // the block's temporary storage from the stack.
+  class ForIn : public Iteration {
+   public:
+    ForIn(FastCodeGenerator* codegen,
+          ForInStatement* statement)
+        : Iteration(codegen, statement) { }
+    virtual ~ForIn() {}
+    virtual ForIn* AsForIn() { return this; }
+    virtual int Exit(int stack_depth) {
+      return stack_depth + kForInStackElementCount;
+    }
+   private:
+    // TODO(lrn): Check that this value is correct when implementing
+    // for-in.
+    static const int kForInStackElementCount = 5;
+    DISALLOW_COPY_AND_ASSIGN(ForIn);
+  };
+
+
   int SlotOffset(Slot* slot);
   void Move(Expression::Context destination, Register source);
   void Move(Expression::Context destination, Slot* source, Register scratch);
@@ -112,11 +268,13 @@ class FastCodeGenerator: public AstVisitor {
     loop_depth_--;
   }
 
+  MacroAssembler* masm() { return masm_; }
+  static Register result_register();
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-
   // Handles the shortcutted logical binary operations in VisitBinaryOperation.
   void EmitLogicalOperation(BinaryOperation* expr);
 
@@ -125,10 +283,13 @@ class FastCodeGenerator: public AstVisitor {
   Handle<Script> script_;
   bool is_eval_;
   Label return_label_;
+  NestedStatement* nesting_stack_;
   int loop_depth_;
 
   Label* true_label_;
   Label* false_label_;
+
+  friend class NestedStatement;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

@@ -36,7 +36,7 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
+#define __ ACCESS_MASM(masm())
 
 Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
                                          Handle<Script> script,
@@ -232,8 +232,10 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
 
 void FastCodeGenerator::VisitBlock(Block* stmt) {
   Comment cmnt(masm_, "[ Block");
+  Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
   VisitStatements(stmt->statements());
+  __ bind(nested_statement.break_target());
 }
 
 
@@ -278,13 +280,60 @@ void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
 
 void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_,  "[ ContinueStatement");
+  NestedStatement* current = nesting_stack_;
+  int stack_depth = 0;
+  while (!current->IsContinueTarget(stmt->target())) {
+    stack_depth = current->Exit(stack_depth);
+    current = current->outer();
+  }
+  __ Drop(stack_depth);
+
+  Iteration* loop = current->AsIteration();
+  __ jmp(loop->continue_target());
 }
 
 
 void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_,  "[ BreakStatement");
+  NestedStatement* current = nesting_stack_;
+  int stack_depth = 0;
+  while (!current->IsBreakTarget(stmt->target())) {
+    stack_depth = current->Exit(stack_depth);
+    current = current->outer();
+  }
+  __ Drop(stack_depth);
+
+  Breakable* target = current->AsBreakable();
+  __ jmp(target->break_target());
 }
+
+
+void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
+  Comment cmnt(masm_, "[ ReturnStatement");
+  Expression* expr = stmt->expression();
+  // Complete the statement based on the type of the subexpression.
+  if (expr->AsLiteral() != NULL) {
+    __ Move(result_register(), expr->AsLiteral()->handle());
+  } else {
+    ASSERT_EQ(Expression::kValue, expr->context());
+    Visit(expr);
+    __ pop(result_register());
+  }
+
+  // Exit all nested statements.
+  NestedStatement* current = nesting_stack_;
+  int stack_depth = 0;
+  while (current != NULL) {
+    stack_depth = current->Exit(stack_depth);
+    current = current->outer();
+  }
+  __ Drop(stack_depth);
+
+  EmitReturnSequence(stmt->statement_pos());
+}
+
+
 
 
 void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
@@ -304,8 +353,10 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
+  Label body, stack_limit_hit, stack_check_success;
+
+  Iteration loop_statement(this, stmt);
   increment_loop_depth();
-  Label body, exit, stack_limit_hit, stack_check_success;
 
   __ bind(&body);
   Visit(stmt->body());
@@ -316,10 +367,11 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
   // We are not in an expression context because we have been compiling
   // statements.  Set up a test expression context for the condition.
+  __ bind(loop_statement.continue_target());
   ASSERT_EQ(NULL, true_label_);
   ASSERT_EQ(NULL, false_label_);
   true_label_ = &body;
-  false_label_ = &exit;
+  false_label_ = loop_statement.break_target();
   ASSERT(stmt->cond()->context() == Expression::kTest);
   Visit(stmt->cond());
   true_label_ = NULL;
@@ -330,7 +382,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ CallStub(&stack_stub);
   __ jmp(&stack_check_success);
 
-  __ bind(&exit);
+  __ bind(loop_statement.break_target());
 
   decrement_loop_depth();
 }
@@ -338,16 +390,18 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Comment cmnt(masm_, "[ WhileStatement");
+  Label body, stack_limit_hit, stack_check_success;
+
+  Iteration loop_statement(this, stmt);
   increment_loop_depth();
-  Label test, body, exit, stack_limit_hit, stack_check_success;
 
   // Emit the test at the bottom of the loop.
-  __ jmp(&test);
+  __ jmp(loop_statement.continue_target());
 
   __ bind(&body);
   Visit(stmt->body());
 
-  __ bind(&test);
+  __ bind(loop_statement.continue_target());
   // Check stack before looping.
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
@@ -357,7 +411,7 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT_EQ(NULL, true_label_);
   ASSERT_EQ(NULL, false_label_);
   true_label_ = &body;
-  false_label_ = &exit;
+  false_label_ = loop_statement.break_target();
   ASSERT(stmt->cond()->context() == Expression::kTest);
   Visit(stmt->cond());
   true_label_ = NULL;
@@ -368,8 +422,7 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   __ CallStub(&stack_stub);
   __ jmp(&stack_check_success);
 
-  __ bind(&exit);
-
+  __ bind(loop_statement.break_target());
   decrement_loop_depth();
 }
 
@@ -510,6 +563,23 @@ void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 
 void FastCodeGenerator::VisitThrow(Throw* expr) {
   UNREACHABLE();
+}
+
+
+int FastCodeGenerator::TryFinally::Exit(int stack_depth) {
+  // The macros used here must preserve the result register.
+  __ Drop(stack_depth);
+  __ PopTryHandler();
+  __ Call(finally_entry_);
+  return 0;
+}
+
+
+int FastCodeGenerator::TryCatch::Exit(int stack_depth) {
+  // The macros used here must preserve the result register.
+  __ Drop(stack_depth);
+  __ PopTryHandler();
+  return 0;
 }
 
 

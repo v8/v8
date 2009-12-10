@@ -504,6 +504,13 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 }
 
 
+void MacroAssembler::PopTryHandler() {
+  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  pop(Operand::StaticVariable(ExternalReference(Top::k_handler_address)));
+  add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
+}
+
+
 Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
                                    JSObject* holder, Register holder_reg,
                                    Register scratch,
@@ -1347,6 +1354,18 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 
 void MacroAssembler::Ret() {
   ret(0);
+}
+
+
+void MacroAssembler::Drop(int stack_elements) {
+  if (stack_elements > 0) {
+    add(Operand(esp), Immediate(stack_elements * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::Move(Register dst, Handle<Object> value) {
+  mov(dst, value);
 }
 
 

@@ -400,7 +400,7 @@ class MacroAssembler: public Assembler {
   void Test(const Operand& dst, Smi* source);
 
   // ---------------------------------------------------------------------------
-  // Macro instructions
+  // Macro instructions.
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
@@ -412,6 +412,8 @@ class MacroAssembler: public Assembler {
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(const Operand& dst, Handle<Object> source);
   void Push(Handle<Object> source);
+  void Drop(int stack_elements);
+  void Call(Label* target) { call(target); }
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
@@ -443,6 +445,8 @@ class MacroAssembler: public Assembler {
   // address must be pushed before calling this helper.
   void PushTryHandler(CodeLocation try_location, HandlerType type);
 
+  // Unlink the stack handler on top of the stack from the try handler chain.
+  void PopTryHandler();
 
   // ---------------------------------------------------------------------------
   // Inline caching support

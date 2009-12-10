@@ -1345,6 +1345,13 @@ void MacroAssembler::Push(Smi* source) {
 }
 
 
+void MacroAssembler::Drop(int stack_elements) {
+  if (stack_elements > 0) {
+    addq(rsp, Immediate(stack_elements * kPointerSize));
+  }
+}
+
+
 void MacroAssembler::Test(const Operand& src, Smi* source) {
   intptr_t smi = reinterpret_cast<intptr_t>(source);
   if (is_int32(smi)) {
@@ -1428,6 +1435,14 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
   push(Operand(kScratchRegister, 0));
   // Link this handler.
   movq(Operand(kScratchRegister, 0), rsp);
+}
+
+
+void MacroAssembler::PopTryHandler() {
+  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  movq(kScratchRegister, ExternalReference(Top::k_handler_address));
+  pop(Operand(kScratchRegister, 0));
+  addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 
 

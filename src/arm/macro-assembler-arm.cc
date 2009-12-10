@@ -162,6 +162,21 @@ void MacroAssembler::StackLimitCheck(Label* on_stack_overflow) {
 }
 
 
+void MacroAssembler::Drop(int stack_elements, Condition cond) {
+  if (stack_elements > 0) {
+    add(sp, sp, Operand(stack_elements * kPointerSize), LeaveCC, cond);
+  }
+}
+
+
+void MacroAssembler::Call(Label* target) {
+  bl(target);
+}
+
+
+void MacroAssembler::Move(Register dst, Handle<Object> value) {
+  mov(dst, Operand(value));
+}
 
 
 void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
@@ -625,6 +640,15 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     // Link this handler as the new current one.
     str(sp, MemOperand(r7));
   }
+}
+
+
+void MacroAssembler::PopTryHandler() {
+  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  pop(r1);
+  mov(ip, Operand(ExternalReference(Top::k_handler_address)));
+  add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
+  str(r1, MemOperand(ip));
 }
 
 

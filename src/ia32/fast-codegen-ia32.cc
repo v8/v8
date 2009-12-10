@@ -515,20 +515,6 @@ void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
-  Comment cmnt(masm_, "[ ReturnStatement");
-  Expression* expr = stmt->expression();
-  if (expr->AsLiteral() != NULL) {
-    __ mov(eax, expr->AsLiteral()->handle());
-  } else {
-    ASSERT_EQ(Expression::kValue, expr->context());
-    Visit(expr);
-    __ pop(eax);
-  }
-  EmitReturnSequence(stmt->statement_pos());
-}
-
-
 void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
@@ -1639,6 +1625,7 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   // Convert current context to test context: End post-test code.
 }
 
+Register FastCodeGenerator::result_register() { return eax; }
 
 void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
