@@ -48,13 +48,9 @@ namespace internal {
 // must always call a backup property load that is complete.
 // This function is safe to call if the receiver has fast properties,
 // or if name is not a symbol, and will jump to the miss_label in that case.
-static void GenerateDictionaryLoad(MacroAssembler* masm,
-                                   Label* miss_label,
-                                   Register r0,
-                                   Register r1,
-                                   Register r2,
-                                   Register name,
-                                   DictionaryCheck check_dictionary) {
+static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
+                                   Register r0, Register r1, Register r2,
+                                   Register name) {
   // Register use:
   //
   // r0   - used to hold the property dictionary.
@@ -90,15 +86,11 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ cmp(r0, JS_BUILTINS_OBJECT_TYPE);
   __ j(equal, miss_label, not_taken);
 
-  // Load properties array.
-  __ mov(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
-
   // Check that the properties array is a dictionary.
-  if (check_dictionary == CHECK_DICTIONARY) {
-    __ cmp(FieldOperand(r0, HeapObject::kMapOffset),
-           Immediate(Factory::hash_table_map()));
-    __ j(not_equal, miss_label);
-  }
+  __ mov(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
+  __ cmp(FieldOperand(r0, HeapObject::kMapOffset),
+         Immediate(Factory::hash_table_map()));
+  __ j(not_equal, miss_label);
 
   // Compute the capacity mask.
   const int kCapacityOffset =
@@ -231,8 +223,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  Label slow, check_string, index_int, index_string;
-  Label check_pixel_array, probe_dictionary;
+  Label slow, check_string, index_int, index_string, check_pixel_array;
 
   // Load name and receiver.
   __ mov(eax, Operand(esp, kPointerSize));
@@ -311,72 +302,17 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ test(ebx, Immediate(String::kIsArrayIndexMask));
   __ j(not_zero, &index_string, not_taken);
 
-  // Is the string a symbol?
+  // If the string is a symbol, do a quick inline probe of the receiver's
+  // dictionary, if it exists.
   __ movzx_b(ebx, FieldOperand(edx, Map::kInstanceTypeOffset));
   __ test(ebx, Immediate(kIsSymbolMask));
   __ j(zero, &slow, not_taken);
-
-  // If the receiver is a fast-case object, check the keyed lookup
-  // cache. Otherwise probe the dictionary leaving result in ecx.
-  __ mov(ebx, FieldOperand(ecx, JSObject::kPropertiesOffset));
-  __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-         Immediate(Factory::hash_table_map()));
-  __ j(equal, &probe_dictionary);
-
-  // Load the map of the receiver, compute the keyed lookup cache hash
-  // based on 32 bits of the map pointer and the string hash.
-  __ mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
-  __ mov(edx, ebx);
-  __ shr(edx, KeyedLookupCache::kMapHashShift);
-  __ mov(eax, FieldOperand(eax, String::kHashFieldOffset));
-  __ shr(eax, String::kHashShift);
-  __ xor_(edx, Operand(eax));
-  __ and_(edx, KeyedLookupCache::kCapacityMask);
-
-  // Load the key (consisting of map and symbol) from the cache and
-  // check for match.
-  ExternalReference cache_keys
-      = ExternalReference::keyed_lookup_cache_keys();
-  __ cmp(ebx, Operand::StaticArray(edx, two_times_pointer_size, cache_keys));
-  __ j(not_equal, &slow);
-  __ mov(edi, Operand::StaticArray(edx,
-                                   two_times_pointer_size,
-                                   cache_keys,
-                                   kPointerSize));
-  __ cmp(edi, Operand(esp, kPointerSize));
-  __ j(not_equal, &slow);
-
-  // Get field offset and check that it is an in-object property.
-  ExternalReference cache_field_offsets
-      = ExternalReference::keyed_lookup_cache_field_offsets();
-  __ mov(eax,
-         Operand::StaticArray(edx, times_pointer_size, cache_field_offsets));
-  __ movzx_b(edx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
-  __ cmp(eax, Operand(edx));
-  __ j(above_equal, &slow);
-
-  // Load in-object property.
-  __ sub(eax, Operand(edx));
-  __ movzx_b(edx, FieldOperand(ebx, Map::kInstanceSizeOffset));
-  __ add(eax, Operand(edx));
-  __ mov(eax, FieldOperand(ecx, eax, times_pointer_size, 0));
-  __ ret(0);
-
-  // Do a quick inline probe of the receiver's dictionary, if it
-  // exists.
-  __ bind(&probe_dictionary);
-  GenerateDictionaryLoad(masm,
-                         &slow,
-                         ebx,
-                         ecx,
-                         edx,
-                         eax,
-                         DICTIONARY_CHECK_DONE);
+  // Probe the dictionary leaving result in ecx.
+  GenerateDictionaryLoad(masm, &slow, ebx, ecx, edx, eax);
   GenerateCheckNonObjectOrLoaded(masm, &slow, ecx, edx);
   __ mov(eax, Operand(ecx));
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
-
   // If the hash field contains an array index pick it out. The assert checks
   // that the constants for the maximum number of digits for an array index
   // cached in the hash field and the number of bits reserved for it does not
@@ -949,7 +885,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
                                  bool is_global_object,
                                  Label* miss) {
   // Search dictionary - put result in register edx.
-  GenerateDictionaryLoad(masm, miss, eax, edx, ebx, ecx, CHECK_DICTIONARY);
+  GenerateDictionaryLoad(masm, miss, eax, edx, ebx, ecx);
 
   // Move the result to register edi and check that it isn't a smi.
   __ mov(edi, Operand(edx));
@@ -1152,7 +1088,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Search the dictionary placing the result in eax.
   __ bind(&probe);
-  GenerateDictionaryLoad(masm, &miss, edx, eax, ebx, ecx, CHECK_DICTIONARY);
+  GenerateDictionaryLoad(masm, &miss, edx, eax, ebx, ecx);
   GenerateCheckNonObjectOrLoaded(masm, &miss, eax, edx);
   __ ret(0);
 

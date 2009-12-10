@@ -230,7 +230,6 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_pointer_size = times_4,
-  two_times_pointer_size = times_8,
   times_half_pointer_size = times_2
 };
 
@@ -272,17 +271,6 @@ class Operand BASE_EMBEDDED {
     return Operand(index, scale, reinterpret_cast<int32_t>(arr.address()),
                    RelocInfo::EXTERNAL_REFERENCE);
   }
-
-  static Operand StaticArray(Register index,
-                             ScaleFactor scale,
-                             const ExternalReference& arr,
-                             int32_t disp) {
-    return Operand(index,
-                   scale,
-                   reinterpret_cast<int32_t>(arr.address() + disp),
-                   RelocInfo::EXTERNAL_REFERENCE);
-  }
-
 
   // Returns true if this Operand is a wrapper for the specified register.
   bool is_reg(Register reg) const;
