@@ -7884,7 +7884,8 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
 
   HandleScope scope;
 
-  int initial_size = limit < 10 ? limit : 10;
+  limit = Max(limit, 0);  // Ensure that limit is not negative.
+  int initial_size = Min(limit, 10);
   Handle<JSArray> result = Factory::NewJSArray(initial_size * 3);
 
   StackFrameIterator iter;
