@@ -738,21 +738,7 @@ void CodeGenSelector::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void CodeGenSelector::VisitForStatement(ForStatement* stmt) {
-  // We do not handle loops with breaks or continue statements in their
-  // body.  We will bailout when we hit those statements in the body.
-  if (stmt->init() != NULL) {
-    Visit(stmt->init());
-    CHECK_BAILOUT;
-  }
-  if (stmt->cond() != NULL) {
-    ProcessExpression(stmt->cond(), Expression::kTest);
-    CHECK_BAILOUT;
-  }
-  Visit(stmt->body());
-  if (stmt->next() != NULL) {
-    CHECK_BAILOUT;
-    Visit(stmt->next());
-  }
+  BAILOUT("ForStatement");
 }
 
 
