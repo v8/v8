@@ -1300,17 +1300,33 @@ class KeyedLookupCache {
 
   // Clear the cache.
   static void Clear();
+
+  static const int kLength = 64;
+  static const int kCapacityMask = kLength - 1;
+  static const int kMapHashShift = 2;
+
  private:
   static inline int Hash(Map* map, String* name);
-  static const int kLength = 64;
+
+  // Get the address of the keys and field_offsets arrays.  Used in
+  // generated code to perform cache lookups.
+  static Address keys_address() {
+    return reinterpret_cast<Address>(&keys_);
+  }
+
+  static Address field_offsets_address() {
+    return reinterpret_cast<Address>(&field_offsets_);
+  }
+
   struct Key {
     Map* map;
     String* name;
   };
   static Key keys_[kLength];
   static int field_offsets_[kLength];
-};
 
+  friend class ExternalReference;
+};
 
 
 // Cache for mapping (array, property name) into descriptor index.
