@@ -763,19 +763,27 @@ class FloatingPointHelper : public AllStatic {
 
 
 const char* GenericBinaryOpStub::GetName() {
-  switch (op_) {
-    case Token::ADD: return "GenericBinaryOpStub_ADD";
-    case Token::SUB: return "GenericBinaryOpStub_SUB";
-    case Token::MUL: return "GenericBinaryOpStub_MUL";
-    case Token::DIV: return "GenericBinaryOpStub_DIV";
-    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
-    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
-    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
-    case Token::SAR: return "GenericBinaryOpStub_SAR";
-    case Token::SHL: return "GenericBinaryOpStub_SHL";
-    case Token::SHR: return "GenericBinaryOpStub_SHR";
-    default:         return "GenericBinaryOpStub";
+  if (name_ != NULL) return name_;
+  const int len = 100;
+  name_ = Bootstrapper::AllocateAutoDeletedArray(len);
+  if (name_ == NULL) return "OOM";
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
   }
+
+  OS::SNPrintF(Vector<char>(name_, len),
+               "GenericBinaryOpStub_%s_%s%s_%s%s",
+               op_name,
+               overwrite_name,
+               (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
+               args_in_registers_ ? "RegArgs" : "StackArgs",
+               args_reversed_ ? "_R" : "");
+  return name_;
 }
 
 

@@ -665,7 +665,8 @@ class GenericBinaryOpStub: public CodeStub {
         mode_(mode),
         flags_(flags),
         args_in_registers_(false),
-        args_reversed_(false) {
+        args_reversed_(false),
+        name_(NULL) {
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -684,6 +685,7 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_in_registers_;  // Arguments passed in registers not on the stack.
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
+  char* name_;
 
   const char* GetName();
 

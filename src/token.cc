@@ -32,13 +32,11 @@
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
 #define T(name, string, precedence) #name,
 const char* Token::name_[NUM_TOKENS] = {
   TOKEN_LIST(T, T, IGNORE_TOKEN)
 };
 #undef T
-#endif
 
 
 #define T(name, string, precedence) string,
