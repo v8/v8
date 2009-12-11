@@ -826,7 +826,8 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop, Expression::Context context) {
+void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop,
+                                              Expression::Context context) {
   Literal* key = prop->key()->AsLiteral();
   __ mov(ecx, Immediate(key->handle()));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
