@@ -883,9 +883,6 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
   // non-context (stack-allocated) locals, and global variables.
   Token::Value op = expr->op();
   if (op == Token::INIT_CONST) BAILOUT("initialize constant");
-  if (op != Token::ASSIGN && op != Token::INIT_VAR) {
-    BAILOUT("compound assignment");
-  }
 
   Variable* var = expr->target()->AsVariableProxy()->AsVariable();
   Property* prop = expr->target()->AsProperty();

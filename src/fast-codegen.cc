@@ -512,7 +512,6 @@ void FastCodeGenerator::VisitLiteral(Literal* expr) {
 
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
-  ASSERT(expr->op() == Token::ASSIGN || expr->op() == Token::INIT_VAR);
 
   // Record source code position of the (possible) IC call.
   SetSourcePosition(expr->position());
@@ -530,26 +529,60 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
         : KEYED_PROPERTY;
   }
 
-  Expression* rhs = expr->value();
-  ASSERT_EQ(Expression::kValue, rhs->context());
-
+  // Evaluate LHS expression.
   switch (assign_type) {
     case VARIABLE:
-      Visit(rhs);
-      EmitVariableAssignment(expr);
+      // Nothing to do here.
       break;
     case NAMED_PROPERTY:
       Visit(prop->obj());
       ASSERT_EQ(Expression::kValue, prop->obj()->context());
-      Visit(rhs);
-      EmitNamedPropertyAssignment(expr);
       break;
     case KEYED_PROPERTY:
       Visit(prop->obj());
       ASSERT_EQ(Expression::kValue, prop->obj()->context());
       Visit(prop->key());
       ASSERT_EQ(Expression::kValue, prop->key()->context());
-      Visit(rhs);
+      break;
+  }
+
+  // If we have a compound assignment: Get value of LHS expression and
+  // store in on top of the stack.
+  // Note: Relies on kValue context being 'stack'.
+  if (expr->is_compound()) {
+    switch (assign_type) {
+      case VARIABLE:
+        EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
+                         Expression::kValue);
+        break;
+      case NAMED_PROPERTY:
+        EmitNamedPropertyLoad(prop, Expression::kValue);
+        break;
+      case KEYED_PROPERTY:
+        EmitKeyedPropertyLoad(Expression::kValue);
+        break;
+    }
+  }
+
+  // Evaluate RHS expression.
+  Expression* rhs = expr->value();
+  ASSERT_EQ(Expression::kValue, rhs->context());
+  Visit(rhs);
+
+  // If we have a compount assignment: Apply operator.
+  if (expr->is_compound()) {
+    EmitCompoundAssignmentOp(expr->binary_op(), Expression::kValue);
+  }
+
+  // Store the value.
+  switch (assign_type) {
+    case VARIABLE:
+      EmitVariableAssignment(expr);
+      break;
+    case NAMED_PROPERTY:
+      EmitNamedPropertyAssignment(expr);
+      break;
+    case KEYED_PROPERTY:
       EmitKeyedPropertyAssignment(expr);
       break;
   }

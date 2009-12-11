@@ -535,14 +535,20 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
-  Expression* rewrite = expr->var()->rewrite();
+  EmitVariableLoad(expr->var(), expr->context());
+}
+
+
+void FastCodeGenerator::EmitVariableLoad(Variable* var,
+                                         Expression::Context context) {
+  Expression* rewrite = var->rewrite();
   if (rewrite == NULL) {
-    ASSERT(expr->var()->is_global());
+    ASSERT(var->is_global());
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in ecx and the global
     // object on the stack.
     __ push(CodeGenerator::GlobalObject());
-    __ mov(ecx, expr->name());
+    __ mov(ecx, var->name());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     // By emitting a nop we make sure that we do not have a test eax
@@ -550,8 +556,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     // Remember that the assembler may choose to do peephole optimization
     // (eg, push/pop elimination).
     __ nop();
-
-    DropAndMove(expr->context(), eax);
+    DropAndMove(context, eax);
   } else if (rewrite->AsSlot() != NULL) {
     Slot* slot = rewrite->AsSlot();
     if (FLAG_debug_code) {
@@ -572,7 +577,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
           UNREACHABLE();
       }
     }
-    Move(expr->context(), slot, eax);
+    Move(context, slot, eax);
   } else {
     Comment cmnt(masm_, "Variable rewritten to Property");
     // A variable has been rewritten into an explicit access to
@@ -606,9 +611,8 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     // Notice: We must not have a "test eax, ..." instruction after
     // the call. It is treated specially by the LoadIC code.
     __ nop();
-
-    // Drop key and object left on the stack by IC, and push the result.
-    DropAndMove(expr->context(), eax, 2);
+    // Drop key and object left on the stack by IC.
+    DropAndMove(context, eax, 2);
   }
 }
 
@@ -819,6 +823,32 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       break;
     }
   }
+}
+
+
+void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop, Expression::Context context) {
+  Literal* key = prop->key()->AsLiteral();
+  __ mov(ecx, Immediate(key->handle()));
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  __ call(ic, RelocInfo::CODE_TARGET);
+  Move(context, eax);
+}
+
+
+void FastCodeGenerator::EmitKeyedPropertyLoad(Expression::Context context) {
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  __ call(ic, RelocInfo::CODE_TARGET);
+  Move(context, eax);
+}
+
+
+void FastCodeGenerator::EmitCompoundAssignmentOp(Token::Value op,
+                                                 Expression::Context context) {
+  GenericBinaryOpStub stub(op,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS);
+  __ CallStub(&stub);
+  Move(context, eax);
 }
 
 

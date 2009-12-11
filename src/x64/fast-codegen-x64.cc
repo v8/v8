@@ -545,14 +545,20 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
-  Expression* rewrite = expr->var()->rewrite();
+  EmitVariableLoad(expr->var(), expr->context());
+}
+
+
+void FastCodeGenerator::EmitVariableLoad(Variable* var,
+                                          Expression::Context context) {
+  Expression* rewrite = var->rewrite();
   if (rewrite == NULL) {
-    ASSERT(expr->var()->is_global());
+    ASSERT(var->is_global());
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in rcx and the global
     // object on the stack.
     __ push(CodeGenerator::GlobalObject());
-    __ Move(rcx, expr->name());
+    __ Move(rcx, var->name());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     // A test rax instruction following the call is used by the IC to
@@ -560,7 +566,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     // is no test rax instruction here.
     __ nop();
 
-    DropAndMove(expr->context(), rax);
+    DropAndMove(context, rax);
   } else if (rewrite->AsSlot() != NULL) {
     Slot* slot = rewrite->AsSlot();
     if (FLAG_debug_code) {
@@ -581,7 +587,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
           UNREACHABLE();
       }
     }
-    Move(expr->context(), slot, rax);
+    Move(context, slot, rax);
   } else {
     // A variable has been rewritten into an explicit access to
     // an object property.
@@ -615,7 +621,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     // the call. It is treated specially by the LoadIC code.
 
     // Drop key and object left on the stack by IC, and push the result.
-    DropAndMove(expr->context(), rax, 2);
+    DropAndMove(context, rax, 2);
   }
 }
 
@@ -826,6 +832,33 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       break;
     }
   }
+}
+
+
+void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop,
+                                              Expression::Context context) {
+  Literal* key = prop->key()->AsLiteral();
+  __ Move(rcx, key->handle());
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  Move(context, rax);
+}
+
+
+void FastCodeGenerator::EmitKeyedPropertyLoad(Expression::Context context) {
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  __ Call(ic, RelocInfo::CODE_TARGET);
+  Move(context, rax);
+}
+
+
+void FastCodeGenerator::EmitCompoundAssignmentOp(Token::Value op,
+                                                 Expression::Context context) {
+  GenericBinaryOpStub stub(op,
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS);
+  __ CallStub(&stub);
+  Move(context, rax);
 }
 
 

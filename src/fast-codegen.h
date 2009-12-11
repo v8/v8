@@ -242,7 +242,22 @@ class FastCodeGenerator: public AstVisitor {
   void EmitCallWithStub(Call* expr);
   void EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info);
 
+  // Platform-specific code for loading variables.
+  void EmitVariableLoad(Variable* expr, Expression::Context context);
+
   // Platform-specific support for compiling assignments.
+
+  // Load a value from a named property and push the result on the stack.
+  // The receiver is left on the stack by the IC.
+  void EmitNamedPropertyLoad(Property* expr, Expression::Context context);
+
+  // Load a value from a named property and push the result on the stack.
+  // The receiver and the key is left on the stack by the IC.
+  void EmitKeyedPropertyLoad(Expression::Context context);
+
+  // Apply the compound assignment operator. Expects both operands on top
+  // of the stack.
+  void EmitCompoundAssignmentOp(Token::Value op, Expression::Context context);
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // on top of the stack.

@@ -66,8 +66,9 @@ namespace internal {
   T(DEC, "--", 0)                                                       \
                                                                         \
   /* Assignment operators. */                                           \
-  /* IsAssignmentOp() relies on this block of enum values */            \
-  /* being contiguous and sorted in the same order! */                  \
+  /* IsAssignmentOp() and Assignment::is_compound() relies on */        \
+  /* this block of enum values being contiguous and sorted in the */    \
+  /* same order! */                                                     \
   T(INIT_VAR, "=init_var", 2)  /* AST-use only. */                      \
   T(INIT_CONST, "=init_const", 2)  /* AST-use only. */                  \
   T(ASSIGN, "=", 2)                                                     \
