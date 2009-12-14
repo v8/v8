@@ -636,7 +636,7 @@ class Debugger {
                              bool* pending_exception);
 
   // Start the debugger agent listening on the provided port.
-  static bool StartAgent(const char* name, int port, bool wait_for_connection);
+  static bool StartAgent(const char* name, int port);
 
   // Stop the debugger agent.
   static void StopAgent();

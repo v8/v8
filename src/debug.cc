@@ -2483,24 +2483,7 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
 }
 
 
-static void StubMessageHandler2(const v8::Debug::Message& message) {
-  // Simply ignore message.
-}
-
-
-bool Debugger::StartAgent(const char* name, int port,
-                          bool wait_for_connection) {
-  if (wait_for_connection) {
-    // Suspend V8 if it is already running or set V8 to suspend whenever
-    // it starts.
-    // Provide stub message handler; V8 auto-continues each suspend
-    // when there is no message handler; we doesn't need it.
-    // Once become suspended, V8 will stay so indefinitely long, until remote
-    // debugger connects and issues "continue" command.
-    Debugger::message_handler_ = StubMessageHandler2;
-    v8::Debug::DebugBreak();
-  }
-
+bool Debugger::StartAgent(const char* name, int port) {
   if (Socket::Setup()) {
     agent_ = new DebuggerAgent(name, port);
     agent_->Start();
