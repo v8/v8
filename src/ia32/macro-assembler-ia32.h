@@ -152,7 +152,6 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   void PopTryHandler();
 
-
   // ---------------------------------------------------------------------------
   // Inline caching support
 

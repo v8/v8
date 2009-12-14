@@ -443,7 +443,63 @@ void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 
 void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  UNREACHABLE();
+  // Try finally is compiled by setting up a try-handler on the stack while
+  // executing the try body, and removing it again afterwards.
+  //
+  // The try-finally construct can enter the finally block in three ways:
+  // 1. By exiting the try-block normally. This removes the try-handler and
+  //      calls the finally block code before continuing.
+  // 2. By exiting the try-block with a function-local control flow transfer
+  //    (break/continue/return). The site of the, e.g., break removes the
+  //    try handler and calls the finally block code before continuing
+  //    its outward control transfer.
+  // 3. by exiting the try-block with a thrown exception.
+  //    This can happen in nested function calls. It traverses the try-handler
+  //    chaing and consumes the try-handler entry before jumping to the
+  //    handler code. The handler code then calls the finally-block before
+  //    rethrowing the exception.
+  //
+  // The finally block must assume a return address on top of the stack
+  // (or in the link register on ARM chips) and a value (return value or
+  // exception) in the result register (rax/eax/r0), both of which must
+  // be preserved. The return address isn't GC-safe, so it should be
+  // cooked before GC.
+  Label finally_entry;
+  Label try_handler_setup;
+
+  // Setup the try-handler chain. Use a call to
+  // Jump to try-handler setup and try-block code. Use call to put try-handler
+  // address on stack.
+  __ Call(&try_handler_setup);
+  // Try handler code. Return address of call is pushed on handler stack.
+  {
+    // This code is only executed during stack-handler traversal when an
+    // exception is thrown. The execption is in the result register, which
+    // is retained by the finally block.
+    // Call the finally block and then rethrow the exception.
+    __ Call(&finally_entry);
+    ThrowException();
+  }
+
+  __ bind(&finally_entry);
+  {
+    // Finally block implementation.
+    EnterFinallyBlock();
+    Finally finally_block(this);
+    Visit(stmt->finally_block());
+    ExitFinallyBlock();  // Return to the calling code.
+  }
+
+  __ bind(&try_handler_setup);
+  {
+    // Setup try handler (stack pointer registers).
+    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
+    TryFinally try_block(this, &finally_entry);
+    VisitStatements(stmt->try_block()->statements());
+    __ PopTryHandler();
+  }
+  // Execute the finally block on the way out.
+  __ Call(&finally_entry);
 }
 
 

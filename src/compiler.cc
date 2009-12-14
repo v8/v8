@@ -751,7 +751,9 @@ void CodeGenSelector::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 
 void CodeGenSelector::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  BAILOUT("TryFinallyStatement");
+  Visit(stmt->try_block());
+  CHECK_BAILOUT;
+  Visit(stmt->finally_block());
 }
 
 

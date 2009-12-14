@@ -1440,8 +1440,10 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 
 void MacroAssembler::PopTryHandler() {
   ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  // Unlink this handler.
   movq(kScratchRegister, ExternalReference(Top::k_handler_address));
   pop(Operand(kScratchRegister, 0));
+  // Remove the remaining fields.
   addq(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 

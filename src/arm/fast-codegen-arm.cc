@@ -1681,6 +1681,7 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   // Convert current context to test context: End post-test code.
 }
 
+
 void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   Move(expr->context(), r0);
@@ -1689,7 +1690,40 @@ void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 
 Register FastCodeGenerator::result_register() { return r0; }
 
-#undef __
+// ----------------------------------------------------------------------------
+// Non-local control flow support.
 
+void FastCodeGenerator::EnterFinallyBlock() {
+  ASSERT(!result_register().is(r1));
+  // Cook return address in link register to stack (smi encoded Code* delta)
+  __ sub(r1, lr, Operand(masm_->CodeObject()));
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
+  ASSERT_EQ(0, kSmiTag);
+  __ add(r1, r1, Operand(r1));  // Convert to smi.
+  __ push(r1);
+  // Store result register while executing finally block.
+  __ push(result_register());
+}
+
+
+void FastCodeGenerator::ExitFinallyBlock() {
+  ASSERT(!result_register().is(r1));
+  // Restore result register from stack.
+  __ pop(result_register());
+  // Uncook return address and return.
+  __ pop(r1);
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
+  __ mov(r1, Operand(r1, ASR, 1));  // Un-smi-tag value.
+  __ add(pc, r1, Operand(masm_->CodeObject()));
+}
+
+
+void FastCodeGenerator::ThrowException() {
+  __ push(result_register());
+  __ CallRuntime(Runtime::kThrow, 1);
+}
+
+
+#undef __
 
 } }  // namespace v8::internal

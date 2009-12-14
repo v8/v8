@@ -1671,6 +1671,45 @@ void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 
 Register FastCodeGenerator::result_register() { return rax; }
 
+// ----------------------------------------------------------------------------
+// Non-local control flow support.
+
+
+void FastCodeGenerator::EnterFinallyBlock() {
+  ASSERT(!result_register().is(rdx));
+  ASSERT(!result_register().is(rcx));
+  // Cook return address on top of stack (smi encoded Code* delta)
+  __ movq(rdx, Operand(rsp, 0));
+  __ Move(rcx, masm_->CodeObject());
+  __ subq(rdx, rcx);
+  __ Integer32ToSmi(rdx, rdx);
+  __ movq(Operand(rsp, 0), rdx);
+  // Store result register while executing finally block.
+  __ push(result_register());
+}
+
+
+void FastCodeGenerator::ExitFinallyBlock() {
+  ASSERT(!result_register().is(rdx));
+  ASSERT(!result_register().is(rcx));
+  // Restore result register from stack.
+  __ pop(result_register());
+  // Uncook return address.
+  __ movq(rdx, Operand(rsp, 0));
+  __ SmiToInteger32(rdx, rdx);
+  __ Move(rcx, masm_->CodeObject());
+  __ addq(rdx, rcx);
+  __ movq(Operand(rsp, 0), rdx);
+  // And return.
+  __ ret(0);
+}
+
+
+void FastCodeGenerator::ThrowException() {
+  __ push(result_register());
+  __ CallRuntime(Runtime::kThrow, 1);
+}
+
 #undef __
 
 
