@@ -831,7 +831,7 @@ static Object* ThrowReferenceError(String* name) {
   // can't use either LoadIC or KeyedLoadIC constructors.
   IC ic(IC::NO_EXTRA_FRAME);
   ASSERT(ic.target()->is_load_stub() || ic.target()->is_keyed_load_stub());
-  if (!ic.is_contextual()) return Heap::undefined_value();
+  if (!ic.SlowIsContextual()) return Heap::undefined_value();
 
   // Throw a reference error.
   HandleScope scope;
