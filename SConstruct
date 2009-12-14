@@ -143,6 +143,9 @@ LIBRARY_FLAGS = {
     },
     'os:macos': {
       'CCFLAGS':      ['-ansi', '-mmacosx-version-min=10.4'],
+      'library:shared': {
+        'CPPDEFINES': ['V8_SHARED']
+      }
     },
     'os:freebsd': {
       'CPPPATH' : ['/usr/local/include'],
