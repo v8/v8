@@ -37,6 +37,7 @@ in a window, re-reading and re-displaying with regular intervals.
 
 import mmap
 import os
+import re
 import struct
 import sys
 import time
@@ -95,8 +96,20 @@ class StatsViewer(object):
     something goes wrong print an informative message and exit the
     program."""
     if not os.path.exists(self.data_name):
-      print "File %s doesn't exist." % self.data_name
-      sys.exit(1)
+      maps_name = "/proc/%s/maps" % self.data_name
+      if not os.path.exists(maps_name):
+        print "\"%s\" is neither a counter file nor a PID." % self.data_name
+        sys.exit(1)
+      maps_file = open(maps_name, "r")
+      try:
+        m = re.search(r"/dev/shm/\S*", maps_file.read())
+        if m is not None and os.path.exists(m.group(0)):
+          self.data_name = m.group(0)
+        else:
+          print "Can't find counter file in maps for PID %s." % self.data_name
+          sys.exit(1)
+      finally:
+        maps_file.close()
     data_file = open(self.data_name, "r")
     size = os.fstat(data_file.fileno()).st_size
     fileno = data_file.fileno()
@@ -438,6 +451,6 @@ def Main(data_file):
 
 if __name__ == "__main__":
   if len(sys.argv) != 2:
-    print "Usage: stats-viewer.py <stats data>"
+    print "Usage: stats-viewer.py <stats data>|<test_shell pid>"
     sys.exit(1)
   Main(sys.argv[1])
