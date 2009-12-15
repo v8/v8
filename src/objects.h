@@ -790,7 +790,6 @@ class Object BASE_EMBEDDED {
   inline bool IsHeapNumber();
   inline bool IsString();
   inline bool IsSymbol();
-#ifdef DEBUG
   // See objects-inl.h for more details
   inline bool IsSeqString();
   inline bool IsSlicedString();
@@ -799,7 +798,6 @@ class Object BASE_EMBEDDED {
   inline bool IsExternalAsciiString();
   inline bool IsSeqTwoByteString();
   inline bool IsSeqAsciiString();
-#endif  // DEBUG
   inline bool IsConsString();
 
   inline bool IsNumber();

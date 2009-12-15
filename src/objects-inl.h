@@ -163,11 +163,6 @@ bool Object::IsConsString() {
 }
 
 
-#ifdef DEBUG
-// These are for cast checks.  If you need one of these in release
-// mode you should consider using a StringShape before moving it out
-// of the ifdef
-
 bool Object::IsSeqString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential();
@@ -212,9 +207,6 @@ bool Object::IsSlicedString() {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSliced();
 }
-
-
-#endif  // DEBUG
 
 
 StringShape::StringShape(String* str)

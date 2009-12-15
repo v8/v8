@@ -1793,10 +1793,19 @@ Object* Heap::AllocateConsString(String* first, String* second) {
       // Copy the characters into the new object.
       char* dest = SeqAsciiString::cast(result)->GetChars();
       // Copy first part.
-      char* src = SeqAsciiString::cast(first)->GetChars();
+      const char* src;
+      if (first->IsExternalString()) {
+        src = ExternalAsciiString::cast(first)->resource()->data();
+      } else {
+        src = SeqAsciiString::cast(first)->GetChars();
+      }
       for (int i = 0; i < first_length; i++) *dest++ = src[i];
       // Copy second part.
-      src = SeqAsciiString::cast(second)->GetChars();
+      if (second->IsExternalString()) {
+        src = ExternalAsciiString::cast(second)->resource()->data();
+      } else {
+        src = SeqAsciiString::cast(second)->GetChars();
+      }
       for (int i = 0; i < second_length; i++) *dest++ = src[i];
       return result;
     } else {

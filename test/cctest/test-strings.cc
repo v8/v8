@@ -63,6 +63,21 @@ class Resource: public v8::String::ExternalStringResource,
 };
 
 
+class AsciiResource: public v8::String::ExternalAsciiStringResource,
+                public ZoneObject {
+ public:
+  explicit AsciiResource(Vector<const char> string): data_(string.start()) {
+    length_ = string.length();
+  }
+  virtual const char* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+
 static void InitializeBuildingBlocks(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS]) {
   // A list of pointers that we don't have any interest in cleaning up.
@@ -389,6 +404,70 @@ TEST(Utf8Conversion) {
     for (int j = lengths[i]; j < 11; j++)
       CHECK_EQ(kNoChar, buffer[j]);
   }
+}
+
+
+TEST(ExternalShortStringAdd) {
+  ZoneScope zone(DELETE_ON_EXIT);
+
+  InitializeVM();
+  v8::HandleScope handle_scope;
+
+  // Make sure we cover all always-flat lengths and at least one above.
+  static const int kMaxLength = 20;
+  CHECK_GT(kMaxLength, i::String::kMinNonFlatLength);
+
+  // Allocate two JavaScript arrays for holding short strings.
+  v8::Handle<v8::Array> ascii_external_strings =
+      v8::Array::New(kMaxLength + 1);
+  v8::Handle<v8::Array> non_ascii_external_strings =
+      v8::Array::New(kMaxLength + 1);
+
+  // Generate short ascii and non-ascii external strings.
+  for (int i = 0; i <= kMaxLength; i++) {
+    char* ascii = Zone::NewArray<char>(i + 1);
+    for (int j = 0; j < i; j++) {
+      ascii[j] = 'a';
+    }
+    // Terminating '\0' is left out on purpose. It is not required for external
+    // string data.
+    AsciiResource* ascii_resource =
+        new AsciiResource(Vector<const char>(ascii, i));
+    v8::Local<v8::String> ascii_external_string =
+        v8::String::NewExternal(ascii_resource);
+
+    ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
+    uc16* non_ascii = Zone::NewArray<uc16>(i + 1);
+    for (int j = 0; j < i; j++) {
+      non_ascii[j] = 1234;
+    }
+    // Terminating '\0' is left out on purpose. It is not required for external
+    // string data.
+    Resource* resource = new Resource(Vector<const uc16>(non_ascii, i));
+    v8::Local<v8::String> non_ascii_external_string =
+      v8::String::NewExternal(resource);
+    non_ascii_external_strings->Set(v8::Integer::New(i),
+                                    non_ascii_external_string);
+  }
+
+  // Add the arrays with the short external strings in the global object.
+  v8::Handle<v8::Object> global = env->Global();
+  global->Set(v8::String::New("ascii"), ascii_external_strings);
+  global->Set(v8::String::New("non_ascii"), non_ascii_external_strings);
+
+  // Add short external ascii and non-ascii strings checking the result.
+  static const char* source =
+    "function test() {"
+    "  for (var i = 0; i <= 20; i++) {"
+    "    for (var j = 0; j < i; j++) {"
+    "      if (non_ascii[i] != (non_ascii[j] + non_ascii[i - j])) return false;"
+    "      if (ascii[i] != (ascii[j] + ascii[i - j])) return false;"
+    "    }"
+    "  }"
+    "  return true;"
+    "};"
+    "test()";
+  CHECK(v8::Script::Compile(v8::String::New(source))->Run()->BooleanValue());
 }
 
 
