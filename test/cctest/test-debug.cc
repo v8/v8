@@ -3169,7 +3169,7 @@ TEST(NoBreakWhenBootstrapping) {
   }
   // Check that no DebugBreak events occured during the context creation.
   CHECK_EQ(0, break_point_hit_count);
-  
+
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
