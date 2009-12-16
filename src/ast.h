@@ -1241,6 +1241,8 @@ class Assignment: public Expression {
   Expression* target() const { return target_; }
   Expression* value() const { return value_; }
   int position() { return pos_; }
+  // This check relies on the definition order of token in token.h.
+  bool is_compound() const { return op() > Token::ASSIGN; }
 
   // An initialization block is a series of statments of the form
   // x.y.z.a = ...; x.y.z.b = ...; etc. The parser marks the beginning and

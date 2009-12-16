@@ -398,6 +398,82 @@ static Object* Runtime_CreateArrayLiteralBoilerplate(Arguments args) {
 }
 
 
+static Object* Runtime_CreateObjectLiteral(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return DeepCopyBoilerplate(JSObject::cast(*boilerplate));
+}
+
+
+static Object* Runtime_CreateObjectLiteralShallow(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, constant_properties, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateObjectLiteralBoilerplate(literals, constant_properties);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return Heap::CopyJSObject(JSObject::cast(*boilerplate));
+}
+
+
+static Object* Runtime_CreateArrayLiteral(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, elements, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateArrayLiteralBoilerplate(literals, elements);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return DeepCopyBoilerplate(JSObject::cast(*boilerplate));
+}
+
+
+static Object* Runtime_CreateArrayLiteralShallow(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(FixedArray, literals, 0);
+  CONVERT_SMI_CHECKED(literals_index, args[1]);
+  CONVERT_ARG_CHECKED(FixedArray, elements, 2);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(literals->get(literals_index));
+  if (*boilerplate == Heap::undefined_value()) {
+    boilerplate = CreateArrayLiteralBoilerplate(literals, elements);
+    if (boilerplate.is_null()) return Failure::Exception();
+    // Update the functions literal and return the boilerplate.
+    literals->set(literals_index, *boilerplate);
+  }
+  return Heap::CopyJSObject(JSObject::cast(*boilerplate));
+}
+
+
 static Object* Runtime_CreateCatchExtensionObject(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(String, key, args[0]);
@@ -719,12 +795,15 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
     if (*initial_value != NULL) {
       if (index >= 0) {
         // The variable or constant context slot should always be in
-        // the function context; not in any outer context nor in the
-        // arguments object.
-        ASSERT(holder.is_identical_to(context));
-        if (((attributes & READ_ONLY) == 0) ||
-            context->get(index)->IsTheHole()) {
-          context->set(index, *initial_value);
+        // the function context or the arguments object.
+        if (holder->IsContext()) {
+          ASSERT(holder.is_identical_to(context));
+          if (((attributes & READ_ONLY) == 0) ||
+              context->get(index)->IsTheHole()) {
+            context->set(index, *initial_value);
+          }
+        } else {
+          Handle<JSObject>::cast(holder)->SetElement(index, *initial_value);
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
@@ -7805,7 +7884,8 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
 
   HandleScope scope;
 
-  int initial_size = limit < 10 ? limit : 10;
+  limit = Max(limit, 0);  // Ensure that limit is not negative.
+  int initial_size = Min(limit, 10);
   Handle<JSArray> result = Factory::NewJSArray(initial_size * 3);
 
   StackFrameIterator iter;

@@ -754,7 +754,7 @@ void StubCompiler::GenerateLoadField(JSObject* object,
 }
 
 
-void StubCompiler::GenerateLoadCallback(JSObject* object,
+bool StubCompiler::GenerateLoadCallback(JSObject* object,
                                         JSObject* holder,
                                         Register receiver,
                                         Register name_reg,
@@ -762,7 +762,8 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
                                         Register scratch2,
                                         AccessorInfo* callback,
                                         String* name,
-                                        Label* miss) {
+                                        Label* miss,
+                                        Failure** failure) {
   // Check that the receiver isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
   __ j(zero, miss, not_taken);
@@ -798,7 +799,14 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
   ApiGetterEntryStub stub(callback_handle, &fun);
-  __ CallStub(&stub);
+  // Calling the stub may try to allocate (if the code is not already
+  // generated).  Do not allow the call to perform a garbage
+  // collection but instead return the allocation failure object.
+  Object* result = masm()->TryCallStub(&stub);
+  if (result->IsFailure()) {
+    *failure = Failure::cast(result);
+    return false;
+  }
 
   // We need to avoid using eax since that now holds the result.
   Register tmp = other.is(eax) ? reg : other;
@@ -806,6 +814,7 @@ void StubCompiler::GenerateLoadCallback(JSObject* object,
   __ LeaveInternalFrame();
 
   __ ret(0);
+  return true;
 }
 
 
@@ -1420,10 +1429,10 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
 }
 
 
-Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
+Object* LoadStubCompiler::CompileLoadCallback(String* name,
+                                              JSObject* object,
                                               JSObject* holder,
-                                              AccessorInfo* callback,
-                                              String* name) {
+                                              AccessorInfo* callback) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- esp[0] : return address
@@ -1432,8 +1441,11 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   Label miss;
 
   __ mov(eax, Operand(esp, kPointerSize));
-  GenerateLoadCallback(object, holder, eax, ecx, ebx, edx,
-                       callback, name, &miss);
+  Failure* failure = Failure::InternalError();
+  bool success = GenerateLoadCallback(object, holder, eax, ecx, ebx, edx,
+                                      callback, name, &miss, &failure);
+  if (!success) return failure;
+
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
@@ -1597,8 +1609,11 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadCallback(receiver, holder, ecx, eax, ebx, edx,
-                       callback, name, &miss);
+  Failure* failure = Failure::InternalError();
+  bool success = GenerateLoadCallback(receiver, holder, ecx, eax, ebx, edx,
+                                      callback, name, &miss, &failure);
+  if (!success) return failure;
+
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_callback, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);

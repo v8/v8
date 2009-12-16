@@ -55,9 +55,8 @@ class SerializationAddressMapper {
 
   static int MappedTo(HeapObject* obj) {
     ASSERT(IsMapped(obj));
-    return reinterpret_cast<intptr_t>(serialization_map_->Lookup(Key(obj),
-                                      Hash(obj),
-                                      false)->value);
+    return static_cast<int>(reinterpret_cast<intptr_t>(
+        serialization_map_->Lookup(Key(obj), Hash(obj), false)->value));
   }
 
   static void Map(HeapObject* obj, int to) {
@@ -81,7 +80,7 @@ class SerializationAddressMapper {
   }
 
   static uint32_t Hash(HeapObject* obj) {
-    return reinterpret_cast<intptr_t>(obj->address());
+    return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
   }
 
   static void* Key(HeapObject* obj) {
@@ -485,6 +484,15 @@ void ExternalReferenceTable::PopulateTable() {
       21,
       "NativeRegExpMacroAssembler::GrowStack()");
 #endif
+  // Keyed lookup cache.
+  Add(ExternalReference::keyed_lookup_cache_keys().address(),
+      UNCLASSIFIED,
+      22,
+      "KeyedLookupCache::keys()");
+  Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
+      UNCLASSIFIED,
+      23,
+      "KeyedLookupCache::field_offsets()");
 }
 
 
