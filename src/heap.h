@@ -487,7 +487,8 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateFunction(Map* function_map,
                                   SharedFunctionInfo* shared,
-                                  Object* prototype);
+                                  Object* prototype,
+                                  PretenureFlag pretenure = TENURED);
 
   // Indicies for direct access into argument objects.
   static const int arguments_callee_index = 0;

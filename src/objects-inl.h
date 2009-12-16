@@ -1499,7 +1499,7 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
-  // Make sure non of the elements in desc are in new space.
+  // Make sure none of the elements in desc are in new space.
   ASSERT(!Heap::InNewSpace(desc->GetKey()));
   ASSERT(!Heap::InNewSpace(desc->GetValue()));
 

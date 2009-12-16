@@ -2233,8 +2233,11 @@ Object* Heap::AllocateFunctionPrototype(JSFunction* function) {
 
 Object* Heap::AllocateFunction(Map* function_map,
                                SharedFunctionInfo* shared,
-                               Object* prototype) {
-  Object* result = Allocate(function_map, OLD_POINTER_SPACE);
+                               Object* prototype,
+                               PretenureFlag pretenure) {
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
+  Object* result = Allocate(function_map, space);
   if (result->IsFailure()) return result;
   return InitializeFunction(JSFunction::cast(result), shared, prototype);
 }

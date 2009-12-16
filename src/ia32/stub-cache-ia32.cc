@@ -1154,8 +1154,25 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ mov(edi, FieldOperand(edi, JSGlobalPropertyCell::kValueOffset));
 
   // Check that the cell contains the same function.
-  __ cmp(Operand(edi), Immediate(Handle<JSFunction>(function)));
-  __ j(not_equal, &miss, not_taken);
+  if (Heap::InNewSpace(function)) {
+    // We can't embed a pointer to a function in new space so we have
+    // to verify that the shared function info is unchanged. This has
+    // the nice side effect that multiple closures based on the same
+    // function can all use this call IC. Before we load through the
+    // function, we have to verify that it still is a function.
+    __ test(edi, Immediate(kSmiTagMask));
+    __ j(zero, &miss, not_taken);
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ebx);
+    __ j(not_equal, &miss, not_taken);
+
+    // Check the shared function info. Make sure it hasn't changed.
+    __ cmp(FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset),
+           Immediate(Handle<SharedFunctionInfo>(function->shared())));
+    __ j(not_equal, &miss, not_taken);
+  } else {
+    __ cmp(Operand(edi), Immediate(Handle<JSFunction>(function)));
+    __ j(not_equal, &miss, not_taken);
+  }
 
   // Patch the receiver on the stack with the global proxy.
   if (object->IsGlobalObject()) {

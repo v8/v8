@@ -1662,6 +1662,7 @@ class DescriptorArray: public FixedArray {
  public:
   // Is this the singleton empty_descriptor_array?
   inline bool IsEmpty();
+
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
     return IsEmpty() ? 0 : length() - kFirstIndex;
@@ -1801,11 +1802,13 @@ class DescriptorArray: public FixedArray {
   static int ToKeyIndex(int descriptor_number) {
     return descriptor_number+kFirstIndex;
   }
-  static int ToValueIndex(int descriptor_number) {
-    return descriptor_number << 1;
-  }
+
   static int ToDetailsIndex(int descriptor_number) {
     return( descriptor_number << 1) + 1;
+  }
+
+  static int ToValueIndex(int descriptor_number) {
+    return descriptor_number << 1;
   }
 
   bool is_null_descriptor(int descriptor_number) {

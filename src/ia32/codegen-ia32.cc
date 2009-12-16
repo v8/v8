@@ -3593,18 +3593,28 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 
 
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
-  // Call the runtime to instantiate the function boilerplate object.
-  // The inevitable call will sync frame elements to memory anyway, so
-  // we do it eagerly to allow us to push the arguments directly into
-  // place.
   ASSERT(boilerplate->IsBoilerplate());
-  frame_->SyncRange(0, frame_->element_count() - 1);
 
-  // Create a new closure.
-  frame_->EmitPush(esi);
-  frame_->EmitPush(Immediate(boilerplate));
-  Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
-  frame_->Push(&result);
+  // Use the fast case closure allocation code that allocated in new
+  // space for nested functions that don't need literals cloning.
+  if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
+    FastNewClosureStub stub;
+    frame_->Push(boilerplate);
+    Result answer = frame_->CallStub(&stub, 1);
+    frame_->Push(&answer);
+  } else {
+    // Call the runtime to instantiate the function boilerplate
+    // object.  The inevitable call will sync frame elements to memory
+    // anyway, so we do it eagerly to allow us to push the arguments
+    // directly into place.
+    frame_->SyncRange(0, frame_->element_count() - 1);
+
+    // Create a new closure.
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(boilerplate));
+    Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+    frame_->Push(&result);
+  }
 }
 
 
@@ -6534,6 +6544,49 @@ void Reference::SetValue(InitState init_state) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void FastNewClosureStub::Generate(MacroAssembler* masm) {
+  // Clone the boilerplate in new space. Set the context to the
+  // current context in esi.
+  Label gc;
+  __ AllocateInNewSpace(JSFunction::kSize, eax, ebx, ecx, &gc, TAG_OBJECT);
+
+  // Get the boilerplate function from the stack.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));
+
+  // Compute the function map in the current global context and set that
+  // as the map of the allocated object.
+  __ mov(ecx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalContextOffset));
+  __ mov(ecx, Operand(ecx, Context::SlotOffset(Context::FUNCTION_MAP_INDEX)));
+  __ mov(FieldOperand(eax, JSObject::kMapOffset), ecx);
+
+  // Clone the rest of the boilerplate fields. We don't have to update
+  // the write barrier because the allocated object is in new space.
+  for (int offset = kPointerSize;
+       offset < JSFunction::kSize;
+       offset += kPointerSize) {
+    if (offset == JSFunction::kContextOffset) {
+      __ mov(FieldOperand(eax, offset), esi);
+    } else {
+      __ mov(ebx, FieldOperand(edx, offset));
+      __ mov(FieldOperand(eax, offset), ebx);
+    }
+  }
+
+  // Return and remove the on-stack parameter.
+  __ ret(1 * kPointerSize);
+
+  // Create a new closure through the slower runtime call.
+  __ bind(&gc);
+  __ pop(ecx);  // Temporarily remove return address.
+  __ pop(edx);
+  __ push(esi);
+  __ push(edx);
+  __ push(ecx);  // Restore return address.
+  __ TailCallRuntime(ExternalReference(Runtime::kNewClosure), 2, 1);
 }
 
 

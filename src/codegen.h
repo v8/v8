@@ -233,6 +233,17 @@ class StackCheckStub : public CodeStub {
 };
 
 
+class FastNewClosureStub : public CodeStub {
+ public:
+  void Generate(MacroAssembler* masm);
+
+ private:
+  const char* GetName() { return "FastNewClosureStub"; }
+  Major MajorKey() { return FastNewClosure; }
+  int MinorKey() { return 0; }
+};
+
+
 class InstanceofStub: public CodeStub {
  public:
   InstanceofStub() { }
