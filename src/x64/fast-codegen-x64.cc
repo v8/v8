@@ -1671,6 +1671,22 @@ void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 
 Register FastCodeGenerator::result_register() { return rax; }
 
+
+Register FastCodeGenerator::context_register() { return rsi; }
+
+
+void FastCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
+  ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset),
+            static_cast<intptr_t>(frame_offset));
+  __ movq(Operand(rbp, frame_offset), value);
+}
+
+
+void FastCodeGenerator::LoadContextField(Register dst, int context_index) {
+  __ movq(dst, CodeGenerator::ContextOperand(rsi, context_index));
+}
+
+
 // ----------------------------------------------------------------------------
 // Non-local control flow support.
 

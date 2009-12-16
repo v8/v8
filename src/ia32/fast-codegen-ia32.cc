@@ -1665,6 +1665,21 @@ void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 
 Register FastCodeGenerator::result_register() { return eax; }
 
+
+Register FastCodeGenerator::context_register() { return esi; }
+
+
+void FastCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
+  ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
+  __ mov(Operand(ebp, frame_offset), value);
+}
+
+
+void FastCodeGenerator::LoadContextField(Register dst, int context_index) {
+  __ mov(dst, CodeGenerator::ContextOperand(esi, context_index));
+}
+
+
 // ----------------------------------------------------------------------------
 // Non-local control flow support.
 

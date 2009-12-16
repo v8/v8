@@ -337,12 +337,31 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ WithEnterStatement");
+  SetStatementPosition(stmt);
+
+  Visit(stmt->expression());
+  if (stmt->is_catch_block()) {
+    __ CallRuntime(Runtime::kPushCatchContext, 1);
+  } else {
+    __ CallRuntime(Runtime::kPushContext, 1);
+  }
+  // Both runtime calls return the new context in both the context and the
+  // result registers.
+
+  // Update local stack frame context field.
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
 void FastCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ WithExitStatement");
+  SetStatementPosition(stmt);
+
+  // Pop context.
+  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+  // Update local stack frame context field.
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 

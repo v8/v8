@@ -1690,28 +1690,43 @@ void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
 
 Register FastCodeGenerator::result_register() { return r0; }
 
+
+Register FastCodeGenerator::context_register() { return cp; }
+
+
+void FastCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
+  ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
+  __ str(value, MemOperand(fp, frame_offset));
+}
+
+
+void FastCodeGenerator::LoadContextField(Register dst, int context_index) {
+  __ ldr(dst, CodeGenerator::ContextOperand(cp, context_index));
+}
+
+
 // ----------------------------------------------------------------------------
 // Non-local control flow support.
 
 void FastCodeGenerator::EnterFinallyBlock() {
   ASSERT(!result_register().is(r1));
+  // Store result register while executing finally block.
+  __ push(result_register());
   // Cook return address in link register to stack (smi encoded Code* delta)
   __ sub(r1, lr, Operand(masm_->CodeObject()));
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
   ASSERT_EQ(0, kSmiTag);
   __ add(r1, r1, Operand(r1));  // Convert to smi.
   __ push(r1);
-  // Store result register while executing finally block.
-  __ push(result_register());
 }
 
 
 void FastCodeGenerator::ExitFinallyBlock() {
   ASSERT(!result_register().is(r1));
   // Restore result register from stack.
-  __ pop(result_register());
-  // Uncook return address and return.
   __ pop(r1);
+  // Uncook return address and return.
+  __ pop(result_register());
   ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
   __ mov(r1, Operand(r1, ASR, 1));  // Un-smi-tag value.
   __ add(pc, r1, Operand(masm_->CodeObject()));

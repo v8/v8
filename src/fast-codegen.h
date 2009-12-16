@@ -291,6 +291,15 @@ class FastCodeGenerator: public AstVisitor {
 
   MacroAssembler* masm() { return masm_; }
   static Register result_register();
+  static Register context_register();
+
+  // Set fields in the stack frame. Offsets are the frame pointer relative
+  // offsets defined in, e.g., StandardFrameConstants.
+  void StoreToFrameField(int frame_offset, Register value);
+
+  // Load a value from the current context. Indices are defined as an enum
+  // in v8::internal::Context.
+  void LoadContextField(Register dst, int context_index);
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);

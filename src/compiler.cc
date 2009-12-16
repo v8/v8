@@ -703,12 +703,12 @@ void CodeGenSelector::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void CodeGenSelector::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  BAILOUT("WithEnterStatement");
+  ProcessExpression(stmt->expression(), Expression::kValue);
 }
 
 
 void CodeGenSelector::VisitWithExitStatement(WithExitStatement* stmt) {
-  BAILOUT("WithExitStatement");
+  // Supported.
 }
 
 
