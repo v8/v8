@@ -3595,7 +3595,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
-  // Use the fast case closure allocation code that allocated in new
+  // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
   if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
     FastNewClosureStub stub;

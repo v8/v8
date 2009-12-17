@@ -1804,7 +1804,7 @@ class DescriptorArray: public FixedArray {
   }
 
   static int ToDetailsIndex(int descriptor_number) {
-    return( descriptor_number << 1) + 1;
+    return (descriptor_number << 1) + 1;
   }
 
   static int ToValueIndex(int descriptor_number) {
