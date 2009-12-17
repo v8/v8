@@ -44,6 +44,7 @@ namespace internal {
   V(WriteInt32ToHeapNumber)              \
   V(StackCheck)                          \
   V(FastNewClosure)                      \
+  V(FastNewContext)                      \
   V(UnarySub)                            \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \

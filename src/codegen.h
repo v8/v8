@@ -244,6 +244,25 @@ class FastNewClosureStub : public CodeStub {
 };
 
 
+class FastNewContextStub : public CodeStub {
+ public:
+  static const int kMaximumSlots = 64;
+
+  explicit FastNewContextStub(int slots) : slots_(slots) {
+    ASSERT(slots_ > 0 && slots <= kMaximumSlots);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int slots_;
+
+  const char* GetName() { return "FastNewContextStub"; }
+  Major MajorKey() { return FastNewContext; }
+  int MinorKey() { return slots_; }
+};
+
+
 class InstanceofStub: public CodeStub {
  public:
   InstanceofStub() { }
