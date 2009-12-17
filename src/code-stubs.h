@@ -45,6 +45,7 @@ namespace internal {
   V(StackCheck)                          \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
+  V(FastCloneShallowArray)               \
   V(UnarySub)                            \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \

@@ -2261,10 +2261,14 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject* boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
 
-  // Make the clone.
-  Map* map = boilerplate->map();
-  int object_size = map->instance_size();
-  Object* result = AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
+  // Check that the size of the boilerplate matches our
+  // expectations. The ArgumentsAccessStub::GenerateNewObject relies
+  // on the size being a known constant.
+  ASSERT(kArgumentsObjectSize == boilerplate->map()->instance_size());
+
+  // Do the allocation.
+  Object* result =
+      AllocateRaw(kArgumentsObjectSize, NEW_SPACE, OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
 
   // Copy the content. The arguments boilerplate doesn't have any
@@ -2272,7 +2276,7 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   // barrier here.
   CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(result)->address()),
             reinterpret_cast<Object**>(boilerplate->address()),
-            object_size);
+            kArgumentsObjectSize);
 
   // Set the two properties.
   JSObject::cast(result)->InObjectPropertyAtPut(arguments_callee_index,

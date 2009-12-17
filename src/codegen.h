@@ -263,6 +263,25 @@ class FastNewContextStub : public CodeStub {
 };
 
 
+class FastCloneShallowArrayStub : public CodeStub {
+ public:
+  static const int kMaximumLength = 8;
+
+  explicit FastCloneShallowArrayStub(int length) : length_(length) {
+    ASSERT(length >= 0 && length <= kMaximumLength);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int length_;
+
+  const char* GetName() { return "FastCloneShallowArrayStub"; }
+  Major MajorKey() { return FastCloneShallowArray; }
+  int MinorKey() { return length_; }
+};
+
+
 class InstanceofStub: public CodeStub {
  public:
   InstanceofStub() { }

@@ -4320,18 +4320,23 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
   // Push the resulting array literal boilerplate on the stack.
   frame_->Push(&boilerplate);
+
   // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  int length = node->values()->length();
+  Result clone;
+  if (node->depth() == 1 &&
+      length <= FastCloneShallowArrayStub::kMaximumLength) {
+    FastCloneShallowArrayStub stub(length);
+    clone = frame_->CallStub(&stub, 1);
+  } else {
+    clone = frame_->CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
   }
-  Result clone = frame_->CallRuntime(clone_function_id, 1);
   // Push the newly cloned literal object as the result.
   frame_->Push(&clone);
 
   // Generate code to set the elements in the array that are not
   // literals.
-  for (int i = 0; i < node->values()->length(); i++) {
+  for (int i = 0; i < length; i++) {
     Expression* value = node->values()->at(i);
 
     // If value is a literal the property value is already set in the
@@ -6637,6 +6642,49 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 }
 
 
+void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int size = JSArray::kSize + elements_size;
+
+  // Allocate both the JS array and the elements array in one big
+  // allocation. This avoid multiple limit checks.
+  Label gc;
+  __ AllocateInNewSpace(size, eax, ebx, ecx, &gc, TAG_OBJECT);
+
+  // Get the boilerplate from the stack.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+
+  // Copy the JS array part.
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length_ == 0)) {
+      __ mov(ebx, FieldOperand(ecx, i));
+      __ mov(FieldOperand(eax, i), ebx);
+    }
+  }
+
+  if (length_ > 0) {
+    // Get hold of the elements array of the boilerplate and setup the
+    // elements pointer in the resulting object.
+    __ mov(ecx, FieldOperand(ecx, JSArray::kElementsOffset));
+    __ lea(edx, Operand(eax, JSArray::kSize));
+    __ mov(FieldOperand(eax, JSArray::kElementsOffset), edx);
+
+    // Copy the elements array.
+    for (int i = 0; i < elements_size; i += kPointerSize) {
+      __ mov(ebx, FieldOperand(ecx, i));
+      __ mov(FieldOperand(edx, i), ebx);
+    }
+  }
+
+  // Return and remove the on-stack parameter.
+  __ ret(1 * kPointerSize);
+
+  __ bind(&gc);
+  ExternalReference runtime(Runtime::kCloneShallowLiteralBoilerplate);
+  __ TailCallRuntime(runtime, 1, 1);
+}
+
+
 // NOTE: The stub does not handle the inlined cases (Smis, Booleans, undefined).
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   Label false_result, true_result, not_string;
@@ -7549,17 +7597,89 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   static const int kDisplacement = 2 * kPointerSize;
 
   // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
+  Label adaptor_frame, try_allocate, runtime;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
   __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(not_equal, &runtime);
+  __ j(equal, &adaptor_frame);
+
+  // Get the length from the frame.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+  __ jmp(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
+  __ bind(&adaptor_frame);
   __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ mov(Operand(esp, 1 * kPointerSize), ecx);
   __ lea(edx, Operand(edx, ecx, times_2, kDisplacement));
   __ mov(Operand(esp, 2 * kPointerSize), edx);
+
+  // Try the new space allocation. Start out with computing the size of
+  // the arguments object and the elements array.
+  Label add_arguments_object;
+  __ bind(&try_allocate);
+  __ test(ecx, Operand(ecx));
+  __ j(zero, &add_arguments_object);
+  __ lea(ecx, Operand(ecx, times_2, FixedArray::kHeaderSize));
+  __ bind(&add_arguments_object);
+  __ add(Operand(ecx), Immediate(Heap::kArgumentsObjectSize));
+
+  // Do the allocation of both objects in one go.
+  __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
+
+  // Get the arguments boilerplate from the current (global) context.
+  int offset = Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
+  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
+  __ mov(edi, Operand(edi, offset));
+
+  // Copy the JS object part.
+  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
+    __ mov(ebx, FieldOperand(edi, i));
+    __ mov(FieldOperand(eax, i), ebx);
+  }
+
+  // Setup the callee in-object property.
+  ASSERT(Heap::arguments_callee_index == 0);
+  __ mov(ebx, Operand(esp, 3 * kPointerSize));
+  __ mov(FieldOperand(eax, JSObject::kHeaderSize), ebx);
+
+  // Get the length (smi tagged) and set that as an in-object property too.
+  ASSERT(Heap::arguments_length_index == 1);
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));
+  __ mov(FieldOperand(eax, JSObject::kHeaderSize + kPointerSize), ecx);
+
+  // If there are no actual arguments, we're done.
+  Label done;
+  __ test(ecx, Operand(ecx));
+  __ j(zero, &done);
+
+  // Get the parameters pointer from the stack and untag the length.
+  __ mov(edx, Operand(esp, 2 * kPointerSize));
+  __ sar(ecx, kSmiTagSize);
+
+  // Setup the elements pointer in the allocated arguments object and
+  // initialize the header in the elements fixed array.
+  __ lea(edi, Operand(eax, Heap::kArgumentsObjectSize));
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
+  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
+         Immediate(Factory::fixed_array_map()));
+  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
+
+  // Copy the fixed array slots.
+  Label loop;
+  __ bind(&loop);
+  __ mov(ebx, Operand(edx, -1 * kPointerSize));  // Skip receiver.
+  __ mov(FieldOperand(edi, FixedArray::kHeaderSize), ebx);
+  __ add(Operand(edi), Immediate(kPointerSize));
+  __ sub(Operand(edx), Immediate(kPointerSize));
+  __ dec(ecx);
+  __ test(ecx, Operand(ecx));
+  __ j(not_zero, &loop);
+
+  // Return and remove the on-stack parameters.
+  __ bind(&done);
+  __ ret(3 * kPointerSize);
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);

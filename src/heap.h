@@ -491,6 +491,8 @@ class Heap : public AllStatic {
                                   PretenureFlag pretenure = TENURED);
 
   // Indicies for direct access into argument objects.
+  static const int kArgumentsObjectSize =
+      JSObject::kHeaderSize + 2 * kPointerSize;
   static const int arguments_callee_index = 0;
   static const int arguments_length_index = 1;
 
