@@ -192,13 +192,13 @@ class Expression: public AstNode {
   virtual void MarkAsStatement() { /* do nothing */ }
 
   // Static type information for this expression.
-  SmiAnalysis* type() { return &type_; }
+  StaticType* type() { return &type_; }
 
   Context context() { return context_; }
   void set_context(Context context) { context_ = context; }
 
  private:
-  SmiAnalysis type_;
+  StaticType type_;
   Context context_;
 };
 

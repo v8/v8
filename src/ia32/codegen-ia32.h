@@ -434,7 +434,7 @@ class CodeGenerator: public AstVisitor {
 
   void GenericBinaryOperation(
       Token::Value op,
-      SmiAnalysis* type,
+      StaticType* type,
       OverwriteMode overwrite_mode);
 
   // If possible, combine two constant smi values using op to produce
@@ -447,7 +447,7 @@ class CodeGenerator: public AstVisitor {
   void ConstantSmiBinaryOperation(Token::Value op,
                                   Result* operand,
                                   Handle<Object> constant_operand,
-                                  SmiAnalysis* type,
+                                  StaticType* type,
                                   bool reversed,
                                   OverwriteMode overwrite_mode);
 
