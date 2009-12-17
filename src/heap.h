@@ -891,7 +891,7 @@ class Heap : public AllStatic {
   // The number of MapSpace pages is limited by the way we pack
   // Map pointers during GC.
   static const int kMaxMapSpaceSize =
-      (1 << MapWord::kMapPageIndexBits) * Page::kPageSize;
+      (1 << (MapWord::kMapPageIndexBits)) * Page::kPageSize;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 512*KB;

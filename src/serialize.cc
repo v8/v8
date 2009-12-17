@@ -632,7 +632,7 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
     return HeapObject::FromAddress(pages_[space][0] + offset);
   }
   ASSERT(SpaceIsPaged(space));
-  int page_of_pointee = offset >> Page::kPageSizeBits;
+  int page_of_pointee = offset >> kPageSizeBits;
   Address object_address = pages_[space][page_of_pointee] +
                            (offset & Page::kPageAlignmentMask);
   return HeapObject::FromAddress(object_address);
@@ -972,8 +972,8 @@ void Serializer::SerializeObject(
     int offset = CurrentAllocationAddress(space) - address;
     bool from_start = true;
     if (SpaceIsPaged(space)) {
-      if ((CurrentAllocationAddress(space) >> Page::kPageSizeBits) ==
-          (address >> Page::kPageSizeBits)) {
+      if ((CurrentAllocationAddress(space) >> kPageSizeBits) ==
+          (address >> kPageSizeBits)) {
         from_start = false;
         address = offset;
       }

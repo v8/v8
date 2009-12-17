@@ -129,6 +129,12 @@ Object* Heap::AllocateRawMap() {
 #endif
   Object* result = map_space_->AllocateRaw(Map::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
+#ifdef DEBUG
+  if (!result->IsFailure()) {
+    // Maps have their own alignment.
+    CHECK((OffsetFrom(result) & kMapAlignmentMask) == kHeapObjectTag);
+  }
+#endif
   return result;
 }
 

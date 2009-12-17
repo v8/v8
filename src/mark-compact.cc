@@ -836,11 +836,8 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 // space are encoded in their map pointer word (along with an encoding of
 // their map pointers).
 //
-//  31             21 20              10 9               0
-// +-----------------+------------------+-----------------+
-// |forwarding offset|page offset of map|page index of map|
-// +-----------------+------------------+-----------------+
-//  11 bits           11 bits            10 bits
+// The excact encoding is described in the comments for class MapWord in
+// objects.h.
 //
 // An address range [start, end) can have both live and non-live objects.
 // Maximal non-live regions are marked so they can be skipped on subsequent
