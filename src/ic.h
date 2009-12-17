@@ -189,16 +189,14 @@ class CallIC: public IC {
 
 
   // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm, int argc);
+  static void GenerateInitialize(MacroAssembler* masm, int argc) {
+    GenerateMiss(masm, argc);
+  }
   static void GenerateMiss(MacroAssembler* masm, int argc);
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
 
  private:
-  static void Generate(MacroAssembler* masm,
-                       int argc,
-                       const ExternalReference& f);
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,

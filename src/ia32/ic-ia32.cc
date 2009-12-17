@@ -888,13 +888,16 @@ Object* CallIC_Miss(Arguments args);
 
 void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-  // Get the name of the function from the stack; 2 ~ return address, receiver
-  __ mov(ecx, Operand(esp, (argc + 2) * kPointerSize));
 
   // Probe the stub cache.
   Code::Flags flags =
@@ -940,7 +943,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
+  GenerateMiss(masm, argc);
 }
 
 
@@ -948,27 +951,34 @@ static void GenerateNormalHelper(MacroAssembler* masm,
                                  int argc,
                                  bool is_global_object,
                                  Label* miss) {
-  // Search dictionary - put result in register edx.
-  GenerateDictionaryLoad(masm, miss, eax, edx, ebx, ecx, CHECK_DICTIONARY);
+  // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- edx                 : receiver
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
 
-  // Move the result to register edi and check that it isn't a smi.
-  __ mov(edi, Operand(edx));
-  __ test(edx, Immediate(kSmiTagMask));
+  // Search dictionary - put result in register edi.
+  __ mov(edi, edx);
+  GenerateDictionaryLoad(masm, miss, eax, edi, ebx, ecx, CHECK_DICTIONARY);
+
+  // Check that the result is not a smi.
+  __ test(edi, Immediate(kSmiTagMask));
   __ j(zero, miss, not_taken);
 
-  // Check that the value is a JavaScript function.
-  __ CmpObjectType(edx, JS_FUNCTION_TYPE, edx);
+  // Check that the value is a JavaScript function, fetching its map into eax.
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
   __ j(not_equal, miss, not_taken);
 
-  // Check that the function has been loaded.
-  __ mov(edx, FieldOperand(edi, JSFunction::kMapOffset));
-  __ mov(edx, FieldOperand(edx, Map::kBitField2Offset));
-  __ test(edx, Immediate(1 << Map::kNeedsLoading));
+  // Check that the function has been loaded.  eax holds function's map.
+  __ mov(eax, FieldOperand(eax, Map::kBitField2Offset));
+  __ test(eax, Immediate(1 << Map::kNeedsLoading));
   __ j(not_zero, miss, not_taken);
 
-  // Patch the receiver with the global proxy if necessary.
+  // Patch the receiver on stack with the global proxy if necessary.
   if (is_global_object) {
-    __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
     __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
     __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
   }
@@ -981,14 +991,17 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-  // Get the name of the function from the stack; 2 ~ return address, receiver.
-  __ mov(ecx, Operand(esp, (argc + 2) * kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
@@ -1037,33 +1050,33 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
+  GenerateMiss(masm, argc);
 }
 
 
-void CallIC::Generate(MacroAssembler* masm,
-                      int argc,
-                      const ExternalReference& f) {
+void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
-  // Get the name of the function to call from the stack.
-  // 2 ~ receiver, return address.
-  __ mov(ebx, Operand(esp, (argc + 2) * kPointerSize));
 
   // Enter an internal frame.
   __ EnterInternalFrame();
 
   // Push the receiver and the name of the function.
   __ push(edx);
-  __ push(ebx);
+  __ push(ecx);
 
   // Call the entry.
   CEntryStub stub(1);
   __ mov(eax, Immediate(2));
-  __ mov(ebx, Immediate(f));
+  __ mov(ebx, Immediate(ExternalReference(IC_Utility(kCallIC_Miss))));
   __ CallStub(&stub);
 
   // Move result to edi and exit the internal frame.
@@ -1075,11 +1088,11 @@ void CallIC::Generate(MacroAssembler* masm,
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &invoke, not_taken);
-  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, JS_GLOBAL_OBJECT_TYPE);
+  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ cmp(ebx, JS_GLOBAL_OBJECT_TYPE);
   __ j(equal, &global);
-  __ cmp(ecx, JS_BUILTINS_OBJECT_TYPE);
+  __ cmp(ebx, JS_BUILTINS_OBJECT_TYPE);
   __ j(not_equal, &invoke);
 
   // Patch the receiver on the stack.

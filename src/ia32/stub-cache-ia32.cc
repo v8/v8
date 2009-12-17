@@ -152,11 +152,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 }
 
 
-template <typename Pushable>
 static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register receiver,
                                      Register holder,
-                                     Pushable name,
+                                     Register name,
                                      JSObject* holder_obj) {
   __ push(receiver);
   __ push(holder);
@@ -285,11 +284,10 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
 }
 
 
-template <class Pushable>
 static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
                                                    Register receiver,
                                                    Register holder,
-                                                   Pushable name,
+                                                   Register name,
                                                    JSObject* holder_obj) {
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
 
@@ -495,8 +493,8 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
-  explicit CallInterceptorCompiler(const ParameterCount& arguments)
-      : arguments_(arguments), argc_(arguments.immediate()) {}
+  CallInterceptorCompiler(const ParameterCount& arguments, Register name)
+      : arguments_(arguments), argc_(arguments.immediate()), name_(name) {}
 
   void CompileCacheable(MacroAssembler* masm,
                         StubCompiler* stub_compiler,
@@ -527,17 +525,17 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     }
 
     __ EnterInternalFrame();
-    __ push(holder);  // save the holder
+    __ push(holder);  // Save the holder.
+    __ push(name_);  // Save the name.
 
-    CompileCallLoadPropertyWithInterceptor(
-        masm,
-        receiver,
-        holder,
-        // Under EnterInternalFrame this refers to name.
-        Operand(ebp, (argc_ + 3) * kPointerSize),
-        holder_obj);
+    CompileCallLoadPropertyWithInterceptor(masm,
+                                           receiver,
+                                           holder,
+                                           name_,
+                                           holder_obj);
 
-    __ pop(receiver);  // restore holder
+    __ pop(name_);  // Restore the name.
+    __ pop(receiver);  // Restore the holder.
     __ LeaveInternalFrame();
 
     __ cmp(eax, Factory::no_interceptor_result_sentinel());
@@ -577,11 +575,13 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                       JSObject* holder_obj,
                       Label* miss_label) {
     __ EnterInternalFrame();
+    // Save the name_ register across the call.
+    __ push(name_);
 
     PushInterceptorArguments(masm,
                              receiver,
                              holder,
-                             Operand(ebp, (argc_ + 3) * kPointerSize),
+                             name_,
                              holder_obj);
 
     ExternalReference ref = ExternalReference(
@@ -592,12 +592,15 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     CEntryStub stub(1);
     __ CallStub(&stub);
 
+    // Restore the name_ register.
+    __ pop(name_);
     __ LeaveInternalFrame();
   }
 
  private:
   const ParameterCount& arguments_;
   int argc_;
+  Register name_;
 };
 
 
@@ -894,6 +897,11 @@ Object* CallStubCompiler::CompileCallField(Object* object,
                                            int index,
                                            String* name) {
   // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
 
@@ -908,7 +916,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // Do the right check and compute the holder register.
   Register reg =
       CheckPrototypes(JSObject::cast(object), edx, holder,
-                      ebx, ecx, name, &miss);
+                      ebx, eax, name, &miss);
 
   GenerateFastPropertyLoad(masm(), edi, reg, holder, index);
 
@@ -944,6 +952,11 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               String* name,
                                               CheckType check) {
   // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
 
@@ -965,7 +978,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     case RECEIVER_MAP_CHECK:
       // Check that the maps haven't changed.
       CheckPrototypes(JSObject::cast(object), edx, holder,
-                      ebx, ecx, name, &miss);
+                      ebx, eax, name, &miss);
 
       // Patch the receiver on the stack with the global proxy if
       // necessary.
@@ -977,15 +990,15 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
     case STRING_CHECK:
       // Check that the object is a two-byte string or a symbol.
-      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-      __ cmp(ecx, FIRST_NONSTRING_TYPE);
+      __ mov(eax, FieldOperand(edx, HeapObject::kMapOffset));
+      __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
+      __ cmp(eax, FIRST_NONSTRING_TYPE);
       __ j(above_equal, &miss, not_taken);
       // Check that the maps starting from the prototype haven't changed.
       GenerateLoadGlobalFunctionPrototype(masm(),
                                           Context::STRING_FUNCTION_INDEX,
-                                          ecx);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), ecx, holder,
+                                          eax);
+      CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                       ebx, edx, name, &miss);
       break;
 
@@ -994,14 +1007,14 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       // Check that the object is a smi or a heap number.
       __ test(edx, Immediate(kSmiTagMask));
       __ j(zero, &fast, taken);
-      __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ecx);
+      __ CmpObjectType(edx, HEAP_NUMBER_TYPE, eax);
       __ j(not_equal, &miss, not_taken);
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.
       GenerateLoadGlobalFunctionPrototype(masm(),
                                           Context::NUMBER_FUNCTION_INDEX,
-                                          ecx);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), ecx, holder,
+                                          eax);
+      CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                       ebx, edx, name, &miss);
       break;
     }
@@ -1017,15 +1030,15 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       // Check that the maps starting from the prototype haven't changed.
       GenerateLoadGlobalFunctionPrototype(masm(),
                                           Context::BOOLEAN_FUNCTION_INDEX,
-                                          ecx);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), ecx, holder,
+                                          eax);
+      CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
                       ebx, edx, name, &miss);
       break;
     }
 
     case JSARRAY_HAS_FAST_ELEMENTS_CHECK:
       CheckPrototypes(JSObject::cast(object), edx, holder,
-                      ebx, ecx, name, &miss);
+                      ebx, eax, name, &miss);
       // Make sure object->HasFastElements().
       // Get the elements array of the object.
       __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
@@ -1068,6 +1081,11 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
 
@@ -1080,7 +1098,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(arguments());
+  CallInterceptorCompiler compiler(arguments(), ecx);
   CompileLoadInterceptor(&compiler,
                          this,
                          masm(),
@@ -1090,7 +1108,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                          &lookup,
                          edx,
                          ebx,
-                         ecx,
+                         edi,
                          &miss);
 
   // Restore receiver.
@@ -1129,6 +1147,11 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
                                             JSFunction* function,
                                             String* name) {
   // ----------- S t a t e -------------
+  //  -- ecx                 : name
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- ...
+  //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
   Label miss;
 
@@ -1147,7 +1170,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   }
 
   // Check that the maps haven't changed.
-  CheckPrototypes(object, edx, holder, ebx, ecx, name, &miss);
+  CheckPrototypes(object, edx, holder, ebx, eax, name, &miss);
 
   // Get the value from the cell.
   __ mov(edi, Immediate(Handle<JSGlobalPropertyCell>(cell)));

@@ -1066,7 +1066,9 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
 }
 
 
-void FastCodeGenerator::EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info) {
+void FastCodeGenerator::EmitCallWithIC(Call* expr,
+                                       Handle<Object> name,
+                                       RelocInfo::Mode mode) {
   // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -1074,16 +1076,15 @@ void FastCodeGenerator::EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info) {
     Visit(args->at(i));
     ASSERT_EQ(Expression::kValue, args->at(i)->context());
   }
-  // Record source position for debugger.
+  __ Set(ecx, Immediate(name));
+  // Record source position of the IC call.
   SetSourcePosition(expr->position());
-  // Call the IC initialization code.
-  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
-                                                         NOT_IN_LOOP);
-  __ call(ic, reloc_info);
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
+  __ call(ic, mode);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  // Discard the function left on TOS.
-  DropAndMove(expr->context(), eax);
+  Move(expr->context(), eax);
 }
 
 
@@ -1100,7 +1101,6 @@ void FastCodeGenerator::EmitCallWithStub(Call* expr) {
   __ CallStub(&stub);
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  // Discard the function left on TOS.
   DropAndMove(expr->context(), eax);
 }
 
@@ -1114,11 +1114,9 @@ void FastCodeGenerator::VisitCall(Call* expr) {
     // Call to the identifier 'eval'.
     UNREACHABLE();
   } else if (var != NULL && !var->is_this() && var->is_global()) {
-    // Call to a global variable.
-    __ push(Immediate(var->name()));
-    // Push global object as receiver for the call IC lookup.
+    // Push global object as receiver for the call IC.
     __ push(CodeGenerator::GlobalObject());
-    EmitCallWithIC(expr, RelocInfo::CODE_TARGET_CONTEXT);
+    EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
     // Call to a lookup slot.
@@ -1129,9 +1127,8 @@ void FastCodeGenerator::VisitCall(Call* expr) {
     Literal* key = prop->key()->AsLiteral();
     if (key != NULL && key->handle()->IsSymbol()) {
       // Call to a named property, use call IC.
-      __ push(Immediate(key->handle()));
       Visit(prop->obj());
-      EmitCallWithIC(expr, RelocInfo::CODE_TARGET);
+      EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
       // Call to a keyed property, use keyed load IC followed by function
       // call.
@@ -1223,7 +1220,6 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Prepare for calling JS runtime function.
-    __ push(Immediate(expr->name()));
     __ mov(eax, CodeGenerator::GlobalObject());
     __ push(FieldOperand(eax, GlobalObject::kBuiltinsOffset));
   }
@@ -1236,19 +1232,18 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   }
 
   if (expr->is_jsruntime()) {
-    // Call the JS runtime function.
-    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
-                                                           NOT_IN_LOOP);
+    // Call the JS runtime function via a call IC.
+    __ Set(ecx, Immediate(expr->name()));
+    InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+    Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
     __ call(ic, RelocInfo::CODE_TARGET);
       // Restore context register.
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-    // Discard the function left on TOS.
-    DropAndMove(expr->context(), eax);
   } else {
     // Call the C runtime function.
     __ CallRuntime(expr->function(), arg_count);
-    Move(expr->context(), eax);
   }
+  Move(expr->context(), eax);
 }
 
 
