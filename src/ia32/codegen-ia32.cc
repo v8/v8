@@ -818,9 +818,83 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void DeferredInlineBinaryOperation::Generate() {
+  Label done;
+  if (CpuFeatures::IsSupported(SSE2) && ((op_ == Token::ADD) ||
+      (op_ ==Token::SUB) ||
+      (op_ == Token::MUL) ||
+      (op_ == Token::DIV))) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    Label call_runtime, after_alloc_failure;
+    Label left_smi, right_smi, load_right, do_op;
+    __ test(left_, Immediate(kSmiTagMask));
+    __ j(zero, &left_smi);
+    __ cmp(FieldOperand(left_, HeapObject::kMapOffset),
+           Factory::heap_number_map());
+    __ j(not_equal, &call_runtime);
+    __ movdbl(xmm0, FieldOperand(left_, HeapNumber::kValueOffset));
+    if (mode_ == OVERWRITE_LEFT) {
+      __ mov(dst_, left_);
+    }
+    __ jmp(&load_right);
+
+    __ bind(&left_smi);
+    __ sar(left_, 1);
+    __ cvtsi2sd(xmm0, Operand(left_));
+    __ shl(left_, 1);
+    if (mode_ == OVERWRITE_LEFT) {
+      Label alloc_failure;
+      __ push(left_);
+      __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
+      __ pop(left_);
+    }
+
+    __ bind(&load_right);
+    __ test(right_, Immediate(kSmiTagMask));
+    __ j(zero, &right_smi);
+    __ cmp(FieldOperand(right_, HeapObject::kMapOffset),
+           Factory::heap_number_map());
+    __ j(not_equal, &call_runtime);
+    __ movdbl(xmm1, FieldOperand(right_, HeapNumber::kValueOffset));
+    if (mode_ == OVERWRITE_RIGHT) {
+      __ mov(dst_, right_);
+    } else if (mode_ == NO_OVERWRITE) {
+      Label alloc_failure;
+      __ push(left_);
+      __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
+      __ pop(left_);
+    }
+    __ jmp(&do_op);
+
+    __ bind(&right_smi);
+    __ sar(right_, 1);
+    __ cvtsi2sd(xmm1, Operand(right_));
+    __ shl(right_, 1);
+    if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
+      Label alloc_failure;
+      __ push(left_);
+      __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
+      __ pop(left_);
+    }
+
+    __ bind(&do_op);
+    switch (op_) {
+      case Token::ADD: __ addsd(xmm0, xmm1); break;
+      case Token::SUB: __ subsd(xmm0, xmm1); break;
+      case Token::MUL: __ mulsd(xmm0, xmm1); break;
+      case Token::DIV: __ divsd(xmm0, xmm1); break;
+      default: UNREACHABLE();
+    }
+    __ movdbl(FieldOperand(dst_, HeapNumber::kValueOffset), xmm0);
+    __ jmp(&done);
+
+    __ bind(&after_alloc_failure);
+    __ pop(left_);
+    __ bind(&call_runtime);
+  }
   GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
   stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
+  __ bind(&done);
 }
 
 
