@@ -459,7 +459,8 @@ class CodeGenerator: public AstVisitor {
                                 Result* right,
                                 OverwriteMode overwrite_mode);
 
-  void Comparison(Condition cc,
+  void Comparison(AstNode* node,
+                  Condition cc,
                   bool strict,
                   ControlDestination* destination);
 
@@ -727,8 +728,8 @@ class GenericBinaryOpStub: public CodeStub {
 
   bool ArgsInRegistersSupported() {
     return ((op_ == Token::ADD) || (op_ == Token::SUB)
-             || (op_ == Token::MUL) || (op_ == Token::DIV))
-            && flags_ != NO_SMI_CODE_IN_STUB;
+            || (op_ == Token::MUL) || (op_ == Token::DIV))
+        && flags_ != NO_SMI_CODE_IN_STUB;
   }
   bool IsOperationCommutative() {
     return (op_ == Token::ADD) || (op_ == Token::MUL);

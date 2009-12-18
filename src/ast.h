@@ -139,6 +139,7 @@ class AstNode: public ZoneObject {
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
   virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
   virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
+  virtual CompareOperation* AsCompareOperation() { return NULL; }
 };
 
 
@@ -1185,7 +1186,7 @@ class CountOperation: public Expression {
 class CompareOperation: public Expression {
  public:
   CompareOperation(Token::Value op, Expression* left, Expression* right)
-      : op_(op), left_(left), right_(right) {
+      : op_(op), left_(left), right_(right), is_for_loop_condition_(false) {
     ASSERT(Token::IsCompareOp(op));
   }
 
@@ -1195,10 +1196,18 @@ class CompareOperation: public Expression {
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
 
+  // Accessors for flag whether this compare operation is hanging of a for loop.
+  bool is_for_loop_condition() const { return is_for_loop_condition_; }
+  void set_is_for_loop_condition() { is_for_loop_condition_ = true; }
+
+  // Type testing & conversion
+  virtual CompareOperation* AsCompareOperation() { return this; }
+
  private:
   Token::Value op_;
   Expression* left_;
   Expression* right_;
+  bool is_for_loop_condition_;
 };
 
 
