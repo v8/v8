@@ -305,7 +305,9 @@ class UnarySubStub : public CodeStub {
   int MinorKey() { return overwrite_ ? 1 : 0; }
   void Generate(MacroAssembler* masm);
 
-  const char* GetName() { return "UnarySubStub"; }
+  const char* GetName() {
+    return overwrite_ ? "UnarySubStub_Overwrite" : "UnarySubStub_Alloc";
+  }
 };
 
 
