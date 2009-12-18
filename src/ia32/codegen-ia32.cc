@@ -4966,7 +4966,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ test(index.reg(), Immediate(kSmiTagMask | 0x80000000));
   __ j(not_zero, &slow_case);
   // Untag the index.
-  __ sar(index.reg(), kSmiTagSize);
+  __ SmiUntag(index.reg());
 
   __ bind(&try_again_with_new_string);
   // Fetch the instance type of the receiver into ecx.
@@ -6461,7 +6461,7 @@ void Reference::GetValue() {
         // Shift the key to get the actual index value and check that
         // it is within bounds.
         __ mov(index.reg(), key.reg());
-        __ sar(index.reg(), kSmiTagSize);
+        __ SmiUntag(index.reg());
         __ cmp(index.reg(),
                FieldOperand(elements.reg(), FixedArray::kLengthOffset));
         deferred->Branch(above_equal);
@@ -7077,8 +7077,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Move the second operand into register ecx.
       __ mov(ecx, Operand(ebx));
       // Remove tags from operands (but keep sign).
-      __ sar(eax, kSmiTagSize);
-      __ sar(ecx, kSmiTagSize);
+      __ SmiUntag(eax);
+      __ SmiUntag(ecx);
       // Perform the operation.
       switch (op_) {
         case Token::SAR:
@@ -7536,7 +7536,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
 
   __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &arg1_is_object);
-  __ sar(edx, kSmiTagSize);
+  __ SmiUntag(edx);
   __ jmp(&load_arg2);
 
   __ bind(&arg1_is_object);
@@ -7552,7 +7552,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   // Test if arg2 is a Smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, &arg2_is_object);
-  __ sar(eax, kSmiTagSize);
+  __ SmiUntag(eax);
   __ mov(ecx, eax);
   __ jmp(&done);
 
@@ -7577,7 +7577,7 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&load_smi);
-  __ sar(number, kSmiTagSize);
+  __ SmiUntag(number);
   __ push(number);
   __ fild_s(Operand(esp, 0));
   __ pop(number);
@@ -7634,14 +7634,14 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
   __ jmp(&done);
 
   __ bind(&load_smi_1);
-  __ sar(scratch, kSmiTagSize);
+  __ SmiUntag(scratch);
   __ push(scratch);
   __ fild_s(Operand(esp, 0));
   __ pop(scratch);
   __ jmp(&done_load_1);
 
   __ bind(&load_smi_2);
-  __ sar(scratch, kSmiTagSize);
+  __ SmiUntag(scratch);
   __ push(scratch);
   __ fild_s(Operand(esp, 0));
   __ pop(scratch);
@@ -7882,7 +7882,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // Get the parameters pointer from the stack and untag the length.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
-  __ sar(ecx, kSmiTagSize);
+  __ SmiUntag(ecx);
 
   // Setup the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
