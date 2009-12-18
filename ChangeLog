@@ -1,23 +1,33 @@
+2009-12-18: Version 2.0.5
+
+        Extended to upper limit of map space to allow for 7 times as many map
+        to be allocated (issue 524).
+
+        Improved performance of code using closures.
+
+        Improved performance of some binary operations involving doubles.
+
+
 2009-12-16: Version 2.0.4
 
-	Added ECMAScript 5 Object.create.
+        Added ECMAScript 5 Object.create.
 
-	Improved performance of Math.max and Math.min.
+        Improved performance of Math.max and Math.min.
 
-	Optimized adding of strings on 64-bit platforms.
+        Optimized adding of strings on 64-bit platforms.
 
-	Improved handling of external strings by using a separate table
-	instead of weak handles.  This improves garbage collection
-	performance and uses less memory.
+        Improved handling of external strings by using a separate table
+        instead of weak handles.  This improves garbage collection
+        performance and uses less memory.
 
-	Changed code generation for object and array literals in toplevel
-	code to be more compact by doing more work in the runtime.
+        Changed code generation for object and array literals in toplevel
+        code to be more compact by doing more work in the runtime.
 
-	Fixed a crash bug triggered when garbage collection happened during
-	generation of a callback load inline cache stub.
+        Fixed a crash bug triggered when garbage collection happened during
+        generation of a callback load inline cache stub.
 
-	Fixed crash bug sometimes triggered when local variables shadowed
-	parameters in functions that used the arguments object.
+        Fixed crash bug sometimes triggered when local variables shadowed
+        parameters in functions that used the arguments object.
 
 
 2009-12-03: Version 2.0.3

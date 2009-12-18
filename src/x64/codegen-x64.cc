@@ -5127,7 +5127,7 @@ void DeferredInlineBinaryOperation::Generate() {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                           SmiAnalysis* type,
+                                           StaticType* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -5316,7 +5316,7 @@ void DeferredInlineSmiOperation::Generate() {
 void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                Result* operand,
                                                Handle<Object> value,
-                                               SmiAnalysis* type,
+                                               StaticType* type,
                                                bool reversed,
                                                OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
@@ -6099,7 +6099,7 @@ void Reference::SetValue(InitState init_state) {
       // a loop and the key is likely to be a smi.
       Property* property = expression()->AsProperty();
       ASSERT(property != NULL);
-      SmiAnalysis* key_smi_analysis = property->key()->type();
+      StaticType* key_smi_analysis = property->key()->type();
 
       if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
         Comment cmnt(masm, "[ Inlined store to keyed Property");

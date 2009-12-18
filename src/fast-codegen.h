@@ -240,7 +240,7 @@ class FastCodeGenerator: public AstVisitor {
 
   // Platform-specific code sequences for calls
   void EmitCallWithStub(Call* expr);
-  void EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info);
+  void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
 
   // Platform-specific code for loading variables.
   void EmitVariableLoad(Variable* expr, Expression::Context context);

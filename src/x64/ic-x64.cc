@@ -916,9 +916,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 }
 
 
-void CallIC::Generate(MacroAssembler* masm,
-                      int argc,
-                      ExternalReference const& f) {
+void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
   // Get the name of the function to call from the stack.
@@ -935,7 +933,7 @@ void CallIC::Generate(MacroAssembler* masm,
   // Call the entry.
   CEntryStub stub(1);
   __ movq(rax, Immediate(2));
-  __ movq(rbx, f);
+  __ movq(rbx, ExternalReference(IC_Utility(kCallIC_Miss)));
   __ CallStub(&stub);
 
   // Move result to rdi and exit the internal frame.
@@ -1026,7 +1024,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
+  GenerateMiss(masm, argc);
 }
 
 
@@ -1128,7 +1126,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
+  GenerateMiss(masm, argc);
 }
 
 

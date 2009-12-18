@@ -487,9 +487,12 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateFunction(Map* function_map,
                                   SharedFunctionInfo* shared,
-                                  Object* prototype);
+                                  Object* prototype,
+                                  PretenureFlag pretenure = TENURED);
 
   // Indicies for direct access into argument objects.
+  static const int kArgumentsObjectSize =
+      JSObject::kHeaderSize + 2 * kPointerSize;
   static const int arguments_callee_index = 0;
   static const int arguments_length_index = 1;
 
@@ -890,7 +893,7 @@ class Heap : public AllStatic {
   // The number of MapSpace pages is limited by the way we pack
   // Map pointers during GC.
   static const int kMaxMapSpaceSize =
-      (1 << MapWord::kMapPageIndexBits) * Page::kPageSize;
+      (1 << (MapWord::kMapPageIndexBits)) * Page::kPageSize;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 512*KB;

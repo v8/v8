@@ -1292,16 +1292,6 @@ Object* CallIC_Miss(Arguments args) {
 }
 
 
-void CallIC::GenerateInitialize(MacroAssembler* masm, int argc) {
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
-}
-
-
-void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
-  Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
-}
-
-
 // Used from ic_<arch>.cc.
 Object* LoadIC_Miss(Arguments args) {
   NoHandleAllocation na;

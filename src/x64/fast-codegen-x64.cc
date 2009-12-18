@@ -1076,7 +1076,9 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
 }
 
 
-void FastCodeGenerator::EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info) {
+void FastCodeGenerator::EmitCallWithIC(Call* expr,
+                                       Handle<Object> ignored,
+                                       RelocInfo::Mode mode) {
   // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -1089,7 +1091,7 @@ void FastCodeGenerator::EmitCallWithIC(Call* expr, RelocInfo::Mode reloc_info) {
   // Call the IC initialization code.
   Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
                                                          NOT_IN_LOOP);
-  __ call(ic, reloc_info);
+  __ call(ic, mode);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
@@ -1128,7 +1130,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
     __ Push(var->name());
     // Push global object as receiver for the call IC lookup.
     __ push(CodeGenerator::GlobalObject());
-    EmitCallWithIC(expr, RelocInfo::CODE_TARGET_CONTEXT);
+    EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
     // Call to a lookup slot.
@@ -1141,7 +1143,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
       // Call to a named property, use call IC.
       __ Push(key->handle());
       Visit(prop->obj());
-      EmitCallWithIC(expr, RelocInfo::CODE_TARGET);
+      EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
       // Call to a keyed property, use keyed load IC followed by function
       // call.

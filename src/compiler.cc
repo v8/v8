@@ -1101,9 +1101,9 @@ void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
 
 
 void CodeGenSelector::VisitCompareOperation(CompareOperation* expr) {
-      ProcessExpression(expr->left(), Expression::kValue);
-      CHECK_BAILOUT;
-      ProcessExpression(expr->right(), Expression::kValue);
+  ProcessExpression(expr->left(), Expression::kValue);
+  CHECK_BAILOUT;
+  ProcessExpression(expr->right(), Expression::kValue);
 }
 
 

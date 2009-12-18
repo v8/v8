@@ -43,6 +43,9 @@ namespace internal {
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
   V(StackCheck)                          \
+  V(FastNewClosure)                      \
+  V(FastNewContext)                      \
+  V(FastCloneShallowArray)               \
   V(UnarySub)                            \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \

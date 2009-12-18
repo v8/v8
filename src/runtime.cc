@@ -720,7 +720,7 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
       // Copy the function and update its context. Use it as value.
       Handle<JSFunction> boilerplate = Handle<JSFunction>::cast(value);
       Handle<JSFunction> function =
-          Factory::NewFunctionFromBoilerplate(boilerplate, context);
+          Factory::NewFunctionFromBoilerplate(boilerplate, context, TENURED);
       value = function;
     }
 
@@ -4502,8 +4502,11 @@ static Object* Runtime_NewClosure(Arguments args) {
   CONVERT_ARG_CHECKED(Context, context, 0);
   CONVERT_ARG_CHECKED(JSFunction, boilerplate, 1);
 
+  PretenureFlag pretenure = (context->global_context() == *context)
+      ? TENURED       // Allocate global closures in old space.
+      : NOT_TENURED;  // Allocate local closures in new space.
   Handle<JSFunction> result =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context);
+      Factory::NewFunctionFromBoilerplate(boilerplate, context, pretenure);
   return *result;
 }
 
@@ -5219,7 +5222,7 @@ static Object* Runtime_CompileString(Arguments args) {
                                                          validate);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context);
+      Factory::NewFunctionFromBoilerplate(boilerplate, context, NOT_TENURED);
   return *fun;
 }
 
@@ -5247,7 +5250,7 @@ static Object* CompileDirectEval(Handle<String> source) {
       Compiler::DONT_VALIDATE_JSON);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
-    Factory::NewFunctionFromBoilerplate(boilerplate, context);
+      Factory::NewFunctionFromBoilerplate(boilerplate, context, NOT_TENURED);
   return *fun;
 }
 
