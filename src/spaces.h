@@ -993,6 +993,9 @@ class PagedSpace : public Space {
   HeapObject* SlowMCAllocateRaw(int size_in_bytes);
 
 #ifdef DEBUG
+  // Returns the number of total pages in this space.
+  int CountTotalPages();
+
   void DoPrintRSet(const char* space_name);
 #endif
  private:
@@ -1001,11 +1004,6 @@ class PagedSpace : public Space {
 
   // Returns a pointer to the page of the relocation pointer.
   Page* MCRelocationTopPage() { return TopPageOf(mc_forwarding_info_); }
-
-#ifdef DEBUG
-  // Returns the number of total pages in this space.
-  int CountTotalPages();
-#endif
 
   friend class PageIterator;
 };
@@ -1739,6 +1737,17 @@ class MapSpace : public FixedSpace {
 
   // Constants.
   static const int kMaxMapPageIndex = (1 << MapWord::kMapPageIndexBits) - 1;
+
+  // Are map pointers encodable into map word?
+  bool MapPointersEncodable() {
+    if (!FLAG_use_big_map_space) {
+      ASSERT(CountTotalPages() <= kMaxMapPageIndex);
+      return true;
+    }
+    int n_of_pages = Capacity() / Page::kObjectAreaSize;
+    ASSERT(n_of_pages == CountTotalPages());
+    return n_of_pages <= kMaxMapPageIndex;
+  }
 
  protected:
 #ifdef DEBUG

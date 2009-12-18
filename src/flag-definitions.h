@@ -198,6 +198,9 @@ DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
 DEFINE_bool(canonicalize_object_literal_maps, true,
             "Canonicalize maps for object literals.")
 
+DEFINE_bool(use_big_map_space, true,
+            "Use big map space, but don't compact if it grew too big.")
+
 // mksnapshot.cc
 DEFINE_bool(h, false, "print this message")
 DEFINE_bool(new_snapshot, true, "use new snapshot implementation")

@@ -116,6 +116,8 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   compact_on_next_gc_ = false;
 
   if (FLAG_never_compact) compacting_collection_ = false;
+  if (!Heap::map_space()->MapPointersEncodable())
+      compacting_collection_ = false;
   if (FLAG_collect_maps) CreateBackPointers();
 
 #ifdef DEBUG

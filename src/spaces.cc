@@ -1735,7 +1735,8 @@ void FixedSizeFreeList::Free(Address start) {
     Memory::Address_at(start + i) = kZapValue;
   }
 #endif
-  ASSERT(!FLAG_always_compact);  // We only use the freelists with mark-sweep.
+  // We only use the freelists with mark-sweep.
+  ASSERT(!MarkCompactCollector::IsCompacting());
   FreeListNode* node = FreeListNode::FromAddress(start);
   node->set_size(object_size_);
   node->set_next(head_);
