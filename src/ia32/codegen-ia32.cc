@@ -842,9 +842,9 @@ void DeferredInlineBinaryOperation::Generate() {
     __ jmp(&load_right);
 
     __ bind(&left_smi);
-    __ sar(left_, 1);
+    __ SmiUntag(left_);
     __ cvtsi2sd(xmm0, Operand(left_));
-    __ shl(left_, 1);
+    __ SmiTag(left_);
     if (mode_ == OVERWRITE_LEFT) {
       Label alloc_failure;
       __ push(left_);
@@ -870,9 +870,9 @@ void DeferredInlineBinaryOperation::Generate() {
     __ jmp(&do_op);
 
     __ bind(&right_smi);
-    __ sar(right_, 1);
+    __ SmiUntag(right_);
     __ cvtsi2sd(xmm1, Operand(right_));
-    __ shl(right_, 1);
+    __ SmiTag(right_);
     if (mode_ == OVERWRITE_RIGHT || mode_ == NO_OVERWRITE) {
       Label alloc_failure;
       __ push(left_);
@@ -1215,8 +1215,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       __ test(edx, Operand(edx));
       deferred->Branch(not_zero);
       // Tag the result and store it in the quotient register.
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      __ SmiTag(eax);
       deferred->BindExit();
       left->Unuse();
       right->Unuse();
@@ -1276,8 +1275,8 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
 
     // Untag both operands.
     __ mov(answer.reg(), left->reg());
-    __ sar(answer.reg(), kSmiTagSize);
-    __ sar(ecx, kSmiTagSize);
+    __ SmiUntag(answer.reg());
+    __ SmiUntag(ecx);
     // Perform the operation.
     switch (op) {
       case Token::SAR:
@@ -1299,8 +1298,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
         // in a case where it is dropped anyway.
         __ test(answer.reg(), Immediate(0xc0000000));
         __ j(zero, &result_ok);
-        ASSERT(kSmiTag == 0);
-        __ shl(ecx, kSmiTagSize);
+        __ SmiTag(ecx);
         deferred->Jump();
         __ bind(&result_ok);
         break;
@@ -1311,8 +1309,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
         // Check that the *signed* result fits in a smi.
         __ cmp(answer.reg(), 0xc0000000);
         __ j(positive, &result_ok);
-        ASSERT(kSmiTag == 0);
-        __ shl(ecx, kSmiTagSize);
+        __ SmiTag(ecx);
         deferred->Jump();
         __ bind(&result_ok);
         break;
@@ -1321,9 +1318,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
         UNREACHABLE();
     }
     // Smi-tag the result in answer.
-    ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
-    __ lea(answer.reg(),
-           Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
+    __ SmiTag(answer.reg());
     deferred->BindExit();
     left->Unuse();
     right->Unuse();
@@ -1373,7 +1368,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       ASSERT(kSmiTag == 0);  // Adjust code below if not the case.
       // Remove smi tag from the left operand (but keep sign).
       // Left-hand operand has been copied into answer.
-      __ sar(answer.reg(), kSmiTagSize);
+      __ SmiUntag(answer.reg());
       // Do multiplication of smis, leaving result in answer.
       __ imul(answer.reg(), Operand(right->reg()));
       // Go slow on overflows.
@@ -1720,7 +1715,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         __ test(operand->reg(), Immediate(kSmiTagMask));
         deferred->Branch(not_zero);
         __ mov(answer.reg(), operand->reg());
-        __ sar(answer.reg(), kSmiTagSize);
+        __ SmiUntag(answer.reg());
         __ shr(answer.reg(), shift_value);
         // A negative Smi shifted right two is in the positive Smi range.
         if (shift_value < 2) {
@@ -1728,9 +1723,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           deferred->Branch(not_zero);
         }
         operand->Unuse();
-        ASSERT(kSmiTagSize == times_2);  // Adjust the code if not true.
-        __ lea(answer.reg(),
-               Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
+        __ SmiTag(answer.reg());
         deferred->BindExit();
         frame_->Push(&answer);
       }
@@ -2243,7 +2236,7 @@ void CodeGenerator::CallApplyLazy(Property* apply,
     __ bind(&adapted);
     static const uint32_t kArgumentsLimit = 1 * KB;
     __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ shr(eax, kSmiTagSize);
+    __ SmiUntag(eax);
     __ mov(ecx, Operand(eax));
     __ cmp(eax, kArgumentsLimit);
     build_args.Branch(above);
@@ -3270,7 +3263,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   frame_->EmitPush(eax);  // <- slot 3
   frame_->EmitPush(edx);  // <- slot 2
   __ mov(eax, FieldOperand(edx, FixedArray::kLengthOffset));
-  __ shl(eax, kSmiTagSize);
+  __ SmiTag(eax);
   frame_->EmitPush(eax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
   entry.Jump();
@@ -3282,7 +3275,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Push the length of the array and the initial index onto the stack.
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
-  __ shl(eax, kSmiTagSize);
+  __ SmiTag(eax);
   frame_->EmitPush(eax);  // <- slot 1
   frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
 
@@ -4447,10 +4440,13 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   // Clone the boilerplate object.
   int length = node->values()->length();
   Result clone;
-  if (node->depth() == 1 &&
-      length <= FastCloneShallowArrayStub::kMaximumLength) {
-    FastCloneShallowArrayStub stub(length);
-    clone = frame_->CallStub(&stub, 1);
+  if (node->depth() == 1) {
+    if (length <= FastCloneShallowArrayStub::kMaximumLength) {
+      FastCloneShallowArrayStub stub(length);
+      clone = frame_->CallStub(&stub, 1);
+    } else {
+      clone = frame_->CallRuntime(Runtime::kCloneShallowLiteralBoilerplate, 1);
+    }
   } else {
     clone = frame_->CallRuntime(Runtime::kCloneLiteralBoilerplate, 1);
   }
@@ -5013,8 +5009,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
                                       times_1,
                                       SeqAsciiString::kHeaderSize));
   __ bind(&got_char_code);
-  ASSERT(kSmiTag == 0);
-  __ shl(temp.reg(), kSmiTagSize);
+  __ SmiTag(temp.reg());
   __ jmp(&end);
 
   // Handle non-flat strings.
@@ -7028,7 +7023,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // If the smi tag is 0 we can just leave the tag on one operand.
       ASSERT(kSmiTag == 0);  // adjust code below if not the case
       // Remove tag from one of the operands (but keep sign).
-      __ sar(eax, kSmiTagSize);
+      __ SmiUntag(eax);
       // Do multiplication.
       __ imul(eax, Operand(ebx));  // multiplication of smis; result in eax
       // Go slow on overflows.
@@ -7052,8 +7047,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ test(edx, Operand(edx));
       __ j(not_zero, slow);
       // Tag the result and store it in register eax.
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      __ SmiTag(eax);
       break;
 
     case Token::MOD:
@@ -7112,8 +7106,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           UNREACHABLE();
       }
       // Tag the result and store it in register eax.
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      __ SmiTag(eax);
       break;
 
     default:
@@ -7262,8 +7255,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ j(negative, &non_smi_result);
       }
       // Tag smi result and return.
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      __ SmiTag(eax);
       GenerateReturn(masm);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.
@@ -7611,14 +7603,14 @@ void FloatingPointHelper::LoadSse2Operands(MacroAssembler* masm,
   __ j(equal, &load_float_eax);
   __ jmp(not_numbers);  // Argument in eax is not a number.
   __ bind(&load_smi_edx);
-  __ sar(edx, 1);  // Untag smi before converting to float.
+  __ SmiUntag(edx);  // Untag smi before converting to float.
   __ cvtsi2sd(xmm0, Operand(edx));
-  __ shl(edx, 1);  // Retag smi for heap number overwriting test.
+  __ SmiTag(edx);  // Retag smi for heap number overwriting test.
   __ jmp(&load_eax);
   __ bind(&load_smi_eax);
-  __ sar(eax, 1);  // Untag smi before converting to float.
+  __ SmiUntag(eax);  // Untag smi before converting to float.
   __ cvtsi2sd(xmm1, Operand(eax));
-  __ shl(eax, 1);  // Retag smi for heap number overwriting test.
+  __ SmiTag(eax);  // Retag smi for heap number overwriting test.
   __ jmp(&done);
   __ bind(&load_float_eax);
   __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));

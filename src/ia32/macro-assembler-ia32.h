@@ -142,6 +142,15 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
+  // Smi tagging support.
+  void SmiTag(Register reg) {
+    ASSERT(kSmiTag == 0);
+    shl(reg, kSmiTagSize);
+  }
+  void SmiUntag(Register reg) {
+    sar(reg, kSmiTagSize);
+  }
+
   // ---------------------------------------------------------------------------
   // Exception handling
 

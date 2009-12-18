@@ -236,7 +236,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   // Load length from the string and convert to a smi.
   __ bind(&load_length);
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  __ shl(eax, kSmiTagSize);
+  __ SmiTag(eax);
   __ ret(0);
 
   // Check if the object is a JSValue wrapper.
