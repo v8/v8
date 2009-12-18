@@ -1731,9 +1731,42 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 
     case Token::SHL:
       if (reversed) {
-        Result constant_operand(value);
-        LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                 overwrite_mode);
+        Result right;
+        Result right_copy_in_ecx;
+
+        // Make sure to get a copy of the right operand into ecx. This
+        // allows us to modify it without having to restore it in the
+        // deferred code.
+        operand->ToRegister();
+        if (operand->reg().is(ecx)) {
+          right = allocator()->Allocate();
+          __ mov(right.reg(), ecx);
+          frame_->Spill(ecx);
+          right_copy_in_ecx = *operand;
+        } else {
+          right_copy_in_ecx = allocator()->Allocate(ecx);
+          __ mov(ecx, operand->reg());
+          right = *operand;
+        }
+        operand->Unuse();
+
+        Result answer = allocator()->Allocate();
+        DeferredInlineSmiOperationReversed* deferred =
+            new DeferredInlineSmiOperationReversed(op,
+                                                   answer.reg(),
+                                                   smi_value,
+                                                   right.reg(),
+                                                   overwrite_mode);
+        __ mov(answer.reg(), Immediate(int_value));
+        __ sar(ecx, kSmiTagSize);
+        deferred->Branch(carry);
+        __ shl_cl(answer.reg());
+        __ cmp(answer.reg(), 0xc0000000);
+        deferred->Branch(sign);
+        __ SmiTag(answer.reg());
+
+        deferred->BindExit();
+        frame_->Push(&answer);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
