@@ -457,11 +457,52 @@ void FastCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 
 void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ TryCatchStatement");
+  SetStatementPosition(stmt);
+  // The try block adds a handler to the exception handler chain
+  // before entering, and removes it again when exiting normally.
+  // If an exception is thrown during execution of the try block,
+  // control is passed to the handler, which also consumes the handler.
+  // At this point, the exception is in a register, and store it in
+  // the temporary local variable (prints as ".catch-var") before
+  // executing the catch block. The catch block has been rewritten
+  // to introduce a new scope to bind the catch variable and to remove
+  // that scope again afterwards.
+
+  Label try_handler_setup, catch_entry, done;
+
+  __ Call(&try_handler_setup);
+  // Try handler code, exception in result register.
+
+  // Store exception in local .catch variable before executing catch block.
+  {
+    // The catch variable is *always* a variable proxy for a local variable.
+    Variable* catch_var = stmt->catch_var()->AsVariableProxy()->AsVariable();
+    ASSERT_NOT_NULL(catch_var);
+    Slot* variable_slot = catch_var->slot();
+    ASSERT_NOT_NULL(variable_slot);
+    ASSERT_EQ(Slot::LOCAL, variable_slot->type());
+    StoreToFrameField(SlotOffset(variable_slot), result_register());
+  }
+
+  Visit(stmt->catch_block());
+  __ jmp(&done);
+
+  // Try block code. Sets up the exception handler chain.
+  __ bind(&try_handler_setup);
+  {
+    TryCatch try_block(this, &catch_entry);
+    __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
+    Visit(stmt->try_block());
+    __ PopTryHandler();
+  }
+  __ bind(&done);
 }
 
 
 void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
+  Comment cmnt(masm_, "[ TryFinallyStatement");
+  SetStatementPosition(stmt);
   // Try finally is compiled by setting up a try-handler on the stack while
   // executing the try body, and removing it again afterwards.
   //
@@ -474,7 +515,7 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   //    its outward control transfer.
   // 3. by exiting the try-block with a thrown exception.
   //    This can happen in nested function calls. It traverses the try-handler
-  //    chaing and consumes the try-handler entry before jumping to the
+  //    chain and consumes the try-handler entry before jumping to the
   //    handler code. The handler code then calls the finally-block before
   //    rethrowing the exception.
   //
@@ -497,14 +538,15 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     // is retained by the finally block.
     // Call the finally block and then rethrow the exception.
     __ Call(&finally_entry);
-    ThrowException();
+    __ push(result_register());
+    __ CallRuntime(Runtime::kReThrow, 1);
   }
 
   __ bind(&finally_entry);
   {
     // Finally block implementation.
-    EnterFinallyBlock();
     Finally finally_block(this);
+    EnterFinallyBlock();
     Visit(stmt->finally_block());
     ExitFinallyBlock();  // Return to the calling code.
   }
@@ -512,9 +554,9 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   __ bind(&try_handler_setup);
   {
     // Setup try handler (stack pointer registers).
-    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
     TryFinally try_block(this, &finally_entry);
-    VisitStatements(stmt->try_block()->statements());
+    __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
+    Visit(stmt->try_block());
     __ PopTryHandler();
   }
   // Execute the finally block on the way out.
@@ -665,12 +707,29 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
 
 
 void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  UNREACHABLE();
+  // Call runtime routine to allocate the catch extension object and
+  // assign the exception value to the catch variable.
+  Comment cmnt(masm_, "[ CatchExtensionObject");
+
+  // Push key string.
+  ASSERT_EQ(Expression::kValue, expr->key()->context());
+  Visit(expr->key());
+  ASSERT_EQ(Expression::kValue, expr->value()->context());
+  Visit(expr->value());
+
+  // Create catch extension object.
+  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+
+  __ push(result_register());
 }
 
 
 void FastCodeGenerator::VisitThrow(Throw* expr) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ Throw");
+  Visit(expr->exception());
+  // Exception is on stack.
+  __ CallRuntime(Runtime::kThrow, 1);
+  // Never returns here.
 }
 
 

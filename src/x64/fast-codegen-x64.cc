@@ -1723,11 +1723,6 @@ void FastCodeGenerator::ExitFinallyBlock() {
 }
 
 
-void FastCodeGenerator::ThrowException() {
-  __ push(result_register());
-  __ CallRuntime(Runtime::kThrow, 1);
-}
-
 #undef __
 
 

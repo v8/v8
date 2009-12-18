@@ -746,7 +746,9 @@ void CodeGenSelector::VisitForInStatement(ForInStatement* stmt) {
 
 
 void CodeGenSelector::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  BAILOUT("TryCatchStatement");
+  Visit(stmt->try_block());
+  CHECK_BAILOUT;
+  Visit(stmt->catch_block());
 }
 
 
@@ -876,7 +878,9 @@ void CodeGenSelector::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void CodeGenSelector::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  BAILOUT("CatchExtensionObject");
+  ProcessExpression(expr->key(), Expression::kValue);
+  CHECK_BAILOUT;
+  ProcessExpression(expr->value(), Expression::kValue);
 }
 
 
@@ -926,7 +930,7 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
 
 
 void CodeGenSelector::VisitThrow(Throw* expr) {
-  BAILOUT("Throw");
+  ProcessExpression(expr->exception(), Expression::kValue);
 }
 
 

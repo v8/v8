@@ -279,7 +279,6 @@ class FastCodeGenerator: public AstVisitor {
   // Non-local control flow support.
   void EnterFinallyBlock();
   void ExitFinallyBlock();
-  void ThrowException();
 
   // Loop nesting counter.
   int loop_depth() { return loop_depth_; }
