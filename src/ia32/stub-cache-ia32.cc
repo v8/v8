@@ -802,9 +802,10 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
   ApiGetterEntryStub stub(callback_handle, &fun);
-  // Calling the stub may try to allocate (if the code is not already
-  // generated).  Do not allow the call to perform a garbage
-  // collection but instead return the allocation failure object.
+  // Emitting a stub call may try to allocate (if the code is not
+  // already generated).  Do not allow the assembler to perform a
+  // garbage collection but instead return the allocation failure
+  // object.
   Object* result = masm()->TryCallStub(&stub);
   if (result->IsFailure()) {
     *failure = Failure::cast(result);
@@ -813,7 +814,14 @@ bool StubCompiler::GenerateLoadCallback(JSObject* object,
 
   // We need to avoid using eax since that now holds the result.
   Register tmp = other.is(eax) ? reg : other;
-  __ PopHandleScope(eax, tmp);
+  // Emitting PopHandleScope may try to allocate.  Do not allow the
+  // assembler to perform a garbage collection but instead return a
+  // failure object.
+  result = masm()->TryPopHandleScope(eax, tmp);
+  if (result->IsFailure()) {
+    *failure = Failure::cast(result);
+    return false;
+  }
   __ LeaveInternalFrame();
 
   __ ret(0);
