@@ -5375,75 +5375,6 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
-  JumpTarget done;
-  JumpTarget call_runtime;
-  ASSERT(args->length() == 1);
-
-  // Load number and duplicate it.
-  Load(args->at(0));
-  frame_->Dup();
-
-  // Get the number into an unaliased register and load it onto the
-  // floating point stack still leaving one copy on the frame.
-  Result number = frame_->Pop();
-  number.ToRegister();
-  frame_->Spill(number.reg());
-  FloatingPointHelper::LoadFloatOperand(masm_, number.reg());
-
-  // Check whether the exponent is so big that performing a sine or
-  // cosine operation could result in inaccurate results or an
-  // exception.  In that case call the runtime routine.
-  __ and_(number.reg(), HeapNumber::kExponentMask);
-  __ cmp(Operand(number.reg()), Immediate(kTwoToThePowerOf63Exponent));
-  call_runtime.Branch(greater_equal, not_taken);
-  number.Unuse();
-
-  // Perform the operation on the number.  This will succeed since we
-  // already checked that it is in range.
-  switch (op) {
-    case SIN:
-      __ fsin();
-      break;
-    case COS:
-      __ fcos();
-      break;
-  }
-
-  // Allocate heap number for result if possible.
-  Result scratch1 = allocator()->Allocate();
-  Result scratch2 = allocator()->Allocate();
-  Result heap_number = allocator()->Allocate();
-  __ AllocateHeapNumber(heap_number.reg(),
-                        scratch1.reg(),
-                        scratch2.reg(),
-                        call_runtime.entry_label());
-  scratch1.Unuse();
-  scratch2.Unuse();
-
-  // Store the result in the allocated heap number.
-  __ fstp_d(FieldOperand(heap_number.reg(), HeapNumber::kValueOffset));
-  // Replace the extra copy of the argument with the result.
-  frame_->SetElementAt(0, &heap_number);
-  done.Jump();
-
-  call_runtime.Bind();
-  // Free ST(0) which was not popped before calling into the runtime.
-  __ ffree(0);
-  Result answer;
-  switch (op) {
-    case SIN:
-      answer = frame_->CallRuntime(Runtime::kMath_sin, 1);
-      break;
-    case COS:
-      answer = frame_->CallRuntime(Runtime::kMath_cos, 1);
-      break;
-  }
-  frame_->Push(&answer);
-  done.Bind();
-}
-
-
 void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
   ASSERT_EQ(2, args->length());
 
@@ -7465,8 +7396,9 @@ void IntegerConvert(MacroAssembler* masm,
   if (use_sse3) {
     CpuFeatures::Scope scope(SSE3);
     // Check whether the exponent is too big for a 64 bit signed integer.
-    __ cmp(Operand(scratch2),
-           Immediate(CodeGenerator::kTwoToThePowerOf63Exponent));
+    static const uint32_t kTooBigExponent =
+        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+    __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
     __ j(greater_equal, conversion_failure);
     // Load x87 register with heap number.
     __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));

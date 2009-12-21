@@ -538,12 +538,6 @@ class CodeGenerator: public AstVisitor {
   // Fast support for Math.random().
   void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
 
-  // Fast support for Math.sin and Math.cos.
-  enum MathOp { SIN, COS };
-  void GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args);
-  inline void GenerateMathSin(ZoneList<Expression*>* args);
-  inline void GenerateMathCos(ZoneList<Expression*>* args);
-
   // Fast support for StringAdd.
   void GenerateStringAdd(ZoneList<Expression*>* args);
 

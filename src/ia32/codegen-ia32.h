@@ -326,9 +326,6 @@ class CodeGenerator: public AstVisitor {
   bool in_spilled_code() const { return in_spilled_code_; }
   void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
 
-  static const uint32_t kTwoToThePowerOf63Exponent =
-      (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-
  private:
   // Construction/Destruction
   CodeGenerator(int buffer_size, Handle<Script> script, bool is_eval);
@@ -543,12 +540,6 @@ class CodeGenerator: public AstVisitor {
 
   // Fast support for Math.random().
   void GenerateRandomPositiveSmi(ZoneList<Expression*>* args);
-
-  // Fast support for Math.sin and Math.cos.
-  enum MathOp { SIN, COS };
-  void GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args);
-  inline void GenerateMathSin(ZoneList<Expression*>* args);
-  inline void GenerateMathCos(ZoneList<Expression*>* args);
 
   // Fast support for StringAdd.
   void GenerateStringAdd(ZoneList<Expression*>* args);
