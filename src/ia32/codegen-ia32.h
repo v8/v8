@@ -326,6 +326,9 @@ class CodeGenerator: public AstVisitor {
   bool in_spilled_code() const { return in_spilled_code_; }
   void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
 
+  static const uint32_t kTwoToThePowerOf63Exponent =
+      (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+
  private:
   // Construction/Destruction
   CodeGenerator(int buffer_size, Handle<Script> script, bool is_eval);

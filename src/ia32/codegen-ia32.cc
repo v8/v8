@@ -5390,9 +5390,17 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
   number.ToRegister();
   frame_->Spill(number.reg());
   FloatingPointHelper::LoadFloatOperand(masm_, number.reg());
+
+  // Check whether the exponent is so big that performing a sine or
+  // cosine operation could result in inaccurate results or an
+  // exception.  In that case call the runtime routine.
+  __ and_(number.reg(), HeapNumber::kExponentMask);
+  __ cmp(Operand(number.reg()), Immediate(kTwoToThePowerOf63Exponent));
+  call_runtime.Branch(greater_equal, not_taken);
   number.Unuse();
 
-  // Perform the operation on the number.
+  // Perform the operation on the number.  This will succeed since we
+  // already checked that it is in range.
   switch (op) {
     case SIN:
       __ fsin();
@@ -5401,14 +5409,6 @@ void CodeGenerator::GenerateFastMathOp(MathOp op, ZoneList<Expression*>* args) {
       __ fcos();
       break;
   }
-
-  // Go slow case if argument to operation is out of range.
-  Result eax_reg = allocator_->Allocate(eax);
-  ASSERT(eax_reg.is_valid());
-  __ fnstsw_ax();
-  __ sahf();
-  eax_reg.Unuse();
-  call_runtime.Branch(parity_even, not_taken);
 
   // Allocate heap number for result if possible.
   Result scratch1 = allocator()->Allocate();
@@ -7465,9 +7465,8 @@ void IntegerConvert(MacroAssembler* masm,
   if (use_sse3) {
     CpuFeatures::Scope scope(SSE3);
     // Check whether the exponent is too big for a 64 bit signed integer.
-    const uint32_t too_big_exponent =
-        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-    __ cmp(Operand(scratch2), Immediate(too_big_exponent));
+    __ cmp(Operand(scratch2),
+           Immediate(CodeGenerator::kTwoToThePowerOf63Exponent));
     __ j(greater_equal, conversion_failure);
     // Load x87 register with heap number.
     __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
