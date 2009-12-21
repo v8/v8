@@ -6738,8 +6738,11 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), ebx);
   __ mov(Operand(eax, Context::SlotOffset(Context::EXTENSION_INDEX)), ebx);
 
-  // Copy the global object from the surrounding context.
-  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  // Copy the global object from the surrounding context. We go through the
+  // context in the function (ecx) to match the allocation behavior we have
+  // in the runtime system (see Heap::AllocateFunctionContext).
+  __ mov(ebx, FieldOperand(ecx, JSFunction::kContextOffset));
+  __ mov(ebx, Operand(ebx, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_INDEX)), ebx);
 
   // Initialize the rest of the slots to undefined.
