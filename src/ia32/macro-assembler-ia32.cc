@@ -1369,7 +1369,6 @@ Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
       JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
   mov(edi, FieldOperand(edx, builtins_offset));
 
-
   return Builtins::GetCode(id, resolved);
 }
 
