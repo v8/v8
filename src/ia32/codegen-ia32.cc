@@ -174,7 +174,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     function_return_is_shadowed_ = false;
 
     // Allocate the local context if needed.
-    int heap_slots = scope_->num_heap_slots();
+    int heap_slots = scope_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     if (heap_slots > 0) {
       Comment cmnt(masm_, "[ allocate local context");
       // Allocate local context.

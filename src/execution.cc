@@ -79,6 +79,10 @@ static Handle<Object> Invoke(bool construct,
     receiver = Handle<JSObject>(global->global_receiver());
   }
 
+  // Make sure that the global object of the context we're about to
+  // make the current one is indeed a global object.
+  ASSERT(func->context()->global()->IsGlobalObject());
+
   {
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
