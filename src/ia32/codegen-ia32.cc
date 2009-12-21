@@ -764,6 +764,7 @@ class FloatingPointHelper : public AllStatic {
   // Takes the operands in edx and eax and loads them as integers in eax
   // and ecx.
   static void LoadAsIntegers(MacroAssembler* masm,
+                             bool use_sse3,
                              Label* operand_conversion_failure);
   // Test if operands are numbers (smi or HeapNumber objects), and load
   // them into xmm0 and xmm1 if they are.  Jump to label not_numbers if
@@ -7268,6 +7269,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       Label operand_conversion_failure;
       FloatingPointHelper::LoadAsIntegers(
         masm,
+        use_sse3_,
         &operand_conversion_failure);
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, Operand(ecx)); break;
@@ -7450,6 +7452,7 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
 // trashed registers.
 void IntegerConvert(MacroAssembler* masm,
                     Register source,
+                    bool use_sse3,
                     Label* conversion_failure) {
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
@@ -7459,109 +7462,128 @@ void IntegerConvert(MacroAssembler* masm,
   // Get exponent alone in scratch2.
   __ mov(scratch2, scratch);
   __ and_(scratch2, HeapNumber::kExponentMask);
-  // Load ecx with zero.  We use this either for the final shift or
-  // for the answer.
-  __ xor_(ecx, Operand(ecx));
-  // Check whether the exponent matches a 32 bit signed int that cannot be
-  // represented by a Smi.  A non-smi 32 bit integer is 1.xxx * 2^30 so the
-  // exponent is 30 (biased).  This is the exponent that we are fastest at and
-  // also the highest exponent we can handle here.
-  const uint32_t non_smi_exponent =
-      (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
-  __ cmp(Operand(scratch2), Immediate(non_smi_exponent));
-  // If we have a match of the int32-but-not-Smi exponent then skip some logic.
-  __ j(equal, &right_exponent);
-  // If the exponent is higher than that then go to slow case.  This catches
-  // numbers that don't fit in a signed int32, infinities and NaNs.
-  __ j(less, &normal_exponent);
+  if (use_sse3) {
+    CpuFeatures::Scope scope(SSE3);
+    // Check whether the exponent is too big for a 64 bit signed integer.
+    const uint32_t too_big_exponent =
+        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+    __ cmp(Operand(scratch2), Immediate(too_big_exponent));
+    __ j(greater_equal, conversion_failure);
+    // Load x87 register with heap number.
+    __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
+    // Reserve space for 64 bit answer.
+    __ sub(Operand(esp), Immediate(sizeof(uint64_t)));  // Nolint.
+    // Do conversion, which cannot fail because we checked the exponent.
+    __ fisttp_d(Operand(esp, 0));
+    __ mov(ecx, Operand(esp, 0));  // Load low word of answer into ecx.
+    __ add(Operand(esp), Immediate(sizeof(uint64_t)));  // Nolint.
+  } else {
+    // Load ecx with zero.  We use this either for the final shift or
+    // for the answer.
+    __ xor_(ecx, Operand(ecx));
+    // Check whether the exponent matches a 32 bit signed int that cannot be
+    // represented by a Smi.  A non-smi 32 bit integer is 1.xxx * 2^30 so the
+    // exponent is 30 (biased).  This is the exponent that we are fastest at and
+    // also the highest exponent we can handle here.
+    const uint32_t non_smi_exponent =
+        (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
+    __ cmp(Operand(scratch2), Immediate(non_smi_exponent));
+    // If we have a match of the int32-but-not-Smi exponent then skip some
+    // logic.
+    __ j(equal, &right_exponent);
+    // If the exponent is higher than that then go to slow case.  This catches
+    // numbers that don't fit in a signed int32, infinities and NaNs.
+    __ j(less, &normal_exponent);
 
-  {
-    // Handle a big exponent.  The only reason we have this code is that the >>>
-    // operator has a tendency to generate numbers with an exponent of 31.
-    const uint32_t big_non_smi_exponent =
-        (HeapNumber::kExponentBias + 31) << HeapNumber::kExponentShift;
-    __ cmp(Operand(scratch2), Immediate(big_non_smi_exponent));
-    __ j(not_equal, conversion_failure);
-    // We have the big exponent, typically from >>>.  This means the number is
-    // in the range 2^31 to 2^32 - 1.  Get the top bits of the mantissa.
-    __ mov(scratch2, scratch);
-    __ and_(scratch2, HeapNumber::kMantissaMask);
+    {
+      // Handle a big exponent.  The only reason we have this code is that the
+      // >>> operator has a tendency to generate numbers with an exponent of 31.
+      const uint32_t big_non_smi_exponent =
+          (HeapNumber::kExponentBias + 31) << HeapNumber::kExponentShift;
+      __ cmp(Operand(scratch2), Immediate(big_non_smi_exponent));
+      __ j(not_equal, conversion_failure);
+      // We have the big exponent, typically from >>>.  This means the number is
+      // in the range 2^31 to 2^32 - 1.  Get the top bits of the mantissa.
+      __ mov(scratch2, scratch);
+      __ and_(scratch2, HeapNumber::kMantissaMask);
+      // Put back the implicit 1.
+      __ or_(scratch2, 1 << HeapNumber::kExponentShift);
+      // Shift up the mantissa bits to take up the space the exponent used to
+      // take. We just orred in the implicit bit so that took care of one and
+      // we want to use the full unsigned range so we subtract 1 bit from the
+      // shift distance.
+      const int big_shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
+      __ shl(scratch2, big_shift_distance);
+      // Get the second half of the double.
+      __ mov(ecx, FieldOperand(source, HeapNumber::kMantissaOffset));
+      // Shift down 21 bits to get the most significant 11 bits or the low
+      // mantissa word.
+      __ shr(ecx, 32 - big_shift_distance);
+      __ or_(ecx, Operand(scratch2));
+      // We have the answer in ecx, but we may need to negate it.
+      __ test(scratch, Operand(scratch));
+      __ j(positive, &done);
+      __ neg(ecx);
+      __ jmp(&done);
+    }
+
+    __ bind(&normal_exponent);
+    // Exponent word in scratch, exponent part of exponent word in scratch2.
+    // Zero in ecx.
+    // We know the exponent is smaller than 30 (biased).  If it is less than
+    // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+    // it rounds to zero.
+    const uint32_t zero_exponent =
+        (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
+    __ sub(Operand(scratch2), Immediate(zero_exponent));
+    // ecx already has a Smi zero.
+    __ j(less, &done);
+
+    // We have a shifted exponent between 0 and 30 in scratch2.
+    __ shr(scratch2, HeapNumber::kExponentShift);
+    __ mov(ecx, Immediate(30));
+    __ sub(ecx, Operand(scratch2));
+
+    __ bind(&right_exponent);
+    // Here ecx is the shift, scratch is the exponent word.
+    // Get the top bits of the mantissa.
+    __ and_(scratch, HeapNumber::kMantissaMask);
     // Put back the implicit 1.
-    __ or_(scratch2, 1 << HeapNumber::kExponentShift);
+    __ or_(scratch, 1 << HeapNumber::kExponentShift);
     // Shift up the mantissa bits to take up the space the exponent used to
-    // take. We just orred in the implicit bit so that took care of one and
-    // we want to use the full unsigned range so we subtract 1 bit from the
-    // shift distance.
-    const int big_shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
-    __ shl(scratch2, big_shift_distance);
-    // Get the second half of the double.
-    __ mov(ecx, FieldOperand(source, HeapNumber::kMantissaOffset));
-    // Shift down 21 bits to get the most significant 11 bits or the low
+    // take. We have kExponentShift + 1 significant bits int he low end of the
+    // word.  Shift them to the top bits.
+    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
+    __ shl(scratch, shift_distance);
+    // Get the second half of the double. For some exponents we don't
+    // actually need this because the bits get shifted out again, but
+    // it's probably slower to test than just to do it.
+    __ mov(scratch2, FieldOperand(source, HeapNumber::kMantissaOffset));
+    // Shift down 22 bits to get the most significant 10 bits or the low
     // mantissa word.
-    __ shr(ecx, 32 - big_shift_distance);
-    __ or_(ecx, Operand(scratch2));
-    // We have the answer in ecx, but we may need to negate it.
-    __ test(scratch, Operand(scratch));
-    __ j(positive, &done);
-    __ neg(ecx);
+    __ shr(scratch2, 32 - shift_distance);
+    __ or_(scratch2, Operand(scratch));
+    // Move down according to the exponent.
+    __ shr_cl(scratch2);
+    // Now the unsigned answer is in scratch2.  We need to move it to ecx and
+    // we may need to fix the sign.
+    Label negative;
+    __ xor_(ecx, Operand(ecx));
+    __ cmp(ecx, FieldOperand(source, HeapNumber::kExponentOffset));
+    __ j(greater, &negative);
+    __ mov(ecx, scratch2);
     __ jmp(&done);
+    __ bind(&negative);
+    __ sub(ecx, Operand(scratch2));
+    __ bind(&done);
   }
-
-  __ bind(&normal_exponent);
-  // Exponent word in scratch, exponent part of exponent word in scratch2.
-  // Zero in ecx.
-  // We know the exponent is smaller than 30 (biased).  If it is less than
-  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
-  // it rounds to zero.
-  const uint32_t zero_exponent =
-      (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
-  __ sub(Operand(scratch2), Immediate(zero_exponent));
-  // ecx already has a Smi zero.
-  __ j(less, &done);
-
-  // We have a shifted exponent between 0 and 30 in scratch2.
-  __ shr(scratch2, HeapNumber::kExponentShift);
-  __ mov(ecx, Immediate(30));
-  __ sub(ecx, Operand(scratch2));
-
-  __ bind(&right_exponent);
-  // Here ecx is the shift, scratch is the exponent word.
-  // Get the top bits of the mantissa.
-  __ and_(scratch, HeapNumber::kMantissaMask);
-  // Put back the implicit 1.
-  __ or_(scratch, 1 << HeapNumber::kExponentShift);
-  // Shift up the mantissa bits to take up the space the exponent used to
-  // take. We have kExponentShift + 1 significant bits int he low end of the
-  // word.  Shift them to the top bits.
-  const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
-  __ shl(scratch, shift_distance);
-  // Get the second half of the double. For some exponents we don't
-  // actually need this because the bits get shifted out again, but
-  // it's probably slower to test than just to do it.
-  __ mov(scratch2, FieldOperand(source, HeapNumber::kMantissaOffset));
-  // Shift down 22 bits to get the most significant 10 bits or the low mantissa
-  // word.
-  __ shr(scratch2, 32 - shift_distance);
-  __ or_(scratch2, Operand(scratch));
-  // Move down according to the exponent.
-  __ shr_cl(scratch2);
-  // Now the unsigned answer is in scratch2.  We need to move it to ecx and
-  // we may need to fix the sign.
-  Label negative;
-  __ xor_(ecx, Operand(ecx));
-  __ cmp(ecx, FieldOperand(source, HeapNumber::kExponentOffset));
-  __ j(greater, &negative);
-  __ mov(ecx, scratch2);
-  __ jmp(&done);
-  __ bind(&negative);
-  __ sub(ecx, Operand(scratch2));
-  __ bind(&done);
 }
 
 
 // Input: edx, eax are the left and right objects of a bit op.
 // Output: eax, ecx are left and right integers for a bit op.
 void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
+                                         bool use_sse3,
                                          Label* conversion_failure) {
   // Check float operands.
   Label arg1_is_object, arg2_is_object, load_arg2;
@@ -7577,7 +7599,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ cmp(ebx, Factory::heap_number_map());
   __ j(not_equal, conversion_failure);
   // Get the untagged integer version of the edx heap number in ecx.
-  IntegerConvert(masm, edx, conversion_failure);
+  IntegerConvert(masm, edx, use_sse3, conversion_failure);
   __ mov(edx, ecx);
 
   // Here edx has the untagged integer, eax has a Smi or a heap number.
@@ -7594,7 +7616,7 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ cmp(ebx, Factory::heap_number_map());
   __ j(not_equal, conversion_failure);
   // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, eax, conversion_failure);
+  IntegerConvert(masm, eax, use_sse3, conversion_failure);
   __ bind(&done);
   __ mov(eax, edx);
 }
