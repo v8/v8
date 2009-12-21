@@ -98,7 +98,7 @@ function MathFloor(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
   // It's more common to call this with a positive number that's out
   // of range than negative numbers; check the upper bound first.
-  if (x <= 0x7FFFFFFF && x > 0) {
+  if (x < 0x80000000 && x > 0) {
     // Numbers in the range [0, 2^31) can be floored by converting
     // them to an unsigned 32-bit value using the shift operator.
     // We avoid doing so for -0, because the result of Math.floor(-0)

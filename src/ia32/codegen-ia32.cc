@@ -5928,6 +5928,8 @@ void CodeGenerator::VisitThisFunction(ThisFunction* node) {
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Comment cmnt(masm_, "[ CompareOperation");
 
+  bool left_already_loaded = false;
+
   // Get the expressions from the node.
   Expression* left = node->left();
   Expression* right = node->right();
@@ -6008,7 +6010,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ CmpInstanceType(answer.reg(), JS_REGEXP_TYPE);
       answer.Unuse();
       destination()->Split(equal);
-
     } else if (check->Equals(Heap::object_symbol())) {
       __ test(answer.reg(), Immediate(kSmiTagMask));
       destination()->false_target()->Branch(zero);
@@ -6040,6 +6041,38 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       destination()->Goto(false);
     }
     return;
+  } else if (op == Token::LT &&
+             right->AsLiteral() != NULL &&
+             right->AsLiteral()->handle()->IsHeapNumber()) {
+    Handle<HeapNumber> check(HeapNumber::cast(*right->AsLiteral()->handle()));
+    if (check->value() == 2147483648.0) {  // 0x80000000.
+      Load(left);
+      left_already_loaded = true;
+      Result lhs = frame_->Pop();
+      lhs.ToRegister();
+      __ test(lhs.reg(), Immediate(kSmiTagMask));
+      destination()->true_target()->Branch(zero);  // All Smis are less.
+      Result scratch = allocator()->Allocate();
+      ASSERT(scratch.is_valid());
+      __ mov(scratch.reg(), FieldOperand(lhs.reg(), HeapObject::kMapOffset));
+      __ cmp(scratch.reg(), Factory::heap_number_map());
+      JumpTarget not_a_number;
+      not_a_number.Branch(not_equal, &lhs);
+      __ mov(scratch.reg(),
+             FieldOperand(lhs.reg(), HeapNumber::kExponentOffset));
+      __ cmp(Operand(scratch.reg()), Immediate(0xfff00000));
+      not_a_number.Branch(above_equal, &lhs);  // It's a negative NaN or -Inf.
+      const uint32_t borderline_exponent =
+          (HeapNumber::kExponentBias + 31) << HeapNumber::kExponentShift;
+      __ cmp(Operand(scratch.reg()), Immediate(borderline_exponent));
+      scratch.Unuse();
+      lhs.Unuse();
+      destination()->true_target()->Branch(less);
+      destination()->false_target()->Jump();
+
+      not_a_number.Bind(&lhs);
+      frame_->Push(&lhs);
+    }
   }
 
   Condition cc = no_condition;
@@ -6064,14 +6097,14 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       cc = greater_equal;
       break;
     case Token::IN: {
-      Load(left);
+      if (!left_already_loaded) Load(left);
       Load(right);
       Result answer = frame_->InvokeBuiltin(Builtins::IN, CALL_FUNCTION, 2);
       frame_->Push(&answer);  // push the result
       return;
     }
     case Token::INSTANCEOF: {
-      Load(left);
+      if (!left_already_loaded) Load(left);
       Load(right);
       InstanceofStub stub;
       Result answer = frame_->CallStub(&stub, 2);
@@ -6084,7 +6117,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     default:
       UNREACHABLE();
   }
-  Load(left);
+  if (!left_already_loaded) Load(left);
   Load(right);
   Comparison(node, cc, strict, destination());
 }
