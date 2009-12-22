@@ -821,7 +821,7 @@ class Heap : public AllStatic {
   static void SetNumberStringCache(Object* number, String* str);
 
   // Entries in the cache.  Must be a power of 2.
-  static const int kNumberStringCacheSize = 16*KB;
+  static const int kNumberStringCacheSize = 64;
 
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.

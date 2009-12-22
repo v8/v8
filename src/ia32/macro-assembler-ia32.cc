@@ -729,13 +729,13 @@ void MacroAssembler::AllocateInNewSpace(int object_size,
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required, not_taken);
 
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
+
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
     or_(Operand(result), Immediate(kHeapObjectTag));
   }
-
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
 }
 
 
@@ -759,13 +759,13 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required);
 
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
+
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
     or_(Operand(result), Immediate(kHeapObjectTag));
   }
-
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
 }
 
 
@@ -790,13 +790,13 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
   j(above, gc_required, not_taken);
 
+  // Update allocation top.
+  UpdateAllocationTopHelper(result_end, scratch);
+
   // Tag result if requested.
   if ((flags & TAG_OBJECT) != 0) {
     or_(Operand(result), Immediate(kHeapObjectTag));
   }
-
-  // Update allocation top.
-  UpdateAllocationTopHelper(result_end, scratch);
 }
 
 

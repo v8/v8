@@ -1577,7 +1577,6 @@ bool Heap::CreateInitialObjects() {
   CreateFixedStubs();
 
   // Allocate the number->string conversion cache
-  ASSERT(IsPowerOf2(kNumberStringCacheSize));
   obj = AllocateFixedArray(kNumberStringCacheSize * 2);
   if (obj->IsFailure()) return false;
   set_number_string_cache(FixedArray::cast(obj));
@@ -1611,29 +1610,25 @@ bool Heap::CreateInitialObjects() {
 }
 
 
-static inline int NumberStringTruncateHash(int value) {
-  return (((value >> 16) ^ value)) & (Heap::kNumberStringCacheSize - 1);
-}
-
-
-static inline int DoubleGetHash(double d) {
+static inline int double_get_hash(double d) {
   DoubleRepresentation rep(d);
-  int value = (static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32));
-  return NumberStringTruncateHash(value);
+  return ((static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32)) &
+          (Heap::kNumberStringCacheSize - 1));
 }
 
 
-static inline int SmiGetHash(Smi* smi) {
-  return NumberStringTruncateHash(smi->value());
+static inline int smi_get_hash(Smi* smi) {
+  return (smi->value() & (Heap::kNumberStringCacheSize - 1));
 }
+
 
 
 Object* Heap::GetNumberStringCache(Object* number) {
   int hash;
   if (number->IsSmi()) {
-    hash = SmiGetHash(Smi::cast(number));
+    hash = smi_get_hash(Smi::cast(number));
   } else {
-    hash = DoubleGetHash(number->Number());
+    hash = double_get_hash(number->Number());
   }
   Object* key = number_string_cache()->get(hash * 2);
   if (key == number) {
@@ -1650,10 +1645,10 @@ Object* Heap::GetNumberStringCache(Object* number) {
 void Heap::SetNumberStringCache(Object* number, String* string) {
   int hash;
   if (number->IsSmi()) {
-    hash = SmiGetHash(Smi::cast(number));
+    hash = smi_get_hash(Smi::cast(number));
     number_string_cache()->set(hash * 2, number, SKIP_WRITE_BARRIER);
   } else {
-    hash = DoubleGetHash(number->Number());
+    hash = double_get_hash(number->Number());
     number_string_cache()->set(hash * 2, number);
   }
   number_string_cache()->set(hash * 2 + 1, string);
