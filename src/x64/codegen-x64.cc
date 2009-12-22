@@ -3109,7 +3109,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         bool overwrite =
           (node->expression()->AsBinaryOperation() != NULL &&
            node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
-        UnarySubStub stub(overwrite);
+        GenericUnaryOpStub stub(Token::SUB, overwrite);
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
@@ -6272,7 +6272,9 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 
 // End of CodeGenerator implementation.
 
-void UnarySubStub::Generate(MacroAssembler* masm) {
+void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
+  ASSERT(op_ == Token::SUB);
+
   Label slow;
   Label done;
   Label try_float;

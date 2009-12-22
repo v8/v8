@@ -294,20 +294,26 @@ class InstanceofStub: public CodeStub {
 };
 
 
-class UnarySubStub : public CodeStub {
+class GenericUnaryOpStub : public CodeStub {
  public:
-  explicit UnarySubStub(bool overwrite)
-      : overwrite_(overwrite) { }
+  GenericUnaryOpStub(Token::Value op, bool overwrite)
+      : op_(op), overwrite_(overwrite) { }
 
  private:
+  Token::Value op_;
   bool overwrite_;
-  Major MajorKey() { return UnarySub; }
-  int MinorKey() { return overwrite_ ? 1 : 0; }
+
+  class OverwriteField: public BitField<int, 0, 1> {};
+  class OpField: public BitField<Token::Value, 1, kMinorBits - 1> {};
+
+  Major MajorKey() { return GenericUnaryOp; }
+  int MinorKey() {
+    return OpField::encode(op_) | OverwriteField::encode(overwrite_);
+  }
+
   void Generate(MacroAssembler* masm);
 
-  const char* GetName() {
-    return overwrite_ ? "UnarySubStub_Overwrite" : "UnarySubStub_Alloc";
-  }
+  const char* GetName();
 };
 
 

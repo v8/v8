@@ -5515,12 +5515,12 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
   } else {
     Load(node->expression());
+    bool overwrite =
+        (node->expression()->AsBinaryOperation() != NULL &&
+         node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
     switch (op) {
       case Token::SUB: {
-        bool overwrite =
-          (node->expression()->AsBinaryOperation() != NULL &&
-           node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
-        UnarySubStub stub(overwrite);
+        GenericUnaryOpStub stub(Token::SUB, overwrite);
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
@@ -5537,16 +5537,16 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ test(operand.reg(), Immediate(kSmiTagMask));
         smi_label.Branch(zero, &operand, taken);
 
-        frame_->Push(&operand);  // undo popping of TOS
-        Result answer = frame_->InvokeBuiltin(Builtins::BIT_NOT,
-                                              CALL_FUNCTION, 1);
-
+        GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+        Result answer = frame_->CallStub(&stub, &operand);
         continue_label.Jump(&answer);
+
         smi_label.Bind(&answer);
         answer.ToRegister();
         frame_->Spill(answer.reg());
         __ not_(answer.reg());
         __ and_(answer.reg(), ~kSmiTagMask);  // Remove inverted smi-tag.
+
         continue_label.Bind(&answer);
         frame_->Push(&answer);
         break;
@@ -7282,9 +7282,15 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           default: UNREACHABLE();
         }
         // Store the result in the HeapNumber and return.
-        __ mov(Operand(esp, 1 * kPointerSize), ebx);
-        __ fild_s(Operand(esp, 1 * kPointerSize));
-        __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+        if (CpuFeatures::IsSupported(SSE2)) {
+          CpuFeatures::Scope use_sse2(SSE2);
+          __ cvtsi2sd(xmm0, Operand(ebx));
+          __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+        } else {
+          __ mov(Operand(esp, 1 * kPointerSize), ebx);
+          __ fild_s(Operand(esp, 1 * kPointerSize));
+          __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+        }
         GenerateReturn(masm);
       }
 
@@ -7711,67 +7717,119 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 }
 
 
-void UnarySubStub::Generate(MacroAssembler* masm) {
-  Label undo;
-  Label slow;
-  Label done;
-  Label try_float;
+void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
+  Label slow, done;
 
-  // Check whether the value is a smi.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &try_float, not_taken);
+  if (op_ == Token::SUB) {
+    // Check whether the value is a smi.
+    Label try_float;
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(not_zero, &try_float, not_taken);
 
-  // Enter runtime system if the value of the expression is zero
-  // to make sure that we switch between 0 and -0.
-  __ test(eax, Operand(eax));
-  __ j(zero, &slow, not_taken);
+    // Go slow case if the value of the expression is zero
+    // to make sure that we switch between 0 and -0.
+    __ test(eax, Operand(eax));
+    __ j(zero, &slow, not_taken);
 
-  // The value of the expression is a smi that is not zero.  Try
-  // optimistic subtraction '0 - value'.
-  __ mov(edx, Operand(eax));
-  __ Set(eax, Immediate(0));
-  __ sub(eax, Operand(edx));
-  __ j(overflow, &undo, not_taken);
-
-  // If result is a smi we are done.
-  __ test(eax, Immediate(kSmiTagMask));
-  __ j(zero, &done, taken);
-
-  // Restore eax and enter runtime system.
-  __ bind(&undo);
-  __ mov(eax, Operand(edx));
-
-  // Enter runtime system.
-  __ bind(&slow);
-  __ pop(ecx);  // pop return address
-  __ push(eax);
-  __ push(ecx);  // push return address
-  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
-
-  // Try floating point case.
-  __ bind(&try_float);
-  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ cmp(edx, Factory::heap_number_map());
-  __ j(not_equal, &slow);
-  if (overwrite_) {
-    __ mov(edx, FieldOperand(eax, HeapNumber::kExponentOffset));
-    __ xor_(edx, HeapNumber::kSignMask);  // Flip sign.
-    __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), edx);
-  } else {
+    // The value of the expression is a smi that is not zero.  Try
+    // optimistic subtraction '0 - value'.
+    Label undo;
     __ mov(edx, Operand(eax));
-    // edx: operand
-    __ AllocateHeapNumber(eax, ebx, ecx, &undo);
-    // eax: allocated 'empty' number
-    __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
-    __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
-    __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), ecx);
-    __ mov(ecx, FieldOperand(edx, HeapNumber::kMantissaOffset));
-    __ mov(FieldOperand(eax, HeapNumber::kMantissaOffset), ecx);
+    __ Set(eax, Immediate(0));
+    __ sub(eax, Operand(edx));
+    __ j(overflow, &undo, not_taken);
+
+    // If result is a smi we are done.
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, &done, taken);
+
+    // Restore eax and go slow case.
+    __ bind(&undo);
+    __ mov(eax, Operand(edx));
+    __ jmp(&slow);
+
+    // Try floating point case.
+    __ bind(&try_float);
+    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ cmp(edx, Factory::heap_number_map());
+    __ j(not_equal, &slow);
+    if (overwrite_) {
+      __ mov(edx, FieldOperand(eax, HeapNumber::kExponentOffset));
+      __ xor_(edx, HeapNumber::kSignMask);  // Flip sign.
+      __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), edx);
+    } else {
+      __ mov(edx, Operand(eax));
+      // edx: operand
+      __ AllocateHeapNumber(eax, ebx, ecx, &undo);
+      // eax: allocated 'empty' number
+      __ mov(ecx, FieldOperand(edx, HeapNumber::kExponentOffset));
+      __ xor_(ecx, HeapNumber::kSignMask);  // Flip sign.
+      __ mov(FieldOperand(eax, HeapNumber::kExponentOffset), ecx);
+      __ mov(ecx, FieldOperand(edx, HeapNumber::kMantissaOffset));
+      __ mov(FieldOperand(eax, HeapNumber::kMantissaOffset), ecx);
+    }
+  } else if (op_ == Token::BIT_NOT) {
+    // Check if the operand is a heap number.
+    __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ cmp(edx, Factory::heap_number_map());
+    __ j(not_equal, &slow, not_taken);
+
+    // Convert the heap number in eax to an untagged integer in ecx.
+    IntegerConvert(masm, eax, CpuFeatures::IsSupported(SSE3), &slow);
+
+    // Do the bitwise operation and check if the result fits in a smi.
+    Label try_float;
+    __ not_(ecx);
+    __ cmp(ecx, 0xc0000000);
+    __ j(sign, &try_float, not_taken);
+
+    // Tag the result as a smi and we're done.
+    ASSERT(kSmiTagSize == 1);
+    __ lea(eax, Operand(ecx, times_2, kSmiTag));
+    __ jmp(&done);
+
+    // Try to store the result in a heap number.
+    __ bind(&try_float);
+    if (!overwrite_) {
+      // Allocate a fresh heap number, but don't overwrite eax until
+      // we're sure we can do it without going through the slow case
+      // that needs the value in eax.
+      __ AllocateHeapNumber(ebx, edx, edi, &slow);
+      __ mov(eax, Operand(ebx));
+    }
+    if (CpuFeatures::IsSupported(SSE2)) {
+      CpuFeatures::Scope use_sse2(SSE2);
+      __ cvtsi2sd(xmm0, Operand(ecx));
+      __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+    } else {
+      __ push(ecx);
+      __ fild_s(Operand(esp, 0));
+      __ pop(ecx);
+      __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+    }
+  } else {
+    UNIMPLEMENTED();
   }
 
+  // Return from the stub.
   __ bind(&done);
-
   __ StubReturn(1);
+
+  // Handle the slow case by jumping to the JavaScript builtin.
+  __ bind(&slow);
+  __ pop(ecx);  // pop return address.
+  __ push(eax);
+  __ push(ecx);  // push return address
+  switch (op_) {
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+      break;
+    case Token::BIT_NOT:
+      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 

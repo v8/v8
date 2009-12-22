@@ -448,6 +448,23 @@ const char* RuntimeStub::GetName() {
 }
 
 
+const char* GenericUnaryOpStub::GetName() {
+  switch (op_) {
+    case Token::SUB:
+      return overwrite_
+          ? "GenericUnaryOpStub_SUB_Overwrite"
+          : "GenericUnaryOpStub_SUB_Alloc";
+    case Token::BIT_NOT:
+      return overwrite_
+          ? "GenericUnaryOpStub_BIT_NOT_Overwrite"
+          : "GenericUnaryOpStub_BIT_NOT_Alloc";
+    default:
+      UNREACHABLE();
+      return "<unknown>";
+  }
+}
+
+
 void RuntimeStub::Generate(MacroAssembler* masm) {
   Runtime::Function* f = Runtime::FunctionForId(id_);
   masm->TailCallRuntime(ExternalReference(f),

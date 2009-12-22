@@ -3698,7 +3698,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         bool overwrite =
             (node->expression()->AsBinaryOperation() != NULL &&
              node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
-        UnarySubStub stub(overwrite);
+        GenericUnaryOpStub stub(Token::SUB, overwrite);
         frame_->CallStub(&stub, 0);
         break;
       }
@@ -5940,7 +5940,9 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
-void UnarySubStub::Generate(MacroAssembler* masm) {
+void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
+  ASSERT(op_ == Token::SUB);
+
   Label undo;
   Label slow;
   Label not_smi;
