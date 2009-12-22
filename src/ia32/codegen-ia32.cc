@@ -6662,17 +6662,13 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 
   // Load boilerplate object into ecx and check if we need to create a
   // boilerplate.
+  Label slow_case;
   __ mov(ecx, Operand(esp, 3 * kPointerSize));
   __ mov(eax, Operand(esp, 2 * kPointerSize));
-  ASSERT(kPointerSize == 4);
-  __ mov(ecx, FieldOperand(ecx,
-                           eax,
-                           times_2,
-                           FixedArray::kHeaderSize));
+  ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
+  __ mov(ecx, FieldOperand(ecx, eax, times_2, FixedArray::kHeaderSize));
   __ cmp(ecx, Factory::undefined_value());
-  Label slow_case;
   __ j(equal, &slow_case);
-
 
   // Allocate both the JS array and the elements array in one big
   // allocation. This avoids multiple limit checks.
