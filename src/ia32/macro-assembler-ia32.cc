@@ -766,7 +766,6 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
 
   // Update allocation top.
   UpdateAllocationTopHelper(result_end, scratch);
-
 }
 
 
