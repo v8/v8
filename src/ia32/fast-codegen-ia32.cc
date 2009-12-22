@@ -752,7 +752,7 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(expr->literal_index())));
-  __ push(Immediate(expr->literals()));
+  __ push(Immediate(expr->constant_elements()));
   if (expr->depth() > 1) {
     __ CallRuntime(Runtime::kCreateArrayLiteral, 3);
   } else {

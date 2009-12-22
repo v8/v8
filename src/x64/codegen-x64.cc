@@ -2362,46 +2362,10 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 }
 
 
-// Materialize the object literal 'node' in the literals array
-// 'literals' of the function.  Leave the object boilerplate in
-// 'boilerplate'.
-class DeferredObjectLiteral: public DeferredCode {
- public:
-  DeferredObjectLiteral(Register boilerplate,
-                        Register literals,
-                        ObjectLiteral* node)
-      : boilerplate_(boilerplate), literals_(literals), node_(node) {
-    set_comment("[ DeferredObjectLiteral");
-  }
-
-  void Generate();
-
- private:
-  Register boilerplate_;
-  Register literals_;
-  ObjectLiteral* node_;
-};
-
-
-void DeferredObjectLiteral::Generate() {
-  // Since the entry is undefined we call the runtime system to
-  // compute the literal.
-  // Literal array (0).
-  __ push(literals_);
-  // Literal index (1).
-  __ Push(Smi::FromInt(node_->literal_index()));
-  // Constant properties (2).
-  __ Push(node_->constant_properties());
-  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
-}
-
-
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  // Retrieve the literals array and check the allocated entry.  Begin
-  // with a writable copy of the function of this activation in a
+  // Load a writable copy of the function of this activation in a
   // register.
   frame_->PushFunction();
   Result literals = frame_->Pop();
@@ -2411,32 +2375,18 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Load the literals array of the function.
   __ movq(literals.reg(),
           FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
-
-  // Load the literal at the ast saved index.
-  Result boilerplate = allocator_->Allocate();
-  ASSERT(boilerplate.is_valid());
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
-
-  // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code passing the literals array.
-  DeferredObjectLiteral* deferred =
-      new DeferredObjectLiteral(boilerplate.reg(), literals.reg(), node);
-  __ CompareRoot(boilerplate.reg(), Heap::kUndefinedValueRootIndex);
-  deferred->Branch(equal);
-  deferred->BindExit();
-  literals.Unuse();
-
-  // Push the boilerplate object.
-  frame_->Push(&boilerplate);
-  // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  // Literal array.
+  frame_->Push(&literals);
+  // Literal index.
+  frame_->Push(Smi::FromInt(node->literal_index()));
+  // Constant properties.
+  frame_->Push(node->constant_properties());
+  Result clone;
+  if (node->depth() > 1) {
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteral, 3);
+  } else {
+    clone = frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
   }
-  Result clone = frame_->CallRuntime(clone_function_id, 1);
-  // Push the newly cloned literal object as the result.
   frame_->Push(&clone);
 
   for (int i = 0; i < node->properties()->length(); i++) {
@@ -2496,45 +2446,10 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-// Materialize the array literal 'node' in the literals array 'literals'
-// of the function.  Leave the array boilerplate in 'boilerplate'.
-class DeferredArrayLiteral: public DeferredCode {
- public:
-  DeferredArrayLiteral(Register boilerplate,
-                       Register literals,
-                       ArrayLiteral* node)
-      : boilerplate_(boilerplate), literals_(literals), node_(node) {
-    set_comment("[ DeferredArrayLiteral");
-  }
-
-  void Generate();
-
- private:
-  Register boilerplate_;
-  Register literals_;
-  ArrayLiteral* node_;
-};
-
-
-void DeferredArrayLiteral::Generate() {
-  // Since the entry is undefined we call the runtime system to
-  // compute the literal.
-  // Literal array (0).
-  __ push(literals_);
-  // Literal index (1).
-  __ Push(Smi::FromInt(node_->literal_index()));
-  // Constant properties (2).
-  __ Push(node_->literals());
-  __ CallRuntime(Runtime::kCreateArrayLiteralBoilerplate, 3);
-  if (!boilerplate_.is(rax)) __ movq(boilerplate_, rax);
-}
-
-
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  // Retrieve the literals array and check the allocated entry.  Begin
-  // with a writable copy of the function of this activation in a
+  // Load a writable copy of the function of this activation in a
   // register.
   frame_->PushFunction();
   Result literals = frame_->Pop();
@@ -2544,32 +2459,18 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   // Load the literals array of the function.
   __ movq(literals.reg(),
           FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
-
-  // Load the literal at the ast saved index.
-  Result boilerplate = allocator_->Allocate();
-  ASSERT(boilerplate.is_valid());
-  int literal_offset =
-      FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ movq(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
-
-  // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code passing the literals array.
-  DeferredArrayLiteral* deferred =
-      new DeferredArrayLiteral(boilerplate.reg(), literals.reg(), node);
-  __ CompareRoot(boilerplate.reg(), Heap::kUndefinedValueRootIndex);
-  deferred->Branch(equal);
-  deferred->BindExit();
-  literals.Unuse();
-
-  // Push the resulting array literal boilerplate on the stack.
-  frame_->Push(&boilerplate);
-  // Clone the boilerplate object.
-  Runtime::FunctionId clone_function_id = Runtime::kCloneLiteralBoilerplate;
-  if (node->depth() == 1) {
-    clone_function_id = Runtime::kCloneShallowLiteralBoilerplate;
+  // Literal array.
+  frame_->Push(&literals);
+  // Literal index.
+  frame_->Push(Smi::FromInt(node->literal_index()));
+  // Constant elements.
+  frame_->Push(node->constant_elements());
+  Result clone;
+  if (node->depth() > 1) {
+    clone = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
+  } else {
+    clone = frame_->CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   }
-  Result clone = frame_->CallRuntime(clone_function_id, 1);
-  // Push the newly cloned literal object as the result.
   frame_->Push(&clone);
 
   // Generate code to set the elements in the array that are not

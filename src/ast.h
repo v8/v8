@@ -827,24 +827,24 @@ class RegExpLiteral: public MaterializedLiteral {
 // for minimizing the work when constructing it at runtime.
 class ArrayLiteral: public MaterializedLiteral {
  public:
-  ArrayLiteral(Handle<FixedArray> literals,
+  ArrayLiteral(Handle<FixedArray> constant_elements,
                ZoneList<Expression*>* values,
                int literal_index,
                bool is_simple,
                int depth)
       : MaterializedLiteral(literal_index, is_simple, depth),
-        literals_(literals),
+        constant_elements_(constant_elements),
         values_(values) {}
 
   virtual void Accept(AstVisitor* v);
   virtual ArrayLiteral* AsArrayLiteral() { return this; }
   virtual bool IsValidJSON();
 
-  Handle<FixedArray> literals() const { return literals_; }
+  Handle<FixedArray> constant_elements() const { return constant_elements_; }
   ZoneList<Expression*>* values() const { return values_; }
 
  private:
-  Handle<FixedArray> literals_;
+  Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
 };
 

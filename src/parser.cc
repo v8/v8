@@ -3332,7 +3332,7 @@ Handle<FixedArray> CompileTimeValue::GetValue(Expression* expression) {
     ArrayLiteral* array_literal = expression->AsArrayLiteral();
     ASSERT(array_literal != NULL && array_literal->is_simple());
     result->set(kTypeSlot, Smi::FromInt(ARRAY_LITERAL));
-    result->set(kElementsSlot, *array_literal->literals());
+    result->set(kElementsSlot, *array_literal->constant_elements());
   }
   return result;
 }

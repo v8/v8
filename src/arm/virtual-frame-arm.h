@@ -346,6 +346,11 @@ class VirtualFrame : public ZoneObject {
   // corresponding push instruction.
   void EmitPush(Register reg);
 
+  // Push multiple registers on the stack and the virtual frame
+  // Register are selected by setting bit in src_regs and
+  // are pushed in decreasing order: r15 .. r0.
+  void EmitPushMultiple(int count, int src_regs);
+
   // Push an element on the virtual frame.
   void Push(Register reg);
   void Push(Handle<Object> value);

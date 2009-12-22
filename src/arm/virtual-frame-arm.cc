@@ -387,6 +387,13 @@ void VirtualFrame::EmitPush(Register reg) {
 }
 
 
+void VirtualFrame::EmitPushMultiple(int count, int src_regs) {
+  ASSERT(stack_pointer_ == element_count() - 1);
+  Adjust(count);
+  __ stm(db_w, sp, src_regs);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal
