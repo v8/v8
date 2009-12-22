@@ -7553,18 +7553,26 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
                                          bool use_sse3,
                                          Label* conversion_failure) {
   // Check float operands.
-  Label arg1_is_object, arg2_is_object, load_arg2;
-  Label done;
+  Label arg1_is_object, check_undefined_arg1;
+  Label arg2_is_object, check_undefined_arg2;
+  Label load_arg2, done;
 
   __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &arg1_is_object);
   __ SmiUntag(edx);
   __ jmp(&load_arg2);
 
+  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
+  __ bind(&check_undefined_arg1);
+  __ cmp(edx, Factory::undefined_value());
+  __ j(not_equal, conversion_failure);
+  __ mov(edx, Immediate(0));
+  __ jmp(&load_arg2);
+
   __ bind(&arg1_is_object);
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
   __ cmp(ebx, Factory::heap_number_map());
-  __ j(not_equal, conversion_failure);
+  __ j(not_equal, &check_undefined_arg1);
   // Get the untagged integer version of the edx heap number in ecx.
   IntegerConvert(masm, edx, use_sse3, conversion_failure);
   __ mov(edx, ecx);
@@ -7578,10 +7586,17 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ mov(ecx, eax);
   __ jmp(&done);
 
+  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
+  __ bind(&check_undefined_arg2);
+  __ cmp(eax, Factory::undefined_value());
+  __ j(not_equal, conversion_failure);
+  __ mov(ecx, Immediate(0));
+  __ jmp(&done);
+
   __ bind(&arg2_is_object);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(ebx, Factory::heap_number_map());
-  __ j(not_equal, conversion_failure);
+  __ j(not_equal, &check_undefined_arg2);
   // Get the untagged integer version of the eax heap number in ecx.
   IntegerConvert(masm, eax, use_sse3, conversion_failure);
   __ bind(&done);
