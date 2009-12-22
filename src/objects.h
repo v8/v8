@@ -204,14 +204,13 @@ enum PropertyNormalizationMode {
 // instance_type is JS_OBJECT_TYPE.
 //
 // The names of the string instance types are intended to systematically
-// mirror their encoding in the instance_type field of the map.  The length
-// (SHORT, MEDIUM, or LONG) is always mentioned.  The default encoding is
-// considered TWO_BYTE.  It is not mentioned in the name.  ASCII encoding is
-// mentioned explicitly in the name.  Likewise, the default representation is
-// considered sequential.  It is not mentioned in the name.  The other
-// representations (eg, CONS, EXTERNAL) are explicitly mentioned.
-// Finally, the string is either a SYMBOL_TYPE (if it is a symbol) or a
-// STRING_TYPE (if it is not a symbol).
+// mirror their encoding in the instance_type field of the map.  The default
+// encoding is considered TWO_BYTE.  It is not mentioned in the name.  ASCII
+// encoding is mentioned explicitly in the name.  Likewise, the default
+// representation is considered sequential.  It is not mentioned in the
+// name.  The other representations (eg, CONS, EXTERNAL) are explicitly
+// mentioned.  Finally, the string is either a SYMBOL_TYPE (if it is a
+// symbol) or a STRING_TYPE (if it is not a symbol).
 //
 // NOTE: The following things are some that depend on the string types having
 // instance_types that are less than those of all other types:
@@ -237,11 +236,11 @@ enum PropertyNormalizationMode {
   V(PRIVATE_EXTERNAL_ASCII_STRING_TYPE)                                        \
                                                                                \
   V(MAP_TYPE)                                                                  \
-  V(HEAP_NUMBER_TYPE)                                                          \
-  V(FIXED_ARRAY_TYPE)                                                          \
   V(CODE_TYPE)                                                                 \
   V(JS_GLOBAL_PROPERTY_CELL_TYPE)                                              \
   V(ODDBALL_TYPE)                                                              \
+                                                                               \
+  V(HEAP_NUMBER_TYPE)                                                          \
   V(PROXY_TYPE)                                                                \
   V(BYTE_ARRAY_TYPE)                                                           \
   V(PIXEL_ARRAY_TYPE)                                                          \
@@ -257,6 +256,7 @@ enum PropertyNormalizationMode {
   V(EXTERNAL_FLOAT_ARRAY_TYPE)                                                 \
   V(FILLER_TYPE)                                                               \
                                                                                \
+  V(FIXED_ARRAY_TYPE)                                                          \
   V(ACCESSOR_INFO_TYPE)                                                        \
   V(ACCESS_CHECK_INFO_TYPE)                                                    \
   V(INTERCEPTOR_INFO_TYPE)                                                     \
@@ -418,6 +418,7 @@ const uint32_t kShortcutTypeTag = kConsStringTag;
 
 
 enum InstanceType {
+  // String types.
   SYMBOL_TYPE = kSymbolTag | kSeqStringTag,
   ASCII_SYMBOL_TYPE = kAsciiStringTag | kSymbolTag | kSeqStringTag,
   CONS_SYMBOL_TYPE = kSymbolTag | kConsStringTag,
@@ -433,56 +434,66 @@ enum InstanceType {
   EXTERNAL_ASCII_STRING_TYPE = kAsciiStringTag | kExternalStringTag,
   PRIVATE_EXTERNAL_ASCII_STRING_TYPE = EXTERNAL_ASCII_STRING_TYPE,
 
-  MAP_TYPE = kNotStringTag,
-  HEAP_NUMBER_TYPE,
-  FIXED_ARRAY_TYPE,
+  // Objects allocated in their own spaces (never in new space).
+  MAP_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE
   CODE_TYPE,
   ODDBALL_TYPE,
   JS_GLOBAL_PROPERTY_CELL_TYPE,
+
+  // "Data", objects that cannot contain non-map-word pointers to heap
+  // objects.
+  HEAP_NUMBER_TYPE,
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   PIXEL_ARRAY_TYPE,
-  EXTERNAL_BYTE_ARRAY_TYPE,
+  EXTERNAL_BYTE_ARRAY_TYPE,  // FIRST_EXTERNAL_ARRAY_TYPE
   EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE,
   EXTERNAL_SHORT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE,
   EXTERNAL_INT_ARRAY_TYPE,
   EXTERNAL_UNSIGNED_INT_ARRAY_TYPE,
-  EXTERNAL_FLOAT_ARRAY_TYPE,
-  FILLER_TYPE,
-  SMI_TYPE,
+  EXTERNAL_FLOAT_ARRAY_TYPE,  // LAST_EXTERNAL_ARRAY_TYPE
+  FILLER_TYPE,  // LAST_DATA_TYPE
 
+  // Structs.
   ACCESSOR_INFO_TYPE,
   ACCESS_CHECK_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   CALL_HANDLER_INFO_TYPE,
   FUNCTION_TEMPLATE_INFO_TYPE,
   OBJECT_TEMPLATE_INFO_TYPE,
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
+  SCRIPT_TYPE,
 #ifdef ENABLE_DEBUGGER_SUPPORT
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
 #endif
-  SCRIPT_TYPE,
 
-  JS_VALUE_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+
+  JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
-  JS_REGEXP_TYPE,
+  JS_REGEXP_TYPE,  // LAST_JS_OBJECT_TYPE
 
   JS_FUNCTION_TYPE,
 
   // Pseudo-types
-  FIRST_NONSTRING_TYPE = MAP_TYPE,
   FIRST_TYPE = 0x0,
-  INVALID_TYPE = FIRST_TYPE - 1,
   LAST_TYPE = JS_FUNCTION_TYPE,
+  INVALID_TYPE = FIRST_TYPE - 1,
+  FIRST_NONSTRING_TYPE = MAP_TYPE,
+  // Boundaries for testing for an external array.
+  FIRST_EXTERNAL_ARRAY_TYPE = EXTERNAL_BYTE_ARRAY_TYPE,
+  LAST_EXTERNAL_ARRAY_TYPE = EXTERNAL_FLOAT_ARRAY_TYPE,
+  // Boundary for promotion to old data space/old pointer space.
+  LAST_DATA_TYPE = FILLER_TYPE,
   // Boundaries for testing the type is a JavaScript "object".  Note that
   // function objects are not counted as objects, even though they are
   // implemented as such; only values whose typeof is "object" are included.

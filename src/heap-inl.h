@@ -196,12 +196,23 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
   // other object types are promoted to old pointer space.  We do not use
   // object->IsHeapNumber() and object->IsSeqString() because we already
   // know that object has the heap object tag.
-  ASSERT((type != CODE_TYPE) && (type != MAP_TYPE));
-  bool has_pointers =
-      type != HEAP_NUMBER_TYPE &&
-      (type >= FIRST_NONSTRING_TYPE ||
-       (type & kStringRepresentationMask) != kSeqStringTag);
-  return has_pointers ? OLD_POINTER_SPACE : OLD_DATA_SPACE;
+
+  // These objects are never allocated in new space.
+  ASSERT(type != MAP_TYPE);
+  ASSERT(type != CODE_TYPE);
+  ASSERT(type != ODDBALL_TYPE);
+  ASSERT(type != JS_GLOBAL_PROPERTY_CELL_TYPE);
+
+  if (type < FIRST_NONSTRING_TYPE) {
+    // There are three string representations: sequential strings, cons
+    // strings, and external strings.  Only cons strings contain
+    // non-map-word pointers to heap objects.
+    return ((type & kStringRepresentationMask) == kConsStringTag)
+        ? OLD_POINTER_SPACE
+        : OLD_DATA_SPACE;
+  } else {
+    return (type <= LAST_DATA_TYPE) ? OLD_DATA_SPACE : OLD_POINTER_SPACE;
+  }
 }
 
 

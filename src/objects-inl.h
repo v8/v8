@@ -336,8 +336,8 @@ bool Object::IsExternalArray() {
     return false;
   InstanceType instance_type =
       HeapObject::cast(this)->map()->instance_type();
-  return (instance_type >= EXTERNAL_BYTE_ARRAY_TYPE &&
-          instance_type <= EXTERNAL_FLOAT_ARRAY_TYPE);
+  return (instance_type >= FIRST_EXTERNAL_ARRAY_TYPE &&
+          instance_type <= LAST_EXTERNAL_ARRAY_TYPE);
 }
 
 

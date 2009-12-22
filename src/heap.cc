@@ -2193,9 +2193,12 @@ Object* Heap::CopyCode(Code* code) {
 Object* Heap::Allocate(Map* map, AllocationSpace space) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
-  Object* result = AllocateRaw(map->instance_size(),
-                               space,
-                               TargetSpaceId(map->instance_type()));
+  // If allocation failures are disallowed, we may allocate in a different
+  // space when new space is full and the object is not a large object.
+  AllocationSpace retry_space =
+      (space != NEW_SPACE) ? space : TargetSpaceId(map->instance_type());
+  Object* result =
+      AllocateRaw(map->instance_size(), space, retry_space);
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
 #ifdef ENABLE_LOGGING_AND_PROFILING
