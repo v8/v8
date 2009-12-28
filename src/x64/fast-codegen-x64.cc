@@ -1678,7 +1678,7 @@ Register FastCodeGenerator::context_register() { return rsi; }
 
 
 void FastCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
-  ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
+  ASSERT(IsAligned(frame_offset, kPointerSize));
   __ movq(Operand(rbp, frame_offset), value);
 }
 
