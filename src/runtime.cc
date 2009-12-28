@@ -2724,7 +2724,6 @@ static Object* Runtime_GetProperty(Arguments args) {
 }
 
 
-
 // KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric.
 static Object* Runtime_KeyedGetProperty(Arguments args) {
   NoHandleAllocation ha;
@@ -2776,6 +2775,13 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
         // If value is the hole do the general lookup.
       }
     }
+  } else if (args[0]->IsString() && args[1]->IsSmi()) {
+    // Fast case for string indexing using [] with a smi index.
+    HandleScope scope;
+    Handle<String> str = args.at<String>(0);
+    int index = Smi::cast(args[1])->value();
+    Handle<Object> result = GetCharAt(str, index);
+    return *result;
   }
 
   // Fall back to GetObjectProperty.
