@@ -1510,14 +1510,13 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Call runtime for +1/-1.
-  __ push(r0);
-  __ mov(ip, Operand(Smi::FromInt(1)));
-  __ push(ip);
   if (expr->op() == Token::INC) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
+    __ mov(ip, Operand(Smi::FromInt(1)));
   } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
+    __ mov(ip, Operand(Smi::FromInt(-1)));
   }
+  __ stm(db_w, sp, ip.bit() | r0.bit());
+  __ CallRuntime(Runtime::kNumberAdd, 2);
 
   // Store the value returned in r0.
   switch (assign_type) {
