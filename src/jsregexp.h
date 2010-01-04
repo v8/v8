@@ -75,13 +75,6 @@ class RegExpImpl {
                              int index,
                              Handle<JSArray> lastMatchInfo);
 
-  // Call RegExp.prototyp.exec(string) in a loop.
-  // Used by String.prototype.match and String.prototype.replace.
-  // This function calls the garbage collector if necessary.
-  static Handle<Object> ExecGlobal(Handle<JSRegExp> regexp,
-                                   Handle<String> subject,
-                                   Handle<JSArray> lastMatchInfo);
-
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpPrepare(Handle<JSRegExp> re,
                               Handle<String> pattern,

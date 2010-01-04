@@ -140,12 +140,6 @@ function DoRegExpExec(regexp, string, index) {
 }
 
 
-function DoRegExpExecGlobal(regexp, string) {
-  // Returns an array of arrays of substring indices.
-  return %RegExpExecGlobal(regexp, string, lastMatchInfo);
-}
-
-
 function RegExpExec(string) {
   if (!IS_REGEXP(this)) {
     throw MakeTypeError('method_called_on_incompatible',
