@@ -213,6 +213,7 @@ class FastCodeGenerator: public AstVisitor {
 
   int SlotOffset(Slot* slot);
   void Move(Expression::Context destination, Register source);
+  void MoveTOS(Expression::Context destination);
   void Move(Expression::Context destination, Slot* source, Register scratch);
   void Move(Expression::Context destination, Literal* source);
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
@@ -247,13 +248,13 @@ class FastCodeGenerator: public AstVisitor {
 
   // Platform-specific support for compiling assignments.
 
-  // Load a value from a named property and push the result on the stack.
+  // Load a value from a named property.
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr, Expression::Context context);
 
-  // Load a value from a named property and push the result on the stack.
+  // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
-  void EmitKeyedPropertyLoad(Expression::Context context);
+  void EmitKeyedPropertyLoad(Property* expr, Expression::Context context);
 
   // Apply the compound assignment operator. Expects both operands on top
   // of the stack.
@@ -261,7 +262,7 @@ class FastCodeGenerator: public AstVisitor {
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // on top of the stack.
-  void EmitVariableAssignment(Assignment* expr);
+  void EmitVariableAssignment(Variable* var, Expression::Context context);
 
   // Complete a named property assignment.  The receiver and right-hand-side
   // value are expected on top of the stack.

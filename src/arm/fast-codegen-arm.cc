@@ -247,6 +247,40 @@ void FastCodeGenerator::Move(Expression::Context context, Register source) {
 }
 
 
+void FastCodeGenerator::MoveTOS(Expression::Context context) {
+  switch (context) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:
+      __ Drop(1);
+      break;
+    case Expression::kValue:
+      break;
+    case Expression::kTest:
+      __ pop(r0);
+      TestAndBranch(r0, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ ldr(r0, MemOperand(sp, 0));
+      TestAndBranch(r0, true_label_, &discard);
+      __ bind(&discard);
+      __ Drop(1);
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ ldr(r0, MemOperand(sp, 0));
+      TestAndBranch(r0, &discard, false_label_);
+      __ bind(&discard);
+      __ Drop(1);
+      __ jmp(true_label_);
+    }
+  }
+}
+
+
 template <>
 MemOperand FastCodeGenerator::CreateSlotOperand<MemOperand>(
     Slot* source,
@@ -839,6 +873,7 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
 void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop,
                                               Expression::Context context) {
+  SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
@@ -847,7 +882,9 @@ void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop,
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyLoad(Expression::Context context) {
+void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop,
+                                              Expression::Context context) {
+  SetSourcePosition(prop->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   Move(context, r0);
@@ -865,8 +902,8 @@ void FastCodeGenerator::EmitCompoundAssignmentOp(Token::Value op,
 }
 
 
-void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
-  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+void FastCodeGenerator::EmitVariableAssignment(Variable* var,
+                                               Expression::Context context) {
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->slot() != NULL);
   if (var->is_global()) {
@@ -880,7 +917,7 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Overwrite the global object on the stack with the result if needed.
-    DropAndMove(expr->context(), r0);
+    DropAndMove(context, r0);
 
   } else if (var->slot()) {
     Slot* slot = var->slot();
@@ -888,7 +925,7 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
     switch (slot->type()) {
       case Slot::LOCAL:
       case Slot::PARAMETER: {
-        switch (expr->context()) {
+        switch (context) {
           case Expression::kUninitialized:
             UNREACHABLE();
           case Expression::kEffect:
@@ -953,9 +990,9 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
         __ str(r1, CodeGenerator::ContextOperand(r0, slot->index()));
 
         // RecordWrite may destroy all its register arguments.
-        if (expr->context() == Expression::kValue) {
+        if (context == Expression::kValue) {
           __ push(r1);
-        } else if (expr->context() != Expression::kEffect) {
+        } else if (context != Expression::kEffect) {
           __ mov(r3, r1);
         }
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
@@ -970,9 +1007,9 @@ void FastCodeGenerator::EmitVariableAssignment(Assignment* expr) {
         __ mov(r2, Operand(offset));
         __ RecordWrite(r0, r2, r1);
         __ bind(&exit);
-        if (expr->context() != Expression::kEffect &&
-            expr->context() != Expression::kValue) {
-        Move(expr->context(), r3);
+        if (context != Expression::kEffect &&
+            context != Expression::kValue) {
+          Move(context, r3);
         }
         break;
       }
@@ -1025,7 +1062,7 @@ void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // change to slow case to avoid the quadratic behavior of repeatedly
   // adding fast properties.
   if (expr->starts_initialization_block()) {
-    // Reciever is under the key and value.
+    // Receiver is under the key and value.
     __ ldr(ip, MemOperand(sp, 2 * kPointerSize));
     __ push(ip);
     __ CallRuntime(Runtime::kToSlowProperties, 1);
@@ -1219,7 +1256,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Load function, arg_count into r1 and r0.
   __ mov(r0, Operand(arg_count));
-  // Function is in esp[arg_count + 1].
+  // Function is in sp[arg_count + 1].
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
 
   Handle<Code> construct_builtin(Builtins::builtin(Builtins::JSConstructCall));
@@ -1402,27 +1439,76 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
 void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
   Comment cmnt(masm_, "[ CountOperation");
-  VariableProxy* proxy = expr->expression()->AsVariableProxy();
-  ASSERT(proxy->AsVariable() != NULL);
-  ASSERT(proxy->AsVariable()->is_global());
 
-  Visit(proxy);
+  // Expression can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
+  Property* prop = expr->expression()->AsProperty();
+  // In case of a property we use the uninitialized expression context
+  // of the key to detect a named property.
+  if (prop != NULL) {
+    assign_type = (prop->key()->context() == Expression::kUninitialized)
+        ? NAMED_PROPERTY
+        : KEYED_PROPERTY;
+  }
+
+  // Evaluate expression and get value.
+  if (assign_type == VARIABLE) {
+    ASSERT(expr->expression()->AsVariableProxy()->var() != NULL);
+    EmitVariableLoad(expr->expression()->AsVariableProxy()->var(),
+                     Expression::kValue);
+  } else {
+    // Reserve space for result of postfix operation.
+    if (expr->is_postfix() && expr->context() != Expression::kEffect) {
+      ASSERT(expr->context() != Expression::kUninitialized);
+      __ mov(ip, Operand(Smi::FromInt(0)));
+      __ push(ip);
+    }
+    Visit(prop->obj());
+    ASSERT_EQ(Expression::kValue, prop->obj()->context());
+    if (assign_type == NAMED_PROPERTY) {
+      EmitNamedPropertyLoad(prop, Expression::kValue);
+    } else {
+      Visit(prop->key());
+      ASSERT_EQ(Expression::kValue, prop->key()->context());
+      EmitKeyedPropertyLoad(prop, Expression::kValue);
+    }
+  }
+
+  // Convert to number.
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
 
-  switch (expr->context()) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-    case Expression::kValue:  // Fall through
-    case Expression::kTest:  // Fall through
-    case Expression::kTestValue:  // Fall through
-    case Expression::kValueTest:
-      // Duplicate the result on the stack.
-      __ push(r0);
-      break;
-    case Expression::kEffect:
-      // Do not save result.
-      break;
+  // Save result for postfix expressions.
+  if (expr->is_postfix()) {
+    switch (expr->context()) {
+      case Expression::kUninitialized:
+        UNREACHABLE();
+      case Expression::kEffect:
+        // Do not save result.
+        break;
+      case Expression::kValue:  // Fall through
+      case Expression::kTest:  // Fall through
+      case Expression::kTestValue:  // Fall through
+      case Expression::kValueTest:
+        // Save the result on the stack. If we have a named or keyed property
+        // we store the result under the receiver that is currently on top
+        // of the stack.
+        switch (assign_type) {
+          case VARIABLE:
+            __ push(r0);
+            break;
+          case NAMED_PROPERTY:
+            __ str(r0, MemOperand(sp, kPointerSize));
+            break;
+          case KEYED_PROPERTY:
+            __ str(r0, MemOperand(sp, 2 * kPointerSize));
+            break;
+        }
+        break;
+    }
   }
+
   // Call runtime for +1/-1.
   __ push(r0);
   __ mov(ip, Operand(Smi::FromInt(1)));
@@ -1432,43 +1518,49 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     __ CallRuntime(Runtime::kNumberSub, 2);
   }
-  // Call Store IC.
-  __ mov(r2, Operand(proxy->AsVariable()->name()));
-  __ ldr(ip, CodeGenerator::GlobalObject());
-  __ push(ip);
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET);
-  // Restore up stack after store IC.
-  __ add(sp, sp, Operand(kPointerSize));
 
-  switch (expr->context()) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-    case Expression::kEffect:  // Fall through
-    case Expression::kValue:
-      // Do nothing. Result in either on the stack for value context
-      // or discarded for effect context.
+  // Store the value returned in r0.
+  switch (assign_type) {
+    case VARIABLE:
+      __ push(r0);
+      if (expr->is_postfix()) {
+        EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               Expression::kEffect);
+        // For all contexts except kEffect: We have the result on
+        // top of the stack.
+        if (expr->context() != Expression::kEffect) {
+          MoveTOS(expr->context());
+        }
+      } else {
+        EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
+                               expr->context());
+      }
       break;
-    case Expression::kTest:
-      __ pop(r0);
-      TestAndBranch(r0, true_label_, false_label_);
-      break;
-    case Expression::kValueTest: {
-      Label discard;
-      __ ldr(r0, MemOperand(sp));
-      TestAndBranch(r0, true_label_, &discard);
-      __ bind(&discard);
-      __ add(sp, sp, Operand(kPointerSize));
-      __ b(false_label_);
+    case NAMED_PROPERTY: {
+      __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      __ Call(ic, RelocInfo::CODE_TARGET);
+      if (expr->is_postfix()) {
+        __ Drop(1);  // Result is on the stack under the receiver.
+        if (expr->context() != Expression::kEffect) {
+          MoveTOS(expr->context());
+        }
+      } else {
+        DropAndMove(expr->context(), r0);
+      }
       break;
     }
-    case Expression::kTestValue: {
-      Label discard;
-      __ ldr(r0, MemOperand(sp));
-      TestAndBranch(r0, &discard, false_label_);
-      __ bind(&discard);
-      __ add(sp, sp, Operand(kPointerSize));
-      __ b(true_label_);
+    case KEYED_PROPERTY: {
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      __ Call(ic, RelocInfo::CODE_TARGET);
+      if (expr->is_postfix()) {
+        __ Drop(2);  // Result is on the stack under the key and the receiver.
+        if (expr->context() != Expression::kEffect) {
+          MoveTOS(expr->context());
+        }
+      } else {
+        DropAndMove(expr->context(), r0, 2);
+      }
       break;
     }
   }

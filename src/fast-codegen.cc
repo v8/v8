@@ -676,7 +676,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
         EmitNamedPropertyLoad(prop, Expression::kValue);
         break;
       case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(Expression::kValue);
+        EmitKeyedPropertyLoad(prop, Expression::kValue);
         break;
     }
   }
@@ -694,7 +694,8 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   // Store the value.
   switch (assign_type) {
     case VARIABLE:
-      EmitVariableAssignment(expr);
+      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             expr->context());
       break;
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);

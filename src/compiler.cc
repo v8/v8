@@ -649,12 +649,6 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 void CodeGenSelector::VisitDeclaration(Declaration* decl) {
   Property* prop = decl->proxy()->AsProperty();
   if (prop != NULL) {
-    // Property rewrites are shared, ensure we are not changing its
-    // expression context state.
-    ASSERT(prop->obj()->context() == Expression::kUninitialized ||
-           prop->obj()->context() == Expression::kValue);
-    ASSERT(prop->key()->context() == Expression::kUninitialized ||
-           prop->key()->context() == Expression::kValue);
     ProcessExpression(prop->obj(), Expression::kValue);
     ProcessExpression(prop->key(), Expression::kValue);
   }
@@ -903,8 +897,6 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
       }
     }
   } else if (prop != NULL) {
-    ASSERT(prop->obj()->context() == Expression::kUninitialized ||
-           prop->obj()->context() == Expression::kValue);
     ProcessExpression(prop->obj(), Expression::kValue);
     CHECK_BAILOUT;
     // We will only visit the key during code generation for keyed property
@@ -915,8 +907,6 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
     if (lit == NULL ||
         !lit->handle()->IsSymbol() ||
         String::cast(*(lit->handle()))->AsArrayIndex(&ignored)) {
-      ASSERT(prop->key()->context() == Expression::kUninitialized ||
-             prop->key()->context() == Expression::kValue);
       ProcessExpression(prop->key(), Expression::kValue);
       CHECK_BAILOUT;
     }
@@ -1022,11 +1012,36 @@ void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
-  // We support postfix count operations on global variables.
-  if (expr->is_prefix()) BAILOUT("Prefix CountOperation");
   Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-  if (var == NULL || !var->is_global()) BAILOUT("non-global postincrement");
-  ProcessExpression(expr->expression(), Expression::kValue);
+  Property* prop = expr->expression()->AsProperty();
+  ASSERT(var == NULL || prop == NULL);
+  if (var != NULL) {
+    // All global variables are supported.
+    if (!var->is_global()) {
+      ASSERT(var->slot() != NULL);
+      Slot::Type type = var->slot()->type();
+      if (type == Slot::LOOKUP) {
+        BAILOUT("CountOperation with lookup slot");
+      }
+    }
+  } else if (prop != NULL) {
+    ProcessExpression(prop->obj(), Expression::kValue);
+    CHECK_BAILOUT;
+    // We will only visit the key during code generation for keyed property
+    // stores.  Leave its expression context uninitialized for named
+    // property stores.
+    Literal* lit = prop->key()->AsLiteral();
+    uint32_t ignored;
+    if (lit == NULL ||
+        !lit->handle()->IsSymbol() ||
+        String::cast(*(lit->handle()))->AsArrayIndex(&ignored)) {
+      ProcessExpression(prop->key(), Expression::kValue);
+      CHECK_BAILOUT;
+    }
+  } else {
+    // This is a throw reference error.
+    BAILOUT("CountOperation non-variable/non-property expression");
+  }
 }
 
 
