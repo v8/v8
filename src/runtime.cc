@@ -5409,6 +5409,8 @@ class ArrayConcatVisitor {
     index_offset_ += delta;
   }
 
+  Handle<FixedArray> storage() { return storage_; }
+
  private:
   Handle<FixedArray> storage_;
   uint32_t index_limit_;
@@ -5718,7 +5720,8 @@ static Object* Runtime_ArrayConcat(Arguments args) {
   IterateArguments(arguments, &visitor);
 
   result->set_length(*len);
-  result->set_elements(*storage);
+  // Please note the storage might have changed in the visitor.
+  result->set_elements(*visitor.storage());
 
   return *result;
 }

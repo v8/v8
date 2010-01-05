@@ -1875,6 +1875,11 @@ class HashTable: public FixedArray {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
   }
 
+  // Returns the number of deleted elements in the hash table.
+  int NumberOfDeletedElements() {
+    return Smi::cast(get(kNumberOfDeletedElementsIndex))->value();
+  }
+
   // Returns the capacity of the hash table.
   int Capacity() {
     return Smi::cast(get(kCapacityIndex))->value();
@@ -1886,8 +1891,14 @@ class HashTable: public FixedArray {
 
   // ElementRemoved should be called whenever an element is removed from
   // a hash table.
-  void ElementRemoved() { SetNumberOfElements(NumberOfElements() - 1); }
-  void ElementsRemoved(int n) { SetNumberOfElements(NumberOfElements() - n); }
+  void ElementRemoved() {
+    SetNumberOfElements(NumberOfElements() - 1);
+    SetNumberOfDeletedElements(NumberOfDeletedElements() + 1);
+  }
+  void ElementsRemoved(int n) {
+    SetNumberOfElements(NumberOfElements() - n);
+    SetNumberOfDeletedElements(NumberOfDeletedElements() + n);
+  }
 
   // Returns a new HashTable object. Might return Failure.
   static Object* Allocate(int at_least_space_for);
@@ -1914,12 +1925,13 @@ class HashTable: public FixedArray {
   }
 
   static const int kNumberOfElementsIndex = 0;
-  static const int kCapacityIndex         = 1;
-  static const int kPrefixStartIndex      = 2;
-  static const int kElementsStartIndex    =
+  static const int kNumberOfDeletedElementsIndex = 1;
+  static const int kCapacityIndex = 2;
+  static const int kPrefixStartIndex = 3;
+  static const int kElementsStartIndex =
       kPrefixStartIndex + Shape::kPrefixSize;
-  static const int kEntrySize             = Shape::kEntrySize;
-  static const int kElementsStartOffset   =
+  static const int kEntrySize = Shape::kEntrySize;
+  static const int kElementsStartOffset =
       kHeaderSize + kElementsStartIndex * kPointerSize;
 
   // Constant used for denoting a absent entry.
@@ -1942,6 +1954,11 @@ class HashTable: public FixedArray {
   // Update the number of elements in the hash table.
   void SetNumberOfElements(int nof) {
     fast_set(this, kNumberOfElementsIndex, Smi::FromInt(nof));
+  }
+
+  // Update the number of deleted elements in the hash table.
+  void SetNumberOfDeletedElements(int nod) {
+    fast_set(this, kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
   }
 
   // Sets the capacity of the hash table.
