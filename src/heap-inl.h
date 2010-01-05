@@ -54,7 +54,8 @@ Object* Heap::AllocateRaw(int size_in_bytes,
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   ASSERT(space != NEW_SPACE ||
          retry_space == OLD_POINTER_SPACE ||
-         retry_space == OLD_DATA_SPACE);
+         retry_space == OLD_DATA_SPACE ||
+         retry_space == LO_SPACE);
 #ifdef DEBUG
   if (FLAG_gc_interval >= 0 &&
       !disallow_allocation_failure_ &&
