@@ -2892,13 +2892,15 @@ void CodeGenerator::VisitCall(Call* node) {
       frame_->EmitPush(r2);
     }
 
+    // Push the receiver.
+    __ ldr(r1, frame_->Receiver());
+    frame_->EmitPush(r1);
+
     // Resolve the call.
-    frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+    frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
 
     // Touch up stack with the right values for the function and the receiver.
-    __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize));
-    __ str(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-    __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize + kPointerSize));
+    __ str(r0, MemOperand(sp, (arg_count + 1) * kPointerSize));
     __ str(r1, MemOperand(sp, arg_count * kPointerSize));
 
     // Call the function.

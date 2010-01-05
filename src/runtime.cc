@@ -5233,51 +5233,31 @@ static Object* Runtime_CompileString(Arguments args) {
 }
 
 
-static Handle<JSFunction> GetBuiltinFunction(String* name) {
-  LookupResult result;
-  Top::global_context()->builtins()->LocalLookup(name, &result);
-  return Handle<JSFunction>(JSFunction::cast(result.GetValue()));
-}
+static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
+  ASSERT(args.length() == 3);
+  if (!args[0]->IsJSFunction()) {
+    return MakePair(Top::ThrowIllegalOperation(), NULL);
+  }
 
-
-static Object* CompileDirectEval(Handle<String> source) {
-  // Compute the eval context.
   HandleScope scope;
+  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Handle<Object> receiver;  // Will be overwritten.
+
+  // Compute the calling context.
+  Handle<Context> context = Handle<Context>(Top::context());
+#ifdef DEBUG
+  // Make sure Top::context() agrees with the old code that traversed
+  // the stack frames to compute the context.
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  Handle<Context> context(Context::cast(frame->context()));
-  bool is_global = context->IsGlobalContext();
-
-  // Compile source string in the current context.
-  Handle<JSFunction> boilerplate = Compiler::CompileEval(
-      source,
-      context,
-      is_global,
-      Compiler::DONT_VALIDATE_JSON);
-  if (boilerplate.is_null()) return Failure::Exception();
-  Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context, NOT_TENURED);
-  return *fun;
-}
-
-
-static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
-  ASSERT(args.length() == 2);
-
-  HandleScope scope;
-
-  CONVERT_ARG_CHECKED(JSFunction, callee, 0);
-
-  Handle<Object> receiver;
+  ASSERT(Context::cast(frame->context()) == *context);
+#endif
 
   // Find where the 'eval' symbol is bound. It is unaliased only if
   // it is bound in the global context.
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  Handle<Context> context(Context::cast(frame->context()));
-  int index;
-  PropertyAttributes attributes;
-  while (!context.is_null()) {
+  int index = -1;
+  PropertyAttributes attributes = ABSENT;
+  while (true) {
     receiver = context->Lookup(Factory::eval_symbol(), FOLLOW_PROTOTYPE_CHAIN,
                                &index, &attributes);
     // Stop search when eval is found or when the global context is
@@ -5296,46 +5276,42 @@ static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
     Handle<Object> name = Factory::eval_symbol();
     Handle<Object> reference_error =
         Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
-    return Top::Throw(*reference_error);
+    return MakePair(Top::Throw(*reference_error), NULL);
   }
 
-  if (context->IsGlobalContext()) {
-    // 'eval' is bound in the global context, but it may have been overwritten.
-    // Compare it to the builtin 'GlobalEval' function to make sure.
-    Handle<JSFunction> global_eval =
-      GetBuiltinFunction(Heap::global_eval_symbol());
-    if (global_eval.is_identical_to(callee)) {
-      // A direct eval call.
-      if (args[1]->IsString()) {
-        CONVERT_ARG_CHECKED(String, source, 1);
-        // A normal eval call on a string. Compile it and return the
-        // compiled function bound in the local context.
-        Object* compiled_source = CompileDirectEval(source);
-        if (compiled_source->IsFailure()) return compiled_source;
-        receiver = Handle<Object>(frame->receiver());
-        callee = Handle<JSFunction>(JSFunction::cast(compiled_source));
-      } else {
-        // An eval call that is not called on a string. Global eval
-        // deals better with this.
-        receiver = Handle<Object>(Top::global_context()->global());
-      }
-    } else {
-      // 'eval' is overwritten. Just call the function with the given arguments.
-      receiver = Handle<Object>(Top::global_context()->global());
-    }
-  } else {
+  if (!context->IsGlobalContext()) {
     // 'eval' is not bound in the global context. Just call the function
     // with the given arguments. This is not necessarily the global eval.
     if (receiver->IsContext()) {
       context = Handle<Context>::cast(receiver);
       receiver = Handle<Object>(context->get(index));
+    } else if (receiver->IsJSContextExtensionObject()) {
+      receiver = Handle<JSObject>(Top::context()->global()->global_receiver());
     }
+    return MakePair(*callee, *receiver);
   }
 
-  Handle<FixedArray> call = Factory::NewFixedArray(2);
-  call->set(0, *callee);
-  call->set(1, *receiver);
-  return *call;
+  // 'eval' is bound in the global context, but it may have been overwritten.
+  // Compare it to the builtin 'GlobalEval' function to make sure.
+  if (*callee != Top::global_context()->global_eval_fun() ||
+      !args[1]->IsString()) {
+    return MakePair(*callee, Top::context()->global()->global_receiver());
+  }
+
+  // Deal with a normal eval call with a string argument. Compile it
+  // and return the compiled function bound in the local context.
+  Handle<String> source = args.at<String>(1);
+  Handle<JSFunction> boilerplate = Compiler::CompileEval(
+      source,
+      Handle<Context>(Top::context()),
+      Top::context()->IsGlobalContext(),
+      Compiler::DONT_VALIDATE_JSON);
+  if (boilerplate.is_null()) return MakePair(Failure::Exception(), NULL);
+  callee = Factory::NewFunctionFromBoilerplate(
+      boilerplate,
+      Handle<Context>(Top::context()),
+      NOT_TENURED);
+  return MakePair(*callee, args[2]);
 }
 
 

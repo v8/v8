@@ -2671,23 +2671,19 @@ void CodeGenerator::VisitCall(Call* node) {
       frame_->Push(Factory::undefined_value());
     }
 
+    // Push the receiver.
+    frame_->PushParameterAt(-1);
+
     // Resolve the call.
     Result result =
-        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+        frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 3);
 
-    // Touch up the stack with the right values for the function and the
-    // receiver.  Use a scratch register to avoid destroying the result.
-    Result scratch = allocator_->Allocate();
-    ASSERT(scratch.is_valid());
-    __ movq(scratch.reg(),
-            FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(0)));
-    frame_->SetElementAt(arg_count + 1, &scratch);
-
-    // We can reuse the result register now.
-    frame_->Spill(result.reg());
-    __ movq(result.reg(),
-            FieldOperand(result.reg(), FixedArray::OffsetOfElementAt(1)));
-    frame_->SetElementAt(arg_count, &result);
+    // The runtime call returns a pair of values in rax (function) and
+    // rdx (receiver). Touch up the stack with the right values.
+    Result receiver = allocator_->Allocate(rdx);
+    frame_->SetElementAt(arg_count + 1, &result);
+    frame_->SetElementAt(arg_count, &receiver);
+    receiver.Unuse();
 
     // Call the function.
     CodeForSourcePosition(node->position());

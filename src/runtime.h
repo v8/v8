@@ -202,7 +202,7 @@ namespace internal {
   \
   /* Eval */ \
   F(GlobalReceiver, 1, 1) \
-  F(ResolvePossiblyDirectEval, 2, 1) \
+  F(ResolvePossiblyDirectEval, 3, 1) \
   \
   F(SetProperty, -1 /* 3 or 4 */, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
