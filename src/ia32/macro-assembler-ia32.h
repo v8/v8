@@ -33,9 +33,12 @@
 namespace v8 {
 namespace internal {
 
+// Convenience for platform-independent signatures.  We do not normally
+// distinguish memory operands from other operands on ia32.
+typedef Operand MemOperand;
+
 // Forward declaration.
 class JumpTarget;
-
 
 // MacroAssembler implements a collection of frequently used macros.
 class MacroAssembler: public Assembler {

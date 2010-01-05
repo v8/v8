@@ -281,32 +281,29 @@ void FastCodeGenerator::MoveTOS(Expression::Context context) {
 }
 
 
-template <>
-MemOperand FastCodeGenerator::CreateSlotOperand<MemOperand>(
-    Slot* source,
-    Register scratch) {
-  switch (source->type()) {
+MemOperand FastCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
+  switch (slot->type()) {
     case Slot::PARAMETER:
     case Slot::LOCAL:
-      return MemOperand(fp, SlotOffset(source));
+      return MemOperand(fp, SlotOffset(slot));
     case Slot::CONTEXT: {
       int context_chain_length =
-          function_->scope()->ContextChainLength(source->var()->scope());
+          function_->scope()->ContextChainLength(slot->var()->scope());
       __ LoadContext(scratch, context_chain_length);
-      return CodeGenerator::ContextOperand(scratch, source->index());
+      return CodeGenerator::ContextOperand(scratch, slot->index());
     }
     case Slot::LOOKUP:
-      UNIMPLEMENTED();
+      UNREACHABLE();
   }
   UNREACHABLE();
   return MemOperand(r0, 0);
 }
 
 
-void FastCodeGenerator::Move(Register dst, Slot* source) {
-  // Use dst as scratch.
-  MemOperand location = CreateSlotOperand<MemOperand>(source, dst);
-  __ ldr(dst, location);
+void FastCodeGenerator::Move(Register destination, Slot* source) {
+  // Use destination as scratch.
+  MemOperand location = EmitSlotSearch(source, destination);
+  __ ldr(destination, location);
 }
 
 
@@ -351,23 +348,14 @@ void FastCodeGenerator::Move(Slot* dst,
                              Register src,
                              Register scratch1,
                              Register scratch2) {
-  switch (dst->type()) {
-    case Slot::PARAMETER:
-    case Slot::LOCAL:
-      __ str(src, MemOperand(fp, SlotOffset(dst)));
-      break;
-    case Slot::CONTEXT: {
-      int context_chain_length =
-          function_->scope()->ContextChainLength(dst->var()->scope());
-      __ LoadContext(scratch1, context_chain_length);
-      int index = Context::SlotOffset(dst->index());
-      __ mov(scratch2, Operand(index));
-      __ str(src, MemOperand(scratch1, index));
-      __ RecordWrite(scratch1, scratch2, src);
-      break;
-    }
-    case Slot::LOOKUP:
-      UNIMPLEMENTED();
+  ASSERT(dst->type() != Slot::LOOKUP);  // Not yet implemented.
+  ASSERT(!scratch1.is(src) && !scratch2.is(src));
+  MemOperand location = EmitSlotSearch(dst, scratch1);
+  __ str(src, location);
+  // Emit the write barrier code if the location is in the heap.
+  if (dst->type() == Slot::CONTEXT) {
+    __ mov(scratch2, Operand(Context::SlotOffset(dst->index())));
+    __ RecordWrite(scratch1, scratch2, src);
   }
 }
 
@@ -451,15 +439,18 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
       case Slot::LOCAL:
         if (decl->mode() == Variable::CONST) {
           __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-          __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
+          __ str(ip, MemOperand(fp, SlotOffset(slot)));
         } else if (decl->fun() != NULL) {
           Visit(decl->fun());
           __ pop(ip);
-          __ str(ip, MemOperand(fp, SlotOffset(var->slot())));
+          __ str(ip, MemOperand(fp, SlotOffset(slot)));
         }
         break;
 
       case Slot::CONTEXT:
+        // We bypass the general EmitSlotSearch because we know more about
+        // this specific context.
+
         // The variable in the decl always resides in the current context.
         ASSERT_EQ(0, function_->scope()->ContextChainLength(var->scope()));
         if (FLAG_debug_code) {
@@ -912,35 +903,35 @@ void FastCodeGenerator::EmitVariableAssignment(Variable* var,
     // Overwrite the global object on the stack with the result if needed.
     DropAndMove(context, r0);
 
-  } else if (var->slot()) {
+  } else if (var->slot() != NULL) {
     Slot* slot = var->slot();
-    ASSERT_NOT_NULL(slot);  // Variables rewritten as properties not handled.
     switch (slot->type()) {
       case Slot::LOCAL:
       case Slot::PARAMETER: {
+        MemOperand target = MemOperand(fp, SlotOffset(slot));
         switch (context) {
           case Expression::kUninitialized:
             UNREACHABLE();
           case Expression::kEffect:
             // Perform assignment and discard value.
             __ pop(r0);
-            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            __ str(r0, target);
             break;
           case Expression::kValue:
             // Perform assignment and preserve value.
             __ ldr(r0, MemOperand(sp));
-            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            __ str(r0, target);
             break;
           case Expression::kTest:
             // Perform assignment and test (and discard) value.
             __ pop(r0);
-            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            __ str(r0, target);
             TestAndBranch(r0, true_label_, false_label_);
             break;
           case Expression::kValueTest: {
             Label discard;
             __ ldr(r0, MemOperand(sp));
-            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            __ str(r0, target);
             TestAndBranch(r0, true_label_, &discard);
             __ bind(&discard);
             __ pop();
@@ -950,7 +941,7 @@ void FastCodeGenerator::EmitVariableAssignment(Variable* var,
           case Expression::kTestValue: {
             Label discard;
             __ ldr(r0, MemOperand(sp));
-            __ str(r0, MemOperand(fp, SlotOffset(var->slot())));
+            __ str(r0, target);
             TestAndBranch(r0, &discard, false_label_);
             __ bind(&discard);
             __ pop();
@@ -962,31 +953,15 @@ void FastCodeGenerator::EmitVariableAssignment(Variable* var,
       }
 
       case Slot::CONTEXT: {
-        int chain_length =
-            function_->scope()->ContextChainLength(slot->var()->scope());
-        if (chain_length > 0) {
-          // Move up the chain of contexts to the context containing the slot.
-          __ ldr(r0, CodeGenerator::ContextOperand(cp, Context::CLOSURE_INDEX));
-          // Load the function context (which is the incoming, outer context).
-          __ ldr(r0, FieldMemOperand(r0, JSFunction::kContextOffset));
-          for (int i = 1; i < chain_length; i++) {
-            __ ldr(r0,
-                   CodeGenerator::ContextOperand(r0, Context::CLOSURE_INDEX));
-            __ ldr(r0, FieldMemOperand(r0, JSFunction::kContextOffset));
-          }
-        } else {  // Slot is in the current context.  Generate optimized code.
-          __ mov(r0, cp);
-        }
-        // The context may be an intermediate context, not a function context.
-        __ ldr(r0, CodeGenerator::ContextOperand(r0, Context::FCONTEXT_INDEX));
-        __ pop(r1);
-        __ str(r1, CodeGenerator::ContextOperand(r0, slot->index()));
+        MemOperand target = EmitSlotSearch(slot, r1);
+        __ pop(r0);
+        __ str(r0, target);
 
         // RecordWrite may destroy all its register arguments.
         if (context == Expression::kValue) {
-          __ push(r1);
+          __ push(r0);
         } else if (context != Expression::kEffect) {
-          __ mov(r3, r1);
+          __ mov(r3, r0);
         }
         int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
 
@@ -994,14 +969,13 @@ void FastCodeGenerator::EmitVariableAssignment(Variable* var,
         // register.  Skip the write barrier if the value written (r1) is a smi.
         // The smi test is part of RecordWrite on other platforms, not on arm.
         Label exit;
-        __ tst(r1, Operand(kSmiTagMask));
+        __ tst(r0, Operand(kSmiTagMask));
         __ b(eq, &exit);
 
         __ mov(r2, Operand(offset));
-        __ RecordWrite(r0, r2, r1);
+        __ RecordWrite(r1, r2, r0);
         __ bind(&exit);
-        if (context != Expression::kEffect &&
-            context != Expression::kValue) {
+        if (context != Expression::kEffect && context != Expression::kValue) {
           Move(context, r3);
         }
         break;
@@ -1011,6 +985,10 @@ void FastCodeGenerator::EmitVariableAssignment(Variable* var,
         UNREACHABLE();
         break;
     }
+  } else {
+    // Variables rewritten as properties are not treated as variables in
+    // assignments.
+    UNREACHABLE();
   }
 }
 

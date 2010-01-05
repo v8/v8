@@ -38,6 +38,9 @@ namespace internal {
 // function calling convention.
 static const Register kScratchRegister = r10;
 
+// Convenience for platform-independent signatures.
+typedef Operand MemOperand;
+
 // Forward declaration.
 class JumpTarget;
 

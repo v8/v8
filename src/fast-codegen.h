@@ -219,9 +219,10 @@ class FastCodeGenerator: public AstVisitor {
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
   void Move(Register dst, Slot* source);
 
-  // Templated to allow for Operand on intel and MemOperand on ARM.
-  template <typename MemoryLocation>
-  MemoryLocation CreateSlotOperand(Slot* slot, Register scratch);
+  // Return an operand used to read/write to a known (ie, non-LOOKUP) slot.
+  // May emit code to traverse the context chain, destroying the scratch
+  // register.
+  MemOperand EmitSlotSearch(Slot* slot, Register scratch);
 
   // Drop the TOS, and store source to destination.
   // If destination is TOS, just overwrite TOS with source.
