@@ -7733,20 +7733,24 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 
 void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
   __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adaptor);
-
-  // Nothing to do: The formal number of parameters has already been
-  // passed in register eax by calling function. Just return it.
-  __ ret(0);
 
   // Arguments adaptor case: Read the arguments length from the
   // adaptor frame and return it.
-  __ bind(&adaptor);
-  __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  // Otherwise nothing to do: The number of formal parameters has already been
+  // passed in register eax by calling function. Just return it.
+  if (CpuFeatures::IsSupported(CMOV)) {
+    CpuFeatures::Scope use_cmov(CMOV);
+    __ cmov(equal, eax,
+            Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  } else {
+    Label exit;
+    __ j(not_equal, &exit);
+    __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ bind(&exit);
+  }
   __ ret(0);
 }
 
