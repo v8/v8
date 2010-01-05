@@ -67,7 +67,8 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
     case Slot::LOCAL:
       offset += JavaScriptFrameConstants::kLocal0Offset;
       break;
-    default:
+    case Slot::CONTEXT:
+    case Slot::LOOKUP:
       UNREACHABLE();
   }
   return offset;
@@ -162,7 +163,7 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   switch (expr->context()) {
     case Expression::kUninitialized:
       UNREACHABLE();
-    case Expression::kEffect:  // Fall through.
+    case Expression::kEffect:
     case Expression::kTest:
       // The value of the left subexpression is not needed.
       expected = Expression::kTest;

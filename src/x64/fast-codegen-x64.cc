@@ -282,15 +282,12 @@ Operand FastCodeGenerator::CreateSlotOperand<Operand>(Slot* source,
           function_->scope()->ContextChainLength(source->var()->scope());
       __ LoadContext(scratch, context_chain_length);
       return CodeGenerator::ContextOperand(scratch, source->index());
-      break;
     }
     case Slot::LOOKUP:
       UNIMPLEMENTED();
-      // Fall-through.
-    default:
-      UNREACHABLE();
-      return Operand(rax, 0);  // Dead code to make the compiler happy.
   }
+  UNREACHABLE();
+  return Operand(rax, 0);
 }
 
 
@@ -313,8 +310,8 @@ void FastCodeGenerator::Move(Expression::Context context,
       __ push(location);
       break;
     }
-    case Expression::kTest:  // Fall through.
-    case Expression::kValueTest:  // Fall through.
+    case Expression::kTest:
+    case Expression::kValueTest:
     case Expression::kTestValue:
       Move(scratch, source);
       Move(context, scratch);
@@ -332,8 +329,8 @@ void FastCodeGenerator::Move(Expression::Context context, Literal* expr) {
     case Expression::kValue:
       __ Push(expr->handle());
       break;
-    case Expression::kTest:  // Fall through.
-    case Expression::kValueTest:  // Fall through.
+    case Expression::kTest:
+    case Expression::kValueTest:
     case Expression::kTestValue:
       __ Move(rax, expr->handle());
       Move(context, rax);
@@ -365,8 +362,6 @@ void FastCodeGenerator::Move(Slot* dst,
     }
     case Slot::LOOKUP:
       UNIMPLEMENTED();
-    default:
-      UNREACHABLE();
   }
 }
 
@@ -458,7 +453,7 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
 
   if (slot != NULL) {
     switch (slot->type()) {
-      case Slot::PARAMETER:  // Fall through.
+      case Slot::PARAMETER:
       case Slot::LOCAL:
         if (decl->mode() == Variable::CONST) {
           __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
@@ -617,8 +612,6 @@ void FastCodeGenerator::EmitVariableLoad(Variable* var,
         case Slot::LOOKUP:
           UNIMPLEMENTED();
           break;
-        default:
-          UNREACHABLE();
       }
     }
     Move(context, slot, rax);
@@ -715,7 +708,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       result_saved = true;
     }
     switch (property->kind()) {
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:  // fall through
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
         ASSERT(!CompileTimeValue::IsCompileTimeValue(value));
       case ObjectLiteral::Property::COMPUTED:
         if (key->handle()->IsSymbol()) {
@@ -729,7 +722,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ movq(rax, Operand(rsp, 0));  // Restore result back into rax.
           break;
         }
-        // fall through
+        // Fall through.
       case ObjectLiteral::Property::PROTOTYPE:
         __ push(rax);
         Visit(key);
@@ -739,7 +732,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ CallRuntime(Runtime::kSetProperty, 3);
         __ movq(rax, Operand(rsp, 0));  // Restore result into rax.
         break;
-      case ObjectLiteral::Property::SETTER:  // fall through
+      case ObjectLiteral::Property::SETTER:
       case ObjectLiteral::Property::GETTER:
         __ push(rax);
         Visit(key);
@@ -1320,7 +1313,7 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           // Value is false so it's needed.
           __ PushRoot(Heap::kUndefinedValueRootIndex);
           // Fall through.
-        case Expression::kTest:  // Fall through.
+        case Expression::kTest:
         case Expression::kValueTest:
           __ jmp(false_label_);
           break;
@@ -1672,7 +1665,7 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       switch (expr->op()) {
         case Token::EQ_STRICT:
           strict = true;
-          // Fall through
+          // Fall through.
         case Token::EQ:
           cc = equal;
           __ pop(rax);
