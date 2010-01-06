@@ -427,7 +427,7 @@ function APPLY_PREPARE(args) {
     }
   }
 
-  length = (args == null) ? 0 : TO_UINT32(args.length);
+  length = (args == null) ? 0 : %ToUint32(args.length);
 
   // We can handle any number of apply arguments if the stack is
   // big enough, but sanity check the value to avoid overflow when
