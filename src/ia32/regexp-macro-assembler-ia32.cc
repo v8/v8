@@ -55,13 +55,17 @@ namespace internal {
  *
  * Each call to a public method should retain this convention.
  * The stack will have the following structure:
- *       - stack_area_base     (High end of the memory area to use as
- *                             backtracking stack)
- *       - at_start           (if 1, start at start of string, if 0, don't)
- *       - int* capture_array (int[num_saved_registers_], for output).
- *       - end of input       (Address of end of string)
- *       - start of input     (Address of first character in string)
- *       - void* input_string (location of a handle containing the string)
+ *       - direct_call          (if 1, direct call from JavaScript code, if 0
+ *                               call through the runtime system)
+ *       - stack_area_base      (High end of the memory area to use as
+ *                               backtracking stack)
+ *       - at_start             (if 1, we are starting at the start of the
+ *                               string, otherwise 0)
+ *       - int* capture_array   (int[num_saved_registers_], for output).
+ *       - end of input         (Address of end of string)
+ *       - start of input       (Address of first character in string)
+ *       - start index          (character index of start)
+ *       - String* input_string (location of a handle containing the string)
  *       --- frame alignment (if applicable) ---
  *       - return address
  * ebp-> - old ebp
@@ -81,11 +85,13 @@ namespace internal {
  * The data up to the return address must be placed there by the calling
  * code, by calling the code entry as cast to a function with the signature:
  * int (*match)(String* input_string,
+ *              int start_index,
  *              Address start,
  *              Address end,
  *              int* capture_output_array,
  *              bool at_start,
- *              byte* stack_area_base)
+ *              byte* stack_area_base,
+ *              bool direct_call)
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -941,6 +947,12 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
 
   // If not real stack overflow the stack guard was used to interrupt
   // execution for another purpose.
+
+  // If this is a direct call from JavaScript retry the RegExp forcing the call
+  // through the runtime system. Currently the direct call cannot handle a GC.
+  if (frame_entry<int>(re_frame, kDirectCall) == 1) {
+    return RETRY;
+  }
 
   // Prepare for possible GC.
   HandleScope handles;

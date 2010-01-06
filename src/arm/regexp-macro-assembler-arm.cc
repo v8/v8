@@ -59,15 +59,19 @@ namespace internal {
  *
  * Each call to a public method should retain this convention.
  * The stack will have the following structure:
+ *       - direct_call        (if 1, direct call from JavaScript code, if 0 call
+ *                             through the runtime system)
  *       - stack_area_base    (High end of the memory area to use as
  *                             backtracking stack)
- *       - at_start           (if 1, start at start of string, if 0, don't)
+ *       - at_start           (if 1, we are starting at the start of the
+ *                             string, otherwise 0)
+ *       - int* capture_array (int[num_saved_registers_], for output).
  *       --- sp when called ---
  *       - link address
  *       - backup of registers r4..r11
- *       - int* capture_array (int[num_saved_registers_], for output).
  *       - end of input       (Address of end of string)
  *       - start of input     (Address of first character in string)
+ *       - start index        (character index of start)
  *       --- frame pointer ----
  *       - void* input_string (location of a handle containing the string)
  *       - Offset of location before start of input (effectively character
@@ -85,11 +89,13 @@ namespace internal {
  * The data up to the return address must be placed there by the calling
  * code, by calling the code entry as cast to a function with the signature:
  * int (*match)(String* input_string,
+ *              int start_index,
  *              Address start,
  *              Address end,
  *              int* capture_output_array,
  *              bool at_start,
- *              byte* stack_area_base)
+ *              byte* stack_area_base,
+ *              bool direct_call)
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc).
  */

@@ -101,12 +101,22 @@ class RegExpImpl {
                                      int index,
                                      Handle<JSArray> lastMatchInfo);
 
-  // Offsets in the lastMatchInfo array.
+  // Array index in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
   static const int kLastSubject = 1;
   static const int kLastInput = 2;
   static const int kFirstCapture = 3;
   static const int kLastMatchOverhead = 3;
+
+  // Direct offset into the lastMatchInfo array.
+  static const int kLastCaptureCountOffset =
+      FixedArray::kHeaderSize + kLastCaptureCount * kPointerSize;
+  static const int kLastSubjectOffset =
+      FixedArray::kHeaderSize + kLastSubject * kPointerSize;
+  static const int kLastInputOffset =
+      FixedArray::kHeaderSize + kLastInput * kPointerSize;
+  static const int kFirstCaptureOffset =
+      FixedArray::kHeaderSize + kFirstCapture * kPointerSize;
 
   // Used to access the lastMatchInfo array.
   static int GetCapture(FixedArray* array, int index) {
@@ -1273,6 +1283,40 @@ class RegExpEngine: public AllStatic {
                                    bool is_ascii);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
+};
+
+
+class OffsetsVector {
+ public:
+  inline OffsetsVector(int num_registers)
+      : offsets_vector_length_(num_registers) {
+    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
+      vector_ = NewArray<int>(offsets_vector_length_);
+    } else {
+      vector_ = static_offsets_vector_;
+    }
+  }
+  inline ~OffsetsVector() {
+    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
+      DeleteArray(vector_);
+      vector_ = NULL;
+    }
+  }
+  inline int* vector() { return vector_; }
+  inline int length() { return offsets_vector_length_; }
+
+  static const int kStaticOffsetsVectorSize = 50;
+
+ private:
+  static Address static_offsets_vector_address() {
+    return reinterpret_cast<Address>(&static_offsets_vector_);
+  }
+
+  int* vector_;
+  int offsets_vector_length_;
+  static int static_offsets_vector_[kStaticOffsetsVectorSize];
+
+  friend class ExternalReference;
 };
 
 

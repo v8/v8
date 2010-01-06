@@ -325,6 +325,17 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 }
 
 
+Condition MacroAssembler::IsObjectStringType(Register heap_object,
+                                             Register map,
+                                             Register instance_type) {
+  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  ASSERT(kNotStringTag != 0);
+  test(instance_type, Immediate(kIsNotStringMask));
+  return zero;
+}
+
+
 void MacroAssembler::FCmp() {
   if (CpuFeatures::IsSupported(CMOV)) {
     fucomip();

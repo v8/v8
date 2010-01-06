@@ -112,37 +112,6 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
 
-class OffsetsVector {
- public:
-  inline OffsetsVector(int num_registers)
-      : offsets_vector_length_(num_registers) {
-    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
-      vector_ = NewArray<int>(offsets_vector_length_);
-    } else {
-      vector_ = static_offsets_vector_;
-    }
-  }
-  inline ~OffsetsVector() {
-    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
-      DeleteArray(vector_);
-      vector_ = NULL;
-    }
-  }
-  inline int* vector() { return vector_; }
-  inline int length() { return offsets_vector_length_; }
-
- private:
-  int* vector_;
-  int offsets_vector_length_;
-  static const int kStaticOffsetsVectorSize = 50;
-  static int static_offsets_vector_[kStaticOffsetsVectorSize];
-};
-
-
-int OffsetsVector::static_offsets_vector_[
-    OffsetsVector::kStaticOffsetsVectorSize];
-
-
 Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
                                    Handle<String> flag_str) {
@@ -448,6 +417,14 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
   // The captures come in (start, end+1) pairs.
   for (int i = 0; i < number_of_capture_registers; i += 2) {
+    // Capture values are relative to start_offset only.
+    // Convert them to be relative to start of string.
+    if (captures_vector[i] >= 0) {
+      captures_vector[i] += previous_index;
+    }
+    if (captures_vector[i + 1] >= 0) {
+      captures_vector[i + 1] += previous_index;
+    }
     SetCapture(*array, i, captures_vector[i]);
     SetCapture(*array, i + 1, captures_vector[i + 1]);
   }
@@ -4605,5 +4582,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
                            data->capture_count,
                            pattern);
 }
+
+
+int OffsetsVector::static_offsets_vector_[
+    OffsetsVector::kStaticOffsetsVectorSize];
 
 }}  // namespace v8::internal

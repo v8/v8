@@ -136,7 +136,7 @@ function CompileRegExp(pattern, flags) {
 
 
 function DoRegExpExec(regexp, string, index) {
-  return %RegExpExec(regexp, string, index, lastMatchInfo);
+  return %_RegExpExec(regexp, string, index, lastMatchInfo);
 }
 
 
@@ -164,7 +164,7 @@ function RegExpExec(string) {
 
   %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
   // matchIndices is either null or the lastMatchInfo array.
-  var matchIndices = %RegExpExec(this, s, i, lastMatchInfo);
+  var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
 
   if (matchIndices == null) {
     if (this.global) this.lastIndex = 0;
@@ -221,7 +221,7 @@ function RegExpTest(string) {
 
   %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
   // matchIndices is either null or the lastMatchInfo array.
-  var matchIndices = %RegExpExec(this, s, i, lastMatchInfo);
+  var matchIndices = %_RegExpExec(this, s, i, lastMatchInfo);
 
   if (matchIndices == null) {
     if (this.global) this.lastIndex = 0;

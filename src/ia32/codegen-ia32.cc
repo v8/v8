@@ -32,7 +32,10 @@
 #include "compiler.h"
 #include "debug.h"
 #include "ic-inl.h"
+#include "jsregexp.h"
 #include "parser.h"
+#include "regexp-macro-assembler.h"
+#include "regexp-stack.h"
 #include "register-allocator-inl.h"
 #include "runtime.h"
 #include "scopes.h"
@@ -5279,6 +5282,20 @@ void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 4);
+
+  // Load the arguments on the stack and call the stub.
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+  Load(args->at(3));
+  RegExpExecStub stub;
+  Result result = frame_->CallStub(&stub, 4);
+  frame_->Push(&result);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
@@ -7907,6 +7924,277 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
   __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3, 1);
+}
+
+
+void RegExpExecStub::Generate(MacroAssembler* masm) {
+  // Just jump directly to runtime if regexp entry in generated code is turned
+  // off.
+  if (!FLAG_regexp_entry_native) {
+    __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+    return;
+  }
+
+  // Stack frame on entry.
+  //  esp[0]: return address
+  //  esp[4]: last_match_info (expected JSArray)
+  //  esp[8]: previous index
+  //  esp[12]: subject string
+  //  esp[16]: JSRegExp object
+
+  Label runtime;
+
+  // Check that the first argument is a JSRegExp object.
+  __ mov(eax, Operand(esp, 4 * kPointerSize));
+  ASSERT_EQ(0, kSmiTag);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &runtime);
+  __ CmpObjectType(eax, JS_REGEXP_TYPE, ecx);
+  __ j(not_equal, &runtime);
+  // Check that the RegExp has been compiled (data contains a fixed array).
+  __ mov(ecx, FieldOperand(eax, JSRegExp::kDataOffset));
+#ifdef DEBUG
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ Check(not_zero, "Unexpected type for RegExp data, FixedArray expected");
+  __ CmpObjectType(ecx, FIXED_ARRAY_TYPE, ebx);
+  __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
+#endif
+
+  // ecx: RegExp data (FixedArray)
+  // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
+  __ mov(ebx, FieldOperand(ecx, JSRegExp::kDataTagOffset));
+  __ cmp(Operand(ebx), Immediate(Smi::FromInt(JSRegExp::IRREGEXP)));
+  __ j(not_equal, &runtime);
+
+  // ecx: RegExp data (FixedArray)
+  // Check that the number of captures fit in the static offsets vector buffer.
+  __ mov(edx, FieldOperand(ecx, JSRegExp::kIrregexpCaptureCountOffset));
+  // Calculate number of capture registers (number_of_captures + 1) * 2. This
+  // uses the asumption that smis are 2 * their untagged value.
+  ASSERT_EQ(0, kSmiTag);
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
+  __ add(Operand(edx), Immediate(2));  // edx was a smi.
+  // Check that the static offsets vector buffer is large enough.
+  __ cmp(edx, OffsetsVector::kStaticOffsetsVectorSize);
+  __ j(above, &runtime);
+
+  // ecx: RegExp data (FixedArray)
+  // edx: Number of capture registers
+  // Check that the second argument is a string.
+  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &runtime);
+  Condition is_string = masm->IsObjectStringType(eax, ebx, ebx);
+  __ j(NegateCondition(is_string), &runtime);
+  // Get the length of the string to ebx.
+  __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
+
+  // ebx: Length of subject string
+  // ecx: RegExp data (FixedArray)
+  // edx: Number of capture registers
+  // Check that the third argument is a positive smi.
+  __ mov(eax, Operand(esp, 2 * kPointerSize));
+  __ test(eax, Immediate(kSmiTagMask | 0x80000000));
+  __ j(not_zero, &runtime);
+  // Check that it is not greater than the subject string length.
+  __ SmiUntag(eax);
+  __ cmp(eax, Operand(ebx));
+  __ j(greater, &runtime);
+
+  // ecx: RegExp data (FixedArray)
+  // edx: Number of capture registers
+  // Check that the fourth object is a JSArray object.
+  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &runtime);
+  __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
+  __ j(not_equal, &runtime);
+  // Check that the JSArray is in fast case.
+  __ mov(ebx, FieldOperand(eax, JSArray::kElementsOffset));
+  __ cmp(eax, Factory::fixed_array_map());
+  __ j(not_equal, &runtime);
+  // Check that the last match info has space for the capture registers and the
+  // additional information.
+  __ mov(eax, FieldOperand(ebx, FixedArray::kLengthOffset));
+  __ add(Operand(edx), Immediate(RegExpImpl::kLastMatchOverhead));
+  __ cmp(edx, Operand(eax));
+  __ j(greater, &runtime);
+
+  // ecx: RegExp data (FixedArray)
+  // Check the representation and encoding of the subject string (only support
+  // flat ascii strings).
+  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ and_(ebx, kStringRepresentationMask | kStringEncodingMask);
+  __ cmp(ebx, kSeqStringTag | kAsciiStringTag);
+  __ j(not_equal, &runtime);
+
+  // ecx: RegExp data (FixedArray)
+  // Ensure that a RegExp stack is allocated.
+  ExternalReference address_of_regexp_stack_memory_address =
+      ExternalReference::address_of_regexp_stack_memory_address();
+  ExternalReference address_of_regexp_stack_memory_size =
+      ExternalReference::address_of_regexp_stack_memory_size();
+  __ mov(eax, Operand::StaticVariable(address_of_regexp_stack_memory_size));
+  __ test(eax, Operand(eax));
+  __ j(zero, &runtime, not_taken);
+
+  // ecx: RegExp data (FixedArray)
+  // Check that the irregexp code has been generated for an ascii string. If
+  // it has the field contains a code object otherwise it contains the hole.
+  __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
+  __ CmpObjectType(edx, CODE_TYPE, ebx);
+  __ j(not_equal, &runtime);
+
+  // Load used arguments before starting to push arguments for call to native
+  // RegExp code to avoid handling changing stack height.
+  __ mov(eax, Operand(esp, 3 * kPointerSize));  // Subject string.
+  __ mov(ebx, Operand(esp, 2 * kPointerSize));  // Previous index.
+  __ mov(ecx, Operand(esp, 4 * kPointerSize));  // JSRegExp object.
+  __ SmiUntag(ebx);  // Previous index from sim.
+
+  // eax: subject string
+  // ebx: previous index
+  // edx: code
+  // All checks done. Now push arguments for native regexp code.
+  __ IncrementCounter(&Counters::regexp_entry_native, 1);
+
+  // Argument 8: Indicate that this is a direct call from JavaScript.
+  __ push(Immediate(1));
+
+  // Argument 7: Start (high end) of backtracking stack memory area.
+  __ mov(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_address));
+  __ add(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
+  __ push(ecx);
+
+  // Argument 6: At start of string?
+  __ xor_(Operand(ecx), ecx);  // setcc only operated on cl (lower byte of ecx).
+  __ test(ebx, Operand(ebx));
+  __ setcc(zero, ecx);  // 1 if 0 (start of string), 0 if positive.
+  __ push(ecx);
+
+  // Argument 5: static offsets vector buffer.
+  __ push(Immediate(ExternalReference::address_of_static_offsets_vector()));
+
+  // Argument 4: End of string data.
+  __ mov(ecx, FieldOperand(eax, String::kLengthOffset));
+  __ add(ecx, Operand(eax));
+  __ add(Operand(ecx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ push(ecx);
+
+  // Argument 3: Start of string data.
+  __ mov(ecx, ebx);
+  __ add(ebx, Operand(eax));  // String is ASCII.
+  __ add(Operand(ebx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ push(ebx);
+
+  // Argument 2: Previous index.
+  __ push(ecx);
+
+  // Argument 1: Subject string.
+  __ push(eax);
+
+  // Locate the code entry and call it.
+  __ add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ call(Operand(edx));
+  // Remove arguments.
+  __ add(Operand(esp), Immediate(8 * kPointerSize));
+
+  // Check the result.
+  Label success;
+  __ cmp(eax, NativeRegExpMacroAssembler::SUCCESS);
+  __ j(equal, &success, taken);
+  Label failure;
+  __ cmp(eax, NativeRegExpMacroAssembler::FAILURE);
+  __ j(equal, &failure, taken);
+  __ cmp(eax, NativeRegExpMacroAssembler::EXCEPTION);
+  // If not exception it can only be retry. Handle that in the runtime system.
+  __ j(not_equal, &runtime);
+  // Result must now be exception. If there is no pending exception already a
+  // stack overflow (on the backtrack stack) was detected in RegExp code but
+  // haven't created the exception yet. Handle that in the runtime system.
+  ExternalReference pending_exception(Top::k_pending_exception_address);
+  __ mov(eax,
+         Operand::StaticVariable(ExternalReference::the_hole_value_location()));
+  __ cmp(eax, Operand::StaticVariable(pending_exception));
+  __ j(equal, &runtime);
+  __ bind(&failure);
+  // For failure and exception return null.
+  __ mov(Operand(eax), Factory::null_value());
+  __ ret(4 * kPointerSize);
+
+  // Load RegExp data.
+  __ bind(&success);
+  __ mov(eax, Operand(esp, 4 * kPointerSize));
+  __ mov(ecx, FieldOperand(eax, JSRegExp::kDataOffset));
+  __ mov(edx, FieldOperand(ecx, JSRegExp::kIrregexpCaptureCountOffset));
+  // Calculate number of capture registers (number_of_captures + 1) * 2.
+  __ add(Operand(edx), Immediate(2));  // edx was a smi.
+
+  // edx: Number of capture registers
+  // Load last_match_info which is still known to be a fast case JSArray.
+  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ mov(ebx, FieldOperand(eax, JSArray::kElementsOffset));
+
+  // ebx: last_match_info backing store (FixedArray)
+  // edx: number of capture registers
+  // Store the capture count.
+  __ SmiTag(edx);  // Number of capture registers to smi.
+  __ mov(FieldOperand(ebx, RegExpImpl::kLastCaptureCountOffset), edx);
+  __ SmiUntag(edx);  // Number of capture registers back from smi.
+  // Store last subject and last input.
+  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(FieldOperand(ebx, RegExpImpl::kLastSubjectOffset), eax);
+  __ mov(ecx, ebx);
+  __ RecordWrite(ecx, RegExpImpl::kLastSubjectOffset, eax, edi);
+  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(FieldOperand(ebx, RegExpImpl::kLastInputOffset), eax);
+  __ mov(ecx, ebx);
+  __ RecordWrite(ecx, RegExpImpl::kLastInputOffset, eax, edi);
+
+  // Get the static offsets vector filled by the native regexp code.
+  ExternalReference address_of_static_offsets_vector =
+      ExternalReference::address_of_static_offsets_vector();
+  __ mov(ecx, Immediate(address_of_static_offsets_vector));
+
+  // ebx: last_match_info backing store (FixedArray)
+  // ecx: offsets vector
+  // edx: number of capture registers
+  Label next_capture, done;
+  __ mov(eax, Operand(esp, 2 * kPointerSize));  // Read previous index.
+  // Capture register counter starts from number of capture registers and
+  // counts down until wraping after zero.
+  __ bind(&next_capture);
+  __ sub(Operand(edx), Immediate(1));
+  __ j(negative, &done);
+  // Read the value from the static offsets vector buffer.
+  __ mov(edi, Operand(ecx, edx, times_pointer_size, 0));
+  // Perform explicit shift
+  ASSERT_EQ(0, kSmiTag);
+  __ shl(edi, kSmiTagSize);
+  // Add previous index (from its stack slot) if value is not negative.
+  Label capture_negative;
+  // Carry flag set by shift above.
+  __ j(negative, &capture_negative, not_taken);
+  __ add(edi, Operand(eax));  // Add previous index (adding smi to smi).
+  __ bind(&capture_negative);
+  // Store the smi value in the last match info.
+  __ mov(FieldOperand(ebx,
+                      edx,
+                      times_pointer_size,
+                      RegExpImpl::kFirstCaptureOffset),
+                      edi);
+  __ jmp(&next_capture);
+  __ bind(&done);
+
+  // Return last match info.
+  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ ret(4 * kPointerSize);
+
+  // Do the runtime call to execute the regexp.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
 }
 
 

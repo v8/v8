@@ -52,6 +52,7 @@ namespace internal {
   V(Instanceof)                          \
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
+  V(RegExpExec)                          \
   V(Runtime)                             \
   V(CEntry)                              \
   V(JSEntry)

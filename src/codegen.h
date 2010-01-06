@@ -478,6 +478,26 @@ class ArgumentsAccessStub: public CodeStub {
 };
 
 
+class RegExpExecStub: public CodeStub {
+ public:
+  RegExpExecStub() { }
+
+ private:
+  Major MajorKey() { return RegExpExec; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "RegExpExecStub"; }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("RegExpExecStub\n");
+  }
+#endif
+};
+
+
 }  // namespace internal
 }  // namespace v8
 

@@ -128,6 +128,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   static const int kRegisterOutput = kInputEnd + kPointerSize;
   static const int kAtStart = kRegisterOutput + kPointerSize;
   static const int kStackHighEnd = kAtStart + kPointerSize;
+  static const int kDirectCall = kStackHighEnd + kPointerSize;
   // Below the frame pointer - local stack variables.
   // When adding local variables remember to push space for them in
   // the frame in GetCode.

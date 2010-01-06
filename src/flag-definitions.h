@@ -231,6 +231,7 @@ DEFINE_bool(preemption, false,
 // Regexp
 DEFINE_bool(trace_regexps, false, "trace regexp execution")
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
+DEFINE_bool(regexp_entry_native, true, "use native code to enter regexp")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")

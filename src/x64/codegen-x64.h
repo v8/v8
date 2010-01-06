@@ -541,6 +541,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for StringAdd.
   void GenerateStringAdd(ZoneList<Expression*>* args);
 
+  // Support for direct calls from JavaScript to native RegExp code.
+  void GenerateRegExpExec(ZoneList<Expression*>* args);
+
   // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,

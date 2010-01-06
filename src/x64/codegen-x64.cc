@@ -3876,6 +3876,19 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 4);
+
+  // Load the arguments on the stack and call the runtime system.
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+  Load(args->at(3));
+  Result result = frame_->CallRuntime(Runtime::kRegExpExec, 4);
+  frame_->Push(&result);
+}
+
+
 void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
   ASSERT_EQ(2, args->length());
 

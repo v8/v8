@@ -3451,6 +3451,19 @@ void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
+  ASSERT_EQ(4, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+  Load(args->at(3));
+
+  frame_->CallRuntime(Runtime::kRegExpExec, 4);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);
