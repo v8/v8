@@ -820,9 +820,6 @@ class Heap : public AllStatic {
   // Update the cache with a new number-string pair.
   static void SetNumberStringCache(Object* number, String* str);
 
-  // Entries in the cache.  Must be a power of 2.
-  static const int kNumberStringCacheSize = 64;
-
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
   static inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
@@ -1097,6 +1094,12 @@ class Heap : public AllStatic {
   static inline Object* InitializeFunction(JSFunction* function,
                                            SharedFunctionInfo* shared,
                                            Object* prototype);
+
+
+  // Initializes the number to string cache based on the max semispace size.
+  static Object* InitializeNumberStringCache();
+  // Flush the number to string cache.
+  static void FlushNumberStringCache();
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

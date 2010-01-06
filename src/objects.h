@@ -1988,6 +1988,14 @@ class HashTable: public FixedArray {
     return (hash + GetProbeOffset(number)) & (size - 1);
   }
 
+  static uint32_t FirstProbe(uint32_t hash, uint32_t size) {
+    return hash & (size - 1);
+  }
+
+  static uint32_t NextProbe(uint32_t last, uint32_t number, uint32_t size) {
+    return (last + number) & (size - 1);
+  }
+
   // Ensure enough space for n additional elements.
   Object* EnsureCapacity(int n, Key key);
 };

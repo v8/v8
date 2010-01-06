@@ -576,6 +576,8 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
 
   Top::MarkCompactPrologue(is_compacting);
   ThreadManager::MarkCompactPrologue(is_compacting);
+
+  if (is_compacting) FlushNumberStringCache();
 }
 
 
@@ -1573,10 +1575,7 @@ bool Heap::CreateInitialObjects() {
 
   CreateFixedStubs();
 
-  // Allocate the number->string conversion cache
-  obj = AllocateFixedArray(kNumberStringCacheSize * 2);
-  if (obj->IsFailure()) return false;
-  set_number_string_cache(FixedArray::cast(obj));
+  if (InitializeNumberStringCache()->IsFailure()) return false;
 
   // Allocate cache for single character strings.
   obj = AllocateFixedArray(String::kMaxAsciiCharCode+1);
@@ -1607,25 +1606,45 @@ bool Heap::CreateInitialObjects() {
 }
 
 
+Object* Heap::InitializeNumberStringCache() {
+  // Compute the size of the number string cache based on the max heap size.
+  // max_semispace_size_ == 512 KB => number_string_cache_size = 32.
+  // max_semispace_size_ ==   8 MB => number_string_cache_size = 16KB.
+  int number_string_cache_size = max_semispace_size_ / 512;
+  number_string_cache_size = Max(32, Min(16*KB, number_string_cache_size));
+  Object* obj = AllocateFixedArray(number_string_cache_size * 2);
+  if (!obj->IsFailure()) set_number_string_cache(FixedArray::cast(obj));
+  return obj;
+}
+
+
+void Heap::FlushNumberStringCache() {
+  // Flush the number to string cache.
+  int len = number_string_cache()->length();
+  for (int i = 0; i < len; i++) {
+    number_string_cache()->set_undefined(i);
+  }
+}
+
+
 static inline int double_get_hash(double d) {
   DoubleRepresentation rep(d);
-  return ((static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32)) &
-          (Heap::kNumberStringCacheSize - 1));
+  return static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32);
 }
 
 
 static inline int smi_get_hash(Smi* smi) {
-  return (smi->value() & (Heap::kNumberStringCacheSize - 1));
+  return smi->value();
 }
-
 
 
 Object* Heap::GetNumberStringCache(Object* number) {
   int hash;
+  int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number));
+    hash = smi_get_hash(Smi::cast(number)) & mask;
   } else {
-    hash = double_get_hash(number->Number());
+    hash = double_get_hash(number->Number()) & mask;
   }
   Object* key = number_string_cache()->get(hash * 2);
   if (key == number) {
@@ -1641,11 +1660,12 @@ Object* Heap::GetNumberStringCache(Object* number) {
 
 void Heap::SetNumberStringCache(Object* number, String* string) {
   int hash;
+  int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number));
+    hash = smi_get_hash(Smi::cast(number)) & mask;
     number_string_cache()->set(hash * 2, number, SKIP_WRITE_BARRIER);
   } else {
-    hash = double_get_hash(number->Number());
+    hash = double_get_hash(number->Number()) & mask;
     number_string_cache()->set(hash * 2, number);
   }
   number_string_cache()->set(hash * 2 + 1, string);
