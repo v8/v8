@@ -8011,6 +8011,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &runtime);
   // Check that the JSArray is in fast case.
   __ mov(ebx, FieldOperand(eax, JSArray::kElementsOffset));
+  __ mov(eax, FieldOperand(ebx, HeapObject::kMapOffset));
   __ cmp(eax, Factory::fixed_array_map());
   __ j(not_equal, &runtime);
   // Check that the last match info has space for the capture registers and the
