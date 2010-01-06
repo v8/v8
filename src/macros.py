@@ -97,7 +97,8 @@ macro FLOOR(arg)                = $floor(arg);
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro TO_INTEGER(arg)    = (%_IsSmi(%IS_VAR(arg)) ? arg : ToInteger(arg));
-macro TO_INT32(arg)      = (%_IsSmi(%IS_VAR(arg)) ? arg : ToInt32(arg));
+macro TO_INT32(arg)      = (%_IsSmi(%IS_VAR(arg)) ? arg : (arg >> 0));
+macro TO_UINT32(arg)     = (arg >>> 0);
 
 # Macros implemented in Python.
 python macro CHAR_CODE(str) = ord(str[1]);

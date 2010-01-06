@@ -103,7 +103,7 @@ namespace internal {
   F(NumberUnaryMinus, 1, 1) \
   \
   F(StringAdd, 2, 1) \
-  F(StringBuilderConcat, 2, 1) \
+  F(StringBuilderConcat, 3, 1) \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \

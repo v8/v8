@@ -3914,20 +3914,19 @@ static inline void StringBuilderConcatHelper(String* special,
 
 static Object* Runtime_StringBuilderConcat(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSArray, array, args[0]);
-  CONVERT_CHECKED(String, special, args[1]);
+  if (!args[1]->IsSmi()) {
+    Top::context()->mark_out_of_memory();
+    return Failure::OutOfMemoryException();
+  }
+  int array_length = Smi::cast(args[1])->value();
+  CONVERT_CHECKED(String, special, args[2]);
 
   // This assumption is used by the slice encoding in one or two smis.
   ASSERT(Smi::kMaxValue >= String::kMaxLength);
 
   int special_length = special->length();
-  Object* smi_array_length = array->length();
-  if (!smi_array_length->IsSmi()) {
-    Top::context()->mark_out_of_memory();
-    return Failure::OutOfMemoryException();
-  }
-  int array_length = Smi::cast(smi_array_length)->value();
   if (!array->HasFastElements()) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }

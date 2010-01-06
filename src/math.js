@@ -103,7 +103,7 @@ function MathFloor(x) {
     // them to an unsigned 32-bit value using the shift operator.
     // We avoid doing so for -0, because the result of Math.floor(-0)
     // has to be -0, which wouldn't be the case with the shift.
-    return x << 0;
+    return TO_UINT32(x);
   } else {
     return %Math_floor(x);
   }
