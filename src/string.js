@@ -196,7 +196,7 @@ var reusableMatchInfo = [2, "", "", -1, -1];
 
 // ECMA-262, section 15.5.4.11
 function StringReplace(search, replace) {
-  var subject = ToString(this);
+  var subject = IS_STRING(this) ? this : ToString(this);
 
   // Delegate to one of the regular expression variants if necessary.
   if (IS_REGEXP(search)) {
@@ -209,7 +209,7 @@ function StringReplace(search, replace) {
   }
 
   // Convert the search argument to a string and search for it.
-  search = ToString(search);
+  search = IS_STRING(search) ? search : ToString(search);
   var start = %StringIndexOf(subject, search, 0);
   if (start < 0) return subject;
   var end = start + search.length;
@@ -224,7 +224,8 @@ function StringReplace(search, replace) {
   } else {
     reusableMatchInfo[CAPTURE0] = start;
     reusableMatchInfo[CAPTURE1] = end;
-    ExpandReplacement(ToString(replace), subject, reusableMatchInfo, builder);
+    if (!IS_STRING(replace)) replace = ToString(replace);
+    ExpandReplacement(replace, subject, reusableMatchInfo, builder);
   }
 
   // suffix
