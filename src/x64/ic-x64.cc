@@ -408,6 +408,16 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : name
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+  GenerateGeneric(masm);
+}
+
+
 void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
                                         ExternalArrayType array_type) {
   // ----------- S t a t e -------------
