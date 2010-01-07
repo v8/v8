@@ -3902,7 +3902,7 @@ void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
-  ASSERT_EQ(2, args->length());
+  ASSERT_EQ(3, args->length());
 
   Load(args->at(0));
   Load(args->at(1));
