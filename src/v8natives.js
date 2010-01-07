@@ -448,6 +448,15 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 }
 
 
+// ES5 section 15.2.3.2.
+function ObjectGetPrototypeOf(obj) {
+ if (!IS_OBJECT(obj) && !IS_FUNCTION(obj)) {
+   throw MakeTypeError("object_get_prototype_non_object", [obj]);
+ }
+ return obj.__proto__;
+}
+
+
 // ES5 section 15.2.3.5.
 function ObjectCreate(proto, properties) {
   if (!IS_OBJECT(proto) && !IS_NULL(proto)) {
@@ -512,7 +521,8 @@ function SetupObject() {
   ));
   InstallFunctions($Object, DONT_ENUM, $Array(
     "keys", ObjectKeys,
-    "create", ObjectCreate
+    "create", ObjectCreate,
+    "getPrototypeOf", ObjectGetPrototypeOf
   ));
 }
 
