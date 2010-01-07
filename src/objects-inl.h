@@ -992,14 +992,14 @@ MapWord MapWord::EncodeAddress(Address map_address, int offset) {
   // exceed the object area size of a page.
   ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
 
-  int compact_offset = offset >> kObjectAlignmentBits;
+  uintptr_t compact_offset = offset >> kObjectAlignmentBits;
   ASSERT(compact_offset < (1 << kForwardingOffsetBits));
 
   Page* map_page = Page::FromAddress(map_address);
   ASSERT_MAP_PAGE_INDEX(map_page->mc_page_index);
 
-  int map_page_offset =
-      map_page->Offset(map_address) >> kObjectAlignmentBits;
+  uintptr_t map_page_offset =
+      map_page->Offset(map_address) >> kMapAlignmentBits;
 
   uintptr_t encoding =
       (compact_offset << kForwardingOffsetShift) |
@@ -1015,8 +1015,8 @@ Address MapWord::DecodeMapAddress(MapSpace* map_space) {
   ASSERT_MAP_PAGE_INDEX(map_page_index);
 
   int map_page_offset = static_cast<int>(
-      ((value_ & kMapPageOffsetMask) >> kMapPageOffsetShift)
-      << kObjectAlignmentBits);
+      ((value_ & kMapPageOffsetMask) >> kMapPageOffsetShift) <<
+      kMapAlignmentBits);
 
   return (map_space->PageAddress(map_page_index) + map_page_offset);
 }
@@ -2487,7 +2487,7 @@ ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
 ACCESSORS(Script, compilation_type, Smi, kCompilationTypeOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
-ACCESSORS(Script, eval_from_function, Object, kEvalFromFunctionOffset)
+ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
 ACCESSORS(Script, eval_from_instructions_offset, Smi,
           kEvalFrominstructionsOffsetOffset)
 

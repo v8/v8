@@ -42,6 +42,10 @@ array-constructor: PASS || TIMEOUT
 # Issue 499
 cyrillic: PASS, TIMEOUT if ($arch == arm)
 
+# Skip long running test in debug.
+regress/regress-524: PASS, SKIP if $mode == debug
+
+
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.

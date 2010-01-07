@@ -1180,8 +1180,8 @@ void Script::ScriptPrint() {
   compilation_type()->ShortPrint();
   PrintF("\n - line ends: ");
   line_ends()->ShortPrint();
-  PrintF("\n - eval from function: ");
-  eval_from_function()->ShortPrint();
+  PrintF("\n - eval from shared: ");
+  eval_from_shared()->ShortPrint();
   PrintF("\n - eval from instructions offset: ");
   eval_from_instructions_offset()->ShortPrint();
   PrintF("\n");

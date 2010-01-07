@@ -8719,26 +8719,27 @@ static int GetGlobalObjectsCount() {
   v8::internal::HeapIterator it;
   while (it.has_next()) {
     v8::internal::HeapObject* object = it.next();
-    if (object->IsJSGlobalObject()) {
-      count++;
-    }
+    if (object->IsJSGlobalObject()) count++;
   }
-#ifdef DEBUG
-  if (count > 0) v8::internal::Heap::TracePathToGlobal();
-#endif
   return count;
 }
 
 
-TEST(Bug528) {
+TEST(Regress528) {
   v8::V8::Initialize();
 
   v8::HandleScope scope;
   v8::Persistent<Context> context;
+  v8::Persistent<Context> other_context;
   int gc_count;
+
+  // Create a context used to keep the code from aging in the compilation
+  // cache.
+  other_context = Context::New();
 
   // Context-dependent context data creates reference from the compilation
   // cache to the global object.
+  const char* source_simple = "1";
   context = Context::New();
   {
     v8::HandleScope scope;
@@ -8746,44 +8747,52 @@ TEST(Bug528) {
     context->Enter();
     Local<v8::String> obj = v8::String::New("");
     context->SetData(obj);
-    CompileRun("1");
+    CompileRun(source_simple);
     context->Exit();
   }
   context.Dispose();
   for (gc_count = 1; gc_count < 10; gc_count++) {
+    other_context->Enter();
+    CompileRun(source_simple);
+    other_context->Exit();
     v8::internal::Heap::CollectAllGarbage(false);
-    if (GetGlobalObjectsCount() == 0) break;
+    if (GetGlobalObjectsCount() == 1) break;
   }
-  CHECK_EQ(0, GetGlobalObjectsCount());
-  CHECK_EQ(2, gc_count);
+  CHECK_GE(2, gc_count);
+  CHECK_EQ(1, GetGlobalObjectsCount());
 
   // Eval in a function creates reference from the compilation cache to the
   // global object.
+  const char* source_eval = "function f(){eval('1')}; f()";
   context = Context::New();
   {
     v8::HandleScope scope;
 
     context->Enter();
-    CompileRun("function f(){eval('1')}; f()");
+    CompileRun(source_eval);
     context->Exit();
   }
   context.Dispose();
   for (gc_count = 1; gc_count < 10; gc_count++) {
+    other_context->Enter();
+    CompileRun(source_eval);
+    other_context->Exit();
     v8::internal::Heap::CollectAllGarbage(false);
-    if (GetGlobalObjectsCount() == 0) break;
+    if (GetGlobalObjectsCount() == 1) break;
   }
-  CHECK_EQ(0, GetGlobalObjectsCount());
-  CHECK_EQ(2, gc_count);
+  CHECK_GE(2, gc_count);
+  CHECK_EQ(1, GetGlobalObjectsCount());
 
   // Looking up the line number for an exception creates reference from the
   // compilation cache to the global object.
+  const char* source_exception = "function f(){throw 1;} f()";
   context = Context::New();
   {
     v8::HandleScope scope;
 
     context->Enter();
     v8::TryCatch try_catch;
-    CompileRun("function f(){throw 1;}; f()");
+    CompileRun(source_exception);
     CHECK(try_catch.HasCaught());
     v8::Handle<v8::Message> message = try_catch.Message();
     CHECK(!message.IsEmpty());
@@ -8792,9 +8801,14 @@ TEST(Bug528) {
   }
   context.Dispose();
   for (gc_count = 1; gc_count < 10; gc_count++) {
+    other_context->Enter();
+    CompileRun(source_exception);
+    other_context->Exit();
     v8::internal::Heap::CollectAllGarbage(false);
-    if (GetGlobalObjectsCount() == 0) break;
+    if (GetGlobalObjectsCount() == 1) break;
   }
-  CHECK_EQ(0, GetGlobalObjectsCount());
-  CHECK_EQ(2, gc_count);
+  CHECK_GE(2, gc_count);
+  CHECK_EQ(1, GetGlobalObjectsCount());
+
+  other_context.Dispose();
 }

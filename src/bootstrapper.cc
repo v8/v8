@@ -1075,21 +1075,29 @@ bool Genesis::InstallNatives() {
             Factory::LookupAsciiSymbol("context_data"),
             proxy_context_data,
             common_attributes);
-    Handle<Proxy> proxy_eval_from_function =
-        Factory::NewProxy(&Accessors::ScriptEvalFromFunction);
+    Handle<Proxy> proxy_eval_from_script =
+        Factory::NewProxy(&Accessors::ScriptEvalFromScript);
     script_descriptors =
         Factory::CopyAppendProxyDescriptor(
             script_descriptors,
-            Factory::LookupAsciiSymbol("eval_from_function"),
-            proxy_eval_from_function,
+            Factory::LookupAsciiSymbol("eval_from_script"),
+            proxy_eval_from_script,
             common_attributes);
-    Handle<Proxy> proxy_eval_from_position =
-        Factory::NewProxy(&Accessors::ScriptEvalFromPosition);
+    Handle<Proxy> proxy_eval_from_script_position =
+        Factory::NewProxy(&Accessors::ScriptEvalFromScriptPosition);
     script_descriptors =
         Factory::CopyAppendProxyDescriptor(
             script_descriptors,
-            Factory::LookupAsciiSymbol("eval_from_position"),
-            proxy_eval_from_position,
+            Factory::LookupAsciiSymbol("eval_from_script_position"),
+            proxy_eval_from_script_position,
+            common_attributes);
+    Handle<Proxy> proxy_eval_from_function_name =
+        Factory::NewProxy(&Accessors::ScriptEvalFromFunctionName);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("eval_from_function_name"),
+            proxy_eval_from_function_name,
             common_attributes);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());

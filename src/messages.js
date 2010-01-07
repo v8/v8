@@ -629,10 +629,7 @@ CallSite.prototype.isEval = function () {
 
 CallSite.prototype.getEvalOrigin = function () {
   var script = %FunctionGetScript(this.fun);
-  if (!script || script.compilation_type != 1)
-    return null;
-  return new CallSite(null, script.eval_from_function,
-      script.eval_from_position);
+  return FormatEvalOrigin(script);
 };
 
 CallSite.prototype.getFunction = function () {
@@ -700,7 +697,7 @@ CallSite.prototype.getColumnNumber = function () {
   if (script) {
     location = script.locationFromPosition(this.pos, true);
   }
-  return location ? location.column : null;
+  return location ? location.column + 1: null;
 };
 
 CallSite.prototype.isNative = function () {
@@ -719,12 +716,44 @@ CallSite.prototype.isConstructor = function () {
   return this.fun === constructor;
 };
 
+function FormatEvalOrigin(script) {
+  var eval_origin = "";
+  if (script.eval_from_function_name) {
+    eval_origin += script.eval_from_function_name;
+  } else {
+    eval_origin +=  "<anonymous>";
+  }
+  
+  var eval_from_script = script.eval_from_script;
+  if (eval_from_script) {
+    if (eval_from_script.compilation_type == 1) {
+      // eval script originated from another eval.
+      eval_origin += " (eval at " + FormatEvalOrigin(eval_from_script) + ")";
+    } else {
+      // eval script originated from "real" scource.
+      if (eval_from_script.name) {
+        eval_origin += " (" + eval_from_script.name;
+        var location = eval_from_script.locationFromPosition(script.eval_from_script_position, true);
+        if (location) {
+          eval_origin += ":" + (location.line + 1);
+          eval_origin += ":" + (location.column + 1);
+        }
+        eval_origin += ")"
+      } else {
+        eval_origin += " (unknown source)";
+      }
+    }
+  }
+  
+  return eval_origin;
+};
+
 function FormatSourcePosition(frame) {
   var fileLocation = "";
   if (frame.isNative()) {
     fileLocation = "native";
   } else if (frame.isEval()) {
-    fileLocation = "eval at " + FormatSourcePosition(frame.getEvalOrigin());
+    fileLocation = "eval at " + frame.getEvalOrigin();
   } else {
     var fileName = frame.getFileName();
     if (fileName) {

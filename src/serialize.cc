@@ -1792,15 +1792,15 @@ Address Deserializer2::Allocate(int space_index, int size) {
       default: UNREACHABLE(); space = NULL; break;
     }
     ASSERT(size <= Page::kPageSize - Page::kObjectStartOffset);
-    int current_page = old_fullness >> Page::kPageSizeBits;
+    int current_page = old_fullness >> kPageSizeBits;
     int new_fullness = old_fullness + size;
-    int new_page = new_fullness >> Page::kPageSizeBits;
+    int new_page = new_fullness >> kPageSizeBits;
     // What is our new position within the current page.
     int intra_page_offset = new_fullness - current_page * Page::kPageSize;
     if (intra_page_offset > Page::kPageSize - Page::kObjectStartOffset) {
       // This object will not fit in a page and we have to move to the next.
       new_page = current_page + 1;
-      old_fullness = new_page << Page::kPageSizeBits;
+      old_fullness = new_page << kPageSizeBits;
       new_fullness = old_fullness + size;
       record_page = true;
     }
@@ -1862,7 +1862,7 @@ HeapObject* Deserializer2::GetAddress(int space) {
   }
   ASSERT(SpaceIsPaged(space));
   int virtual_address = fullness_[space] - offset;
-  int page_of_pointee = (virtual_address) >> Page::kPageSizeBits;
+  int page_of_pointee = (virtual_address) >> kPageSizeBits;
   Address object_address = pages_[space][page_of_pointee] +
                            (virtual_address & Page::kPageAlignmentMask);
   return HeapObject::FromAddress(object_address);

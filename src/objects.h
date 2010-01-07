@@ -1152,15 +1152,25 @@ class MapWord BASE_EMBEDDED {
   static const int kOverflowBit = 1;  // overflow bit
   static const int kOverflowMask = (1 << kOverflowBit);  // overflow mask
 
-  // Forwarding pointers and map pointer encoding
-  //  31             21 20              10 9               0
+  // Forwarding pointers and map pointer encoding. On 32 bit all the bits are
+  // used.
   // +-----------------+------------------+-----------------+
   // |forwarding offset|page offset of map|page index of map|
   // +-----------------+------------------+-----------------+
-  //  11 bits           11 bits            10 bits
-  static const int kMapPageIndexBits = 10;
-  static const int kMapPageOffsetBits = 11;
-  static const int kForwardingOffsetBits = 11;
+  //          ^                 ^                  ^
+  //          |                 |                  |
+  //          |                 |          kMapPageIndexBits
+  //          |         kMapPageOffsetBits
+  // kForwardingOffsetBits
+  static const int kMapPageOffsetBits = kPageSizeBits - kMapAlignmentBits;
+  static const int kForwardingOffsetBits = kPageSizeBits - kObjectAlignmentBits;
+#ifdef V8_HOST_ARCH_64_BIT
+  static const int kMapPageIndexBits = 16;
+#else
+  // Use all the 32-bits to encode on a 32-bit platform.
+  static const int kMapPageIndexBits =
+      32 - (kMapPageOffsetBits + kForwardingOffsetBits);
+#endif
 
   static const int kMapPageIndexShift = 0;
   static const int kMapPageOffsetShift =
@@ -1168,16 +1178,12 @@ class MapWord BASE_EMBEDDED {
   static const int kForwardingOffsetShift =
       kMapPageOffsetShift + kMapPageOffsetBits;
 
-  // 0x000003FF
-  static const uint32_t kMapPageIndexMask =
+  // Bit masks covering the different parts the encoding.
+  static const uintptr_t kMapPageIndexMask =
       (1 << kMapPageOffsetShift) - 1;
-
-  // 0x001FFC00
-  static const uint32_t kMapPageOffsetMask =
+  static const uintptr_t kMapPageOffsetMask =
       ((1 << kForwardingOffsetShift) - 1) & ~kMapPageIndexMask;
-
-  // 0xFFE00000
-  static const uint32_t kForwardingOffsetMask =
+  static const uintptr_t kForwardingOffsetMask =
       ~(kMapPageIndexMask | kMapPageOffsetMask);
 
  private:
@@ -3096,7 +3102,6 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, FixedArray)
 
-  // Returns a copy of the map.
   Object* CopyDropDescriptors();
 
   // Returns a copy of the map, with all transitions dropped from the
@@ -3164,7 +3169,8 @@ class Map: public HeapObject {
   static const int kInstanceDescriptorsOffset =
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
-  static const int kSize = kCodeCacheOffset + kPointerSize;
+  static const int kPadStart = kCodeCacheOffset + kPointerSize;
+  static const int kSize = MAP_SIZE_ALIGN(kPadStart);
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -3263,9 +3269,9 @@ class Script: public Struct {
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
 
-  // [eval_from_function]: for eval scripts the funcion from which eval was
-  // called.
-  DECL_ACCESSORS(eval_from_function, Object)
+  // [eval_from_shared]: for eval scripts the shared funcion info for the
+  // function from which eval was called.
+  DECL_ACCESSORS(eval_from_shared, Object)
 
   // [eval_from_instructions_offset]: the instruction offset in the code for the
   // function from which eval was called where eval was called.
@@ -3293,9 +3299,9 @@ class Script: public Struct {
   static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
   static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
-  static const int kEvalFromFunctionOffset = kIdOffset + kPointerSize;
+  static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
-      kEvalFromFunctionOffset + kPointerSize;
+      kEvalFromSharedOffset + kPointerSize;
   static const int kSize = kEvalFrominstructionsOffsetOffset + kPointerSize;
 
  private:

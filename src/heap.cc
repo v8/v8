@@ -1097,6 +1097,13 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(0);
+
+  // If the map object is aligned fill the padding area with Smi 0 objects.
+  if (Map::kPadStart < Map::kSize) {
+    memset(reinterpret_cast<byte*>(map) + Map::kPadStart - kHeapObjectTag,
+           0,
+           Map::kSize - Map::kPadStart);
+  }
   return map;
 }
 
