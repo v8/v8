@@ -5383,7 +5383,7 @@ class ArrayConcatVisitor {
                      uint32_t index_limit,
                      bool fast_elements) :
       storage_(storage), index_limit_(index_limit),
-      fast_elements_(fast_elements), index_offset_(0) { }
+      index_offset_(0), fast_elements_(fast_elements) { }
 
   void visit(uint32_t i, Handle<Object> elm) {
     if (i >= index_limit_ - index_offset_) return;
@@ -5651,7 +5651,6 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
  */
 static uint32_t IterateArguments(Handle<JSArray> arguments,
                                  ArrayConcatVisitor* visitor) {
-  const uint32_t max_length = JSObject::kMaxElementCount;
   uint32_t visited_elements = 0;
   uint32_t num_of_args = static_cast<uint32_t>(arguments->length()->Number());
 
