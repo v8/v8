@@ -87,12 +87,14 @@ function StringCharCodeAt(pos) {
 
 // ECMA-262, section 15.5.4.6
 function StringConcat() {
-  var len = %_ArgumentsLength();
-  var parts = new $Array(len + 1);
-  parts[0] = ToString(this);
-  for (var i = 0; i < len; i++)
-    parts[i + 1] = ToString(%_Arguments(i));
-  return parts.join('');
+  var len = %_ArgumentsLength() + 1;
+  var parts = new $Array(len);
+  parts[0] = IS_STRING(this) ? this : ToString(this);
+  for (var i = 1; i < len; i++) {
+    var part = %_Arguments(i - 1);
+    parts[i] = IS_STRING(part) ? part : ToString(part);
+  }
+  return %StringBuilderConcat(parts, len, "");
 }
 
 // Match ES3 and Safari
