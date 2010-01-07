@@ -1526,6 +1526,7 @@ class CharacterSet BASE_EMBEDDED {
     standard_set_type_ = special_set_type;
   }
   bool is_standard() { return standard_set_type_ != 0; }
+  void Canonicalize();
  private:
   ZoneList<CharacterRange>* ranges_;
   // If non-zero, the value represents a standard set (e.g., all whitespace
@@ -1619,12 +1620,13 @@ class RegExpText: public RegExpTree {
 
 class RegExpQuantifier: public RegExpTree {
  public:
-  RegExpQuantifier(int min, int max, bool is_greedy, RegExpTree* body)
-      : min_(min),
+  enum Type { GREEDY, NON_GREEDY, POSSESSIVE };
+  RegExpQuantifier(int min, int max, Type type, RegExpTree* body)
+      : body_(body),
+        min_(min),
         max_(max),
-        is_greedy_(is_greedy),
-        body_(body),
-        min_match_(min * body->min_match()) {
+        min_match_(min * body->min_match()),
+        type_(type) {
     if (max > 0 && body->max_match() > kInfinity / max) {
       max_match_ = kInfinity;
     } else {
@@ -1648,15 +1650,17 @@ class RegExpQuantifier: public RegExpTree {
   virtual int max_match() { return max_match_; }
   int min() { return min_; }
   int max() { return max_; }
-  bool is_greedy() { return is_greedy_; }
+  bool is_possessive() { return type_ == POSSESSIVE; }
+  bool is_non_greedy() { return type_ == NON_GREEDY; }
+  bool is_greedy() { return type_ == GREEDY; }
   RegExpTree* body() { return body_; }
  private:
+  RegExpTree* body_;
   int min_;
   int max_;
-  bool is_greedy_;
-  RegExpTree* body_;
   int min_match_;
   int max_match_;
+  Type type_;
 };
 
 

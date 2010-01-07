@@ -477,8 +477,6 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
 
 
 bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
-                                                          int cp_offset,
-                                                          bool check_offset,
                                                           Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check
@@ -487,17 +485,12 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     // Match space-characters
     if (mode_ == ASCII) {
       // ASCII space characters are '\t'..'\r' and ' '.
-      if (check_offset) {
-        LoadCurrentCharacter(cp_offset, on_no_match);
-      } else {
-        LoadCurrentCharacterUnchecked(cp_offset, 1);
-      }
       Label success;
       __ cmp(current_character(), ' ');
       __ j(equal, &success);
       // Check range 0x09..0x0d
-      __ sub(Operand(current_character()), Immediate('\t'));
-      __ cmp(current_character(), '\r' - '\t');
+      __ lea(eax, Operand(current_character(), -'\t'));
+      __ cmp(eax, '\r' - '\t');
       BranchOrBacktrack(above, on_no_match);
       __ bind(&success);
       return true;
@@ -505,72 +498,118 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     return false;
   case 'S':
     // Match non-space characters.
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
     if (mode_ == ASCII) {
       // ASCII space characters are '\t'..'\r' and ' '.
       __ cmp(current_character(), ' ');
       BranchOrBacktrack(equal, on_no_match);
-      __ sub(Operand(current_character()), Immediate('\t'));
-      __ cmp(current_character(), '\r' - '\t');
+      __ lea(eax, Operand(current_character(), -'\t'));
+      __ cmp(eax, '\r' - '\t');
       BranchOrBacktrack(below_equal, on_no_match);
       return true;
     }
     return false;
   case 'd':
     // Match ASCII digits ('0'..'9')
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
-    __ sub(Operand(current_character()), Immediate('0'));
-    __ cmp(current_character(), '9' - '0');
+    __ lea(eax, Operand(current_character(), -'0'));
+    __ cmp(eax, '9' - '0');
     BranchOrBacktrack(above, on_no_match);
     return true;
   case 'D':
     // Match non ASCII-digits
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
-    __ sub(Operand(current_character()), Immediate('0'));
-    __ cmp(current_character(), '9' - '0');
+    __ lea(eax, Operand(current_character(), -'0'));
+    __ cmp(eax, '9' - '0');
     BranchOrBacktrack(below_equal, on_no_match);
     return true;
   case '.': {
     // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
-    if (check_offset) {
-      LoadCurrentCharacter(cp_offset, on_no_match, 1);
-    } else {
-      LoadCurrentCharacterUnchecked(cp_offset, 1);
-    }
-    __ xor_(Operand(current_character()), Immediate(0x01));
+    __ mov(Operand(eax), current_character());
+    __ xor_(Operand(eax), Immediate(0x01));
     // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-    __ sub(Operand(current_character()), Immediate(0x0b));
-    __ cmp(current_character(), 0x0c - 0x0b);
+    __ sub(Operand(eax), Immediate(0x0b));
+    __ cmp(eax, 0x0c - 0x0b);
     BranchOrBacktrack(below_equal, on_no_match);
     if (mode_ == UC16) {
       // Compare original value to 0x2028 and 0x2029, using the already
       // computed (current_char ^ 0x01 - 0x0b). I.e., check for
       // 0x201d (0x2028 - 0x0b) or 0x201e.
-      __ sub(Operand(current_character()), Immediate(0x2028 - 0x0b));
-      __ cmp(current_character(), 1);
+      __ sub(Operand(eax), Immediate(0x2028 - 0x0b));
+      __ cmp(eax, 0x2029 - 0x2028);
       BranchOrBacktrack(below_equal, on_no_match);
     }
     return true;
   }
+  case 'w': {
+    Label done, check_digits;
+    __ cmp(Operand(current_character()), Immediate('9'));
+    __ j(less_equal, &check_digits);
+    __ cmp(Operand(current_character()), Immediate('_'));
+    __ j(equal, &done);
+    // Convert to lower case if letter.
+    __ mov(Operand(eax), current_character());
+    __ or_(eax, 0x20);
+    // check current character in range ['a'..'z'], nondestructively.
+    __ sub(Operand(eax), Immediate('a'));
+    __ cmp(Operand(eax), Immediate('z' - 'a'));
+    BranchOrBacktrack(above, on_no_match);
+    __ jmp(&done);
+    __ bind(&check_digits);
+    // Check current character in range ['0'..'9'].
+    __ cmp(Operand(current_character()), Immediate('0'));
+    BranchOrBacktrack(below, on_no_match);
+    __ bind(&done);
+
+    return true;
+  }
+  case 'W': {
+    Label done, check_digits;
+    __ cmp(Operand(current_character()), Immediate('9'));
+    __ j(less_equal, &check_digits);
+    __ cmp(Operand(current_character()), Immediate('_'));
+    BranchOrBacktrack(equal, on_no_match);
+    // Convert to lower case if letter.
+    __ mov(Operand(eax), current_character());
+    __ or_(eax, 0x20);
+    // check current character in range ['a'..'z'], nondestructively.
+    __ sub(Operand(eax), Immediate('a'));
+    __ cmp(Operand(eax), Immediate('z' - 'a'));
+    BranchOrBacktrack(below_equal, on_no_match);
+    __ jmp(&done);
+    __ bind(&check_digits);
+    // Check current character in range ['0'..'9'].
+    __ cmp(Operand(current_character()), Immediate('0'));
+    BranchOrBacktrack(above_equal, on_no_match);
+    __ bind(&done);
+    return true;
+  }
+  // Non-standard classes (with no syntactic shorthand) used internally.
   case '*':
     // Match any character.
-    if (check_offset) {
-      CheckPosition(cp_offset, on_no_match);
+    return true;
+  case 'n': {
+    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 or 0x2029).
+    // The opposite of '.'.
+    __ mov(Operand(eax), current_character());
+    __ xor_(Operand(eax), Immediate(0x01));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
+    __ sub(Operand(eax), Immediate(0x0b));
+    __ cmp(eax, 0x0c - 0x0b);
+    if (mode_ == ASCII) {
+      BranchOrBacktrack(above, on_no_match);
+    } else {
+      Label done;
+      BranchOrBacktrack(below_equal, &done);
+      ASSERT_EQ(UC16, mode_);
+      // Compare original value to 0x2028 and 0x2029, using the already
+      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
+      // 0x201d (0x2028 - 0x0b) or 0x201e.
+      __ sub(Operand(eax), Immediate(0x2028 - 0x0b));
+      __ cmp(eax, 1);
+      BranchOrBacktrack(above, on_no_match);
+      __ bind(&done);
     }
     return true;
-  // No custom implementation (yet): w, W, s(UC16), S(UC16).
+  }
+  // No custom implementation (yet): s(UC16), S(UC16).
   default:
     return false;
   }

@@ -329,6 +329,9 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "(requires heap_stats)")
 
 // Regexp
+DEFINE_bool(regexp_possessive_quantifier,
+            false,
+            "enable possessive quantifier syntax for testing")
 DEFINE_bool(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 DEFINE_bool(trace_regexp_assembler,
             false,

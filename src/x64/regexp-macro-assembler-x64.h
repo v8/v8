@@ -73,8 +73,6 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // the end of the string.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
   virtual bool CheckSpecialCharacterClass(uc16 type,
-                                          int cp_offset,
-                                          bool check_offset,
                                           Label* on_no_match);
   virtual void Fail();
   virtual Handle<Object> GetCode(Handle<String> source);

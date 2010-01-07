@@ -371,7 +371,7 @@ class RegExpBuilder: public ZoneObject {
   void AddAtom(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
   void NewAlternative();  // '|'
-  void AddQuantifierToAtom(int min, int max, bool is_greedy);
+  void AddQuantifierToAtom(int min, int max, RegExpQuantifier::Type type);
   RegExpTree* ToRegExp();
  private:
   void FlushCharacters();
@@ -503,7 +503,9 @@ RegExpTree* RegExpBuilder::ToRegExp() {
 }
 
 
-void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
+void RegExpBuilder::AddQuantifierToAtom(int min,
+                                        int max,
+                                        RegExpQuantifier::Type type) {
   if (pending_empty_) {
     pending_empty_ = false;
     return;
@@ -543,7 +545,7 @@ void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
     UNREACHABLE();
     return;
   }
-  terms_.Add(new RegExpQuantifier(min, max, is_greedy, atom));
+  terms_.Add(new RegExpQuantifier(min, max, type, atom));
   LAST(ADD_TERM);
 }
 
@@ -4278,12 +4280,16 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     default:
       continue;
     }
-    bool is_greedy = true;
+    RegExpQuantifier::Type type = RegExpQuantifier::GREEDY;
     if (current() == '?') {
-      is_greedy = false;
+      type = RegExpQuantifier::NON_GREEDY;
+      Advance();
+    } else if (FLAG_regexp_possessive_quantifier && current() == '+') {
+      // FLAG_regexp_possessive_quantifier is a debug-only flag.
+      type = RegExpQuantifier::POSSESSIVE;
       Advance();
     }
-    builder->AddQuantifierToAtom(min, max, is_greedy);
+    builder->AddQuantifierToAtom(min, max, type);
   }
 }
 

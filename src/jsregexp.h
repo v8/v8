@@ -177,6 +177,57 @@ class RegExpImpl {
 };
 
 
+// Represents the location of one element relative to the intersection of
+// two sets. Corresponds to the four areas of a Venn diagram.
+enum ElementInSetsRelation {
+  kInsideNone = 0,
+  kInsideFirst = 1,
+  kInsideSecond = 2,
+  kInsideBoth = 3
+};
+
+
+// Represents the relation of two sets.
+// Sets can be either disjoint, partially or fully overlapping, or equal.
+class SetRelation BASE_EMBEDDED {
+ public:
+  // Relation is represented by a bit saying whether there are elements in
+  // one set that is not in the other, and a bit saying that there are elements
+  // that are in both sets.
+
+  // Location of an element. Corresponds to the internal areas of
+  // a Venn diagram.
+  enum {
+    kInFirst = 1 << kInsideFirst,
+    kInSecond = 1 << kInsideSecond,
+    kInBoth = 1 << kInsideBoth
+  };
+  SetRelation() : bits_(0) {}
+  ~SetRelation() {}
+  // Add the existence of objects in a particular
+  void SetElementsInFirstSet() { bits_ |= kInFirst; }
+  void SetElementsInSecondSet() { bits_ |= kInSecond; }
+  void SetElementsInBothSets() { bits_ |= kInBoth; }
+  // Check the currently known relation of the sets (common functions only,
+  // for other combinations, use value() to get the bits and check them
+  // manually).
+  // Sets are completely disjoint.
+  bool Disjoint() { return (bits_ & kInBoth) == 0; }
+  // Sets are equal.
+  bool Equals() { return (bits_ & (kInFirst | kInSecond)) == 0; }
+  // First set contains second.
+  bool Contains() { return (bits_ & kInSecond) == 0; }
+  // Second set contains first.
+  bool ContainedIn() { return (bits_ & kInFirst) == 0; }
+  bool NonTrivialIntersection() {
+    return (bits_ == (kInFirst | kInSecond | kInBoth));
+  }
+  int value() { return bits_; }
+ private:
+  int bits_;
+};
+
+
 class CharacterRange {
  public:
   CharacterRange() : from_(0), to_(0) { }
@@ -208,7 +259,39 @@ class CharacterRange {
                     Vector<const uc16> overlay,
                     ZoneList<CharacterRange>** included,
                     ZoneList<CharacterRange>** excluded);
-
+  // Whether a range list is in canonical form: Ranges ordered by from value,
+  // and ranges non-overlapping and non-adjacent.
+  static bool IsCanonical(ZoneList<CharacterRange>* ranges);
+  // Convert range list to canonical form. The characters covered by the ranges
+  // will still be the same, but no character is in more than one range, and
+  // adjacent ranges are merged. The resulting list may be shorter than the
+  // original, but cannot be longer.
+  static void Canonicalize(ZoneList<CharacterRange>* ranges);
+  // Check how the set of characters defined by a CharacterRange list relates
+  // to the set of word characters. List must be in canonical form.
+  static SetRelation WordCharacterRelation(ZoneList<CharacterRange>* ranges);
+  // Takes two character range lists (representing character sets) in canonical
+  // form and merges them.
+  // The characters that are only covered by the first set are added to
+  // first_set_only_out. the characters that are only in the second set are
+  // added to second_set_only_out, and the characters that are in both are
+  // added to both_sets_out.
+  // The pointers to first_set_only_out, second_set_only_out and both_sets_out
+  // should be to empty lists, but they need not be distinct, and may be NULL.
+  // If NULL, the characters are dropped, and if two arguments are the same
+  // pointer, the result is the union of the two sets that would be created
+  // if the pointers had been distinct.
+  // This way, the Merge function can compute all the usual set operations:
+  // union (all three out-sets are equal), intersection (only both_sets_out is
+  // non-NULL), and set difference (only first_set is non-NULL).
+  static void Merge(ZoneList<CharacterRange>* first_set,
+                    ZoneList<CharacterRange>* second_set,
+                    ZoneList<CharacterRange>* first_set_only_out,
+                    ZoneList<CharacterRange>* second_set_only_out,
+                    ZoneList<CharacterRange>* both_sets_out);
+  // Negate the contents of a character range in canonical form.
+  static void Negate(ZoneList<CharacterRange>* src,
+                     ZoneList<CharacterRange>* dst);
   static const int kRangeCanonicalizeMax = 0x346;
   static const int kStartMarker = (1 << 24);
   static const int kPayloadMask = (1 << 24) - 1;
@@ -482,7 +565,7 @@ class QuickCheckDetails {
 
 class RegExpNode: public ZoneObject {
  public:
-  RegExpNode() : trace_count_(0) { }
+  RegExpNode() : first_character_set_(NULL), trace_count_(0) { }
   virtual ~RegExpNode();
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
@@ -533,8 +616,29 @@ class RegExpNode: public ZoneObject {
   SiblingList* siblings() { return &siblings_; }
   void set_siblings(SiblingList* other) { siblings_ = *other; }
 
+  // Return the set of possible next characters recognized by the regexp
+  // (or a safe subset, potentially the set of all characters).
+  ZoneList<CharacterRange>* FirstCharacterSet();
+
+  // Compute (if possible within the budget of traversed nodes) the
+  // possible first characters of the input matched by this node and
+  // its continuation. Returns the remaining budget after the computation.
+  // If the budget is spent, the result is negative, and the cached
+  // first_character_set_ value isn't set.
+  virtual int ComputeFirstCharacterSet(int budget);
+
+  // Get and set the cached first character set value.
+  ZoneList<CharacterRange>* first_character_set() {
+    return first_character_set_;
+  }
+  void set_first_character_set(ZoneList<CharacterRange>* character_set) {
+    first_character_set_ = character_set;
+  }
+
  protected:
   enum LimitResult { DONE, CONTINUE };
+  static const int kComputeFirstCharacterSetFail = -1;
+
   LimitResult LimitVersions(RegExpCompiler* compiler, Trace* trace);
 
   // Returns a sibling of this node whose interests and assumptions
@@ -555,9 +659,11 @@ class RegExpNode: public ZoneObject {
   virtual RegExpNode* Clone() = 0;
 
  private:
+  static const int kFirstCharBudget = 10;
   Label label_;
   NodeInfo info_;
   SiblingList siblings_;
+  ZoneList<CharacterRange>* first_character_set_;
   // This variable keeps track of how many times code has been generated for
   // this node (in different traces).  We don't keep track of where the
   // generated code is located unless the code is generated at the start of
@@ -648,7 +754,7 @@ class ActionNode: public SeqRegExpNode {
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   virtual ActionNode* Clone() { return new ActionNode(*this); }
-
+  virtual int ComputeFirstCharacterSet(int budget);
  private:
   union {
     struct {
@@ -714,7 +820,7 @@ class TextNode: public SeqRegExpNode {
     return result;
   }
   void CalculateOffsets();
-
+  virtual int ComputeFirstCharacterSet(int budget);
  private:
   enum TextEmitPassType {
     NON_ASCII_MATCH,             // Check for characters that can't match.
@@ -744,7 +850,12 @@ class AssertionNode: public SeqRegExpNode {
     AT_START,
     AT_BOUNDARY,
     AT_NON_BOUNDARY,
-    AFTER_NEWLINE
+    AFTER_NEWLINE,
+    // Types not directly expressible in regexp syntax.
+    // Used for modifying a boundary node if its following character is
+    // known to be word and/or non-word.
+    AFTER_NONWORD_CHARACTER,
+    AFTER_WORD_CHARACTER
   };
   static AssertionNode* AtEnd(RegExpNode* on_success) {
     return new AssertionNode(AT_END, on_success);
@@ -768,8 +879,10 @@ class AssertionNode: public SeqRegExpNode {
                                     RegExpCompiler* compiler,
                                     int filled_in,
                                     bool not_at_start);
+  virtual int ComputeFirstCharacterSet(int budget);
   virtual AssertionNode* Clone() { return new AssertionNode(*this); }
   AssertionNodeType type() { return type_; }
+  void set_type(AssertionNodeType type) { type_ = type; }
  private:
   AssertionNode(AssertionNodeType t, RegExpNode* on_success)
       : SeqRegExpNode(on_success), type_(t) { }
@@ -797,7 +910,7 @@ class BackReferenceNode: public SeqRegExpNode {
     return;
   }
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
-
+  virtual int ComputeFirstCharacterSet(int budget);
  private:
   int start_reg_;
   int end_reg_;
@@ -819,7 +932,6 @@ class EndNode: public RegExpNode {
     UNREACHABLE();
   }
   virtual EndNode* Clone() { return new EndNode(*this); }
-
  private:
   Action action_;
 };
@@ -953,6 +1065,7 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   // characters, but on a negative lookahead the negative branch did not take
   // part in that calculation (EatsAtLeast) so the assumptions don't hold.
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return i != 0; }
+  virtual int ComputeFirstCharacterSet(int budget);
 };
 
 
@@ -971,6 +1084,7 @@ class LoopChoiceNode: public ChoiceNode {
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start);
+  virtual int ComputeFirstCharacterSet(int budget);
   virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
@@ -1126,7 +1240,7 @@ class Trace {
   void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
   void set_stop_node(RegExpNode* node) { stop_node_ = node; }
   void set_loop_label(Label* label) { loop_label_ = label; }
-  void set_characters_preloaded(int cpre) { characters_preloaded_ = cpre; }
+  void set_characters_preloaded(int count) { characters_preloaded_ = count; }
   void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
   void set_flush_budget(int to) { flush_budget_ = to; }
   void set_quick_check_performed(QuickCheckDetails* d) {
