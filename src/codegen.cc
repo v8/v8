@@ -345,6 +345,7 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateIsObject, "_IsObject"},
   {&CodeGenerator::GenerateIsFunction, "_IsFunction"},
   {&CodeGenerator::GenerateStringAdd, "_StringAdd"},
+  {&CodeGenerator::GenerateSubString, "_SubString"},
   {&CodeGenerator::GenerateRegExpExec, "_RegExpExec"},
 };
 

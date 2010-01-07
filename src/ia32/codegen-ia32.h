@@ -544,6 +544,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for StringAdd.
   void GenerateStringAdd(ZoneList<Expression*>* args);
 
+  // Fast support for SubString.
+  void GenerateSubString(ZoneList<Expression*>* args);
+
   // Support for direct calls from JavaScript to native RegExp code.
   void GenerateRegExpExec(ZoneList<Expression*>* args);
 
@@ -747,7 +750,32 @@ enum StringAddFlags {
 };
 
 
-class StringAddStub: public CodeStub {
+class StringStubBase: public CodeStub {
+ public:
+  // Generate code for copying characters using a simple loop. This should only
+  // be used in places where the number of characters is small and the
+  // additional setup and checking in GenerateCopyCharactersREP adds too much
+  // overhead. Copying of overlapping regions is not supported.
+  void GenerateCopyCharacters(MacroAssembler* masm,
+                              Register dest,
+                              Register src,
+                              Register count,
+                              Register scratch,
+                              bool ascii);
+
+  // Generate code for copying characters using the rep movs instruction.
+  // Copies ecx characters from esi to edi. Copying of overlapping regions is
+  // not supported.
+  void GenerateCopyCharactersREP(MacroAssembler* masm,
+                                 Register dest,     // Must be edi.
+                                 Register src,      // Must be esi.
+                                 Register count,    // Must be ecx.
+                                 Register scratch,  // Neither of the above.
+                                 bool ascii);
+};
+
+
+class StringAddStub: public StringStubBase {
  public:
   explicit StringAddStub(StringAddFlags flags) {
     string_check_ = ((flags & NO_STRING_CHECK_IN_STUB) == 0);
@@ -759,15 +787,20 @@ class StringAddStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  void GenerateCopyCharacters(MacroAssembler* masm,
-                              Register desc,
-                              Register src,
-                              Register count,
-                              Register scratch,
-                              bool ascii);
-
   // Should the stub check whether arguments are strings?
   bool string_check_;
+};
+
+
+class SubStringStub: public StringStubBase {
+ public:
+  SubStringStub() {}
+
+ private:
+  Major MajorKey() { return SubString; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
 };
 
 

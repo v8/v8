@@ -182,7 +182,7 @@ function SubString(string, start, end) {
     }
     return %CharFromCode(char_code);
   }
-  return %SubString(string, start, end);
+  return %_SubString(string, start, end);
 }
 
 

@@ -5282,6 +5282,19 @@ void CodeGenerator::GenerateStringAdd(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(3, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+  Load(args->at(2));
+
+  SubStringStub stub;
+  Result answer = frame_->CallStub(&stub, 3);
+  frame_->Push(&answer);
+}
+
+
 void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 4);
 
@@ -9168,12 +9181,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringAddStub::GenerateCopyCharacters(MacroAssembler* masm,
-                                           Register dest,
-                                           Register src,
-                                           Register count,
-                                           Register scratch,
-                                           bool ascii) {
+void StringStubBase::GenerateCopyCharacters(MacroAssembler* masm,
+                                            Register dest,
+                                            Register src,
+                                            Register count,
+                                            Register scratch,
+                                            bool ascii) {
   Label loop;
   __ bind(&loop);
   // This loop just copies one character at a time, as it is only used for very
@@ -9193,6 +9206,175 @@ void StringAddStub::GenerateCopyCharacters(MacroAssembler* masm,
   __ j(not_zero, &loop);
 }
 
+
+void StringStubBase::GenerateCopyCharactersREP(MacroAssembler* masm,
+                                               Register dest,
+                                               Register src,
+                                               Register count,
+                                               Register scratch,
+                                               bool ascii) {
+  // Copy characters using rep movs of doublewords. Align destination on 4 byte
+  // boundary before starting rep movs. Copy remaining characters after running
+  // rep movs.
+  ASSERT(dest.is(edi));  // rep movs destination
+  ASSERT(src.is(esi));  // rep movs source
+  ASSERT(count.is(ecx));  // rep movs count
+  ASSERT(!scratch.is(dest));
+  ASSERT(!scratch.is(src));
+  ASSERT(!scratch.is(count));
+
+  // Nothing to do for zero characters.
+  Label done;
+  __ test(count, Operand(count));
+  __ j(zero, &done);
+
+  // Make count the number of bytes to copy.
+  if (!ascii) {
+    __ shl(count, 1);
+  }
+
+  // Don't enter the rep movs if there are less than 4 bytes to copy.
+  Label last_bytes;
+  __ test(count, Immediate(~3));
+  __ j(zero, &last_bytes);
+
+  // Copy from edi to esi using rep movs instruction.
+  __ mov(scratch, count);
+  __ sar(count, 2);  // Number of doublewords to copy.
+  __ rep_movs();
+
+  // Find number of bytes left.
+  __ mov(count, scratch);
+  __ and_(count, 3);
+
+  // Check if there are more bytes to copy.
+  __ bind(&last_bytes);
+  __ test(count, Operand(count));
+  __ j(zero, &done);
+
+  // Copy remaining characters.
+  Label loop;
+  __ bind(&loop);
+  __ mov_b(scratch, Operand(src, 0));
+  __ mov_b(Operand(dest, 0), scratch);
+  __ add(Operand(src), Immediate(1));
+  __ add(Operand(dest), Immediate(1));
+  __ sub(Operand(count), Immediate(1));
+  __ j(not_zero, &loop);
+
+  __ bind(&done);
+}
+
+
+void SubStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  // Stack frame on entry.
+  //  esp[0]: return address
+  //  esp[4]: to
+  //  esp[8]: from
+  //  esp[12]: string
+
+  // Make sure first argument is a string.
+  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  ASSERT_EQ(0, kSmiTag);
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &runtime);
+  Condition is_string = masm->IsObjectStringType(eax, ebx, ebx);
+  __ j(NegateCondition(is_string), &runtime);
+
+  // eax: string
+  // ebx: instance type
+  // Calculate length of sub string using the smi values.
+  __ mov(ecx, Operand(esp, 1 * kPointerSize));  // to
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(not_zero, &runtime);
+  __ mov(edx, Operand(esp, 2 * kPointerSize));  // from
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(not_zero, &runtime);
+  __ sub(ecx, Operand(edx));
+  // Handle sub-strings of length 2 and less in the runtime system.
+  __ SmiUntag(ecx);  // Result length is no longer smi.
+  __ cmp(ecx, 2);
+  __ j(below_equal, &runtime);
+
+  // eax: string
+  // ebx: instance type
+  // ecx: result string length
+  // Check for flat ascii string
+  Label non_ascii_flat;
+  __ and_(ebx, kStringRepresentationMask | kStringEncodingMask);
+  __ cmp(ebx, kSeqStringTag | kAsciiStringTag);
+  __ j(not_equal, &non_ascii_flat);
+
+  // Allocate the result.
+  __ AllocateAsciiString(eax, ecx, ebx, edx, edi, &runtime);
+
+  // eax: result string
+  // ecx: result string length
+  __ mov(edx, esi);  // esi used by following code.
+  // Locate first character of result.
+  __ mov(edi, eax);
+  __ add(Operand(edi), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // Load string argument and locate character of sub string start.
+  __ mov(esi, Operand(esp, 3 * kPointerSize));
+  __ add(Operand(esi), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ mov(ebx, Operand(esp, 2 * kPointerSize));  // from
+  __ SmiUntag(ebx);
+  __ add(esi, Operand(ebx));
+
+  // eax: result string
+  // ecx: result length
+  // edx: original value of esi
+  // edi: first character of result
+  // esi: character of sub string start
+  GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, true);
+  __ mov(esi, edx);  // Restore esi.
+  __ IncrementCounter(&Counters::sub_string_native, 1);
+  __ ret(3 * kPointerSize);
+
+  __ bind(&non_ascii_flat);
+  // eax: string
+  // ebx: instance type & kStringRepresentationMask | kStringEncodingMask
+  // ecx: result string length
+  // Check for flat two byte string
+  __ cmp(ebx, kSeqStringTag | kTwoByteStringTag);
+  __ j(not_equal, &runtime);
+
+  // Allocate the result.
+  __ AllocateTwoByteString(eax, ecx, ebx, edx, edi, &runtime);
+
+  // eax: result string
+  // ecx: result string length
+  __ mov(edx, esi);  // esi used by following code.
+  // Locate first character of result.
+  __ mov(edi, eax);
+  __ add(Operand(edi),
+         Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // Load string argument and locate character of sub string start.
+  __ mov(esi, Operand(esp, 3 * kPointerSize));
+  __ add(Operand(esi), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ mov(ebx, Operand(esp, 2 * kPointerSize));  // from
+  // As from is a smi it is 2 times the value which matches the size of a two
+  // byte character.
+  ASSERT_EQ(0, kSmiTag);
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
+  __ add(esi, Operand(ebx));
+
+  // eax: result string
+  // ecx: result length
+  // edx: original value of esi
+  // edi: first character of result
+  // esi: character of sub string start
+  GenerateCopyCharactersREP(masm, edi, esi, ecx, ebx, false);
+  __ mov(esi, edx);  // Restore esi.
+  __ IncrementCounter(&Counters::sub_string_native, 1);
+  __ ret(3 * kPointerSize);
+
+  // Just jump to runtime to create the sub string.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kSubString), 3, 1);
+}
 
 #undef __
 

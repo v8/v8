@@ -37,6 +37,7 @@ namespace internal {
   V(CallFunction)                        \
   V(GenericBinaryOp)                     \
   V(StringAdd)                           \
+  V(SubString)                           \
   V(SmiOp)                               \
   V(Compare)                             \
   V(RecordWrite)                         \

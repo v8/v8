@@ -540,6 +540,9 @@ class Assembler : public Malloced {
   void cmov(Condition cc, Register dst, Handle<Object> handle);
   void cmov(Condition cc, Register dst, const Operand& src);
 
+  // Repetitive moves.
+  void rep_movs();
+
   // Exchange two registers
   void xchg(Register dst, Register src);
 
@@ -749,6 +752,11 @@ class Assembler : public Malloced {
   void xorpd(XMMRegister dst, XMMRegister src);
 
   void comisd(XMMRegister dst, XMMRegister src);
+
+  void movdqa(XMMRegister dst, const Operand& src);
+  void movdqa(const Operand& dst, XMMRegister src);
+  void movdqu(XMMRegister dst, const Operand& src);
+  void movdqu(const Operand& dst, XMMRegister src);
 
   // Use either movsd or movlpd.
   void movdbl(XMMRegister dst, const Operand& src);

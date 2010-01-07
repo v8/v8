@@ -2473,6 +2473,7 @@ static Object* Runtime_SubString(Arguments args) {
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
   RUNTIME_ASSERT(end <= value->length());
+  Counters::sub_string_runtime.Increment();
   return value->SubString(start, end);
 }
 

@@ -752,6 +752,14 @@ void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
 }
 
 
+void Assembler::rep_movs() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0xA5);
+}
+
+
 void Assembler::xchg(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -2031,6 +2039,50 @@ void Assembler::comisd(XMMRegister dst, XMMRegister src) {
   EMIT(0x66);
   EMIT(0x0F);
   EMIT(0x2F);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movdqa(const Operand& dst, XMMRegister src ) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqa(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x6F);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movdqu(const Operand& dst, XMMRegister src ) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x7F);
+  emit_sse_operand(src, dst);
+}
+
+
+void Assembler::movdqu(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x6F);
   emit_sse_operand(dst, src);
 }
 
