@@ -1384,6 +1384,17 @@ static Object* CharCodeAt(String* subject, Object* index) {
 }
 
 
+static Object* CharFromCode(Object* char_code) {
+  uint32_t code;
+  if (Array::IndexFromObject(char_code, &code)) {
+    if (code <= 0xffff) {
+      return Heap::LookupSingleCharacterStringFromCode(code);
+    }
+  }
+  return Heap::empty_string();
+}
+
+
 static Object* Runtime_StringCharCodeAt(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -1394,16 +1405,17 @@ static Object* Runtime_StringCharCodeAt(Arguments args) {
 }
 
 
+static Object* Runtime_StringCharAt(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  return CharFromCode(Runtime_StringCharCodeAt(args));
+}
+
+
 static Object* Runtime_CharFromCode(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  uint32_t code;
-  if (Array::IndexFromObject(args[0], &code)) {
-    if (code <= 0xffff) {
-      return Heap::LookupSingleCharacterStringFromCode(code);
-    }
-  }
-  return Heap::empty_string();
+  return CharFromCode(args[0]);
 }
 
 // Forward declarations.

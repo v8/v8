@@ -146,6 +146,7 @@ namespace internal {
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
+  F(StringCharAt, 2, 1) \
   F(StringIndexOf, 3, 1) \
   F(StringLastIndexOf, 3, 1) \
   F(StringLocaleCompare, 2, 1) \
