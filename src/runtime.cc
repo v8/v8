@@ -1408,7 +1408,10 @@ static Object* Runtime_StringCharCodeAt(Arguments args) {
 static Object* Runtime_StringCharAt(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
-  return CharFromCode(Runtime_StringCharCodeAt(args));
+
+  CONVERT_CHECKED(String, subject, args[0]);
+  Object* index = args[1];
+  return CharFromCode(CharCodeAt(subject, index));
 }
 
 
