@@ -6834,10 +6834,14 @@ void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
 
 
 template<typename Shape, typename Key>
-Object* HashTable<Shape, Key>::Allocate(
-    int at_least_space_for) {
+Object* HashTable<Shape, Key>::Allocate(int at_least_space_for) {
   int capacity = RoundUpToPowerOf2(at_least_space_for);
-  if (capacity < 4) capacity = 4;  // Guarantee min capacity.
+  if (capacity < 4) {
+    capacity = 4;  // Guarantee min capacity.
+  } else if (capacity > HashTable::kMaxCapacity) {
+    return Failure::OutOfMemoryException();
+  }
+
   Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
   if (!obj->IsFailure()) {
     HashTable::cast(obj)->SetNumberOfElements(0);

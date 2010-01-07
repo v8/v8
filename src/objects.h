@@ -1508,6 +1508,10 @@ class JSObject: public HeapObject {
 #endif
   Object* SlowReverseLookup(Object* value);
 
+  // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
+  // Also maximal value of JSArray's length property.
+  static const uint32_t kMaxElementCount = 0xffffffffu;
+
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
   static const int kInitialMaxFastElementArray = 100000;
@@ -1634,8 +1638,14 @@ class FixedArray: public Array {
   // Casting.
   static inline FixedArray* cast(Object* obj);
 
-  // Align data at kPointerSize, even if Array.kHeaderSize isn't aligned.
-  static const int kHeaderSize = POINTER_SIZE_ALIGN(Array::kHeaderSize);
+  static const int kHeaderSize = Array::kAlignedSize;
+
+  // Maximal allowed size, in bytes, of a single FixedArray.
+  // Prevents overflowing size computations, as well as extreme memory
+  // consumption.
+  static const int kMaxSize = 512 * MB;
+  // Maximally allowed length of a FixedArray.
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
 
   // Dispatched behavior.
   int FixedArraySize() { return SizeFor(length()); }
@@ -1948,6 +1958,12 @@ class HashTable: public FixedArray {
   // Constant used for denoting a absent entry.
   static const int kNotFound = -1;
 
+  // Maximal capacity of HashTable. Based on maximal length of underlying
+  // FixedArray. Staying below kMaxCapacity also ensures that EntryToIndex
+  // cannot overflow.
+  static const int kMaxCapacity =
+      (FixedArray::kMaxLength - kElementsStartOffset) / kEntrySize;
+
   // Find entry for key otherwise return -1.
   int FindEntry(Key key);
 
@@ -1978,6 +1994,7 @@ class HashTable: public FixedArray {
     // use bit-wise AND with a mask, so the capacity must be positive
     // and non-zero.
     ASSERT(capacity > 0);
+    ASSERT(capacity <= kMaxCapacity);
     fast_set(this, kCapacityIndex, Smi::FromInt(capacity));
   }
 
@@ -2324,6 +2341,11 @@ class ByteArray: public Array {
   // ByteArray headers are not quadword aligned.
   static const int kHeaderSize = Array::kHeaderSize;
   static const int kAlignedSize = Array::kAlignedSize;
+
+  // Maximal memory consumption for a single ByteArray.
+  static const int kMaxSize = 512 * MB;
+  // Maximal length of a single ByteArray.
+  static const int kMaxLength = kMaxSize - kHeaderSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ByteArray);
@@ -4042,6 +4064,12 @@ class SeqAsciiString: public SeqString {
   static const int kHeaderSize = String::kSize;
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
 
+  // Maximal memory usage for a single sequential ASCII string.
+  static const int kMaxSize = 512 * MB;
+  // Maximal length of a single sequential ASCII string.
+  // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
+  static const int kMaxLength = (kMaxSize - kHeaderSize);
+
   // Support for StringInputBuffer.
   inline void SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
                                                 unsigned* offset,
@@ -4087,6 +4115,12 @@ class SeqTwoByteString: public SeqString {
   // Layout description.
   static const int kHeaderSize = String::kSize;
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kHeaderSize);
+
+  // Maximal memory usage for a single sequential two-byte string.
+  static const int kMaxSize = 512 * MB;
+  // Maximal length of a single sequential two-byte string.
+  // Q.v. String::kMaxLength which is the maximal size of concatenated strings.
+  static const int kMaxLength = (kMaxSize - kHeaderSize) / sizeof(uint16_t);
 
   // Support for StringInputBuffer.
   inline void SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,

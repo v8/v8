@@ -806,7 +806,8 @@ void Heap::ScavengeExternalStringTable() {
     }
   }
 
-  ExternalStringTable::ShrinkNewStrings(last - start);
+  ASSERT(last <= end);
+  ExternalStringTable::ShrinkNewStrings(static_cast<int>(last - start));
 }
 
 
@@ -2038,6 +2039,9 @@ Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 
 
 Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
+  if (length < 0 || length > ByteArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   if (pretenure == NOT_TENURED) {
     return AllocateByteArray(length);
   }
@@ -2054,6 +2058,9 @@ Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateByteArray(int length) {
+  if (length < 0 || length > ByteArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =
       (size > MaxObjectSizeInPagedSpace()) ? LO_SPACE : NEW_SPACE;
@@ -2656,12 +2663,16 @@ Map* Heap::SymbolMapForString(String* string) {
 Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
                                      int chars,
                                      uint32_t hash_field) {
+  ASSERT(chars >= 0);
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
   // Determine whether the string is ascii.
   bool is_ascii = true;
-  while (buffer->has_more() && is_ascii) {
-    if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) is_ascii = false;
+  while (buffer->has_more()) {
+    if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) {
+      is_ascii = false;
+      break;
+    }
   }
   buffer->Rewind();
 
@@ -2670,9 +2681,15 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   Map* map;
 
   if (is_ascii) {
+    if (chars > SeqAsciiString::kMaxLength) {
+      return Failure::OutOfMemoryException();
+    }
     map = ascii_symbol_map();
     size = SeqAsciiString::SizeFor(chars);
   } else {
+    if (chars > SeqTwoByteString::kMaxLength) {
+      return Failure::OutOfMemoryException();
+    }
     map = symbol_map();
     size = SeqTwoByteString::SizeFor(chars);
   }
@@ -2700,7 +2717,13 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
 
 
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
+  if (length < 0 || length > SeqAsciiString::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
+
   int size = SeqAsciiString::SizeFor(length);
+  ASSERT(size <= SeqAsciiString::kMaxSize);
+
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   AllocationSpace retry_space = OLD_DATA_SPACE;
 
@@ -2728,7 +2751,11 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
+  if (length < 0 || length > SeqTwoByteString::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   int size = SeqTwoByteString::SizeFor(length);
+  ASSERT(size <= SeqTwoByteString::kMaxSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   AllocationSpace retry_space = OLD_DATA_SPACE;
 
@@ -2767,6 +2794,9 @@ Object* Heap::AllocateEmptyFixedArray() {
 
 
 Object* Heap::AllocateRawFixedArray(int length) {
+  if (length < 0 || length > FixedArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   // Use the general function if we're forced to always allocate.
   if (always_allocate()) return AllocateFixedArray(length, TENURED);
   // Allocate the raw data for a fixed array.
@@ -2818,7 +2848,11 @@ Object* Heap::AllocateFixedArray(int length) {
 
 
 Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
+  ASSERT(length >= 0);
   ASSERT(empty_fixed_array()->IsFixedArray());
+  if (length < 0 || length > FixedArray::kMaxLength) {
+    return Failure::OutOfMemoryException();
+  }
   if (length == 0) return empty_fixed_array();
 
   AllocationSpace space =

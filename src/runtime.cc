@@ -5386,8 +5386,8 @@ class ArrayConcatVisitor {
       fast_elements_(fast_elements), index_offset_(0) { }
 
   void visit(uint32_t i, Handle<Object> elm) {
-    uint32_t index = i + index_offset_;
-    if (index >= index_limit_) return;
+    if (i >= index_limit_ - index_offset_) return;
+    uint32_t index = index_offset_ + i;
 
     if (fast_elements_) {
       ASSERT(index < static_cast<uint32_t>(storage_->length()));
@@ -5403,16 +5403,23 @@ class ArrayConcatVisitor {
   }
 
   void increase_index_offset(uint32_t delta) {
-    index_offset_ += delta;
+    if (index_limit_ - index_offset_ < delta) {
+      index_offset_ = index_limit_;
+    } else {
+      index_offset_ += delta;
+    }
   }
 
   Handle<FixedArray> storage() { return storage_; }
 
  private:
   Handle<FixedArray> storage_;
+  // Limit on the accepted indices. Elements with indices larger than the
+  // limit are ignored by the visitor.
   uint32_t index_limit_;
-  bool fast_elements_;
+  // Index after last seen index. Always less than or equal to index_limit_.
   uint32_t index_offset_;
+  bool fast_elements_;
 };
 
 
@@ -5584,6 +5591,11 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
  *
  * If a ArrayConcatVisitor object is given, the visitor is called with
  * parameters, element's index + visitor_index_offset and the element.
+ *
+ * The returned number of elements is an upper bound on the actual number
+ * of elements added. If the same element occurs in more than one object
+ * in the array's prototype chain, it will be counted more than once, but
+ * will only occur once in the result.
  */
 static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
                                                  ArrayConcatVisitor* visitor) {
@@ -5606,8 +5618,14 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
   uint32_t nof_elements = 0;
   for (int i = objects.length() - 1; i >= 0; i--) {
     Handle<JSObject> obj = objects[i];
-    nof_elements +=
+    uint32_t encountered_elements =
         IterateElements(Handle<JSObject>::cast(obj), range, visitor);
+
+    if (encountered_elements > JSObject::kMaxElementCount - nof_elements) {
+      nof_elements = JSObject::kMaxElementCount;
+    } else {
+      nof_elements += encountered_elements;
+    }
   }
 
   return nof_elements;
@@ -5624,13 +5642,16 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
  * elements.  If an argument is not an Array object, the function
  * visits the object as if it is an one-element array.
  *
- * If the result array index overflows 32-bit integer, the rounded
+ * If the result array index overflows 32-bit unsigned integer, the rounded
  * non-negative number is used as new length. For example, if one
  * array length is 2^32 - 1, second array length is 1, the
  * concatenated array length is 0.
+ * TODO(lrn) Change length behavior to ECMAScript 5 specification (length
+ * is one more than the last array index to get a value assigned).
  */
 static uint32_t IterateArguments(Handle<JSArray> arguments,
                                  ArrayConcatVisitor* visitor) {
+  const uint32_t max_length = JSObject::kMaxElementCount;
   uint32_t visited_elements = 0;
   uint32_t num_of_args = static_cast<uint32_t>(arguments->length()->Number());
 
@@ -5643,16 +5664,23 @@ static uint32_t IterateArguments(Handle<JSArray> arguments,
           IterateArrayAndPrototypeElements(array, visitor);
       // Total elements of array and its prototype chain can be more than
       // the array length, but ArrayConcat can only concatenate at most
-      // the array length number of elements.
-      visited_elements += (nof_elements > len) ? len : nof_elements;
+      // the array length number of elements. We use the length as an estimate
+      // for the actual number of elements added.
+      uint32_t added_elements = (nof_elements > len) ? len : nof_elements;
+      if (JSArray::kMaxElementCount - visited_elements < added_elements) {
+        visited_elements = JSArray::kMaxElementCount;
+      } else {
+        visited_elements += added_elements;
+      }
       if (visitor) visitor->increase_index_offset(len);
-
     } else {
       if (visitor) {
         visitor->visit(0, obj);
         visitor->increase_index_offset(1);
       }
-      visited_elements++;
+      if (visited_elements < JSArray::kMaxElementCount) {
+        visited_elements++;
+      }
     }
   }
   return visited_elements;
@@ -5662,6 +5690,8 @@ static uint32_t IterateArguments(Handle<JSArray> arguments,
 /**
  * Array::concat implementation.
  * See ECMAScript 262, 15.4.4.4.
+ * TODO(lrn): Fix non-compliance for very large concatenations and update to
+ * following the ECMAScript 5 specification.
  */
 static Object* Runtime_ArrayConcat(Arguments args) {
   ASSERT(args.length() == 1);
@@ -5678,12 +5708,18 @@ static Object* Runtime_ArrayConcat(Arguments args) {
   { AssertNoAllocation nogc;
     for (uint32_t i = 0; i < num_of_args; i++) {
       Object* obj = arguments->GetElement(i);
+      uint32_t length_estimate;
       if (obj->IsJSArray()) {
-        result_length +=
+        length_estimate =
             static_cast<uint32_t>(JSArray::cast(obj)->length()->Number());
       } else {
-        result_length++;
+        length_estimate = 1;
       }
+      if (JSObject::kMaxElementCount - result_length < length_estimate) {
+        result_length = JSObject::kMaxElementCount;
+        break;
+      }
+      result_length += length_estimate;
     }
   }
 
