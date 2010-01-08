@@ -127,6 +127,9 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 TEST(Parser) {
   V8::Initialize(NULL);
+
+  CHECK_PARSE_ERROR("?");
+
   CHECK_PARSE_EQ("abc", "'abc'");
   CHECK_PARSE_EQ("", "%");
   CHECK_PARSE_EQ("abc|def", "(| 'abc' 'def')");
