@@ -317,15 +317,30 @@ class GenericUnaryOpStub : public CodeStub {
 };
 
 
+enum NaNInformation {
+  kBothCouldBeNaN,
+  kCantBothBeNaN
+};
+
+
 class CompareStub: public CodeStub {
  public:
-  CompareStub(Condition cc, bool strict) : cc_(cc), strict_(strict) { }
+  CompareStub(Condition cc,
+              bool strict,
+              NaNInformation nan_info = kBothCouldBeNaN) :
+      cc_(cc), strict_(strict), never_nan_nan_(nan_info == kCantBothBeNaN) { }
 
   void Generate(MacroAssembler* masm);
 
  private:
   Condition cc_;
   bool strict_;
+  // Only used for 'equal' comparisons.  Tells the stub that we already know
+  // that at least one side of the comparison is not NaN.  This allows the
+  // stub to use object identity in the positive case.  We ignore it when
+  // generating the minor key for other comparisons to avoid creating more
+  // stubs.
+  bool never_nan_nan_;
 
   Major MajorKey() { return Compare; }
 
@@ -337,6 +352,9 @@ class CompareStub: public CodeStub {
                          Register object,
                          Register scratch);
 
+  // Unfortunately you have to run without snapshots to see most of these
+  // names in the profile since most compare stubs end up in the snapshot.
+  const char* GetName();
 #ifdef DEBUG
   void Print() {
     PrintF("CompareStub (cc %d), (strict %s)\n",

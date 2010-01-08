@@ -383,11 +383,12 @@ const uint32_t kIsNotStringMask = 0x80;
 const uint32_t kStringTag = 0x0;
 const uint32_t kNotStringTag = 0x80;
 
-// If bit 7 is clear, bit 5 indicates that the string is a symbol (if set) or
-// not (if cleared).
-const uint32_t kIsSymbolMask = 0x20;
+// Bit 6 indicates that the object is a symbol (if set) or not (if cleared).
+// There are not enough types that the non-string types (with bit 7 set) can
+// have bit 6 set too.
+const uint32_t kIsSymbolMask = 0x40;
 const uint32_t kNotSymbolTag = 0x0;
-const uint32_t kSymbolTag = 0x20;
+const uint32_t kSymbolTag = 0x40;
 
 // If bit 7 is clear then bit 2 indicates whether the string consists of
 // two-byte characters or one-byte characters.

@@ -6264,34 +6264,39 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
       // so we do the second best thing - test it ourselves.
 
-      Label return_equal;
-      Label heap_number;
-      // If it's not a heap number, then return equal.
-      __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
-             Factory::heap_number_map());
-      __ j(equal, &heap_number);
-      __ bind(&return_equal);
-      __ xor_(rax, rax);
-      __ ret(0);
+      if (never_nan_nan_) {
+        __ xor_(rax, rax);
+        __ ret(0);
+      } else {
+        Label return_equal;
+        Label heap_number;
+        // If it's not a heap number, then return equal.
+        __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        __ j(equal, &heap_number);
+        __ bind(&return_equal);
+        __ xor_(rax, rax);
+        __ ret(0);
 
-      __ bind(&heap_number);
-      // It is a heap number, so return non-equal if it's NaN and equal if it's
-      // not NaN.
-      // The representation of NaN values has all exponent bits (52..62) set,
-      // and not all mantissa bits (0..51) clear.
-      // We only allow QNaNs, which have bit 51 set (which also rules out
-      // the value being Infinity).
+        __ bind(&heap_number);
+        // It is a heap number, so return non-equal if it's NaN and equal if
+        // it's not NaN.
+        // The representation of NaN values has all exponent bits (52..62) set,
+        // and not all mantissa bits (0..51) clear.
+        // We only allow QNaNs, which have bit 51 set (which also rules out
+        // the value being Infinity).
 
-      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-      // all bits in the mask are set. We only need to check the word
-      // that contains the exponent and high bit of the mantissa.
-      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-      __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
-      __ xorl(rax, rax);
-      __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
-      __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
-      __ setcc(above_equal, rax);
-      __ ret(0);
+        // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+        // all bits in the mask are set. We only need to check the word
+        // that contains the exponent and high bit of the mantissa.
+        ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+        __ movl(rdx, FieldOperand(rdx, HeapNumber::kExponentOffset));
+        __ xorl(rax, rax);
+        __ addl(rdx, rdx);  // Shift value and mask so mask applies to top bits.
+        __ cmpl(rdx, Immediate(kQuietNaNHighBitsMask << 1));
+        __ setcc(above_equal, rax);
+        __ ret(0);
+      }
 
       __ bind(&not_identical);
     }
@@ -6438,9 +6443,11 @@ void CompareStub::BranchIfNonSymbol(MacroAssembler* masm,
   __ movq(scratch, FieldOperand(object, HeapObject::kMapOffset));
   __ movzxbq(scratch,
              FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, Immediate(kIsSymbolMask | kIsNotStringMask));
-  __ cmpb(scratch, Immediate(kSymbolTag | kStringTag));
-  __ j(not_equal, label);
+  // Ensure that no non-strings have the symbol bit set.
+  ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+  ASSERT(kSymbolTag != 0);
+  __ testb(scratch, Immediate(kIsSymbolMask));
+  __ j(zero, label);
 }
 
 
@@ -7740,9 +7747,52 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
 
 
 int CompareStub::MinorKey() {
-  // Encode the two parameters in a unique 16 bit value.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
-  return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
+  // Encode the three parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
+  int nnn_value = (never_nan_nan_ ? 2 : 0);
+  if (cc_ != equal) nnn_value = 0;  // Avoid duplicate stubs.
+  return (static_cast<unsigned>(cc_) << 2) | nnn_value | (strict_ ? 1 : 0);
+}
+
+
+const char* CompareStub::GetName() {
+  switch(cc_) {
+    case less: return "CompareStub_LT";
+    case greater: return "CompareStub_GT";
+    case less_equal: return "CompareStub_LE";
+    case greater_equal: return "CompareStub_GE";
+    case not_equal: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_NE_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_NO_NAN";
+        } else {
+          return "CompareStub_NE";
+        }
+      }
+    }
+    case equal: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_EQ_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_NO_NAN";
+        } else {
+          return "CompareStub_EQ";
+        }
+      }
+    }
+    default: return "CompareStub";
+  }
 }
 
 

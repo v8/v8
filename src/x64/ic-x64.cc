@@ -330,6 +330,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Is the string a symbol?
   __ j(not_zero, &index_string);  // The value in rbx is used at jump target.
+  ASSERT(kSymbolTag != 0);
   __ testb(FieldOperand(rdx, Map::kInstanceTypeOffset),
            Immediate(kIsSymbolMask));
   __ j(zero, &slow);

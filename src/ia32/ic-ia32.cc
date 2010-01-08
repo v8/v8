@@ -313,6 +313,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Is the string a symbol?
   __ movzx_b(ebx, FieldOperand(edx, Map::kInstanceTypeOffset));
+  ASSERT(kSymbolTag != 0);
   __ test(ebx, Immediate(kIsSymbolMask));
   __ j(zero, &slow, not_taken);
 

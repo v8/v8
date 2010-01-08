@@ -1899,6 +1899,13 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 }
 
 
+static bool CouldBeNaN(const Result& result) {
+  if (!result.is_constant()) return true;
+  if (!result.handle()->IsHeapNumber()) return false;
+  return isnan(HeapNumber::cast(*result.handle())->value());
+}
+
+
 void CodeGenerator::Comparison(AstNode* node,
                                Condition cc,
                                bool strict,
@@ -1919,15 +1926,28 @@ void CodeGenerator::Comparison(AstNode* node,
   }
   ASSERT(cc == less || cc == equal || cc == greater_equal);
 
-  // If either side is a constant smi, optimize the comparison.
-  bool left_side_constant_smi =
-      left_side.is_constant() && left_side.handle()->IsSmi();
-  bool right_side_constant_smi =
-      right_side.is_constant() && right_side.handle()->IsSmi();
-  bool left_side_constant_null =
-      left_side.is_constant() && left_side.handle()->IsNull();
-  bool right_side_constant_null =
-      right_side.is_constant() && right_side.handle()->IsNull();
+  // If either side is a constant of some sort, we can probably optimize the
+  // comparison.
+  bool left_side_constant_smi = false;
+  bool left_side_constant_null = false;
+  bool left_side_constant_1_char_string = false;
+  if (left_side.is_constant()) {
+    left_side_constant_smi = left_side.handle()->IsSmi();
+    left_side_constant_null = left_side.handle()->IsNull();
+    left_side_constant_1_char_string = 
+        (left_side.handle()->IsString() &&
+         (String::cast(*left_side.handle())->length() == 1));
+  }
+  bool right_side_constant_smi = false;
+  bool right_side_constant_null = false;
+  bool right_side_constant_1_char_string = false;
+  if (right_side.is_constant()) {
+    right_side_constant_smi = right_side.handle()->IsSmi();
+    right_side_constant_null = right_side.handle()->IsNull();
+    right_side_constant_1_char_string = 
+        (right_side.handle()->IsString() &&
+         (String::cast(*right_side.handle())->length() == 1));
+  }
 
   if (left_side_constant_smi || right_side_constant_smi) {
     if (left_side_constant_smi && right_side_constant_smi) {
@@ -2016,7 +2036,7 @@ void CodeGenerator::Comparison(AstNode* node,
       }
 
       // Setup and call the compare stub.
-      CompareStub stub(cc, strict);
+      CompareStub stub(cc, strict, kCantBothBeNaN);
       Result result = frame_->CallStub(&stub, &left_side, &right_side);
       result.ToRegister();
       __ cmp(result.reg(), 0);
@@ -2075,18 +2095,150 @@ void CodeGenerator::Comparison(AstNode* node,
       operand.Unuse();
       dest->Split(not_zero);
     }
+  } else if (left_side_constant_1_char_string ||
+             right_side_constant_1_char_string) {
+    if (left_side_constant_1_char_string && right_side_constant_1_char_string) {
+      // Trivial case, comparing two constants.
+      int left_value = String::cast(*left_side.handle())->Get(0);
+      int right_value = String::cast(*right_side.handle())->Get(0);
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      // Only one side is a constant 1 character string.
+      // If left side is a constant 1-character string, reverse the operands.
+      // Since one side is a constant string, conversion order does not matter.
+      if (left_side_constant_1_char_string) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+        // This may reintroduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
+      }
+      // Implement comparison against a constant string, inlining the case
+      // where both sides are strings.
+      left_side.ToRegister();
+
+      // Here we split control flow to the stub call and inlined cases
+      // before finally splitting it to the control destination.  We use
+      // a jump target and branching to duplicate the virtual frame at
+      // the first split.  We manually handle the off-frame references
+      // by reconstituting them on the non-fall-through path.
+      JumpTarget is_not_string, is_string;
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
+      __ test(left_side.reg(), Immediate(kSmiTagMask));
+      is_not_string.Branch(zero, &left_side);
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ mov(temp.reg(),
+             FieldOperand(left_side.reg(), HeapObject::kMapOffset));
+      __ movzx_b(temp.reg(),
+                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+      // If we are testing for equality then make use of the symbol shortcut.
+      // Check if the right left hand side has the same type as the left hand
+      // side (which is always a symbol).
+      if (cc == equal) {
+        Label not_a_symbol;
+        ASSERT(kSymbolTag != 0);
+        // Ensure that no non-strings have the symbol bit set.
+        ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
+        __ test(temp.reg(), Immediate(kIsSymbolMask));  // Test the symbol bit.
+        __ j(zero, &not_a_symbol);
+        // They are symbols, so do identity compare.
+        __ cmp(left_side.reg(), right_side.handle());
+        dest->true_target()->Branch(equal);
+        dest->false_target()->Branch(not_equal);
+        __ bind(&not_a_symbol);
+      }
+      // If the receiver is not a string of the type we handle call the stub.
+      __ and_(temp.reg(),
+          kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
+      __ cmp(temp.reg(), kStringTag | kSeqStringTag | kAsciiStringTag);
+      temp.Unuse();
+      is_string.Branch(equal, &left_side);
+
+      // Setup and call the compare stub.
+      is_not_string.Bind(&left_side);
+      CompareStub stub(cc, strict, kCantBothBeNaN);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side);
+      result.ToRegister();
+      __ cmp(result.reg(), 0);
+      result.Unuse();
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+
+      is_string.Bind(&left_side);
+      // Here we know we have a sequential ASCII string.
+      left_side = Result(left_reg);
+      right_side = Result(right_val);
+      Result temp2 = allocator_->Allocate();
+      ASSERT(temp2.is_valid());
+      // Test string equality and comparison.
+      if (cc == equal) {
+        Label comparison_done;
+        __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Immediate(1));
+        __ j(not_equal, &comparison_done);
+        __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
+                String::cast(*right_side.handle())->Get(0));
+        __ bind(&comparison_done);
+      } else {
+        __ mov(temp2.reg(),
+               FieldOperand(left_side.reg(), String::kLengthOffset));
+        __ sub(Operand(temp2.reg()), Immediate(1));
+        Label comparison;
+        // If the length is 0 then our subtraction gave -1 which compares less
+        // than any character.
+        __ j(negative, &comparison);
+        // Otherwise load the first character.
+        __ movzx_b(temp2.reg(),
+                   FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize));
+        __ bind(&comparison);
+        // Compare the first character of the string with out constant
+        // 1-character string.
+        __ cmp(Operand(temp2.reg()),
+               Immediate(String::cast(*right_side.handle())->Get(0)));
+        Label characters_were_different;
+        __ j(not_equal, &characters_were_different);
+        // If the first character is the same then the long string sorts after
+        // the short one.
+        __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
+               Immediate(1));
+        __ bind(&characters_were_different);
+      }
+      temp2.Unuse();
+      left_side.Unuse();
+      right_side.Unuse();
+      dest->Split(cc);
+    }
   } else {
     // Neither side is a constant Smi or null.
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
         (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
         (right_side.is_constant() && !right_side.handle()->IsSmi());
+    NaNInformation nan_info =
+        (CouldBeNaN(left_side) && CouldBeNaN(right_side)) ?
+        kBothCouldBeNaN :
+        kCantBothBeNaN;
     left_side.ToRegister();
     right_side.ToRegister();
 
     if (known_non_smi) {
       // When non-smi, call out to the compare stub.
-      CompareStub stub(cc, strict);
+      CompareStub stub(cc, strict, nan_info);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       if (cc == equal) {
         __ test(answer.reg(), Operand(answer.reg()));
@@ -2113,7 +2265,7 @@ void CodeGenerator::Comparison(AstNode* node,
       temp.Unuse();
       is_smi.Branch(zero, taken);
       // When non-smi, call out to the compare stub.
-      CompareStub stub(cc, strict);
+      CompareStub stub(cc, strict, nan_info);
       Result answer = frame_->CallStub(&stub, &left_side, &right_side);
       if (cc == equal) {
         __ test(answer.reg(), Operand(answer.reg()));
@@ -8229,35 +8381,41 @@ void CompareStub::Generate(MacroAssembler* masm) {
       // Test for NaN. Sadly, we can't just compare to Factory::nan_value(),
       // so we do the second best thing - test it ourselves.
 
-      Label return_equal;
-      Label heap_number;
-      // If it's not a heap number, then return equal.
-      __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
-             Immediate(Factory::heap_number_map()));
-      __ j(equal, &heap_number);
-      __ bind(&return_equal);
-      __ Set(eax, Immediate(0));
-      __ ret(0);
+      if (never_nan_nan_) {
+        __ Set(eax, Immediate(0));
+        __ ret(0);
+      } else {
+        Label return_equal;
+        Label heap_number;
+        // If it's not a heap number, then return equal.
+        __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+               Immediate(Factory::heap_number_map()));
+        __ j(equal, &heap_number);
+        __ bind(&return_equal);
+        __ Set(eax, Immediate(0));
+        __ ret(0);
 
-      __ bind(&heap_number);
-      // It is a heap number, so return non-equal if it's NaN and equal if it's
-      // not NaN.
-      // The representation of NaN values has all exponent bits (52..62) set,
-      // and not all mantissa bits (0..51) clear.
-      // We only accept QNaNs, which have bit 51 set.
-      // Read top bits of double representation (second word of value).
+        __ bind(&heap_number);
+        // It is a heap number, so return non-equal if it's NaN and equal if
+        // it's not NaN.
+        // The representation of NaN values has all exponent bits (52..62) set,
+        // and not all mantissa bits (0..51) clear.
+        // We only accept QNaNs, which have bit 51 set.
+        // Read top bits of double representation (second word of value).
 
-      // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-      // all bits in the mask are set. We only need to check the word
-      // that contains the exponent and high bit of the mantissa.
-      ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
-      __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
-      __ xor_(eax, Operand(eax));
-      // Shift value and mask so kQuietNaNHighBitsMask applies to topmost bits.
-      __ add(edx, Operand(edx));
-      __ cmp(edx, kQuietNaNHighBitsMask << 1);
-      __ setcc(above_equal, eax);
-      __ ret(0);
+        // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
+        // all bits in the mask are set. We only need to check the word
+        // that contains the exponent and high bit of the mantissa.
+        ASSERT_NE(0, (kQuietNaNHighBitsMask << 1) & 0x80000000u);
+        __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
+        __ xor_(eax, Operand(eax));
+        // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
+        // bits.
+        __ add(edx, Operand(edx));
+        __ cmp(edx, kQuietNaNHighBitsMask << 1);
+        __ setcc(above_equal, eax);
+        __ ret(0);
+      }
 
       __ bind(&not_identical);
     }
@@ -8982,10 +9140,55 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
+// Unfortunately you have to run without snapshots to see most of these
+// names in the profile since most compare stubs end up in the snapshot.
+const char* CompareStub::GetName() {
+  switch (cc_) {
+    case less: return "CompareStub_LT";
+    case greater: return "CompareStub_GT";
+    case less_equal: return "CompareStub_LE";
+    case greater_equal: return "CompareStub_GE";
+    case not_equal: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_NE_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_NE_NO_NAN";
+        } else {
+          return "CompareStub_NE";
+        }
+      }
+    }
+    case equal: {
+      if (strict_) {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_STRICT_NO_NAN";
+        } else {
+          return "CompareStub_EQ_STRICT";
+        }
+      } else {
+        if (never_nan_nan_) {
+          return "CompareStub_EQ_NO_NAN";
+        } else {
+          return "CompareStub_EQ";
+        }
+      }
+    }
+    default: return "CompareStub";
+  }
+}
+
+
 int CompareStub::MinorKey() {
-  // Encode the two parameters in a unique 16 bit value.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 15));
-  return (static_cast<unsigned>(cc_) << 1) | (strict_ ? 1 : 0);
+  // Encode the three parameters in a unique 16 bit value.
+  ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
+  int nnn_value = (never_nan_nan_ ? 2 : 0);
+  if (cc_ != equal) nnn_value = 0;  // Avoid duplicate stubs.
+  return (static_cast<unsigned>(cc_) << 2) | nnn_value | (strict_ ? 1 : 0);
 }
 
 
