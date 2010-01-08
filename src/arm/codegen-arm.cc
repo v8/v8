@@ -4696,7 +4696,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       __ mov(pc, Operand(lr));  // Return.
     }
     // No fall through here.
- }
+  }
 
   __ bind(&not_identical);
 }
@@ -6510,7 +6510,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 
 const char* CompareStub::GetName() {
-  switch(cc_) {
+  switch (cc_) {
     case lt: return "CompareStub_LT";
     case gt: return "CompareStub_GT";
     case le: return "CompareStub_LE";

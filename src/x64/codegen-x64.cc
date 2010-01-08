@@ -7756,7 +7756,7 @@ int CompareStub::MinorKey() {
 
 
 const char* CompareStub::GetName() {
-  switch(cc_) {
+  switch (cc_) {
     case less: return "CompareStub_LT";
     case greater: return "CompareStub_GT";
     case less_equal: return "CompareStub_LE";

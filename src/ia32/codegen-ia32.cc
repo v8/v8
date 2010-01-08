@@ -1934,7 +1934,7 @@ void CodeGenerator::Comparison(AstNode* node,
   if (left_side.is_constant()) {
     left_side_constant_smi = left_side.handle()->IsSmi();
     left_side_constant_null = left_side.handle()->IsNull();
-    left_side_constant_1_char_string = 
+    left_side_constant_1_char_string =
         (left_side.handle()->IsString() &&
          (String::cast(*left_side.handle())->length() == 1));
   }
@@ -1944,7 +1944,7 @@ void CodeGenerator::Comparison(AstNode* node,
   if (right_side.is_constant()) {
     right_side_constant_smi = right_side.handle()->IsSmi();
     right_side_constant_null = right_side.handle()->IsNull();
-    right_side_constant_1_char_string = 
+    right_side_constant_1_char_string =
         (right_side.handle()->IsString() &&
          (String::cast(*right_side.handle())->length() == 1));
   }
