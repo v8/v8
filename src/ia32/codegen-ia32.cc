@@ -2191,8 +2191,10 @@ void CodeGenerator::Comparison(AstNode* node,
         __ cmp(FieldOperand(left_side.reg(), String::kLengthOffset),
                Immediate(1));
         __ j(not_equal, &comparison_done);
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
         __ cmpb(FieldOperand(left_side.reg(), SeqAsciiString::kHeaderSize),
-                String::cast(*right_side.handle())->Get(0));
+                char_value);
         __ bind(&comparison_done);
       } else {
         __ mov(temp2.reg(),
