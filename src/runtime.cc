@@ -1524,7 +1524,7 @@ class ReplacementStringBuilder {
 
 
   void IncrementCharacterCount(int by) {
-    if (character_count_ > Smi::kMaxValue - by) {
+    if (character_count_ > String::kMaxLength - by) {
       V8::FatalProcessOutOfMemory("String.replace result too large.");
     }
     character_count_ += by;
@@ -3384,6 +3384,7 @@ static Object* Runtime_URIEscape(Arguments args) {
         escaped_length += 3;
       }
       // We don't allow strings that are longer than a maximal length.
+      ASSERT(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
       if (escaped_length > String::kMaxLength) {
         Top::context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
@@ -3960,6 +3961,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
 
   bool ascii = special->IsAsciiRepresentation();
   int position = 0;
+  int increment = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
     if (elt->IsSmi()) {
@@ -3972,10 +3974,10 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         if (pos + len > special_length) {
           return Top::Throw(Heap::illegal_argument_symbol());
         }
-        position += len;
+        increment = len;
       } else {
         // Position and length encoded in two smis.
-        position += (-len);
+        increment = (-len);
         // Get the position and check that it is also a smi.
         i++;
         if (i >= array_length) {
@@ -3989,17 +3991,18 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
-      position += element_length;
+      increment = element_length;
       if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
       return Top::Throw(Heap::illegal_argument_symbol());
     }
-    if (position > String::kMaxLength) {
+    if (increment > String::kMaxLength - position) {
       Top::context()->mark_out_of_memory();
       return Failure::OutOfMemoryException();
     }
+    position += increment;
   }
 
   int length = position;
