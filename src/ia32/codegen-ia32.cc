@@ -9653,7 +9653,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   __ cmp(counter, Operand(scratch1));
   if (CpuFeatures::IsSupported(CMOV)) {
     CpuFeatures::Scope use_cmov(CMOV);
-    __ cmov(less, counter, Operand(scratch1));
+    __ cmov(greater, counter, Operand(scratch1));
   } else {
     Label l;
     __ j(less, &l);
