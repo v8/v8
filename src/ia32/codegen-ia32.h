@@ -547,6 +547,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for SubString.
   void GenerateSubString(ZoneList<Expression*>* args);
 
+  // Fast support for StringCompare.
+  void GenerateStringCompare(ZoneList<Expression*>* args);
+
   // Support for direct calls from JavaScript to native RegExp code.
   void GenerateRegExpExec(ZoneList<Expression*>* args);
 
@@ -798,6 +801,31 @@ class SubStringStub: public StringStubBase {
 
  private:
   Major MajorKey() { return SubString; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+};
+
+
+class StringCompareStub: public StringStubBase {
+ public:
+  explicit StringCompareStub() {
+  }
+
+  // Compare two flat ascii strings and returns result in eax after popping two
+  // arguments from the stack. Due to the instructions used there are certain
+  // constraints on the registers that can be passed.
+  //   counter must be ecx
+  //   scratch1 most be one of eax, ebx or edx
+  static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
+                                              Register left,
+                                              Register right,
+                                              Register counter,
+                                              Register scratch1,
+                                              Register scratch2);
+
+ private:
+  Major MajorKey() { return StringCompare; }
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);

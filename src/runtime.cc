@@ -1158,6 +1158,7 @@ static Object* Runtime_RegExpExec(Arguments args) {
   RUNTIME_ASSERT(last_match_info->HasFastElements());
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
+  Counters::regexp_entry_runtime.Increment();
   Handle<Object> result = RegExpImpl::Exec(regexp,
                                            subject,
                                            index,
@@ -4215,6 +4216,8 @@ static Object* Runtime_StringCompare(Arguments args) {
 
   CONVERT_CHECKED(String, x, args[0]);
   CONVERT_CHECKED(String, y, args[1]);
+
+  Counters::string_compare_runtime.Increment();
 
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);

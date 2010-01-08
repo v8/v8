@@ -544,6 +544,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for SubString.
   void GenerateSubString(ZoneList<Expression*>* args);
 
+  // Fast support for StringCompare.
+  void GenerateStringCompare(ZoneList<Expression*>* args);
+
   // Support for direct calls from JavaScript to native RegExp code.
   void GenerateRegExpExec(ZoneList<Expression*>* args);
 

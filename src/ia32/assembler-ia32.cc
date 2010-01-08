@@ -1207,6 +1207,14 @@ void Assembler::sub(Register dst, const Operand& src) {
 }
 
 
+void Assembler::subb(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x2A);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::sub(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1591,6 +1599,18 @@ void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
   emit(reinterpret_cast<intptr_t>(code.location()), RelocInfo::CODE_TARGET);
 }
 
+
+void Assembler::loope(Label* L) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // Only short backward jumps.
+  ASSERT(L->is_bound());
+  int offs = L->pos() - pc_offset();
+  const int kLoopInstructionSize = 2;
+  ASSERT(is_int8(offs - kLoopInstructionSize));
+  EMIT(0xE1);
+  EMIT((offs - kLoopInstructionSize) & 0xFF);
+}
 
 // FPU instructions
 

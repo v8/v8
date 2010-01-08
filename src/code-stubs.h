@@ -38,6 +38,7 @@ namespace internal {
   V(GenericBinaryOp)                     \
   V(StringAdd)                           \
   V(SubString)                           \
+  V(StringCompare)                       \
   V(SmiOp)                               \
   V(Compare)                             \
   V(RecordWrite)                         \

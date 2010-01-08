@@ -540,7 +540,7 @@ class Assembler : public Malloced {
   void cmov(Condition cc, Register dst, Handle<Object> handle);
   void cmov(Condition cc, Register dst, const Operand& src);
 
-  // Repetitive moves.
+  // Repetitive string instructions.
   void rep_movs();
 
   // Exchange two registers
@@ -617,6 +617,7 @@ class Assembler : public Malloced {
   void shr_cl(Register dst);
 
   void subb(const Operand& dst, int8_t imm8);
+  void subb(Register dst, const Operand& src);
   void sub(const Operand& dst, const Immediate& x);
   void sub(Register dst, const Operand& src);
   void sub(const Operand& dst, Register src);
@@ -674,6 +675,9 @@ class Assembler : public Malloced {
   void j(Condition cc, Label* L, Hint hint = no_hint);
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
   void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
+
+  // Loop instruction using ecx as counter.
+  void loope(Label* L);
 
   // Floating-point operations
   void fld(int i);

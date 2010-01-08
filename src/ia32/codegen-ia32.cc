@@ -5447,6 +5447,18 @@ void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  StringCompareStub stub;
+  Result answer = frame_->CallStub(&stub, 2);
+  frame_->Push(&answer);
+}
+
+
 void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 4);
 
@@ -8562,15 +8574,54 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   // Fast negative check for symbol-to-symbol equality.
   __ bind(&check_for_symbols);
+  Label check_for_strings;
   if (cc_ == equal) {
-    BranchIfNonSymbol(masm, &call_builtin, eax, ecx);
-    BranchIfNonSymbol(masm, &call_builtin, edx, ecx);
+    BranchIfNonSymbol(masm, &check_for_strings, eax, ecx);
+    BranchIfNonSymbol(masm, &check_for_strings, edx, ecx);
 
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register eax already holds a
     // non-zero value, which indicates not equal, so just return.
     __ ret(2 * kPointerSize);
   }
+
+  __ bind(&check_for_strings);
+
+  // Check that both objects are not smis.
+  ASSERT_EQ(0, kSmiTag);
+  __ mov(ebx, Operand(edx));
+  __ and_(ebx, Operand(eax));
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(zero, &call_builtin);
+
+  // Load instance type for both objects.
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+
+  // Check that both are flat ascii strings.
+  Label non_ascii_flat;
+  ASSERT(kNotStringTag != 0);
+  const int kFlatAsciiString =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  __ and_(ecx, kFlatAsciiString);
+  __ cmp(ecx, kStringTag | kSeqStringTag | kAsciiStringTag);
+  __ j(not_equal, &call_builtin);
+  __ and_(ebx, kFlatAsciiString);
+  __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
+  __ j(not_equal, &call_builtin);
+
+  // Inline comparison of ascii strings.
+  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+                                                     edx,
+                                                     eax,
+                                                     ecx,
+                                                     ebx,
+                                                     edi);
+#ifdef DEBUG
+  __ Abort("Unexpected fall-through from string comparison");
+#endif
 
   __ bind(&call_builtin);
   // must swap argument order
@@ -9577,6 +9628,144 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
   __ TailCallRuntime(ExternalReference(Runtime::kSubString), 3, 1);
+}
+
+
+void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
+                                                        Register left,
+                                                        Register right,
+                                                        Register counter,
+                                                        Register scratch1,
+                                                        Register scratch2) {
+  ASSERT(counter.is(ecx));
+  Label compare_lengths, compare_lengths_1;
+
+  // Find minimum length. If either length is zero just compare lengths.
+  __ mov(counter, FieldOperand(left, String::kLengthOffset));
+  __ test(counter, Operand(counter));
+  __ j(zero, &compare_lengths_1);
+  __ mov(scratch1, FieldOperand(right, String::kLengthOffset));
+  __ test(scratch1, Operand(scratch1));
+  __ j(zero, &compare_lengths_1);
+  __ cmp(counter, Operand(scratch1));
+  if (CpuFeatures::IsSupported(CMOV)) {
+    CpuFeatures::Scope use_cmov(CMOV);
+    __ cmov(less, counter, Operand(scratch1));
+  } else {
+    Label l;
+    __ j(less, &l);
+    __ mov(counter, scratch1);
+    __ bind(&l);
+  }
+
+  Label result_greater, result_less;
+  Label loop;
+  // Compare next character.
+  __ mov(scratch2, Immediate(-1));  // Index into strings.
+  __ bind(&loop);
+  // Compare characters.
+  __ add(Operand(scratch2), Immediate(1));
+  __ mov_b(scratch1, Operand(left,
+                             scratch2,
+                             times_1,
+                             SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ subb(scratch1, Operand(right,
+                            scratch2,
+                            times_1,
+                            SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ loope(&loop);
+  // If min length characters match compare lengths otherwise last character
+  // compare is the result.
+  __ j(equal, &compare_lengths);
+  __ j(less, &result_less);
+  __ jmp(&result_greater);
+
+  // Compare lengths.
+  Label result_not_equal;
+  __ bind(&compare_lengths);
+  __ mov(counter, FieldOperand(left, String::kLengthOffset));
+  __ bind(&compare_lengths_1);
+  __ sub(counter, FieldOperand(right, String::kLengthOffset));
+  __ j(not_zero, &result_not_equal);
+
+  // Result is EQUAL.
+  ASSERT_EQ(0, EQUAL);
+  ASSERT_EQ(0, kSmiTag);
+  __ xor_(eax, Operand(eax));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+  __ bind(&result_not_equal);
+  __ j(greater, &result_greater);
+
+  // Result is LESS.
+  __ bind(&result_less);
+  __ mov(eax, Immediate(Smi::FromInt(LESS)->value()));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Result is GREATER.
+  __ bind(&result_greater);
+  __ mov(eax, Immediate(Smi::FromInt(GREATER)->value()));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+}
+
+
+void StringCompareStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  // Stack frame on entry.
+  //  esp[0]: return address
+  //  esp[4]: right string
+  //  esp[8]: left string
+
+  __ mov(edx, Operand(esp, 2 * kPointerSize));  // left
+  __ mov(eax, Operand(esp, 1 * kPointerSize));  // right
+
+  Label not_same;
+  __ cmp(edx, Operand(eax));
+  __ j(not_equal, &not_same);
+  ASSERT_EQ(0, EQUAL);
+  ASSERT_EQ(0, kSmiTag);
+  __ xor_(eax, Operand(eax));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&not_same);
+
+  // Check that both objects are not smis.
+  ASSERT_EQ(0, kSmiTag);
+  __ mov(ebx, Operand(edx));
+  __ and_(ebx, Operand(eax));
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(zero, &runtime);
+
+  // Load instance type for both strings.
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+
+  // Check that both are flat ascii strings.
+  Label non_ascii_flat;
+  __ and_(ecx, kStringRepresentationMask | kStringEncodingMask);
+  __ cmp(ecx, kSeqStringTag | kAsciiStringTag);
+  __ j(not_equal, &non_ascii_flat);
+  const int kFlatAsciiString =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  __ and_(ebx, kFlatAsciiString);
+  __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
+  __ j(not_equal, &non_ascii_flat);
+
+  // Compare flat ascii strings.
+  GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx, edi);
+
+  __ bind(&non_ascii_flat);
+
+  // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
+  // tagged as a small integer.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kStringCompare), 2, 1);
 }
 
 #undef __

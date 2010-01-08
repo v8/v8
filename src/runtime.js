@@ -118,7 +118,7 @@ function COMPARE(x, ncr) {
 
   // Fast cases for string, numbers and undefined compares.
   if (IS_STRING(this)) {
-    if (IS_STRING(x)) return %StringCompare(this, x);
+    if (IS_STRING(x)) return %_StringCompare(this, x);
     if (IS_UNDEFINED(x)) return ncr;
     left = this;
   } else if (IS_NUMBER(this)) {
@@ -135,7 +135,7 @@ function COMPARE(x, ncr) {
   // Default implementation.
   var right = %ToPrimitive(x, NUMBER_HINT);
   if (IS_STRING(left) && IS_STRING(right)) {
-    return %StringCompare(left, right);
+    return %_StringCompare(left, right);
   } else {
     var left_number = %ToNumber(left);
     var right_number = %ToNumber(right);

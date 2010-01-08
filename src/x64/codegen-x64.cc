@@ -3913,6 +3913,17 @@ void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  Result answer = frame_->CallRuntime(Runtime::kStringCompare, 2);
+  frame_->Push(&answer);
+}
+
+
 void CodeGenerator::GenerateClassOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   JumpTarget leave, null, function, non_function_constructor;

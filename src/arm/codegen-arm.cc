@@ -3464,6 +3464,17 @@ void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
+  ASSERT_EQ(2, args->length());
+
+  Load(args->at(0));
+  Load(args->at(1));
+
+  frame_->CallRuntime(Runtime::kStringCompare, 2);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
   ASSERT_EQ(4, args->length());
 
