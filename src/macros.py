@@ -118,6 +118,14 @@ macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
 macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_ValueOf(arg) : ThrowDateTypeError());
+macro DAY(time) = ($floor(time / 86400000));
+macro MONTH_FROM_TIME(time) = (FromJulianDay(($floor(time / 86400000)) + 2440588).month);
+macro DATE_FROM_TIME(time) = (FromJulianDay(($floor(time / 86400000)) + 2440588).date);
+macro YEAR_FROM_TIME(time) = (FromJulianDay(($floor(time / 86400000)) + 2440588).year);
+macro HOUR_FROM_TIME(time) = (Modulo($floor(time / 3600000), 24));
+macro MIN_FROM_TIME(time) = (Modulo($floor(time / 60000), 60));
+macro SEC_FROM_TIME(time) = (Modulo($floor(time / 1000), 60));
+macro MS_FROM_TIME(time) = (Modulo(time, 1000));
 
 # Last input and last subject of regexp matches.
 macro LAST_SUBJECT(array) = ((array)[1]);
