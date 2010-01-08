@@ -2208,8 +2208,9 @@ void CodeGenerator::Comparison(AstNode* node,
         __ bind(&comparison);
         // Compare the first character of the string with out constant
         // 1-character string.
-        __ cmp(Operand(temp2.reg()),
-               Immediate(String::cast(*right_side.handle())->Get(0)));
+        uint8_t char_value =
+            static_cast<uint8_t>(String::cast(*right_side.handle())->Get(0));
+        __ cmp(Operand(temp2.reg()), Immediate(char_value));
         Label characters_were_different;
         __ j(not_equal, &characters_were_different);
         // If the first character is the same then the long string sorts after
