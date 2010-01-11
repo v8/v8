@@ -61,6 +61,7 @@ static ByteMnemonic two_operands_instr[] = {
   {0x0B, "or", REG_OPER_OP_ORDER},
   {0x1B, "sbb", REG_OPER_OP_ORDER},
   {0x29, "sub", OPER_REG_OP_ORDER},
+  {0x2A, "subb", REG_OPER_OP_ORDER},
   {0x2B, "sub", REG_OPER_OP_ORDER},
   {0x85, "test", REG_OPER_OP_ORDER},
   {0x31, "xor", OPER_REG_OP_ORDER},
@@ -116,6 +117,11 @@ static const char* jump_conditional_mnem[] = {
 };
 
 
+static const char* loop_mnem[] = {
+  "loopne", "loope", "loop"
+};
+
+
 static const char* set_conditional_mnem[] = {
   /*0*/ "seto", "setno", "setc", "setnc",
   /*4*/ "setz", "setnz", "setna", "seta",
@@ -137,6 +143,7 @@ enum InstructionType {
   ZERO_OPERANDS_INSTR,
   TWO_OPERANDS_INSTR,
   JUMP_CONDITIONAL_SHORT_INSTR,
+  LOOP_INSTR,
   REGISTER_INSTR,
   MOVE_REG_INSTR,
   CALL_JUMP_INSTR,
@@ -166,6 +173,7 @@ class InstructionTable {
                      byte end,
                      const char* mnem);
   void AddJumpConditionalShort();
+  void AddLoop();
 };
 
 
@@ -190,6 +198,7 @@ void InstructionTable::Init() {
   CopyTable(call_jump_instr, CALL_JUMP_INSTR);
   CopyTable(short_immediate_instr, SHORT_IMMEDIATE_INSTR);
   AddJumpConditionalShort();
+  AddLoop();
   SetTableRange(REGISTER_INSTR, 0x40, 0x47, "inc");
   SetTableRange(REGISTER_INSTR, 0x48, 0x4F, "dec");
   SetTableRange(REGISTER_INSTR, 0x50, 0x57, "push");
@@ -229,6 +238,16 @@ void InstructionTable::AddJumpConditionalShort() {
     ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->mnem = jump_conditional_mnem[b & 0x0F];
     id->type = JUMP_CONDITIONAL_SHORT_INSTR;
+  }
+}
+
+
+void InstructionTable::AddLoop() {
+  for (byte b = 0xE0; b <= 0xE2; b++) {
+    InstructionDesc* id = &instructions_[b];
+    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
+    id->mnem = loop_mnem[b & 0x03];
+    id->type = LOOP_INSTR;
   }
 }
 
@@ -329,6 +348,7 @@ class DisassemblerIA32 {
   int JumpShort(byte* data);
   int JumpConditional(byte* data, const char* comment);
   int JumpConditionalShort(byte* data, const char* comment);
+  int Loop(byte* data);
   int SetCC(byte* data);
   int CMov(byte* data);
   int FPUInstruction(byte* data);
@@ -617,6 +637,17 @@ int DisassemblerIA32::JumpConditionalShort(byte* data, const char* comment) {
 
 
 // Returns number of bytes used, including *data.
+int DisassemblerIA32::Loop(byte* data) {
+  byte cond = *data & 0x03;
+  byte b = *(data+1);
+  byte* dest = data + static_cast<int8_t>(b) + 2;
+  const char* mnem = loop_mnem[cond];
+  AppendToBuffer("%s %s", mnem, NameOfAddress(dest));
+  return 2;
+}
+
+
+// Returns number of bytes used, including *data.
 int DisassemblerIA32::SetCC(byte* data) {
   ASSERT_EQ(0x0F, *data);
   byte cond = *(data+1) & 0x0F;
@@ -852,6 +883,10 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
     case JUMP_CONDITIONAL_SHORT_INSTR:
       data += JumpConditionalShort(data, branch_hint);
+      break;
+
+    case LOOP_INSTR:
+      data += Loop(data);
       break;
 
     case REGISTER_INSTR:
