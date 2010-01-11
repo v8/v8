@@ -575,6 +575,7 @@ void Assembler::leave() {
 
 
 void Assembler::mov_b(Register dst, const Operand& src) {
+  ASSERT(dst.code() < 4);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x8A);
@@ -592,6 +593,7 @@ void Assembler::mov_b(const Operand& dst, int8_t imm8) {
 
 
 void Assembler::mov_b(const Operand& dst, Register src) {
+  ASSERT(src.code() < 4);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x88);
@@ -1208,6 +1210,7 @@ void Assembler::sub(Register dst, const Operand& src) {
 
 
 void Assembler::subb(Register dst, const Operand& src) {
+  ASSERT(dst.code() < 4);
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x2A);
@@ -1600,20 +1603,7 @@ void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
 }
 
 
-void Assembler::loope(Label* L) {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  // Only short backward jumps.
-  ASSERT(L->is_bound());
-  int offs = L->pos() - pc_offset();
-  const int kLoopInstructionSize = 2;
-  ASSERT(is_int8(offs - kLoopInstructionSize));
-  EMIT(0xE1);
-  EMIT((offs - kLoopInstructionSize) & 0xFF);
-}
-
 // FPU instructions
-
 
 void Assembler::fld(int i) {
   EnsureSpace ensure_space(this);

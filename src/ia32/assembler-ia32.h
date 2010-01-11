@@ -676,9 +676,6 @@ class Assembler : public Malloced {
   void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
   void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
 
-  // Loop instruction using ecx as counter.
-  void loope(Label* L);
-
   // Floating-point operations
   void fld(int i);
 

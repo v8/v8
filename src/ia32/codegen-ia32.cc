@@ -9637,48 +9637,51 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register left,
                                                         Register right,
-                                                        Register counter,
                                                         Register scratch1,
-                                                        Register scratch2) {
-  ASSERT(counter.is(ecx));
+                                                        Register scratch2,
+                                                        Register scratch3) {
   Label compare_lengths, compare_lengths_1;
 
   // Find minimum length. If either length is zero just compare lengths.
-  __ mov(counter, FieldOperand(left, String::kLengthOffset));
-  __ test(counter, Operand(counter));
-  __ j(zero, &compare_lengths_1);
-  __ mov(scratch1, FieldOperand(right, String::kLengthOffset));
+  __ mov(scratch1, FieldOperand(left, String::kLengthOffset));
   __ test(scratch1, Operand(scratch1));
   __ j(zero, &compare_lengths_1);
-  __ cmp(counter, Operand(scratch1));
+  __ mov(scratch2, FieldOperand(right, String::kLengthOffset));
+  __ test(scratch2, Operand(scratch2));
+  __ j(zero, &compare_lengths_1);
+  __ cmp(scratch1, Operand(scratch2));
   if (CpuFeatures::IsSupported(CMOV)) {
     CpuFeatures::Scope use_cmov(CMOV);
-    __ cmov(greater, counter, Operand(scratch1));
+    __ cmov(greater, scratch1, Operand(scratch2));
   } else {
     Label l;
     __ j(less, &l);
-    __ mov(counter, scratch1);
+    __ mov(scratch1, scratch2);
     __ bind(&l);
   }
 
   Label result_greater, result_less;
   Label loop;
   // Compare next character.
-  __ mov(scratch2, Immediate(-1));  // Index into strings.
+  __ mov(scratch3, Immediate(-1));  // Index into strings.
   __ bind(&loop);
   // Compare characters.
-  __ add(Operand(scratch2), Immediate(1));
-  __ mov_b(scratch1, Operand(left,
-                             scratch2,
+  Label character_compare_done;
+  __ add(Operand(scratch3), Immediate(1));
+  __ mov_b(scratch2, Operand(left,
+                             scratch3,
                              times_1,
                              SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ subb(scratch1, Operand(right,
-                            scratch2,
+  __ subb(scratch2, Operand(right,
+                            scratch3,
                             times_1,
                             SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ loope(&loop);
+  __ j(not_equal, &character_compare_done);
+  __ sub(Operand(scratch1), Immediate(1));
+  __ j(not_zero, &loop);
   // If min length characters match compare lengths otherwise last character
   // compare is the result.
+  __ bind(&character_compare_done);
   __ j(equal, &compare_lengths);
   __ j(less, &result_less);
   __ jmp(&result_greater);
@@ -9686,9 +9689,9 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare lengths.
   Label result_not_equal;
   __ bind(&compare_lengths);
-  __ mov(counter, FieldOperand(left, String::kLengthOffset));
+  __ mov(scratch1, FieldOperand(left, String::kLengthOffset));
   __ bind(&compare_lengths_1);
-  __ sub(counter, FieldOperand(right, String::kLengthOffset));
+  __ sub(scratch1, FieldOperand(right, String::kLengthOffset));
   __ j(not_zero, &result_not_equal);
 
   // Result is EQUAL.

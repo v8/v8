@@ -117,11 +117,6 @@ static const char* jump_conditional_mnem[] = {
 };
 
 
-static const char* loop_mnem[] = {
-  "loopne", "loope", "loop"
-};
-
-
 static const char* set_conditional_mnem[] = {
   /*0*/ "seto", "setno", "setc", "setnc",
   /*4*/ "setz", "setnz", "setna", "seta",
@@ -143,7 +138,6 @@ enum InstructionType {
   ZERO_OPERANDS_INSTR,
   TWO_OPERANDS_INSTR,
   JUMP_CONDITIONAL_SHORT_INSTR,
-  LOOP_INSTR,
   REGISTER_INSTR,
   MOVE_REG_INSTR,
   CALL_JUMP_INSTR,
@@ -173,7 +167,6 @@ class InstructionTable {
                      byte end,
                      const char* mnem);
   void AddJumpConditionalShort();
-  void AddLoop();
 };
 
 
@@ -198,7 +191,6 @@ void InstructionTable::Init() {
   CopyTable(call_jump_instr, CALL_JUMP_INSTR);
   CopyTable(short_immediate_instr, SHORT_IMMEDIATE_INSTR);
   AddJumpConditionalShort();
-  AddLoop();
   SetTableRange(REGISTER_INSTR, 0x40, 0x47, "inc");
   SetTableRange(REGISTER_INSTR, 0x48, 0x4F, "dec");
   SetTableRange(REGISTER_INSTR, 0x50, 0x57, "push");
@@ -238,16 +230,6 @@ void InstructionTable::AddJumpConditionalShort() {
     ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->mnem = jump_conditional_mnem[b & 0x0F];
     id->type = JUMP_CONDITIONAL_SHORT_INSTR;
-  }
-}
-
-
-void InstructionTable::AddLoop() {
-  for (byte b = 0xE0; b <= 0xE2; b++) {
-    InstructionDesc* id = &instructions_[b];
-    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
-    id->mnem = loop_mnem[b & 0x03];
-    id->type = LOOP_INSTR;
   }
 }
 
@@ -348,7 +330,6 @@ class DisassemblerIA32 {
   int JumpShort(byte* data);
   int JumpConditional(byte* data, const char* comment);
   int JumpConditionalShort(byte* data, const char* comment);
-  int Loop(byte* data);
   int SetCC(byte* data);
   int CMov(byte* data);
   int FPUInstruction(byte* data);
@@ -637,17 +618,6 @@ int DisassemblerIA32::JumpConditionalShort(byte* data, const char* comment) {
 
 
 // Returns number of bytes used, including *data.
-int DisassemblerIA32::Loop(byte* data) {
-  byte cond = *data & 0x03;
-  byte b = *(data+1);
-  byte* dest = data + static_cast<int8_t>(b) + 2;
-  const char* mnem = loop_mnem[cond];
-  AppendToBuffer("%s %s", mnem, NameOfAddress(dest));
-  return 2;
-}
-
-
-// Returns number of bytes used, including *data.
 int DisassemblerIA32::SetCC(byte* data) {
   ASSERT_EQ(0x0F, *data);
   byte cond = *(data+1) & 0x0F;
@@ -885,10 +855,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
       data += JumpConditionalShort(data, branch_hint);
       break;
 
-    case LOOP_INSTR:
-      data += Loop(data);
-      break;
-
     case REGISTER_INSTR:
       AppendToBuffer("%s %s", idesc.mnem, NameOfCPURegister(*data & 0x07));
       data++;
@@ -1042,7 +1008,16 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
       case 0x80:
         { data++;
-          AppendToBuffer("%s ", "cmpb");
+          int mod, regop, rm;
+          get_modrm(*data, &mod, &regop, &rm);
+          const char* mnem = NULL;
+          printf("%d\n", regop);
+          switch (regop) {
+            case 5:  mnem = "subb"; break;
+            case 7:  mnem = "cmpb"; break;
+            default: UnimplementedInstruction();
+          }
+          AppendToBuffer("%s ", mnem);
           data += PrintRightOperand(data);
           int32_t imm = *data;
           AppendToBuffer(",0x%x", imm);
@@ -1092,6 +1067,19 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (*data == 0x6F) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movdqa %s,", NameOfXMMRegister(regop));
+            data += PrintRightOperand(data);
+          } else if (*data == 0x7F) {
+            AppendToBuffer("movdqa ");
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            data += PrintRightOperand(data);
+            AppendToBuffer(",%s", NameOfXMMRegister(regop));
           } else {
             UnimplementedInstruction();
           }
@@ -1125,6 +1113,11 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
       case 0xA8:
         AppendToBuffer("test al,0x%x", *reinterpret_cast<uint8_t*>(data+1));
+        data += 2;
+        break;
+
+      case 0x2C:
+        AppendToBuffer("subb eax,0x%x", *reinterpret_cast<uint8_t*>(data+1));
         data += 2;
         break;
 
@@ -1198,9 +1191,29 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case 0xF3:
-        if (*(data+1) == 0x0F && *(data+2) == 0x2C) {
-          data += 3;
-          data += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, data);
+        if (*(data+1) == 0x0F) {
+          if (*(data+2) == 0x2C) {
+            data += 3;
+            data += PrintOperands("cvttss2si", REG_OPER_OP_ORDER, data);
+          } else  if (*(data+2) == 0x6F) {
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("movdqu %s,", NameOfXMMRegister(regop));
+            data += PrintRightOperand(data);
+          } else  if (*(data+2) == 0x7F) {
+            AppendToBuffer("movdqu ");
+            data += 3;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            data += PrintRightOperand(data);
+            AppendToBuffer(",%s", NameOfXMMRegister(regop));
+          } else {
+            UnimplementedInstruction();
+          }
+        } else if (*(data+1) == 0xA5) {
+          data += 2;
+          AppendToBuffer("rep_movs");
         } else {
           UnimplementedInstruction();
         }
@@ -1220,6 +1233,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   }
 
   int instr_len = data - instr;
+  if (instr_len == 0) {
+    printf("%02x", *data);
+  }
   ASSERT(instr_len > 0);  // Ensure progress.
 
   int outp = 0;

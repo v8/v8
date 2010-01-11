@@ -813,16 +813,13 @@ class StringCompareStub: public StringStubBase {
   }
 
   // Compare two flat ascii strings and returns result in eax after popping two
-  // arguments from the stack. Due to the instructions used there are certain
-  // constraints on the registers that can be passed.
-  //   counter must be ecx
-  //   scratch1 most be one of eax, ebx or edx
+  // arguments from the stack.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                               Register left,
                                               Register right,
-                                              Register counter,
                                               Register scratch1,
-                                              Register scratch2);
+                                              Register scratch2,
+                                              Register scratch3);
 
  private:
   Major MajorKey() { return StringCompare; }
