@@ -6563,7 +6563,7 @@ const char* CompareStub::GetName() {
 
 int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value.
-  ASSERT(static_cast<unsigned>(cc_) < (1 << 14));
+  ASSERT((static_cast<unsigned>(cc_) >> 26) < (1 << 16));
   int nnn_value = (never_nan_nan_ ? 2 : 0);
   if (cc_ != eq) nnn_value = 0;  // Avoid duplicate stubs.
   return (static_cast<unsigned>(cc_) >> 26) | nnn_value | (strict_ ? 1 : 0);
