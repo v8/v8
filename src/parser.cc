@@ -4711,6 +4711,11 @@ unsigned* ScriptDataImpl::Data() {
 }
 
 
+bool ScriptDataImpl::HasError() {
+  return has_error();
+}
+
+
 ScriptDataImpl* PreParse(Handle<String> source,
                          unibrow::CharacterStream* stream,
                          v8::Extension* extension) {
