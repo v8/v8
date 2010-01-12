@@ -6878,7 +6878,7 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   //   50% is still free after adding n elements and
   //   at most 50% of the free elements are deleted elements.
   if ((nof + (nof >> 1) <= capacity) &&
-      (nod <= (capacity - nof) >> 1)) return this;
+      (nod <= (capacity - nof) >> 1) ) return this;
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;

@@ -5416,8 +5416,6 @@ class ArrayConcatVisitor {
     }
   }
 
-  Handle<FixedArray> storage() { return storage_; }
-
  private:
   Handle<FixedArray> storage_;
   // Limit on the accepted indices. Elements with indices larger than the
@@ -5758,8 +5756,7 @@ static Object* Runtime_ArrayConcat(Arguments args) {
   IterateArguments(arguments, &visitor);
 
   result->set_length(*len);
-  // Please note the storage might have changed in the visitor.
-  result->set_elements(*visitor.storage());
+  result->set_elements(*storage);
 
   return *result;
 }
