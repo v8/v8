@@ -415,7 +415,11 @@ class MacroAssembler: public Assembler {
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(const Operand& dst, Handle<Object> source);
   void Push(Handle<Object> source);
+
+  // Emit code to discard a non-negative number of pointer-sized elements
+  // from the stack, clobbering only the rsp register.
   void Drop(int stack_elements);
+
   void Call(Label* target) { call(target); }
 
   // Control Flow

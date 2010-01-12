@@ -75,6 +75,39 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 }
 
 
+void FastCodeGenerator::Apply(Expression::Context context, Register reg) {
+  switch (context) {
+    case Expression::kUninitialized:
+      UNREACHABLE();
+    case Expression::kEffect:
+      break;
+    case Expression::kValue:
+      __ push(reg);
+      break;
+    case Expression::kTest:
+      TestAndBranch(reg, true_label_, false_label_);
+      break;
+    case Expression::kValueTest: {
+      Label discard;
+      __ push(reg);
+      TestAndBranch(reg, true_label_, &discard);
+      __ bind(&discard);
+      __ Drop(1);
+      __ jmp(false_label_);
+      break;
+    }
+    case Expression::kTestValue: {
+      Label discard;
+      __ push(reg);
+      TestAndBranch(reg, &discard, false_label_);
+      __ bind(&discard);
+      __ Drop(1);
+      __ jmp(true_label_);
+    }
+  }
+}
+
+
 void FastCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
@@ -624,7 +657,7 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
-  Move(expr->context(), expr);
+  Apply(expr->context(), expr);
 }
 
 

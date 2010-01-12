@@ -368,6 +368,8 @@ class MacroAssembler: public Assembler {
 
   void Ret();
 
+  // Emit code to discard a non-negative number of pointer-sized elements
+  // from the stack, clobbering only the esp register.
   void Drop(int element_count);
 
   void Call(Label* target) { call(target); }

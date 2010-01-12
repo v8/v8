@@ -902,11 +902,7 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
     // We will only visit the key during code generation for keyed property
     // stores.  Leave its expression context uninitialized for named
     // property stores.
-    Literal* lit = prop->key()->AsLiteral();
-    uint32_t ignored;
-    if (lit == NULL ||
-        !lit->handle()->IsSymbol() ||
-        String::cast(*(lit->handle()))->AsArrayIndex(&ignored)) {
+    if (!prop->key()->IsPropertyName()) {
       ProcessExpression(prop->key(), Expression::kValue);
       CHECK_BAILOUT;
     }
@@ -1030,11 +1026,7 @@ void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
     // We will only visit the key during code generation for keyed property
     // stores.  Leave its expression context uninitialized for named
     // property stores.
-    Literal* lit = prop->key()->AsLiteral();
-    uint32_t ignored;
-    if (lit == NULL ||
-        !lit->handle()->IsSymbol() ||
-        String::cast(*(lit->handle()))->AsArrayIndex(&ignored)) {
+    if (!prop->key()->IsPropertyName()) {
       ProcessExpression(prop->key(), Expression::kValue);
       CHECK_BAILOUT;
     }

@@ -212,10 +212,23 @@ class FastCodeGenerator: public AstVisitor {
 
 
   int SlotOffset(Slot* slot);
-  void Move(Expression::Context destination, Register source);
-  void MoveTOS(Expression::Context destination);
-  void Move(Expression::Context destination, Slot* source, Register scratch);
-  void Move(Expression::Context destination, Literal* source);
+
+  // Emit code to complete the evaluation of an expression based on its
+  // expression context and given its value is in a register, non-lookup
+  // slot, or a literal.
+  void Apply(Expression::Context context, Register reg);
+  void Apply(Expression::Context context, Slot* slot, Register scratch);
+  void Apply(Expression::Context context, Literal* lit);
+
+  // Emit code to complete the evaluation of an expression based on its
+  // expression context and given its value is on top of the stack.
+  void ApplyTOS(Expression::Context context);
+
+  // Emit code to discard count elements from the top of stack, then
+  // complete the evaluation of an expression based on its expression
+  // context and given its value is in a register.
+  void DropAndApply(int count, Expression::Context context, Register reg);
+
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
   void Move(Register dst, Slot* source);
 
@@ -223,12 +236,6 @@ class FastCodeGenerator: public AstVisitor {
   // May emit code to traverse the context chain, destroying the scratch
   // register.
   MemOperand EmitSlotSearch(Slot* slot, Register scratch);
-
-  // Drop the TOS, and store source to destination.
-  // If destination is TOS, just overwrite TOS with source.
-  void DropAndMove(Expression::Context destination,
-                   Register source,
-                   int drop_count = 1);
 
   // Test the JavaScript value in source as if in a test context, compile
   // control flow to a pair of labels.

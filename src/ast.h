@@ -187,6 +187,11 @@ class Expression: public AstNode {
   virtual bool IsValidJSON() { return false; }
   virtual bool IsValidLeftHandSide() { return false; }
 
+  // Symbols that cannot be parsed as array indices are considered property
+  // names.  We do not treat symbols that can be array indexes as property
+  // names because [] for string objects is handled only by keyed ICs.
+  virtual bool IsPropertyName() { return false; }
+
   // Mark the expression as being compiled as an expression
   // statement. This is used to transform postfix increments to
   // (faster) prefix increments.
@@ -706,6 +711,14 @@ class Literal: public Expression {
   }
 
   virtual bool IsValidJSON() { return true; }
+
+  virtual bool IsPropertyName() {
+    if (handle_->IsSymbol()) {
+      uint32_t ignored;
+      return !String::cast(*handle_)->AsArrayIndex(&ignored);
+    }
+    return false;
+  }
 
   // Identity testers.
   bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }

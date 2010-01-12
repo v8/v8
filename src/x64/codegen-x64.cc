@@ -4256,15 +4256,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
     Load(property->obj());
-    // We use a named reference if the key is a literal symbol, unless it is
-    // a string that can be legally parsed as an integer.  This is because
-    // otherwise we will not get into the slow case code that handles [] on
-    // String objects.
-    Literal* literal = property->key()->AsLiteral();
-    uint32_t dummy;
-    if (literal != NULL &&
-        literal->handle()->IsSymbol() &&
-        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+    if (property->key()->IsPropertyName()) {
       ref->set_type(Reference::NAMED);
     } else {
       Load(property->key());
