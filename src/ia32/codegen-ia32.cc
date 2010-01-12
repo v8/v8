@@ -3910,21 +3910,21 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
+  // The inevitable call will sync frame elements to memory anyway, so
+  // we do it eagerly to allow us to push the arguments directly into
+  // place.
+  frame_->SyncRange(0, frame_->element_count() - 1);
+
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
   if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
     FastNewClosureStub stub;
-    frame_->Push(boilerplate);
+    frame_->EmitPush(Immediate(boilerplate));
     Result answer = frame_->CallStub(&stub, 1);
     frame_->Push(&answer);
   } else {
     // Call the runtime to instantiate the function boilerplate
-    // object.  The inevitable call will sync frame elements to memory
-    // anyway, so we do it eagerly to allow us to push the arguments
-    // directly into place.
-    frame_->SyncRange(0, frame_->element_count() - 1);
-
-    // Create a new closure.
+    // object.
     frame_->EmitPush(esi);
     frame_->EmitPush(Immediate(boilerplate));
     Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
