@@ -269,7 +269,7 @@ class Heap : public AllStatic {
     return reinterpret_cast<Address>(&always_allocate_scope_depth_);
   }
   static bool linear_allocation() {
-      return linear_allocation_scope_depth_ != 0;
+    return linear_allocation_scope_depth_ != 0;
   }
 
   static Address* NewSpaceAllocationTopAddress() {
@@ -834,11 +834,15 @@ class Heap : public AllStatic {
            > old_gen_promotion_limit_;
   }
 
+  static intptr_t OldGenerationSpaceAvailable() {
+    return old_gen_allocation_limit_ -
+           (PromotedSpaceSize() + PromotedExternalMemorySize());
+  }
+
   // True if we have reached the allocation limit in the old generation that
   // should artificially cause a GC right now.
   static bool OldGenerationAllocationLimitReached() {
-    return (PromotedSpaceSize() + PromotedExternalMemorySize())
-           > old_gen_allocation_limit_;
+    return OldGenerationSpaceAvailable() < 0;
   }
 
   // Can be called when the embedding application is idle.
@@ -1052,9 +1056,9 @@ class Heap : public AllStatic {
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
   // object.  Returns the target object.
-  static HeapObject* MigrateObject(HeapObject* source,
-                                   HeapObject* target,
-                                   int size);
+  static inline HeapObject* MigrateObject(HeapObject* source,
+                                          HeapObject* target,
+                                          int size);
 
   // Helper function that governs the promotion policy from new space to
   // old.  If the object's old address lies below the new space's age

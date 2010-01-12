@@ -305,6 +305,14 @@ class Space : public Malloced {
   virtual void Print() = 0;
 #endif
 
+  // After calling this we can allocate a certain number of bytes using only
+  // linear allocation (with a LinearAllocationScope and an AlwaysAllocateScope)
+  // without using freelists or causing a GC.  This is used by partial
+  // snapshots.  It returns true of space was reserved or false if a GC is
+  // needed.  For paged spaces the space requested must include the space wasted
+  // at the end of each when allocating linearly.
+  virtual bool ReserveSpace(int bytes) = 0;
+
  private:
   AllocationSpace id_;
   Executability executable_;
@@ -887,6 +895,10 @@ class PagedSpace : public Space {
   // collection.
   inline Object* MCAllocateRaw(int size_in_bytes);
 
+  virtual bool ReserveSpace(int bytes);
+
+  // Used by ReserveSpace.
+  virtual void PutRestOfCurrentPageOnFreeList(Page* current_page) = 0;
 
   // ---------------------------------------------------------------------------
   // Mark-compact collection support functions
@@ -1115,11 +1127,16 @@ class SemiSpace : public Space {
     return static_cast<int>(addr - low());
   }
 
-  // If we don't have this here then SemiSpace will be abstract.  However
-  // it should never be called.
+  // If we don't have these here then SemiSpace will be abstract.  However
+  // they should never be called.
   virtual int Size() {
     UNREACHABLE();
     return 0;
+  }
+
+  virtual bool ReserveSpace(int bytes) {
+    UNREACHABLE();
+    return false;
   }
 
   bool is_committed() { return committed_; }
@@ -1344,6 +1361,8 @@ class NewSpace : public Space {
 
   bool ToSpaceContains(Address a) { return to_space_.Contains(a); }
   bool FromSpaceContains(Address a) { return from_space_.Contains(a); }
+
+  virtual bool ReserveSpace(int bytes);
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.
@@ -1631,6 +1650,8 @@ class OldSpace : public PagedSpace {
   // collection.
   virtual void MCCommitRelocationInfo();
 
+  virtual void PutRestOfCurrentPageOnFreeList(Page* current_page);
+
 #ifdef DEBUG
   // Reports statistics for the space
   void ReportStatistics();
@@ -1691,6 +1712,8 @@ class FixedSpace : public PagedSpace {
   // Updates the allocation pointer to the relocation top after a mark-compact
   // collection.
   virtual void MCCommitRelocationInfo();
+
+  virtual void PutRestOfCurrentPageOnFreeList(Page* current_page);
 
 #ifdef DEBUG
   // Reports statistic info of the space
@@ -1898,6 +1921,11 @@ class LargeObjectSpace : public Space {
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_chunk_ == NULL; }
+
+  // See the comments for ReserveSpace in the Space class.  This has to be
+  // called after ReserveSpace has been called on the paged spaces, since they
+  // may use some memory, leaving less for large objects.
+  virtual bool ReserveSpace(int bytes);
 
 #ifdef ENABLE_HEAP_PROTECTION
   // Protect/unprotect the space by marking it read-only/writable.

@@ -1581,8 +1581,8 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       false_label_ = &push_false;
       break;
   }
-  // Convert current context to test context: End pre-test code.
 
+  // Convert current context to test context: End pre-test code.
   switch (expr->op()) {
     case Token::IN: {
       __ InvokeBuiltin(Builtins::IN, CALL_JS);
