@@ -538,7 +538,7 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     LOG(CodeCreateEvent(Logger::FUNCTION_TAG, *code, *literal->name()));
 
 #ifdef ENABLE_OPROFILE_AGENT
-    OProfileAgent::CreateNativeCodeRegion(*node->name(),
+    OProfileAgent::CreateNativeCodeRegion(*literal->name(),
                                           code->instruction_start(),
                                           code->instruction_size());
 #endif
