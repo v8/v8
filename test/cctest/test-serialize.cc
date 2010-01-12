@@ -288,7 +288,7 @@ TEST(LinearAllocation) {
   PagedSpace* map_space = Heap::map_space();
   PagedSpace* cell_space = Heap::cell_space();
   int new_space_max = 512 * KB;
-  for (int size = 1000; size < 5 * MB; size *= 1.5) {
+  for (int size = 1000; size < 5 * MB; size += size >> 1) {
     bool gc_performed = true;
     while (gc_performed) {
       gc_performed = false;
