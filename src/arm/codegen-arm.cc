@@ -5090,12 +5090,10 @@ void CompareStub::Generate(MacroAssembler* masm) {
   }
 
   __ bind(&slow);
-  __ push(lr);
   __ push(r1);
   __ push(r0);
   // Figure out which native to call and setup the arguments.
   Builtins::JavaScript native;
-  int arg_count = 1;  // Not counting receiver.
   if (cc_ == eq) {
     native = strict_ ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
   } else {
@@ -5107,16 +5105,13 @@ void CompareStub::Generate(MacroAssembler* masm) {
       ASSERT(cc_ == gt || cc_ == ge);  // remaining cases
       ncr = LESS;
     }
-    arg_count++;
     __ mov(r0, Operand(Smi::FromInt(ncr)));
     __ push(r0);
   }
 
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
-  __ InvokeBuiltin(native, CALL_JS);
-  __ cmp(r0, Operand(0));
-  __ pop(pc);
+  __ InvokeBuiltin(native, JUMP_JS);
 }
 
 
