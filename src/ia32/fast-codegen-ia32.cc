@@ -718,7 +718,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       if (!result_saved) __ push(eax);
       TestAndBranch(eax, &discard, false_label_);
       __ bind(&discard);
-      __ Drop (1);
+      __ Drop(1);
       __ jmp(true_label_);
       break;
     }
