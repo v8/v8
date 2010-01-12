@@ -6845,6 +6845,7 @@ Object* HashTable<Shape, Key>::Allocate(int at_least_space_for) {
   Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
   if (!obj->IsFailure()) {
     HashTable::cast(obj)->SetNumberOfElements(0);
+    HashTable::cast(obj)->SetNumberOfDeletedElements(0);
     HashTable::cast(obj)->SetCapacity(capacity);
   }
   return obj;
@@ -6872,8 +6873,12 @@ template<typename Shape, typename Key>
 Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
-  // Make sure 50% is free
-  if (nof + (nof >> 1) <= capacity) return this;
+  int nod = NumberOfDeletedElements();
+  // Return if:
+  //   50% is still free after adding n elements and
+  //   at most 50% of the free elements are deleted elements.
+  if ((nof + (nof >> 1) <= capacity) &&
+      (nod <= (capacity - nof) >> 1)) return this;
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;
@@ -6900,6 +6905,7 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
     }
   }
   table->SetNumberOfElements(NumberOfElements());
+  table->SetNumberOfDeletedElements(0);
   return table;
 }
 
@@ -7700,7 +7706,7 @@ void NumberDictionary::RemoveNumberEntries(uint32_t from, uint32_t to) {
   }
 
   // Update the number of elements.
-  SetNumberOfElements(NumberOfElements() - removed_entries);
+  ElementsRemoved(removed_entries);
 }
 
 
