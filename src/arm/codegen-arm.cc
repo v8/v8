@@ -263,6 +263,13 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->Drop();  // Value is no longer needed.
     }
 
+    // Initialize ThisFunction reference if present.
+    if (scope_->is_function_scope() && scope_->function() != NULL) {
+      __ mov(ip, Operand(Factory::the_hole_value()));
+      frame_->EmitPush(ip);
+      StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
+    }
+
     // Generate code to 'execute' declarations and initialize functions
     // (source elements). In case of an illegal redeclaration we need to
     // handle that instead of processing the declarations.
@@ -2446,6 +2453,87 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
+  ASSERT(slot != NULL);
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->is_dynamic());
+
+    // For now, just do a runtime call.
+    frame_->EmitPush(cp);
+    __ mov(r0, Operand(slot->var()->name()));
+    frame_->EmitPush(r0);
+
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize
+      // const properties (introduced via eval("const foo = (some
+      // expr);")). Also, uses the current function context instead of
+      // the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the
+      // same time, because the const declaration may be at the end of
+      // the eval code (sigh...) and the const variable may have been
+      // used before (where its value is 'undefined'). Thus, we can only
+      // do the initialization when we actually encounter the expression
+      // and when the expression operands are defined and valid, and
+      // thus we need the split into 2 operations: declaration of the
+      // context slot followed by initialization.
+      frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling assignment expressions.
+    frame_->EmitPush(r0);
+
+  } else {
+    ASSERT(!slot->var()->is_dynamic());
+
+    JumpTarget exit;
+    if (init_state == CONST_INIT) {
+      ASSERT(slot->var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is
+      // executed, the code is identical to a normal store (see below).
+      Comment cmnt(masm_, "[ Init const");
+      __ ldr(r2, SlotOperand(slot, r2));
+      __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+      __ cmp(r2, ip);
+      exit.Branch(ne);
+    }
+
+    // We must execute the store.  Storing a variable must keep the
+    // (new) value on the stack. This is necessary for compiling
+    // assignment expressions.
+    //
+    // Note: We will reach here even with slot->var()->mode() ==
+    // Variable::CONST because of const declarations which will
+    // initialize consts to 'the hole' value and by doing so, end up
+    // calling this code.  r2 may be loaded with context; used below in
+    // RecordWrite.
+    frame_->EmitPop(r0);
+    __ str(r0, SlotOperand(slot, r2));
+    frame_->EmitPush(r0);
+    if (slot->type() == Slot::CONTEXT) {
+      // Skip write barrier if the written value is a smi.
+      __ tst(r0, Operand(kSmiTagMask));
+      exit.Branch(eq);
+      // r2 is loaded with context when calling SlotOperand above.
+      int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+      __ mov(r3, Operand(offset));
+      __ RecordWrite(r2, r3, r1);
+    }
+    // If we definitely did not jump over the assignment, we do not need
+    // to bind the exit label.  Doing so can defeat peephole
+    // optimization.
+    if (init_state == CONST_INIT || slot->type() == Slot::CONTEXT) {
+      exit.Bind();
+    }
+  }
+}
+
+
 void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                                       TypeofState typeof_state,
                                                       Register tmp,
@@ -4262,83 +4350,7 @@ void Reference::SetValue(InitState init_state) {
     case SLOT: {
       Comment cmnt(masm, "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
-      ASSERT(slot != NULL);
-      if (slot->type() == Slot::LOOKUP) {
-        ASSERT(slot->var()->is_dynamic());
-
-        // For now, just do a runtime call.
-        frame->EmitPush(cp);
-        __ mov(r0, Operand(slot->var()->name()));
-        frame->EmitPush(r0);
-
-        if (init_state == CONST_INIT) {
-          // Same as the case for a normal store, but ignores attribute
-          // (e.g. READ_ONLY) of context slot so that we can initialize
-          // const properties (introduced via eval("const foo = (some
-          // expr);")). Also, uses the current function context instead of
-          // the top context.
-          //
-          // Note that we must declare the foo upon entry of eval(), via a
-          // context slot declaration, but we cannot initialize it at the
-          // same time, because the const declaration may be at the end of
-          // the eval code (sigh...) and the const variable may have been
-          // used before (where its value is 'undefined'). Thus, we can only
-          // do the initialization when we actually encounter the expression
-          // and when the expression operands are defined and valid, and
-          // thus we need the split into 2 operations: declaration of the
-          // context slot followed by initialization.
-          frame->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-        } else {
-          frame->CallRuntime(Runtime::kStoreContextSlot, 3);
-        }
-        // Storing a variable must keep the (new) value on the expression
-        // stack. This is necessary for compiling assignment expressions.
-        frame->EmitPush(r0);
-
-      } else {
-        ASSERT(!slot->var()->is_dynamic());
-
-        JumpTarget exit;
-        if (init_state == CONST_INIT) {
-          ASSERT(slot->var()->mode() == Variable::CONST);
-          // Only the first const initialization must be executed (the slot
-          // still contains 'the hole' value). When the assignment is
-          // executed, the code is identical to a normal store (see below).
-          Comment cmnt(masm, "[ Init const");
-          __ ldr(r2, cgen_->SlotOperand(slot, r2));
-          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-          __ cmp(r2, ip);
-          exit.Branch(ne);
-        }
-
-        // We must execute the store.  Storing a variable must keep the
-        // (new) value on the stack. This is necessary for compiling
-        // assignment expressions.
-        //
-        // Note: We will reach here even with slot->var()->mode() ==
-        // Variable::CONST because of const declarations which will
-        // initialize consts to 'the hole' value and by doing so, end up
-        // calling this code.  r2 may be loaded with context; used below in
-        // RecordWrite.
-        frame->EmitPop(r0);
-        __ str(r0, cgen_->SlotOperand(slot, r2));
-        frame->EmitPush(r0);
-        if (slot->type() == Slot::CONTEXT) {
-          // Skip write barrier if the written value is a smi.
-          __ tst(r0, Operand(kSmiTagMask));
-          exit.Branch(eq);
-          // r2 is loaded with context when calling SlotOperand above.
-          int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-          __ mov(r3, Operand(offset));
-          __ RecordWrite(r2, r3, r1);
-        }
-        // If we definitely did not jump over the assignment, we do not need
-        // to bind the exit label.  Doing so can defeat peephole
-        // optimization.
-        if (init_state == CONST_INIT || slot->type() == Slot::CONTEXT) {
-          exit.Bind();
-        }
-      }
+      cgen_->StoreToSlot(slot, init_state);
       break;
     }
 

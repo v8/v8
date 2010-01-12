@@ -888,6 +888,9 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
   ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
+    if (var->mode() == Variable::CONST) {
+      BAILOUT("Assignment to const");
+    }
     // All global variables are supported.
     if (!var->is_global()) {
       ASSERT(var->slot() != NULL);

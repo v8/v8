@@ -3598,7 +3598,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
           top_scope_->NewUnresolved(function_name, inside_with());
       fproxy->BindTo(fvar);
       body.Add(new ExpressionStatement(
-                   new Assignment(Token::INIT_VAR, fproxy,
+                   new Assignment(Token::INIT_CONST, fproxy,
                                   NEW(ThisFunction()),
                                   RelocInfo::kNoPosition)));
     }

@@ -288,6 +288,7 @@ void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 
 void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
   Comment cmnt(masm_, "[ IfStatement");
+  SetStatementPosition(stmt);
   // Expressions cannot recursively enter statements, there are no labels in
   // the state.
   ASSERT_EQ(NULL, true_label_);
@@ -315,6 +316,7 @@ void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
 void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   Comment cmnt(masm_,  "[ ContinueStatement");
+  SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   while (!current->IsContinueTarget(stmt->target())) {
@@ -330,6 +332,7 @@ void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
 
 void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   Comment cmnt(masm_,  "[ BreakStatement");
+  SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   while (!current->IsBreakTarget(stmt->target())) {
@@ -345,6 +348,7 @@ void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
+  SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
   // Complete the statement based on the type of the subexpression.
   if (expr->AsLiteral() != NULL) {
@@ -406,6 +410,7 @@ void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
 void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
+  SetStatementPosition(stmt);
   Label body, stack_limit_hit, stack_check_success;
 
   Iteration loop_statement(this, stmt);
@@ -443,6 +448,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Comment cmnt(masm_, "[ WhileStatement");
+  SetStatementPosition(stmt);
   Label body, stack_limit_hit, stack_check_success;
 
   Iteration loop_statement(this, stmt);

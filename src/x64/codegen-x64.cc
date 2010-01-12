@@ -393,6 +393,12 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
       StoreArgumentsObject(true);
     }
 
+    // Initialize ThisFunction reference if present.
+    if (scope_->is_function_scope() && scope_->function() != NULL) {
+      frame_->Push(Factory::the_hole_value());
+      StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
+    }
+
     // Generate code to 'execute' declarations and initialize functions
     // (source elements). In case of an illegal redeclaration we need to
     // handle that instead of processing the declarations.
