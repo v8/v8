@@ -1129,6 +1129,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
       // Load receiver object into r1.
       if (prop->is_synthetic()) {
         __ ldr(r1, CodeGenerator::GlobalObject());
+        __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
       } else {
         __ ldr(r1, MemOperand(sp, kPointerSize));
       }

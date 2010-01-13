@@ -1128,7 +1128,8 @@ void FastCodeGenerator::VisitCall(Call* expr) {
       __ push(rax);
       // Push receiver object on stack.
       if (prop->is_synthetic()) {
-        __ push(CodeGenerator::GlobalObject());
+        __ movq(rcx, CodeGenerator::GlobalObject());
+        __ push(FieldOperand(rcx, GlobalObject::kGlobalReceiverOffset));
       } else {
         __ push(rbx);
       }
