@@ -652,7 +652,6 @@ class TryCatchStatement: public TryStatement {
       : TryStatement(try_block),
         catch_var_(catch_var),
         catch_block_(catch_block) {
-    ASSERT(catch_var->AsVariableProxy() != NULL);
   }
 
   virtual void Accept(AstVisitor* v);
