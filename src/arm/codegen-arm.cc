@@ -4455,9 +4455,6 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   Label gc;
   int length = slots_ + Context::MIN_CONTEXT_SLOTS;
 
-  // Pop the function from the stack.
-  __ pop(r3);
-
   // Attempt to allocate the context in new space.
   __ AllocateInNewSpace(length + (FixedArray::kHeaderSize / kPointerSize),
                         r0,
@@ -4465,6 +4462,9 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
                         r2,
                         &gc,
                         TAG_OBJECT);
+
+  // Load the function from the stack.
+  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
 
   // Setup the object header.
   __ LoadRoot(r2, Heap::kContextMapRootIndex);
@@ -4489,8 +4489,9 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
     __ str(r1, MemOperand(r0, Context::SlotOffset(i)));
   }
 
-  // Return. The on-stack parameter has already been popped.
+  // Remove the on-stack argument and return.
   __ mov(cp, r0);
+  __ pop();
   __ Ret();
 
   // Need to collect. Call into runtime system.
