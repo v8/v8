@@ -247,25 +247,25 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // initialization because the arguments object may be stored in the
     // context.
     if (scope_->arguments() != NULL) {
-      ASSERT(scope_->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ allocate arguments object");
-      { Reference shadow_ref(this, scope_->arguments_shadow());
-        { Reference arguments_ref(this, scope_->arguments());
-          ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-          __ ldr(r2, frame_->Function());
-          // The receiver is below the arguments, the return address,
-          // and the frame pointer on the stack.
-          const int kReceiverDisplacement = 2 + scope_->num_parameters();
-          __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
-          __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
-          frame_->Adjust(3);
-          __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
-          frame_->CallStub(&stub, 3);
-          frame_->EmitPush(r0);
-          arguments_ref.SetValue(NOT_CONST_INIT);
-        }
-        shadow_ref.SetValue(NOT_CONST_INIT);
-      }
+      ASSERT(scope_->arguments_shadow() != NULL);
+      Variable* arguments = scope_->arguments()->var();
+      Variable* shadow = scope_->arguments_shadow()->var();
+      ASSERT(arguments != NULL && arguments->slot() != NULL);
+      ASSERT(shadow != NULL && shadow->slot() != NULL);
+      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+      __ ldr(r2, frame_->Function());
+      // The receiver is below the arguments, the return address, and the
+      // frame pointer on the stack.
+      const int kReceiverDisplacement = 2 + scope_->num_parameters();
+      __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
+      __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
+      frame_->Adjust(3);
+      __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+      frame_->CallStub(&stub, 3);
+      frame_->EmitPush(r0);
+      StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+      StoreToSlot(shadow->slot(), NOT_CONST_INIT);
       frame_->Drop();  // Value is no longer needed.
     }
 
@@ -1992,13 +1992,9 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   frame_->EmitPush(r0);
 
   // Store the caught exception in the catch variable.
-  { Reference ref(this, node->catch_var());
-    ASSERT(ref.is_slot());
-    // Here we make use of the convenient property that it doesn't matter
-    // whether a value is immediately on top of or underneath a zero-sized
-    // reference.
-    ref.SetValue(NOT_CONST_INIT);
-  }
+  Variable* catch_var = node->catch_var()->var();
+  ASSERT(catch_var != NULL && catch_var->slot() != NULL);
+  StoreToSlot(catch_var->slot(), NOT_CONST_INIT);
 
   // Remove the exception from the stack.
   frame_->Drop();

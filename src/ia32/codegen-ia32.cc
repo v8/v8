@@ -609,36 +609,33 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     frame_->Push(&result);
   }
 
-  { Reference shadow_ref(this, scope_->arguments_shadow());
-    Reference arguments_ref(this, scope_->arguments());
-    ASSERT(shadow_ref.is_slot() && arguments_ref.is_slot());
-    // Here we rely on the convenient property that references to slot
-    // take up zero space in the frame (ie, it doesn't matter that the
-    // stored value is actually below the reference on the frame).
-    JumpTarget done;
-    bool skip_arguments = false;
-    if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
-      // We have to skip storing into the arguments slot if it has
-      // already been written to. This can happen if the a function
-      // has a local variable named 'arguments'.
-      LoadFromSlot(scope_->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
-      Result arguments = frame_->Pop();
-      if (arguments.is_constant()) {
-        // We have to skip updating the arguments object if it has
-        // been assigned a proper value.
-        skip_arguments = !arguments.handle()->IsTheHole();
-      } else {
-        __ cmp(Operand(arguments.reg()), Immediate(Factory::the_hole_value()));
-        arguments.Unuse();
-        done.Branch(not_equal);
-      }
+  Variable* arguments = scope_->arguments()->var();
+  Variable* shadow = scope_->arguments_shadow()->var();
+  ASSERT(arguments != NULL && arguments->slot() != NULL);
+  ASSERT(shadow != NULL && shadow->slot() != NULL);
+  JumpTarget done;
+  bool skip_arguments = false;
+  if (mode == LAZY_ARGUMENTS_ALLOCATION && !initial) {
+    // We have to skip storing into the arguments slot if it has already
+    // been written to. This can happen if the a function has a local
+    // variable named 'arguments'.
+    LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
+    Result probe = frame_->Pop();
+    if (probe.is_constant()) {
+      // We have to skip updating the arguments object if it has
+      // been assigned a proper value.
+      skip_arguments = !probe.handle()->IsTheHole();
+    } else {
+      __ cmp(Operand(probe.reg()), Immediate(Factory::the_hole_value()));
+      probe.Unuse();
+      done.Branch(not_equal);
     }
-    if (!skip_arguments) {
-      arguments_ref.SetValue(NOT_CONST_INIT);
-      if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
-    }
-    shadow_ref.SetValue(NOT_CONST_INIT);
   }
+  if (!skip_arguments) {
+    StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+    if (mode == LAZY_ARGUMENTS_ALLOCATION) done.Bind();
+  }
+  StoreToSlot(shadow->slot(), NOT_CONST_INIT);
   return frame_->Pop();
 }
 
@@ -3581,13 +3578,9 @@ void CodeGenerator::VisitTryCatchStatement(TryCatchStatement* node) {
   frame_->EmitPush(eax);
 
   // Store the caught exception in the catch variable.
-  { Reference ref(this, node->catch_var());
-    ASSERT(ref.is_slot());
-    // Load the exception to the top of the stack.  Here we make use of the
-    // convenient property that it doesn't matter whether a value is
-    // immediately on top of or underneath a zero-sized reference.
-    ref.SetValue(NOT_CONST_INIT);
-  }
+  Variable* catch_var = node->catch_var()->var();
+  ASSERT(catch_var != NULL && catch_var->slot() != NULL);
+  StoreToSlot(catch_var->slot(), NOT_CONST_INIT);
 
   // Remove the exception from the stack.
   frame_->Drop();

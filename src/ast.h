@@ -647,7 +647,7 @@ class TryStatement: public Statement {
 class TryCatchStatement: public TryStatement {
  public:
   TryCatchStatement(Block* try_block,
-                    Expression* catch_var,
+                    VariableProxy* catch_var,
                     Block* catch_block)
       : TryStatement(try_block),
         catch_var_(catch_var),
@@ -657,11 +657,11 @@ class TryCatchStatement: public TryStatement {
 
   virtual void Accept(AstVisitor* v);
 
-  Expression* catch_var() const  { return catch_var_; }
+  VariableProxy* catch_var() const  { return catch_var_; }
   Block* catch_block() const  { return catch_block_; }
 
  private:
-  Expression* catch_var_;
+  VariableProxy* catch_var_;
   Block* catch_block_;
 };
 
