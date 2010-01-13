@@ -804,6 +804,9 @@ class Heap : public AllStatic {
   // Rebuild remembered set in old and map spaces.
   static void RebuildRSets();
 
+  // Update an old object's remembered set
+  static int UpdateRSet(HeapObject* obj);
+
   // Commits from space if it is uncommitted.
   static void EnsureFromSpaceIsCommitted();
 
@@ -1074,9 +1077,6 @@ class Heap : public AllStatic {
   static void ReportStatisticsAfterGC();
 #endif
 
-  // Update an old object's remembered set
-  static int UpdateRSet(HeapObject* obj);
-
   // Rebuild remembered set in an old space.
   static void RebuildRSets(PagedSpace* space);
 
@@ -1236,7 +1236,7 @@ class OldSpaces BASE_EMBEDDED {
 
 
 // Space iterator for iterating over all the paged spaces of the heap:
-// Map space, old pointer space, old data space and code space.
+// Map space, old pointer space, old data space, code space and cell space.
 // Returns each space in turn, and null when it is done.
 class PagedSpaces BASE_EMBEDDED {
  public:

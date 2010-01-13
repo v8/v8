@@ -1731,6 +1731,10 @@ class FixedSpace : public PagedSpace {
   // the page after current_page (there is assumed to be one).
   HeapObject* AllocateInNextPage(Page* current_page, int size_in_bytes);
 
+  void ResetFreeList() {
+    free_list_.Reset();
+  }
+
  private:
   // The size of objects in this space.
   int object_size_in_bytes_;
@@ -1772,12 +1776,70 @@ class MapSpace : public FixedSpace {
     return n_of_pages <= kMaxMapPageIndex;
   }
 
+  // Should be called after forced sweep to find out if map space needs
+  // compaction.
+  int NeedsCompaction(int live_maps) {
+    return !MapPointersEncodable() && live_maps <= kCompactionThreshold;
+  }
+
+  Address TopAfterCompaction(int live_maps) {
+    ASSERT(NeedsCompaction(live_maps));
+
+    int pages_left = live_maps / kMapsPerPage;
+    PageIterator it(this, PageIterator::ALL_PAGES);
+    while (pages_left-- > 0) {
+      ASSERT(it.has_next());
+      it.next()->ClearRSet();
+    }
+    ASSERT(it.has_next());
+    Page* top_page = it.next();
+    top_page->ClearRSet();
+    ASSERT(top_page->is_valid());
+
+    int offset = live_maps % kMapsPerPage * Map::kSize;
+    Address top = top_page->ObjectAreaStart() + offset;
+    ASSERT(top < top_page->ObjectAreaEnd());
+    ASSERT(Contains(top));
+
+    return top;
+  }
+
+  void FinishCompaction(Address new_top, int live_maps) {
+    Page* top_page = Page::FromAddress(new_top);
+    ASSERT(top_page->is_valid());
+
+    SetAllocationInfo(&allocation_info_, top_page);
+    allocation_info_.top = new_top;
+
+    int new_size = live_maps * Map::kSize;
+    accounting_stats_.DeallocateBytes(accounting_stats_.Size());
+    accounting_stats_.AllocateBytes(new_size);
+
+#ifdef DEBUG
+    if (FLAG_enable_slow_asserts) {
+      int actual_size = 0;
+      for (Page* p = first_page_; p != top_page; p = p->next_page())
+        actual_size += kMapsPerPage * Map::kSize;
+      actual_size += (new_top - top_page->ObjectAreaStart());
+      ASSERT(accounting_stats_.Size() == actual_size);
+    }
+#endif
+
+    Shrink();
+    ResetFreeList();
+  }
+
  protected:
 #ifdef DEBUG
   virtual void VerifyObject(HeapObject* obj);
 #endif
 
  private:
+  static const int kMapsPerPage = Page::kObjectAreaSize / Map::kSize;
+
+  // Do map space compaction if there is a page gap.
+  static const int kCompactionThreshold = kMapsPerPage * (kMaxMapPageIndex - 1);
+
   // An array of page start address in a map space.
   Address page_addresses_[kMaxMapPageIndex + 1];
 
