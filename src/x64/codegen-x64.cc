@@ -326,12 +326,19 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
     function_return_is_shadowed_ = false;
 
     // Allocate the local context if needed.
-    if (scope_->num_heap_slots() > 0) {
+    int heap_slots = scope_->num_heap_slots();
+    if (heap_slots > 0) {
       Comment cmnt(masm_, "[ allocate local context");
       // Allocate local context.
       // Get outer context and create a new context based on it.
       frame_->PushFunction();
-      Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
+      Result context;
+      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(heap_slots);
+        context = frame_->CallStub(&stub, 1);
+      } else {
+        context = frame_->CallRuntime(Runtime::kNewContext, 1);
+      }
 
       // Update context local.
       frame_->SaveContextRegister();
@@ -6113,6 +6120,48 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ push(rdx);
   __ push(rcx);  // Restore return address.
   __ TailCallRuntime(ExternalReference(Runtime::kNewClosure), 2, 1);
+}
+
+
+void FastNewContextStub::Generate(MacroAssembler* masm) {
+  // Try to allocate the context in new space.
+  Label gc;
+  int length = slots_ + Context::MIN_CONTEXT_SLOTS;
+  __ AllocateInNewSpace((length * kPointerSize) + FixedArray::kHeaderSize,
+                        rax, rbx, rcx, &gc, TAG_OBJECT);
+
+  // Get the function from the stack.
+  __ movq(rcx, Operand(rsp, 1 * kPointerSize));
+
+  // Setup the object header.
+  __ LoadRoot(kScratchRegister, Heap::kContextMapRootIndex);
+  __ movq(FieldOperand(rax, HeapObject::kMapOffset), kScratchRegister);
+  __ movl(FieldOperand(rax, Array::kLengthOffset), Immediate(length));
+
+  // Setup the fixed slots.
+  __ xor_(rbx, rbx);  // Set to NULL.
+  __ movq(Operand(rax, Context::SlotOffset(Context::CLOSURE_INDEX)), rcx);
+  __ movq(Operand(rax, Context::SlotOffset(Context::FCONTEXT_INDEX)), rax);
+  __ movq(Operand(rax, Context::SlotOffset(Context::PREVIOUS_INDEX)), rbx);
+  __ movq(Operand(rax, Context::SlotOffset(Context::EXTENSION_INDEX)), rbx);
+
+  // Copy the global object from the surrounding context.
+  __ movq(rbx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ movq(Operand(rax, Context::SlotOffset(Context::GLOBAL_INDEX)), rbx);
+
+  // Initialize the rest of the slots to undefined.
+  __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
+  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; i++) {
+    __ movq(Operand(rax, Context::SlotOffset(i)), rbx);
+  }
+
+  // Return and remove the on-stack parameter.
+  __ movq(rsi, rax);
+  __ ret(1 * kPointerSize);
+
+  // Need to collect. Call into runtime system.
+  __ bind(&gc);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewContext), 1, 1);
 }
 
 
