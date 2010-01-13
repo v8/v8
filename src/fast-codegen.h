@@ -241,6 +241,19 @@ class FastCodeGenerator: public AstVisitor {
   // control flow to a pair of labels.
   void TestAndBranch(Register source, Label* true_label, Label* false_label);
 
+  void VisitForControl(Expression* expr, Label* if_true, Label* if_false) {
+    ASSERT(expr->context() == Expression::kTest ||
+           expr->context() == Expression::kValueTest ||
+           expr->context() == Expression::kTestValue);
+    Label* saved_true = true_label_;
+    Label* saved_false = false_label_;
+    true_label_ = if_true;
+    false_label_ = if_false;
+    Visit(expr);
+    true_label_ = saved_true;
+    false_label_ = saved_false;
+  }
+
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
 

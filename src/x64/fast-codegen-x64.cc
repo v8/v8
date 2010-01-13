@@ -1259,20 +1259,14 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmnt(masm_, "[ UnaryOperation (NOT)");
       ASSERT_EQ(Expression::kTest, expr->expression()->context());
 
-      Label push_true;
-      Label push_false;
-      Label done;
-      Label* saved_true = true_label_;
-      Label* saved_false = false_label_;
+      Label push_true, push_false, done;
       switch (expr->context()) {
         case Expression::kUninitialized:
           UNREACHABLE();
           break;
 
         case Expression::kValue:
-          true_label_ = &push_false;
-          false_label_ = &push_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), &push_false, &push_true);
           __ bind(&push_true);
           __ PushRoot(Heap::kTrueValueRootIndex);
           __ jmp(&done);
@@ -1282,38 +1276,28 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           break;
 
         case Expression::kEffect:
-          true_label_ = &done;
-          false_label_ = &done;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), &done, &done);
           __ bind(&done);
           break;
 
         case Expression::kTest:
-          true_label_ = saved_false;
-          false_label_ = saved_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), false_label_, true_label_);
           break;
 
         case Expression::kValueTest:
-          true_label_ = saved_false;
-          false_label_ = &push_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), false_label_, &push_true);
           __ bind(&push_true);
           __ PushRoot(Heap::kTrueValueRootIndex);
-          __ jmp(saved_true);
+          __ jmp(true_label_);
           break;
 
         case Expression::kTestValue:
-          true_label_ = &push_false;
-          false_label_ = saved_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), &push_false, true_label_);
           __ bind(&push_false);
           __ PushRoot(Heap::kFalseValueRootIndex);
-          __ jmp(saved_false);
+          __ jmp(false_label_);
           break;
       }
-      true_label_ = saved_true;
-      false_label_ = saved_false;
       break;
     }
 
@@ -1541,46 +1525,40 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Visit(expr->left());
   Visit(expr->right());
 
-  // Convert current context to test context: Pre-test code.
-  Label push_true;
-  Label push_false;
-  Label done;
-  Label* saved_true = true_label_;
-  Label* saved_false = false_label_;
+  // Always perform the comparison for its control flow.  Pack the result
+  // into the expression's context after the comparison is performed.
+  Label push_true, push_false, done;
+  // Initially assume we are in a test context.
+  Label* if_true = true_label_;
+  Label* if_false = false_label_;
   switch (expr->context()) {
     case Expression::kUninitialized:
       UNREACHABLE();
       break;
-
     case Expression::kValue:
-      true_label_ = &push_true;
-      false_label_ = &push_false;
+      if_true = &push_true;
+      if_false = &push_false;
       break;
-
     case Expression::kEffect:
-      true_label_ = &done;
-      false_label_ = &done;
+      if_true = &done;
+      if_false = &done;
       break;
-
     case Expression::kTest:
       break;
-
     case Expression::kValueTest:
-      true_label_ = &push_true;
+      if_true = &push_true;
       break;
-
     case Expression::kTestValue:
-      false_label_ = &push_false;
+      if_false = &push_false;
       break;
   }
-  // Convert current context to test context: End pre-test code.
 
   switch (expr->op()) {
     case Token::IN: {
       __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
       __ CompareRoot(rax, Heap::kTrueValueRootIndex);
-      __ j(equal, true_label_);
-      __ jmp(false_label_);
+      __ j(equal, if_true);
+      __ jmp(if_false);
       break;
     }
 
@@ -1588,8 +1566,8 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       InstanceofStub stub;
       __ CallStub(&stub);
       __ testq(rax, rax);
-      __ j(zero, true_label_);  // The stub returns 0 for true.
-      __ jmp(false_label_);
+      __ j(zero, if_true);  // The stub returns 0 for true.
+      __ jmp(if_false);
       break;
     }
 
@@ -1638,22 +1616,27 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Label slow_case;
       __ JumpIfNotBothSmi(rax, rdx, &slow_case);
       __ SmiCompare(rdx, rax);
-      __ j(cc, true_label_);
-      __ jmp(false_label_);
+      __ j(cc, if_true);
+      __ jmp(if_false);
 
       __ bind(&slow_case);
       CompareStub stub(cc, strict);
       __ CallStub(&stub);
       __ testq(rax, rax);
-      __ j(cc, true_label_);
-      __ jmp(false_label_);
+      __ j(cc, if_true);
+      __ jmp(if_false);
     }
   }
 
-  // Convert current context to test context: Post-test code.
+  // Convert the result of the comparison into one expected for this
+  // expression's context.
   switch (expr->context()) {
     case Expression::kUninitialized:
       UNREACHABLE();
+      break;
+
+    case Expression::kEffect:
+      __ bind(&done);
       break;
 
     case Expression::kValue:
@@ -1665,28 +1648,21 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ bind(&done);
       break;
 
-    case Expression::kEffect:
-      __ bind(&done);
-      break;
-
     case Expression::kTest:
       break;
 
     case Expression::kValueTest:
       __ bind(&push_true);
       __ PushRoot(Heap::kTrueValueRootIndex);
-      __ jmp(saved_true);
+      __ jmp(true_label_);
       break;
 
     case Expression::kTestValue:
       __ bind(&push_false);
       __ PushRoot(Heap::kFalseValueRootIndex);
-      __ jmp(saved_false);
+      __ jmp(false_label_);
       break;
   }
-  true_label_ = saved_true;
-  false_label_ = saved_false;
-  // Convert current context to test context: End post-test code.
 }
 
 

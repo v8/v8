@@ -226,36 +226,33 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
 #endif
 
   Label eval_right, done;
-  Label* saved_true = true_label_;
-  Label* saved_false = false_label_;
 
-  // Set up the appropriate context for the left subexpression based on the
-  // operation and our own context.
+  // Set up the appropriate context for the left subexpression based
+  // on the operation and our own context.  Initially assume we can
+  // inherit both true and false labels from our context.
+  Label* if_true = true_label_;
+  Label* if_false = false_label_;
   if (expr->op() == Token::OR) {
-    // If there is no usable true label in the OR expression's context, use
-    // the end of this expression, otherwise inherit the same true label.
+    // If we are not in some kind of a test context, we did not inherit a
+    // true label from our context.  Use the end of the expression.
     if (expr->context() == Expression::kEffect ||
         expr->context() == Expression::kValue) {
-      true_label_ = &done;
+      if_true = &done;
     }
-    // The false label is the label of the second subexpression.
-    false_label_ = &eval_right;
+    // The false label is the label of the right subexpression.
+    if_false = &eval_right;
   } else {
     ASSERT_EQ(Token::AND, expr->op());
-    // The true label is the label of the second subexpression.
-    true_label_ = &eval_right;
-    // If there is no usable false label in the AND expression's context,
-    // use the end of the expression, otherwise inherit the same false
-    // label.
+    // The true label is the label of the right subexpression.
+    if_true = &eval_right;
+    // If we are not in some kind of a test context, we did not inherit a
+    // false label from our context.  Use the end of the expression.
     if (expr->context() == Expression::kEffect ||
         expr->context() == Expression::kValue) {
-      false_label_ = &done;
+      if_false = &done;
     }
   }
-
-  Visit(expr->left());
-  true_label_ = saved_true;
-  false_label_ = saved_false;
+  VisitForControl(expr->left(), if_true, if_false);
 
   __ bind(&eval_right);
   Visit(expr->right());
@@ -289,19 +286,10 @@ void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
   Comment cmnt(masm_, "[ IfStatement");
   SetStatementPosition(stmt);
-  // Expressions cannot recursively enter statements, there are no labels in
-  // the state.
-  ASSERT_EQ(NULL, true_label_);
-  ASSERT_EQ(NULL, false_label_);
   Label then_part, else_part, done;
 
   // Do not worry about optimizing for empty then or else bodies.
-  true_label_ = &then_part;
-  false_label_ = &else_part;
-  ASSERT(stmt->condition()->context() == Expression::kTest);
-  Visit(stmt->condition());
-  true_label_ = NULL;
-  false_label_ = NULL;
+  VisitForControl(stmt->condition(), &then_part, &else_part);
 
   __ bind(&then_part);
   Visit(stmt->then_statement());
@@ -423,17 +411,8 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
 
-  // We are not in an expression context because we have been compiling
-  // statements.  Set up a test expression context for the condition.
   __ bind(loop_statement.continue_target());
-  ASSERT_EQ(NULL, true_label_);
-  ASSERT_EQ(NULL, false_label_);
-  true_label_ = &body;
-  false_label_ = loop_statement.break_target();
-  ASSERT(stmt->cond()->context() == Expression::kTest);
-  Visit(stmt->cond());
-  true_label_ = NULL;
-  false_label_ = NULL;
+  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
 
   __ bind(&stack_limit_hit);
   StackCheckStub stack_stub;
@@ -465,16 +444,7 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   __ StackLimitCheck(&stack_limit_hit);
   __ bind(&stack_check_success);
 
-  // We are not in an expression context because we have been compiling
-  // statements.  Set up a test expression context for the condition.
-  ASSERT_EQ(NULL, true_label_);
-  ASSERT_EQ(NULL, false_label_);
-  true_label_ = &body;
-  false_label_ = loop_statement.break_target();
-  ASSERT(stmt->cond()->context() == Expression::kTest);
-  Visit(stmt->cond());
-  true_label_ = NULL;
-  false_label_ = NULL;
+  VisitForControl(stmt->cond(), &body, loop_statement.break_target());
 
   __ bind(&stack_limit_hit);
   StackCheckStub stack_stub;
@@ -628,14 +598,7 @@ void FastCodeGenerator::VisitConditional(Conditional* expr) {
 
 
   Label true_case, false_case, done;
-  Label* saved_true = true_label_;
-  Label* saved_false = false_label_;
-
-  true_label_ = &true_case;
-  false_label_ = &false_case;
-  Visit(expr->condition());
-  true_label_ = saved_true;
-  false_label_ = saved_false;
+  VisitForControl(expr->condition(), &true_case, &false_case);
 
   __ bind(&true_case);
   Visit(expr->then_expression());

@@ -1240,20 +1240,19 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmnt(masm_, "[ UnaryOperation (NOT)");
       ASSERT_EQ(Expression::kTest, expr->expression()->context());
 
-      Label push_true;
-      Label push_false;
-      Label done;
-      Label* saved_true = true_label_;
-      Label* saved_false = false_label_;
+      Label push_true, push_false, done;
       switch (expr->context()) {
         case Expression::kUninitialized:
           UNREACHABLE();
           break;
 
+        case Expression::kEffect:
+          VisitForControl(expr->expression(), &done, &done);
+          __ bind(&done);
+          break;
+
         case Expression::kValue:
-          true_label_ = &push_false;
-          false_label_ = &push_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), &push_false, &push_true);
           __ bind(&push_true);
           __ push(Immediate(Factory::true_value()));
           __ jmp(&done);
@@ -1262,39 +1261,24 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           __ bind(&done);
           break;
 
-        case Expression::kEffect:
-          true_label_ = &done;
-          false_label_ = &done;
-          Visit(expr->expression());
-          __ bind(&done);
-          break;
-
         case Expression::kTest:
-          true_label_ = saved_false;
-          false_label_ = saved_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), false_label_, true_label_);
           break;
 
         case Expression::kValueTest:
-          true_label_ = saved_false;
-          false_label_ = &push_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), false_label_, &push_true);
           __ bind(&push_true);
           __ push(Immediate(Factory::true_value()));
-          __ jmp(saved_true);
+          __ jmp(true_label_);
           break;
 
         case Expression::kTestValue:
-          true_label_ = &push_false;
-          false_label_ = saved_true;
-          Visit(expr->expression());
+          VisitForControl(expr->expression(), &push_false, true_label_);
           __ bind(&push_false);
           __ push(Immediate(Factory::false_value()));
-          __ jmp(saved_false);
+          __ jmp(false_label_);
           break;
       }
-      true_label_ = saved_true;
-      false_label_ = saved_false;
       break;
     }
 
@@ -1523,46 +1507,40 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Visit(expr->left());
   Visit(expr->right());
 
-  // Convert current context to test context: Pre-test code.
-  Label push_true;
-  Label push_false;
-  Label done;
-  Label* saved_true = true_label_;
-  Label* saved_false = false_label_;
+  // Always perform the comparison for its control flow.  Pack the result
+  // into the expression's context after the comparison is performed.
+  Label push_true, push_false, done;
+  // Initially assume we are in a test context.
+  Label* if_true = true_label_;
+  Label* if_false = false_label_;
   switch (expr->context()) {
     case Expression::kUninitialized:
       UNREACHABLE();
       break;
-
-    case Expression::kValue:
-      true_label_ = &push_true;
-      false_label_ = &push_false;
-      break;
-
     case Expression::kEffect:
-      true_label_ = &done;
-      false_label_ = &done;
+      if_true = &done;
+      if_false = &done;
       break;
-
+    case Expression::kValue:
+      if_true = &push_true;
+      if_false = &push_false;
+      break;
     case Expression::kTest:
       break;
-
     case Expression::kValueTest:
-      true_label_ = &push_true;
+      if_true = &push_true;
       break;
-
     case Expression::kTestValue:
-      false_label_ = &push_false;
+      if_false = &push_false;
       break;
   }
-  // Convert current context to test context: End pre-test code.
 
   switch (expr->op()) {
     case Token::IN: {
       __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION);
       __ cmp(eax, Factory::true_value());
-      __ j(equal, true_label_);
-      __ jmp(false_label_);
+      __ j(equal, if_true);
+      __ jmp(if_false);
       break;
     }
 
@@ -1570,8 +1548,8 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       InstanceofStub stub;
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
-      __ j(zero, true_label_);  // The stub returns 0 for true.
-      __ jmp(false_label_);
+      __ j(zero, if_true);  // The stub returns 0 for true.
+      __ jmp(if_false);
       break;
     }
 
@@ -1623,22 +1601,27 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ test(ecx, Immediate(kSmiTagMask));
       __ j(not_zero, &slow_case, not_taken);
       __ cmp(edx, Operand(eax));
-      __ j(cc, true_label_);
-      __ jmp(false_label_);
+      __ j(cc, if_true);
+      __ jmp(if_false);
 
       __ bind(&slow_case);
       CompareStub stub(cc, strict);
       __ CallStub(&stub);
       __ test(eax, Operand(eax));
-      __ j(cc, true_label_);
-      __ jmp(false_label_);
+      __ j(cc, if_true);
+      __ jmp(if_false);
     }
   }
 
-  // Convert current context to test context: Post-test code.
+  // Convert the result of the comparison into one expected for this
+  // expression's context.
   switch (expr->context()) {
     case Expression::kUninitialized:
       UNREACHABLE();
+      break;
+
+    case Expression::kEffect:
+      __ bind(&done);
       break;
 
     case Expression::kValue:
@@ -1650,28 +1633,21 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ bind(&done);
       break;
 
-    case Expression::kEffect:
-      __ bind(&done);
-      break;
-
     case Expression::kTest:
       break;
 
     case Expression::kValueTest:
       __ bind(&push_true);
       __ push(Immediate(Factory::true_value()));
-      __ jmp(saved_true);
+      __ jmp(true_label_);
       break;
 
     case Expression::kTestValue:
       __ bind(&push_false);
       __ push(Immediate(Factory::false_value()));
-      __ jmp(saved_false);
+      __ jmp(false_label_);
       break;
   }
-  true_label_ = saved_true;
-  false_label_ = saved_false;
-  // Convert current context to test context: End post-test code.
 }
 
 
