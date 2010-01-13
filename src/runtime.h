@@ -61,6 +61,8 @@ namespace internal {
   \
   F(IsConstructCall, 0, 1) \
   \
+  F(GetOwnProperty, 2, 1) \
+  \
   /* Utilities */ \
   F(GetCalledFunction, 0, 1) \
   F(GetFunctionDelegate, 1, 1) \

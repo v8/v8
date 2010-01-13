@@ -179,7 +179,8 @@ function FormatMessage(message) {
       invalid_json:                 "String '%0' is not valid JSON",
       circular_structure:           "Converting circular structure to JSON",
       object_keys_non_object:       "Object.keys called on non-object",
-      object_get_prototype_non_object: "Object.getPrototypeOf called on non-object"
+      object_get_prototype_non_object: "Object.getPrototypeOf called on non-object",
+      array_indexof_not_defined:    "Array.getIndexOf: Argument undefined"
     };
   }
   var format = kMessages[message.type];

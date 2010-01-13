@@ -919,7 +919,7 @@ function ArrayForEach(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length =  TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
@@ -937,7 +937,7 @@ function ArraySome(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
@@ -954,17 +954,15 @@ function ArrayEvery(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
       if (!f.call(receiver, current, i, this)) return false;
     }
   }
-
   return true;
 }
-
 
 function ArrayMap(f, receiver) {
   if (!IS_FUNCTION(f)) {
@@ -972,7 +970,7 @@ function ArrayMap(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = TO_UINT32(this.length);
   var result = new $Array(length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
@@ -985,6 +983,9 @@ function ArrayMap(f, receiver) {
 
 
 function ArrayIndexOf(element, index) {
+  if (IS_UNDEFINED(element)) {
+    throw MakeTypeError('array_indexof_not_defined', [element]);
+  }
   var length = this.length;
   if (index == null) {
     index = 0;

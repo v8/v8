@@ -559,6 +559,67 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 }
 
 
+// Recursively traverses hidden prototypes if property is not found
+static void GetOwnPropertyImplementation(JSObject* obj,
+                                         String* name,
+                                         LookupResult* result) {
+  obj->LocalLookupRealNamedProperty(name, result);
+
+  if (!result->IsProperty()) {
+    Object* proto = obj->GetPrototype();
+    if (proto->IsJSObject() &&
+      JSObject::cast(proto)->map()->is_hidden_prototype())
+      GetOwnPropertyImplementation(JSObject::cast(proto),
+                                   name, result);
+  }
+}
+
+
+// Returns an array with the property description:
+//  if args[1] is not a property on args[0]
+//          returns undefined
+//  if args[1] is a data property on args[0]
+//         [false, value, Writeable, Enumerable, Configurable]
+//  if args[1] is an accessor on args[0]
+//         [true, GetFunction, SetFunction, Enumerable, Configurable]
+static Object* Runtime_GetOwnProperty(Arguments args) {
+  HandleScope scope;
+  Handle<FixedArray> elms = Factory::NewFixedArray(5);
+  Handle<JSArray> desc = Factory::NewJSArrayWithElements(elms);
+  LookupResult result;
+  CONVERT_CHECKED(JSObject, obj, args[0]);
+  CONVERT_CHECKED(String, name, args[1]);
+
+  // Use recursive implementation to also traverse hidden prototypes
+  GetOwnPropertyImplementation(obj, name, &result);
+
+  if (!result.IsProperty())
+    return Heap::undefined_value();
+
+  if (result.type() == CALLBACKS) {
+    elms->set(0, Heap::true_value());
+    Object* structure = result.GetCallbackObject();
+    if (structure->IsProxy()) {
+       Object* value = obj->GetPropertyWithCallback(
+             obj, structure, name, result.holder());
+       elms->set(1, value);
+       elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
+    } else {
+      elms->set(1, FixedArray::cast(structure)->get(0));
+      elms->set(2, FixedArray::cast(structure)->get(1));
+    }
+  } else {
+    elms->set(0, Heap::false_value());
+    elms->set(1, result.GetLazyValue());
+    elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
+  }
+
+  elms->set(3, Heap::ToBoolean(!result.IsDontEnum()));
+  elms->set(4, Heap::ToBoolean(!result.IsReadOnly()));
+  return *desc;
+}
+
+
 static Object* Runtime_RegExpCompile(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
