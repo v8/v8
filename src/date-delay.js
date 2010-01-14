@@ -1048,16 +1048,19 @@ function DateToGMTString() {
 }
 
 
-function PadInt(n) {
-  // Format integers to have at least two digits.
-  return n < 10 ? '0' + n : n;
+function PadInt(n, digits) {
+  if (digits == 1) return n;
+  return n < MathPow(10, digits - 1) ? '0' + PadInt(n, digits - 1) : n;
 }
 
 
 function DateToISOString() {
-  return this.getUTCFullYear() + '-' + PadInt(this.getUTCMonth() + 1) +
-      '-' + PadInt(this.getUTCDate()) + 'T' + PadInt(this.getUTCHours()) +
-      ':' + PadInt(this.getUTCMinutes()) + ':' + PadInt(this.getUTCSeconds()) +
+  var t = DATE_VALUE(this);
+  if (NUMBER_IS_NAN(t)) return kInvalidDate;
+  return this.getUTCFullYear() + '-' + PadInt(this.getUTCMonth() + 1, 2) +
+      '-' + PadInt(this.getUTCDate(), 2) + 'T' + PadInt(this.getUTCHours(), 2) +
+      ':' + PadInt(this.getUTCMinutes(), 2) + ':' + PadInt(this.getUTCSeconds(), 2) +
+      '.' + PadInt(this.getUTCMilliseconds(), 3) +
       'Z';
 }
 
