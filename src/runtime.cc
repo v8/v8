@@ -597,16 +597,22 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
     return Heap::undefined_value();
 
   if (result.type() == CALLBACKS) {
-    elms->set(0, Heap::true_value());
     Object* structure = result.GetCallbackObject();
     if (structure->IsProxy()) {
-       Object* value = obj->GetPropertyWithCallback(
-             obj, structure, name, result.holder());
-       elms->set(1, value);
-       elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
-    } else {
+      // Property that is internally implemented as a callback.
+      Object* value = obj->GetPropertyWithCallback(
+          obj, structure, name, result.holder());
+      elms->set(0, Heap::false_value());
+      elms->set(1, value);
+      elms->set(2, Heap::ToBoolean(!result.IsReadOnly()));
+    } else if (structure->IsFixedArray()) {
+      // __defineGetter__/__defineSetter__ callback.
+      elms->set(0, Heap::true_value());
       elms->set(1, FixedArray::cast(structure)->get(0));
       elms->set(2, FixedArray::cast(structure)->get(1));
+    } else {
+      // TODO(ricow): Handle API callbacks.
+      return Heap::undefined_value();
     }
   } else {
     elms->set(0, Heap::false_value());
