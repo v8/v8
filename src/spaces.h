@@ -1778,7 +1778,7 @@ class MapSpace : public FixedSpace {
 
   // Should be called after forced sweep to find out if map space needs
   // compaction.
-  int NeedsCompaction(int live_maps) {
+  bool NeedsCompaction(int live_maps) {
     return !MapPointersEncodable() && live_maps <= kCompactionThreshold;
   }
 
