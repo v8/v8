@@ -479,6 +479,65 @@ static void VerifySymbolTable() {
 }
 
 
+void Heap::ReserveSpace(
+    int new_space_size,
+    int pointer_space_size,
+    int data_space_size,
+    int code_space_size,
+    int map_space_size,
+    int cell_space_size,
+    int large_object_size) {
+  NewSpace* new_space = Heap::new_space();
+  PagedSpace* old_pointer_space = Heap::old_pointer_space();
+  PagedSpace* old_data_space = Heap::old_data_space();
+  PagedSpace* code_space = Heap::code_space();
+  PagedSpace* map_space = Heap::map_space();
+  PagedSpace* cell_space = Heap::cell_space();
+  LargeObjectSpace* lo_space = Heap::lo_space();
+  bool gc_performed = true;
+  while (gc_performed) {
+    gc_performed = false;
+    if (!new_space->ReserveSpace(new_space_size)) {
+      Heap::CollectGarbage(new_space_size, NEW_SPACE);
+      gc_performed = true;
+    }
+    if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
+      Heap::CollectGarbage(pointer_space_size, OLD_POINTER_SPACE);
+      gc_performed = true;
+    }
+    if (!(old_data_space->ReserveSpace(data_space_size))) {
+      Heap::CollectGarbage(data_space_size, OLD_DATA_SPACE);
+      gc_performed = true;
+    }
+    if (!(code_space->ReserveSpace(code_space_size))) {
+      Heap::CollectGarbage(code_space_size, CODE_SPACE);
+      gc_performed = true;
+    }
+    if (!(map_space->ReserveSpace(map_space_size))) {
+      Heap::CollectGarbage(map_space_size, MAP_SPACE);
+      gc_performed = true;
+    }
+    if (!(cell_space->ReserveSpace(cell_space_size))) {
+      Heap::CollectGarbage(cell_space_size, CELL_SPACE);
+      gc_performed = true;
+    }
+    // We add a slack-factor of 2 in order to have space for the remembered
+    // set and a series of large-object allocations that are only just larger
+    // than the page size.
+    large_object_size *= 2;
+    // The ReserveSpace method on the large object space checks how much
+    // we can expand the old generation.  This includes expansion caused by
+    // allocation in the other spaces.
+    large_object_size += cell_space_size + map_space_size + code_space_size +
+        data_space_size + pointer_space_size;
+    if (!(lo_space->ReserveSpace(large_object_size))) {
+      Heap::CollectGarbage(large_object_size, LO_SPACE);
+      gc_performed = true;
+    }
+  }
+}
+
+
 void Heap::EnsureFromSpaceIsCommitted() {
   if (new_space_.CommitFromSpaceIfNeeded()) return;
 

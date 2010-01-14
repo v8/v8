@@ -1863,10 +1863,7 @@ bool PagedSpace::ReserveSpace(int bytes) {
 // You have to call this last, since the implementation from PagedSpace
 // doesn't know that memory was 'promised' to large object space.
 bool LargeObjectSpace::ReserveSpace(int bytes) {
-  // We add a slack-factor of 2 in order to have space for the remembered
-  // set and a series of large-object allocations that are only just larger
-  // than the page size.
-  return Heap::OldGenerationSpaceAvailable() >= bytes * 2;
+  return Heap::OldGenerationSpaceAvailable() >= bytes;
 }
 
 

@@ -993,7 +993,8 @@ void Serializer::SerializeObject(
       sink_->PutInt(root_index, "root_index");
       return;
     }
-    // TODO(erikcorry): Handle symbols here.
+    // All the symbols that the snapshot needs should be in the root table.
+    ASSERT(!heap_object->IsSymbol());
   }
   if (SerializationAddressMapper::IsMapped(heap_object)) {
     int space = SpaceOfAlreadySerializedObject(heap_object);

@@ -810,6 +810,21 @@ class Heap : public AllStatic {
   // Commits from space if it is uncommitted.
   static void EnsureFromSpaceIsCommitted();
 
+  // Support for partial snapshots.  After calling this we can allocate a
+  // certain number of bytes using only linear allocation (with a
+  // LinearAllocationScope and an AlwaysAllocateScope) without using freelists
+  // or causing a GC.  It returns true of space was reserved or false if a GC is
+  // needed.  For paged spaces the space requested must include the space wasted
+  // at the end of each page when allocating linearly.
+  static void ReserveSpace(
+    int new_space_size,
+    int pointer_space_size,
+    int data_space_size,
+    int code_space_size,
+    int map_space_size,
+    int cell_space_size,
+    int large_object_size);
+
   //
   // Support for the API.
   //
