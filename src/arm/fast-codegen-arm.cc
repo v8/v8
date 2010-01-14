@@ -1424,14 +1424,12 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Call runtime for +1/-1.
-  if (expr->op() == Token::INC) {
-    __ mov(ip, Operand(Smi::FromInt(1)));
-  } else {
-    __ mov(ip, Operand(Smi::FromInt(-1)));
-  }
-  __ stm(db_w, sp, ip.bit() | r0.bit());
-  __ CallRuntime(Runtime::kNumberAdd, 2);
+  // Call stub for +1/-1.
+  __ mov(r1, Operand(expr->op() == Token::INC
+                     ? Smi::FromInt(1)
+                     : Smi::FromInt(-1)));
+  GenericBinaryOpStub stub(Token::ADD, NO_OVERWRITE);
+  __ CallStub(&stub);
 
   // Store the value returned in r0.
   switch (assign_type) {

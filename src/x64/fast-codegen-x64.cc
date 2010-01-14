@@ -1412,14 +1412,13 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Call runtime for +1/-1.
+  // Call stub for +1/-1.
   __ push(rax);
   __ Push(Smi::FromInt(1));
-  if (expr->op() == Token::INC) {
-    __ CallRuntime(Runtime::kNumberAdd, 2);
-  } else {
-    __ CallRuntime(Runtime::kNumberSub, 2);
-  }
+  GenericBinaryOpStub stub(expr->binary_op(),
+                           NO_OVERWRITE,
+                           NO_GENERIC_BINARY_FLAGS);
+  __ CallStub(&stub);
 
   // Store the value returned in rax.
   switch (assign_type) {

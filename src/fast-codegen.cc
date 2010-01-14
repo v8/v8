@@ -183,6 +183,13 @@ void FastCodeGenerator::SetStatementPosition(Statement* stmt) {
 }
 
 
+void FastCodeGenerator::SetStatementPosition(int pos) {
+  if (FLAG_debug_info) {
+    CodeGenerator::RecordPositions(masm_, pos);
+  }
+}
+
+
 void FastCodeGenerator::SetSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
     masm_->RecordPosition(pos);
@@ -360,8 +367,6 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-
-
 void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   SetStatementPosition(stmt);
@@ -412,6 +417,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ bind(&stack_check_success);
 
   __ bind(loop_statement.continue_target());
+  SetStatementPosition(stmt->condition_position());
   VisitForControl(stmt->cond(), &body, loop_statement.break_target());
 
   __ bind(&stack_limit_hit);

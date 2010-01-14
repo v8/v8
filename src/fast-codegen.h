@@ -296,6 +296,7 @@ class FastCodeGenerator: public AstVisitor {
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
+  void SetStatementPosition(int pos);
   void SetSourcePosition(int pos);
 
   // Non-local control flow support.
