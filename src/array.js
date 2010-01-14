@@ -983,9 +983,6 @@ function ArrayMap(f, receiver) {
 
 
 function ArrayIndexOf(element, index) {
-  if (IS_UNDEFINED(element)) {
-    throw MakeTypeError('array_indexof_not_defined', [element]);
-  }
   var length = this.length;
   if (index == null) {
     index = 0;
