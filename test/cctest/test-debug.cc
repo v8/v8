@@ -5655,6 +5655,51 @@ TEST(NoDebugBreakInAfterCompileMessageHandler) {
 }
 
 
+static int counting_message_handler_counter;
+
+static void CountingMessageHandler(const v8::Debug::Message& message) {
+  counting_message_handler_counter++;
+}
+
+// Test that debug messages get processed when ProcessDebugMessages is called.
+TEST(ProcessDebugMessages) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  counting_message_handler_counter = 0;
+
+  v8::Debug::SetMessageHandler2(CountingMessageHandler);
+
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+  const char* scripts_command =
+    "{\"seq\":0,"
+     "\"type\":\"request\","
+     "\"command\":\"scripts\"}";
+
+  // Send scripts command.
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(scripts_command, buffer));
+
+  CHECK_EQ(0, counting_message_handler_counter);
+  v8::Debug::ProcessDebugMessages();
+  // At least one message should come
+  CHECK_GE(counting_message_handler_counter, 1);
+
+  counting_message_handler_counter = 0;
+
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(scripts_command, buffer));
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(scripts_command, buffer));
+  CHECK_EQ(0, counting_message_handler_counter);
+  v8::Debug::ProcessDebugMessages();
+  // At least two messages should come
+  CHECK_GE(counting_message_handler_counter, 2);
+
+  // Get rid of the debug message handler.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
 TEST(GetMirror) {
   v8::HandleScope scope;
   DebugLocalContext env;
