@@ -3213,6 +3213,156 @@ static Object* Runtime_GetPropertyNamesFast(Arguments args) {
 }
 
 
+// Find the length of the prototype chain that is to to handled as one. If a
+// prototype object is hidden it is to be viewed as part of the the object it
+// is prototype for.
+static int LocalPrototypeChainLength(JSObject* obj) {
+  int count = 1;
+  Object* proto = obj->GetPrototype();
+  while (proto->IsJSObject() &&
+         JSObject::cast(proto)->map()->is_hidden_prototype()) {
+    count++;
+    proto = JSObject::cast(proto)->GetPrototype();
+  }
+  return count;
+}
+
+
+// Return the names of the local named properties.
+// args[0]: object
+static Object* Runtime_GetLocalPropertyNames(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  if (!args[0]->IsJSObject()) {
+    return Heap::undefined_value();
+  }
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+
+  // Skip the global proxy as it has no properties and always delegates to the
+  // real global object.
+  if (obj->IsJSGlobalProxy()) {
+    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
+  }
+
+  // Find the number of objects making up this.
+  int length = LocalPrototypeChainLength(*obj);
+
+  // Find the number of local properties for each of the objects.
+  int* local_property_count = NewArray<int>(length);
+  int total_property_count = 0;
+  Handle<JSObject> jsproto = obj;
+  for (int i = 0; i < length; i++) {
+    int n;
+    n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
+    local_property_count[i] = n;
+    total_property_count += n;
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  // Allocate an array with storage for all the property names.
+  Handle<FixedArray> names = Factory::NewFixedArray(total_property_count);
+
+  // Get the property names.
+  jsproto = obj;
+  int proto_with_hidden_properties = 0;
+  for (int i = 0; i < length; i++) {
+    jsproto->GetLocalPropertyNames(*names,
+                                   i == 0 ? 0 : local_property_count[i - 1]);
+    if (!GetHiddenProperties(jsproto, false)->IsUndefined()) {
+      proto_with_hidden_properties++;
+    }
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  // Filter out name of hidden propeties object.
+  if (proto_with_hidden_properties > 0) {
+    Handle<FixedArray> old_names = names;
+    names = Factory::NewFixedArray(
+        names->length() - proto_with_hidden_properties);
+    int dest_pos = 0;
+    for (int i = 0; i < total_property_count; i++) {
+      Object* name = old_names->get(i);
+      if (name == Heap::hidden_symbol()) {
+        continue;
+      }
+      names->set(dest_pos++, name);
+    }
+  }
+
+  DeleteArray(local_property_count);
+  return *Factory::NewJSArrayWithElements(names);
+}
+
+
+// Return the names of the local indexed properties.
+// args[0]: object
+static Object* Runtime_GetLocalElementNames(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  if (!args[0]->IsJSObject()) {
+    return Heap::undefined_value();
+  }
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+
+  int n = obj->NumberOfLocalElements(static_cast<PropertyAttributes>(NONE));
+  Handle<FixedArray> names = Factory::NewFixedArray(n);
+  obj->GetLocalElementKeys(*names, static_cast<PropertyAttributes>(NONE));
+  return *Factory::NewJSArrayWithElements(names);
+}
+
+
+// Return information on whether an object has a named or indexed interceptor.
+// args[0]: object
+static Object* Runtime_GetInterceptorInfo(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  if (!args[0]->IsJSObject()) {
+    return Smi::FromInt(0);
+  }
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+
+  int result = 0;
+  if (obj->HasNamedInterceptor()) result |= 2;
+  if (obj->HasIndexedInterceptor()) result |= 1;
+
+  return Smi::FromInt(result);
+}
+
+
+// Return property names from named interceptor.
+// args[0]: object
+static Object* Runtime_GetNamedInterceptorPropertyNames(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+
+  if (obj->HasNamedInterceptor()) {
+    v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  }
+  return Heap::undefined_value();
+}
+
+
+// Return element names from indexed interceptor.
+// args[0]: object
+static Object* Runtime_GetIndexedInterceptorElementNames(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+
+  if (obj->HasIndexedInterceptor()) {
+    v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  }
+  return Heap::undefined_value();
+}
+
+
 static Object* Runtime_LocalKeys(Arguments args) {
   ASSERT_EQ(args.length(), 1);
   CONVERT_CHECKED(JSObject, raw_object, args[0]);
@@ -6005,21 +6155,6 @@ static Object* Runtime_Break(Arguments args) {
 }
 
 
-// Find the length of the prototype chain that is to to handled as one. If a
-// prototype object is hidden it is to be viewed as part of the the object it
-// is prototype for.
-static int LocalPrototypeChainLength(JSObject* obj) {
-  int count = 1;
-  Object* proto = obj->GetPrototype();
-  while (proto->IsJSObject() &&
-         JSObject::cast(proto)->map()->is_hidden_prototype()) {
-    count++;
-    proto = JSObject::cast(proto)->GetPrototype();
-  }
-  return count;
-}
-
-
 static Object* DebugLookupResultValue(Object* receiver, String* name,
                                       LookupResult* result,
                                       bool* caught_exception) {
@@ -6189,93 +6324,6 @@ static Object* Runtime_DebugGetProperty(Arguments args) {
 }
 
 
-// Return the names of the local named properties.
-// args[0]: object
-static Object* Runtime_DebugLocalPropertyNames(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  if (!args[0]->IsJSObject()) {
-    return Heap::undefined_value();
-  }
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (obj->IsJSGlobalProxy()) {
-    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
-  }
-
-  // Find the number of objects making up this.
-  int length = LocalPrototypeChainLength(*obj);
-
-  // Find the number of local properties for each of the objects.
-  int* local_property_count = NewArray<int>(length);
-  int total_property_count = 0;
-  Handle<JSObject> jsproto = obj;
-  for (int i = 0; i < length; i++) {
-    int n;
-    n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
-    local_property_count[i] = n;
-    total_property_count += n;
-    if (i < length - 1) {
-      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
-    }
-  }
-
-  // Allocate an array with storage for all the property names.
-  Handle<FixedArray> names = Factory::NewFixedArray(total_property_count);
-
-  // Get the property names.
-  jsproto = obj;
-  int proto_with_hidden_properties = 0;
-  for (int i = 0; i < length; i++) {
-    jsproto->GetLocalPropertyNames(*names,
-                                   i == 0 ? 0 : local_property_count[i - 1]);
-    if (!GetHiddenProperties(jsproto, false)->IsUndefined()) {
-      proto_with_hidden_properties++;
-    }
-    if (i < length - 1) {
-      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
-    }
-  }
-
-  // Filter out name of hidden propeties object.
-  if (proto_with_hidden_properties > 0) {
-    Handle<FixedArray> old_names = names;
-    names = Factory::NewFixedArray(
-        names->length() - proto_with_hidden_properties);
-    int dest_pos = 0;
-    for (int i = 0; i < total_property_count; i++) {
-      Object* name = old_names->get(i);
-      if (name == Heap::hidden_symbol()) {
-        continue;
-      }
-      names->set(dest_pos++, name);
-    }
-  }
-
-  DeleteArray(local_property_count);
-  return *Factory::NewJSArrayWithElements(names);
-}
-
-
-// Return the names of the local indexed properties.
-// args[0]: object
-static Object* Runtime_DebugLocalElementNames(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  if (!args[0]->IsJSObject()) {
-    return Heap::undefined_value();
-  }
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-
-  int n = obj->NumberOfLocalElements(static_cast<PropertyAttributes>(NONE));
-  Handle<FixedArray> names = Factory::NewFixedArray(n);
-  obj->GetLocalElementKeys(*names, static_cast<PropertyAttributes>(NONE));
-  return *Factory::NewJSArrayWithElements(names);
-}
-
-
 // Return the property type calculated from the property details.
 // args[0]: smi with property details.
 static Object* Runtime_DebugPropertyTypeFromDetails(Arguments args) {
@@ -6303,54 +6351,6 @@ static Object* Runtime_DebugPropertyIndexFromDetails(Arguments args) {
   CONVERT_CHECKED(Smi, details, args[0]);
   int index = PropertyDetails(details).index();
   return Smi::FromInt(index);
-}
-
-
-// Return information on whether an object has a named or indexed interceptor.
-// args[0]: object
-static Object* Runtime_DebugInterceptorInfo(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  if (!args[0]->IsJSObject()) {
-    return Smi::FromInt(0);
-  }
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-
-  int result = 0;
-  if (obj->HasNamedInterceptor()) result |= 2;
-  if (obj->HasIndexedInterceptor()) result |= 1;
-
-  return Smi::FromInt(result);
-}
-
-
-// Return property names from named interceptor.
-// args[0]: object
-static Object* Runtime_DebugNamedInterceptorPropertyNames(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-
-  if (obj->HasNamedInterceptor()) {
-    v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
-    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
-  }
-  return Heap::undefined_value();
-}
-
-
-// Return element names from indexed interceptor.
-// args[0]: object
-static Object* Runtime_DebugIndexedInterceptorElementNames(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-
-  if (obj->HasIndexedInterceptor()) {
-    v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
-    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
-  }
-  return Heap::undefined_value();
 }
 
 
