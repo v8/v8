@@ -271,11 +271,11 @@ class FastCodeGenerator: public AstVisitor {
 
   // Load a value from a named property.
   // The receiver is left on the stack by the IC.
-  void EmitNamedPropertyLoad(Property* expr, Expression::Context context);
+  void EmitNamedPropertyLoad(Property* expr);
 
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
-  void EmitKeyedPropertyLoad(Property* expr, Expression::Context context);
+  void EmitKeyedPropertyLoad(Property* expr);
 
   // Apply the compound assignment operator. Expects both operands on top
   // of the stack.

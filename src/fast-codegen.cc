@@ -639,9 +639,6 @@ void FastCodeGenerator::VisitLiteral(Literal* expr) {
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
 
-  // Record source code position of the (possible) IC call.
-  SetSourcePosition(expr->position());
-
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
@@ -682,10 +679,12 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
                          Expression::kValue);
         break;
       case NAMED_PROPERTY:
-        EmitNamedPropertyLoad(prop, Expression::kValue);
+        EmitNamedPropertyLoad(prop);
+        __ push(result_register());
         break;
       case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(prop, Expression::kValue);
+        EmitKeyedPropertyLoad(prop);
+        __ push(result_register());
         break;
     }
   }
@@ -699,6 +698,9 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   if (expr->is_compound()) {
     EmitCompoundAssignmentOp(expr->binary_op(), Expression::kValue);
   }
+
+  // Record source position before possible IC call.
+  SetSourcePosition(expr->position());
 
   // Store the value.
   switch (assign_type) {

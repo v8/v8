@@ -817,23 +817,19 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop,
-                                              Expression::Context context) {
+void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  Apply(context, r0);
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop,
-                                              Expression::Context context) {
+void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  Apply(context, r0);
 }
 
 
@@ -970,6 +966,9 @@ void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Record source code position before IC call.
+  SetSourcePosition(expr->position());
+
   __ pop(r0);
   __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
@@ -1001,6 +1000,9 @@ void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Record source code position before IC call.
+  SetSourcePosition(expr->position());
+
   __ pop(r0);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
@@ -1024,24 +1026,16 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
-  // Record the source position for the property load.
-  SetSourcePosition(expr->position());
-
   // Evaluate receiver.
   Visit(expr->obj());
 
   if (key->IsPropertyName()) {
-    // Do a named property load.  The IC expects the property name in r2 and
-    // the receiver on the stack.
-    __ mov(r2, Operand(key->AsLiteral()->handle()));
-    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    __ Call(ic, RelocInfo::CODE_TARGET);
+    EmitNamedPropertyLoad(expr);
+    // Drop receiver left on the stack by IC.
     DropAndApply(1, expr->context(), r0);
   } else {
-    // Do a keyed property load.
     Visit(expr->key());
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-    __ Call(ic, RelocInfo::CODE_TARGET);
+    EmitKeyedPropertyLoad(expr);
     // Drop key and receiver left on the stack by IC.
     DropAndApply(2, expr->context(), r0);
   }
@@ -1383,12 +1377,13 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
     Visit(prop->obj());
     ASSERT_EQ(Expression::kValue, prop->obj()->context());
     if (assign_type == NAMED_PROPERTY) {
-      EmitNamedPropertyLoad(prop, Expression::kValue);
+      EmitNamedPropertyLoad(prop);
     } else {
       Visit(prop->key());
       ASSERT_EQ(Expression::kValue, prop->key()->context());
-      EmitKeyedPropertyLoad(prop, Expression::kValue);
+      EmitKeyedPropertyLoad(prop);
     }
+    __ push(r0);
   }
 
   // Convert to number.

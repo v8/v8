@@ -127,7 +127,6 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     Move(dot_arguments_slot, ecx, ebx, edx);
   }
 
-
   { Comment cmnt(masm_, "[ Declarations");
     VisitDeclarations(fun->scope()->declarations());
   }
@@ -805,23 +804,21 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop,
-                                              Expression::Context context) {
+void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(ecx, Immediate(key->handle()));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
-  Apply(context, eax);
+  __ nop();
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop,
-                                              Expression::Context context) {
+void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
-  Apply(context, eax);
+  __ nop();
 }
 
 
@@ -848,6 +845,7 @@ void FastCodeGenerator::EmitVariableAssignment(Variable* var,
     __ push(CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ call(ic, RelocInfo::CODE_TARGET);
+    __ nop();
     // Overwrite the receiver on the stack with the result if needed.
     DropAndApply(1, context, eax);
 
@@ -944,6 +942,9 @@ void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Record source code position before IC call.
+  SetSourcePosition(expr->position());
+
   __ pop(eax);
   __ mov(ecx, prop->key()->AsLiteral()->handle());
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
@@ -973,6 +974,9 @@ void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Record source code position before IC call.
+  SetSourcePosition(expr->position());
+
   __ pop(eax);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
@@ -998,31 +1002,17 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
-  // Record the source position for the property load.
-  SetSourcePosition(expr->position());
-
   // Evaluate the receiver.
   Visit(expr->obj());
 
   if (key->IsPropertyName()) {
-    // Do a named property load.  The IC expects the property name in ecx
-    // and the receiver on the stack.
-    __ mov(ecx, Immediate(key->AsLiteral()->handle()));
-    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    __ call(ic, RelocInfo::CODE_TARGET);
-    // By emitting a nop we make sure that we do not have a test eax
-    // instruction after the call it is treated specially by the LoadIC code.
-    __ nop();
+    EmitNamedPropertyLoad(expr);
+    // Drop receiver left on the stack by IC.
     DropAndApply(1, expr->context(), eax);
   } else {
-    // Do a keyed property load.
     Visit(expr->key());
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-    __ call(ic, RelocInfo::CODE_TARGET);
-    // By emitting a nop we make sure that we do not have a "test eax,..."
-    // instruction after the call it is treated specially by the LoadIC code.
-    __ nop();
-    // Drop key left on the stack by IC.
+    EmitKeyedPropertyLoad(expr);
+    // Drop key and receiver left on the stack by IC.
     DropAndApply(2, expr->context(), eax);
   }
 }
@@ -1352,12 +1342,13 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
     Visit(prop->obj());
     ASSERT_EQ(Expression::kValue, prop->obj()->context());
     if (assign_type == NAMED_PROPERTY) {
-      EmitNamedPropertyLoad(prop, Expression::kValue);
+      EmitNamedPropertyLoad(prop);
     } else {
       Visit(prop->key());
       ASSERT_EQ(Expression::kValue, prop->key()->context());
-      EmitKeyedPropertyLoad(prop, Expression::kValue);
+      EmitKeyedPropertyLoad(prop);
     }
+    __ push(eax);
   }
 
   // Convert to number.

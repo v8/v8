@@ -132,6 +132,10 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     Move(dot_arguments_slot, rcx, rbx, rdx);
   }
 
+  { Comment cmnt(masm_, "[ Declarations");
+    VisitDeclarations(fun->scope()->declarations());
+  }
+
   { Comment cmnt(masm_, "[ Stack check");
     Label ok;
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
@@ -139,10 +143,6 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
     StackCheckStub stub;
     __ CallStub(&stub);
     __ bind(&ok);
-  }
-
-  { Comment cmnt(masm_, "[ Declarations");
-    VisitDeclarations(fun->scope()->declarations());
   }
 
   if (FLAG_trace) {
@@ -817,23 +817,21 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop,
-                                              Expression::Context context) {
+void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ Move(rcx, key->handle());
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  Apply(context, rax);
+  __ nop();
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop,
-                                              Expression::Context context) {
+void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
-  Apply(context, rax);
+  __ nop();
 }
 
 
@@ -956,6 +954,9 @@ void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Record source code position before IC call.
+  SetSourcePosition(expr->position());
+
   __ pop(rax);
   __ Move(rcx, prop->key()->AsLiteral()->handle());
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
@@ -985,6 +986,9 @@ void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
+  // Record source code position before IC call.
+  SetSourcePosition(expr->position());
+
   __ pop(rax);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
@@ -1010,30 +1014,16 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
-  // Record the source position for the property load.
-  SetSourcePosition(expr->position());
-
   // Evaluate receiver.
   Visit(expr->obj());
 
   if (key->IsPropertyName()) {
-    // Do a named property load.  The IC expects the property name in rcx
-    // and the receiver on the stack.
-    __ Move(rcx, key->AsLiteral()->handle());
-    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    __ call(ic, RelocInfo::CODE_TARGET);
-    // By emitting a nop we make sure that we do not have a "test rax,..."
-    // instruction after the call it is treated specially by the LoadIC code.
-    __ nop();
+    EmitNamedPropertyLoad(expr);
+    // Drop receiver left on the stack by IC.
     DropAndApply(1, expr->context(), rax);
   } else {
-    // Do a keyed property load.
     Visit(expr->key());
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-    __ call(ic, RelocInfo::CODE_TARGET);
-    // Notice: We must not have a "test rax, ..." instruction after the
-    // call. It is treated specially by the LoadIC code.
-    __ nop();
+    EmitKeyedPropertyLoad(expr);
     // Drop key and receiver left on the stack by IC.
     DropAndApply(2, expr->context(), rax);
   }
@@ -1053,9 +1043,10 @@ void FastCodeGenerator::EmitCallWithIC(Call* expr,
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
-                                                         NOT_IN_LOOP);
-  __ call(ic, mode);
+                                                         in_loop);
+  __ Call(ic, mode);
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
@@ -1371,12 +1362,13 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
     Visit(prop->obj());
     ASSERT_EQ(Expression::kValue, prop->obj()->context());
     if (assign_type == NAMED_PROPERTY) {
-      EmitNamedPropertyLoad(prop, Expression::kValue);
+      EmitNamedPropertyLoad(prop);
     } else {
       Visit(prop->key());
       ASSERT_EQ(Expression::kValue, prop->key()->context());
-      EmitKeyedPropertyLoad(prop, Expression::kValue);
+      EmitKeyedPropertyLoad(prop);
     }
+    __ push(rax);
   }
 
   // Convert to number.
