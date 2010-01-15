@@ -398,7 +398,6 @@ class ExternalReference BASE_EMBEDDED {
   // ExternalReferenceTable in serialize.cc manually.
 
   static ExternalReference perform_gc_function();
-  static ExternalReference builtin_passed_function();
   static ExternalReference random_positive_smi_function();
 
   // Static data in the keyed lookup cache.

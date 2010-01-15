@@ -117,10 +117,6 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference(&Counters::keyed_load_function_prototype);
   CHECK_EQ(make_code(STATS_COUNTER, Counters::k_keyed_load_function_prototype),
            encoder.Encode(keyed_load_function_prototype.address()));
-  ExternalReference passed_function =
-      ExternalReference::builtin_passed_function();
-  CHECK_EQ(make_code(UNCLASSIFIED, 1),
-           encoder.Encode(passed_function.address()));
   ExternalReference the_hole_value_location =
       ExternalReference::the_hole_value_location();
   CHECK_EQ(make_code(UNCLASSIFIED, 2),
@@ -160,8 +156,6 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(
                make_code(STATS_COUNTER,
                          Counters::k_keyed_load_function_prototype)));
-  CHECK_EQ(ExternalReference::builtin_passed_function().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 1)));
   CHECK_EQ(ExternalReference::the_hole_value_location().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 2)));
   CHECK_EQ(ExternalReference::address_of_stack_limit().address(),

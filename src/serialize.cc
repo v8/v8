@@ -241,7 +241,7 @@ void ExternalReferenceTable::PopulateTable() {
 
   static const RefTableEntry ref_table[] = {
   // Builtins
-#define DEF_ENTRY_C(name) \
+#define DEF_ENTRY_C(name, ignored) \
   { C_BUILTIN, \
     Builtins::c_##name, \
     "Builtins::" #name },
@@ -249,11 +249,11 @@ void ExternalReferenceTable::PopulateTable() {
   BUILTIN_LIST_C(DEF_ENTRY_C)
 #undef DEF_ENTRY_C
 
-#define DEF_ENTRY_C(name) \
+#define DEF_ENTRY_C(name, ignored) \
   { BUILTIN, \
     Builtins::name, \
     "Builtins::" #name },
-#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name)
+#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name, ignored)
 
   BUILTIN_LIST_C(DEF_ENTRY_C)
   BUILTIN_LIST_A(DEF_ENTRY_A)
@@ -396,10 +396,6 @@ void ExternalReferenceTable::PopulateTable() {
       "V8::RandomPositiveSmi");
 
   // Miscellaneous
-  Add(ExternalReference::builtin_passed_function().address(),
-      UNCLASSIFIED,
-      1,
-      "Builtins::builtin_passed_function");
   Add(ExternalReference::the_hole_value_location().address(),
       UNCLASSIFIED,
       2,

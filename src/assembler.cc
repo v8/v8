@@ -563,11 +563,6 @@ ExternalReference ExternalReference::perform_gc_function() {
 }
 
 
-ExternalReference ExternalReference::builtin_passed_function() {
-  return ExternalReference(&Builtins::builtin_passed_function);
-}
-
-
 ExternalReference ExternalReference::random_positive_smi_function() {
   return ExternalReference(Redirect(FUNCTION_ADDR(V8::RandomPositiveSmi)));
 }

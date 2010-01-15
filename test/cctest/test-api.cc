@@ -4895,8 +4895,7 @@ THREADED_TEST(CallAsFunction) {
   CHECK_EQ(17, value->Int32Value());
 
   // Check that the call-as-function handler can be called through
-  // new.  Currently, there is no way to check in the call-as-function
-  // handler if it has been called through new or not.
+  // new.
   value = CompileRun("new obj(43)");
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(-43, value->Int32Value());
