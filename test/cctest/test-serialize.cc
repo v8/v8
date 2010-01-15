@@ -364,6 +364,11 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
   FILE* fp = OS::FOpen(name.start(), "ra");
   int new_size, pointer_size, data_size, code_size, map_size, cell_size;
   int large_size;
+#ifdef _MSC_VER
+  // Avoid warning about unsafe fscanf from MSVC.
+  // Please note that this is only fine if %c and %s are not being used.
+#define fscanf fscanf_s
+#endif
   CHECK_EQ(1, fscanf(fp, "new %d\n", &new_size));
   CHECK_EQ(1, fscanf(fp, "pointer %d\n", &pointer_size));
   CHECK_EQ(1, fscanf(fp, "data %d\n", &data_size));
@@ -371,6 +376,9 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
   CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
   CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
   CHECK_EQ(1, fscanf(fp, "large %d\n", &large_size));
+#ifdef _MSC_VER
+#undef fscanf
+#endif
   fclose(fp);
   Heap::ReserveSpace(new_size,
                      pointer_size,
