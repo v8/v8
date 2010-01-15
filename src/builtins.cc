@@ -42,6 +42,9 @@ namespace {
 template <BuiltinExtraArguments extra_args>
 class BuiltinArguments : public Arguments {
  public:
+  BuiltinArguments(int length, Object** arguments)
+      : Arguments(length, arguments) { }
+
   Object*& operator[] (int index) {
     ASSERT(index < length());
     return Arguments::operator[](index);
