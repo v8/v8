@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2007-2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -277,6 +277,7 @@ class FileByteSink : public SnapshotByteSink {
  public:
   explicit FileByteSink(const char* snapshot_file) {
     fp_ = OS::FOpen(snapshot_file, "wb");
+    file_name_ = snapshot_file;
     if (fp_ == NULL) {
       PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
       exit(1);
@@ -292,10 +293,42 @@ class FileByteSink : public SnapshotByteSink {
       fputc(byte, fp_);
     }
   }
+  void WriteSpaceUsed(
+      int new_space_used,
+      int pointer_space_used,
+      int data_space_used,
+      int code_space_used,
+      int map_space_used,
+      int cell_space_used,
+      int large_space_used);
 
  private:
   FILE* fp_;
+  const char* file_name_;
 };
+
+
+void FileByteSink::WriteSpaceUsed(
+      int new_space_used,
+      int pointer_space_used,
+      int data_space_used,
+      int code_space_used,
+      int map_space_used,
+      int cell_space_used,
+      int large_space_used) {
+  int file_name_length = strlen(file_name_) + 10;
+  Vector<char> name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(name, "%s.size", file_name_);
+  FILE* fp = OS::FOpen(name.start(), "wa");
+  fprintf(fp, "new %d\n", new_space_used);
+  fprintf(fp, "pointer %d\n", pointer_space_used);
+  fprintf(fp, "data %d\n", data_space_used);
+  fprintf(fp, "code %d\n", code_space_used);
+  fprintf(fp, "map %d\n", map_space_used);
+  fprintf(fp, "cell %d\n", cell_space_used);
+  fprintf(fp, "large %d\n", large_space_used);
+  fclose(fp);
+}
 
 
 TEST(PartialSerialization) {
@@ -312,6 +345,47 @@ TEST(PartialSerialization) {
   i::Handle<i::String> internal_foo = v8::Utils::OpenHandle(*foo);
   Object* raw_foo = *internal_foo;
   ser.SerializePartial(&raw_foo);
+  file.WriteSpaceUsed(ser.CurrentAllocationAddress(NEW_SPACE),
+                      ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+                      ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+                      ser.CurrentAllocationAddress(CODE_SPACE),
+                      ser.CurrentAllocationAddress(MAP_SPACE),
+                      ser.CurrentAllocationAddress(CELL_SPACE),
+                      ser.CurrentAllocationAddress(LO_SPACE));
+}
+
+
+DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
+  v8::V8::Initialize();
+  const char* file_name = FLAG_testing_serialization_file;
+  int file_name_length = strlen(file_name) + 10;
+  Vector<char> name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(name, "%s.size", file_name);
+  FILE* fp = OS::FOpen(name.start(), "ra");
+  int new_size, pointer_size, data_size, code_size, map_size, cell_size;
+  int large_size;
+  CHECK_EQ(1, fscanf(fp, "new %d\n", &new_size));
+  CHECK_EQ(1, fscanf(fp, "pointer %d\n", &pointer_size));
+  CHECK_EQ(1, fscanf(fp, "data %d\n", &data_size));
+  CHECK_EQ(1, fscanf(fp, "code %d\n", &code_size));
+  CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
+  CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
+  CHECK_EQ(1, fscanf(fp, "large %d\n", &large_size));
+  fclose(fp);
+  Heap::ReserveSpace(new_size,
+                     pointer_size,
+                     data_size,
+                     code_size,
+                     map_size,
+                     cell_size,
+                     large_size);
+  int snapshot_size = 0;
+  byte* snapshot = ReadBytes(file_name, &snapshot_size);
+  SnapshotByteSource source(snapshot, snapshot_size);
+  Deserializer deserializer(&source);
+  Object* root;
+  deserializer.DeserializePartial(&root);
+  CHECK(root->IsString());
 }
 
 

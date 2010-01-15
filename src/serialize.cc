@@ -554,11 +554,10 @@ ExternalReferenceDecoder::~ExternalReferenceDecoder() {
 
 bool Serializer::serialization_enabled_ = false;
 bool Serializer::too_late_to_enable_now_ = false;
+ExternalReferenceDecoder* Deserializer::external_reference_decoder_ = NULL;
 
 
-Deserializer::Deserializer(SnapshotByteSource* source)
-    : source_(source),
-      external_reference_decoder_(NULL) {
+Deserializer::Deserializer(SnapshotByteSource* source) : source_(source) {
 }
 
 
@@ -648,8 +647,26 @@ void Deserializer::Deserialize() {
   external_reference_decoder_ = new ExternalReferenceDecoder();
   Heap::IterateRoots(this, VISIT_ONLY_STRONG);
   ASSERT(source_->AtEOF());
-  delete external_reference_decoder_;
-  external_reference_decoder_ = NULL;
+}
+
+
+void Deserializer::DeserializePartial(Object** root) {
+  // Don't GC while deserializing - just expand the heap.
+  AlwaysAllocateScope always_allocate;
+  // Don't use the free lists while deserializing.
+  LinearAllocationScope allocate_linearly;
+  if (external_reference_decoder_ == NULL) {
+    external_reference_decoder_ = new ExternalReferenceDecoder();
+  }
+  VisitPointer(root);
+}
+
+
+void Deserializer::TearDown() {
+  if (external_reference_decoder_ != NULL) {
+    delete external_reference_decoder_;
+    external_reference_decoder_ = NULL;
+  }
 }
 
 
@@ -862,6 +879,11 @@ void Deserializer::ReadChunk(Object** current,
         *current++ = reinterpret_cast<Object*>(resource);
         break;
       }
+      case ROOT_SERIALIZATION: {
+        int root_id = source_->GetInt();
+        *current++ = Heap::roots_address()[root_id];
+        break;
+      }
       default:
         UNREACHABLE();
     }
@@ -915,7 +937,8 @@ Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),
       current_root_index_(0),
       external_reference_encoder_(NULL),
-      partial_(false) {
+      partial_(false),
+      large_object_total_(0) {
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
@@ -1226,6 +1249,7 @@ int Serializer::Allocate(int space, int size, bool* new_page) {
     // In large object space we merely number the objects instead of trying to
     // determine some sort of address.
     *new_page = true;
+    large_object_total_ += size;
     return fullness_[LO_SPACE]++;
   }
   *new_page = false;

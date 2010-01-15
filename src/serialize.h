@@ -239,9 +239,15 @@ class Deserializer: public SerDes {
 
   // Deserialize the snapshot into an empty heap.
   void Deserialize();
+
+  // Deserialize a single object and the objects reachable from it.
+  void DeserializePartial(Object** root);
+
 #ifdef DEBUG
   virtual void Synchronize(const char* tag);
 #endif
+
+  static void TearDown();
 
  private:
   virtual void VisitPointers(Object** start, Object** end);
@@ -267,7 +273,7 @@ class Deserializer: public SerDes {
   List<Address> pages_[SerDes::kNumberOfSpaces];
 
   SnapshotByteSource* source_;
-  ExternalReferenceDecoder* external_reference_decoder_;
+  static ExternalReferenceDecoder* external_reference_decoder_;
   // This is the address of the next object that will be allocated in each
   // space.  It is used to calculate the addresses of back-references.
   Address high_water_[LAST_SPACE + 1];
@@ -302,7 +308,7 @@ class Serializer : public SerDes {
   // You can call this after serialization to find out how much space was used
   // in each space.
   int CurrentAllocationAddress(int space) {
-    if (SpaceIsLarge(space)) space = LO_SPACE;
+    if (SpaceIsLarge(space)) return large_object_total_;
     return fullness_[space];
   }
 
@@ -392,6 +398,7 @@ class Serializer : public SerDes {
   static bool serialization_enabled_;
   // Did we already make use of the fact that serialization was not enabled?
   static bool too_late_to_enable_now_;
+  int large_object_total_;
 
   friend class ObjectSerializer;
   friend class Deserializer;
