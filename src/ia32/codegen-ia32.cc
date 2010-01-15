@@ -2289,6 +2289,7 @@ void CodeGenerator::Comparison(AstNode* node,
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
+                                      CallFunctionFlags flags,
                                       int position) {
   // Push the arguments ("left-to-right") on the stack.
   int arg_count = args->length();
@@ -2301,7 +2302,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
   // Use the shared code stub to call the function.
   InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub call_function(arg_count, in_loop);
+  CallFunctionStub call_function(arg_count, in_loop, flags);
   Result answer = frame_->CallStub(&call_function, arg_count + 1);
   // Restore context and replace function on the stack with the
   // result of the stub invocation.
@@ -2471,7 +2472,7 @@ void CodeGenerator::CallApplyLazy(Property* apply,
   frame_->Push(&fn);
   frame_->Push(&a1);
   frame_->Push(&a2);
-  CallFunctionStub call_function(2, NOT_IN_LOOP);
+  CallFunctionStub call_function(2, NOT_IN_LOOP, NO_CALL_FUNCTION_FLAGS);
   Result res = frame_->CallStub(&call_function, 3);
   frame_->Push(&res);
 
@@ -4746,7 +4747,7 @@ void CodeGenerator::VisitCall(Call* node) {
     // Call the function.
     CodeForSourcePosition(node->position());
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-    CallFunctionStub call_function(arg_count, in_loop);
+    CallFunctionStub call_function(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
     result = frame_->CallStub(&call_function, arg_count + 1);
 
     // Restore the context and overwrite the function on the stack with
@@ -4806,7 +4807,7 @@ void CodeGenerator::VisitCall(Call* node) {
     frame_->EmitPush(edx);
 
     // Call the function.
-    CallWithArguments(args, node->position());
+    CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
 
   } else if (property != NULL) {
     // Check if the key is a literal string.
@@ -4872,7 +4873,7 @@ void CodeGenerator::VisitCall(Call* node) {
       }
 
       // Call the function.
-      CallWithArguments(args, node->position());
+      CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
     }
 
   } else {
@@ -4887,7 +4888,7 @@ void CodeGenerator::VisitCall(Call* node) {
     LoadGlobalReceiver();
 
     // Call the function.
-    CallWithArguments(args, node->position());
+    CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
   }
 }
 
@@ -8680,6 +8681,33 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
+
+  // If the receiver might be a value (string, number or boolean) check for this
+  // and box it if it is.
+  if (ReceiverMightBeValue()) {
+    // Get the receiver from the stack.
+    // +1 ~ return address
+    Label receiver_is_value, receiver_is_js_object;
+    __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
+
+    // Check if receiver is a smi (which is a number value).
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, &receiver_is_value, not_taken);
+
+    // Check if the receiver is a valid JS object.
+    __ CmpObjectType(eax, FIRST_JS_OBJECT_TYPE, edi);
+    __ j(above_equal, &receiver_is_js_object);
+
+    // Call the runtime to box the value.
+    __ bind(&receiver_is_value);
+    __ EnterInternalFrame();
+    __ push(eax);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ LeaveInternalFrame();
+    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), eax);
+
+    __ bind(&receiver_is_js_object);
+  }
 
   // Get the function to call from the stack.
   // +2 ~ receiver, return address

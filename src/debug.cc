@@ -1241,12 +1241,14 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       uint32_t key = Smi::cast(*obj)->value();
       // Argc in the stub is the number of arguments passed - not the
       // expected arguments of the called function.
-      int call_function_arg_count = CodeStub::MinorKeyFromKey(key);
+      int call_function_arg_count =
+          CallFunctionStub::ExtractArgcFromMinorKey(
+              CodeStub::MinorKeyFromKey(key));
       ASSERT(call_function_stub->major_key() ==
              CodeStub::MajorKeyFromKey(key));
 
       // Find target function on the expression stack.
-      // Expression stack lools like this (top to bottom):
+      // Expression stack looks like this (top to bottom):
       // argN
       // ...
       // arg0

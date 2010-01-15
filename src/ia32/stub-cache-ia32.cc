@@ -997,50 +997,65 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       break;
 
     case STRING_CHECK:
-      // Check that the object is a two-byte string or a symbol.
-      __ mov(eax, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
-      __ cmp(eax, FIRST_NONSTRING_TYPE);
-      __ j(above_equal, &miss, not_taken);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::STRING_FUNCTION_INDEX,
-                                          eax);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                      ebx, edx, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        // Check that the object is a string or a symbol.
+        __ mov(eax, FieldOperand(edx, HeapObject::kMapOffset));
+        __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
+        __ cmp(eax, FIRST_NONSTRING_TYPE);
+        __ j(above_equal, &miss, not_taken);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            eax);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
+                        ebx, edx, name, &miss);
+      }
       break;
 
     case NUMBER_CHECK: {
-      Label fast;
-      // Check that the object is a smi or a heap number.
-      __ test(edx, Immediate(kSmiTagMask));
-      __ j(zero, &fast, taken);
-      __ CmpObjectType(edx, HEAP_NUMBER_TYPE, eax);
-      __ j(not_equal, &miss, not_taken);
-      __ bind(&fast);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::NUMBER_FUNCTION_INDEX,
-                                          eax);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                      ebx, edx, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a smi or a heap number.
+        __ test(edx, Immediate(kSmiTagMask));
+        __ j(zero, &fast, taken);
+        __ CmpObjectType(edx, HEAP_NUMBER_TYPE, eax);
+        __ j(not_equal, &miss, not_taken);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::NUMBER_FUNCTION_INDEX,
+                                            eax);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
+                        ebx, edx, name, &miss);
+      }
       break;
     }
 
     case BOOLEAN_CHECK: {
-      Label fast;
-      // Check that the object is a boolean.
-      __ cmp(edx, Factory::true_value());
-      __ j(equal, &fast, taken);
-      __ cmp(edx, Factory::false_value());
-      __ j(not_equal, &miss, not_taken);
-      __ bind(&fast);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::BOOLEAN_FUNCTION_INDEX,
-                                          eax);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
-                      ebx, edx, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a boolean.
+        __ cmp(edx, Factory::true_value());
+        __ j(equal, &fast, taken);
+        __ cmp(edx, Factory::false_value());
+        __ j(not_equal, &miss, not_taken);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::BOOLEAN_FUNCTION_INDEX,
+                                            eax);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), eax, holder,
+                        ebx, edx, name, &miss);
+      }
       break;
     }
 

@@ -516,6 +516,64 @@ class RegExpExecStub: public CodeStub {
 };
 
 
+class CallFunctionStub: public CodeStub {
+ public:
+  CallFunctionStub(int argc, InLoopFlag in_loop, CallFunctionFlags flags)
+      : argc_(argc), in_loop_(in_loop), flags_(flags) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+  InLoopFlag in_loop_;
+  CallFunctionFlags flags_;
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("CallFunctionStub (args %d, in_loop %d, flags %d)\n",
+           argc_,
+           static_cast<int>(in_loop_),
+           static_cast<int>(flags_));
+  }
+#endif
+
+  // Minor key encoding in 31 bits AAAAAAAAAAAAAAAAAAAAAFI A(rgs)F(lag)I(nloop).
+  class InLoopBits: public BitField<InLoopFlag, 0, 1> {};
+  class FlagBits: public BitField<CallFunctionFlags, 1, 1> {};
+  class ArgcBits: public BitField<int, 2, 29> {};
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() {
+    // Encode the parameters in a unique 31 bit value.
+    return InLoopBits::encode(in_loop_)
+           | FlagBits::encode(flags_)
+           | ArgcBits::encode(argc_);
+  }
+
+  InLoopFlag InLoop() { return in_loop_; }
+  bool ReceiverMightBeValue() {
+    return (flags_ & RECEIVER_MIGHT_BE_VALUE) != 0;
+  }
+
+ public:
+  static int ExtractArgcFromMinorKey(int minor_key) {
+    return ArgcBits::decode(minor_key);
+  }
+};
+
+
+class ToBooleanStub: public CodeStub {
+ public:
+  ToBooleanStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return 0; }
+};
+
+
 }  // namespace internal
 }  // namespace v8
 

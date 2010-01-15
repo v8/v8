@@ -721,47 +721,62 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       break;
 
     case STRING_CHECK:
-      // Check that the object is a two-byte string or a symbol.
-      __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rcx);
-      __ j(above_equal, &miss);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::STRING_FUNCTION_INDEX,
-                                          rcx);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
-                      rbx, rdx, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        // Check that the object is a two-byte string or a symbol.
+        __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rcx);
+        __ j(above_equal, &miss);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            rcx);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
+                        rbx, rdx, name, &miss);
+      }
       break;
 
     case NUMBER_CHECK: {
-      Label fast;
-      // Check that the object is a smi or a heap number.
-      __ JumpIfSmi(rdx, &fast);
-      __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
-      __ j(not_equal, &miss);
-      __ bind(&fast);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::NUMBER_FUNCTION_INDEX,
-                                          rcx);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
-                      rbx, rdx, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a smi or a heap number.
+        __ JumpIfSmi(rdx, &fast);
+        __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
+        __ j(not_equal, &miss);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::NUMBER_FUNCTION_INDEX,
+                                            rcx);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
+                        rbx, rdx, name, &miss);
+      }
       break;
     }
 
     case BOOLEAN_CHECK: {
-      Label fast;
-      // Check that the object is a boolean.
-      __ CompareRoot(rdx, Heap::kTrueValueRootIndex);
-      __ j(equal, &fast);
-      __ CompareRoot(rdx, Heap::kFalseValueRootIndex);
-      __ j(not_equal, &miss);
-      __ bind(&fast);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::BOOLEAN_FUNCTION_INDEX,
-                                          rcx);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
-                      rbx, rdx, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a boolean.
+        __ CompareRoot(rdx, Heap::kTrueValueRootIndex);
+        __ j(equal, &fast);
+        __ CompareRoot(rdx, Heap::kFalseValueRootIndex);
+        __ j(not_equal, &miss);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::BOOLEAN_FUNCTION_INDEX,
+                                            rcx);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
+                        rbx, rdx, name, &miss);
+      }
       break;
     }
 

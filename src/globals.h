@@ -379,6 +379,12 @@ enum InLoopFlag {
 };
 
 
+enum CallFunctionFlags {
+  NO_CALL_FUNCTION_FLAGS = 0,
+  RECEIVER_MIGHT_BE_VALUE = 1 << 0  // Receiver might not be a JSObject.
+};
+
+
 // Type of properties.
 // Order of properties is significant.
 // Must fit in the BitField PropertyDetails::TypeField.

@@ -474,7 +474,9 @@ class CodeGenerator: public AstVisitor {
   // at most 16 bits of user-controlled data per assembly operation.
   void LoadUnsafeSmi(Register target, Handle<Object> value);
 
-  void CallWithArguments(ZoneList<Expression*>* arguments, int position);
+  void CallWithArguments(ZoneList<Expression*>* arguments,
+                         CallFunctionFlags flags,
+                         int position);
 
   // Use an optimized version of Function.prototype.apply that avoid
   // allocating the arguments object and just copies the arguments
@@ -614,46 +616,6 @@ class CodeGenerator: public AstVisitor {
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
-};
-
-
-// -------------------------------------------------------------------------
-// Code stubs
-//
-// These independent code objects are created once, and used multiple
-// times by generated code to perform common tasks, often the slow
-// case of a JavaScript operation.  They are all subclasses of CodeStub,
-// which is declared in code-stubs.h.
-class CallFunctionStub: public CodeStub {
- public:
-  CallFunctionStub(int argc, InLoopFlag in_loop)
-      : argc_(argc), in_loop_(in_loop) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int argc_;
-  InLoopFlag in_loop_;
-
-#ifdef DEBUG
-  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
-#endif
-
-  Major MajorKey() { return CallFunction; }
-  int MinorKey() { return argc_; }
-  InLoopFlag InLoop() { return in_loop_; }
-};
-
-
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
 };
 
 

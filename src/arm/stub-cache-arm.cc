@@ -637,50 +637,65 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       break;
 
     case STRING_CHECK:
-      // Check that the object is a two-byte string or a symbol.
-      __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
-      __ b(hs, &miss);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::STRING_FUNCTION_INDEX,
-                                          r2);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
-                      r1, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        // Check that the object is a two-byte string or a symbol.
+        __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
+        __ b(hs, &miss);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::STRING_FUNCTION_INDEX,
+                                            r2);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
+                        r1, name, &miss);
+      }
       break;
 
     case NUMBER_CHECK: {
-      Label fast;
-      // Check that the object is a smi or a heap number.
-      __ tst(r1, Operand(kSmiTagMask));
-      __ b(eq, &fast);
-      __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE);
-      __ b(ne, &miss);
-      __ bind(&fast);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::NUMBER_FUNCTION_INDEX,
-                                          r2);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
-                      r1, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a smi or a heap number.
+        __ tst(r1, Operand(kSmiTagMask));
+        __ b(eq, &fast);
+        __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE);
+        __ b(ne, &miss);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::NUMBER_FUNCTION_INDEX,
+                                            r2);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
+                        r1, name, &miss);
+      }
       break;
     }
 
     case BOOLEAN_CHECK: {
-      Label fast;
-      // Check that the object is a boolean.
-      __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-      __ cmp(r1, ip);
-      __ b(eq, &fast);
-      __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-      __ cmp(r1, ip);
-      __ b(ne, &miss);
-      __ bind(&fast);
-      // Check that the maps starting from the prototype haven't changed.
-      GenerateLoadGlobalFunctionPrototype(masm(),
-                                          Context::BOOLEAN_FUNCTION_INDEX,
-                                          r2);
-      CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
-                      r1, name, &miss);
+      if (!function->IsBuiltin()) {
+        // Calling non-builtins with a value as receiver requires boxing.
+        __ jmp(&miss);
+      } else {
+        Label fast;
+        // Check that the object is a boolean.
+        __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+        __ cmp(r1, ip);
+        __ b(eq, &fast);
+        __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+        __ cmp(r1, ip);
+        __ b(ne, &miss);
+        __ bind(&fast);
+        // Check that the maps starting from the prototype haven't changed.
+        GenerateLoadGlobalFunctionPrototype(masm(),
+                                            Context::BOOLEAN_FUNCTION_INDEX,
+                                            r2);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
+                        r1, name, &miss);
+      }
       break;
     }
 

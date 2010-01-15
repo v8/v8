@@ -209,6 +209,8 @@ class CallIC: public IC {
   // Otherwise, it returns the undefined value.
   Object* TryCallAsFunction(Object* object);
 
+  void ReceiverToObject(Object* object);
+
   static void Clear(Address address, Code* target);
   friend class IC;
 };

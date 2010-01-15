@@ -266,7 +266,7 @@ class CodeGenState BASE_EMBEDDED {
 
 
 // -------------------------------------------------------------------------
-// Arguments allocation mode
+// Arguments allocation mode.
 
 enum ArgumentsAllocationMode {
   NO_ARGUMENTS_ALLOCATION,
@@ -475,7 +475,9 @@ class CodeGenerator: public AstVisitor {
   void StoreUnsafeSmiToLocal(int offset, Handle<Object> value);
   void PushUnsafeSmi(Handle<Object> value);
 
-  void CallWithArguments(ZoneList<Expression*>* arguments, int position);
+  void CallWithArguments(ZoneList<Expression*>* arguments,
+                         CallFunctionFlags flags,
+                         int position);
 
   // Use an optimized version of Function.prototype.apply that avoid
   // allocating the arguments object and just copies the arguments
@@ -617,39 +619,6 @@ class CodeGenerator: public AstVisitor {
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
-};
-
-
-class CallFunctionStub: public CodeStub {
- public:
-  CallFunctionStub(int argc, InLoopFlag in_loop)
-      : argc_(argc), in_loop_(in_loop) { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  int argc_;
-  InLoopFlag in_loop_;
-
-#ifdef DEBUG
-  void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
-#endif
-
-  Major MajorKey() { return CallFunction; }
-  int MinorKey() { return argc_; }
-  InLoopFlag InLoop() { return in_loop_; }
-};
-
-
-class ToBooleanStub: public CodeStub {
- public:
-  ToBooleanStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return ToBoolean; }
-  int MinorKey() { return 0; }
 };
 
 

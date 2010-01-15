@@ -378,6 +378,18 @@ Object* CallIC::TryCallAsFunction(Object* object) {
   return *delegate;
 }
 
+void CallIC::ReceiverToObject(Object* object) {
+  HandleScope scope;
+  Handle<Object> receiver(object);
+
+  // Change the receiver to the result of calling ToObject on it.
+  const int argc = this->target()->arguments_count();
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+  int index = frame->ComputeExpressionsCount() - (argc + 1);
+  frame->SetExpression(index, object->ToObject());
+}
+
 
 Object* CallIC::LoadFunction(State state,
                              Handle<Object> object,
@@ -386,6 +398,10 @@ Object* CallIC::LoadFunction(State state,
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
     return TypeError("non_object_property_call", object, name);
+  }
+
+  if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
+    ReceiverToObject(*object);
   }
 
   // Check if the name is trivially convertible to an index and get

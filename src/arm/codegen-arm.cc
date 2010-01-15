@@ -1091,7 +1091,8 @@ void CodeGenerator::Comparison(Condition cc,
 
 // Call the function on the stack with the given arguments.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
-                                         int position) {
+                                      CallFunctionFlags flags,
+                                      int position) {
   VirtualFrame::SpilledScope spilled_scope;
   // Push the arguments ("left-to-right") on the stack.
   int arg_count = args->length();
@@ -1104,7 +1105,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
   // Use the shared code stub to call the function.
   InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-  CallFunctionStub call_function(arg_count, in_loop);
+  CallFunctionStub call_function(arg_count, in_loop, flags);
   frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore context and pop function from the stack.
@@ -2999,7 +3000,7 @@ void CodeGenerator::VisitCall(Call* node) {
     CodeForSourcePosition(node->position());
 
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
-    CallFunctionStub call_function(arg_count, in_loop);
+    CallFunctionStub call_function(arg_count, in_loop, RECEIVER_MIGHT_BE_VALUE);
     frame_->CallStub(&call_function, arg_count + 1);
 
     __ ldr(cp, frame_->Context());
@@ -3056,7 +3057,7 @@ void CodeGenerator::VisitCall(Call* node) {
     frame_->EmitPush(r1);  // receiver
 
     // Call the function.
-    CallWithArguments(args, node->position());
+    CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
     frame_->EmitPush(r0);
 
   } else if (property != NULL) {
@@ -3109,7 +3110,7 @@ void CodeGenerator::VisitCall(Call* node) {
       }
 
       // Call the function.
-      CallWithArguments(args, node->position());
+      CallWithArguments(args, RECEIVER_MIGHT_BE_VALUE, node->position());
       frame_->EmitPush(r0);
     }
 
@@ -3125,7 +3126,7 @@ void CodeGenerator::VisitCall(Call* node) {
     LoadGlobalReceiver(r0);
 
     // Call the function.
-    CallWithArguments(args, node->position());
+    CallWithArguments(args, NO_CALL_FUNCTION_FLAGS, node->position());
     frame_->EmitPush(r0);
   }
   ASSERT(frame_->height() == original_height + 1);
@@ -6601,6 +6602,33 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
+
+  // If the receiver might be a value (string, number or boolean) check for this
+  // and box it if it is.
+  if (ReceiverMightBeValue()) {
+    // Get the receiver from the stack.
+    // function, receiver [, arguments]
+    Label receiver_is_value, receiver_is_js_object;
+    __ ldr(r1, MemOperand(sp, argc_ * kPointerSize));
+
+    // Check if receiver is a smi (which is a number value).
+    __ BranchOnSmi(r1, &receiver_is_value);
+
+    // Check if the receiver is a valid JS object.
+    __ CompareObjectType(r1, r2, r2, FIRST_JS_OBJECT_TYPE);
+    __ b(ge, &receiver_is_js_object);
+
+    // Call the runtime to box the value.
+    __ bind(&receiver_is_value);
+    __ EnterInternalFrame();
+    __ push(r1);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
+    __ LeaveInternalFrame();
+    __ str(r0, MemOperand(sp, argc_ * kPointerSize));
+
+    __ bind(&receiver_is_js_object);
+  }
+
   // Get the function to call from the stack.
   // function, receiver [, arguments]
   __ ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
