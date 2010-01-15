@@ -443,6 +443,9 @@ void CheckDebuggerUnloaded(bool check_functions) {
 
 // Check that the debugger has been fully unloaded.
 static void CheckDebuggerUnloaded(bool check_functions = false) {
+  // Let debugger to unload itself synchronously
+  v8::Debug::ProcessDebugMessages();
+
   v8::internal::CheckDebuggerUnloaded(check_functions);
 }
 

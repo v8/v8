@@ -654,7 +654,9 @@ class Debugger {
 
     // Check whether the message handler was been cleared.
     if (debugger_unload_pending_) {
-      UnloadDebugger();
+      if (Debug::debugger_entry() == NULL) {
+        UnloadDebugger();
+      }
     }
 
     // Currently argument event is not used.

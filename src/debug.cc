@@ -2381,17 +2381,12 @@ void Debugger::ListenersChanged() {
   if (IsDebuggerActive()) {
     // Disable the compilation cache when the debugger is active.
     CompilationCache::Disable();
+    debugger_unload_pending_ = false;
   } else {
     CompilationCache::Enable();
-
     // Unload the debugger if event listener and message handler cleared.
-    if (Debug::InDebugger()) {
-      // If we are in debugger set the flag to unload the debugger when last
-      // EnterDebugger on the current stack is destroyed.
-      debugger_unload_pending_ = true;
-    } else {
-      UnloadDebugger();
-    }
+    // Schedule this for later, because we may be in non-V8 thread.
+    debugger_unload_pending_ = true;
   }
 }
 
