@@ -130,6 +130,10 @@ class CppByteSink : public i::SnapshotByteSink {
     }
   }
 
+  virtual int Position() {
+    return bytes_written_;
+  }
+
  private:
   FILE* fp_;
   int bytes_written_;

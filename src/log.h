@@ -116,6 +116,7 @@ class VMState BASE_EMBEDDED {
   V(CODE_CREATION_EVENT,            "code-creation",          "cc")       \
   V(CODE_MOVE_EVENT,                "code-move",              "cm")       \
   V(CODE_DELETE_EVENT,              "code-delete",            "cd")       \
+  V(SNAPSHOT_POSITION_EVENT,        "snapshot-pos",           "sp")       \
   V(TICK_EVENT,                     "tick",                   "t")        \
   V(REPEAT_META_EVENT,              "repeat",                 "r")        \
   V(BUILTIN_TAG,                    "Builtin",                "bi")       \
@@ -223,6 +224,8 @@ class Logger {
   static void CodeMoveEvent(Address from, Address to);
   // Emits a code delete event.
   static void CodeDeleteEvent(Address from);
+
+  static void SnapshotPositionEvent(Address addr, int pos);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.

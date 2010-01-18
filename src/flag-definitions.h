@@ -358,6 +358,8 @@ DEFINE_bool(log_code, false,
 DEFINE_bool(log_gc, false,
             "Log heap samples on garbage collection for the hp2ps tool.")
 DEFINE_bool(log_handles, false, "Log global handle events.")
+DEFINE_bool(log_snapshot_positions, false,
+            "log positions of (de)serialized objects in the snapshot.")
 DEFINE_bool(log_state_changes, false, "Log state changes.")
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(log_producers, false, "Log stack traces of JS objects allocations.")

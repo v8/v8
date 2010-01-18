@@ -147,6 +147,8 @@ class SnapshotByteSource {
     return position_ == length_;
   }
 
+  const int position() { return position_; }
+
  private:
   const byte* data_;
   int length_;
@@ -294,6 +296,7 @@ class SnapshotByteSink {
     Put(byte, description);
   }
   void PutInt(uintptr_t integer, const char* description);
+  virtual int Position() = 0;
 };
 
 

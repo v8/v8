@@ -53,14 +53,79 @@ function readFile(fileName) {
 
 
 function inherits(childCtor, parentCtor) {
-  function tempCtor() {};
-  tempCtor.prototype = parentCtor.prototype;
-  childCtor.prototype = new tempCtor();
+  childCtor.prototype.__proto__ = parentCtor.prototype;
+};
+
+
+function SnapshotLogProcessor() {
+  devtools.profiler.LogReader.call(this, {
+      'code-creation': {
+          parsers: [null, this.createAddressParser('code'), parseInt, null],
+          processor: this.processCodeCreation, backrefs: true },
+      'code-move': { parsers: [this.createAddressParser('code'),
+          this.createAddressParser('code-move-to')],
+          processor: this.processCodeMove, backrefs: true },
+      'code-delete': { parsers: [this.createAddressParser('code')],
+          processor: this.processCodeDelete, backrefs: true },
+      'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
+          processor: this.processSnapshotPosition, backrefs: true }});
+
+  Profile.prototype.handleUnknownCode = function(operation, addr) {
+    var op = devtools.profiler.Profile.Operation;
+    switch (operation) {
+      case op.MOVE:
+        print('Snapshot: Code move event for unknown code: 0x' +
+              addr.toString(16));
+        break;
+      case op.DELETE:
+        print('Snapshot: Code delete event for unknown code: 0x' +
+              addr.toString(16));
+        break;
+    }
+  };
+
+  this.profile_ = new Profile();
+  this.serializedEntries_ = [];
+}
+inherits(SnapshotLogProcessor, devtools.profiler.LogReader);
+
+
+SnapshotLogProcessor.prototype.processCodeCreation = function(
+    type, start, size, name) {
+  var entry = this.profile_.addCode(
+      this.expandAlias(type), name, start, size);
+};
+
+
+SnapshotLogProcessor.prototype.processCodeMove = function(from, to) {
+  this.profile_.moveCode(from, to);
+};
+
+
+SnapshotLogProcessor.prototype.processCodeDelete = function(start) {
+  this.profile_.deleteCode(start);
+};
+
+
+SnapshotLogProcessor.prototype.processSnapshotPosition = function(addr, pos) {
+  this.serializedEntries_[pos] = this.profile_.findEntry(addr);
+};
+
+
+SnapshotLogProcessor.prototype.processLogFile = function(fileName) {
+  var contents = readFile(fileName);
+  this.processLogChunk(contents);
+};
+
+
+SnapshotLogProcessor.prototype.getSerializedEntryName = function(pos) {
+  var entry = this.serializedEntries_[pos];
+  return entry ? entry.getRawName() : null;
 };
 
 
 function TickProcessor(
-    cppEntriesProvider, separateIc, ignoreUnknown, stateFilter) {
+    cppEntriesProvider, separateIc, ignoreUnknown, stateFilter, snapshotLogProcessor) {
   devtools.profiler.LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -72,6 +137,8 @@ function TickProcessor(
           processor: this.processCodeMove, backrefs: true },
       'code-delete': { parsers: [this.createAddressParser('code')],
           processor: this.processCodeDelete, backrefs: true },
+      'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
+          processor: this.processSnapshotPosition, backrefs: true },
       'tick': { parsers: [this.createAddressParser('code'),
           this.createAddressParser('stack'), parseInt, 'var-args'],
           processor: this.processTick, backrefs: true },
@@ -95,6 +162,8 @@ function TickProcessor(
   this.cppEntriesProvider_ = cppEntriesProvider;
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
+  this.snapshotLogProcessor_ = snapshotLogProcessor;
+  this.deserializedEntriesNames_ = [];
   var ticks = this.ticks_ =
     { total: 0, unaccounted: 0, excluded: 0, gc: 0 };
 
@@ -202,6 +271,7 @@ TickProcessor.prototype.processSharedLibrary = function(
 
 TickProcessor.prototype.processCodeCreation = function(
     type, start, size, name) {
+  name = this.deserializedEntriesNames_[start] || name;
   var entry = this.profile_.addCode(
       this.expandAlias(type), name, start, size);
 };
@@ -214,6 +284,14 @@ TickProcessor.prototype.processCodeMove = function(from, to) {
 
 TickProcessor.prototype.processCodeDelete = function(start) {
   this.profile_.deleteCode(start);
+};
+
+
+TickProcessor.prototype.processSnapshotPosition = function(addr, pos) {
+  if (this.snapshotLogProcessor_) {
+    this.deserializedEntriesNames_[addr] =
+      this.snapshotLogProcessor_.getSerializedEntryName(pos);
+  }
 };
 
 
@@ -648,7 +726,9 @@ function ArgumentsProcessor(args) {
     '--mac': ['platform', 'mac',
         'Specify that we are running on Mac OS X platform'],
     '--nm': ['nm', 'nm',
-        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)']
+        'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
+    '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
+        'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)']
   };
   this.argsDispatch_['--js'] = this.argsDispatch_['-j'];
   this.argsDispatch_['--gc'] = this.argsDispatch_['-g'];
@@ -660,6 +740,7 @@ function ArgumentsProcessor(args) {
 
 ArgumentsProcessor.DEFAULTS = {
   logFileName: 'v8.log',
+  snapshotLogFileName: null,
   platform: 'unix',
   stateFilter: null,
   ignoreUnknown: false,

@@ -79,6 +79,9 @@ class FileByteSink : public SnapshotByteSink {
       fputc(byte, fp_);
     }
   }
+  virtual int Position() {
+    return ftell(fp_);
+  }
 
  private:
   FILE* fp_;

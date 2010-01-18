@@ -871,6 +871,23 @@ void Logger::CodeDeleteEvent(Address from) {
 }
 
 
+void Logger::SnapshotPositionEvent(Address addr, int pos) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_snapshot_positions) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,", log_events_[SNAPSHOT_POSITION_EVENT]);
+  msg.AppendAddress(addr);
+  msg.Append(",%d", pos);
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
+
+
 void Logger::ResourceEvent(const char* name, const char* tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log) return;

@@ -163,6 +163,16 @@ devtools.profiler.Profile.prototype.deleteCode = function(start) {
 
 
 /**
+ * Retrieves a code entry by an address.
+ *
+ * @param {number} addr Entry address.
+ */
+devtools.profiler.Profile.prototype.findEntry = function(addr) {
+  return this.codeMap_.findEntry(addr);
+};
+
+
+/**
  * Records a tick event. Stack must contain a sequence of
  * addresses starting with the program counter value.
  *
@@ -341,6 +351,14 @@ devtools.profiler.Profile.DynamicCodeEntry.prototype.getName = function() {
     name = '<anonymous>' + name;
   }
   return this.type + ': ' + name;
+};
+
+
+/**
+ * Returns raw node name (without type decoration).
+ */
+devtools.profiler.Profile.DynamicCodeEntry.prototype.getRawName = function() {
+  return this.name;
 };
 
 
