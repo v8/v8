@@ -224,9 +224,11 @@ class EXPORT Debug {
    * be processed. Note that debug messages will only be processed if there is
    * a V8 break. This can happen automatically by using the option
    * --debugger-auto-break.
+   * \param provide_locker requires that V8 acquires v8::Locker for you before
+   *        calling handler
    */
   static void SetDebugMessageDispatchHandler(
-      DebugMessageDispatchHandler handler);
+      DebugMessageDispatchHandler handler, bool provide_locker = false);
 
  /**
   * Run a JavaScript function in the debugger.

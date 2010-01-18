@@ -1761,8 +1761,10 @@ bool Debugger::never_unload_debugger_ = false;
 v8::Debug::MessageHandler2 Debugger::message_handler_ = NULL;
 bool Debugger::debugger_unload_pending_ = false;
 v8::Debug::HostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+Mutex* Debugger::dispatch_handler_access_ = OS::CreateMutex();
 v8::Debug::DebugMessageDispatchHandler
     Debugger::debug_message_dispatch_handler_ = NULL;
+MessageDispatchHelperThread* Debugger::message_dispatch_helper_thread_ = NULL;
 int Debugger::host_dispatch_micros_ = 100 * 1000;
 DebuggerAgent* Debugger::agent_ = NULL;
 LockingCommandMessageQueue Debugger::command_queue_(kQueueInitialSize);
@@ -2399,8 +2401,14 @@ void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
 
 
 void Debugger::SetDebugMessageDispatchHandler(
-    v8::Debug::DebugMessageDispatchHandler handler) {
+    v8::Debug::DebugMessageDispatchHandler handler, bool provide_locker) {
+  ScopedLock with(dispatch_handler_access_);
   debug_message_dispatch_handler_ = handler;
+
+  if (provide_locker && message_dispatch_helper_thread_ == NULL) {
+    message_dispatch_helper_thread_ = new MessageDispatchHelperThread;
+    message_dispatch_helper_thread_->Start();
+  }
 }
 
 
@@ -2435,8 +2443,16 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
     StackGuard::DebugCommand();
   }
 
-  if (Debugger::debug_message_dispatch_handler_ != NULL) {
-    Debugger::debug_message_dispatch_handler_();
+  MessageDispatchHelperThread* dispatch_thread;
+  {
+    ScopedLock with(dispatch_handler_access_);
+    dispatch_thread = message_dispatch_helper_thread_;
+  }
+
+  if (dispatch_thread == NULL) {
+    CallMessageDispatchHandler();
+  } else {
+    dispatch_thread->Schedule();
   }
 }
 
@@ -2522,6 +2538,19 @@ void Debugger::WaitForAgent() {
   if (agent_ != NULL)
     agent_->WaitUntilListening();
 }
+
+
+void Debugger::CallMessageDispatchHandler() {
+  v8::Debug::DebugMessageDispatchHandler handler;
+  {
+    ScopedLock with(dispatch_handler_access_);
+    handler = Debugger::debug_message_dispatch_handler_;
+  }
+  if (handler != NULL) {
+    handler();
+  }
+}
+
 
 MessageImpl MessageImpl::NewEvent(DebugEvent event,
                                   bool running,
@@ -2741,6 +2770,45 @@ void LockingCommandMessageQueue::Put(const CommandMessage& message) {
 void LockingCommandMessageQueue::Clear() {
   ScopedLock sl(lock_);
   queue_.Clear();
+}
+
+
+MessageDispatchHelperThread::MessageDispatchHelperThread()
+    : sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
+      already_signalled_(false) {
+}
+
+
+MessageDispatchHelperThread::~MessageDispatchHelperThread() {
+  delete mutex_;
+  delete sem_;
+}
+
+
+void MessageDispatchHelperThread::Schedule() {
+  {
+    ScopedLock lock(mutex_);
+    if (already_signalled_) {
+      return;
+    }
+    already_signalled_ = true;
+  }
+  sem_->Signal();
+}
+
+
+void MessageDispatchHelperThread::Run() {
+  while (true) {
+    sem_->Wait();
+    {
+      ScopedLock lock(mutex_);
+      already_signalled_ = false;
+    }
+    {
+      Locker locker;
+      Debugger::CallMessageDispatchHandler();
+    }
+  }
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
