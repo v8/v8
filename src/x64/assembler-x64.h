@@ -931,6 +931,7 @@ class Assembler : public Malloced {
   void testb(Register dst, Register src);
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);
+  void testb(const Operand& op, Register reg);
   void testl(Register dst, Register src);
   void testl(Register reg, Immediate mask);
   void testl(const Operand& op, Immediate mask);

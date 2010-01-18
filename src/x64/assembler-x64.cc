@@ -1880,6 +1880,20 @@ void Assembler::testb(const Operand& op, Immediate mask) {
 }
 
 
+void Assembler::testb(const Operand& op, Register reg) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (reg.code() > 3) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(reg, op);
+  } else {
+    emit_optional_rex_32(reg, op);
+  }
+  emit(0x84);
+  emit_operand(reg, op);
+}
+
+
 void Assembler::testl(Register dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

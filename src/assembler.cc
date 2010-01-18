@@ -670,6 +670,10 @@ ExternalReference ExternalReference::re_case_insensitive_compare_uc16() {
       FUNCTION_ADDR(NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)));
 }
 
+ExternalReference ExternalReference::re_word_character_map() {
+  return ExternalReference(
+      NativeRegExpMacroAssembler::word_character_map_address());
+}
 
 ExternalReference ExternalReference::address_of_static_offsets_vector() {
   return ExternalReference(OffsetsVector::static_offsets_vector_address());

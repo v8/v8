@@ -479,15 +479,19 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       21,
       "NativeRegExpMacroAssembler::GrowStack()");
+  Add(ExternalReference::re_word_character_map().address(),
+      UNCLASSIFIED,
+      22,
+      "NativeRegExpMacroAssembler::word_character_map");
 #endif
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys().address(),
       UNCLASSIFIED,
-      22,
+      23,
       "KeyedLookupCache::keys()");
   Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
       UNCLASSIFIED,
-      23,
+      24,
       "KeyedLookupCache::field_offsets()");
 }
 

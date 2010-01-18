@@ -582,49 +582,38 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'w': {
-    Label done, check_digits;
-    __ cmpl(current_character(), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmpl(current_character(), Immediate('_'));
-    __ j(equal, &done);
-    // Convert to lower case if letter.
-    __ movl(rax, current_character());
-    __ orl(rax, Immediate(0x20));
-    // check rax in range ['a'..'z'].
-    __ subl(rax, Immediate('a'));
-    __ cmpl(rax, Immediate('z' - 'a'));
-    BranchOrBacktrack(above, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmpl(current_character(), Immediate('0'));
-    BranchOrBacktrack(below, on_no_match);
-    __ bind(&done);
-
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmpl(current_character(), Immediate('z'));
+      BranchOrBacktrack(above, on_no_match);
+    }
+    __ movq(rbx, ExternalReference::re_word_character_map());
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ testb(Operand(rbx, current_character(), times_1, 0),
+             current_character());
+    BranchOrBacktrack(zero, on_no_match);
     return true;
   }
   case 'W': {
-    Label done, check_digits;
-    __ cmpl(current_character(), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmpl(current_character(), Immediate('_'));
-    BranchOrBacktrack(equal, on_no_match);
-    // Convert to lower case if letter.
-    __ movl(rax, current_character());
-    __ orl(rax, Immediate(0x20));
-    // check current character in range ['a'..'z'], nondestructively.
-    __ subl(rax, Immediate('a'));
-    __ cmpl(rax, Immediate('z' - 'a'));
-    BranchOrBacktrack(below_equal, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmpl(current_character(), Immediate('0'));
-    BranchOrBacktrack(above_equal, on_no_match);
-    __ bind(&done);
-
+    Label done;
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmpl(current_character(), Immediate('z'));
+      __ j(above, &done);
+    }
+    __ movq(rbx, ExternalReference::re_word_character_map());
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ testb(Operand(rbx, current_character(), times_1, 0),
+             current_character());
+    BranchOrBacktrack(not_zero, on_no_match);
+    if (mode_ != ASCII) {
+      __ bind(&done);
+    }
     return true;
   }
+
   case '*':
     // Match any character.
     return true;

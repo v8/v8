@@ -539,46 +539,33 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'w': {
-    Label done, check_digits;
-    __ cmp(Operand(current_character()), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmp(Operand(current_character()), Immediate('_'));
-    __ j(equal, &done);
-    // Convert to lower case if letter.
-    __ mov(Operand(eax), current_character());
-    __ or_(eax, 0x20);
-    // check current character in range ['a'..'z'], nondestructively.
-    __ sub(Operand(eax), Immediate('a'));
-    __ cmp(Operand(eax), Immediate('z' - 'a'));
-    BranchOrBacktrack(above, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmp(Operand(current_character()), Immediate('0'));
-    BranchOrBacktrack(below, on_no_match);
-    __ bind(&done);
-
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(Operand(current_character()), Immediate('z'));
+      BranchOrBacktrack(above, on_no_match);
+    }
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ test_b(current_character(),
+              Operand::StaticArray(current_character(), times_1, word_map));
+    BranchOrBacktrack(zero, on_no_match);
     return true;
   }
   case 'W': {
-    Label done, check_digits;
-    __ cmp(Operand(current_character()), Immediate('9'));
-    __ j(less_equal, &check_digits);
-    __ cmp(Operand(current_character()), Immediate('_'));
-    BranchOrBacktrack(equal, on_no_match);
-    // Convert to lower case if letter.
-    __ mov(Operand(eax), current_character());
-    __ or_(eax, 0x20);
-    // check current character in range ['a'..'z'], nondestructively.
-    __ sub(Operand(eax), Immediate('a'));
-    __ cmp(Operand(eax), Immediate('z' - 'a'));
-    BranchOrBacktrack(below_equal, on_no_match);
-    __ jmp(&done);
-    __ bind(&check_digits);
-    // Check current character in range ['0'..'9'].
-    __ cmp(Operand(current_character()), Immediate('0'));
-    BranchOrBacktrack(above_equal, on_no_match);
-    __ bind(&done);
+    Label done;
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(Operand(current_character()), Immediate('z'));
+      __ j(above, &done);
+    }
+    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    ExternalReference word_map = ExternalReference::re_word_character_map();
+    __ test_b(current_character(),
+              Operand::StaticArray(current_character(), times_1, word_map));
+    BranchOrBacktrack(not_zero, on_no_match);
+    if (mode_ != ASCII) {
+      __ bind(&done);
+    }
     return true;
   }
   // Non-standard classes (with no syntactic shorthand) used internally.

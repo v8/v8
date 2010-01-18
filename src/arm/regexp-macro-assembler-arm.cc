@@ -526,64 +526,54 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'n': {
-      // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
-      __ eor(r0, current_character(), Operand(0x01));
-      // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
-      __ sub(r0, r0, Operand(0x0b));
-      __ cmp(r0, Operand(0x0c - 0x0b));
-      if (mode_ == ASCII) {
-        BranchOrBacktrack(hi, on_no_match);
-      } else {
-        Label done;
-        __ b(ls, &done);
-        // Compare original value to 0x2028 and 0x2029, using the already
-        // computed (current_char ^ 0x01 - 0x0b). I.e., check for
-        // 0x201d (0x2028 - 0x0b) or 0x201e.
-        __ sub(r0, r0, Operand(0x2028 - 0x0b));
-        __ cmp(r0, Operand(1));
-        BranchOrBacktrack(hi, on_no_match);
-        __ bind(&done);
-      }
-      return true;
+    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    __ eor(r0, current_character(), Operand(0x01));
+    // See if current character is '\n'^1 or '\r'^1, i.e., 0x0b or 0x0c
+    __ sub(r0, r0, Operand(0x0b));
+    __ cmp(r0, Operand(0x0c - 0x0b));
+    if (mode_ == ASCII) {
+      BranchOrBacktrack(hi, on_no_match);
+    } else {
+      Label done;
+      __ b(ls, &done);
+      // Compare original value to 0x2028 and 0x2029, using the already
+      // computed (current_char ^ 0x01 - 0x0b). I.e., check for
+      // 0x201d (0x2028 - 0x0b) or 0x201e.
+      __ sub(r0, r0, Operand(0x2028 - 0x0b));
+      __ cmp(r0, Operand(1));
+      BranchOrBacktrack(hi, on_no_match);
+      __ bind(&done);
     }
+    return true;
+  }
   case 'w': {
-    // Match word character (0-9, A-Z, a-z and _).
-    Label digits, done;
-    __ cmp(current_character(), Operand('9'));
-    __ b(ls, &digits);
-    __ cmp(current_character(), Operand('_'));
-    __ b(eq, &done);
-    __ orr(r0, current_character(), Operand(0x20));
-    __ sub(r0, r0, Operand('a'));
-    __ cmp(r0, Operand('z' - 'a'));
-    BranchOrBacktrack(hi, on_no_match);
-    __ jmp(&done);
-
-    __ bind(&digits);
-    __ cmp(current_character(), Operand('0'));
-    BranchOrBacktrack(lo, on_no_match);
-    __ bind(&done);
-
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(current_character(), Operand('z'));
+      BranchOrBacktrack(hi, on_no_match);
+    }
+    ExternalReference map = ExternalReference::re_word_character_map();
+    __ mov(r0, Operand(map));
+    __ ldrb(r0, MemOperand(r0, current_character()));
+    __ tst(r0, Operand(r0));
+    BranchOrBacktrack(eq, on_no_match);
     return true;
   }
   case 'W': {
-    // Match non-word character (not 0-9, A-Z, a-z and _).
-    Label digits, done;
-    __ cmp(current_character(), Operand('9'));
-    __ b(ls, &digits);
-    __ cmp(current_character(), Operand('_'));
-    BranchOrBacktrack(eq, on_no_match);
-    __ orr(r0, current_character(), Operand(0x20));
-    __ sub(r0, r0, Operand('a'));
-    __ cmp(r0, Operand('z' - 'a'));
-    BranchOrBacktrack(ls, on_no_match);
-    __ jmp(&done);
-
-    __ bind(&digits);
-    __ cmp(current_character(), Operand('0'));
-    BranchOrBacktrack(hs, on_no_match);
-    __ bind(&done);
-
+    Label done;
+    if (mode_ != ASCII) {
+      // Table is 128 entries, so all ASCII characters can be tested.
+      __ cmp(current_character(), Operand('z'));
+      __ b(hi, &done);
+    }
+    ExternalReference map = ExternalReference::re_word_character_map();
+    __ mov(r0, Operand(map));
+    __ ldrb(r0, MemOperand(r0, current_character()));
+    __ tst(r0, Operand(r0));
+    BranchOrBacktrack(ne, on_no_match);
+    if (mode_ != ASCII) {
+      __ bind(&done);
+    }
     return true;
   }
   case '*':

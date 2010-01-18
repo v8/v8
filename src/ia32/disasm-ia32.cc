@@ -63,6 +63,7 @@ static ByteMnemonic two_operands_instr[] = {
   {0x29, "sub", OPER_REG_OP_ORDER},
   {0x2A, "subb", REG_OPER_OP_ORDER},
   {0x2B, "sub", REG_OPER_OP_ORDER},
+  {0x84, "test_b", REG_OPER_OP_ORDER},
   {0x85, "test", REG_OPER_OP_ORDER},
   {0x31, "xor", OPER_REG_OP_ORDER},
   {0x33, "xor", REG_OPER_OP_ORDER},

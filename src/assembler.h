@@ -462,6 +462,10 @@ class ExternalReference BASE_EMBEDDED {
 
   // Function NativeRegExpMacroAssembler::GrowStack()
   static ExternalReference re_grow_stack();
+
+  // byte NativeRegExpMacroAssembler::word_character_bitmap
+  static ExternalReference re_word_character_map();
+
 #endif
 
   // This lets you register a function that rewrites all external references.

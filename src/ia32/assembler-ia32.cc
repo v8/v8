@@ -1261,6 +1261,14 @@ void Assembler::test(Register reg, const Operand& op) {
 }
 
 
+void Assembler::test_b(Register reg, const Operand& op) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x84);
+  emit_operand(reg, op);
+}
+
+
 void Assembler::test(const Operand& op, const Immediate& imm) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

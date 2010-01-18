@@ -624,6 +624,7 @@ class Assembler : public Malloced {
 
   void test(Register reg, const Immediate& imm);
   void test(Register reg, const Operand& op);
+  void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
 
   void xor_(Register dst, int32_t imm32);
