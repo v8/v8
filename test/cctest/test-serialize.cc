@@ -319,7 +319,7 @@ void FileByteSink::WriteSpaceUsed(
   int file_name_length = strlen(file_name_) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name_);
-  FILE* fp = OS::FOpen(name.start(), "wa");
+  FILE* fp = OS::FOpen(name.start(), "w");
   fprintf(fp, "new %d\n", new_space_used);
   fprintf(fp, "pointer %d\n", pointer_space_used);
   fprintf(fp, "data %d\n", data_space_used);
@@ -361,7 +361,7 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
   int file_name_length = strlen(file_name) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name);
-  FILE* fp = OS::FOpen(name.start(), "ra");
+  FILE* fp = OS::FOpen(name.start(), "r");
   int new_size, pointer_size, data_size, code_size, map_size, cell_size;
   int large_size;
 #ifdef _MSC_VER
