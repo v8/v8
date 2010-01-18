@@ -214,15 +214,22 @@ void FastCodeGenerator::Apply(Expression::Context context, Register reg) {
       }
       break;
 
-    case Expression::kValueTest:
-    case Expression::kTestValue:
-      // Push an extra copy of the value in case it's needed.
-      __ push(reg);
-      // Fall through.
-
     case Expression::kTest:
       // For simplicity we always test the accumulator register.
       if (!reg.is(result_register())) __ mov(result_register(), reg);
+      DoTest(context);
+      break;
+
+    case Expression::kValueTest:
+    case Expression::kTestValue:
+      if (!reg.is(result_register())) __ mov(result_register(), reg);
+      switch (location_) {
+        case kAccumulator:
+          break;
+        case kStack:
+          __ push(result_register());
+          break;
+      }
       DoTest(context);
       break;
   }
@@ -251,6 +258,7 @@ void FastCodeGenerator::Apply(Expression::Context context, Slot* slot) {
     }
 
     case Expression::kTest:
+      // For simplicity we always test the accumulator register.
       Move(result_register(), slot);
       DoTest(context);
       break;
@@ -258,7 +266,13 @@ void FastCodeGenerator::Apply(Expression::Context context, Slot* slot) {
     case Expression::kValueTest:
     case Expression::kTestValue:
       Move(result_register(), slot);
-      __ push(result_register());
+      switch (location_) {
+        case kAccumulator:
+          break;
+        case kStack:
+          __ push(result_register());
+          break;
+      }
       DoTest(context);
       break;
   }
@@ -285,6 +299,7 @@ void FastCodeGenerator::Apply(Expression::Context context, Literal* lit) {
       break;
 
     case Expression::kTest:
+      // For simplicity we always test the accumulator register.
       __ mov(result_register(), lit->handle());
       DoTest(context);
       break;
@@ -292,7 +307,13 @@ void FastCodeGenerator::Apply(Expression::Context context, Literal* lit) {
     case Expression::kValueTest:
     case Expression::kTestValue:
       __ mov(result_register(), lit->handle());
-      __ push(result_register());
+      switch (location_) {
+        case kAccumulator:
+          break;
+        case kStack:
+          __ push(result_register());
+          break;
+      }
       DoTest(context);
       break;
   }
@@ -319,13 +340,21 @@ void FastCodeGenerator::ApplyTOS(Expression::Context context) {
       break;
 
     case Expression::kTest:
+      // For simplicity we always test the accumulator register.
       __ pop(result_register());
       DoTest(context);
       break;
 
     case Expression::kValueTest:
     case Expression::kTestValue:
-      __ mov(result_register(), Operand(esp, 0));
+      switch (location_) {
+        case kAccumulator:
+          __ pop(result_register());
+          break;
+        case kStack:
+          __ mov(result_register(), Operand(esp, 0));
+          break;
+      }
       DoTest(context);
       break;
   }
@@ -359,6 +388,7 @@ void FastCodeGenerator::DropAndApply(int count,
       break;
 
     case Expression::kTest:
+      // For simplicity we always test the accumulator register.
       __ Drop(count);
       if (!reg.is(result_register())) __ mov(result_register(), reg);
       DoTest(context);
@@ -366,9 +396,17 @@ void FastCodeGenerator::DropAndApply(int count,
 
     case Expression::kValueTest:
     case Expression::kTestValue:
-      if (count > 1) __ Drop(count - 1);
-      if (!reg.is(result_register())) __ mov(result_register(), reg);
-      __ mov(Operand(esp, 0), result_register());
+      switch (location_) {
+        case kAccumulator:
+          __ Drop(count);
+          if (!reg.is(result_register())) __ mov(result_register(), reg);
+          break;
+        case kStack:
+          if (count > 1) __ Drop(count - 1);
+          __ mov(result_register(), reg);
+          __ mov(Operand(esp, 0), result_register());
+          break;
+      }
       DoTest(context);
       break;
   }
@@ -440,18 +478,44 @@ void FastCodeGenerator::Apply(Expression::Context context,
 
 
 void FastCodeGenerator::DoTest(Expression::Context context) {
-  // The value to test is in the accumulator, and duplicated on the stack if
-  // necessary (for value/test and test/value contexts).
+  // The value to test is in the accumulator.  If the value might be needed
+  // on the stack (value/test and test/value contexts with a stack location
+  // desired), then the value is already duplicated on the stack.
   ASSERT_NE(NULL, true_label_);
   ASSERT_NE(NULL, false_label_);
 
-  // If there is a value on the stack, use a discard label for the
-  // value-is-unneeded branch in the inlined part of the test.
+  // In value/test and test/value expression contexts with stack as the
+  // desired location, there is already an extra value on the stack.  Use a
+  // label to discard it if unneeded.
   Label discard;
-  Label* if_true =
-      (context == Expression::kTestValue) ? &discard : true_label_;
-  Label* if_false =
-      (context == Expression::kValueTest) ? &discard : false_label_;
+  Label* if_true = true_label_;
+  Label* if_false = false_label_;
+  switch (context) {
+    case Expression::kUninitialized:
+    case Expression::kEffect:
+    case Expression::kValue:
+      UNREACHABLE();
+    case Expression::kTest:
+      break;
+    case Expression::kValueTest:
+      switch (location_) {
+        case kAccumulator:
+          break;
+        case kStack:
+          if_false = &discard;
+          break;
+      }
+      break;
+    case Expression::kTestValue:
+      switch (location_) {
+        case kAccumulator:
+          break;
+        case kStack:
+          if_true = &discard;
+          break;
+      }
+      break;
+  }
 
   // Emit the inlined tests assumed by the stub.
   __ cmp(result_register(), Factory::undefined_value());
@@ -465,6 +529,34 @@ void FastCodeGenerator::DoTest(Expression::Context context) {
   __ j(zero, if_false);
   __ test(result_register(), Immediate(kSmiTagMask));
   __ j(zero, if_true);
+
+  // Save a copy of the value if it may be needed and isn't already saved.
+  switch (context) {
+    case Expression::kUninitialized:
+    case Expression::kEffect:
+    case Expression::kValue:
+      UNREACHABLE();
+    case Expression::kTest:
+      break;
+    case Expression::kValueTest:
+      switch (location_) {
+        case kAccumulator:
+          __ push(result_register());
+          break;
+        case kStack:
+          break;
+      }
+      break;
+    case Expression::kTestValue:
+      switch (location_) {
+        case kAccumulator:
+          __ push(result_register());
+          break;
+        case kStack:
+          break;
+      }
+      break;
+  }
 
   // Call the ToBoolean stub for all other cases.
   ToBooleanStub stub;
