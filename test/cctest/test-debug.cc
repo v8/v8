@@ -2163,6 +2163,154 @@ TEST(DebugEvaluate) {
   CheckDebuggerUnloaded();
 }
 
+// Copies a C string to a 16-bit string.  Does not check for buffer overflow.
+// Does not use the V8 engine to convert strings, so it can be used
+// in any thread.  Returns the length of the string.
+int AsciiToUtf16(const char* input_buffer, uint16_t* output_buffer) {
+  int i;
+  for (i = 0; input_buffer[i] != '\0'; ++i) {
+    // ASCII does not use chars > 127, but be careful anyway.
+    output_buffer[i] = static_cast<unsigned char>(input_buffer[i]);
+  }
+  output_buffer[i] = 0;
+  return i;
+}
+
+// Copies a 16-bit string to a C string by dropping the high byte of
+// each character.  Does not check for buffer overflow.
+// Can be used in any thread.  Requires string length as an input.
+int Utf16ToAscii(const uint16_t* input_buffer, int length,
+                 char* output_buffer, int output_len = -1) {
+  if (output_len >= 0) {
+    if (length > output_len - 1) {
+      length = output_len - 1;
+    }
+  }
+
+  for (int i = 0; i < length; ++i) {
+    output_buffer[i] = static_cast<char>(input_buffer[i]);
+  }
+  output_buffer[length] = '\0';
+  return length;
+}
+
+
+// We match parts of the message to get evaluate result int value.
+bool GetEvaluateStringResult(char *message, char* buffer, int buffer_size) {
+  const char* value = "\"value\":";
+  char* pos = strstr(message, value);
+  if (pos == NULL) {
+    return false;
+  }
+  strncpy(buffer, pos, buffer_size);
+  buffer[buffer_size - 1] = '\0';
+  return true;
+}
+
+
+struct EvaluateResult {
+  static const int kBufferSize = 20;
+  char buffer[kBufferSize];
+};
+
+struct DebugProcessDebugMessagesData {
+  static const int kArraySize = 5;
+  int counter;
+  EvaluateResult results[kArraySize];
+
+  void reset() {
+    counter = 0;
+  }
+  EvaluateResult* current() {
+    return &results[counter % kArraySize];
+  }
+  void next() {
+    counter++;
+  }
+};
+
+DebugProcessDebugMessagesData process_debug_messages_data;
+
+static void DebugProcessDebugMessagesHandler(
+    const uint16_t* message,
+    int length,
+    v8::Debug::ClientData* client_data) {
+
+  const int kBufferSize = 100000;
+  char print_buffer[kBufferSize];
+  Utf16ToAscii(message, length, print_buffer, kBufferSize);
+
+  EvaluateResult* array_item = process_debug_messages_data.current();
+
+  bool res = GetEvaluateStringResult(print_buffer,
+                                     array_item->buffer,
+                                     EvaluateResult::kBufferSize);
+  if (res) {
+    process_debug_messages_data.next();
+  }
+}
+
+// Test that the evaluation of expressions works even from ProcessDebugMessages
+// i.e. with empty stack.
+TEST(DebugEvaluateWithoutStack) {
+  v8::Debug::SetMessageHandler(DebugProcessDebugMessagesHandler);
+
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  const char* source =
+      "var v1 = 'Pinguin';\n function getAnimal() { return 'Capy' + 'bara'; }";
+
+  v8::Script::Compile(v8::String::New(source))->Run();
+
+  v8::Debug::ProcessDebugMessages();
+
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+
+  const char* command_111 = "{\"seq\":111,"
+      "\"type\":\"request\","
+      "\"command\":\"evaluate\","
+      "\"arguments\":{"
+      "    \"global\":true,"
+      "    \"expression\":\"v1\",\"disable_break\":true"
+      "}}";
+
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_111, buffer));
+
+  const char* command_112 = "{\"seq\":112,"
+      "\"type\":\"request\","
+      "\"command\":\"evaluate\","
+      "\"arguments\":{"
+      "    \"global\":true,"
+      "    \"expression\":\"getAnimal()\",\"disable_break\":true"
+      "}}";
+
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_112, buffer));
+
+  const char* command_113 = "{\"seq\":113,"
+     "\"type\":\"request\","
+     "\"command\":\"evaluate\","
+     "\"arguments\":{"
+     "    \"global\":true,"
+     "    \"expression\":\"239 + 566\",\"disable_break\":true"
+     "}}";
+
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_113, buffer));
+
+  v8::Debug::ProcessDebugMessages();
+
+  CHECK_EQ(3, process_debug_messages_data.counter);
+
+  CHECK(strcmp("Pinguin", process_debug_messages_data.results[0].buffer));
+  CHECK(strcmp("Captbara", process_debug_messages_data.results[1].buffer));
+  CHECK(strcmp("805", process_debug_messages_data.results[2].buffer));
+
+  v8::Debug::SetMessageHandler(NULL);
+  v8::Debug::SetDebugEventListener(NULL);
+  CheckDebuggerUnloaded();
+}
+
 
 // Simple test of the stepping mechanism using only store ICs.
 TEST(DebugStepLinear) {
@@ -3592,31 +3740,6 @@ TEST(NoHiddenProperties) {
 // Multithreaded tests of JSON debugger protocol
 
 // Support classes
-
-// Copies a C string to a 16-bit string.  Does not check for buffer overflow.
-// Does not use the V8 engine to convert strings, so it can be used
-// in any thread.  Returns the length of the string.
-int AsciiToUtf16(const char* input_buffer, uint16_t* output_buffer) {
-  int i;
-  for (i = 0; input_buffer[i] != '\0'; ++i) {
-    // ASCII does not use chars > 127, but be careful anyway.
-    output_buffer[i] = static_cast<unsigned char>(input_buffer[i]);
-  }
-  output_buffer[i] = 0;
-  return i;
-}
-
-// Copies a 16-bit string to a C string by dropping the high byte of
-// each character.  Does not check for buffer overflow.
-// Can be used in any thread.  Requires string length as an input.
-int Utf16ToAscii(const uint16_t* input_buffer, int length,
-                 char* output_buffer) {
-  for (int i = 0; i < length; ++i) {
-    output_buffer[i] = static_cast<char>(input_buffer[i]);
-  }
-  output_buffer[length] = '\0';
-  return length;
-}
 
 // Provides synchronization between k threads, where k is an input to the
 // constructor.  The Wait() call blocks a thread until it is called for the
