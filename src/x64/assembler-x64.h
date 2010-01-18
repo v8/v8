@@ -916,6 +916,10 @@ class Assembler : public Malloced {
     arithmetic_op_32(0x2B, dst, src);
   }
 
+  void subl(Register dst, const Operand& src) {
+    arithmetic_op_32(0x2B, dst, src);
+  }
+
   void subl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x5, dst, src);
   }

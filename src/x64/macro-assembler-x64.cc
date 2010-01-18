@@ -581,6 +581,17 @@ Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
 }
 
 
+Condition MacroAssembler::CheckEitherSmi(Register first, Register second) {
+  if (first.is(second)) {
+    return CheckSmi(first);
+  }
+  movl(kScratchRegister, first);
+  andl(kScratchRegister, second);
+  testb(kScratchRegister, Immediate(kSmiTagMask));
+  return zero;
+}
+
+
 Condition MacroAssembler::CheckIsMinSmi(Register src) {
   ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
   movq(kScratchRegister, src);
@@ -1278,6 +1289,39 @@ void MacroAssembler::JumpIfNotBothSmi(Register src1, Register src2,
                                       Label* on_not_both_smi) {
   Condition both_smi = CheckBothSmi(src1, src2);
   j(NegateCondition(both_smi), on_not_both_smi);
+}
+
+
+void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first_object,
+                                                         Register second_object,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         Label* on_fail) {
+  // Check that both objects are not smis.
+  Condition either_smi = CheckEitherSmi(first_object, second_object);
+  j(either_smi, on_fail);
+
+  // Load instance type for both strings.
+  movq(scratch1, FieldOperand(first_object, HeapObject::kMapOffset));
+  movq(scratch2, FieldOperand(second_object, HeapObject::kMapOffset));
+  movzxbl(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
+  movzxbl(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
+
+  // Check that both are flat ascii strings.
+  ASSERT(kNotStringTag != 0);
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  const int kFlatAsciiStringBits =
+      kNotStringTag | kSeqStringTag | kAsciiStringTag;
+
+  andl(scratch1, Immediate(kFlatAsciiStringMask));
+  andl(scratch2, Immediate(kFlatAsciiStringMask));
+  // Interleave the bits to check both scratch1 and scratch2 in one test.
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  cmpl(scratch1,
+       Immediate(kFlatAsciiStringBits + (kFlatAsciiStringBits << 3)));
+  j(not_equal, on_fail);
 }
 
 

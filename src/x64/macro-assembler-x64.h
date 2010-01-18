@@ -204,8 +204,11 @@ class MacroAssembler: public Assembler {
   // Is the value a positive tagged smi.
   Condition CheckPositiveSmi(Register src);
 
-  // Are both values are tagged smis.
+  // Are both values tagged smis.
   Condition CheckBothSmi(Register first, Register second);
+
+  // Are either value a tagged smi.
+  Condition CheckEitherSmi(Register first, Register second);
 
   // Is the value the minimum smi value (since we are using
   // two's complement numbers, negating the value is known to yield
@@ -401,6 +404,14 @@ class MacroAssembler: public Assembler {
 
   void Push(Smi* smi);
   void Test(const Operand& dst, Smi* source);
+
+  // ---------------------------------------------------------------------------
+  // String macros.
+  void JumpIfNotBothSequentialAsciiStrings(Register first_object,
+                                           Register second_object,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* on_not_both_flat_ascii);
 
   // ---------------------------------------------------------------------------
   // Macro instructions.

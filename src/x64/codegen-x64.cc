@@ -3937,7 +3937,8 @@ void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
   Load(args->at(0));
   Load(args->at(1));
 
-  Result answer = frame_->CallRuntime(Runtime::kStringCompare, 2);
+  StringCompareStub stub;
+  Result answer = frame_->CallStub(&stub, 2);
   frame_->Push(&answer);
 }
 
@@ -6496,15 +6497,33 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   // Fast negative check for symbol-to-symbol equality.
   __ bind(&check_for_symbols);
+  Label check_for_strings;
   if (cc_ == equal) {
-    BranchIfNonSymbol(masm, &call_builtin, rax, kScratchRegister);
-    BranchIfNonSymbol(masm, &call_builtin, rdx, kScratchRegister);
+    BranchIfNonSymbol(masm, &check_for_strings, rax, kScratchRegister);
+    BranchIfNonSymbol(masm, &check_for_strings, rdx, kScratchRegister);
 
     // We've already checked for object identity, so if both operands
     // are symbols they aren't equal. Register eax (not rax) already holds a
     // non-zero value, which indicates not equal, so just return.
     __ ret(2 * kPointerSize);
   }
+
+  __ bind(&check_for_strings);
+
+  __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &call_builtin);
+
+  // Inline comparison of ascii strings.
+  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+                                                     rdx,
+                                                     rax,
+                                                     rcx,
+                                                     rbx,
+                                                     rdi,
+                                                     r8);
+
+#ifdef DEBUG
+  __ Abort("Unexpected fall-through from string comparison");
+#endif
 
   __ bind(&call_builtin);
   // must swap argument order
@@ -8154,6 +8173,128 @@ void StringAddStub::GenerateCopyCharacters(MacroAssembler* masm,
 }
 
 
+
+void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
+                                                        Register left,
+                                                        Register right,
+                                                        Register scratch1,
+                                                        Register scratch2,
+                                                        Register scratch3,
+                                                        Register scratch4) {
+  // Ensure that you can always subtract a string length from a non-negative
+  // number (e.g. another length).
+  ASSERT(String::kMaxLength < 0x7fffffff);
+
+  // Find minimum length and length difference.
+  __ movl(scratch1, FieldOperand(left, String::kLengthOffset));
+  __ movl(scratch4, scratch1);
+  __ subl(scratch4, FieldOperand(right, String::kLengthOffset));
+  // Register scratch4 now holds left.length - right.length.
+  const Register length_difference = scratch4;
+  Label left_shorter;
+  __ j(less, &left_shorter);
+  // The right string isn't longer that the left one.
+  // Get the right string's length by subtracting the (non-negative) difference
+  // from the left string's length.
+  __ subl(scratch1, length_difference);
+  __ bind(&left_shorter);
+  // Register scratch1 now holds Min(left.length, right.length).
+  const Register min_length = scratch1;
+
+  Label compare_lengths;
+  // If min-length is zero, go directly to comparing lengths.
+  __ testl(min_length, min_length);
+  __ j(zero, &compare_lengths);
+
+  // Registers scratch2 and scratch3 are free.
+  Label result_not_equal;
+  Label loop;
+  {
+    // Check characters 0 .. min_length - 1 in a loop.
+    // Use scratch3 as loop index, min_length as limit and scratch2
+    // for computation.
+    const Register index = scratch3;
+    __ movl(index, Immediate(0));  // Index into strings.
+    __ bind(&loop);
+    // Compare characters.
+    // TODO(lrn): Could we load more than one character at a time?
+    __ movb(scratch2, FieldOperand(left,
+                                   index,
+                                   times_1,
+                                   SeqAsciiString::kHeaderSize));
+    // Increment index and use -1 modifier on next load to give
+    // the previous load extra time to complete.
+    __ addl(index, Immediate(1));
+    __ cmpb(scratch2, FieldOperand(right,
+                                   index,
+                                   times_1,
+                                   SeqAsciiString::kHeaderSize - 1));
+    __ j(not_equal, &result_not_equal);
+    __ cmpl(index, min_length);
+    __ j(not_equal, &loop);
+  }
+  // Completed loop without finding different characters.
+  // Compare lengths (precomputed).
+  __ bind(&compare_lengths);
+  __ testl(length_difference, length_difference);
+  __ j(not_zero, &result_not_equal);
+
+  // Result is EQUAL.
+  __ Move(rax, Smi::FromInt(EQUAL));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+
+  Label result_greater;
+  __ bind(&result_not_equal);
+  // Unequal comparison of left to right, either character or length.
+  __ j(greater, &result_greater);
+
+  // Result is LESS.
+  __ Move(rax, Smi::FromInt(LESS));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+
+  // Result is GREATER.
+  __ bind(&result_greater);
+  __ Move(rax, Smi::FromInt(GREATER));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+}
+
+
+void StringCompareStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  // Stack frame on entry.
+  //  rsp[0]: return address
+  //  rsp[8]: right string
+  //  rsp[16]: left string
+
+  __ movq(rdx, Operand(rsp, 2 * kPointerSize));  // left
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));  // right
+
+  // Check for identity.
+  Label not_same;
+  __ cmpq(rdx, rax);
+  __ j(not_equal, &not_same);
+  __ Move(rax, Smi::FromInt(EQUAL));
+  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&not_same);
+
+  // Check that both are sequential ASCII strings.
+  __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &runtime);
+
+  // Inline comparison of ascii strings.
+  GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
+
+  // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
+  // tagged as a small integer.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kStringCompare), 2, 1);
+}
+
 #undef __
 
 #define __ masm.
@@ -8246,6 +8387,7 @@ ModuloFunction CreateModuloFunction() {
 }
 
 #endif
+
 
 #undef __
 

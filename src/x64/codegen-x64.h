@@ -742,6 +742,28 @@ class StringAddStub: public CodeStub {
 };
 
 
+class StringCompareStub: public CodeStub {
+ public:
+  explicit StringCompareStub() {}
+
+  // Compare two flat ascii strings and returns result in rax after popping two
+  // arguments from the stack.
+  static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
+                                              Register left,
+                                              Register right,
+                                              Register scratch1,
+                                              Register scratch2,
+                                              Register scratch3,
+                                              Register scratch4);
+
+ private:
+  Major MajorKey() { return StringCompare; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_X64_CODEGEN_X64_H_
