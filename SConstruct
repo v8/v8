@@ -677,7 +677,7 @@ SIMPLE_OPTIONS = {
 def GetOptions():
   result = Options()
   result.Add('mode', 'compilation mode (debug, release)', 'release')
-  result.Add('sample', 'build sample (shell, process)', '')
+  result.Add('sample', 'build sample (shell, process, lineprocessor)', '')
   result.Add('env', 'override environment settings (NAME0:value0,NAME1:value1,...)', '')
   result.Add('importenv', 'import environment settings (NAME0,NAME1,...)', '')
   for (name, option) in SIMPLE_OPTIONS.iteritems():
@@ -745,7 +745,7 @@ def IsLegal(env, option, values):
 def VerifyOptions(env):
   if not IsLegal(env, 'mode', ['debug', 'release']):
     return False
-  if not IsLegal(env, 'sample', ["shell", "process"]):
+  if not IsLegal(env, 'sample', ["shell", "process", "lineprocessor"]):
     return False
   if not IsLegal(env, 'regexp', ["native", "interpreted"]):
     return False
