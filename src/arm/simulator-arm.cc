@@ -890,8 +890,13 @@ bool Simulator::OverflowFrom(int32_t alu_out,
 
 // Support for VFP comparisons.
 void Simulator::Compute_FPSCR_Flags(double val1, double val2) {
+  if (isnan(val1) || isnan(val2)) {
+    n_flag_FPSCR_ = false;
+    z_flag_FPSCR_ = false;
+    c_flag_FPSCR_ = true;
+    v_flag_FPSCR_ = true;
   // All non-NaN cases.
-  if (val1 == val2) {
+  } else if (val1 == val2) {
     n_flag_FPSCR_ = false;
     z_flag_FPSCR_ = true;
     c_flag_FPSCR_ = true;

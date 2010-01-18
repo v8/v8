@@ -1592,13 +1592,13 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
           __ pop(r1);
           break;
         case Token::GT:
-          // Reverse left and right sizes to obtain ECMA-262 conversion order.
+          // Reverse left and right sides to obtain ECMA-262 conversion order.
           cc = lt;
           __ pop(r1);
           __ pop(r0);
          break;
         case Token::LTE:
-          // Reverse left and right sizes to obtain ECMA-262 conversion order.
+          // Reverse left and right sides to obtain ECMA-262 conversion order.
           cc = ge;
           __ pop(r1);
           __ pop(r0);
@@ -1627,7 +1627,7 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ bind(&slow_case);
       CompareStub stub(cc, strict);
       __ CallStub(&stub);
-      __ tst(r0, r0);
+      __ cmp(r0, Operand(0));
       __ b(cc, if_true);
       __ jmp(if_false);
     }

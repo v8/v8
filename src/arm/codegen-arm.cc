@@ -47,7 +47,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           Condition cc,
                                           bool never_nan_nan);
 static void EmitSmiNonsmiComparison(MacroAssembler* masm,
-                                    Label* rhs_not_nan,
+                                    Label* lhs_not_nan,
                                     Label* slow,
                                     bool strict);
 static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc);
@@ -4778,7 +4778,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   } else if (cc == gt) {
     __ mov(r0, Operand(LESS));     // Things aren't greater than themselves.
   } else {
-    __ mov(r0, Operand(0));        // Things are <=, >=, ==, === themselves.
+    __ mov(r0, Operand(EQUAL));    // Things are <=, >=, ==, === themselves.
   }
   __ mov(pc, Operand(lr));  // Return.
 
@@ -4790,6 +4790,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       __ bind(&heap_number);
       // It is a heap number, so return non-equal if it's NaN and equal if it's
       // not NaN.
+
       // The representation of NaN values has all exponent bits (52..62) set,
       // and not all mantissa bits (0..51) clear.
       // Read top bits of double representation (second word of value).
@@ -4805,9 +4806,9 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
       __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
       __ orr(r0, r3, Operand(r2), SetCC);
       // For equal we already have the right value in r0:  Return zero (equal)
-      // if all bits in mantissa are zero (it's an Infinity) and non-zero if not
-      // (it's a NaN).  For <= and >= we need to load r0 with the failing value
-      // if it's a NaN.
+      // if all bits in mantissa are zero (it's an Infinity) and non-zero if
+      // not (it's a NaN).  For <= and >= we need to load r0 with the failing
+      // value if it's a NaN.
       if (cc != eq) {
         // All-zero means Infinity means equal.
         __ mov(pc, Operand(lr), LeaveCC, eq);  // Return equal
@@ -4828,7 +4829,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
 
 // See comment at call site.
 static void EmitSmiNonsmiComparison(MacroAssembler* masm,
-                                    Label* rhs_not_nan,
+                                    Label* lhs_not_nan,
                                     Label* slow,
                                     bool strict) {
   Label lhs_is_smi;
@@ -4866,7 +4867,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   // We now have both loaded as doubles but we can skip the lhs nan check
   // since it's a Smi.
   __ pop(lr);
-  __ jmp(rhs_not_nan);
+  __ jmp(lhs_not_nan);
 
   __ bind(&lhs_is_smi);
   // Lhs is a Smi.  Check whether the non-smi is a heap number.
@@ -4902,37 +4903,39 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 }
 
 
-void EmitNanCheck(MacroAssembler* masm, Label* rhs_not_nan, Condition cc) {
+void EmitNanCheck(MacroAssembler* masm, Label* lhs_not_nan, Condition cc) {
   bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
-  Register lhs_exponent = exp_first ? r0 : r1;
-  Register rhs_exponent = exp_first ? r2 : r3;
-  Register lhs_mantissa = exp_first ? r1 : r0;
-  Register rhs_mantissa = exp_first ? r3 : r2;
+  Register rhs_exponent = exp_first ? r0 : r1;
+  Register lhs_exponent = exp_first ? r2 : r3;
+  Register rhs_mantissa = exp_first ? r1 : r0;
+  Register lhs_mantissa = exp_first ? r3 : r2;
   Label one_is_nan, neither_is_nan;
+  Label lhs_not_nan_exp_mask_is_loaded;
 
   Register exp_mask_reg = r5;
 
   __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
-  __ and_(r4, rhs_exponent, Operand(exp_mask_reg));
-  __ cmp(r4, Operand(exp_mask_reg));
-  __ b(ne, rhs_not_nan);
-  __ mov(r4,
-         Operand(rhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
-         SetCC);
-  __ b(ne, &one_is_nan);
-  __ cmp(rhs_mantissa, Operand(0));
-  __ b(ne, &one_is_nan);
-
-  __ bind(rhs_not_nan);
-  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
   __ and_(r4, lhs_exponent, Operand(exp_mask_reg));
   __ cmp(r4, Operand(exp_mask_reg));
-  __ b(ne, &neither_is_nan);
+  __ b(ne, &lhs_not_nan_exp_mask_is_loaded);
   __ mov(r4,
          Operand(lhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
          SetCC);
   __ b(ne, &one_is_nan);
   __ cmp(lhs_mantissa, Operand(0));
+  __ b(ne, &one_is_nan);
+
+  __ bind(lhs_not_nan);
+  __ mov(exp_mask_reg, Operand(HeapNumber::kExponentMask));
+  __ bind(&lhs_not_nan_exp_mask_is_loaded);
+  __ and_(r4, rhs_exponent, Operand(exp_mask_reg));
+  __ cmp(r4, Operand(exp_mask_reg));
+  __ b(ne, &neither_is_nan);
+  __ mov(r4,
+         Operand(rhs_exponent, LSL, HeapNumber::kNonMantissaBitsInTopWord),
+         SetCC);
+  __ b(ne, &one_is_nan);
+  __ cmp(rhs_mantissa, Operand(0));
   __ b(eq, &neither_is_nan);
 
   __ bind(&one_is_nan);
@@ -4952,21 +4955,21 @@ void EmitNanCheck(MacroAssembler* masm, Label* rhs_not_nan, Condition cc) {
 // See comment at call site.
 static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
   bool exp_first = (HeapNumber::kExponentOffset == HeapNumber::kValueOffset);
-  Register lhs_exponent = exp_first ? r0 : r1;
-  Register rhs_exponent = exp_first ? r2 : r3;
-  Register lhs_mantissa = exp_first ? r1 : r0;
-  Register rhs_mantissa = exp_first ? r3 : r2;
+  Register rhs_exponent = exp_first ? r0 : r1;
+  Register lhs_exponent = exp_first ? r2 : r3;
+  Register rhs_mantissa = exp_first ? r1 : r0;
+  Register lhs_mantissa = exp_first ? r3 : r2;
 
   // r0, r1, r2, r3 have the two doubles.  Neither is a NaN.
   if (cc == eq) {
     // Doubles are not equal unless they have the same bit pattern.
     // Exception: 0 and -0.
-    __ cmp(lhs_mantissa, Operand(rhs_mantissa));
-    __ orr(r0, lhs_mantissa, Operand(rhs_mantissa), LeaveCC, ne);
+    __ cmp(rhs_mantissa, Operand(lhs_mantissa));
+    __ orr(r0, rhs_mantissa, Operand(lhs_mantissa), LeaveCC, ne);
     // Return non-zero if the numbers are unequal.
     __ mov(pc, Operand(lr), LeaveCC, ne);
 
-    __ sub(r0, lhs_exponent, Operand(rhs_exponent), SetCC);
+    __ sub(r0, rhs_exponent, Operand(lhs_exponent), SetCC);
     // If exponents are equal then return 0.
     __ mov(pc, Operand(lr), LeaveCC, eq);
 
@@ -4976,12 +4979,12 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
     // We start by seeing if the mantissas (that are equal) or the bottom
     // 31 bits of the rhs exponent are non-zero.  If so we return not
     // equal.
-    __ orr(r4, rhs_mantissa, Operand(rhs_exponent, LSL, kSmiTagSize), SetCC);
+    __ orr(r4, lhs_mantissa, Operand(lhs_exponent, LSL, kSmiTagSize), SetCC);
     __ mov(r0, Operand(r4), LeaveCC, ne);
     __ mov(pc, Operand(lr), LeaveCC, ne);  // Return conditionally.
     // Now they are equal if and only if the lhs exponent is zero in its
     // low 31 bits.
-    __ mov(r0, Operand(lhs_exponent, LSL, kSmiTagSize));
+    __ mov(r0, Operand(rhs_exponent, LSL, kSmiTagSize));
     __ mov(pc, Operand(lr));
   } else {
     // Call a native function to do a comparison between two non-NaNs.
@@ -5036,9 +5039,10 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
                                        Label* both_loaded_as_doubles,
                                        Label* not_heap_numbers,
                                        Label* slow) {
-  __ CompareObjectType(r0, r2, r2, HEAP_NUMBER_TYPE);
+  __ CompareObjectType(r0, r3, r2, HEAP_NUMBER_TYPE);
   __ b(ne, not_heap_numbers);
-  __ CompareObjectType(r1, r3, r3, HEAP_NUMBER_TYPE);
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r2, r3);
   __ b(ne, slow);  // First was a heap number, second wasn't.  Go slow case.
 
   // Both are heap numbers.  Load them up then jump to the code we have
@@ -5075,7 +5079,7 @@ static void EmitCheckForSymbols(MacroAssembler* masm, Label* slow) {
 // positive or negative to indicate the result of the comparison.
 void CompareStub::Generate(MacroAssembler* masm) {
   Label slow;  // Call builtin.
-  Label not_smis, both_loaded_as_doubles, rhs_not_nan;
+  Label not_smis, both_loaded_as_doubles, lhs_not_nan;
 
   // NOTICE! This code is only reached after a smi-fast-case check, so
   // it is certain that at least one operand isn't a smi.
@@ -5095,32 +5099,46 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // 1) Return the answer.
   // 2) Go to slow.
   // 3) Fall through to both_loaded_as_doubles.
-  // 4) Jump to rhs_not_nan.
+  // 4) Jump to lhs_not_nan.
   // In cases 3 and 4 we have found out we were dealing with a number-number
   // comparison and the numbers have been loaded into r0, r1, r2, r3 as doubles.
-  EmitSmiNonsmiComparison(masm, &rhs_not_nan, &slow, strict_);
+  EmitSmiNonsmiComparison(masm, &lhs_not_nan, &slow, strict_);
 
   __ bind(&both_loaded_as_doubles);
-  // r0, r1, r2, r3 are the double representations of the left hand side
-  // and the right hand side.
-
-  // Checks for NaN in the doubles we have loaded.  Can return the answer or
-  // fall through if neither is a NaN.  Also binds rhs_not_nan.
-  EmitNanCheck(masm, &rhs_not_nan, cc_);
+  // r0, r1, r2, r3 are the double representations of the right hand side
+  // and the left hand side.
 
   if (CpuFeatures::IsSupported(VFP3)) {
+    __ bind(&lhs_not_nan);
     CpuFeatures::Scope scope(VFP3);
+    Label no_nan;
     // ARMv7 VFP3 instructions to implement double precision comparison.
     __ vmov(d6, r0, r1);
     __ vmov(d7, r2, r3);
 
-    __ vcmp(d6, d7);
-    __ vmrs(pc);
-    __ mov(r0, Operand(0), LeaveCC, eq);
-    __ mov(r0, Operand(1), LeaveCC, lt);
-    __ mvn(r0, Operand(0), LeaveCC, gt);
+    __ vcmp(d7, d6);
+    __ vmrs(pc);  // Move vector status bits to normal status bits.
+    Label nan;
+    __ b(vs, &nan);
+    __ mov(r0, Operand(EQUAL), LeaveCC, eq);
+    __ mov(r0, Operand(LESS), LeaveCC, lt);
+    __ mov(r0, Operand(GREATER), LeaveCC, gt);
+    __ mov(pc, Operand(lr));
+
+    __ bind(&nan);
+    // If one of the sides was a NaN then the v flag is set.  Load r0 with
+    // whatever it takes to make the comparison fail, since comparisons with NaN
+    // always fail.
+    if (cc_ == lt || cc_ == le) {
+      __ mov(r0, Operand(GREATER));
+    } else {
+      __ mov(r0, Operand(LESS));
+    }
     __ mov(pc, Operand(lr));
   } else {
+    // Checks for NaN in the doubles we have loaded.  Can return the answer or
+    // fall through if neither is a NaN.  Also binds lhs_not_nan.
+    EmitNanCheck(masm, &lhs_not_nan, cc_);
     // Compares two doubles in r0, r1, r2, r3 that are not NaNs.  Returns the
     // answer.  Never falls through.
     EmitTwoNonNanDoubleComparison(masm, cc_);
@@ -5139,7 +5157,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // Check for heap-number-heap-number comparison.  Can jump to slow case,
   // or load both doubles into r0, r1, r2, r3 and jump to the code that handles
   // that case.  If the inputs are not doubles then jumps to check_for_symbols.
-  // In this case r2 will contain the type of r0.
+  // In this case r2 will contain the type of r0.  Never falls through.
   EmitCheckForTwoHeapNumbers(masm,
                              &both_loaded_as_doubles,
                              &check_for_symbols,

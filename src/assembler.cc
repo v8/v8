@@ -44,6 +44,7 @@
 #include "regexp-stack.h"
 #include "ast.h"
 #include "regexp-macro-assembler.h"
+#include "platform.h"
 // Include native regexp-macro-assembler.
 #ifdef V8_NATIVE_REGEXP
 #if V8_TARGET_ARCH_IA32
@@ -706,13 +707,13 @@ static double div_two_doubles(double x, double y) {
 
 
 static double mod_two_doubles(double x, double y) {
-  return fmod(x, y);
+  return modulo(x, y);
 }
 
 
-static int native_compare_doubles(double x, double y) {
-  if (x == y) return 0;
-  return x < y ? 1 : -1;
+static int native_compare_doubles(double y, double x) {
+  if (x == y) return EQUAL;
+  return x < y ? LESS : GREATER;
 }
 
 
