@@ -293,6 +293,9 @@ class FileByteSink : public SnapshotByteSink {
       fputc(byte, fp_);
     }
   }
+  virtual int Position() {
+    return ftell(fp_);
+  }
   void WriteSpaceUsed(
       int new_space_used,
       int pointer_space_used,
