@@ -355,6 +355,10 @@ void Debugger::Debug() {
         } else {
           PrintF("Not at debugger stop.");
         }
+      } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
+        ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
+        PrintF("Trace of executed instructions is %s\n",
+               ::v8::internal::FLAG_trace_sim ? "on" : "off");
       } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
         PrintF("cont\n");
         PrintF("  continue execution (alias 'c')\n");
@@ -378,7 +382,9 @@ void Debugger::Debug() {
         PrintF("  delete the breakpoint\n");
         PrintF("unstop\n");
         PrintF("  ignore the stop instruction at the current location");
-        PrintF(" from now on\n");
+        PrintF("  from now on\n");
+        PrintF("trace (alias 't')\n");
+        PrintF("  toogle the tracing of all executed statements");
       } else {
         PrintF("Unknown command: %s\n", cmd);
       }
