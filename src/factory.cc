@@ -718,6 +718,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 }
 
 
+Handle<Object> Factory::ToObject(Handle<Object> object) {
+  CALL_HEAP_FUNCTION(object->ToObject(), Object);
+}
+
+
 Handle<Object> Factory::ToObject(Handle<Object> object,
                                  Handle<Context> global_context) {
   CALL_HEAP_FUNCTION(object->ToObject(*global_context), Object);

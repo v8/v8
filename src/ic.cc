@@ -378,7 +378,7 @@ Object* CallIC::TryCallAsFunction(Object* object) {
   return *delegate;
 }
 
-void CallIC::ReceiverToObject(Object* object) {
+void CallIC::ReceiverToObject(Handle<Object> object) {
   HandleScope scope;
   Handle<Object> receiver(object);
 
@@ -387,7 +387,7 @@ void CallIC::ReceiverToObject(Object* object) {
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
   int index = frame->ComputeExpressionsCount() - (argc + 1);
-  frame->SetExpression(index, object->ToObject());
+  frame->SetExpression(index, *Factory::ToObject(object));
 }
 
 
@@ -401,7 +401,7 @@ Object* CallIC::LoadFunction(State state,
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    ReceiverToObject(*object);
+    ReceiverToObject(object);
   }
 
   // Check if the name is trivially convertible to an index and get
