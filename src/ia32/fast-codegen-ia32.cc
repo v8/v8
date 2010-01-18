@@ -422,6 +422,7 @@ void FastCodeGenerator::Apply(Expression::Context context,
     case Expression::kEffect:
       ASSERT_EQ(materialize_true, materialize_false);
       __ bind(materialize_true);
+      break;
 
     case Expression::kValue: {
       Label done;
