@@ -982,7 +982,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // rsp[16] argument argc - 1
   // ...
   // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = reciever
+  // rsp[(argc + 1) * 8] argument 0 = receiver
   // rsp[(argc + 2) * 8] function name
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
@@ -1078,7 +1078,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // rsp[16] argument argc - 1
   // ...
   // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = reciever
+  // rsp[(argc + 1) * 8] argument 0 = receiver
   // rsp[(argc + 2) * 8] function name
   // -----------------------------------
 

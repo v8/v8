@@ -688,7 +688,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // rsp[16] argument argc - 1
   // ...
   // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = reciever
+  // rsp[(argc + 1) * 8] argument 0 = receiver
   // rsp[(argc + 2) * 8] function name
 
   Label miss;
