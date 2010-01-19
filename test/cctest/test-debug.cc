@@ -2202,9 +2202,8 @@ bool GetEvaluateStringResult(char *message, char* buffer, int buffer_size) {
   if (pos == NULL) {
     return false;
   }
-  Vector<char> buf(buffer, buffer_size);
+  Vector<char> buf(buffer, buffer_size - 1);
   OS::StrNCpy(buf, pos, buffer_size);
-  buffer[buffer_size - 1] = '\0';
   return true;
 }
 
