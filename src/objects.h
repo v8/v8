@@ -2889,6 +2889,14 @@ class Map: public HeapObject {
     return ((1 << kHasInstanceCallHandler) & bit_field()) != 0;
   }
 
+  inline void set_is_extensible() {
+    set_bit_field2(bit_field2() | (1 << kIsExtensible));
+  }
+
+  inline bool is_extensible() {
+    return ((1 << kIsExtensible) & bit_field2()) != 0;
+  }
+
   // Tells whether the instance needs security checks when accessing its
   // properties.
   inline void set_is_access_check_needed(bool access_check_needed);
@@ -3006,6 +3014,7 @@ class Map: public HeapObject {
 
   // Bit positions for bit field 2
   static const int kNeedsLoading = 0;
+  static const int kIsExtensible = 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);

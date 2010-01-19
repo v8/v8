@@ -68,6 +68,8 @@ namespace internal {
   \
   F(GetOwnProperty, 2, 1) \
   \
+  F(IsExtensible, 1, 1) \
+  \
   /* Utilities */ \
   F(GetCalledFunction, 0, 1) \
   F(GetFunctionDelegate, 1, 1) \

@@ -583,6 +583,7 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 //  if args[1] is an accessor on args[0]
 //         [true, GetFunction, SetFunction, Enumerable, Configurable]
 static Object* Runtime_GetOwnProperty(Arguments args) {
+  ASSERT(args.lenght() == 2);
   HandleScope scope;
   Handle<FixedArray> elms = Factory::NewFixedArray(5);
   Handle<JSArray> desc = Factory::NewJSArrayWithElements(elms);
@@ -623,6 +624,14 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   elms->set(3, Heap::ToBoolean(!result.IsDontEnum()));
   elms->set(4, Heap::ToBoolean(!result.IsReadOnly()));
   return *desc;
+}
+
+
+static Object* Runtime_IsExtensible(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSObject, obj, args[0]);
+  return obj->map()->is_extensible() ?  Heap::true_value()
+                                     : Heap::false_value();
 }
 
 
