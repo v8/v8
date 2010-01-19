@@ -404,8 +404,8 @@ v8::Handle<v8::Value> ReadLine(const v8::Arguments& args) {
 }
 
 v8::Handle<v8::String> ReadLine() {
-  const int buffer_size = 1024 + 1;
-  char buffer[buffer_size];
+  const int kBufferSize = 1024 + 1;
+  char buffer[kBufferSize];
 
   char* res;
   {
