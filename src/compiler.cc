@@ -935,7 +935,7 @@ void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::DELETE:
       BAILOUT("UnaryOperataion: DELETE");
     default:
-      UNREACHABLE();
+      BAILOUT("UnaryOperataion");
   }
 }
 
