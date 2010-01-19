@@ -410,7 +410,7 @@ v8::Handle<v8::String> ReadLine() {
   char* res;
   {
     v8::Unlocker unlocker;
-    res = fgets(buffer, buffer_size, stdin);
+    res = fgets(buffer, kBufferSize, stdin);
   }
   if (res == NULL) {
     v8::Handle<v8::Primitive> t = v8::Undefined();
