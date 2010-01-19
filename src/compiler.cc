@@ -881,7 +881,6 @@ void CodeGenSelector::VisitCall(Call* expr) {
     BAILOUT("call to a lookup slot");
   } else if (fun->AsProperty() != NULL) {
     Property* prop = fun->AsProperty();
-    Literal* literal_key = prop->key()->AsLiteral();
     Visit(prop->obj());
     CHECK_BAILOUT;
     Visit(prop->key());
@@ -931,9 +930,9 @@ void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::TYPEOF:
       Visit(expr->expression());
       break;
-    case BIT_NOT:
+    case Token::BIT_NOT:
       BAILOUT("UnaryOperataion: BIT_NOT");
-    case DELETE:
+    case Token::DELETE:
       BAILOUT("UnaryOperataion: DELETE");
     default:
       UNREACHABLE();

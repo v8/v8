@@ -583,7 +583,7 @@ static void GetOwnPropertyImplementation(JSObject* obj,
 //  if args[1] is an accessor on args[0]
 //         [true, GetFunction, SetFunction, Enumerable, Configurable]
 static Object* Runtime_GetOwnProperty(Arguments args) {
-  ASSERT(args.lenght() == 2);
+  ASSERT(args.length() == 2);
   HandleScope scope;
   Handle<FixedArray> elms = Factory::NewFixedArray(5);
   Handle<JSArray> desc = Factory::NewJSArrayWithElements(elms);
