@@ -28,6 +28,9 @@
 // When calling user-defined functions on strings, booleans or
 // numbers, we should create a wrapper object.
 
+// When running the tests use loops to ensure that the call site moves through
+// the different IC states and that both the runtime system and the generated
+// IC code is tested.
 function RunTests() {
   for (var i = 0; i < 10; i++) {
     assertEquals('object', 'xxx'.TypeOfThis());
@@ -77,6 +80,22 @@ function RunTests() {
     assertEquals('object', (42)[7]());
     assertEquals('object', (3.14)[7]());
   }
+
+  for (var i = 0; i < 10; i++) {
+    assertEquals('object', typeof 'xxx'.ObjectValueOf());
+    assertEquals('object', typeof true.ObjectValueOf());
+    assertEquals('object', typeof false.ObjectValueOf());
+    assertEquals('object', typeof (42).ObjectValueOf());
+    assertEquals('object', typeof (3.14).ObjectValueOf());
+  }
+
+  for (var i = 0; i < 10; i++) {
+    assertEquals('[object String]', 'xxx'.ObjectToString());
+    assertEquals('[object Boolean]', true.ObjectToString());
+    assertEquals('[object Boolean]', false.ObjectToString());
+    assertEquals('[object Number]', (42).ObjectToString());
+    assertEquals('[object Number]', (3.14).ObjectToString());
+  }
 }
 
 function TypeOfThis() { return typeof this; }
@@ -87,7 +106,14 @@ Boolean.prototype.TypeOfThis = TypeOfThis;
 Number.prototype.TypeOfThis = TypeOfThis;
 Boolean.prototype[7] = TypeOfThis;
 Number.prototype[7] = TypeOfThis;
-  
+
+String.prototype.ObjectValueOf = Object.prototype.valueOf;
+Boolean.prototype.ObjectValueOf = Object.prototype.valueOf;
+Number.prototype.ObjectValueOf = Object.prototype.valueOf;
+
+String.prototype.ObjectToString = Object.prototype.toString;
+Boolean.prototype.ObjectToString = Object.prototype.toString;
+Number.prototype.ObjectToString = Object.prototype.toString;
 
 RunTests();
 

@@ -3622,6 +3622,22 @@ void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsUndetectableObject(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  Condition is_smi = masm_->CheckSmi(obj.reg());
+  destination()->false_target()->Branch(is_smi);
+  __ movq(kScratchRegister, FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  __ movzxbl(kScratchRegister,
+             FieldOperand(kScratchRegister, Map::kBitFieldOffset));
+  __ testl(kScratchRegister, Immediate(1 << Map::kIsUndetectable));
+  obj.Unuse();
+  destination()->Split(not_zero);
+}
+
+
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 

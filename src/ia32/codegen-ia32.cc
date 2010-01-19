@@ -5183,6 +5183,26 @@ void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsUndetectableObject(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result obj = frame_->Pop();
+  obj.ToRegister();
+  __ test(obj.reg(), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(zero);
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  __ mov(temp.reg(),
+         FieldOperand(obj.reg(), HeapObject::kMapOffset));
+  __ movzx_b(temp.reg(),
+             FieldOperand(temp.reg(), Map::kBitFieldOffset));
+  __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+  obj.Unuse();
+  temp.Unuse();
+  destination()->Split(not_zero);
+}
+
+
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 

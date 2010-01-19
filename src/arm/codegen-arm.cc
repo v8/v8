@@ -3470,6 +3470,20 @@ void CodeGenerator::GenerateIsFunction(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsUndetectableObject(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 1);
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r0);
+  __ tst(r0, Operand(kSmiTagMask));
+  false_target()->Branch(eq);
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r1, Map::kBitFieldOffset));
+  __ tst(r1, Operand(1 << Map::kIsUndetectable));
+  cc_reg_ = ne;
+}
+
+
 void CodeGenerator::GenerateIsConstructCall(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 0);

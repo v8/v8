@@ -344,6 +344,7 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateRandomPositiveSmi, "_RandomPositiveSmi"},
   {&CodeGenerator::GenerateIsObject, "_IsObject"},
   {&CodeGenerator::GenerateIsFunction, "_IsFunction"},
+  {&CodeGenerator::GenerateIsUndetectableObject, "_IsUndetectableObject"},
   {&CodeGenerator::GenerateStringAdd, "_StringAdd"},
   {&CodeGenerator::GenerateSubString, "_SubString"},
   {&CodeGenerator::GenerateStringCompare, "_StringCompare"},
