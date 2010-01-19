@@ -2788,6 +2788,10 @@ static const char* kExtensionTestScript =
 
 static v8::Handle<Value> CallFun(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  if (args.IsConstructCall()) {
+    args.This()->Set(v8_str("data"), args.Data());
+    return v8::Null();
+  }
   return args.Data();
 }
 
@@ -2826,6 +2830,21 @@ THREADED_TEST(FunctionLookup) {
   CHECK_EQ(v8::Integer::New(8), Script::Compile(v8_str("Foo(0)"))->Run());
   CHECK_EQ(v8::Integer::New(7), Script::Compile(v8_str("Foo(1)"))->Run());
   CHECK_EQ(v8::Integer::New(6), Script::Compile(v8_str("Foo(2)"))->Run());
+}
+
+
+THREADED_TEST(NativeFunctionConstructCall) {
+  v8::RegisterExtension(new FunctionExtension());
+  v8::HandleScope handle_scope;
+  static const char* exts[1] = { "functiontest" };
+  v8::ExtensionConfiguration config(1, exts);
+  LocalContext context(&config);
+  CHECK_EQ(v8::Integer::New(8),
+           Script::Compile(v8_str("(new A()).data"))->Run());
+  CHECK_EQ(v8::Integer::New(7),
+           Script::Compile(v8_str("(new B()).data"))->Run());
+  CHECK_EQ(v8::Integer::New(6),
+           Script::Compile(v8_str("(new C()).data"))->Run());
 }
 
 

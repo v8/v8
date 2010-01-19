@@ -1868,8 +1868,10 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<JSFunction> fun = Utils::OpenHandle(*fun_template->GetFunction());
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
+  Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<JSFunction> boilerplate =
       Factory::NewFunctionBoilerplate(name, literals, code);
+  boilerplate->shared()->set_construct_stub(*construct_stub);
 
   // Copy the function data to the boilerplate. Used by
   // builtins.cc:HandleApiCall to perform argument type checks and to
