@@ -38,6 +38,9 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
+# Temporary disable the test.
+test-mark-compact/MapCompact: SKIP
+
 
 [ $arch == arm ]
 
