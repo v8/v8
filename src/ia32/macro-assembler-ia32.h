@@ -392,6 +392,8 @@ class MacroAssembler: public Assembler {
   void SetCounter(StatsCounter* counter, int value);
   void IncrementCounter(StatsCounter* counter, int value);
   void DecrementCounter(StatsCounter* counter, int value);
+  void IncrementCounter(Condition cc, StatsCounter* counter, int value);
+  void DecrementCounter(Condition cc, StatsCounter* counter, int value);
 
 
   // ---------------------------------------------------------------------------

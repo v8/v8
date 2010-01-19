@@ -1454,6 +1454,36 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
 }
 
 
+void MacroAssembler::IncrementCounter(Condition cc,
+                                      StatsCounter* counter,
+                                      int value) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    Label skip;
+    j(NegateCondition(cc), &skip);
+    pushfd();
+    IncrementCounter(counter, value);
+    popfd();
+    bind(&skip);
+  }
+}
+
+
+void MacroAssembler::DecrementCounter(Condition cc,
+                                      StatsCounter* counter,
+                                      int value) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    Label skip;
+    j(NegateCondition(cc), &skip);
+    pushfd();
+    DecrementCounter(counter, value);
+    popfd();
+    bind(&skip);
+  }
+}
+
+
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code) Check(cc, msg);
 }
