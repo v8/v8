@@ -778,13 +778,13 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   __ push(rsi);
   __ Push(boilerplate);
   __ CallRuntime(Runtime::kNewClosure, 2);
-  Apply(expr->context(), rax);
+  Apply(context_, rax);
 }
 
 
 void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
-  EmitVariableLoad(expr->var(), expr->context());
+  EmitVariableLoad(expr->var(), context_);
 }
 
 
@@ -886,7 +886,7 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ Push(expr->flags());
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   __ bind(&done);
-  Apply(expr->context(), rax);
+  Apply(context_, rax);
 }
 
 
@@ -953,9 +953,9 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   }
 
   if (result_saved) {
-    ApplyTOS(expr->context());
+    ApplyTOS(context_);
   } else {
-    Apply(expr->context(), rax);
+    Apply(context_, rax);
   }
 }
 
@@ -1003,9 +1003,9 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   if (result_saved) {
-    ApplyTOS(expr->context());
+    ApplyTOS(context_);
   } else {
-    Apply(expr->context(), rax);
+    Apply(context_, rax);
   }
 }
 
@@ -1117,7 +1117,7 @@ void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ pop(rax);
   }
 
-  DropAndApply(1, expr->context(), rax);
+  DropAndApply(1, context_, rax);
 }
 
 
@@ -1153,7 +1153,7 @@ void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   }
 
   // Receiver and key are still on stack.
-  DropAndApply(2, expr->context(), rax);
+  DropAndApply(2, context_, rax);
 }
 
 
@@ -1167,12 +1167,12 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   if (key->IsPropertyName()) {
     EmitNamedPropertyLoad(expr);
     // Drop receiver left on the stack by IC.
-    DropAndApply(1, expr->context(), rax);
+    DropAndApply(1, context_, rax);
   } else {
     VisitForValue(expr->key(), kStack);
     EmitKeyedPropertyLoad(expr);
     // Drop key and receiver left on the stack by IC.
-    DropAndApply(2, expr->context(), rax);
+    DropAndApply(2, context_, rax);
   }
 }
 
@@ -1196,7 +1196,7 @@ void FastCodeGenerator::EmitCallWithIC(Call* expr,
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
-  DropAndApply(1, expr->context(), rax);
+  DropAndApply(1, context_, rax);
 }
 
 
@@ -1214,7 +1214,7 @@ void FastCodeGenerator::EmitCallWithStub(Call* expr) {
   // Restore context register.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   // Discard the function left on TOS.
-  DropAndApply(1, expr->context(), rax);
+  DropAndApply(1, context_, rax);
 }
 
 
@@ -1323,7 +1323,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Call(construct_builtin, RelocInfo::CONSTRUCT_CALL);
 
   // Replace function on TOS with result in rax, or pop it.
-  DropAndApply(1, expr->context(), rax);
+  DropAndApply(1, context_, rax);
 }
 
 
@@ -1352,10 +1352,10 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     // Restore context register.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
     // Discard the function left on TOS.
-    DropAndApply(1, expr->context(), rax);
+    DropAndApply(1, context_, rax);
   } else {
     __ CallRuntime(expr->function(), arg_count);
-    Apply(expr->context(), rax);
+    Apply(context_, rax);
   }
 }
 
@@ -1364,9 +1364,8 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::VOID: {
       Comment cmnt(masm_, "[ UnaryOperation (VOID)");
-      ASSERT_EQ(Expression::kEffect, expr->expression()->context());
-      Visit(expr->expression());
-      switch (expr->context()) {
+      VisitForEffect(expr->expression());
+      switch (context_) {
         case Expression::kUninitialized:
           UNREACHABLE();
           break;
@@ -1403,14 +1402,12 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 
     case Token::NOT: {
       Comment cmnt(masm_, "[ UnaryOperation (NOT)");
-      ASSERT_EQ(Expression::kTest, expr->expression()->context());
-
       Label materialize_true, materialize_false, done;
       // Initially assume a pure test context.  Notice that the labels are
       // swapped.
       Label* if_true = false_label_;
       Label* if_false = true_label_;
-      switch (expr->context()) {
+      switch (context_) {
         case Expression::kUninitialized:
           UNREACHABLE();
           break;
@@ -1432,14 +1429,12 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           break;
       }
       VisitForControl(expr->expression(), if_true, if_false);
-      Apply(expr->context(), if_false, if_true);  // Labels swapped.
+      Apply(context_, if_false, if_true);  // Labels swapped.
       break;
     }
 
     case Token::TYPEOF: {
       Comment cmnt(masm_, "[ UnaryOperation (TYPEOF)");
-      ASSERT_EQ(Expression::kValue, expr->expression()->context());
-
       VariableProxy* proxy = expr->expression()->AsVariableProxy();
       if (proxy != NULL &&
           !proxy->var()->is_this() &&
@@ -1465,7 +1460,7 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       }
 
       __ CallRuntime(Runtime::kTypeof, 1);
-      Apply(expr->context(), rax);
+      Apply(context_, rax);
       break;
     }
 
@@ -1486,9 +1481,8 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // In case of a property we use the uninitialized expression context
   // of the key to detect a named property.
   if (prop != NULL) {
-    assign_type = (prop->key()->context() == Expression::kUninitialized)
-        ? NAMED_PROPERTY
-        : KEYED_PROPERTY;
+    assign_type =
+        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
   }
 
   // Evaluate expression and get value.
@@ -1501,8 +1495,7 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
     location_ = saved_location;
   } else  {
     // Reserve space for result of postfix operation.
-    if (expr->is_postfix() && expr->context() != Expression::kEffect) {
-      ASSERT(expr->context() != Expression::kUninitialized);
+    if (expr->is_postfix() && context_ != Expression::kEffect) {
       __ Push(Smi::FromInt(0));
     }
     VisitForValue(prop->obj(), kStack);
@@ -1520,7 +1513,7 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
-    switch (expr->context()) {
+    switch (context_) {
       case Expression::kUninitialized:
         UNREACHABLE();
       case Expression::kEffect:
@@ -1564,12 +1557,12 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
                                Expression::kEffect);
         // For all contexts except kEffect: We have the result on
         // top of the stack.
-        if (expr->context() != Expression::kEffect) {
-          ApplyTOS(expr->context());
+        if (context_ != Expression::kEffect) {
+          ApplyTOS(context_);
         }
       } else {
         EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
-                               expr->context());
+                               context_);
       }
       break;
     case NAMED_PROPERTY: {
@@ -1581,11 +1574,11 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ nop();
       if (expr->is_postfix()) {
         __ Drop(1);  // Result is on the stack under the receiver.
-        if (expr->context() != Expression::kEffect) {
-          ApplyTOS(expr->context());
+        if (context_ != Expression::kEffect) {
+          ApplyTOS(context_);
         }
       } else {
-        DropAndApply(1, expr->context(), rax);
+        DropAndApply(1, context_, rax);
       }
       break;
     }
@@ -1597,11 +1590,11 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ nop();
       if (expr->is_postfix()) {
         __ Drop(2);  // Result is on the stack under the key and the receiver.
-        if (expr->context() != Expression::kEffect) {
-          ApplyTOS(expr->context());
+        if (context_ != Expression::kEffect) {
+          ApplyTOS(context_);
         }
       } else {
-        DropAndApply(2, expr->context(), rax);
+        DropAndApply(2, context_, rax);
       }
       break;
     }
@@ -1612,9 +1605,7 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   Comment cmnt(masm_, "[ BinaryOperation");
   switch (expr->op()) {
     case Token::COMMA:
-      ASSERT_EQ(Expression::kEffect, expr->left()->context());
-      ASSERT_EQ(expr->context(), expr->right()->context());
-      Visit(expr->left());
+      VisitForEffect(expr->left());
       Visit(expr->right());
       break;
 
@@ -1636,7 +1627,7 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SAR:
       VisitForValue(expr->left(), kStack);
       VisitForValue(expr->right(), kAccumulator);
-      EmitBinaryOp(expr->op(), expr->context());
+      EmitBinaryOp(expr->op(), context_);
       break;
 
     default:
@@ -1654,7 +1645,7 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   // Initially assume we are in a test context.
   Label* if_true = true_label_;
   Label* if_false = false_label_;
-  switch (expr->context()) {
+  switch (context_) {
     case Expression::kUninitialized:
       UNREACHABLE();
       break;
@@ -1753,13 +1744,13 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 
   // Convert the result of the comparison into one expected for this
   // expression's context.
-  Apply(expr->context(), if_true, if_false);
+  Apply(context_, if_true, if_false);
 }
 
 
 void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  Apply(expr->context(), rax);
+  Apply(context_, rax);
 }
 
 

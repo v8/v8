@@ -250,23 +250,70 @@ class FastCodeGenerator: public AstVisitor {
   // register.
   MemOperand EmitSlotSearch(Slot* slot, Register scratch);
 
+  void VisitForEffect(Expression* expr) {
+    Expression::Context saved_context = context_;
+    context_ = Expression::kEffect;
+    Visit(expr);
+    context_ = saved_context;
+  }
+
   void VisitForValue(Expression* expr, Location where) {
-    ASSERT(expr->context() == Expression::kValue);
+    Expression::Context saved_context = context_;
     Location saved_location = location_;
+    context_ = Expression::kValue;
     location_ = where;
     Visit(expr);
+    context_ = saved_context;
     location_ = saved_location;
   }
 
   void VisitForControl(Expression* expr, Label* if_true, Label* if_false) {
-    ASSERT(expr->context() == Expression::kTest ||
-           expr->context() == Expression::kValueTest ||
-           expr->context() == Expression::kTestValue);
+    Expression::Context saved_context = context_;
     Label* saved_true = true_label_;
     Label* saved_false = false_label_;
+    context_ = Expression::kTest;
     true_label_ = if_true;
     false_label_ = if_false;
     Visit(expr);
+    context_ = saved_context;
+    true_label_ = saved_true;
+    false_label_ = saved_false;
+  }
+
+  void VisitForValueControl(Expression* expr,
+                            Location where,
+                            Label* if_true,
+                            Label* if_false) {
+    Expression::Context saved_context = context_;
+    Location saved_location = location_;
+    Label* saved_true = true_label_;
+    Label* saved_false = false_label_;
+    context_ = Expression::kValueTest;
+    location_ = where;
+    true_label_ = if_true;
+    false_label_ = if_false;
+    Visit(expr);
+    context_ = saved_context;
+    location_ = saved_location;
+    true_label_ = saved_true;
+    false_label_ = saved_false;
+  }
+
+  void VisitForControlValue(Expression* expr,
+                            Location where,
+                            Label* if_true,
+                            Label* if_false) {
+    Expression::Context saved_context = context_;
+    Location saved_location = location_;
+    Label* saved_true = true_label_;
+    Label* saved_false = false_label_;
+    context_ = Expression::kTestValue;
+    location_ = where;
+    true_label_ = if_true;
+    false_label_ = if_false;
+    Visit(expr);
+    context_ = saved_context;
+    location_ = saved_location;
     true_label_ = saved_true;
     false_label_ = saved_false;
   }
@@ -356,6 +403,7 @@ class FastCodeGenerator: public AstVisitor {
   NestedStatement* nesting_stack_;
   int loop_depth_;
 
+  Expression::Context context_;
   Location location_;
   Label* true_label_;
   Label* false_label_;

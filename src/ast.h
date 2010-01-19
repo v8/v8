@@ -180,8 +180,6 @@ class Expression: public AstNode {
     kTestValue
   };
 
-  Expression() : context_(kUninitialized) {}
-
   virtual Expression* AsExpression()  { return this; }
 
   virtual bool IsValidJSON() { return false; }
@@ -200,12 +198,8 @@ class Expression: public AstNode {
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
-  Context context() { return context_; }
-  void set_context(Context context) { context_ = context; }
-
  private:
   StaticType type_;
-  Context context_;
 };
 
 

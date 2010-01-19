@@ -165,68 +165,65 @@ void FastCodeGenerator::SetSourcePosition(int pos) {
 
 
 void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
-#ifdef DEBUG
-  Expression::Context expected = Expression::kUninitialized;
-  switch (expr->context()) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-    case Expression::kEffect:
-    case Expression::kTest:
-      // The value of the left subexpression is not needed.
-      expected = Expression::kTest;
-      break;
-    case Expression::kValue:
-      // The value of the left subexpression is needed and its specific
-      // context depends on the operator.
-      expected = (expr->op() == Token::OR)
-          ? Expression::kValueTest
-          : Expression::kTestValue;
-      break;
-    case Expression::kValueTest:
-      // The value of the left subexpression is needed for OR.
-      expected = (expr->op() == Token::OR)
-          ? Expression::kValueTest
-          : Expression::kTest;
-      break;
-    case Expression::kTestValue:
-      // The value of the left subexpression is needed for AND.
-      expected = (expr->op() == Token::OR)
-          ? Expression::kTest
-          : Expression::kTestValue;
-      break;
-  }
-  ASSERT_EQ(expected, expr->left()->context());
-  ASSERT_EQ(expr->context(), expr->right()->context());
-#endif
-
   Label eval_right, done;
 
   // Set up the appropriate context for the left subexpression based
   // on the operation and our own context.  Initially assume we can
   // inherit both true and false labels from our context.
-  Label* if_true = true_label_;
-  Label* if_false = false_label_;
   if (expr->op() == Token::OR) {
-    // If we are not in some kind of a test context, we did not inherit a
-    // true label from our context.  Use the end of the expression.
-    if (expr->context() == Expression::kEffect ||
-        expr->context() == Expression::kValue) {
-      if_true = &done;
+    switch (context_) {
+      case Expression::kUninitialized:
+        UNREACHABLE();
+      case Expression::kEffect:
+        VisitForControl(expr->left(), &done, &eval_right);
+        break;
+      case Expression::kValue:
+        VisitForValueControl(expr->left(),
+                             location_,
+                             &done,
+                             &eval_right);
+        break;
+      case Expression::kTest:
+        VisitForControl(expr->left(), true_label_, &eval_right);
+        break;
+      case Expression::kValueTest:
+        VisitForValueControl(expr->left(),
+                             location_,
+                             true_label_,
+                             &eval_right);
+        break;
+      case Expression::kTestValue:
+        VisitForControl(expr->left(), true_label_, &eval_right);
+        break;
     }
-    // The false label is the label of the right subexpression.
-    if_false = &eval_right;
   } else {
     ASSERT_EQ(Token::AND, expr->op());
-    // The true label is the label of the right subexpression.
-    if_true = &eval_right;
-    // If we are not in some kind of a test context, we did not inherit a
-    // false label from our context.  Use the end of the expression.
-    if (expr->context() == Expression::kEffect ||
-        expr->context() == Expression::kValue) {
-      if_false = &done;
+    switch (context_) {
+      case Expression::kUninitialized:
+        UNREACHABLE();
+      case Expression::kEffect:
+        VisitForControl(expr->left(), &eval_right, &done);
+        break;
+      case Expression::kValue:
+        VisitForControlValue(expr->left(),
+                             location_,
+                             &eval_right,
+                             &done);
+        break;
+      case Expression::kTest:
+        VisitForControl(expr->left(), &eval_right, false_label_);
+        break;
+      case Expression::kValueTest:
+        VisitForControl(expr->left(), &eval_right, false_label_);
+        break;
+      case Expression::kTestValue:
+        VisitForControlValue(expr->left(),
+                             location_,
+                             &eval_right,
+                             false_label_);
+        break;
     }
   }
-  VisitForControl(expr->left(), if_true, if_false);
 
   __ bind(&eval_right);
   Visit(expr->right());
@@ -247,7 +244,7 @@ void FastCodeGenerator::VisitBlock(Block* stmt) {
 void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   Comment cmnt(masm_, "[ ExpressionStatement");
   SetStatementPosition(stmt);
-  Visit(stmt->expression());
+  VisitForEffect(stmt->expression());
 }
 
 
@@ -446,7 +443,6 @@ void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // that scope again afterwards.
 
   Label try_handler_setup, catch_entry, done;
-
   __ Call(&try_handler_setup);
   // Try handler code, exception in result register.
 
@@ -558,27 +554,20 @@ void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
 
 void FastCodeGenerator::VisitConditional(Conditional* expr) {
   Comment cmnt(masm_, "[ Conditional");
-  ASSERT_EQ(Expression::kTest, expr->condition()->context());
-  ASSERT_EQ(expr->context(), expr->then_expression()->context());
-  ASSERT_EQ(expr->context(), expr->else_expression()->context());
-
-
   Label true_case, false_case, done;
   VisitForControl(expr->condition(), &true_case, &false_case);
 
   __ bind(&true_case);
   Visit(expr->then_expression());
   // If control flow falls through Visit, jump to done.
-  if (expr->context() == Expression::kEffect ||
-      expr->context() == Expression::kValue) {
+  if (context_ == Expression::kEffect || context_ == Expression::kValue) {
     __ jmp(&done);
   }
 
   __ bind(&false_case);
   Visit(expr->else_expression());
   // If control flow falls through Visit, merge it with true case here.
-  if (expr->context() == Expression::kEffect ||
-      expr->context() == Expression::kValue) {
+  if (context_ == Expression::kEffect || context_ == Expression::kValue) {
     __ bind(&done);
   }
 }
@@ -592,24 +581,20 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 
 void FastCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
-  Apply(expr->context(), expr);
+  Apply(context_, expr);
 }
 
 
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
-
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
   LhsKind assign_type = VARIABLE;
   Property* prop = expr->target()->AsProperty();
-  // In case of a property we use the uninitialized expression context
-  // of the key to detect a named property.
   if (prop != NULL) {
-    assign_type = (prop->key()->context() == Expression::kUninitialized)
-        ? NAMED_PROPERTY
-        : KEYED_PROPERTY;
+    assign_type =
+        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
   }
 
   // Evaluate LHS expression.
@@ -667,7 +652,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE:
       EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
-                             expr->context());
+                             context_);
       break;
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);
@@ -683,14 +668,11 @@ void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
   Comment cmnt(masm_, "[ CatchExtensionObject");
-
   VisitForValue(expr->key(), kStack);
   VisitForValue(expr->value(), kStack);
-
   // Create catch extension object.
   __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-
-  __ push(result_register());
+  Apply(context_, result_register());
 }
 
 

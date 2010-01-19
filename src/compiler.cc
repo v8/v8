@@ -46,25 +46,11 @@ class CodeGenSelector: public AstVisitor {
  public:
   enum CodeGenTag { NORMAL, FAST };
 
-  CodeGenSelector()
-      : has_supported_syntax_(true),
-        context_(Expression::kUninitialized) {
-  }
+  CodeGenSelector() : has_supported_syntax_(true) {}
 
   CodeGenTag Select(FunctionLiteral* fun);
 
  private:
-  // Visit an expression in a given expression context.
-  void ProcessExpression(Expression* expr, Expression::Context context) {
-    ASSERT(expr->context() == Expression::kUninitialized ||
-           expr->context() == context);
-    Expression::Context saved = context_;
-    context_ = context;
-    Visit(expr);
-    expr->set_context(context);
-    context_ = saved;
-  }
-
   void VisitDeclarations(ZoneList<Declaration*>* decls);
   void VisitStatements(ZoneList<Statement*>* stmts);
 
@@ -74,9 +60,6 @@ class CodeGenSelector: public AstVisitor {
 #undef DECLARE_VISIT
 
   bool has_supported_syntax_;
-
-  // The desired expression context of the currently visited expression.
-  Expression::Context context_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenSelector);
 };
@@ -649,12 +632,12 @@ void CodeGenSelector::VisitStatements(ZoneList<Statement*>* stmts) {
 void CodeGenSelector::VisitDeclaration(Declaration* decl) {
   Property* prop = decl->proxy()->AsProperty();
   if (prop != NULL) {
-    ProcessExpression(prop->obj(), Expression::kValue);
-    ProcessExpression(prop->key(), Expression::kValue);
+    Visit(prop->obj());
+    Visit(prop->key());
   }
 
   if (decl->fun() != NULL) {
-    ProcessExpression(decl->fun(), Expression::kValue);
+    Visit(decl->fun());
   }
 }
 
@@ -665,17 +648,15 @@ void CodeGenSelector::VisitBlock(Block* stmt) {
 
 
 void CodeGenSelector::VisitExpressionStatement(ExpressionStatement* stmt) {
-  ProcessExpression(stmt->expression(), Expression::kEffect);
+  Visit(stmt->expression());
 }
 
 
-void CodeGenSelector::VisitEmptyStatement(EmptyStatement* stmt) {
-  // EmptyStatement is supported.
-}
+void CodeGenSelector::VisitEmptyStatement(EmptyStatement* stmt) {}
 
 
 void CodeGenSelector::VisitIfStatement(IfStatement* stmt) {
-  ProcessExpression(stmt->condition(), Expression::kTest);
+  Visit(stmt->condition());
   CHECK_BAILOUT;
   Visit(stmt->then_statement());
   CHECK_BAILOUT;
@@ -683,27 +664,23 @@ void CodeGenSelector::VisitIfStatement(IfStatement* stmt) {
 }
 
 
-void CodeGenSelector::VisitContinueStatement(ContinueStatement* stmt) {
-}
+void CodeGenSelector::VisitContinueStatement(ContinueStatement* stmt) {}
 
 
-void CodeGenSelector::VisitBreakStatement(BreakStatement* stmt) {
-}
+void CodeGenSelector::VisitBreakStatement(BreakStatement* stmt) {}
 
 
 void CodeGenSelector::VisitReturnStatement(ReturnStatement* stmt) {
-  ProcessExpression(stmt->expression(), Expression::kValue);
+  Visit(stmt->expression());
 }
 
 
 void CodeGenSelector::VisitWithEnterStatement(WithEnterStatement* stmt) {
-  ProcessExpression(stmt->expression(), Expression::kValue);
+  Visit(stmt->expression());
 }
 
 
-void CodeGenSelector::VisitWithExitStatement(WithExitStatement* stmt) {
-  // Supported.
-}
+void CodeGenSelector::VisitWithExitStatement(WithExitStatement* stmt) {}
 
 
 void CodeGenSelector::VisitSwitchStatement(SwitchStatement* stmt) {
@@ -712,18 +689,14 @@ void CodeGenSelector::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void CodeGenSelector::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  // We do not handle loops with breaks or continue statements in their
-  // body.  We will bailout when we hit those statements in the body.
-  ProcessExpression(stmt->cond(), Expression::kTest);
+  Visit(stmt->cond());
   CHECK_BAILOUT;
   Visit(stmt->body());
 }
 
 
 void CodeGenSelector::VisitWhileStatement(WhileStatement* stmt) {
-  // We do not handle loops with breaks or continue statements in their
-  // body.  We will bailout when we hit those statements in the body.
-  ProcessExpression(stmt->cond(), Expression::kTest);
+  Visit(stmt->cond());
   CHECK_BAILOUT;
   Visit(stmt->body());
 }
@@ -753,14 +726,10 @@ void CodeGenSelector::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 }
 
 
-void CodeGenSelector::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  // Debugger statement is supported.
-}
+void CodeGenSelector::VisitDebuggerStatement(DebuggerStatement* stmt) {}
 
 
-void CodeGenSelector::VisitFunctionLiteral(FunctionLiteral* expr) {
-  // Function literal is supported.
-}
+void CodeGenSelector::VisitFunctionLiteral(FunctionLiteral* expr) {}
 
 
 void CodeGenSelector::VisitFunctionBoilerplateLiteral(
@@ -770,11 +739,11 @@ void CodeGenSelector::VisitFunctionBoilerplateLiteral(
 
 
 void CodeGenSelector::VisitConditional(Conditional* expr) {
-  ProcessExpression(expr->condition(), Expression::kTest);
+  Visit(expr->condition());
   CHECK_BAILOUT;
-  ProcessExpression(expr->then_expression(), context_);
+  Visit(expr->then_expression());
   CHECK_BAILOUT;
-  ProcessExpression(expr->else_expression(), context_);
+  Visit(expr->else_expression());
 }
 
 
@@ -784,11 +753,9 @@ void CodeGenSelector::VisitSlot(Slot* expr) {
 
 
 void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
-  Expression* rewrite = expr->var()->rewrite();
-  // A rewrite of NULL indicates a global variable.
-  if (rewrite != NULL) {
-    // Non-global.
-    Slot* slot = rewrite->AsSlot();
+  Variable* var = expr->var();
+  if (!var->is_global()) {
+    Slot* slot = var->slot();
     if (slot != NULL) {
       Slot::Type type = slot->type();
       // When LOOKUP slots are enabled, some currently dead code
@@ -797,10 +764,10 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
         BAILOUT("Lookup slot");
       }
     } else {
+      // If not global or a slot, it is a parameter rewritten to an explicit
+      // property reference on the (shadow) arguments object.
 #ifdef DEBUG
-      // Only remaining possibility is a property where the object is
-      // a slotted variable and the key is a smi.
-      Property* property = rewrite->AsProperty();
+      Property* property = var->AsProperty();
       ASSERT_NOT_NULL(property);
       Variable* object = property->obj()->AsVariableProxy()->AsVariable();
       ASSERT_NOT_NULL(object);
@@ -813,14 +780,10 @@ void CodeGenSelector::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
-void CodeGenSelector::VisitLiteral(Literal* expr) {
-  /* Nothing to do. */
-}
+void CodeGenSelector::VisitLiteral(Literal* expr) {}
 
 
-void CodeGenSelector::VisitRegExpLiteral(RegExpLiteral* expr) {
-  /* Nothing to do. */
-}
+void CodeGenSelector::VisitRegExpLiteral(RegExpLiteral* expr) {}
 
 
 void CodeGenSelector::VisitObjectLiteral(ObjectLiteral* expr) {
@@ -829,31 +792,9 @@ void CodeGenSelector::VisitObjectLiteral(ObjectLiteral* expr) {
   for (int i = 0, len = properties->length(); i < len; i++) {
     ObjectLiteral::Property* property = properties->at(i);
     if (property->IsCompileTimeValue()) continue;
-
-    switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-        UNREACHABLE();
-
-      // For (non-compile-time) materialized literals and computed
-      // properties with symbolic keys we will use an IC and therefore not
-      // generate code for the key.
-      case ObjectLiteral::Property::COMPUTED:  // Fall through.
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        if (property->key()->handle()->IsSymbol()) {
-          break;
-        }
-        // Fall through.
-
-      // In all other cases we need the key's value on the stack
-      // for a runtime call.  (Relies on TEMP meaning STACK.)
-      case ObjectLiteral::Property::GETTER:  // Fall through.
-      case ObjectLiteral::Property::SETTER:  // Fall through.
-      case ObjectLiteral::Property::PROTOTYPE:
-        ProcessExpression(property->key(), Expression::kValue);
-        CHECK_BAILOUT;
-        break;
-    }
-    ProcessExpression(property->value(), Expression::kValue);
+    Visit(property->key());
+    CHECK_BAILOUT;
+    Visit(property->value());
     CHECK_BAILOUT;
   }
 }
@@ -865,16 +806,16 @@ void CodeGenSelector::VisitArrayLiteral(ArrayLiteral* expr) {
     Expression* subexpr = subexprs->at(i);
     if (subexpr->AsLiteral() != NULL) continue;
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
-    ProcessExpression(subexpr, Expression::kValue);
+    Visit(subexpr);
     CHECK_BAILOUT;
   }
 }
 
 
 void CodeGenSelector::VisitCatchExtensionObject(CatchExtensionObject* expr) {
-  ProcessExpression(expr->key(), Expression::kValue);
+  Visit(expr->key());
   CHECK_BAILOUT;
-  ProcessExpression(expr->value(), Expression::kValue);
+  Visit(expr->value());
 }
 
 
@@ -900,33 +841,28 @@ void CodeGenSelector::VisitAssignment(Assignment* expr) {
       }
     }
   } else if (prop != NULL) {
-    ProcessExpression(prop->obj(), Expression::kValue);
+    Visit(prop->obj());
     CHECK_BAILOUT;
-    // We will only visit the key during code generation for keyed property
-    // stores.  Leave its expression context uninitialized for named
-    // property stores.
-    if (!prop->key()->IsPropertyName()) {
-      ProcessExpression(prop->key(), Expression::kValue);
-      CHECK_BAILOUT;
-    }
+    Visit(prop->key());
+    CHECK_BAILOUT;
   } else {
     // This is a throw reference error.
     BAILOUT("non-variable/non-property assignment");
   }
 
-  ProcessExpression(expr->value(), Expression::kValue);
+  Visit(expr->value());
 }
 
 
 void CodeGenSelector::VisitThrow(Throw* expr) {
-  ProcessExpression(expr->exception(), Expression::kValue);
+  Visit(expr->exception());
 }
 
 
 void CodeGenSelector::VisitProperty(Property* expr) {
-  ProcessExpression(expr->obj(), Expression::kValue);
+  Visit(expr->obj());
   CHECK_BAILOUT;
-  ProcessExpression(expr->key(), Expression::kValue);
+  Visit(expr->key());
 }
 
 
@@ -946,34 +882,29 @@ void CodeGenSelector::VisitCall(Call* expr) {
   } else if (fun->AsProperty() != NULL) {
     Property* prop = fun->AsProperty();
     Literal* literal_key = prop->key()->AsLiteral();
-    if (literal_key != NULL && literal_key->handle()->IsSymbol()) {
-      ProcessExpression(prop->obj(), Expression::kValue);
-      CHECK_BAILOUT;
-    } else {
-      ProcessExpression(prop->obj(), Expression::kValue);
-      CHECK_BAILOUT;
-      ProcessExpression(prop->key(), Expression::kValue);
-      CHECK_BAILOUT;
-    }
+    Visit(prop->obj());
+    CHECK_BAILOUT;
+    Visit(prop->key());
+    CHECK_BAILOUT;
   } else {
     // Otherwise the call is supported if the function expression is.
-    ProcessExpression(fun, Expression::kValue);
+    Visit(fun);
   }
   // Check all arguments to the call.
   for (int i = 0; i < args->length(); i++) {
-    ProcessExpression(args->at(i), Expression::kValue);
+    Visit(args->at(i));
     CHECK_BAILOUT;
   }
 }
 
 
 void CodeGenSelector::VisitCallNew(CallNew* expr) {
-  ProcessExpression(expr->expression(), Expression::kValue);
+  Visit(expr->expression());
   CHECK_BAILOUT;
   ZoneList<Expression*>* args = expr->arguments();
   // Check all arguments to the call
   for (int i = 0; i < args->length(); i++) {
-    ProcessExpression(args->at(i), Expression::kValue);
+    Visit(args->at(i));
     CHECK_BAILOUT;
   }
 }
@@ -987,7 +918,7 @@ void CodeGenSelector::VisitCallRuntime(CallRuntime* expr) {
   }
   // Check all arguments to the call.  (Relies on TEMP meaning STACK.)
   for (int i = 0; i < expr->arguments()->length(); i++) {
-    ProcessExpression(expr->arguments()->at(i), Expression::kValue);
+    Visit(expr->arguments()->at(i));
     CHECK_BAILOUT;
   }
 }
@@ -996,16 +927,16 @@ void CodeGenSelector::VisitCallRuntime(CallRuntime* expr) {
 void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::VOID:
-      ProcessExpression(expr->expression(), Expression::kEffect);
-      break;
     case Token::NOT:
-      ProcessExpression(expr->expression(), Expression::kTest);
-      break;
     case Token::TYPEOF:
-      ProcessExpression(expr->expression(), Expression::kValue);
+      Visit(expr->expression());
       break;
+    case BIT_NOT:
+      BAILOUT("UnaryOperataion: BIT_NOT");
+    case DELETE:
+      BAILOUT("UnaryOperataion: DELETE");
     default:
-      BAILOUT("UnaryOperation");
+      UNREACHABLE();
   }
 }
 
@@ -1024,15 +955,10 @@ void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
       }
     }
   } else if (prop != NULL) {
-    ProcessExpression(prop->obj(), Expression::kValue);
+    Visit(prop->obj());
     CHECK_BAILOUT;
-    // We will only visit the key during code generation for keyed property
-    // stores.  Leave its expression context uninitialized for named
-    // property stores.
-    if (!prop->key()->IsPropertyName()) {
-      ProcessExpression(prop->key(), Expression::kValue);
-      CHECK_BAILOUT;
-    }
+    Visit(prop->key());
+    CHECK_BAILOUT;
   } else {
     // This is a throw reference error.
     BAILOUT("CountOperation non-variable/non-property expression");
@@ -1041,89 +967,20 @@ void CodeGenSelector::VisitCountOperation(CountOperation* expr) {
 
 
 void CodeGenSelector::VisitBinaryOperation(BinaryOperation* expr) {
-  switch (expr->op()) {
-    case Token::COMMA:
-      ProcessExpression(expr->left(), Expression::kEffect);
-      CHECK_BAILOUT;
-      ProcessExpression(expr->right(), context_);
-      break;
-
-    case Token::OR:
-      switch (context_) {
-        case Expression::kUninitialized:
-          UNREACHABLE();
-        case Expression::kEffect:  // Fall through.
-        case Expression::kTest:  // Fall through.
-        case Expression::kTestValue:
-          // The left subexpression's value is not needed, it is in a pure
-          // test context.
-          ProcessExpression(expr->left(), Expression::kTest);
-          break;
-        case Expression::kValue:  // Fall through.
-        case Expression::kValueTest:
-          // The left subexpression's value is needed, it is in a hybrid
-          // value/test context.
-          ProcessExpression(expr->left(), Expression::kValueTest);
-          break;
-      }
-      CHECK_BAILOUT;
-      ProcessExpression(expr->right(), context_);
-      break;
-
-    case Token::AND:
-      switch (context_) {
-        case Expression::kUninitialized:
-          UNREACHABLE();
-        case Expression::kEffect:  // Fall through.
-        case Expression::kTest:  // Fall through.
-        case Expression::kValueTest:
-          // The left subexpression's value is not needed, it is in a pure
-          // test context.
-          ProcessExpression(expr->left(), Expression::kTest);
-          break;
-        case Expression::kValue:  // Fall through.
-        case Expression::kTestValue:
-          // The left subexpression's value is needed, it is in a hybrid
-          // test/value context.
-          ProcessExpression(expr->left(), Expression::kTestValue);
-          break;
-      }
-      CHECK_BAILOUT;
-      ProcessExpression(expr->right(), context_);
-      break;
-
-    case Token::ADD:
-    case Token::SUB:
-    case Token::DIV:
-    case Token::MOD:
-    case Token::MUL:
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      ProcessExpression(expr->left(), Expression::kValue);
-      CHECK_BAILOUT;
-      ProcessExpression(expr->right(), Expression::kValue);
-      break;
-
-    default:
-      BAILOUT("Unsupported binary operation");
-  }
+  Visit(expr->left());
+  CHECK_BAILOUT;
+  Visit(expr->right());
 }
 
 
 void CodeGenSelector::VisitCompareOperation(CompareOperation* expr) {
-  ProcessExpression(expr->left(), Expression::kValue);
+  Visit(expr->left());
   CHECK_BAILOUT;
-  ProcessExpression(expr->right(), Expression::kValue);
+  Visit(expr->right());
 }
 
 
-void CodeGenSelector::VisitThisFunction(ThisFunction* expr) {
-  // ThisFunction is supported.
-}
+void CodeGenSelector::VisitThisFunction(ThisFunction* expr) {}
 
 #undef BAILOUT
 #undef CHECK_BAILOUT
