@@ -3544,7 +3544,8 @@ bool Heap::Setup(bool create_heap_objects) {
   // Initialize map space.
   map_space_ = new MapSpace(FLAG_use_big_map_space
       ? max_old_generation_size_
-      : (MapSpace::kMaxMapPageIndex + 1) * Page::kPageSize,
+      : MapSpace::kMaxMapPageIndex * Page::kPageSize,
+      FLAG_max_map_space_pages,
       MAP_SPACE);
   if (map_space_ == NULL) return false;
   if (!map_space_->Setup(NULL, 0)) return false;

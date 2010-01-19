@@ -1753,8 +1753,11 @@ class FixedSpace : public PagedSpace {
 class MapSpace : public FixedSpace {
  public:
   // Creates a map space object with a maximum capacity.
-  MapSpace(int max_capacity, AllocationSpace id)
-      : FixedSpace(max_capacity, id, Map::kSize, "map") {}
+  MapSpace(int max_capacity, int max_map_space_pages, AllocationSpace id)
+      : FixedSpace(max_capacity, id, Map::kSize, "map"),
+        max_map_space_pages_(max_map_space_pages) {
+    ASSERT(max_map_space_pages < kMaxMapPageIndex);
+  }
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact(bool will_compact);
@@ -1762,8 +1765,7 @@ class MapSpace : public FixedSpace {
   // Given an index, returns the page address.
   Address PageAddress(int page_index) { return page_addresses_[page_index]; }
 
-  // Constants.
-  static const int kMaxMapPageIndex = (1 << MapWord::kMapPageIndexBits) - 1;
+  static const int kMaxMapPageIndex = 1 << MapWord::kMapPageIndexBits;
 
   // Are map pointers encodable into map word?
   bool MapPointersEncodable() {
@@ -1773,13 +1775,13 @@ class MapSpace : public FixedSpace {
     }
     int n_of_pages = Capacity() / Page::kObjectAreaSize;
     ASSERT(n_of_pages == CountTotalPages());
-    return n_of_pages <= kMaxMapPageIndex;
+    return n_of_pages <= max_map_space_pages_;
   }
 
   // Should be called after forced sweep to find out if map space needs
   // compaction.
   bool NeedsCompaction(int live_maps) {
-    return !MapPointersEncodable() && live_maps <= kCompactionThreshold;
+    return !MapPointersEncodable() && live_maps <= CompactionThreshold();
   }
 
   Address TopAfterCompaction(int live_maps) {
@@ -1838,10 +1840,14 @@ class MapSpace : public FixedSpace {
   static const int kMapsPerPage = Page::kObjectAreaSize / Map::kSize;
 
   // Do map space compaction if there is a page gap.
-  static const int kCompactionThreshold = kMapsPerPage * (kMaxMapPageIndex - 1);
+  int CompactionThreshold() {
+    return kMapsPerPage * (max_map_space_pages_ - 1);
+  }
+
+  const int max_map_space_pages_;
 
   // An array of page start address in a map space.
-  Address page_addresses_[kMaxMapPageIndex + 1];
+  Address page_addresses_[kMaxMapPageIndex];
 
  public:
   TRACK_MEMORY("MapSpace")
