@@ -444,20 +444,20 @@ class CodeGenerator: public AstVisitor {
 
   // Emit code to perform a binary operation on a constant
   // smi and a likely smi.  Consumes the Result *operand.
-  void ConstantSmiBinaryOperation(Token::Value op,
-                                  Result* operand,
-                                  Handle<Object> constant_operand,
-                                  StaticType* type,
-                                  bool reversed,
-                                  OverwriteMode overwrite_mode);
+  Result ConstantSmiBinaryOperation(Token::Value op,
+                                    Result* operand,
+                                    Handle<Object> constant_operand,
+                                    StaticType* type,
+                                    bool reversed,
+                                    OverwriteMode overwrite_mode);
 
   // Emit code to perform a binary operation on two likely smis.
   // The code to handle smi arguments is produced inline.
   // Consumes the Results *left and *right.
-  void LikelySmiBinaryOperation(Token::Value op,
-                                Result* left,
-                                Result* right,
-                                OverwriteMode overwrite_mode);
+  Result LikelySmiBinaryOperation(Token::Value op,
+                                  Result* left,
+                                  Result* right,
+                                  OverwriteMode overwrite_mode);
 
   void Comparison(AstNode* node,
                   Condition cc,

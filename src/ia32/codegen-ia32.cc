@@ -913,31 +913,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  // Set the flags based on the operation, type and loop nesting level.
-  GenericBinaryFlags flags;
-  switch (op) {
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      // Bit operations always assume they likely operate on Smis. Still only
-      // generate the inline Smi check code if this operation is part of a loop.
-      flags = (loop_nesting() > 0)
-              ? NO_SMI_CODE_IN_STUB
-              : NO_GENERIC_BINARY_FLAGS;
-      break;
-
-    default:
-      // By default only inline the Smi check code for likely smis if this
-      // operation is part of a loop.
-      flags = ((loop_nesting() > 0) && type->IsLikelySmi())
-              ? NO_SMI_CODE_IN_STUB
-              : NO_GENERIC_BINARY_FLAGS;
-      break;
-  }
-
   Result right = frame_->Pop();
   Result left = frame_->Pop();
 
@@ -971,7 +946,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
   bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
   bool right_is_non_smi = right.is_constant() && !right.handle()->IsSmi();
-  bool generate_no_smi_code = false;  // No smi code at all, inline or in stub.
 
   if (left_is_smi && right_is_smi) {
     // Compute the constant result at compile time, and leave it on the frame.
@@ -980,33 +954,35 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     if (FoldConstantSmis(op, left_int, right_int)) return;
   }
 
+  Result answer;
   if (left_is_non_smi || right_is_non_smi) {
-    // Set flag so that we go straight to the slow case, with no smi code.
-    generate_no_smi_code = true;
-  } else if (right_is_smi) {
-    ConstantSmiBinaryOperation(op, &left, right.handle(),
-                               type, false, overwrite_mode);
-    return;
-  } else if (left_is_smi) {
-    ConstantSmiBinaryOperation(op, &right, left.handle(),
-                               type, true, overwrite_mode);
-    return;
-  }
-
-  if (((flags & NO_SMI_CODE_IN_STUB) != 0) && !generate_no_smi_code) {
-    LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
-  } else {
+    // Go straight to the slow case, with no smi code.
     frame_->Push(&left);
     frame_->Push(&right);
-    // If we know the arguments aren't smis, use the binary operation stub
-    // that does not check for the fast smi case.
-    if (generate_no_smi_code) {
-      flags = NO_SMI_CODE_IN_STUB;
+    GenericBinaryOpStub stub(op, overwrite_mode, NO_SMI_CODE_IN_STUB);
+    answer = frame_->CallStub(&stub, 2);
+  } else if (right_is_smi) {
+    answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
+                                        type, false, overwrite_mode);
+  } else if (left_is_smi) {
+    answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
+                                        type, true, overwrite_mode);
+  } else {
+    // Set the flags based on the operation, type and loop nesting level.
+    // Bit operations always assume they likely operate on Smis. Still only
+    // generate the inline Smi check code if this operation is part of a loop.
+    // For all other operations only inline the Smi check code for likely smis
+    // if the operation is part of a loop.
+    if (loop_nesting() > 0 && (Token::IsBitOp(op) || type->IsLikelySmi())) {
+      answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
+    } else {
+      frame_->Push(&left);
+      frame_->Push(&right);
+      GenericBinaryOpStub stub(op, overwrite_mode, NO_GENERIC_BINARY_FLAGS);
+      answer = frame_->CallStub(&stub, 2);
     }
-    GenericBinaryOpStub stub(op, overwrite_mode, flags);
-    Result answer = frame_->CallStub(&stub, 2);
-    frame_->Push(&answer);
   }
+  frame_->Push(&answer);
 }
 
 
@@ -1093,10 +1069,11 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 
 // Implements a binary operation using a deferred code object and some
 // inline code to operate on smis quickly.
-void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
-                                             Result* left,
-                                             Result* right,
-                                             OverwriteMode overwrite_mode) {
+Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
+                                               Result* left,
+                                               Result* right,
+                                               OverwriteMode overwrite_mode) {
+  Result answer;
   // Special handling of div and mod because they use fixed registers.
   if (op == Token::DIV || op == Token::MOD) {
     // We need eax as the quotient register, edx as the remainder
@@ -1218,7 +1195,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       deferred->BindExit();
       left->Unuse();
       right->Unuse();
-      frame_->Push(&quotient);
+      answer = quotient;
     } else {
       ASSERT(op == Token::MOD);
       // Check for a negative zero result.  If the result is zero, and
@@ -1234,9 +1211,10 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
       deferred->BindExit();
       left->Unuse();
       right->Unuse();
-      frame_->Push(&remainder);
+      answer = remainder;
     }
-    return;
+    ASSERT(answer.is_valid());
+    return answer;
   }
 
   // Special handling of shift operations because they use fixed
@@ -1257,7 +1235,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     frame_->Spill(ecx);
 
     // Use a fresh answer register to avoid spilling the left operand.
-    Result answer = allocator_->Allocate();
+    answer = allocator_->Allocate();
     ASSERT(answer.is_valid());
     // Check that both operands are smis using the answer register as a
     // temporary.
@@ -1321,8 +1299,8 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
     deferred->BindExit();
     left->Unuse();
     right->Unuse();
-    frame_->Push(&answer);
-    return;
+    ASSERT(answer.is_valid());
+    return answer;
   }
 
   // Handle the other binary operations.
@@ -1331,7 +1309,7 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
   // A newly allocated register answer is used to hold the answer.  The
   // registers containing left and right are not modified so they don't
   // need to be spilled in the fast case.
-  Result answer = allocator_->Allocate();
+  answer = allocator_->Allocate();
   ASSERT(answer.is_valid());
 
   // Perform the smi tag check.
@@ -1406,7 +1384,8 @@ void CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
   deferred->BindExit();
   left->Unuse();
   right->Unuse();
-  frame_->Push(&answer);
+  ASSERT(answer.is_valid());
+  return answer;
 }
 
 
@@ -1575,36 +1554,34 @@ void DeferredInlineSmiSub::Generate() {
 }
 
 
-void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
-                                               Result* operand,
-                                               Handle<Object> value,
-                                               StaticType* type,
-                                               bool reversed,
-                                               OverwriteMode overwrite_mode) {
+Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
+                                                 Result* operand,
+                                                 Handle<Object> value,
+                                                 StaticType* type,
+                                                 bool reversed,
+                                                 OverwriteMode overwrite_mode) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
   // of the operands is a constant smi.
   // Consumes the argument "operand".
-
   // TODO(199): Optimize some special cases of operations involving a
   // smi literal (multiply by 2, shift by 0, etc.).
   if (IsUnsafeSmi(value)) {
     Result unsafe_operand(value);
     if (reversed) {
-      LikelySmiBinaryOperation(op, &unsafe_operand, operand,
-                               overwrite_mode);
+      return LikelySmiBinaryOperation(op, &unsafe_operand, operand,
+                                      overwrite_mode);
     } else {
-      LikelySmiBinaryOperation(op, operand, &unsafe_operand,
-                               overwrite_mode);
+      return LikelySmiBinaryOperation(op, operand, &unsafe_operand,
+                                      overwrite_mode);
     }
-    ASSERT(!operand->is_valid());
-    return;
   }
 
   // Get the literal value.
   Smi* smi_value = Smi::cast(*value);
   int int_value = smi_value->value();
 
+  Result answer;
   switch (op) {
     case Token::ADD: {
       operand->ToRegister();
@@ -1627,13 +1604,12 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       __ test(operand->reg(), Immediate(kSmiTagMask));
       deferred->Branch(not_zero);
       deferred->BindExit();
-      frame_->Push(operand);
+      answer = *operand;
       break;
     }
 
     case Token::SUB: {
       DeferredCode* deferred = NULL;
-      Result answer;  // Only allocate a new register if reversed.
       if (reversed) {
         // The reversed case is only hit when the right operand is not a
         // constant.
@@ -1661,15 +1637,14 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       deferred->Branch(not_zero);
       deferred->BindExit();
       operand->Unuse();
-      frame_->Push(&answer);
       break;
     }
 
     case Token::SAR:
       if (reversed) {
         Result constant_operand(value);
-        LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                 overwrite_mode);
+        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                          overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1689,21 +1664,21 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           __ and_(operand->reg(), ~kSmiTagMask);
         }
         deferred->BindExit();
-        frame_->Push(operand);
+        answer = *operand;
       }
       break;
 
     case Token::SHR:
       if (reversed) {
         Result constant_operand(value);
-        LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                 overwrite_mode);
+        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                          overwrite_mode);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
         operand->ToRegister();
-        Result answer = allocator()->Allocate();
+        answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
         DeferredInlineSmiOperation* deferred =
             new DeferredInlineSmiOperation(op,
@@ -1724,7 +1699,6 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         operand->Unuse();
         __ SmiTag(answer.reg());
         deferred->BindExit();
-        frame_->Push(&answer);
       }
       break;
 
@@ -1749,7 +1723,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         }
         operand->Unuse();
 
-        Result answer = allocator()->Allocate();
+        answer = allocator()->Allocate();
         DeferredInlineSmiOperationReversed* deferred =
             new DeferredInlineSmiOperationReversed(op,
                                                    answer.reg(),
@@ -1765,7 +1739,6 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         __ SmiTag(answer.reg());
 
         deferred->BindExit();
-        frame_->Push(&answer);
       } else {
         // Only the least significant 5 bits of the shift value are used.
         // In the slow case, this masking is done inside the runtime call.
@@ -1783,10 +1756,10 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           __ test(operand->reg(), Immediate(kSmiTagMask));
           deferred->Branch(not_zero);
           deferred->BindExit();
-          frame_->Push(operand);
+          answer = *operand;
         } else {
           // Use a fresh temporary for nonzero shift values.
-          Result answer = allocator()->Allocate();
+          answer = allocator()->Allocate();
           ASSERT(answer.is_valid());
           DeferredInlineSmiOperation* deferred =
               new DeferredInlineSmiOperation(op,
@@ -1808,7 +1781,6 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           deferred->Branch(overflow);
           deferred->BindExit();
           operand->Unuse();
-          frame_->Push(&answer);
         }
       }
       break;
@@ -1847,7 +1819,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         }
       }
       deferred->BindExit();
-      frame_->Push(operand);
+      answer = *operand;
       break;
     }
 
@@ -1873,7 +1845,7 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           __ and_(operand->reg(), (int_value << kSmiTagSize) - 1);
         }
         deferred->BindExit();
-        frame_->Push(operand);
+        answer = *operand;
         break;
       }
       // Fall through if we did not find a power of 2 on the right hand side!
@@ -1881,16 +1853,17 @@ void CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
     default: {
       Result constant_operand(value);
       if (reversed) {
-        LikelySmiBinaryOperation(op, &constant_operand, operand,
-                                 overwrite_mode);
+        answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                          overwrite_mode);
       } else {
-        LikelySmiBinaryOperation(op, operand, &constant_operand,
-                                 overwrite_mode);
+        answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
+                                          overwrite_mode);
       }
       break;
     }
   }
-  ASSERT(!operand->is_valid());
+  ASSERT(answer.is_valid());
+  return answer;
 }
 
 
