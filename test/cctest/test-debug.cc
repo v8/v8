@@ -3881,11 +3881,11 @@ int GetTotalFramesInt(char *message) {
   }
   pos += strlen(prefix);
   char* pos_end = pos;
-  long res = strtol(pos, &pos_end, 10);
+  int res = static_cast<int>(strtol(pos, &pos_end, 10));
   if (pos_end == pos) {
     return -1;
   }
-  return static_cast<int>(res);
+  return res;
 }
 
 
