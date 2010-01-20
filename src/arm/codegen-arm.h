@@ -428,8 +428,8 @@ class CodeGenerator: public AstVisitor {
   friend class VirtualFrame;
   friend class JumpTarget;
   friend class Reference;
-  friend class FastCodeGenerator;
-  friend class CodeGenSelector;
+  friend class FullCodeGenerator;
+  friend class FullCodeGenSyntaxChecker;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

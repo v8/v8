@@ -52,7 +52,7 @@ namespace internal {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-arm.h for its layout.
-void FastCodeGenerator::Generate(FunctionLiteral* fun) {
+void FullCodeGenerator::Generate(FunctionLiteral* fun) {
   function_ = fun;
   SetFunctionPosition(fun);
   int locals_count = fun->scope()->num_stack_slots();
@@ -167,7 +167,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun) {
 }
 
 
-void FastCodeGenerator::EmitReturnSequence(int position) {
+void FullCodeGenerator::EmitReturnSequence(int position) {
   Comment cmnt(masm_, "[ Return sequence");
   if (return_label_.is_bound()) {
     __ b(&return_label_);
@@ -214,7 +214,7 @@ void FastCodeGenerator::EmitReturnSequence(int position) {
 }
 
 
-void FastCodeGenerator::Apply(Expression::Context context, Register reg) {
+void FullCodeGenerator::Apply(Expression::Context context, Register reg) {
   switch (context) {
     case Expression::kUninitialized:
       UNREACHABLE();
@@ -250,7 +250,7 @@ void FastCodeGenerator::Apply(Expression::Context context, Register reg) {
 }
 
 
-void FastCodeGenerator::Apply(Expression::Context context, Slot* slot) {
+void FullCodeGenerator::Apply(Expression::Context context, Slot* slot) {
   switch (context) {
     case Expression::kUninitialized:
       UNREACHABLE();
@@ -270,7 +270,7 @@ void FastCodeGenerator::Apply(Expression::Context context, Slot* slot) {
 }
 
 
-void FastCodeGenerator::Apply(Expression::Context context, Literal* lit) {
+void FullCodeGenerator::Apply(Expression::Context context, Literal* lit) {
   switch (context) {
     case Expression::kUninitialized:
       UNREACHABLE();
@@ -290,7 +290,7 @@ void FastCodeGenerator::Apply(Expression::Context context, Literal* lit) {
 }
 
 
-void FastCodeGenerator::ApplyTOS(Expression::Context context) {
+void FullCodeGenerator::ApplyTOS(Expression::Context context) {
   switch (context) {
     case Expression::kUninitialized:
       UNREACHABLE();
@@ -323,7 +323,7 @@ void FastCodeGenerator::ApplyTOS(Expression::Context context) {
 }
 
 
-void FastCodeGenerator::DropAndApply(int count,
+void FullCodeGenerator::DropAndApply(int count,
                                      Expression::Context context,
                                      Register reg) {
   ASSERT(count > 0);
@@ -371,7 +371,7 @@ void FastCodeGenerator::DropAndApply(int count,
 }
 
 
-void FastCodeGenerator::Apply(Expression::Context context,
+void FullCodeGenerator::Apply(Expression::Context context,
                               Label* materialize_true,
                               Label* materialize_false) {
   switch (context) {
@@ -432,7 +432,7 @@ void FastCodeGenerator::Apply(Expression::Context context,
 }
 
 
-void FastCodeGenerator::DoTest(Expression::Context context) {
+void FullCodeGenerator::DoTest(Expression::Context context) {
   // The value to test is pushed on the stack, and duplicated on the stack
   // if necessary (for value/test and test/value contexts).
   ASSERT_NE(NULL, true_label_);
@@ -495,7 +495,7 @@ void FastCodeGenerator::DoTest(Expression::Context context) {
 }
 
 
-MemOperand FastCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
+MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
   switch (slot->type()) {
     case Slot::PARAMETER:
     case Slot::LOCAL:
@@ -514,14 +514,14 @@ MemOperand FastCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
 }
 
 
-void FastCodeGenerator::Move(Register destination, Slot* source) {
+void FullCodeGenerator::Move(Register destination, Slot* source) {
   // Use destination as scratch.
   MemOperand slot_operand = EmitSlotSearch(source, destination);
   __ ldr(destination, slot_operand);
 }
 
 
-void FastCodeGenerator::Move(Slot* dst,
+void FullCodeGenerator::Move(Slot* dst,
                              Register src,
                              Register scratch1,
                              Register scratch2) {
@@ -537,7 +537,7 @@ void FastCodeGenerator::Move(Slot* dst,
 }
 
 
-void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
+void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
   Comment cmnt(masm_, "[ Declaration");
   Variable* var = decl->proxy()->var();
   ASSERT(var != NULL);  // Must have been resolved.
@@ -637,7 +637,7 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
 }
 
 
-void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   // The context is the first argument.
   __ mov(r1, Operand(pairs));
@@ -648,7 +648,7 @@ void FastCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
+void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
@@ -666,13 +666,13 @@ void FastCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr->var(), context_);
 }
 
 
-void FastCodeGenerator::EmitVariableLoad(Variable* var,
+void FullCodeGenerator::EmitVariableLoad(Variable* var,
                                          Expression::Context context) {
   Expression* rewrite = var->rewrite();
   if (rewrite == NULL) {
@@ -745,7 +745,7 @@ void FastCodeGenerator::EmitVariableLoad(Variable* var,
 }
 
 
-void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
+void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
   Label done;
   // Registers will be used as follows:
@@ -772,7 +772,7 @@ void FastCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
-void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
+void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
   __ ldr(r2, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
   __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
@@ -847,7 +847,7 @@ void FastCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 }
 
 
-void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
+void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
   __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ ldr(r3, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
@@ -900,7 +900,7 @@ void FastCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
+void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ mov(r2, Operand(key->handle()));
@@ -909,14 +909,14 @@ void FastCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
+void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 }
 
 
-void FastCodeGenerator::EmitBinaryOp(Token::Value op,
+void FullCodeGenerator::EmitBinaryOp(Token::Value op,
                                      Expression::Context context) {
   __ pop(r1);
   GenericBinaryOpStub stub(op, NO_OVERWRITE);
@@ -925,7 +925,7 @@ void FastCodeGenerator::EmitBinaryOp(Token::Value op,
 }
 
 
-void FastCodeGenerator::EmitVariableAssignment(Variable* var,
+void FullCodeGenerator::EmitVariableAssignment(Variable* var,
                                                Expression::Context context) {
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->slot() != NULL);
@@ -975,7 +975,7 @@ void FastCodeGenerator::EmitVariableAssignment(Variable* var,
 }
 
 
-void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
+void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a named store IC.
   Property* prop = expr->target()->AsProperty();
   ASSERT(prop != NULL);
@@ -1011,7 +1011,7 @@ void FastCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 }
 
 
-void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
+void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a keyed store IC.
 
   // If the assignment starts a block of assignments to the same object,
@@ -1046,7 +1046,7 @@ void FastCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
 }
 
 
-void FastCodeGenerator::VisitProperty(Property* expr) {
+void FullCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
@@ -1065,7 +1065,7 @@ void FastCodeGenerator::VisitProperty(Property* expr) {
   }
 }
 
-void FastCodeGenerator::EmitCallWithIC(Call* expr,
+void FullCodeGenerator::EmitCallWithIC(Call* expr,
                                        Handle<Object> ignored,
                                        RelocInfo::Mode mode) {
   // Code common for calls using the IC.
@@ -1087,7 +1087,7 @@ void FastCodeGenerator::EmitCallWithIC(Call* expr,
 }
 
 
-void FastCodeGenerator::EmitCallWithStub(Call* expr) {
+void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Code common for calls using the call stub.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -1105,7 +1105,7 @@ void FastCodeGenerator::EmitCallWithStub(Call* expr) {
 }
 
 
-void FastCodeGenerator::VisitCall(Call* expr) {
+void FullCodeGenerator::VisitCall(Call* expr) {
   Comment cmnt(masm_, "[ Call");
   Expression* fun = expr->expression();
   Variable* var = fun->AsVariableProxy()->AsVariable();
@@ -1176,7 +1176,7 @@ void FastCodeGenerator::VisitCall(Call* expr) {
 }
 
 
-void FastCodeGenerator::VisitCallNew(CallNew* expr) {
+void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   Comment cmnt(masm_, "[ CallNew");
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
@@ -1211,7 +1211,7 @@ void FastCodeGenerator::VisitCallNew(CallNew* expr) {
 }
 
 
-void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
+void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Comment cmnt(masm_, "[ CallRuntime");
   ZoneList<Expression*>* args = expr->arguments();
 
@@ -1246,7 +1246,7 @@ void FastCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 }
 
 
-void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
+void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::VOID: {
       Comment cmnt(masm_, "[ UnaryOperation (VOID)");
@@ -1357,7 +1357,7 @@ void FastCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
 }
 
 
-void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
+void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   Comment cmnt(masm_, "[ CountOperation");
 
   // Expression can only be a property, a global or a (parameter or local)
@@ -1483,7 +1483,7 @@ void FastCodeGenerator::VisitCountOperation(CountOperation* expr) {
 }
 
 
-void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
+void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
   Comment cmnt(masm_, "[ BinaryOperation");
   switch (expr->op()) {
     case Token::COMMA:
@@ -1518,7 +1518,7 @@ void FastCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
-void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
+void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
 
   // Always perform the comparison for its control flow.  Pack the result
@@ -1633,25 +1633,25 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
+void FullCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   Apply(context_, r0);
 }
 
 
-Register FastCodeGenerator::result_register() { return r0; }
+Register FullCodeGenerator::result_register() { return r0; }
 
 
-Register FastCodeGenerator::context_register() { return cp; }
+Register FullCodeGenerator::context_register() { return cp; }
 
 
-void FastCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
+void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
   ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
   __ str(value, MemOperand(fp, frame_offset));
 }
 
 
-void FastCodeGenerator::LoadContextField(Register dst, int context_index) {
+void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
   __ ldr(dst, CodeGenerator::ContextOperand(cp, context_index));
 }
 
@@ -1659,7 +1659,7 @@ void FastCodeGenerator::LoadContextField(Register dst, int context_index) {
 // ----------------------------------------------------------------------------
 // Non-local control flow support.
 
-void FastCodeGenerator::EnterFinallyBlock() {
+void FullCodeGenerator::EnterFinallyBlock() {
   ASSERT(!result_register().is(r1));
   // Store result register while executing finally block.
   __ push(result_register());
@@ -1672,7 +1672,7 @@ void FastCodeGenerator::EnterFinallyBlock() {
 }
 
 
-void FastCodeGenerator::ExitFinallyBlock() {
+void FullCodeGenerator::ExitFinallyBlock() {
   ASSERT(!result_register().is(r1));
   // Restore result register from stack.
   __ pop(r1);

@@ -36,15 +36,450 @@
 namespace v8 {
 namespace internal {
 
+#define BAILOUT(reason)                         \
+  do {                                          \
+    if (FLAG_trace_bailout) {                   \
+      PrintF("%s\n", reason);                   \
+    }                                           \
+    has_supported_syntax_ = false;              \
+    return;                                     \
+  } while (false)
+
+
+#define CHECK_BAILOUT                           \
+  do {                                          \
+    if (!has_supported_syntax_) return;         \
+  } while (false)
+
+
+void FullCodeGenSyntaxChecker::Check(FunctionLiteral* fun) {
+  Scope* scope = fun->scope();
+
+  if (scope->num_heap_slots() > 0) {
+    // We support functions with a local context if they do not have
+    // parameters that need to be copied into the context.
+    for (int i = 0, len = scope->num_parameters(); i < len; i++) {
+      Slot* slot = scope->parameter(i)->slot();
+      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+        BAILOUT("Function has context-allocated parameters.");
+      }
+    }
+  }
+
+  VisitDeclarations(scope->declarations());
+  CHECK_BAILOUT;
+
+  VisitStatements(fun->body());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitDeclarations(
+    ZoneList<Declaration*>* decls) {
+  for (int i = 0; i < decls->length(); i++) {
+    Visit(decls->at(i));
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitStatements(ZoneList<Statement*>* stmts) {
+  for (int i = 0, len = stmts->length(); i < len; i++) {
+    Visit(stmts->at(i));
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitDeclaration(Declaration* decl) {
+  Property* prop = decl->proxy()->AsProperty();
+  if (prop != NULL) {
+    Visit(prop->obj());
+    Visit(prop->key());
+  }
+
+  if (decl->fun() != NULL) {
+    Visit(decl->fun());
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitBlock(Block* stmt) {
+  VisitStatements(stmt->statements());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitExpressionStatement(
+    ExpressionStatement* stmt) {
+  Visit(stmt->expression());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitEmptyStatement(EmptyStatement* stmt) {
+  // Supported.
+}
+
+
+void FullCodeGenSyntaxChecker::VisitIfStatement(IfStatement* stmt) {
+  Visit(stmt->condition());
+  CHECK_BAILOUT;
+  Visit(stmt->then_statement());
+  CHECK_BAILOUT;
+  Visit(stmt->else_statement());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitContinueStatement(ContinueStatement* stmt) {
+  // Supported.
+}
+
+
+void FullCodeGenSyntaxChecker::VisitBreakStatement(BreakStatement* stmt) {}
+
+
+void FullCodeGenSyntaxChecker::VisitReturnStatement(ReturnStatement* stmt) {
+  Visit(stmt->expression());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitWithEnterStatement(
+    WithEnterStatement* stmt) {
+  Visit(stmt->expression());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitWithExitStatement(WithExitStatement* stmt) {
+  // Supported.
+}
+
+
+void FullCodeGenSyntaxChecker::VisitSwitchStatement(SwitchStatement* stmt) {
+  BAILOUT("SwitchStatement");
+}
+
+
+void FullCodeGenSyntaxChecker::VisitDoWhileStatement(DoWhileStatement* stmt) {
+  Visit(stmt->cond());
+  CHECK_BAILOUT;
+  Visit(stmt->body());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitWhileStatement(WhileStatement* stmt) {
+  Visit(stmt->cond());
+  CHECK_BAILOUT;
+  Visit(stmt->body());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitForStatement(ForStatement* stmt) {
+  BAILOUT("ForStatement");
+}
+
+
+void FullCodeGenSyntaxChecker::VisitForInStatement(ForInStatement* stmt) {
+  BAILOUT("ForInStatement");
+}
+
+
+void FullCodeGenSyntaxChecker::VisitTryCatchStatement(TryCatchStatement* stmt) {
+  Visit(stmt->try_block());
+  CHECK_BAILOUT;
+  Visit(stmt->catch_block());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitTryFinallyStatement(
+    TryFinallyStatement* stmt) {
+  Visit(stmt->try_block());
+  CHECK_BAILOUT;
+  Visit(stmt->finally_block());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitDebuggerStatement(
+    DebuggerStatement* stmt) {
+  // Supported.
+}
+
+
+void FullCodeGenSyntaxChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
+  // Supported.
+}
+
+
+void FullCodeGenSyntaxChecker::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* expr) {
+  BAILOUT("FunctionBoilerplateLiteral");
+}
+
+
+void FullCodeGenSyntaxChecker::VisitConditional(Conditional* expr) {
+  Visit(expr->condition());
+  CHECK_BAILOUT;
+  Visit(expr->then_expression());
+  CHECK_BAILOUT;
+  Visit(expr->else_expression());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitSlot(Slot* expr) {
+  UNREACHABLE();
+}
+
+
+void FullCodeGenSyntaxChecker::VisitVariableProxy(VariableProxy* expr) {
+  Variable* var = expr->var();
+  if (!var->is_global()) {
+    Slot* slot = var->slot();
+    if (slot != NULL) {
+      Slot::Type type = slot->type();
+      // When LOOKUP slots are enabled, some currently dead code
+      // implementing unary typeof will become live.
+      if (type == Slot::LOOKUP) {
+        BAILOUT("Lookup slot");
+      }
+    } else {
+      // If not global or a slot, it is a parameter rewritten to an explicit
+      // property reference on the (shadow) arguments object.
+#ifdef DEBUG
+      Property* property = var->AsProperty();
+      ASSERT_NOT_NULL(property);
+      Variable* object = property->obj()->AsVariableProxy()->AsVariable();
+      ASSERT_NOT_NULL(object);
+      ASSERT_NOT_NULL(object->slot());
+      ASSERT_NOT_NULL(property->key()->AsLiteral());
+      ASSERT(property->key()->AsLiteral()->handle()->IsSmi());
+#endif
+    }
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitLiteral(Literal* expr) {
+  // Supported.
+}
+
+
+void FullCodeGenSyntaxChecker::VisitRegExpLiteral(RegExpLiteral* expr) {
+  // Supported.
+}
+
+
+void FullCodeGenSyntaxChecker::VisitObjectLiteral(ObjectLiteral* expr) {
+  ZoneList<ObjectLiteral::Property*>* properties = expr->properties();
+
+  for (int i = 0, len = properties->length(); i < len; i++) {
+    ObjectLiteral::Property* property = properties->at(i);
+    if (property->IsCompileTimeValue()) continue;
+    Visit(property->key());
+    CHECK_BAILOUT;
+    Visit(property->value());
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitArrayLiteral(ArrayLiteral* expr) {
+  ZoneList<Expression*>* subexprs = expr->values();
+  for (int i = 0, len = subexprs->length(); i < len; i++) {
+    Expression* subexpr = subexprs->at(i);
+    if (subexpr->AsLiteral() != NULL) continue;
+    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
+    Visit(subexpr);
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitCatchExtensionObject(
+    CatchExtensionObject* expr) {
+  Visit(expr->key());
+  CHECK_BAILOUT;
+  Visit(expr->value());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
+  // We support plain non-compound assignments to properties, parameters and
+  // non-context (stack-allocated) locals, and global variables.
+  Token::Value op = expr->op();
+  if (op == Token::INIT_CONST) BAILOUT("initialize constant");
+
+  Variable* var = expr->target()->AsVariableProxy()->AsVariable();
+  Property* prop = expr->target()->AsProperty();
+  ASSERT(var == NULL || prop == NULL);
+  if (var != NULL) {
+    if (var->mode() == Variable::CONST) {
+      BAILOUT("Assignment to const");
+    }
+    // All global variables are supported.
+    if (!var->is_global()) {
+      ASSERT(var->slot() != NULL);
+      Slot::Type type = var->slot()->type();
+      if (type == Slot::LOOKUP) {
+        BAILOUT("Lookup slot");
+      }
+    }
+  } else if (prop != NULL) {
+    Visit(prop->obj());
+    CHECK_BAILOUT;
+    Visit(prop->key());
+    CHECK_BAILOUT;
+  } else {
+    // This is a throw reference error.
+    BAILOUT("non-variable/non-property assignment");
+  }
+
+  Visit(expr->value());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitThrow(Throw* expr) {
+  Visit(expr->exception());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitProperty(Property* expr) {
+  Visit(expr->obj());
+  CHECK_BAILOUT;
+  Visit(expr->key());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitCall(Call* expr) {
+  Expression* fun = expr->expression();
+  ZoneList<Expression*>* args = expr->arguments();
+  Variable* var = fun->AsVariableProxy()->AsVariable();
+
+  // Check for supported calls
+  if (var != NULL && var->is_possibly_eval()) {
+    BAILOUT("call to the identifier 'eval'");
+  } else if (var != NULL && !var->is_this() && var->is_global()) {
+    // Calls to global variables are supported.
+  } else if (var != NULL && var->slot() != NULL &&
+             var->slot()->type() == Slot::LOOKUP) {
+    BAILOUT("call to a lookup slot");
+  } else if (fun->AsProperty() != NULL) {
+    Property* prop = fun->AsProperty();
+    Visit(prop->obj());
+    CHECK_BAILOUT;
+    Visit(prop->key());
+    CHECK_BAILOUT;
+  } else {
+    // Otherwise the call is supported if the function expression is.
+    Visit(fun);
+  }
+  // Check all arguments to the call.
+  for (int i = 0; i < args->length(); i++) {
+    Visit(args->at(i));
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitCallNew(CallNew* expr) {
+  Visit(expr->expression());
+  CHECK_BAILOUT;
+  ZoneList<Expression*>* args = expr->arguments();
+  // Check all arguments to the call
+  for (int i = 0; i < args->length(); i++) {
+    Visit(args->at(i));
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitCallRuntime(CallRuntime* expr) {
+  // Check for inline runtime call
+  if (expr->name()->Get(0) == '_' &&
+      CodeGenerator::FindInlineRuntimeLUT(expr->name()) != NULL) {
+    BAILOUT("inlined runtime call");
+  }
+  // Check all arguments to the call.  (Relies on TEMP meaning STACK.)
+  for (int i = 0; i < expr->arguments()->length(); i++) {
+    Visit(expr->arguments()->at(i));
+    CHECK_BAILOUT;
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitUnaryOperation(UnaryOperation* expr) {
+  switch (expr->op()) {
+    case Token::VOID:
+    case Token::NOT:
+    case Token::TYPEOF:
+      Visit(expr->expression());
+      break;
+    case Token::BIT_NOT:
+      BAILOUT("UnaryOperation: BIT_NOT");
+    case Token::DELETE:
+      BAILOUT("UnaryOperation: DELETE");
+    case Token::ADD:
+      BAILOUT("UnaryOperation: ADD");
+    case Token::SUB:
+      BAILOUT("UnaryOperation: SUB");
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitCountOperation(CountOperation* expr) {
+  Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
+  Property* prop = expr->expression()->AsProperty();
+  ASSERT(var == NULL || prop == NULL);
+  if (var != NULL) {
+    // All global variables are supported.
+    if (!var->is_global()) {
+      ASSERT(var->slot() != NULL);
+      Slot::Type type = var->slot()->type();
+      if (type == Slot::LOOKUP) {
+        BAILOUT("CountOperation with lookup slot");
+      }
+    }
+  } else if (prop != NULL) {
+    Visit(prop->obj());
+    CHECK_BAILOUT;
+    Visit(prop->key());
+    CHECK_BAILOUT;
+  } else {
+    // This is a throw reference error.
+    BAILOUT("CountOperation non-variable/non-property expression");
+  }
+}
+
+
+void FullCodeGenSyntaxChecker::VisitBinaryOperation(BinaryOperation* expr) {
+  Visit(expr->left());
+  CHECK_BAILOUT;
+  Visit(expr->right());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitCompareOperation(CompareOperation* expr) {
+  Visit(expr->left());
+  CHECK_BAILOUT;
+  Visit(expr->right());
+}
+
+
+void FullCodeGenSyntaxChecker::VisitThisFunction(ThisFunction* expr) {
+  // Supported.
+}
+
+#undef BAILOUT
+#undef CHECK_BAILOUT
+
+
 #define __ ACCESS_MASM(masm())
 
-Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
+Handle<Code> FullCodeGenerator::MakeCode(FunctionLiteral* fun,
                                          Handle<Script> script,
                                          bool is_eval) {
   CodeGenerator::MakeCodePrologue(fun);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
-  FastCodeGenerator cgen(&masm, script, is_eval);
+  FullCodeGenerator cgen(&masm, script, is_eval);
   cgen.Generate(fun);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
@@ -55,7 +490,7 @@ Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
 }
 
 
-int FastCodeGenerator::SlotOffset(Slot* slot) {
+int FullCodeGenerator::SlotOffset(Slot* slot) {
   ASSERT(slot != NULL);
   // Offset is negative because higher indexes are at lower addresses.
   int offset = -slot->index() * kPointerSize;
@@ -75,7 +510,7 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 }
 
 
-void FastCodeGenerator::VisitDeclarations(
+void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
   int globals = 0;
@@ -129,42 +564,42 @@ void FastCodeGenerator::VisitDeclarations(
 }
 
 
-void FastCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
+void FullCodeGenerator::SetFunctionPosition(FunctionLiteral* fun) {
   if (FLAG_debug_info) {
     CodeGenerator::RecordPositions(masm_, fun->start_position());
   }
 }
 
 
-void FastCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
+void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
   if (FLAG_debug_info) {
     CodeGenerator::RecordPositions(masm_, fun->end_position());
   }
 }
 
 
-void FastCodeGenerator::SetStatementPosition(Statement* stmt) {
+void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
   if (FLAG_debug_info) {
     CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
   }
 }
 
 
-void FastCodeGenerator::SetStatementPosition(int pos) {
+void FullCodeGenerator::SetStatementPosition(int pos) {
   if (FLAG_debug_info) {
     CodeGenerator::RecordPositions(masm_, pos);
   }
 }
 
 
-void FastCodeGenerator::SetSourcePosition(int pos) {
+void FullCodeGenerator::SetSourcePosition(int pos) {
   if (FLAG_debug_info && pos != RelocInfo::kNoPosition) {
     masm_->RecordPosition(pos);
   }
 }
 
 
-void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
+void FullCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
   Label eval_right, done;
 
   // Set up the appropriate context for the left subexpression based
@@ -232,7 +667,7 @@ void FastCodeGenerator::EmitLogicalOperation(BinaryOperation* expr) {
 }
 
 
-void FastCodeGenerator::VisitBlock(Block* stmt) {
+void FullCodeGenerator::VisitBlock(Block* stmt) {
   Comment cmnt(masm_, "[ Block");
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
@@ -241,20 +676,20 @@ void FastCodeGenerator::VisitBlock(Block* stmt) {
 }
 
 
-void FastCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
+void FullCodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   Comment cmnt(masm_, "[ ExpressionStatement");
   SetStatementPosition(stmt);
   VisitForEffect(stmt->expression());
 }
 
 
-void FastCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
+void FullCodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
   Comment cmnt(masm_, "[ EmptyStatement");
   SetStatementPosition(stmt);
 }
 
 
-void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
+void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
   Comment cmnt(masm_, "[ IfStatement");
   SetStatementPosition(stmt);
   Label then_part, else_part, done;
@@ -273,7 +708,7 @@ void FastCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
+void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   Comment cmnt(masm_,  "[ ContinueStatement");
   SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
@@ -289,7 +724,7 @@ void FastCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
+void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   Comment cmnt(masm_,  "[ BreakStatement");
   SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
@@ -305,7 +740,7 @@ void FastCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
+void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
@@ -324,7 +759,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
+void FullCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   SetStatementPosition(stmt);
 
@@ -342,7 +777,7 @@ void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
+void FullCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
   Comment cmnt(masm_, "[ WithExitStatement");
   SetStatementPosition(stmt);
 
@@ -353,12 +788,12 @@ void FastCodeGenerator::VisitWithExitStatement(WithExitStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
+void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   UNREACHABLE();
 }
 
 
-void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
+void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
   SetStatementPosition(stmt);
   Label body, stack_limit_hit, stack_check_success;
@@ -388,7 +823,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
+void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Comment cmnt(masm_, "[ WhileStatement");
   SetStatementPosition(stmt);
   Label body, stack_limit_hit, stack_check_success;
@@ -419,17 +854,17 @@ void FastCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitForStatement(ForStatement* stmt) {
+void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   UNREACHABLE();
 }
 
 
-void FastCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
+void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   UNREACHABLE();
 }
 
 
-void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
+void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Comment cmnt(masm_, "[ TryCatchStatement");
   SetStatementPosition(stmt);
   // The try block adds a handler to the exception handler chain
@@ -472,7 +907,7 @@ void FastCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
+void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   Comment cmnt(masm_, "[ TryFinallyStatement");
   SetStatementPosition(stmt);
   // Try finally is compiled by setting up a try-handler on the stack while
@@ -536,7 +971,7 @@ void FastCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
+void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Comment cmnt(masm_, "[ DebuggerStatement");
   SetStatementPosition(stmt);
@@ -546,13 +981,13 @@ void FastCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 
-void FastCodeGenerator::VisitFunctionBoilerplateLiteral(
+void FullCodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* expr) {
   UNREACHABLE();
 }
 
 
-void FastCodeGenerator::VisitConditional(Conditional* expr) {
+void FullCodeGenerator::VisitConditional(Conditional* expr) {
   Comment cmnt(masm_, "[ Conditional");
   Label true_case, false_case, done;
   VisitForControl(expr->condition(), &true_case, &false_case);
@@ -573,19 +1008,19 @@ void FastCodeGenerator::VisitConditional(Conditional* expr) {
 }
 
 
-void FastCodeGenerator::VisitSlot(Slot* expr) {
+void FullCodeGenerator::VisitSlot(Slot* expr) {
   // Slots do not appear directly in the AST.
   UNREACHABLE();
 }
 
 
-void FastCodeGenerator::VisitLiteral(Literal* expr) {
+void FullCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
   Apply(context_, expr);
 }
 
 
-void FastCodeGenerator::VisitAssignment(Assignment* expr) {
+void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
@@ -664,7 +1099,7 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
 }
 
 
-void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
+void FullCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
   Comment cmnt(masm_, "[ CatchExtensionObject");
@@ -676,7 +1111,7 @@ void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 }
 
 
-void FastCodeGenerator::VisitThrow(Throw* expr) {
+void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForValue(expr->exception(), kStack);
   __ CallRuntime(Runtime::kThrow, 1);
@@ -684,7 +1119,7 @@ void FastCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-int FastCodeGenerator::TryFinally::Exit(int stack_depth) {
+int FullCodeGenerator::TryFinally::Exit(int stack_depth) {
   // The macros used here must preserve the result register.
   __ Drop(stack_depth);
   __ PopTryHandler();
@@ -693,7 +1128,7 @@ int FastCodeGenerator::TryFinally::Exit(int stack_depth) {
 }
 
 
-int FastCodeGenerator::TryCatch::Exit(int stack_depth) {
+int FullCodeGenerator::TryCatch::Exit(int stack_depth) {
   // The macros used here must preserve the result register.
   __ Drop(stack_depth);
   __ PopTryHandler();

@@ -611,8 +611,8 @@ class CodeGenerator: public AstVisitor {
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
-  friend class FastCodeGenerator;
-  friend class CodeGenSelector;
+  friend class FullCodeGenerator;
+  friend class FullCodeGenSyntaxChecker;
 
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 

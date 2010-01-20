@@ -35,12 +35,35 @@
 namespace v8 {
 namespace internal {
 
-// -----------------------------------------------------------------------------
-// Fast code generator.
-
-class FastCodeGenerator: public AstVisitor {
+class FullCodeGenSyntaxChecker: public AstVisitor {
  public:
-  FastCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
+  FullCodeGenSyntaxChecker() : has_supported_syntax_(true) {}
+
+  void Check(FunctionLiteral* fun);
+
+  bool has_supported_syntax() { return has_supported_syntax_; }
+
+ private:
+  void VisitDeclarations(ZoneList<Declaration*>* decls);
+  void VisitStatements(ZoneList<Statement*>* stmts);
+
+  // AST node visit functions.
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  bool has_supported_syntax_;
+
+  DISALLOW_COPY_AND_ASSIGN(FullCodeGenSyntaxChecker);
+};
+
+
+// -----------------------------------------------------------------------------
+// Full code generator.
+
+class FullCodeGenerator: public AstVisitor {
+ public:
+  FullCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
       : masm_(masm),
         function_(NULL),
         script_(script),
@@ -68,7 +91,7 @@ class FastCodeGenerator: public AstVisitor {
 
   class NestedStatement BASE_EMBEDDED {
    public:
-    explicit NestedStatement(FastCodeGenerator* codegen) : codegen_(codegen) {
+    explicit NestedStatement(FullCodeGenerator* codegen) : codegen_(codegen) {
       // Link into codegen's nesting stack.
       previous_ = codegen->nesting_stack_;
       codegen->nesting_stack_ = this;
@@ -106,14 +129,14 @@ class FastCodeGenerator: public AstVisitor {
    protected:
     MacroAssembler* masm() { return codegen_->masm(); }
    private:
-    FastCodeGenerator* codegen_;
+    FullCodeGenerator* codegen_;
     NestedStatement* previous_;
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);
   };
 
   class Breakable : public NestedStatement {
    public:
-    Breakable(FastCodeGenerator* codegen,
+    Breakable(FullCodeGenerator* codegen,
               BreakableStatement* break_target)
         : NestedStatement(codegen),
           target_(break_target) {}
@@ -132,7 +155,7 @@ class FastCodeGenerator: public AstVisitor {
 
   class Iteration : public Breakable {
    public:
-    Iteration(FastCodeGenerator* codegen,
+    Iteration(FullCodeGenerator* codegen,
               IterationStatement* iteration_statement)
         : Breakable(codegen, iteration_statement) {}
     virtual ~Iteration() {}
@@ -149,7 +172,7 @@ class FastCodeGenerator: public AstVisitor {
   // The environment inside the try block of a try/catch statement.
   class TryCatch : public NestedStatement {
    public:
-    explicit TryCatch(FastCodeGenerator* codegen, Label* catch_entry)
+    explicit TryCatch(FullCodeGenerator* codegen, Label* catch_entry)
         : NestedStatement(codegen), catch_entry_(catch_entry) { }
     virtual ~TryCatch() {}
     virtual TryCatch* AsTryCatch() { return this; }
@@ -163,7 +186,7 @@ class FastCodeGenerator: public AstVisitor {
   // The environment inside the try block of a try/finally statement.
   class TryFinally : public NestedStatement {
    public:
-    explicit TryFinally(FastCodeGenerator* codegen, Label* finally_entry)
+    explicit TryFinally(FullCodeGenerator* codegen, Label* finally_entry)
         : NestedStatement(codegen), finally_entry_(finally_entry) { }
     virtual ~TryFinally() {}
     virtual TryFinally* AsTryFinally() { return this; }
@@ -179,7 +202,7 @@ class FastCodeGenerator: public AstVisitor {
   // the block's parameters from the stack.
   class Finally : public NestedStatement {
    public:
-    explicit Finally(FastCodeGenerator* codegen) : NestedStatement(codegen) { }
+    explicit Finally(FullCodeGenerator* codegen) : NestedStatement(codegen) { }
     virtual ~Finally() {}
     virtual Finally* AsFinally() { return this; }
     virtual int Exit(int stack_depth) {
@@ -196,7 +219,7 @@ class FastCodeGenerator: public AstVisitor {
   // the block's temporary storage from the stack.
   class ForIn : public Iteration {
    public:
-    ForIn(FastCodeGenerator* codegen,
+    ForIn(FullCodeGenerator* codegen,
           ForInStatement* statement)
         : Iteration(codegen, statement) { }
     virtual ~ForIn() {}
@@ -410,7 +433,7 @@ class FastCodeGenerator: public AstVisitor {
 
   friend class NestedStatement;
 
-  DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
+  DISALLOW_COPY_AND_ASSIGN(FullCodeGenerator);
 };
 
 
