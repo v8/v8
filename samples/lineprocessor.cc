@@ -134,7 +134,7 @@ int RunMain(int argc, char* argv[]) {
 
   int port_number = -1;
   bool wait_for_connection = false;
-  bool support_callback = true;
+  bool support_callback = false;
   MainCycleType cycle_type = CycleInCpp;
 
   for (int i = 1; i < argc; i++) {
@@ -144,9 +144,7 @@ int RunMain(int argc, char* argv[]) {
       // alone JavaScript engines.
       continue;
     } else if (strcmp(str, "--callback") == 0) {
-      // TODO(548): implement this.
-      printf("Error: debugger agent callback is not supported yet.\n");
-      return 1;
+      support_callback = true;
     } else if (strcmp(str, "--wait-for-connection") == 0) {
       wait_for_connection = true;
     } else if (strcmp(str, "--main-cycle-in-cpp") == 0) {
