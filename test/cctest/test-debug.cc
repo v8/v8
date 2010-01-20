@@ -3872,6 +3872,23 @@ int GetBreakpointIdFromBreakEventMessage(char *message) {
 }
 
 
+// We match parts of the message to get total frames number.
+int GetTotalFramesInt(char *message) {
+  const char* prefix = "\"totalFrames\":";
+  char* pos = strstr(message, prefix);
+  if (pos == NULL) {
+    return -1;
+  }
+  pos += strlen(prefix);
+  char* pos_end = pos;
+  long res = strtol(pos, &pos_end, 10);
+  if (pos_end == pos) {
+    return -1;
+  }
+  return static_cast<int>(res);
+}
+
+
 /* Test MessageQueues */
 /* Tests the message queues that hold debugger commands and
  * response messages to the debugger.  Fills queues and makes
@@ -5820,6 +5837,58 @@ TEST(ProcessDebugMessages) {
   v8::Debug::ProcessDebugMessages();
   // At least two messages should come
   CHECK_GE(counting_message_handler_counter, 2);
+
+  // Get rid of the debug message handler.
+  v8::Debug::SetMessageHandler2(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+struct BracktraceData {
+  static int frame_counter;
+  static void MessageHandler(const v8::Debug::Message& message) {
+    char print_buffer[1000];
+    v8::String::Value json(message.GetJSON());
+    Utf16ToAscii(*json, json.length(), print_buffer, 1000);
+
+    if (strstr(print_buffer, "backtrace") == NULL) {
+      return;
+    }
+    frame_counter = GetTotalFramesInt(print_buffer);
+  }
+};
+
+int BracktraceData::frame_counter;
+
+
+// Test that debug messages get processed when ProcessDebugMessages is called.
+TEST(Backtrace) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  v8::Debug::SetMessageHandler2(BracktraceData::MessageHandler);
+
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+  const char* scripts_command =
+    "{\"seq\":0,"
+     "\"type\":\"request\","
+     "\"command\":\"backtrace\"}";
+
+  // Check backtrace from ProcessDebugMessages.
+  BracktraceData::frame_counter = -10;
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(scripts_command, buffer));
+  v8::Debug::ProcessDebugMessages();
+  CHECK_EQ(BracktraceData::frame_counter, 0);
+
+  v8::Handle<v8::String> void0 = v8::String::New("void(0)");
+  v8::Handle<v8::Script> script = v8::Script::Compile(void0, void0);
+
+  // Check backtrace from "void(0)" script.
+  BracktraceData::frame_counter = -10;
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(scripts_command, buffer));
+  script->Run();
+  CHECK_EQ(BracktraceData::frame_counter, 1);
 
   // Get rid of the debug message handler.
   v8::Debug::SetMessageHandler2(NULL);
