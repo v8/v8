@@ -2839,12 +2839,16 @@ THREADED_TEST(NativeFunctionConstructCall) {
   static const char* exts[1] = { "functiontest" };
   v8::ExtensionConfiguration config(1, exts);
   LocalContext context(&config);
-  CHECK_EQ(v8::Integer::New(8),
-           Script::Compile(v8_str("(new A()).data"))->Run());
-  CHECK_EQ(v8::Integer::New(7),
-           Script::Compile(v8_str("(new B()).data"))->Run());
-  CHECK_EQ(v8::Integer::New(6),
-           Script::Compile(v8_str("(new C()).data"))->Run());
+  for (int i = 0; i < 10; i++) {
+    // Run a few times to ensure that allocation of objects doesn't
+    // change behavior of a constructor function.
+    CHECK_EQ(v8::Integer::New(8),
+             Script::Compile(v8_str("(new A()).data"))->Run());
+    CHECK_EQ(v8::Integer::New(7),
+             Script::Compile(v8_str("(new B()).data"))->Run());
+    CHECK_EQ(v8::Integer::New(6),
+             Script::Compile(v8_str("(new C()).data"))->Run());
+  }
 }
 
 

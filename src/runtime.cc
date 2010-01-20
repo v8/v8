@@ -4782,7 +4782,7 @@ static Code* ComputeConstructStub(Handle<SharedFunctionInfo> shared) {
     return Code::cast(code);
   }
 
-  return Builtins::builtin(Builtins::JSConstructStubGeneric);
+  return shared->construct_stub();
 }
 
 
