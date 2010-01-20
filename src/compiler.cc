@@ -931,11 +931,15 @@ void CodeGenSelector::VisitUnaryOperation(UnaryOperation* expr) {
       Visit(expr->expression());
       break;
     case Token::BIT_NOT:
-      BAILOUT("UnaryOperataion: BIT_NOT");
+      BAILOUT("UnaryOperation: BIT_NOT");
     case Token::DELETE:
-      BAILOUT("UnaryOperataion: DELETE");
+      BAILOUT("UnaryOperation: DELETE");
+    case Token::ADD:
+      BAILOUT("UnaryOperation: ADD");
+    case Token::SUB:
+      BAILOUT("UnaryOperation: SUB");
     default:
-      BAILOUT("UnaryOperataion");
+      UNREACHABLE();
   }
 }
 
