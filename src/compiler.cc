@@ -32,7 +32,7 @@
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
-#include "fast-codegen.h"
+#include "full-codegen.h"
 #include "oprofile-agent.h"
 #include "rewriter.h"
 #include "scopes.h"

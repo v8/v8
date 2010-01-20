@@ -56,10 +56,10 @@ SOURCES = {
     disassembler.cc
     execution.cc
     factory.cc
-    fast-codegen.cc
     flags.cc
     frame-element.cc
     frames.cc
+    full-codegen.cc
     func-name-inferrer.cc
     global-handles.cc
     handles.cc
@@ -112,8 +112,8 @@ SOURCES = {
     arm/cpu-arm.cc
     arm/debug-arm.cc
     arm/disasm-arm.cc
-    arm/fast-codegen-arm.cc
     arm/frames-arm.cc
+    arm/full-codegen-arm.cc
     arm/ic-arm.cc
     arm/jump-target-arm.cc
     arm/macro-assembler-arm.cc
@@ -135,8 +135,8 @@ SOURCES = {
     ia32/cpu-ia32.cc
     ia32/debug-ia32.cc
     ia32/disasm-ia32.cc
-    ia32/fast-codegen-ia32.cc
     ia32/frames-ia32.cc
+    ia32/full-codegen-ia32.cc
     ia32/ic-ia32.cc
     ia32/jump-target-ia32.cc
     ia32/macro-assembler-ia32.cc
@@ -152,8 +152,8 @@ SOURCES = {
     x64/cpu-x64.cc
     x64/debug-x64.cc
     x64/disasm-x64.cc
-    x64/fast-codegen-x64.cc
     x64/frames-x64.cc
+    x64/full-codegen-x64.cc
     x64/ic-x64.cc
     x64/jump-target-x64.cc
     x64/macro-assembler-x64.cc

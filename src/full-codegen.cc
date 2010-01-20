@@ -29,7 +29,7 @@
 
 #include "codegen-inl.h"
 #include "compiler.h"
-#include "fast-codegen.h"
+#include "full-codegen.h"
 #include "stub-cache.h"
 #include "debug.h"
 
