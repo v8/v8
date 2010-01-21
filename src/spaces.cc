@@ -2718,9 +2718,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
 
       // Free the chunk.
-      if (object->IsCode()) {
-        LOG(CodeDeleteEvent(object->address()));
-      }
+      MarkCompactCollector::ReportDeleteIfNeeded(object);
       size_ -= static_cast<int>(chunk_size);
       page_count_--;
       MemoryAllocator::FreeRawMemory(chunk_address, chunk_size);

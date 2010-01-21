@@ -506,11 +506,18 @@ class Socket {
 // TickSample captures the information collected for each sample.
 class TickSample {
  public:
-  TickSample() : pc(0), sp(0), fp(0), state(OTHER), frames_count(0) {}
-  uintptr_t pc;  // Instruction pointer.
-  uintptr_t sp;  // Stack pointer.
-  uintptr_t fp;  // Frame pointer.
-  StateTag state;   // The state of the VM.
+  TickSample()
+      : pc(NULL),
+        sp(NULL),
+        fp(NULL),
+        function(NULL),
+        state(OTHER),
+        frames_count(0) {}
+  Address pc;  // Instruction pointer.
+  Address sp;  // Stack pointer.
+  Address fp;  // Frame pointer.
+  Address function;  // The last called JS function.
+  StateTag state;  // The state of the VM.
   static const int kMaxFramesCount = 100;
   EmbeddedVector<Address, kMaxFramesCount> stack;  // Call stack.
   int frames_count;  // Number of captured frames.

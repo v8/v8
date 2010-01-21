@@ -969,12 +969,6 @@ inline void EncodeForwardingAddressInPagedSpace(HeapObject* old_object,
 inline void IgnoreNonLiveObject(HeapObject* object) {}
 
 
-// A code deletion event is logged for non-live code objects.
-inline void LogNonLiveCodeObject(HeapObject* object) {
-  if (object->IsCode()) LOG(CodeDeleteEvent(object->address()));
-}
-
-
 // Function template that, given a range of addresses (eg, a semispace or a
 // paged space page), iterates through the objects in the range to clear
 // mark bits and compute and encode forwarding addresses.  As a side effect,
@@ -1122,10 +1116,7 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
           is_previous_alive = true;
         }
       } else {
-        if (object->IsCode()) {
-          // Notify the logger that compiled code has been collected.
-          LOG(CodeDeleteEvent(Code::cast(object)->address()));
-        }
+        MarkCompactCollector::ReportDeleteIfNeeded(object);
         if (is_previous_alive) {  // Transition from live to free.
           free_start = current;
           is_previous_alive = false;
@@ -1212,7 +1203,7 @@ void MarkCompactCollector::EncodeForwardingAddresses() {
       Heap::old_data_space());
 
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromCodeSpace,
-                                        LogNonLiveCodeObject>(
+                                        ReportDeleteIfNeeded>(
       Heap::code_space());
 
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromCellSpace,
@@ -1952,6 +1943,8 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
     Code::cast(copied_to)->Relocate(new_addr - old_addr);
     // Notify the logger that compiled code has moved.
     LOG(CodeMoveEvent(old_addr, new_addr));
+  } else if (copied_to->IsJSFunction()) {
+    LOG(FunctionMoveEvent(old_addr, new_addr));
   }
 
   return obj_size;
@@ -2002,6 +1995,17 @@ void MarkCompactCollector::RebuildRSets() {
   state_ = REBUILD_RSETS;
 #endif
   Heap::RebuildRSets();
+}
+
+
+void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (obj->IsCode()) {
+    LOG(CodeDeleteEvent(obj->address()));
+  } else if (obj->IsJSFunction()) {
+    LOG(FunctionDeleteEvent(obj->address()));
+  }
+#endif
 }
 
 } }  // namespace v8::internal

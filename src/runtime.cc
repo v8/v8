@@ -4830,6 +4830,7 @@ static Object* Runtime_NewObject(Arguments args) {
     CompileLazyShared(Handle<SharedFunctionInfo>(function->shared()),
                                                  CLEAR_EXCEPTION,
                                                  0);
+    LOG(FunctionCreateEvent(*function));
   }
 
   bool first_allocation = !function->has_initial_map();

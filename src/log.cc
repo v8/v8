@@ -155,6 +155,13 @@ void StackTracer::Trace(TickSample* sample) {
     return;
   }
 
+  const Address functionAddr =
+      sample->fp + JavaScriptFrameConstants::kFunctionOffset;
+  if (SafeStackFrameIterator::IsWithinBounds(sample->sp, js_entry_sp,
+                                             functionAddr)) {
+    sample->function = Memory::Address_at(functionAddr) - kHeapObjectTag;
+  }
+
   int i = 0;
   const Address callback = Logger::current_state_ != NULL ?
       Logger::current_state_->external_callback() : NULL;
@@ -162,11 +169,8 @@ void StackTracer::Trace(TickSample* sample) {
     sample->stack[i++] = callback;
   }
 
-  SafeStackTraceFrameIterator it(
-      reinterpret_cast<Address>(sample->fp),
-      reinterpret_cast<Address>(sample->sp),
-      reinterpret_cast<Address>(sample->sp),
-      js_entry_sp);
+  SafeStackTraceFrameIterator it(sample->fp, sample->sp,
+                                 sample->sp, js_entry_sp);
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     sample->stack[i++] = it.frame()->pc();
     it.Advance();
@@ -837,10 +841,77 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 
 void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+  MoveEventInternal(CODE_MOVE_EVENT, from, to);
+#endif
+}
+
+
+void Logger::CodeDeleteEvent(Address from) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  DeleteEventInternal(CODE_DELETE_EVENT, from);
+#endif
+}
+
+
+void Logger::SnapshotPositionEvent(Address addr, int pos) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (!Log::IsEnabled() || !FLAG_log_snapshot_positions) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,", log_events_[SNAPSHOT_POSITION_EVENT]);
+  msg.AppendAddress(addr);
+  msg.Append(",%d", pos);
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::FunctionCreateEvent(JSFunction* function) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  static Address prev_code = NULL;
+  if (!Log::IsEnabled() || !FLAG_log_code) return;
+  LogMessageBuilder msg;
+  msg.Append("%s,", log_events_[FUNCTION_CREATION_EVENT]);
+  msg.AppendAddress(function->address());
+  msg.Append(',');
+  msg.AppendAddress(function->code()->address(), prev_code);
+  prev_code = function->code()->address();
+  if (FLAG_compress_log) {
+    ASSERT(compression_helper_ != NULL);
+    if (!compression_helper_->HandleMessage(&msg)) return;
+  }
+  msg.Append('\n');
+  msg.WriteToLogFile();
+#endif
+}
+
+
+void Logger::FunctionMoveEvent(Address from, Address to) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  MoveEventInternal(FUNCTION_MOVE_EVENT, from, to);
+#endif
+}
+
+
+void Logger::FunctionDeleteEvent(Address from) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  DeleteEventInternal(FUNCTION_DELETE_EVENT, from);
+#endif
+}
+
+
+void Logger::MoveEventInternal(LogEventsAndTags event,
+                               Address from,
+                               Address to) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   static Address prev_to_ = NULL;
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[CODE_MOVE_EVENT]);
+  msg.Append("%s,", log_events_[event]);
   msg.AppendAddress(from);
   msg.Append(',');
   msg.AppendAddress(to, prev_to_);
@@ -855,29 +926,12 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 }
 
 
-void Logger::CodeDeleteEvent(Address from) {
+void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[CODE_DELETE_EVENT]);
+  msg.Append("%s,", log_events_[event]);
   msg.AppendAddress(from);
-  if (FLAG_compress_log) {
-    ASSERT(compression_helper_ != NULL);
-    if (!compression_helper_->HandleMessage(&msg)) return;
-  }
-  msg.Append('\n');
-  msg.WriteToLogFile();
-#endif
-}
-
-
-void Logger::SnapshotPositionEvent(Address addr, int pos) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_snapshot_positions) return;
-  LogMessageBuilder msg;
-  msg.Append("%s,", log_events_[SNAPSHOT_POSITION_EVENT]);
-  msg.AppendAddress(addr);
-  msg.Append(",%d", pos);
   if (FLAG_compress_log) {
     ASSERT(compression_helper_ != NULL);
     if (!compression_helper_->HandleMessage(&msg)) return;
@@ -1069,13 +1123,17 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (!Log::IsEnabled() || !FLAG_prof) return;
   static Address prev_sp = NULL;
+  static Address prev_function = NULL;
   LogMessageBuilder msg;
   msg.Append("%s,", log_events_[TICK_EVENT]);
-  Address prev_addr = reinterpret_cast<Address>(sample->pc);
+  Address prev_addr = sample->pc;
   msg.AppendAddress(prev_addr);
   msg.Append(',');
-  msg.AppendAddress(reinterpret_cast<Address>(sample->sp), prev_sp);
-  prev_sp = reinterpret_cast<Address>(sample->sp);
+  msg.AppendAddress(sample->sp, prev_sp);
+  prev_sp = sample->sp;
+  msg.Append(',');
+  msg.AppendAddress(sample->function, prev_function);
+  prev_function = sample->function;
   msg.Append(",%d", static_cast<int>(sample->state));
   if (overflow) {
     msg.Append(",overflow");
@@ -1144,6 +1202,7 @@ void Logger::ResumeProfiler(int flags) {
       LOG(UncheckedStringEvent("profiler", "resume"));
       FLAG_log_code = true;
       LogCompiledFunctions();
+      LogFunctionObjects();
       LogAccessorCallbacks();
       if (!FLAG_sliding_state_window) ticker_->Start();
     }
@@ -1287,6 +1346,20 @@ void Logger::LogCompiledFunctions() {
   }
 
   DeleteArray(sfis);
+}
+
+
+void Logger::LogFunctionObjects() {
+  AssertNoAllocation no_alloc;
+  HeapIterator iterator;
+  while (iterator.has_next()) {
+    HeapObject* obj = iterator.next();
+    ASSERT(obj != NULL);
+    if (!obj->IsJSFunction()) continue;
+    JSFunction* jsf = JSFunction::cast(obj);
+    if (!jsf->is_compiled()) continue;
+    LOG(FunctionCreateEvent(jsf));
+  }
 }
 
 
