@@ -147,7 +147,7 @@ class SnapshotByteSource {
     return position_ == length_;
   }
 
-  const int position() { return position_; }
+  int position() { return position_; }
 
  private:
   const byte* data_;
