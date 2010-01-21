@@ -172,7 +172,20 @@ void FullCodeGenSyntaxChecker::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void FullCodeGenSyntaxChecker::VisitForStatement(ForStatement* stmt) {
-  BAILOUT("ForStatement");
+  if (!FLAG_always_fast_compiler) BAILOUT("ForStatement");
+  if (stmt->init() != NULL) {
+    Visit(stmt->init());
+    CHECK_BAILOUT;
+  }
+  if (stmt->cond() != NULL) {
+    Visit(stmt->cond());
+    CHECK_BAILOUT;
+  }
+  Visit(stmt->body());
+  if (stmt->next() != NULL) {
+    CHECK_BAILOUT;
+    Visit(stmt->next());
+  }
 }
 
 
@@ -855,7 +868,48 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
-  UNREACHABLE();
+  Comment cmnt(masm_, "[ ForStatement");
+  SetStatementPosition(stmt);
+  Label test, body, stack_limit_hit, stack_check_success;
+
+  Iteration loop_statement(this, stmt);
+  if (stmt->init() != NULL) {
+    Visit(stmt->init());
+  }
+
+  increment_loop_depth();
+  // Emit the test at the bottom of the loop (even if empty).
+  __ jmp(&test);
+
+  __ bind(&body);
+  Visit(stmt->body());
+
+  __ bind(loop_statement.continue_target());
+
+  SetStatementPosition(stmt);
+  if (stmt->next() != NULL) {
+    Visit(stmt->next());
+  }
+
+  __ bind(&test);
+
+  // Check stack before looping.
+  __ StackLimitCheck(&stack_limit_hit);
+  __ bind(&stack_check_success);
+
+  if (stmt->cond() != NULL) {
+    VisitForControl(stmt->cond(), &body, loop_statement.break_target());
+  } else {
+    __ jmp(&body);
+  }
+
+  __ bind(&stack_limit_hit);
+  StackCheckStub stack_stub;
+  __ CallStub(&stack_stub);
+  __ jmp(&stack_check_success);
+
+  __ bind(loop_statement.break_target());
+  decrement_loop_depth();
 }
 
 

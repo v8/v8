@@ -469,7 +469,8 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
 
     // Generate code and return it.
     bool is_compiled = false;
-    if (FLAG_fast_compiler && literal->try_fast_codegen()) {
+    if (FLAG_always_fast_compiler ||
+        (FLAG_fast_compiler && literal->try_fast_codegen())) {
       FullCodeGenSyntaxChecker checker;
       checker.Check(literal);
       if (checker.has_supported_syntax()) {
