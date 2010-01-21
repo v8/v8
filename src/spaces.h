@@ -982,6 +982,18 @@ class PagedSpace : public Space {
     return Page::FromAllocationTop(alloc_info.limit);
   }
 
+  int CountPagesToTop() {
+    Page* p = Page::FromAllocationTop(allocation_info_.top);
+    PageIterator it(this, PageIterator::ALL_PAGES);
+    int counter = 1;
+    while (it.has_next()) {
+      if (it.next() == p) return counter;
+      counter++;
+    }
+    UNREACHABLE();
+    return -1;
+  }
+
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS. Newly allocated
   // pages are append to the last_page;
@@ -1770,12 +1782,10 @@ class MapSpace : public FixedSpace {
   // Are map pointers encodable into map word?
   bool MapPointersEncodable() {
     if (!FLAG_use_big_map_space) {
-      ASSERT(CountTotalPages() <= kMaxMapPageIndex);
+      ASSERT(CountPagesToTop() <= kMaxMapPageIndex);
       return true;
     }
-    int n_of_pages = Capacity() / Page::kObjectAreaSize;
-    ASSERT(n_of_pages == CountTotalPages());
-    return n_of_pages <= max_map_space_pages_;
+    return CountPagesToTop() <= max_map_space_pages_;
   }
 
   // Should be called after forced sweep to find out if map space needs
@@ -1790,9 +1800,11 @@ class MapSpace : public FixedSpace {
     int pages_left = live_maps / kMapsPerPage;
     PageIterator it(this, PageIterator::ALL_PAGES);
     while (pages_left-- > 0) {
+      it.has_next();  // Must be called for side-effects, see bug 586.
       ASSERT(it.has_next());
       it.next()->ClearRSet();
     }
+    it.has_next();  // Must be called for side-effects, see bug 586.
     ASSERT(it.has_next());
     Page* top_page = it.next();
     top_page->ClearRSet();
