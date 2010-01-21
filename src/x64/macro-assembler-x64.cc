@@ -1311,8 +1311,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first_object,
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringBits =
-      kNotStringTag | kSeqStringTag | kAsciiStringTag;
+  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
@@ -1320,7 +1319,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first_object,
   ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
   lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
   cmpl(scratch1,
-       Immediate(kFlatAsciiStringBits + (kFlatAsciiStringBits << 3)));
+       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
   j(not_equal, on_fail);
 }
 

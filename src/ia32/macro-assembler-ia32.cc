@@ -1525,6 +1525,38 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
+void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
+                                                         Register object2,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         Label* failure) {
+  // Check that both objects are not smis.
+  ASSERT_EQ(0, kSmiTag);
+  mov(scratch1, Operand(object1));
+  and_(scratch1, Operand(object2));
+  test(scratch1, Immediate(kSmiTagMask));
+  j(zero, failure);
+
+  // Load instance type for both strings.
+  mov(scratch1, FieldOperand(object1, HeapObject::kMapOffset));
+  mov(scratch2, FieldOperand(object2, HeapObject::kMapOffset));
+  movzx_b(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
+  movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
+
+  // Check that both are flat ascii strings.
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  // Interleave bits from both instance types and compare them in one check.
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  and_(scratch1, kFlatAsciiStringMask);
+  and_(scratch2, kFlatAsciiStringMask);
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 3));
+  j(not_equal, failure);
+}
+
+
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.

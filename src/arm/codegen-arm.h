@@ -512,6 +512,28 @@ class GenericBinaryOpStub : public CodeStub {
 };
 
 
+class StringCompareStub: public CodeStub {
+ public:
+  StringCompareStub() { }
+
+  // Compare two flat ASCII strings and returns result in r0.
+  // Does not use the stack.
+  static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
+                                              Register left,
+                                              Register right,
+                                              Register scratch1,
+                                              Register scratch2,
+                                              Register scratch3,
+                                              Register scratch4);
+
+ private:
+  Major MajorKey() { return StringCompare; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ARM_CODEGEN_ARM_H_

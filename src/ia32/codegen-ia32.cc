@@ -8575,30 +8575,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&check_for_strings);
 
-  // Check that both objects are not smis.
-  ASSERT_EQ(0, kSmiTag);
-  __ mov(ebx, Operand(edx));
-  __ and_(ebx, Operand(eax));
-  __ test(ebx, Immediate(kSmiTagMask));
-  __ j(zero, &call_builtin);
-
-  // Load instance type for both objects.
-  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-
-  // Check that both are flat ascii strings.
-  Label non_ascii_flat;
-  ASSERT(kNotStringTag != 0);
-  const int kFlatAsciiString =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  __ and_(ecx, kFlatAsciiString);
-  __ cmp(ecx, kStringTag | kSeqStringTag | kAsciiStringTag);
-  __ j(not_equal, &call_builtin);
-  __ and_(ebx, kFlatAsciiString);
-  __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
-  __ j(not_equal, &call_builtin);
+  __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx, &call_builtin);
 
   // Inline comparison of ascii strings.
   StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
@@ -9652,79 +9629,76 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch1,
                                                         Register scratch2,
                                                         Register scratch3) {
-  Label compare_lengths, compare_lengths_1;
-
-  // Find minimum length. If either length is zero just compare lengths.
+  Label result_not_equal;
+  Label result_greater;
+  Label compare_lengths;
+  // Find minimum length.
+  Label left_shorter;
   __ mov(scratch1, FieldOperand(left, String::kLengthOffset));
-  __ test(scratch1, Operand(scratch1));
-  __ j(zero, &compare_lengths_1);
-  __ mov(scratch2, FieldOperand(right, String::kLengthOffset));
-  __ test(scratch2, Operand(scratch2));
-  __ j(zero, &compare_lengths_1);
-  __ cmp(scratch1, Operand(scratch2));
-  if (CpuFeatures::IsSupported(CMOV)) {
-    CpuFeatures::Scope use_cmov(CMOV);
-    __ cmov(greater, scratch1, Operand(scratch2));
-  } else {
-    Label l;
-    __ j(less, &l);
-    __ mov(scratch1, scratch2);
-    __ bind(&l);
+  __ mov(scratch3, scratch1);
+  __ sub(scratch3, FieldOperand(right, String::kLengthOffset));
+
+  Register length_delta = scratch3;
+
+  __ j(less_equal, &left_shorter);
+  // Right string is shorter. Change scratch1 to be length of right string.
+  __ sub(scratch1, Operand(length_delta));
+  __ bind(&left_shorter);
+
+  Register min_length = scratch1;
+
+  // If either length is zero, just compare lengths.
+  __ test(min_length, Operand(min_length));
+  __ j(zero, &compare_lengths);
+
+  // Change index to run from -min_length to -1 by adding min_length
+  // to string start. This means that loop ends when index reaches zero,
+  // which doesn't need an additional compare.
+  __ lea(left,
+         FieldOperand(left,
+                      min_length, times_1,
+                      SeqAsciiString::kHeaderSize));
+  __ lea(right,
+         FieldOperand(right,
+                      min_length, times_1,
+                      SeqAsciiString::kHeaderSize));
+  __ neg(min_length);
+
+  Register index = min_length;  // index = -min_length;
+
+  {
+    // Compare loop.
+    Label loop;
+    __ bind(&loop);
+    // Compare characters.
+    __ mov_b(scratch2, Operand(left, index, times_1, 0));
+    __ cmpb(scratch2, Operand(right, index, times_1, 0));
+    __ j(not_equal, &result_not_equal);
+    __ add(Operand(index), Immediate(1));
+    __ j(not_zero, &loop);
   }
 
-  Label result_greater, result_less;
-  Label loop;
-  // Compare next character.
-  __ mov(scratch3, Immediate(-1));  // Index into strings.
-  __ bind(&loop);
-  // Compare characters.
-  Label character_compare_done;
-  __ add(Operand(scratch3), Immediate(1));
-  __ mov_b(scratch2, Operand(left,
-                             scratch3,
-                             times_1,
-                             SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ subb(scratch2, Operand(right,
-                            scratch3,
-                            times_1,
-                            SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ j(not_equal, &character_compare_done);
-  __ sub(Operand(scratch1), Immediate(1));
-  __ j(not_zero, &loop);
-  // If min length characters match compare lengths otherwise last character
-  // compare is the result.
-  __ bind(&character_compare_done);
-  __ j(equal, &compare_lengths);
-  __ j(less, &result_less);
-  __ jmp(&result_greater);
-
-  // Compare lengths.
-  Label result_not_equal;
+  // Compare lengths -  strings up to min-length are equal.
   __ bind(&compare_lengths);
-  __ mov(scratch1, FieldOperand(left, String::kLengthOffset));
-  __ bind(&compare_lengths_1);
-  __ sub(scratch1, FieldOperand(right, String::kLengthOffset));
+  __ test(length_delta, Operand(length_delta));
   __ j(not_zero, &result_not_equal);
 
   // Result is EQUAL.
   ASSERT_EQ(0, EQUAL);
   ASSERT_EQ(0, kSmiTag);
-  __ xor_(eax, Operand(eax));
-  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
   __ ret(2 * kPointerSize);
+
   __ bind(&result_not_equal);
   __ j(greater, &result_greater);
 
   // Result is LESS.
-  __ bind(&result_less);
-  __ mov(eax, Immediate(Smi::FromInt(LESS)->value()));
-  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ Set(eax, Immediate(Smi::FromInt(LESS)));
   __ ret(2 * kPointerSize);
 
   // Result is GREATER.
   __ bind(&result_greater);
-  __ mov(eax, Immediate(Smi::FromInt(GREATER)->value()));
-  __ IncrementCounter(&Counters::string_compare_native, 1);
+  __ Set(eax, Immediate(Smi::FromInt(GREATER)));
   __ ret(2 * kPointerSize);
 }
 
@@ -9745,40 +9719,18 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &not_same);
   ASSERT_EQ(0, EQUAL);
   ASSERT_EQ(0, kSmiTag);
-  __ xor_(eax, Operand(eax));
+  __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
   __ IncrementCounter(&Counters::string_compare_native, 1);
   __ ret(2 * kPointerSize);
 
   __ bind(&not_same);
 
-  // Check that both objects are not smis.
-  ASSERT_EQ(0, kSmiTag);
-  __ mov(ebx, Operand(edx));
-  __ and_(ebx, Operand(eax));
-  __ test(ebx, Immediate(kSmiTagMask));
-  __ j(zero, &runtime);
-
-  // Load instance type for both strings.
-  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-
-  // Check that both are flat ascii strings.
-  Label non_ascii_flat;
-  __ and_(ecx, kStringRepresentationMask | kStringEncodingMask);
-  __ cmp(ecx, kSeqStringTag | kAsciiStringTag);
-  __ j(not_equal, &non_ascii_flat);
-  const int kFlatAsciiString =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  __ and_(ebx, kFlatAsciiString);
-  __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
-  __ j(not_equal, &non_ascii_flat);
+  // Check that both objects are sequential ascii strings.
+  __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx, &runtime);
 
   // Compare flat ascii strings.
+  __ IncrementCounter(&Counters::string_compare_native, 1);
   GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx, edi);
-
-  __ bind(&non_ascii_flat);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.

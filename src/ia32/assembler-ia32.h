@@ -559,6 +559,8 @@ class Assembler : public Malloced {
   void and_(const Operand& dst, const Immediate& x);
 
   void cmpb(const Operand& op, int8_t imm8);
+  void cmpb(Register src, const Operand& dst);
+  void cmpb(const Operand& dst, Register src);
   void cmpb_al(const Operand& op);
   void cmpw_ax(const Operand& op);
   void cmpw(const Operand& op, Immediate imm16);

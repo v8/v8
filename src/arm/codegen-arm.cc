@@ -3576,7 +3576,8 @@ void CodeGenerator::GenerateStringCompare(ZoneList<Expression*>* args) {
   Load(args->at(0));
   Load(args->at(1));
 
-  frame_->CallRuntime(Runtime::kStringCompare, 2);
+  StringCompareStub stub;
+  frame_->CallStub(&stub, 2);
   frame_->EmitPush(r0);
 }
 
@@ -5089,8 +5090,9 @@ static void EmitCheckForSymbols(MacroAssembler* masm, Label* slow) {
 }
 
 
-// On entry r0 and r1 are the things to be compared.  On exit r0 is 0,
-// positive or negative to indicate the result of the comparison.
+// On entry r0 (rhs) and r1 (lhs) are the values to be compared.
+// On exit r0 is 0, positive or negative to indicate the result of
+// the comparison.
 void CompareStub::Generate(MacroAssembler* masm) {
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles, lhs_not_nan;
@@ -5168,6 +5170,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   }
 
   Label check_for_symbols;
+  Label flat_string_check;
   // Check for heap-number-heap-number comparison.  Can jump to slow case,
   // or load both doubles into r0, r1, r2, r3 and jump to the code that handles
   // that case.  If the inputs are not doubles then jumps to check_for_symbols.
@@ -5175,7 +5178,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
   EmitCheckForTwoHeapNumbers(masm,
                              &both_loaded_as_doubles,
                              &check_for_symbols,
-                             &slow);
+                             &flat_string_check);
 
   __ bind(&check_for_symbols);
   // In the strict case the EmitStrictTwoHeapObjectCompare already took care of
@@ -5183,10 +5186,27 @@ void CompareStub::Generate(MacroAssembler* masm) {
   if (cc_ == eq && !strict_) {
     // Either jumps to slow or returns the answer.  Assumes that r2 is the type
     // of r0 on entry.
-    EmitCheckForSymbols(masm, &slow);
+    EmitCheckForSymbols(masm, &flat_string_check);
   }
 
+  // Check for both being sequential ASCII strings, and inline if that is the
+  // case.
+  __ bind(&flat_string_check);
+
+  __ JumpIfNonSmisNotBothSequentialAsciiStrings(r0, r1, r2, r3, &slow);
+
+  __ IncrementCounter(&Counters::string_compare_native, 1, r2, r3);
+  StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
+                                                     r1,
+                                                     r0,
+                                                     r2,
+                                                     r3,
+                                                     r4,
+                                                     r5);
+  // Never falls through to here.
+
   __ bind(&slow);
+
   __ push(r1);
   __ push(r0);
   // Figure out which native to call and setup the arguments.
@@ -6734,6 +6754,101 @@ int CompareStub::MinorKey() {
   int nnn_value = (never_nan_nan_ ? 2 : 0);
   if (cc_ != eq) nnn_value = 0;  // Avoid duplicate stubs.
   return (static_cast<unsigned>(cc_) >> 26) | nnn_value | (strict_ ? 1 : 0);
+}
+
+
+
+
+void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
+                                                        Register left,
+                                                        Register right,
+                                                        Register scratch1,
+                                                        Register scratch2,
+                                                        Register scratch3,
+                                                        Register scratch4) {
+  Label compare_lengths;
+  // Find minimum length and length difference.
+  __ ldr(scratch1, FieldMemOperand(left, String::kLengthOffset));
+  __ ldr(scratch2, FieldMemOperand(right, String::kLengthOffset));
+  __ sub(scratch3, scratch1, Operand(scratch2), SetCC);
+  Register length_delta = scratch3;
+  __ mov(scratch1, scratch2, LeaveCC, gt);
+  Register min_length = scratch1;
+  __ tst(min_length, Operand(min_length));
+  __ b(eq, &compare_lengths);
+
+  // Setup registers so that we only need to increment one register
+  // in the loop.
+  __ add(scratch2, min_length,
+         Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(left, left, Operand(scratch2));
+  __ add(right, right, Operand(scratch2));
+  // Registers left and right points to the min_length character of strings.
+  __ rsb(min_length, min_length, Operand(-1));
+  Register index = min_length;
+  // Index starts at -min_length.
+
+  {
+    // Compare loop.
+    Label loop;
+    __ bind(&loop);
+    // Compare characters.
+    __ add(index, index, Operand(1), SetCC);
+    __ ldrb(scratch2, MemOperand(left, index), ne);
+    __ ldrb(scratch4, MemOperand(right, index), ne);
+    // Skip to compare lengths with eq condition true.
+    __ b(eq, &compare_lengths);
+    __ cmp(scratch2, scratch4);
+    __ b(eq, &loop);
+    // Fallthrough with eq condition false.
+  }
+  // Compare lengths -  strings up to min-length are equal.
+  __ bind(&compare_lengths);
+  ASSERT(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
+  // Use zero length_delta as result.
+  __ mov(r0, Operand(length_delta), SetCC, eq);
+  // Fall through to here if characters compare not-equal.
+  __ mov(r0, Operand(Smi::FromInt(GREATER)), LeaveCC, gt);
+  __ mov(r0, Operand(Smi::FromInt(LESS)), LeaveCC, lt);
+  __ Ret();
+}
+
+
+void StringCompareStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  // Stack frame on entry.
+  //  sp[0]: return address
+  //  sp[4]: right string
+  //  sp[8]: left string
+
+  __ ldr(r0, MemOperand(sp, 2 * kPointerSize));  // left
+  __ ldr(r1, MemOperand(sp, 1 * kPointerSize));  // right
+
+  Label not_same;
+  __ cmp(r0, r1);
+  __ b(ne, &not_same);
+  ASSERT_EQ(0, EQUAL);
+  ASSERT_EQ(0, kSmiTag);
+  __ mov(r0, Operand(Smi::FromInt(EQUAL)));
+  __ IncrementCounter(&Counters::string_compare_native, 1, r1, r2);
+  __ add(sp, sp, Operand(2 * kPointerSize));
+  __ Ret();
+
+  __ bind(&not_same);
+
+  // Check that both objects are sequential ascii strings.
+  __ JumpIfNotBothSequentialAsciiStrings(r0, r1, r2, r3, &runtime);
+
+  // Compare flat ascii strings natively. Remove arguments from stack first.
+  __ IncrementCounter(&Counters::string_compare_native, 1, r2, r3);
+  __ add(sp, sp, Operand(2 * kPointerSize));
+  GenerateCompareFlatAsciiStrings(masm, r0, r1, r2, r3, r4, r5);
+
+  // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
+  // tagged as a small integer.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kStringCompare), 2, 1);
 }
 
 

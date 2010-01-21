@@ -8231,7 +8231,6 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is EQUAL.
   __ Move(rax, Smi::FromInt(EQUAL));
-  __ IncrementCounter(&Counters::string_compare_native, 1);
   __ ret(2 * kPointerSize);
 
   Label result_greater;
@@ -8241,13 +8240,11 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 
   // Result is LESS.
   __ Move(rax, Smi::FromInt(LESS));
-  __ IncrementCounter(&Counters::string_compare_native, 1);
   __ ret(2 * kPointerSize);
 
   // Result is GREATER.
   __ bind(&result_greater);
   __ Move(rax, Smi::FromInt(GREATER));
-  __ IncrementCounter(&Counters::string_compare_native, 1);
   __ ret(2 * kPointerSize);
 }
 
@@ -8277,6 +8274,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &runtime);
 
   // Inline comparison of ascii strings.
+  __ IncrementCounter(&Counters::string_compare_native, 1);
   GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)

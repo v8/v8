@@ -1221,6 +1221,46 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
+void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
+    Register first,
+    Register second,
+    Register scratch1,
+    Register scratch2,
+    Label* failure) {
+  // Test that both first and second are sequential ASCII strings.
+  // Assume that they are non-smis.
+  ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
+  ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
+  ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
+  int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  and_(scratch1, scratch1, Operand(kFlatAsciiStringMask));
+  and_(scratch2, scratch2, Operand(kFlatAsciiStringMask));
+  cmp(scratch1, Operand(kFlatAsciiStringTag));
+  // Ignore second test if first test failed.
+  cmp(scratch2, Operand(kFlatAsciiStringTag), eq);
+  b(ne, failure);
+}
+
+void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
+                                                         Register second,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         Label* failure) {
+  // Check that neither is a smi.
+  ASSERT_EQ(0, kSmiTag);
+  and_(scratch1, first, Operand(second));
+  tst(scratch1, Operand(kSmiTagMask));
+  b(eq, failure);
+  JumpIfNonSmisNotBothSequentialAsciiStrings(first,
+                                             second,
+                                             scratch1,
+                                             scratch2,
+                                             failure);
+}
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 CodePatcher::CodePatcher(byte* address, int instructions)
