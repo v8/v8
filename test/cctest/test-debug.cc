@@ -4264,7 +4264,12 @@ class BreakpointsV8Thread : public v8::internal::Thread {
 
 class BreakpointsDebuggerThread : public v8::internal::Thread {
  public:
+  BreakpointsDebuggerThread(bool global_evaluate)
+      : global_evaluate_(global_evaluate) {}
   void Run();
+
+ private:
+  bool global_evaluate_;
 };
 
 
@@ -4332,24 +4337,51 @@ void BreakpointsDebuggerThread::Run() {
       "\"type\":\"request\","
       "\"command\":\"setbreakpoint\","
       "\"arguments\":{\"type\":\"function\",\"target\":\"dog\",\"line\":3}}";
-  const char* command_3 = "{\"seq\":103,"
-      "\"type\":\"request\","
-      "\"command\":\"evaluate\","
-      "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":false}}";
-  const char* command_4 = "{\"seq\":104,"
-      "\"type\":\"request\","
-      "\"command\":\"evaluate\","
-      "\"arguments\":{\"expression\":\"x + 1\",\"disable_break\":true}}";
+  const char* command_3;
+  if (this->global_evaluate_) {
+    command_3 = "{\"seq\":103,"
+        "\"type\":\"request\","
+        "\"command\":\"evaluate\","
+        "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":false,"
+        "\"global\":true}}";
+  } else {
+    command_3 = "{\"seq\":103,"
+        "\"type\":\"request\","
+        "\"command\":\"evaluate\","
+        "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":false}}";
+  }
+  const char* command_4;
+  if (this->global_evaluate_) {
+    command_4 = "{\"seq\":104,"
+        "\"type\":\"request\","
+        "\"command\":\"evaluate\","
+        "\"arguments\":{\"expression\":\"100 + 8\",\"disable_break\":true,"
+        "\"global\":true}}";
+  } else {
+    command_4 = "{\"seq\":104,"
+        "\"type\":\"request\","
+        "\"command\":\"evaluate\","
+        "\"arguments\":{\"expression\":\"x + 1\",\"disable_break\":true}}";
+  }
   const char* command_5 = "{\"seq\":105,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
   const char* command_6 = "{\"seq\":106,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
-  const char* command_7 = "{\"seq\":107,"
-     "\"type\":\"request\","
-     "\"command\":\"evaluate\","
-     "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":true}}";
+  const char* command_7;
+  if (this->global_evaluate_) {
+    command_7 = "{\"seq\":107,"
+        "\"type\":\"request\","
+        "\"command\":\"evaluate\","
+        "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":true,"
+        "\"global\":true}}";
+  } else {
+    command_7 = "{\"seq\":107,"
+        "\"type\":\"request\","
+        "\"command\":\"evaluate\","
+        "\"arguments\":{\"expression\":\"dog()\",\"disable_break\":true}}";
+  }
   const char* command_8 = "{\"seq\":108,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
@@ -4406,11 +4438,11 @@ void BreakpointsDebuggerThread::Run() {
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_8, buffer));
 }
 
-BreakpointsDebuggerThread breakpoints_debugger_thread;
-BreakpointsV8Thread breakpoints_v8_thread;
-
-TEST(RecursiveBreakpoints) {
+void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   i::FLAG_debugger_auto_break = true;
+
+  BreakpointsDebuggerThread breakpoints_debugger_thread(global_evaluate);
+  BreakpointsV8Thread breakpoints_v8_thread;
 
   // Create a V8 environment
   Barriers stack_allocated_breakpoints_barriers;
@@ -4422,6 +4454,14 @@ TEST(RecursiveBreakpoints) {
 
   breakpoints_v8_thread.Join();
   breakpoints_debugger_thread.Join();
+}
+
+TEST(RecursiveBreakpoints) {
+  TestRecursiveBreakpointsGeneric(false);
+}
+
+TEST(RecursiveBreakpointsGlobal) {
+  TestRecursiveBreakpointsGeneric(true);
 }
 
 
