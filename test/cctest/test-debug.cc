@@ -2197,13 +2197,25 @@ int Utf16ToAscii(const uint16_t* input_buffer, int length,
 
 // We match parts of the message to get evaluate result int value.
 bool GetEvaluateStringResult(char *message, char* buffer, int buffer_size) {
-  const char* value = "\"value\":";
-  char* pos = strstr(message, value);
-  if (pos == NULL) {
+  if (strstr(message, "\"command\":\"evaluate\"") == NULL) {
+    return false;
+  }
+  const char* prefix = "\"text\":\"";
+  char* pos1 = strstr(message, prefix);
+  if (pos1 == NULL) {
+    return false;
+  }
+  pos1 += strlen(prefix);
+  char* pos2 = strchr(pos1, '"');
+  if (pos2 == NULL) {
     return false;
   }
   Vector<char> buf(buffer, buffer_size);
-  OS::StrNCpy(buf, pos, buffer_size - 1);
+  int len = pos2 - pos1;
+  if (len > buffer_size - 1) {
+    len = buffer_size - 1;
+  }
+  OS::StrNCpy(buf, pos1, len);
   buffer[buffer_size - 1] = '\0';
   return true;
 }
@@ -2303,9 +2315,9 @@ TEST(DebugEvaluateWithoutStack) {
 
   CHECK_EQ(3, process_debug_messages_data.counter);
 
-  CHECK(strcmp("Pinguin", process_debug_messages_data.results[0].buffer));
-  CHECK(strcmp("Captbara", process_debug_messages_data.results[1].buffer));
-  CHECK(strcmp("805", process_debug_messages_data.results[2].buffer));
+  CHECK(strcmp("Pinguin", process_debug_messages_data.results[0].buffer) == 0);
+  CHECK(strcmp("Capybara", process_debug_messages_data.results[1].buffer) == 0);
+  CHECK(strcmp("805", process_debug_messages_data.results[2].buffer) == 0);
 
   v8::Debug::SetMessageHandler(NULL);
   v8::Debug::SetDebugEventListener(NULL);
