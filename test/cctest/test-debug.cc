@@ -2315,9 +2315,10 @@ TEST(DebugEvaluateWithoutStack) {
 
   CHECK_EQ(3, process_debug_messages_data.counter);
 
-  CHECK(strcmp("Pinguin", process_debug_messages_data.results[0].buffer) == 0);
-  CHECK(strcmp("Capybara", process_debug_messages_data.results[1].buffer) == 0);
-  CHECK(strcmp("805", process_debug_messages_data.results[2].buffer) == 0);
+  CHECK_EQ(strcmp("Pinguin", process_debug_messages_data.results[0].buffer), 0);
+  CHECK_EQ(strcmp("Capybara", process_debug_messages_data.results[1].buffer),
+           0);
+  CHECK_EQ(strcmp("805", process_debug_messages_data.results[2].buffer), 0);
 
   v8::Debug::SetMessageHandler(NULL);
   v8::Debug::SetDebugEventListener(NULL);
@@ -4264,7 +4265,7 @@ class BreakpointsV8Thread : public v8::internal::Thread {
 
 class BreakpointsDebuggerThread : public v8::internal::Thread {
  public:
-  BreakpointsDebuggerThread(bool global_evaluate)
+  explicit BreakpointsDebuggerThread(bool global_evaluate)
       : global_evaluate_(global_evaluate) {}
   void Run();
 
