@@ -1489,7 +1489,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (assign_type == VARIABLE) {
     ASSERT(expr->expression()->AsVariableProxy()->var() != NULL);
     Location saved_location = location_;
-    location_ = kStack;
+    location_ = kAccumulator;
     EmitVariableLoad(expr->expression()->AsVariableProxy()->var(),
                      Expression::kValue);
     location_ = saved_location;
@@ -1505,11 +1505,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       VisitForValue(prop->key(), kStack);
       EmitKeyedPropertyLoad(prop);
     }
-    __ push(rax);
   }
 
-  // Convert to number.
+  // Call ToNumber only if operand is not a smi.
+  Label no_conversion;
+  Condition is_smi;
+  is_smi = masm_->CheckSmi(rax);
+  __ j(is_smi, &no_conversion);
+  __ push(rax);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+  __ bind(&no_conversion);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -1541,6 +1546,27 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
+  // Inline smi case if we are in a loop.
+  Label stub_call, done;
+  if (loop_depth() > 0) {
+    if (expr->op() == Token::INC) {
+      __ SmiAddConstant(rax, rax, Smi::FromInt(1));
+    } else {
+      __ SmiSubConstant(rax, rax, Smi::FromInt(1));
+    }
+    __ j(overflow, &stub_call);
+    // We could eliminate this smi check if we split the code at
+    // the first smi check before calling ToNumber.
+    is_smi = masm_->CheckSmi(rax);
+    __ j(is_smi, &done);
+    __ bind(&stub_call);
+    // Call stub. Undo operation first.
+    if (expr->op() == Token::INC) {
+      __ SmiSubConstant(rax, rax, Smi::FromInt(1));
+    } else {
+      __ SmiAddConstant(rax, rax, Smi::FromInt(1));
+    }
+  }
   // Call stub for +1/-1.
   __ push(rax);
   __ Push(Smi::FromInt(1));
@@ -1548,6 +1574,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
                            NO_OVERWRITE,
                            NO_GENERIC_BINARY_FLAGS);
   __ CallStub(&stub);
+  __ bind(&done);
 
   // Store the value returned in rax.
   switch (assign_type) {

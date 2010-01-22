@@ -1376,7 +1376,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (assign_type == VARIABLE) {
     ASSERT(expr->expression()->AsVariableProxy()->var() != NULL);
     Location saved_location = location_;
-    location_ = kStack;
+    location_ = kAccumulator;
     EmitVariableLoad(expr->expression()->AsVariableProxy()->var(),
                      Expression::kValue);
     location_ = saved_location;
@@ -1393,11 +1393,15 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       VisitForValue(prop->key(), kStack);
       EmitKeyedPropertyLoad(prop);
     }
-    __ push(r0);
   }
 
-  // Convert to number.
+  // Call ToNumber only if operand is not a smi.
+  Label no_conversion;
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &no_conversion);
+  __ push(r0);
   __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
+  __ bind(&no_conversion);
 
   // Save result for postfix expressions.
   if (expr->is_postfix()) {
@@ -1429,12 +1433,28 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
 
-  // Call stub for +1/-1.
+
+  // Inline smi case if we are in a loop.
+  Label stub_call, done;
+  if (loop_depth() > 0) {
+    __ add(r0, r0, Operand(expr->op() == Token::INC
+                           ? Smi::FromInt(1)
+                           : Smi::FromInt(-1)));
+    __ b(vs, &stub_call);
+    // We could eliminate this smi check if we split the code at
+    // the first smi check before calling ToNumber.
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &done);
+    __ bind(&stub_call);
+    // Call stub. Undo operation first.
+    __ sub(r0, r0, Operand(r1));
+  }
   __ mov(r1, Operand(expr->op() == Token::INC
                      ? Smi::FromInt(1)
                      : Smi::FromInt(-1)));
   GenericBinaryOpStub stub(Token::ADD, NO_OVERWRITE);
   __ CallStub(&stub);
+  __ bind(&done);
 
   // Store the value returned in r0.
   switch (assign_type) {
