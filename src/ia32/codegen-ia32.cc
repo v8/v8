@@ -8107,10 +8107,24 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   //  esp[12]: subject string
   //  esp[16]: JSRegExp object
 
-  Label runtime;
+  static const int kLastMatchInfoOffset = 1 * kPointerSize;
+  static const int kPreviousIndexOffset = 2 * kPointerSize;
+  static const int kSubjectOffset = 3 * kPointerSize;
+  static const int kJSRegExpOffset = 4 * kPointerSize;
+
+  Label runtime, invoke_regexp;
+
+  // Ensure that a RegExp stack is allocated.
+  ExternalReference address_of_regexp_stack_memory_address =
+      ExternalReference::address_of_regexp_stack_memory_address();
+  ExternalReference address_of_regexp_stack_memory_size =
+      ExternalReference::address_of_regexp_stack_memory_size();
+  __ mov(ebx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
+  __ test(ebx, Operand(ebx));
+  __ j(zero, &runtime, not_taken);
 
   // Check that the first argument is a JSRegExp object.
-  __ mov(eax, Operand(esp, 4 * kPointerSize));
+  __ mov(eax, Operand(esp, kJSRegExpOffset));
   ASSERT_EQ(0, kSmiTag);
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &runtime);
@@ -8146,7 +8160,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
   // Check that the second argument is a string.
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(eax, Operand(esp, kSubjectOffset));
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &runtime);
   Condition is_string = masm->IsObjectStringType(eax, ebx, ebx);
@@ -8158,7 +8172,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
   // Check that the third argument is a positive smi.
-  __ mov(eax, Operand(esp, 2 * kPointerSize));
+  __ mov(eax, Operand(esp, kPreviousIndexOffset));
   __ test(eax, Immediate(kSmiTagMask | 0x80000000));
   __ j(not_zero, &runtime);
   // Check that it is not greater than the subject string length.
@@ -8169,7 +8183,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
   // Check that the fourth object is a JSArray object.
-  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ mov(eax, Operand(esp, kLastMatchInfoOffset));
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &runtime);
   __ CmpObjectType(eax, JS_ARRAY_TYPE, ebx);
@@ -8187,38 +8201,74 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(greater, &runtime);
 
   // ecx: RegExp data (FixedArray)
-  // Check the representation and encoding of the subject string (only support
-  // flat ascii strings).
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  // Check the representation and encoding of the subject string.
+  Label seq_string, seq_two_byte_string, check_code;
+  const int kStringRepresentationEncodingMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ and_(ebx, kStringRepresentationMask | kStringEncodingMask);
-  __ cmp(ebx, kSeqStringTag | kAsciiStringTag);
+  __ and_(ebx, kStringRepresentationEncodingMask);
+  // First check for sequential string.
+  ASSERT_EQ(0, kStringTag);
+  ASSERT_EQ(0, kSeqStringTag);
+  __ test(Operand(ebx),
+          Immediate(kIsNotStringMask | kStringRepresentationMask));
+  __ j(zero, &seq_string);
+
+  // Check for flat cons string.
+  // A flat cons string is a cons string where the second part is the empty
+  // string. In that case the subject string is just the first part of the cons
+  // string. Also in this case the first part of the cons string is known to be
+  // a sequential string.
+  __ mov(edx, ebx);
+  __ and_(edx, kStringRepresentationMask);
+  __ cmp(edx, kConsStringTag);
   __ j(not_equal, &runtime);
+  __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
+  __ cmp(Operand(edx), Immediate(Handle<String>(Heap::empty_string())));
+  __ j(not_equal, &runtime);
+  __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ and_(ebx, kStringRepresentationEncodingMask);
 
-  // ecx: RegExp data (FixedArray)
-  // Ensure that a RegExp stack is allocated.
-  ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address();
-  ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size();
-  __ mov(eax, Operand::StaticVariable(address_of_regexp_stack_memory_size));
-  __ test(eax, Operand(eax));
-  __ j(zero, &runtime, not_taken);
-
+  __ bind(&seq_string);
+  // eax: subject string (sequential either ascii to two byte)
+  // ebx: suject string type & kStringRepresentationEncodingMask
   // ecx: RegExp data (FixedArray)
   // Check that the irregexp code has been generated for an ascii string. If
-  // it has the field contains a code object otherwise it contains the hole.
+  // it has, the field contains a code object otherwise it contains the hole.
+  __ cmp(ebx, kStringTag | kSeqStringTag | kTwoByteStringTag);
+  __ j(equal, &seq_two_byte_string);
+#ifdef DEBUG
+  __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
+  __ Check(equal, "Expected sequential ascii string");
+#endif
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
+  __ Set(edi, Immediate(1));  // Type is ascii.
+  __ jmp(&check_code);
+
+  __ bind(&seq_two_byte_string);
+  // eax: subject string
+  // ecx: RegExp data (FixedArray)
+  __ mov(edx, FieldOperand(ecx, JSRegExp::kDataUC16CodeOffset));
+  __ Set(edi, Immediate(0));  // Type is two byte.
+
+  __ bind(&check_code);
+  // Check that the irregexp code has been generated for If it has, the field
+  // contains a code object otherwise it contains the hole.
   __ CmpObjectType(edx, CODE_TYPE, ebx);
   __ j(not_equal, &runtime);
 
+  // eax: subject string
+  // edx: code
+  // edi: encoding of subject string (1 if ascii 0 if two_byte);
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
-  __ mov(eax, Operand(esp, 3 * kPointerSize));  // Subject string.
-  __ mov(ebx, Operand(esp, 2 * kPointerSize));  // Previous index.
-  __ mov(ecx, Operand(esp, 4 * kPointerSize));  // JSRegExp object.
-  __ SmiUntag(ebx);  // Previous index from sim.
+  __ mov(ebx, Operand(esp, kPreviousIndexOffset));
+  __ mov(ecx, Operand(esp, kJSRegExpOffset));
+  __ SmiUntag(ebx);  // Previous index from smi.
 
   // eax: subject string
   // ebx: previous index
@@ -8243,20 +8293,29 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 5: static offsets vector buffer.
   __ push(Immediate(ExternalReference::address_of_static_offsets_vector()));
 
-  // Argument 4: End of string data.
-  __ mov(ecx, FieldOperand(eax, String::kLengthOffset));
-  __ add(ecx, Operand(eax));
-  __ add(Operand(ecx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ push(ecx);
+  // Argument 4: End of string data
+  // Argument 3: Start of string data
+  Label push_two_byte, push_rest;
+  __ test(edi, Operand(edi));
+  __ mov(edi, FieldOperand(eax, String::kLengthOffset));
+  __ j(zero, &push_two_byte);
+  __ lea(ecx, FieldOperand(eax, edi, times_1, SeqAsciiString::kHeaderSize));
+  __ push(ecx);  // Argument 4.
+  __ lea(ecx, FieldOperand(eax, ebx, times_1, SeqAsciiString::kHeaderSize));
+  __ push(ecx);  // Argument 3.
+  __ jmp(&push_rest);
 
-  // Argument 3: Start of string data.
-  __ mov(ecx, ebx);
-  __ add(ebx, Operand(eax));  // String is ASCII.
-  __ add(Operand(ebx), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ push(ebx);
+  __ bind(&push_two_byte);
+  ASSERT(kShortSize == 2);
+  __ lea(ecx, FieldOperand(eax, edi, times_2, SeqTwoByteString::kHeaderSize));
+  __ push(ecx);  // Argument 4.
+  __ lea(ecx, FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
+  __ push(ecx);  // Argument 3.
+
+  __ bind(&push_rest);
 
   // Argument 2: Previous index.
-  __ push(ecx);
+  __ push(ebx);
 
   // Argument 1: Subject string.
   __ push(eax);
@@ -8292,7 +8351,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Load RegExp data.
   __ bind(&success);
-  __ mov(eax, Operand(esp, 4 * kPointerSize));
+  __ mov(eax, Operand(esp, kJSRegExpOffset));
   __ mov(ecx, FieldOperand(eax, JSRegExp::kDataOffset));
   __ mov(edx, FieldOperand(ecx, JSRegExp::kIrregexpCaptureCountOffset));
   // Calculate number of capture registers (number_of_captures + 1) * 2.
@@ -8300,7 +8359,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // edx: Number of capture registers
   // Load last_match_info which is still known to be a fast case JSArray.
-  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ mov(eax, Operand(esp, kLastMatchInfoOffset));
   __ mov(ebx, FieldOperand(eax, JSArray::kElementsOffset));
 
   // ebx: last_match_info backing store (FixedArray)
@@ -8310,11 +8369,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(ebx, RegExpImpl::kLastCaptureCountOffset), edx);
   __ SmiUntag(edx);  // Number of capture registers back from smi.
   // Store last subject and last input.
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastSubjectOffset), eax);
   __ mov(ecx, ebx);
   __ RecordWrite(ecx, RegExpImpl::kLastSubjectOffset, eax, edi);
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(FieldOperand(ebx, RegExpImpl::kLastInputOffset), eax);
   __ mov(ecx, ebx);
   __ RecordWrite(ecx, RegExpImpl::kLastInputOffset, eax, edi);
@@ -8328,7 +8387,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: offsets vector
   // edx: number of capture registers
   Label next_capture, done;
-  __ mov(eax, Operand(esp, 2 * kPointerSize));  // Read previous index.
+  __ mov(eax, Operand(esp, kPreviousIndexOffset));
   // Capture register counter starts from number of capture registers and
   // counts down until wraping after zero.
   __ bind(&next_capture);
@@ -8355,7 +8414,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&done);
 
   // Return last match info.
-  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ mov(eax, Operand(esp, kLastMatchInfoOffset));
   __ ret(4 * kPointerSize);
 
   // Do the runtime call to execute the regexp.

@@ -122,7 +122,10 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
 
   bool is_ascii = subject->IsAsciiRepresentation();
 
+  // The string has been flattened, so it it is a cons string it contains the
+  // full string in the first part.
   if (StringShape(subject_ptr).IsCons()) {
+    ASSERT_EQ(0, ConsString::cast(subject_ptr)->second()->length());
     subject_ptr = ConsString::cast(subject_ptr)->first();
   }
   // Ensure that an underlying string has the same ascii-ness.
