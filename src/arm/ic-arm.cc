@@ -569,11 +569,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks.  We need
-  // to check this explicitly since this generic stub does not perform
-  // map checks.
+
+  // Check bit field.
   __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
-  __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ tst(r3, Operand(kSlowCaseBitFieldMask));
   __ b(ne, &slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
