@@ -1195,7 +1195,7 @@ void MarkCompactCollector::EncodeForwardingAddresses() {
 
   // Compute the forwarding pointers in each space.
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldPointerSpace,
-                                        IgnoreNonLiveObject>(
+                                        ReportDeleteIfNeeded>(
       Heap::old_pointer_space());
 
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldDataSpace,
@@ -1900,6 +1900,11 @@ int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
 
   ASSERT(!HeapObject::FromAddress(new_addr)->IsCode());
 
+  HeapObject* copied_to = HeapObject::FromAddress(new_addr);
+  if (copied_to->IsJSFunction()) {
+    LOG(FunctionMoveEvent(old_addr, new_addr));
+  }
+
   return obj_size;
 }
 
@@ -1943,8 +1948,6 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
     Code::cast(copied_to)->Relocate(new_addr - old_addr);
     // Notify the logger that compiled code has moved.
     LOG(CodeMoveEvent(old_addr, new_addr));
-  } else if (copied_to->IsJSFunction()) {
-    LOG(FunctionMoveEvent(old_addr, new_addr));
   }
 
   return obj_size;
@@ -1981,6 +1984,11 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
     PrintF("relocate %p -> %p\n", old_addr, new_addr);
   }
 #endif
+
+  HeapObject* copied_to = HeapObject::FromAddress(new_addr);
+  if (copied_to->IsJSFunction()) {
+    LOG(FunctionMoveEvent(old_addr, new_addr));
+  }
 
   return obj_size;
 }

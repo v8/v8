@@ -315,6 +315,9 @@ TEST(PureJSStackTrace) {
       "         JSTrace();"
       "};\n"
       "OuterJSTrace();");
+  // The last JS function called.
+  CHECK_EQ(GetGlobalJSFunction("JSFuncDoTrace")->address(),
+           sample.function);
   CHECK_GT(sample.frames_count, 1);
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
   CheckRetAddrIsInJSFunction("JSTrace",
