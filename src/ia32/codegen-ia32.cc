@@ -741,14 +741,14 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
 }
 
 
-enum ArgLocation {
-  ARGS_ON_STACK,
-  ARGS_IN_REGISTERS
-};
-
-
 class FloatingPointHelper : public AllStatic {
  public:
+
+  enum ArgLocation {
+    ARGS_ON_STACK,
+    ARGS_IN_REGISTERS
+  };
+
   // Code pattern for loading a floating point value. Input value must
   // be either a smi or a heap number object (fp value). Requirements:
   // operand in register number. Returns operand as floating point number
@@ -7077,7 +7077,7 @@ void GenericBinaryOpStub::GenerateCall(
 
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
-  if (HasArgumentsInRegisters()) {
+  if (HasArgsInRegisters()) {
     __ mov(ebx, eax);
     __ mov(eax, edx);
   } else {
@@ -7249,16 +7249,18 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     case Token::DIV: {
       Label after_alloc_failure;
 
-      ArgLocation arg_location =
+      FloatingPointHelper::ArgLocation arg_location =
           (op_ == Token::ADD || op_ == Token::SUB) ?
-          ARGS_IN_REGISTERS :
-          ARGS_ON_STACK;
+          FloatingPointHelper::ARGS_IN_REGISTERS :
+          FloatingPointHelper::ARGS_ON_STACK;
 
       __ AllocateHeapNumber(
           edx,
           ecx,
           no_reg,
-          arg_location == ARGS_IN_REGISTERS ? &after_alloc_failure : slow);
+          arg_location == FloatingPointHelper::ARGS_IN_REGISTERS ?
+              &after_alloc_failure :
+              slow);
 
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
@@ -7285,13 +7287,15 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ mov(eax, edx);
       GenerateReturn(masm);
 
-      if (arg_location == ARGS_IN_REGISTERS) {
+      if (arg_location == FloatingPointHelper::ARGS_IN_REGISTERS) {
         __ bind(&after_alloc_failure);
         __ mov(edx, eax);
         __ mov(eax, ebx);
         __ jmp(slow);
       }
+      break;
     }
+
     case Token::BIT_OR:
     case Token::BIT_AND:
     case Token::BIT_XOR:
@@ -7375,7 +7379,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         GenerateReturn(masm);
       } else {  // SSE2 not available, use FPU.
         FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
-        FloatingPointHelper::LoadFloatOperands(masm, ecx, ARGS_IN_REGISTERS);
+        FloatingPointHelper::LoadFloatOperands(
+            masm,
+            ecx,
+            FloatingPointHelper::ARGS_IN_REGISTERS);
         switch (op_) {
           case Token::ADD: __ faddp(1); break;
           case Token::SUB: __ fsubp(1); break;
@@ -7469,9 +7476,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // result. If arguments was passed in registers now place them on the
   // stack in the correct order below the return address.
   __ bind(&call_runtime);
-  if (HasArgumentsInRegisters()) {
+  if (HasArgsInRegisters()) {
     __ pop(ecx);
-    if (HasArgumentsReversed()) {
+    if (HasArgsReversed()) {
       __ push(eax);
       __ push(edx);
     } else {
@@ -7503,10 +7510,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // Only first argument is a string.
       __ bind(&string1);
       __ InvokeBuiltin(
-          HasArgumentsReversed() ?
+          HasArgsReversed() ?
               Builtins::STRING_ADD_RIGHT :
               Builtins::STRING_ADD_LEFT,
-         JUMP_FUNCTION);
+          JUMP_FUNCTION);
 
       // First argument was not a string, test second.
       __ bind(&not_string1);
@@ -7517,10 +7524,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
       // Only second argument is a string.
       __ InvokeBuiltin(
-          HasArgumentsReversed() ?
+          HasArgsReversed() ?
               Builtins::STRING_ADD_LEFT :
               Builtins::STRING_ADD_RIGHT,
-         JUMP_FUNCTION);
+          JUMP_FUNCTION);
 
       __ bind(&not_strings);
       // Neither argument is a string.
@@ -7567,7 +7574,7 @@ void GenericBinaryOpStub::GenerateHeapResultAllocation(MacroAssembler* masm,
                                                        Label* alloc_failure) {
   Label skip_allocation;
   OverwriteMode mode = mode_;
-  if (HasArgumentsReversed()) {
+  if (HasArgsReversed()) {
     if (mode == OVERWRITE_RIGHT) {
       mode = OVERWRITE_LEFT;
     } else if (mode == OVERWRITE_LEFT) {
@@ -7613,7 +7620,7 @@ void GenericBinaryOpStub::GenerateHeapResultAllocation(MacroAssembler* masm,
 
 void GenericBinaryOpStub::GenerateLoadArguments(MacroAssembler* masm) {
   // If arguments are not passed in registers read them from the stack.
-  if (!HasArgumentsInRegisters()) {
+  if (!HasArgsInRegisters()) {
     __ mov(eax, Operand(esp, 1 * kPointerSize));
     __ mov(edx, Operand(esp, 2 * kPointerSize));
   }
@@ -7623,7 +7630,7 @@ void GenericBinaryOpStub::GenerateLoadArguments(MacroAssembler* masm) {
 void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
   // If arguments are not passed in registers remove them from the stack before
   // returning.
-  if (!HasArgumentsInRegisters()) {
+  if (!HasArgsInRegisters()) {
     __ ret(2 * kPointerSize);  // Remove both operands
   } else {
     __ ret(0);

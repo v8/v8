@@ -704,9 +704,11 @@ class GenericBinaryOpStub: public CodeStub {
   // are also OK. Though MUL and DIV on SMIs modify the original registers so
   // we need to push args on stack anyway.
   bool ArgsInRegistersSupported() {
-    return ((op_ == Token::ADD) || (op_ == Token::SUB)) ||
-           (((op_ == Token::MUL) || (op_ == Token::DIV))
-            && (flags_ == NO_SMI_CODE_IN_STUB));
+    if (op_ == Token::ADD || op_ == Token::SUB) return true;
+    if (op_ == Token::MUL || op_ == Token::DIV) {
+      return flags_ == NO_SMI_CODE_IN_STUB;
+    }
+    return false;
   }
   bool IsOperationCommutative() {
     return (op_ == Token::ADD) || (op_ == Token::MUL);
@@ -715,8 +717,8 @@ class GenericBinaryOpStub: public CodeStub {
   void SetArgsInRegisters() { args_in_registers_ = true; }
   void SetArgsReversed() { args_reversed_ = true; }
   bool HasSmiCodeInStub() { return (flags_ & NO_SMI_CODE_IN_STUB) == 0; }
-  bool HasArgumentsInRegisters() { return args_in_registers_; }
-  bool HasArgumentsReversed() { return args_reversed_; }
+  bool HasArgsInRegisters() { return args_in_registers_; }
+  bool HasArgsReversed() { return args_reversed_; }
 };
 
 
