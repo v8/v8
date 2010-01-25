@@ -1291,6 +1291,8 @@ class MapCompact {
     MapIterator it;
     HeapObject* o = it.next();
     for (; o != first_map_to_evacuate_; o = it.next()) {
+      it.has_next();  // Must be called for side-effects, see bug 586.
+      ASSERT(it.has_next());
       Map* map = reinterpret_cast<Map*>(o);
       ASSERT(!map->IsMarked());
       ASSERT(!map->IsOverflowed());
@@ -1362,6 +1364,7 @@ class MapCompact {
 
   static Map* NextMap(MapIterator* it, HeapObject* last, bool live) {
     while (true) {
+      it->has_next();  // Must be called for side-effects, see bug 586.
       ASSERT(it->has_next());
       HeapObject* next = it->next();
       if (next == last)

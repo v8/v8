@@ -201,6 +201,11 @@ DEFINE_bool(canonicalize_object_literal_maps, true,
 DEFINE_bool(use_big_map_space, true,
             "Use big map space, but don't compact if it grew too big.")
 
+DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
+           "Maximum number of pages in map space which still allows to encode "
+           "forwarding pointers.  That's actually a constant, but it's useful "
+           "to control it with a flag for better testing.")
+
 // mksnapshot.cc
 DEFINE_bool(h, false, "print this message")
 DEFINE_bool(new_snapshot, true, "use new snapshot implementation")

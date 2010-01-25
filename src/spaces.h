@@ -982,6 +982,18 @@ class PagedSpace : public Space {
     return Page::FromAllocationTop(alloc_info.limit);
   }
 
+  int CountPagesToTop() {
+    Page* p = Page::FromAllocationTop(allocation_info_.top);
+    PageIterator it(this, PageIterator::ALL_PAGES);
+    int counter = 1;
+    while (it.has_next()) {
+      if (it.next() == p) return counter;
+      counter++;
+    }
+    UNREACHABLE();
+    return -1;
+  }
+
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS. Newly allocated
   // pages are append to the last_page;
@@ -1753,8 +1765,11 @@ class FixedSpace : public PagedSpace {
 class MapSpace : public FixedSpace {
  public:
   // Creates a map space object with a maximum capacity.
-  MapSpace(int max_capacity, AllocationSpace id)
-      : FixedSpace(max_capacity, id, Map::kSize, "map") {}
+  MapSpace(int max_capacity, int max_map_space_pages, AllocationSpace id)
+      : FixedSpace(max_capacity, id, Map::kSize, "map"),
+        max_map_space_pages_(max_map_space_pages) {
+    ASSERT(max_map_space_pages < kMaxMapPageIndex);
+  }
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact(bool will_compact);
@@ -1762,24 +1777,21 @@ class MapSpace : public FixedSpace {
   // Given an index, returns the page address.
   Address PageAddress(int page_index) { return page_addresses_[page_index]; }
 
-  // Constants.
-  static const int kMaxMapPageIndex = (1 << MapWord::kMapPageIndexBits) - 1;
+  static const int kMaxMapPageIndex = 1 << MapWord::kMapPageIndexBits;
 
   // Are map pointers encodable into map word?
   bool MapPointersEncodable() {
     if (!FLAG_use_big_map_space) {
-      ASSERT(CountTotalPages() <= kMaxMapPageIndex);
+      ASSERT(CountPagesToTop() <= kMaxMapPageIndex);
       return true;
     }
-    int n_of_pages = Capacity() / Page::kObjectAreaSize;
-    ASSERT(n_of_pages == CountTotalPages());
-    return n_of_pages <= kMaxMapPageIndex;
+    return CountPagesToTop() <= max_map_space_pages_;
   }
 
   // Should be called after forced sweep to find out if map space needs
   // compaction.
   bool NeedsCompaction(int live_maps) {
-    return !MapPointersEncodable() && live_maps <= kCompactionThreshold;
+    return !MapPointersEncodable() && live_maps <= CompactionThreshold();
   }
 
   Address TopAfterCompaction(int live_maps) {
@@ -1788,9 +1800,11 @@ class MapSpace : public FixedSpace {
     int pages_left = live_maps / kMapsPerPage;
     PageIterator it(this, PageIterator::ALL_PAGES);
     while (pages_left-- > 0) {
+      it.has_next();  // Must be called for side-effects, see bug 586.
       ASSERT(it.has_next());
       it.next()->ClearRSet();
     }
+    it.has_next();  // Must be called for side-effects, see bug 586.
     ASSERT(it.has_next());
     Page* top_page = it.next();
     top_page->ClearRSet();
@@ -1838,10 +1852,14 @@ class MapSpace : public FixedSpace {
   static const int kMapsPerPage = Page::kObjectAreaSize / Map::kSize;
 
   // Do map space compaction if there is a page gap.
-  static const int kCompactionThreshold = kMapsPerPage * (kMaxMapPageIndex - 1);
+  int CompactionThreshold() {
+    return kMapsPerPage * (max_map_space_pages_ - 1);
+  }
+
+  const int max_map_space_pages_;
 
   // An array of page start address in a map space.
-  Address page_addresses_[kMaxMapPageIndex + 1];
+  Address page_addresses_[kMaxMapPageIndex];
 
  public:
   TRACK_MEMORY("MapSpace")
