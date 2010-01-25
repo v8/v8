@@ -7285,7 +7285,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ mov(eax, edx);
       GenerateReturn(masm);
 
-      if (HasArgumentsInRegisters()) {
+      if (arg_location == ARGS_IN_REGISTERS) {
         __ bind(&after_alloc_failure);
         __ mov(edx, eax);
         __ mov(eax, ebx);
@@ -7570,8 +7570,7 @@ void GenericBinaryOpStub::GenerateHeapResultAllocation(MacroAssembler* masm,
   if (HasArgumentsReversed()) {
     if (mode == OVERWRITE_RIGHT) {
       mode = OVERWRITE_LEFT;
-    }
-    else if (mode == OVERWRITE_LEFT) {
+    } else if (mode == OVERWRITE_LEFT) {
       mode = OVERWRITE_RIGHT;
     }
   }

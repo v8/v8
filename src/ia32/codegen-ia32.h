@@ -702,11 +702,11 @@ class GenericBinaryOpStub: public CodeStub {
 
   // Args in registers are always OK for ADD and SUB. Floating-point MUL and DIV
   // are also OK. Though MUL and DIV on SMIs modify the original registers so
-  // we need to push args on stack anyway. 
+  // we need to push args on stack anyway.
   bool ArgsInRegistersSupported() {
-  return ((op_ == Token::ADD) || (op_ == Token::SUB)) ||
-         (((op_ == Token::MUL) || (op_ == Token::DIV))
-          && (flags_ == NO_SMI_CODE_IN_STUB));
+    return ((op_ == Token::ADD) || (op_ == Token::SUB)) ||
+           (((op_ == Token::MUL) || (op_ == Token::DIV))
+            && (flags_ == NO_SMI_CODE_IN_STUB));
   }
   bool IsOperationCommutative() {
     return (op_ == Token::ADD) || (op_ == Token::MUL);
