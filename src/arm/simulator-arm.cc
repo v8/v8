@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -47,9 +47,9 @@ using ::v8::internal::ReadLine;
 using ::v8::internal::DeleteArray;
 
 // This macro provides a platform independent use of sscanf. The reason for
-// SScanF not being implemented in a platform independent was through
-// ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
-// Library does not provide vsscanf.
+// SScanF not being implemented in a platform independent way through
+// ::v8::internal::OS in the same way as SNPrintF is that the
+// Windows C Run-Time Library does not provide vsscanf.
 #define SScanF sscanf  // NOLINT
 
 // The Debugger class is used by the simulator while debugging simulated ARM
@@ -2033,42 +2033,62 @@ void Simulator::DecodeTypeVFP(Instr* instr) {
 // Decode Type 6 coprocessor instructions.
 // Dm = vmov(Rt, Rt2)
 // <Rt, Rt2> = vmov(Dm)
+// Ddst = MEM(Rbase + 4*offset).
+// MEM(Rbase + 4*offset) = Dsrc.
 void Simulator::DecodeType6CoprocessorIns(Instr* instr) {
   ASSERT((instr->TypeField() == 6));
 
-  int rt = instr->RtField();
-  int rn = instr->RnField();
-  int vm = instr->VmField();
-
-  if (instr->Bit(23) == 1) {
-    UNIMPLEMENTED();
-  } else if (instr->Bit(22) == 1) {
-    if ((instr->Bits(27, 24) == 0xC) &&
-        (instr->Bit(22) == 1) &&
-        (instr->Bits(11, 8) == 0xB) &&
-        (instr->Bits(7, 6) == 0x0) &&
-        (instr->Bit(4) == 1)) {
-      if (instr->Bit(20) == 0) {
-        int32_t rs_val = get_register(rt);
-        int32_t rn_val = get_register(rn);
-
-        set_s_register_from_sinteger(2*vm, rs_val);
-        set_s_register_from_sinteger((2*vm+1), rn_val);
-
-      } else if (instr->Bit(20) == 1) {
-        int32_t rt_int_value = get_sinteger_from_s_register(2*vm);
-        int32_t rn_int_value = get_sinteger_from_s_register(2*vm+1);
-
-        set_register(rt, rt_int_value);
-        set_register(rn, rn_int_value);
-      }
-    } else {
-      UNIMPLEMENTED();
-    }
-  } else if (instr->Bit(21) == 1) {
-    UNIMPLEMENTED();
+  if (instr->CoprocessorField() != 0xB) {
+    UNIMPLEMENTED();  // Not used by V8.
   } else {
-    UNIMPLEMENTED();
+    switch (instr->OpcodeField()) {
+      case 0x2:
+        // Load and store double to two GP registers
+        if (instr->Bits(7, 4) != 0x1) {
+          UNIMPLEMENTED();  // Not used by V8.
+        } else {
+          int rt = instr->RtField();
+          int rn = instr->RnField();
+          int vm = instr->VmField();
+          if (instr->HasL()) {
+            int32_t rt_int_value = get_sinteger_from_s_register(2*vm);
+            int32_t rn_int_value = get_sinteger_from_s_register(2*vm+1);
+
+            set_register(rt, rt_int_value);
+            set_register(rn, rn_int_value);
+          } else {
+            int32_t rs_val = get_register(rt);
+            int32_t rn_val = get_register(rn);
+
+            set_s_register_from_sinteger(2*vm, rs_val);
+            set_s_register_from_sinteger((2*vm+1), rn_val);
+          }
+        }
+        break;
+      case 0x8:
+      case 0xC: {  // Load and store double to memory.
+        int rn = instr->RnField();
+        int vd = instr->VdField();
+        int offset = instr->Immed8Field();
+        if (!instr->HasU()) {
+          offset = -offset;
+        }
+        int32_t address = get_register(rn) + 4 * offset;
+        if (instr->HasL()) {
+          // Load double from memory: vldr.
+          set_s_register_from_sinteger(2*vd, ReadW(address, instr));
+          set_s_register_from_sinteger(2*vd + 1, ReadW(address + 4, instr));
+        } else {
+          // Store double to memory: vstr.
+          WriteW(address, get_sinteger_from_s_register(2*vd), instr);
+          WriteW(address + 4, get_sinteger_from_s_register(2*vd + 1), instr);
+        }
+        break;
+      }
+      default:
+        UNIMPLEMENTED();  // Not used by V8.
+        break;
+    }
   }
 }
 
