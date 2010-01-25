@@ -242,7 +242,6 @@ TEST(4) {
   Label L, C;
 
 
-  ASSERT(CpuFeatures::IsSupported(VFP3));
   if (CpuFeatures::IsSupported(VFP3)) {
     CpuFeatures::Scope scope(VFP3);
 
@@ -261,26 +260,27 @@ TEST(4) {
     __ vstr(d4, r4, OFFSET_OF(T, b));
 
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
-  }
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc,
-                                  NULL,
-                                  Code::ComputeFlags(Code::STUB),
-                                  Handle<Object>(Heap::undefined_value()));
-  CHECK(code->IsCode());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Object* code = Heap::CreateCode(desc,
+                                    NULL,
+                                    Code::ComputeFlags(Code::STUB),
+                                    Handle<Object>(Heap::undefined_value()));
+    CHECK(code->IsCode());
 #ifdef DEBUG
-  Code::cast(code)->Print();
+    Code::cast(code)->Print();
 #endif
-  F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
-  t.a = 1.5;
-  t.b = 2.75;
-  t.c = 17.17;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
-  USE(dummy);
-  CHECK_EQ(4.25, t.c);
-  CHECK_EQ(4.25, t.b);
-  CHECK_EQ(1.5, t.a);
+    F3 f = FUNCTION_CAST<F3>(Code::cast(code)->entry());
+    t.a = 1.5;
+    t.b = 2.75;
+    t.c = 17.17;
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
+    CHECK_EQ(4.25, t.c);
+    CHECK_EQ(4.25, t.b);
+    CHECK_EQ(1.5, t.a);
+  }
 }
 
 #undef __
