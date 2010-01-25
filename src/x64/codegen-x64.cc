@@ -6212,19 +6212,17 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 
 
 bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
-  // TODO(X64): This method is identical to the ia32 version.
-  // Either find a reason to change it, or move it somewhere where it can be
-  // shared. (Notice: It assumes that a Smi can fit in an int).
-
   Object* answer_object = Heap::undefined_value();
   switch (op) {
     case Token::ADD:
-      if (Smi::IsValid(left + right)) {
+      // Use intptr_t to detect overflow of 32-bit int.
+      if (Smi::IsValid(static_cast<intptr_t>(left) + right)) {
         answer_object = Smi::FromInt(left + right);
       }
       break;
     case Token::SUB:
-      if (Smi::IsValid(left - right)) {
+      // Use intptr_t to detect overflow of 32-bit int.
+      if (Smi::IsValid(static_cast<intptr_t>(left) - right)) {
         answer_object = Smi::FromInt(left - right);
       }
       break;

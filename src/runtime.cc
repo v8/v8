@@ -1479,7 +1479,11 @@ static Object* Runtime_StringCharAt(Arguments args) {
 
   CONVERT_CHECKED(String, subject, args[0]);
   Object* index = args[1];
-  return CharFromCode(CharCodeAt(subject, index));
+  Object* code = CharCodeAt(subject, index);
+  if (code == Heap::nan_value()) {
+    return Heap::undefined_value();
+  }
+  return CharFromCode(code);
 }
 
 

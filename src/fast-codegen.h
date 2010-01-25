@@ -47,6 +47,7 @@ class FastCodeGenerator: public AstVisitor {
         is_eval_(is_eval),
         nesting_stack_(NULL),
         loop_depth_(0),
+        location_(kStack),
         true_label_(NULL),
         false_label_(NULL) {
   }
@@ -210,24 +211,36 @@ class FastCodeGenerator: public AstVisitor {
     DISALLOW_COPY_AND_ASSIGN(ForIn);
   };
 
+  enum Location {
+    kAccumulator,
+    kStack
+  };
 
   int SlotOffset(Slot* slot);
 
-  // Emit code to complete the evaluation of an expression based on its
-  // expression context and given its value is in a register, non-lookup
-  // slot, or a literal.
+  // Emit code to convert a pure value (in a register, slot, as a literal,
+  // or on top of the stack) into the result expected according to an
+  // expression context.
   void Apply(Expression::Context context, Register reg);
-  void Apply(Expression::Context context, Slot* slot, Register scratch);
+  void Apply(Expression::Context context, Slot* slot);
   void Apply(Expression::Context context, Literal* lit);
-
-  // Emit code to complete the evaluation of an expression based on its
-  // expression context and given its value is on top of the stack.
   void ApplyTOS(Expression::Context context);
 
-  // Emit code to discard count elements from the top of stack, then
-  // complete the evaluation of an expression based on its expression
-  // context and given its value is in a register.
+  // Emit code to discard count elements from the top of stack, then convert
+  // a pure value into the result expected according to an expression
+  // context.
   void DropAndApply(int count, Expression::Context context, Register reg);
+
+  // Emit code to convert pure control flow to a pair of labels into the
+  // result expected according to an expression context.
+  void Apply(Expression::Context context,
+             Label* materialize_true,
+             Label* materialize_false);
+
+  // Helper function to convert a pure value into a test context.  The value
+  // is expected on the stack or the accumulator, depending on the platform.
+  // See the platform-specific implementation for details.
+  void DoTest(Expression::Context context);
 
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
   void Move(Register dst, Slot* source);
@@ -237,9 +250,13 @@ class FastCodeGenerator: public AstVisitor {
   // register.
   MemOperand EmitSlotSearch(Slot* slot, Register scratch);
 
-  // Test the JavaScript value in source as if in a test context, compile
-  // control flow to a pair of labels.
-  void TestAndBranch(Register source, Label* true_label, Label* false_label);
+  void VisitForValue(Expression* expr, Location where) {
+    ASSERT(expr->context() == Expression::kValue);
+    Location saved_location = location_;
+    location_ = where;
+    Visit(expr);
+    location_ = saved_location;
+  }
 
   void VisitForControl(Expression* expr, Label* if_true, Label* if_false) {
     ASSERT(expr->context() == Expression::kTest ||
@@ -271,31 +288,33 @@ class FastCodeGenerator: public AstVisitor {
 
   // Load a value from a named property.
   // The receiver is left on the stack by the IC.
-  void EmitNamedPropertyLoad(Property* expr, Expression::Context context);
+  void EmitNamedPropertyLoad(Property* expr);
 
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
-  void EmitKeyedPropertyLoad(Property* expr, Expression::Context context);
+  void EmitKeyedPropertyLoad(Property* expr);
 
-  // Apply the compound assignment operator. Expects both operands on top
-  // of the stack.
-  void EmitCompoundAssignmentOp(Token::Value op, Expression::Context context);
+  // Apply the compound assignment operator. Expects the left operand on top
+  // of the stack and the right one in the accumulator.
+  void EmitBinaryOp(Token::Value op, Expression::Context context);
 
   // Complete a variable assignment.  The right-hand-side value is expected
-  // on top of the stack.
+  // in the accumulator.
   void EmitVariableAssignment(Variable* var, Expression::Context context);
 
-  // Complete a named property assignment.  The receiver and right-hand-side
-  // value are expected on top of the stack.
+  // Complete a named property assignment.  The receiver is expected on top
+  // of the stack and the right-hand-side value in the accumulator.
   void EmitNamedPropertyAssignment(Assignment* expr);
 
-  // Complete a keyed property assignment.  The reciever, key, and
-  // right-hand-side value are expected on top of the stack.
+  // Complete a keyed property assignment.  The receiver and key are
+  // expected on top of the stack and the right-hand-side value in the
+  // accumulator.
   void EmitKeyedPropertyAssignment(Assignment* expr);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
+  void SetStatementPosition(int pos);
   void SetSourcePosition(int pos);
 
   // Non-local control flow support.
@@ -337,6 +356,7 @@ class FastCodeGenerator: public AstVisitor {
   NestedStatement* nesting_stack_;
   int loop_depth_;
 
+  Location location_;
   Label* true_label_;
   Label* false_label_;
 

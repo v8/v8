@@ -75,39 +75,6 @@ int FastCodeGenerator::SlotOffset(Slot* slot) {
 }
 
 
-void FastCodeGenerator::Apply(Expression::Context context, Register reg) {
-  switch (context) {
-    case Expression::kUninitialized:
-      UNREACHABLE();
-    case Expression::kEffect:
-      break;
-    case Expression::kValue:
-      __ push(reg);
-      break;
-    case Expression::kTest:
-      TestAndBranch(reg, true_label_, false_label_);
-      break;
-    case Expression::kValueTest: {
-      Label discard;
-      __ push(reg);
-      TestAndBranch(reg, true_label_, &discard);
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(false_label_);
-      break;
-    }
-    case Expression::kTestValue: {
-      Label discard;
-      __ push(reg);
-      TestAndBranch(reg, &discard, false_label_);
-      __ bind(&discard);
-      __ Drop(1);
-      __ jmp(true_label_);
-    }
-  }
-}
-
-
 void FastCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
@@ -179,6 +146,13 @@ void FastCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 void FastCodeGenerator::SetStatementPosition(Statement* stmt) {
   if (FLAG_debug_info) {
     CodeGenerator::RecordPositions(masm_, stmt->statement_pos());
+  }
+}
+
+
+void FastCodeGenerator::SetStatementPosition(int pos) {
+  if (FLAG_debug_info) {
+    CodeGenerator::RecordPositions(masm_, pos);
   }
 }
 
@@ -338,14 +312,7 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
-  // Complete the statement based on the type of the subexpression.
-  if (expr->AsLiteral() != NULL) {
-    __ Move(result_register(), expr->AsLiteral()->handle());
-  } else {
-    ASSERT_EQ(Expression::kValue, expr->context());
-    Visit(expr);
-    __ pop(result_register());
-  }
+  VisitForValue(expr, kAccumulator);
 
   // Exit all nested statements.
   NestedStatement* current = nesting_stack_;
@@ -360,13 +327,11 @@ void FastCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-
-
 void FastCodeGenerator::VisitWithEnterStatement(WithEnterStatement* stmt) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   SetStatementPosition(stmt);
 
-  Visit(stmt->expression());
+  VisitForValue(stmt->expression(), kStack);
   if (stmt->is_catch_block()) {
     __ CallRuntime(Runtime::kPushCatchContext, 1);
   } else {
@@ -412,6 +377,7 @@ void FastCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ bind(&stack_check_success);
 
   __ bind(loop_statement.continue_target());
+  SetStatementPosition(stmt->condition_position());
   VisitForControl(stmt->cond(), &body, loop_statement.break_target());
 
   __ bind(&stack_limit_hit);
@@ -633,9 +599,6 @@ void FastCodeGenerator::VisitLiteral(Literal* expr) {
 void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
 
-  // Record source code position of the (possible) IC call.
-  SetSourcePosition(expr->position());
-
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
@@ -655,44 +618,50 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
       // Nothing to do here.
       break;
     case NAMED_PROPERTY:
-      Visit(prop->obj());
-      ASSERT_EQ(Expression::kValue, prop->obj()->context());
+      VisitForValue(prop->obj(), kStack);
       break;
     case KEYED_PROPERTY:
-      Visit(prop->obj());
-      ASSERT_EQ(Expression::kValue, prop->obj()->context());
-      Visit(prop->key());
-      ASSERT_EQ(Expression::kValue, prop->key()->context());
+      VisitForValue(prop->obj(), kStack);
+      VisitForValue(prop->key(), kStack);
       break;
   }
 
   // If we have a compound assignment: Get value of LHS expression and
   // store in on top of the stack.
-  // Note: Relies on kValue context being 'stack'.
   if (expr->is_compound()) {
+    Location saved_location = location_;
+    location_ = kStack;
     switch (assign_type) {
       case VARIABLE:
         EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
                          Expression::kValue);
         break;
       case NAMED_PROPERTY:
-        EmitNamedPropertyLoad(prop, Expression::kValue);
+        EmitNamedPropertyLoad(prop);
+        __ push(result_register());
         break;
       case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(prop, Expression::kValue);
+        EmitKeyedPropertyLoad(prop);
+        __ push(result_register());
         break;
     }
+    location_ = saved_location;
   }
 
   // Evaluate RHS expression.
   Expression* rhs = expr->value();
-  ASSERT_EQ(Expression::kValue, rhs->context());
-  Visit(rhs);
+  VisitForValue(rhs, kAccumulator);
 
   // If we have a compount assignment: Apply operator.
   if (expr->is_compound()) {
-    EmitCompoundAssignmentOp(expr->binary_op(), Expression::kValue);
+    Location saved_location = location_;
+    location_ = kAccumulator;
+    EmitBinaryOp(expr->binary_op(), Expression::kValue);
+    location_ = saved_location;
   }
+
+  // Record source position before possible IC call.
+  SetSourcePosition(expr->position());
 
   // Store the value.
   switch (assign_type) {
@@ -715,11 +684,8 @@ void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
   // assign the exception value to the catch variable.
   Comment cmnt(masm_, "[ CatchExtensionObject");
 
-  // Push key string.
-  ASSERT_EQ(Expression::kValue, expr->key()->context());
-  Visit(expr->key());
-  ASSERT_EQ(Expression::kValue, expr->value()->context());
-  Visit(expr->value());
+  VisitForValue(expr->key(), kStack);
+  VisitForValue(expr->value(), kStack);
 
   // Create catch extension object.
   __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
@@ -730,8 +696,7 @@ void FastCodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* expr) {
 
 void FastCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
-  Visit(expr->exception());
-  // Exception is on stack.
+  VisitForValue(expr->exception(), kStack);
   __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
 }

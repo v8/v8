@@ -1184,6 +1184,9 @@ class CountOperation: public Expression {
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
   Token::Value op() const { return op_; }
+  Token::Value binary_op() {
+    return op_ == Token::INC ? Token::ADD : Token::SUB;
+  }
   Expression* expression() const { return expression_; }
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
