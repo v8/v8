@@ -597,15 +597,14 @@ class MemoryAllocator : public AllStatic {
 // Interface for heap object iterator to be implemented by all object space
 // object iterators.
 //
-// NOTE: The space specific object iterators also implements the own has_next()
-//       and next() methods which are used to avoid using virtual functions
+// NOTE: The space specific object iterators also implements the own next()
+//       method which is used to avoid using virtual functions
 //       iterating a specific space.
 
 class ObjectIterator : public Malloced {
  public:
   virtual ~ObjectIterator() { }
 
-  virtual bool has_next_object() = 0;
   virtual HeapObject* next_object() = 0;
 };
 
@@ -645,11 +644,11 @@ class HeapObjectIterator: public ObjectIterator {
                      Address start,
                      HeapObjectCallback size_func);
 
-  inline bool has_next();
-  inline HeapObject* next();
+  inline HeapObject* next() {
+    return (cur_addr_ < cur_limit_) ? FromCurrentPage() : FromNextPage();
+  }
 
   // implementation of ObjectIterator.
-  virtual bool has_next_object() { return has_next(); }
   virtual HeapObject* next_object() { return next(); }
 
  private:
@@ -659,9 +658,21 @@ class HeapObjectIterator: public ObjectIterator {
   HeapObjectCallback size_func_;  // size function
   Page* end_page_;  // caches the page of the end address
 
-  // Slow path of has_next, checks whether there are more objects in
-  // the next page.
-  bool HasNextInNextPage();
+  HeapObject* FromCurrentPage() {
+    ASSERT(cur_addr_ < cur_limit_);
+
+    HeapObject* obj = HeapObject::FromAddress(cur_addr_);
+    int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
+    ASSERT_OBJECT_SIZE(obj_size);
+
+    cur_addr_ += obj_size;
+    ASSERT(cur_addr_ <= cur_limit_);
+
+    return obj;
+  }
+
+  // Slow path of next, goes into the next page.
+  HeapObject* FromNextPage();
 
   // Initializes fields.
   void Initialize(Address start, Address end, HeapObjectCallback size_func);
@@ -1206,10 +1217,8 @@ class SemiSpaceIterator : public ObjectIterator {
   SemiSpaceIterator(NewSpace* space, HeapObjectCallback size_func);
   SemiSpaceIterator(NewSpace* space, Address start);
 
-  bool has_next() {return current_ < limit_; }
-
   HeapObject* next() {
-    ASSERT(has_next());
+    if (current_ == limit_) return NULL;
 
     HeapObject* object = HeapObject::FromAddress(current_);
     int size = (size_func_ == NULL) ? object->Size() : size_func_(object);
@@ -1219,7 +1228,6 @@ class SemiSpaceIterator : public ObjectIterator {
   }
 
   // Implementation of the ObjectIterator functions.
-  virtual bool has_next_object() { return has_next(); }
   virtual HeapObject* next_object() { return next(); }
 
  private:
@@ -1800,11 +1808,9 @@ class MapSpace : public FixedSpace {
     int pages_left = live_maps / kMapsPerPage;
     PageIterator it(this, PageIterator::ALL_PAGES);
     while (pages_left-- > 0) {
-      it.has_next();  // Must be called for side-effects, see bug 586.
       ASSERT(it.has_next());
       it.next()->ClearRSet();
     }
-    it.has_next();  // Must be called for side-effects, see bug 586.
     ASSERT(it.has_next());
     Page* top_page = it.next();
     top_page->ClearRSet();
@@ -2054,11 +2060,9 @@ class LargeObjectIterator: public ObjectIterator {
   explicit LargeObjectIterator(LargeObjectSpace* space);
   LargeObjectIterator(LargeObjectSpace* space, HeapObjectCallback size_func);
 
-  bool has_next() { return current_ != NULL; }
   HeapObject* next();
 
   // implementation of ObjectIterator.
-  virtual bool has_next_object() { return has_next(); }
   virtual HeapObject* next_object() { return next(); }
 
  private:

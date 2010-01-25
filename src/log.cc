@@ -1237,9 +1237,7 @@ static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis) {
   AssertNoAllocation no_alloc;
   int compiled_funcs_count = 0;
   HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    ASSERT(obj != NULL);
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsSharedFunctionInfo()) continue;
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
     if (sfi->is_compiled()
@@ -1352,9 +1350,7 @@ void Logger::LogCompiledFunctions() {
 void Logger::LogFunctionObjects() {
   AssertNoAllocation no_alloc;
   HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    ASSERT(obj != NULL);
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsJSFunction()) continue;
     JSFunction* jsf = JSFunction::cast(obj);
     if (!jsf->is_compiled()) continue;
@@ -1366,9 +1362,7 @@ void Logger::LogFunctionObjects() {
 void Logger::LogAccessorCallbacks() {
   AssertNoAllocation no_alloc;
   HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    ASSERT(obj != NULL);
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsAccessorInfo()) continue;
     AccessorInfo* ai = AccessorInfo::cast(obj);
     if (!ai->name()->IsString()) continue;

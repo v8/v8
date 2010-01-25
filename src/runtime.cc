@@ -7212,9 +7212,8 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
   Handle<SharedFunctionInfo> last;
   while (!done) {
     HeapIterator iterator;
-    while (iterator.has_next()) {
-      HeapObject* obj = iterator.next();
-      ASSERT(obj != NULL);
+    for (HeapObject* obj = iterator.next();
+         obj != NULL; obj = iterator.next()) {
       if (obj->IsSharedFunctionInfo()) {
         Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(obj));
         if (shared->script() == *script) {
@@ -7670,10 +7669,10 @@ static int DebugReferencedBy(JSObject* target,
   int count = 0;
   JSObject* last = NULL;
   HeapIterator iterator;
-  while (iterator.has_next() &&
+  HeapObject* heap_obj = NULL;
+  while (((heap_obj = iterator.next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
-    HeapObject* heap_obj = iterator.next();
     if (heap_obj->IsJSObject()) {
       // Skip context extension objects and argument arrays as these are
       // checked in the context of functions using them.
@@ -7783,10 +7782,10 @@ static int DebugConstructedBy(JSFunction* constructor, int max_references,
   // Iterate the heap.
   int count = 0;
   HeapIterator iterator;
-  while (iterator.has_next() &&
+  HeapObject* heap_obj = NULL;
+  while (((heap_obj = iterator.next()) != NULL) &&
          (max_references == 0 || count < max_references)) {
     // Only look at all JSObjects.
-    HeapObject* heap_obj = iterator.next();
     if (heap_obj->IsJSObject()) {
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->map()->constructor() == constructor) {
@@ -7934,8 +7933,8 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   // script data.
   Handle<Script> script;
   HeapIterator iterator;
-  while (script.is_null() && iterator.has_next()) {
-    HeapObject* obj = iterator.next();
+  HeapObject* obj = NULL;
+  while (script.is_null() && ((obj = iterator.next()) != NULL)) {
     // If a script is found check if it has the script data requested.
     if (obj->IsScript()) {
       if (Script::cast(obj)->name()->IsString()) {

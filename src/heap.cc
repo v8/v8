@@ -327,7 +327,7 @@ void Heap::GarbageCollectionPrologue() {
 int Heap::SizeOfObjects() {
   int total = 0;
   AllSpaces spaces;
-  while (Space* space = spaces.next()) {
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
     total += space->Size();
   }
   return total;
@@ -732,13 +732,14 @@ static void VerifyNonPointerSpacePointers() {
   // do not expect them.
   VerifyNonPointerSpacePointersVisitor v;
   HeapObjectIterator code_it(Heap::code_space());
-  while (code_it.has_next()) {
-    HeapObject* object = code_it.next();
+  for (HeapObject* object = code_it.next();
+       object != NULL; object = code_it.next())
     object->Iterate(&v);
-  }
 
   HeapObjectIterator data_it(Heap::old_data_space());
-  while (data_it.has_next()) data_it.next()->Iterate(&v);
+  for (HeapObject* object = data_it.next();
+       object != NULL; object = data_it.next())
+    object->Iterate(&v);
 }
 #endif
 
@@ -804,8 +805,8 @@ void Heap::Scavenge() {
 
   // Copy objects reachable from cells by scavenging cell values directly.
   HeapObjectIterator cell_iterator(cell_space_);
-  while (cell_iterator.has_next()) {
-    HeapObject* cell = cell_iterator.next();
+  for (HeapObject* cell = cell_iterator.next();
+       cell != NULL; cell = cell_iterator.next()) {
     if (cell->IsJSGlobalPropertyCell()) {
       Address value_address =
           reinterpret_cast<Address>(cell) +
@@ -1013,13 +1014,15 @@ void Heap::RebuildRSets() {
 
 void Heap::RebuildRSets(PagedSpace* space) {
   HeapObjectIterator it(space);
-  while (it.has_next()) Heap::UpdateRSet(it.next());
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next())
+    Heap::UpdateRSet(obj);
 }
 
 
 void Heap::RebuildRSets(LargeObjectSpace* space) {
   LargeObjectIterator it(space);
-  while (it.has_next()) Heap::UpdateRSet(it.next());
+  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next())
+    Heap::UpdateRSet(obj);
 }
 
 
@@ -3106,7 +3109,8 @@ void Heap::Print() {
   if (!HasBeenSetup()) return;
   Top::PrintStack();
   AllSpaces spaces;
-  while (Space* space = spaces.next()) space->Print();
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next())
+    space->Print();
 }
 
 
@@ -3648,7 +3652,8 @@ void Heap::TearDown() {
 void Heap::Shrink() {
   // Try to shrink all paged spaces.
   PagedSpaces spaces;
-  while (PagedSpace* space = spaces.next()) space->Shrink();
+  for (PagedSpace* space = spaces.next(); space != NULL; space = spaces.next())
+    space->Shrink();
 }
 
 
@@ -3657,7 +3662,8 @@ void Heap::Shrink() {
 void Heap::Protect() {
   if (HasBeenSetup()) {
     AllSpaces spaces;
-    while (Space* space = spaces.next()) space->Protect();
+    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
+      space->Protect();
   }
 }
 
@@ -3665,7 +3671,8 @@ void Heap::Protect() {
 void Heap::Unprotect() {
   if (HasBeenSetup()) {
     AllSpaces spaces;
-    while (Space* space = spaces.next()) space->Unprotect();
+    for (Space* space = spaces.next(); space != NULL; space = spaces.next())
+      space->Unprotect();
   }
 }
 
@@ -3837,34 +3844,25 @@ void HeapIterator::Shutdown() {
 }
 
 
-bool HeapIterator::has_next() {
+HeapObject* HeapIterator::next() {
   // No iterator means we are done.
-  if (object_iterator_ == NULL) return false;
+  if (object_iterator_ == NULL) return NULL;
 
-  if (object_iterator_->has_next_object()) {
+  if (HeapObject* obj = object_iterator_->next_object()) {
     // If the current iterator has more objects we are fine.
-    return true;
+    return obj;
   } else {
     // Go though the spaces looking for one that has objects.
     while (space_iterator_->has_next()) {
       object_iterator_ = space_iterator_->next();
-      if (object_iterator_->has_next_object()) {
-        return true;
+      if (HeapObject* obj = object_iterator_->next_object()) {
+        return obj;
       }
     }
   }
   // Done with the last space.
   object_iterator_ = NULL;
-  return false;
-}
-
-
-HeapObject* HeapIterator::next() {
-  if (has_next()) {
-    return object_iterator_->next_object();
-  } else {
-    return NULL;
-  }
+  return NULL;
 }
 
 

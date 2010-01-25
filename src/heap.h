@@ -1290,7 +1290,6 @@ class HeapIterator BASE_EMBEDDED {
   explicit HeapIterator();
   virtual ~HeapIterator();
 
-  bool has_next();
   HeapObject* next();
   void reset();
 

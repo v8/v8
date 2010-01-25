@@ -6236,8 +6236,16 @@ THREADED_TEST(LockUnlockLock) {
 }
 
 
-static int GetSurvivingGlobalObjectsCount() {
+static int GetGlobalObjectsCount() {
   int count = 0;
+  v8::internal::HeapIterator it;
+  for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
+    if (object->IsJSGlobalObject()) count++;
+  return count;
+}
+
+
+static int GetSurvivingGlobalObjectsCount() {
   // We need to collect all garbage twice to be sure that everything
   // has been collected.  This is because inline caches are cleared in
   // the first garbage collection but some of the maps have already
@@ -6245,13 +6253,7 @@ static int GetSurvivingGlobalObjectsCount() {
   // collected until the second garbage collection.
   v8::internal::Heap::CollectAllGarbage(false);
   v8::internal::Heap::CollectAllGarbage(false);
-  v8::internal::HeapIterator it;
-  while (it.has_next()) {
-    v8::internal::HeapObject* object = it.next();
-    if (object->IsJSGlobalObject()) {
-      count++;
-    }
-  }
+  int count = GetGlobalObjectsCount();
 #ifdef DEBUG
   if (count > 0) v8::internal::Heap::TracePathToGlobal();
 #endif
@@ -8618,17 +8620,6 @@ THREADED_TEST(SpaghettiStackReThrow) {
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value value(try_catch.Exception());
   CHECK_EQ(0, strcmp(*value, "Hey!"));
-}
-
-
-static int GetGlobalObjectsCount() {
-  int count = 0;
-  v8::internal::HeapIterator it;
-  while (it.has_next()) {
-    v8::internal::HeapObject* object = it.next();
-    if (object->IsJSGlobalObject()) count++;
-  }
-  return count;
 }
 
 

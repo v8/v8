@@ -413,9 +413,7 @@ void CheckDebuggerUnloaded(bool check_functions) {
 
   // Iterate the head and check that there are no debugger related objects left.
   HeapIterator iterator;
-  while (iterator.has_next()) {
-    HeapObject* obj = iterator.next();
-    CHECK(obj != NULL);
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     CHECK(!obj->IsDebugInfo());
     CHECK(!obj->IsBreakPointInfo());
 
