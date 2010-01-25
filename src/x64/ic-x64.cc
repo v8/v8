@@ -273,11 +273,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ CmpObjectType(rcx, JS_OBJECT_TYPE, rdx);
   __ j(below, &slow);
-  // Check that the receiver does not require access checks.  We need
-  // to check this explicitly since this generic stub does not perform
-  // map checks.  The map is already in rdx.
+
+  // Check bit field.
   __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsAccessCheckNeeded));
+           Immediate(kSlowCaseBitFieldMask));
   __ j(not_zero, &slow);
 
   // Check that the key is a smi.

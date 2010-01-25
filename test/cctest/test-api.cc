@@ -184,6 +184,32 @@ RegisterThreadedTest *RegisterThreadedTest::first_ = NULL;
 int RegisterThreadedTest::count_ = 0;
 
 
+// Helper function that compiles and runs the source.
+static Local<Value> CompileRun(const char* source) {
+  return Script::Compile(String::New(source))->Run();
+}
+
+static void ExpectString(const char* code, const char* expected) {
+  Local<Value> result = CompileRun(code);
+  CHECK(result->IsString());
+  String::AsciiValue ascii(result);
+  CHECK_EQ(expected, *ascii);
+}
+
+
+static void ExpectBoolean(const char* code, bool expected) {
+  Local<Value> result = CompileRun(code);
+  CHECK(result->IsBoolean());
+  CHECK_EQ(expected, result->BooleanValue());
+}
+
+
+static void ExpectObject(const char* code, Local<Value> expected) {
+  Local<Value> result = CompileRun(code);
+  CHECK(result->Equals(expected));
+}
+
+
 static int signature_callback_count;
 static v8::Handle<Value> IncrementingSignatureCallback(
     const v8::Arguments& args) {
@@ -230,11 +256,6 @@ THREADED_TEST(Handles) {
   local_env->Exit();
 }
 
-
-// Helper function that compiles and runs the source.
-static Local<Value> CompileRun(const char* source) {
-  return Script::Compile(String::New(source))->Run();
-}
 
 THREADED_TEST(ReceiverSignature) {
   v8::HandleScope scope;
@@ -2583,6 +2604,36 @@ THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
 }
 
 
+static v8::Handle<Value> IdentityIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  return v8::Integer::New(index);
+}
+
+
+THREADED_TEST(IndexedInterceptorWithNoSetter) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+
+  const char* code =
+      "try {"
+      "  obj[0] = 239;"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var v = obj[0];"
+      "    if (v != 0) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
 THREADED_TEST(MultiContexts) {
   v8::HandleScope scope;
   v8::Handle<ObjectTemplate> templ = ObjectTemplate::New();
@@ -2666,27 +2717,6 @@ THREADED_TEST(Regress892105) {
   LocalContext env1;
   Local<Script> script1 = Script::Compile(source);
   CHECK_EQ(8901.0, script1->Run()->NumberValue());
-}
-
-
-static void ExpectString(const char* code, const char* expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsString());
-  String::AsciiValue ascii(result);
-  CHECK_EQ(0, strcmp(*ascii, expected));
-}
-
-
-static void ExpectBoolean(const char* code, bool expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsBoolean());
-  CHECK_EQ(expected, result->BooleanValue());
-}
-
-
-static void ExpectObject(const char* code, Local<Value> expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->Equals(expected));
 }
 
 
