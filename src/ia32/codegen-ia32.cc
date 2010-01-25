@@ -741,6 +741,12 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
 }
 
 
+enum ArgLocation {
+  ARGS_ON_STACK,
+  ARGS_IN_REGISTERS
+};
+
+
 class FloatingPointHelper : public AllStatic {
  public:
   // Code pattern for loading a floating point value. Input value must
@@ -750,9 +756,18 @@ class FloatingPointHelper : public AllStatic {
   static void LoadFloatOperand(MacroAssembler* masm, Register number);
   // Code pattern for loading floating point values. Input values must
   // be either smi or heap number objects (fp values). Requirements:
-  // operand_1 on TOS+1 , operand_2 on TOS+2; Returns operands as
-  // floating point numbers on FPU stack.
-  static void LoadFloatOperands(MacroAssembler* masm, Register scratch);
+  // operand_1 on TOS+1 or in edx, operand_2 on TOS+2 or in eax.
+  // Returns operands as floating point numbers on FPU stack.
+  static void LoadFloatOperands(MacroAssembler* masm,
+                                Register scratch,
+                                ArgLocation arg_location = ARGS_ON_STACK);
+
+  // Similar to LoadFloatOperand but assumes that both operands are smis.
+  // Accepts operands on stack or in eax, ebx.
+  static void LoadFloatSmis(MacroAssembler* masm,
+                            Register scratch,
+                            ArgLocation arg_location);
+
   // Test if operands are smi or number objects (fp). Requirements:
   // operand_1 in eax, operand_2 in edx; falls through on float
   // operands, jumps to the non_float label otherwise.
@@ -769,6 +784,12 @@ class FloatingPointHelper : public AllStatic {
   // either operand is not a number.  Operands are in edx and eax.
   // Leaves operands unchanged.
   static void LoadSse2Operands(MacroAssembler* masm, Label* not_numbers);
+
+  // Similar to LoadSse2Operands but assumes that both operands are smis.
+  // Accepts operands on stack or in eax, ebx.
+  static void LoadSse2Smis(MacroAssembler* masm,
+                           Register scratch,
+                           ArgLocation arg_location);
 };
 
 
@@ -1331,12 +1352,12 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
   __ mov(answer.reg(), left->reg());
   switch (op) {
     case Token::ADD:
-      __ add(answer.reg(), Operand(right->reg()));  // Add optimistically.
+      __ add(answer.reg(), Operand(right->reg()));
       deferred->Branch(overflow);
       break;
 
     case Token::SUB:
-      __ sub(answer.reg(), Operand(right->reg()));  // Subtract optimistically.
+      __ sub(answer.reg(), Operand(right->reg()));
       deferred->Branch(overflow);
       break;
 
@@ -7056,6 +7077,17 @@ void GenericBinaryOpStub::GenerateCall(
 
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
+  if (HasArgumentsInRegisters()) {
+    __ mov(ebx, eax);
+    __ mov(eax, edx);
+  } else {
+    __ mov(ebx, Operand(esp, 1 * kPointerSize));
+    __ mov(eax, Operand(esp, 2 * kPointerSize));
+  }
+
+  Label not_smis, not_smis_or_overflow, not_smis_undo_optimistic;
+  Label use_fp_on_smis, done;
+
   // Perform fast-case smi code for the operation (eax <op> ebx) and
   // leave result in register eax.
 
@@ -7067,12 +7099,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   switch (op_) {
     case Token::ADD:
       __ add(eax, Operand(ebx));  // add optimistically
-      __ j(overflow, slow, not_taken);
+      __ j(overflow, &not_smis_or_overflow, not_taken);
       break;
 
     case Token::SUB:
       __ sub(eax, Operand(ebx));  // subtract optimistically
-      __ j(overflow, slow, not_taken);
+      __ j(overflow, &not_smis_or_overflow, not_taken);
       break;
 
     case Token::DIV:
@@ -7081,7 +7113,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ cdq();
       // Check for 0 divisor.
       __ test(ebx, Operand(ebx));
-      __ j(zero, slow, not_taken);
+      __ j(zero, &not_smis_or_overflow, not_taken);
       break;
 
     default:
@@ -7092,7 +7124,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform the actual smi check.
   ASSERT(kSmiTag == 0);  // adjust zero check if not the case
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, slow, not_taken);
+  __ j(not_zero, &not_smis_undo_optimistic, not_taken);
 
   switch (op_) {
     case Token::ADD:
@@ -7108,9 +7140,9 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // Do multiplication.
       __ imul(eax, Operand(ebx));  // multiplication of smis; result in eax
       // Go slow on overflows.
-      __ j(overflow, slow, not_taken);
+      __ j(overflow, &use_fp_on_smis, not_taken);
       // Check for negative zero result.
-      __ NegativeZeroTest(eax, ecx, slow);  // use ecx = x | y
+      __ NegativeZeroTest(eax, ecx, &use_fp_on_smis);  // use ecx = x | y
       break;
 
     case Token::DIV:
@@ -7121,12 +7153,12 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       // by idiv instruction.
       ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
       __ cmp(eax, 0x40000000);
-      __ j(equal, slow);
+      __ j(equal, &use_fp_on_smis);
       // Check for negative zero result.
-      __ NegativeZeroTest(eax, ecx, slow);  // use ecx = x | y
+      __ NegativeZeroTest(eax, ecx, &use_fp_on_smis);  // use ecx = x | y
       // Check that the remainder is zero.
       __ test(edx, Operand(edx));
-      __ j(not_zero, slow);
+      __ j(not_zero, &use_fp_on_smis);
       // Tag the result and store it in register eax.
       __ SmiTag(eax);
       break;
@@ -7181,7 +7213,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           __ shl_cl(eax);
           // Check that the *signed* result fits in a smi.
           __ cmp(eax, 0xc0000000);
-          __ j(sign, slow, not_taken);
+          __ j(sign, &use_fp_on_smis, not_taken);
           break;
         default:
           UNREACHABLE();
@@ -7194,6 +7226,116 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       UNREACHABLE();
       break;
   }
+  GenerateReturn(masm);
+
+  __ bind(&not_smis_or_overflow);
+  // Revert optimistic operation.
+  switch (op_) {
+    case Token::ADD: __ sub(eax, Operand(ebx)); break;
+    case Token::SUB: __ add(eax, Operand(ebx)); break;
+    default: break;
+  }
+  ASSERT(kSmiTag == 0);  // Adjust zero check if not the case.
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(not_zero, &not_smis, not_taken);
+  //  Correct operand values are in eax, ebx at this point.
+
+  __ bind(&use_fp_on_smis);
+  // Both operands are known to be SMIs but the result does not fit into a SMI.
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV: {
+      Label after_alloc_failure;
+
+      ArgLocation arg_location =
+          (op_ == Token::ADD || op_ == Token::SUB) ?
+          ARGS_IN_REGISTERS :
+          ARGS_ON_STACK;
+
+      __ AllocateHeapNumber(
+          edx,
+          ecx,
+          no_reg,
+          arg_location == ARGS_IN_REGISTERS ? &after_alloc_failure : slow);
+
+      if (CpuFeatures::IsSupported(SSE2)) {
+        CpuFeatures::Scope use_sse2(SSE2);
+        FloatingPointHelper::LoadSse2Smis(masm, ecx, arg_location);
+        switch (op_) {
+          case Token::ADD: __ addsd(xmm0, xmm1); break;
+          case Token::SUB: __ subsd(xmm0, xmm1); break;
+          case Token::MUL: __ mulsd(xmm0, xmm1); break;
+          case Token::DIV: __ divsd(xmm0, xmm1); break;
+          default: UNREACHABLE();
+        }
+        __ movdbl(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);
+      } else {  // SSE2 not available, use FPU.
+        FloatingPointHelper::LoadFloatSmis(masm, ecx, arg_location);
+        switch (op_) {
+          case Token::ADD: __ faddp(1); break;
+          case Token::SUB: __ fsubp(1); break;
+          case Token::MUL: __ fmulp(1); break;
+          case Token::DIV: __ fdivp(1); break;
+          default: UNREACHABLE();
+        }
+        __ fstp_d(FieldOperand(edx, HeapNumber::kValueOffset));
+      }
+      __ mov(eax, edx);
+      GenerateReturn(masm);
+
+      if (HasArgumentsInRegisters()) {
+        __ bind(&after_alloc_failure);
+        __ mov(edx, eax);
+        __ mov(eax, ebx);
+        __ jmp(slow);
+      }
+    }
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SAR:
+      // Do nothing here as these operations always succeed on a pair of smis.
+      break;
+
+    case Token::MOD:
+    case Token::SHR:
+      // Do nothing here as these go directly to runtime.
+      break;
+
+    case Token::SHL: {
+      __ AllocateHeapNumber(ebx, ecx, edx, slow);
+      // Store the result in the HeapNumber and return.
+      if (CpuFeatures::IsSupported(SSE2)) {
+        CpuFeatures::Scope use_sse2(SSE2);
+        __ cvtsi2sd(xmm0, Operand(eax));
+        __ movdbl(FieldOperand(ebx, HeapNumber::kValueOffset), xmm0);
+      } else {
+        __ mov(Operand(esp, 1 * kPointerSize), eax);
+        __ fild_s(Operand(esp, 1 * kPointerSize));
+        __ fstp_d(FieldOperand(ebx, HeapNumber::kValueOffset));
+      }
+      __ mov(eax, ebx);
+      GenerateReturn(masm);
+      break;
+    }
+
+    default: UNREACHABLE(); break;
+  }
+
+  __ bind(&not_smis_undo_optimistic);
+  switch (op_) {
+    case Token::ADD: __ sub(eax, Operand(ebx)); break;
+    case Token::SUB: __ add(eax, Operand(ebx)); break;
+    default: break;
+  }
+
+  __ bind(&not_smis);
+  __ mov(edx, eax);
+  __ mov(eax, ebx);
+
+  __ bind(&done);
 }
 
 
@@ -7206,17 +7348,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // case smi code is not generated by the caller. Generating it here will speed
   // up common operations.
   if (HasSmiCodeInStub()) {
-    Label slow;
-    __ mov(ebx, Operand(esp, 1 * kPointerSize));
-    __ mov(eax, Operand(esp, 2 * kPointerSize));
-    GenerateSmiCode(masm, &slow);
-    GenerateReturn(masm);
-    // Too bad. The fast case smi code didn't succeed.
-    __ bind(&slow);
+    GenerateSmiCode(masm, &call_runtime);
+  } else if (op_ != Token::MOD) {  // MOD goes straight to runtime.
+    GenerateLoadArguments(masm);
   }
-
-  // Make sure the arguments are in edx and eax.
-  GenerateLoadArguments(masm);
 
   // Floating point case.
   switch (op_) {
@@ -7224,9 +7359,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::SUB:
     case Token::MUL:
     case Token::DIV: {
-      // eax: y
-      // edx: x
-
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSse2Operands(masm, &call_runtime);
@@ -7238,59 +7370,12 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           case Token::DIV: __ divsd(xmm0, xmm1); break;
           default: UNREACHABLE();
         }
-        // Allocate a heap number, if needed.
-        Label skip_allocation;
-        switch (mode_) {
-          case OVERWRITE_LEFT:
-            __ mov(eax, Operand(edx));
-            // Fall through!
-          case OVERWRITE_RIGHT:
-            // If the argument in eax is already an object, we skip the
-            // allocation of a heap number.
-            __ test(eax, Immediate(kSmiTagMask));
-            __ j(not_zero, &skip_allocation, not_taken);
-            // Fall through!
-          case NO_OVERWRITE: {
-            // Allocate a heap number for the result. Keep eax and edx intact
-            // for the possible runtime call.
-            __ AllocateHeapNumber(ebx, ecx, no_reg, &call_runtime);
-            // Now eax can be overwritten losing one of the arguments as we are
-            // now done and will not need it any more.
-            __ mov(eax, ebx);
-            __ bind(&skip_allocation);
-            break;
-          }
-          default: UNREACHABLE();
-        }
+        GenerateHeapResultAllocation(masm, &call_runtime);
         __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         GenerateReturn(masm);
       } else {  // SSE2 not available, use FPU.
         FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
-        // Allocate a heap number, if needed.
-        Label skip_allocation;
-        switch (mode_) {
-          case OVERWRITE_LEFT:
-            __ mov(eax, Operand(edx));
-            // Fall through!
-          case OVERWRITE_RIGHT:
-            // If the argument in eax is already an object, we skip the
-            // allocation of a heap number.
-            __ test(eax, Immediate(kSmiTagMask));
-            __ j(not_zero, &skip_allocation, not_taken);
-            // Fall through!
-          case NO_OVERWRITE:
-            // Allocate a heap number for the result. Keep eax and edx intact
-            // for the possible runtime call.
-            __ AllocateHeapNumber(ebx, ecx, no_reg, &call_runtime);
-            // Now eax can be overwritten losing one of the arguments as we are
-            // now done and will not need it any more.
-            __ mov(eax, ebx);
-            __ bind(&skip_allocation);
-            break;
-          default: UNREACHABLE();
-        }
-        FloatingPointHelper::LoadFloatOperands(masm, ecx);
-
+        FloatingPointHelper::LoadFloatOperands(masm, ecx, ARGS_IN_REGISTERS);
         switch (op_) {
           case Token::ADD: __ faddp(1); break;
           case Token::SUB: __ fsubp(1); break;
@@ -7298,8 +7383,13 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           case Token::DIV: __ fdivp(1); break;
           default: UNREACHABLE();
         }
+        Label after_alloc_failure;
+        GenerateHeapResultAllocation(masm, &after_alloc_failure);
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         GenerateReturn(masm);
+        __ bind(&after_alloc_failure);
+        __ ffree();
+        __ jmp(&call_runtime);
       }
     }
     case Token::MOD: {
@@ -7312,12 +7402,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::SAR:
     case Token::SHL:
     case Token::SHR: {
-      Label non_smi_result, skip_allocation;
-      Label operand_conversion_failure;
-      FloatingPointHelper::LoadAsIntegers(
-        masm,
-        use_sse3_,
-        &operand_conversion_failure);
+      Label non_smi_result;
+      FloatingPointHelper::LoadAsIntegers(masm, use_sse3_, &call_runtime);
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, Operand(ecx)); break;
         case Token::BIT_AND: __ and_(eax, Operand(ecx)); break;
@@ -7330,7 +7416,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       if (op_ == Token::SHR) {
         // Check if result is non-negative and fits in a smi.
         __ test(eax, Immediate(0xc0000000));
-        __ j(not_zero, &non_smi_result);
+        __ j(not_zero, &call_runtime);
       } else {
         // Check if result fits in a smi.
         __ cmp(eax, 0xc0000000);
@@ -7345,6 +7431,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ bind(&non_smi_result);
         // Allocate a heap number if needed.
         __ mov(ebx, Operand(eax));  // ebx: result
+       Label skip_allocation;
         switch (mode_) {
           case OVERWRITE_LEFT:
           case OVERWRITE_RIGHT:
@@ -7373,15 +7460,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         }
         GenerateReturn(masm);
       }
-
-      // Go to runtime for non-number inputs.
-      __ bind(&operand_conversion_failure);
-      // SHR should return uint32 - go to runtime for non-smi/negative result.
-      if (op_ == Token::SHR) {
-        __ bind(&non_smi_result);
-      }
-      __ mov(eax, Operand(esp, 1 * kPointerSize));
-      __ mov(edx, Operand(esp, 2 * kPointerSize));
       break;
     }
     default: UNREACHABLE(); break;
@@ -7407,17 +7485,15 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // Test for string arguments before calling runtime.
       Label not_strings, not_string1, string1;
       Result answer;
-      __ mov(eax, Operand(esp, 2 * kPointerSize));  // First argument.
-      __ mov(edx, Operand(esp, 1 * kPointerSize));  // Second argument.
-      __ test(eax, Immediate(kSmiTagMask));
+      __ test(edx, Immediate(kSmiTagMask));
       __ j(zero, &not_string1);
-      __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, eax);
+      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, ecx);
       __ j(above_equal, &not_string1);
 
-      // First argument is a a string, test second.
-      __ test(edx, Immediate(kSmiTagMask));
+      // First argument is a string, test second.
+      __ test(eax, Immediate(kSmiTagMask));
       __ j(zero, &string1);
-      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, edx);
+      __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ecx);
       __ j(above_equal, &string1);
 
       // First and second argument are strings. Jump to the string add stub.
@@ -7426,17 +7502,25 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
       // Only first argument is a string.
       __ bind(&string1);
-      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
+      __ InvokeBuiltin(
+          HasArgumentsReversed() ?
+              Builtins::STRING_ADD_RIGHT :
+              Builtins::STRING_ADD_LEFT,
+         JUMP_FUNCTION);
 
       // First argument was not a string, test second.
       __ bind(&not_string1);
-      __ test(edx, Immediate(kSmiTagMask));
+      __ test(eax, Immediate(kSmiTagMask));
       __ j(zero, &not_strings);
-      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, edx);
+      __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ecx);
       __ j(above_equal, &not_strings);
 
       // Only second argument is a string.
-      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
+      __ InvokeBuiltin(
+          HasArgumentsReversed() ?
+              Builtins::STRING_ADD_LEFT :
+              Builtins::STRING_ADD_RIGHT,
+         JUMP_FUNCTION);
 
       __ bind(&not_strings);
       // Neither argument is a string.
@@ -7448,7 +7532,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       break;
     case Token::MUL:
       __ InvokeBuiltin(Builtins::MUL, JUMP_FUNCTION);
-        break;
+      break;
     case Token::DIV:
       __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
       break;
@@ -7475,6 +7559,55 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       break;
     default:
       UNREACHABLE();
+  }
+}
+
+
+void GenericBinaryOpStub::GenerateHeapResultAllocation(MacroAssembler* masm,
+                                                       Label* alloc_failure) {
+  Label skip_allocation;
+  OverwriteMode mode = mode_;
+  if (HasArgumentsReversed()) {
+    if (mode == OVERWRITE_RIGHT) {
+      mode = OVERWRITE_LEFT;
+    }
+    else if (mode == OVERWRITE_LEFT) {
+      mode = OVERWRITE_RIGHT;
+    }
+  }
+  switch (mode) {
+    case OVERWRITE_LEFT: {
+      // If the argument in edx is already an object, we skip the
+      // allocation of a heap number.
+      __ test(edx, Immediate(kSmiTagMask));
+      __ j(not_zero, &skip_allocation, not_taken);
+      // Allocate a heap number for the result. Keep eax and edx intact
+      // for the possible runtime call.
+      __ AllocateHeapNumber(ebx, ecx, no_reg, alloc_failure);
+      // Now edx can be overwritten losing one of the arguments as we are
+      // now done and will not need it any more.
+      __ mov(edx, Operand(ebx));
+      __ bind(&skip_allocation);
+      // Use object in edx as a result holder
+      __ mov(eax, Operand(edx));
+      break;
+    }
+    case OVERWRITE_RIGHT:
+      // If the argument in eax is already an object, we skip the
+      // allocation of a heap number.
+      __ test(eax, Immediate(kSmiTagMask));
+      __ j(not_zero, &skip_allocation, not_taken);
+      // Fall through!
+    case NO_OVERWRITE:
+      // Allocate a heap number for the result. Keep eax and edx intact
+      // for the possible runtime call.
+      __ AllocateHeapNumber(ebx, ecx, no_reg, alloc_failure);
+      // Now eax can be overwritten losing one of the arguments as we are
+      // now done and will not need it any more.
+      __ mov(eax, ebx);
+      __ bind(&skip_allocation);
+      break;
+    default: UNREACHABLE();
   }
 }
 
@@ -7741,16 +7874,47 @@ void FloatingPointHelper::LoadSse2Operands(MacroAssembler* masm,
 }
 
 
+void FloatingPointHelper::LoadSse2Smis(MacroAssembler* masm,
+                                       Register scratch,
+                                       ArgLocation arg_location) {
+  if (arg_location == ARGS_IN_REGISTERS) {
+    __ mov(scratch, eax);
+  } else {
+    __ mov(scratch, Operand(esp, 2 * kPointerSize));
+  }
+  __ SmiUntag(scratch);  // Untag smi before converting to float.
+  __ cvtsi2sd(xmm0, Operand(scratch));
+
+
+  if (arg_location == ARGS_IN_REGISTERS) {
+    __ mov(scratch, ebx);
+  } else {
+    __ mov(scratch, Operand(esp, 1 * kPointerSize));
+  }
+  __ SmiUntag(scratch);  // Untag smi before converting to float.
+  __ cvtsi2sd(xmm1, Operand(scratch));
+}
+
+
 void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
-                                            Register scratch) {
+                                            Register scratch,
+                                            ArgLocation arg_location) {
   Label load_smi_1, load_smi_2, done_load_1, done;
-  __ mov(scratch, Operand(esp, 2 * kPointerSize));
+  if (arg_location == ARGS_IN_REGISTERS) {
+    __ mov(scratch, edx);
+  } else {
+    __ mov(scratch, Operand(esp, 2 * kPointerSize));
+  }
   __ test(scratch, Immediate(kSmiTagMask));
   __ j(zero, &load_smi_1, not_taken);
   __ fld_d(FieldOperand(scratch, HeapNumber::kValueOffset));
   __ bind(&done_load_1);
 
-  __ mov(scratch, Operand(esp, 1 * kPointerSize));
+  if (arg_location == ARGS_IN_REGISTERS) {
+    __ mov(scratch, eax);
+  } else {
+    __ mov(scratch, Operand(esp, 1 * kPointerSize));
+  }
   __ test(scratch, Immediate(kSmiTagMask));
   __ j(zero, &load_smi_2, not_taken);
   __ fld_d(FieldOperand(scratch, HeapNumber::kValueOffset));
@@ -7770,6 +7934,31 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
   __ pop(scratch);
 
   __ bind(&done);
+}
+
+
+void FloatingPointHelper::LoadFloatSmis(MacroAssembler* masm,
+                                        Register scratch,
+                                        ArgLocation arg_location) {
+  if (arg_location == ARGS_IN_REGISTERS) {
+    __ mov(scratch, eax);
+  } else {
+    __ mov(scratch, Operand(esp, 2 * kPointerSize));
+  }
+  __ SmiUntag(scratch);
+  __ push(scratch);
+  __ fild_s(Operand(esp, 0));
+  __ pop(scratch);
+
+  if (arg_location == ARGS_IN_REGISTERS) {
+    __ mov(scratch, ebx);
+  } else {
+    __ mov(scratch, Operand(esp, 1 * kPointerSize));
+  }
+  __ SmiUntag(scratch);
+  __ push(scratch);
+  __ fild_s(Operand(esp, 0));
+  __ pop(scratch);
 }
 
 
