@@ -259,6 +259,24 @@ int OS::ActivationFrameAlignment() {
 }
 
 
+const char* OS::LocalTimezone(double time) {
+  if (isnan(time)) return "";
+  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  struct tm* t = localtime(&tv);
+  if (NULL == t) return "";
+  return t->tm_zone;
+}
+
+
+double OS::LocalTimeOffset() {
+  time_t tv = time(NULL);
+  struct tm* t = localtime(&tv);
+  // tm_gmtoff includes any daylight savings offset, so subtract it.
+  return static_cast<double>(t->tm_gmtoff * msPerSecond -
+                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
+}
+
+
 int OS::StackWalk(Vector<StackFrame> frames) {
   // If weak link to execinfo lib has failed, ie because we are on 10.4, abort.
   if (backtrace == NULL)
