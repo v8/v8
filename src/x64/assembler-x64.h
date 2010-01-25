@@ -574,6 +574,13 @@ class Assembler : public Malloced {
   void movzxwq(Register dst, const Operand& src);
   void movzxwl(Register dst, const Operand& src);
 
+  // Repeated moves.
+
+  void repmovsb();
+  void repmovsw();
+  void repmovsl();
+  void repmovsq();
+
   // New x64 instruction to load from an immediate 64-bit pointer into RAX.
   void load_rax(void* ptr, RelocInfo::Mode rmode);
   void load_rax(ExternalReference ext);

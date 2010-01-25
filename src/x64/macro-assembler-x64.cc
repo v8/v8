@@ -581,6 +581,20 @@ Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
 }
 
 
+Condition MacroAssembler::CheckBothPositiveSmi(Register first,
+                                               Register second) {
+  if (first.is(second)) {
+    return CheckPositiveSmi(first);
+  }
+  movl(kScratchRegister, first);
+  orl(kScratchRegister, second);
+  rol(kScratchRegister, Immediate(1));
+  testl(kScratchRegister, Immediate(0x03));
+  return zero;
+}
+
+
+
 Condition MacroAssembler::CheckEitherSmi(Register first, Register second) {
   if (first.is(second)) {
     return CheckSmi(first);
@@ -660,7 +674,17 @@ void MacroAssembler::SmiSub(Register dst,
                             Register src2,
                             Label* on_not_smi_result) {
   ASSERT(!dst.is(src2));
-  if (dst.is(src1)) {
+  if (on_not_smi_result == NULL) {
+    // No overflow checking. Use only when it's known that
+    // overflowing is impossible (e.g., subtracting two positive smis).
+    if (dst.is(src1)) {
+      subq(dst, src2);
+    } else {
+      movq(dst, src1);
+      subq(dst, src2);
+    }
+    Assert(no_overflow, "Smi substraction onverflow");
+  } else if (dst.is(src1)) {
     subq(dst, src2);
     Label smi_result;
     j(no_overflow, &smi_result);
@@ -1292,6 +1316,14 @@ void MacroAssembler::JumpIfNotBothSmi(Register src1, Register src2,
 }
 
 
+void MacroAssembler::JumpIfNotBothPositiveSmi(Register src1, Register src2,
+                                              Label* on_not_both_smi) {
+  Condition both_smi = CheckBothPositiveSmi(src1, src2);
+  j(NegateCondition(both_smi), on_not_both_smi);
+}
+
+
+
 void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first_object,
                                                          Register second_object,
                                                          Register scratch1,
@@ -1514,6 +1546,17 @@ void MacroAssembler::CmpObjectType(Register heap_object,
 void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpb(FieldOperand(map, Map::kInstanceTypeOffset),
        Immediate(static_cast<int8_t>(type)));
+}
+
+
+Condition MacroAssembler::IsObjectStringType(Register heap_object,
+                                             Register map,
+                                             Register instance_type) {
+  movq(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  movzxbq(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  ASSERT(kNotStringTag != 0);
+  testb(instance_type, Immediate(kIsNotStringMask));
+  return zero;
 }
 
 

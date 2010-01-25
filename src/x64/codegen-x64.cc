@@ -3942,7 +3942,8 @@ void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
   Load(args->at(1));
   Load(args->at(2));
 
-  Result answer = frame_->CallRuntime(Runtime::kSubString, 3);
+  SubStringStub stub;
+  Result answer = frame_->CallStub(&stub, 3);
   frame_->Push(&answer);
 }
 
@@ -8138,11 +8139,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringAddStub::GenerateCopyCharacters(MacroAssembler* masm,
-                                           Register dest,
-                                           Register src,
-                                           Register count,
-                                           bool ascii) {
+void StringStubBase::GenerateCopyCharacters(MacroAssembler* masm,
+                                            Register dest,
+                                            Register src,
+                                            Register count,
+                                            bool ascii) {
   Label loop;
   __ bind(&loop);
   // This loop just copies one character at a time, as it is only used for very
@@ -8162,6 +8163,174 @@ void StringAddStub::GenerateCopyCharacters(MacroAssembler* masm,
   __ j(not_zero, &loop);
 }
 
+
+void StringStubBase::GenerateCopyCharactersREP(MacroAssembler* masm,
+                                               Register dest,
+                                               Register src,
+                                               Register count,
+                                               bool ascii) {
+  // Copy characters using rep movs of doublewords. Align destination on 4 byte
+  // boundary before starting rep movs. Copy remaining characters after running
+  // rep movs.
+  ASSERT(dest.is(rdi));  // rep movs destination
+  ASSERT(src.is(rsi));  // rep movs source
+  ASSERT(count.is(rcx));  // rep movs count
+
+  // Nothing to do for zero characters.
+  Label done;
+  __ testq(count, count);
+  __ j(zero, &done);
+
+  // Make count the number of bytes to copy.
+  if (!ascii) {
+    ASSERT_EQ(2, sizeof(uc16));  // NOLINT
+    __ addq(count, count);
+  }
+
+  // Don't enter the rep movs if there are less than 4 bytes to copy.
+  Label last_bytes;
+  __ testq(count, Immediate(~7));
+  __ j(zero, &last_bytes);
+
+  // Copy from edi to esi using rep movs instruction.
+  __ movq(kScratchRegister, count);
+  __ sar(count, Immediate(3));  // Number of doublewords to copy.
+  __ repmovsq();
+
+  // Find number of bytes left.
+  __ movq(count, kScratchRegister);
+  __ and_(count, Immediate(7));
+
+  // Check if there are more bytes to copy.
+  __ bind(&last_bytes);
+  __ testq(count, count);
+  __ j(zero, &done);
+
+  // Copy remaining characters.
+  Label loop;
+  __ bind(&loop);
+  __ movb(kScratchRegister, Operand(src, 0));
+  __ movb(Operand(dest, 0), kScratchRegister);
+  __ addq(src, Immediate(1));
+  __ addq(dest, Immediate(1));
+  __ subq(count, Immediate(1));
+  __ j(not_zero, &loop);
+
+  __ bind(&done);
+}
+
+
+void SubStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  // Stack frame on entry.
+  //  rsp[0]: return address
+  //  rsp[8]: to
+  //  rsp[16]: from
+  //  rsp[24]: string
+
+  const int kToOffset = 1 * kPointerSize;
+  const int kFromOffset = kToOffset + kPointerSize;
+  const int kStringOffset = kFromOffset + kPointerSize;
+  const int kArgumentsSize = (kStringOffset + kPointerSize) - kToOffset;
+
+  // Make sure first argument is a string.
+  __ movq(rax, Operand(rsp, kStringOffset));
+  ASSERT_EQ(0, kSmiTag);
+  __ testl(rax, Immediate(kSmiTagMask));
+  __ j(zero, &runtime);
+  Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
+  __ j(NegateCondition(is_string), &runtime);
+
+  // rax: string
+  // rbx: instance type
+  // Calculate length of sub string using the smi values.
+  __ movq(rcx, Operand(rsp, kToOffset));
+  __ movq(rdx, Operand(rsp, kFromOffset));
+  __ JumpIfNotBothPositiveSmi(rcx, rdx, &runtime);
+
+  __ SmiSub(rcx, rcx, rdx, NULL);  // Overflow doesn't happen.
+  __ j(negative, &runtime);
+  // Handle sub-strings of length 2 and less in the runtime system.
+  __ SmiToInteger32(rcx, rcx);
+  __ cmpl(rcx, Immediate(2));
+  __ j(below_equal, &runtime);
+
+  // rax: string
+  // rbx: instance type
+  // rcx: result string length
+  // Check for flat ascii string
+  Label non_ascii_flat;
+  __ and_(rbx, Immediate(kStringRepresentationMask | kStringEncodingMask));
+  __ cmpb(rbx, Immediate(kSeqStringTag | kAsciiStringTag));
+  __ j(not_equal, &non_ascii_flat);
+
+  // Allocate the result.
+  __ AllocateAsciiString(rax, rcx, rbx, rdx, rdi, &runtime);
+
+  // rax: result string
+  // rcx: result string length
+  __ movq(rdx, rsi);  // esi used by following code.
+  // Locate first character of result.
+  __ lea(rdi, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  // Load string argument and locate character of sub string start.
+  __ movq(rsi, Operand(rsp, kStringOffset));
+  __ movq(rbx, Operand(rsp, kFromOffset));
+  {
+    SmiIndex smi_as_index = masm->SmiToIndex(rbx, rbx, times_1);
+    __ lea(rsi, Operand(rsi, smi_as_index.reg, smi_as_index.scale,
+                        SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  }
+
+  // rax: result string
+  // rcx: result length
+  // rdx: original value of rsi
+  // rdi: first character of result
+  // rsi: character of sub string start
+  GenerateCopyCharactersREP(masm, rdi, rsi, rcx, true);
+  __ movq(rsi, rdx);  // Restore rsi.
+  __ IncrementCounter(&Counters::sub_string_native, 1);
+  __ ret(kArgumentsSize);
+
+  __ bind(&non_ascii_flat);
+  // rax: string
+  // rbx: instance type & kStringRepresentationMask | kStringEncodingMask
+  // rcx: result string length
+  // Check for sequential two byte string
+  __ cmpb(rbx, Immediate(kSeqStringTag | kTwoByteStringTag));
+  __ j(not_equal, &runtime);
+
+  // Allocate the result.
+  __ AllocateTwoByteString(rax, rcx, rbx, rdx, rdi, &runtime);
+
+  // rax: result string
+  // rcx: result string length
+  __ movq(rdx, rsi);  // esi used by following code.
+  // Locate first character of result.
+  __ lea(rdi, FieldOperand(rax, SeqTwoByteString::kHeaderSize));
+  // Load string argument and locate character of sub string start.
+  __ movq(rsi, Operand(rsp, kStringOffset));
+  __ movq(rbx, Operand(rsp, kFromOffset));
+  {
+    SmiIndex smi_as_index = masm->SmiToIndex(rbx, rbx, times_2);
+    __ lea(rsi, Operand(rsi, smi_as_index.reg, smi_as_index.scale,
+                        SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  }
+
+  // rax: result string
+  // rcx: result length
+  // rdx: original value of rsi
+  // rdi: first character of result
+  // rsi: character of sub string start
+  GenerateCopyCharactersREP(masm, rdi, rsi, rcx, false);
+  __ movq(rsi, rdx);  // Restore esi.
+  __ IncrementCounter(&Counters::sub_string_native, 1);
+  __ ret(kArgumentsSize);
+
+  // Just jump to runtime to create the sub string.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kSubString), 3, 1);
+}
 
 
 void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
