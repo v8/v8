@@ -32,6 +32,7 @@
 #include "accessors.h"
 #include "api.h"
 #include "arguments.h"
+#include "bootstrapper.h"
 #include "compiler.h"
 #include "cpu.h"
 #include "dateparser-inl.h"
@@ -4594,9 +4595,107 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
 }
 
 
+// We avoid inlining this function by placing it in another .cc file.
+extern void CaptureInfoForIssue555(
+    bool is_bootstrapping,
+    AllocationSpace context_space,
+    Object* context,
+    Object* context_map,
+    int context_length,
+    Object* context_closure,
+    Object* context_fcontext,
+    Object* context_previous,
+    Object* context_extension,
+    Object* context_global,
+    AllocationSpace function_space,
+    Object* function,
+    bool runs_in_inner_context,
+    bool runs_in_outer_context);
+
+
+static AllocationSpace ComputeSpace(Object* object) {
+  static const AllocationSpace kIllegalSpace = static_cast<AllocationSpace>(-1);
+  if (!object->IsHeapObject()) return kIllegalSpace;
+  for (int attempt = FIRST_SPACE; attempt <= LAST_SPACE; attempt++) {
+    AllocationSpace space = static_cast<AllocationSpace>(attempt);
+    if (Heap::InSpace(HeapObject::cast(object), space)) return space;
+  }
+  return kIllegalSpace;
+}
+
+
+static void DiagnoseIssue555(Arguments args) {
+  static const int kUninitialized = 0x12345678;
+  static Object* const kUninitializedObject = bit_cast<Object*>(kUninitialized);
+
+  // Read the invalid context from the arguments.
+  Object* context = args[0];
+
+  // Compute basic diagnostic information.
+  bool is_bootstrapping = Bootstrapper::IsActive();
+  AllocationSpace context_space = ComputeSpace(context);
+
+  // Get the context map and length.
+  Object* context_map = kUninitializedObject;
+  int context_length = kUninitialized;
+  if (context->IsHeapObject()) {
+    context_map = HeapObject::cast(context)->map();
+    context_length = FixedArray::cast(context)->length();
+  }
+
+  // Get the context slots.
+  Object* context_slots[Context::MIN_CONTEXT_SLOTS];
+  for (int i = 0; i < Context::MIN_CONTEXT_SLOTS; i++) {
+    // Initialize the context slots to a recognizable bit pattern.
+    context_slots[i] = kUninitializedObject;
+    if (context->IsHeapObject()) {
+      context_slots[i] = FixedArray::cast(context)->get(i);
+    }
+  }
+
+  // Check if the function that requested a new closure runs either in
+  // its outer context (set in the function) or in its own dynamically
+  // created inner context.
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+  JSFunction* function = JSFunction::cast(frame->function());
+  AllocationSpace function_space = ComputeSpace(function);
+  bool runs_in_inner_context =
+      (function == context_slots[Context::CLOSURE_INDEX]);
+  bool runs_in_outer_context =
+      (function->context() == context);
+
+  // Capture the diagnostic information by passing the state to an
+  // external function.
+  CaptureInfoForIssue555(
+      is_bootstrapping,
+      context_space,
+      context,
+      context_map,
+      context_length,
+      context_slots[Context::CLOSURE_INDEX],
+      context_slots[Context::FCONTEXT_INDEX],
+      context_slots[Context::PREVIOUS_INDEX],
+      context_slots[Context::EXTENSION_INDEX],
+      context_slots[Context::GLOBAL_INDEX],
+      function_space,
+      function,
+      runs_in_inner_context,
+      runs_in_outer_context);
+}
+
+
 static Object* Runtime_NewClosure(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
+
+  // BUG(555): Attempt to gather more information about the crash in
+  // NewClosure where the context is invalid. This rarely happens, but
+  // it brings down V8 through a null pointer exception when throwing
+  // an illegal access exception. For more details, see:
+  // http://code.google.com/p/v8/issues/detail?id=555
+  if (!args[0]->IsContext()) DiagnoseIssue555(args);
+
   CONVERT_ARG_CHECKED(Context, context, 0);
   CONVERT_ARG_CHECKED(JSFunction, boilerplate, 1);
 

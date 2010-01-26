@@ -8303,4 +8303,25 @@ int BreakPointInfo::GetBreakPointCount() {
 #endif
 
 
+// BUG(555): This function is used to diagnose issue 555 from
+// runtime.cc. We avoid inlining it by placing it here.
+void CaptureInfoForIssue555(
+    bool is_bootstrapping,
+    AllocationSpace context_space,
+    Object* context,
+    Object* context_map,
+    int context_length,
+    Object* context_closure,
+    Object* context_fcontext,
+    Object* context_previous,
+    Object* context_extension,
+    Object* context_global,
+    AllocationSpace function_space,
+    Object* function,
+    bool runs_in_inner_context,
+    bool runs_in_outer_context) {
+  // Kill the virtual machine.
+  OS::Abort();
+}
+
 } }  // namespace v8::internal
