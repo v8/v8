@@ -2209,7 +2209,7 @@ bool GetEvaluateStringResult(char *message, char* buffer, int buffer_size) {
     return false;
   }
   Vector<char> buf(buffer, buffer_size);
-  int len = pos2 - pos1;
+  int len = static_cast<int>(pos2 - pos1);
   if (len > buffer_size - 1) {
     len = buffer_size - 1;
   }
