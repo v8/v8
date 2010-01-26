@@ -1351,6 +1351,19 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       break;
     }
 
+    case Token::ADD: {
+      Comment cmt(masm_, "[ UnaryOperation (ADD)");
+      VisitForValue(expr->expression(), kAccumulator);
+      Label no_conversion;
+      __ tst(result_register(), Operand(kSmiTagMask));
+      __ b(eq, &no_conversion);
+      __ push(r0);
+      __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
+      __ bind(&no_conversion);
+      Apply(context_, result_register());
+      break;
+    }
+
     default:
       UNREACHABLE();
   }
