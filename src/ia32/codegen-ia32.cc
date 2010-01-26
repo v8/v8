@@ -763,10 +763,8 @@ class FloatingPointHelper : public AllStatic {
                                 ArgLocation arg_location = ARGS_ON_STACK);
 
   // Similar to LoadFloatOperand but assumes that both operands are smis.
-  // Accepts operands on stack or in eax, ebx.
-  static void LoadFloatSmis(MacroAssembler* masm,
-                            Register scratch,
-                            ArgLocation arg_location);
+  // Accepts operands in eax, ebx.
+  static void LoadFloatSmis(MacroAssembler* masm, Register scratch);
 
   // Test if operands are smi or number objects (fp). Requirements:
   // operand_1 in eax, operand_2 in edx; falls through on float
@@ -786,10 +784,8 @@ class FloatingPointHelper : public AllStatic {
   static void LoadSse2Operands(MacroAssembler* masm, Label* not_numbers);
 
   // Similar to LoadSse2Operands but assumes that both operands are smis.
-  // Accepts operands on stack or in eax, ebx.
-  static void LoadSse2Smis(MacroAssembler* masm,
-                           Register scratch,
-                           ArgLocation arg_location);
+  // Accepts operands in eax, ebx.
+  static void LoadSse2Smis(MacroAssembler* masm, Register scratch);
 };
 
 
@@ -978,10 +974,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   Result answer;
   if (left_is_non_smi || right_is_non_smi) {
     // Go straight to the slow case, with no smi code.
-    frame_->Push(&left);
-    frame_->Push(&right);
     GenericBinaryOpStub stub(op, overwrite_mode, NO_SMI_CODE_IN_STUB);
-    answer = frame_->CallStub(&stub, 2);
+    answer = stub.GenerateCall(masm_, frame_, &left, &right);
   } else if (right_is_smi) {
     answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
                                         type, false, overwrite_mode);
@@ -997,10 +991,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     if (loop_nesting() > 0 && (Token::IsBitOp(op) || type->IsLikelySmi())) {
       answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
     } else {
-      frame_->Push(&left);
-      frame_->Push(&right);
       GenericBinaryOpStub stub(op, overwrite_mode, NO_GENERIC_BINARY_FLAGS);
-      answer = frame_->CallStub(&stub, 2);
+      answer = stub.GenerateCall(masm_, frame_, &left, &right);
     }
   }
   frame_->Push(&answer);
@@ -7076,6 +7068,21 @@ void GenericBinaryOpStub::GenerateCall(
 }
 
 
+Result GenericBinaryOpStub::GenerateCall(MacroAssembler* masm,
+                                         VirtualFrame* frame,
+                                         Result* left,
+                                         Result* right) {
+  if (ArgsInRegistersSupported()) {
+    SetArgsInRegisters();
+    return frame->CallStub(this, left, right);
+  } else {
+    frame->Push(left);
+    frame->Push(right);
+    return frame->CallStub(this, 2);
+  }
+}
+
+
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   if (HasArgsInRegisters()) {
     __ mov(ebx, eax);
@@ -7107,7 +7114,13 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ j(overflow, &not_smis_or_overflow, not_taken);
       break;
 
+    case Token::MUL:
+      __ mov(edi, eax);  // Backup the left operand.
+      break;
+
     case Token::DIV:
+      __ mov(edi, eax);  // Backup the left operand.
+      // Fall through.
     case Token::MOD:
       // Sign extend eax into edx:eax.
       __ cdq();
@@ -7243,28 +7256,18 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   __ bind(&use_fp_on_smis);
   // Both operands are known to be SMIs but the result does not fit into a SMI.
   switch (op_) {
-    case Token::ADD:
-    case Token::SUB:
     case Token::MUL:
-    case Token::DIV: {
+    case Token::DIV:
+      __ mov(eax, edi);  // Restore the left operand.
+      // Fall through.
+    case Token::ADD:
+    case Token::SUB: {
       Label after_alloc_failure;
-
-      FloatingPointHelper::ArgLocation arg_location =
-          (op_ == Token::ADD || op_ == Token::SUB) ?
-          FloatingPointHelper::ARGS_IN_REGISTERS :
-          FloatingPointHelper::ARGS_ON_STACK;
-
-      __ AllocateHeapNumber(
-          edx,
-          ecx,
-          no_reg,
-          arg_location == FloatingPointHelper::ARGS_IN_REGISTERS ?
-              &after_alloc_failure :
-              slow);
+      __ AllocateHeapNumber(edx, ecx, no_reg, &after_alloc_failure);
 
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
-        FloatingPointHelper::LoadSse2Smis(masm, ecx, arg_location);
+        FloatingPointHelper::LoadSse2Smis(masm, ecx);
         switch (op_) {
           case Token::ADD: __ addsd(xmm0, xmm1); break;
           case Token::SUB: __ subsd(xmm0, xmm1); break;
@@ -7274,7 +7277,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
         }
         __ movdbl(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);
       } else {  // SSE2 not available, use FPU.
-        FloatingPointHelper::LoadFloatSmis(masm, ecx, arg_location);
+        FloatingPointHelper::LoadFloatSmis(masm, ecx);
         switch (op_) {
           case Token::ADD: __ faddp(1); break;
           case Token::SUB: __ fsubp(1); break;
@@ -7287,12 +7290,10 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ mov(eax, edx);
       GenerateReturn(masm);
 
-      if (arg_location == FloatingPointHelper::ARGS_IN_REGISTERS) {
-        __ bind(&after_alloc_failure);
-        __ mov(edx, eax);
-        __ mov(eax, ebx);
-        __ jmp(slow);
-      }
+      __ bind(&after_alloc_failure);
+      __ mov(edx, eax);
+      __ mov(eax, ebx);
+      __ jmp(slow);
       break;
     }
 
@@ -7438,7 +7439,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ bind(&non_smi_result);
         // Allocate a heap number if needed.
         __ mov(ebx, Operand(eax));  // ebx: result
-       Label skip_allocation;
+        Label skip_allocation;
         switch (mode_) {
           case OVERWRITE_LEFT:
           case OVERWRITE_RIGHT:
@@ -7881,22 +7882,12 @@ void FloatingPointHelper::LoadSse2Operands(MacroAssembler* masm,
 
 
 void FloatingPointHelper::LoadSse2Smis(MacroAssembler* masm,
-                                       Register scratch,
-                                       ArgLocation arg_location) {
-  if (arg_location == ARGS_IN_REGISTERS) {
-    __ mov(scratch, eax);
-  } else {
-    __ mov(scratch, Operand(esp, 2 * kPointerSize));
-  }
+                                       Register scratch) {
+  __ mov(scratch, eax);
   __ SmiUntag(scratch);  // Untag smi before converting to float.
   __ cvtsi2sd(xmm0, Operand(scratch));
 
-
-  if (arg_location == ARGS_IN_REGISTERS) {
-    __ mov(scratch, ebx);
-  } else {
-    __ mov(scratch, Operand(esp, 1 * kPointerSize));
-  }
+  __ mov(scratch, ebx);
   __ SmiUntag(scratch);  // Untag smi before converting to float.
   __ cvtsi2sd(xmm1, Operand(scratch));
 }
@@ -7944,23 +7935,14 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 
 
 void FloatingPointHelper::LoadFloatSmis(MacroAssembler* masm,
-                                        Register scratch,
-                                        ArgLocation arg_location) {
-  if (arg_location == ARGS_IN_REGISTERS) {
-    __ mov(scratch, eax);
-  } else {
-    __ mov(scratch, Operand(esp, 2 * kPointerSize));
-  }
+                                        Register scratch) {
+  __ mov(scratch, eax);
   __ SmiUntag(scratch);
   __ push(scratch);
   __ fild_s(Operand(esp, 0));
   __ pop(scratch);
 
-  if (arg_location == ARGS_IN_REGISTERS) {
-    __ mov(scratch, ebx);
-  } else {
-    __ mov(scratch, Operand(esp, 1 * kPointerSize));
-  }
+  __ mov(scratch, ebx);
   __ SmiUntag(scratch);
   __ push(scratch);
   __ fild_s(Operand(esp, 0));

@@ -1560,12 +1560,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
   // Call stub for +1/-1.
-  __ push(eax);
-  __ push(Immediate(Smi::FromInt(1)));
   GenericBinaryOpStub stub(expr->binary_op(),
                            NO_OVERWRITE,
                            NO_GENERIC_BINARY_FLAGS);
-  __ CallStub(&stub);
+  stub.GenerateCall(masm(), eax, Smi::FromInt(1));
   __ bind(&done);
 
   // Store the value returned in eax.

@@ -652,6 +652,11 @@ class GenericBinaryOpStub: public CodeStub {
   void GenerateCall(MacroAssembler* masm, Register left, Smi* right);
   void GenerateCall(MacroAssembler* masm, Smi* left, Register right);
 
+  Result GenerateCall(MacroAssembler* masm,
+                      VirtualFrame* frame,
+                      Result* left,
+                      Result* right);
+
  private:
   Token::Value op_;
   OverwriteMode mode_;
@@ -700,15 +705,9 @@ class GenericBinaryOpStub: public CodeStub {
   void GenerateReturn(MacroAssembler* masm);
   void GenerateHeapResultAllocation(MacroAssembler* masm, Label* alloc_failure);
 
-  // Args in registers are always OK for ADD and SUB. Floating-point MUL and DIV
-  // are also OK. Though MUL and DIV on SMIs modify the original registers so
-  // we need to push args on stack anyway.
   bool ArgsInRegistersSupported() {
-    if (op_ == Token::ADD || op_ == Token::SUB) return true;
-    if (op_ == Token::MUL || op_ == Token::DIV) {
-      return flags_ == NO_SMI_CODE_IN_STUB;
-    }
-    return false;
+    return op_ == Token::ADD || op_ == Token::SUB
+        || op_ == Token::MUL || op_ == Token::DIV;
   }
   bool IsOperationCommutative() {
     return (op_ == Token::ADD) || (op_ == Token::MUL);
