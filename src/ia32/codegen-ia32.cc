@@ -8453,18 +8453,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // All checks done. Now push arguments for native regexp code.
   __ IncrementCounter(&Counters::regexp_entry_native, 1);
 
-  // Argument 8: Indicate that this is a direct call from JavaScript.
+  // Argument 7: Indicate that this is a direct call from JavaScript.
   __ push(Immediate(1));
 
-  // Argument 7: Start (high end) of backtracking stack memory area.
+  // Argument 6: Start (high end) of backtracking stack memory area.
   __ mov(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_address));
   __ add(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
-  __ push(ecx);
-
-  // Argument 6: At start of string?
-  __ xor_(Operand(ecx), ecx);  // setcc only operated on cl (lower byte of ecx).
-  __ test(ebx, Operand(ebx));
-  __ setcc(zero, ecx);  // 1 if 0 (start of string), 0 if positive.
   __ push(ecx);
 
   // Argument 5: static offsets vector buffer.
@@ -8501,7 +8495,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ call(Operand(edx));
   // Remove arguments.
-  __ add(Operand(esp), Immediate(8 * kPointerSize));
+  __ add(Operand(esp), Immediate(7 * kPointerSize));
 
   // Check the result.
   Label success;

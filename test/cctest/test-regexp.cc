@@ -679,16 +679,14 @@ static ArchRegExpMacroAssembler::Result Execute(Code* code,
                                                 int start_offset,
                                                 const byte* input_start,
                                                 const byte* input_end,
-                                                int* captures,
-                                                bool at_start) {
+                                                int* captures) {
   return NativeRegExpMacroAssembler::Execute(
       code,
       input,
       start_offset,
       input_start,
       input_end,
-      captures,
-      at_start);
+      captures);
 }
 
 
@@ -716,8 +714,7 @@ TEST(MacroAssemblerNativeSuccess) {
               0,
               start_adr,
               start_adr + seq_input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(-1, captures[0]);
@@ -760,8 +757,7 @@ TEST(MacroAssemblerNativeSimple) {
               0,
               start_adr,
               start_adr + input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -778,8 +774,7 @@ TEST(MacroAssemblerNativeSimple) {
                    0,
                    start_adr,
                    start_adr + input->length(),
-                   captures,
-                   true);
+                   captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -820,8 +815,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
               0,
               start_adr,
               start_adr + input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
@@ -839,8 +833,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
                    0,
                    start_adr,
                    start_adr + input->length() * 2,
-                   captures,
-                   true);
+                   captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -877,8 +870,7 @@ TEST(MacroAssemblerNativeBacktrack) {
               0,
               start_adr,
               start_adr + input->length(),
-              NULL,
-              true);
+              NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::FAILURE, result);
 }
@@ -920,8 +912,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
               0,
               start_adr,
               start_adr + input->length(),
-              output,
-              true);
+              output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -969,8 +960,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
                   0,
                   start_adr,
                   start_adr + input->length() * 2,
-                  output,
-                  true);
+                  output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1022,8 +1012,7 @@ TEST(MacroAssemblernativeAtStart) {
               0,
               start_adr,
               start_adr + input->length(),
-              NULL,
-              true);
+              NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 
@@ -1032,8 +1021,7 @@ TEST(MacroAssemblernativeAtStart) {
                    3,
                    start_adr + 3,
                    start_adr + input->length(),
-                   NULL,
-                   false);
+                   NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
 }
@@ -1084,8 +1072,7 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
               0,
               start_adr,
               start_adr + input->length(),
-              output,
-              true);
+              output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1184,8 +1171,7 @@ TEST(MacroAssemblerNativeRegisters) {
               0,
               start_adr,
               start_adr + input->length(),
-              output,
-              true);
+              output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);
@@ -1225,8 +1211,7 @@ TEST(MacroAssemblerStackOverflow) {
               0,
               start_adr,
               start_adr + input->length(),
-              NULL,
-              true);
+              NULL);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
   CHECK(Top::has_pending_exception());
@@ -1271,8 +1256,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
               0,
               start_adr,
               start_adr + input->length(),
-              captures,
-              true);
+              captures);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, captures[0]);

@@ -59,8 +59,6 @@ namespace internal {
  *                               call through the runtime system)
  *       - stack_area_base      (High end of the memory area to use as
  *                               backtracking stack)
- *       - at_start             (if 1, we are starting at the start of the
- *                               string, otherwise 0)
  *       - int* capture_array   (int[num_saved_registers_], for output).
  *       - end of input         (Address of end of string)
  *       - start of input       (Address of first character in string)
@@ -74,6 +72,8 @@ namespace internal {
  *       - backup of caller ebx
  *       - Offset of location before start of input (effectively character
  *         position -1). Used to initialize capture registers to a non-position.
+ *       - Boolean at start (if 1, we are starting at the start of the string,
+ *         otherwise 0)
  *       - register 0  ebp[-4]  (Only positions must be stored in the first
  *       - register 1  ebp[-8]   num_saved_registers_ registers)
  *       - ...
@@ -625,6 +625,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
+  __ push(Immediate(0));  // Make room for "at start" constant.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -667,6 +668,15 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ mov(Operand(ebp, kInputStartMinusOne), eax);
+
+  // Determine whether the start index is zero, that is at the start of the
+  // string, and store that value in a local variable.
+  __ mov(ebx, Operand(ebp, kStartIndex));
+  __ xor_(Operand(ecx), ecx);  // setcc only operates on cl (lower byte of ecx).
+  __ test(ebx, Operand(ebx));
+  __ setcc(zero, ecx);  // 1 if 0 (start of string), 0 if positive.
+  __ mov(Operand(ebp, kAtStart), ecx);
+
   if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten

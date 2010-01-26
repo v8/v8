@@ -71,8 +71,6 @@ namespace internal {
  *                            through the runtime system)
  *    - stack_area_base      (High end of the memory area to use as
  *                            backtracking stack)
- *    - at_start             (if 1, we are starting at the start of the
- *                            string, otherwise 0)
  *    - int* capture_array   (int[num_saved_registers_], for output).
  *    - end of input         (Address of end of string)
  *    - start of input       (Address of first character in string)
@@ -82,6 +80,8 @@ namespace internal {
  *    - backup of callee save registers (rbx, possibly rsi and rdi).
  *    - Offset of location before start of input (effectively character
  *      position -1). Used to initialize capture registers to a non-position.
+ *    - At start of string (if 1, we are starting at the start of the
+ *      string, otherwise 0)
  *    - register 0  rbp[-n]   (Only positions must be stored in the first
  *    - register 1  rbp[-n-8]  num_saved_registers_ registers)
  *    - ...
@@ -661,7 +661,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   ASSERT_EQ(kInputStart, -3 * kPointerSize);
   ASSERT_EQ(kInputEnd, -4 * kPointerSize);
   ASSERT_EQ(kRegisterOutput, -5 * kPointerSize);
-  ASSERT_EQ(kAtStart, -6 * kPointerSize);
+  ASSERT_EQ(kStackHighEnd, -6 * kPointerSize);
   __ push(rdi);
   __ push(rsi);
   __ push(rdx);
@@ -672,6 +672,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ push(rbx);  // Callee-save
 #endif
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
+  __ push(Immediate(0));  // Make room for "at start" constant.
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -716,6 +717,15 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ movq(Operand(rbp, kInputStartMinusOne), rax);
+
+  // Determine whether the start index is zero, that is at the start of the
+  // string, and store that value in a local variable.
+  __ movq(rbx, Operand(rbp, kStartIndex));
+  __ xor_(rcx, rcx);  // setcc only operates on cl (lower byte of rcx).
+  __ testq(rbx, rbx);
+  __ setcc(zero, rcx);  // 1 if 0 (start of string), 0 if positive.
+  __ movq(Operand(rbp, kAtStart), rcx);
+
   if (num_saved_registers_ > 0) {
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten

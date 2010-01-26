@@ -218,8 +218,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                         int start_offset,
                         const byte* input_start,
                         const byte* input_end,
-                        int* output,
-                        bool at_start);
+                        int* output);
 };
 
 #endif  // V8_NATIVE_REGEXP

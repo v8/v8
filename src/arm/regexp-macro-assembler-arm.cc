@@ -63,8 +63,6 @@ namespace internal {
  *                             through the runtime system)
  *       - stack_area_base    (High end of the memory area to use as
  *                             backtracking stack)
- *       - at_start           (if 1, we are starting at the start of the
- *                             string, otherwise 0)
  *       - int* capture_array (int[num_saved_registers_], for output).
  *       --- sp when called ---
  *       - link address
@@ -76,6 +74,8 @@ namespace internal {
  *       - void* input_string (location of a handle containing the string)
  *       - Offset of location before start of input (effectively character
  *         position -1). Used to initialize capture registers to a non-position.
+ *       - At start (if 1, we are starting at the start of the
+ *         string, otherwise 0)
  *       - register 0         (Only positions must be stored in the first
  *       - register 1          num_saved_registers_ registers)
  *       - ...
@@ -610,6 +610,7 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // Set frame pointer just above the arguments.
   __ add(frame_pointer(), sp, Operand(4 * kPointerSize));
   __ push(r0);  // Make room for "position - 1" constant (value is irrelevant).
+  __ push(r0);  // Make room for "at start" constant (value is irrelevant).
 
   // Check if we have space on the stack for registers.
   Label stack_limit_hit;
@@ -653,6 +654,15 @@ Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // Store this value in a local variable, for use when clearing
   // position registers.
   __ str(r0, MemOperand(frame_pointer(), kInputStartMinusOne));
+
+  // Determine whether the start index is zero, that is at the start of the
+  // string, and store that value in a local variable.
+  __ ldr(r1, MemOperand(frame_pointer(), kStartIndex));
+  __ tst(r1, Operand(r1));
+  __ mov(r1, Operand(1), LeaveCC, eq);
+  __ mov(r1, Operand(0), LeaveCC, ne);
+  __ str(r1, MemOperand(frame_pointer(), kAtStart));
+
   if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
     // Fill saved registers with initial value = start offset - 1
 
