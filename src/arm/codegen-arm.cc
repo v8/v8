@@ -5273,10 +5273,14 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // The new heap number is in r5.  r6 and r7 are scratch.
   AllocateHeapNumber(masm, &slow, r5, r6, r7);
 
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
     CpuFeatures::Scope scope(VFP3);
-    __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
-    __ IntegerToDoubleConversionWithVFP3(r1, r1, r0);
+    __ mov(r7, Operand(r0, ASR, kSmiTagSize));
+    __ vmov(s15, r7);
+    __ vcvt(d7, s15);
+    __ mov(r7, Operand(r1, ASR, kSmiTagSize));
+    __ vmov(s13, r7);
+    __ vcvt(d6, s13);
   } else {
     // Write Smi from r0 to r3 and r2 in double format.  r6 is scratch.
     __ mov(r7, Operand(r0));
@@ -5358,9 +5362,16 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   if (mode == OVERWRITE_RIGHT) {
     __ mov(r5, Operand(r0));  // Overwrite this heap number.
   }
-  // Calling convention says that second double is in r2 and r3.
-  __ ldr(r2, FieldMemOperand(r0, HeapNumber::kValueOffset));
-  __ ldr(r3, FieldMemOperand(r0, HeapNumber::kValueOffset + 4));
+  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
+    CpuFeatures::Scope scope(VFP3);
+    // Load the double from tagged HeapNumber r0 to d7.
+    __ sub(r7, r0, Operand(kHeapObjectTag));
+    __ vldr(d7, r7, HeapNumber::kValueOffset);
+  } else {
+    // Calling convention says that second double is in r2 and r3.
+    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kValueOffset + 4));
+  }
   __ jmp(&finished_loading_r0);
   __ bind(&r0_is_smi);
   if (mode == OVERWRITE_RIGHT) {
@@ -5368,10 +5379,12 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     AllocateHeapNumber(masm, &slow, r5, r6, r7);
   }
 
-
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
     CpuFeatures::Scope scope(VFP3);
-    __ IntegerToDoubleConversionWithVFP3(r0, r3, r2);
+    // Convert smi in r0 to double in d7
+    __ mov(r7, Operand(r0, ASR, kSmiTagSize));
+    __ vmov(s15, r7);
+    __ vcvt(d7, s15);
   } else {
     // Write Smi from r0 to r3 and r2 in double format.
     __ mov(r7, Operand(r0));
@@ -5391,9 +5404,16 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   if (mode == OVERWRITE_LEFT) {
     __ mov(r5, Operand(r1));  // Overwrite this heap number.
   }
-  // Calling convention says that first double is in r0 and r1.
-  __ ldr(r0, FieldMemOperand(r1, HeapNumber::kValueOffset));
-  __ ldr(r1, FieldMemOperand(r1, HeapNumber::kValueOffset + 4));
+  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
+    CpuFeatures::Scope scope(VFP3);
+    // Load the double from tagged HeapNumber r1 to d6.
+    __ sub(r7, r1, Operand(kHeapObjectTag));
+    __ vldr(d6, r7, HeapNumber::kValueOffset);
+  } else {
+    // Calling convention says that first double is in r0 and r1.
+    __ ldr(r0, FieldMemOperand(r1, HeapNumber::kValueOffset));
+    __ ldr(r1, FieldMemOperand(r1, HeapNumber::kValueOffset + 4));
+  }
   __ jmp(&finished_loading_r1);
   __ bind(&r1_is_smi);
   if (mode == OVERWRITE_LEFT) {
@@ -5401,9 +5421,12 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     AllocateHeapNumber(masm, &slow, r5, r6, r7);
   }
 
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
     CpuFeatures::Scope scope(VFP3);
-    __ IntegerToDoubleConversionWithVFP3(r1, r1, r0);
+    // Convert smi in r1 to double in d6
+    __ mov(r7, Operand(r1, ASR, kSmiTagSize));
+    __ vmov(s13, r7);
+    __ vcvt(d6, s13);
   } else {
     // Write Smi from r1 to r1 and r0 in double format.
     __ mov(r7, Operand(r1));
@@ -5416,12 +5439,8 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   __ bind(&finished_loading_r1);
 
   __ bind(&do_the_call);
-  // r0: Left value (least significant part of mantissa).
-  // r1: Left value (sign, exponent, top of mantissa).
-  // r2: Right value (least significant part of mantissa).
-  // r3: Right value (sign, exponent, top of mantissa).
-  // r5: Address of heap number for result.
-
+  // If we are inlining the operation using VFP3 instructions for
+  // add, subtract, multiply, or divide, the arguments are in d6 and d7.
   if (CpuFeatures::IsSupported(VFP3) &&
       ((Token::MUL == operation) ||
        (Token::DIV == operation) ||
@@ -5430,8 +5449,6 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement
     // double precision, add, subtract, multiply, divide.
-    __ vmov(d6, r0, r1);
-    __ vmov(d7, r2, r3);
 
     if (Token::MUL == operation) {
       __ vmul(d5, d6, d7);
@@ -5444,15 +5461,20 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     } else {
       UNREACHABLE();
     }
-
-    __ vmov(r0, r1, d5);
-
-    __ str(r0, FieldMemOperand(r5, HeapNumber::kValueOffset));
-    __ str(r1, FieldMemOperand(r5, HeapNumber::kValueOffset + 4));
-    __ mov(r0, Operand(r5));
+    __ sub(r0, r5, Operand(kHeapObjectTag));
+    __ vstr(d5, r0, HeapNumber::kValueOffset);
+    __ add(r0, r0, Operand(kHeapObjectTag));
     __ mov(pc, lr);
     return;
   }
+
+  // If we did not inline the operation, then the arguments are in:
+  // r0: Left value (least significant part of mantissa).
+  // r1: Left value (sign, exponent, top of mantissa).
+  // r2: Right value (least significant part of mantissa).
+  // r3: Right value (sign, exponent, top of mantissa).
+  // r5: Address of heap number for result.
+
   __ push(lr);   // For later.
   __ push(r5);   // Address of heap number that is answer.
   __ AlignStack(0);
