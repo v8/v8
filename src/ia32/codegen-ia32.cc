@@ -763,7 +763,7 @@ class FloatingPointHelper : public AllStatic {
                                 ArgLocation arg_location = ARGS_ON_STACK);
 
   // Similar to LoadFloatOperand but assumes that both operands are smis.
-  // Accepts operands in eax, ebx.
+  // Expects operands in edx, eax.
   static void LoadFloatSmis(MacroAssembler* masm, Register scratch);
 
   // Test if operands are smi or number objects (fp). Requirements:
@@ -781,11 +781,11 @@ class FloatingPointHelper : public AllStatic {
   // them into xmm0 and xmm1 if they are.  Jump to label not_numbers if
   // either operand is not a number.  Operands are in edx and eax.
   // Leaves operands unchanged.
-  static void LoadSse2Operands(MacroAssembler* masm, Label* not_numbers);
+  static void LoadSSE2Operands(MacroAssembler* masm, Label* not_numbers);
 
-  // Similar to LoadSse2Operands but assumes that both operands are smis.
-  // Accepts operands in eax, ebx.
-  static void LoadSse2Smis(MacroAssembler* masm, Register scratch);
+  // Similar to LoadSSE2Operands but assumes that both operands are smis.
+  // Expects operands in edx, eax.
+  static void LoadSSE2Smis(MacroAssembler* masm, Register scratch);
 };
 
 
@@ -7084,91 +7084,180 @@ Result GenericBinaryOpStub::GenerateCall(MacroAssembler* masm,
 
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
-  if (HasArgsInRegisters()) {
-    __ mov(ebx, eax);
-    __ mov(eax, edx);
-  } else {
-    __ mov(ebx, Operand(esp, 1 * kPointerSize));
-    __ mov(eax, Operand(esp, 2 * kPointerSize));
+  // 1. Move arguments into edx, eax except for DIV and MOD, which need the
+  // dividend in eax and edx free for the division.  Use eax, ebx for those.
+  Comment load_comment(masm, "-- Load arguments");
+  Register left = edx;
+  Register right = eax;
+  if (op_ == Token::DIV || op_ == Token::MOD) {
+    left = eax;
+    right = ebx;
+    if (HasArgsInRegisters()) {
+      __ mov(ebx, eax);
+      __ mov(eax, edx);
+    }
+  }
+  if (!HasArgsInRegisters()) {
+    __ mov(right, Operand(esp, 1 * kPointerSize));
+    __ mov(left, Operand(esp, 2 * kPointerSize));
   }
 
-  Label not_smis, not_smis_or_overflow, not_smis_undo_optimistic;
-  Label use_fp_on_smis, done;
-
-  // Perform fast-case smi code for the operation (eax <op> ebx) and
-  // leave result in register eax.
-
-  // Prepare the smi check of both operands by or'ing them together
-  // before checking against the smi mask.
-  __ mov(ecx, Operand(ebx));
-  __ or_(ecx, Operand(eax));
-
+  // 2. Prepare the smi check of both operands by oring them together.
+  Comment smi_check_comment(masm, "-- Smi check arguments");
+  Label not_smis;
+  Register combined = ecx;
+  ASSERT(!left.is(combined) && !right.is(combined));
   switch (op_) {
+    case Token::BIT_OR:
+      // Perform the operation into eax and smi check the result.  Preserve
+      // eax in case the result is not a smi.
+      ASSERT(!left.is(ecx) && !right.is(ecx));
+      __ mov(ecx, right);
+      __ or_(right, Operand(left));  // Bitwise or is commutative.
+      combined = right;
+      break;
+
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
     case Token::ADD:
-      __ add(eax, Operand(ebx));  // add optimistically
-      __ j(overflow, &not_smis_or_overflow, not_taken);
-      break;
-
     case Token::SUB:
-      __ sub(eax, Operand(ebx));  // subtract optimistically
-      __ j(overflow, &not_smis_or_overflow, not_taken);
-      break;
-
     case Token::MUL:
-      __ mov(edi, eax);  // Backup the left operand.
+    case Token::DIV:
+    case Token::MOD:
+      __ mov(combined, right);
+      __ or_(combined, Operand(left));
       break;
 
-    case Token::DIV:
-      __ mov(edi, eax);  // Backup the left operand.
-      // Fall through.
-    case Token::MOD:
-      // Sign extend eax into edx:eax.
-      __ cdq();
-      // Check for 0 divisor.
-      __ test(ebx, Operand(ebx));
-      __ j(zero, &not_smis_or_overflow, not_taken);
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      // Move the right operand into ecx for the shift operation, use eax
+      // for the smi check register.
+      ASSERT(!left.is(ecx) && !right.is(ecx));
+      __ mov(ecx, right);
+      __ or_(right, Operand(left));
+      combined = right;
       break;
 
     default:
-      // Fall-through to smi check.
       break;
   }
 
-  // Perform the actual smi check.
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &not_smis_undo_optimistic, not_taken);
+  // 3. Perform the smi check of the operands.
+  ASSERT(kSmiTag == 0);  // Adjust zero check if not the case.
+  __ test(combined, Immediate(kSmiTagMask));
+  __ j(not_zero, &not_smis, not_taken);
 
+  // 4. Operands are both smis, perform the operation leaving the result in
+  // eax and check the result if necessary.
+  Comment perform_smi(masm, "-- Perform smi operation");
+  Label use_fp_on_smis;
   switch (op_) {
+    case Token::BIT_OR:
+      // Nothing to do.
+      break;
+
+    case Token::BIT_XOR:
+      ASSERT(right.is(eax));
+      __ xor_(right, Operand(left));  // Bitwise xor is commutative.
+      break;
+
+    case Token::BIT_AND:
+      ASSERT(right.is(eax));
+      __ and_(right, Operand(left));  // Bitwise and is commutative.
+      break;
+
+    case Token::SHL:
+      // Remove tags from operands (but keep sign).
+      __ SmiUntag(left);
+      __ SmiUntag(ecx);
+      // Perform the operation.
+      __ shl_cl(left);
+      // Check that the *signed* result fits in a smi.
+      __ cmp(left, 0xc0000000);
+      __ j(sign, &use_fp_on_smis, not_taken);
+      // Tag the result and store it in register eax.
+      __ SmiTag(left);
+      __ mov(eax, left);
+      break;
+
+    case Token::SAR:
+      // Remove tags from operands (but keep sign).
+      __ SmiUntag(left);
+      __ SmiUntag(ecx);
+      // Perform the operation.
+      __ sar_cl(left);
+      // Tag the result and store it in register eax.
+      __ SmiTag(left);
+      __ mov(eax, left);
+      break;
+
+    case Token::SHR:
+      // Remove tags from operands (but keep sign).
+      __ SmiUntag(left);
+      __ SmiUntag(ecx);
+      // Perform the operation.
+      __ shr_cl(left);
+      // Check that the *unsigned* result fits in a smi.
+      // Neither of the two high-order bits can be set:
+      // - 0x80000000: high bit would be lost when smi tagging.
+      // - 0x40000000: this number would convert to negative when
+      // Smi tagging these two cases can only happen with shifts
+      // by 0 or 1 when handed a valid smi.
+      __ test(left, Immediate(0xc0000000));
+      __ j(not_zero, slow, not_taken);
+      // Tag the result and store it in register eax.
+      __ SmiTag(left);
+      __ mov(eax, left);
+      break;
+
     case Token::ADD:
+      ASSERT(right.is(eax));
+      __ add(right, Operand(left));  // Addition is commutative.
+      __ j(overflow, &use_fp_on_smis, not_taken);
+      break;
+
     case Token::SUB:
-      // Do nothing here.
+      __ sub(left, Operand(right));
+      __ j(overflow, &use_fp_on_smis, not_taken);
+      __ mov(eax, left);
       break;
 
     case Token::MUL:
       // If the smi tag is 0 we can just leave the tag on one operand.
-      ASSERT(kSmiTag == 0);  // adjust code below if not the case
+      ASSERT(kSmiTag == 0);  // Adjust code below if not the case.
+      // We can't revert the multiplication if the result is not a smi
+      // so save the right operand.
+      __ mov(ebx, right);
       // Remove tag from one of the operands (but keep sign).
-      __ SmiUntag(eax);
+      __ SmiUntag(right);
       // Do multiplication.
-      __ imul(eax, Operand(ebx));  // multiplication of smis; result in eax
-      // Go slow on overflows.
+      __ imul(right, Operand(left));  // Multiplication is commutative.
       __ j(overflow, &use_fp_on_smis, not_taken);
-      // Check for negative zero result.
-      __ NegativeZeroTest(eax, ecx, &use_fp_on_smis);  // use ecx = x | y
+      // Check for negative zero result.  Use combined = left | right.
+      __ NegativeZeroTest(right, combined, &use_fp_on_smis);
       break;
 
     case Token::DIV:
-      // Divide edx:eax by ebx.
-      __ idiv(ebx);
-      // Check for the corner case of dividing the most negative smi
-      // by -1. We cannot use the overflow flag, since it is not set
-      // by idiv instruction.
+      // We can't revert the division if the result is not a smi so
+      // save the left operand.
+      __ mov(edi, left);
+      // Check for 0 divisor.
+      __ test(right, Operand(right));
+      __ j(zero, &use_fp_on_smis, not_taken);
+      // Sign extend left into edx:eax.
+      ASSERT(left.is(eax));
+      __ cdq();
+      // Divide edx:eax by right.
+      __ idiv(right);
+      // Check for the corner case of dividing the most negative smi by
+      // -1. We cannot use the overflow flag, since it is not set by idiv
+      // instruction.
       ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
       __ cmp(eax, 0x40000000);
       __ j(equal, &use_fp_on_smis);
-      // Check for negative zero result.
-      __ NegativeZeroTest(eax, ecx, &use_fp_on_smis);  // use ecx = x | y
+      // Check for negative zero result.  Use combined = left | right.
+      __ NegativeZeroTest(eax, combined, &use_fp_on_smis);
       // Check that the remainder is zero.
       __ test(edx, Operand(edx));
       __ j(not_zero, &use_fp_on_smis);
@@ -7177,97 +7266,87 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       break;
 
     case Token::MOD:
-      // Divide edx:eax by ebx.
-      __ idiv(ebx);
-      // Check for negative zero result.
-      __ NegativeZeroTest(edx, ecx, slow);  // use ecx = x | y
+      // Check for 0 divisor.
+      __ test(right, Operand(right));
+      __ j(zero, &not_smis, not_taken);
+
+      // Sign extend left into edx:eax.
+      ASSERT(left.is(eax));
+      __ cdq();
+      // Divide edx:eax by right.
+      __ idiv(right);
+      // Check for negative zero result.  Use combined = left | right.
+      __ NegativeZeroTest(edx, combined, slow);
       // Move remainder to register eax.
-      __ mov(eax, Operand(edx));
-      break;
-
-    case Token::BIT_OR:
-      __ or_(eax, Operand(ebx));
-      break;
-
-    case Token::BIT_AND:
-      __ and_(eax, Operand(ebx));
-      break;
-
-    case Token::BIT_XOR:
-      __ xor_(eax, Operand(ebx));
-      break;
-
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR:
-      // Move the second operand into register ecx.
-      __ mov(ecx, Operand(ebx));
-      // Remove tags from operands (but keep sign).
-      __ SmiUntag(eax);
-      __ SmiUntag(ecx);
-      // Perform the operation.
-      switch (op_) {
-        case Token::SAR:
-          __ sar_cl(eax);
-          // No checks of result necessary
-          break;
-        case Token::SHR:
-          __ shr_cl(eax);
-          // Check that the *unsigned* result fits in a smi.
-          // Neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging.
-          // - 0x40000000: this number would convert to negative when
-          // Smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi.
-          __ test(eax, Immediate(0xc0000000));
-          __ j(not_zero, slow, not_taken);
-          break;
-        case Token::SHL:
-          __ shl_cl(eax);
-          // Check that the *signed* result fits in a smi.
-          __ cmp(eax, 0xc0000000);
-          __ j(sign, &use_fp_on_smis, not_taken);
-          break;
-        default:
-          UNREACHABLE();
-      }
-      // Tag the result and store it in register eax.
-      __ SmiTag(eax);
+      __ mov(eax, edx);
       break;
 
     default:
       UNREACHABLE();
-      break;
   }
+
+  // 5. Emit return of result in eax.
   GenerateReturn(masm);
 
-  __ bind(&not_smis_or_overflow);
-  // Revert optimistic operation.
+  // 6. For some operations emit inline code to perform floating point
+  // operations on known smis (e.g., if the result of the operation
+  // overflowed the smi range).
   switch (op_) {
-    case Token::ADD: __ sub(eax, Operand(ebx)); break;
-    case Token::SUB: __ add(eax, Operand(ebx)); break;
-    default: break;
-  }
-  ASSERT(kSmiTag == 0);  // Adjust zero check if not the case.
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, &not_smis, not_taken);
-  //  Correct operand values are in eax, ebx at this point.
-
-  __ bind(&use_fp_on_smis);
-  // Both operands are known to be SMIs but the result does not fit into a SMI.
-  switch (op_) {
-    case Token::MUL:
-    case Token::DIV:
-      __ mov(eax, edi);  // Restore the left operand.
-      // Fall through.
-    case Token::ADD:
-    case Token::SUB: {
-      Label after_alloc_failure;
-      __ AllocateHeapNumber(edx, ecx, no_reg, &after_alloc_failure);
-
+    case Token::SHL: {
+      Comment perform_float(masm, "-- Perform float operation on smis");
+      __ bind(&use_fp_on_smis);
+      // Result we want is in left == edx, so we can put the allocated heap
+      // number in eax.
+      __ AllocateHeapNumber(eax, ecx, ebx, slow);
+      // Store the result in the HeapNumber and return.
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
-        FloatingPointHelper::LoadSse2Smis(masm, ecx);
+        __ cvtsi2sd(xmm0, Operand(left));
+        __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+      } else {
+        // It's OK to overwrite the right argument on the stack because we
+        // are about to return.
+        __ mov(Operand(esp, 1 * kPointerSize), left);
+        __ fild_s(Operand(esp, 1 * kPointerSize));
+        __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+      }
+      GenerateReturn(masm);
+      break;
+    }
+
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV: {
+      Comment perform_float(masm, "-- Perform float operation on smis");
+      __ bind(&use_fp_on_smis);
+      // Restore arguments to edx, eax.
+      switch (op_) {
+        case Token::ADD:
+          // Revert right = right + left.
+          __ sub(right, Operand(left));
+          break;
+        case Token::SUB:
+          // Revert left = left - right.
+          __ add(left, Operand(right));
+          break;
+        case Token::MUL:
+          // Right was clobbered but a copy is in ebx.
+          __ mov(right, ebx);
+          break;
+        case Token::DIV:
+          // Left was clobbered but a copy is in edi.  Right is in ebx for
+          // division.
+          __ mov(edx, edi);
+          __ mov(eax, right);
+          break;
+        default: UNREACHABLE();
+          break;
+      }
+      __ AllocateHeapNumber(ecx, ebx, no_reg, slow);
+      if (CpuFeatures::IsSupported(SSE2)) {
+        CpuFeatures::Scope use_sse2(SSE2);
+        FloatingPointHelper::LoadSSE2Smis(masm, ebx);
         switch (op_) {
           case Token::ADD: __ addsd(xmm0, xmm1); break;
           case Token::SUB: __ subsd(xmm0, xmm1); break;
@@ -7275,9 +7354,9 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           case Token::DIV: __ divsd(xmm0, xmm1); break;
           default: UNREACHABLE();
         }
-        __ movdbl(FieldOperand(edx, HeapNumber::kValueOffset), xmm0);
+        __ movdbl(FieldOperand(ecx, HeapNumber::kValueOffset), xmm0);
       } else {  // SSE2 not available, use FPU.
-        FloatingPointHelper::LoadFloatSmis(masm, ecx);
+        FloatingPointHelper::LoadFloatSmis(masm, ebx);
         switch (op_) {
           case Token::ADD: __ faddp(1); break;
           case Token::SUB: __ fsubp(1); break;
@@ -7285,62 +7364,41 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
           case Token::DIV: __ fdivp(1); break;
           default: UNREACHABLE();
         }
-        __ fstp_d(FieldOperand(edx, HeapNumber::kValueOffset));
+        __ fstp_d(FieldOperand(ecx, HeapNumber::kValueOffset));
       }
-      __ mov(eax, edx);
+      __ mov(eax, ecx);
       GenerateReturn(masm);
+      break;
+    }
 
-      __ bind(&after_alloc_failure);
+    default:
+      break;
+  }
+
+  // 7. Non-smi operands, fall out to the non-smi code with the operands in
+  // edx and eax.
+  Comment done_comment(masm, "-- Enter non-smi code");
+  __ bind(&not_smis);
+  switch (op_) {
+    case Token::BIT_OR:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      // Right operand is saved in ecx and eax was destroyed by the smi
+      // check.
+      __ mov(eax, ecx);
+      break;
+
+    case Token::DIV:
+    case Token::MOD:
+      // Operands are in eax, ebx at this point.
       __ mov(edx, eax);
       __ mov(eax, ebx);
-      __ jmp(slow);
-      break;
-    }
-
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SAR:
-      // Do nothing here as these operations always succeed on a pair of smis.
       break;
 
-    case Token::MOD:
-    case Token::SHR:
-      // Do nothing here as these go directly to runtime.
+    default:
       break;
-
-    case Token::SHL: {
-      __ AllocateHeapNumber(ebx, ecx, edx, slow);
-      // Store the result in the HeapNumber and return.
-      if (CpuFeatures::IsSupported(SSE2)) {
-        CpuFeatures::Scope use_sse2(SSE2);
-        __ cvtsi2sd(xmm0, Operand(eax));
-        __ movdbl(FieldOperand(ebx, HeapNumber::kValueOffset), xmm0);
-      } else {
-        __ mov(Operand(esp, 1 * kPointerSize), eax);
-        __ fild_s(Operand(esp, 1 * kPointerSize));
-        __ fstp_d(FieldOperand(ebx, HeapNumber::kValueOffset));
-      }
-      __ mov(eax, ebx);
-      GenerateReturn(masm);
-      break;
-    }
-
-    default: UNREACHABLE(); break;
   }
-
-  __ bind(&not_smis_undo_optimistic);
-  switch (op_) {
-    case Token::ADD: __ sub(eax, Operand(ebx)); break;
-    case Token::SUB: __ add(eax, Operand(ebx)); break;
-    default: break;
-  }
-
-  __ bind(&not_smis);
-  __ mov(edx, eax);
-  __ mov(eax, ebx);
-
-  __ bind(&done);
 }
 
 
@@ -7366,7 +7424,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
-        FloatingPointHelper::LoadSse2Operands(masm, &call_runtime);
+        FloatingPointHelper::LoadSSE2Operands(masm, &call_runtime);
 
         switch (op_) {
           case Token::ADD: __ addsd(xmm0, xmm1); break;
@@ -7849,7 +7907,7 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
 }
 
 
-void FloatingPointHelper::LoadSse2Operands(MacroAssembler* masm,
+void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
                                            Label* not_numbers) {
   Label load_smi_edx, load_eax, load_smi_eax, load_float_eax, done;
   // Load operand in edx into xmm0, or branch to not_numbers.
@@ -7881,14 +7939,17 @@ void FloatingPointHelper::LoadSse2Operands(MacroAssembler* masm,
 }
 
 
-void FloatingPointHelper::LoadSse2Smis(MacroAssembler* masm,
+void FloatingPointHelper::LoadSSE2Smis(MacroAssembler* masm,
                                        Register scratch) {
-  __ mov(scratch, eax);
-  __ SmiUntag(scratch);  // Untag smi before converting to float.
+  const Register left = edx;
+  const Register right = eax;
+  __ mov(scratch, left);
+  ASSERT(!scratch.is(right));  // We're about to clobber scratch.
+  __ SmiUntag(scratch);
   __ cvtsi2sd(xmm0, Operand(scratch));
 
-  __ mov(scratch, ebx);
-  __ SmiUntag(scratch);  // Untag smi before converting to float.
+  __ mov(scratch, right);
+  __ SmiUntag(scratch);
   __ cvtsi2sd(xmm1, Operand(scratch));
 }
 
@@ -7936,15 +7997,17 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 
 void FloatingPointHelper::LoadFloatSmis(MacroAssembler* masm,
                                         Register scratch) {
-  __ mov(scratch, eax);
+  const Register left = edx;
+  const Register right = eax;
+  __ mov(scratch, left);
+  ASSERT(!scratch.is(right));  // We're about to clobber scratch.
   __ SmiUntag(scratch);
   __ push(scratch);
   __ fild_s(Operand(esp, 0));
-  __ pop(scratch);
 
-  __ mov(scratch, ebx);
+  __ mov(scratch, right);
   __ SmiUntag(scratch);
-  __ push(scratch);
+  __ mov(Operand(esp, 0), scratch);
   __ fild_s(Operand(esp, 0));
   __ pop(scratch);
 }
@@ -8743,7 +8806,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     CpuFeatures::Scope use_sse2(SSE2);
     CpuFeatures::Scope use_cmov(CMOV);
 
-    FloatingPointHelper::LoadSse2Operands(masm, &check_for_symbols);
+    FloatingPointHelper::LoadSSE2Operands(masm, &check_for_symbols);
     __ comisd(xmm0, xmm1);
 
     // Jump to builtin for NaN.
