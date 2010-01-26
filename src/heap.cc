@@ -76,8 +76,8 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
 #if defined(ANDROID)
-int Heap::max_semispace_size_  = 512*KB;
-int Heap::max_old_generation_size_ = 128*MB;
+int Heap::max_semispace_size_  = 2*MB;
+int Heap::max_old_generation_size_ = 192*MB;
 int Heap::initial_semispace_size_ = 128*KB;
 size_t Heap::code_range_size_ = 0;
 #elif defined(V8_TARGET_ARCH_X64)
