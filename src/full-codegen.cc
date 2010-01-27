@@ -133,7 +133,9 @@ void FullCodeGenSyntaxChecker::VisitContinueStatement(ContinueStatement* stmt) {
 }
 
 
-void FullCodeGenSyntaxChecker::VisitBreakStatement(BreakStatement* stmt) {}
+void FullCodeGenSyntaxChecker::VisitBreakStatement(BreakStatement* stmt) {
+  // Supported.
+}
 
 
 void FullCodeGenSyntaxChecker::VisitReturnStatement(ReturnStatement* stmt) {
@@ -241,30 +243,7 @@ void FullCodeGenSyntaxChecker::VisitSlot(Slot* expr) {
 
 
 void FullCodeGenSyntaxChecker::VisitVariableProxy(VariableProxy* expr) {
-  Variable* var = expr->var();
-  if (!var->is_global()) {
-    Slot* slot = var->slot();
-    if (slot != NULL) {
-      Slot::Type type = slot->type();
-      // When LOOKUP slots are enabled, some currently dead code
-      // implementing unary typeof will become live.
-      if (type == Slot::LOOKUP) {
-        BAILOUT("Lookup slot");
-      }
-    } else {
-      // If not global or a slot, it is a parameter rewritten to an explicit
-      // property reference on the (shadow) arguments object.
-#ifdef DEBUG
-      Property* property = var->AsProperty();
-      ASSERT_NOT_NULL(property);
-      Variable* object = property->obj()->AsVariableProxy()->AsVariable();
-      ASSERT_NOT_NULL(object);
-      ASSERT_NOT_NULL(object->slot());
-      ASSERT_NOT_NULL(property->key()->AsLiteral());
-      ASSERT(property->key()->AsLiteral()->handle()->IsSmi());
-#endif
-    }
-  }
+  // Supported.
 }
 
 
@@ -313,8 +292,6 @@ void FullCodeGenSyntaxChecker::VisitCatchExtensionObject(
 
 
 void FullCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
-  // We support plain non-compound assignments to properties, parameters and
-  // non-context (stack-allocated) locals, and global variables.
   Token::Value op = expr->op();
   if (op == Token::INIT_CONST) BAILOUT("initialize constant");
 
@@ -322,17 +299,8 @@ void FullCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
   ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
-    if (var->mode() == Variable::CONST) {
-      BAILOUT("Assignment to const");
-    }
-    // All global variables are supported.
-    if (!var->is_global()) {
-      ASSERT(var->slot() != NULL);
-      Slot::Type type = var->slot()->type();
-      if (type == Slot::LOOKUP) {
-        BAILOUT("Lookup slot");
-      }
-    }
+    if (var->mode() == Variable::CONST) BAILOUT("Assignment to const");
+    // All other variables are supported.
   } else if (prop != NULL) {
     Visit(prop->obj());
     CHECK_BAILOUT;
@@ -1079,6 +1047,7 @@ void FullCodeGenerator::VisitLiteral(Literal* expr) {
 
 void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   Comment cmnt(masm_, "[ Assignment");
+  ASSERT(expr->op() != Token::INIT_CONST);
   // Left-hand side can only be a property, a global or a (parameter or local)
   // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
   enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
@@ -1129,7 +1098,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   Expression* rhs = expr->value();
   VisitForValue(rhs, kAccumulator);
 
-  // If we have a compount assignment: Apply operator.
+  // If we have a compound assignment: Apply operator.
   if (expr->is_compound()) {
     Location saved_location = location_;
     location_ = kAccumulator;

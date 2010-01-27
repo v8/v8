@@ -787,9 +787,13 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 
 void FullCodeGenerator::EmitVariableLoad(Variable* var,
                                          Expression::Context context) {
-  Expression* rewrite = var->rewrite();
-  if (rewrite == NULL) {
-    ASSERT(var->is_global());
+  // Four cases: non-this global variables, lookup slots, all other
+  // types of slots, and parameters that rewrite to explicit property
+  // accesses on the arguments object.
+  Slot* slot = var->slot();
+  Property* property = var->AsProperty();
+
+  if (var->is_global() && !var->is_this()) {
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in ecx and the global
     // object on the stack.
@@ -803,34 +807,24 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     // (eg, push/pop elimination).
     __ nop();
     DropAndApply(1, context, eax);
-  } else if (rewrite->AsSlot() != NULL) {
-    Slot* slot = rewrite->AsSlot();
-    if (FLAG_debug_code) {
-      switch (slot->type()) {
-        case Slot::PARAMETER:
-        case Slot::LOCAL: {
-          Comment cmnt(masm_, "Stack slot");
-          break;
-        }
-        case Slot::CONTEXT: {
-          Comment cmnt(masm_, "Context slot");
-          break;
-        }
-        case Slot::LOOKUP:
-          UNIMPLEMENTED();
-          break;
-      }
-    }
-    Apply(context, slot);
-  } else {
-    Comment cmnt(masm_, "Variable rewritten to property");
-    // A variable has been rewritten into an explicit access to an object
-    // property.
-    Property* property = rewrite->AsProperty();
-    ASSERT_NOT_NULL(property);
 
-    // The only property expressions that can occur are of the form
-    // "slot[literal]".
+  } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
+    Comment cmnt(masm_, "Lookup slot");
+    __ push(esi);  // Context.
+    __ push(Immediate(var->name()));
+    __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    Apply(context, eax);
+
+  } else if (slot != NULL) {
+    Comment cmnt(masm_, (slot->type() == Slot::CONTEXT)
+                            ? "Context slot"
+                            : "Stack slot");
+    Apply(context, slot);
+
+  } else {
+    Comment cmnt(masm_, "Rewritten parameter");
+    ASSERT_NOT_NULL(property);
+    // Rewritten parameter accesses are of the form "slot[literal]".
 
     // Assert that the object is in a slot.
     Variable* object_var = property->obj()->AsVariableProxy()->AsVariable();
@@ -1039,9 +1033,15 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var,
                                                Expression::Context context) {
+  // Three main cases: global variables, lookup slots, and all other
+  // types of slots.  Left-hand-side parameters that rewrite to
+  // explicit property accesses do not reach here.
   ASSERT(var != NULL);
   ASSERT(var->is_global() || var->slot() != NULL);
+
+  Slot* slot = var->slot();
   if (var->is_global()) {
+    ASSERT(!var->is_this());
     // Assignment to a global variable.  Use inline caching for the
     // assignment.  Right-hand-side value is passed in eax, variable name in
     // ecx, and the global object on the stack.
@@ -1053,8 +1053,14 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // Overwrite the receiver on the stack with the result if needed.
     DropAndApply(1, context, eax);
 
-  } else if (var->slot() != NULL) {
-    Slot* slot = var->slot();
+  } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
+    __ push(result_register());  // Value.
+    __ push(esi);  // Context.
+    __ push(Immediate(var->name()));
+    __ CallRuntime(Runtime::kStoreContextSlot, 3);
+    Apply(context, eax);
+
+  } else if (slot != NULL) {
     switch (slot->type()) {
       case Slot::LOCAL:
       case Slot::PARAMETER:

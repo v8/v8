@@ -245,7 +245,10 @@ class FullCodeGenerator: public AstVisitor {
   // or on top of the stack) into the result expected according to an
   // expression context.
   void Apply(Expression::Context context, Register reg);
+
+  // Slot cannot have type Slot::LOOKUP.
   void Apply(Expression::Context context, Slot* slot);
+
   void Apply(Expression::Context context, Literal* lit);
   void ApplyTOS(Expression::Context context);
 
