@@ -7705,6 +7705,7 @@ void IntegerConvert(MacroAssembler* masm,
                     Register source,
                     bool use_sse3,
                     Label* conversion_failure) {
+  ASSERT(!source.is(ecx) && !source.is(edi) && !source.is(ebx));
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;

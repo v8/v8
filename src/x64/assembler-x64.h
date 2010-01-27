@@ -1059,6 +1059,7 @@ class Assembler : public Malloced {
   void fistp_d(const Operand& adr);
 
   void fisttp_s(const Operand& adr);
+  void fisttp_d(const Operand& adr);
 
   void fabs();
   void fchs();

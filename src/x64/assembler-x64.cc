@@ -2113,6 +2113,16 @@ void Assembler::fisttp_s(const Operand& adr) {
 }
 
 
+void Assembler::fisttp_d(const Operand& adr) {
+  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_optional_rex_32(adr);
+  emit(0xDD);
+  emit_operand(1, adr);
+}
+
+
 void Assembler::fist_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -224,20 +224,17 @@ class FloatingPointHelper : public AllStatic {
                                 Register lhs,
                                 Register rhs);
 
-  // Code pattern for loading a floating point value and converting it
-  // to a 32 bit integer. Input value must be either a smi or a heap number
-  // object.
-  // Returns operands as 32-bit sign extended integers in a general purpose
-  // registers.
-  static void LoadInt32Operand(MacroAssembler* masm,
-                               const Operand& src,
-                               Register dst);
-
   // Test if operands are smi or number objects (fp). Requirements:
   // operand_1 in rax, operand_2 in rdx; falls through on float or smi
   // operands, jumps to the non_float label otherwise.
   static void CheckNumberOperands(MacroAssembler* masm,
                                   Label* non_float);
+
+  // Takes the operands in rdx and rax and loads them as integers in rax
+  // and rcx.
+  static void LoadAsIntegers(MacroAssembler* masm,
+                             bool use_sse3,
+                             Label* operand_conversion_failure);
 };
 
 
@@ -688,7 +685,7 @@ void CodeGenerator::CallApplyLazy(Property* apply,
   if (probe.is_constant()) {
     try_lazy = probe.handle()->IsTheHole();
   } else {
-    __ Cmp(probe.reg(), Factory::the_hole_value());
+    __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
     probe.Unuse();
     slow.Branch(not_equal);
   }
@@ -3012,6 +3009,9 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     }
 
   } else {
+    bool overwrite =
+      (node->expression()->AsBinaryOperation() != NULL &&
+       node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
     Load(node->expression());
     switch (op) {
       case Token::NOT:
@@ -3021,9 +3021,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
-        bool overwrite =
-          (node->expression()->AsBinaryOperation() != NULL &&
-           node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
         GenericUnaryOpStub stub(Token::SUB, overwrite);
         // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
@@ -3042,10 +3039,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         Condition is_smi = masm_->CheckSmi(operand.reg());
         smi_label.Branch(is_smi, &operand);
 
-        frame_->Push(&operand);  // undo popping of TOS
-        Result answer = frame_->InvokeBuiltin(Builtins::BIT_NOT,
-                                              CALL_FUNCTION, 1);
+        GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+        Result answer = frame_->CallStub(&stub, &operand);
         continue_label.Jump(&answer);
+
         smi_label.Bind(&answer);
         answer.ToRegister();
         frame_->Spill(answer.reg());
@@ -6290,56 +6287,216 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 
 // End of CodeGenerator implementation.
 
+// Get the integer part of a heap number.  Surprisingly, all this bit twiddling
+// is faster than using the built-in instructions on floating point registers.
+// Trashes rdi and rbx.  Dest is rcx.  Source cannot be rcx or one of the
+// trashed registers.
+void IntegerConvert(MacroAssembler* masm,
+                    Register source,
+                    bool use_sse3,
+                    Label* conversion_failure) {
+  ASSERT(!source.is(rcx) && !source.is(rdi) && !source.is(rbx));
+  Label done, right_exponent, normal_exponent;
+  Register scratch = rbx;
+  Register scratch2 = rdi;
+  // Get exponent word.
+  __ movl(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
+  // Get exponent alone in scratch2.
+  __ movl(scratch2, scratch);
+  __ and_(scratch2, Immediate(HeapNumber::kExponentMask));
+  if (use_sse3) {
+    CpuFeatures::Scope scope(SSE3);
+    // Check whether the exponent is too big for a 64 bit signed integer.
+    static const uint32_t kTooBigExponent =
+        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+    __ cmpl(scratch2, Immediate(kTooBigExponent));
+    __ j(greater_equal, conversion_failure);
+    // Load x87 register with heap number.
+    __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
+    // Reserve space for 64 bit answer.
+    __ subq(rsp, Immediate(sizeof(uint64_t)));  // Nolint.
+    // Do conversion, which cannot fail because we checked the exponent.
+    __ fisttp_d(Operand(rsp, 0));
+    __ movl(rcx, Operand(rsp, 0));  // Load low word of answer into rcx.
+    __ addq(rsp, Immediate(sizeof(uint64_t)));  // Nolint.
+  } else {
+    // Load rcx with zero.  We use this either for the final shift or
+    // for the answer.
+    __ xor_(rcx, rcx);
+    // Check whether the exponent matches a 32 bit signed int that cannot be
+    // represented by a Smi.  A non-smi 32 bit integer is 1.xxx * 2^30 so the
+    // exponent is 30 (biased).  This is the exponent that we are fastest at and
+    // also the highest exponent we can handle here.
+    const uint32_t non_smi_exponent =
+        (HeapNumber::kExponentBias + 30) << HeapNumber::kExponentShift;
+    __ cmpl(scratch2, Immediate(non_smi_exponent));
+    // If we have a match of the int32-but-not-Smi exponent then skip some
+    // logic.
+    __ j(equal, &right_exponent);
+    // If the exponent is higher than that then go to slow case.  This catches
+    // numbers that don't fit in a signed int32, infinities and NaNs.
+    __ j(less, &normal_exponent);
+
+    {
+      // Handle a big exponent.  The only reason we have this code is that the
+      // >>> operator has a tendency to generate numbers with an exponent of 31.
+      const uint32_t big_non_smi_exponent =
+          (HeapNumber::kExponentBias + 31) << HeapNumber::kExponentShift;
+      __ cmpl(scratch2, Immediate(big_non_smi_exponent));
+      __ j(not_equal, conversion_failure);
+      // We have the big exponent, typically from >>>.  This means the number is
+      // in the range 2^31 to 2^32 - 1.  Get the top bits of the mantissa.
+      __ movl(scratch2, scratch);
+      __ and_(scratch2, Immediate(HeapNumber::kMantissaMask));
+      // Put back the implicit 1.
+      __ or_(scratch2, Immediate(1 << HeapNumber::kExponentShift));
+      // Shift up the mantissa bits to take up the space the exponent used to
+      // take. We just orred in the implicit bit so that took care of one and
+      // we want to use the full unsigned range so we subtract 1 bit from the
+      // shift distance.
+      const int big_shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 1;
+      __ shl(scratch2, Immediate(big_shift_distance));
+      // Get the second half of the double.
+      __ movl(rcx, FieldOperand(source, HeapNumber::kMantissaOffset));
+      // Shift down 21 bits to get the most significant 11 bits or the low
+      // mantissa word.
+      __ shr(rcx, Immediate(32 - big_shift_distance));
+      __ or_(rcx, scratch2);
+      // We have the answer in rcx, but we may need to negate it.
+      __ testl(scratch, scratch);
+      __ j(positive, &done);
+      __ neg(rcx);
+      __ jmp(&done);
+    }
+
+    __ bind(&normal_exponent);
+    // Exponent word in scratch, exponent part of exponent word in scratch2.
+    // Zero in rcx.
+    // We know the exponent is smaller than 30 (biased).  If it is less than
+    // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+    // it rounds to zero.
+    const uint32_t zero_exponent =
+        (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
+    __ subl(scratch2, Immediate(zero_exponent));
+    // rcx already has a Smi zero.
+    __ j(less, &done);
+
+    // We have a shifted exponent between 0 and 30 in scratch2.
+    __ shr(scratch2, Immediate(HeapNumber::kExponentShift));
+    __ movl(rcx, Immediate(30));
+    __ subl(rcx, scratch2);
+
+    __ bind(&right_exponent);
+    // Here rcx is the shift, scratch is the exponent word.
+    // Get the top bits of the mantissa.
+    __ and_(scratch, Immediate(HeapNumber::kMantissaMask));
+    // Put back the implicit 1.
+    __ or_(scratch, Immediate(1 << HeapNumber::kExponentShift));
+    // Shift up the mantissa bits to take up the space the exponent used to
+    // take. We have kExponentShift + 1 significant bits int he low end of the
+    // word.  Shift them to the top bits.
+    const int shift_distance = HeapNumber::kNonMantissaBitsInTopWord - 2;
+    __ shl(scratch, Immediate(shift_distance));
+    // Get the second half of the double. For some exponents we don't
+    // actually need this because the bits get shifted out again, but
+    // it's probably slower to test than just to do it.
+    __ movl(scratch2, FieldOperand(source, HeapNumber::kMantissaOffset));
+    // Shift down 22 bits to get the most significant 10 bits or the low
+    // mantissa word.
+    __ shr(scratch2, Immediate(32 - shift_distance));
+    __ or_(scratch2, scratch);
+    // Move down according to the exponent.
+    __ shr_cl(scratch2);
+    // Now the unsigned answer is in scratch2.  We need to move it to rcx and
+    // we may need to fix the sign.
+    Label negative;
+    __ xor_(rcx, rcx);
+    __ cmpl(rcx, FieldOperand(source, HeapNumber::kExponentOffset));
+    __ j(greater, &negative);
+    __ movl(rcx, scratch2);
+    __ jmp(&done);
+    __ bind(&negative);
+    __ subl(rcx, scratch2);
+    __ bind(&done);
+  }
+}
+
+
 void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
-  ASSERT(op_ == Token::SUB);
+  Label slow, done;
 
-  Label slow;
-  Label done;
-  Label try_float;
-  // Check whether the value is a smi.
-  __ JumpIfNotSmi(rax, &try_float);
+  if (op_ == Token::SUB) {
+    // Check whether the value is a smi.
+    Label try_float;
+    __ JumpIfNotSmi(rax, &try_float);
 
-  // Enter runtime system if the value of the smi is zero
-  // to make sure that we switch between 0 and -0.
-  // Also enter it if the value of the smi is Smi::kMinValue.
-  __ SmiNeg(rax, rax, &done);
+    // Enter runtime system if the value of the smi is zero
+    // to make sure that we switch between 0 and -0.
+    // Also enter it if the value of the smi is Smi::kMinValue.
+    __ SmiNeg(rax, rax, &done);
 
-  // Either zero or Smi::kMinValue, neither of which become a smi when negated.
-  __ SmiCompare(rax, Smi::FromInt(0));
-  __ j(not_equal, &slow);
-  __ Move(rax, Factory::minus_zero_value());
-  __ jmp(&done);
+    // Either zero or Smi::kMinValue, neither of which become a smi when
+    // negated.
+    __ SmiCompare(rax, Smi::FromInt(0));
+    __ j(not_equal, &slow);
+    __ Move(rax, Factory::minus_zero_value());
+    __ jmp(&done);
 
-  // Enter runtime system.
+    // Try floating point case.
+    __ bind(&try_float);
+    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
+    __ j(not_equal, &slow);
+    // Operand is a float, negate its value by flipping sign bit.
+    __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ movq(kScratchRegister, Immediate(0x01));
+    __ shl(kScratchRegister, Immediate(63));
+    __ xor_(rdx, kScratchRegister);  // Flip sign.
+    // rdx is value to store.
+    if (overwrite_) {
+      __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
+    } else {
+      __ AllocateHeapNumber(rcx, rbx, &slow);
+      // rcx: allocated 'empty' number
+      __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
+      __ movq(rax, rcx);
+    }
+  } else if (op_ == Token::BIT_NOT) {
+    // Check if the operand is a heap number.
+    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
+    __ j(not_equal, &slow);
+
+    // Convert the heap number in rax to an untagged integer in rcx.
+    IntegerConvert(masm, rax, CpuFeatures::IsSupported(SSE3), &slow);
+
+    // Do the bitwise operation and check if the result fits in a smi.
+    Label try_float;
+    __ not_(rcx);
+    // Tag the result as a smi and we're done.
+    ASSERT(kSmiTagSize == 1);
+    __ Integer32ToSmi(rax, rcx);
+  }
+
+  // Return from the stub.
+  __ bind(&done);
+  __ StubReturn(1);
+
+  // Handle the slow case by jumping to the JavaScript builtin.
   __ bind(&slow);
   __ pop(rcx);  // pop return address
   __ push(rax);
   __ push(rcx);  // push return address
-  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
-  __ jmp(&done);
-
-  // Try floating point case.
-  __ bind(&try_float);
-  __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ Cmp(rdx, Factory::heap_number_map());
-  __ j(not_equal, &slow);
-  // Operand is a float, negate its value by flipping sign bit.
-  __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ movq(kScratchRegister, Immediate(0x01));
-  __ shl(kScratchRegister, Immediate(63));
-  __ xor_(rdx, kScratchRegister);  // Flip sign.
-  // rdx is value to store.
-  if (overwrite_) {
-    __ movq(FieldOperand(rax, HeapNumber::kValueOffset), rdx);
-  } else {
-    __ AllocateHeapNumber(rcx, rbx, &slow);
-    // rcx: allocated 'empty' number
-    __ movq(FieldOperand(rcx, HeapNumber::kValueOffset), rdx);
-    __ movq(rax, rcx);
+  switch (op_) {
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+      break;
+    case Token::BIT_NOT:
+      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
   }
-
-  __ bind(&done);
-  __ StubReturn(1);
 }
 
 
@@ -7288,15 +7445,6 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm,
 }
 
 
-void FloatingPointHelper::LoadInt32Operand(MacroAssembler* masm,
-                                           const Operand& src,
-                                           Register dst) {
-  // TODO(X64): Convert number operands to int32 values.
-  // Don't convert a Smi to a double first.
-  UNIMPLEMENTED();
-}
-
-
 void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm) {
   Label load_smi_1, load_smi_2, done_load_1, done;
   __ movq(kScratchRegister, Operand(rsp, 2 * kPointerSize));
@@ -7323,6 +7471,61 @@ void FloatingPointHelper::LoadFloatOperands(MacroAssembler* masm) {
   __ pop(kScratchRegister);
 
   __ bind(&done);
+}
+
+
+// Input: rdx, rax are the left and right objects of a bit op.
+// Output: rax, rcx are left and right integers for a bit op.
+void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
+                                         bool use_sse3,
+                                         Label* conversion_failure) {
+  // Check float operands.
+  Label arg1_is_object, check_undefined_arg1;
+  Label arg2_is_object, check_undefined_arg2;
+  Label load_arg2, done;
+
+  __ JumpIfNotSmi(rdx, &arg1_is_object);
+  __ SmiToInteger32(rdx, rdx);
+  __ jmp(&load_arg2);
+
+  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
+  __ bind(&check_undefined_arg1);
+  __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, conversion_failure);
+  __ movl(rdx, Immediate(0));
+  __ jmp(&load_arg2);
+
+  __ bind(&arg1_is_object);
+  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &check_undefined_arg1);
+  // Get the untagged integer version of the edx heap number in rcx.
+  IntegerConvert(masm, rdx, use_sse3, conversion_failure);
+  __ movl(rdx, rcx);
+
+  // Here edx has the untagged integer, eax has a Smi or a heap number.
+  __ bind(&load_arg2);
+  // Test if arg2 is a Smi.
+  __ JumpIfNotSmi(rax, &arg2_is_object);
+  __ SmiToInteger32(rax, rax);
+  __ movl(rcx, rax);
+  __ jmp(&done);
+
+  // If the argument is undefined it converts to zero (ECMA-262, section 9.5).
+  __ bind(&check_undefined_arg2);
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, conversion_failure);
+  __ movl(rcx, Immediate(0));
+  __ jmp(&done);
+
+  __ bind(&arg2_is_object);
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ CompareRoot(rbx, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &check_undefined_arg2);
+  // Get the untagged integer version of the eax heap number in ecx.
+  IntegerConvert(masm, rax, use_sse3, conversion_failure);
+  __ bind(&done);
+  __ movl(rax, rdx);
 }
 
 
@@ -7566,7 +7769,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     case Token::SHL:
     case Token::SHR:
     case Token::SAR:
-      // Move the second operand into register ecx.
+      // Move the second operand into register rcx.
       __ movq(rcx, rbx);
       // Perform the operation.
       switch (op_) {
@@ -7662,44 +7865,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::SAR:
     case Token::SHL:
     case Token::SHR: {
-      FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
-      // TODO(X64): Don't convert a Smi to float and then back to int32
-      // afterwards.
-      FloatingPointHelper::LoadFloatOperands(masm);
-
-      Label skip_allocation, non_smi_result, operand_conversion_failure;
-
-      // Reserve space for converted numbers.
-      __ subq(rsp, Immediate(2 * kPointerSize));
-
-      if (use_sse3_) {
-        // Truncate the operands to 32-bit integers and check for
-        // exceptions in doing so.
-        CpuFeatures::Scope scope(SSE3);
-        __ fisttp_s(Operand(rsp, 0 * kPointerSize));
-        __ fisttp_s(Operand(rsp, 1 * kPointerSize));
-        __ fnstsw_ax();
-        __ testl(rax, Immediate(1));
-        __ j(not_zero, &operand_conversion_failure);
-      } else {
-        // Check if right operand is int32.
-        __ fist_s(Operand(rsp, 0 * kPointerSize));
-        __ fild_s(Operand(rsp, 0 * kPointerSize));
-        __ FCmp();
-        __ j(not_zero, &operand_conversion_failure);
-        __ j(parity_even, &operand_conversion_failure);
-
-        // Check if left operand is int32.
-        __ fist_s(Operand(rsp, 1 * kPointerSize));
-        __ fild_s(Operand(rsp, 1 * kPointerSize));
-        __ FCmp();
-        __ j(not_zero, &operand_conversion_failure);
-        __ j(parity_even, &operand_conversion_failure);
-      }
-
-      // Get int32 operands and perform bitop.
-      __ pop(rcx);
-      __ pop(rax);
+      Label skip_allocation, non_smi_result;
+      FloatingPointHelper::LoadAsIntegers(masm, use_sse3_, &call_runtime);
       switch (op_) {
         case Token::BIT_OR:  __ orl(rax, rcx); break;
         case Token::BIT_AND: __ andl(rax, rcx); break;
@@ -7745,22 +7912,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ fild_s(Operand(rsp, 1 * kPointerSize));
         __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
         GenerateReturn(masm);
-      }
-
-      // Clear the FPU exception flag and reset the stack before calling
-      // the runtime system.
-      __ bind(&operand_conversion_failure);
-      __ addq(rsp, Immediate(2 * kPointerSize));
-      if (use_sse3_) {
-        // If we've used the SSE3 instructions for truncating the
-        // floating point values to integers and it failed, we have a
-        // pending #IA exception. Clear it.
-        __ fnclex();
-      } else {
-        // The non-SSE3 variant does early bailout if the right
-        // operand isn't a 32-bit integer, so we may have a single
-        // value on the FPU stack we need to get rid of.
-        __ ffree(0);
       }
 
       // SHR should return uint32 - go to runtime for non-smi/negative result.
@@ -7982,8 +8133,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Both strings are non-empty.
   // rax: first string
   // rbx: length of first string
-  // ecx: length of second string
-  // edx: second string
+  // rcx: length of second string
+  // rdx: second string
   // r8: instance type of first string if string check was performed above
   // r9: instance type of first string if string check was performed above
   Label string_add_flat_result;
