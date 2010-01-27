@@ -4847,14 +4847,14 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Label* lhs_not_nan,
                                     Label* slow,
                                     bool strict) {
-  Label lhs_is_smi;
+  Label rhs_is_smi;
   __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &lhs_is_smi);
+  __ b(eq, &rhs_is_smi);
 
-  // Rhs is a Smi.  Check whether the non-smi is a heap number.
+  // Lhs is a Smi.  Check whether the rhs is a heap number.
   __ CompareObjectType(r0, r4, r4, HEAP_NUMBER_TYPE);
   if (strict) {
-    // If lhs was not a number and rhs was a Smi then strict equality cannot
+    // If rhs is not a number and lhs is a Smi then strict equality cannot
     // succeed.  Return non-equal (r0 is already not zero)
     __ mov(pc, Operand(lr), LeaveCC, ne);  // Return.
   } else {
@@ -4863,57 +4863,67 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ b(ne, slow);
   }
 
-  // Rhs is a smi, lhs is a number.
-  __ push(lr);
-
+  // Lhs (r1) is a smi, rhs (r0) is a number.
   if (CpuFeatures::IsSupported(VFP3)) {
+    // Convert lhs to a double in d7              .
     CpuFeatures::Scope scope(VFP3);
-    __ IntegerToDoubleConversionWithVFP3(r1, r3, r2);
+    __ mov(r7, Operand(r1, ASR, kSmiTagSize));
+    __ vmov(s15, r7);
+    __ vcvt(d7, s15);
+    // Load the double from rhs, tagged HeapNumber r0, to d6.
+    __ sub(r7, r0, Operand(kHeapObjectTag));
+    __ vldr(d6, r7, HeapNumber::kValueOffset);
   } else {
+    __ push(lr);
+    // Convert lhs to a double in r2, r3.
     __ mov(r7, Operand(r1));
     ConvertToDoubleStub stub1(r3, r2, r7, r6);
     __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    // Load rhs to a double in r0, r1.
+    __ ldr(r1, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
+    __ ldr(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+    __ pop(lr);
   }
 
-
-  // r3 and r2 are rhs as double.
-  __ ldr(r1, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
-  __ ldr(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
   // We now have both loaded as doubles but we can skip the lhs nan check
-  // since it's a Smi.
-  __ pop(lr);
+  // since it's a smi.
   __ jmp(lhs_not_nan);
 
-  __ bind(&lhs_is_smi);
-  // Lhs is a Smi.  Check whether the non-smi is a heap number.
+  __ bind(&rhs_is_smi);
+  // Rhs is a smi.  Check whether the non-smi lhs is a heap number.
   __ CompareObjectType(r1, r4, r4, HEAP_NUMBER_TYPE);
   if (strict) {
-    // If lhs was not a number and rhs was a Smi then strict equality cannot
+    // If lhs is not a number and rhs is a smi then strict equality cannot
     // succeed.  Return non-equal.
     __ mov(r0, Operand(1), LeaveCC, ne);  // Non-zero indicates not equal.
     __ mov(pc, Operand(lr), LeaveCC, ne);  // Return.
   } else {
-    // Smi compared non-strictly with a non-Smi non-heap-number.  Call
+    // Smi compared non-strictly with a non-smi non-heap-number.  Call
     // the runtime.
     __ b(ne, slow);
   }
 
-  // Lhs is a smi, rhs is a number.
-  // r0 is Smi and r1 is heap number.
-  __ push(lr);
-  __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
-  __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
-
+  // Rhs (r0) is a smi, lhs (r1) is a heap number.
   if (CpuFeatures::IsSupported(VFP3)) {
+    // Convert rhs to a double in d6              .
     CpuFeatures::Scope scope(VFP3);
-    __ IntegerToDoubleConversionWithVFP3(r0, r1, r0);
+    // Load the double from lhs, tagged HeapNumber r1, to d7.
+    __ sub(r7, r1, Operand(kHeapObjectTag));
+    __ vldr(d7, r7, HeapNumber::kValueOffset);
+    __ mov(r7, Operand(r0, ASR, kSmiTagSize));
+    __ vmov(s13, r7);
+    __ vcvt(d6, s13);
   } else {
+    __ push(lr);
+    // Load lhs to a double in r2, r3.
+    __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
+    __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
+    // Convert rhs to a double in r0, r1.
     __ mov(r7, Operand(r0));
     ConvertToDoubleStub stub2(r1, r0, r7, r6);
     __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
   }
-
-  __ pop(lr);
   // Fall through to both_loaded_as_doubles.
 }
 
@@ -5062,10 +5072,18 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
   // Both are heap numbers.  Load them up then jump to the code we have
   // for that.
-  __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
-  __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
-  __ ldr(r1, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
-  __ ldr(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    __ sub(r7, r0, Operand(kHeapObjectTag));
+    __ vldr(d6, r7, HeapNumber::kValueOffset);
+    __ sub(r7, r1, Operand(kHeapObjectTag));
+    __ vldr(d7, r7, HeapNumber::kValueOffset);
+  } else {
+    __ ldr(r2, FieldMemOperand(r1, HeapNumber::kValueOffset));
+    __ ldr(r3, FieldMemOperand(r1, HeapNumber::kValueOffset + kPointerSize));
+    __ ldr(r1, FieldMemOperand(r0, HeapNumber::kValueOffset + kPointerSize));
+    __ ldr(r0, FieldMemOperand(r0, HeapNumber::kValueOffset));
+  }
   __ jmp(both_loaded_as_doubles);
 }
 
@@ -5117,21 +5135,19 @@ void CompareStub::Generate(MacroAssembler* masm) {
   // 3) Fall through to both_loaded_as_doubles.
   // 4) Jump to lhs_not_nan.
   // In cases 3 and 4 we have found out we were dealing with a number-number
-  // comparison and the numbers have been loaded into r0, r1, r2, r3 as doubles.
+  // comparison.  If VFP3 is supported the double values of the numbers have
+  // been loaded into d7 and d6.  Otherwise, the double values have been loaded
+  // into r0, r1, r2, and r3.
   EmitSmiNonsmiComparison(masm, &lhs_not_nan, &slow, strict_);
 
   __ bind(&both_loaded_as_doubles);
-  // r0, r1, r2, r3 are the double representations of the right hand side
-  // and the left hand side.
-
+  // The arguments have been converted to doubles and stored in d6 and d7, if
+  // VFP3 is supported, or in r0, r1, r2, and r3.
   if (CpuFeatures::IsSupported(VFP3)) {
     __ bind(&lhs_not_nan);
     CpuFeatures::Scope scope(VFP3);
     Label no_nan;
     // ARMv7 VFP3 instructions to implement double precision comparison.
-    __ vmov(d6, r0, r1);
-    __ vmov(d7, r2, r3);
-
     __ vcmp(d7, d6);
     __ vmrs(pc);  // Move vector status bits to normal status bits.
     Label nan;
@@ -5273,7 +5289,11 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   // The new heap number is in r5.  r6 and r7 are scratch.
   AllocateHeapNumber(masm, &slow, r5, r6, r7);
 
-  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
+  // If we have floating point hardware, inline ADD, SUB, MUL, and DIV,
+  // using registers d7 and d6 for the double values.
+  bool use_fp_registers = CpuFeatures::IsSupported(VFP3) &&
+      Token::MOD != operation;
+  if (use_fp_registers) {
     CpuFeatures::Scope scope(VFP3);
     __ mov(r7, Operand(r0, ASR, kSmiTagSize));
     __ vmov(s15, r7);
@@ -5362,7 +5382,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   if (mode == OVERWRITE_RIGHT) {
     __ mov(r5, Operand(r0));  // Overwrite this heap number.
   }
-  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
+  if (use_fp_registers) {
     CpuFeatures::Scope scope(VFP3);
     // Load the double from tagged HeapNumber r0 to d7.
     __ sub(r7, r0, Operand(kHeapObjectTag));
@@ -5379,9 +5399,9 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     AllocateHeapNumber(masm, &slow, r5, r6, r7);
   }
 
-  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
+  if (use_fp_registers) {
     CpuFeatures::Scope scope(VFP3);
-    // Convert smi in r0 to double in d7
+    // Convert smi in r0 to double in d7.
     __ mov(r7, Operand(r0, ASR, kSmiTagSize));
     __ vmov(s15, r7);
     __ vcvt(d7, s15);
@@ -5404,7 +5424,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   if (mode == OVERWRITE_LEFT) {
     __ mov(r5, Operand(r1));  // Overwrite this heap number.
   }
-  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
+  if (use_fp_registers) {
     CpuFeatures::Scope scope(VFP3);
     // Load the double from tagged HeapNumber r1 to d6.
     __ sub(r7, r1, Operand(kHeapObjectTag));
@@ -5421,9 +5441,9 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
     AllocateHeapNumber(masm, &slow, r5, r6, r7);
   }
 
-  if (CpuFeatures::IsSupported(VFP3) && Token::MOD != operation) {
+  if (use_fp_registers) {
     CpuFeatures::Scope scope(VFP3);
-    // Convert smi in r1 to double in d6
+    // Convert smi in r1 to double in d6.
     __ mov(r7, Operand(r1, ASR, kSmiTagSize));
     __ vmov(s13, r7);
     __ vcvt(d6, s13);
@@ -5441,11 +5461,7 @@ static void HandleBinaryOpSlowCases(MacroAssembler* masm,
   __ bind(&do_the_call);
   // If we are inlining the operation using VFP3 instructions for
   // add, subtract, multiply, or divide, the arguments are in d6 and d7.
-  if (CpuFeatures::IsSupported(VFP3) &&
-      ((Token::MUL == operation) ||
-       (Token::DIV == operation) ||
-       (Token::ADD == operation) ||
-       (Token::SUB == operation))) {
+  if (use_fp_registers) {
     CpuFeatures::Scope scope(VFP3);
     // ARMv7 VFP3 instructions to implement
     // double precision, add, subtract, multiply, divide.
