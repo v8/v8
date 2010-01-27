@@ -281,17 +281,11 @@ V8_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
-      'WARNINGFLAGS': ['/WX', '/wd4355', '/wd4800']
+      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800']
     },
     'library:shared': {
       'CPPDEFINES': ['BUILDING_V8_SHARED'],
       'LIBS': ['winmm', 'ws2_32']
-    },
-    'arch:ia32': {
-      'WARNINGFLAGS': ['/W3']
-    },
-    'arch:x64': {
-      'WARNINGFLAGS': ['/W3']
     },
     'arch:arm': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_ARM'],

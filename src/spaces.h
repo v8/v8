@@ -1837,7 +1837,7 @@ class MapSpace : public FixedSpace {
 
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
-      int actual_size = 0;
+      intptr_t actual_size = 0;
       for (Page* p = first_page_; p != top_page; p = p->next_page())
         actual_size += kMapsPerPage * Map::kSize;
       actual_size += (new_top - top_page->ObjectAreaStart());

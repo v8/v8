@@ -217,7 +217,7 @@ void FileByteSink::WriteSpaceUsed(
       int map_space_used,
       int cell_space_used,
       int large_space_used) {
-  int file_name_length = strlen(file_name_) + 10;
+  int file_name_length = StrLength(file_name_) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name_);
   FILE* fp = OS::FOpen(name.start(), "w");
@@ -368,7 +368,7 @@ TEST(PartialSerialization) {
     raw_foo = *(v8::Utils::OpenHandle(*foo));
   }
 
-  int file_name_length = strlen(FLAG_testing_serialization_file) + 10;
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
@@ -394,7 +394,7 @@ TEST(PartialSerialization) {
 
 
 DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
-  int file_name_length = strlen(FLAG_testing_serialization_file) + 10;
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
   Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
