@@ -3344,6 +3344,11 @@ void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
 
 void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
   IterateStrongRoots(v, mode);
+  IterateWeakRoots(v, mode);
+}
+
+
+void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
   v->Synchronize("symbol_table");
   if (mode != VISIT_ALL_IN_SCAVENGE) {
@@ -3398,6 +3403,20 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // Iterate over pointers being held by inactive threads.
   ThreadManager::Iterate(v);
   v->Synchronize("threadmanager");
+
+  // Iterate over the pointers the Serialization/Deserialization code is
+  // holding.
+  // During garbage collection this keeps the partial snapshot cache alive.
+  // During deserialization of the startup snapshot this creates the partial
+  // snapshot cache and deserializes the objects it refers to.  During
+  // serialization this does nothing, since the partial snapshot cache is
+  // empty.  However the next thing we do is create the partial snapshot,
+  // filling up the partial snapshot cache with objects it needs as we go.
+  SerializerDeserializer::Iterate(v);
+  // We don't do a v->Synchronize call here, because in debug mode that will
+  // output a flag to the snapshot.  However at this point the serializer and
+  // deserializer are deliberately a little unsynchronized (see above) so the
+  // checking of the sync flag in the snapshot would fail.
 }
 
 

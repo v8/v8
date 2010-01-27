@@ -146,7 +146,6 @@ void V8::TearDown() {
 
   Heap::TearDown();
   Logger::TearDown();
-  Deserializer::TearDown();
 
   is_running_ = false;
   has_been_disposed_ = true;

@@ -39,6 +39,8 @@
 #include "cctest.h"
 #include "spaces.h"
 #include "objects.h"
+#include "natives.h"
+#include "bootstrapper.h"
 
 using namespace v8::internal;
 
@@ -169,6 +171,75 @@ TEST(ExternalReferenceDecoder) {
 }
 
 
+class FileByteSink : public SnapshotByteSink {
+ public:
+  explicit FileByteSink(const char* snapshot_file) {
+    fp_ = OS::FOpen(snapshot_file, "wb");
+    file_name_ = snapshot_file;
+    if (fp_ == NULL) {
+      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
+      exit(1);
+    }
+  }
+  virtual ~FileByteSink() {
+    if (fp_ != NULL) {
+      fclose(fp_);
+    }
+  }
+  virtual void Put(int byte, const char* description) {
+    if (fp_ != NULL) {
+      fputc(byte, fp_);
+    }
+  }
+  virtual int Position() {
+    return ftell(fp_);
+  }
+  void WriteSpaceUsed(
+      int new_space_used,
+      int pointer_space_used,
+      int data_space_used,
+      int code_space_used,
+      int map_space_used,
+      int cell_space_used,
+      int large_space_used);
+
+ private:
+  FILE* fp_;
+  const char* file_name_;
+};
+
+
+void FileByteSink::WriteSpaceUsed(
+      int new_space_used,
+      int pointer_space_used,
+      int data_space_used,
+      int code_space_used,
+      int map_space_used,
+      int cell_space_used,
+      int large_space_used) {
+  int file_name_length = strlen(file_name_) + 10;
+  Vector<char> name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(name, "%s.size", file_name_);
+  FILE* fp = OS::FOpen(name.start(), "w");
+  fprintf(fp, "new %d\n", new_space_used);
+  fprintf(fp, "pointer %d\n", pointer_space_used);
+  fprintf(fp, "data %d\n", data_space_used);
+  fprintf(fp, "code %d\n", code_space_used);
+  fprintf(fp, "map %d\n", map_space_used);
+  fprintf(fp, "cell %d\n", cell_space_used);
+  fprintf(fp, "large %d\n", large_space_used);
+  fclose(fp);
+}
+
+
+static bool WriteToFile(const char* snapshot_file) {
+  FileByteSink file(snapshot_file);
+  StartupSerializer ser(&file);
+  ser.Serialize();
+  return true;
+}
+
+
 static void Serialize() {
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from v8natives.js and their addresses can be processed.  This
@@ -176,7 +247,7 @@ static void Serialize() {
   // that would confuse the serialization/deserialization process.
   v8::Persistent<v8::Context> env = v8::Context::New();
   env.Dispose();
-  Snapshot::WriteToFile(FLAG_testing_serialization_file);
+  WriteToFile(FLAG_testing_serialization_file);
 }
 
 
@@ -273,95 +344,63 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
 }
 
 
-class FileByteSink : public SnapshotByteSink {
- public:
-  explicit FileByteSink(const char* snapshot_file) {
-    fp_ = OS::FOpen(snapshot_file, "wb");
-    file_name_ = snapshot_file;
-    if (fp_ == NULL) {
-      PrintF("Unable to write to snapshot file \"%s\"\n", snapshot_file);
-      exit(1);
-    }
-  }
-  virtual ~FileByteSink() {
-    if (fp_ != NULL) {
-      fclose(fp_);
-    }
-  }
-  virtual void Put(int byte, const char* description) {
-    if (fp_ != NULL) {
-      fputc(byte, fp_);
-    }
-  }
-  virtual int Position() {
-    return ftell(fp_);
-  }
-  void WriteSpaceUsed(
-      int new_space_used,
-      int pointer_space_used,
-      int data_space_used,
-      int code_space_used,
-      int map_space_used,
-      int cell_space_used,
-      int large_space_used);
-
- private:
-  FILE* fp_;
-  const char* file_name_;
-};
-
-
-void FileByteSink::WriteSpaceUsed(
-      int new_space_used,
-      int pointer_space_used,
-      int data_space_used,
-      int code_space_used,
-      int map_space_used,
-      int cell_space_used,
-      int large_space_used) {
-  int file_name_length = StrLength(file_name_) + 10;
-  Vector<char> name = Vector<char>::New(file_name_length + 1);
-  OS::SNPrintF(name, "%s.size", file_name_);
-  FILE* fp = OS::FOpen(name.start(), "w");
-  fprintf(fp, "new %d\n", new_space_used);
-  fprintf(fp, "pointer %d\n", pointer_space_used);
-  fprintf(fp, "data %d\n", data_space_used);
-  fprintf(fp, "code %d\n", code_space_used);
-  fprintf(fp, "map %d\n", map_space_used);
-  fprintf(fp, "cell %d\n", cell_space_used);
-  fprintf(fp, "large %d\n", large_space_used);
-  fclose(fp);
-}
-
-
 TEST(PartialSerialization) {
   Serializer::Enable();
   v8::V8::Initialize();
+
   v8::Persistent<v8::Context> env = v8::Context::New();
+  ASSERT(!env.IsEmpty());
   env->Enter();
+  // Make sure all builtin scripts are cached.
+  { HandleScope scope;
+    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+      Bootstrapper::NativesSourceLookup(i);
+    }
+  }
+  Heap::CollectAllGarbage(true);
+  Heap::CollectAllGarbage(true);
 
-  v8::HandleScope handle_scope;
-  v8::Local<v8::String> foo = v8::String::New("foo");
+  Object* raw_foo;
+  {
+    v8::HandleScope handle_scope;
+    v8::Local<v8::String> foo = v8::String::New("foo");
+    ASSERT(!foo.IsEmpty());
+    raw_foo = *(v8::Utils::OpenHandle(*foo));
+  }
 
-  FileByteSink file(FLAG_testing_serialization_file);
-  Serializer ser(&file);
-  i::Handle<i::String> internal_foo = v8::Utils::OpenHandle(*foo);
-  Object* raw_foo = *internal_foo;
-  ser.SerializePartial(&raw_foo);
-  file.WriteSpaceUsed(ser.CurrentAllocationAddress(NEW_SPACE),
-                      ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
-                      ser.CurrentAllocationAddress(OLD_DATA_SPACE),
-                      ser.CurrentAllocationAddress(CODE_SPACE),
-                      ser.CurrentAllocationAddress(MAP_SPACE),
-                      ser.CurrentAllocationAddress(CELL_SPACE),
-                      ser.CurrentAllocationAddress(LO_SPACE));
+  int file_name_length = strlen(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  env->Exit();
+  env.Dispose();
+
+  FileByteSink startup_sink(startup_name.start());
+  StartupSerializer startup_serializer(&startup_sink);
+  startup_serializer.SerializeStrongReferences();
+
+  FileByteSink partial_sink(FLAG_testing_serialization_file);
+  PartialSerializer p_ser(&startup_serializer, &partial_sink);
+  p_ser.Serialize(&raw_foo);
+  startup_serializer.SerializeWeakReferences();
+  partial_sink.WriteSpaceUsed(p_ser.CurrentAllocationAddress(NEW_SPACE),
+                              p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+                              p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+                              p_ser.CurrentAllocationAddress(CODE_SPACE),
+                              p_ser.CurrentAllocationAddress(MAP_SPACE),
+                              p_ser.CurrentAllocationAddress(CELL_SPACE),
+                              p_ser.CurrentAllocationAddress(LO_SPACE));
 }
 
 
 DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
-  v8::V8::Initialize();
+  int file_name_length = strlen(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  CHECK(Snapshot::Initialize(startup_name.start()));
+
   const char* file_name = FLAG_testing_serialization_file;
-  int file_name_length = StrLength(file_name) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name);
   FILE* fp = OS::FOpen(name.start(), "r");
@@ -392,11 +431,25 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
                      large_size);
   int snapshot_size = 0;
   byte* snapshot = ReadBytes(file_name, &snapshot_size);
-  SnapshotByteSource source(snapshot, snapshot_size);
-  Deserializer deserializer(&source);
+
   Object* root;
-  deserializer.DeserializePartial(&root);
-  CHECK(root->IsString());
+  {
+    SnapshotByteSource source(snapshot, snapshot_size);
+    Deserializer deserializer(&source);
+    deserializer.DeserializePartial(&root);
+    CHECK(root->IsString());
+  }
+  v8::HandleScope handle_scope;
+  Handle<Object>root_handle(root);
+
+  Object* root2;
+  {
+    SnapshotByteSource source(snapshot, snapshot_size);
+    Deserializer deserializer(&source);
+    deserializer.DeserializePartial(&root2);
+    CHECK(root2->IsString());
+    CHECK(*root_handle == root2);
+  }
 }
 
 

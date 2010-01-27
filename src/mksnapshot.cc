@@ -164,10 +164,10 @@ int main(int argc, char** argv) {
   }
   context.Dispose();
   CppByteSink sink(argv[1]);
-  i::Serializer ser(&sink);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.
   i::Heap::CollectAllGarbage(true);
+  i::StartupSerializer ser(&sink);
   ser.Serialize();
   return 0;
 }

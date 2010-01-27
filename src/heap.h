@@ -690,6 +690,8 @@ class Heap : public AllStatic {
   static void IterateRoots(ObjectVisitor* v, VisitMode mode);
   // Iterates over all strong roots in the heap.
   static void IterateStrongRoots(ObjectVisitor* v, VisitMode mode);
+  // Iterates over all the other roots in the heap.
+  static void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
   // Iterates remembered set of an old space.
   static void IterateRSet(PagedSpace* space, ObjectSlotCallback callback);
