@@ -488,6 +488,10 @@ void FullCodeGenSyntaxChecker::VisitThisFunction(ThisFunction* expr) {
 Handle<Code> FullCodeGenerator::MakeCode(FunctionLiteral* fun,
                                          Handle<Script> script,
                                          bool is_eval) {
+  if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+    int len = String::cast(script->source())->length();
+    Counters::total_full_codegen_source_size.Increment(len);
+  }
   CodeGenerator::MakeCodePrologue(fun);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);

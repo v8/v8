@@ -217,6 +217,10 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(FunctionLiteral* fun,
 Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
                                      Handle<Script> script,
                                      bool is_eval) {
+  if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+    int len = String::cast(script->source())->length();
+    Counters::total_old_codegen_source_size.Increment(len);
+  }
   MakeCodePrologue(fun);
   // Generate code.
   const int kInitialBufferSize = 4 * KB;
