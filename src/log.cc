@@ -904,10 +904,10 @@ void Logger::FunctionDeleteEvent(Address from) {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::MoveEventInternal(LogEventsAndTags event,
                                Address from,
                                Address to) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   static Address prev_to_ = NULL;
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
@@ -922,12 +922,12 @@ void Logger::MoveEventInternal(LogEventsAndTags event,
   }
   msg.Append('\n');
   msg.WriteToLogFile();
-#endif
 }
+#endif
 
 
-void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
   if (!Log::IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("%s,", log_events_[event]);
@@ -938,8 +938,8 @@ void Logger::DeleteEventInternal(LogEventsAndTags event, Address from) {
   }
   msg.Append('\n');
   msg.WriteToLogFile();
-#endif
 }
+#endif
 
 
 void Logger::ResourceEvent(const char* name, const char* tag) {
