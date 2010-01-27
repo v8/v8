@@ -267,6 +267,8 @@
         '../../src/execution.h',
         '../../src/factory.cc',
         '../../src/factory.h',
+        '../../src/fast-codegen.cc',
+        '../../src/fast-codegen.h',
         '../../src/flag-definitions.h',
         '../../src/flags.cc',
         '../../src/flags.h',

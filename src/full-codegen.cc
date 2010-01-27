@@ -174,7 +174,7 @@ void FullCodeGenSyntaxChecker::VisitWhileStatement(WhileStatement* stmt) {
 
 
 void FullCodeGenSyntaxChecker::VisitForStatement(ForStatement* stmt) {
-  if (!FLAG_always_fast_compiler) BAILOUT("ForStatement");
+  if (!FLAG_always_full_compiler) BAILOUT("ForStatement");
   if (stmt->init() != NULL) {
     Visit(stmt->init());
     CHECK_BAILOUT;

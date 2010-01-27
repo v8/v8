@@ -1275,12 +1275,12 @@ void FullCodeGenerator::VisitCall(Call* expr) {
   } else {
     // Call to some other expression.  If the expression is an anonymous
     // function literal not called in a loop, mark it as one that should
-    // also use the fast code generator.
+    // also use the full code generator.
     FunctionLiteral* lit = fun->AsFunctionLiteral();
     if (lit != NULL &&
         lit->name()->Equals(Heap::empty_string()) &&
         loop_depth() == 0) {
-      lit->set_try_fast_codegen(true);
+      lit->set_try_full_codegen(true);
     }
     VisitForValue(fun, kStack);
     // Load global receiver object.

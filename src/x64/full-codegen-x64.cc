@@ -1286,7 +1286,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     if (lit != NULL &&
         lit->name()->Equals(Heap::empty_string()) &&
         loop_depth() == 0) {
-      lit->set_try_fast_codegen(true);
+      lit->set_try_full_codegen(true);
     }
     VisitForValue(fun, kStack);
     // Load global receiver object.

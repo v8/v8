@@ -32,6 +32,7 @@
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
+#include "fast-codegen.h"
 #include "full-codegen.h"
 #include "oprofile-agent.h"
 #include "rewriter.h"
@@ -81,26 +82,37 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     return Handle<Code>::null();
   }
 
-  // Generate code and return it.
-  if (FLAG_fast_compiler) {
-    // If there is no shared function info, try the fast code
-    // generator for code in the global scope.  Otherwise obey the
-    // explicit hint in the shared function info.
-    // If always_fast_compiler is true, always try the fast compiler.
-    if (shared.is_null() && !literal->scope()->is_global_scope() &&
-        !FLAG_always_fast_compiler) {
-      if (FLAG_trace_bailout) PrintF("Non-global scope\n");
-    } else if (!shared.is_null() && !shared->try_fast_codegen() &&
-               !FLAG_always_fast_compiler) {
-      if (FLAG_trace_bailout) PrintF("No hint to try fast\n");
-    } else {
-      FullCodeGenSyntaxChecker checker;
-      checker.Check(literal);
-      if (checker.has_supported_syntax()) {
-        return FullCodeGenerator::MakeCode(literal, script, is_eval);
-      }
+  // Generate code and return it.  Code generator selection is governed by
+  // which backends are enabled and whether the function is considered
+  // run-once code or not:
+  //
+  //  --full-compiler enables the dedicated backend for code we expect to be
+  //    run once
+  //  --fast-compiler enables a speculative optimizing backend (for
+  //    non-run-once code)
+  //
+  // The normal choice of backend can be overridden with the flags
+  // --always-full-compiler and --always-fast-compiler, which are mutually
+  // incompatible.
+  CHECK(!FLAG_always_full_compiler || !FLAG_always_fast_compiler);
+
+  bool is_run_once = (shared.is_null())
+      ? literal->scope()->is_global_scope()
+      : (shared->is_toplevel() || shared->try_full_codegen());
+
+  if (FLAG_always_full_compiler || (FLAG_full_compiler && is_run_once)) {
+    FullCodeGenSyntaxChecker checker;
+    checker.Check(literal);
+    if (checker.has_supported_syntax()) {
+      return FullCodeGenerator::MakeCode(literal, script, is_eval);
     }
+  } else if (FLAG_always_fast_compiler ||
+             (FLAG_fast_compiler && !is_run_once)) {
+    FastCodeGenSyntaxChecker checker;
+    checker.Check(literal);
+    // Does not yet generate code.
   }
+
   return CodeGenerator::MakeCode(literal, script, is_eval);
 }
 
@@ -467,10 +479,13 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       return Handle<JSFunction>::null();
     }
 
-    // Generate code and return it.
+    // Generate code and return it.  The way that the compilation mode
+    // is controlled by the command-line flags is described in
+    // the static helper function MakeCode.
+    CHECK(!FLAG_always_full_compiler || !FLAG_always_fast_compiler);
+    bool is_run_once = literal->try_full_codegen();
     bool is_compiled = false;
-    if (FLAG_always_fast_compiler ||
-        (FLAG_fast_compiler && literal->try_fast_codegen())) {
+    if (FLAG_always_full_compiler || (FLAG_full_compiler && is_run_once)) {
       FullCodeGenSyntaxChecker checker;
       checker.Check(literal);
       if (checker.has_supported_syntax()) {
@@ -479,10 +494,15 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
                                            false);  // Not eval.
         is_compiled = true;
       }
+    } else if (FLAG_always_fast_compiler ||
+               (FLAG_fast_compiler && !is_run_once)) {
+      FastCodeGenSyntaxChecker checker;
+      checker.Check(literal);
+      // Generate no code.
     }
 
     if (!is_compiled) {
-      // We didn't try the fast compiler, or we failed to select it.
+      // We fall back to the classic V8 code generator.
       code = CodeGenerator::MakeCode(literal,
                                      script,
                                      false);  // Not eval.
@@ -544,7 +564,7 @@ void Compiler::SetFunctionInfo(Handle<JSFunction> fun,
   fun->shared()->SetThisPropertyAssignmentsInfo(
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
-  fun->shared()->set_try_fast_codegen(lit->try_fast_codegen());
+  fun->shared()->set_try_full_codegen(lit->try_full_codegen());
 }
 
 

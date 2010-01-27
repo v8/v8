@@ -1324,7 +1324,7 @@ class FunctionLiteral: public Expression {
         loop_nesting_(0),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(Heap::empty_string()),
-        try_fast_codegen_(false) {
+        try_full_codegen_(false) {
 #ifdef DEBUG
     already_compiled_ = false;
 #endif
@@ -1364,8 +1364,8 @@ class FunctionLiteral: public Expression {
     inferred_name_ = inferred_name;
   }
 
-  bool try_fast_codegen() { return try_fast_codegen_; }
-  void set_try_fast_codegen(bool flag) { try_fast_codegen_ = flag; }
+  bool try_full_codegen() { return try_full_codegen_; }
+  void set_try_full_codegen(bool flag) { try_full_codegen_ = flag; }
 
 #ifdef DEBUG
   void mark_as_compiled() {
@@ -1389,7 +1389,7 @@ class FunctionLiteral: public Expression {
   int loop_nesting_;
   int function_token_position_;
   Handle<String> inferred_name_;
-  bool try_fast_codegen_;
+  bool try_full_codegen_;
 #ifdef DEBUG
   bool already_compiled_;
 #endif

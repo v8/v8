@@ -2372,8 +2372,8 @@ BOOL_GETTER(SharedFunctionInfo, compiler_hints,
             kHasOnlySimpleThisPropertyAssignments)
 BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
-               try_fast_codegen,
-               kTryFastCodegen)
+               try_full_codegen,
+               kTryFullCodegen)
 
 INT_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 INT_ACCESSORS(SharedFunctionInfo, formal_parameter_count,
