@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -605,14 +605,19 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
 }
 
 
-Reference::Reference(CodeGenerator* cgen, Expression* expression)
-    : cgen_(cgen), expression_(expression), type_(ILLEGAL) {
+Reference::Reference(CodeGenerator* cgen,
+                     Expression* expression,
+                     bool persist_after_get)
+    : cgen_(cgen),
+      expression_(expression),
+      type_(ILLEGAL),
+      persist_after_get_(persist_after_get) {
   cgen->LoadReference(this);
 }
 
 
 Reference::~Reference() {
-  cgen_->UnloadReference(this);
+  ASSERT(is_unloaded() || is_illegal());
 }
 
 
@@ -661,6 +666,7 @@ void CodeGenerator::UnloadReference(Reference* ref) {
     frame_->Drop(size);
     frame_->EmitPush(r0);
   }
+  ref->set_unloaded();
 }
 
 
@@ -1244,8 +1250,6 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
       Reference target(this, node->proxy());
       LoadAndSpill(val);
       target.SetValue(NOT_CONST_INIT);
-      // The reference is removed from the stack (preserving TOS) when
-      // it goes out of scope.
     }
     // Get rid of the assigned value (declarations are statements).
     frame_->Drop();
@@ -1932,25 +1936,17 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
       if (each.size() > 0) {
         __ ldr(r0, frame_->ElementAt(each.size()));
         frame_->EmitPush(r0);
-      }
-      // If the reference was to a slot we rely on the convenient property
-      // that it doesn't matter whether a value (eg, r3 pushed above) is
-      // right on top of or right underneath a zero-sized reference.
-      each.SetValue(NOT_CONST_INIT);
-      if (each.size() > 0) {
-        // It's safe to pop the value lying on top of the reference before
-        // unloading the reference itself (which preserves the top of stack,
-        // ie, now the topmost value of the non-zero sized reference), since
-        // we will discard the top of stack after unloading the reference
-        // anyway.
-        frame_->EmitPop(r0);
+        each.SetValue(NOT_CONST_INIT);
+        frame_->Drop(2);
+      } else {
+        // If the reference was to a slot we rely on the convenient property
+        // that it doesn't matter whether a value (eg, r3 pushed above) is
+        // right on top of or right underneath a zero-sized reference.
+        each.SetValue(NOT_CONST_INIT);
+        frame_->Drop();
       }
     }
   }
-  // Discard the i'th entry pushed above or else the remainder of the
-  // reference, whichever is currently on top of the stack.
-  frame_->Drop();
-
   // Body.
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   VisitAndSpill(node->body());
@@ -2844,7 +2840,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
   VirtualFrame::SpilledScope spilled_scope;
   Comment cmnt(masm_, "[ Assignment");
 
-  { Reference target(this, node->target());
+  { Reference target(this, node->target(), node->is_compound());
     if (target.is_illegal()) {
       // Fool the virtual frame into thinking that we left the assignment's
       // value on the frame.
@@ -2859,8 +2855,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         node->op() == Token::INIT_CONST) {
       LoadAndSpill(node->value());
 
-    } else {
-      // +=, *= and similar binary assignments.
+    } else {  // Assignment is a compound assignment.
       // Get the old value of the lhs.
       target.GetValueAndSpill();
       Literal* literal = node->value()->AsLiteral();
@@ -2881,13 +2876,12 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         frame_->EmitPush(r0);
       }
     }
-
     Variable* var = node->target()->AsVariableProxy()->AsVariable();
     if (var != NULL &&
         (var->mode() == Variable::CONST) &&
         node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
       // Assignment ignored - leave the value on the stack.
-
+      UnloadReference(&target);
     } else {
       CodeForSourcePosition(node->position());
       if (node->op() == Token::INIT_CONST) {
@@ -3097,16 +3091,20 @@ void CodeGenerator::VisitCall(Call* node) {
       // JavaScript example: 'array[index](1, 2, 3)'
       // -------------------------------------------
 
-      // Load the function to call from the property through a reference.
-      Reference ref(this, property);
-      ref.GetValueAndSpill();  // receiver
-
-      // Pass receiver to called function.
+      LoadAndSpill(property->obj());
+      LoadAndSpill(property->key());
+      EmitKeyedLoad(false);
+      frame_->Drop();  // key
+      // Put the function below the receiver.
       if (property->is_synthetic()) {
+        // Use the global receiver.
+        frame_->Drop();
+        frame_->EmitPush(r0);
         LoadGlobalReceiver(r0);
       } else {
-        __ ldr(r0, frame_->ElementAt(ref.size()));
-        frame_->EmitPush(r0);
+        frame_->EmitPop(r1);  // receiver
+        frame_->EmitPush(r0);  // function
+        frame_->EmitPush(r1);  // receiver
       }
 
       // Call the function.
@@ -3807,7 +3805,9 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
      frame_->EmitPush(r0);
   }
 
-  { Reference target(this, node->expression());
+  // A constant reference is not saved to, so a constant reference is not a
+  // compound assignment reference.
+  { Reference target(this, node->expression(), !is_const);
     if (target.is_illegal()) {
       // Spoof the virtual frame to have the expected height (one higher
       // than on entry).
@@ -4268,6 +4268,16 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
+void CodeGenerator::EmitKeyedLoad(bool is_global) {
+  Comment cmnt(masm_, "[ Load from keyed Property");
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  RelocInfo::Mode rmode = is_global
+                          ? RelocInfo::CODE_TARGET_CONTEXT
+                          : RelocInfo::CODE_TARGET;
+  frame_->CallCodeObject(ic, rmode, 0);
+}
+
+
 #ifdef DEBUG
 bool CodeGenerator::HasValidEntryRegisters() { return true; }
 #endif
@@ -4334,22 +4344,20 @@ void Reference::GetValue() {
     case KEYED: {
       // TODO(181): Implement inlined version of array indexing once
       // loop nesting is properly tracked on ARM.
-      VirtualFrame* frame = cgen_->frame();
-      Comment cmnt(masm, "[ Load from keyed Property");
       ASSERT(property != NULL);
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       ASSERT(var == NULL || var->is_global());
-      RelocInfo::Mode rmode = (var == NULL)
-                            ? RelocInfo::CODE_TARGET
-                            : RelocInfo::CODE_TARGET_CONTEXT;
-      frame->CallCodeObject(ic, rmode, 0);
-      frame->EmitPush(r0);
+      cgen_->EmitKeyedLoad(var != NULL);
+      cgen_->frame()->EmitPush(r0);
       break;
     }
 
     default:
       UNREACHABLE();
+  }
+
+  if (!persist_after_get_) {
+    cgen_->UnloadReference(this);
   }
 }
 
@@ -4412,6 +4420,7 @@ void Reference::SetValue(InitState init_state) {
     default:
       UNREACHABLE();
   }
+  cgen_->UnloadReference(this);
 }
 
 

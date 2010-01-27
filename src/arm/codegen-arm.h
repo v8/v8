@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -43,57 +43,69 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 // -------------------------------------------------------------------------
 // Reference support
 
-// A reference is a C++ stack-allocated object that keeps an ECMA
-// reference on the execution stack while in scope. For variables
-// the reference is empty, indicating that it isn't necessary to
-// store state on the stack for keeping track of references to those.
-// For properties, we keep either one (named) or two (indexed) values
-// on the execution stack to represent the reference.
-
+// A reference is a C++ stack-allocated object that puts a
+// reference on the virtual frame.  The reference may be consumed
+// by GetValue, TakeValue, SetValue, and Codegen::UnloadReference.
+// When the lifetime (scope) of a valid reference ends, it must have
+// been consumed, and be in state UNLOADED.
 class Reference BASE_EMBEDDED {
  public:
   // The values of the types is important, see size().
-  enum Type { ILLEGAL = -1, SLOT = 0, NAMED = 1, KEYED = 2 };
-  Reference(CodeGenerator* cgen, Expression* expression);
+  enum Type { UNLOADED = -2, ILLEGAL = -1, SLOT = 0, NAMED = 1, KEYED = 2 };
+  Reference(CodeGenerator* cgen,
+            Expression* expression,
+            bool persist_after_get = false);
   ~Reference();
 
   Expression* expression() const { return expression_; }
   Type type() const { return type_; }
   void set_type(Type value) {
-    ASSERT(type_ == ILLEGAL);
+    ASSERT_EQ(ILLEGAL, type_);
     type_ = value;
   }
 
+  void set_unloaded() {
+    ASSERT_NE(ILLEGAL, type_);
+    ASSERT_NE(UNLOADED, type_);
+    type_ = UNLOADED;
+  }
   // The size the reference takes up on the stack.
-  int size() const { return (type_ == ILLEGAL) ? 0 : type_; }
+  int size() const {
+    return (type_ < SLOT) ? 0 : type_;
+  }
 
   bool is_illegal() const { return type_ == ILLEGAL; }
   bool is_slot() const { return type_ == SLOT; }
   bool is_property() const { return type_ == NAMED || type_ == KEYED; }
+  bool is_unloaded() const { return type_ == UNLOADED; }
 
   // Return the name.  Only valid for named property references.
   Handle<String> GetName();
 
   // Generate code to push the value of the reference on top of the
   // expression stack.  The reference is expected to be already on top of
-  // the expression stack, and it is left in place with its value above it.
+  // the expression stack, and it is consumed by the call unless the
+  // reference is for a compound assignment.
+  // If the reference is not consumed, it is left in place under its value.
   void GetValue();
 
-  // Generate code to push the value of a reference on top of the expression
-  // stack and then spill the stack frame.  This function is used temporarily
-  // while the code generator is being transformed.
+  // Generate code to pop a reference, push the value of the reference,
+  // and then spill the stack frame.
   inline void GetValueAndSpill();
 
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
-  // on the expression stack.  The stored value is left in place (with the
-  // reference intact below it) to support chained assignments.
+  // on the expression stack.  The  value is stored in the location specified
+  // by the reference, and is left on top of the stack, after the reference
+  // is popped from beneath it (unloaded).
   void SetValue(InitState init_state);
 
  private:
   CodeGenerator* cgen_;
   Expression* expression_;
   Type type_;
+  // Keep the reference on the stack after get, so it can be used by set later.
+  bool persist_after_get_;
 };
 
 
@@ -274,6 +286,9 @@ class CodeGenerator: public AstVisitor {
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
   // Store the value on top of the stack to a slot.
   void StoreToSlot(Slot* slot, InitState init_state);
+  // Load a keyed property, leaving it in r0.  The receiver and key are
+  // passed on the stack, and remain there.
+  void EmitKeyedLoad(bool is_global);
 
   void LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                          TypeofState typeof_state,

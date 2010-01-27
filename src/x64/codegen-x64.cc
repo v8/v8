@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -651,20 +651,29 @@ void DeferredReferenceSetKeyedValue::Generate() {
 }
 
 
-void CodeGenerator::CallApplyLazy(Property* apply,
+void CodeGenerator::CallApplyLazy(Expression* applicand,
                                   Expression* receiver,
                                   VariableProxy* arguments,
                                   int position) {
+  // An optimized implementation of expressions of the form
+  // x.apply(y, arguments).
+  // If the arguments object of the scope has not been allocated,
+  // and x.apply is Function.prototype.apply, this optimization
+  // just copies y and the arguments of the current function on the
+  // stack, as receiver and arguments, and calls x.
+  // In the implementation comments, we call x the applicand
+  // and y the receiver.
   ASSERT(ArgumentsMode() == LAZY_ARGUMENTS_ALLOCATION);
   ASSERT(arguments->IsArguments());
 
-  JumpTarget slow, done;
-
-  // Load the apply function onto the stack. This will usually
+  // Load applicand.apply onto the stack. This will usually
   // give us a megamorphic load site. Not super, but it works.
-  Reference ref(this, apply);
-  ref.GetValue();
-  ASSERT(ref.type() == Reference::NAMED);
+  Load(applicand);
+  Handle<String> name = Factory::LookupAsciiSymbol("apply");
+  frame()->Push(name);
+  Result answer = frame()->CallLoadIC(RelocInfo::CODE_TARGET);
+  __ nop();
+  frame()->Push(&answer);
 
   // Load the receiver and the existing arguments object onto the
   // expression stack. Avoid allocating the arguments object here.
@@ -674,6 +683,11 @@ void CodeGenerator::CallApplyLazy(Property* apply,
   // Emit the source position information after having loaded the
   // receiver and the arguments.
   CodeForSourcePosition(position);
+  // Contents of frame at this point:
+  // Frame[0]: arguments object of the current function or the hole.
+  // Frame[1]: receiver
+  // Frame[2]: applicand.apply
+  // Frame[3]: applicand.
 
   // Check if the arguments object has been lazily allocated
   // already. If so, just use that instead of copying the arguments
@@ -681,143 +695,149 @@ void CodeGenerator::CallApplyLazy(Property* apply,
   // named 'arguments' has been introduced.
   frame_->Dup();
   Result probe = frame_->Pop();
-  bool try_lazy = true;
-  if (probe.is_constant()) {
-    try_lazy = probe.handle()->IsTheHole();
-  } else {
-    __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
-    probe.Unuse();
-    slow.Branch(not_equal);
-  }
+  { VirtualFrame::SpilledScope spilled_scope;
+    Label slow, done;
+    bool try_lazy = true;
+    if (probe.is_constant()) {
+      try_lazy = probe.handle()->IsTheHole();
+    } else {
+      __ CompareRoot(probe.reg(), Heap::kTheHoleValueRootIndex);
+      probe.Unuse();
+      __ j(not_equal, &slow);
+    }
 
-  if (try_lazy) {
-    JumpTarget build_args;
+    if (try_lazy) {
+      Label build_args;
+      // Get rid of the arguments object probe.
+      frame_->Drop();  // Can be called on a spilled frame.
+      // Stack now has 3 elements on it.
+      // Contents of stack at this point:
+      // rsp[0]: receiver
+      // rsp[1]: applicand.apply
+      // rsp[2]: applicand.
 
-    // Get rid of the arguments object probe.
-    frame_->Drop();
-
-    // Before messing with the execution stack, we sync all
-    // elements. This is bound to happen anyway because we're
-    // about to call a function.
-    frame_->SyncRange(0, frame_->element_count() - 1);
-
-    // Check that the receiver really is a JavaScript object.
-    {
-      frame_->PushElementAt(0);
-      Result receiver = frame_->Pop();
-      receiver.ToRegister();
-      Condition is_smi = masm_->CheckSmi(receiver.reg());
-      build_args.Branch(is_smi);
+      // Check that the receiver really is a JavaScript object.
+      __ movq(rax, Operand(rsp, 0));
+      Condition is_smi = masm_->CheckSmi(rax);
+      __ j(is_smi, &build_args);
       // We allow all JSObjects including JSFunctions.  As long as
       // JS_FUNCTION_TYPE is the last instance type and it is right
       // after LAST_JS_OBJECT_TYPE, we do not have to check the upper
       // bound.
       ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
       ASSERT(JS_FUNCTION_TYPE == LAST_JS_OBJECT_TYPE + 1);
-      __ CmpObjectType(receiver.reg(), FIRST_JS_OBJECT_TYPE, kScratchRegister);
-      build_args.Branch(below);
-    }
+      __ CmpObjectType(rax, FIRST_JS_OBJECT_TYPE, rcx);
+      __ j(below, &build_args);
 
-    // Verify that we're invoking Function.prototype.apply.
-    {
-      frame_->PushElementAt(1);
-      Result apply = frame_->Pop();
-      apply.ToRegister();
-      Condition is_smi = masm_->CheckSmi(apply.reg());
-      build_args.Branch(is_smi);
-      Result tmp = allocator_->Allocate();
-      __ CmpObjectType(apply.reg(), JS_FUNCTION_TYPE, tmp.reg());
-      build_args.Branch(not_equal);
-      __ movq(tmp.reg(),
-              FieldOperand(apply.reg(), JSFunction::kSharedFunctionInfoOffset));
+      // Check that applicand.apply is Function.prototype.apply.
+      __ movq(rax, Operand(rsp, kPointerSize));
+      is_smi = masm_->CheckSmi(rax);
+      __ j(is_smi, &build_args);
+      __ CmpObjectType(rax, JS_FUNCTION_TYPE, rcx);
+      __ j(not_equal, &build_args);
+      __ movq(rax, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
       Handle<Code> apply_code(Builtins::builtin(Builtins::FunctionApply));
-      __ Cmp(FieldOperand(tmp.reg(), SharedFunctionInfo::kCodeOffset),
-             apply_code);
-      build_args.Branch(not_equal);
+      __ Cmp(FieldOperand(rax, SharedFunctionInfo::kCodeOffset), apply_code);
+      __ j(not_equal, &build_args);
+
+      // Check that applicand is a function.
+      __ movq(rdi, Operand(rsp, 2 * kPointerSize));
+      is_smi = masm_->CheckSmi(rdi);
+      __ j(is_smi, &build_args);
+      __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+      __ j(not_equal, &build_args);
+
+      // Copy the arguments to this function possibly from the
+      // adaptor frame below it.
+      Label invoke, adapted;
+      __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+      __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
+                    Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+      __ j(equal, &adapted);
+
+      // No arguments adaptor frame. Copy fixed number of arguments.
+      __ movq(rax, Immediate(scope_->num_parameters()));
+      for (int i = 0; i < scope_->num_parameters(); i++) {
+        __ push(frame_->ParameterAt(i));
+      }
+      __ jmp(&invoke);
+
+      // Arguments adaptor frame present. Copy arguments from there, but
+      // avoid copying too many arguments to avoid stack overflows.
+      __ bind(&adapted);
+      static const uint32_t kArgumentsLimit = 1 * KB;
+      __ movq(rax, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+      __ SmiToInteger32(rax, rax);
+      __ movq(rcx, rax);
+      __ cmpq(rax, Immediate(kArgumentsLimit));
+      __ j(above, &build_args);
+
+      // Loop through the arguments pushing them onto the execution
+      // stack. We don't inform the virtual frame of the push, so we don't
+      // have to worry about getting rid of the elements from the virtual
+      // frame.
+      Label loop;
+      // rcx is a small non-negative integer, due to the test above.
+      __ testl(rcx, rcx);
+      __ j(zero, &invoke);
+      __ bind(&loop);
+      __ push(Operand(rdx, rcx, times_pointer_size, 1 * kPointerSize));
+      __ decl(rcx);
+      __ j(not_zero, &loop);
+
+      // Invoke the function.
+      __ bind(&invoke);
+      ParameterCount actual(rax);
+      __ InvokeFunction(rdi, actual, CALL_FUNCTION);
+      // Drop applicand.apply and applicand from the stack, and push
+      // the result of the function call, but leave the spilled frame
+      // unchanged, with 3 elements, so it is correct when we compile the
+      // slow-case code.
+      __ addq(rsp, Immediate(2 * kPointerSize));
+      __ push(rax);
+      // Stack now has 1 element:
+      //   rsp[0]: result
+      __ jmp(&done);
+
+      // Slow-case: Allocate the arguments object since we know it isn't
+      // there, and fall-through to the slow-case where we call
+      // applicand.apply.
+      __ bind(&build_args);
+      // Stack now has 3 elements, because we have jumped from where:
+      // rsp[0]: receiver
+      // rsp[1]: applicand.apply
+      // rsp[2]: applicand.
+
+      // StoreArgumentsObject requires a correct frame, and may modify it.
+      Result arguments_object = StoreArgumentsObject(false);
+      frame_->SpillAll();
+      arguments_object.ToRegister();
+      frame_->EmitPush(arguments_object.reg());
+      arguments_object.Unuse();
+      // Stack and frame now have 4 elements.
+      __ bind(&slow);
     }
 
-    // Get the function receiver from the stack. Check that it
-    // really is a function.
-    __ movq(rdi, Operand(rsp, 2 * kPointerSize));
-    Condition is_smi = masm_->CheckSmi(rdi);
-    build_args.Branch(is_smi);
-    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-    build_args.Branch(not_equal);
+    // Generic computation of x.apply(y, args) with no special optimization.
+    // Flip applicand.apply and applicand on the stack, so
+    // applicand looks like the receiver of the applicand.apply call.
+    // Then process it as a normal function call.
+    __ movq(rax, Operand(rsp, 3 * kPointerSize));
+    __ movq(rbx, Operand(rsp, 2 * kPointerSize));
+    __ movq(Operand(rsp, 2 * kPointerSize), rax);
+    __ movq(Operand(rsp, 3 * kPointerSize), rbx);
 
-    // Copy the arguments to this function possibly from the
-    // adaptor frame below it.
-    Label invoke, adapted;
-    __ movq(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-    __ SmiCompare(Operand(rdx, StandardFrameConstants::kContextOffset),
-                  Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-    __ j(equal, &adapted);
-
-    // No arguments adaptor frame. Copy fixed number of arguments.
-    __ movq(rax, Immediate(scope_->num_parameters()));
-    for (int i = 0; i < scope_->num_parameters(); i++) {
-      __ push(frame_->ParameterAt(i));
-    }
-    __ jmp(&invoke);
-
-    // Arguments adaptor frame present. Copy arguments from there, but
-    // avoid copying too many arguments to avoid stack overflows.
-    __ bind(&adapted);
-    static const uint32_t kArgumentsLimit = 1 * KB;
-    __ movq(rax, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiToInteger32(rax, rax);
-    __ movq(rcx, rax);
-    __ cmpq(rax, Immediate(kArgumentsLimit));
-    build_args.Branch(above);
-
-    // Loop through the arguments pushing them onto the execution
-    // stack. We don't inform the virtual frame of the push, so we don't
-    // have to worry about getting rid of the elements from the virtual
-    // frame.
-    Label loop;
-    __ testl(rcx, rcx);
-    __ j(zero, &invoke);
-    __ bind(&loop);
-    __ push(Operand(rdx, rcx, times_pointer_size, 1 * kPointerSize));
-    __ decl(rcx);
-    __ j(not_zero, &loop);
-
-    // Invoke the function. The virtual frame knows about the receiver
-    // so make sure to forget that explicitly.
-    __ bind(&invoke);
-    ParameterCount actual(rax);
-    __ InvokeFunction(rdi, actual, CALL_FUNCTION);
-    frame_->Forget(1);
-    Result result = allocator()->Allocate(rax);
-    frame_->SetElementAt(0, &result);
-    done.Jump();
-
-    // Slow-case: Allocate the arguments object since we know it isn't
-    // there, and fall-through to the slow-case where we call
-    // Function.prototype.apply.
-    build_args.Bind();
-    Result arguments_object = StoreArgumentsObject(false);
-    frame_->Push(&arguments_object);
-    slow.Bind();
-  }
-
-  // Flip the apply function and the function to call on the stack, so
-  // the function looks like the receiver of the apply call. This way,
-  // the generic Function.prototype.apply implementation can deal with
-  // the call like it usually does.
-  Result a2 = frame_->Pop();
-  Result a1 = frame_->Pop();
-  Result ap = frame_->Pop();
-  Result fn = frame_->Pop();
-  frame_->Push(&ap);
-  frame_->Push(&fn);
-  frame_->Push(&a1);
-  frame_->Push(&a2);
-  CallFunctionStub call_function(2, NOT_IN_LOOP, NO_CALL_FUNCTION_FLAGS);
-  Result res = frame_->CallStub(&call_function, 3);
-  frame_->Push(&res);
-
-  // All done. Restore context register after call.
-  if (try_lazy) done.Bind();
+    CallFunctionStub call_function(2, NOT_IN_LOOP, NO_CALL_FUNCTION_FLAGS);
+    Result res = frame_->CallStub(&call_function, 3);
+    // The function and its two arguments have been dropped.
+    frame_->Drop(1);  // Drop the receiver as well.
+    res.ToRegister();
+    frame_->EmitPush(res.reg());
+    // Stack now has 1 element:
+    //   rsp[0]: result
+    if (try_lazy) __ bind(&done);
+  }  // End of spilled scope.
+  // Restore the context register after a call.
   frame_->RestoreContextRegister();
 }
 
@@ -1814,27 +1834,19 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
     if (!each.is_illegal()) {
       if (each.size() > 0) {
         frame_->EmitPush(frame_->ElementAt(each.size()));
-      }
-      // If the reference was to a slot we rely on the convenient property
-      // that it doesn't matter whether a value (eg, ebx pushed above) is
-      // right on top of or right underneath a zero-sized reference.
-      each.SetValue(NOT_CONST_INIT);
-      if (each.size() > 0) {
-        // It's safe to pop the value lying on top of the reference before
-        // unloading the reference itself (which preserves the top of stack,
-        // ie, now the topmost value of the non-zero sized reference), since
-        // we will discard the top of stack after unloading the reference
-        // anyway.
-        frame_->Drop();
+        each.SetValue(NOT_CONST_INIT);
+        frame_->Drop(2);  // Drop the original and the copy of the element.
+      } else {
+        // If the reference has size zero then we can use the value below
+        // the reference as if it were above the reference, instead of pushing
+        // a new copy of it above the reference.
+        each.SetValue(NOT_CONST_INIT);
+        frame_->Drop();  // Drop the original of the element.
       }
     }
   }
   // Unloading a reference may leave the frame in an unspilled state.
   frame_->SpillAll();
-
-  // Discard the i'th entry pushed above or else the remainder of the
-  // reference, whichever is currently on top of the stack.
-  frame_->Drop();
 
   // Body.
   CheckStack();  // TODO(1222600): ignore if body contains calls.
@@ -2546,7 +2558,7 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
 void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
 
-  { Reference target(this, node->target());
+  { Reference target(this, node->target(), node->is_compound());
     if (target.is_illegal()) {
       // Fool the virtual frame into thinking that we left the assignment's
       // value on the frame.
@@ -2568,12 +2580,27 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       frame_->PushElementAt(target.size() - 1);
       Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
     }
+    if (node->ends_initialization_block()) {
+      // Add an extra copy of the receiver to the frame, so that it can be
+      // converted back to fast case after the assignment.
+      ASSERT(target.type() == Reference::NAMED ||
+             target.type() == Reference::KEYED);
+      if (target.type() == Reference::NAMED) {
+        frame_->Dup();
+        // Dup target receiver on stack.
+      } else {
+        ASSERT(target.type() == Reference::KEYED);
+        Result temp = frame_->Pop();
+        frame_->Dup();
+        frame_->Push(&temp);
+      }
+    }
     if (node->op() == Token::ASSIGN ||
         node->op() == Token::INIT_VAR ||
         node->op() == Token::INIT_CONST) {
       Load(node->value());
 
-    } else {
+    } else {  // Assignment is a compound assignment.
       Literal* literal = node->value()->AsLiteral();
       bool overwrite_value =
           (node->value()->AsBinaryOperation() != NULL &&
@@ -2599,6 +2626,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         var->mode() == Variable::CONST &&
         node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
       // Assignment ignored - leave the value on the stack.
+      UnloadReference(&target);
     } else {
       CodeForSourcePosition(node->position());
       if (node->op() == Token::INIT_CONST) {
@@ -2610,13 +2638,15 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         target.SetValue(NOT_CONST_INIT);
       }
       if (node->ends_initialization_block()) {
-        ASSERT(target.type() == Reference::NAMED ||
-               target.type() == Reference::KEYED);
+        ASSERT(target.type() == Reference::UNLOADED);
         // End of initialization block. Revert to fast case.  The
-        // argument to the runtime call is the receiver, which is the
-        // first value pushed as part of the reference, which is below
-        // the lhs value.
-        frame_->PushElementAt(target.size());
+        // argument to the runtime call is the extra copy of the receiver,
+        // which is below the value of the assignment.
+        // Swap the receiver and the value of the assignment expression.
+        Result lhs = frame_->Pop();
+        Result receiver = frame_->Pop();
+        frame_->Push(&lhs);
+        frame_->Push(&receiver);
         Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
       }
     }
@@ -2784,7 +2814,7 @@ void CodeGenerator::VisitCall(Call* node) {
           args->at(1)->AsVariableProxy()->IsArguments()) {
         // Use the optimized Function.prototype.apply that avoids
         // allocating lazily allocated arguments objects.
-        CallApplyLazy(property,
+        CallApplyLazy(property->obj(),
                       args->at(0),
                       args->at(1)->AsVariableProxy(),
                       node->position());
@@ -2816,16 +2846,24 @@ void CodeGenerator::VisitCall(Call* node) {
       // -------------------------------------------
 
       // Load the function to call from the property through a reference.
-      Reference ref(this, property);
-      ref.GetValue();
-
-      // Pass receiver to called function.
       if (property->is_synthetic()) {
+        Reference ref(this, property, false);
+        ref.GetValue();
         // Use global object as receiver.
         LoadGlobalReceiver();
       } else {
-        // The reference's size is non-negative.
-        frame_->PushElementAt(ref.size());
+        Reference ref(this, property, false);
+        ASSERT(ref.size() == 2);
+        Result key = frame_->Pop();
+        frame_->Dup();  // Duplicate the receiver.
+        frame_->Push(&key);
+        ref.GetValue();
+        // Top of frame contains function to call, with duplicate copy of
+        // receiver below it.  Swap them.
+        Result function = frame_->Pop();
+        Result receiver = frame_->Pop();
+        frame_->Push(&function);
+        frame_->Push(&receiver);
       }
 
       // Call the function.
@@ -3164,7 +3202,9 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   // value will be in the frame to be spilled.
   if (is_postfix) frame_->Push(Smi::FromInt(0));
 
-  { Reference target(this, node->expression());
+  // A constant reference is not saved to, so the reference is not a
+  // compound assignment reference.
+  { Reference target(this, node->expression(), !is_const);
     if (target.is_illegal()) {
       // Spoof the virtual frame to have the expected height (one higher
       // than on entry).
@@ -4253,14 +4293,19 @@ bool CodeGenerator::IsUnsafeSmi(Handle<Object> value) {
 //------------------------------------------------------------------------------
 // CodeGenerator implementation of variables, lookups, and stores.
 
-Reference::Reference(CodeGenerator* cgen, Expression* expression)
-    : cgen_(cgen), expression_(expression), type_(ILLEGAL) {
+Reference::Reference(CodeGenerator* cgen,
+                     Expression* expression,
+                     bool  persist_after_get)
+    : cgen_(cgen),
+      expression_(expression),
+      type_(ILLEGAL),
+      persist_after_get_(persist_after_get) {
   cgen->LoadReference(this);
 }
 
 
 Reference::~Reference() {
-  cgen_->UnloadReference(this);
+  ASSERT(is_unloaded() || is_illegal());
 }
 
 
@@ -4310,6 +4355,7 @@ void CodeGenerator::UnloadReference(Reference* ref) {
   // Pop a reference from the stack while preserving TOS.
   Comment cmnt(masm_, "[ UnloadReference");
   frame_->Nip(ref->size());
+  ref->set_unloaded();
 }
 
 
@@ -5656,6 +5702,120 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
 }
 
 
+Result CodeGenerator::EmitKeyedLoad(bool is_global) {
+  Comment cmnt(masm_, "[ Load from keyed Property");
+  // Inline array load code if inside of a loop.  We do not know
+  // the receiver map yet, so we initially generate the code with
+  // a check against an invalid map.  In the inline cache code, we
+  // patch the map check if appropriate.
+  if (loop_nesting() > 0) {
+    Comment cmnt(masm_, "[ Inlined load from keyed Property");
+
+    Result key = frame_->Pop();
+    Result receiver = frame_->Pop();
+    key.ToRegister();
+    receiver.ToRegister();
+
+    // Use a fresh temporary to load the elements without destroying
+    // the receiver which is needed for the deferred slow case.
+    Result elements = allocator()->Allocate();
+    ASSERT(elements.is_valid());
+
+    // Use a fresh temporary for the index and later the loaded
+    // value.
+    Result index = allocator()->Allocate();
+    ASSERT(index.is_valid());
+
+    DeferredReferenceGetKeyedValue* deferred =
+        new DeferredReferenceGetKeyedValue(index.reg(),
+                                           receiver.reg(),
+                                           key.reg(),
+                                           is_global);
+
+    // Check that the receiver is not a smi (only needed if this
+    // is not a load from the global context) and that it has the
+    // expected map.
+    if (!is_global) {
+      __ JumpIfSmi(receiver.reg(), deferred->entry_label());
+    }
+
+    // Initially, use an invalid map. The map is patched in the IC
+    // initialization code.
+    __ bind(deferred->patch_site());
+    // Use masm-> here instead of the double underscore macro since extra
+    // coverage code can interfere with the patching.  Do not use
+    // root array to load null_value, since it must be patched with
+    // the expected receiver map.
+    masm_->movq(kScratchRegister, Factory::null_value(),
+                RelocInfo::EMBEDDED_OBJECT);
+    masm_->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                kScratchRegister);
+    deferred->Branch(not_equal);
+
+    // Check that the key is a non-negative smi.
+    __ JumpIfNotPositiveSmi(key.reg(), deferred->entry_label());
+
+    // Get the elements array from the receiver and check that it
+    // is not a dictionary.
+    __ movq(elements.reg(),
+            FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+    __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
+           Factory::fixed_array_map());
+    deferred->Branch(not_equal);
+
+    // Shift the key to get the actual index value and check that
+    // it is within bounds.
+    __ SmiToInteger32(index.reg(), key.reg());
+    __ cmpl(index.reg(),
+            FieldOperand(elements.reg(), FixedArray::kLengthOffset));
+    deferred->Branch(above_equal);
+
+    // The index register holds the un-smi-tagged key. It has been
+    // zero-extended to 64-bits, so it can be used directly as index in the
+    // operand below.
+    // Load and check that the result is not the hole.  We could
+    // reuse the index or elements register for the value.
+    //
+    // TODO(206): Consider whether it makes sense to try some
+    // heuristic about which register to reuse.  For example, if
+    // one is rax, the we can reuse that one because the value
+    // coming from the deferred code will be in rax.
+    Result value = index;
+    __ movq(value.reg(),
+            Operand(elements.reg(),
+                    index.reg(),
+                    times_pointer_size,
+                    FixedArray::kHeaderSize - kHeapObjectTag));
+    elements.Unuse();
+    index.Unuse();
+    __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
+    deferred->Branch(equal);
+    __ IncrementCounter(&Counters::keyed_load_inline, 1);
+
+    deferred->BindExit();
+    // Restore the receiver and key to the frame and push the
+    // result on top of it.
+    frame_->Push(&receiver);
+    frame_->Push(&key);
+    return value;
+
+  } else {
+    Comment cmnt(masm_, "[ Load from keyed Property");
+    RelocInfo::Mode mode = is_global
+        ? RelocInfo::CODE_TARGET_CONTEXT
+        : RelocInfo::CODE_TARGET;
+    Result answer = frame_->CallKeyedLoadIC(mode);
+    // Make sure that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to
+    // indicate that we have generated an inline version of the
+    // keyed load.  The explicit nop instruction is here because
+    // the push that follows might be peep-hole optimized away.
+    __ nop();
+    return answer;
+  }
+}
+
+
 #undef __
 #define __ ACCESS_MASM(masm)
 
@@ -5785,118 +5945,17 @@ void Reference::GetValue() {
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
 
-      // Inline array load code if inside of a loop.  We do not know
-      // the receiver map yet, so we initially generate the code with
-      // a check against an invalid map.  In the inline cache code, we
-      // patch the map check if appropriate.
-      if (cgen_->loop_nesting() > 0) {
-        Comment cmnt(masm, "[ Inlined load from keyed Property");
-
-        Result key = cgen_->frame()->Pop();
-        Result receiver = cgen_->frame()->Pop();
-        key.ToRegister();
-        receiver.ToRegister();
-
-        // Use a fresh temporary to load the elements without destroying
-        // the receiver which is needed for the deferred slow case.
-        Result elements = cgen_->allocator()->Allocate();
-        ASSERT(elements.is_valid());
-
-        // Use a fresh temporary for the index and later the loaded
-        // value.
-        Result index = cgen_->allocator()->Allocate();
-        ASSERT(index.is_valid());
-
-        DeferredReferenceGetKeyedValue* deferred =
-            new DeferredReferenceGetKeyedValue(index.reg(),
-                                               receiver.reg(),
-                                               key.reg(),
-                                               is_global);
-
-        // Check that the receiver is not a smi (only needed if this
-        // is not a load from the global context) and that it has the
-        // expected map.
-        if (!is_global) {
-          __ JumpIfSmi(receiver.reg(), deferred->entry_label());
-        }
-
-        // Initially, use an invalid map. The map is patched in the IC
-        // initialization code.
-        __ bind(deferred->patch_site());
-        // Use masm-> here instead of the double underscore macro since extra
-        // coverage code can interfere with the patching.
-        masm->movq(kScratchRegister, Factory::null_value(),
-                   RelocInfo::EMBEDDED_OBJECT);
-        masm->cmpq(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-                   kScratchRegister);
-        deferred->Branch(not_equal);
-
-        // Check that the key is a non-negative smi.
-        __ JumpIfNotPositiveSmi(key.reg(), deferred->entry_label());
-
-        // Get the elements array from the receiver and check that it
-        // is not a dictionary.
-        __ movq(elements.reg(),
-                FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-        __ Cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
-               Factory::fixed_array_map());
-        deferred->Branch(not_equal);
-
-        // Shift the key to get the actual index value and check that
-        // it is within bounds.
-        __ SmiToInteger32(index.reg(), key.reg());
-        __ cmpl(index.reg(),
-                FieldOperand(elements.reg(), FixedArray::kLengthOffset));
-        deferred->Branch(above_equal);
-
-        // The index register holds the un-smi-tagged key. It has been
-        // zero-extended to 64-bits, so it can be used directly as index in the
-        // operand below.
-        // Load and check that the result is not the hole.  We could
-        // reuse the index or elements register for the value.
-        //
-        // TODO(206): Consider whether it makes sense to try some
-        // heuristic about which register to reuse.  For example, if
-        // one is rax, the we can reuse that one because the value
-        // coming from the deferred code will be in rax.
-        Result value = index;
-        __ movq(value.reg(),
-                Operand(elements.reg(),
-                        index.reg(),
-                        times_pointer_size,
-                        FixedArray::kHeaderSize - kHeapObjectTag));
-        elements.Unuse();
-        index.Unuse();
-        __ CompareRoot(value.reg(), Heap::kTheHoleValueRootIndex);
-        deferred->Branch(equal);
-        __ IncrementCounter(&Counters::keyed_load_inline, 1);
-
-        deferred->BindExit();
-        // Restore the receiver and key to the frame and push the
-        // result on top of it.
-        cgen_->frame()->Push(&receiver);
-        cgen_->frame()->Push(&key);
-        cgen_->frame()->Push(&value);
-
-      } else {
-        Comment cmnt(masm, "[ Load from keyed Property");
-        RelocInfo::Mode mode = is_global
-                               ? RelocInfo::CODE_TARGET_CONTEXT
-                               : RelocInfo::CODE_TARGET;
-        Result answer = cgen_->frame()->CallKeyedLoadIC(mode);
-        // Make sure that we do not have a test instruction after the
-        // call.  A test instruction after the call is used to
-        // indicate that we have generated an inline version of the
-        // keyed load.  The explicit nop instruction is here because
-        // the push that follows might be peep-hole optimized away.
-        __ nop();
-        cgen_->frame()->Push(&answer);
-      }
+      Result value = cgen_->EmitKeyedLoad(is_global);
+      cgen_->frame()->Push(&value);
       break;
     }
 
     default:
       UNREACHABLE();
+  }
+
+  if (!persist_after_get_) {
+    cgen_->UnloadReference(this);
   }
 }
 
@@ -5934,6 +5993,9 @@ void Reference::TakeValue() {
     ASSERT(slot->type() == Slot::LOCAL);
     cgen_->frame()->TakeLocalAt(slot->index());
   }
+
+  ASSERT(persist_after_get_);
+  // Do not unload the reference, because it is used in SetValue.
 }
 
 
@@ -6062,6 +6124,7 @@ void Reference::SetValue(InitState init_state) {
     default:
       UNREACHABLE();
   }
+  cgen_->UnloadReference(this);
 }
 
 
