@@ -1329,7 +1329,6 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ mov(ecx, Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
@@ -1382,7 +1381,6 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ mov(ecx, Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
