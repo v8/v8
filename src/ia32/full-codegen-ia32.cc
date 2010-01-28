@@ -1512,6 +1512,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       __ and_(result_register(), ~kSmiTagMask);  // Remove inverted smi-tag.
       __ bind(&done);
       Apply(context_, result_register());
+      break;
     }
 
     default:

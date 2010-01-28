@@ -1518,6 +1518,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       __ SmiNot(result_register(), result_register());
       __ bind(&done);
       Apply(context_, result_register());
+      break;
     }
 
     default:

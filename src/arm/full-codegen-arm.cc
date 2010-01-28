@@ -1409,6 +1409,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       __ bic(result_register(), result_register(), Operand(kSmiTagMask));
       __ bind(&done);
       Apply(context_, result_register());
+      break;
     }
 
     default:
