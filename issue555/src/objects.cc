@@ -8320,8 +8320,15 @@ void CaptureInfoForIssue555(
     Object* function,
     bool runs_in_inner_context,
     bool runs_in_outer_context) {
-  // Kill the virtual machine.
+  // Try to avoid calling out to another function for breaking here to
+  // avoid tail call elimination when using the Microsoft Visual
+  // Studio compiler which removes the parameters from the stack
+  // trace.
+#if defined(_MSC_VER)
+  __ asm int3;
+#else
   OS::Abort();
+#endif
 }
 
 } }  // namespace v8::internal
