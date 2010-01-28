@@ -170,7 +170,6 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
@@ -204,7 +203,6 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
   Label miss;
 
   // Load receiver.
@@ -318,7 +316,6 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
-
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack into r1.
@@ -451,7 +448,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
   Label miss, probe, global;
 
   __ ldr(r0, MemOperand(sp, 0));
@@ -543,6 +539,8 @@ void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   //  -- lr     : return address
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
+  // -----------------------------------
+
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r2.bit() | r3.bit());
 
@@ -555,6 +553,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- lr     : return address
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
+  // -----------------------------------
   Label slow, fast;
 
   // Get the key and receiver object from the stack.
@@ -622,6 +621,8 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- lr     : return address
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
+  // -----------------------------------
+
   GenerateGeneric(masm);
 }
 
@@ -640,6 +641,7 @@ void KeyedStoreIC::Generate(MacroAssembler* masm,
   //  -- lr     : return address
   //  -- sp[0]  : key
   //  -- sp[1]  : receiver
+  // -----------------------------------
 
   __ ldm(ia, sp, r2.bit() | r3.bit());
   __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
@@ -654,7 +656,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- lr     : return address
   //  -- sp[0]  : key
   //  -- sp[1]  : receiver
+  // -----------------------------------
   Label slow, fast, array, extra, exit;
+
   // Get the key and the object from the stack.
   __ ldm(ia, sp, r1.bit() | r3.bit());  // r1 = key, r3 = receiver
   // Check that the key is a smi.

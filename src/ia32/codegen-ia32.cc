@@ -6704,6 +6704,7 @@ void Reference::SetValue(InitState init_state) {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
+      cgen_->UnloadReference(this);
       break;
     }
 
@@ -6712,6 +6713,7 @@ void Reference::SetValue(InitState init_state) {
       cgen_->frame()->Push(GetName());
       Result answer = cgen_->frame()->CallStoreIC();
       cgen_->frame()->Push(&answer);
+      cgen_->UnloadReference(this);
       break;
     }
 
@@ -6814,13 +6816,13 @@ void Reference::SetValue(InitState init_state) {
         __ nop();
         cgen_->frame()->Push(&answer);
       }
+      cgen_->UnloadReference(this);
       break;
     }
 
     default:
       UNREACHABLE();
   }
-  cgen_->UnloadReference(this);
 }
 
 

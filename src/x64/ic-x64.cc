@@ -414,6 +414,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   //  -- rsp[8] : name
   //  -- rsp[16] : receiver
   // -----------------------------------
+
   GenerateGeneric(masm);
 }
 
@@ -1080,7 +1081,6 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // rsp[(argc + 1) * 8] argument 0 = receiver
   // rsp[(argc + 2) * 8] function name
   // -----------------------------------
-
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack.
@@ -1178,7 +1178,6 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1195,7 +1194,6 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1243,7 +1241,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss, probe, global;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1291,7 +1288,6 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ movq(rax, Operand(rsp, kPointerSize));
@@ -1337,6 +1333,7 @@ void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : receiver
   // -----------------------------------
+
   __ pop(rbx);
   __ push(Operand(rsp, 0));  // receiver
   __ push(rcx);  // name

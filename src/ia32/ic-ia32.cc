@@ -180,7 +180,6 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -197,7 +196,6 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -214,7 +212,6 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -1039,7 +1036,6 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   //  -- ...
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
-
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
@@ -1178,7 +1174,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
   Label miss, probe, global;
 
   __ mov(eax, Operand(esp, kPointerSize));
@@ -1428,7 +1423,6 @@ void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   //  -- esp[4] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(ebx);
   __ push(Operand(esp, 0));
   __ push(ecx);
@@ -1451,7 +1445,6 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   //  -- esp[8] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(ecx);
   __ push(Operand(esp, 1 * kPointerSize));
   __ push(Operand(esp, 1 * kPointerSize));
@@ -1472,7 +1465,6 @@ void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   //  -- esp[8] : receiver
   // -----------------------------------
 
-  // Move the return address below the arguments.
   __ pop(ebx);
   __ push(Operand(esp, 1 * kPointerSize));
   __ push(ecx);

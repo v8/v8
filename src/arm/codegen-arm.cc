@@ -4377,6 +4377,7 @@ void Reference::SetValue(InitState init_state) {
       Comment cmnt(masm, "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       cgen_->StoreToSlot(slot, init_state);
+      cgen_->UnloadReference(this);
       break;
     }
 
@@ -4398,6 +4399,7 @@ void Reference::SetValue(InitState init_state) {
                             &property_name,
                             0);
       frame->EmitPush(r0);
+      cgen_->UnloadReference(this);
       break;
     }
 
@@ -4414,13 +4416,13 @@ void Reference::SetValue(InitState init_state) {
       frame->EmitPop(r0);  // value
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, 0);
       frame->EmitPush(r0);
+      cgen_->UnloadReference(this);
       break;
     }
 
     default:
       UNREACHABLE();
   }
-  cgen_->UnloadReference(this);
 }
 
 
