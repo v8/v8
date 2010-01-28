@@ -8325,7 +8325,7 @@ void CaptureInfoForIssue555(
   // Studio compiler which removes the parameters from the stack
   // trace.
 #if defined(_MSC_VER)
-  __ asm int3;
+  __asm int 3;
 #else
   OS::Abort();
 #endif
