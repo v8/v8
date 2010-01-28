@@ -1476,6 +1476,44 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       break;
     }
 
+    case Token::SUB: {
+      Comment cmt(masm_, "[ UnaryOperation (SUB)");
+      bool overwrite =
+          (expr->expression()->AsBinaryOperation() != NULL &&
+           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      GenericUnaryOpStub stub(Token::SUB, overwrite);
+      // GenericUnaryOpStub expects the argument to be in the
+      // accumulator register eax.
+      VisitForValue(expr->expression(), kAccumulator);
+      __ CallStub(&stub);
+      Apply(context_, eax);
+      break;
+    }
+
+    case Token::BIT_NOT: {
+      Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
+      bool overwrite =
+          (expr->expression()->AsBinaryOperation() != NULL &&
+           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+      // GenericUnaryOpStub expects the argument to be in the
+      // accumulator register eax.
+      VisitForValue(expr->expression(), kAccumulator);
+      // Avoid calling the stub for Smis.
+      Label smi, done;
+      __ test(result_register(), Immediate(kSmiTagMask));
+      __ j(zero, &smi);
+      // Non-smi: call stub leaving result in accumulator register.
+      __ CallStub(&stub);
+      __ jmp(&done);
+      // Perform operation directly on Smis.
+      __ bind(&smi);
+      __ not_(result_register());
+      __ and_(result_register(), ~kSmiTagMask);  // Remove inverted smi-tag.
+      __ bind(&done);
+      Apply(context_, result_register());
+    }
+
     default:
       UNREACHABLE();
   }

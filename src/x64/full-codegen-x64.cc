@@ -1474,14 +1474,50 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Comment cmt(masm_, "[ UnaryOperation (ADD)");
       VisitForValue(expr->expression(), kAccumulator);
       Label no_conversion;
-      Condition is_smi;
-      is_smi = masm_->CheckSmi(result_register());
+      Condition is_smi = masm_->CheckSmi(result_register());
       __ j(is_smi, &no_conversion);
       __ push(result_register());
       __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
       __ bind(&no_conversion);
       Apply(context_, result_register());
       break;
+    }
+
+    case Token::SUB: {
+      Comment cmt(masm_, "[ UnaryOperation (SUB)");
+      bool overwrite =
+          (expr->expression()->AsBinaryOperation() != NULL &&
+           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      GenericUnaryOpStub stub(Token::SUB, overwrite);
+      // GenericUnaryOpStub expects the argument to be in the
+      // accumulator register rax.
+      VisitForValue(expr->expression(), kAccumulator);
+      __ CallStub(&stub);
+      Apply(context_, rax);
+      break;
+    }
+
+    case Token::BIT_NOT: {
+      Comment cmt(masm_, "[ UnaryOperation (BIT_NOT)");
+      bool overwrite =
+          (expr->expression()->AsBinaryOperation() != NULL &&
+           expr->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
+      GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+      // GenericUnaryOpStub expects the argument to be in the
+      // accumulator register rax.
+      VisitForValue(expr->expression(), kAccumulator);
+      // Avoid calling the stub for Smis.
+      Label smi, done;
+      Condition is_smi = masm_->CheckSmi(result_register());
+      __ j(is_smi, &smi);
+      // Non-smi: call stub leaving result in accumulator register.
+      __ CallStub(&stub);
+      __ jmp(&done);
+      // Perform operation directly on Smis.
+      __ bind(&smi);
+      __ SmiNot(result_register(), result_register());
+      __ bind(&done);
+      Apply(context_, result_register());
     }
 
     default:

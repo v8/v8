@@ -387,17 +387,15 @@ void FullCodeGenSyntaxChecker::VisitCallRuntime(CallRuntime* expr) {
 void FullCodeGenSyntaxChecker::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::ADD:
+    case Token::BIT_NOT:
     case Token::NOT:
+    case Token::SUB:
     case Token::TYPEOF:
     case Token::VOID:
       Visit(expr->expression());
       break;
-    case Token::BIT_NOT:
-      BAILOUT("UnaryOperation: BIT_NOT");
     case Token::DELETE:
       BAILOUT("UnaryOperation: DELETE");
-    case Token::SUB:
-      BAILOUT("UnaryOperation: SUB");
     default:
       UNREACHABLE();
   }
