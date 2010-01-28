@@ -3723,6 +3723,9 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     frame_->EmitPush(r0);  // r0 has result
 
   } else {
+    bool overwrite =
+        (node->expression()->AsBinaryOperation() != NULL &&
+         node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
     LoadAndSpill(node->expression());
     frame_->EmitPop(r0);
     switch (op) {
@@ -3733,9 +3736,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
-        bool overwrite =
-            (node->expression()->AsBinaryOperation() != NULL &&
-             node->expression()->AsBinaryOperation()->ResultOverwriteAllowed());
         GenericUnaryOpStub stub(Token::SUB, overwrite);
         frame_->CallStub(&stub, 0);
         break;
@@ -3748,10 +3748,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ tst(r0, Operand(kSmiTagMask));
         smi_label.Branch(eq);
 
-        frame_->EmitPush(r0);
-        frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_JS, 1);
-
+        GenericUnaryOpStub stub(Token::BIT_NOT, overwrite);
+        frame_->CallStub(&stub, 0);
         continue_label.Jump();
+
         smi_label.Bind();
         __ mvn(r0, Operand(r0));
         __ bic(r0, r0, Operand(kSmiTagMask));  // bit-clear inverted smi-tag
@@ -6102,52 +6102,96 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 
 void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
-  ASSERT(op_ == Token::SUB);
+  Label slow, done;
 
-  Label undo;
-  Label slow;
-  Label not_smi;
+  if (op_ == Token::SUB) {
+    // Check whether the value is a smi.
+    Label try_float;
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(ne, &try_float);
 
-  // Enter runtime system if the value is not a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(ne, &not_smi);
+    // Go slow case if the value of the expression is zero
+    // to make sure that we switch between 0 and -0.
+    __ cmp(r0, Operand(0));
+    __ b(eq, &slow);
 
-  // Enter runtime system if the value of the expression is zero
-  // to make sure that we switch between 0 and -0.
-  __ cmp(r0, Operand(0));
-  __ b(eq, &slow);
+    // The value of the expression is a smi that is not zero.  Try
+    // optimistic subtraction '0 - value'.
+    __ rsb(r1, r0, Operand(0), SetCC);
+    __ b(vs, &slow);
 
-  // The value of the expression is a smi that is not zero.  Try
-  // optimistic subtraction '0 - value'.
-  __ rsb(r1, r0, Operand(0), SetCC);
-  __ b(vs, &slow);
+    __ mov(r0, Operand(r1));  // Set r0 to result.
+    __ b(&done);
 
-  __ mov(r0, Operand(r1));  // Set r0 to result.
+    __ bind(&try_float);
+    __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
+    __ b(ne, &slow);
+    // r0 is a heap number.  Get a new heap number in r1.
+    if (overwrite_) {
+      __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
+      __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+    } else {
+      AllocateHeapNumber(masm, &slow, r1, r2, r3);
+      __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
+      __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
+      __ str(r3, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
+      __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
+      __ str(r2, FieldMemOperand(r1, HeapNumber::kExponentOffset));
+      __ mov(r0, Operand(r1));
+    }
+  } else if (op_ == Token::BIT_NOT) {
+    // Check if the operand is a heap number.
+    __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
+    __ b(ne, &slow);
+
+    // Convert the heap number is r0 to an untagged integer in r1.
+    GetInt32(masm, r0, r1, r2, r3, &slow);
+
+    // Do the bitwise operation (move negated) and check if the result
+    // fits in a smi.
+    Label try_float;
+    __ mvn(r1, Operand(r1));
+    __ add(r2, r1, Operand(0x40000000), SetCC);
+    __ b(mi, &try_float);
+    __ mov(r0, Operand(r1, LSL, kSmiTagSize));
+    __ b(&done);
+
+    __ bind(&try_float);
+    if (!overwrite_) {
+      // Allocate a fresh heap number, but don't overwrite r0 until
+      // we're sure we can do it without going through the slow case
+      // that needs the value in r0.
+      AllocateHeapNumber(masm, &slow, r2, r3, r4);
+      __ mov(r0, Operand(r2));
+    }
+
+    // WriteInt32ToHeapNumberStub does not trigger GC, so we do not
+    // have to set up a frame.
+    WriteInt32ToHeapNumberStub stub(r1, r0, r2);
+    __ push(lr);
+    __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+    __ pop(lr);
+  } else {
+    UNIMPLEMENTED();
+  }
+
+  __ bind(&done);
   __ StubReturn(1);
 
-  // Enter runtime system.
+  // Handle the slow case by jumping to the JavaScript builtin.
   __ bind(&slow);
   __ push(r0);
-  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
-
-  __ bind(&not_smi);
-  __ CompareObjectType(r0, r1, r1, HEAP_NUMBER_TYPE);
-  __ b(ne, &slow);
-  // r0 is a heap number.  Get a new heap number in r1.
-  if (overwrite_) {
-    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
-    __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
-    __ str(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
-  } else {
-    AllocateHeapNumber(masm, &slow, r1, r2, r3);
-    __ ldr(r3, FieldMemOperand(r0, HeapNumber::kMantissaOffset));
-    __ ldr(r2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
-    __ str(r3, FieldMemOperand(r1, HeapNumber::kMantissaOffset));
-    __ eor(r2, r2, Operand(HeapNumber::kSignMask));  // Flip sign.
-    __ str(r2, FieldMemOperand(r1, HeapNumber::kExponentOffset));
-    __ mov(r0, Operand(r1));
+  switch (op_) {
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
+      break;
+    case Token::BIT_NOT:
+      __ InvokeBuiltin(Builtins::BIT_NOT, JUMP_JS);
+      break;
+    default:
+      UNREACHABLE();
   }
-  __ StubReturn(1);
 }
 
 
