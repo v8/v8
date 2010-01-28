@@ -1625,12 +1625,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
   }
   // Call stub for +1/-1.
-  __ push(rax);
-  __ Push(Smi::FromInt(1));
   GenericBinaryOpStub stub(expr->binary_op(),
                            NO_OVERWRITE,
                            NO_GENERIC_BINARY_FLAGS);
-  __ CallStub(&stub);
+  stub.GenerateCall(masm_, rax, Smi::FromInt(1));
   __ bind(&done);
 
   // Store the value returned in rax.
