@@ -960,7 +960,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
 
-  // Call function using the either the runtime object or the global
+  // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver =
       Handle<Object>(use_runtime_context
