@@ -1669,7 +1669,8 @@ class FixedArray: public Array {
   void SortPairs(FixedArray* numbers, uint32_t len);
 
  protected:
-  // Set operation on FixedArray without using write barriers.
+  // Set operation on FixedArray without using write barriers. Can
+  // only be used for storing old space objects or smis.
   static inline void fast_set(FixedArray* array, int index, Object* value);
 
  private:

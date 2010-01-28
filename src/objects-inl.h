@@ -1367,6 +1367,7 @@ void FixedArray::set(int index,
 
 void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
   ASSERT(index >= 0 && index < array->length());
+  ASSERT(!Heap::InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
 }
 

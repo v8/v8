@@ -438,12 +438,15 @@ class MemoryAllocator : public AllStatic {
   // and false otherwise.
   static bool CommitBlock(Address start, size_t size, Executability executable);
 
-
   // Uncommit a contiguous block of memory [start..(start+size)[.
   // start is not NULL, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   static bool UncommitBlock(Address start, size_t size);
+
+  // Zaps a contiguous block of memory [start..(start+size)[ thus
+  // filling it up with a recognizable non-NULL bit pattern.
+  static void ZapBlock(Address start, size_t size);
 
   // Attempts to allocate the requested (non-zero) number of pages from the
   // OS.  Fewer pages might be allocated than requested. If it fails to
