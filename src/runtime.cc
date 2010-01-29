@@ -107,25 +107,23 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
   // Deep copy local properties.
   if (copy->HasFastProperties()) {
     FixedArray* properties = copy->properties();
-    WriteBarrierMode mode = properties->GetWriteBarrierMode();
     for (int i = 0; i < properties->length(); i++) {
       Object* value = properties->get(i);
       if (value->IsJSObject()) {
-        JSObject* jsObject = JSObject::cast(value);
-        result = DeepCopyBoilerplate(jsObject);
+        JSObject* js_object = JSObject::cast(value);
+        result = DeepCopyBoilerplate(js_object);
         if (result->IsFailure()) return result;
-        properties->set(i, result, mode);
+        properties->set(i, result);
       }
     }
-    mode = copy->GetWriteBarrierMode();
     int nof = copy->map()->inobject_properties();
     for (int i = 0; i < nof; i++) {
       Object* value = copy->InObjectPropertyAt(i);
       if (value->IsJSObject()) {
-        JSObject* jsObject = JSObject::cast(value);
-        result = DeepCopyBoilerplate(jsObject);
+        JSObject* js_object = JSObject::cast(value);
+        result = DeepCopyBoilerplate(js_object);
         if (result->IsFailure()) return result;
-        copy->InObjectPropertyAtPut(i, result, mode);
+        copy->InObjectPropertyAtPut(i, result);
       }
     }
   } else {
@@ -135,20 +133,20 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
     copy->GetLocalPropertyNames(names, 0);
     for (int i = 0; i < names->length(); i++) {
       ASSERT(names->get(i)->IsString());
-      String* keyString = String::cast(names->get(i));
+      String* key_string = String::cast(names->get(i));
       PropertyAttributes attributes =
-        copy->GetLocalPropertyAttribute(keyString);
+          copy->GetLocalPropertyAttribute(key_string);
       // Only deep copy fields from the object literal expression.
       // In particular, don't try to copy the length attribute of
       // an array.
       if (attributes != NONE) continue;
-      Object* value = copy->GetProperty(keyString, &attributes);
+      Object* value = copy->GetProperty(key_string, &attributes);
       ASSERT(!value->IsFailure());
       if (value->IsJSObject()) {
-        JSObject* jsObject = JSObject::cast(value);
-        result = DeepCopyBoilerplate(jsObject);
+        JSObject* js_object = JSObject::cast(value);
+        result = DeepCopyBoilerplate(js_object);
         if (result->IsFailure()) return result;
-        result = copy->SetProperty(keyString, result, NONE);
+        result = copy->SetProperty(key_string, result, NONE);
         if (result->IsFailure()) return result;
       }
     }
@@ -160,14 +158,13 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
   switch (copy->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
-      WriteBarrierMode mode = elements->GetWriteBarrierMode();
       for (int i = 0; i < elements->length(); i++) {
         Object* value = elements->get(i);
         if (value->IsJSObject()) {
-          JSObject* jsObject = JSObject::cast(value);
-          result = DeepCopyBoilerplate(jsObject);
+          JSObject* js_object = JSObject::cast(value);
+          result = DeepCopyBoilerplate(js_object);
           if (result->IsFailure()) return result;
-          elements->set(i, result, mode);
+          elements->set(i, result);
         }
       }
       break;
@@ -180,8 +177,8 @@ static Object* DeepCopyBoilerplate(JSObject* boilerplate) {
         if (element_dictionary->IsKey(k)) {
           Object* value = element_dictionary->ValueAt(i);
           if (value->IsJSObject()) {
-            JSObject* jsObject = JSObject::cast(value);
-            result = DeepCopyBoilerplate(jsObject);
+            JSObject* js_object = JSObject::cast(value);
+            result = DeepCopyBoilerplate(js_object);
             if (result->IsFailure()) return result;
             element_dictionary->ValueAtPut(i, result);
           }
@@ -1439,6 +1436,8 @@ static Object* Runtime_SetCode(Arguments args) {
       literals->set(JSFunction::kLiteralGlobalContextIndex,
                     context->global_context());
     }
+    // It's okay to skip the write barrier here because the literals
+    // are guaranteed to be in old space.
     target->set_literals(*literals, SKIP_WRITE_BARRIER);
   }
 
@@ -4717,7 +4716,9 @@ static Object* Runtime_NewArguments(Arguments args) {
     if (obj->IsFailure()) return obj;
     FixedArray* array = FixedArray::cast(obj);
     ASSERT(array->length() == length);
-    WriteBarrierMode mode = array->GetWriteBarrierMode();
+
+    AssertNoAllocation no_gc;
+    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
       array->set(i, frame->GetParameter(i), mode);
     }
@@ -4742,10 +4743,13 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
     // Allocate the fixed array.
     Object* obj = Heap::AllocateRawFixedArray(length);
     if (obj->IsFailure()) return obj;
+
+    AssertNoAllocation no_gc;
     reinterpret_cast<Array*>(obj)->set_map(Heap::fixed_array_map());
     FixedArray* array = FixedArray::cast(obj);
     array->set_length(length);
-    WriteBarrierMode mode = array->GetWriteBarrierMode();
+
+    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
       array->set(i, *--parameters, mode);
     }
@@ -6030,7 +6034,7 @@ static Object* Runtime_MoveArrayContents(Arguments args) {
   to->SetContent(FixedArray::cast(from->elements()));
   to->set_length(from->length());
   from->SetContent(Heap::empty_fixed_array());
-  from->set_length(0);
+  from->set_length(Smi::FromInt(0));
   return to;
 }
 
@@ -6073,9 +6077,7 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
   } else {
     Handle<FixedArray> single_interval = Factory::NewFixedArray(2);
     // -1 means start of array.
-    single_interval->set(0,
-                         Smi::FromInt(-1),
-                         SKIP_WRITE_BARRIER);
+    single_interval->set(0, Smi::FromInt(-1));
     uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
     uint32_t min_length = actual_length < length ? actual_length : length;
     Handle<Object> length_object =
@@ -7448,7 +7450,9 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
   const int length = frame->GetProvidedParametersCount();
   Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
   Handle<FixedArray> array = Factory::NewFixedArray(length);
-  WriteBarrierMode mode = array->GetWriteBarrierMode();
+
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < length; i++) {
     array->set(i, frame->GetParameter(i), mode);
   }
@@ -8032,7 +8036,7 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
       if (cursor + 2 < elements->length()) {
         elements->set(cursor++, recv);
         elements->set(cursor++, fun);
-        elements->set(cursor++, offset, SKIP_WRITE_BARRIER);
+        elements->set(cursor++, offset);
       } else {
         HandleScope scope;
         Handle<Object> recv_handle(recv);
@@ -8045,8 +8049,7 @@ static Object* Runtime_CollectStackTrace(Arguments args) {
     iter.Advance();
   }
 
-  result->set_length(Smi::FromInt(cursor), SKIP_WRITE_BARRIER);
-
+  result->set_length(Smi::FromInt(cursor));
   return *result;
 }
 

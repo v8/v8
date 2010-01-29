@@ -204,6 +204,7 @@ class AccessorInfo;
 class Allocation;
 class Arguments;
 class Assembler;
+class AssertNoAllocation;
 class BreakableStatement;
 class Code;
 class CodeGenerator;

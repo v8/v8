@@ -1729,7 +1729,7 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number)) & mask;
-    number_string_cache()->set(hash * 2, number, SKIP_WRITE_BARRIER);
+    number_string_cache()->set(hash * 2, Smi::cast(number));
   } else {
     hash = double_get_hash(number->Number()) & mask;
     number_string_cache()->set(hash * 2, number);
@@ -1986,8 +1986,10 @@ Object* Heap::AllocateConsString(String* first, String* second) {
 
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
+
+  AssertNoAllocation no_gc;
   ConsString* cons_string = ConsString::cast(result);
-  WriteBarrierMode mode = cons_string->GetWriteBarrierMode();
+  WriteBarrierMode mode = cons_string->GetWriteBarrierMode(no_gc);
   cons_string->set_length(length);
   cons_string->set_hash_field(String::kEmptyHashField);
   cons_string->set_first(first, mode);
@@ -2285,7 +2287,7 @@ Object* Heap::InitializeFunction(JSFunction* function,
   function->set_shared(shared);
   function->set_prototype_or_initial_map(prototype);
   function->set_context(undefined_value());
-  function->set_literals(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  function->set_literals(empty_fixed_array());
   return function;
 }
 
@@ -2886,8 +2888,10 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
   HeapObject::cast(obj)->set_map(src->map());
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
+
   // Copy the content
-  WriteBarrierMode mode = result->GetWriteBarrierMode();
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
 }
@@ -2905,6 +2909,7 @@ Object* Heap::AllocateFixedArray(int length) {
     Object* value = undefined_value();
     // Initialize body.
     for (int index = 0; index < length; index++) {
+      ASSERT(!Heap::InNewSpace(value));  // value = undefined
       array->set(index, value, SKIP_WRITE_BARRIER);
     }
   }
@@ -2960,6 +2965,7 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   array->set_length(length);
   Object* value = undefined_value();
   for (int index = 0; index < length; index++) {
+    ASSERT(!Heap::InNewSpace(value));  // value = undefined
     array->set(index, value, SKIP_WRITE_BARRIER);
   }
   return array;
@@ -2977,6 +2983,7 @@ Object* Heap::AllocateFixedArrayWithHoles(int length) {
     // Initialize body.
     Object* value = the_hole_value();
     for (int index = 0; index < length; index++)  {
+      ASSERT(!Heap::InNewSpace(value));  // value = the hole
       array->set(index, value, SKIP_WRITE_BARRIER);
     }
   }

@@ -3200,8 +3200,9 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   Object* obj = Heap::AllocateFixedArray(len0 + extra);
   if (obj->IsFailure()) return obj;
   // Fill in the content
+  AssertNoAllocation no_gc;
   FixedArray* result = FixedArray::cast(obj);
-  WriteBarrierMode mode = result->GetWriteBarrierMode();
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len0; i++) {
     result->set(i, get(i), mode);
   }
@@ -3225,10 +3226,11 @@ Object* FixedArray::CopySize(int new_length) {
   if (obj->IsFailure()) return obj;
   FixedArray* result = FixedArray::cast(obj);
   // Copy the content
+  AssertNoAllocation no_gc;
   int len = length();
   if (new_length < len) len = new_length;
   result->set_map(map());
-  WriteBarrierMode mode = result->GetWriteBarrierMode();
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) {
     result->set(i, get(i), mode);
   }
@@ -3237,7 +3239,8 @@ Object* FixedArray::CopySize(int new_length) {
 
 
 void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos, int len) {
-  WriteBarrierMode mode = dest->GetWriteBarrierMode();
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = dest->GetWriteBarrierMode(no_gc);
   for (int index = 0; index < len; index++) {
     dest->set(dest_pos+index, get(pos+index), mode);
   }
@@ -3271,8 +3274,7 @@ Object* DescriptorArray::Allocate(int number_of_descriptors) {
   if (array->IsFailure()) return array;
   result->set(kContentArrayIndex, array);
   result->set(kEnumerationIndexIndex,
-              Smi::FromInt(PropertyDetails::kInitialIndex),
-              SKIP_WRITE_BARRIER);
+              Smi::FromInt(PropertyDetails::kInitialIndex));
   return result;
 }
 
@@ -4700,8 +4702,8 @@ void Map::ClearNonLiveTransitions(Object* real_prototype) {
       ASSERT(target->IsHeapObject());
       if (!target->IsMarked()) {
         ASSERT(target->IsMap());
-        contents->set(i + 1, NullDescriptorDetails, SKIP_WRITE_BARRIER);
-        contents->set(i, Heap::null_value(), SKIP_WRITE_BARRIER);
+        contents->set(i + 1, NullDescriptorDetails);
+        contents->set_null(i);
         ASSERT(target->prototype() == this ||
                target->prototype() == real_prototype);
         // Getter prototype() is read-only, set_prototype() has side effects.
@@ -5161,7 +5163,8 @@ void JSObject::SetFastElements(FixedArray* elems) {
   uint32_t len = static_cast<uint32_t>(elems->length());
   for (uint32_t i = 0; i < len; i++) ASSERT(elems->get(i)->IsTheHole());
 #endif
-  WriteBarrierMode mode = elems->GetWriteBarrierMode();
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = elems->GetWriteBarrierMode(no_gc);
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
       FixedArray* old_elements = FixedArray::cast(elements());
@@ -5228,7 +5231,7 @@ Object* JSObject::SetSlowElements(Object* len) {
 
 Object* JSArray::Initialize(int capacity) {
   ASSERT(capacity >= 0);
-  set_length(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+  set_length(Smi::FromInt(0));
   FixedArray* new_elements;
   if (capacity == 0) {
     new_elements = Heap::empty_fixed_array();
@@ -5288,7 +5291,7 @@ Object* JSObject::SetElementsLength(Object* len) {
             for (int i = value; i < old_length; i++) {
               FixedArray::cast(elements())->set_the_hole(i);
             }
-            JSArray::cast(this)->set_length(smi_length, SKIP_WRITE_BARRIER);
+            JSArray::cast(this)->set_length(Smi::cast(smi_length));
           }
           return this;
         }
@@ -5298,8 +5301,9 @@ Object* JSObject::SetElementsLength(Object* len) {
             !ShouldConvertToSlowElements(new_capacity)) {
           Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
           if (obj->IsFailure()) return obj;
-          if (IsJSArray()) JSArray::cast(this)->set_length(smi_length,
-                                                           SKIP_WRITE_BARRIER);
+          if (IsJSArray()) {
+            JSArray::cast(this)->set_length(Smi::cast(smi_length));
+          }
           SetFastElements(FixedArray::cast(obj));
           return this;
         }
@@ -5318,7 +5322,7 @@ Object* JSObject::SetElementsLength(Object* len) {
             static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
             element_dictionary()->RemoveNumberEntries(value, old_length);
           }
-          JSArray::cast(this)->set_length(smi_length, SKIP_WRITE_BARRIER);
+          JSArray::cast(this)->set_length(Smi::cast(smi_length));
         }
         return this;
       }
@@ -5343,8 +5347,7 @@ Object* JSObject::SetElementsLength(Object* len) {
   Object* obj = Heap::AllocateFixedArray(1);
   if (obj->IsFailure()) return obj;
   FixedArray::cast(obj)->set(0, len);
-  if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(1),
-                                                   SKIP_WRITE_BARRIER);
+  if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(1));
   set_elements(FixedArray::cast(obj));
   return this;
 }
@@ -5614,8 +5617,7 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
       CHECK(Array::IndexFromObject(JSArray::cast(this)->length(),
                                    &array_length));
       if (index >= array_length) {
-        JSArray::cast(this)->set_length(Smi::FromInt(index + 1),
-                                        SKIP_WRITE_BARRIER);
+        JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
       }
     }
     return value;
@@ -5631,8 +5633,9 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
       Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
       if (obj->IsFailure()) return obj;
       SetFastElements(FixedArray::cast(obj));
-      if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(index + 1),
-                                                       SKIP_WRITE_BARRIER);
+      if (IsJSArray()) {
+        JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
+      }
       FixedArray::cast(elements())->set(index, value);
       return value;
     }
@@ -6129,7 +6132,8 @@ template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
   int capacity = HashTable<Shape, Key>::Capacity();
-  WriteBarrierMode mode = elements->GetWriteBarrierMode();
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
     Object* k =  Dictionary<Shape, Key>::KeyAt(i);
     if (Dictionary<Shape, Key>::IsKey(k)) {
@@ -6500,7 +6504,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       for (int i = 0; i < length; i++) {
         if (!FixedArray::cast(elements())->get(i)->IsTheHole()) {
           if (storage != NULL) {
-            storage->set(counter, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+            storage->set(counter, Smi::FromInt(i));
           }
           counter++;
         }
@@ -6512,7 +6516,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       int length = PixelArray::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
-          storage->set(counter, Smi::FromInt(counter), SKIP_WRITE_BARRIER);
+          storage->set(counter, Smi::FromInt(counter));
         }
         counter++;
       }
@@ -6529,7 +6533,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       int length = ExternalArray::cast(elements())->length();
       while (counter < length) {
         if (storage != NULL) {
-          storage->set(counter, Smi::FromInt(counter), SKIP_WRITE_BARRIER);
+          storage->set(counter, Smi::FromInt(counter));
         }
         counter++;
       }
@@ -6554,7 +6558,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       String* str = String::cast(val);
       if (storage) {
         for (int i = 0; i < str->length(); i++) {
-          storage->set(counter + i, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+          storage->set(counter + i, Smi::FromInt(i));
         }
       }
       counter += str->length();
@@ -6886,8 +6890,10 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;
+
+  AssertNoAllocation no_gc;
   HashTable* table = HashTable::cast(obj);
-  WriteBarrierMode mode = table->GetWriteBarrierMode();
+  WriteBarrierMode mode = table->GetWriteBarrierMode(no_gc);
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex;
@@ -7134,7 +7140,7 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 
   // Split elements into defined, undefined and the_hole, in that order.
   // Only count locations for undefined and the hole, and fill them afterwards.
-  WriteBarrierMode write_barrier = elements->GetWriteBarrierMode();
+  WriteBarrierMode write_barrier = elements->GetWriteBarrierMode(no_alloc);
   unsigned int undefs = limit;
   unsigned int holes = limit;
   // Assume most arrays contain no holes and undefined values, so minimize the
@@ -7629,7 +7635,7 @@ Object* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   if (obj->IsFailure()) return obj;
   FixedArray* iteration_order = FixedArray::cast(obj);
   for (int i = 0; i < length; i++) {
-    iteration_order->set(i, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+    iteration_order->set(i, Smi::FromInt(i));
   }
 
   // Allocate array with enumeration order.
@@ -7642,9 +7648,7 @@ Object* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
     if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
-      enumeration_order->set(pos++,
-                             Smi::FromInt(DetailsAt(i).index()),
-                             SKIP_WRITE_BARRIER);
+      enumeration_order->set(pos++, Smi::FromInt(DetailsAt(i).index()));
     }
   }
 
@@ -7655,9 +7659,7 @@ Object* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   for (int i = 0; i < length; i++) {
     int index = Smi::cast(iteration_order->get(i))->value();
     int enum_index = PropertyDetails::kInitialIndex + i;
-    enumeration_order->set(index,
-                           Smi::FromInt(enum_index),
-                           SKIP_WRITE_BARRIER);
+    enumeration_order->set(index, Smi::FromInt(enum_index));
   }
 
   // Update the dictionary with new indices.
@@ -7805,8 +7807,7 @@ void NumberDictionary::UpdateMaxNumberKey(uint32_t key) {
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi() || max_number_key() < key) {
     FixedArray::set(kMaxNumberKeyIndex,
-                    Smi::FromInt(key << kRequiresSlowElementsTagSize),
-                    SKIP_WRITE_BARRIER);
+                    Smi::FromInt(key << kRequiresSlowElementsTagSize));
   }
 }
 
@@ -7897,9 +7898,7 @@ void StringDictionary::CopyEnumKeysTo(FixedArray* storage,
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted() || details.IsDontEnum()) continue;
        storage->set(index, k);
-       sort_array->set(index,
-                       Smi::FromInt(details.index()),
-                       SKIP_WRITE_BARRIER);
+       sort_array->set(index, Smi::FromInt(details.index()));
        index++;
      }
   }

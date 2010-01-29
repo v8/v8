@@ -247,8 +247,10 @@ BUILTIN(ArrayCodeGeneric) {
   Smi* len = Smi::FromInt(number_of_elements);
   Object* obj = Heap::AllocateFixedArrayWithHoles(len->value());
   if (obj->IsFailure()) return obj;
+
+  AssertNoAllocation no_gc;
   FixedArray* elms = FixedArray::cast(obj);
-  WriteBarrierMode mode = elms->GetWriteBarrierMode();
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   // Fill in the content
   for (int index = 0; index < number_of_elements; index++) {
     elms->set(index, args[index+1], mode);
@@ -256,7 +258,7 @@ BUILTIN(ArrayCodeGeneric) {
 
   // Set length and elements on the array.
   array->set_elements(FixedArray::cast(obj));
-  array->set_length(len, SKIP_WRITE_BARRIER);
+  array->set_length(len);
 
   return array;
 }
@@ -283,8 +285,10 @@ BUILTIN(ArrayPush) {
     int capacity = new_length + (new_length >> 1) + 16;
     Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
     if (obj->IsFailure()) return obj;
+
+    AssertNoAllocation no_gc;
     FixedArray* new_elms = FixedArray::cast(obj);
-    WriteBarrierMode mode = new_elms->GetWriteBarrierMode();
+    WriteBarrierMode mode = new_elms->GetWriteBarrierMode(no_gc);
     // Fill out the new array with old elements.
     for (int i = 0; i < len; i++) new_elms->set(i, elms->get(i), mode);
     // Add the provided values.
@@ -295,7 +299,7 @@ BUILTIN(ArrayPush) {
     array->set_elements(new_elms);
   }
   // Set the length.
-  array->set_length(Smi::FromInt(new_length), SKIP_WRITE_BARRIER);
+  array->set_length(Smi::FromInt(new_length));
   return array->length();
 }
 
@@ -313,7 +317,7 @@ BUILTIN(ArrayPop) {
   Object* top = elms->get(len - 1);
 
   // Set the length.
-  array->set_length(Smi::FromInt(len - 1), SKIP_WRITE_BARRIER);
+  array->set_length(Smi::FromInt(len - 1));
 
   if (!top->IsTheHole()) {
     // Delete the top element.
