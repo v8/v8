@@ -31,7 +31,6 @@
 #include "codegen-inl.h"
 #include "compilation-cache.h"
 #include "compiler.h"
-#include "data-flow.h"
 #include "debug.h"
 #include "fast-codegen.h"
 #include "full-codegen.h"
@@ -113,10 +112,9 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     FastCodeGenSyntaxChecker checker;
     checker.Check(literal, info);
     if (checker.has_supported_syntax()) {
-      AstLabeler labeler;
-      labeler.Label(literal);
+      // Does not yet generate code.
+      FastCodeGenerator::MakeCode(literal, script, is_eval, info);
     }
-    // Does not yet generate code.
   }
 
   return CodeGenerator::MakeCode(literal, script, is_eval, info);
@@ -513,10 +511,9 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       FastCodeGenSyntaxChecker checker;
       checker.Check(literal, &info);
       if (checker.has_supported_syntax()) {
-        AstLabeler label_nodes;
-        label_nodes.Label(literal);
+        // Does not yet generate code.
+        FastCodeGenerator::MakeCode(literal, script, false, &info);
       }
-      // Generate no code.
     }
 
     if (!is_compiled) {

@@ -63,6 +63,40 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
 };
 
 
+class FastCodeGenerator: public AstVisitor {
+ public:
+  FastCodeGenerator(Handle<Script> script, bool is_eval)
+      : masm_(NULL),
+        script_(script),
+        is_eval_(is_eval),
+        function_(NULL),
+        info_(NULL) {
+  }
+
+  static void MakeCode(FunctionLiteral* fun,
+                       Handle<Script> script,
+                       bool is_eval,
+                       CompilationInfo* info);
+
+  void Generate(FunctionLiteral* fun, CompilationInfo* info);
+
+ private:
+  // AST node visit functions.
+#define DECLARE_VISIT(type) virtual void Visit##type(type* node);
+  AST_NODE_LIST(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  MacroAssembler* masm_;
+  Handle<Script> script_;
+  bool is_eval_;
+
+  FunctionLiteral* function_;
+  CompilationInfo* info_;
+
+  DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_FAST_CODEGEN_H_

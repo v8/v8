@@ -42,7 +42,7 @@ class CompilationInfo BASE_EMBEDDED {
                   Handle<Object> receiver,
                   int loop_nesting)
       : shared_info_(shared_info),
-        receiver_(receiver_),
+        receiver_(receiver),
         loop_nesting_(loop_nesting) {
   }
 
