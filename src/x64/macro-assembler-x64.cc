@@ -1553,7 +1553,7 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register map,
                                              Register instance_type) {
   movq(map, FieldOperand(heap_object, HeapObject::kMapOffset));
-  movzxbq(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
+  movzxbl(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
   ASSERT(kNotStringTag != 0);
   testb(instance_type, Immediate(kIsNotStringMask));
   return zero;
@@ -2471,6 +2471,51 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // The context may be an intermediate context, not a function context.
     movq(dst, Operand(rsi, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   }
+}
+
+int MacroAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
+  // On Windows stack slots are reserved by the caller for all arguments
+  // including the ones passed in registers. On Linux 6 arguments are passed in
+  // registers and the caller does not reserve stack slots for them.
+  ASSERT(num_arguments >= 0);
+#ifdef _WIN64
+  static const int kArgumentsWithoutStackSlot = 0;
+#else
+  static const int kArgumentsWithoutStackSlot = 6;
+#endif
+  return num_arguments > kArgumentsWithoutStackSlot ?
+      num_arguments - kArgumentsWithoutStackSlot : 0;
+}
+
+void MacroAssembler::PrepareCallCFunction(int num_arguments) {
+  int frame_alignment = OS::ActivationFrameAlignment();
+  ASSERT(frame_alignment != 0);
+  ASSERT(num_arguments >= 0);
+  // Make stack end at alignment and allocate space for arguments and old rsp.
+  movq(kScratchRegister, rsp);
+  ASSERT(IsPowerOf2(frame_alignment));
+  int argument_slots_on_stack =
+      ArgumentStackSlotsForCFunctionCall(num_arguments);
+  subq(rsp, Immediate((argument_slots_on_stack + 1) * kPointerSize));
+  and_(rsp, Immediate(-frame_alignment));
+  movq(Operand(rsp, argument_slots_on_stack * kPointerSize), kScratchRegister);
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments) {
+  movq(rax, function);
+  CallCFunction(rax, num_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function, int num_arguments) {
+  call(function);
+  ASSERT(OS::ActivationFrameAlignment() != 0);
+  ASSERT(num_arguments >= 0);
+  int argument_slots_on_stack =
+      ArgumentStackSlotsForCFunctionCall(num_arguments);
+  movq(rsp, Operand(rsp, argument_slots_on_stack * kPointerSize));
 }
 
 

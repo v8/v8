@@ -247,21 +247,6 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // Increments the stack pointer (rcx) by a word size.
   inline void Drop();
 
-  // Before calling a C-function from generated code, align arguments on stack.
-  // After aligning the frame, arguments must be stored in esp[0], esp[4],
-  // etc., not pushed. The argument count assumes all arguments are word sized.
-  // Some compilers/platforms require the stack to be aligned when calling
-  // C++ code.
-  // Needs a scratch register to do some arithmetic. This register will be
-  // trashed.
-  inline void FrameAlign(int num_arguments);
-
-  // Calls a C function and cleans up the space for arguments allocated
-  // by FrameAlign. The called function is not allowed to trigger a garbage
-  // collection, since that might move the code and invalidate the return
-  // address (unless this is somehow accounted for by the called function).
-  inline void CallCFunction(ExternalReference function, int num_arguments);
-
   MacroAssembler* masm_;
 
   ZoneList<int> code_relative_fixup_positions_;

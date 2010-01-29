@@ -162,7 +162,8 @@ class MacroAssembler: public Assembler {
   // Conversions between tagged smi values and non-tagged integer values.
 
   // Tag an integer value. The result must be known to be a valid smi value.
-  // Only uses the low 32 bits of the src register.
+  // Only uses the low 32 bits of the src register. Sets the N and Z flags
+  // based on the value of the resulting integer.
   void Integer32ToSmi(Register dst, Register src);
 
   // Tag an integer value if possible, or jump the integer value cannot be
@@ -644,6 +645,26 @@ class MacroAssembler: public Assembler {
   // Jump to a runtime routine.
   void JumpToRuntime(const ExternalReference& ext, int result_size);
 
+  // Before calling a C-function from generated code, align arguments on stack.
+  // After aligning the frame, arguments must be stored in esp[0], esp[4],
+  // etc., not pushed. The argument count assumes all arguments are word sized.
+  // The number of slots reserved for arguments depends on platform. On Windows
+  // stack slots are reserved for the arguments passed in registers. On other
+  // platforms stack slots are only reserved for the arguments actually passed
+  // on the stack.
+  void PrepareCallCFunction(int num_arguments);
+
+  // Calls a C function and cleans up the space for arguments allocated
+  // by PrepareCallCFunction. The called function is not allowed to trigger a
+  // garbage collection, since that might move the code and invalidate the
+  // return address (unless this is somehow accounted for by the called
+  // function).
+  void CallCFunction(ExternalReference function, int num_arguments);
+  void CallCFunction(Register function, int num_arguments);
+
+  // Calculate the number of stack slots to reserve for arguments when calling a
+  // C function.
+  int ArgumentStackSlotsForCFunctionCall(int num_arguments);
 
   // ---------------------------------------------------------------------------
   // Utilities

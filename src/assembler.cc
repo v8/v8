@@ -655,7 +655,7 @@ ExternalReference ExternalReference::re_check_stack_guard_state() {
 #elif V8_TARGET_ARCH_ARM
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
 #else
-  UNREACHABLE("Unexpected architecture");
+  UNREACHABLE();
 #endif
   return ExternalReference(Redirect(function));
 }

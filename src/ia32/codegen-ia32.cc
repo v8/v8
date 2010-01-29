@@ -5134,7 +5134,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   // flat string in a cons string).  If that is not the case we would rather go
   // to the runtime system now, to flatten the string.
   __ mov(temp.reg(), FieldOperand(object.reg(), ConsString::kSecondOffset));
-  __ cmp(Operand(temp.reg()), Immediate(Handle<String>(Heap::empty_string())));
+  __ cmp(Operand(temp.reg()), Factory::empty_string());
   __ j(not_equal, &slow_case);
   // Get the first of the two strings.
   __ mov(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
@@ -8399,8 +8399,12 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
 
 void RegExpExecStub::Generate(MacroAssembler* masm) {
-  // Just jump directly to runtime if regexp entry in generated code is turned
-  // off.
+  // Just jump directly to runtime if native RegExp is not selected at compile
+  // time or if regexp entry in generated code is turned off runtime switch or
+  // at compilation.
+#ifndef V8_NATIVE_REGEXP
+  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+#else  // V8_NATIVE_REGEXP
   if (!FLAG_regexp_entry_native) {
     __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
     return;
@@ -8438,12 +8442,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &runtime);
   // Check that the RegExp has been compiled (data contains a fixed array).
   __ mov(ecx, FieldOperand(eax, JSRegExp::kDataOffset));
-#ifdef DEBUG
-  __ test(ecx, Immediate(kSmiTagMask));
-  __ Check(not_zero, "Unexpected type for RegExp data, FixedArray expected");
-  __ CmpObjectType(ecx, FIXED_ARRAY_TYPE, ebx);
-  __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
-#endif
+  if (FLAG_debug_code) {
+    __ test(ecx, Immediate(kSmiTagMask));
+    __ Check(not_zero, "Unexpected type for RegExp data, FixedArray expected");
+    __ CmpObjectType(ecx, FIXED_ARRAY_TYPE, ebx);
+    __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
+  }
 
   // ecx: RegExp data (FixedArray)
   // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
@@ -8478,13 +8482,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
   // Check that the third argument is a positive smi.
+  // Check that the third argument is a positive smi less than the subject
+  // string length. A negative value will be greater (usigned comparison).
   __ mov(eax, Operand(esp, kPreviousIndexOffset));
-  __ test(eax, Immediate(kSmiTagMask | 0x80000000));
-  __ j(not_zero, &runtime);
-  // Check that it is not greater than the subject string length.
   __ SmiUntag(eax);
   __ cmp(eax, Operand(ebx));
-  __ j(greater, &runtime);
+  __ j(above, &runtime);
 
   // ecx: RegExp data (FixedArray)
   // edx: Number of capture registers
@@ -8526,17 +8529,20 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
-  // a sequential string.
+  // a sequential string or an external string.
   __ mov(edx, ebx);
   __ and_(edx, kStringRepresentationMask);
   __ cmp(edx, kConsStringTag);
   __ j(not_equal, &runtime);
   __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
-  __ cmp(Operand(edx), Immediate(Handle<String>(Heap::empty_string())));
+  __ cmp(Operand(edx), Factory::empty_string());
   __ j(not_equal, &runtime);
   __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  ASSERT_EQ(0, kSequentialStringTag);
+  __ test(ebx, Immediate(kStringRepresentationMask));
+  __ j(not_zero, &runtime);
   __ and_(ebx, kStringRepresentationEncodingMask);
 
   __ bind(&seq_string);
@@ -8547,10 +8553,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // it has, the field contains a code object otherwise it contains the hole.
   __ cmp(ebx, kStringTag | kSeqStringTag | kTwoByteStringTag);
   __ j(equal, &seq_two_byte_string);
-#ifdef DEBUG
-  __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
-  __ Check(equal, "Expected sequential ascii string");
-#endif
+  if (FLAG_debug_code) {
+    __ cmp(ebx, kStringTag | kSeqStringTag | kAsciiStringTag);
+    __ Check(equal, "Expected sequential ascii string");
+  }
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
   __ Set(edi, Immediate(1));  // Type is ascii.
   __ jmp(&check_code);
@@ -8562,23 +8568,24 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Set(edi, Immediate(0));  // Type is two byte.
 
   __ bind(&check_code);
-  // Check that the irregexp code has been generated for If it has, the field
-  // contains a code object otherwise it contains the hole.
+  // Check that the irregexp code has been generated for the actual string
+  // encoding. If it has, the field contains a code object otherwise it contains
+  // the hole.
   __ CmpObjectType(edx, CODE_TYPE, ebx);
   __ j(not_equal, &runtime);
 
   // eax: subject string
   // edx: code
-  // edi: encoding of subject string (1 if ascii 0 if two_byte);
+  // edi: encoding of subject string (1 if ascii, 0 if two_byte);
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
   __ mov(ebx, Operand(esp, kPreviousIndexOffset));
-  __ mov(ecx, Operand(esp, kJSRegExpOffset));
   __ SmiUntag(ebx);  // Previous index from smi.
 
   // eax: subject string
   // ebx: previous index
   // edx: code
+  // edi: encoding of subject string (1 if ascii 0 if two_byte);
   // All checks done. Now push arguments for native regexp code.
   __ IncrementCounter(&Counters::regexp_entry_native, 1);
 
@@ -8606,7 +8613,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ jmp(&push_rest);
 
   __ bind(&push_two_byte);
-  ASSERT(kShortSize == 2);
   __ lea(ecx, FieldOperand(eax, edi, times_2, SeqTwoByteString::kHeaderSize));
   __ push(ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
@@ -8639,6 +8645,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Result must now be exception. If there is no pending exception already a
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
+  // TODO(592) Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception(Top::k_pending_exception_address);
   __ mov(eax,
          Operand::StaticVariable(ExternalReference::the_hole_value_location()));
@@ -8655,6 +8662,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, FieldOperand(eax, JSRegExp::kDataOffset));
   __ mov(edx, FieldOperand(ecx, JSRegExp::kIrregexpCaptureCountOffset));
   // Calculate number of capture registers (number_of_captures + 1) * 2.
+  ASSERT_EQ(0, kSmiTag);
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
   __ add(Operand(edx), Immediate(2));  // edx was a smi.
 
   // edx: Number of capture registers
@@ -8694,7 +8703,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ sub(Operand(edx), Immediate(1));
   __ j(negative, &done);
   // Read the value from the static offsets vector buffer.
-  __ mov(edi, Operand(ecx, edx, times_pointer_size, 0));
+  __ mov(edi, Operand(ecx, edx, times_int_size, 0));
   // Perform explicit shift
   ASSERT_EQ(0, kSmiTag);
   __ shl(edi, kSmiTagSize);
@@ -8720,6 +8729,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
   __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+#endif  // V8_NATIVE_REGEXP
 }
 
 

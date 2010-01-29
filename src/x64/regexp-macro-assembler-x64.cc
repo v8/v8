@@ -329,14 +329,14 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     ASSERT(mode_ == UC16);
     // Save important/volatile registers before calling C function.
 #ifndef _WIN64
-    // Callee save on Win64
+    // Caller save on Linux and callee save in Windows.
     __ push(rsi);
     __ push(rdi);
 #endif
     __ push(backtrack_stackpointer());
 
     int num_arguments = 3;
-    FrameAlign(num_arguments);
+    __ PrepareCallCFunction(num_arguments);
 
     // Put arguments into parameter registers. Parameters are
     //   Address byte_offset1 - Address captured substring's start.
@@ -361,7 +361,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
 #endif
     ExternalReference compare =
         ExternalReference::re_case_insensitive_compare_uc16();
-    CallCFunction(compare, num_arguments);
+    __ CallCFunction(compare, num_arguments);
 
     // Restore original values before reacting on result value.
     __ Move(code_object_pointer(), masm_->CodeObject());
@@ -634,7 +634,6 @@ void RegExpMacroAssemblerX64::Fail() {
 Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
-
   // Entry code:
   __ bind(&entry_label_);
   // Start new stack frame.
@@ -671,6 +670,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
   __ push(rbx);  // Callee-save
 #endif
+
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
   __ push(Immediate(0));  // Make room for "at start" constant.
 
@@ -850,7 +850,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 
     // Call GrowStack(backtrack_stackpointer())
     int num_arguments = 2;
-    FrameAlign(num_arguments);
+    __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
     // Microsoft passes parameters in rcx, rdx.
     // First argument, backtrack stackpointer, is already in rcx.
@@ -861,7 +861,7 @@ Handle<Object> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     __ lea(rsi, Operand(rbp, kStackHighEnd));  // Second argument.
 #endif
     ExternalReference grow_stack = ExternalReference::re_grow_stack();
-    CallCFunction(grow_stack, num_arguments);
+    __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
     __ testq(rax, rax);
@@ -1030,7 +1030,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   // This function call preserves no register values. Caller should
   // store anything volatile in a C call or overwritten by this function.
   int num_arguments = 3;
-  FrameAlign(num_arguments);
+  __ PrepareCallCFunction(num_arguments);
 #ifdef _WIN64
   // Second argument: Code* of self. (Do this before overwriting r8).
   __ movq(rdx, code_object_pointer());
@@ -1050,7 +1050,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
 #endif
   ExternalReference stack_check =
       ExternalReference::re_check_stack_guard_state();
-  CallCFunction(stack_check, num_arguments);
+  __ CallCFunction(stack_check, num_arguments);
 }
 
 
@@ -1071,6 +1071,12 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
 
   // If not real stack overflow the stack guard was used to interrupt
   // execution for another purpose.
+
+  // If this is a direct call from JavaScript retry the RegExp forcing the call
+  // through the runtime system. Currently the direct call cannot handle a GC.
+  if (frame_entry<int>(re_frame, kDirectCall) == 1) {
+    return RETRY;
+  }
 
   // Prepare for possible GC.
   HandleScope handles;
@@ -1263,45 +1269,6 @@ void RegExpMacroAssemblerX64::CheckStackLimit() {
   SafeCall(&stack_overflow_label_);
 
   __ bind(&no_stack_overflow);
-}
-
-
-void RegExpMacroAssemblerX64::FrameAlign(int num_arguments) {
-  // TODO(lrn): Since we no longer use the system stack arbitrarily (but we do
-  // use it, e.g., for SafeCall), we know the number of elements on the stack
-  // since the last frame alignment. We might be able to do this simpler then.
-  int frameAlignment = OS::ActivationFrameAlignment();
-  ASSERT(frameAlignment != 0);
-  // Make stack end at alignment and make room for num_arguments pointers
-  // (on Win64 only) and the original value of rsp.
-  __ movq(kScratchRegister, rsp);
-  ASSERT(IsPowerOf2(frameAlignment));
-#ifdef _WIN64
-  // Allocate space for parameters and old rsp.
-  __ subq(rsp, Immediate((num_arguments + 1) * kPointerSize));
-  __ and_(rsp, Immediate(-frameAlignment));
-  __ movq(Operand(rsp, num_arguments * kPointerSize), kScratchRegister);
-#else
-  // Allocate space for old rsp.
-  __ subq(rsp, Immediate(kPointerSize));
-  __ and_(rsp, Immediate(-frameAlignment));
-  __ movq(Operand(rsp, 0), kScratchRegister);
-#endif
-}
-
-
-void RegExpMacroAssemblerX64::CallCFunction(ExternalReference function,
-                                            int num_arguments) {
-  __ movq(rax, function);
-  __ call(rax);
-  ASSERT(OS::ActivationFrameAlignment() != 0);
-#ifdef _WIN64
-  __ movq(rsp, Operand(rsp, num_arguments * kPointerSize));
-#else
-  // All arguments passed in registers.
-  ASSERT(num_arguments <= 6);
-  __ pop(rsp);
-#endif
 }
 
 

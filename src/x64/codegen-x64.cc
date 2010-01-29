@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "ic-inl.h"
 #include "parser.h"
+#include "regexp-macro-assembler.h"
 #include "register-allocator-inl.h"
 #include "scopes.h"
 
@@ -3959,7 +3960,8 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
   Load(args->at(1));
   Load(args->at(2));
   Load(args->at(3));
-  Result result = frame_->CallRuntime(Runtime::kRegExpExec, 4);
+  RegExpExecStub stub;
+  Result result = frame_->CallStub(&stub, 4);
   frame_->Push(&result);
 }
 
@@ -6561,6 +6563,363 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void RegExpExecStub::Generate(MacroAssembler* masm) {
+  // Just jump directly to runtime if native RegExp is not selected at compile
+  // time or if regexp entry in generated code is turned off runtime switch or
+  // at compilation.
+#ifndef V8_NATIVE_REGEXP
+  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+#else  // V8_NATIVE_REGEXP
+  if (!FLAG_regexp_entry_native) {
+    __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+    return;
+  }
+
+  // Stack frame on entry.
+  //  esp[0]: return address
+  //  esp[8]: last_match_info (expected JSArray)
+  //  esp[16]: previous index
+  //  esp[24]: subject string
+  //  esp[32]: JSRegExp object
+
+  static const int kLastMatchInfoOffset = 1 * kPointerSize;
+  static const int kPreviousIndexOffset = 2 * kPointerSize;
+  static const int kSubjectOffset = 3 * kPointerSize;
+  static const int kJSRegExpOffset = 4 * kPointerSize;
+
+  Label runtime;
+
+  // Ensure that a RegExp stack is allocated.
+  ExternalReference address_of_regexp_stack_memory_address =
+      ExternalReference::address_of_regexp_stack_memory_address();
+  ExternalReference address_of_regexp_stack_memory_size =
+      ExternalReference::address_of_regexp_stack_memory_size();
+  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
+  __ movq(kScratchRegister, Operand(kScratchRegister, 0));
+  __ testq(kScratchRegister, kScratchRegister);
+  __ j(zero, &runtime);
+
+
+  // Check that the first argument is a JSRegExp object.
+  __ movq(rax, Operand(rsp, kJSRegExpOffset));
+  __ JumpIfSmi(rax, &runtime);
+  __ CmpObjectType(rax, JS_REGEXP_TYPE, kScratchRegister);
+  __ j(not_equal, &runtime);
+  // Check that the RegExp has been compiled (data contains a fixed array).
+  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
+  if (FLAG_debug_code) {
+    Condition is_smi = masm->CheckSmi(rcx);
+    __ Check(NegateCondition(is_smi),
+        "Unexpected type for RegExp data, FixedArray expected");
+    __ CmpObjectType(rcx, FIXED_ARRAY_TYPE, kScratchRegister);
+    __ Check(equal, "Unexpected type for RegExp data, FixedArray expected");
+  }
+
+  // rcx: RegExp data (FixedArray)
+  // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
+  __ movq(rbx, FieldOperand(rcx, JSRegExp::kDataTagOffset));
+  __ SmiCompare(rbx, Smi::FromInt(JSRegExp::IRREGEXP));
+  __ j(not_equal, &runtime);
+
+  // rcx: RegExp data (FixedArray)
+  // Check that the number of captures fit in the static offsets vector buffer.
+  __ movq(rdx, FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+  // Calculate number of capture registers (number_of_captures + 1) * 2.
+  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rdx, 1);
+  __ addq(rdx, Immediate(2));  // rdx was number_of_captures * 2.
+  // Check that the static offsets vector buffer is large enough.
+  __ cmpq(rdx, Immediate(OffsetsVector::kStaticOffsetsVectorSize));
+  __ j(above, &runtime);
+
+  // rcx: RegExp data (FixedArray)
+  // rdx: Number of capture registers
+  // Check that the second argument is a string.
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ JumpIfSmi(rax, &runtime);
+  Condition is_string = masm->IsObjectStringType(rax, rbx, rbx);
+  __ j(NegateCondition(is_string), &runtime);
+  // Get the length of the string to rbx.
+  __ movl(rbx, FieldOperand(rax, String::kLengthOffset));
+
+  // rbx: Length of subject string
+  // rcx: RegExp data (FixedArray)
+  // rdx: Number of capture registers
+  // Check that the third argument is a positive smi less than the string
+  // length. A negative value will be greater (usigned comparison).
+  __ movq(rax, Operand(rsp, kPreviousIndexOffset));
+  __ SmiToInteger32(rax, rax);
+  __ cmpl(rax, rbx);
+  __ j(above, &runtime);
+
+  // rcx: RegExp data (FixedArray)
+  // rdx: Number of capture registers
+  // Check that the fourth object is a JSArray object.
+  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
+  __ JumpIfSmi(rax, &runtime);
+  __ CmpObjectType(rax, JS_ARRAY_TYPE, kScratchRegister);
+  __ j(not_equal, &runtime);
+  // Check that the JSArray is in fast case.
+  __ movq(rbx, FieldOperand(rax, JSArray::kElementsOffset));
+  __ movq(rax, FieldOperand(rbx, HeapObject::kMapOffset));
+  __ Cmp(rax, Factory::fixed_array_map());
+  __ j(not_equal, &runtime);
+  // Check that the last match info has space for the capture registers and the
+  // additional information. Ensure no overflow in add.
+  ASSERT(FixedArray::kMaxLength < kMaxInt - FixedArray::kLengthOffset);
+  __ movl(rax, FieldOperand(rbx, FixedArray::kLengthOffset));
+  __ addl(rdx, Immediate(RegExpImpl::kLastMatchOverhead));
+  __ cmpl(rdx, rax);
+  __ j(greater, &runtime);
+
+  // ecx: RegExp data (FixedArray)
+  // Check the representation and encoding of the subject string.
+  Label seq_string, seq_two_byte_string, check_code;
+  const int kStringRepresentationEncodingMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  __ andb(rbx, Immediate(kStringRepresentationEncodingMask));
+  // First check for sequential string.
+  ASSERT_EQ(0, kStringTag);
+  ASSERT_EQ(0, kSeqStringTag);
+  __ testb(rbx, Immediate(kIsNotStringMask | kStringRepresentationMask));
+  __ j(zero, &seq_string);
+
+  // Check for flat cons string.
+  // A flat cons string is a cons string where the second part is the empty
+  // string. In that case the subject string is just the first part of the cons
+  // string. Also in this case the first part of the cons string is known to be
+  // a sequential string or an external string.
+  __ movl(rdx, rbx);
+  __ andb(rdx, Immediate(kStringRepresentationMask));
+  __ cmpb(rdx, Immediate(kConsStringTag));
+  __ j(not_equal, &runtime);
+  __ movq(rdx, FieldOperand(rax, ConsString::kSecondOffset));
+  __ Cmp(rdx, Factory::empty_string());
+  __ j(not_equal, &runtime);
+  __ movq(rax, FieldOperand(rax, ConsString::kFirstOffset));
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  ASSERT_EQ(0, kSequentialStringTag);
+  __ testb(rbx, Immediate(kStringRepresentationMask));
+  __ j(not_zero, &runtime);
+  __ andb(rbx, Immediate(kStringRepresentationEncodingMask));
+
+  __ bind(&seq_string);
+  // rax: subject string (sequential either ascii to two byte)
+  // rbx: suject string type & kStringRepresentationEncodingMask
+  // rcx: RegExp data (FixedArray)
+  // Check that the irregexp code has been generated for an ascii string. If
+  // it has, the field contains a code object otherwise it contains the hole.
+  __ cmpb(rbx, Immediate(kStringTag | kSeqStringTag | kTwoByteStringTag));
+  __ j(equal, &seq_two_byte_string);
+  if (FLAG_debug_code) {
+    __ cmpb(rbx, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+    __ Check(equal, "Expected sequential ascii string");
+  }
+  __ movq(r12, FieldOperand(rcx, JSRegExp::kDataAsciiCodeOffset));
+  __ Set(rdi, 1);  // Type is ascii.
+  __ jmp(&check_code);
+
+  __ bind(&seq_two_byte_string);
+  // rax: subject string
+  // rcx: RegExp data (FixedArray)
+  __ movq(r12, FieldOperand(rcx, JSRegExp::kDataUC16CodeOffset));
+  __ Set(rdi, 0);  // Type is two byte.
+
+  __ bind(&check_code);
+  // Check that the irregexp code has been generated for the actual string
+  // encoding. If it has, the field contains a code object otherwise it contains
+  // the hole.
+  __ CmpObjectType(r12, CODE_TYPE, kScratchRegister);
+  __ j(not_equal, &runtime);
+
+  // rax: subject string
+  // rdi: encoding of subject string (1 if ascii, 0 if two_byte);
+  // r12: code
+  // Load used arguments before starting to push arguments for call to native
+  // RegExp code to avoid handling changing stack height.
+  __ movq(rbx, Operand(rsp, kPreviousIndexOffset));
+  __ SmiToInteger64(rbx, rbx);  // Previous index from smi.
+
+  // rax: subject string
+  // rbx: previous index
+  // rdi: encoding of subject string (1 if ascii 0 if two_byte);
+  // r12: code
+  // All checks done. Now push arguments for native regexp code.
+  __ IncrementCounter(&Counters::regexp_entry_native, 1);
+
+  // rsi is caller save on Windows and used to pass parameter on Linux.
+  __ push(rsi);
+
+  static const int kRegExpExecuteArguments = 7;
+  __ PrepareCallCFunction(kRegExpExecuteArguments);
+  int argument_slots_on_stack =
+      masm->ArgumentStackSlotsForCFunctionCall(kRegExpExecuteArguments);
+
+  // Argument 7: Indicate that this is a direct call from JavaScript.
+  __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
+          Immediate(1));
+
+  // Argument 6: Start (high end) of backtracking stack memory area.
+  __ movq(kScratchRegister, address_of_regexp_stack_memory_address);
+  __ movq(r9, Operand(kScratchRegister, 0));
+  __ movq(kScratchRegister, address_of_regexp_stack_memory_size);
+  __ addq(r9, Operand(kScratchRegister, 0));
+  // Argument 6 passed in r9 on Linux and on the stack on Windows.
+#ifdef _WIN64
+  __ movq(Operand(rsp, (argument_slots_on_stack - 2) * kPointerSize), r9);
+#endif
+
+  // Argument 5: static offsets vector buffer.
+  __ movq(r8, ExternalReference::address_of_static_offsets_vector());
+  // Argument 5 passed in r8 on Linux and on the stack on Windows.
+#ifdef _WIN64
+  __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r8);
+#endif
+
+  // First four arguments are passed in registers on both Linux and Windows.
+#ifdef _WIN64
+  Register arg4 = r9;
+  Register arg3 = r8;
+  Register arg2 = rdx;
+  Register arg1 = rcx;
+#else
+  Register arg4 = rcx;
+  Register arg3 = rdx;
+  Register arg2 = rsi;
+  Register arg1 = rdi;
+#endif
+
+  // Keep track on aliasing between argX defined above and the registers used.
+  // rax: subject string
+  // rbx: previous index
+  // rdi: encoding of subject string (1 if ascii 0 if two_byte);
+  // r12: code
+
+  // Argument 4: End of string data
+  // Argument 3: Start of string data
+  Label setup_two_byte, setup_rest;
+  __ testb(rdi, rdi);
+  __ movl(rdi, FieldOperand(rax, String::kLengthOffset));
+  __ j(zero, &setup_two_byte);
+  __ lea(arg4, FieldOperand(rax, rdi, times_1, SeqAsciiString::kHeaderSize));
+  __ lea(arg3, FieldOperand(rax, rbx, times_1, SeqAsciiString::kHeaderSize));
+  __ jmp(&setup_rest);
+  __ bind(&setup_two_byte);
+  __ lea(arg4, FieldOperand(rax, rdi, times_2, SeqTwoByteString::kHeaderSize));
+  __ lea(arg3, FieldOperand(rax, rbx, times_2, SeqTwoByteString::kHeaderSize));
+
+  __ bind(&setup_rest);
+  // Argument 2: Previous index.
+  __ movq(arg2, rbx);
+
+  // Argument 1: Subject string.
+  __ movq(arg1, rax);
+
+  // Locate the code entry and call it.
+  __ addq(r12, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  __ CallCFunction(r12, kRegExpExecuteArguments);
+
+  // rsi is caller save, as it is used to pass parameter.
+  __ pop(rsi);
+
+  // Check the result.
+  Label success;
+  __ cmpq(rax, Immediate(NativeRegExpMacroAssembler::SUCCESS));
+  __ j(equal, &success);
+  Label failure;
+  __ cmpq(rax, Immediate(NativeRegExpMacroAssembler::FAILURE));
+  __ j(equal, &failure);
+  __ cmpq(rax, Immediate(NativeRegExpMacroAssembler::EXCEPTION));
+  // If not exception it can only be retry. Handle that in the runtime system.
+  __ j(not_equal, &runtime);
+  // Result must now be exception. If there is no pending exception already a
+  // stack overflow (on the backtrack stack) was detected in RegExp code but
+  // haven't created the exception yet. Handle that in the runtime system.
+  // TODO(592) Rerunning the RegExp to get the stack overflow exception.
+  ExternalReference pending_exception_address(Top::k_pending_exception_address);
+  __ movq(kScratchRegister, pending_exception_address);
+  __ Cmp(kScratchRegister, Factory::the_hole_value());
+  __ j(equal, &runtime);
+  __ bind(&failure);
+  // For failure and exception return null.
+  __ Move(rax, Factory::null_value());
+  __ ret(4 * kPointerSize);
+
+  // Load RegExp data.
+  __ bind(&success);
+  __ movq(rax, Operand(rsp, kJSRegExpOffset));
+  __ movq(rcx, FieldOperand(rax, JSRegExp::kDataOffset));
+  __ movq(rdx, FieldOperand(rcx, JSRegExp::kIrregexpCaptureCountOffset));
+  // Calculate number of capture registers (number_of_captures + 1) * 2.
+  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rdx, 1);
+  __ addq(rdx, Immediate(2));  // rdx was number_of_captures * 2.
+
+  // rdx: Number of capture registers
+  // Load last_match_info which is still known to be a fast case JSArray.
+  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
+  __ movq(rbx, FieldOperand(rax, JSArray::kElementsOffset));
+
+  // rbx: last_match_info backing store (FixedArray)
+  // rdx: number of capture registers
+  // Store the capture count.
+  __ Integer32ToSmi(kScratchRegister, rdx);
+  __ movq(FieldOperand(rbx, RegExpImpl::kLastCaptureCountOffset),
+          kScratchRegister);
+  // Store last subject and last input.
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ movq(FieldOperand(rbx, RegExpImpl::kLastSubjectOffset), rax);
+  __ movq(rcx, rbx);
+  __ RecordWrite(rcx, RegExpImpl::kLastSubjectOffset, rax, rdi);
+  __ movq(rax, Operand(rsp, kSubjectOffset));
+  __ movq(FieldOperand(rbx, RegExpImpl::kLastInputOffset), rax);
+  __ movq(rcx, rbx);
+  __ RecordWrite(rcx, RegExpImpl::kLastInputOffset, rax, rdi);
+
+  // Get the static offsets vector filled by the native regexp code.
+  __ movq(rcx, ExternalReference::address_of_static_offsets_vector());
+
+  // rbx: last_match_info backing store (FixedArray)
+  // rcx: offsets vector
+  // rdx: number of capture registers
+  Label next_capture, done;
+  __ movq(rax, Operand(rsp, kPreviousIndexOffset));
+  // Capture register counter starts from number of capture registers and
+  // counts down until wraping after zero.
+  __ bind(&next_capture);
+  __ subq(rdx, Immediate(1));
+  __ j(negative, &done);
+  // Read the value from the static offsets vector buffer and make it a smi.
+  __ movl(rdi, Operand(rcx, rdx, times_int_size, 0));
+  __ Integer32ToSmi(rdi, rdi, &runtime);
+  // Add previous index (from its stack slot) if value is not negative.
+  Label capture_negative;
+  // Negative flag set by smi convertion above.
+  __ j(negative, &capture_negative);
+  __ SmiAdd(rdi, rdi, rax, &runtime);  // Add previous index.
+  __ bind(&capture_negative);
+  // Store the smi value in the last match info.
+  __ movq(FieldOperand(rbx,
+                       rdx,
+                       times_pointer_size,
+                       RegExpImpl::kFirstCaptureOffset),
+                       rdi);
+  __ jmp(&next_capture);
+  __ bind(&done);
+
+  // Return last match info.
+  __ movq(rax, Operand(rsp, kLastMatchInfoOffset));
+  __ ret(4 * kPointerSize);
+
+  // Do the runtime call to execute the regexp.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+#endif  // V8_NATIVE_REGEXP
 }
 
 
