@@ -8540,7 +8540,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  ASSERT_EQ(0, kSequentialStringTag);
+  ASSERT_EQ(0, kSeqStringTag);
   __ test(ebx, Immediate(kStringRepresentationMask));
   __ j(not_zero, &runtime);
   __ and_(ebx, kStringRepresentationEncodingMask);
