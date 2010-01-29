@@ -32,6 +32,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations
+class CompilationInfo;
 class DeferredCode;
 class RegisterAllocator;
 class RegisterFile;
@@ -297,7 +298,8 @@ class CodeGenerator: public AstVisitor {
   // be called by compiler.cc.
   static Handle<Code> MakeCode(FunctionLiteral* fun,
                                Handle<Script> script,
-                               bool is_eval);
+                               bool is_eval,
+                               CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
   static void MakeCodePrologue(FunctionLiteral* fun);
@@ -378,7 +380,7 @@ class CodeGenerator: public AstVisitor {
   void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
-  void GenCode(FunctionLiteral* fun);
+  void GenCode(FunctionLiteral* fun, CompilationInfo* info);
 
   // Generate the return sequence code.  Should be called no more than
   // once per compiled function, immediately after binding the return

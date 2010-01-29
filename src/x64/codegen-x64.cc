@@ -278,7 +278,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void CodeGenerator::GenCode(FunctionLiteral* function) {
+void CodeGenerator::GenCode(FunctionLiteral* function, CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(function);
   ZoneList<Statement*>* body = function->body();
@@ -294,7 +294,7 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ += function->loop_nesting();
+  loop_nesting_ += info->loop_nesting();
 
   JumpTarget::set_compiling_deferred_code(false);
 
@@ -472,7 +472,7 @@ void CodeGenerator::GenCode(FunctionLiteral* function) {
   }
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ -= function->loop_nesting();
+  loop_nesting_ -= info->loop_nesting();
 
   // Code generation state must be reset.
   ASSERT(state_ == NULL);

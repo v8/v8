@@ -142,7 +142,7 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 // r1: called JS function
 // cp: callee's context
 
-void CodeGenerator::GenCode(FunctionLiteral* fun) {
+void CodeGenerator::GenCode(FunctionLiteral* fun, CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(fun);
 

@@ -216,7 +216,8 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(FunctionLiteral* fun,
 // the compiler.cc code.
 Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
                                      Handle<Script> script,
-                                     bool is_eval) {
+                                     bool is_eval,
+                                     CompilationInfo* info) {
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
     Counters::total_old_codegen_source_size.Increment(len);
@@ -226,7 +227,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
   const int kInitialBufferSize = 4 * KB;
   CodeGenerator cgen(kInitialBufferSize, script, is_eval);
   CodeGeneratorScope scope(&cgen);
-  cgen.GenCode(fun);
+  cgen.GenCode(fun, info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();

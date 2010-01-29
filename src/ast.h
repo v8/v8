@@ -1331,7 +1331,6 @@ class FunctionLiteral: public Expression {
         start_position_(start_position),
         end_position_(end_position),
         is_expression_(is_expression),
-        loop_nesting_(0),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(Heap::empty_string()),
         try_full_codegen_(false) {
@@ -1366,9 +1365,6 @@ class FunctionLiteral: public Expression {
 
   bool AllowsLazyCompilation();
 
-  bool loop_nesting() const { return loop_nesting_; }
-  void set_loop_nesting(int nesting) { loop_nesting_ = nesting; }
-
   Handle<String> inferred_name() const  { return inferred_name_; }
   void set_inferred_name(Handle<String> inferred_name) {
     inferred_name_ = inferred_name;
@@ -1396,7 +1392,6 @@ class FunctionLiteral: public Expression {
   int start_position_;
   int end_position_;
   bool is_expression_;
-  int loop_nesting_;
   int function_token_position_;
   Handle<String> inferred_name_;
   bool try_full_codegen_;

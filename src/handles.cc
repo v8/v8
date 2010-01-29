@@ -31,6 +31,7 @@
 #include "api.h"
 #include "arguments.h"
 #include "bootstrapper.h"
+#include "codegen.h"
 #include "compiler.h"
 #include "debug.h"
 #include "execution.h"
@@ -672,13 +673,11 @@ bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
 }
 
 
-static bool CompileLazyHelper(Handle<SharedFunctionInfo> shared,
-                              Handle<Object> receiver,
-                              ClearExceptionFlag flag,
-                              int loop_nesting) {
+static bool CompileLazyHelper(CompilationInfo* info,
+                              ClearExceptionFlag flag) {
   // Compile the source information to a code object.
-  ASSERT(!shared->is_compiled());
-  bool result = Compiler::CompileLazy(shared, receiver, loop_nesting);
+  ASSERT(!info->shared_info()->is_compiled());
+  bool result = Compiler::CompileLazy(info);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
   return result;
@@ -687,16 +686,17 @@ static bool CompileLazyHelper(Handle<SharedFunctionInfo> shared,
 
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
                        ClearExceptionFlag flag) {
-  return CompileLazyHelper(shared, Handle<Object>::null(), flag, 0);
+  CompilationInfo info(shared, Handle<Object>::null(), 0);
+  return CompileLazyHelper(&info, flag);
 }
 
 
 bool CompileLazy(Handle<JSFunction> function,
                  Handle<Object> receiver,
                  ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
   Handle<SharedFunctionInfo> shared(function->shared());
-  bool result = CompileLazyHelper(shared, receiver, flag, 0);
+  CompilationInfo info(shared, receiver, 0);
+  bool result = CompileLazyHelper(&info, flag);
   LOG(FunctionCreateEvent(*function));
   return result;
 }
@@ -705,9 +705,9 @@ bool CompileLazy(Handle<JSFunction> function,
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        Handle<Object> receiver,
                        ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
   Handle<SharedFunctionInfo> shared(function->shared());
-  bool result = CompileLazyHelper(shared, receiver, flag, 1);
+  CompilationInfo info(shared, receiver, 1);
+  bool result = CompileLazyHelper(&info, flag);
   LOG(FunctionCreateEvent(*function));
   return result;
 }

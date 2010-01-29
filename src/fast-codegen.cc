@@ -49,9 +49,10 @@ namespace internal {
   } while (false)
 
 
-void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun) {
+void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun,
+                                     CompilationInfo* info) {
   // We do not specialize if we do not have a receiver.
-  if (receiver().is_null()) BAILOUT("No receiver");
+  if (!info->has_receiver()) BAILOUT("No receiver");
 
   // We do not support stack or heap slots (both of which require
   // allocation).
@@ -253,10 +254,11 @@ void FastCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
   // symbol but we do not assume that.
   Literal* key = prop->key()->AsLiteral();
   if (key != NULL && key->handle()->IsString()) {
+    Handle<Object> receiver = info()->receiver();
     Handle<String> name = Handle<String>::cast(key->handle());
     LookupResult lookup;
-    receiver()->Lookup(*name, &lookup);
-    if (lookup.holder() != *receiver()) BAILOUT("Non-own property assignment");
+    receiver->Lookup(*name, &lookup);
+    if (lookup.holder() != *receiver) BAILOUT("Non-own property assignment");
     if (!lookup.type() == FIELD) BAILOUT("Non-field property assignment");
   } else {
     UNREACHABLE();

@@ -31,19 +31,20 @@
 #include "v8.h"
 
 #include "ast.h"
+#include "compiler.h"
 
 namespace v8 {
 namespace internal {
 
 class FastCodeGenSyntaxChecker: public AstVisitor {
  public:
-  explicit FastCodeGenSyntaxChecker(Handle<Object> receiver)
-      : receiver_(receiver), has_supported_syntax_(true) {
+  explicit FastCodeGenSyntaxChecker()
+      : info_(NULL), has_supported_syntax_(true) {
   }
 
-  void Check(FunctionLiteral* fun);
+  void Check(FunctionLiteral* fun, CompilationInfo* info);
 
-  Handle<Object> receiver() { return receiver_; }
+  CompilationInfo* info() { return info_; }
   bool has_supported_syntax() { return has_supported_syntax_; }
 
  private:
@@ -55,7 +56,7 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  Handle<Object> receiver_;
+  CompilationInfo* info_;
   bool has_supported_syntax_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenSyntaxChecker);

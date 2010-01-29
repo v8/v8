@@ -126,7 +126,7 @@ CodeGenerator::CodeGenerator(int buffer_size,
 // edi: called JS function
 // esi: callee's context
 
-void CodeGenerator::GenCode(FunctionLiteral* fun) {
+void CodeGenerator::GenCode(FunctionLiteral* fun, CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(fun);
 
@@ -143,7 +143,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   set_in_spilled_code(false);
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ += fun->loop_nesting();
+  loop_nesting_ += info->loop_nesting();
 
   JumpTarget::set_compiling_deferred_code(false);
 
@@ -321,7 +321,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   }
 
   // Adjust for function-level loop nesting.
-  loop_nesting_ -= fun->loop_nesting();
+  loop_nesting_ -= info->loop_nesting();
 
   // Code generation state must be reset.
   ASSERT(state_ == NULL);
