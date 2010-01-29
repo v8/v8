@@ -180,6 +180,10 @@ class Expression: public AstNode {
     kTestValue
   };
 
+  static const int kNoLabel = -1;
+
+  Expression() : num_(kNoLabel) {}
+
   virtual Expression* AsExpression()  { return this; }
 
   virtual bool IsValidJSON() { return false; }
@@ -198,8 +202,14 @@ class Expression: public AstNode {
   // Static type information for this expression.
   StaticType* type() { return &type_; }
 
+  int num() { return num_; }
+
+  // AST node numbering ordered by evaluation order.
+  void set_num(int n) { num_ = n; }
+
  private:
   StaticType type_;
+  int num_;
 };
 
 

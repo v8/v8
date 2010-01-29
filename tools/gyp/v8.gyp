@@ -252,6 +252,8 @@
         '../../src/counters.cc',
         '../../src/counters.h',
         '../../src/cpu.h',
+	'../../src/data-flow.cc',
+	'../../src/data-flow.h',
         '../../src/dateparser.cc',
         '../../src/dateparser.h',
         '../../src/dateparser-inl.h',
