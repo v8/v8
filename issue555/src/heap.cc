@@ -3940,8 +3940,9 @@ class UnmarkObjectVisitor : public ObjectVisitor {
   void VisitPointers(Object** start, Object** end) {
     // Copy all HeapObject pointers in [start, end)
     for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject())
+      if ((*p)->IsHeapObject()) {
         UnmarkObjectRecursively(p);
+      }
     }
   }
 };

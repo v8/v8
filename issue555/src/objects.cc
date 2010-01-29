@@ -8326,9 +8326,8 @@ void CaptureInfoForIssue555(
   // trace.
 #if defined(_MSC_VER)
   __asm int 3;
-#else
-  OS::Abort();
 #endif
+  OS::Abort();
 }
 
 } }  // namespace v8::internal

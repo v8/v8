@@ -77,6 +77,10 @@
         },
       },
       'Release': {
+        'defines': [
+          'DEBUG',
+          '_DEBUG'
+        ],
         'conditions': [
           ['OS=="linux"', {
             'cflags!': [

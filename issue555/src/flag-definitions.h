@@ -97,7 +97,7 @@ private:
 #define FLAG FLAG_FULL
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
-DEFINE_bool(debug_code, false,
+DEFINE_bool(debug_code, true,
             "generate extra code (comments, assertions) for debugging")
 DEFINE_bool(emit_branch_hints, false, "emit branch hints")
 DEFINE_bool(push_pop_elimination, true,
@@ -308,7 +308,7 @@ DEFINE_bool(gc_greedy, false, "perform GC prior to some allocations")
 DEFINE_bool(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_bool(heap_stats, false, "report heap statistics before and after GC")
 DEFINE_bool(code_stats, false, "report code statistics after GC")
-DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC")
+DEFINE_bool(verify_heap, true, "verify heap pointers before and after GC")
 DEFINE_bool(print_handles, false, "report handles after GC")
 DEFINE_bool(print_global_handles, false, "report global handles after GC")
 DEFINE_bool(print_rset, false, "print remembered sets before GC")

@@ -113,7 +113,8 @@ LIBRARY_FLAGS = {
   'gcc': {
     'all': {
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions',
+                       '-fno-strict-aliasing'],
     },
     'visibility:hidden': {
       # Use visibility=default to disable this.
@@ -129,9 +130,10 @@ LIBRARY_FLAGS = {
     'mode:release': {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections',
                        '-ffunction-sections'],
+      'CPPDEFINES':   ['DEBUG'],
       'os:android': {
         'CCFLAGS':    ['-mthumb', '-Os'],
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+        'CPPDEFINES': ['SK_RELEASE']
       }
     },
     'os:linux': {
@@ -231,6 +233,7 @@ LIBRARY_FLAGS = {
     },
     'mode:release': {
       'CCFLAGS':      ['/O2'],
+      'CPPDEFINES':   ['_DEBUG', 'DEBUG'],
       'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF'],
       'msvcrt:static': {
         'CCFLAGS': ['/MT']
@@ -377,7 +380,7 @@ CCTEST_EXTRA_FLAGS = {
       'LINKFLAGS':    ANDROID_LINKFLAGS,
       'LIBS':         ['log', 'c', 'stdc++', 'm'],
       'mode:release': {
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+        'CPPDEFINES': ['SK_RELEASE']
       }
     },
   },
@@ -436,7 +439,7 @@ SAMPLE_FLAGS = {
       'LINKFLAGS':    ANDROID_LINKFLAGS,
       'LIBS':         ['log', 'c', 'stdc++', 'm'],
       'mode:release': {
-        'CPPDEFINES': ['SK_RELEASE', 'NDEBUG']
+        'CPPDEFINES': ['SK_RELEASE']
       }
     },
     'arch:ia32': {
