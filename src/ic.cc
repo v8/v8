@@ -1302,9 +1302,9 @@ Object* CallIC_Miss(Arguments args) {
   Handle<JSFunction> function = Handle<JSFunction>(JSFunction::cast(result));
   InLoopFlag in_loop = ic.target()->ic_in_loop();
   if (in_loop == IN_LOOP) {
-    CompileLazyInLoop(function, CLEAR_EXCEPTION);
+    CompileLazyInLoop(function, args.at<Object>(0), CLEAR_EXCEPTION);
   } else {
-    CompileLazy(function, CLEAR_EXCEPTION);
+    CompileLazy(function, args.at<Object>(0), CLEAR_EXCEPTION);
   }
   return *function;
 }

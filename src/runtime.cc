@@ -1405,16 +1405,18 @@ static Object* Runtime_SetCode(Arguments args) {
   if (!code->IsNull()) {
     RUNTIME_ASSERT(code->IsJSFunction());
     Handle<JSFunction> fun = Handle<JSFunction>::cast(code);
-    SetExpectedNofProperties(target, fun->shared()->expected_nof_properties());
-    if (!fun->is_compiled() && !CompileLazy(fun, KEEP_EXCEPTION)) {
+    Handle<SharedFunctionInfo> shared(fun->shared());
+    SetExpectedNofProperties(target, shared->expected_nof_properties());
+
+    if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
       return Failure::Exception();
     }
     // Set the code, formal parameter count, and the length of the target
     // function.
     target->set_code(fun->code());
-    target->shared()->set_length(fun->shared()->length());
+    target->shared()->set_length(shared->length());
     target->shared()->set_formal_parameter_count(
-        fun->shared()->formal_parameter_count());
+        shared->formal_parameter_count());
     // Set the source code of the target function to undefined.
     // SetCode is only used for built-in constructors like String,
     // Array, and Object, and some web code
@@ -4826,12 +4828,8 @@ static Object* Runtime_NewObject(Arguments args) {
   }
 
   // The function should be compiled for the optimization hints to be available.
-  if (!function->shared()->is_compiled()) {
-    CompileLazyShared(Handle<SharedFunctionInfo>(function->shared()),
-                                                 CLEAR_EXCEPTION,
-                                                 0);
-    LOG(FunctionCreateEvent(*function));
-  }
+  Handle<SharedFunctionInfo> shared(function->shared());
+  EnsureCompiled(shared, CLEAR_EXCEPTION);
 
   bool first_allocation = !function->has_initial_map();
   Handle<JSObject> result = Factory::NewJSObject(function);
@@ -4870,7 +4868,7 @@ static Object* Runtime_LazyCompile(Arguments args) {
   // this means that things called through constructors are never known to
   // be in loops.  We compile them as if they are in loops here just in case.
   ASSERT(!function->is_compiled());
-  if (!CompileLazyInLoop(function, KEEP_EXCEPTION)) {
+  if (!CompileLazyInLoop(function, Handle<Object>::null(), KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
 
@@ -7278,7 +7276,7 @@ Object* Runtime::FindSharedFunctionInfoInScript(Handle<Script> script,
     if (!done) {
       // If the candidate is not compiled compile it to reveal any inner
       // functions which might contain the requested source position.
-      CompileLazyShared(target, KEEP_EXCEPTION, 0);
+      CompileLazyShared(target, KEEP_EXCEPTION);
     }
   }
 
@@ -7864,7 +7862,8 @@ static Object* Runtime_DebugDisassembleFunction(Arguments args) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
-  if (!func->is_compiled() && !CompileLazy(func, KEEP_EXCEPTION)) {
+  Handle<SharedFunctionInfo> shared(func->shared());
+  if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
   func->code()->PrintLn();
@@ -7879,10 +7878,11 @@ static Object* Runtime_DebugDisassembleConstructor(Arguments args) {
   ASSERT(args.length() == 1);
   // Get the function and make sure it is compiled.
   CONVERT_ARG_CHECKED(JSFunction, func, 0);
-  if (!func->is_compiled() && !CompileLazy(func, KEEP_EXCEPTION)) {
+  Handle<SharedFunctionInfo> shared(func->shared());
+  if (!EnsureCompiled(shared, KEEP_EXCEPTION)) {
     return Failure::Exception();
   }
-  func->shared()->construct_stub()->PrintLn();
+  shared->construct_stub()->PrintLn();
 #endif  // DEBUG
   return Heap::undefined_value();
 }

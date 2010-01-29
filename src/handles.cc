@@ -666,34 +666,52 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag,
-                       int loop_nesting) {
+bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
+                    ClearExceptionFlag flag) {
+  return shared->is_compiled() || CompileLazyShared(shared, flag);
+}
+
+
+static bool CompileLazyHelper(Handle<SharedFunctionInfo> shared,
+                              Handle<Object> receiver,
+                              ClearExceptionFlag flag,
+                              int loop_nesting) {
   // Compile the source information to a code object.
   ASSERT(!shared->is_compiled());
-  bool result = Compiler::CompileLazy(shared, loop_nesting);
+  bool result = Compiler::CompileLazy(shared, receiver, loop_nesting);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
   return result;
 }
 
 
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag) {
+bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
+                       ClearExceptionFlag flag) {
+  return CompileLazyHelper(shared, Handle<Object>::null(), flag, 0);
+}
+
+
+bool CompileLazy(Handle<JSFunction> function,
+                 Handle<Object> receiver,
+                 ClearExceptionFlag flag) {
   // Compile the source information to a code object.
   Handle<SharedFunctionInfo> shared(function->shared());
-  bool result = CompileLazyShared(shared, flag, 0);
+  bool result = CompileLazyHelper(shared, receiver, flag, 0);
   LOG(FunctionCreateEvent(*function));
   return result;
 }
 
 
-bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag) {
+bool CompileLazyInLoop(Handle<JSFunction> function,
+                       Handle<Object> receiver,
+                       ClearExceptionFlag flag) {
   // Compile the source information to a code object.
   Handle<SharedFunctionInfo> shared(function->shared());
-  bool result = CompileLazyShared(shared, flag, 1);
+  bool result = CompileLazyHelper(shared, receiver, flag, 1);
   LOG(FunctionCreateEvent(*function));
   return result;
 }
+
 
 OptimizedObjectForAddingMultipleProperties::
 OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,

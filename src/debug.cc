@@ -1526,19 +1526,13 @@ void Debug::ClearStepNext() {
 }
 
 
-bool Debug::EnsureCompiled(Handle<SharedFunctionInfo> shared) {
-  if (shared->is_compiled()) return true;
-  return CompileLazyShared(shared, CLEAR_EXCEPTION, 0);
-}
-
-
 // Ensures the debug information is present for shared.
 bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Return if we already have the debug info for shared.
   if (HasDebugInfo(shared)) return true;
 
   // Ensure shared in compiled. Return false if this failed.
-  if (!EnsureCompiled(shared)) return false;
+  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = Factory::NewDebugInfo(shared);

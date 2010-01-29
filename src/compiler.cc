@@ -48,7 +48,8 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
                              Handle<Script> script,
                              Handle<Context> context,
                              bool is_eval,
-                             Handle<SharedFunctionInfo> shared) {
+                             Handle<SharedFunctionInfo> shared,
+                             Handle<Object> receiver) {
   ASSERT(literal != NULL);
 
   // Rewrite the AST by introducing .result assignments where needed.
@@ -109,7 +110,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     }
   } else if (FLAG_always_fast_compiler ||
              (FLAG_fast_compiler && !is_run_once)) {
-    FastCodeGenSyntaxChecker checker;
+    FastCodeGenSyntaxChecker checker(receiver);
     checker.Check(literal);
     if (checker.has_supported_syntax()) {
       AstLabeler labeler;
@@ -203,8 +204,12 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   HistogramTimerScope timer(rate);
 
   // Compile the code.
-  Handle<Code> code = MakeCode(lit, script, context, is_eval,
-                               Handle<SharedFunctionInfo>::null());
+  Handle<Code> code = MakeCode(lit,
+                               script,
+                               context,
+                               is_eval,
+                               Handle<SharedFunctionInfo>::null(),
+                               Handle<Object>::null());  // No receiver.
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
@@ -366,6 +371,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
 
 
 bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
+                           Handle<Object> receiver,
                            int loop_nesting) {
   CompilationZoneScope zone_scope(DELETE_ON_EXIT);
 
@@ -405,8 +411,12 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   HistogramTimerScope timer(&Counters::compile_lazy);
 
   // Compile the code.
-  Handle<Code> code = MakeCode(lit, script, Handle<Context>::null(), false,
-                               shared);
+  Handle<Code> code = MakeCode(lit,
+                               script,
+                               Handle<Context>::null(),
+                               false,
+                               shared,
+                               receiver);
 
   // Check for stack-overflow exception.
   if (code.is_null()) {
@@ -501,7 +511,9 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       }
     } else if (FLAG_always_fast_compiler ||
                (FLAG_fast_compiler && !is_run_once)) {
-      FastCodeGenSyntaxChecker checker;
+      // Since we are not lazily compiling we do not have a receiver to
+      // specialize for.
+      FastCodeGenSyntaxChecker checker(Handle<Object>::null());
       checker.Check(literal);
       if (checker.has_supported_syntax()) {
         AstLabeler label_nodes;

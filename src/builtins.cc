@@ -175,12 +175,12 @@ Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {
   if (Top::context() != NULL) {
     Object* object = Top::builtins()->javascript_builtin(id);
     if (object->IsJSFunction()) {
-      Handle<JSFunction> function(JSFunction::cast(object));
+      Handle<SharedFunctionInfo> shared(JSFunction::cast(object)->shared());
       // Make sure the number of parameters match the formal parameter count.
-      ASSERT(function->shared()->formal_parameter_count() ==
+      ASSERT(shared->formal_parameter_count() ==
              Builtins::GetArgumentsCount(id));
-      if (function->is_compiled() || CompileLazy(function, CLEAR_EXCEPTION)) {
-        code = function->code();
+      if (EnsureCompiled(shared, CLEAR_EXCEPTION)) {
+        code = shared->code();
         *resolved = true;
       }
     }

@@ -37,10 +37,13 @@ namespace internal {
 
 class FastCodeGenSyntaxChecker: public AstVisitor {
  public:
-  FastCodeGenSyntaxChecker() : has_supported_syntax_(true) {}
+  explicit FastCodeGenSyntaxChecker(Handle<Object> receiver)
+      : receiver_(receiver), has_supported_syntax_(true) {
+  }
 
   void Check(FunctionLiteral* fun);
 
+  Handle<Object> receiver() { return receiver_; }
   bool has_supported_syntax() { return has_supported_syntax_; }
 
  private:
@@ -52,6 +55,7 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
+  Handle<Object> receiver_;
   bool has_supported_syntax_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenSyntaxChecker);

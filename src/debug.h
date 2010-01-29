@@ -391,7 +391,6 @@ class Debug {
   static void ClearStepOut();
   static void ClearStepNext();
   // Returns whether the compile succeeded.
-  static bool EnsureCompiled(Handle<SharedFunctionInfo> shared);
   static void RemoveDebugInfo(Handle<DebugInfo> debug_info);
   static void SetAfterBreakTarget(JavaScriptFrame* frame);
   static Handle<Object> CheckBreakPoints(Handle<Object> break_point);

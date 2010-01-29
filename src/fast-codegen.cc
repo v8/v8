@@ -50,10 +50,12 @@ namespace internal {
 
 
 void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun) {
-  Scope* scope = fun->scope();
+  // We do not specialize if we do not have a receiver.
+  if (receiver().is_null()) BAILOUT("No receiver");
 
   // We do not support stack or heap slots (both of which require
   // allocation).
+  Scope* scope = fun->scope();
   if (scope->num_stack_slots() > 0) {
     BAILOUT("Function has stack-allocated locals");
   }
@@ -244,6 +246,21 @@ void FastCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
   }
   if (!prop->key()->IsPropertyName()) {
     BAILOUT("Non-named-property assignment");
+  }
+
+  // We will only specialize for fields on the object itself.
+  // Expression::IsPropertyName implies that the name is a literal
+  // symbol but we do not assume that.
+  Literal* key = prop->key()->AsLiteral();
+  if (key != NULL && key->handle()->IsString()) {
+    Handle<String> name = Handle<String>::cast(key->handle());
+    LookupResult lookup;
+    receiver()->Lookup(*name, &lookup);
+    if (lookup.holder() != *receiver()) BAILOUT("Non-own property assignment");
+    if (!lookup.type() == FIELD) BAILOUT("Non-field property assignment");
+  } else {
+    UNREACHABLE();
+    BAILOUT("Unexpected non-string-literal property key");
   }
 
   Visit(expr->value());

@@ -70,7 +70,9 @@ class Compiler : public AllStatic {
   // Compile from function info (used for lazy compilation). Returns
   // true on success and false if the compilation resulted in a stack
   // overflow.
-  static bool CompileLazy(Handle<SharedFunctionInfo> shared, int loop_nesting);
+  static bool CompileLazy(Handle<SharedFunctionInfo> shared,
+                          Handle<Object> receiver,
+                          int loop_nesting);
 
   // Compile a function boilerplate object (the function is possibly
   // lazily compiled). Called recursively from a backend code
