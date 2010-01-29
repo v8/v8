@@ -8130,12 +8130,12 @@ static Object* Runtime_IS_VAR(Arguments args) {
 // Implementation of Runtime
 
 #define F(name, nargs, ressize)                                           \
-  { #name, "RuntimeStub_" #name, FUNCTION_ADDR(Runtime_##name), nargs, \
+  { #name, FUNCTION_ADDR(Runtime_##name), nargs, \
     static_cast<int>(Runtime::k##name), ressize },
 
 static Runtime::Function Runtime_functions[] = {
   RUNTIME_FUNCTION_LIST(F)
-  { NULL, NULL, NULL, 0, -1, 0 }
+  { NULL, NULL, 0, -1, 0 }
 };
 
 #undef F

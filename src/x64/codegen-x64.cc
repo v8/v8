@@ -2212,7 +2212,9 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Spill everything, even constants, to the frame.
   frame_->SpillAll();
-  frame_->CallRuntime(Runtime::kDebugBreak, 0);
+
+  DebugerStatementStub ces;
+  frame_->CallStub(&ces, 0);
   // Ignore the return value.
 #endif
 }
@@ -7337,9 +7339,7 @@ int CEntryStub::MinorKey() {
 #ifdef _WIN64
   // Simple results returned in rax (using default code).
   // Complex results must be written to address passed as first argument.
-  // Use even numbers for minor keys, reserving the odd numbers for
-  // CEntryDebugBreakStub.
-  return (result_size_ < 2) ? 0 : result_size_ * 2;
+  return (result_size_ < 2) ? 0 : 1;
 #else
   // Single results returned in rax (both AMD64 and Win64 calling conventions)
   // and a struct of two pointers in rax+rdx (AMD64 calling convention only)

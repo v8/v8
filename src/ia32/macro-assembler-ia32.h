@@ -331,7 +331,7 @@ class MacroAssembler: public Assembler {
   // Eventually this should be used for all C calls.
   void CallRuntime(Runtime::Function* f, int num_arguments);
 
-  // Call a runtime function, returning the RuntimeStub object called.
+  // Call a runtime function, returning the CodeStub object called.
   // Try to generate the stub code if necessary.  Do not perform a GC
   // but instead return a retry after GC failure.
   Object* TryCallRuntime(Runtime::Function* f, int num_arguments);

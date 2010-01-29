@@ -2047,6 +2047,33 @@ TEST(DebuggerStatement) {
 }
 
 
+// Test setting a breakpoint on the  debugger statement.
+TEST(DebuggerStatementBreakpoint) {
+    break_point_hit_count = 0;
+    v8::HandleScope scope;
+    DebugLocalContext env;
+    v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount,
+                                     v8::Undefined());
+    v8::Script::Compile(v8::String::New("function foo(){debugger;}"))->Run();
+    v8::Local<v8::Function> foo =
+    v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("foo")));
+
+    // The debugger statement triggers breakpint hit
+    foo->Call(env->Global(), 0, NULL);
+    CHECK_EQ(1, break_point_hit_count);
+
+    int bp = SetBreakPoint(foo, 0);
+
+    // Set breakpoint does not duplicate hits
+    foo->Call(env->Global(), 0, NULL);
+    CHECK_EQ(2, break_point_hit_count);
+
+    ClearBreakPoint(bp);
+    v8::Debug::SetDebugEventListener(NULL);
+    CheckDebuggerUnloaded();
+}
+
+
 // Thest that the evaluation of expressions when a break point is hit generates
 // the correct results.
 TEST(DebugEvaluate) {

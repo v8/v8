@@ -998,7 +998,9 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Comment cmnt(masm_, "[ DebuggerStatement");
   SetStatementPosition(stmt);
-  __ CallRuntime(Runtime::kDebugBreak, 0);
+
+  DebugerStatementStub ces;
+  __ CallStub(&ces);
   // Ignore the return value.
 #endif
 }

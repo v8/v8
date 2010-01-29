@@ -1499,7 +1499,7 @@ void Heap::CreateRegExpCEntryStub() {
 
 
 void Heap::CreateCEntryDebugBreakStub() {
-  CEntryDebugBreakStub stub;
+  DebugerStatementStub stub;
   set_c_entry_debug_break_code(*stub.GetCode());
 }
 
@@ -1526,7 +1526,7 @@ void Heap::CreateFixedStubs() {
   // {  CEntryStub stub;
   //    c_entry_code_ = *stub.GetCode();
   // }
-  // {  CEntryDebugBreakStub stub;
+  // {  DebugerStatementStub stub;
   //    c_entry_debug_break_code_ = *stub.GetCode();
   // }
   // To workaround the problem, make separate functions without inlining.

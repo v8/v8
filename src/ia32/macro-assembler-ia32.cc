@@ -1098,10 +1098,14 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
     return;
   }
 
-  Runtime::FunctionId function_id =
-      static_cast<Runtime::FunctionId>(f->stub_id);
-  RuntimeStub stub(function_id, num_arguments);
-  CallStub(&stub);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(eax, Immediate(num_arguments));
+  mov(ebx, Immediate(ExternalReference(f)));
+  CEntryStub ces(1);
+  CallStub(&ces);
 }
 
 
@@ -1114,10 +1118,14 @@ Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
     return Heap::undefined_value();
   }
 
-  Runtime::FunctionId function_id =
-      static_cast<Runtime::FunctionId>(f->stub_id);
-  RuntimeStub stub(function_id, num_arguments);
-  return TryCallStub(&stub);
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  Set(eax, Immediate(num_arguments));
+  mov(ebx, Immediate(ExternalReference(f)));
+  CEntryStub ces(1);
+  return TryCallStub(&ces);
 }
 
 

@@ -132,7 +132,6 @@ class BreakLocationIterator {
   int position_;
   int statement_position_;
   Handle<DebugInfo> debug_info_;
-  Handle<Code> debug_break_stub_;
   RelocIterator* reloc_iterator_;
   RelocIterator* reloc_iterator_original_;
 

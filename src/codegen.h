@@ -181,43 +181,6 @@ class DeferredCode: public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(DeferredCode);
 };
 
-
-// RuntimeStub models code stubs calling entry points in the Runtime class.
-class RuntimeStub : public CodeStub {
- public:
-  explicit RuntimeStub(Runtime::FunctionId id, int num_arguments)
-      : id_(id), num_arguments_(num_arguments) { }
-
-  void Generate(MacroAssembler* masm);
-
-  // Disassembler support.  It is useful to be able to print the name
-  // of the runtime function called through this stub.
-  static const char* GetNameFromMinorKey(int minor_key) {
-    return Runtime::FunctionForId(IdField::decode(minor_key))->stub_name;
-  }
-
- private:
-  Runtime::FunctionId id_;
-  int num_arguments_;
-
-  class ArgumentField: public BitField<int,  0, 16> {};
-  class IdField: public BitField<Runtime::FunctionId, 16, kMinorBits - 16> {};
-
-  Major MajorKey() { return Runtime; }
-  int MinorKey() {
-    return IdField::encode(id_) | ArgumentField::encode(num_arguments_);
-  }
-
-  const char* GetName();
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("RuntimeStub (id %s)\n", Runtime::FunctionForId(id_)->name);
-  }
-#endif
-};
-
-
 class StackCheckStub : public CodeStub {
  public:
   StackCheckStub() { }
@@ -422,16 +385,18 @@ class ApiGetterEntryStub : public CodeStub {
 };
 
 
-class CEntryDebugBreakStub : public CEntryStub {
+// Mark the debugger statemet to be recognized bu debugger (by the MajorKey)
+class DebugerStatementStub : public CodeStub {
  public:
-  CEntryDebugBreakStub() : CEntryStub(1) { }
+  DebugerStatementStub() { }
 
-  void Generate(MacroAssembler* masm) { GenerateBody(masm, true); }
+  void Generate(MacroAssembler* masm);
 
  private:
-  int MinorKey() { return 1; }
+  Major MajorKey() { return DebuggerStatement; }
+  int MinorKey() { return 0; }
 
-  const char* GetName() { return "CEntryDebugBreakStub"; }
+  const char* GetName() { return "DebugerStatementStub"; }
 };
 
 

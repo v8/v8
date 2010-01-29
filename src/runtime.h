@@ -373,9 +373,6 @@ class Runtime : public AllStatic {
     // The JS name of the function.
     const char* name;
 
-    // The name of the stub that calls the runtime function.
-    const char* stub_name;
-
     // The C++ (native) entry point.
     byte* entry;
 

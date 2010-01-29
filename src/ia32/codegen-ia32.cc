@@ -3901,7 +3901,9 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Spill everything, even constants, to the frame.
   frame_->SpillAll();
-  frame_->CallRuntime(Runtime::kDebugBreak, 0);
+
+  DebugerStatementStub ces;
+  frame_->CallStub(&ces, 0);
   // Ignore the return value.
 #endif
 }

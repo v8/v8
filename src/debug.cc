@@ -75,9 +75,6 @@ BreakLocationIterator::BreakLocationIterator(Handle<DebugInfo> debug_info,
                                              BreakLocatorType type) {
   debug_info_ = debug_info;
   type_ = type;
-  // Get the stub early to avoid possible GC during iterations. We may need
-  // this stub to detect debugger calls generated from debugger statements.
-  debug_break_stub_ = RuntimeStub(Runtime::kDebugBreak, 0).GetCode();
   reloc_iterator_ = NULL;
   reloc_iterator_original_ = NULL;
   Reset();  // Initialize the rest of the member variables.
@@ -461,9 +458,7 @@ bool BreakLocationIterator::IsDebuggerStatement() {
     Code* code = Code::GetCodeFromTargetAddress(target);
     if (code->kind() == Code::STUB) {
       CodeStub::Major major_key = code->major_key();
-      if (major_key == CodeStub::Runtime) {
-        return (*debug_break_stub_ == code);
-      }
+      return (major_key == CodeStub::DebuggerStatement);
     }
   }
   return false;

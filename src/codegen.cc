@@ -452,11 +452,6 @@ void CodeGenerator::CodeForSourcePosition(int pos) {
 }
 
 
-const char* RuntimeStub::GetName() {
-  return Runtime::FunctionForId(id_)->stub_name;
-}
-
-
 const char* GenericUnaryOpStub::GetName() {
   switch (op_) {
     case Token::SUB:
@@ -471,14 +466,6 @@ const char* GenericUnaryOpStub::GetName() {
       UNREACHABLE();
       return "<unknown>";
   }
-}
-
-
-void RuntimeStub::Generate(MacroAssembler* masm) {
-  Runtime::Function* f = Runtime::FunctionForId(id_);
-  masm->TailCallRuntime(ExternalReference(f),
-                        num_arguments_,
-                        f->result_size);
 }
 
 
@@ -504,6 +491,12 @@ bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
 
 void ApiGetterEntryStub::SetCustomCache(Code* value) {
   info()->set_load_stub_cache(value);
+}
+
+
+void DebugerStatementStub::Generate(MacroAssembler* masm) {
+  Runtime::Function* f = Runtime::FunctionForId(Runtime::kDebugBreak);
+  masm->TailCallRuntime(ExternalReference(f), 0, f->result_size);
 }
 
 
