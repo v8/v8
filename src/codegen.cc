@@ -225,7 +225,8 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
   MakeCodePrologue(fun);
   // Generate code.
   const int kInitialBufferSize = 4 * KB;
-  CodeGenerator cgen(kInitialBufferSize, script, is_eval);
+  MacroAssembler masm(NULL, kInitialBufferSize);
+  CodeGenerator cgen(&masm, script, is_eval);
   CodeGeneratorScope scope(&cgen);
   cgen.GenCode(fun, info);
   if (cgen.HasStackOverflow()) {

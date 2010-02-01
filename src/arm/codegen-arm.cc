@@ -121,12 +121,13 @@ CodeGenState::~CodeGenState() {
 // -------------------------------------------------------------------------
 // CodeGenerator implementation
 
-CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
+CodeGenerator::CodeGenerator(MacroAssembler* masm,
+                             Handle<Script> script,
                              bool is_eval)
     : is_eval_(is_eval),
       script_(script),
       deferred_(8),
-      masm_(new MacroAssembler(NULL, buffer_size)),
+      masm_(masm),
       scope_(NULL),
       frame_(NULL),
       allocator_(NULL),

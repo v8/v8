@@ -203,8 +203,7 @@ class CodeGenerator: public AstVisitor {
 
  private:
   // Construction/Destruction
-  CodeGenerator(int buffer_size, Handle<Script> script, bool is_eval);
-  virtual ~CodeGenerator() { delete masm_; }
+  CodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval);
 
   // Accessors
   Scope* scope() const { return scope_; }
