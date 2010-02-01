@@ -176,7 +176,7 @@ StackFrame* StackFrameIterator::SingletonFor(StackFrame::Type type) {
 
 
 StackTraceFrameIterator::StackTraceFrameIterator() {
-  if (!done() && !frame()->function()->IsJSFunction()) Advance();
+  if (!done() && !IsValidFrame()) Advance();
 }
 
 
@@ -184,8 +184,16 @@ void StackTraceFrameIterator::Advance() {
   while (true) {
     JavaScriptFrameIterator::Advance();
     if (done()) return;
-    if (frame()->function()->IsJSFunction()) return;
+    if (IsValidFrame()) return;
   }
+}
+
+bool StackTraceFrameIterator::IsValidFrame() {
+    if (!frame()->function()->IsJSFunction()) return false;
+    Object* script = JSFunction::cast(frame()->function())->shared()->script();
+    // Don't show functions from native scripts to user.
+    return (script->IsScript() &&
+            Script::TYPE_NATIVE != Script::cast(script)->type()->value());
 }
 
 

@@ -3602,6 +3602,37 @@ TEST(ApiUncaughtException) {
   v8::V8::RemoveMessageListeners(ApiUncaughtExceptionTestListener);
 }
 
+static const char* script_resource_name = "ExceptionInNativeScript.js";
+static void ExceptionInNativeScriptTestListener(v8::Handle<v8::Message> message,
+                                                v8::Handle<Value>) {
+  v8::Handle<v8::Value> name_val = message->GetScriptResourceName();
+  CHECK(!name_val.IsEmpty() && name_val->IsString());
+  v8::String::AsciiValue name(message->GetScriptResourceName());
+  CHECK_EQ(script_resource_name, *name);
+  CHECK_EQ(3, message->GetLineNumber());
+  v8::String::AsciiValue source_line(message->GetSourceLine());
+  CHECK_EQ("  new o.foo();", *source_line);
+}
+
+TEST(ExceptionInNativeScript) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::AddMessageListener(ExceptionInNativeScriptTestListener);
+
+  Local<v8::FunctionTemplate> fun = v8::FunctionTemplate::New(TroubleCallback);
+  v8::Local<v8::Object> global = env->Global();
+  global->Set(v8_str("trouble"), fun->GetFunction());
+
+  Script::Compile(v8_str("function trouble() {\n"
+                         "  var o = {};\n"
+                         "  new o.foo();\n"
+                         "};"), v8::String::New(script_resource_name))->Run();
+  Local<Value> trouble = global->Get(v8_str("trouble"));
+  CHECK(trouble->IsFunction());
+  Function::Cast(*trouble)->Call(global, 0, NULL);
+  v8::V8::RemoveMessageListeners(ExceptionInNativeScriptTestListener);
+}
+
 
 TEST(CompilationErrorUsingTryCatchHandler) {
   v8::HandleScope scope;

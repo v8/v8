@@ -589,6 +589,9 @@ class StackTraceFrameIterator: public JavaScriptFrameIterator {
  public:
   StackTraceFrameIterator();
   void Advance();
+
+ private:
+  bool IsValidFrame();
 };
 
 
