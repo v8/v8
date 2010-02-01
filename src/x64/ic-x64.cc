@@ -1326,7 +1326,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   return true;
 }
 
-void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
+void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
@@ -1341,7 +1341,7 @@ void StoreIC::Generate(MacroAssembler* masm, ExternalReference const& f) {
   __ push(rbx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 3, 1);
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
 }
 
 void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
@@ -1379,7 +1379,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   StubCache::GenerateProbe(masm, flags, rdx, rcx, rbx, no_reg);
 
   // Cache miss: Jump to runtime.
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+  GenerateMiss(masm);
 }
 
 

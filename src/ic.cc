@@ -1395,16 +1395,6 @@ Object* SharedStoreIC_ExtendStorage(Arguments args) {
 }
 
 
-void StoreIC::GenerateInitialize(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
-}
-
-
-void StoreIC::GenerateMiss(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
-}
-
-
 // Used from ic_<arch>.cc.
 Object* KeyedStoreIC_Miss(Arguments args) {
   NoHandleAllocation na;

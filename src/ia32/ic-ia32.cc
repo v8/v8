@@ -1389,7 +1389,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
 
   // Cache miss: Jump to runtime.
-  Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+  GenerateMiss(masm);
 }
 
 
@@ -1413,7 +1413,7 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
 }
 
 
-void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
+void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
@@ -1428,7 +1428,7 @@ void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ebx);
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 3, 1);
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
 }
 
 

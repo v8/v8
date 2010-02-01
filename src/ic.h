@@ -348,14 +348,12 @@ class StoreIC: public IC {
                 Handle<Object> value);
 
   // Code generators for stub routines. Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateExtendStorage(MacroAssembler* masm);
 
  private:
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
