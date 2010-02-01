@@ -144,12 +144,14 @@ static Handle<JSFunction> MakeFunction(bool is_global,
     // For eval scripts add information on the function from which eval was
     // called.
     if (is_eval) {
-      JavaScriptFrameIterator it;
-      script->set_eval_from_shared(
-          JSFunction::cast(it.frame()->function())->shared());
-      int offset = static_cast<int>(
-          it.frame()->pc() - it.frame()->code()->instruction_start());
-      script->set_eval_from_instructions_offset(Smi::FromInt(offset));
+      StackTraceFrameIterator it;
+      if (!it.done()) {
+        script->set_eval_from_shared(
+            JSFunction::cast(it.frame()->function())->shared());
+        int offset = static_cast<int>(
+            it.frame()->pc() - it.frame()->code()->instruction_start());
+        script->set_eval_from_instructions_offset(Smi::FromInt(offset));
+      }
     }
   }
 

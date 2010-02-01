@@ -2089,8 +2089,10 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
         content.evalFromScript =
             this.serializeReference(mirror.evalFromScript());
         var evalFromLocation = mirror.evalFromLocation()
-        content.evalFromLocation = { line: evalFromLocation.line,
-                                     column: evalFromLocation.column}
+        if (evalFromLocation) {
+          content.evalFromLocation = { line: evalFromLocation.line,
+                                       column: evalFromLocation.column };
+        }
         if (mirror.evalFromFunctionName()) {
           content.evalFromFunctionName = mirror.evalFromFunctionName();
         }
