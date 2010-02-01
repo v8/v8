@@ -1379,12 +1379,10 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
 
-  // Get the receiver from the stack and probe the stub cache.
-  __ mov(edx, Operand(esp, 4));
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
@@ -1399,12 +1397,12 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : transition map
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
 
   __ pop(ebx);
-  __ push(Operand(esp, 0));  // receiver
+  __ push(edx);  // receiver
   __ push(ecx);  // transition map
   __ push(eax);  // value
   __ push(ebx);  // return address
@@ -1419,12 +1417,12 @@ void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
 
   __ pop(ebx);
-  __ push(Operand(esp, 0));
+  __ push(edx);
   __ push(ecx);
   __ push(eax);
   __ push(ebx);

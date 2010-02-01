@@ -4472,8 +4472,6 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           Load(property->value());
           frame_->Push(key);
           Result ignored = frame_->CallStoreIC();
-          // Drop the duplicated receiver and ignore the result.
-          frame_->Drop();
           break;
         }
         // Fall through
@@ -6715,7 +6713,7 @@ void Reference::SetValue(InitState init_state) {
       cgen_->frame()->Push(GetName());
       Result answer = cgen_->frame()->CallStoreIC();
       cgen_->frame()->Push(&answer);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
