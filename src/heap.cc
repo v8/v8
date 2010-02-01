@@ -3013,7 +3013,7 @@ Object* Heap::AllocateGlobalContext() {
 
 Object* Heap::AllocateFunctionContext(int length, JSFunction* function) {
   ASSERT(length >= Context::MIN_CONTEXT_SLOTS);
-  Object* result = Heap::AllocateFixedArray(length, TENURED);
+  Object* result = Heap::AllocateFixedArray(length);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map(context_map());
