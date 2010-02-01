@@ -121,17 +121,6 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 }
 
 
-static bool IsValidJSON(FunctionLiteral* lit) {
-  if (lit->body()->length() != 1)
-    return false;
-  Statement* stmt = lit->body()->at(0);
-  if (stmt->AsExpressionStatement() == NULL)
-    return false;
-  Expression* expr = stmt->AsExpressionStatement()->expression();
-  return expr->IsValidJSON();
-}
-
-
 static Handle<JSFunction> MakeFunction(bool is_global,
                                        bool is_eval,
                                        Compiler::ValidationState validate,
@@ -146,8 +135,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   ASSERT(!i::Top::global_context().is_null());
   script->set_context_data((*i::Top::global_context())->data());
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   bool is_json = (validate == Compiler::VALIDATE_JSON);
+#ifdef ENABLE_DEBUGGER_SUPPORT
   if (is_eval || is_json) {
     script->set_compilation_type(
         is_json ? Smi::FromInt(Script::COMPILATION_TYPE_JSON) :
@@ -172,24 +161,12 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   ASSERT(is_eval || is_global);
 
   // Build AST.
-  FunctionLiteral* lit = MakeAST(is_global, script, extension, pre_data);
+  FunctionLiteral* lit =
+      MakeAST(is_global, script, extension, pre_data, is_json);
 
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
-    return Handle<JSFunction>::null();
-  }
-
-  // When parsing JSON we do an ordinary parse and then afterwards
-  // check the AST to ensure it was well-formed.  If not we give a
-  // syntax error.
-  if (validate == Compiler::VALIDATE_JSON && !IsValidJSON(lit)) {
-    HandleScope scope;
-    Handle<JSArray> args = Factory::NewJSArray(1);
-    Handle<Object> source(script->source());
-    SetElement(args, 0, source);
-    Handle<Object> result = Factory::NewSyntaxError("invalid_json", args);
-    Top::Throw(*result, NULL);
     return Handle<JSFunction>::null();
   }
 

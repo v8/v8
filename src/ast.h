@@ -186,7 +186,6 @@ class Expression: public AstNode {
 
   virtual Expression* AsExpression()  { return this; }
 
-  virtual bool IsValidJSON() { return false; }
   virtual bool IsValidLeftHandSide() { return false; }
 
   // Symbols that cannot be parsed as array indices are considered property
@@ -713,8 +712,6 @@ class Literal: public Expression {
     return handle_.is_identical_to(other->handle_);
   }
 
-  virtual bool IsValidJSON() { return true; }
-
   virtual bool IsPropertyName() {
     if (handle_->IsSymbol()) {
       uint32_t ignored;
@@ -750,8 +747,6 @@ class MaterializedLiteral: public Expression {
   // A materialized literal is simple if the values consist of only
   // constants and simple object and array literals.
   bool is_simple() const { return is_simple_; }
-
-  virtual bool IsValidJSON() { return true; }
 
   int depth() const { return depth_; }
 
@@ -806,7 +801,6 @@ class ObjectLiteral: public MaterializedLiteral {
 
   virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
-  virtual bool IsValidJSON();
 
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
@@ -854,7 +848,6 @@ class ArrayLiteral: public MaterializedLiteral {
 
   virtual void Accept(AstVisitor* v);
   virtual ArrayLiteral* AsArrayLiteral() { return this; }
-  virtual bool IsValidJSON();
 
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
   ZoneList<Expression*>* values() const { return values_; }
