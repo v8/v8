@@ -32,18 +32,15 @@
 #ifndef V8_V8_H_
 #define V8_V8_H_
 
-#if defined(GOOGLE3)
-// Google3 special flag handling.
 #if defined(DEBUG) && defined(NDEBUG)
-// If both are defined in Google3, then we are building an optimized v8 with
+// If both are defined then we are building an optimized v8 with
 // assertions enabled.
 #undef NDEBUG
 #elif !defined(DEBUG) && !defined(NDEBUG)
-// If neither is defined in Google3, then we are building a debug v8. Mark it
-// as such.
+// If neither is defined then we default to building a debug v8. Mark
+// it as such.
 #define DEBUG
 #endif
-#endif  // defined(GOOGLE3)
 
 // V8 only uses DEBUG, but included external files
 // may use NDEBUG - make sure they are consistent.
