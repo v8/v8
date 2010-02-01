@@ -397,6 +397,10 @@
 				>
 			</File>
                         <File
+                                RelativePath="..\..\src\ia32\fast-codegen-ia32.cc"
+                                >
+                        </File>
+                        <File
                                 RelativePath="..\..\src\fast-codegen.cc"
                                 >
                         </File>

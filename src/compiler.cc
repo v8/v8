@@ -112,8 +112,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     FastCodeGenSyntaxChecker checker;
     checker.Check(literal, info);
     if (checker.has_supported_syntax()) {
-      // Does not yet generate code.
-      FastCodeGenerator::MakeCode(literal, script, is_eval, info);
+      return FastCodeGenerator::MakeCode(literal, script, is_eval, info);
     }
   }
 
@@ -490,8 +489,8 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       FastCodeGenSyntaxChecker checker;
       checker.Check(literal, &info);
       if (checker.has_supported_syntax()) {
-        // Does not yet generate code.
-        FastCodeGenerator::MakeCode(literal, script, false, &info);
+        code = FastCodeGenerator::MakeCode(literal, script, false, &info);
+        is_compiled = true;
       }
     }
 

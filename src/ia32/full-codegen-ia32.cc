@@ -51,80 +51,82 @@ namespace internal {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-ia32.h for its layout.
-void FullCodeGenerator::Generate(FunctionLiteral* fun) {
+void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
   function_ = fun;
   SetFunctionPosition(fun);
 
-  __ push(ebp);  // Caller's frame pointer.
-  __ mov(ebp, esp);
-  __ push(esi);  // Callee's context.
-  __ push(edi);  // Callee's JS Function.
+  if (mode == PRIMARY) {
+    __ push(ebp);  // Caller's frame pointer.
+    __ mov(ebp, esp);
+    __ push(esi);  // Callee's context.
+    __ push(edi);  // Callee's JS Function.
 
-  { Comment cmnt(masm_, "[ Allocate locals");
-    int locals_count = fun->scope()->num_stack_slots();
-    if (locals_count == 1) {
-      __ push(Immediate(Factory::undefined_value()));
-    } else if (locals_count > 1) {
-      __ mov(eax, Immediate(Factory::undefined_value()));
-      for (int i = 0; i < locals_count; i++) {
-       __ push(eax);
+    { Comment cmnt(masm_, "[ Allocate locals");
+      int locals_count = fun->scope()->num_stack_slots();
+      if (locals_count == 1) {
+        __ push(Immediate(Factory::undefined_value()));
+      } else if (locals_count > 1) {
+        __ mov(eax, Immediate(Factory::undefined_value()));
+        for (int i = 0; i < locals_count; i++) {
+          __ push(eax);
+        }
       }
     }
-  }
 
-  bool function_in_register = true;
+    bool function_in_register = true;
 
-  // Possibly allocate a local context.
-  if (fun->scope()->num_heap_slots() > 0) {
-    Comment cmnt(masm_, "[ Allocate local context");
-    // Argument to NewContext is the function, which is still in edi.
-    __ push(edi);
-    __ CallRuntime(Runtime::kNewContext, 1);
-    function_in_register = false;
-    // Context is returned in both eax and esi.  It replaces the context
-    // passed to us.  It's saved in the stack and kept live in esi.
-    __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
-
-    // Copy parameters into context if necessary.
-    int num_parameters = fun->scope()->num_parameters();
-    for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = fun->scope()->parameter(i)->slot();
-      if (slot != NULL && slot->type() == Slot::CONTEXT) {
-        int parameter_offset = StandardFrameConstants::kCallerSPOffset +
-                               (num_parameters - 1 - i) * kPointerSize;
-        // Load parameter from stack.
-        __ mov(eax, Operand(ebp, parameter_offset));
-        // Store it in the context
-        __ mov(Operand(esi, Context::SlotOffset(slot->index())), eax);
-      }
-    }
-  }
-
-  Variable* arguments = fun->scope()->arguments()->AsVariable();
-  if (arguments != NULL) {
-    // Function uses arguments object.
-    Comment cmnt(masm_, "[ Allocate arguments object");
-    if (function_in_register) {
+    // Possibly allocate a local context.
+    if (fun->scope()->num_heap_slots() > 0) {
+      Comment cmnt(masm_, "[ Allocate local context");
+      // Argument to NewContext is the function, which is still in edi.
       __ push(edi);
-    } else {
-      __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+      __ CallRuntime(Runtime::kNewContext, 1);
+      function_in_register = false;
+      // Context is returned in both eax and esi.  It replaces the context
+      // passed to us.  It's saved in the stack and kept live in esi.
+      __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
+
+      // Copy parameters into context if necessary.
+      int num_parameters = fun->scope()->num_parameters();
+      for (int i = 0; i < num_parameters; i++) {
+        Slot* slot = fun->scope()->parameter(i)->slot();
+        if (slot != NULL && slot->type() == Slot::CONTEXT) {
+          int parameter_offset = StandardFrameConstants::kCallerSPOffset +
+                                     (num_parameters - 1 - i) * kPointerSize;
+          // Load parameter from stack.
+          __ mov(eax, Operand(ebp, parameter_offset));
+          // Store it in the context
+          __ mov(Operand(esi, Context::SlotOffset(slot->index())), eax);
+        }
+      }
     }
-    // Receiver is just before the parameters on the caller's stack.
-    __ lea(edx, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
-                                 fun->num_parameters() * kPointerSize));
-    __ push(edx);
-    __ push(Immediate(Smi::FromInt(fun->num_parameters())));
-    // Arguments to ArgumentsAccessStub:
-    //   function, receiver address, parameter count.
-    // The stub will rewrite receiver and parameter count if the previous
-    // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-    __ CallStub(&stub);
-    __ mov(ecx, eax);  // Duplicate result.
-    Move(arguments->slot(), eax, ebx, edx);
-    Slot* dot_arguments_slot =
-        fun->scope()->arguments_shadow()->AsVariable()->slot();
-    Move(dot_arguments_slot, ecx, ebx, edx);
+
+    Variable* arguments = fun->scope()->arguments()->AsVariable();
+    if (arguments != NULL) {
+      // Function uses arguments object.
+      Comment cmnt(masm_, "[ Allocate arguments object");
+      if (function_in_register) {
+        __ push(edi);
+      } else {
+        __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+      }
+      // Receiver is just before the parameters on the caller's stack.
+      __ lea(edx, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
+                                   fun->num_parameters() * kPointerSize));
+      __ push(edx);
+      __ push(Immediate(Smi::FromInt(fun->num_parameters())));
+      // Arguments to ArgumentsAccessStub:
+      //   function, receiver address, parameter count.
+      // The stub will rewrite receiver and parameter count if the previous
+      // stack frame was an arguments adapter frame.
+      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+      __ CallStub(&stub);
+      __ mov(ecx, eax);  // Duplicate result.
+      Move(arguments->slot(), eax, ebx, edx);
+      Slot* dot_arguments_slot =
+          fun->scope()->arguments_shadow()->AsVariable()->slot();
+      Move(dot_arguments_slot, ecx, ebx, edx);
+    }
   }
 
   { Comment cmnt(masm_, "[ Declarations");

@@ -462,7 +462,7 @@ Handle<Code> FullCodeGenerator::MakeCode(FunctionLiteral* fun,
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
   FullCodeGenerator cgen(&masm, script, is_eval);
-  cgen.Generate(fun);
+  cgen.Generate(fun, PRIMARY);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
@@ -1160,7 +1160,6 @@ int FullCodeGenerator::TryCatch::Exit(int stack_depth) {
   __ PopTryHandler();
   return 0;
 }
-
 
 #undef __
 

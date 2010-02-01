@@ -630,6 +630,7 @@ class CodeGenerator: public AstVisitor {
   friend class JumpTarget;
   friend class Reference;
   friend class Result;
+  friend class FastCodeGenerator;
   friend class FullCodeGenerator;
   friend class FullCodeGenSyntaxChecker;
 

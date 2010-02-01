@@ -114,6 +114,7 @@ SOURCES = {
     arm/cpu-arm.cc
     arm/debug-arm.cc
     arm/disasm-arm.cc
+    arm/fast-codegen-arm.cc
     arm/frames-arm.cc
     arm/full-codegen-arm.cc
     arm/ic-arm.cc
@@ -137,6 +138,7 @@ SOURCES = {
     ia32/cpu-ia32.cc
     ia32/debug-ia32.cc
     ia32/disasm-ia32.cc
+    ia32/fast-codegen-ia32.cc
     ia32/frames-ia32.cc
     ia32/full-codegen-ia32.cc
     ia32/ic-ia32.cc
@@ -154,6 +156,7 @@ SOURCES = {
     x64/cpu-x64.cc
     x64/debug-x64.cc
     x64/disasm-x64.cc
+    x64/fast-codegen-x64.cc
     x64/frames-x64.cc
     x64/full-codegen-x64.cc
     x64/ic-x64.cc

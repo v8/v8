@@ -43,7 +43,9 @@ class CompilationInfo BASE_EMBEDDED {
                   int loop_nesting)
       : shared_info_(shared_info),
         receiver_(receiver),
-        loop_nesting_(loop_nesting) {
+        loop_nesting_(loop_nesting),
+        has_this_properties_(false),
+        has_globals_(false) {
   }
 
   Handle<SharedFunctionInfo> shared_info() { return shared_info_; }
@@ -53,10 +55,18 @@ class CompilationInfo BASE_EMBEDDED {
 
   int loop_nesting() { return loop_nesting_; }
 
+  bool has_this_properties() { return has_this_properties_; }
+  void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
+
+  bool has_globals() { return has_globals_; }
+  void set_has_globals(bool flag) { has_globals_ = flag; }
+
  private:
   Handle<SharedFunctionInfo> shared_info_;
   Handle<Object> receiver_;
   int loop_nesting_;
+  bool has_this_properties_;
+  bool has_globals_;
 };
 
 

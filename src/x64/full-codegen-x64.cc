@@ -51,83 +51,85 @@ namespace internal {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-x64.h for its layout.
-void FullCodeGenerator::Generate(FunctionLiteral* fun) {
+void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
   function_ = fun;
   SetFunctionPosition(fun);
 
-  __ push(rbp);  // Caller's frame pointer.
-  __ movq(rbp, rsp);
-  __ push(rsi);  // Callee's context.
-  __ push(rdi);  // Callee's JS Function.
+  if (mode == PRIMARY) {
+    __ push(rbp);  // Caller's frame pointer.
+    __ movq(rbp, rsp);
+    __ push(rsi);  // Callee's context.
+    __ push(rdi);  // Callee's JS Function.
 
-  { Comment cmnt(masm_, "[ Allocate locals");
-    int locals_count = fun->scope()->num_stack_slots();
-    if (locals_count == 1) {
-      __ PushRoot(Heap::kUndefinedValueRootIndex);
-    } else if (locals_count > 1) {
-      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-      for (int i = 0; i < locals_count; i++) {
-        __ push(rdx);
+    { Comment cmnt(masm_, "[ Allocate locals");
+      int locals_count = fun->scope()->num_stack_slots();
+      if (locals_count == 1) {
+        __ PushRoot(Heap::kUndefinedValueRootIndex);
+      } else if (locals_count > 1) {
+        __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+        for (int i = 0; i < locals_count; i++) {
+          __ push(rdx);
+        }
       }
     }
-  }
 
-  bool function_in_register = true;
+    bool function_in_register = true;
 
-  // Possibly allocate a local context.
-  if (fun->scope()->num_heap_slots() > 0) {
-    Comment cmnt(masm_, "[ Allocate local context");
-    // Argument to NewContext is the function, which is still in rdi.
-    __ push(rdi);
-    __ CallRuntime(Runtime::kNewContext, 1);
-    function_in_register = false;
-    // Context is returned in both rax and rsi.  It replaces the context
-    // passed to us.  It's saved in the stack and kept live in rsi.
-    __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
-
-    // Copy any necessary parameters into the context.
-    int num_parameters = fun->scope()->num_parameters();
-    for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = fun->scope()->parameter(i)->slot();
-      if (slot != NULL && slot->type() == Slot::CONTEXT) {
-        int parameter_offset = StandardFrameConstants::kCallerSPOffset +
-                               (num_parameters - 1 - i) * kPointerSize;
-        // Load parameter from stack.
-        __ movq(rax, Operand(rbp, parameter_offset));
-        // Store it in the context
-        __ movq(Operand(rsi, Context::SlotOffset(slot->index())), rax);
-      }
-    }
-  }
-
-  // Possibly allocate an arguments object.
-  Variable* arguments = fun->scope()->arguments()->AsVariable();
-  if (arguments != NULL) {
-    // Arguments object must be allocated after the context object, in
-    // case the "arguments" or ".arguments" variables are in the context.
-    Comment cmnt(masm_, "[ Allocate arguments object");
-    if (function_in_register) {
+    // Possibly allocate a local context.
+    if (fun->scope()->num_heap_slots() > 0) {
+      Comment cmnt(masm_, "[ Allocate local context");
+      // Argument to NewContext is the function, which is still in rdi.
       __ push(rdi);
-    } else {
-      __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+      __ CallRuntime(Runtime::kNewContext, 1);
+      function_in_register = false;
+      // Context is returned in both rax and rsi.  It replaces the context
+      // passed to us.  It's saved in the stack and kept live in rsi.
+      __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
+
+      // Copy any necessary parameters into the context.
+      int num_parameters = fun->scope()->num_parameters();
+      for (int i = 0; i < num_parameters; i++) {
+        Slot* slot = fun->scope()->parameter(i)->slot();
+        if (slot != NULL && slot->type() == Slot::CONTEXT) {
+          int parameter_offset = StandardFrameConstants::kCallerSPOffset +
+                                     (num_parameters - 1 - i) * kPointerSize;
+          // Load parameter from stack.
+          __ movq(rax, Operand(rbp, parameter_offset));
+          // Store it in the context
+          __ movq(Operand(rsi, Context::SlotOffset(slot->index())), rax);
+        }
+      }
     }
-    // The receiver is just before the parameters on the caller's stack.
-    __ lea(rdx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
-                                 fun->num_parameters() * kPointerSize));
-    __ push(rdx);
-    __ Push(Smi::FromInt(fun->num_parameters()));
-    // Arguments to ArgumentsAccessStub:
-    //   function, receiver address, parameter count.
-    // The stub will rewrite receiver and parameter count if the previous
-    // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-    __ CallStub(&stub);
-    // Store new arguments object in both "arguments" and ".arguments" slots.
-    __ movq(rcx, rax);
-    Move(arguments->slot(), rax, rbx, rdx);
-    Slot* dot_arguments_slot =
-        fun->scope()->arguments_shadow()->AsVariable()->slot();
-    Move(dot_arguments_slot, rcx, rbx, rdx);
+
+    // Possibly allocate an arguments object.
+    Variable* arguments = fun->scope()->arguments()->AsVariable();
+    if (arguments != NULL) {
+      // Arguments object must be allocated after the context object, in
+      // case the "arguments" or ".arguments" variables are in the context.
+      Comment cmnt(masm_, "[ Allocate arguments object");
+      if (function_in_register) {
+        __ push(rdi);
+      } else {
+        __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+      }
+      // The receiver is just before the parameters on the caller's stack.
+      __ lea(rdx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
+                                   fun->num_parameters() * kPointerSize));
+      __ push(rdx);
+      __ Push(Smi::FromInt(fun->num_parameters()));
+      // Arguments to ArgumentsAccessStub:
+      //   function, receiver address, parameter count.
+      // The stub will rewrite receiver and parameter count if the previous
+      // stack frame was an arguments adapter frame.
+      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+      __ CallStub(&stub);
+      // Store new arguments object in both "arguments" and ".arguments" slots.
+      __ movq(rcx, rax);
+      Move(arguments->slot(), rax, rbx, rdx);
+      Slot* dot_arguments_slot =
+          fun->scope()->arguments_shadow()->AsVariable()->slot();
+      Move(dot_arguments_slot, rcx, rbx, rdx);
+    }
   }
 
   { Comment cmnt(masm_, "[ Declarations");

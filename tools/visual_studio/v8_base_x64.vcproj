@@ -396,6 +396,10 @@
 				RelativePath="..\..\src\factory.h"
 				>
 			</File>
+			<File
+				RelativePath="..\..\src\x64\fast-codegen-x64.cc"
+				>
+			</File>
                         <File
                                 RelativePath="..\..\src\fast-codegen.cc"
                                 >
@@ -441,15 +445,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\x64\full-codegen-x64.cc"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\full-codegen.cc"
 				>
 			</File>
 			<File
 				RelativePath="..\..\src\full-codegen.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\x64\full-codegen-x64.cc"
 				>
 			</File>
 			<File

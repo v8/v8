@@ -65,26 +65,53 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
 
 class FastCodeGenerator: public AstVisitor {
  public:
-  FastCodeGenerator(Handle<Script> script, bool is_eval)
-      : masm_(NULL),
+  FastCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
+      : masm_(masm),
         script_(script),
         is_eval_(is_eval),
         function_(NULL),
         info_(NULL) {
   }
 
-  static void MakeCode(FunctionLiteral* fun,
-                       Handle<Script> script,
-                       bool is_eval,
-                       CompilationInfo* info);
+  static Handle<Code> MakeCode(FunctionLiteral* fun,
+                               Handle<Script> script,
+                               bool is_eval,
+                               CompilationInfo* info);
 
   void Generate(FunctionLiteral* fun, CompilationInfo* info);
 
  private:
+  MacroAssembler* masm() { return masm_; }
+  FunctionLiteral* function() { return function_; }
+  Label* bailout() { return &bailout_; }
+
+  bool has_receiver() { return !info_->receiver().is_null(); }
+  Handle<Object> receiver() { return info_->receiver(); }
+  bool has_this_properties() { return info_->has_this_properties(); }
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
+
+  // Emit code to load the receiver from the stack into a given register.
+  void EmitLoadReceiver(Register reg);
+
+  // Emit code to check that the receiver has the same map as the
+  // compile-time receiver.  Receiver is expected in {ia32-edx, x64-rdx,
+  // arm-r1}.  Emit a branch to the (single) bailout label if check fails.
+  void EmitReceiverMapCheck();
+
+  // Emit code to load a global variable value into {is32-eax, x64-rax,
+  // arm-r0}.  Register {ia32-edx, x64-rdx, arm-r1} is preserved if it is
+  // holding the receiver and {is32-ecx, x64-rcx, arm-r2} is always
+  // clobbered.
+  void EmitGlobalVariableLoad(Handle<String> name);
+
+  // Emit a store to an own property of this.  The stored value is expected
+  // in {ia32-eax, x64-rax, arm-r0} and the receiver in {is32-edx, x64-rdx,
+  // arm-r1}.  Both are preserve.
+  void EmitThisPropertyStore(Handle<String> name);
 
   MacroAssembler* masm_;
   Handle<Script> script_;
@@ -92,6 +119,8 @@ class FastCodeGenerator: public AstVisitor {
 
   FunctionLiteral* function_;
   CompilationInfo* info_;
+
+  Label bailout_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

@@ -63,11 +63,16 @@ class FullCodeGenSyntaxChecker: public AstVisitor {
 
 class FullCodeGenerator: public AstVisitor {
  public:
+  enum Mode {
+    PRIMARY,
+    SECONDARY
+  };
+
   FullCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
       : masm_(masm),
-        function_(NULL),
         script_(script),
         is_eval_(is_eval),
+        function_(NULL),
         nesting_stack_(NULL),
         loop_depth_(0),
         location_(kStack),
@@ -79,7 +84,7 @@ class FullCodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
-  void Generate(FunctionLiteral* fun);
+  void Generate(FunctionLiteral* fun, Mode mode);
 
  private:
   class Breakable;
@@ -422,9 +427,11 @@ class FullCodeGenerator: public AstVisitor {
   void EmitLogicalOperation(BinaryOperation* expr);
 
   MacroAssembler* masm_;
-  FunctionLiteral* function_;
   Handle<Script> script_;
   bool is_eval_;
+
+  FunctionLiteral* function_;
+
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;

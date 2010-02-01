@@ -38,9 +38,11 @@ namespace internal {
 // their evaluation order (post-order left-to-right traversal).
 class AstLabeler: public AstVisitor {
  public:
-  AstLabeler() : next_number_(0) {}
+  AstLabeler() : next_number_(0), has_this_properties_(false) {}
 
   void Label(FunctionLiteral* fun);
+
+  bool has_this_properties() { return has_this_properties_; }
 
  private:
   void VisitDeclarations(ZoneList<Declaration*>* decls);
@@ -53,6 +55,8 @@ class AstLabeler: public AstVisitor {
 
   // Traversal number for labelling AST nodes.
   int next_number_;
+
+  bool has_this_properties_;
 
   DISALLOW_COPY_AND_ASSIGN(AstLabeler);
 };

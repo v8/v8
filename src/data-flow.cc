@@ -196,9 +196,12 @@ void AstLabeler::VisitAssignment(Assignment* expr) {
   ASSERT(prop != NULL);
   if (prop != NULL) {
     ASSERT(prop->key()->IsPropertyName());
-    if (prop->obj()->AsVariableProxy() == NULL ||
-        !prop->obj()->AsVariableProxy()->var()->is_this())
+    VariableProxy* proxy = prop->obj()->AsVariableProxy();
+    if (proxy != NULL && proxy->var()->is_this()) {
+      has_this_properties_ = true;
+    } else {
       Visit(prop->obj());
+    }
   }
   Visit(expr->value());
   expr->set_num(next_number_++);

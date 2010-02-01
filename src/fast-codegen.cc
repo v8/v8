@@ -27,8 +27,10 @@
 
 #include "v8.h"
 
+#include "codegen-inl.h"
 #include "data-flow.h"
 #include "fast-codegen.h"
+#include "full-codegen.h"
 #include "scopes.h"
 
 namespace v8 {
@@ -54,8 +56,12 @@ void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun,
                                      CompilationInfo* info) {
   info_ = info;
 
-  // We do not specialize if we do not have a receiver.
+  // We do not specialize if we do not have a receiver or if it is not a
+  // JS object with fast mode properties.
   if (!info->has_receiver()) BAILOUT("No receiver");
+  if (!info->receiver()->IsJSObject()) BAILOUT("Receiver is not an object");
+  Handle<JSObject> object = Handle<JSObject>::cast(info->receiver());
+  if (!object->HasFastProperties()) BAILOUT("Receiver is in dictionary mode");
 
   // We do not support stack or heap slots (both of which require
   // allocation).
@@ -325,25 +331,42 @@ void FastCodeGenSyntaxChecker::VisitThisFunction(ThisFunction* expr) {
 #undef CHECK_BAILOUT
 
 
-void FastCodeGenerator::MakeCode(FunctionLiteral* fun,
-                                 Handle<Script> script,
-                                 bool is_eval,
-                                 CompilationInfo* info) {
+#define __ ACCESS_MASM(masm())
+
+Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
+                                         Handle<Script> script,
+                                         bool is_eval,
+                                         CompilationInfo* info) {
+  // Label the AST before calling MakeCodePrologue, so AST node numbers are
+  // printed with the AST.
   AstLabeler labeler;
-  FastCodeGenerator cgen(script, is_eval);
   labeler.Label(fun);
-  cgen.Generate(fun, info);
-}
+  info->set_has_this_properties(labeler.has_this_properties());
 
+  CodeGenerator::MakeCodePrologue(fun);
 
-void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
-  ASSERT(function_ == NULL);
-  ASSERT(info_ == NULL);
-  function_ = fun;
-  info_ = info;
-  VisitStatements(fun->body());
-  function_ = NULL;
-  info_ = NULL;
+  const int kInitialBufferSize = 4 * KB;
+  MacroAssembler masm(NULL, kInitialBufferSize);
+
+  // Generate the fast-path code.
+  FastCodeGenerator fast_cgen(&masm, script, is_eval);
+  fast_cgen.Generate(fun, info);
+  if (fast_cgen.HasStackOverflow()) {
+    ASSERT(!Top::has_pending_exception());
+    return Handle<Code>::null();
+  }
+
+  // Generate the full code for the function in bailout mode, using the same
+  // macro assembler.
+  FullCodeGenerator full_cgen(&masm, script, is_eval);
+  full_cgen.Generate(fun, FullCodeGenerator::SECONDARY);
+  if (full_cgen.HasStackOverflow()) {
+    ASSERT(!Top::has_pending_exception());
+    return Handle<Code>::null();
+  }
+
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
+  return CodeGenerator::MakeCodeEpilogue(fun, &masm, flags, script);
 }
 
 
@@ -459,11 +482,13 @@ void FastCodeGenerator::VisitSlot(Slot* expr) {
 
 
 void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
+  ASSERT(expr->var()->is_global() && !expr->var()->is_this());
+  Comment cmnt(masm(), ";; Global");
   if (FLAG_print_ir) {
-    ASSERT(expr->var()->is_global() && !expr->var()->is_this());
     SmartPointer<char> name = expr->name()->ToCString();
     PrintF("%d: t%d = Global(%s)\n", expr->num(), expr->num(), *name);
   }
+  EmitGlobalVariableLoad(expr->name());
 }
 
 
@@ -496,18 +521,22 @@ void FastCodeGenerator::VisitAssignment(Assignment* expr) {
   // Known to be a simple this property assignment.
   Visit(expr->value());
 
+  Property* prop = expr->target()->AsProperty();
+  ASSERT_NOT_NULL(prop);
+  ASSERT_NOT_NULL(prop->obj()->AsVariableProxy());
+  ASSERT(prop->obj()->AsVariableProxy()->var()->is_this());
+  ASSERT(prop->key()->IsPropertyName());
+  Handle<String> name =
+      Handle<String>::cast(prop->key()->AsLiteral()->handle());
+
+  Comment cmnt(masm(), ";; Store(this)");
   if (FLAG_print_ir) {
-    Property* prop = expr->target()->AsProperty();
-    ASSERT_NOT_NULL(prop);
-    ASSERT_NOT_NULL(prop->obj()->AsVariableProxy());
-    ASSERT(prop->obj()->AsVariableProxy()->var()->is_this());
-    ASSERT(prop->key()->IsPropertyName());
-    Handle<String> key =
-        Handle<String>::cast(prop->key()->AsLiteral()->handle());
-    SmartPointer<char> name = key->ToCString();
+    SmartPointer<char> name_string = name->ToCString();
     PrintF("%d: t%d = Store(this, \"%s\", t%d)\n",
-           expr->num(), expr->num(), *name, expr->value()->num());
+           expr->num(), expr->num(), *name_string, expr->value()->num());
   }
+
+  EmitThisPropertyStore(name);
 }
 
 
@@ -559,5 +588,8 @@ void FastCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 void FastCodeGenerator::VisitThisFunction(ThisFunction* expr) {
   UNREACHABLE();
 }
+
+#undef __
+
 
 } }  // namespace v8::internal

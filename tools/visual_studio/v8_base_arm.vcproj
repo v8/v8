@@ -405,6 +405,10 @@
 				>
 			</File>
                         <File
+                                RelativePath="..\..\src\arm\fast-codegen-arm.cc"
+                                >
+                        </File>
+                        <File
                                 RelativePath="..\..\src\fast-codegen.cc"
                                 >
                         </File>
