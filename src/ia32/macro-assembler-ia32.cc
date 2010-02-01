@@ -147,6 +147,11 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 // All registers are clobbered by the operation.
 void MacroAssembler::RecordWrite(Register object, int offset,
                                  Register value, Register scratch) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are esi.
+  ASSERT(!object.is(esi) && !value.is(esi) && !scratch.is(esi));
+
   // First, check if a remembered set write is even needed. The tests below
   // catch stores of Smis and stores into young gen (which does not have space
   // for the remembered set bits.

@@ -698,7 +698,8 @@ void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
           __ movq(CodeGenerator::ContextOperand(rsi, slot->index()),
                   result_register());
           int offset = Context::SlotOffset(slot->index());
-          __ RecordWrite(rsi, offset, result_register(), rcx);
+          __ movq(rbx, rsi);
+          __ RecordWrite(rbx, offset, result_register(), rcx);
         }
         break;
 
