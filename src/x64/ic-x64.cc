@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1330,12 +1330,12 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
 
   __ pop(rbx);
-  __ push(Operand(rsp, 0));  // receiver
+  __ push(rdx);  // receiver
   __ push(rcx);  // name
   __ push(rax);  // value
   __ push(rbx);  // return address
@@ -1348,12 +1348,12 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : Map (target of map transition)
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
 
   __ pop(rbx);
-  __ push(Operand(rsp, 0));  // receiver
+  __ push(rdx);  // receiver
   __ push(rcx);  // transition map
   __ push(rax);  // value
   __ push(rbx);  // return address
@@ -1367,12 +1367,11 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  __ movq(rdx, Operand(rsp, kPointerSize));
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1354,25 +1354,22 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  // Get the object from the stack.
-  __ movq(rbx, Operand(rsp, 1 * kPointerSize));
-
   // Check that the object isn't a smi.
-  __ JumpIfSmi(rbx, &miss);
+  __ JumpIfSmi(rdx, &miss);
 
   // Check that the map of the object hasn't changed.
-  __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
          Handle<Map>(object->map()));
   __ j(not_equal, &miss);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(rbx, rdx, &miss);
+    __ CheckAccessGlobalProxy(rdx, rbx, &miss);
   }
 
   // Stub never generated for non-global objects that require access
@@ -1380,7 +1377,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   __ pop(rbx);  // remove the return address
-  __ push(Operand(rsp, 0));  // receiver
+  __ push(rdx);  // receiver
   __ Push(Handle<AccessorInfo>(callback));  // callback info
   __ push(rcx);  // name
   __ push(rax);  // value
@@ -1408,13 +1405,10 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
-
-  // Get the object from the stack.
-  __ movq(rbx, Operand(rsp, 1 * kPointerSize));
 
   // Generate store field code.  Trashes the name register.
   GenerateStoreField(masm(),
@@ -1422,7 +1416,7 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
                      object,
                      index,
                      transition,
-                     rbx, rcx, rdx,
+                     rdx, rcx, rbx,
                      &miss);
 
   // Handle store cache miss.
@@ -1441,25 +1435,22 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  // Get the object from the stack.
-  __ movq(rbx, Operand(rsp, 1 * kPointerSize));
-
   // Check that the object isn't a smi.
-  __ JumpIfSmi(rbx, &miss);
+  __ JumpIfSmi(rdx, &miss);
 
   // Check that the map of the object hasn't changed.
-  __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
          Handle<Map>(receiver->map()));
   __ j(not_equal, &miss);
 
   // Perform global security token check if needed.
   if (receiver->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(rbx, rdx, &miss);
+    __ CheckAccessGlobalProxy(rdx, rbx, &miss);
   }
 
   // Stub never generated for non-global objects that require access
@@ -1467,7 +1458,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
 
   __ pop(rbx);  // remove the return address
-  __ push(Operand(rsp, 0));  // receiver
+  __ push(rdx);  // receiver
   __ push(rcx);  // name
   __ push(rax);  // value
   __ push(rbx);  // restore return address
@@ -1493,14 +1484,13 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : name
+  //  -- rdx    : receiver
   //  -- rsp[0] : return address
-  //  -- rsp[8] : receiver
   // -----------------------------------
   Label miss;
 
   // Check that the map of the global has not changed.
-  __ movq(rbx, Operand(rsp, kPointerSize));
-  __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
+  __ Cmp(FieldOperand(rdx, HeapObject::kMapOffset),
          Handle<Map>(object->map()));
   __ j(not_equal, &miss);
 

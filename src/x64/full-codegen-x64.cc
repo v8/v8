@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -929,10 +929,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         if (key->handle()->IsSymbol()) {
           VisitForValue(value, kAccumulator);
           __ Move(rcx, key->handle());
+          __ movq(rdx, Operand(rsp, 0));
           Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
           __ call(ic, RelocInfo::CODE_TARGET);
           __ nop();
-          // StoreIC leaves the receiver on the stack.
           break;
         }
         // Fall through.
@@ -1054,13 +1054,12 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     ASSERT(!var->is_this());
     // Assignment to a global variable.  Use inline caching for the
     // assignment.  Right-hand-side value is passed in rax, variable name in
-    // rcx, and the global object on the stack.
+    // rcx, and the global object in rdx.
     __ Move(rcx, var->name());
-    __ push(CodeGenerator::GlobalObject());
+    __ movq(rdx, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
-    // Overwrite the global object on the stack with the result if needed.
-    DropAndApply(1, context, rax);
+    Apply(context, rax);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
     __ push(result_register());  // Value.
@@ -1120,6 +1119,11 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   __ Move(rcx, prop->key()->AsLiteral()->handle());
+  if (expr->ends_initialization_block()) {
+    __ movq(rdx, Operand(rsp, 0));
+  } else {
+    __ pop(rdx);
+  }
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
   __ nop();
@@ -1130,9 +1134,10 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ push(Operand(rsp, kPointerSize));  // Receiver is under value.
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(rax);
+    DropAndApply(1, context_, rax);
+  } else {
+    Apply(context_, rax);
   }
-
-  DropAndApply(1, context_, rax);
 }
 
 
@@ -1658,18 +1663,18 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     case NAMED_PROPERTY: {
       __ Move(rcx, prop->key()->AsLiteral()->handle());
+      __ pop(rdx);
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       __ call(ic, RelocInfo::CODE_TARGET);
       // This nop signals to the IC that there is no inlined code at the call
       // site for it to patch.
       __ nop();
       if (expr->is_postfix()) {
-        __ Drop(1);  // Result is on the stack under the receiver.
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
         }
       } else {
-        DropAndApply(1, context_, rax);
+        Apply(context_, rax);
       }
       break;
     }
