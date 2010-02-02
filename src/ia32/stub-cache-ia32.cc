@@ -161,6 +161,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(holder);
   __ push(name);
   InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
+  ASSERT(!Heap::InNewSpace(interceptor));
   __ mov(receiver, Immediate(Handle<Object>(interceptor)));
   __ push(receiver);
   __ push(FieldOperand(receiver, InterceptorInfo::kDataOffset));
@@ -343,19 +344,6 @@ static void CompileLoadInterceptor(Compiler* compiler,
                              scratch2,
                              holder,
                              miss);
-  }
-}
-
-
-static void LookupPostInterceptor(JSObject* holder,
-                                  String* name,
-                                  LookupResult* lookup) {
-  holder->LocalLookupRealNamedProperty(name, lookup);
-  if (lookup->IsNotFound()) {
-    Object* proto = holder->GetPrototype();
-    if (proto != Heap::null_value()) {
-      proto->Lookup(name, lookup);
-    }
   }
 }
 
@@ -559,7 +547,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
     // Jump to the cached code (tail call).
-    ASSERT(function->is_compiled());
     Handle<Code> code(function->code());
     ParameterCount expected(function->shared()->formal_parameter_count());
     __ InvokeCode(code, expected, arguments_,

@@ -5706,6 +5706,35 @@ THREADED_TEST(InterceptorCallICInvalidatedConstantFunctionViaGlobal) {
 }
 
 
+// Test the case when actual function to call sits on global object.
+THREADED_TEST(InterceptorCallICCachedFromGlobal) {
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ_o = ObjectTemplate::New();
+  templ_o->SetNamedPropertyHandler(NoBlockGetterX);
+
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ_o->NewInstance());
+
+  v8::Handle<Value> value = CompileRun(
+    "try {"
+    "  o.__proto__ = this;"
+    "  for (var i = 0; i < 10; i++) {"
+    "    var v = o.parseFloat('239');"
+    "    if (v != 239) throw v;"
+      // Now it should be ICed and keep a reference to parseFloat.
+    "  }"
+    "  var result = 0;"
+    "  for (var i = 0; i < 10; i++) {"
+    "    result += o.parseFloat('239');"
+    "  }"
+    "  result"
+    "} catch(e) {"
+    "  e"
+    "};");
+  CHECK_EQ(239 * 10, value->Int32Value());
+}
+
+
 static int interceptor_call_count = 0;
 
 static v8::Handle<Value> InterceptorICRefErrorGetter(Local<String> name,

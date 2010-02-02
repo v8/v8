@@ -143,6 +143,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(holder);
   __ push(name);
   InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
+  ASSERT(!Heap::InNewSpace(interceptor));
   __ movq(kScratchRegister, Handle<Object>(interceptor),
           RelocInfo::EMBEDDED_OBJECT);
   __ push(kScratchRegister);
@@ -370,15 +371,47 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 }
 
 
-static void LookupPostInterceptor(JSObject* holder,
-                                  String* name,
-                                  LookupResult* lookup) {
-  holder->LocalLookupRealNamedProperty(name, lookup);
-  if (lookup->IsNotFound()) {
-    Object* proto = holder->GetPrototype();
-    if (proto != Heap::null_value()) {
-      proto->Lookup(name, lookup);
-    }
+template <class Compiler>
+static void CompileLoadInterceptor(Compiler* compiler,
+                                   StubCompiler* stub_compiler,
+                                   MacroAssembler* masm,
+                                   JSObject* object,
+                                   JSObject* holder,
+                                   String* name,
+                                   LookupResult* lookup,
+                                   Register receiver,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Label* miss) {
+  ASSERT(holder->HasNamedInterceptor());
+  ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(receiver, miss);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      stub_compiler->CheckPrototypes(object, receiver, holder,
+                                     scratch1, scratch2, name, miss);
+
+  if (lookup->IsValid() && lookup->IsCacheable()) {
+    compiler->CompileCacheable(masm,
+                               stub_compiler,
+                               receiver,
+                               reg,
+                               scratch1,
+                               scratch2,
+                               holder,
+                               lookup,
+                               name,
+                               miss);
+  } else {
+    compiler->CompileRegular(masm,
+                             receiver,
+                             reg,
+                             scratch2,
+                             holder,
+                             miss);
   }
 }
 
@@ -518,51 +551,6 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 };
 
 
-template <class Compiler>
-static void CompileLoadInterceptor(Compiler* compiler,
-                                   StubCompiler* stub_compiler,
-                                   MacroAssembler* masm,
-                                   JSObject* object,
-                                   JSObject* holder,
-                                   String* name,
-                                   LookupResult* lookup,
-                                   Register receiver,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Label* miss) {
-  ASSERT(holder->HasNamedInterceptor());
-  ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
-
-  // Check that the maps haven't changed.
-  Register reg =
-      stub_compiler->CheckPrototypes(object, receiver, holder,
-                                     scratch1, scratch2, name, miss);
-
-  if (lookup->IsValid() && lookup->IsCacheable()) {
-    compiler->CompileCacheable(masm,
-                               stub_compiler,
-                               receiver,
-                               reg,
-                               scratch1,
-                               scratch2,
-                               holder,
-                               lookup,
-                               name,
-                               miss);
-  } else {
-    compiler->CompileRegular(masm,
-                             receiver,
-                             reg,
-                             scratch2,
-                             holder,
-                             miss);
-  }
-}
-
-
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   explicit CallInterceptorCompiler(const ParameterCount& arguments)
@@ -631,7 +619,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
     // Jump to the cached code (tail call).
-    ASSERT(function->is_compiled());
     Handle<Code> code(function->code());
     ParameterCount expected(function->shared()->formal_parameter_count());
     __ InvokeCode(code, expected, arguments_,
