@@ -6182,13 +6182,6 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-int CEntryStub::MinorKey() {
-  ASSERT(result_size_ <= 2);
-  // Result returned in r0 or r0+r1 by default.
-  return 0;
-}
-
-
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // r0 holds the exception.
 
@@ -6296,7 +6289,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
-                              ExitFrame::Mode mode,
                               bool do_gc,
                               bool always_allocate) {
   // r0: result parameter for PerformGC, if any
@@ -6356,7 +6348,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  __ LeaveExitFrame(mode);
+  __ LeaveExitFrame(mode_);
 
   // check if we should retry or throw exception
   Label retry;
@@ -6389,7 +6381,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 }
 
 
-void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
+void CEntryStub::Generate(MacroAssembler* masm) {
   // Called from JavaScript; parameters are on stack as if calling JS function
   // r0: number of arguments including receiver
   // r1: pointer to builtin function
@@ -6397,17 +6389,15 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // sp: stack pointer  (restored as callee's sp after C call)
   // cp: current context  (C callee-saved)
 
+  // Result returned in r0 or r0+r1 by default.
+
   // NOTE: Invocations of builtins may return failure objects
   // instead of a proper result. The builtin entry handles
   // this by performing a garbage collection and retrying the
   // builtin once.
 
-  ExitFrame::Mode mode = is_debug_break
-      ? ExitFrame::MODE_DEBUG
-      : ExitFrame::MODE_NORMAL;
-
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(mode);
+  __ EnterExitFrame(mode_);
 
   // r4: number of arguments (C callee-saved)
   // r5: pointer to builtin function (C callee-saved)
@@ -6422,7 +6412,6 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               mode,
                false,
                false);
 
@@ -6431,7 +6420,6 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               mode,
                true,
                false);
 
@@ -6442,7 +6430,6 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               mode,
                true,
                true);
 

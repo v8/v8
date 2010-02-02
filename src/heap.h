@@ -101,7 +101,7 @@ namespace internal {
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(Code, c_entry_code, CEntryCode)                                            \
-  V(Code, c_entry_debug_break_code, CEntryDebugBreakCode)                      \
+  V(Code, debugger_statement_code, DebuggerStatementCode)                      \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \

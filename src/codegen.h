@@ -330,25 +330,30 @@ class CompareStub: public CodeStub {
 
 class CEntryStub : public CodeStub {
  public:
-  explicit CEntryStub(int result_size) : result_size_(result_size) { }
+  explicit CEntryStub(int result_size,
+                      ExitFrame::Mode mode = ExitFrame::MODE_NORMAL)
+      : result_size_(result_size), mode_(mode) { }
 
-  void Generate(MacroAssembler* masm) { GenerateBody(masm, false); }
+  void Generate(MacroAssembler* masm);
 
- protected:
-  void GenerateBody(MacroAssembler* masm, bool is_debug_break);
+ private:
   void GenerateCore(MacroAssembler* masm,
                     Label* throw_normal_exception,
                     Label* throw_termination_exception,
                     Label* throw_out_of_memory_exception,
-                    ExitFrame::Mode mode,
                     bool do_gc,
                     bool always_allocate_scope);
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowUncatchable(MacroAssembler* masm,
                                 UncatchableExceptionType type);
- private:
+
   // Number of pointers/values returned.
-  int result_size_;
+  int const result_size_;
+  ExitFrame::Mode const mode_;
+
+  // Minor key encoding
+  class ExitFrameModeBits: public BitField<ExitFrame::Mode, 0, 1> {};
+  class IndirectResultBits: public BitField<bool, 1, 1> {};
 
   Major MajorKey() { return CEntry; }
   // Minor key must differ if different result_size_ values means different
@@ -385,7 +390,7 @@ class ApiGetterEntryStub : public CodeStub {
 };
 
 
-// Mark the debugger statemet to be recognized bu debugger (by the MajorKey)
+// Mark the debugger statemet to be recognized by debugger (by the MajorKey)
 class DebugerStatementStub : public CodeStub {
  public:
   DebugerStatementStub() { }

@@ -9073,13 +9073,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
-int CEntryStub::MinorKey() {
-  ASSERT(result_size_ <= 2);
-  // Result returned in eax, or eax+edx if result_size_ is 2.
-  return 0;
-}
-
-
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // eax holds the exception.
 
@@ -9189,7 +9182,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
                               Label* throw_out_of_memory_exception,
-                              ExitFrame::Mode mode,
                               bool do_gc,
                               bool always_allocate_scope) {
   // eax: result parameter for PerformGC, if any
@@ -9198,6 +9190,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // esp: stack pointer  (restored after C call)
   // edi: number of arguments including receiver  (C callee-saved)
   // esi: pointer to the first argument (C callee-saved)
+
+  // Result returned in eax, or eax+edx if result_size_ is 2.
 
   if (do_gc) {
     __ mov(Operand(esp, 0 * kPointerSize), eax);  // Result.
@@ -9239,7 +9233,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ j(zero, &failure_returned, not_taken);
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(mode);
+  __ LeaveExitFrame(mode_);
   __ ret(0);
 
   // Handling of failure.
@@ -9326,7 +9320,7 @@ void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
 }
 
 
-void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
+void CEntryStub::Generate(MacroAssembler* masm) {
   // eax: number of arguments including receiver
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -9338,12 +9332,8 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // of a proper result. The builtin entry handles this by performing
   // a garbage collection and retrying the builtin (twice).
 
-  ExitFrame::Mode mode = is_debug_break
-      ? ExitFrame::MODE_DEBUG
-      : ExitFrame::MODE_NORMAL;
-
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(mode);
+  __ EnterExitFrame(mode_);
 
   // eax: result parameter for PerformGC, if any (setup below)
   // ebx: pointer to builtin function  (C callee-saved)
@@ -9361,7 +9351,6 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               mode,
                false,
                false);
 
@@ -9370,7 +9359,6 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               mode,
                true,
                false);
 
@@ -9381,7 +9369,6 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_termination_exception,
                &throw_out_of_memory_exception,
-               mode,
                true,
                true);
 

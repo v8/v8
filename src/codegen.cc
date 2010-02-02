@@ -479,6 +479,19 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 }
 
 
+int CEntryStub::MinorKey() {
+  ASSERT(result_size_ <= 2);
+#ifdef _WIN64
+  const indirect_result = result_size_ > 1;
+#else
+  const bool indirect_result = false;
+#endif
+
+  return ExitFrameModeBits::encode(mode_)
+         | IndirectResultBits::encode(indirect_result > 1);
+}
+
+
 bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
   Object* cache = info()->load_stub_cache();
   if (cache->IsUndefined()) {
