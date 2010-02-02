@@ -398,8 +398,6 @@ class Operand BASE_EMBEDDED {
          RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
   INLINE(explicit Operand(const char* s));
-  INLINE(explicit Operand(Object** opp));
-  INLINE(explicit Operand(Context** cpp));
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));
 
