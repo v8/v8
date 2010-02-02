@@ -2591,13 +2591,12 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   // Load the global object.
   LoadGlobal();
   // Setup the name register.
-  Result name(r2);
   __ mov(r2, Operand(slot->var()->name()));
   // Call IC stub.
   if (typeof_state == INSIDE_TYPEOF) {
-    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, &name, 0);
+    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
   } else {
-    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, &name, 0);
+    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
   }
 
   // Drop the global object. The result is in r0.
@@ -3160,22 +3159,15 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   }
 
   // r0: the number of arguments.
-  Result num_args(r0);
   __ mov(r0, Operand(arg_count));
-
   // Load the function into r1 as per calling convention.
-  Result function(r1);
   __ ldr(r1, frame_->ElementAt(arg_count + 1));
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   CodeForSourcePosition(node->position());
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
-  frame_->CallCodeObject(ic,
-                         RelocInfo::CONSTRUCT_CALL,
-                         &num_args,
-                         &function,
-                         arg_count + 1);
+  frame_->CallCodeObject(ic, RelocInfo::CONSTRUCT_CALL, arg_count + 1);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, frame_->Top());
@@ -4332,13 +4324,12 @@ void Reference::GetValue() {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
       // Setup the name register.
-      Result name_reg(r2);
       __ mov(r2, Operand(name));
       ASSERT(var == NULL || var->is_global());
       RelocInfo::Mode rmode = (var == NULL)
                             ? RelocInfo::CODE_TARGET
                             : RelocInfo::CODE_TARGET_CONTEXT;
-      frame->CallCodeObject(ic, rmode, &name_reg, 0);
+      frame->CallCodeObject(ic, rmode, 0);
       frame->EmitPush(r0);
       break;
     }
@@ -4389,17 +4380,10 @@ void Reference::SetValue(InitState init_state) {
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       Handle<String> name(GetName());
 
-      Result value(r0);
       frame->EmitPop(r0);
-
       // Setup the name register.
-      Result property_name(r2);
       __ mov(r2, Operand(name));
-      frame->CallCodeObject(ic,
-                            RelocInfo::CODE_TARGET,
-                            &value,
-                            &property_name,
-                            0);
+      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(r0);
       cgen_->UnloadReference(this);
       break;
@@ -4414,9 +4398,8 @@ void Reference::SetValue(InitState init_state) {
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      Result value(r0);
       frame->EmitPop(r0);  // value
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, 0);
+      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(r0);
       cgen_->UnloadReference(this);
       break;
