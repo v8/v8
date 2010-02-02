@@ -4662,7 +4662,9 @@ static Object* Runtime_Math_round(Arguments args) {
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   if (signbit(x) && x >= -0.5) return Heap::minus_zero_value();
-  return Heap::NumberFromDouble(floor(x + 0.5));
+  double integer = ceil(x);
+  if (integer - x > 0.5) { integer -= 1.0; }
+  return Heap::NumberFromDouble(integer);
 }
 
 
