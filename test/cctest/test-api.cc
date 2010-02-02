@@ -4124,6 +4124,65 @@ THREADED_TEST(AccessControl) {
 }
 
 
+static bool GetOwnPropertyNamesNamedBlocker(Local<v8::Object> global,
+                                            Local<Value> name,
+                                            v8::AccessType type,
+                                            Local<Value> data) {
+  return false;
+}
+
+
+static bool GetOwnPropertyNamesIndexedBlocker(Local<v8::Object> global,
+                                              uint32_t key,
+                                              v8::AccessType type,
+                                              Local<Value> data) {
+  return false;
+}
+
+
+THREADED_TEST(AccessControlGetOwnPropertyNames) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> obj_template = v8::ObjectTemplate::New();
+
+  obj_template->Set(v8_str("x"), v8::Integer::New(42));
+  obj_template->SetAccessCheckCallbacks(GetOwnPropertyNamesNamedBlocker,
+                                        GetOwnPropertyNamesIndexedBlocker);
+
+  // Create an environment
+  v8::Persistent<Context> context0 = Context::New(NULL, obj_template);
+  context0->Enter();
+
+  v8::Handle<v8::Object> global0 = context0->Global();
+
+  v8::HandleScope scope1;
+
+  v8::Persistent<Context> context1 = Context::New();
+  context1->Enter();
+
+  v8::Handle<v8::Object> global1 = context1->Global();
+  global1->Set(v8_str("other"), global0);
+  global1->Set(v8_str("object"), obj_template->NewInstance());
+
+  v8::Handle<Value> value;
+
+  // Attempt to get the property names of the other global object and
+  // of an object that requires access checks.  Accessing the other
+  // global object should be blocked by access checks on the global
+  // proxy object.  Accessing the object that requires access checks
+  // is blocked by the access checks on the object itself.
+  value = CompileRun("Object.getOwnPropertyNames(other).length == 0");
+  CHECK(value->IsTrue());
+
+  value = CompileRun("Object.getOwnPropertyNames(object).length == 0");
+  CHECK(value->IsTrue());
+
+  context1->Exit();
+  context0->Exit();
+  context1.Dispose();
+  context0.Dispose();
+}
+
+
 static v8::Handle<Value> ConstTenGetter(Local<String> name,
                                         const AccessorInfo& info) {
   return v8_num(10);

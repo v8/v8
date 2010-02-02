@@ -3251,6 +3251,12 @@ static Object* Runtime_GetLocalPropertyNames(Arguments args) {
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
   if (obj->IsJSGlobalProxy()) {
+    // Only collect names if access is permitted.
+    if (obj->IsAccessCheckNeeded() &&
+        !Top::MayNamedAccess(*obj, Heap::undefined_value(), v8::ACCESS_KEYS)) {
+      Top::ReportFailedAccessCheck(*obj, v8::ACCESS_KEYS);
+      return *Factory::NewJSArray(0);
+    }
     obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
   }
 
@@ -3262,6 +3268,14 @@ static Object* Runtime_GetLocalPropertyNames(Arguments args) {
   int total_property_count = 0;
   Handle<JSObject> jsproto = obj;
   for (int i = 0; i < length; i++) {
+    // Only collect names if access is permitted.
+    if (jsproto->IsAccessCheckNeeded() &&
+        !Top::MayNamedAccess(*jsproto,
+                             Heap::undefined_value(),
+                             v8::ACCESS_KEYS)) {
+      Top::ReportFailedAccessCheck(*jsproto, v8::ACCESS_KEYS);
+      return *Factory::NewJSArray(0);
+    }
     int n;
     n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
     local_property_count[i] = n;
