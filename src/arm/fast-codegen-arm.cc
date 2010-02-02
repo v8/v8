@@ -581,7 +581,8 @@ void FastCodeGenerator::VisitDeclaration(Declaration* decl) {
           int offset = Context::SlotOffset(slot->index());
           __ mov(r2, Operand(offset));
           // We know that we have written a function, which is not a smi.
-          __ RecordWrite(cp, r2, result_register());
+          __ mov(r1, Operand(cp));
+          __ RecordWrite(r1, r2, result_register());
         }
         break;
 

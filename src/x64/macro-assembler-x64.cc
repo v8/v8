@@ -178,6 +178,11 @@ void MacroAssembler::RecordWrite(Register object,
                                  int offset,
                                  Register value,
                                  Register smi_index) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are rsi.
+  ASSERT(!object.is(rsi) && !value.is(rsi) && !smi_index.is(rsi));
+
   // First, check if a remembered set write is even needed. The tests below
   // catch stores of Smis and stores into young gen (which does not have space
   // for the remembered set bits.

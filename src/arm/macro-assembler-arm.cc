@@ -205,6 +205,11 @@ void MacroAssembler::LoadRoot(Register destination,
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object, Register offset,
                                  Register scratch) {
+  // The compiled code assumes that record write doesn't change the
+  // context register, so we check that none of the clobbered
+  // registers are cp.
+  ASSERT(!object.is(cp) && !offset.is(cp) && !scratch.is(cp));
+
   // This is how much we shift the remembered set bit offset to get the
   // offset of the word in the remembered set.  We divide by kBitsPerInt (32,
   // shift right 5) and then multiply by kIntSize (4, shift left 2).
