@@ -95,8 +95,14 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
                                      (num_parameters - 1 - i) * kPointerSize;
           // Load parameter from stack.
           __ mov(eax, Operand(ebp, parameter_offset));
-          // Store it in the context
-          __ mov(Operand(esi, Context::SlotOffset(slot->index())), eax);
+          // Store it in the context.
+          int context_offset = Context::SlotOffset(slot->index());
+          __ mov(Operand(esi, context_offset), eax);
+          // Update the write barrier. This clobbers all involved
+          // registers, so we have use a third register to avoid
+          // clobbering esi.
+          __ mov(ecx, esi);
+          __ RecordWrite(ecx, context_offset, eax, ebx);
         }
       }
     }
@@ -112,7 +118,7 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
       }
       // Receiver is just before the parameters on the caller's stack.
       __ lea(edx, Operand(ebp, StandardFrameConstants::kCallerSPOffset +
-                                   fun->num_parameters() * kPointerSize));
+                          fun->num_parameters() * kPointerSize));
       __ push(edx);
       __ push(Immediate(Smi::FromInt(fun->num_parameters())));
       // Arguments to ArgumentsAccessStub:

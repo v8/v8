@@ -277,6 +277,14 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   str(scratch, MemOperand(object));
 
   bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (FLAG_debug_code) {
+    mov(object, Operand(bit_cast<int32_t>(kZapValue)));
+    mov(offset, Operand(bit_cast<int32_t>(kZapValue)));
+    mov(scratch, Operand(bit_cast<int32_t>(kZapValue)));
+  }
 }
 
 

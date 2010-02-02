@@ -191,6 +191,17 @@ void MacroAssembler::RecordWrite(Register object,
 
   RecordWriteNonSmi(object, offset, value, smi_index);
   bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors. This clobbering repeats the
+  // clobbering done inside RecordWriteNonSmi but it's necessary to
+  // avoid having the fast case for smis leave the registers
+  // unchanged.
+  if (FLAG_debug_code) {
+    movq(object, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(value, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(smi_index, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+  }
 }
 
 
@@ -199,6 +210,14 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
                                        Register scratch,
                                        Register smi_index) {
   Label done;
+
+  if (FLAG_debug_code) {
+    Label okay;
+    JumpIfNotSmi(object, &okay);
+    Abort("MacroAssembler::RecordWriteNonSmi cannot deal with smis");
+    bind(&okay);
+  }
+
   // Test that the object address is not in the new space.  We cannot
   // set remembered set bits in the new space.
   movq(scratch, object);
@@ -248,6 +267,14 @@ void MacroAssembler::RecordWriteNonSmi(Register object,
   }
 
   bind(&done);
+
+  // Clobber all input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (FLAG_debug_code) {
+    movq(object, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(scratch, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(smi_index, bit_cast<int64_t>(kZapValue), RelocInfo::NONE);
+  }
 }
 
 
