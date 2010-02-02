@@ -2406,8 +2406,10 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
       String* name = fun->shared()->GetThisPropertyAssignmentName(i);
       ASSERT(name->IsSymbol());
       FieldDescriptor field(name, i, NONE);
+      field.SetEnumerationIndex(i);
       descriptors->Set(i, &field);
     }
+    descriptors->SetNextEnumerationIndex(count);
     descriptors->Sort();
     map->set_instance_descriptors(descriptors);
     map->set_pre_allocated_property_fields(count);
