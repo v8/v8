@@ -150,6 +150,15 @@ class CodeGenState BASE_EMBEDDED {
 
 class CodeGenerator: public AstVisitor {
  public:
+  // Compilation mode.  Either the compiler is used as the primary
+  // compiler and needs to setup everything or the compiler is used as
+  // the secondary compiler for split compilation and has to handle
+  // bailouts.
+  enum Mode {
+    PRIMARY,
+    SECONDARY
+  };
+
   // Takes a function literal, generates code for it. This function should only
   // be called by compiler.cc.
   static Handle<Code> MakeCode(FunctionLiteral* fun,
@@ -240,7 +249,7 @@ class CodeGenerator: public AstVisitor {
   inline void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
-  void GenCode(FunctionLiteral* fun, CompilationInfo* info);
+  void Generate(FunctionLiteral* fun, Mode mode, CompilationInfo* info);
 
   // The following are used by class Reference.
   void LoadReference(Reference* ref);

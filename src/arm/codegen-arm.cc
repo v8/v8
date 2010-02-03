@@ -143,7 +143,9 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm,
 // r1: called JS function
 // cp: callee's context
 
-void CodeGenerator::GenCode(FunctionLiteral* fun, CompilationInfo* info) {
+void CodeGenerator::Generate(FunctionLiteral* fun,
+                             Mode mode,
+                             CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(fun);
 
@@ -169,8 +171,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun, CompilationInfo* info) {
     // r1: called JS function
     // cp: callee's context
     allocator_->Initialize();
-    frame_->Enter();
-    // tos: code slot
+
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
         fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
@@ -179,103 +180,117 @@ void CodeGenerator::GenCode(FunctionLiteral* fun, CompilationInfo* info) {
     }
 #endif
 
-    // Allocate space for locals and initialize them.  This also checks
-    // for stack overflow.
-    frame_->AllocateStackSlots();
+    if (mode == PRIMARY) {
+      frame_->Enter();
+      // tos: code slot
+
+      // Allocate space for locals and initialize them.  This also checks
+      // for stack overflow.
+      frame_->AllocateStackSlots();
+
+      VirtualFrame::SpilledScope spilled_scope;
+      int heap_slots = scope_->num_heap_slots();
+      if (heap_slots > 0) {
+        // Allocate local context.
+        // Get outer context and create a new context based on it.
+        __ ldr(r0, frame_->Function());
+        frame_->EmitPush(r0);
+        if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+          FastNewContextStub stub(heap_slots);
+          frame_->CallStub(&stub, 1);
+        } else {
+          frame_->CallRuntime(Runtime::kNewContext, 1);
+        }
+
+#ifdef DEBUG
+        JumpTarget verified_true;
+        __ cmp(r0, Operand(cp));
+        verified_true.Branch(eq);
+        __ stop("NewContext: r0 is expected to be the same as cp");
+        verified_true.Bind();
+#endif
+        // Update context local.
+        __ str(cp, frame_->Context());
+      }
+
+      // TODO(1241774): Improve this code:
+      // 1) only needed if we have a context
+      // 2) no need to recompute context ptr every single time
+      // 3) don't copy parameter operand code from SlotOperand!
+      {
+        Comment cmnt2(masm_, "[ copy context parameters into .context");
+
+        // Note that iteration order is relevant here! If we have the same
+        // parameter twice (e.g., function (x, y, x)), and that parameter
+        // needs to be copied into the context, it must be the last argument
+        // passed to the parameter that needs to be copied. This is a rare
+        // case so we don't check for it, instead we rely on the copying
+        // order: such a parameter is copied repeatedly into the same
+        // context location and thus the last value is what is seen inside
+        // the function.
+        for (int i = 0; i < scope_->num_parameters(); i++) {
+          Variable* par = scope_->parameter(i);
+          Slot* slot = par->slot();
+          if (slot != NULL && slot->type() == Slot::CONTEXT) {
+            // No parameters in global scope.
+            ASSERT(!scope_->is_global_scope());
+            __ ldr(r1, frame_->ParameterAt(i));
+            // Loads r2 with context; used below in RecordWrite.
+            __ str(r1, SlotOperand(slot, r2));
+            // Load the offset into r3.
+            int slot_offset =
+                FixedArray::kHeaderSize + slot->index() * kPointerSize;
+            __ mov(r3, Operand(slot_offset));
+            __ RecordWrite(r2, r3, r1);
+          }
+        }
+      }
+
+      // Store the arguments object.  This must happen after context
+      // initialization because the arguments object may be stored in the
+      // context.
+      if (scope_->arguments() != NULL) {
+        Comment cmnt(masm_, "[ allocate arguments object");
+        ASSERT(scope_->arguments_shadow() != NULL);
+        Variable* arguments = scope_->arguments()->var();
+        Variable* shadow = scope_->arguments_shadow()->var();
+        ASSERT(arguments != NULL && arguments->slot() != NULL);
+        ASSERT(shadow != NULL && shadow->slot() != NULL);
+        ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+        __ ldr(r2, frame_->Function());
+        // The receiver is below the arguments, the return address, and the
+        // frame pointer on the stack.
+        const int kReceiverDisplacement = 2 + scope_->num_parameters();
+        __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
+        __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
+        frame_->Adjust(3);
+        __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+        frame_->CallStub(&stub, 3);
+        frame_->EmitPush(r0);
+        StoreToSlot(arguments->slot(), NOT_CONST_INIT);
+        StoreToSlot(shadow->slot(), NOT_CONST_INIT);
+        frame_->Drop();  // Value is no longer needed.
+      }
+
+      // Initialize ThisFunction reference if present.
+      if (scope_->is_function_scope() && scope_->function() != NULL) {
+        __ mov(ip, Operand(Factory::the_hole_value()));
+        frame_->EmitPush(ip);
+        StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
+      }
+    } else {
+      // When used as the secondary compiler for splitting, r1, cp,
+      // fp, and lr have been pushed on the stack.  Adjust the virtual
+      // frame to match this state.
+      frame_->Adjust(4);
+      allocator_->Unuse(r1);
+      allocator_->Unuse(lr);
+    }
+
     // Initialize the function return target after the locals are set
     // up, because it needs the expected frame height from the frame.
     function_return_.set_direction(JumpTarget::BIDIRECTIONAL);
     function_return_is_shadowed_ = false;
-
-    VirtualFrame::SpilledScope spilled_scope;
-    int heap_slots = scope_->num_heap_slots();
-    if (heap_slots > 0) {
-      // Allocate local context.
-      // Get outer context and create a new context based on it.
-      __ ldr(r0, frame_->Function());
-      frame_->EmitPush(r0);
-      if (heap_slots <= FastNewContextStub::kMaximumSlots) {
-        FastNewContextStub stub(heap_slots);
-        frame_->CallStub(&stub, 1);
-      } else {
-        frame_->CallRuntime(Runtime::kNewContext, 1);
-      }
-
-#ifdef DEBUG
-      JumpTarget verified_true;
-      __ cmp(r0, Operand(cp));
-      verified_true.Branch(eq);
-      __ stop("NewContext: r0 is expected to be the same as cp");
-      verified_true.Bind();
-#endif
-      // Update context local.
-      __ str(cp, frame_->Context());
-    }
-
-    // TODO(1241774): Improve this code:
-    // 1) only needed if we have a context
-    // 2) no need to recompute context ptr every single time
-    // 3) don't copy parameter operand code from SlotOperand!
-    {
-      Comment cmnt2(masm_, "[ copy context parameters into .context");
-
-      // Note that iteration order is relevant here! If we have the same
-      // parameter twice (e.g., function (x, y, x)), and that parameter
-      // needs to be copied into the context, it must be the last argument
-      // passed to the parameter that needs to be copied. This is a rare
-      // case so we don't check for it, instead we rely on the copying
-      // order: such a parameter is copied repeatedly into the same
-      // context location and thus the last value is what is seen inside
-      // the function.
-      for (int i = 0; i < scope_->num_parameters(); i++) {
-        Variable* par = scope_->parameter(i);
-        Slot* slot = par->slot();
-        if (slot != NULL && slot->type() == Slot::CONTEXT) {
-          ASSERT(!scope_->is_global_scope());  // no parameters in global scope
-          __ ldr(r1, frame_->ParameterAt(i));
-          // Loads r2 with context; used below in RecordWrite.
-          __ str(r1, SlotOperand(slot, r2));
-          // Load the offset into r3.
-          int slot_offset =
-              FixedArray::kHeaderSize + slot->index() * kPointerSize;
-          __ mov(r3, Operand(slot_offset));
-          __ RecordWrite(r2, r3, r1);
-        }
-      }
-    }
-
-    // Store the arguments object.  This must happen after context
-    // initialization because the arguments object may be stored in the
-    // context.
-    if (scope_->arguments() != NULL) {
-      Comment cmnt(masm_, "[ allocate arguments object");
-      ASSERT(scope_->arguments_shadow() != NULL);
-      Variable* arguments = scope_->arguments()->var();
-      Variable* shadow = scope_->arguments_shadow()->var();
-      ASSERT(arguments != NULL && arguments->slot() != NULL);
-      ASSERT(shadow != NULL && shadow->slot() != NULL);
-      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-      __ ldr(r2, frame_->Function());
-      // The receiver is below the arguments, the return address, and the
-      // frame pointer on the stack.
-      const int kReceiverDisplacement = 2 + scope_->num_parameters();
-      __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
-      __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
-      frame_->Adjust(3);
-      __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
-      frame_->CallStub(&stub, 3);
-      frame_->EmitPush(r0);
-      StoreToSlot(arguments->slot(), NOT_CONST_INIT);
-      StoreToSlot(shadow->slot(), NOT_CONST_INIT);
-      frame_->Drop();  // Value is no longer needed.
-    }
-
-    // Initialize ThisFunction reference if present.
-    if (scope_->is_function_scope() && scope_->function() != NULL) {
-      __ mov(ip, Operand(Factory::the_hole_value()));
-      frame_->EmitPush(ip);
-      StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
-    }
 
     // Generate code to 'execute' declarations and initialize functions
     // (source elements). In case of an illegal redeclaration we need to

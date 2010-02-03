@@ -228,7 +228,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
   MacroAssembler masm(NULL, kInitialBufferSize);
   CodeGenerator cgen(&masm, script, is_eval);
   CodeGeneratorScope scope(&cgen);
-  cgen.GenCode(fun, info);
+  cgen.Generate(fun, PRIMARY, info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();

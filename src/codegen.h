@@ -55,7 +55,7 @@
 //   CodeGenerator
 //   ~CodeGenerator
 //   ProcessDeferred
-//   GenCode
+//   Generate
 //   ComputeLazyCompile
 //   BuildBoilerplate
 //   ComputeCallInitialize

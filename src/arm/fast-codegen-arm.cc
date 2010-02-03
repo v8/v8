@@ -111,6 +111,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   // Save the caller's frame pointer and set up our own.
   Comment prologue_cmnt(masm(), ";; Prologue");
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  __ add(fp, sp, Operand(2 * kPointerSize));
   // Note that we keep a live register reference to cp (context) at
   // this point.
 

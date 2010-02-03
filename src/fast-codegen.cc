@@ -30,7 +30,6 @@
 #include "codegen-inl.h"
 #include "data-flow.h"
 #include "fast-codegen.h"
-#include "full-codegen.h"
 #include "scopes.h"
 
 namespace v8 {
@@ -358,9 +357,10 @@ Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
 
   // Generate the full code for the function in bailout mode, using the same
   // macro assembler.
-  FullCodeGenerator full_cgen(&masm, script, is_eval);
-  full_cgen.Generate(fun, FullCodeGenerator::SECONDARY);
-  if (full_cgen.HasStackOverflow()) {
+  CodeGenerator cgen(&masm, script, is_eval);
+  CodeGeneratorScope scope(&cgen);
+  cgen.Generate(fun, CodeGenerator::SECONDARY, info);
+  if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
