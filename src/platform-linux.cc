@@ -159,6 +159,24 @@ int OS::ActivationFrameAlignment() {
 }
 
 
+const char* OS::LocalTimezone(double time) {
+  if (isnan(time)) return "";
+  time_t tv = static_cast<time_t>(floor(time/msPerSecond));
+  struct tm* t = localtime(&tv);
+  if (NULL == t) return "";
+  return t->tm_zone;
+}
+
+
+double OS::LocalTimeOffset() {
+  time_t tv = time(NULL);
+  struct tm* t = localtime(&tv);
+  // tm_gmtoff includes any daylight savings offset, so subtract it.
+  return static_cast<double>(t->tm_gmtoff * msPerSecond -
+                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
+}
+
+
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
 // and verification).  The estimate is conservative, ie, not all addresses in
@@ -707,23 +725,23 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
 #if V8_HOST_ARCH_IA32
-    sample.pc = mcontext.gregs[REG_EIP];
-    sample.sp = mcontext.gregs[REG_ESP];
-    sample.fp = mcontext.gregs[REG_EBP];
+    sample.pc = reinterpret_cast<Address>(mcontext.gregs[REG_EIP]);
+    sample.sp = reinterpret_cast<Address>(mcontext.gregs[REG_ESP]);
+    sample.fp = reinterpret_cast<Address>(mcontext.gregs[REG_EBP]);
 #elif V8_HOST_ARCH_X64
-    sample.pc = mcontext.gregs[REG_RIP];
-    sample.sp = mcontext.gregs[REG_RSP];
-    sample.fp = mcontext.gregs[REG_RBP];
+    sample.pc = reinterpret_cast<Address>(mcontext.gregs[REG_RIP]);
+    sample.sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
+    sample.fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
 // An undefined macro evaluates to 0, so this applies to Android's Bionic also.
 #if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
-    sample.pc = mcontext.gregs[R15];
-    sample.sp = mcontext.gregs[R13];
-    sample.fp = mcontext.gregs[R11];
+    sample.pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
+    sample.sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
+    sample.fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
 #else
-    sample.pc = mcontext.arm_pc;
-    sample.sp = mcontext.arm_sp;
-    sample.fp = mcontext.arm_fp;
+    sample.pc = reinterpret_cast<Address>(mcontext.arm_pc);
+    sample.sp = reinterpret_cast<Address>(mcontext.arm_sp);
+    sample.fp = reinterpret_cast<Address>(mcontext.arm_fp);
 #endif
 #endif
     if (IsVmThread())
