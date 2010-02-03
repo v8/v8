@@ -394,14 +394,8 @@ TEST(PartialSerialization) {
 }
 
 
-DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
-  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
-
-  CHECK(Snapshot::Initialize(startup_name.start()));
-
-  const char* file_name = FLAG_testing_serialization_file;
+static void ReserveSpaceForPartialSnapshot(const char* file_name) {
+  int file_name_length = StrLength(file_name) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name);
   FILE* fp = OS::FOpen(name.start(), "r");
@@ -430,6 +424,19 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
                      map_size,
                      cell_size,
                      large_size);
+}
+
+
+DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  CHECK(Snapshot::Initialize(startup_name.start()));
+
+  const char* file_name = FLAG_testing_serialization_file;
+  ReserveSpaceForPartialSnapshot(file_name);
+
   int snapshot_size = 0;
   byte* snapshot = ReadBytes(file_name, &snapshot_size);
 
@@ -450,6 +457,85 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
     deserializer.DeserializePartial(&root2);
     CHECK(root2->IsString());
     CHECK(*root_handle == root2);
+  }
+}
+
+
+TEST(ContextSerialization) {
+  Serializer::Enable();
+  v8::V8::Initialize();
+
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  ASSERT(!env.IsEmpty());
+  env->Enter();
+  // Make sure all builtin scripts are cached.
+  { HandleScope scope;
+    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+      Bootstrapper::NativesSourceLookup(i);
+    }
+  }
+  // If we don't do this then we end up with a stray root pointing at the
+  // context even after we have disposed of env.
+  Heap::CollectAllGarbage(true);
+
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  env->Exit();
+
+  Object* raw_context = *(v8::Utils::OpenHandle(*env));
+
+  env.Dispose();
+
+  FileByteSink startup_sink(startup_name.start());
+  StartupSerializer startup_serializer(&startup_sink);
+  startup_serializer.SerializeStrongReferences();
+
+  FileByteSink partial_sink(FLAG_testing_serialization_file);
+  PartialSerializer p_ser(&startup_serializer, &partial_sink);
+  p_ser.Serialize(&raw_context);
+  startup_serializer.SerializeWeakReferences();
+  partial_sink.WriteSpaceUsed(p_ser.CurrentAllocationAddress(NEW_SPACE),
+                              p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+                              p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+                              p_ser.CurrentAllocationAddress(CODE_SPACE),
+                              p_ser.CurrentAllocationAddress(MAP_SPACE),
+                              p_ser.CurrentAllocationAddress(CELL_SPACE),
+                              p_ser.CurrentAllocationAddress(LO_SPACE));
+}
+
+
+DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
+  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+  CHECK(Snapshot::Initialize(startup_name.start()));
+
+  const char* file_name = FLAG_testing_serialization_file;
+  ReserveSpaceForPartialSnapshot(file_name);
+
+  int snapshot_size = 0;
+  byte* snapshot = ReadBytes(file_name, &snapshot_size);
+
+  Object* root;
+  {
+    SnapshotByteSource source(snapshot, snapshot_size);
+    Deserializer deserializer(&source);
+    deserializer.DeserializePartial(&root);
+    CHECK(root->IsContext());
+  }
+  v8::HandleScope handle_scope;
+  Handle<Object>root_handle(root);
+
+  Object* root2;
+  {
+    SnapshotByteSource source(snapshot, snapshot_size);
+    Deserializer deserializer(&source);
+    deserializer.DeserializePartial(&root2);
+    CHECK(root2->IsContext());
+    CHECK(*root_handle != root2);
   }
 }
 

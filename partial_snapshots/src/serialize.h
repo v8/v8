@@ -231,7 +231,7 @@ class SerializerDeserializer: public ObjectVisitor {
   }
 
   static int partial_snapshot_cache_length_;
-  static const int kPartialSnapshotCacheCapacity = 1024;
+  static const int kPartialSnapshotCacheCapacity = 1300;
   static Object* partial_snapshot_cache_[];
   static bool tracing_;
 };
@@ -522,7 +522,7 @@ class PartialSerializer : public Serializer {
   virtual int RootIndex(HeapObject* o);
   virtual int PartialSnapshotCacheIndex(HeapObject* o);
   virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) {
-    return o->IsString() || o->IsSharedFunctionInfo();
+    return o->IsString() || o->IsSharedFunctionInfo() || o->IsHeapNumber();
   }
 
  private:

@@ -990,6 +990,7 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
     Object* entry = partial_snapshot_cache_[i];
     if (entry == heap_object) return i;
   }
+
   // We didn't find the object in the cache.  So we add it to the cache and
   // then visit the pointer so that it becomes part of the startup snapshot
   // and we can refer to it from the partial snapshot.
