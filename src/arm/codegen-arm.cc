@@ -2302,7 +2302,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
   CodeForStatementPosition(node);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  DebugerStatementStub ces;
+  DebuggerStatementStub ces;
   frame_->CallStub(&ces, 0);
 #endif
   // Ignore the return value.

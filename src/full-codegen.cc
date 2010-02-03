@@ -987,7 +987,7 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
   Comment cmnt(masm_, "[ DebuggerStatement");
   SetStatementPosition(stmt);
 
-  DebugerStatementStub ces;
+  DebuggerStatementStub ces;
   __ CallStub(&ces);
   // Ignore the return value.
 #endif

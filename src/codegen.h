@@ -348,8 +348,8 @@ class CEntryStub : public CodeStub {
                                 UncatchableExceptionType type);
 
   // Number of pointers/values returned.
-  int const result_size_;
-  ExitFrame::Mode const mode_;
+  const int result_size_;
+  const ExitFrame::Mode mode_;
 
   // Minor key encoding
   class ExitFrameModeBits: public BitField<ExitFrame::Mode, 0, 1> {};
@@ -390,10 +390,10 @@ class ApiGetterEntryStub : public CodeStub {
 };
 
 
-// Mark the debugger statemet to be recognized by debugger (by the MajorKey)
-class DebugerStatementStub : public CodeStub {
+// Mark the debugger statement to be recognized by debugger (by the MajorKey)
+class DebuggerStatementStub : public CodeStub {
  public:
-  DebugerStatementStub() { }
+  DebuggerStatementStub() { }
 
   void Generate(MacroAssembler* masm);
 
@@ -401,7 +401,7 @@ class DebugerStatementStub : public CodeStub {
   Major MajorKey() { return DebuggerStatement; }
   int MinorKey() { return 0; }
 
-  const char* GetName() { return "DebugerStatementStub"; }
+  const char* GetName() { return "DebuggerStatementStub"; }
 };
 
 

@@ -482,13 +482,11 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 int CEntryStub::MinorKey() {
   ASSERT(result_size_ <= 2);
 #ifdef _WIN64
-  const indirect_result = result_size_ > 1;
-#else
-  const bool indirect_result = false;
-#endif
-
   return ExitFrameModeBits::encode(mode_)
-         | IndirectResultBits::encode(indirect_result > 1);
+         | IndirectResultBits::encode(result_size_ > 1);
+#else
+  return ExitFrameModeBits::encode(mode_);
+#endif
 }
 
 
@@ -508,7 +506,7 @@ void ApiGetterEntryStub::SetCustomCache(Code* value) {
 }
 
 
-void DebugerStatementStub::Generate(MacroAssembler* masm) {
+void DebuggerStatementStub::Generate(MacroAssembler* masm) {
   Runtime::Function* f = Runtime::FunctionForId(Runtime::kDebugBreak);
   masm->TailCallRuntime(ExternalReference(f), 0, f->result_size);
 }
