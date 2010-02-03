@@ -6478,8 +6478,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // r1: function
   // r2: receiver
   // r3: argc
-  __ add(r4, sp, Operand((kNumCalleeSaved + 1)*kPointerSize));
-  __ ldr(r4, MemOperand(r4));  // argv
+  __ ldr(r4, MemOperand(sp, (kNumCalleeSaved + 1) * kPointerSize));  // argv
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r0: code entry
