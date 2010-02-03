@@ -596,8 +596,9 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
 
   if (result.type() == CALLBACKS) {
     Object* structure = result.GetCallbackObject();
-    if (structure->IsProxy()) {
-      // Property that is internally implemented as a callback.
+    if (structure->IsProxy() || structure->IsAccessorInfo()) {
+      // Property that is internally implemented as a callback or
+      // an API defined callback.
       Object* value = obj->GetPropertyWithCallback(
           obj, structure, name, result.holder());
       elms->set(0, Heap::false_value());
@@ -609,7 +610,6 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       elms->set(1, FixedArray::cast(structure)->get(0));
       elms->set(2, FixedArray::cast(structure)->get(1));
     } else {
-      // TODO(ricow): Handle API callbacks.
       return Heap::undefined_value();
     }
   } else {
@@ -619,7 +619,7 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   }
 
   elms->set(3, Heap::ToBoolean(!result.IsDontEnum()));
-  elms->set(4, Heap::ToBoolean(!result.IsReadOnly()));
+  elms->set(4, Heap::ToBoolean(!result.IsDontDelete()));
   return *desc;
 }
 
@@ -2885,6 +2885,66 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
   // Fall back to GetObjectProperty.
   return Runtime::GetObjectProperty(args.at<Object>(0),
                                     args.at<Object>(1));
+}
+
+
+static Object* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
+  ASSERT(args.length() == 5);
+  HandleScope scope;
+  Handle<JSObject> obj = args.at<JSObject>(0);
+  CONVERT_CHECKED(String, name, args[1]);
+  CONVERT_CHECKED(Smi, flag_setter, args[2]);
+  CONVERT_CHECKED(JSFunction, fun, args[3]);
+  CONVERT_CHECKED(Smi, flag_attr, args[4]);
+  int unchecked = flag_attr->value();
+  RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+
+  LookupResult result;
+  obj->LocalLookupRealNamedProperty(name, &result);
+
+  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+  // If an existing property is either FIELD, NORMAL or CONSTANT_FUNCTION
+  // delete it to avoid running into trouble in DefineAccessor, which
+  // handles this incorrectly if the property is readonly (does nothing)
+  if (result.type() == FIELD || result.type() == NORMAL
+      || result.type() == CONSTANT_FUNCTION)
+    obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+
+  return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
+}
+
+static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
+  ASSERT(args.length() == 4);
+  HandleScope scope;
+  Handle<Object> obj = args.at<Object>(0);
+  Handle<Object> name = args.at<Object>(1);
+  Handle<Object> obj_value = args.at<Object>(2);
+  Handle<JSObject> js_object = Handle<JSObject>::cast(obj);
+  Handle<String> key_string = Handle<String>::cast(name);
+
+  CONVERT_CHECKED(Smi, flag, args[3]);
+  int unchecked = flag->value();
+  RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+
+  LookupResult result;
+  js_object->LocalLookupRealNamedProperty(*key_string, &result);
+
+  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+
+  // Take special care when attributes are different and there is already
+  // a property. For simplicity we normalize the property which enables us
+  // to not worry about changing the instance_descriptor and creating a new
+  // map. The current version of SetObjectProperty does not handle attributes
+  // correctly in the case where a property is a field and is reset with
+  // new attributes.
+  if (result.IsProperty() && attr != result.GetAttributes()) {
+    PropertyDetails details = PropertyDetails(attr, NORMAL);
+    // New attributes - normalize to avoid writing to instance descriptor
+    js_object->NormalizeProperties(KEEP_INOBJECT_PROPERTIES, 0);
+    return js_object->SetNormalizedProperty(*key_string, *obj_value, details);
+  }
+
+  return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
 }
 
 
