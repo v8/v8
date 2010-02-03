@@ -33,8 +33,9 @@ namespace v8 {
 namespace internal {
 
 
-void AstLabeler::Label(FunctionLiteral* fun) {
-  VisitStatements(fun->body());
+void AstLabeler::Label(CompilationInfo* info) {
+  info_ = info;
+  VisitStatements(info_->function()->body());
 }
 
 
@@ -198,7 +199,7 @@ void AstLabeler::VisitAssignment(Assignment* expr) {
     ASSERT(prop->key()->IsPropertyName());
     VariableProxy* proxy = prop->obj()->AsVariableProxy();
     if (proxy != NULL && proxy->var()->is_this()) {
-      has_this_properties_ = true;
+      info()->set_has_this_properties(true);
     } else {
       Visit(prop->obj());
     }

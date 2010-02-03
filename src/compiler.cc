@@ -43,15 +43,11 @@ namespace v8 {
 namespace internal {
 
 
-static Handle<Code> MakeCode(FunctionLiteral* literal,
-                             Handle<Script> script,
-                             Handle<Context> context,
-                             bool is_eval,
-                             CompilationInfo* info) {
-  ASSERT(literal != NULL);
-
+static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
+  FunctionLiteral* function = info->function();
+  ASSERT(function != NULL);
   // Rewrite the AST by introducing .result assignments where needed.
-  if (!Rewriter::Process(literal) || !AnalyzeVariableUsage(literal)) {
+  if (!Rewriter::Process(function) || !AnalyzeVariableUsage(function)) {
     // Signal a stack overflow by returning a null handle.  The stack
     // overflow exception will be thrown by the caller.
     return Handle<Code>::null();
@@ -62,7 +58,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
     // the top scope only contains the single lazily compiled function,
     // so this doesn't re-allocate variables repeatedly.
     HistogramTimerScope timer(&Counters::variable_allocation);
-    Scope* top = literal->scope();
+    Scope* top = info->scope();
     while (top->outer_scope() != NULL) top = top->outer_scope();
     top->AllocateVariables(context);
   }
@@ -71,12 +67,12 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
   if (Bootstrapper::IsActive() ?
       FLAG_print_builtin_scopes :
       FLAG_print_scopes) {
-    literal->scope()->Print();
+    info->scope()->Print();
   }
 #endif
 
   // Optimize the AST.
-  if (!Rewriter::Optimize(literal)) {
+  if (!Rewriter::Optimize(function)) {
     // Signal a stack overflow by returning a null handle.  The stack
     // overflow exception will be thrown by the caller.
     return Handle<Code>::null();
@@ -98,25 +94,25 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   bool is_run_once = (shared.is_null())
-      ? literal->scope()->is_global_scope()
+      ? info->scope()->is_global_scope()
       : (shared->is_toplevel() || shared->try_full_codegen());
 
   if (FLAG_always_full_compiler || (FLAG_full_compiler && is_run_once)) {
     FullCodeGenSyntaxChecker checker;
-    checker.Check(literal);
+    checker.Check(function);
     if (checker.has_supported_syntax()) {
-      return FullCodeGenerator::MakeCode(literal, script, is_eval);
+      return FullCodeGenerator::MakeCode(info);
     }
   } else if (FLAG_always_fast_compiler ||
              (FLAG_fast_compiler && !is_run_once)) {
     FastCodeGenSyntaxChecker checker;
-    checker.Check(literal, info);
+    checker.Check(info);
     if (checker.has_supported_syntax()) {
-      return FastCodeGenerator::MakeCode(literal, script, is_eval, info);
+      return FastCodeGenerator::MakeCode(info);
     }
   }
 
-  return CodeGenerator::MakeCode(literal, script, is_eval, info);
+  return CodeGenerator::MakeCode(info);
 }
 
 
@@ -180,10 +176,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   HistogramTimerScope timer(rate);
 
   // Compile the code.
-  CompilationInfo info(Handle<SharedFunctionInfo>::null(),
-                       Handle<Object>::null(),  // No receiver.
-                       0);  // Not nested in a loop.
-  Handle<Code> code = MakeCode(lit, script, context, is_eval, &info);
+  CompilationInfo info(lit, script, is_eval);
+  Handle<Code> code = MakeCode(context, &info);
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
@@ -355,7 +349,6 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   // Compute name, source code and script data.
   Handle<SharedFunctionInfo> shared = info->shared_info();
   Handle<String> name(String::cast(shared->name()));
-  Handle<Script> script(Script::cast(shared->script()));
 
   int start_position = shared->start_position();
   int end_position = shared->end_position();
@@ -364,7 +357,8 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
 
   // Generate the AST for the lazily compiled function. The AST may be
   // NULL in case of parser stack overflow.
-  FunctionLiteral* lit = MakeLazyAST(script, name,
+  FunctionLiteral* lit = MakeLazyAST(info->script(),
+                                     name,
                                      start_position,
                                      end_position,
                                      is_expression);
@@ -374,6 +368,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     ASSERT(Top::has_pending_exception());
     return false;
   }
+  info->set_function(lit);
 
   // Measure how long it takes to do the lazy compilation; only take
   // the rest of the function into account to avoid overlap with the
@@ -381,11 +376,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   HistogramTimerScope timer(&Counters::compile_lazy);
 
   // Compile the code.
-  Handle<Code> code = MakeCode(lit,
-                               script,
-                               Handle<Context>::null(),
-                               false,
-                               info);
+  Handle<Code> code = MakeCode(Handle<Context>::null(), info);
 
   // Check for stack-overflow exception.
   if (code.is_null()) {
@@ -400,6 +391,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
   if (Logger::is_logging() || OProfileAgent::is_enabled()) {
     Handle<String> func_name(name->length() > 0 ?
                              *name : shared->inferred_name());
+    Handle<Script> script = info->script();
     if (script->name()->IsString()) {
       int line_num = GetScriptLineNumber(script, start_position) + 1;
       LOG(CodeCreateEvent(Logger::LAZY_COMPILE_TAG, *code, *func_name,
@@ -466,9 +458,7 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     // Generate code and return it.  The way that the compilation mode
     // is controlled by the command-line flags is described in
     // the static helper function MakeCode.
-    CompilationInfo info(Handle<SharedFunctionInfo>::null(),
-                         Handle<Object>::null(),  // No receiver.
-                         0);  // Not nested in a loop.
+    CompilationInfo info(literal, script, false);
 
     CHECK(!FLAG_always_full_compiler || !FLAG_always_fast_compiler);
     bool is_run_once = literal->try_full_codegen();
@@ -477,9 +467,7 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       FullCodeGenSyntaxChecker checker;
       checker.Check(literal);
       if (checker.has_supported_syntax()) {
-        code = FullCodeGenerator::MakeCode(literal,
-                                           script,
-                                           false);  // Not eval.
+        code = FullCodeGenerator::MakeCode(&info);
         is_compiled = true;
       }
     } else if (FLAG_always_fast_compiler ||
@@ -487,19 +475,16 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
       // Since we are not lazily compiling we do not have a receiver to
       // specialize for.
       FastCodeGenSyntaxChecker checker;
-      checker.Check(literal, &info);
+      checker.Check(&info);
       if (checker.has_supported_syntax()) {
-        code = FastCodeGenerator::MakeCode(literal, script, false, &info);
+        code = FastCodeGenerator::MakeCode(&info);
         is_compiled = true;
       }
     }
 
     if (!is_compiled) {
       // We fall back to the classic V8 code generator.
-      code = CodeGenerator::MakeCode(literal,
-                                     script,
-                                     false,  // Not eval.
-                                     &info);
+      code = CodeGenerator::MakeCode(&info);
     }
 
     // Check for stack-overflow exception.

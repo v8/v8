@@ -305,19 +305,15 @@ class CodeGenerator: public AstVisitor {
 
   // Takes a function literal, generates code for it. This function should only
   // be called by compiler.cc.
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval,
-                               CompilationInfo* info);
+  static Handle<Code> MakeCode(CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
-  static void MakeCodePrologue(FunctionLiteral* fun);
+  static void MakeCodePrologue(CompilationInfo* info);
 
   // Allocate and install the code.
-  static Handle<Code> MakeCodeEpilogue(FunctionLiteral* fun,
-                                       MacroAssembler* masm,
+  static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
                                        Code::Flags flags,
-                                       Handle<Script> script);
+                                       CompilationInfo* info);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
@@ -328,7 +324,7 @@ class CodeGenerator: public AstVisitor {
   // Accessors
   MacroAssembler* masm() { return masm_; }
   VirtualFrame* frame() const { return frame_; }
-  Handle<Script> script() { return script_; }
+  inline Handle<Script> script();
 
   bool has_valid_frame() const { return frame_ != NULL; }
 
@@ -352,11 +348,11 @@ class CodeGenerator: public AstVisitor {
 
  private:
   // Construction/Destruction
-  CodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval);
+  CodeGenerator(MacroAssembler* masm);
 
   // Accessors
-  Scope* scope() const { return scope_; }
-  bool is_eval() { return is_eval_; }
+  inline bool is_eval();
+  Scope* scope();
 
   // Generating deferred code.
   void ProcessDeferred();
@@ -388,7 +384,7 @@ class CodeGenerator: public AstVisitor {
   void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
-  void Generate(FunctionLiteral* fun, Mode mode, CompilationInfo* info);
+  void Generate(CompilationInfo* info, Mode mode);
 
   // Generate the return sequence code.  Should be called no more than
   // once per compiled function, immediately after binding the return
@@ -396,7 +392,7 @@ class CodeGenerator: public AstVisitor {
   void GenerateReturnSequence(Result* return_value);
 
   // Returns the arguments allocation mode.
-  ArgumentsAllocationMode ArgumentsMode() const;
+  ArgumentsAllocationMode ArgumentsMode();
 
   // Store the arguments object and allocate it if necessary.
   Result StoreArgumentsObject(bool initial);
@@ -607,15 +603,14 @@ class CodeGenerator: public AstVisitor {
   bool HasValidEntryRegisters();
 #endif
 
-  bool is_eval_;  // Tells whether code is generated for eval.
-  Handle<Script> script_;
   ZoneList<DeferredCode*> deferred_;
 
   // Assembler
   MacroAssembler* masm_;  // to generate code
 
+  CompilationInfo* info_;
+
   // Code generation state
-  Scope* scope_;
   VirtualFrame* frame_;
   RegisterAllocator* allocator_;
   CodeGenState* state_;

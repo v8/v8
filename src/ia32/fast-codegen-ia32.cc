@@ -103,10 +103,8 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
 }
 
 
-void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
-  ASSERT(function_ == NULL);
+void FastCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
-  function_ = fun;
   info_ = info;
 
   // Save the caller's frame pointer and set up our own.
@@ -121,7 +119,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   // Receiver (this) is allocated to edx if there are this properties.
   if (has_this_properties()) EmitReceiverMapCheck();
 
-  VisitStatements(fun->body());
+  VisitStatements(function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
   __ mov(eax, Factory::undefined_value());
@@ -129,7 +127,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ mov(esp, ebp);
   __ pop(ebp);
-  __ ret((fun->scope()->num_parameters() + 1) * kPointerSize);
+  __ ret((scope()->num_parameters() + 1) * kPointerSize);
 
   __ bind(&bailout_);
 }

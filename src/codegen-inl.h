@@ -30,6 +30,7 @@
 #define V8_CODEGEN_INL_H_
 
 #include "codegen.h"
+#include "compiler.h"
 #include "register-allocator-inl.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -47,6 +48,10 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm_)
+
+Handle<Script> CodeGenerator::script() { return info_->script(); }
+bool CodeGenerator::is_eval() { return info_->is_eval(); }
+
 
 // -----------------------------------------------------------------------------
 // Support for "structured" code comments.

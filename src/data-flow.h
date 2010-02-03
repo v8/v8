@@ -29,7 +29,7 @@
 #define V8_DATAFLOW_H_
 
 #include "ast.h"
-#include "scopes.h"
+#include "compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -38,13 +38,13 @@ namespace internal {
 // their evaluation order (post-order left-to-right traversal).
 class AstLabeler: public AstVisitor {
  public:
-  AstLabeler() : next_number_(0), has_this_properties_(false) {}
+  AstLabeler() : next_number_(0) {}
 
-  void Label(FunctionLiteral* fun);
-
-  bool has_this_properties() { return has_this_properties_; }
+  void Label(CompilationInfo* info);
 
  private:
+  CompilationInfo* info() { return info_; }
+
   void VisitDeclarations(ZoneList<Declaration*>* decls);
   void VisitStatements(ZoneList<Statement*>* stmts);
 
@@ -56,7 +56,7 @@ class AstLabeler: public AstVisitor {
   // Traversal number for labelling AST nodes.
   int next_number_;
 
-  bool has_this_properties_;
+  CompilationInfo* info_;
 
   DISALLOW_COPY_AND_ASSIGN(AstLabeler);
 };

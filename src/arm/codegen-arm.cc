@@ -121,14 +121,10 @@ CodeGenState::~CodeGenState() {
 // -------------------------------------------------------------------------
 // CodeGenerator implementation
 
-CodeGenerator::CodeGenerator(MacroAssembler* masm,
-                             Handle<Script> script,
-                             bool is_eval)
-    : is_eval_(is_eval),
-      script_(script),
-      deferred_(8),
+CodeGenerator::CodeGenerator(MacroAssembler* masm)
+    : deferred_(8),
       masm_(masm),
-      scope_(NULL),
+      info_(NULL),
       frame_(NULL),
       allocator_(NULL),
       cc_reg_(al),
@@ -137,23 +133,21 @@ CodeGenerator::CodeGenerator(MacroAssembler* masm,
 }
 
 
+Scope* CodeGenerator::scope() { return info_->function()->scope(); }
+
+
 // Calling conventions:
 // fp: caller's frame pointer
 // sp: stack pointer
 // r1: called JS function
 // cp: callee's context
 
-void CodeGenerator::Generate(FunctionLiteral* fun,
-                             Mode mode,
-                             CompilationInfo* info) {
+void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
   // Record the position for debugging purposes.
-  CodeForFunctionPosition(fun);
-
-  ZoneList<Statement*>* body = fun->body();
+  CodeForFunctionPosition(info->function());
 
   // Initialize state.
-  ASSERT(scope_ == NULL);
-  scope_ = fun->scope();
+  info_ = info;
   ASSERT(allocator_ == NULL);
   RegisterAllocator register_allocator(this);
   allocator_ = &register_allocator;
@@ -174,7 +168,7 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
 
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
-        fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+        info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
       frame_->SpillAll();
       __ stop("stop-at");
     }
@@ -189,7 +183,7 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
       frame_->AllocateStackSlots();
 
       VirtualFrame::SpilledScope spilled_scope;
-      int heap_slots = scope_->num_heap_slots();
+      int heap_slots = scope()->num_heap_slots();
       if (heap_slots > 0) {
         // Allocate local context.
         // Get outer context and create a new context based on it.
@@ -219,7 +213,6 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
       // 3) don't copy parameter operand code from SlotOperand!
       {
         Comment cmnt2(masm_, "[ copy context parameters into .context");
-
         // Note that iteration order is relevant here! If we have the same
         // parameter twice (e.g., function (x, y, x)), and that parameter
         // needs to be copied into the context, it must be the last argument
@@ -228,12 +221,11 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
         // order: such a parameter is copied repeatedly into the same
         // context location and thus the last value is what is seen inside
         // the function.
-        for (int i = 0; i < scope_->num_parameters(); i++) {
-          Variable* par = scope_->parameter(i);
+        for (int i = 0; i < scope()->num_parameters(); i++) {
+          Variable* par = scope()->parameter(i);
           Slot* slot = par->slot();
           if (slot != NULL && slot->type() == Slot::CONTEXT) {
-            // No parameters in global scope.
-            ASSERT(!scope_->is_global_scope());
+            ASSERT(!scope()->is_global_scope());  // no parameters in global scope
             __ ldr(r1, frame_->ParameterAt(i));
             // Loads r2 with context; used below in RecordWrite.
             __ str(r1, SlotOperand(slot, r2));
@@ -249,20 +241,20 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
       // Store the arguments object.  This must happen after context
       // initialization because the arguments object may be stored in the
       // context.
-      if (scope_->arguments() != NULL) {
+      if (scope()->arguments() != NULL) {
         Comment cmnt(masm_, "[ allocate arguments object");
-        ASSERT(scope_->arguments_shadow() != NULL);
-        Variable* arguments = scope_->arguments()->var();
-        Variable* shadow = scope_->arguments_shadow()->var();
+        ASSERT(scope()->arguments_shadow() != NULL);
+        Variable* arguments = scope()->arguments()->var();
+        Variable* shadow = scope()->arguments_shadow()->var();
         ASSERT(arguments != NULL && arguments->slot() != NULL);
         ASSERT(shadow != NULL && shadow->slot() != NULL);
         ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
         __ ldr(r2, frame_->Function());
         // The receiver is below the arguments, the return address, and the
         // frame pointer on the stack.
-        const int kReceiverDisplacement = 2 + scope_->num_parameters();
+        const int kReceiverDisplacement = 2 + scope()->num_parameters();
         __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
-        __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
+        __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
         frame_->Adjust(3);
         __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
         frame_->CallStub(&stub, 3);
@@ -273,10 +265,10 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
       }
 
       // Initialize ThisFunction reference if present.
-      if (scope_->is_function_scope() && scope_->function() != NULL) {
+      if (scope()->is_function_scope() && scope()->function() != NULL) {
         __ mov(ip, Operand(Factory::the_hole_value()));
         frame_->EmitPush(ip);
-        StoreToSlot(scope_->function()->slot(), NOT_CONST_INIT);
+        StoreToSlot(scope()->function()->slot(), NOT_CONST_INIT);
       }
     } else {
       // When used as the secondary compiler for splitting, r1, cp,
@@ -295,12 +287,12 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
     // Generate code to 'execute' declarations and initialize functions
     // (source elements). In case of an illegal redeclaration we need to
     // handle that instead of processing the declarations.
-    if (scope_->HasIllegalRedeclaration()) {
+    if (scope()->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ illegal redeclarations");
-      scope_->VisitIllegalRedeclaration(this);
+      scope()->VisitIllegalRedeclaration(this);
     } else {
       Comment cmnt(masm_, "[ declarations");
-      ProcessDeclarations(scope_->declarations());
+      ProcessDeclarations(scope()->declarations());
       // Bail out if a stack-overflow exception occurred when processing
       // declarations.
       if (HasStackOverflow()) return;
@@ -314,7 +306,7 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
     // Compile the body of the function in a vanilla state. Don't
     // bother compiling all the code if the scope has an illegal
     // redeclaration.
-    if (!scope_->HasIllegalRedeclaration()) {
+    if (!scope()->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ function body");
 #ifdef DEBUG
       bool is_builtin = Bootstrapper::IsActive();
@@ -325,14 +317,14 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
         // Ignore the return value.
       }
 #endif
-      VisitStatementsAndSpill(body);
+      VisitStatementsAndSpill(info->function()->body());
     }
   }
 
   // Generate the return sequence if necessary.
   if (has_valid_frame() || function_return_.is_linked()) {
     if (!function_return_.is_linked()) {
-      CodeForReturnPosition(fun);
+      CodeForReturnPosition(info->function());
     }
     // exit
     // r0: result
@@ -355,7 +347,7 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
 
     // Calculate the exact length of the return sequence and make sure that
     // the constant pool is not emitted inside of the return sequence.
-    int32_t sp_delta = (scope_->num_parameters() + 1) * kPointerSize;
+    int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
     int return_sequence_length = Assembler::kJSReturnSequenceLength;
     if (!masm_->ImmediateFitsAddrMode1Instruction(sp_delta)) {
       // Additional mov instruction generated.
@@ -395,7 +387,6 @@ void CodeGenerator::Generate(FunctionLiteral* fun,
   }
 
   allocator_ = NULL;
-  scope_ = NULL;
 }
 
 
@@ -2341,7 +2332,7 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(node, script_, this);
+      Compiler::BuildBoilerplate(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) {
     ASSERT(frame_->height() == original_height);
@@ -3519,7 +3510,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 
   // Seed the result with the formal parameters count, which will be used
   // in case no arguments adaptor frame is found below the current frame.
-  __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
+  __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
 
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
@@ -3536,7 +3527,7 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   // Load the key into r1 and the formal parameters count into r0.
   LoadAndSpill(args->at(0));
   frame_->EmitPop(r1);
-  __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
+  __ mov(r0, Operand(Smi::FromInt(scope()->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);

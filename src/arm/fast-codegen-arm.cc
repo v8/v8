@@ -37,7 +37,7 @@ namespace internal {
 
 void FastCodeGenerator::EmitLoadReceiver(Register reg) {
   // Offset 2 is due to return address and saved frame pointer.
-  int index = 2 + function()->scope()->num_parameters();
+  int index = 2 + scope()->num_parameters();
   __ ldr(reg, MemOperand(sp, index * kPointerSize));
 }
 
@@ -102,10 +102,8 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
 }
 
 
-void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
-  ASSERT(function_ == NULL);
+void FastCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
-  function_ = fun;
   info_ = info;
 
   // Save the caller's frame pointer and set up our own.
@@ -118,7 +116,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   // Receiver (this) is allocated to r1 if there are this properties.
   if (has_this_properties()) EmitReceiverMapCheck();
 
-  VisitStatements(fun->body());
+  VisitStatements(function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
@@ -126,7 +124,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
-  int32_t sp_delta = (fun->scope()->num_parameters() + 1) * kPointerSize;
+  int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
   __ add(sp, sp, Operand(sp_delta));
   __ Jump(lr);
 
