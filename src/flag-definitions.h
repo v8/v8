@@ -145,7 +145,7 @@ DEFINE_int(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
 DEFINE_bool(full_compiler, true, "enable dedicated backend for run-once code")
 DEFINE_bool(fast_compiler, false, "enable speculative optimizing backend")
-DEFINE_bool(always_full_compiler, false,
+DEFINE_bool(always_full_compiler, true,
             "try to use the dedicated run-once backend for all code")
 DEFINE_bool(always_fast_compiler, false,
             "try to use the speculative optimizing backend for all code")
