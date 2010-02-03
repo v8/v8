@@ -295,8 +295,7 @@ assertEquals('{"x":true}', JSON.stringify({x: Boolean}, newx));
 
 assertEquals(undefined, JSON.stringify(undefined));
 assertEquals(undefined, JSON.stringify(function () { }));
-// 
-Arrays with missing, undefined or function elements have those elements 
+// Arrays with missing, undefined or function elements have those elements 
 // replaced by null.
 assertEquals("[null,null,null]", 
              JSON.stringify([undefined,,function(){}]));
