@@ -432,7 +432,7 @@ Object* CallIC::LoadFunction(State state,
   }
 
   // Lookup is valid: Update inline cache and stub cache.
-  if (FLAG_use_ic && lookup.IsLoaded()) {
+  if (FLAG_use_ic) {
     UpdateCaches(&lookup, state, object, name);
   }
 
@@ -491,7 +491,6 @@ void CallIC::UpdateCaches(LookupResult* lookup,
                           State state,
                           Handle<Object> object,
                           Handle<String> name) {
-  ASSERT(lookup->IsLoaded());
   // Bail out if we didn't find a result.
   if (!lookup->IsValid() || !lookup->IsCacheable()) return;
 
@@ -654,7 +653,6 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       FLAG_use_ic &&
       state == PREMONOMORPHIC &&
       lookup.IsValid() &&
-      lookup.IsLoaded() &&
       lookup.IsCacheable() &&
       lookup.holder() == *object &&
       lookup.type() == FIELD &&
@@ -676,7 +674,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
   }
 
   // Update inline cache and stub cache.
-  if (FLAG_use_ic && lookup.IsLoaded()) {
+  if (FLAG_use_ic) {
     UpdateCaches(&lookup, state, object, name);
   }
 
@@ -702,7 +700,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           State state,
                           Handle<Object> object,
                           Handle<String> name) {
-  ASSERT(lookup->IsLoaded());
   // Bail out if we didn't find a result.
   if (!lookup->IsValid() || !lookup->IsCacheable()) return;
 
@@ -864,7 +861,7 @@ Object* KeyedLoadIC::Load(State state,
       }
     }
 
-    if (FLAG_use_ic && lookup.IsLoaded()) {
+    if (FLAG_use_ic) {
       UpdateCaches(&lookup, state, object, name);
     }
 
@@ -917,7 +914,6 @@ Object* KeyedLoadIC::Load(State state,
 
 void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
                                Handle<Object> object, Handle<String> name) {
-  ASSERT(lookup->IsLoaded());
   // Bail out if we didn't find a result.
   if (!lookup->IsValid() || !lookup->IsCacheable()) return;
 
@@ -998,8 +994,6 @@ static bool StoreICableLookup(LookupResult* lookup) {
   // state.
   if (lookup->IsReadOnly()) return false;
 
-  if (!lookup->IsLoaded()) return false;
-
   return true;
 }
 
@@ -1064,7 +1058,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Object> value) {
-  ASSERT(lookup->IsLoaded());
   // Skip JSGlobalProxy.
   ASSERT(!receiver->IsJSGlobalProxy());
 
@@ -1172,7 +1165,7 @@ Object* KeyedStoreIC::Store(State state,
     receiver->LocalLookup(*name, &lookup);
 
     // Update inline cache and stub cache.
-    if (FLAG_use_ic && lookup.IsLoaded()) {
+    if (FLAG_use_ic) {
       UpdateCaches(&lookup, state, receiver, name, value);
     }
 
@@ -1206,8 +1199,6 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
                                 Handle<JSObject> receiver,
                                 Handle<String> name,
                                 Handle<Object> value) {
-  ASSERT(lookup->IsLoaded());
-
   // Skip JSGlobalProxy.
   if (receiver->IsJSGlobalProxy()) return;
 

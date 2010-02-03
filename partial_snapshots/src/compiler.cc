@@ -243,7 +243,8 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                                      Handle<Object> script_name,
                                      int line_offset, int column_offset,
                                      v8::Extension* extension,
-                                     ScriptDataImpl* input_pre_data) {
+                                     ScriptDataImpl* input_pre_data,
+                                     NativesFlag natives) {
   int source_length = source->length();
   Counters::total_load_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -271,6 +272,9 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
+    if (natives == NATIVES_CODE) {
+      script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
+    }
     if (!script_name.is_null()) {
       script->set_name(*script_name);
       script->set_line_offset(Smi::FromInt(line_offset));

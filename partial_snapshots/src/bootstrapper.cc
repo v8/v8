@@ -91,7 +91,6 @@ class SourceCodeCache BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
-static SourceCodeCache natives_cache(Script::TYPE_NATIVE);
 static SourceCodeCache extensions_cache(Script::TYPE_EXTENSION);
 // This is for delete, not delete[].
 static List<char*>* delete_these_non_arrays_on_tear_down = NULL;
@@ -134,20 +133,7 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
 }
 
 
-bool Bootstrapper::NativesCacheLookup(Vector<const char> name,
-                                      Handle<JSFunction>* handle) {
-  return natives_cache.Lookup(name, handle);
-}
-
-
-void Bootstrapper::NativesCacheAdd(Vector<const char> name,
-                                   Handle<JSFunction> fun) {
-  natives_cache.Add(name, fun);
-}
-
-
 void Bootstrapper::Initialize(bool create_heap_objects) {
-  natives_cache.Initialize(create_heap_objects);
   extensions_cache.Initialize(create_heap_objects);
 }
 
@@ -187,8 +173,7 @@ void Bootstrapper::TearDown() {
     delete_these_arrays_on_tear_down = NULL;
   }
 
-  natives_cache.Initialize(false);  // Yes, symmetrical
-  extensions_cache.Initialize(false);
+  extensions_cache.Initialize(false);  // Yes, symmetrical
 }
 
 
@@ -375,8 +360,6 @@ Genesis* Genesis::current_ = NULL;
 
 
 void Bootstrapper::Iterate(ObjectVisitor* v) {
-  natives_cache.Iterate(v);
-  v->Synchronize("NativesCache");
   extensions_cache.Iterate(v);
   v->Synchronize("Extensions");
   PendingFixups::Iterate(v);
@@ -918,7 +901,7 @@ bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
   Debugger::set_compiling_natives(true);
 #endif
   bool result =
-      CompileScriptCached(name, source, &natives_cache, NULL, true);
+      CompileScriptCached(name, source, NULL, NULL, true);
   ASSERT(Top::has_pending_exception() != result);
   if (!result) Top::clear_pending_exception();
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -938,13 +921,19 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
 
   // If we can't find the function in the cache, we compile a new
   // function and insert it into the cache.
-  if (!cache->Lookup(name, &boilerplate)) {
+  if (cache == NULL || !cache->Lookup(name, &boilerplate)) {
     ASSERT(source->IsAsciiRepresentation());
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
-    boilerplate =
-        Compiler::Compile(source, script_name, 0, 0, extension, NULL);
+    boilerplate = Compiler::Compile(
+        source,
+        script_name,
+        0,
+        0,
+        extension,
+        NULL,
+        use_runtime_context ? NATIVES_CODE : NOT_NATIVES_CODE);
     if (boilerplate.is_null()) return false;
-    cache->Add(name, boilerplate);
+    if (cache != NULL) cache->Add(name, boilerplate);
   }
 
   // Setup the function context. Conceptually, we should clone the
@@ -1170,42 +1159,12 @@ bool Genesis::InstallNatives() {
     global_context()->set_empty_script(*script);
   }
 
-  if (FLAG_natives_file == NULL) {
-    // Without natives file, install default natives.
-    for (int i = Natives::GetDelayCount();
-         i < Natives::GetBuiltinsCount();
-         i++) {
-      if (!CompileBuiltin(i)) return false;
-    }
-
-    // Setup natives with lazy loading.
-    SetupLazy(Handle<JSFunction>(global_context()->date_function()),
-              Natives::GetIndex("date"),
-              Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()));
-    SetupLazy(Handle<JSFunction>(global_context()->regexp_function()),
-              Natives::GetIndex("regexp"),
-              Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()));
-    SetupLazy(Handle<JSObject>(global_context()->json_object()),
-              Natives::GetIndex("json"),
-              Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()));
-
-  } else if (strlen(FLAG_natives_file) != 0) {
-    // Otherwise install natives from natives file if file exists and
-    // compiles.
-    bool exists;
-    Vector<const char> source = ReadFile(FLAG_natives_file, &exists);
-    Handle<String> source_string = Factory::NewStringFromAscii(source);
-    if (source.is_empty()) return false;
-    bool result = CompileNative(CStrVector(FLAG_natives_file), source_string);
-    if (!result) return false;
-
-  } else {
-    // Empty natives file name - do not install any natives.
-    PrintF("Warning: Running without installed natives!\n");
-    return true;
+  // Install natives.
+  for (int i = Natives::GetDebuggerCount();
+       i < Natives::GetBuiltinsCount();
+       i++) {
+    Vector<const char> name = Natives::GetScriptName(i);
+    if (!CompileBuiltin(i)) return false;
   }
 
   InstallNativeFunctions();
@@ -1246,6 +1205,7 @@ bool Genesis::InstallNatives() {
 #ifdef DEBUG
   builtins->Verify();
 #endif
+
   return true;
 }
 

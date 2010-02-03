@@ -151,23 +151,6 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 }
 
 
-// Helper function used to check that a value is either not an object
-// or is loaded if it is an object.
-static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
-                                           Register value, Register scratch) {
-  Label done;
-  // Check if the value is a Smi.
-  __ test(value, Immediate(kSmiTagMask));
-  __ j(zero, &done, not_taken);
-  // Check if the object has been loaded.
-  __ mov(scratch, FieldOperand(value, JSFunction::kMapOffset));
-  __ mov(scratch, FieldOperand(scratch, Map::kBitField2Offset));
-  __ test(scratch, Immediate(1 << Map::kNeedsLoading));
-  __ j(not_zero, miss, not_taken);
-  __ bind(&done);
-}
-
-
 // The offset from the inlined patch site to the start of the
 // inlined load instruction.  It is 7 bytes (test eax, imm) plus
 // 6 bytes (jne slow_label).
@@ -369,7 +352,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
                          edx,
                          eax,
                          DICTIONARY_CHECK_DONE);
-  GenerateCheckNonObjectOrLoaded(masm, &slow, ecx, edx);
   __ mov(eax, Operand(ecx));
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
@@ -1011,11 +993,6 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
   __ j(not_equal, miss, not_taken);
 
-  // Check that the function has been loaded.  eax holds function's map.
-  __ mov(eax, FieldOperand(eax, Map::kBitField2Offset));
-  __ test(eax, Immediate(1 << Map::kNeedsLoading));
-  __ j(not_zero, miss, not_taken);
-
   // Patch the receiver on stack with the global proxy if necessary.
   if (is_global_object) {
     __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
@@ -1203,7 +1180,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Search the dictionary placing the result in eax.
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &miss, edx, eax, ebx, ecx, CHECK_DICTIONARY);
-  GenerateCheckNonObjectOrLoaded(masm, &miss, eax, edx);
   __ ret(0);
 
   // Global object access: Check access rights.

@@ -2448,11 +2448,6 @@ bool JSFunction::IsBuiltin() {
 }
 
 
-bool JSObject::IsLoaded() {
-  return !map()->needs_loading();
-}
-
-
 Code* JSFunction::code() {
   return shared()->code();
 }

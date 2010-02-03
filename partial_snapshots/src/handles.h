@@ -330,13 +330,6 @@ bool CompileLazyInLoop(Handle<JSFunction> function,
 // Returns the lazy compilation stub for argc arguments.
 Handle<Code> ComputeLazyCompile(int argc);
 
-// These deal with lazily loaded properties.
-void SetupLazy(Handle<JSObject> obj,
-               int index,
-               Handle<Context> compile_context,
-               Handle<Context> function_context);
-void LoadLazy(Handle<JSObject> obj, bool* pending_exception);
-
 class NoHandleAllocation BASE_EMBEDDED {
  public:
 #ifndef DEBUG

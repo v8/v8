@@ -156,6 +156,7 @@ bool ThreadManager::RestoreThread() {
     return false;
   }
   char* from = state->data();
+  printf("Restore from %p\n", (void*)state->data());
   from = HandleScopeImplementer::RestoreThread(from);
   from = Top::RestoreThread(from);
   from = Relocatable::RestoreState(from);
@@ -284,6 +285,7 @@ void ThreadManager::ArchiveThread() {
 void ThreadManager::EagerlyArchiveThread() {
   ThreadState* state = lazily_archived_thread_state_;
   state->LinkInto(ThreadState::IN_USE_LIST);
+  printf("Archive into %p\n", (void*)state->data());
   char* to = state->data();
   // Ensure that data containing GC roots are archived first, and handle them
   // in ThreadManager::Iterate(ObjectVisitor*).
@@ -324,6 +326,7 @@ void ThreadManager::Iterate(ObjectVisitor* v) {
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
+    printf("Iterate over %p\n", (void*)state->data());
     data = HandleScopeImplementer::Iterate(v, data);
     data = Top::Iterate(v, data);
     data = Relocatable::Iterate(v, data);
@@ -336,6 +339,7 @@ void ThreadManager::MarkCompactPrologue(bool is_compacting) {
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
+    printf("Mark compact prologue %p\n", (void*)state->data());
     data += HandleScopeImplementer::ArchiveSpacePerThread();
     Top::MarkCompactPrologue(is_compacting, data);
   }
@@ -347,6 +351,7 @@ void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
+    printf("Mark compact epilogue %p\n", (void*)state->data());
     data += HandleScopeImplementer::ArchiveSpacePerThread();
     Top::MarkCompactEpilogue(is_compacting, data);
   }

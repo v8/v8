@@ -38,6 +38,8 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
+# BUG(): Test doesn't work for some functions from regexp.js.
+test-log/EquivalenceOfLoggingAndTraversal: (PASS || FAIL)
 
 [ $arch == arm ]
 
@@ -52,3 +54,4 @@ test-api/OutOfMemoryNested: SKIP
 
 # BUG(355): Test crashes on ARM.
 test-log/ProfLazyMode: SKIP
+

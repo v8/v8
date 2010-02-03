@@ -38,7 +38,7 @@
 #include "utils.h"
 #include "cctest.h"
 
-static const bool kLogThreading = false;
+static const bool kLogThreading = true;
 
 static bool IsNaN(double x) {
 #ifdef WIN32
@@ -4980,7 +4980,7 @@ THREADED_TEST(CrossLazyLoad) {
 
 
 static v8::Handle<Value> call_as_function(const v8::Arguments& args) {
-  ApiTestFuzzer::Fuzz();
+  //ApiTestFuzzer::Fuzz();
   if (args.IsConstructCall()) {
     if (args[0]->IsInt32()) {
        return v8_num(-args[0]->Int32Value());

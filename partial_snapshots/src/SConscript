@@ -226,11 +226,11 @@ uri.js
 math.js
 messages.js
 apinatives.js
-debug-delay.js
-mirror-delay.js
-date-delay.js
-regexp-delay.js
-json-delay.js
+date.js
+regexp.js
+json.js
+mirror-debugger.js
+debug-debugger.js
 '''.split()
 
 

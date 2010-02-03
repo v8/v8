@@ -539,7 +539,7 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     HeapObject* new_object = HeapObject::cast(new_allocation);
     // Record all large objects in the same space.
     address = new_object->address();
-    high_water_[LO_SPACE] = address + size;
+    pages_[LO_SPACE].Add(address);
   }
   last_object_address_ = address;
   return address;
@@ -665,6 +665,7 @@ void Deserializer::ReadChunk(Object** current,
                              Address address) {
   while (current < limit) {
     int data = source_->Get();
+    Trace("Tag", data);
     switch (data) {
 #define RAW_CASE(index, size)                                      \
       case RAW_DATA_SERIALIZATION + index: {                       \
@@ -1356,6 +1357,8 @@ int Serializer::Allocate(int space, int size, bool* new_page) {
   fullness_[space] = allocation_address + size;
   return allocation_address;
 }
+
+bool SerializerDeserializer::tracing_;
 
 
 } }  // namespace v8::internal

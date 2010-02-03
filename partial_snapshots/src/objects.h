@@ -1213,12 +1213,6 @@ class JSObject: public HeapObject {
   // Deletes the named property in a normalized object.
   Object* DeleteNormalizedProperty(String* name, DeleteMode mode);
 
-  // Sets a property that currently has lazy loading.
-  Object* SetLazyProperty(LookupResult* result,
-                          String* name,
-                          Object* value,
-                          PropertyAttributes attributes);
-
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
 
@@ -1253,13 +1247,6 @@ class JSObject: public HeapObject {
   Object* GetLocalPropertyPostInterceptor(JSObject* receiver,
                                           String* name,
                                           PropertyAttributes* attributes);
-  Object* GetLazyProperty(Object* receiver,
-                          LookupResult* result,
-                          String* name,
-                          PropertyAttributes* attributes);
-
-  // Tells whether this object needs to be loaded.
-  inline bool IsLoaded();
 
   // Returns true if this is an instance of an api function and has
   // been modified since it was created.  May give false positives.
@@ -1297,9 +1284,6 @@ class JSObject: public HeapObject {
 
   Object* DeleteProperty(String* name, DeleteMode mode);
   Object* DeleteElement(uint32_t index, DeleteMode mode);
-  Object* DeleteLazyProperty(LookupResult* result,
-                             String* name,
-                             DeleteMode mode);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -2871,20 +2855,6 @@ class Map: public HeapObject {
     return ((1 << kIsUndetectable) & bit_field()) != 0;
   }
 
-  inline void set_needs_loading(bool value) {
-    if (value) {
-      set_bit_field2(bit_field2() | (1 << kNeedsLoading));
-    } else {
-      set_bit_field2(bit_field2() & ~(1 << kNeedsLoading));
-    }
-  }
-
-  // Does this object or function require a lazily loaded script to be
-  // run before being used?
-  inline bool needs_loading() {
-    return ((1 << kNeedsLoading) & bit_field2()) != 0;
-  }
-
   // Tells whether the instance has a call-as-function handler.
   inline void set_has_instance_call_handler() {
     set_bit_field(bit_field() | (1 << kHasInstanceCallHandler));
@@ -3018,8 +2988,7 @@ class Map: public HeapObject {
   static const int kIsAccessCheckNeeded = 7;
 
   // Bit positions for bit field 2
-  static const int kNeedsLoading = 0;
-  static const int kIsExtensible = 1;
+  static const int kIsExtensible = 0;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);

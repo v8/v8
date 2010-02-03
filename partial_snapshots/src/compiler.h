@@ -94,7 +94,8 @@ class Compiler : public AllStatic {
                                     Handle<Object> script_name,
                                     int line_offset, int column_offset,
                                     v8::Extension* extension,
-                                    ScriptDataImpl* script_Data);
+                                    ScriptDataImpl* script_Data,
+                                    NativesFlag is_natives_code);
 
   // Compile a String source within a context for Eval.
   static Handle<JSFunction> CompileEval(Handle<String> source,

@@ -120,6 +120,7 @@ class CppByteSink : public i::SnapshotByteSink {
   }
 
   virtual void Put(int byte, const char* description) {
+    i::SerializerDeserializer::Trace("Put %s: %d\n", description, byte);
     if (bytes_written_ != 0) {
       fprintf(fp_, ",");
     }

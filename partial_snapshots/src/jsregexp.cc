@@ -66,11 +66,6 @@ Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
                                                Handle<String> pattern,
                                                Handle<String> flags,
                                                bool* has_pending_exception) {
-  // Ensure that the constructor function has been loaded.
-  if (!constructor->IsLoaded()) {
-    LoadLazy(constructor, has_pending_exception);
-    if (*has_pending_exception) return Handle<Object>();
-  }
   // Call the construct code with 2 arguments.
   Object** argv[2] = { Handle<Object>::cast(pattern).location(),
                        Handle<Object>::cast(flags).location() };

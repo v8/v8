@@ -27,6 +27,16 @@
 
 
 // -------------------------------------------------------------------
+//
+// Matches Script::Type from objects.h
+var TYPE_NATIVE = 0;
+var TYPE_EXTENSION = 1;
+var TYPE_NORMAL = 2;
+
+// Matches Script::CompilationType from objects.h
+var COMPILATION_TYPE_HOST = 0;
+var COMPILATION_TYPE_EVAL = 1;
+var COMPILATION_TYPE_JSON = 2;
 
 // Lazily initialized.
 var kVowelSounds = 0;
@@ -630,7 +640,7 @@ CallSite.prototype.isToplevel = function () {
 
 CallSite.prototype.isEval = function () {
   var script = %FunctionGetScript(this.fun);
-  return script && script.compilation_type == 1;
+  return script && script.compilation_type == COMPILATION_TYPE_EVAL;
 };
 
 CallSite.prototype.getEvalOrigin = function () {
@@ -652,7 +662,7 @@ CallSite.prototype.getFunctionName = function () {
   }
   // Maybe this is an evaluation?
   var script = %FunctionGetScript(this.fun);
-  if (script && script.compilation_type == 1)
+  if (script && script.compilation_type == COMPILATION_TYPE_EVAL)
     return "eval";
   return null;
 };
@@ -708,7 +718,7 @@ CallSite.prototype.getColumnNumber = function () {
 
 CallSite.prototype.isNative = function () {
   var script = %FunctionGetScript(this.fun);
-  return script ? (script.type == 0) : false;
+  return script ? (script.type == TYPE_NATIVE) : false;
 };
 
 CallSite.prototype.getPosition = function () {
@@ -732,7 +742,7 @@ function FormatEvalOrigin(script) {
   
   var eval_from_script = script.eval_from_script;
   if (eval_from_script) {
-    if (eval_from_script.compilation_type == 1) {
+    if (eval_from_script.compilation_type == COMPILATION_TYPE_EVAL) {
       // eval script originated from another eval.
       eval_origin += " (eval at " + FormatEvalOrigin(eval_from_script) + ")";
     } else {

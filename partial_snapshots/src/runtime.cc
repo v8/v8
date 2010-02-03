@@ -2855,7 +2855,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       // Lookup cache miss.  Perform lookup and update the cache if appropriate.
       LookupResult result;
       receiver->LocalLookup(key, &result);
-      if (result.IsProperty() && result.IsLoaded() && result.type() == FIELD) {
+      if (result.IsProperty() && result.type() == FIELD) {
         int offset = result.GetFieldIndex();
         KeyedLookupCache::Update(receiver_map, key, offset);
         return receiver->FastPropertyAt(offset);

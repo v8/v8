@@ -187,6 +187,7 @@ class FileByteSink : public SnapshotByteSink {
     }
   }
   virtual void Put(int byte, const char* description) {
+    SerializerDeserializer::Trace("Tag", description, byte);
     if (fp_ != NULL) {
       fputc(byte, fp_);
     }

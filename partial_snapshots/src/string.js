@@ -160,12 +160,12 @@ function StringLocaleCompare(other) {
 
 // ECMA-262 section 15.5.4.10
 function StringMatch(regexp) {
-  if (!IS_REGEXP(regexp)) regexp = new ORIGINAL_REGEXP(regexp);
+  if (!IS_REGEXP(regexp)) regexp = new $RegExp(regexp);
   var subject = ToString(this);
 
   if (!regexp.global) return regexp.exec(subject);
   %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
-  // lastMatchInfo is defined in regexp-delay.js.
+  // lastMatchInfo is defined in regexp.js.
   return %StringMatch(subject, regexp, lastMatchInfo);
 }
 
@@ -457,7 +457,7 @@ function ApplyReplacementFunction(replace, matchInfo, subject) {
 
 // ECMA-262 section 15.5.4.12
 function StringSearch(re) {
-  var regexp = new ORIGINAL_REGEXP(re);
+  var regexp = new $RegExp(re);
   var s = ToString(this);
   var last_idx = regexp.lastIndex; // keep old lastIndex
   regexp.lastIndex = 0;            // ignore re.global property

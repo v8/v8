@@ -690,7 +690,13 @@ bool Debug::CompileDebuggerScript(int index) {
   bool allow_natives_syntax = FLAG_allow_natives_syntax;
   FLAG_allow_natives_syntax = true;
   Handle<JSFunction> boilerplate;
-  boilerplate = Compiler::Compile(source_code, script_name, 0, 0, NULL, NULL);
+  boilerplate = Compiler::Compile(source_code,
+                                  script_name,
+                                  0,
+                                  0,
+                                  NULL,
+                                  NULL,
+                                  NATIVES_CODE);
   FLAG_allow_natives_syntax = allow_natives_syntax;
 
   // Silently ignore stack overflows during compilation.
@@ -720,7 +726,6 @@ bool Debug::CompileDebuggerScript(int index) {
 
   // Mark this script as native and return successfully.
   Handle<Script> script(Script::cast(function->shared()->script()));
-  script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
   return true;
 }
 
@@ -1987,7 +1992,7 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   // If debugging there might be script break points registered for this
   // script. Make sure that these break points are set.
 
-  // Get the function UpdateScriptBreakPoints (defined in debug-delay.js).
+  // Get the function UpdateScriptBreakPoints (defined in debug-debugger.js).
   Handle<Object> update_script_break_points =
       Handle<Object>(Debug::debug_context()->global()->GetProperty(
           *Factory::LookupAsciiSymbol("UpdateScriptBreakPoints")));
