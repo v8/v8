@@ -2920,7 +2920,7 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   CONVERT_ARG_CHECKED(JSObject, js_object, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
   Handle<Object> obj_value = args.at<Object>(2);
-   
+
   CONVERT_CHECKED(Smi, flag, args[3]);
   int unchecked = flag->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
