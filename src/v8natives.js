@@ -689,6 +689,7 @@ function ObjectDefineProperties(obj, properties) {
     var desc = key_values[i + 1];
     DefineOwnProperty(obj, key, desc, true);
   }
+  return obj;
 }
 
 
