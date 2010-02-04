@@ -2898,7 +2898,7 @@ static Object* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   CONVERT_CHECKED(Smi, flag_attr, args[4]);
   int unchecked = flag_attr->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-
+  RUNTIME_ASSERT(!obj->IsNull());
   LookupResult result;
   obj->LocalLookupRealNamedProperty(name, &result);
 
@@ -2917,18 +2917,16 @@ static Object* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
 static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   ASSERT(args.length() == 4);
   HandleScope scope;
-  Handle<Object> obj = args.at<Object>(0);
-  Handle<Object> name = args.at<Object>(1);
+  CONVERT_ARG_CHECKED(JSObject, js_object, 0);
+  CONVERT_ARG_CHECKED(String, name, 1);
   Handle<Object> obj_value = args.at<Object>(2);
-  Handle<JSObject> js_object = Handle<JSObject>::cast(obj);
-  Handle<String> key_string = Handle<String>::cast(name);
-
+   
   CONVERT_CHECKED(Smi, flag, args[3]);
   int unchecked = flag->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
 
   LookupResult result;
-  js_object->LocalLookupRealNamedProperty(*key_string, &result);
+  js_object->LocalLookupRealNamedProperty(*name, &result);
 
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
@@ -2942,7 +2940,7 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
     PropertyDetails details = PropertyDetails(attr, NORMAL);
     // New attributes - normalize to avoid writing to instance descriptor
     js_object->NormalizeProperties(KEEP_INOBJECT_PROPERTIES, 0);
-    return js_object->SetNormalizedProperty(*key_string, *obj_value, details);
+    return js_object->SetNormalizedProperty(*name, *obj_value, details);
   }
 
   return Runtime::SetObjectProperty(js_object, name, obj_value, attr);

@@ -27,7 +27,7 @@
 
 // Tests the object.defineProperty method - ES 15.2.3.6
 
-
+// Flags: --allow-natives-syntax
 
 // Check that an exception is thrown when null is passed as object.
 try {
@@ -451,4 +451,49 @@ try {
 }
 
 
+// Test runtime calls to DefineOrRedefineDataProperty and
+// DefineOrRedefineAccessorProperty - make sure we don't 
+// crash
+try {
+  %DefineOrRedefineAccessorProperty(0, 0, 0, 0, 0);
+} catch (e) {
+  assertTrue(/illegal access/.test(e));
+}
 
+try {
+  %DefineOrRedefineDataProperty(0, 0, 0, 0);
+} catch (e) {
+  assertTrue(/illegal access/.test(e));
+}
+
+try {
+  %DefineOrRedefineDataProperty(null, null, null, null);
+} catch (e) {
+  assertTrue(/illegal access/.test(e));
+}
+
+try {
+  %DefineOrRedefineAccessorProperty(null, null, null, null, null);
+} catch (e) {
+  assertTrue(/illegal access/.test(e));
+}
+
+try {
+  %DefineOrRedefineDataProperty({}, null, null, null);
+} catch (e) {
+  assertTrue(/illegal access/.test(e));
+}
+
+// Defining properties null should fail even when we have
+// other allowed values
+try {
+  %DefineOrRedefineAccessorProperty(null, 'foo', 0, func, 0);
+} catch (e) {
+  assertTrue(/illegal access/.test(e));
+}
+
+try {
+  %DefineOrRedefineDataProperty(null, 'foo', 0, 0);
+} catch (e) {
+  assertTrue(/illegal access/.test(e));
+}
