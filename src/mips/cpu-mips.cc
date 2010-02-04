@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,22 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_H_
-#define V8_VIRTUAL_FRAME_H_
+// CPU specific code for arm independent of OS goes here.
 
-#include "frame-element.h"
-#include "macro-assembler.h"
+#include <sys/syscall.h>
+#include <unistd.h>
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/virtual-frame-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/virtual-frame-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/virtual-frame-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/virtual-frame-mips.h"
-#else
-#error Unsupported target architecture.
-#endif
+#ifdef __mips
+#include <asm/cachectl.h>
+#endif  // #ifdef __mips
 
-#endif  // V8_VIRTUAL_FRAME_H_
+#include "v8.h"
+#include "cpu.h"
+
+namespace v8 {
+namespace internal {
+
+void CPU::Setup() {
+  // Nothing to do.
+}
+
+void CPU::FlushICache(void* start, size_t size) {
+#ifdef __mips
+  int res;
+
+  // See http://www.linux-mips.org/wiki/Cacheflush_Syscall
+  res = syscall(__NR_cacheflush, start, size, ICACHE);
+
+  if (res) {
+    V8_Fatal(__FILE__, __LINE__, "Failed to flush the instruction cache");
+  }
+
+#endif    // #ifdef __mips
+}
+
+
+void CPU::DebugBreak() {
+#ifdef __mips
+  asm volatile("break");
+#endif  // #ifdef __mips
+}
+
+} }  // namespace v8::internal
+

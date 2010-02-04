@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,52 +25,85 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_REGISTER_ALLOCATOR_INL_H_
-#define V8_REGISTER_ALLOCATOR_INL_H_
 
-#include "codegen.h"
-#include "register-allocator.h"
-#include "virtual-frame.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/register-allocator-ia32-inl.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/register-allocator-x64-inl.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/register-allocator-arm-inl.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/register-allocator-mips-inl.h"
-#else
-#error Unsupported target architecture.
-#endif
+#include "v8.h"
 
+#include "codegen-inl.h"
+#include "debug.h"
+#include "runtime.h"
 
 namespace v8 {
 namespace internal {
 
-Result::~Result() {
-  if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
-  }
+
+#define __ ACCESS_MASM(masm)
+
+
+void Builtins::Generate_Adaptor(MacroAssembler* masm,
+                                CFunctionId id,
+                                BuiltinExtraArguments extra_args) {
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void Result::Unuse() {
-  if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
-  }
-  invalidate();
+void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void Result::CopyTo(Result* destination) const {
-  destination->value_ = value_;
-  if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Use(reg());
-  }
+void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
 }
 
+
+void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
+                                             bool is_construct) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
+  Generate_JSEntryTrampolineHelper(masm, false);
+}
+
+
+void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
+  Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+
+void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+#undef __
 
 } }  // namespace v8::internal
 
-#endif  // V8_REGISTER_ALLOCATOR_INL_H_

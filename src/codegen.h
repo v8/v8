@@ -86,6 +86,8 @@ enum UncatchableExceptionType { OUT_OF_MEMORY, TERMINATION };
 #include "x64/codegen-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/codegen-arm.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/codegen-mips.h"
 #else
 #error Unsupported target architecture.
 #endif

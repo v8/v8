@@ -271,3 +271,8 @@ chapter15/15.7: UNIMPLEMENTED
 chapter15/15.9: UNIMPLEMENTED
 chapter15/15.10: UNIMPLEMENTED
 chapter15/15.12: UNIMPLEMENTED
+
+[ $arch == mips ]
+
+# Skip all tests on MIPS.
+*: SKIP

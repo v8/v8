@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,22 +25,63 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_H_
-#define V8_VIRTUAL_FRAME_H_
 
-#include "frame-element.h"
-#include "macro-assembler.h"
+#include "v8.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/virtual-frame-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/virtual-frame-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/virtual-frame-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/virtual-frame-mips.h"
-#else
-#error Unsupported target architecture.
-#endif
+#include "codegen-inl.h"
+#include "jump-target-inl.h"
+#include "register-allocator-inl.h"
 
-#endif  // V8_VIRTUAL_FRAME_H_
+namespace v8 {
+namespace internal {
+
+// -------------------------------------------------------------------------
+// JumpTarget implementation.
+
+#define __ ACCESS_MASM(cgen()->masm())
+
+void JumpTarget::DoJump() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void JumpTarget::DoBranch(Condition cc, Hint ignored) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void JumpTarget::Call() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void JumpTarget::DoBind() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void BreakTarget::Jump() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void BreakTarget::Jump(Result* arg) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void BreakTarget::Bind() {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void BreakTarget::Bind(Result* arg) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+#undef __
+
+
+} }  // namespace v8::internal
+

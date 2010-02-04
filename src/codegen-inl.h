@@ -39,6 +39,8 @@
 #include "x64/codegen-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/codegen-arm-inl.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/codegen-mips-inl.h"
 #else
 #error Unsupported target architecture.
 #endif

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,52 +25,88 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_REGISTER_ALLOCATOR_INL_H_
-#define V8_REGISTER_ALLOCATOR_INL_H_
 
-#include "codegen.h"
-#include "register-allocator.h"
-#include "virtual-frame.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/register-allocator-ia32-inl.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/register-allocator-x64-inl.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/register-allocator-arm-inl.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/register-allocator-mips-inl.h"
-#else
-#error Unsupported target architecture.
-#endif
+#include "v8.h"
 
+#include "codegen-inl.h"
+#include "debug.h"
 
 namespace v8 {
 namespace internal {
 
-Result::~Result() {
-  if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
-  }
+#ifdef ENABLE_DEBUGGER_SUPPORT
+bool BreakLocationIterator::IsDebugBreakAtReturn() {
+  return Debug::IsDebugBreakAtReturn(rinfo());
 }
 
 
-void Result::Unuse() {
-  if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Unuse(reg());
-  }
-  invalidate();
+void BreakLocationIterator::SetDebugBreakAtReturn() {
+  UNIMPLEMENTED_MIPS();
 }
 
 
-void Result::CopyTo(Result* destination) const {
-  destination->value_ = value_;
-  if (is_register()) {
-    CodeGeneratorScope::Current()->allocator()->Use(reg());
-  }
+// Restore the JS frame exit code.
+void BreakLocationIterator::ClearDebugBreakAtReturn() {
+  UNIMPLEMENTED_MIPS();
 }
 
+
+// A debug break in the exit code is identified by a call.
+bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
+  return rinfo->IsPatchedReturnSequence();
+}
+
+
+#define __ ACCESS_MASM(masm)
+
+
+
+
+void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+#undef __
+
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
 
-#endif  // V8_REGISTER_ALLOCATOR_INL_H_

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,22 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_VIRTUAL_FRAME_H_
-#define V8_VIRTUAL_FRAME_H_
+#include "v8.h"
 
-#include "frame-element.h"
-#include "macro-assembler.h"
+#include "codegen-inl.h"
+#include "fast-codegen.h"
 
-#if V8_TARGET_ARCH_IA32
-#include "ia32/virtual-frame-ia32.h"
-#elif V8_TARGET_ARCH_X64
-#include "x64/virtual-frame-x64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "arm/virtual-frame-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/virtual-frame-mips.h"
-#else
-#error Unsupported target architecture.
-#endif
+namespace v8 {
+namespace internal {
 
-#endif  // V8_VIRTUAL_FRAME_H_
+#define __ ACCESS_MASM(masm_)
+
+void FastCodeGenerator::Generate(CompilationInfo* info) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void FastCodeGenerator::EmitGlobalVariableLoad(Handle<String> name) {
+  UNIMPLEMENTED_MIPS();
+}
+
+#undef __
+
+
+} }  // namespace v8::internal
+
