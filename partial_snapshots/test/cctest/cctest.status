@@ -38,9 +38,6 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
-# BUG(): Test doesn't work for some functions from regexp.js.
-test-log/EquivalenceOfLoggingAndTraversal: (PASS || FAIL)
-
 [ $arch == arm ]
 
 # BUG(240): Test seems flaky on ARM.
