@@ -1262,7 +1262,7 @@ bool Genesis::InstallExtensions(v8::ExtensionConfiguration* extensions) {
     current->set_state(v8::UNVISITED);
     current = current->next();
   }
-  // Install auto extensions
+  // Install auto extensions.  Coordinate with AutoExtensionsExist below.
   current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
     if (current->extension()->auto_enable())
@@ -1612,6 +1612,19 @@ char* Bootstrapper::RestoreState(char* from) {
 // Called when the top-level V8 mutex is destroyed.
 void Bootstrapper::FreeThreadResources() {
   ASSERT(Genesis::current() == NULL);
+}
+
+
+// Are there extensions that should be installed even if no extension was
+// specified?
+bool Bootstrapper::AutoExtensionsExist() {
+  // Find auto extensions.
+  v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
+  while (current != NULL) {
+    if (current->extension()->auto_enable()) return true;
+    current = current->next();
+  }
+  return FLAG_expose_gc;
 }
 
 

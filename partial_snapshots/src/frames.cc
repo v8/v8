@@ -359,7 +359,6 @@ void StackFrame::Cook() {
   for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
     it.handler()->Cook(code);
   }
-  printf("Cook %p (%d)\n", (void*)(pc()), code->kind());
   ASSERT(code->contains(pc()));
   set_pc(AddressFrom<Address>(pc() - code->instruction_start()));
 }
@@ -372,7 +371,6 @@ void StackFrame::Uncook() {
     it.handler()->Uncook(code);
   }
   set_pc(code->instruction_start() + OffsetFrom(pc()));
-  printf("Uncook %p (%d)\n", (void*)(pc()), code->kind());
   ASSERT(code->contains(pc()));
 }
 

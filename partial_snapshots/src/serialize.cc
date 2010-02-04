@@ -665,7 +665,6 @@ void Deserializer::ReadChunk(Object** current,
                              Address address) {
   while (current < limit) {
     int data = source_->Get();
-    Trace("Tag", data);
     switch (data) {
 #define RAW_CASE(index, size)                                      \
       case RAW_DATA_SERIALIZATION + index: {                       \
@@ -1358,8 +1357,6 @@ int Serializer::Allocate(int space, int size, bool* new_page) {
   fullness_[space] = allocation_address + size;
   return allocation_address;
 }
-
-bool SerializerDeserializer::tracing_;
 
 
 } }  // namespace v8::internal

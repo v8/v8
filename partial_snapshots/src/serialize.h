@@ -173,21 +173,6 @@ class SerializerDeserializer: public ObjectVisitor {
  public:
   static void Iterate(ObjectVisitor* visitor);
   static void SetSnapshotCacheSize(int size);
-#ifdef DEBUG
-  static void StartTracing() { tracing_ = true; }
-  static void StopTracing() { tracing_ = false; }
-  static void Trace(const char *msg, int arg) { if (tracing_) printf("%s %d\n", msg, arg); }
-  static void Trace(const char *msg, const char* arg) { if (tracing_) printf("%s %s\n", msg, arg); }
-  static void Trace(const char *msg, const char* arg1, int arg2) { if (tracing_) printf("%s %s %d\n", msg, arg1, arg2); }
-  static bool tracing() { return tracing_; }
-#else
-  static void StartTracing() { }
-  static void StopTracing() { }
-  static void Trace(const char *msg, int arg) { }
-  static void Trace(const char *msg, const char* arg) { }
-  static void Trace(const char *msg, const char* arg1, int arg2) { }
-  static bool tracing() { return false; }
-#endif
 
  protected:
   enum DataType {
@@ -233,7 +218,6 @@ class SerializerDeserializer: public ObjectVisitor {
   static int partial_snapshot_cache_length_;
   static const int kPartialSnapshotCacheCapacity = 1300;
   static Object* partial_snapshot_cache_[];
-  static bool tracing_;
 };
 
 
@@ -241,18 +225,14 @@ int SnapshotByteSource::GetInt() {
   // A little unwind to catch the really small ints.
   int snapshot_byte = Get();
   if ((snapshot_byte & 0x80) == 0) {
-    SerializerDeserializer::Trace("Tag IntLastPart", snapshot_byte);
     return snapshot_byte;
   }
-  SerializerDeserializer::Trace("Tag IntPart", snapshot_byte);
   int accumulator = (snapshot_byte & 0x7f) << 7;
   while (true) {
     snapshot_byte = Get();
     if ((snapshot_byte & 0x80) == 0) {
-      SerializerDeserializer::Trace("Tag IntLastPart", snapshot_byte);
       return accumulator | snapshot_byte;
     }
-    SerializerDeserializer::Trace("Tag IntPart", snapshot_byte);
     accumulator = (accumulator | (snapshot_byte & 0x7f)) << 7;
   }
   UNREACHABLE();
@@ -261,11 +241,6 @@ int SnapshotByteSource::GetInt() {
 
 
 void SnapshotByteSource::CopyRaw(byte* to, int number_of_bytes) {
-  if (SerializerDeserializer::tracing()) {
-    for (int i = 0; i < number_of_bytes; i++) {
-      SerializerDeserializer::Trace("Tag Byte", data_[position_ + i]);
-    }
-  }
   memcpy(to, data_ + position_, number_of_bytes);
   position_ += number_of_bytes;
 }

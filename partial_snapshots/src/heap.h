@@ -1477,12 +1477,10 @@ class AssertNoAllocation {
  public:
   AssertNoAllocation() {
     old_state_ = Heap::allow_allocation(false);
-    //printf("No allocation\n");
   }
 
   ~AssertNoAllocation() {
     Heap::allow_allocation(old_state_);
-    //printf("Allocation\n");
   }
 
  private:

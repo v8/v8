@@ -2734,6 +2734,37 @@ static i::Handle<i::FunctionTemplateInfo>
 }
 
 
+Persistent<Context> v8::Context::New() {
+  EnsureInitialized("v8::Context::New()");
+  LOG_API("Context::New");
+  ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
+
+  if (i::Bootstrapper::AutoExtensionsExist()) {
+    return New(0);
+  }
+
+  // Enter V8 via an ENTER_V8 scope.
+  Persistent<Context> result;
+  {
+    ENTER_V8;
+    HandleScope scope;
+#if defined(ANDROID)
+    // On mobile device, full GC is expensive, leave it to the system to
+    // decide when should make a full GC.
+#else
+    // Give the heap a chance to cleanup if we've disposed contexts.
+    i::Heap::CollectAllGarbageIfContextDisposed();
+#endif
+    i::Handle<i::Context> env = i::Snapshot::NewContextFromSnapshot();
+    if (env.is_null()) {
+      return New(0);
+    }
+    i::Counters::contexts_created_by_snapshot.Increment();
+    return Persistent<Context>::New(Utils::ToLocal(env));
+  }
+}
+
+
 Persistent<Context> v8::Context::New(
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
@@ -2741,6 +2772,7 @@ Persistent<Context> v8::Context::New(
   EnsureInitialized("v8::Context::New()");
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
+  i::Counters::contexts_created_from_scratch.Increment();
 
   // Enter V8 via an ENTER_V8 scope.
   i::Handle<i::Context> env;

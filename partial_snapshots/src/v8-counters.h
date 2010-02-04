@@ -97,7 +97,12 @@ namespace internal {
   /* Amount of source code compiled with the old codegen. */          \
   SC(total_old_codegen_source_size, V8.TotalOldCodegenSourceSize)     \
   /* Amount of source code compiled with the full codegen. */         \
-  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize)
+  SC(total_full_codegen_source_size, V8.TotalFullCodegenSourceSize)   \
+  /* Number of contexts created from scratch. */                      \
+  SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
+  /* Number of contexts created by partial snapshot. */               \
+  SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)
+  
 
 
 #define STATS_COUNTER_LIST_2(SC)                                    \

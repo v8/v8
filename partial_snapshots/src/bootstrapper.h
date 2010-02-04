@@ -75,6 +75,9 @@ class Bootstrapper : public AllStatic {
   // This will allocate a char array that is deleted when V8 is shut down.
   // It should only be used for strictly finite allocations.
   static char* AllocateAutoDeletedArray(int bytes);
+
+  // Used for new context creation.
+  static bool AutoExtensionsExist();
 };
 
 
