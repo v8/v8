@@ -200,6 +200,17 @@ class Compiler : public AllStatic {
                               FunctionLiteral* lit,
                               bool is_toplevel,
                               Handle<Script> script);
+
+ private:
+
+#if defined ENABLE_LOGGING_AND_PROFILING || defined ENABLE_OPROFILE_AGENT
+  static void LogCodeCreateEvent(Logger::LogEventsAndTags tag,
+                                 Handle<String> name,
+                                 Handle<String> inferred_name,
+                                 int start_position,
+                                 Handle<Script> script,
+                                 Handle<Code> code);
+#endif
 };
 
 
