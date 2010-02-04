@@ -348,7 +348,7 @@ class CodeGenerator: public AstVisitor {
 
  private:
   // Construction/Destruction
-  CodeGenerator(MacroAssembler* masm);
+  explicit CodeGenerator(MacroAssembler* masm);
 
   // Accessors
   inline bool is_eval();

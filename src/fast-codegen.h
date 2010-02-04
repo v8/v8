@@ -42,7 +42,7 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
       : info_(NULL), has_supported_syntax_(true) {
   }
 
- void Check(CompilationInfo* info);
+  void Check(CompilationInfo* info);
 
   CompilationInfo* info() { return info_; }
   bool has_supported_syntax() { return has_supported_syntax_; }
@@ -65,7 +65,7 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
 
 class FastCodeGenerator: public AstVisitor {
  public:
-  FastCodeGenerator(MacroAssembler* masm) : masm_(masm), info_(NULL) {}
+  explicit FastCodeGenerator(MacroAssembler* masm) : masm_(masm), info_(NULL) {}
 
   static Handle<Code> MakeCode(CompilationInfo* info);
 

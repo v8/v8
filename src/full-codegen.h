@@ -68,7 +68,7 @@ class FullCodeGenerator: public AstVisitor {
     SECONDARY
   };
 
-  FullCodeGenerator(MacroAssembler* masm)
+  explicit FullCodeGenerator(MacroAssembler* masm)
       : masm_(masm),
         info_(NULL),
         nesting_stack_(NULL),

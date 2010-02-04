@@ -225,7 +225,7 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
           Variable* par = scope()->parameter(i);
           Slot* slot = par->slot();
           if (slot != NULL && slot->type() == Slot::CONTEXT) {
-            ASSERT(!scope()->is_global_scope());  // no parameters in global scope
+            ASSERT(!scope()->is_global_scope());  // No params in global scope.
             __ ldr(r1, frame_->ParameterAt(i));
             // Loads r2 with context; used below in RecordWrite.
             __ str(r1, SlotOperand(slot, r2));
