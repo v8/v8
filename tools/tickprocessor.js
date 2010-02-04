@@ -67,6 +67,9 @@ function SnapshotLogProcessor() {
           processor: this.processCodeMove, backrefs: true },
       'code-delete': { parsers: [this.createAddressParser('code')],
           processor: this.processCodeDelete, backrefs: true },
+      'function-creation': null,
+      'function-move': null,
+      'function-delete': null,
       'snapshot-pos': { parsers: [this.createAddressParser('code'), parseInt],
           processor: this.processSnapshotPosition, backrefs: true }});
 

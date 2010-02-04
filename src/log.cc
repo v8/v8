@@ -1294,6 +1294,15 @@ void Logger::LogCodeObject(Object* object) {
 }
 
 
+void Logger::LogCodeObjects() {
+  AssertNoAllocation no_alloc;
+  HeapIterator iterator;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    if (obj->IsCode()) LogCodeObject(obj);
+  }
+}
+
+
 void Logger::LogCompiledFunctions() {
   HandleScope scope;
   const int compiled_funcs_count = EnumerateCompiledFunctions(NULL);
