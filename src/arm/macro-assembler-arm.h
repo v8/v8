@@ -57,14 +57,7 @@ class MacroAssembler: public Assembler {
  public:
   MacroAssembler(void* buffer, int size);
 
-  // ---------------------------------------------------------------------------
-  // Low-level helpers for compiler
-
-  // Jump, Call, and Ret pseudo instructions implementing inter-working
- private:
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
- public:
+  // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
   void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
@@ -394,11 +387,8 @@ class MacroAssembler: public Assembler {
                                            Label* not_flat_ascii_strings);
 
  private:
-  List<Unresolved> unresolved_;
-  bool generating_stub_;
-  bool allow_stub_calls_;
-  Handle<Object> code_object_;  // This handle will be patched with the code
-                                // object on installation.
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
@@ -423,6 +413,12 @@ class MacroAssembler: public Assembler {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  List<Unresolved> unresolved_;
+  bool generating_stub_;
+  bool allow_stub_calls_;
+  // This handle will be patched with the code object on installation.
+  Handle<Object> code_object_;
 };
 
 

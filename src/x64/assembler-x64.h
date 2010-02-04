@@ -113,8 +113,8 @@ struct Register {
     return code_ & 0x7;
   }
 
-  // (unfortunately we can't make this private in a struct when initializing
-  // by assignment.)
+  // Unfortunately we can't make this private in a struct when initializing
+  // by assignment.
   int code_;
 };
 
