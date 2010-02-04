@@ -33,10 +33,18 @@
 namespace v8 {
 namespace internal {
 
+// ----------------------------------------------------------------------------
+// Static helper functions
+
+// Generate a MemOperand for loading a field from an object.
+static inline MemOperand FieldMemOperand(Register object, int offset) {
+  return MemOperand(object, offset - kHeapObjectTag);
+}
+
 
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
-
+const Register roots = { 10 };  // Roots array pointer.
 
 enum InvokeJSFlags {
   CALL_JS,
@@ -209,6 +217,21 @@ class MacroAssembler: public Assembler {
   // allocation is undone.
   void UndoAllocationInNewSpace(Register object, Register scratch);
 
+
+  void AllocateTwoByteString(Register result,
+                             Register length,
+                             Register scratch1,
+                             Register scratch2,
+                             Register scratch3,
+                             Label* gc_required);
+  void AllocateAsciiString(Register result,
+                           Register length,
+                           Register scratch1,
+                           Register scratch2,
+                           Register scratch3,
+                           Label* gc_required);
+
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -242,6 +265,20 @@ class MacroAssembler: public Assembler {
   void CompareInstanceType(Register map,
                            Register type_reg,
                            InstanceType type);
+
+
+  // Load and check the instance type of an object for being a string.
+  // Loads the type into the second argument register.
+  // Returns a condition that will be enabled if the object was a string.
+  Condition IsObjectStringType(Register obj,
+                               Register type) {
+    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset));
+    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
+    tst(type, Operand(kIsNotStringMask));
+    ASSERT_EQ(0, kStringTag);
+    return eq;
+  }
+
 
   inline void BranchOnSmi(Register value, Label* smi_label) {
     tst(value, Operand(kSmiTagMask));
@@ -420,12 +457,6 @@ class CodePatcher {
 
 // -----------------------------------------------------------------------------
 // Static helper functions.
-
-// Generate a MemOperand for loading a field from an object.
-static inline MemOperand FieldMemOperand(Register object, int offset) {
-  return MemOperand(object, offset - kHeapObjectTag);
-}
-
 
 #ifdef GENERATED_CODE_COVERAGE
 #define CODE_COVERAGE_STRINGIFY(x) #x

@@ -9959,7 +9959,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
          Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   // Load string argument and locate character of sub string start.
   __ mov(esi, Operand(esp, 3 * kPointerSize));
-  __ add(Operand(esi), Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(Operand(esi),
+         Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
   __ mov(ebx, Operand(esp, 2 * kPointerSize));  // from
   // As from is a smi it is 2 times the value which matches the size of a two
   // byte character.

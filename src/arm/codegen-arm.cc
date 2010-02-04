@@ -3563,7 +3563,8 @@ void CodeGenerator::GenerateSubString(ZoneList<Expression*>* args) {
   Load(args->at(1));
   Load(args->at(2));
 
-  frame_->CallRuntime(Runtime::kSubString, 3);
+  SubStringStub stub;
+  frame_->CallStub(&stub, 3);
   frame_->EmitPush(r0);
 }
 
@@ -6827,6 +6828,340 @@ int CompareStub::MinorKey() {
 }
 
 
+void StringStubBase::GenerateCopyCharacters(MacroAssembler* masm,
+                                            Register dest,
+                                            Register src,
+                                            Register count,
+                                            Register scratch,
+                                            bool ascii) {
+  Label loop;
+  Label done;
+  // This loop just copies one character at a time, as it is only used for very
+  // short strings.
+  if (!ascii) {
+    __ add(count, count, Operand(count), SetCC);
+  } else {
+    __ cmp(count, Operand(0));
+  }
+  __ b(eq, &done);
+
+  __ bind(&loop);
+  __ sub(count, count, Operand(1), SetCC);
+  __ ldrb(scratch, MemOperand(src, count), pl);
+  // Move branch between load and dependent store to not waste the cycle for
+  // each iteration of the loop. It does cost an extra instruction on the
+  // last iteration.
+  __ b(mi, &done);
+  __ strb(scratch, MemOperand(dest, count));
+  __ b(&loop);
+  __ bind(&done);
+}
+
+
+enum CopyCharactersFlags {
+  COPY_ASCII = 1,
+  DEST_ALWAYS_ALIGNED = 2
+};
+
+
+void StringStubBase::GenerateCopyCharactersLong(MacroAssembler* masm,
+                                                Register dest,
+                                                Register src,
+                                                Register count,
+                                                Register scratch1,
+                                                Register scratch2,
+                                                Register scratch3,
+                                                Register scratch4,
+                                                Register scratch5,
+                                                int flags) {
+  bool ascii = (flags & COPY_ASCII) != 0;
+  bool dest_always_aligned = (flags & DEST_ALWAYS_ALIGNED) != 0;
+
+  if (dest_always_aligned && FLAG_debug_code) {
+    // Check that destination is actually word aligned if the flag says
+    // that it is.
+    __ tst(dest, Operand(kPointerAlignmentMask));
+    __ Check(eq, "Destination of copy not aligned.");
+  }
+
+  const int kReadAlignment = 4;
+  const int kReadAlignmentMask = kReadAlignment - 1;
+  // Ensure that reading an entire aligned word containing the last character
+  // of a string will not read outside the allocated area (because we pad up
+  // to kObjectAlignment).
+  ASSERT(kObjectAlignment >= kReadAlignment);
+  // Assumes word reads and writes are little endian.
+  // Nothing to do for zero characters.
+  Label done;
+  if (!ascii) {
+    __ add(count, count, Operand(count), SetCC);
+  } else {
+    __ cmp(count, Operand(0));
+  }
+  __ b(eq, &done);
+
+  // Assume that you cannot read (or write) unaligned.
+  Label byte_loop;
+  // Must copy at least eight bytes, otherwise just do it one byte at a time.
+  __ cmp(count, Operand(8));
+  __ add(count, dest, Operand(count));
+  Register limit = count;  // Read until src equals this.
+  __ b(lt, &byte_loop);
+
+  if (!dest_always_aligned) {
+    // Align dest by byte copying. Copies between zero and three bytes.
+    __ and_(scratch4, dest, Operand(kReadAlignmentMask), SetCC);
+    Label dest_aligned;
+    __ b(eq, &dest_aligned);
+    __ cmp(scratch4, Operand(2));
+    __ ldrb(scratch1, MemOperand(src, 1, PostIndex));
+    __ ldrb(scratch2, MemOperand(src, 1, PostIndex), le);
+    __ ldrb(scratch3, MemOperand(src, 1, PostIndex), lt);
+    __ strb(scratch1, MemOperand(dest, 1, PostIndex));
+    __ strb(scratch2, MemOperand(dest, 1, PostIndex), le);
+    __ strb(scratch3, MemOperand(dest, 1, PostIndex), lt);
+    __ bind(&dest_aligned);
+  }
+
+  Label simple_loop;
+
+  __ sub(scratch4, dest, Operand(src));
+  __ and_(scratch4, scratch4, Operand(0x03), SetCC);
+  __ b(eq, &simple_loop);
+  // Shift register is number of bits in a source word that
+  // must be combined with bits in the next source word in order
+  // to create a destination word.
+
+  // Complex loop for src/dst that are not aligned the same way.
+  {
+    Label loop;
+    __ mov(scratch4, Operand(scratch4, LSL, 3));
+    Register left_shift = scratch4;
+    __ and_(src, src, Operand(~3));  // Round down to load previous word.
+    __ ldr(scratch1, MemOperand(src, 4, PostIndex));
+    // Store the "shift" most significant bits of scratch in the least
+    // signficant bits (i.e., shift down by (32-shift)).
+    __ rsb(scratch2, left_shift, Operand(32));
+    Register right_shift = scratch2;
+    __ mov(scratch1, Operand(scratch1, LSR, right_shift));
+
+    __ bind(&loop);
+    __ ldr(scratch3, MemOperand(src, 4, PostIndex));
+    __ sub(scratch5, limit, Operand(dest));
+    __ orr(scratch1, scratch1, Operand(scratch3, LSL, left_shift));
+    __ str(scratch1, MemOperand(dest, 4, PostIndex));
+    __ mov(scratch1, Operand(scratch3, LSR, right_shift));
+    // Loop if four or more bytes left to copy.
+    // Compare to eight, because we did the subtract before increasing dst.
+    __ sub(scratch5, scratch5, Operand(8), SetCC);
+    __ b(ge, &loop);
+  }
+  // There is now between zero and three bytes left to copy (negative that
+  // number is in scratch5), and between one and three bytes already read into
+  // scratch1 (eight times that number in scratch4). We may have read past
+  // the end of the string, but because objects are aligned, we have not read
+  // past the end of the object.
+  // Find the minimum of remaining characters to move and preloaded characters
+  // and write those as bytes.
+  __ add(scratch5, scratch5, Operand(4), SetCC);
+  __ b(eq, &done);
+  __ cmp(scratch4, Operand(scratch5, LSL, 3), ne);
+  // Move minimum of bytes read and bytes left to copy to scratch4.
+  __ mov(scratch5, Operand(scratch4, LSR, 3), LeaveCC, lt);
+  // Between one and three (value in scratch5) characters already read into
+  // scratch ready to write.
+  __ cmp(scratch5, Operand(2));
+  __ strb(scratch1, MemOperand(dest, 1, PostIndex));
+  __ mov(scratch1, Operand(scratch1, LSR, 8), LeaveCC, ge);
+  __ strb(scratch1, MemOperand(dest, 1, PostIndex), ge);
+  __ mov(scratch1, Operand(scratch1, LSR, 8), LeaveCC, gt);
+  __ strb(scratch1, MemOperand(dest, 1, PostIndex), gt);
+  // Copy any remaining bytes.
+  __ b(&byte_loop);
+
+  // Simple loop.
+  // Copy words from src to dst, until less than four bytes left.
+  // Both src and dest are word aligned.
+  __ bind(&simple_loop);
+  {
+    Label loop;
+    __ bind(&loop);
+    __ ldr(scratch1, MemOperand(src, 4, PostIndex));
+    __ sub(scratch3, limit, Operand(dest));
+    __ str(scratch1, MemOperand(dest, 4, PostIndex));
+    // Compare to 8, not 4, because we do the substraction before increasing
+    // dest.
+    __ cmp(scratch3, Operand(8));
+    __ b(ge, &loop);
+  }
+
+  // Copy bytes from src to dst until dst hits limit.
+  __ bind(&byte_loop);
+  __ cmp(dest, Operand(limit));
+  __ ldrb(scratch1, MemOperand(src, 1, PostIndex), lt);
+  __ b(ge, &done);
+  __ strb(scratch1, MemOperand(dest, 1, PostIndex));
+  __ b(&byte_loop);
+
+  __ bind(&done);
+}
+
+
+void SubStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  // Stack frame on entry.
+  //  lr: return address
+  //  sp[0]: to
+  //  sp[4]: from
+  //  sp[8]: string
+
+  // This stub is called from the native-call %_SubString(...), so
+  // nothing can be assumed about the arguments. It is tested that:
+  //  "string" is a sequential string,
+  //  both "from" and "to" are smis, and
+  //  0 <= from <= to <= string.length.
+  // If any of these assumptions fail, we call the runtime system.
+
+  static const int kToOffset = 0 * kPointerSize;
+  static const int kFromOffset = 1 * kPointerSize;
+  static const int kStringOffset = 2 * kPointerSize;
+
+
+  // Check bounds and smi-ness.
+  __ ldr(r7, MemOperand(sp, kToOffset));
+  __ ldr(r6, MemOperand(sp, kFromOffset));
+  ASSERT_EQ(0, kSmiTag);
+  ASSERT_EQ(1, kSmiTagSize + kSmiShiftSize);
+  // I.e., arithmetic shift right by one un-smi-tags.
+  __ mov(r2, Operand(r7, ASR, 1), SetCC);
+  __ mov(r3, Operand(r6, ASR, 1), SetCC, cc);
+  // If either r2 or r6 had the smi tag bit set, then carry is set now.
+  __ b(cs, &runtime);  // Either "from" or "to" is not a smi.
+  __ b(mi, &runtime);  // From is negative.
+
+  __ sub(r2, r2, Operand(r3), SetCC);
+  __ b(mi, &runtime);  // Fail if from > to.
+  // Handle sub-strings of length 2 and less in the runtime system.
+  __ cmp(r2, Operand(2));
+  __ b(le, &runtime);
+
+  // r2: length
+  // r6: from (smi)
+  // r7: to (smi)
+
+  // Make sure first argument is a sequential (or flat) string.
+  __ ldr(r5, MemOperand(sp, kStringOffset));
+  ASSERT_EQ(0, kSmiTag);
+  __ tst(r5, Operand(kSmiTagMask));
+  __ b(eq, &runtime);
+  Condition is_string = masm->IsObjectStringType(r5, r1);
+  __ b(NegateCondition(is_string), &runtime);
+
+  // r1: instance type
+  // r2: length
+  // r5: string
+  // r6: from (smi)
+  // r7: to (smi)
+  Label seq_string;
+  __ and_(r4, r1, Operand(kStringRepresentationMask));
+  ASSERT(kSeqStringTag < kConsStringTag);
+  ASSERT(kExternalStringTag > kConsStringTag);
+  __ cmp(r4, Operand(kConsStringTag));
+  __ b(gt, &runtime);  // External strings go to runtime.
+  __ b(lt, &seq_string);  // Sequential strings are handled directly.
+
+  // Cons string. Try to recurse (once) on the first substring.
+  // (This adds a little more generality than necessary to handle flattened
+  // cons strings, but not much).
+  __ ldr(r5, FieldMemOperand(r5, ConsString::kFirstOffset));
+  __ ldr(r4, FieldMemOperand(r5, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r4, Map::kInstanceTypeOffset));
+  __ tst(r1, Operand(kStringRepresentationMask));
+  ASSERT_EQ(0, kSeqStringTag);
+  __ b(ne, &runtime);  // Cons and External strings go to runtime.
+
+  // Definitly a sequential string.
+  __ bind(&seq_string);
+
+  // r1: instance type.
+  // r2: length
+  // r5: string
+  // r6: from (smi)
+  // r7: to (smi)
+  __ ldr(r4, FieldMemOperand(r5, String::kLengthOffset));
+  __ cmp(r4, Operand(r7, ASR, 1));
+  __ b(lt, &runtime);  // Fail if to > length.
+
+  // r1: instance type.
+  // r2: result string length.
+  // r5: string.
+  // r6: from offset (smi)
+  // Check for flat ascii string.
+  Label non_ascii_flat;
+  __ tst(r1, Operand(kStringEncodingMask));
+  ASSERT_EQ(0, kTwoByteStringTag);
+  __ b(eq, &non_ascii_flat);
+
+  // Allocate the result.
+  __ AllocateAsciiString(r0, r2, r3, r4, r1, &runtime);
+
+  // r0: result string.
+  // r2: result string length.
+  // r5: string.
+  // r6: from offset (smi)
+  // Locate first character of result.
+  __ add(r1, r0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  // Locate 'from' character of string.
+  __ add(r5, r5, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(r5, r5, Operand(r6, ASR, 1));
+
+  // r0: result string.
+  // r1: first character of result string.
+  // r2: result string length.
+  // r5: first character of sub string to copy.
+  ASSERT_EQ(0, SeqAsciiString::kHeaderSize & kObjectAlignmentMask);
+  GenerateCopyCharactersLong(masm, r1, r5, r2, r3, r4, r6, r7, r9,
+                             COPY_ASCII | DEST_ALWAYS_ALIGNED);
+  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ Ret();
+
+  __ bind(&non_ascii_flat);
+  // r2: result string length.
+  // r5: string.
+  // r6: from offset (smi)
+  // Check for flat two byte string.
+
+  // Allocate the result.
+  __ AllocateTwoByteString(r0, r2, r1, r3, r4, &runtime);
+
+  // r0: result string.
+  // r2: result string length.
+  // r5: string.
+  // Locate first character of result.
+  __ add(r1, r0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // Locate 'from' character of string.
+    __ add(r5, r5, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // As "from" is a smi it is 2 times the value which matches the size of a two
+  // byte character.
+  __ add(r5, r5, Operand(r6));
+
+  // r0: result string.
+  // r1: first character of result.
+  // r2: result length.
+  // r5: first character of string to copy.
+  ASSERT_EQ(0, SeqTwoByteString::kHeaderSize & kObjectAlignmentMask);
+  GenerateCopyCharactersLong(masm, r1, r5, r2, r3, r4, r6, r7, r9,
+                             DEST_ALWAYS_ALIGNED);
+  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ Ret();
+
+  // Just jump to runtime to create the sub string.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kSubString), 3, 1);
+}
 
 
 void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,

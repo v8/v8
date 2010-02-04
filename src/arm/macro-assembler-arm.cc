@@ -196,7 +196,7 @@ void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
-  ldr(destination, MemOperand(r10, index << kPointerSizeLog2), cond);
+  ldr(destination, MemOperand(roots, index << kPointerSizeLog2), cond);
 }
 
 
@@ -937,6 +937,75 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object,
   // Write the address of the object to un-allocate as the current top.
   mov(scratch, Operand(new_space_allocation_top));
   str(object, MemOperand(scratch));
+}
+
+
+void MacroAssembler::AllocateTwoByteString(Register result,
+                                           Register length,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  mov(scratch1, Operand(length, LSL, 1));  // Length in bytes, not chars.
+  add(scratch1, scratch1,
+      Operand(kObjectAlignmentMask + SeqTwoByteString::kHeaderSize));
+  // AllocateInNewSpace expects the size in words, so we can round down
+  // to kObjectAlignment and divide by kPointerSize in the same shift.
+  ASSERT_EQ(kPointerSize, kObjectAlignmentMask + 1);
+  mov(scratch1, Operand(scratch1, ASR, kPointerSizeLog2));
+
+  // Allocate two-byte string in new space.
+  AllocateInNewSpace(scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  LoadRoot(scratch1, Heap::kStringMapRootIndex);
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
+}
+
+
+void MacroAssembler::AllocateAsciiString(Register result,
+                                         Register length,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
+  ASSERT(kCharSize == 1);
+  add(scratch1, length,
+      Operand(kObjectAlignmentMask + SeqAsciiString::kHeaderSize));
+  // AllocateInNewSpace expects the size in words, so we can round down
+  // to kObjectAlignment and divide by kPointerSize in the same shift.
+  ASSERT_EQ(kPointerSize, kObjectAlignmentMask + 1);
+  mov(scratch1, Operand(scratch1, ASR, kPointerSizeLog2));
+
+  // Allocate ASCII string in new space.
+  AllocateInNewSpace(scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  LoadRoot(scratch1, Heap::kAsciiStringMapRootIndex);
+  mov(scratch1, Operand(Factory::ascii_string_map()));
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
 }
 
 

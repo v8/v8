@@ -250,7 +250,7 @@ enum Coprocessor {
 };
 
 
-// Condition field in instructions
+// Condition field in instructions.
 enum Condition {
   eq =  0 << 28,  // Z set            equal.
   ne =  1 << 28,  // Z clear          not equal.

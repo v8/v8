@@ -1785,7 +1785,8 @@ void Simulator::DecodeType3(Instr* instr) {
       uint8_t byte = ReadB(addr);
       set_register(rd, byte);
     } else {
-      UNIMPLEMENTED();
+      uint8_t byte = get_register(rd);
+      WriteB(addr, byte);
     }
   } else {
     if (instr->HasL()) {
