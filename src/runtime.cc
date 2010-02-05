@@ -2891,7 +2891,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
 static Object* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   ASSERT(args.length() == 5);
   HandleScope scope;
-  Handle<JSObject> obj = args.at<JSObject>(0);
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag_setter, args[2]);
   CONVERT_CHECKED(JSFunction, fun, args[3]);
