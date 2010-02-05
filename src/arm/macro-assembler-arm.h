@@ -223,6 +223,16 @@ class MacroAssembler: public Assembler {
                            Register scratch2,
                            Register scratch3,
                            Label* gc_required);
+  void AllocateTwoByteConsString(Register result,
+                                 Register length,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 Label* gc_required);
+  void AllocateAsciiConsString(Register result,
+                               Register length,
+                               Register scratch1,
+                               Register scratch2,
+                               Label* gc_required);
 
 
   // ---------------------------------------------------------------------------
@@ -302,6 +312,9 @@ class MacroAssembler: public Assembler {
   // Call a code stub.
   void CallStub(CodeStub* stub, Condition cond = al);
 
+  // Call a code stub.
+  void TailCallStub(CodeStub* stub, Condition cond = al);
+
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);
 
@@ -369,6 +382,14 @@ class MacroAssembler: public Assembler {
   bool generating_stub() { return generating_stub_; }
   void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
   bool allow_stub_calls() { return allow_stub_calls_; }
+
+  // ---------------------------------------------------------------------------
+  // Smi utilities
+
+  // Jump if either of the registers contain a non-smi.
+  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
+  // Jump if either of the registers contain a smi.
+  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
 
   // ---------------------------------------------------------------------------
   // String utilities

@@ -745,13 +745,6 @@ class GenericBinaryOpStub: public CodeStub {
 };
 
 
-// Flag that indicates how to generate code for the stub StringAddStub.
-enum StringAddFlags {
-  NO_STRING_ADD_FLAGS = 0,
-  NO_STRING_CHECK_IN_STUB = 1 << 0  // Omit string check in stub.
-};
-
-
 class StringStubBase: public CodeStub {
  public:
   // Generate code for copying characters using a simple loop. This should only
@@ -774,6 +767,13 @@ class StringStubBase: public CodeStub {
                                  Register count,    // Must be ecx.
                                  Register scratch,  // Neither of the above.
                                  bool ascii);
+};
+
+
+// Flag that indicates how to generate code for the stub StringAddStub.
+enum StringAddFlags {
+  NO_STRING_ADD_FLAGS = 0,
+  NO_STRING_CHECK_IN_STUB = 1 << 0  // Omit string check in stub.
 };
 
 

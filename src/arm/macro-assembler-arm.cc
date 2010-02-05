@@ -1009,6 +1009,44 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
+void MacroAssembler::AllocateTwoByteConsString(Register result,
+                                               Register length,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  AllocateInNewSpace(ConsString::kSize / kPointerSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+  LoadRoot(scratch1, Heap::kConsStringMapRootIndex);
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
+}
+
+
+void MacroAssembler::AllocateAsciiConsString(Register result,
+                                             Register length,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* gc_required) {
+  AllocateInNewSpace(ConsString::kSize / kPointerSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+  LoadRoot(scratch1, Heap::kConsAsciiStringMapRootIndex);
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
+}
+
+
 void MacroAssembler::CompareObjectType(Register function,
                                        Register map,
                                        Register type_reg,
@@ -1079,10 +1117,17 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
 }
 
 
+void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
+  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+}
+
+
 void MacroAssembler::StubReturn(int argc) {
   ASSERT(argc >= 1 && generating_stub());
-  if (argc > 1)
+  if (argc > 1) {
     add(sp, sp, Operand((argc - 1) * kPointerSize));
+  }
   Ret();
 }
 
@@ -1316,6 +1361,26 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // The context may be an intermediate context, not a function context.
     ldr(dst, MemOperand(cp, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   }
+}
+
+
+void MacroAssembler::JumpIfNotBothSmi(Register reg1,
+                                      Register reg2,
+                                      Label* on_not_both_smi) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(reg1, Operand(kSmiTagMask));
+  tst(reg2, Operand(kSmiTagMask), eq);
+  b(ne, on_not_both_smi);
+}
+
+
+void MacroAssembler::JumpIfEitherSmi(Register reg1,
+                                     Register reg2,
+                                     Label* on_either_smi) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(reg1, Operand(kSmiTagMask));
+  tst(reg2, Operand(kSmiTagMask), ne);
+  b(eq, on_either_smi);
 }
 
 
