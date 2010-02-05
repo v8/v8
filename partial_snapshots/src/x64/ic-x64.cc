@@ -151,22 +151,6 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 }
 
 
-// Helper function used to check that a value is either not an object
-// or is loaded if it is an object.
-static void GenerateCheckNonObjectOrLoaded(MacroAssembler* masm, Label* miss,
-                                           Register value) {
-  Label done;
-  // Check if the value is a Smi.
-  __ JumpIfSmi(value, &done);
-  // Check if the object has been loaded.
-  __ movq(kScratchRegister, FieldOperand(value, JSFunction::kMapOffset));
-  __ testb(FieldOperand(kScratchRegister, Map::kBitField2Offset),
-           Immediate(1 << Map::kNeedsLoading));
-  __ j(not_zero, miss);
-  __ bind(&done);
-}
-
-
 // One byte opcode for test eax,0xXXXXXXXX.
 static const byte kTestEaxByte = 0xA9;
 
@@ -390,7 +374,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
                          rdx,
                          rax,
                          DICTIONARY_CHECK_DONE);
-  GenerateCheckNonObjectOrLoaded(masm, &slow, rcx);
   __ movq(rax, rcx);
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
@@ -1053,10 +1036,6 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   // Check that the value is a JavaScript function.
   __ CmpObjectType(rdx, JS_FUNCTION_TYPE, rdx);
   __ j(not_equal, miss);
-  // Check that the function has been loaded.
-  __ testb(FieldOperand(rdx, Map::kBitField2Offset),
-           Immediate(1 << Map::kNeedsLoading));
-  __ j(not_zero, miss);
 
   // Patch the receiver with the global proxy if necessary.
   if (is_global_object) {
@@ -1267,7 +1246,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Search the dictionary placing the result in rax.
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &miss, rdx, rax, rbx, rcx, CHECK_DICTIONARY);
-  GenerateCheckNonObjectOrLoaded(masm, &miss, rax);
   __ ret(0);
 
   // Global object access: Check access rights.
