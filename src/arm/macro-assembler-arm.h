@@ -270,6 +270,15 @@ class MacroAssembler: public Assembler {
                            InstanceType type);
 
 
+  // Check if the map of an object is equal to a specified map and
+  // branch to label if not. Skip the smi check if not required
+  // (object is known to be a heap object)
+  void CheckMap(Register obj,
+                Register scratch,
+                Handle<Map> map,
+                Label* fail,
+                bool is_heap_object);
+
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
   // Returns a condition that will be enabled if the object was a string.

@@ -163,6 +163,10 @@ void AstLabeler::VisitSlot(Slot* expr) {
 
 void AstLabeler::VisitVariableProxy(VariableProxy* expr) {
   expr->set_num(next_number_++);
+  Variable* var = expr->var();
+  if (var->is_global() && !var->is_this()) {
+    info_->set_has_globals(true);
+  }
 }
 
 

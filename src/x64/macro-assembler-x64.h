@@ -460,6 +460,14 @@ class MacroAssembler: public Assembler {
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
 
+  // Check if the map of an object is equal to a specified map and
+  // branch to label if not. Skip the smi check if not required
+  // (object is known to be a heap object)
+  void CheckMap(Register obj,
+                Handle<Map> map,
+                Label* fail,
+                bool is_heap_object);
+
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type
   // contains the instance_type. The registers map and instance_type can be the

@@ -1585,6 +1585,18 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 }
 
 
+void MacroAssembler::CheckMap(Register obj,
+                              Handle<Map> map,
+                              Label* fail,
+                              bool is_heap_object) {
+  if (!is_heap_object) {
+    JumpIfSmi(obj, fail);
+  }
+  Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
+  j(not_equal, fail);
+}
+
+
 Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register map,
                                              Register instance_type) {

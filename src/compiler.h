@@ -121,6 +121,14 @@ class CompilationInfo BASE_EMBEDDED {
   bool has_this_properties() { return has_this_properties_; }
   void set_has_this_properties(bool flag) { has_this_properties_ = flag; }
 
+  bool has_global_object() {
+    return !closure().is_null() && (closure()->context()->global() != NULL);
+  }
+
+  GlobalObject* global_object() {
+    return has_global_object() ? closure()->context()->global() : NULL;
+  }
+
   bool has_globals() { return has_globals_; }
   void set_has_globals(bool flag) { has_globals_ = flag; }
 

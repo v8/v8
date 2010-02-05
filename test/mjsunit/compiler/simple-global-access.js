@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,16 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --nofull-compiler
+// Flags: --fast-compiler
 
-// The type of a regular expression should be 'function', including in
-// the context of string equality comparisons.
+// Test global variable loads with the fast compiler.
+var g1 = 42;
+var g2 = 43;
+var g3 = 44;
 
-var r = new RegExp;
-assertEquals('function', typeof r);
-assertTrue(typeof r == 'function');
+function f1() { this.x = this.y = this.z = g1; }
+function f2() { this.x = g1; this.y = g2; this.z = g3; }
 
-function test(x, y) { return x == y; }
-assertFalse(test('object', typeof r));
+var o = {x:0, y:0, z:0, m1:f1, m2:f2}
 
-assertFalse(typeof r == 'object');
+o.m1();
+
+assertEquals(42, o.x);
+assertEquals(42, o.y);
+assertEquals(42, o.z);
+
+
+o.m2();
+
+assertEquals(42, o.x);
+assertEquals(43, o.y);
+assertEquals(44, o.z);

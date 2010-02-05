@@ -214,7 +214,16 @@ void FastCodeGenSyntaxChecker::VisitSlot(Slot* expr) {
 void FastCodeGenSyntaxChecker::VisitVariableProxy(VariableProxy* expr) {
   // Only global variable references are supported.
   Variable* var = expr->var();
-  if (!var->is_global()) BAILOUT("Non-global variable");
+  if (!var->is_global() || var->is_this()) BAILOUT("Non-global variable");
+
+  // Check if the global variable is existing and non-deletable.
+  if (info()->has_global_object()) {
+    LookupResult lookup;
+    info()->global_object()->Lookup(*expr->name(), &lookup);
+    if (!lookup.IsValid() || !lookup.IsDontDelete()) {
+      BAILOUT("Non-existing or deletable global variable");
+    }
+  }
 }
 
 
@@ -485,7 +494,16 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     SmartPointer<char> name = expr->name()->ToCString();
     PrintF("%d: t%d = Global(%s)\n", expr->num(), expr->num(), *name);
   }
-  EmitGlobalVariableLoad(expr->name());
+
+  // Check if we can compile a global variable load directly from the cell.
+  ASSERT(info()->has_global_object());
+  LookupResult lookup;
+  info()->global_object()->Lookup(*expr->name(), &lookup);
+  // We only support DontDelete properties for now.
+  ASSERT(lookup.IsValid());
+  ASSERT(lookup.IsDontDelete());
+  Handle<Object> cell(info()->global_object()->GetPropertyCell(&lookup));
+  EmitGlobalVariableLoad(cell);
 }
 
 
