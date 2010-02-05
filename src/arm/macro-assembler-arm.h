@@ -287,6 +287,9 @@ class MacroAssembler: public Assembler {
   // occurred.
   void IllegalOperation(int num_arguments);
 
+  // Get the number of least significant bits from a register
+  void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
+
   // Uses VFP instructions to Convert a Smi to a double.
   void IntegerToDoubleConversionWithVFP3(Register inReg,
                                          Register outHighReg,

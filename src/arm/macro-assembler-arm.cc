@@ -1106,6 +1106,18 @@ void MacroAssembler::IntegerToDoubleConversionWithVFP3(Register inReg,
 }
 
 
+void MacroAssembler::GetLeastBitsFromSmi(Register dst,
+                                         Register src,
+                                         int num_least_bits) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    ubfx(dst, src, Operand(kSmiTagSize), Operand(num_least_bits - 1));
+  } else {
+    mov(dst, Operand(src, ASR, kSmiTagSize));
+    and_(dst, dst, Operand((1 << num_least_bits) - 1));
+  }
+}
+
+
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // All parameters are on the stack.  r0 has the return value after call.
 

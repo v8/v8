@@ -612,6 +612,7 @@ enum CpuFeature { SSE3 = 32,   // x86
                   RDTSC = 4,   // x86
                   CPUID = 10,  // x86
                   VFP3 = 1,    // ARM
+                  ARMv7 = 2,   // ARM
                   SAHF = 0};   // x86
 
 } }  // namespace v8::internal

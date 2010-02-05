@@ -51,9 +51,14 @@ void CpuFeatures::Probe() {
   // If the compiler is allowed to use vfp then we can use vfp too in our
   // code generation.
 #if !defined(__arm__)
-  // For the simulator=arm build, always use VFP since the arm simulator has
-  // VFP support.
-  supported_ |= 1u << VFP3;
+  // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is enabled.
+  if (FLAG_enable_vfp3) {
+      supported_ |= 1u << VFP3;
+  }
+  // For the simulator=arm build, use ARMv7 when FLAG_enable_armv7 is enabled
+  if (FLAG_enable_armv7) {
+      supported_ |= 1u << ARMv7;
+  }
 #else
   if (Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
@@ -65,6 +70,11 @@ void CpuFeatures::Probe() {
     // runtime detection of VFP returns true.
     supported_ |= 1u << VFP3;
     found_by_runtime_probing_ |= 1u << VFP3;
+  }
+
+  if (OS::ArmCpuHasFeature(ARMv7)) {
+    supported_ |= 1u << ARMv7;
+    found_by_runtime_probing_ |= 1u << ARMv7;
   }
 #endif
 }
@@ -850,6 +860,21 @@ void Assembler::bx(Register target, Condition cond) {  // v5 and above, plus v4t
 
 
 // Data-processing instructions.
+
+// UBFX <Rd>,<Rn>,#<lsb>,#<width - 1>
+// Instruction details available in ARM DDI 0406A, A8-464.
+// cond(31-28) | 01111(27-23)| 1(22) | 1(21) | widthm1(20-16) |
+//  Rd(15-12) | lsb(11-7) | 101(6-4) | Rn(3-0)
+void Assembler::ubfx(Register dst, Register src1, const Operand& src2,
+                     const Operand& src3, Condition cond) {
+  ASSERT(!src2.rm_.is_valid() && !src3.rm_.is_valid());
+  ASSERT(static_cast<uint32_t>(src2.imm32_) <= 0x1f);
+  ASSERT(static_cast<uint32_t>(src3.imm32_) <= 0x1f);
+  emit(cond | 0x3F*B21 | src3.imm32_*B16 |
+       dst.code()*B12 | src2.imm32_*B7 | 0x5*B4 | src1.code());
+}
+
+
 void Assembler::and_(Register dst, Register src1, const Operand& src2,
                      SBit s, Condition cond) {
   addrmod1(cond | 0*B21 | s, src1, dst, src2);

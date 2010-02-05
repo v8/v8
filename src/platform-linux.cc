@@ -89,6 +89,8 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
   // Here gcc is telling us that we are on an ARM and gcc is assuming that we
   // have VFP3 instructions.  If gcc can assume it then so can we.
   return 1u << VFP3;
+#elif CAN_USE_ARMV7_INSTRUCTIONS
+  return 1u << ARMv7;
 #else
   return 0;  // Linux runs on anything.
 #endif
@@ -112,6 +114,9 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
   switch (feature) {
     case VFP3:
       search_string = "vfp";
+      break;
+    case ARMv7:
+      search_string = "ARMv7";
       break;
     default:
       UNREACHABLE();

@@ -628,6 +628,9 @@ class Assembler : public Malloced {
   void blx(Label* L)  { blx(branch_offset(L, false)); }  // v5 and above
 
   // Data-processing instructions
+  void ubfx(Register dst, Register src1, const Operand& src2,
+            const Operand& src3, Condition cond = al);
+
   void and_(Register dst, Register src1, const Operand& src2,
             SBit s = LeaveCC, Condition cond = al);
 

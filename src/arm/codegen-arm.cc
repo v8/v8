@@ -5843,6 +5843,7 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
+
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   // r1 : x
   // r0 : y
@@ -6035,9 +6036,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::BIT_XOR: __ eor(r0, r0, Operand(r1)); break;
         case Token::SAR:
           // Remove tags from right operand.
-          __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // y
-          // Use only the 5 least significant bits of the shift count.
-          __ and_(r2, r2, Operand(0x1f));
+          __ GetLeastBitsFromSmi(r2, r0, 5);
           __ mov(r0, Operand(r1, ASR, r2));
           // Smi tag result.
           __ bic(r0, r0, Operand(kSmiTagMask));
@@ -6046,9 +6045,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           // Remove tags from operands.  We can't do this on a 31 bit number
           // because then the 0s get shifted into bit 30 instead of bit 31.
           __ mov(r3, Operand(r1, ASR, kSmiTagSize));  // x
-          __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // y
-          // Use only the 5 least significant bits of the shift count.
-          __ and_(r2, r2, Operand(0x1f));
+          __ GetLeastBitsFromSmi(r2, r0, 5);
           __ mov(r3, Operand(r3, LSR, r2));
           // Unsigned shift is not allowed to produce a negative number, so
           // check the sign bit and the sign bit after Smi tagging.
@@ -6060,9 +6057,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::SHL:
           // Remove tags from operands.
           __ mov(r3, Operand(r1, ASR, kSmiTagSize));  // x
-          __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // y
-          // Use only the 5 least significant bits of the shift count.
-          __ and_(r2, r2, Operand(0x1f));
+          __ GetLeastBitsFromSmi(r2, r0, 5);
           __ mov(r3, Operand(r3, LSL, r2));
           // Check that the signed result fits in a Smi.
           __ add(r2, r3, Operand(0x40000000), SetCC);
