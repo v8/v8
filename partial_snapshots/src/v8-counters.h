@@ -102,7 +102,7 @@ namespace internal {
   SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch)    \
   /* Number of contexts created by partial snapshot. */               \
   SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)
-  
+
 
 
 #define STATS_COUNTER_LIST_2(SC)                                    \

@@ -292,17 +292,11 @@ class Genesis BASE_EMBEDDED {
   Genesis(Handle<Object> global_object,
           v8::Handle<v8::ObjectTemplate> global_template,
           v8::ExtensionConfiguration* extensions);
-  ~Genesis();
+  ~Genesis() { }
 
   Handle<Context> result() { return result_; }
 
   Genesis* previous() { return previous_; }
-  static Genesis* current() { return current_; }
-
-  // Support for thread preemption.
-  static int ArchiveSpacePerThread();
-  static char* ArchiveState(char* to);
-  static char* RestoreState(char* from);
 
  private:
   Handle<Context> global_context_;
@@ -311,7 +305,6 @@ class Genesis BASE_EMBEDDED {
   // triggered during environment creation there may be weak handle
   // processing callbacks which may create new environments.
   Genesis* previous_;
-  static Genesis* current_;
 
   Handle<Context> global_context() { return global_context_; }
 
@@ -319,10 +312,11 @@ class Genesis BASE_EMBEDDED {
                    Handle<Object> global_object);
   void InstallNativeFunctions();
   bool InstallNatives();
-  bool InstallExtensions(v8::ExtensionConfiguration* extensions);
-  bool InstallExtension(const char* name);
-  bool InstallExtension(v8::RegisteredExtension* current);
-  bool InstallSpecialObjects();
+  static bool InstallExtensions(Handle<Context> global_context,
+                                v8::ExtensionConfiguration* extensions);
+  static bool InstallExtension(const char* name);
+  static bool InstallExtension(v8::RegisteredExtension* current);
+  static void InstallSpecialObjects(Handle<Context> global_context);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
   bool ConfigureGlobalObjects(v8::Handle<v8::ObjectTemplate> global_template);
@@ -351,12 +345,13 @@ class Genesis BASE_EMBEDDED {
                                   Handle<String> source,
                                   SourceCodeCache* cache,
                                   v8::Extension* extension,
+                                  Handle<Context> top_context,
                                   bool use_runtime_context);
 
   Handle<Context> result_;
+  BootstrapperActive active_;
+  friend class Bootstrapper;
 };
-
-Genesis* Genesis::current_ = NULL;
 
 
 void Bootstrapper::Iterate(ObjectVisitor* v) {
@@ -374,16 +369,17 @@ void Bootstrapper::AddFixup(Code* code, MacroAssembler* masm) {
 }
 
 
-bool Bootstrapper::IsActive() {
-  return Genesis::current() != NULL;
-}
-
-
 Handle<Context> Bootstrapper::CreateEnvironment(
     Handle<Object> global_object,
     v8::Handle<v8::ObjectTemplate> global_template,
     v8::ExtensionConfiguration* extensions) {
+  HandleScope scope;
   Genesis genesis(global_object, global_template, extensions);
+  if (!genesis.result().is_null()) {
+    if (!InstallExtensions(genesis.result(), extensions)) {
+      return Handle<Context>();
+    }
+  }
   return genesis.result();
 }
 
@@ -403,12 +399,6 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
                      Factory::null_value());
   env->set_global_proxy(env->global());
   env->global()->set_global_receiver(env->global());
-}
-
-
-Genesis::~Genesis() {
-  ASSERT(current_ == this);
-  current_ = previous_;
 }
 
 
@@ -900,8 +890,12 @@ bool Genesis::CompileNative(Vector<const char> name, Handle<String> source) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger::set_compiling_natives(true);
 #endif
-  bool result =
-      CompileScriptCached(name, source, NULL, NULL, true);
+  bool result = CompileScriptCached(name,
+                                    source,
+                                    NULL,
+                                    NULL,
+                                    Handle<Context>(Top::context()),
+                                    true);
   ASSERT(Top::has_pending_exception() != result);
   if (!result) Top::clear_pending_exception();
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -915,6 +909,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
                                   Handle<String> source,
                                   SourceCodeCache* cache,
                                   v8::Extension* extension,
+                                  Handle<Context> top_context,
                                   bool use_runtime_context) {
   HandleScope scope;
   Handle<JSFunction> boilerplate;
@@ -939,11 +934,11 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // Setup the function context. Conceptually, we should clone the
   // function before overwriting the context but since we're in a
   // single-threaded environment it is not strictly necessary.
-  ASSERT(Top::context()->IsGlobalContext());
+  ASSERT(top_context->IsGlobalContext());
   Handle<Context> context =
       Handle<Context>(use_runtime_context
-                      ? Top::context()->runtime_context()
-                      : Top::context());
+                      ? Handle<Context>(top_context->runtime_context())
+                      : top_context);
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
 
@@ -951,14 +946,14 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver =
       Handle<Object>(use_runtime_context
-                     ? Top::context()->builtins()
-                     : Top::context()->global());
+                     ? top_context->builtins()
+                     : top_context->global());
   bool has_pending_exception;
   Handle<Object> result =
       Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
   return PendingFixups::Process(
-      Handle<JSBuiltinsObject>(Top::context()->builtins()));
+      Handle<JSBuiltinsObject>(top_context->builtins()));
 }
 
 
@@ -1210,10 +1205,24 @@ bool Genesis::InstallNatives() {
 }
 
 
-bool Genesis::InstallSpecialObjects() {
+int BootstrapperActive::nesting_ = 0;
+
+
+bool Bootstrapper::InstallExtensions(Handle<Context> global_context,
+                                     v8::ExtensionConfiguration* extensions) {
+  BootstrapperActive active;
+  SaveContext saved_context;
+  Top::set_context(*global_context);
+  if (!Genesis::InstallExtensions(global_context, extensions)) return false;
+  Genesis::InstallSpecialObjects(global_context);
+  return true;
+}
+
+
+void Genesis::InstallSpecialObjects(Handle<Context> global_context) {
   HandleScope scope;
   Handle<JSGlobalObject> js_global(
-      JSGlobalObject::cast(global_context()->global()));
+      JSGlobalObject::cast(global_context->global()));
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives_string =
@@ -1236,13 +1245,12 @@ bool Genesis::InstallSpecialObjects() {
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
     // If loading fails we just bail out without installing the
     // debugger but without tanking the whole context.
-    if (!Debug::Load())
-      return true;
+    if (!Debug::Load()) return;
     // Set the security token for the debugger context to the same as
     // the shell global context to allow calling between these (otherwise
     // exposing debug global object doesn't make much sense).
     Debug::debug_context()->set_security_token(
-        global_context()->security_token());
+        global_context->security_token());
 
     Handle<String> debug_string =
         Factory::LookupAsciiSymbol(FLAG_expose_debug_as);
@@ -1250,19 +1258,18 @@ bool Genesis::InstallSpecialObjects() {
         Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
   }
 #endif
-
-  return true;
 }
 
 
-bool Genesis::InstallExtensions(v8::ExtensionConfiguration* extensions) {
+bool Genesis::InstallExtensions(Handle<Context> global_context,
+                                v8::ExtensionConfiguration* extensions) {
   // Clear coloring of extension list
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
     current->set_state(v8::UNVISITED);
     current = current->next();
   }
-  // Install auto extensions.  Coordinate with AutoExtensionsExist below.
+  // Install auto extensions.
   current = v8::RegisteredExtension::first_extension();
   while (current != NULL) {
     if (current->extension()->auto_enable())
@@ -1326,7 +1333,9 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
   Handle<String> source_code = Factory::NewStringFromAscii(source);
   bool result = CompileScriptCached(CStrVector(extension->name()),
                                     source_code,
-                                    &extensions_cache, extension,
+                                    &extensions_cache,
+                                    extension,
+                                    Handle<Context>(Top::context()),
                                     false);
   ASSERT(Top::has_pending_exception() != result);
   if (!result) {
@@ -1557,11 +1566,6 @@ void Genesis::BuildSpecialFunctionTable() {
 Genesis::Genesis(Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions) {
-  // Link this genesis object into the stacked genesis chain. This
-  // must be done before any early exits because the destructor
-  // will always do unlinking.
-  previous_ = current_;
-  current_  = this;
   result_ = Handle<Context>::null();
 
   // If V8 isn't running and cannot be initialized, just return.
@@ -1570,7 +1574,7 @@ Genesis::Genesis(Handle<Object> global_object,
   // Before creating the roots we must save the context and restore it
   // on all function exits.
   HandleScope scope;
-  SaveContext context;
+  SaveContext saved_context;
 
   CreateRoots(global_template, global_object);
 
@@ -1581,10 +1585,6 @@ Genesis::Genesis(Handle<Object> global_object,
 
   if (!ConfigureGlobalObjects(global_template)) return;
 
-  if (!InstallExtensions(extensions)) return;
-
-  if (!InstallSpecialObjects()) return;
-
   result_ = global_context_;
 }
 
@@ -1593,59 +1593,46 @@ Genesis::Genesis(Handle<Object> global_object,
 
 // Reserve space for statics needing saving and restoring.
 int Bootstrapper::ArchiveSpacePerThread() {
-  return Genesis::ArchiveSpacePerThread();
+  return BootstrapperActive::ArchiveSpacePerThread();
 }
 
 
 // Archive statics that are thread local.
 char* Bootstrapper::ArchiveState(char* to) {
-  return Genesis::ArchiveState(to);
+  return BootstrapperActive::ArchiveState(to);
 }
 
 
 // Restore statics that are thread local.
 char* Bootstrapper::RestoreState(char* from) {
-  return Genesis::RestoreState(from);
+  return BootstrapperActive::RestoreState(from);
 }
 
 
 // Called when the top-level V8 mutex is destroyed.
 void Bootstrapper::FreeThreadResources() {
-  ASSERT(Genesis::current() == NULL);
-}
-
-
-// Are there extensions that should be installed even if no extension was
-// specified?
-bool Bootstrapper::AutoExtensionsExist() {
-  // Find auto extensions.
-  v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
-  while (current != NULL) {
-    if (current->extension()->auto_enable()) return true;
-    current = current->next();
-  }
-  return FLAG_expose_gc;
+  ASSERT(!BootstrapperActive::IsActive());
 }
 
 
 // Reserve space for statics needing saving and restoring.
-int Genesis::ArchiveSpacePerThread() {
-  return sizeof(current_);
+int BootstrapperActive::ArchiveSpacePerThread() {
+  return sizeof(nesting_);
 }
 
 
 // Archive statics that are thread local.
-char* Genesis::ArchiveState(char* to) {
-  *reinterpret_cast<Genesis**>(to) = current_;
-  current_ = NULL;
-  return to + sizeof(current_);
+char* BootstrapperActive::ArchiveState(char* to) {
+  *reinterpret_cast<int*>(to) = nesting_;
+  nesting_ = 0;
+  return to + sizeof(nesting_);
 }
 
 
 // Restore statics that are thread local.
-char* Genesis::RestoreState(char* from) {
-  current_ = *reinterpret_cast<Genesis**>(from);
-  return from + sizeof(current_);
+char* BootstrapperActive::RestoreState(char* from) {
+  nesting_ = *reinterpret_cast<int*>(from);
+  return from + sizeof(nesting_);
 }
 
 } }  // namespace v8::internal

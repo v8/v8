@@ -32,6 +32,24 @@
 namespace v8 {
 namespace internal {
 
+
+class BootstrapperActive BASE_EMBEDDED {
+ public:
+  BootstrapperActive() { nesting_++; }
+  ~BootstrapperActive() { nesting_--; }
+
+  // Support for thread preemption.
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
+
+ private:
+  static bool IsActive() { return nesting_ != 0; }
+  static int nesting_;
+  friend class Bootstrapper;
+};
+
+
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
 class Bootstrapper : public AllStatic {
@@ -60,7 +78,7 @@ class Bootstrapper : public AllStatic {
   static void AddFixup(Code* code, MacroAssembler* masm);
 
   // Tells whether bootstrapping is active.
-  static bool IsActive();
+  static bool IsActive() { return BootstrapperActive::IsActive(); }
 
   // Encoding/decoding support for fixup flags.
   class FixupFlagsUseCodeObject: public BitField<bool, 0, 1> {};
@@ -77,7 +95,8 @@ class Bootstrapper : public AllStatic {
   static char* AllocateAutoDeletedArray(int bytes);
 
   // Used for new context creation.
-  static bool AutoExtensionsExist();
+  static bool InstallExtensions(Handle<Context> global_context,
+                                v8::ExtensionConfiguration* extensions);
 };
 
 

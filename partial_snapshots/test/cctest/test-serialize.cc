@@ -290,57 +290,68 @@ static void SanityCheck() {
 
 
 DEPENDENT_TEST(Deserialize, Serialize) {
-  v8::HandleScope scope;
+  // The serialize-deserialize tests only work if the VM is built without
+  // serialization.  That doesn't matter.  We don't need to be able to
+  // serialize a snapshot in a VM that is booted from a snapshot.
+  if (!Snapshot::IsEnabled()) {
+    v8::HandleScope scope;
 
-  Deserialize();
+    Deserialize();
 
-  v8::Persistent<v8::Context> env = v8::Context::New();
-  env->Enter();
+    v8::Persistent<v8::Context> env = v8::Context::New();
+    env->Enter();
 
-  SanityCheck();
+    SanityCheck();
+  }
 }
 
 
 DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
-  v8::HandleScope scope;
+  if (!Snapshot::IsEnabled()) {
+    v8::HandleScope scope;
 
-  Deserialize();
+    Deserialize();
 
-  v8::Persistent<v8::Context> env = v8::Context::New();
-  env->Enter();
+    v8::Persistent<v8::Context> env = v8::Context::New();
+    env->Enter();
 
-  SanityCheck();
+    SanityCheck();
+  }
 }
 
 
 DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
-  v8::HandleScope scope;
+  if (!Snapshot::IsEnabled()) {
+    v8::HandleScope scope;
 
-  Deserialize();
+    Deserialize();
 
-  v8::Persistent<v8::Context> env = v8::Context::New();
-  env->Enter();
+    v8::Persistent<v8::Context> env = v8::Context::New();
+    env->Enter();
 
-  const char* c_source = "\"1234\".length";
-  v8::Local<v8::String> source = v8::String::New(c_source);
-  v8::Local<v8::Script> script = v8::Script::Compile(source);
-  CHECK_EQ(4, script->Run()->Int32Value());
+    const char* c_source = "\"1234\".length";
+    v8::Local<v8::String> source = v8::String::New(c_source);
+    v8::Local<v8::Script> script = v8::Script::Compile(source);
+    CHECK_EQ(4, script->Run()->Int32Value());
+  }
 }
 
 
 DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                SerializeTwice) {
-  v8::HandleScope scope;
+  if (!Snapshot::IsEnabled()) {
+    v8::HandleScope scope;
 
-  Deserialize();
+    Deserialize();
 
-  v8::Persistent<v8::Context> env = v8::Context::New();
-  env->Enter();
+    v8::Persistent<v8::Context> env = v8::Context::New();
+    env->Enter();
 
-  const char* c_source = "\"1234\".length";
-  v8::Local<v8::String> source = v8::String::New(c_source);
-  v8::Local<v8::Script> script = v8::Script::Compile(source);
-  CHECK_EQ(4, script->Run()->Int32Value());
+    const char* c_source = "\"1234\".length";
+    v8::Local<v8::String> source = v8::String::New(c_source);
+    v8::Local<v8::Script> script = v8::Script::Compile(source);
+    CHECK_EQ(4, script->Run()->Int32Value());
+  }
 }
 
 
@@ -427,35 +438,37 @@ static void ReserveSpaceForPartialSnapshot(const char* file_name) {
 
 
 DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
-  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+  if (!Snapshot::IsEnabled()) {
+    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+    OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
-  CHECK(Snapshot::Initialize(startup_name.start()));
+    CHECK(Snapshot::Initialize(startup_name.start()));
 
-  const char* file_name = FLAG_testing_serialization_file;
-  ReserveSpaceForPartialSnapshot(file_name);
+    const char* file_name = FLAG_testing_serialization_file;
+    ReserveSpaceForPartialSnapshot(file_name);
 
-  int snapshot_size = 0;
-  byte* snapshot = ReadBytes(file_name, &snapshot_size);
+    int snapshot_size = 0;
+    byte* snapshot = ReadBytes(file_name, &snapshot_size);
 
-  Object* root;
-  {
-    SnapshotByteSource source(snapshot, snapshot_size);
-    Deserializer deserializer(&source);
-    deserializer.DeserializePartial(&root);
-    CHECK(root->IsString());
-  }
-  v8::HandleScope handle_scope;
-  Handle<Object>root_handle(root);
+    Object* root;
+    {
+      SnapshotByteSource source(snapshot, snapshot_size);
+      Deserializer deserializer(&source);
+      deserializer.DeserializePartial(&root);
+      CHECK(root->IsString());
+    }
+    v8::HandleScope handle_scope;
+    Handle<Object>root_handle(root);
 
-  Object* root2;
-  {
-    SnapshotByteSource source(snapshot, snapshot_size);
-    Deserializer deserializer(&source);
-    deserializer.DeserializePartial(&root2);
-    CHECK(root2->IsString());
-    CHECK(*root_handle == root2);
+    Object* root2;
+    {
+      SnapshotByteSource source(snapshot, snapshot_size);
+      Deserializer deserializer(&source);
+      deserializer.DeserializePartial(&root2);
+      CHECK(root2->IsString());
+      CHECK(*root_handle == root2);
+    }
   }
 }
 
@@ -506,35 +519,37 @@ TEST(ContextSerialization) {
 
 
 DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
-  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+  if (!Snapshot::IsEnabled()) {
+    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+    OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
-  CHECK(Snapshot::Initialize(startup_name.start()));
+    CHECK(Snapshot::Initialize(startup_name.start()));
 
-  const char* file_name = FLAG_testing_serialization_file;
-  ReserveSpaceForPartialSnapshot(file_name);
+    const char* file_name = FLAG_testing_serialization_file;
+    ReserveSpaceForPartialSnapshot(file_name);
 
-  int snapshot_size = 0;
-  byte* snapshot = ReadBytes(file_name, &snapshot_size);
+    int snapshot_size = 0;
+    byte* snapshot = ReadBytes(file_name, &snapshot_size);
 
-  Object* root;
-  {
-    SnapshotByteSource source(snapshot, snapshot_size);
-    Deserializer deserializer(&source);
-    deserializer.DeserializePartial(&root);
-    CHECK(root->IsContext());
-  }
-  v8::HandleScope handle_scope;
-  Handle<Object>root_handle(root);
+    Object* root;
+    {
+      SnapshotByteSource source(snapshot, snapshot_size);
+      Deserializer deserializer(&source);
+      deserializer.DeserializePartial(&root);
+      CHECK(root->IsContext());
+    }
+    v8::HandleScope handle_scope;
+    Handle<Object>root_handle(root);
 
-  Object* root2;
-  {
-    SnapshotByteSource source(snapshot, snapshot_size);
-    Deserializer deserializer(&source);
-    deserializer.DeserializePartial(&root2);
-    CHECK(root2->IsContext());
-    CHECK(*root_handle != root2);
+    Object* root2;
+    {
+      SnapshotByteSource source(snapshot, snapshot_size);
+      Deserializer deserializer(&source);
+      deserializer.DeserializePartial(&root2);
+      CHECK(root2->IsContext());
+      CHECK(*root_handle != root2);
+    }
   }
 }
 
@@ -542,6 +557,7 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
 TEST(LinearAllocation) {
   v8::V8::Initialize();
   int new_space_max = 512 * KB;
+
   for (int size = 1000; size < 5 * MB; size += size >> 1) {
     int new_space_size = (size < new_space_max) ? size : new_space_max;
     Heap::ReserveSpace(
