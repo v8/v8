@@ -1261,7 +1261,9 @@ void Logger::LogCodeObject(Object* object) {
       case Code::FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
       case Code::STUB:
-        description = CodeStub::MajorName(code_object->major_key());
+        description = CodeStub::MajorName(code_object->major_key(), true);
+        if (description == NULL)
+          description = "A stub from the snapshot";
         tag = Logger::STUB_TAG;
         break;
       case Code::BUILTIN:
