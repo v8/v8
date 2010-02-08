@@ -2293,8 +2293,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
   CodeForStatementPosition(node);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  DebuggerStatementStub ces;
-  frame_->CallStub(&ces, 0);
+  frame_->DebugBreak();
 #endif
   // Ignore the return value.
   ASSERT(frame_->height() == original_height);

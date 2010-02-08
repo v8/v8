@@ -146,6 +146,7 @@ class MacroAssembler: public Assembler {
   void CopyRegistersFromStackToMemory(Register base,
                                       Register scratch,
                                       RegList regs);
+  void DebugBreak();
 #endif
 
   // ---------------------------------------------------------------------------

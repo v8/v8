@@ -331,14 +331,10 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
 
   // Push in reverse order: caller_fp, sp_on_exit, and caller_pc.
   stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
-  mov(fp, Operand(sp));  // setup new frame pointer
+  mov(fp, Operand(sp));  // Setup new frame pointer.
 
-  if (mode == ExitFrame::MODE_DEBUG) {
-    mov(ip, Operand(Smi::FromInt(0)));
-  } else {
-    mov(ip, Operand(CodeObject()));
-  }
-  push(ip);
+  mov(ip, Operand(CodeObject()));
+  push(ip);  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
@@ -607,6 +603,15 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
       str(scratch, MemOperand(ip));
     }
   }
+}
+
+
+void MacroAssembler::DebugBreak() {
+  ASSERT(allow_stub_calls());
+  mov(r0, Operand(0));
+  mov(r1, Operand(ExternalReference(Runtime::kDebugBreak)));
+  CEntryStub ces(1);
+  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif
 

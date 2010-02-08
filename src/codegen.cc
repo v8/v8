@@ -525,12 +525,5 @@ void ApiGetterEntryStub::SetCustomCache(Code* value) {
   info()->set_load_stub_cache(value);
 }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-void DebuggerStatementStub::Generate(MacroAssembler* masm) {
-  Runtime::Function* f = Runtime::FunctionForId(Runtime::kDebugBreak);
-  masm->TailCallRuntime(ExternalReference(f), 0, f->result_size);
-}
-#endif
-
 
 } }  // namespace v8::internal

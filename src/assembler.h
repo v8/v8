@@ -119,6 +119,7 @@ class RelocInfo BASE_EMBEDDED {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
     CODE_TARGET_CONTEXT,  // code target used for contextual loads.
+    DEBUG_BREAK,
     CODE_TARGET,         // code target which is not any of the above.
     EMBEDDED_OBJECT,
     EMBEDDED_STRING,

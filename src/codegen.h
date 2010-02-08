@@ -415,21 +415,6 @@ class ApiGetterEntryStub : public CodeStub {
 };
 
 
-// Mark the debugger statement to be recognized by debugger (by the MajorKey)
-class DebuggerStatementStub : public CodeStub {
- public:
-  DebuggerStatementStub() { }
-
-  void Generate(MacroAssembler* masm);
-
- private:
-  Major MajorKey() { return DebuggerStatement; }
-  int MinorKey() { return 0; }
-
-  const char* GetName() { return "DebuggerStatementStub"; }
-};
-
-
 class JSEntryStub : public CodeStub {
  public:
   JSEntryStub() { }

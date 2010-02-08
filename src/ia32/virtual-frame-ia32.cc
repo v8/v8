@@ -853,6 +853,17 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void VirtualFrame::DebugBreak() {
+  PrepareForCall(0, 0);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ DebugBreak();
+  Result result = cgen()->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+}
+#endif
+
+
 Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
                                    int arg_count) {

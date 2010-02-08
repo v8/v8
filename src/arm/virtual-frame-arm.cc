@@ -233,6 +233,14 @@ void VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void VirtualFrame::DebugBreak() {
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ DebugBreak();
+}
+#endif
+
+
 void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                  InvokeJSFlags flags,
                                  int arg_count) {

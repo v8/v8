@@ -324,6 +324,10 @@ class VirtualFrame: public ZoneObject {
   Result CallRuntime(Runtime::Function* f, int arg_count);
   Result CallRuntime(Runtime::FunctionId id, int arg_count);
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  void DebugBreak();
+#endif
+
   // Invoke builtin given the number of arguments it expects on (and
   // removes from) the stack.
   Result InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag, int arg_count);

@@ -3906,8 +3906,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   // Spill everything, even constants, to the frame.
   frame_->SpillAll();
 
-  DebuggerStatementStub ces;
-  frame_->CallStub(&ces, 0);
+  frame_->DebugBreak();
   // Ignore the return value.
 #endif
 }

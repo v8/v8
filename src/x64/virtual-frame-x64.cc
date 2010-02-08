@@ -969,6 +969,17 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id, int arg_count) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void VirtualFrame::DebugBreak() {
+  PrepareForCall(0, 0);
+  ASSERT(cgen()->HasValidEntryRegisters());
+  __ DebugBreak();
+  Result result = cgen()->allocator()->Allocate(rax);
+  ASSERT(result.is_valid());
+}
+#endif
+
+
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  The IC expects
   // name in rcx and receiver on the stack.  It does not drop the

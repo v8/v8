@@ -453,15 +453,7 @@ void BreakLocationIterator::ClearDebugBreakAtIC() {
 
 
 bool BreakLocationIterator::IsDebuggerStatement() {
-  if (RelocInfo::IsCodeTarget(rmode())) {
-    Address target = original_rinfo()->target_address();
-    Code* code = Code::GetCodeFromTargetAddress(target);
-    if (code->kind() == Code::STUB) {
-      CodeStub::Major major_key = code->major_key();
-      return (major_key == CodeStub::DebuggerStatement);
-    }
-  }
-  return false;
+  return RelocInfo::DEBUG_BREAK == rmode();
 }
 
 

@@ -308,6 +308,13 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
     }
   }
 }
+
+void MacroAssembler::DebugBreak() {
+  Set(eax, Immediate(0));
+  mov(ebx, Immediate(ExternalReference(Runtime::kDebugBreak)));
+  CEntryStub ces(1);
+  call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
+}
 #endif
 
 void MacroAssembler::Set(Register dst, const Immediate& x) {
@@ -409,12 +416,8 @@ void MacroAssembler::EnterExitFramePrologue(ExitFrame::Mode mode) {
 
   // Reserve room for entry stack pointer and push the debug marker.
   ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
-  push(Immediate(0));  // saved entry sp, patched before call
-  if (mode == ExitFrame::MODE_DEBUG) {
-    push(Immediate(0));
-  } else {
-    push(Immediate(CodeObject()));
-  }
+  push(Immediate(0));  // Saved entry sp, patched before call.
+  push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
