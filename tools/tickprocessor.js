@@ -269,6 +269,14 @@ TickProcessor.prototype.processLogFile = function(fileName) {
 };
 
 
+TickProcessor.prototype.processLogFileInTest = function(fileName) {
+   // Hack file name to avoid dealing with platform specifics.
+  this.lastLogFileName_ = 'v8.log';
+  var contents = readFile(fileName);
+  this.processLogChunk(contents);
+};
+
+
 TickProcessor.prototype.processSharedLibrary = function(
     name, startAddr, endAddr) {
   var entry = this.profile_.addLibrary(name, startAddr, endAddr);
