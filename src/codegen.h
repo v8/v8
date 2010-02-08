@@ -98,6 +98,29 @@ namespace v8 {
 namespace internal {
 
 
+// Support for "structured" code comments.
+#ifdef DEBUG
+
+class Comment BASE_EMBEDDED {
+ public:
+  Comment(MacroAssembler* masm, const char* msg);
+  ~Comment();
+
+ private:
+  MacroAssembler* masm_;
+  const char* msg_;
+};
+
+#else
+
+class Comment BASE_EMBEDDED {
+ public:
+  Comment(MacroAssembler*, const char*)  {}
+};
+
+#endif  // DEBUG
+
+
 // Code generation can be nested.  Code generation scopes form a stack
 // of active code generators.
 class CodeGeneratorScope BASE_EMBEDDED {

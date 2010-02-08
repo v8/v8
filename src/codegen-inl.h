@@ -49,46 +49,8 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
-
 Handle<Script> CodeGenerator::script() { return info_->script(); }
 bool CodeGenerator::is_eval() { return info_->is_eval(); }
-
-
-// -----------------------------------------------------------------------------
-// Support for "structured" code comments.
-//
-// By selecting matching brackets in disassembler output,
-// code segments can be identified more easily.
-
-#ifdef DEBUG
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler* masm, const char* msg) : masm_(masm), msg_(msg) {
-    __ RecordComment(msg);
-  }
-
-  ~Comment() {
-    if (msg_[0] == '[') __ RecordComment("]");
-  }
-
- private:
-  MacroAssembler* masm_;
-  const char* msg_;
-};
-
-#else
-
-class Comment BASE_EMBEDDED {
- public:
-  Comment(MacroAssembler*, const char*)  {}
-};
-
-#endif  // DEBUG
-
-#undef __
-
 
 } }  // namespace v8::internal
 

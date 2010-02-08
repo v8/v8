@@ -42,6 +42,24 @@
 namespace v8 {
 namespace internal {
 
+#define __ ACCESS_MASM(masm_)
+
+#ifdef DEBUG
+
+Comment::Comment(MacroAssembler* masm, const char* msg)
+    : masm_(masm), msg_(msg) {
+  __ RecordComment(msg);
+}
+
+
+Comment::~Comment() {
+  if (msg_[0] == '[') __ RecordComment("]");
+}
+
+#endif  // DEBUG
+
+#undef __
+
 
 CodeGenerator* CodeGeneratorScope::top_ = NULL;
 
