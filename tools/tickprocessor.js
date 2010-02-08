@@ -262,8 +262,10 @@ TickProcessor.prototype.isJsCode = function(name) {
 
 TickProcessor.prototype.processLogFile = function(fileName) {
   this.lastLogFileName_ = fileName;
-  var contents = readFile(fileName);
-  this.processLogChunk(contents);
+  var line;
+  while (line = readline()) {
+    this.processLogLine(line);
+  }
 };
 
 
