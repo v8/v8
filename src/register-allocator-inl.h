@@ -48,6 +48,20 @@
 namespace v8 {
 namespace internal {
 
+Result::Result(const Result& other) {
+  other.CopyTo(this);
+}
+
+
+Result& Result::operator=(const Result& other) {
+  if (this != &other) {
+    Unuse();
+    other.CopyTo(this);
+  }
+  return *this;
+}
+
+
 Result::~Result() {
   if (is_register()) {
     CodeGeneratorScope::Current()->allocator()->Unuse(reg());
@@ -70,6 +84,25 @@ void Result::CopyTo(Result* destination) const {
   }
 }
 
+
+bool RegisterAllocator::is_used(Register reg) {
+  return registers_.is_used(ToNumber(reg));
+}
+
+
+int RegisterAllocator::count(Register reg) {
+  return registers_.count(ToNumber(reg));
+}
+
+
+void RegisterAllocator::Use(Register reg) {
+  registers_.Use(ToNumber(reg));
+}
+
+
+void RegisterAllocator::Unuse(Register reg) {
+  registers_.Unuse(ToNumber(reg));
+}
 
 } }  // namespace v8::internal
 

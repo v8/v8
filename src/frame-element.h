@@ -28,7 +28,7 @@
 #ifndef V8_FRAME_ELEMENT_H_
 #define V8_FRAME_ELEMENT_H_
 
-#include "register-allocator-inl.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {

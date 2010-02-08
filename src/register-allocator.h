@@ -75,17 +75,9 @@ class Result BASE_EMBEDDED {
 
   // The copy constructor and assignment operators could each create a new
   // register reference.
-  Result(const Result& other) {
-    other.CopyTo(this);
-  }
+  inline Result(const Result& other);
 
-  Result& operator=(const Result& other) {
-    if (this != &other) {
-      Unuse();
-      other.CopyTo(this);
-    }
-    return *this;
-  }
+  inline Result& operator=(const Result& other);
 
   inline ~Result();
 
@@ -237,18 +229,18 @@ class RegisterAllocator BASE_EMBEDDED {
 
   // Predicates and accessors for the registers' reference counts.
   bool is_used(int num) { return registers_.is_used(num); }
-  bool is_used(Register reg) { return registers_.is_used(ToNumber(reg)); }
+  inline bool is_used(Register reg);
 
   int count(int num) { return registers_.count(num); }
-  int count(Register reg) { return registers_.count(ToNumber(reg)); }
+  inline int count(Register reg);
 
   // Explicitly record a reference to a register.
   void Use(int num) { registers_.Use(num); }
-  void Use(Register reg) { registers_.Use(ToNumber(reg)); }
+  inline void Use(Register reg);
 
   // Explicitly record that a register will no longer be used.
   void Unuse(int num) { registers_.Unuse(num); }
-  void Unuse(Register reg) { registers_.Unuse(ToNumber(reg)); }
+  inline void Unuse(Register reg);
 
   // Reset the register reference counts to free all non-reserved registers.
   void Reset() { registers_.Reset(); }

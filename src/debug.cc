@@ -31,6 +31,7 @@
 #include "arguments.h"
 #include "bootstrapper.h"
 #include "code-stubs.h"
+#include "codegen.h"
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"

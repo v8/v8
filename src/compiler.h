@@ -28,8 +28,10 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
+#include "ast.h"
 #include "frame-element.h"
 #include "parser.h"
+#include "register-allocator.h"
 #include "zone.h"
 
 namespace v8 {
