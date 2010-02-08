@@ -223,8 +223,10 @@ class LoadIC: public IC {
   Object* Load(State state, Handle<Object> object, Handle<String> name);
 
   // Code generator routines.
-  static void GenerateInitialize(MacroAssembler* masm);
-  static void GeneratePreMonomorphic(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
+  static void GeneratePreMonomorphic(MacroAssembler* masm) {
+    GenerateMiss(masm);
+  }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
@@ -240,8 +242,6 @@ class LoadIC: public IC {
   static const int kOffsetToLoadInstruction;
 
  private:
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
-
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
@@ -279,8 +279,11 @@ class KeyedLoadIC: public IC {
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateInitialize(MacroAssembler* masm);
-  static void GeneratePreMonomorphic(MacroAssembler* masm);
+  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
+  static void GeneratePreMonomorphic(MacroAssembler* masm) {
+    GenerateMiss(masm);
+  }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
 
@@ -301,8 +304,6 @@ class KeyedLoadIC: public IC {
   // map checks.
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
-
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
 
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
@@ -384,8 +385,9 @@ class KeyedStoreIC: public IC {
                 Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
-  static void GenerateInitialize(MacroAssembler* masm);
+  static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
+  static void GenerateRuntimeSetProperty(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateExtendStorage(MacroAssembler* masm);
 
@@ -403,8 +405,6 @@ class KeyedStoreIC: public IC {
   static void RestoreInlinedVersion(Address address);
 
  private:
-  static void Generate(MacroAssembler* masm, const ExternalReference& f);
-
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
                     State state,

@@ -295,7 +295,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
-  Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
+  GenerateRuntimeGetProperty(masm);
 
   __ bind(&check_string);
   // The key is not a smi.
@@ -586,7 +586,7 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_external_array_slow, 1);
-  Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
+  GenerateRuntimeGetProperty(masm);
 }
 
 
@@ -645,7 +645,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Slow case: call runtime.
   __ bind(&slow);
-  Generate(masm, ExternalReference(Runtime::kSetProperty));
+  GenerateRuntimeSetProperty(masm);
 
   // Check whether the elements is a pixel array.
   // eax: value
@@ -918,7 +918,7 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 
   // Slow case: call runtime.
   __ bind(&slow);
-  Generate(masm, ExternalReference(Runtime::kSetProperty));
+  GenerateRuntimeSetProperty(masm);
 }
 
 
@@ -1164,7 +1164,7 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   StubCache::GenerateProbe(masm, flags, eax, ecx, ebx, edx);
 
   // Cache miss: Jump to runtime.
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  GenerateMiss(masm);
 }
 
 
@@ -1214,7 +1214,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Cache miss: Restore receiver from stack and jump to runtime.
   __ bind(&miss);
   __ mov(eax, Operand(esp, 1 * kPointerSize));
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
+  GenerateMiss(masm);
 }
 
 
@@ -1225,25 +1225,13 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   //  -- esp[4] : receiver
   // -----------------------------------
 
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
-}
-
-
-void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- esp[0] : return address
-  //  -- esp[4] : receiver
-  // -----------------------------------
-
-  __ mov(eax, Operand(esp, kPointerSize));
   __ pop(ebx);
-  __ push(eax);  // receiver
+  __ push(Operand(esp, 0));  // receiver
   __ push(ecx);  // name
   __ push(ebx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 2, 1);
+  __ TailCallRuntime(ExternalReference(IC_Utility(kLoadIC_Miss)), 2, 1);
 }
 
 
@@ -1352,26 +1340,30 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   //  -- esp[8] : receiver
   // -----------------------------------
 
-  Generate(masm, ExternalReference(IC_Utility(kKeyedLoadIC_Miss)));
+  __ pop(ebx);
+  __ push(Operand(esp, kPointerSize));  // receiver
+  __ push(Operand(esp, kPointerSize));  // name
+  __ push(ebx);  // return address
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(ExternalReference(IC_Utility(kKeyedLoadIC_Miss)), 2, 1);
 }
 
 
-void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
+void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- esp[0] : return address
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ pop(ebx);
-  __ push(ecx);  // receiver
-  __ push(eax);  // name
+  __ push(Operand(esp, 1 * kPointerSize));  // receiver
+  __ push(Operand(esp, 1 * kPointerSize));  // name
   __ push(ebx);  // return address
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(f, 2, 1);
+  __ TailCallRuntime(ExternalReference(Runtime::kKeyedGetProperty), 2, 1);
 }
 
 
@@ -1435,7 +1427,7 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 // Defined in ic.cc.
 Object* KeyedStoreIC_Miss(Arguments args);
 
-void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- esp[0] : return address
@@ -1450,7 +1442,26 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ecx);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(f, 3, 1);
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3, 1);
+}
+
+
+void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- esp[0] : return address
+  //  -- esp[4] : key
+  //  -- esp[8] : receiver
+  // -----------------------------------
+
+  __ pop(ecx);
+  __ push(Operand(esp, 1 * kPointerSize));
+  __ push(Operand(esp, 1 * kPointerSize));
+  __ push(eax);
+  __ push(ecx);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(ExternalReference(IC_Utility(kKeyedStoreIC_Miss)), 3, 1);
 }
 
 

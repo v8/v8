@@ -1320,16 +1320,6 @@ Object* LoadIC_Miss(Arguments args) {
 }
 
 
-void LoadIC::GenerateInitialize(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
-}
-
-
-void LoadIC::GeneratePreMonomorphic(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
-}
-
-
 // Used from ic_<arch>.cc
 Object* KeyedLoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
@@ -1337,16 +1327,6 @@ Object* KeyedLoadIC_Miss(Arguments args) {
   KeyedLoadIC ic;
   IC::State state = IC::StateFrom(ic.target(), args[0]);
   return ic.Load(state, args.at<Object>(0), args.at<Object>(1));
-}
-
-
-void KeyedLoadIC::GenerateInitialize(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kKeyedLoadIC_Miss)));
-}
-
-
-void KeyedLoadIC::GeneratePreMonomorphic(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kKeyedLoadIC_Miss)));
 }
 
 
@@ -1403,16 +1383,6 @@ Object* KeyedStoreIC_Miss(Arguments args) {
   IC::State state = IC::StateFrom(ic.target(), args[0]);
   return ic.Store(state, args.at<Object>(0), args.at<Object>(1),
                   args.at<Object>(2));
-}
-
-
-void KeyedStoreIC::GenerateInitialize(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kKeyedStoreIC_Miss)));
-}
-
-
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  Generate(masm, ExternalReference(IC_Utility(kKeyedStoreIC_Miss)));
 }
 
 
