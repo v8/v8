@@ -79,13 +79,22 @@ class FastCodeGenerator: public AstVisitor {
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return info_->scope(); }
 
+  // Platform-specific fixed registers, all guaranteed distinct.
+  Register accumulator0();
+  Register accumulator1();
+  Register scratch0();
+  Register scratch1();
+  Register receiver_reg();
+  Register context_reg();
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  // Emit code to load the receiver from the stack into a given register.
-  void EmitLoadReceiver(Register reg);
+  // Emit code to load the receiver from the stack into the fixed receiver
+  // register.
+  void EmitLoadReceiver();
 
   // Emit code to check that the receiver has the same map as the
   // compile-time receiver.  Receiver is expected in {ia32-edx, x64-rdx,

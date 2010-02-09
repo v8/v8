@@ -35,48 +35,30 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-void FastCodeGenerator::EmitLoadReceiver(Register reg) {
+// Registers rcx, rdi, and r8-r15 are free to use as scratch registers
+// without saving and restoring any other registers.
+Register FastCodeGenerator::accumulator0() { return rax; }
+Register FastCodeGenerator::accumulator1() { return rdx; }
+Register FastCodeGenerator::scratch0() { return rcx; }
+Register FastCodeGenerator::scratch1() { return rdi; }
+Register FastCodeGenerator::receiver_reg() { return rbx; }
+Register FastCodeGenerator::context_reg() { return rsi; }
+
+
+void FastCodeGenerator::EmitLoadReceiver() {
   // Offset 2 is due to return address and saved frame pointer.
   int index = 2 + scope()->num_parameters();
-  __ movq(reg, Operand(rbp, index * kPointerSize));
-}
-
-
-void FastCodeGenerator::EmitReceiverMapCheck() {
-  Comment cmnt(masm(), ";; MapCheck(this)");
-  if (FLAG_print_ir) {
-    PrintF("MapCheck(this)\n");
-  }
-
-  ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
-  Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
-  Handle<Map> map(object->map());
-
-  EmitLoadReceiver(rdx);
-  __ CheckMap(rdx, map, bailout(), false);
-}
-
-
-void FastCodeGenerator::EmitGlobalMapCheck() {
-  Comment cmnt(masm(), ";; GlobalMapCheck");
-  if (FLAG_print_ir) {
-    PrintF(";; GlobalMapCheck()");
-  }
-
-  ASSERT(info()->has_global_object());
-  Handle<Map> map(info()->global_object()->map());
-
-  __ movq(rbx, CodeGenerator::GlobalObject());
-  __ CheckMap(rbx, map, bailout(), true);
+  __ movq(receiver_reg(), Operand(rbp, index * kPointerSize));
 }
 
 
 void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
   ASSERT(cell->IsJSGlobalPropertyCell());
-  __ Move(rax, cell);
-  __ movq(rax, FieldOperand(rax, JSGlobalPropertyCell::kValueOffset));
+  __ Move(accumulator0(), cell);
+  __ movq(accumulator0(),
+          FieldOperand(accumulator0(), JSGlobalPropertyCell::kValueOffset));
   if (FLAG_debug_code) {
-    __ Cmp(rax, Factory::the_hole_value());
+    __ Cmp(accumulator0(), Factory::the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 }
@@ -95,16 +77,19 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   // Negative offsets are inobject properties.
   if (offset < 0) {
     offset += map->instance_size();
-    __ movq(rcx, rdx);  // Copy receiver for write barrier.
+    __ movq(scratch0(), receiver_reg());  // Copy receiver for write barrier.
   } else {
     offset += FixedArray::kHeaderSize;
-    __ movq(rcx, FieldOperand(rdx, JSObject::kPropertiesOffset));
+    __ movq(scratch0(),
+            FieldOperand(receiver_reg(), JSObject::kPropertiesOffset));
   }
   // Perform the store.
-  __ movq(FieldOperand(rcx, offset), rax);
+  __ movq(FieldOperand(scratch0(), offset), accumulator0());
   // Preserve value from write barrier in case it's needed.
-  __ movq(rbx, rax);
-  __ RecordWrite(rcx, offset, rbx, rdi);
+  __ movq(accumulator1(), accumulator0());
+  // The other accumulator register is available as a scratch register
+  // because this is not an AST leaf node.
+  __ RecordWrite(scratch0(), offset, accumulator1(), scratch1());
 }
 
 
@@ -121,19 +106,39 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   // Note that we keep a live register reference to esi (context) at this
   // point.
 
-  // Receiver (this) is allocated to rdx if there are this properties.
-  if (info()->has_this_properties()) EmitReceiverMapCheck();
+  // Receiver (this) is allocated to a fixed register.
+  if (info()->has_this_properties()) {
+    Comment cmnt(masm(), ";; MapCheck(this)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(this)\n");
+    }
+    ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
+    Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
+    Handle<Map> map(object->map());
+    EmitLoadReceiver();
+    __ CheckMap(receiver_reg(), map, bailout(), false);
+  }
 
-  // If there is a global variable access check if the global object
-  // is the same as at lazy-compilation time.
-  if (info()->has_globals()) EmitGlobalMapCheck();
+  // If there is a global variable access check if the global object is the
+  // same as at lazy-compilation time.
+  if (info()->has_globals()) {
+    Comment cmnt(masm(), ";; MapCheck(GLOBAL)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(GLOBAL)\n");
+    }
+    ASSERT(info()->has_global_object());
+    Handle<Map> map(info()->global_object()->map());
+    __ movq(scratch0(), CodeGenerator::GlobalObject());
+    __ CheckMap(scratch0(), map, bailout(), true);
+  }
 
   VisitStatements(info()->function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
+  if (FLAG_print_ir) {
+    PrintF("Return(<undefined>)\n");
+  }
   __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-
-  Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ movq(rsp, rbp);
   __ pop(rbp);
   __ ret((scope()->num_parameters() + 1) * kPointerSize);

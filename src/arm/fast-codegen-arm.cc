@@ -35,49 +35,29 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-void FastCodeGenerator::EmitLoadReceiver(Register reg) {
+Register FastCodeGenerator::accumulator0() { return r0; }
+Register FastCodeGenerator::accumulator1() { return r1; }
+Register FastCodeGenerator::scratch0() { return r3; }
+Register FastCodeGenerator::scratch1() { return r4; }
+Register FastCodeGenerator::receiver_reg() { return r2; }
+Register FastCodeGenerator::context_reg() { return cp; }
+
+
+void FastCodeGenerator::EmitLoadReceiver() {
   // Offset 2 is due to return address and saved frame pointer.
   int index = 2 + scope()->num_parameters();
-  __ ldr(reg, MemOperand(sp, index * kPointerSize));
-}
-
-
-void FastCodeGenerator::EmitReceiverMapCheck() {
-  Comment cmnt(masm(), ";; MapCheck(this)");
-  if (FLAG_print_ir) {
-    PrintF("MapCheck(this)\n");
-  }
-
-  ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
-  Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
-  Handle<Map> map(object->map());
-
-  EmitLoadReceiver(r1);
-  __ CheckMap(r1, r3, map, bailout(), false);
-}
-
-
-void FastCodeGenerator::EmitGlobalMapCheck() {
-  Comment cmnt(masm(), ";; GlobalMapCheck");
-  if (FLAG_print_ir) {
-    PrintF(";; GlobalMapCheck()");
-  }
-
-  ASSERT(info()->has_global_object());
-  Handle<Map> map(info()->global_object()->map());
-
-  __ ldr(r3, CodeGenerator::GlobalObject());
-  __ CheckMap(r3, r3, map, bailout(), true);
+  __ ldr(receiver_reg(), MemOperand(sp, index * kPointerSize));
 }
 
 
 void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
   ASSERT(cell->IsJSGlobalPropertyCell());
-  __ mov(r0, Operand(cell));
-  __ ldr(r0, FieldMemOperand(r0, JSGlobalPropertyCell::kValueOffset));
+  __ mov(accumulator0(), Operand(cell));
+  __ ldr(accumulator0(),
+         FieldMemOperand(accumulator0(), JSGlobalPropertyCell::kValueOffset));
   if (FLAG_debug_code) {
     __ mov(ip, Operand(Factory::the_hole_value()));
-    __ cmp(r0, ip);
+    __ cmp(accumulator0(), ip);
     __ Check(ne, "DontDelete cells can't contain the hole");
   }
 }
@@ -96,15 +76,16 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   // Negative offsets are inobject properties.
   if (offset < 0) {
     offset += map->instance_size();
-    __ mov(r2, r1);  // Copy receiver for write barrier.
+    __ mov(scratch0(), receiver_reg());  // Copy receiver for write barrier.
   } else {
     offset += FixedArray::kHeaderSize;
-    __ ldr(r2, FieldMemOperand(r1, JSObject::kPropertiesOffset));
+    __ ldr(scratch0(),
+           FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
   }
   // Perform the store.
-  __ str(r0, FieldMemOperand(r2, offset));
-  __ mov(r3, Operand(offset));
-  __ RecordWrite(r2, r3, ip);
+  __ str(accumulator0(), FieldMemOperand(scratch0(), offset));
+  __ mov(scratch1(), Operand(offset));
+  __ RecordWrite(scratch0(), scratch1(), ip);
 }
 
 
@@ -119,19 +100,39 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   // Note that we keep a live register reference to cp (context) at
   // this point.
 
-  // Receiver (this) is allocated to r1 if there are this properties.
-  if (info()->has_this_properties()) EmitReceiverMapCheck();
+  // Receiver (this) is allocated to a fixed register.
+  if (info()->has_this_properties()) {
+    Comment cmnt(masm(), ";; MapCheck(this)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(this)\n");
+    }
+    ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
+    Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
+    Handle<Map> map(object->map());
+    EmitLoadReceiver();
+    __ CheckMap(receiver_reg(), scratch0(), map, bailout(), false);
+  }
 
-  // If there is a global variable access check if the global object
-  // is the same as at lazy-compilation time.
-  if (info()->has_globals()) EmitGlobalMapCheck();
+  // If there is a global variable access check if the global object is the
+  // same as at lazy-compilation time.
+  if (info()->has_globals()) {
+    Comment cmnt(masm(), ";; MapCheck(GLOBAL)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(GLOBAL)\n");
+    }
+    ASSERT(info()->has_global_object());
+    Handle<Map> map(info()->global_object()->map());
+    __ ldr(scratch0(), CodeGenerator::GlobalObject());
+    __ CheckMap(scratch0(), scratch1(), map, bailout(), true);
+  }
 
   VisitStatements(function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
+  if (FLAG_print_ir) {
+    PrintF("Return(<undefined>)\n");
+  }
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-
-  Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
   int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
