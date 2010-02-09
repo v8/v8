@@ -226,13 +226,14 @@ static void GenerateStringCheck(MacroAssembler* masm,
 
 void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register receiver,
-                                            Register scratch,
+                                            Register scratch1,
+                                            Register scratch2,
                                             Label* miss) {
   Label load_length, check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch register.
-  GenerateStringCheck(masm, receiver, scratch, miss, &check_wrapper);
+  GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
 
   // Load length from the string and convert to a smi.
   __ bind(&load_length);
@@ -242,13 +243,13 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
 
   // Check if the object is a JSValue wrapper.
   __ bind(&check_wrapper);
-  __ cmp(scratch, JS_VALUE_TYPE);
+  __ cmp(scratch1, JS_VALUE_TYPE);
   __ j(not_equal, miss, not_taken);
 
   // Check if the wrapped value is a string and load the length
   // directly if it is.
-  __ mov(receiver, FieldOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, receiver, scratch, miss, miss);
+  __ mov(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
   __ jmp(&load_length);
 }
 
@@ -1773,7 +1774,7 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadStringLength(masm(), ecx, edx, &miss);
+  GenerateLoadStringLength(masm(), ecx, edx, ebx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);

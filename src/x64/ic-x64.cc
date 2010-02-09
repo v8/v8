@@ -1302,7 +1302,7 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 
   __ movq(rax, Operand(rsp, kPointerSize));
 
-  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, rax, rdx, rbx, &miss);
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }

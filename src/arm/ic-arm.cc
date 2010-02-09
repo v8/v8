@@ -190,7 +190,7 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  StubCompiler::GenerateLoadStringLength2(masm, r0, r1, r3, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, r0, r1, r3, &miss);
   // Cache miss: Jump to runtime.
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);

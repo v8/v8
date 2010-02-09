@@ -215,11 +215,11 @@ static void GenerateStringCheck(MacroAssembler* masm,
 // If the receiver object is not a string or a wrapped string object the
 // execution continues at the miss label. The register containing the
 // receiver is potentially clobbered.
-void StubCompiler::GenerateLoadStringLength2(MacroAssembler* masm,
-                                             Register receiver,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* miss) {
+void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
+                                            Register receiver,
+                                            Register scratch1,
+                                            Register scratch2,
+                                            Label* miss) {
   Label check_string, check_wrapper;
 
   __ bind(&check_string);
@@ -1672,7 +1672,7 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   __ cmp(r2, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  GenerateLoadStringLength2(masm(), r0, r1, r3, &miss);
+  GenerateLoadStringLength(masm(), r0, r1, r3, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
 
