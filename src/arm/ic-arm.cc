@@ -788,23 +788,6 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 }
 
 
-void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- r0     : value
-  //  -- lr     : return address
-  //  -- sp[0]  : key
-  //  -- sp[1]  : receiver
-  // ----------- S t a t e -------------
-
-  __ ldm(ia, sp, r2.bit() | r3.bit());
-  __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
-}
-
-
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -822,23 +805,6 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
-}
-
-
-void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r0    : value
-  //  -- r2    : name
-  //  -- lr    : return address
-  //  -- [sp]  : receiver
-  // -----------------------------------
-
-  __ ldr(r3, MemOperand(sp));  // copy receiver
-  __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 

@@ -1385,26 +1385,6 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : transition map
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-
-  __ pop(ebx);
-  __ push(edx);  // receiver
-  __ push(ecx);  // transition map
-  __ push(eax);  // value
-  __ push(ebx);  // return address
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
-}
-
-
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
@@ -1462,27 +1442,6 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(ExternalReference(IC_Utility(kKeyedStoreIC_Miss)), 3, 1);
-}
-
-
-void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : transition map
-  //  -- esp[0] : return address
-  //  -- esp[4] : key
-  //  -- esp[8] : receiver
-  // -----------------------------------
-
-  __ pop(ebx);
-  __ push(Operand(esp, 1 * kPointerSize));
-  __ push(ecx);
-  __ push(eax);
-  __ push(ebx);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
 }
 
 #undef __

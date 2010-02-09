@@ -607,8 +607,9 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 }
 
 
+// Both name_reg and receiver_reg are preserved on jumps to miss_label,
+// but may be destroyed if store is successful.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      Builtins::Name storage_extend,
                                       JSObject* object,
                                       int index,
                                       Map* transition,
@@ -638,9 +639,13 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
-    __ mov(ecx, Immediate(Handle<Map>(transition)));
-    Handle<Code> ic(Builtins::builtin(storage_extend));
-    __ jmp(ic, RelocInfo::CODE_TARGET);
+    __ pop(scratch);  // Return address.
+    __ push(receiver_reg);
+    __ push(Immediate(Handle<Map>(transition)));
+    __ push(eax);
+    __ push(scratch);
+    __ TailCallRuntime(
+        ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage)), 3, 1);
     return;
   }
 
@@ -1251,7 +1256,6 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Generate store field code.  Trashes the name register.
   GenerateStoreField(masm(),
-                     Builtins::StoreIC_ExtendStorage,
                      object,
                      index,
                      transition,
@@ -1425,15 +1429,14 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ j(not_equal, &miss, not_taken);
 
   // Get the object from the stack.
-  __ mov(ebx, Operand(esp, 2 * kPointerSize));
+  __ mov(edx, Operand(esp, 2 * kPointerSize));
 
   // Generate store field code.  Trashes the name register.
   GenerateStoreField(masm(),
-                     Builtins::KeyedStoreIC_ExtendStorage,
                      object,
                      index,
                      transition,
-                     ebx, ecx, edx,
+                     edx, ecx, ebx,
                      &miss);
 
   // Handle store cache miss.

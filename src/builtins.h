@@ -69,9 +69,6 @@ enum BuiltinExtraArguments {
   V(StoreIC_Miss,               BUILTIN, UNINITIALIZED)                   \
   V(KeyedStoreIC_Miss,          BUILTIN, UNINITIALIZED)                   \
                                                                           \
-  V(StoreIC_ExtendStorage,      BUILTIN, UNINITIALIZED)                   \
-  V(KeyedStoreIC_ExtendStorage, BUILTIN, UNINITIALIZED)                   \
-                                                                          \
   V(LoadIC_Initialize,          LOAD_IC, UNINITIALIZED)                   \
   V(LoadIC_PreMonomorphic,      LOAD_IC, PREMONOMORPHIC)                  \
   V(LoadIC_Normal,              LOAD_IC, MONOMORPHIC)                     \

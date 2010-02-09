@@ -261,7 +261,6 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 // After executing generated code, the receiver_reg and name_reg
 // may be clobbered.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      Builtins::Name storage_extend,
                                       JSObject* object,
                                       int index,
                                       Map* transition,
@@ -294,11 +293,12 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
+    __ push(receiver_reg);
     __ mov(r2, Operand(Handle<Map>(transition)));
-    // Please note, if we implement keyed store for arm we need
-    // to call the Builtins::KeyedStoreIC_ExtendStorage.
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
-    __ Jump(ic, RelocInfo::CODE_TARGET);
+    __ stm(db_w, sp, r2.bit() | r0.bit());
+    __ TailCallRuntime(
+           ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage)),
+           3, 1);
     return;
   }
 
@@ -1215,7 +1215,6 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
 
   // name register might be clobbered.
   GenerateStoreField(masm(),
-                     Builtins::StoreIC_ExtendStorage,
                      object,
                      index,
                      transition,
@@ -1719,7 +1718,6 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ ldr(r3, MemOperand(sp));
   // r1 is used as scratch register, r3 and r2 might be clobbered.
   GenerateStoreField(masm(),
-                     Builtins::StoreIC_ExtendStorage,
                      object,
                      index,
                      transition,

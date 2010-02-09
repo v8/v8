@@ -352,7 +352,6 @@ class StoreIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
-  static void GenerateExtendStorage(MacroAssembler* masm);
 
  private:
   // Update the inline cache and the global stub cache based on the
@@ -389,7 +388,6 @@ class KeyedStoreIC: public IC {
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeSetProperty(MacroAssembler* masm);
   static void GenerateGeneric(MacroAssembler* masm);
-  static void GenerateExtendStorage(MacroAssembler* masm);
 
   // Generators for external array types. See objects.h.
   // These are similar to the generic IC; they optimize the case of

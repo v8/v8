@@ -668,10 +668,6 @@ static void Generate_StoreIC_Miss(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_ExtendStorage(MacroAssembler* masm) {
-  StoreIC::GenerateExtendStorage(masm);
-}
-
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
   StoreIC::GenerateMegamorphic(masm);
 }
@@ -717,11 +713,6 @@ static void Generate_KeyedStoreIC_ExternalUnsignedIntArray(
 
 static void Generate_KeyedStoreIC_ExternalFloatArray(MacroAssembler* masm) {
   KeyedStoreIC::GenerateExternalArray(masm, kExternalFloatArray);
-}
-
-
-static void Generate_KeyedStoreIC_ExtendStorage(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateExtendStorage(masm);
 }
 
 

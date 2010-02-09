@@ -201,8 +201,9 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 }
 
 
+// Both name_reg and receiver_reg are preserved on jumps to miss_label,
+// but may be destroyed if store is successful.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      Builtins::Name storage_extend,
                                       JSObject* object,
                                       int index,
                                       Map* transition,
@@ -231,9 +232,13 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
-    __ Move(rcx, Handle<Map>(transition));
-    Handle<Code> ic(Builtins::builtin(storage_extend));
-    __ Jump(ic, RelocInfo::CODE_TARGET);
+    __ pop(scratch);  // Return address.
+    __ push(receiver_reg);
+    __ Push(Handle<Map>(transition));
+    __ push(rax);
+    __ push(scratch);
+    __ TailCallRuntime(
+        ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage)), 3, 1);
     return;
   }
 
@@ -1399,9 +1404,8 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  // Generate store field code.  Trashes the name register.
+  // Generate store field code.  Preserves receiver and name on jump to miss.
   GenerateStoreField(masm(),
-                     Builtins::StoreIC_ExtendStorage,
                      object,
                      index,
                      transition,
@@ -1410,7 +1414,6 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ Move(rcx, Handle<String>(name));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
@@ -1552,16 +1555,15 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ Cmp(rcx, Handle<String>(name));
   __ j(not_equal, &miss);
 
-  // Get the object from the stack.
-  __ movq(rbx, Operand(rsp, 2 * kPointerSize));
+  // Get the receiver from the stack.
+  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
 
-  // Generate store field code.  Trashes the name register.
+  // Generate store field code.  Preserves receiver and name on jump to miss.
   GenerateStoreField(masm(),
-                     Builtins::KeyedStoreIC_ExtendStorage,
                      object,
                      index,
                      transition,
-                     rbx, rcx, rdx,
+                     rdx, rcx, rbx,
                      &miss);
 
   // Handle store cache miss.

@@ -611,27 +611,6 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax     : value
-  //  -- rcx     : transition map
-  //  -- rsp[0]  : return address
-  //  -- rsp[8]  : key
-  //  -- rsp[16] : receiver
-  // -----------------------------------
-
-  __ pop(rbx);
-  __ push(Operand(rsp, 1 * kPointerSize));  // receiver
-  __ push(rcx);  // transition map
-  __ push(rax);  // value
-  __ push(rbx);  // return address
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
-}
-
-
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
@@ -1308,7 +1287,6 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 }
 
 
-
 bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   // The address of the instruction following the call.
   Address test_instruction_address =
@@ -1336,6 +1314,7 @@ bool LoadIC::PatchInlinedLoad(Address address, Object* map, int offset) {
   return true;
 }
 
+
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : value
@@ -1354,24 +1333,6 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
   __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
 }
 
-void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rax    : value
-  //  -- rcx    : Map (target of map transition)
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-
-  __ pop(rbx);
-  __ push(rdx);  // receiver
-  __ push(rcx);  // transition map
-  __ push(rax);  // value
-  __ push(rbx);  // return address
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(
-      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3, 1);
-}
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
