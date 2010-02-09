@@ -189,8 +189,9 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
-// Generate code to check if an object is a string.  If the object is
-// a string, the map's instance type is left in the scratch1 register.
+// Generate code to check if an object is a string.  If the object is a
+// heap object, its map's instance type is left in the scratch1 register.
+// If this is not needed, scratch1 and scratch2 may be the same register.
 static void GenerateStringCheck(MacroAssembler* masm,
                                 Register receiver,
                                 Register scratch1,
@@ -220,13 +221,11 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register scratch1,
                                             Register scratch2,
                                             Label* miss) {
-  Label check_string, check_wrapper;
+  Label check_wrapper;
 
-  __ bind(&check_string);
   // Check if the object is a string leaving the instance type in the
   // scratch1 register.
-  GenerateStringCheck(masm, receiver, scratch1, scratch2,
-                      miss, &check_wrapper);
+  GenerateStringCheck(masm, receiver, scratch1, scratch2, miss, &check_wrapper);
 
   // Load length directly from the string.
   __ ldr(r0, FieldMemOperand(receiver, String::kLengthOffset));
@@ -238,9 +237,12 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   __ cmp(scratch1, Operand(JS_VALUE_TYPE));
   __ b(ne, miss);
 
-  // Unwrap the value in place and check if the wrapped value is a string.
-  __ ldr(receiver, FieldMemOperand(receiver, JSValue::kValueOffset));
-  __ b(&check_string);
+  // Unwrap the value and check if the wrapped value is a string.
+  __ ldr(scratch1, FieldMemOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, scratch1, scratch2, scratch2, miss, miss);
+  __ ldr(r0, FieldMemOperand(scratch1, String::kLengthOffset));
+  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
+  __ Ret();
 }
 
 

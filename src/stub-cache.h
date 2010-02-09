@@ -346,6 +346,7 @@ class StubCompiler BASE_EMBEDDED {
   static void GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                   int index,
                                                   Register prototype);
+
   static void GenerateFastPropertyLoad(MacroAssembler* masm,
                                        Register dst, Register src,
                                        JSObject* holder, int index);
@@ -354,16 +355,19 @@ class StubCompiler BASE_EMBEDDED {
                                       Register receiver,
                                       Register scratch,
                                       Label* miss_label);
+
   static void GenerateLoadStringLength(MacroAssembler* masm,
-                                        Register receiver,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        Label* miss_label);
+                                       Register receiver,
+                                       Register scratch1,
+                                       Register scratch2,
+                                       Label* miss_label);
+
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
                                             Register scratch2,
                                             Label* miss_label);
+
   static void GenerateStoreField(MacroAssembler* masm,
                                  Builtins::Name storage_extend,
                                  JSObject* object,
@@ -373,6 +377,7 @@ class StubCompiler BASE_EMBEDDED {
                                  Register name_reg,
                                  Register scratch,
                                  Label* miss_label);
+
   static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
 
   // Check the integrity of the prototype chain to make sure that the

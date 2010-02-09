@@ -317,14 +317,13 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Register scratch1,
                                             Register scratch2,
                                             Label* miss) {
-  Label load_length, check_wrapper;
+  Label check_wrapper;
 
   // Check if the object is a string leaving the instance type in the
   // scratch register.
   GenerateStringCheck(masm, receiver, scratch1, miss, &check_wrapper);
 
   // Load length directly from the string.
-  __ bind(&load_length);
   __ movl(rax, FieldOperand(receiver, String::kLengthOffset));
   __ Integer32ToSmi(rax, rax);
   __ ret(0);
@@ -338,8 +337,9 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
   // directly if it is.
   __ movq(scratch2, FieldOperand(receiver, JSValue::kValueOffset));
   GenerateStringCheck(masm, scratch2, scratch1, miss, miss);
-  __ movq(receiver, scratch2);
-  __ jmp(&load_length);
+  __ movl(rax, FieldOperand(scratch2, String::kLengthOffset));
+  __ Integer32ToSmi(rax, rax);
+  __ ret(0);
 }
 
 
