@@ -474,6 +474,76 @@ BUILTIN(HandleApiCallConstruct) {
 }
 
 
+#ifdef DEBUG
+
+static void VerifyTypeCheck(Handle<JSObject> object,
+                            Handle<JSFunction> function) {
+  FunctionTemplateInfo* info =
+      FunctionTemplateInfo::cast(function->shared()->function_data());
+  if (info->signature()->IsUndefined()) return;
+  SignatureInfo* signature = SignatureInfo::cast(info->signature());
+  Object* receiver_type = signature->receiver();
+  if (receiver_type->IsUndefined()) return;
+  FunctionTemplateInfo* type = FunctionTemplateInfo::cast(receiver_type);
+  ASSERT(object->IsInstanceOf(type));
+}
+
+#endif
+
+
+BUILTIN(FastHandleApiCall) {
+  ASSERT(!CalledAsConstructor());
+  const bool is_construct = false;
+
+  // We expect four more arguments: function, callback, call data, and holder.
+  const int args_length = args.length() - 4;
+  ASSERT(args_length >= 0);
+
+  Handle<JSFunction> function = args.at<JSFunction>(args_length);
+  Object* callback_obj = args[args_length + 1];
+  Handle<Object> data_handle = args.at<Object>(args_length + 2);
+  Handle<JSObject> checked_holder = args.at<JSObject>(args_length + 3);
+
+#ifdef DEBUG
+  VerifyTypeCheck(checked_holder, function);
+#endif
+
+  v8::Local<v8::Object> holder = v8::Utils::ToLocal(checked_holder);
+  v8::Local<v8::Function> callee = v8::Utils::ToLocal(function);
+  v8::InvocationCallback callback =
+      v8::ToCData<v8::InvocationCallback>(callback_obj);
+  v8::Local<v8::Value> data = v8::Utils::ToLocal(data_handle);
+
+  v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
+      data,
+      holder,
+      callee,
+      is_construct,
+      reinterpret_cast<void**>(&args[0] - 1),
+      args_length - 1);
+
+  HandleScope scope;
+  Object* result;
+  v8::Handle<v8::Value> value;
+  {
+    // Leaving JavaScript.
+    VMState state(EXTERNAL);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+    state.set_external_callback(v8::ToCData<Address>(callback_obj));
+#endif
+    value = callback(new_args);
+  }
+  if (value.IsEmpty()) {
+    result = Heap::undefined_value();
+  } else {
+    result = *reinterpret_cast<Object**>(*value);
+  }
+
+  RETURN_IF_SCHEDULED_EXCEPTION();
+  return result;
+}
+
+
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).

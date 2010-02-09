@@ -5890,6 +5890,294 @@ THREADED_TEST(InterceptorCallICCachedFromGlobal) {
   CHECK_EQ(239 * 10, value->Int32Value());
 }
 
+static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  int* call_count = reinterpret_cast<int*>(v8::External::Unwrap(info.Data()));
+  ++(*call_count);
+  if ((*call_count) % 20 == 0) {
+    v8::internal::Heap::CollectAllGarbage(true);
+  }
+  return v8::Handle<Value>();
+}
+
+static v8::Handle<Value> FastApiCallback_TrivialSignature(
+    const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CHECK_EQ(args.This(), args.Holder());
+  CHECK(args.Data()->Equals(v8_str("method_data")));
+  return v8::Integer::New(args[0]->Int32Value() + 1);
+}
+
+static v8::Handle<Value> FastApiCallback_SimpleSignature(
+    const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  CHECK_EQ(args.This()->GetPrototype(), args.Holder());
+  CHECK(args.Data()->Equals(v8_str("method_data")));
+  // Note, we're using HasRealNamedProperty instead of Has to avoid
+  // invoking the interceptor again.
+  CHECK(args.Holder()->HasRealNamedProperty(v8_str("foo")));
+  return v8::Integer::New(args[0]->Int32Value() + 1);
+}
+
+// Helper to maximize the odds of object moving.
+static void GenerateSomeGarbage() {
+  CompileRun(
+      "var garbage;"
+      "for (var i = 0; i < 1000; i++) {"
+      "  garbage = [1/i, \"garbage\" + i, garbage, {foo: garbage}];"
+      "}"
+      "garbage = undefined;");
+}
+
+THREADED_TEST(InterceptorCallICFastApi_TrivialSignature) {
+  int interceptor_call_count = 0;
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_TrivialSignature,
+                                v8_str("method_data"),
+                                v8::Handle<v8::Signature>());
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
+                                 NULL, NULL, NULL, NULL,
+                                 v8::External::Wrap(&interceptor_call_count));
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "var result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = o.method(41);"
+      "}");
+  CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
+  CHECK_EQ(100, interceptor_call_count);
+}
+
+THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
+  int interceptor_call_count = 0;
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
+                                 NULL, NULL, NULL, NULL,
+                                 v8::External::Wrap(&interceptor_call_count));
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "}");
+  CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
+  CHECK_EQ(100, interceptor_call_count);
+}
+
+THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
+  int interceptor_call_count = 0;
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
+                                 NULL, NULL, NULL, NULL,
+                                 v8::External::Wrap(&interceptor_call_count));
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "var saved_result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "  if (i == 50) {"
+      "    saved_result = result;"
+      "    receiver = {method: function(x) { return x - 1 }};"
+      "  }"
+      "}");
+  CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
+  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+  CHECK_GE(interceptor_call_count, 50);
+}
+
+THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
+  int interceptor_call_count = 0;
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
+                                 NULL, NULL, NULL, NULL,
+                                 v8::External::Wrap(&interceptor_call_count));
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "var saved_result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "  if (i == 50) {"
+      "    saved_result = result;"
+      "    o.method = function(x) { return x - 1 };"
+      "  }"
+      "}");
+  CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
+  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+  CHECK_GE(interceptor_call_count, 50);
+}
+
+THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
+  int interceptor_call_count = 0;
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
+                                 NULL, NULL, NULL, NULL,
+                                 v8::External::Wrap(&interceptor_call_count));
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::TryCatch try_catch;
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "var saved_result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "  if (i == 50) {"
+      "    saved_result = result;"
+      "    receiver = {method: receiver.method};"
+      "  }"
+      "}");
+  CHECK(try_catch.HasCaught());
+  CHECK_EQ(v8_str("TypeError: Illegal invocation"),
+           try_catch.Exception()->ToString());
+  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+  CHECK_GE(interceptor_call_count, 50);
+}
+
+THREADED_TEST(CallICFastApi_TrivialSignature) {
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_TrivialSignature,
+                                v8_str("method_data"),
+                                v8::Handle<v8::Signature>());
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "var result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = o.method(41);"
+      "}");
+
+  CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+THREADED_TEST(CallICFastApi_SimpleSignature) {
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "}");
+
+  CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+THREADED_TEST(CallICFastApi_SimpleSignature_Miss) {
+  v8::HandleScope scope;
+  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
+  v8::Handle<v8::FunctionTemplate> method_templ =
+      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
+                                v8_str("method_data"),
+                                v8::Signature::New(fun_templ));
+  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
+  proto_templ->Set(v8_str("method"), method_templ);
+  v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
+  LocalContext context;
+  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
+  GenerateSomeGarbage();
+  context->Global()->Set(v8_str("o"), fun->NewInstance());
+  v8::Handle<Value> value = CompileRun(
+      "o.foo = 17;"
+      "var receiver = {};"
+      "receiver.__proto__ = o;"
+      "var result = 0;"
+      "var saved_result = 0;"
+      "for (var i = 0; i < 100; i++) {"
+      "  result = receiver.method(41);"
+      "  if (i == 50) {"
+      "    saved_result = result;"
+      "    receiver = {method: function(x) { return x - 1 }};"
+      "  }"
+      "}");
+  CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
+  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
+}
+
 
 static int interceptor_call_count = 0;
 

@@ -61,6 +61,8 @@ enum AllocationFlags {
   RESULT_CONTAINS_TOP = 1 << 1
 };
 
+// Invalid depth in prototype chain.
+const int kInvalidProtoDepth = -1;
 
 #if V8_TARGET_ARCH_IA32
 #include "assembler.h"

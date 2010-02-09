@@ -737,7 +737,11 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
                                        Register holder_reg,
                                        Register scratch,
                                        String* name,
+                                       int save_at_depth,
                                        Label* miss) {
+  // TODO(602): support object saving.
+  ASSERT(save_at_depth == kInvalidProtoDepth);
+
   // Check that the maps haven't changed.
   Register result =
       masm()->CheckMaps(object, object_reg, holder, holder_reg, scratch, miss);

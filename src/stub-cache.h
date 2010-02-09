@@ -381,12 +381,25 @@ class StubCompiler BASE_EMBEDDED {
 
   // Check the integrity of the prototype chain to make sure that the
   // current IC is still valid.
+
   Register CheckPrototypes(JSObject* object,
                            Register object_reg,
                            JSObject* holder,
                            Register holder_reg,
                            Register scratch,
                            String* name,
+                           Label* miss) {
+    return CheckPrototypes(object, object_reg, holder, holder_reg, scratch,
+                           name, kInvalidProtoDepth, miss);
+  }
+
+  Register CheckPrototypes(JSObject* object,
+                           Register object_reg,
+                           JSObject* holder,
+                           Register holder_reg,
+                           Register scratch,
+                           String* name,
+                           int save_at_depth,
                            Label* miss);
 
  protected:

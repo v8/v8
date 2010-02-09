@@ -481,88 +481,353 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 };
 
 
+// Holds information about possible function call optimizations.
+class CallOptimization BASE_EMBEDDED {
+ public:
+  explicit CallOptimization(LookupResult* lookup)
+    : constant_function_(NULL),
+      is_simple_api_call_(false),
+      expected_receiver_type_(NULL),
+      api_call_info_(NULL) {
+    if (!lookup->IsValid() || !lookup->IsCacheable()) return;
+
+    // We only optimize constant function calls.
+    if (lookup->type() != CONSTANT_FUNCTION) return;
+
+    Initialize(lookup->GetConstantFunction());
+  }
+
+  explicit CallOptimization(JSFunction* function) {
+    Initialize(function);
+  }
+
+  bool is_constant_call() const {
+    return constant_function_ != NULL;
+  }
+
+  JSFunction* constant_function() const {
+    ASSERT(constant_function_ != NULL);
+    return constant_function_;
+  }
+
+  bool is_simple_api_call() const {
+    return is_simple_api_call_;
+  }
+
+  FunctionTemplateInfo* expected_receiver_type() const {
+    ASSERT(is_simple_api_call_);
+    return expected_receiver_type_;
+  }
+
+  CallHandlerInfo* api_call_info() const {
+    ASSERT(is_simple_api_call_);
+    return api_call_info_;
+  }
+
+  // Returns the depth of the object having the expected type in the
+  // prototype chain between the two arguments.
+  int GetPrototypeDepthOfExpectedType(JSObject* object,
+                                      JSObject* holder) const {
+    ASSERT(is_simple_api_call_);
+    if (expected_receiver_type_ == NULL) return 0;
+    int depth = 0;
+    while (object != holder) {
+      if (object->IsInstanceOf(expected_receiver_type_)) return depth;
+      object = JSObject::cast(object->GetPrototype());
+      ++depth;
+    }
+    if (holder->IsInstanceOf(expected_receiver_type_)) return depth;
+    return kInvalidProtoDepth;
+  }
+
+ private:
+  void Initialize(JSFunction* function) {
+    if (!function->is_compiled()) return;
+
+    constant_function_ = function;
+    is_simple_api_call_ = false;
+
+    AnalyzePossibleApiFunction(function);
+  }
+
+  // Determines whether the given function can be called using the
+  // fast api call builtin.
+  void AnalyzePossibleApiFunction(JSFunction* function) {
+    SharedFunctionInfo* sfi = function->shared();
+    if (sfi->function_data()->IsUndefined()) return;
+    FunctionTemplateInfo* info =
+        FunctionTemplateInfo::cast(sfi->function_data());
+
+    // Require a C++ callback.
+    if (info->call_code()->IsUndefined()) return;
+    api_call_info_ = CallHandlerInfo::cast(info->call_code());
+
+    // Accept signatures that either have no restrictions at all or
+    // only have restrictions on the receiver.
+    if (!info->signature()->IsUndefined()) {
+      SignatureInfo* signature = SignatureInfo::cast(info->signature());
+      if (!signature->args()->IsUndefined()) return;
+      if (!signature->receiver()->IsUndefined()) {
+        expected_receiver_type_ =
+            FunctionTemplateInfo::cast(signature->receiver());
+      }
+    }
+
+    is_simple_api_call_ = true;
+  }
+
+  JSFunction* constant_function_;
+  bool is_simple_api_call_;
+  FunctionTemplateInfo* expected_receiver_type_;
+  CallHandlerInfo* api_call_info_;
+};
+
+
+// Reserves space for the extra arguments to FastHandleApiCall in the
+// caller's frame.
+//
+// These arguments are set by CheckPrototypes and GenerateFastApiCall.
+static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
+  // ----------- S t a t e -------------
+  //  -- esp[0] : return address
+  //  -- esp[4] : last argument in the internal frame of the caller
+  // -----------------------------------
+  __ pop(scratch);
+  __ push(Immediate(Smi::FromInt(0)));
+  __ push(Immediate(Smi::FromInt(0)));
+  __ push(Immediate(Smi::FromInt(0)));
+  __ push(Immediate(Smi::FromInt(0)));
+  __ push(scratch);
+}
+
+
+// Undoes the effects of ReserveSpaceForFastApiCall.
+static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
+  // ----------- S t a t e -------------
+  //  -- esp[0]  : return address
+  //  -- esp[4]  : last fast api call extra argument
+  //  -- ...
+  //  -- esp[16] : first fast api call extra argument
+  //  -- esp[20] : last argument in the internal frame
+  // -----------------------------------
+  __ pop(scratch);
+  __ add(Operand(esp), Immediate(kPointerSize * 4));
+  __ push(scratch);
+}
+
+
+// Generates call to FastHandleApiCall builtin.
+static void GenerateFastApiCall(MacroAssembler* masm,
+                                const CallOptimization& optimization,
+                                int argc) {
+  // ----------- S t a t e -------------
+  //  -- esp[0]              : return address
+  //  -- esp[4]              : object passing the type check
+  //                           (last fast api call extra argument,
+  //                            set by CheckPrototypes)
+  //  -- esp[8]              : api call data
+  //  -- esp[12]             : api callback
+  //  -- esp[16]             : api function
+  //                           (first fast api call extra argument)
+  //  -- esp[20]             : last argument
+  //  -- ...
+  //  -- esp[(argc + 5) * 4] : first argument
+  //  -- esp[(argc + 6) * 4] : receiver
+  // -----------------------------------
+
+  // Get the function and setup the context.
+  JSFunction* function = optimization.constant_function();
+  __ mov(edi, Immediate(Handle<JSFunction>(function)));
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+
+  // Pass the additional arguments FastHandleApiCall expects.
+  __ mov(Operand(esp, 4 * kPointerSize), edi);
+  bool info_loaded = false;
+  Object* callback = optimization.api_call_info()->callback();
+  if (Heap::InNewSpace(callback)) {
+    info_loaded = true;
+    __ mov(ecx, Handle<CallHandlerInfo>(optimization.api_call_info()));
+    __ mov(ebx, FieldOperand(ecx, CallHandlerInfo::kCallbackOffset));
+    __ mov(Operand(esp, 3 * kPointerSize), ebx);
+  } else {
+    __ mov(Operand(esp, 3 * kPointerSize), Immediate(Handle<Object>(callback)));
+  }
+  Object* call_data = optimization.api_call_info()->data();
+  if (Heap::InNewSpace(call_data)) {
+    if (!info_loaded) {
+      __ mov(ecx, Handle<CallHandlerInfo>(optimization.api_call_info()));
+    }
+    __ mov(ebx, FieldOperand(ecx, CallHandlerInfo::kDataOffset));
+    __ mov(Operand(esp, 2 * kPointerSize), ebx);
+  } else {
+    __ mov(Operand(esp, 2 * kPointerSize),
+           Immediate(Handle<Object>(call_data)));
+  }
+
+  // Set the number of arguments.
+  __ mov(eax, Immediate(argc + 4));
+
+  // Jump to the fast api call builtin (tail call).
+  Handle<Code> code = Handle<Code>(
+      Builtins::builtin(Builtins::FastHandleApiCall));
+  ParameterCount expected(0);
+  __ InvokeCode(code, expected, expected,
+                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+}
+
+
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
-  CallInterceptorCompiler(const ParameterCount& arguments, Register name)
-      : arguments_(arguments), argc_(arguments.immediate()), name_(name) {}
+  CallInterceptorCompiler(StubCompiler* stub_compiler,
+                          const ParameterCount& arguments,
+                          Register name)
+      : stub_compiler_(stub_compiler),
+        arguments_(arguments),
+        argc_(arguments.immediate()),
+        name_(name) {}
 
+  void Compile(MacroAssembler* masm,
+               JSObject* object,
+               JSObject* holder,
+               String* name,
+               LookupResult* lookup,
+               Register receiver,
+               Register scratch1,
+               Register scratch2,
+               Label* miss) {
+    ASSERT(holder->HasNamedInterceptor());
+    ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
+
+    // Check that the receiver isn't a smi.
+    __ test(receiver, Immediate(kSmiTagMask));
+    __ j(zero, miss, not_taken);
+
+    CallOptimization optimization(lookup);
+
+    if (optimization.is_constant_call() &&
+        !Top::CanHaveSpecialFunctions(holder)) {
+      CompileCacheable(masm,
+                       object,
+                       receiver,
+                       scratch1,
+                       scratch2,
+                       holder,
+                       lookup,
+                       name,
+                       optimization,
+                       miss);
+    } else {
+      CompileRegular(masm,
+                     object,
+                     receiver,
+                     scratch1,
+                     scratch2,
+                     name,
+                     holder,
+                     miss);
+    }
+  }
+
+ private:
   void CompileCacheable(MacroAssembler* masm,
-                        StubCompiler* stub_compiler,
+                        JSObject* object,
                         Register receiver,
-                        Register holder,
                         Register scratch1,
                         Register scratch2,
                         JSObject* holder_obj,
                         LookupResult* lookup,
                         String* name,
+                        const CallOptimization& optimization,
                         Label* miss_label) {
-    JSFunction* function = 0;
-    bool optimize = false;
-    // So far the most popular case for failed interceptor is
-    // CONSTANT_FUNCTION sitting below.
-    if (lookup->type() == CONSTANT_FUNCTION) {
-      function = lookup->GetConstantFunction();
-      // JSArray holder is a special case for call constant function
-      // (see the corresponding code).
-      if (function->is_compiled() && !holder_obj->IsJSArray()) {
-        optimize = true;
+    ASSERT(optimization.is_constant_call());
+
+    int depth1 = kInvalidProtoDepth;
+    int depth2 = kInvalidProtoDepth;
+    bool can_do_fast_api_call = false;
+    if (optimization.is_simple_api_call() &&
+        !lookup->holder()->IsGlobalObject()) {
+      depth1 = optimization.GetPrototypeDepthOfExpectedType(object, holder_obj);
+      if (depth1 == kInvalidProtoDepth) {
+        depth2 = optimization.GetPrototypeDepthOfExpectedType(holder_obj,
+                                                              lookup->holder());
       }
+      can_do_fast_api_call = (depth1 != kInvalidProtoDepth) ||
+                             (depth2 != kInvalidProtoDepth);
     }
 
-    if (!optimize) {
-      CompileRegular(masm, receiver, holder, scratch2, holder_obj, miss_label);
-      return;
+    __ IncrementCounter(&Counters::call_const_interceptor, 1);
+
+    if (can_do_fast_api_call) {
+      __ IncrementCounter(&Counters::call_const_interceptor_fast_api, 1);
+      ReserveSpaceForFastApiCall(masm, scratch1);
     }
 
-    __ EnterInternalFrame();
-    __ push(holder);  // Save the holder.
-    __ push(name_);  // Save the name.
+    Label miss_cleanup;
+    Label* miss = can_do_fast_api_call ? &miss_cleanup : miss_label;
+    Register holder =
+        stub_compiler_->CheckPrototypes(object, receiver, holder_obj,
+                                        scratch1, scratch2, name,
+                                        depth1, miss);
 
-    CompileCallLoadPropertyWithInterceptor(masm,
-                                           receiver,
-                                           holder,
-                                           name_,
-                                           holder_obj);
+    Label regular_invoke;
+    LoadWithInterceptor(masm, receiver, holder, holder_obj, &regular_invoke);
 
-    __ pop(name_);  // Restore the name.
-    __ pop(receiver);  // Restore the holder.
-    __ LeaveInternalFrame();
+    // Generate code for the failed interceptor case.
 
-    __ cmp(eax, Factory::no_interceptor_result_sentinel());
-    Label invoke;
-    __ j(not_equal, &invoke);
+    // Check the lookup is still valid.
+    stub_compiler_->CheckPrototypes(holder_obj, receiver,
+                                    lookup->holder(),
+                                    scratch1, scratch2, name,
+                                    depth2, miss);
 
-    stub_compiler->CheckPrototypes(holder_obj, receiver,
-                                   lookup->holder(), scratch1,
-                                   scratch2,
-                                   name,
-                                   miss_label);
     if (lookup->holder()->IsGlobalObject()) {
+      ASSERT(!can_do_fast_api_call);
       __ mov(edx, Operand(esp, (argc_ + 1) * kPointerSize));
       __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
       __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edx);
     }
 
-    ASSERT(function->is_compiled());
-    // Get the function and setup the context.
-    __ mov(edi, Immediate(Handle<JSFunction>(function)));
-    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+    if (can_do_fast_api_call) {
+      GenerateFastApiCall(masm, optimization, argc_);
+    } else {
+      // Get the function and setup the context.
+      JSFunction* function = optimization.constant_function();
+      __ mov(edi, Immediate(Handle<JSFunction>(function)));
+      __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-    // Jump to the cached code (tail call).
-    Handle<Code> code(function->code());
-    ParameterCount expected(function->shared()->formal_parameter_count());
-    __ InvokeCode(code, expected, arguments_,
-                  RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+      // Jump to the cached code (tail call).
+      ASSERT(function->is_compiled());
+      Handle<Code> code(function->code());
+      ParameterCount expected(function->shared()->formal_parameter_count());
+      __ InvokeCode(code, expected, arguments_,
+                    RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+    }
 
-    __ bind(&invoke);
+    if (can_do_fast_api_call) {
+      __ bind(&miss_cleanup);
+      FreeSpaceForFastApiCall(masm, scratch1);
+      __ jmp(miss_label);
+    }
+
+    __ bind(&regular_invoke);
+    if (can_do_fast_api_call) {
+      FreeSpaceForFastApiCall(masm, scratch1);
+    }
   }
 
   void CompileRegular(MacroAssembler* masm,
+                      JSObject* object,
                       Register receiver,
-                      Register holder,
-                      Register scratch,
+                      Register scratch1,
+                      Register scratch2,
+                      String* name,
                       JSObject* holder_obj,
                       Label* miss_label) {
+    Register holder =
+        stub_compiler_->CheckPrototypes(object, receiver, holder_obj,
+                                        scratch1, scratch2, name,
+                                        miss_label);
+
     __ EnterInternalFrame();
     // Save the name_ register across the call.
     __ push(name_);
@@ -586,9 +851,32 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ LeaveInternalFrame();
   }
 
- private:
+  void LoadWithInterceptor(MacroAssembler* masm,
+                           Register receiver,
+                           Register holder,
+                           JSObject* holder_obj,
+                           Label* interceptor_succeeded) {
+    __ EnterInternalFrame();
+    __ push(holder);  // Save the holder.
+    __ push(name_);  // Save the name.
+
+    CompileCallLoadPropertyWithInterceptor(masm,
+                                           receiver,
+                                           holder,
+                                           name_,
+                                           holder_obj);
+
+    __ pop(name_);  // Restore the name.
+    __ pop(receiver);  // Restore the holder.
+    __ LeaveInternalFrame();
+
+    __ cmp(eax, Factory::no_interceptor_result_sentinel());
+    __ j(not_equal, interceptor_succeeded);
+  }
+
+  StubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
-  int argc_;
+  const int argc_;
   Register name_;
 };
 
@@ -698,10 +986,12 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
                                        Register holder_reg,
                                        Register scratch,
                                        String* name,
+                                       int push_at_depth,
                                        Label* miss) {
   // Check that the maps haven't changed.
   Register result =
-      masm()->CheckMaps(object, object_reg, holder, holder_reg, scratch, miss);
+      masm()->CheckMaps(object, object_reg, holder, holder_reg, scratch,
+                        push_at_depth, miss);
 
   // If we've skipped any global objects, it's not enough to verify
   // that their maps haven't changed.
@@ -723,7 +1013,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
     object = JSObject::cast(object->GetPrototype());
   }
 
-  // Return the register containin the holder.
+  // Return the register containing the holder.
   return result;
 }
 
@@ -976,15 +1266,31 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // unless we're doing a receiver map check.
   ASSERT(!object->IsGlobalObject() || check == RECEIVER_MAP_CHECK);
 
+  CallOptimization optimization(function);
+  int depth = kInvalidProtoDepth;
+
   switch (check) {
     case RECEIVER_MAP_CHECK:
+      __ IncrementCounter(&Counters::call_const, 1);
+
+      if (optimization.is_simple_api_call() && !object->IsGlobalObject()) {
+        depth = optimization.GetPrototypeDepthOfExpectedType(
+            JSObject::cast(object), holder);
+      }
+
+      if (depth != kInvalidProtoDepth) {
+        __ IncrementCounter(&Counters::call_const_fast_api, 1);
+        ReserveSpaceForFastApiCall(masm(), eax);
+      }
+
       // Check that the maps haven't changed.
       CheckPrototypes(JSObject::cast(object), edx, holder,
-                      ebx, eax, name, &miss);
+                      ebx, eax, name, depth, &miss);
 
       // Patch the receiver on the stack with the global proxy if
       // necessary.
       if (object->IsGlobalObject()) {
+        ASSERT(depth == kInvalidProtoDepth);
         __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
         __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
       }
@@ -1069,19 +1375,26 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  // Get the function and setup the context.
-  __ mov(edi, Immediate(Handle<JSFunction>(function)));
-  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+  if (depth != kInvalidProtoDepth) {
+    GenerateFastApiCall(masm(), optimization, argc);
+  } else {
+    // Get the function and setup the context.
+    __ mov(edi, Immediate(Handle<JSFunction>(function)));
+    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  // Jump to the cached code (tail call).
-  ASSERT(function->is_compiled());
-  Handle<Code> code(function->code());
-  ParameterCount expected(function->shared()->formal_parameter_count());
-  __ InvokeCode(code, expected, arguments(),
-                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+    // Jump to the cached code (tail call).
+    ASSERT(function->is_compiled());
+    Handle<Code> code(function->code());
+    ParameterCount expected(function->shared()->formal_parameter_count());
+    __ InvokeCode(code, expected, arguments(),
+                  RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  }
 
   // Handle call cache miss.
   __ bind(&miss);
+  if (depth != kInvalidProtoDepth) {
+    FreeSpaceForFastApiCall(masm(), eax);
+  }
   Handle<Code> ic = ComputeCallMiss(arguments().immediate());
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
@@ -1115,18 +1428,16 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(arguments(), ecx);
-  CompileLoadInterceptor(&compiler,
-                         this,
-                         masm(),
-                         JSObject::cast(object),
-                         holder,
-                         name,
-                         &lookup,
-                         edx,
-                         ebx,
-                         edi,
-                         &miss);
+  CallInterceptorCompiler compiler(this, arguments(), ecx);
+  compiler.Compile(masm(),
+                   JSObject::cast(object),
+                   holder,
+                   name,
+                   &lookup,
+                   edx,
+                   ebx,
+                   edi,
+                   &miss);
 
   // Restore receiver.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
