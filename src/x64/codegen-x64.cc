@@ -1221,7 +1221,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     // Compare and branch to the body if true or the next test if
     // false.  Prefer the next test as a fall through.
     ControlDestination dest(clause->body_target(), &next_test, false);
-    Comparison(equal, true, &dest);
+    Comparison(node, equal, true, &dest);
 
     // If the comparison fell through to the true target, jump to the
     // actual body.
@@ -3585,7 +3585,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   }
   Load(left);
   Load(right);
-  Comparison(cc, strict, destination());
+  Comparison(node, cc, strict, destination());
 }
 
 
@@ -4867,7 +4867,8 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
 }
 
 
-void CodeGenerator::Comparison(Condition cc,
+void CodeGenerator::Comparison(AstNode* node,
+                               Condition cc,
                                bool strict,
                                ControlDestination* dest) {
   // Strict only makes sense for equality comparisons.
@@ -4914,7 +4915,8 @@ void CodeGenerator::Comparison(Condition cc,
         default:
           UNREACHABLE();
       }
-    } else {  // Only one side is a constant Smi.
+    } else {
+      // Only one side is a constant Smi.
       // If left side is a constant Smi, reverse the operands.
       // Since one side is a constant Smi, conversion order does not matter.
       if (left_side_constant_smi) {
@@ -4928,6 +4930,8 @@ void CodeGenerator::Comparison(Condition cc,
       // Implement comparison against a constant Smi, inlining the case
       // where both sides are Smis.
       left_side.ToRegister();
+      Register left_reg = left_side.reg();
+      Handle<Object> right_val = right_side.handle();
 
       // Here we split control flow to the stub call and inlined cases
       // before finally splitting it to the control destination.  We use
@@ -4935,11 +4939,47 @@ void CodeGenerator::Comparison(Condition cc,
       // the first split.  We manually handle the off-frame references
       // by reconstituting them on the non-fall-through path.
       JumpTarget is_smi;
-      Register left_reg = left_side.reg();
-      Handle<Object> right_val = right_side.handle();
 
       Condition left_is_smi = masm_->CheckSmi(left_side.reg());
       is_smi.Branch(left_is_smi);
+
+      bool is_for_loop_compare = (node->AsCompareOperation() != NULL)
+          && node->AsCompareOperation()->is_for_loop_condition();
+      if (!is_for_loop_compare && right_val->IsSmi()) {
+        // Right side is a constant smi and left side has been checked
+        // not to be a smi.
+        JumpTarget not_number;
+        __ Cmp(FieldOperand(left_reg, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        not_number.Branch(not_equal, &left_side);
+        __ movsd(xmm1,
+                 FieldOperand(left_reg, HeapNumber::kValueOffset));
+        int value = Smi::cast(*right_val)->value();
+        if (value == 0) {
+          __ xorpd(xmm0, xmm0);
+        } else {
+          Result temp = allocator()->Allocate();
+          __ movl(temp.reg(), Immediate(value));
+          __ cvtlsi2sd(xmm0, temp.reg());
+          temp.Unuse();
+        }
+        __ ucomisd(xmm1, xmm0);
+        // Jump to builtin for NaN.
+        not_number.Branch(parity_even, &left_side);
+        left_side.Unuse();
+        Condition double_cc = cc;
+        switch (cc) {
+          case less:          double_cc = below;       break;
+          case equal:         double_cc = equal;       break;
+          case less_equal:    double_cc = below_equal; break;
+          case greater:       double_cc = above;       break;
+          case greater_equal: double_cc = above_equal; break;
+          default: UNREACHABLE();
+        }
+        dest->true_target()->Branch(double_cc);
+        dest->false_target()->Jump();
+        not_number.Bind(&left_side);
+      }
 
       // Setup and call the compare stub.
       CompareStub stub(cc, strict);

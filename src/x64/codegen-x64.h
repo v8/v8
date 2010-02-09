@@ -484,7 +484,8 @@ class CodeGenerator: public AstVisitor {
                                   Result* right,
                                   OverwriteMode overwrite_mode);
 
-  void Comparison(Condition cc,
+  void Comparison(AstNode* node,
+                  Condition cc,
                   bool strict,
                   ControlDestination* destination);
 
