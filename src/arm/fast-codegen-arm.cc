@@ -51,13 +51,15 @@ void FastCodeGenerator::EmitLoadReceiver() {
 
 
 void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
+  ASSERT(!destination().is(no_reg));
   ASSERT(cell->IsJSGlobalPropertyCell());
-  __ mov(accumulator0(), Operand(cell));
-  __ ldr(accumulator0(),
-         FieldMemOperand(accumulator0(), JSGlobalPropertyCell::kValueOffset));
+
+  __ mov(destination(), Operand(cell));
+  __ ldr(destination(),
+         FieldMemOperand(destination(), JSGlobalPropertyCell::kValueOffset));
   if (FLAG_debug_code) {
     __ mov(ip, Operand(Factory::the_hole_value()));
-    __ cmp(accumulator0(), ip);
+    __ cmp(destination(), ip);
     __ Check(ne, "DontDelete cells can't contain the hole");
   }
 }
@@ -86,6 +88,57 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   __ str(accumulator0(), FieldMemOperand(scratch0(), offset));
   __ mov(scratch1(), Operand(offset));
   __ RecordWrite(scratch0(), scratch1(), ip);
+  if (destination().is(accumulator1())) {
+    __ mov(accumulator1(), accumulator0());
+  }
+}
+
+
+void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
+  ASSERT(!destination().is(no_reg));
+  LookupResult lookup;
+  info()->receiver()->Lookup(*name, &lookup);
+
+  ASSERT(lookup.holder() == *info()->receiver());
+  ASSERT(lookup.type() == FIELD);
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
+  int index = lookup.GetFieldIndex() - map->inobject_properties();
+  int offset = index * kPointerSize;
+
+  // Perform the load.  Negative offsets are inobject properties.
+  if (offset < 0) {
+    offset += map->instance_size();
+    __ ldr(destination(), FieldMemOperand(receiver_reg(), offset));
+  } else {
+    offset += FixedArray::kHeaderSize;
+    __ ldr(scratch0(),
+           FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ ldr(destination(), FieldMemOperand(scratch0(), offset));
+  }
+}
+
+
+void FastCodeGenerator::EmitBitOr() {
+  Register check;  // A register is used for the smi check/operation.
+  if (destination().is(no_reg)) {
+    check = scratch0();  // Do not clobber either operand register.
+  } else {
+    // Preserve whichever operand shares the destination register in case we
+    // have to bail out.
+    __ mov(scratch0(), destination());
+    check = destination();
+  }
+  __ orr(check, accumulator1(), Operand(accumulator0()));
+  // Restore the clobbered operand if necessary.
+  if (destination().is(no_reg)) {
+    __ BranchOnNotSmi(check, bailout());
+  } else {
+    Label done;
+    __ BranchOnSmi(check, &done);
+    __ mov(destination(), scratch0());
+    __ jmp(bailout());
+    __ bind(&done);
+  }
 }
 
 

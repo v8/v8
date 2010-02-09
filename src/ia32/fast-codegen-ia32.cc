@@ -51,12 +51,14 @@ void FastCodeGenerator::EmitLoadReceiver() {
 
 
 void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
+  ASSERT(!destination().is(no_reg));
   ASSERT(cell->IsJSGlobalPropertyCell());
-  __ mov(accumulator0(), Immediate(cell));
-  __ mov(accumulator0(),
-         FieldOperand(accumulator0(), JSGlobalPropertyCell::kValueOffset));
+
+  __ mov(destination(), Immediate(cell));
+  __ mov(destination(),
+         FieldOperand(destination(), JSGlobalPropertyCell::kValueOffset));
   if (FLAG_debug_code) {
-    __ cmp(accumulator0(), Factory::the_hole_value());
+    __ cmp(destination(), Factory::the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 }
@@ -83,11 +85,70 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   }
   // Perform the store.
   __ mov(FieldOperand(scratch0(), offset), accumulator0());
-  // Preserve value from write barrier in case it's needed.
-  __ mov(accumulator1(), accumulator0());
-  // The other accumulator register is available as a scratch register
-  // because this is not an AST leaf node.
-  __ RecordWrite(scratch0(), offset, accumulator1(), scratch1());
+  if (destination().is(no_reg)) {
+    __ RecordWrite(scratch0(), offset, accumulator0(), scratch1());
+  } else {
+    // Copy the value to the other accumulator to preserve a copy from the
+    // write barrier. One of the accumulators is available as a scratch
+    // register.
+    __ mov(accumulator1(), accumulator0());
+    Register value_scratch = other_accumulator(destination());
+    __ RecordWrite(scratch0(), offset, value_scratch, scratch1());
+  }
+}
+
+
+void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
+  ASSERT(!destination().is(no_reg));
+  LookupResult lookup;
+  info()->receiver()->Lookup(*name, &lookup);
+
+  ASSERT(lookup.holder() == *info()->receiver());
+  ASSERT(lookup.type() == FIELD);
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
+  int index = lookup.GetFieldIndex() - map->inobject_properties();
+  int offset = index * kPointerSize;
+
+  // Perform the load.  Negative offsets are inobject properties.
+  if (offset < 0) {
+    offset += map->instance_size();
+    __ mov(destination(), FieldOperand(receiver_reg(), offset));
+  } else {
+    offset += FixedArray::kHeaderSize;
+    __ mov(scratch0(),
+           FieldOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ mov(destination(), FieldOperand(scratch0(), offset));
+  }
+}
+
+
+void FastCodeGenerator::EmitBitOr() {
+  Register copied;  // One operand is copied to a scratch register.
+  Register other;   // The other is not modified by the operation.
+  Register check;   // A register is used for the smi check/operation.
+  if (destination().is(no_reg)) {
+    copied = accumulator1();  // Arbitrary choice of operand to copy.
+    other = accumulator0();
+    check = scratch0();  // Do not clobber either operand register.
+  } else {
+    copied = destination();
+    other = other_accumulator(destination());
+    check = destination();
+  }
+  __ mov(scratch0(), copied);
+  __ or_(check, Operand(other));
+  __ test(check, Immediate(kSmiTagMask));
+
+  // Restore the clobbered operand if necessary.
+  if (destination().is(no_reg)) {
+    __ j(not_zero, bailout(), not_taken);
+  } else {
+    Label done;
+    __ j(zero, &done, taken);
+    __ mov(copied, scratch0());
+    __ jmp(bailout());
+    __ bind(&done);
+  }
 }
 
 
@@ -108,7 +169,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   if (info()->has_this_properties()) {
     Comment cmnt(masm(), ";; MapCheck(this)");
     if (FLAG_print_ir) {
-      PrintF("MapCheck(this)\n");
+      PrintF("#: MapCheck(this)\n");
     }
     ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
     Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
@@ -122,7 +183,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   if (info()->has_globals()) {
     Comment cmnt(masm(), ";; MapCheck(GLOBAL)");
     if (FLAG_print_ir) {
-      PrintF("MapCheck(GLOBAL)\n");
+      PrintF("#: MapCheck(GLOBAL)\n");
     }
     ASSERT(info()->has_global_object());
     Handle<Map> map(info()->global_object()->map());
@@ -134,7 +195,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
   if (FLAG_print_ir) {
-    PrintF("Return(<undefined>)\n");
+    PrintF("#: Return(<undefined>)\n");
   }
   __ mov(eax, Factory::undefined_value());
   __ mov(esp, ebp);

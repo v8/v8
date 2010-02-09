@@ -65,7 +65,9 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
 
 class FastCodeGenerator: public AstVisitor {
  public:
-  explicit FastCodeGenerator(MacroAssembler* masm) : masm_(masm), info_(NULL) {}
+  explicit FastCodeGenerator(MacroAssembler* masm)
+      : masm_(masm), info_(NULL), destination_(no_reg) {
+  }
 
   static Handle<Code> MakeCode(CompilationInfo* info);
 
@@ -75,6 +77,9 @@ class FastCodeGenerator: public AstVisitor {
   MacroAssembler* masm() { return masm_; }
   CompilationInfo* info() { return info_; }
   Label* bailout() { return &bailout_; }
+
+  Register destination() { return destination_; }
+  void set_destination(Register reg) { destination_ = reg; }
 
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return info_->scope(); }
@@ -87,38 +92,43 @@ class FastCodeGenerator: public AstVisitor {
   Register receiver_reg();
   Register context_reg();
 
+  Register other_accumulator(Register reg) {
+    ASSERT(reg.is(accumulator0()) || reg.is(accumulator1()));
+    return (reg.is(accumulator0())) ? accumulator1() : accumulator0();
+  }
+
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  // Emit code to load the receiver from the stack into the fixed receiver
-  // register.
+  // Emit code to load the receiver from the stack into receiver_reg.
   void EmitLoadReceiver();
 
-  // Emit code to check that the receiver has the same map as the
-  // compile-time receiver.  Receiver is expected in {ia32-edx, x64-rdx,
-  // arm-r1}.  Emit a branch to the (single) bailout label if check fails.
-  void EmitReceiverMapCheck();
-
-  // Emit code to check that the global object has the same map as the
-  // global object seen at compile time.
-  void EmitGlobalMapCheck();
-
-  // Emit code to load a global variable directly from a global
-  // property cell into {ia32-eax, x64-rax, arm-r0}.
+  // Emit code to load a global variable directly from a global property
+  // cell into the destination register.
   void EmitGlobalVariableLoad(Handle<Object> cell);
 
   // Emit a store to an own property of this.  The stored value is expected
-  // in {ia32-eax, x64-rax, arm-r0} and the receiver in {is32-edx, x64-rdx,
-  // arm-r1}.  Both are preserve.
+  // in accumulator0 and the receiver in receiver_reg.  The receiver
+  // register is preserved and the result (the stored value) is left in the
+  // destination register.
   void EmitThisPropertyStore(Handle<String> name);
 
+  // Emit a load from an own property of this.  The receiver is expected in
+  // receiver_reg.  The receiver register is preserved and the result is
+  // left in the destination register.
+  void EmitThisPropertyLoad(Handle<String> name);
+
+  // Emit a bitwise or operation.  The left operand is in accumulator1 and
+  // the right is in accumulator0.  The result should be left in the
+  // destination register.
+  void EmitBitOr();
+
   MacroAssembler* masm_;
-
   CompilationInfo* info_;
-
   Label bailout_;
+  Register destination_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

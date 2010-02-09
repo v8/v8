@@ -193,6 +193,11 @@ class Expression: public AstNode {
   // names because [] for string objects is handled only by keyed ICs.
   virtual bool IsPropertyName() { return false; }
 
+  // True if the expression does not have (evaluated) subexpressions.
+  // Function literals are leaves because their subexpressions are not
+  // evaluated.
+  virtual bool IsLeaf() { return false; }
+
   // Mark the expression as being compiled as an expression
   // statement. This is used to transform postfix increments to
   // (faster) prefix increments.
@@ -720,6 +725,8 @@ class Literal: public Expression {
     return false;
   }
 
+  virtual bool IsLeaf() { return true; }
+
   // Identity testers.
   bool IsNull() const { return handle_.is_identical_to(Factory::null_value()); }
   bool IsTrue() const { return handle_.is_identical_to(Factory::true_value()); }
@@ -802,6 +809,8 @@ class ObjectLiteral: public MaterializedLiteral {
   virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
 
+  virtual bool IsLeaf() { return properties()->is_empty(); }
+
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
   }
@@ -824,6 +833,8 @@ class RegExpLiteral: public MaterializedLiteral {
         flags_(flags) {}
 
   virtual void Accept(AstVisitor* v);
+
+  virtual bool IsLeaf() { return true; }
 
   Handle<String> pattern() const { return pattern_; }
   Handle<String> flags() const { return flags_; }
@@ -848,6 +859,8 @@ class ArrayLiteral: public MaterializedLiteral {
 
   virtual void Accept(AstVisitor* v);
   virtual ArrayLiteral* AsArrayLiteral() { return this; }
+
+  virtual bool IsLeaf() { return values()->is_empty(); }
 
   Handle<FixedArray> constant_elements() const { return constant_elements_; }
   ZoneList<Expression*>* values() const { return values_; }
@@ -894,6 +907,11 @@ class VariableProxy: public Expression {
 
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
+  }
+
+  virtual bool IsLeaf() {
+    ASSERT(var_ != NULL);  // Variable must be resolved.
+    return var()->is_global() || var()->rewrite()->IsLeaf();
   }
 
   bool IsVariable(Handle<String> n) {
@@ -980,6 +998,8 @@ class Slot: public Expression {
 
   // Type testing & conversion
   virtual Slot* AsSlot() { return this; }
+
+  virtual bool IsLeaf() { return true; }
 
   // Accessors
   Variable* var() const { return var_; }
@@ -1337,6 +1357,8 @@ class FunctionLiteral: public Expression {
   // Type testing & conversion
   virtual FunctionLiteral* AsFunctionLiteral()  { return this; }
 
+  virtual bool IsLeaf() { return true; }
+
   Handle<String> name() const  { return name_; }
   Scope* scope() const  { return scope_; }
   ZoneList<Statement*>* body() const  { return body_; }
@@ -1403,6 +1425,8 @@ class FunctionBoilerplateLiteral: public Expression {
 
   Handle<JSFunction> boilerplate() const { return boilerplate_; }
 
+  virtual bool IsLeaf() { return true; }
+
   virtual void Accept(AstVisitor* v);
 
  private:
@@ -1413,6 +1437,7 @@ class FunctionBoilerplateLiteral: public Expression {
 class ThisFunction: public Expression {
  public:
   virtual void Accept(AstVisitor* v);
+  virtual bool IsLeaf() { return true; }
 };
 
 

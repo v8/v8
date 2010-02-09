@@ -199,15 +199,11 @@ void AstLabeler::VisitCatchExtensionObject(
 void AstLabeler::VisitAssignment(Assignment* expr) {
   Property* prop = expr->target()->AsProperty();
   ASSERT(prop != NULL);
-  if (prop != NULL) {
-    ASSERT(prop->key()->IsPropertyName());
-    VariableProxy* proxy = prop->obj()->AsVariableProxy();
-    if (proxy != NULL && proxy->var()->is_this()) {
-      info()->set_has_this_properties(true);
-    } else {
-      Visit(prop->obj());
-    }
-  }
+  ASSERT(prop->key()->IsPropertyName());
+  VariableProxy* proxy = prop->obj()->AsVariableProxy();
+  USE(proxy);
+  ASSERT(proxy != NULL && proxy->var()->is_this());
+  info()->set_has_this_properties(true);
   Visit(expr->value());
   expr->set_num(next_number_++);
 }
@@ -219,7 +215,12 @@ void AstLabeler::VisitThrow(Throw* expr) {
 
 
 void AstLabeler::VisitProperty(Property* expr) {
-  UNREACHABLE();
+  ASSERT(expr->key()->IsPropertyName());
+  VariableProxy* proxy = expr->obj()->AsVariableProxy();
+  USE(proxy);
+  ASSERT(proxy != NULL && proxy->var()->is_this());
+  info()->set_has_this_properties(true);
+  expr->set_num(next_number_++);
 }
 
 

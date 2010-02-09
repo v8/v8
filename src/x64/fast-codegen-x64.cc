@@ -35,8 +35,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-// Registers rcx, rdi, and r8-r15 are free to use as scratch registers
-// without saving and restoring any other registers.
 Register FastCodeGenerator::accumulator0() { return rax; }
 Register FastCodeGenerator::accumulator1() { return rdx; }
 Register FastCodeGenerator::scratch0() { return rcx; }
@@ -53,12 +51,13 @@ void FastCodeGenerator::EmitLoadReceiver() {
 
 
 void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
+  ASSERT(!destination().is(no_reg));
   ASSERT(cell->IsJSGlobalPropertyCell());
-  __ Move(accumulator0(), cell);
-  __ movq(accumulator0(),
-          FieldOperand(accumulator0(), JSGlobalPropertyCell::kValueOffset));
+  __ Move(destination(), cell);
+  __ movq(destination(),
+          FieldOperand(destination(), JSGlobalPropertyCell::kValueOffset));
   if (FLAG_debug_code) {
-    __ Cmp(accumulator0(), Factory::the_hole_value());
+    __ Cmp(destination(), Factory::the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 }
@@ -85,11 +84,68 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   }
   // Perform the store.
   __ movq(FieldOperand(scratch0(), offset), accumulator0());
-  // Preserve value from write barrier in case it's needed.
-  __ movq(accumulator1(), accumulator0());
-  // The other accumulator register is available as a scratch register
-  // because this is not an AST leaf node.
-  __ RecordWrite(scratch0(), offset, accumulator1(), scratch1());
+  if (destination().is(no_reg)) {
+    __ RecordWrite(scratch0(), offset, accumulator0(), scratch1());
+  } else {
+    // Copy the value to the other accumulator to preserve a copy from the
+    // write barrier. One of the accumulators is available as a scratch
+    // register.
+    __ movq(accumulator1(), accumulator0());
+    Register value_scratch = other_accumulator(destination());
+    __ RecordWrite(scratch0(), offset, value_scratch, scratch1());
+  }
+}
+
+
+void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
+  ASSERT(!destination().is(no_reg));
+  LookupResult lookup;
+  info()->receiver()->Lookup(*name, &lookup);
+
+  ASSERT(lookup.holder() == *info()->receiver());
+  ASSERT(lookup.type() == FIELD);
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
+  int index = lookup.GetFieldIndex() - map->inobject_properties();
+  int offset = index * kPointerSize;
+
+  // Perform the load.  Negative offsets are inobject properties.
+  if (offset < 0) {
+    offset += map->instance_size();
+    __ movq(destination(), FieldOperand(receiver_reg(), offset));
+  } else {
+    offset += FixedArray::kHeaderSize;
+    __ movq(scratch0(),
+            FieldOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ movq(destination(), FieldOperand(scratch0(), offset));
+  }
+}
+
+
+void FastCodeGenerator::EmitBitOr() {
+  Register copied;  // One operand is copied to a scratch register.
+  Register other;   // The other is not modified by the operation.
+  Register check;   // A register is used for the smi check/operation.
+  if (destination().is(no_reg)) {
+    copied = accumulator1();  // Arbitrary choice of operand to copy.
+    other = accumulator0();
+    check = scratch0();  // Do not clobber either operand register.
+  } else {
+    copied = destination();
+    other = other_accumulator(destination());
+    check = destination();
+  }
+  __ movq(scratch0(), copied);
+  __ or_(check, other);
+  // Restore the clobbered operand if necessary.
+  if (destination().is(no_reg)) {
+    __ JumpIfNotSmi(check, bailout());
+  } else {
+    Label done;
+    __ JumpIfSmi(check, &done);
+    __ movq(copied, scratch0());
+    __ jmp(bailout());
+    __ bind(&done);
+  }
 }
 
 
