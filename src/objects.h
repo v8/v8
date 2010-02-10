@@ -1317,6 +1317,9 @@ class JSObject: public HeapObject {
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
 
+  // Set the object's prototype (only JSObject and null are allowed).
+  Object* SetPrototype(Object* value, bool skip_hidden_prototypes);
+
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
   bool HasElementWithReceiver(JSObject* receiver, uint32_t index);

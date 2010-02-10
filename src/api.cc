@@ -2032,6 +2032,19 @@ Local<Value> v8::Object::GetPrototype() {
 }
 
 
+bool v8::Object::SetPrototype(Handle<Value> value) {
+  ON_BAILOUT("v8::Object::SetPrototype()", return false);
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> result = i::SetPrototype(self, value_obj);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
 Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Handle<FunctionTemplate> tmpl) {
   ON_BAILOUT("v8::Object::FindInstanceInPrototypeChain()",

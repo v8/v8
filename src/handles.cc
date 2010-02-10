@@ -300,6 +300,12 @@ Handle<Object> GetPrototype(Handle<Object> obj) {
 }
 
 
+Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
+  const bool skip_hidden_prototypes = false;
+  CALL_HEAP_FUNCTION(obj->SetPrototype(*value, skip_hidden_prototypes), Object);
+}
+
+
 Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
                                    bool create_if_needed) {
   Object* holder = obj->BypassGlobalProxy();

@@ -5353,6 +5353,48 @@ Object* JSObject::SetElementsLength(Object* len) {
 }
 
 
+Object* JSObject::SetPrototype(Object* value,
+                               bool skip_hidden_prototypes) {
+  // Silently ignore the change if value is not a JSObject or null.
+  // SpiderMonkey behaves this way.
+  if (!value->IsJSObject() && !value->IsNull()) return value;
+
+  // Before we can set the prototype we need to be sure
+  // prototype cycles are prevented.
+  // It is sufficient to validate that the receiver is not in the new prototype
+  // chain.
+  for (Object* pt = value; pt != Heap::null_value(); pt = pt->GetPrototype()) {
+    if (JSObject::cast(pt) == this) {
+      // Cycle detected.
+      HandleScope scope;
+      return Top::Throw(*Factory::NewError("cyclic_proto",
+                                           HandleVector<Object>(NULL, 0)));
+    }
+  }
+
+  JSObject* real_receiver = this;
+
+  if (skip_hidden_prototypes) {
+    // Find the first object in the chain whose prototype object is not
+    // hidden and set the new prototype on that object.
+    Object* current_proto = real_receiver->GetPrototype();
+    while (current_proto->IsJSObject() &&
+          JSObject::cast(current_proto)->map()->is_hidden_prototype()) {
+      real_receiver = JSObject::cast(current_proto);
+      current_proto = current_proto->GetPrototype();
+    }
+  }
+
+  // Set the new prototype of the object.
+  Object* new_map = real_receiver->map()->CopyDropTransitions();
+  if (new_map->IsFailure()) return new_map;
+  Map::cast(new_map)->set_prototype(value);
+  real_receiver->set_map(Map::cast(new_map));
+
+  return value;
+}
+
+
 bool JSObject::HasElementPostInterceptor(JSObject* receiver, uint32_t index) {
   switch (GetElementsKind()) {
     case FAST_ELEMENTS: {

@@ -4843,6 +4843,84 @@ THREADED_TEST(HiddenPrototype) {
 }
 
 
+THREADED_TEST(SetPrototype) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Local<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
+  t0->InstanceTemplate()->Set(v8_str("x"), v8_num(0));
+  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->SetHiddenPrototype(true);
+  t1->InstanceTemplate()->Set(v8_str("y"), v8_num(1));
+  Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
+  t2->SetHiddenPrototype(true);
+  t2->InstanceTemplate()->Set(v8_str("z"), v8_num(2));
+  Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
+  t3->InstanceTemplate()->Set(v8_str("u"), v8_num(3));
+
+  Local<v8::Object> o0 = t0->GetFunction()->NewInstance();
+  Local<v8::Object> o1 = t1->GetFunction()->NewInstance();
+  Local<v8::Object> o2 = t2->GetFunction()->NewInstance();
+  Local<v8::Object> o3 = t3->GetFunction()->NewInstance();
+
+  // Setting the prototype on an object does not skip hidden prototypes.
+  CHECK_EQ(0, o0->Get(v8_str("x"))->Int32Value());
+  CHECK(o0->SetPrototype(o1));
+  CHECK_EQ(0, o0->Get(v8_str("x"))->Int32Value());
+  CHECK_EQ(1, o0->Get(v8_str("y"))->Int32Value());
+  CHECK(o1->SetPrototype(o2));
+  CHECK_EQ(0, o0->Get(v8_str("x"))->Int32Value());
+  CHECK_EQ(1, o0->Get(v8_str("y"))->Int32Value());
+  CHECK_EQ(2, o0->Get(v8_str("z"))->Int32Value());
+  CHECK(o2->SetPrototype(o3));
+  CHECK_EQ(0, o0->Get(v8_str("x"))->Int32Value());
+  CHECK_EQ(1, o0->Get(v8_str("y"))->Int32Value());
+  CHECK_EQ(2, o0->Get(v8_str("z"))->Int32Value());
+  CHECK_EQ(3, o0->Get(v8_str("u"))->Int32Value());
+
+  // Getting the prototype of o0 should get the first visible one
+  // which is o3.  Therefore, z should not be defined on the prototype
+  // object.
+  Local<Value> proto = o0->Get(v8_str("__proto__"));
+  CHECK(proto->IsObject());
+  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto), o3);
+
+  // However, Object::GetPrototype ignores hidden prototype.
+  Local<Value> proto0 = o0->GetPrototype();
+  CHECK(proto0->IsObject());
+  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto0), o1);
+
+  Local<Value> proto1 = o1->GetPrototype();
+  CHECK(proto1->IsObject());
+  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto1), o2);
+
+  Local<Value> proto2 = o2->GetPrototype();
+  CHECK(proto2->IsObject());
+  CHECK_EQ(v8::Handle<v8::Object>::Cast(proto2), o3);
+}
+
+
+THREADED_TEST(SetPrototypeThrows) {
+  v8::HandleScope handle_scope;
+  LocalContext context;
+
+  Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
+
+  Local<v8::Object> o0 = t->GetFunction()->NewInstance();
+  Local<v8::Object> o1 = t->GetFunction()->NewInstance();
+
+  CHECK(o0->SetPrototype(o1));
+  // If setting the prototype leads to the cycle, SetPrototype should
+  // return false and keep VM in sane state.
+  v8::TryCatch try_catch;
+  CHECK(!o1->SetPrototype(o0));
+  CHECK(!try_catch.HasCaught());
+  ASSERT(!i::Top::has_pending_exception());
+
+  CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")->Int32Value());
+}
+
+
 THREADED_TEST(GetterSetterExceptions) {
   v8::HandleScope handle_scope;
   LocalContext context;

@@ -1197,6 +1197,13 @@ class V8EXPORT Object : public Value {
   Local<Value> GetPrototype();
 
   /**
+   * Set the prototype object.  This does not skip objects marked to
+   * be skipped by __proto__ and it does not consult the security
+   * handler.
+   */
+  bool SetPrototype(Handle<Value> prototype);
+
+  /**
    * Finds an instance of the given function template in the prototype
    * chain.
    */
