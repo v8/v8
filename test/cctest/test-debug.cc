@@ -3884,6 +3884,11 @@ bool IsEvaluateResponseMessage(char* message) {
 }
 
 
+static int StringToInt(const char* s) {
+  return atoi(s);  // NOLINT
+}
+
+
 // We match parts of the message to get evaluate result int value.
 int GetEvaluateIntResult(char *message) {
   const char* value = "\"value\":";
@@ -3892,7 +3897,7 @@ int GetEvaluateIntResult(char *message) {
     return -1;
   }
   int res = -1;
-  res = atoi(pos + strlen(value));
+  res = StringToInt(pos + strlen(value));
   return res;
 }
 
@@ -3905,7 +3910,7 @@ int GetBreakpointIdFromBreakEventMessage(char *message) {
     return -1;
   }
   int res = -1;
-  res = atoi(pos + strlen(breakpoints));
+  res = StringToInt(pos + strlen(breakpoints));
   return res;
 }
 
@@ -3918,11 +3923,7 @@ int GetTotalFramesInt(char *message) {
     return -1;
   }
   pos += strlen(prefix);
-  char* pos_end = pos;
-  int res = static_cast<int>(strtol(pos, &pos_end, 10));
-  if (pos_end == pos) {
-    return -1;
-  }
+  int res = StringToInt(pos);
   return res;
 }
 
