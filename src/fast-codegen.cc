@@ -220,8 +220,16 @@ void FastCodeGenSyntaxChecker::VisitVariableProxy(VariableProxy* expr) {
   if (info()->has_global_object()) {
     LookupResult lookup;
     info()->global_object()->Lookup(*expr->name(), &lookup);
-    if (!lookup.IsValid() || !lookup.IsDontDelete()) {
-      BAILOUT("Non-existing or deletable global variable");
+    if (!lookup.IsValid()) {
+      BAILOUT("Non-existing global variable");
+    }
+    // We do not handle global variables with accessors or interceptors.
+    if (lookup.type() != NORMAL) {
+      BAILOUT("Global variable with accessors or interceptors.");
+    }
+    // We do not handle deletable global variables.
+    if (!lookup.IsDontDelete()) {
+      BAILOUT("Deletable global variable");
     }
   }
 }
@@ -573,8 +581,10 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   ASSERT(info()->has_global_object());
   LookupResult lookup;
   info()->global_object()->Lookup(*expr->name(), &lookup);
-  // We only support DontDelete properties for now.
+  // We only support normal (non-accessor/interceptor) DontDelete properties
+  // for now.
   ASSERT(lookup.IsValid());
+  ASSERT_EQ(NORMAL, lookup.type());
   ASSERT(lookup.IsDontDelete());
   Handle<Object> cell(info()->global_object()->GetPropertyCell(&lookup));
 

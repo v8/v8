@@ -31,21 +31,23 @@
 var g1 = 42;
 var g2 = 43;
 var g3 = 44;
+this.__defineGetter__("g4", function () { return 45; });
 
 function f1() { this.x = this.y = this.z = g1; }
 function f2() { this.x = g1; this.y = g2; this.z = g3; }
+function f3() { this.x = g4; }
 
-var o = {x:0, y:0, z:0, m1:f1, m2:f2}
+var o = { x:0, y:0, z:0, test1:f1, test2:f2, test3:f3 }
 
-o.m1();
-
+o.test1();
 assertEquals(42, o.x);
 assertEquals(42, o.y);
 assertEquals(42, o.z);
 
-
-o.m2();
-
+o.test2();
 assertEquals(42, o.x);
 assertEquals(43, o.y);
 assertEquals(44, o.z);
+
+o.test3();
+assertEquals(45, o.x);
