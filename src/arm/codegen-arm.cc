@@ -2718,9 +2718,9 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
     frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
   }
   frame_->EmitPush(r0);  // save the result
-  // r0: created object literal
-
   for (int i = 0; i < node->properties()->length(); i++) {
+    // At the start of each iteration, the top of stack contains
+    // the newly created object literal.
     ObjectLiteral::Property* property = node->properties()->at(i);
     Literal* key = property->key();
     Expression* value = property->value();
@@ -2730,34 +2730,43 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
         if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
         // else fall through
-      case ObjectLiteral::Property::COMPUTED:  // fall through
+      case ObjectLiteral::Property::COMPUTED:
+        if (key->handle()->IsSymbol()) {
+          Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+          LoadAndSpill(value);
+          frame_->EmitPop(r0);
+          __ mov(r2, Operand(key->handle()));
+          __ ldr(r1, frame_->Top());  // Load the receiver.
+          frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+          break;
+        }
+        // else fall through
       case ObjectLiteral::Property::PROTOTYPE: {
+        __ ldr(r0, frame_->Top());
         frame_->EmitPush(r0);  // dup the result
         LoadAndSpill(key);
         LoadAndSpill(value);
         frame_->CallRuntime(Runtime::kSetProperty, 3);
-        // restore r0
-        __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::SETTER: {
+        __ ldr(r0, frame_->Top());
         frame_->EmitPush(r0);
         LoadAndSpill(key);
         __ mov(r0, Operand(Smi::FromInt(1)));
         frame_->EmitPush(r0);
         LoadAndSpill(value);
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
-        __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::GETTER: {
+        __ ldr(r0, frame_->Top());
         frame_->EmitPush(r0);
         LoadAndSpill(key);
         __ mov(r0, Operand(Smi::FromInt(0)));
         frame_->EmitPush(r0);
         LoadAndSpill(value);
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
-        __ ldr(r0, frame_->Top());
         break;
       }
     }
@@ -4388,11 +4397,11 @@ void Reference::SetValue(InitState init_state) {
       Handle<String> name(GetName());
 
       frame->EmitPop(r0);
-      // Setup the name register.
+      frame->EmitPop(r1);
       __ mov(r2, Operand(name));
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(r0);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 

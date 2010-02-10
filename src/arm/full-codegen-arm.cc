@@ -816,9 +816,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         if (key->handle()->IsSymbol()) {
           VisitForValue(value, kAccumulator);
           __ mov(r2, Operand(key->handle()));
+          __ ldr(r1, MemOperand(sp));
           Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
           __ Call(ic, RelocInfo::CODE_TARGET);
-          // StoreIC leaves the receiver on the stack.
           break;
         }
         // Fall through.
@@ -945,21 +945,17 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     ASSERT(!var->is_this());
     // Assignment to a global variable.  Use inline caching for the
     // assignment.  Right-hand-side value is passed in r0, variable name in
-    // r2, and the global object on the stack.
+    // r2, and the global object in r1.
     __ mov(r2, Operand(var->name()));
-    __ ldr(ip, CodeGenerator::GlobalObject());
-    __ push(ip);
+    __ ldr(r1, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
-    // Overwrite the global object on the stack with the result if needed.
-    DropAndApply(1, context, r0);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
     __ push(result_register());  // Value.
     __ mov(r1, Operand(var->name()));
     __ stm(db_w, sp, cp.bit() | r1.bit());  // Context and name.
     __ CallRuntime(Runtime::kStoreContextSlot, 3);
-    Apply(context, r0);
 
   } else if (var->slot() != NULL) {
     Slot* slot = var->slot();
@@ -986,13 +982,13 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         UNREACHABLE();
         break;
     }
-    Apply(context, result_register());
 
   } else {
     // Variables rewritten as properties are not treated as variables in
     // assignments.
     UNREACHABLE();
   }
+  Apply(context, result_register());
 }
 
 
@@ -1016,6 +1012,12 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+  if (expr->ends_initialization_block()) {
+    __ ldr(r1, MemOperand(sp));
+  } else {
+    __ pop(r1);
+  }
+
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 
@@ -1026,9 +1028,10 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
+    DropAndApply(1, context_, r0);
+  } else {
+    Apply(context_, r0);
   }
-
-  DropAndApply(1, context_, r0);
 }
 
 
@@ -1548,15 +1551,15 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     case NAMED_PROPERTY: {
       __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+      __ pop(r1);
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
-        __ Drop(1);  // Result is on the stack under the receiver.
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
         }
       } else {
-        DropAndApply(1, context_, r0);
+        Apply(context_, r0);
       }
       break;
     }

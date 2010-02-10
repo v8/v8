@@ -258,8 +258,9 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 
 
 // Generate StoreField code, value is passed in r0 register.
-// After executing generated code, the receiver_reg and name_reg
-// may be clobbered.
+// When leaving generated code after success, the receiver_reg and name_reg
+// may be clobbered.  Upon branch to miss_label, the receiver and name
+// registers have their original values.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       JSObject* object,
                                       int index,
@@ -525,9 +526,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
     // Note: starting a frame here makes GC aware of pointers pushed below.
     __ EnterInternalFrame();
 
-    if (lookup->type() == CALLBACKS) {
-      __ push(receiver);
-    }
+    __ push(receiver);
     __ push(holder);
     __ push(name_);
 
@@ -548,10 +547,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
     __ bind(&interceptor_failed);
     __ pop(name_);
     __ pop(holder);
-
-    if (lookup->type() == CALLBACKS) {
-      __ pop(receiver);
-    }
+    __ pop(receiver);
 
     __ LeaveInternalFrame();
 
@@ -1208,24 +1204,19 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
                                              String* name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
+  //  -- r1    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
-  // Get the receiver from the stack.
-  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
-
-  // name register might be clobbered.
   GenerateStoreField(masm(),
                      object,
                      index,
                      transition,
-                     r3, r2, r1,
+                     r1, r2, r3,
                      &miss);
   __ bind(&miss);
-  __ mov(r2, Operand(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
@@ -1239,39 +1230,33 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
                                                 String* name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
+  //  -- r1    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
-  // Get the object from the stack.
-  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
-
   // Check that the object isn't a smi.
-  __ tst(r3, Operand(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Check that the map of the object hasn't changed.
-  __ ldr(r1, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ cmp(r1, Operand(Handle<Map>(object->map())));
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r3, Operand(Handle<Map>(object->map())));
   __ b(ne, &miss);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(r3, r1, &miss);
+    __ CheckAccessGlobalProxy(r1, r3, &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
-  __ ldr(ip, MemOperand(sp));  // receiver
-  __ push(ip);
+  __ push(r1);  // receiver
   __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback info
-  __ push(ip);
-  __ push(r2);  // name
-  __ push(r0);  // value
+  __ stm(db_w, sp, ip.bit() | r2.bit() | r0.bit());
 
   // Do tail-call to the runtime system.
   ExternalReference store_callback_property =
@@ -1292,37 +1277,33 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
                                                    String* name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
+  //  -- r1    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
-  // Get the object from the stack.
-  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
-
   // Check that the object isn't a smi.
-  __ tst(r3, Operand(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Check that the map of the object hasn't changed.
-  __ ldr(r1, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ cmp(r1, Operand(Handle<Map>(receiver->map())));
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r3, Operand(Handle<Map>(receiver->map())));
   __ b(ne, &miss);
 
   // Perform global security token check if needed.
   if (receiver->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(r3, r1, &miss);
+    __ CheckAccessGlobalProxy(r1, r3, &miss);
   }
 
-  // Stub never generated for non-global objects that require access
+  // Stub is never generated for non-global objects that require access
   // checks.
   ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
 
-  __ ldr(ip, MemOperand(sp));  // receiver
-  __ push(ip);
-  __ push(r2);  // name
-  __ push(r0);  // value
+  __ push(r1);  // receiver.
+  __ push(r2);  // name.
+  __ push(r0);  // value.
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
@@ -1344,14 +1325,13 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
                                               String* name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
+  //  -- r1    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
   Label miss;
 
   // Check that the map of the global has not changed.
-  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
   __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ cmp(r3, Operand(Handle<Map>(object->map())));
   __ b(ne, &miss);
@@ -1360,12 +1340,12 @@ Object* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   __ mov(r2, Operand(Handle<JSGlobalPropertyCell>(cell)));
   __ str(r0, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
 
-  __ IncrementCounter(&Counters::named_store_global_inline, 1, r1, r3);
+  __ IncrementCounter(&Counters::named_store_global_inline, 1, r4, r3);
   __ Ret();
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ IncrementCounter(&Counters::named_store_global_inline_miss, 1, r1, r3);
+  __ IncrementCounter(&Counters::named_store_global_inline_miss, 1, r4, r3);
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
 

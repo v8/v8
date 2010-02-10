@@ -791,13 +791,12 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : value
+  //  -- r1    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
 
   // Get the receiver from the stack and probe the stub cache.
-  __ ldr(r1, MemOperand(sp));
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC);
@@ -811,13 +810,13 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : value
+  //  -- r1    : receiver
   //  -- r2    : name
   //  -- lr    : return address
-  //  -- [sp]  : receiver
   // -----------------------------------
 
-  __ ldr(r3, MemOperand(sp));  // copy receiver
-  __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
+  __ push(r1);
+  __ stm(db_w, sp, r2.bit() | r0.bit());
 
   // Perform tail call to the entry.
   __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_Miss)), 3, 1);
