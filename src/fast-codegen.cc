@@ -89,10 +89,10 @@ void FastCodeGenSyntaxChecker::VisitDeclarations(
 
 
 void FastCodeGenSyntaxChecker::VisitStatements(ZoneList<Statement*>* stmts) {
-  for (int i = 0, len = stmts->length(); i < len; i++) {
-    Visit(stmts->at(i));
-    CHECK_BAILOUT;
+  if (stmts->length() != 1) {
+    BAILOUT("Function body is not a singleton statement.");
   }
+  Visit(stmts->at(0));
 }
 
 
@@ -276,6 +276,9 @@ void FastCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
     Handle<String> name = Handle<String>::cast(key->handle());
     LookupResult lookup;
     receiver->Lookup(*name, &lookup);
+    if (!lookup.IsValid()) {
+      BAILOUT("Assigned property not found at compile time");
+    }
     if (lookup.holder() != *receiver) BAILOUT("Non-own property assignment");
     if (!lookup.type() == FIELD) BAILOUT("Non-field property assignment");
   } else {
@@ -311,6 +314,9 @@ void FastCodeGenSyntaxChecker::VisitProperty(Property* expr) {
     Handle<String> name = Handle<String>::cast(key->handle());
     LookupResult lookup;
     receiver->Lookup(*name, &lookup);
+    if (!lookup.IsValid()) {
+      BAILOUT("Referenced property not found at compile time");
+    }
     if (lookup.holder() != *receiver) BAILOUT("Non-own property reference");
     if (!lookup.type() == FIELD) BAILOUT("Non-field property reference");
   } else {
@@ -360,6 +366,16 @@ void FastCodeGenSyntaxChecker::VisitBinaryOperation(BinaryOperation* expr) {
       // a pair of registers to keep all intermediate values in registers
       // (i.e., the expression stack has height no more than two).
       if (!expr->right()->IsLeaf()) BAILOUT("expression nested on right");
+
+      // We do not allow subexpressions with side effects because we
+      // (currently) bail out to the beginning of the full function.  The
+      // only expressions with side effects that we would otherwise handle
+      // are assignments.
+      if (expr->left()->AsAssignment() != NULL ||
+          expr->right()->AsAssignment() != NULL) {
+        BAILOUT("subexpression of binary operation has side effects");
+      }
+
       Visit(expr->left());
       CHECK_BAILOUT;
       Visit(expr->right());
