@@ -6917,6 +6917,13 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
 
 void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [esp + kPointerSize]: constant elements.
+  // [esp + (2 * kPointerSize)]: literal index.
+  // [esp + (3 * kPointerSize)]: literals array.
+
+  // All sizes here are multiples of kPointerSize.
   int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
   int size = JSArray::kSize + elements_size;
 
