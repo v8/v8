@@ -680,13 +680,6 @@ class MacroAssembler: public Assembler {
 
   void Ret();
 
-  struct Unresolved {
-    int pc;
-    uint32_t flags;  // see Bootstrapper::FixupFlags decoders/encoders.
-    const char* name;
-  };
-  List<Unresolved>* unresolved() { return &unresolved_; }
-
   Handle<Object> CodeObject() { return code_object_; }
 
 
@@ -718,7 +711,6 @@ class MacroAssembler: public Assembler {
   bool allow_stub_calls() { return allow_stub_calls_; }
 
  private:
-  List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
@@ -731,18 +723,6 @@ class MacroAssembler: public Assembler {
                       Register code_register,
                       Label* done,
                       InvokeFlag flag);
-
-  // Prepares for a call or jump to a builtin by doing two things:
-  // 1. Emits code that fetches the builtin's function object from the context
-  //    at runtime, and puts it in the register rdi.
-  // 2. Fetches the builtin's code object, and returns it in a handle, at
-  //    compile time, so that later code can emit instructions to jump or call
-  //    the builtin directly.  If the code object has not yet been created, it
-  //    returns the builtin code object for IllegalFunction, and sets the
-  //    output parameter "resolved" to false.  Code that uses the return value
-  //    should then add the address and the builtin name to the list of fixups
-  //    called unresolved_, which is fixed up by the bootstrapper.
-  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

@@ -192,116 +192,6 @@ void Bootstrapper::TearDown() {
 }
 
 
-// Pending fixups are code positions that refer to builtin code
-// objects that were not available at the time the code was generated.
-// The pending list is processed whenever an environment has been
-// created.
-class PendingFixups : public AllStatic {
- public:
-  static void Add(Code* code, MacroAssembler* masm);
-  static bool Process(Handle<JSBuiltinsObject> builtins);
-
-  static void Iterate(ObjectVisitor* v);
-
- private:
-  static List<Object*> code_;
-  static List<const char*> name_;
-  static List<int> pc_;
-  static List<uint32_t> flags_;
-
-  static void Clear();
-};
-
-
-List<Object*> PendingFixups::code_(0);
-List<const char*> PendingFixups::name_(0);
-List<int> PendingFixups::pc_(0);
-List<uint32_t> PendingFixups::flags_(0);
-
-
-void PendingFixups::Add(Code* code, MacroAssembler* masm) {
-  // Note this code is not only called during bootstrapping.
-  List<MacroAssembler::Unresolved>* unresolved = masm->unresolved();
-  int n = unresolved->length();
-  for (int i = 0; i < n; i++) {
-    const char* name = unresolved->at(i).name;
-    code_.Add(code);
-    name_.Add(name);
-    pc_.Add(unresolved->at(i).pc);
-    flags_.Add(unresolved->at(i).flags);
-    LOG(StringEvent("unresolved", name));
-  }
-}
-
-
-bool PendingFixups::Process(Handle<JSBuiltinsObject> builtins) {
-  HandleScope scope;
-  // NOTE: Extra fixups may be added to the list during the iteration
-  // due to lazy compilation of functions during the processing. Do not
-  // cache the result of getting the length of the code list.
-  for (int i = 0; i < code_.length(); i++) {
-    const char* name = name_[i];
-    uint32_t flags = flags_[i];
-    Handle<String> symbol = Factory::LookupAsciiSymbol(name);
-    Object* o = builtins->GetProperty(*symbol);
-#ifdef DEBUG
-    if (!o->IsJSFunction()) {
-      V8_Fatal(__FILE__, __LINE__, "Cannot resolve call to builtin %s", name);
-    }
-#endif
-    Handle<SharedFunctionInfo> shared(JSFunction::cast(o)->shared());
-    // Make sure the number of parameters match the formal parameter count.
-    int argc = Bootstrapper::FixupFlagsArgumentsCount::decode(flags);
-    USE(argc);
-    ASSERT(shared->formal_parameter_count() == argc);
-    // Do lazy compilation if necessary and check for stack overflows.
-    if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) {
-      Clear();
-      return false;
-    }
-    Code* code = Code::cast(code_[i]);
-    Address pc = code->instruction_start() + pc_[i];
-    RelocInfo target(pc, RelocInfo::CODE_TARGET, 0);
-    bool use_code_object = Bootstrapper::FixupFlagsUseCodeObject::decode(flags);
-    if (use_code_object) {
-      target.set_target_object(shared->code());
-    } else {
-      target.set_target_address(shared->code()->instruction_start());
-    }
-    LOG(StringEvent("resolved", name));
-  }
-  Clear();
-
-  // TODO(1240818): We should probably try to avoid doing this for all
-  // the V8 builtin JS files. It should only happen after running
-  // runtime.js - just like there shouldn't be any fixups left after
-  // that.
-  for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
-    Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Handle<String> name = Factory::LookupAsciiSymbol(Builtins::GetName(id));
-    JSFunction* function = JSFunction::cast(builtins->GetProperty(*name));
-    builtins->set_javascript_builtin(id, function);
-  }
-
-  return true;
-}
-
-
-void PendingFixups::Clear() {
-  code_.Clear();
-  name_.Clear();
-  pc_.Clear();
-  flags_.Clear();
-}
-
-
-void PendingFixups::Iterate(ObjectVisitor* v) {
-  if (!code_.is_empty()) {
-    v->VisitPointers(&code_[0], &code_[0] + code_.length());
-  }
-}
-
-
 class Genesis BASE_EMBEDDED {
  public:
   Genesis(Handle<Object> global_object,
@@ -338,6 +228,7 @@ class Genesis BASE_EMBEDDED {
   bool InstallExtension(const char* name);
   bool InstallExtension(v8::RegisteredExtension* current);
   bool InstallSpecialObjects();
+  bool InstallJSBuiltins(Handle<JSBuiltinsObject> builtins);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
   bool ConfigureGlobalObjects(v8::Handle<v8::ObjectTemplate> global_template);
@@ -379,15 +270,6 @@ void Bootstrapper::Iterate(ObjectVisitor* v) {
   v->Synchronize("NativesCache");
   extensions_cache.Iterate(v);
   v->Synchronize("Extensions");
-  PendingFixups::Iterate(v);
-  v->Synchronize("PendingFixups");
-}
-
-
-// While setting up the environment, we collect code positions that
-// need to be patched before we can run any code in the environment.
-void Bootstrapper::AddFixup(Code* code, MacroAssembler* masm) {
-  PendingFixups::Add(code, masm);
 }
 
 
@@ -968,8 +850,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   Handle<Object> result =
       Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
   if (has_pending_exception) return false;
-  return PendingFixups::Process(
-      Handle<JSBuiltinsObject>(Top::context()->builtins()));
+  return true;
 }
 
 
@@ -1176,6 +1057,10 @@ bool Genesis::InstallNatives() {
          i < Natives::GetBuiltinsCount();
          i++) {
       if (!CompileBuiltin(i)) return false;
+      // TODO(ager): We really only need to install the JS builtin
+      // functions on the builtins object after compiling and running
+      // runtime.js.
+      if (!InstallJSBuiltins(builtins)) return false;
     }
 
     // Setup natives with lazy loading.
@@ -1374,6 +1259,22 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
   }
   current->set_state(v8::INSTALLED);
   return result;
+}
+
+
+bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
+  HandleScope scope;
+  for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
+    Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
+    Handle<String> name = Factory::LookupAsciiSymbol(Builtins::GetName(id));
+    Handle<JSFunction> function
+        = Handle<JSFunction>(JSFunction::cast(builtins->GetProperty(*name)));
+    builtins->set_javascript_builtin(id, *function);
+    Handle<SharedFunctionInfo> shared
+        = Handle<SharedFunctionInfo>(function->shared());
+    if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
+  }
+  return true;
 }
 
 

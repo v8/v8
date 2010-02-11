@@ -61,9 +61,6 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
   code->set_major_key(MajorKey());
 
-  // Add unresolved entries in the code to the fixup list.
-  Bootstrapper::AddFixup(code, masm);
-
 #ifdef ENABLE_OPROFILE_AGENT
   // Register the generated stub with the OPROFILE agent.
   OProfileAgent::CreateNativeCodeRegion(GetName(),

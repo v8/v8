@@ -168,28 +168,6 @@ static inline bool CalledAsConstructor() {
 // ----------------------------------------------------------------------------
 
 
-Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {
-  Code* code = Builtins::builtin(Builtins::Illegal);
-  *resolved = false;
-
-  if (Top::context() != NULL) {
-    Object* object = Top::builtins()->javascript_builtin(id);
-    if (object->IsJSFunction()) {
-      Handle<SharedFunctionInfo> shared(JSFunction::cast(object)->shared());
-      // Make sure the number of parameters match the formal parameter count.
-      ASSERT(shared->formal_parameter_count() ==
-             Builtins::GetArgumentsCount(id));
-      if (EnsureCompiled(shared, CLEAR_EXCEPTION)) {
-        code = shared->code();
-        *resolved = true;
-      }
-    }
-  }
-
-  return Handle<Code>(code);
-}
-
-
 BUILTIN(Illegal) {
   UNREACHABLE();
   return Heap::undefined_value();  // Make compiler happy.
@@ -930,9 +908,6 @@ void Builtins::Setup(bool create_heap_objects) {
           v8::internal::V8::FatalProcessOutOfMemory("CreateCode");
         }
       }
-      // Add any unresolved jumps or calls to the fixup list in the
-      // bootstrapper.
-      Bootstrapper::AddFixup(Code::cast(code), &masm);
       // Log the event and add the code to the builtins array.
       LOG(CodeCreateEvent(Logger::BUILTIN_TAG,
                           Code::cast(code), functions[i].s_name));

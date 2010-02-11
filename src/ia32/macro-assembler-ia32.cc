@@ -41,7 +41,6 @@ namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
-      unresolved_(0),
       generating_stub_(false),
       allow_stub_calls_(true),
       code_object_(Heap::undefined_value()) {
@@ -1367,9 +1366,6 @@ void MacroAssembler::InvokeFunction(Register fun,
 
 
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
   // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
@@ -1377,55 +1373,22 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  InvokeCode(Handle<Code>(code), expected, expected,
-             RelocInfo::CODE_TARGET, flag);
-
-  const char* name = Builtins::GetName(id);
-  int argc = Builtins::GetArgumentsCount(id);
-
-  if (!resolved) {
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(false);
-    Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
-    unresolved_.Add(entry);
-  }
+  GetBuiltinEntry(edx, id);
+  InvokeCode(Operand(edx), expected, expected, flag);
 }
 
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
-  const char* name = Builtins::GetName(id);
-  int argc = Builtins::GetArgumentsCount(id);
-
-  mov(Operand(target), Immediate(code));
-  if (!resolved) {
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
-    Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
-    unresolved_.Add(entry);
-  }
-  add(Operand(target), Immediate(Code::kHeaderSize - kHeapObjectTag));
-}
-
-
-Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
-                                            bool* resolved) {
-  // Move the builtin function into the temporary function slot by
-  // reading it from the builtins object. NOTE: We should be able to
-  // reduce this to two instructions by putting the function table in
-  // the global object instead of the "builtins" object and by using a
-  // real register for the function.
-  mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  mov(edx, FieldOperand(edx, GlobalObject::kBuiltinsOffset));
+  // Load the JavaScript builtin function from the builtins object.
+  mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  mov(edi, FieldOperand(edi, GlobalObject::kBuiltinsOffset));
   int builtins_offset =
       JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
-  mov(edi, FieldOperand(edx, builtins_offset));
-
-  return Builtins::GetCode(id, resolved);
+  mov(edi, FieldOperand(edi, builtins_offset));
+  // Load the code entry point from the function into the target register.
+  mov(target, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  mov(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
+  add(Operand(target), Immediate(Code::kHeaderSize - kHeapObjectTag));
 }
 
 

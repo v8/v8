@@ -197,9 +197,6 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   Handle<Code> code =
       Factory::NewCode(desc, &sinfo, flags, masm->CodeObject());
 
-  // Add unresolved entries in the code to the fixup list.
-  Bootstrapper::AddFixup(*code, masm);
-
 #ifdef ENABLE_DISASSEMBLER
   bool print_code = Bootstrapper::IsActive()
       ? FLAG_print_builtin_code

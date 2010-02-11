@@ -37,7 +37,6 @@ namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
-      unresolved_(0),
       generating_stub_(false),
       allow_stub_calls_(true),
       code_object_(Heap::undefined_value()) {
@@ -1233,58 +1232,28 @@ void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
 }
 
 
-Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
-                                            bool* resolved) {
-  // Contract with compiled functions is that the function is passed in r1.
-  int builtins_offset =
-      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
-  ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  ldr(r1, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
-  ldr(r1, FieldMemOperand(r1, builtins_offset));
-
-  return Builtins::GetCode(id, resolved);
-}
-
-
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
+  GetBuiltinEntry(r2, id);
   if (flags == CALL_JS) {
-    Call(code, RelocInfo::CODE_TARGET);
+    Call(r2);
   } else {
     ASSERT(flags == JUMP_JS);
-    Jump(code, RelocInfo::CODE_TARGET);
-  }
-
-  if (!resolved) {
-    const char* name = Builtins::GetName(id);
-    int argc = Builtins::GetArgumentsCount(id);
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(false);
-    Unresolved entry = { pc_offset() - kInstrSize, flags, name };
-    unresolved_.Add(entry);
+    Jump(r2);
   }
 }
 
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
-  mov(target, Operand(code));
-  if (!resolved) {
-    const char* name = Builtins::GetName(id);
-    int argc = Builtins::GetArgumentsCount(id);
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
-    Unresolved entry = { pc_offset() - kInstrSize, flags, name };
-    unresolved_.Add(entry);
-  }
-
+  // Load the JavaScript builtin function from the builtins object.
+  ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  ldr(r1, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
+  int builtins_offset =
+      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
+  ldr(r1, FieldMemOperand(r1, builtins_offset));
+  // Load the code entry point from the function into the target register.
+  ldr(target, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  ldr(target, FieldMemOperand(target, SharedFunctionInfo::kCodeOffset));
   add(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
 }
 

@@ -39,7 +39,6 @@ namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
-      unresolved_(0),
       generating_stub_(false),
       allow_stub_calls_(true),
       code_object_(Heap::undefined_value()) {
@@ -415,38 +414,30 @@ void MacroAssembler::JumpToRuntime(const ExternalReference& ext,
 }
 
 
-void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
+  // Calls are not allowed in some stubs.
+  ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
-  const char* name = Builtins::GetName(id);
-  int argc = Builtins::GetArgumentsCount(id);
-
-  movq(target, code, RelocInfo::EMBEDDED_OBJECT);
-  if (!resolved) {
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
-    Unresolved entry = { pc_offset() - sizeof(intptr_t), flags, name };
-    unresolved_.Add(entry);
-  }
-  addq(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
+  // Rely on the assertion to check that the number of provided
+  // arguments match the expected number of arguments. Fake a
+  // parameter count to avoid emitting code to do the check.
+  ParameterCount expected(0);
+  GetBuiltinEntry(rdx, id);
+  InvokeCode(rdx, expected, expected, flag);
 }
 
-Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
-                                            bool* resolved) {
-  // Move the builtin function into the temporary function slot by
-  // reading it from the builtins object. NOTE: We should be able to
-  // reduce this to two instructions by putting the function table in
-  // the global object instead of the "builtins" object and by using a
-  // real register for the function.
-  movq(rdx, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  movq(rdx, FieldOperand(rdx, GlobalObject::kBuiltinsOffset));
+
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  // Load the JavaScript builtin function from the builtins object.
+  movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(rdi, FieldOperand(rdi, GlobalObject::kBuiltinsOffset));
   int builtins_offset =
       JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
-  movq(rdi, FieldOperand(rdx, builtins_offset));
-
-  return Builtins::GetCode(id, resolved);
+  movq(rdi, FieldOperand(rdi, builtins_offset));
+  // Load the code entry point from the function into the target register.
+  movq(target, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  movq(target, FieldOperand(target, SharedFunctionInfo::kCodeOffset));
+  addq(target, Immediate(Code::kHeaderSize - kHeapObjectTag));
 }
 
 
@@ -1782,38 +1773,6 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif  // ENABLE_DEBUGGER_SUPPORT
-
-
-void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
-  // Calls are not allowed in some stubs.
-  ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
-
-  // Rely on the assertion to check that the number of provided
-  // arguments match the expected number of arguments. Fake a
-  // parameter count to avoid emitting code to do the check.
-  ParameterCount expected(0);
-  InvokeCode(Handle<Code>(code),
-             expected,
-             expected,
-             RelocInfo::CODE_TARGET,
-             flag);
-
-  const char* name = Builtins::GetName(id);
-  int argc = Builtins::GetArgumentsCount(id);
-  // The target address for the jump is stored as an immediate at offset
-  // kInvokeCodeAddressOffset.
-  if (!resolved) {
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(false);
-    Unresolved entry =
-        { pc_offset() - kCallTargetAddressOffset, flags, name };
-    unresolved_.Add(entry);
-  }
-}
 
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
