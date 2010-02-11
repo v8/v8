@@ -66,7 +66,7 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
 class FastCodeGenerator: public AstVisitor {
  public:
   explicit FastCodeGenerator(MacroAssembler* masm)
-      : masm_(masm), info_(NULL), destination_(no_reg) {
+      : masm_(masm), info_(NULL), destination_(no_reg), smi_bits_(0) {
   }
 
   static Handle<Code> MakeCode(CompilationInfo* info);
@@ -95,6 +95,21 @@ class FastCodeGenerator: public AstVisitor {
   Register other_accumulator(Register reg) {
     ASSERT(reg.is(accumulator0()) || reg.is(accumulator1()));
     return (reg.is(accumulator0())) ? accumulator1() : accumulator0();
+  }
+
+  // Flags are true if the respective register is statically known to hold a
+  // smi.  We do not track every register, only the accumulator registers.
+  bool is_smi(Register reg) {
+    ASSERT(!reg.is(no_reg));
+    return (smi_bits_ & reg.bit()) != 0;
+  }
+  void set_as_smi(Register reg) {
+    ASSERT(!reg.is(no_reg));
+    smi_bits_ = smi_bits_ | reg.bit();
+  }
+  void clear_as_smi(Register reg) {
+    ASSERT(!reg.is(no_reg));
+    smi_bits_ = smi_bits_ & ~reg.bit();
   }
 
   // AST node visit functions.
@@ -129,6 +144,7 @@ class FastCodeGenerator: public AstVisitor {
   CompilationInfo* info_;
   Label bailout_;
   Register destination_;
+  uint32_t smi_bits_;
 
   DISALLOW_COPY_AND_ASSIGN(FastCodeGenerator);
 };

@@ -62,6 +62,9 @@ void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
     __ cmp(destination(), ip);
     __ Check(ne, "DontDelete cells can't contain the hole");
   }
+
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
 }
 
 
@@ -75,21 +78,37 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   int index = lookup.GetFieldIndex() - map->inobject_properties();
   int offset = index * kPointerSize;
 
+  // We will emit the write barrier unless the stored value is statically
+  // known to be a smi.
+  bool needs_write_barrier = !is_smi(accumulator0());
+
   // Negative offsets are inobject properties.
   if (offset < 0) {
     offset += map->instance_size();
-    __ mov(scratch0(), receiver_reg());  // Copy receiver for write barrier.
+    __ str(accumulator0(), FieldMemOperand(receiver_reg(), offset));
+    if (needs_write_barrier) {
+      // Preserve receiver from write barrier.
+      __ mov(scratch0(), receiver_reg());
+    }
   } else {
     offset += FixedArray::kHeaderSize;
     __ ldr(scratch0(),
            FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ str(accumulator0(), FieldMemOperand(scratch0(), offset));
   }
-  // Perform the store.
-  __ str(accumulator0(), FieldMemOperand(scratch0(), offset));
-  __ mov(scratch1(), Operand(offset));
-  __ RecordWrite(scratch0(), scratch1(), ip);
+
+  if (needs_write_barrier) {
+    __ mov(scratch1(), Operand(offset));
+    __ RecordWrite(scratch0(), scratch1(), ip);
+  }
+
   if (destination().is(accumulator1())) {
     __ mov(accumulator1(), accumulator0());
+    if (is_smi(accumulator0())) {
+      set_as_smi(accumulator1());
+    } else {
+      clear_as_smi(accumulator1());
+    }
   }
 }
 
@@ -115,30 +134,41 @@ void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
            FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
     __ ldr(destination(), FieldMemOperand(scratch0(), offset));
   }
+
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
 }
 
 
 void FastCodeGenerator::EmitBitOr() {
-  Register check;  // A register is used for the smi check/operation.
-  if (destination().is(no_reg)) {
-    check = scratch0();  // Do not clobber either operand register.
+  if (is_smi(accumulator0()) && is_smi(accumulator1())) {
+    // If both operands are known to be a smi then there is no need to check
+    // the operands or result.  There is no need to perform the operation in
+    // an effect context.
+    if (!destination().is(no_reg)) {
+      __ orr(destination(), accumulator1(), Operand(accumulator0()));
+    }
+  } else if (destination().is(no_reg)) {
+    // Result is not needed but do not clobber the operands in case of
+    // bailout.
+    __ orr(scratch0(), accumulator1(), Operand(accumulator0()));
+    __ BranchOnNotSmi(scratch0(), bailout());
   } else {
-    // Preserve whichever operand shares the destination register in case we
-    // have to bail out.
-    __ mov(scratch0(), destination());
-    check = destination();
-  }
-  __ orr(check, accumulator1(), Operand(accumulator0()));
-  // Restore the clobbered operand if necessary.
-  if (destination().is(no_reg)) {
-    __ BranchOnNotSmi(check, bailout());
-  } else {
+    // Preserve the destination operand in a scratch register in case of
+    // bailout.
     Label done;
-    __ BranchOnSmi(check, &done);
+    __ mov(scratch0(), destination());
+    __ orr(destination(), accumulator1(), Operand(accumulator0()));
+    __ BranchOnSmi(destination(), &done);
     __ mov(destination(), scratch0());
     __ jmp(bailout());
     __ bind(&done);
   }
+
+  // If we didn't bailout, the result (in fact, both inputs too) is known to
+  // be a smi.
+  set_as_smi(accumulator0());
+  set_as_smi(accumulator1());
 }
 
 

@@ -53,6 +53,7 @@ void FastCodeGenerator::EmitLoadReceiver() {
 void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
   ASSERT(!destination().is(no_reg));
   ASSERT(cell->IsJSGlobalPropertyCell());
+
   __ Move(destination(), cell);
   __ movq(destination(),
           FieldOperand(destination(), JSGlobalPropertyCell::kValueOffset));
@@ -60,6 +61,9 @@ void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
     __ Cmp(destination(), Factory::the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
+
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
 }
 
 
@@ -73,26 +77,43 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   int index = lookup.GetFieldIndex() - map->inobject_properties();
   int offset = index * kPointerSize;
 
-  // Negative offsets are inobject properties.
+  // We will emit the write barrier unless the stored value is statically
+  // known to be a smi.
+  bool needs_write_barrier = !is_smi(accumulator0());
+
+  // Perform the store.  Negative offsets are inobject properties.
   if (offset < 0) {
     offset += map->instance_size();
-    __ movq(scratch0(), receiver_reg());  // Copy receiver for write barrier.
+    __ movq(FieldOperand(receiver_reg(), offset), accumulator0());
+    if (needs_write_barrier) {
+      // Preserve receiver from write barrier.
+      __ movq(scratch0(), receiver_reg());
+    }
   } else {
     offset += FixedArray::kHeaderSize;
     __ movq(scratch0(),
             FieldOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ movq(FieldOperand(scratch0(), offset), accumulator0());
   }
-  // Perform the store.
-  __ movq(FieldOperand(scratch0(), offset), accumulator0());
-  if (destination().is(no_reg)) {
-    __ RecordWrite(scratch0(), offset, accumulator0(), scratch1());
-  } else {
-    // Copy the value to the other accumulator to preserve a copy from the
-    // write barrier. One of the accumulators is available as a scratch
-    // register.
+
+  if (needs_write_barrier) {
+    if (destination().is(no_reg)) {
+      // After RecordWrite accumulator0 is only accidently a smi, but it is
+      // already marked as not known to be one.
+      __ RecordWrite(scratch0(), offset, accumulator0(), scratch1());
+    } else {
+      // Copy the value to the other accumulator to preserve a copy from the
+      // write barrier. One of the accumulators is available as a scratch
+      // register.  Neither is a smi.
+      __ movq(accumulator1(), accumulator0());
+      clear_as_smi(accumulator1());
+      Register value_scratch = other_accumulator(destination());
+      __ RecordWrite(scratch0(), offset, value_scratch, scratch1());
+    }
+  } else if (destination().is(accumulator1())) {
     __ movq(accumulator1(), accumulator0());
-    Register value_scratch = other_accumulator(destination());
-    __ RecordWrite(scratch0(), offset, value_scratch, scratch1());
+    // Is a smi because we do not need the write barrier.
+    set_as_smi(accumulator1());
   }
 }
 
@@ -118,34 +139,46 @@ void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
             FieldOperand(receiver_reg(), JSObject::kPropertiesOffset));
     __ movq(destination(), FieldOperand(scratch0(), offset));
   }
+
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
 }
 
 
 void FastCodeGenerator::EmitBitOr() {
-  Register copied;  // One operand is copied to a scratch register.
-  Register other;   // The other is not modified by the operation.
-  Register check;   // A register is used for the smi check/operation.
-  if (destination().is(no_reg)) {
-    copied = accumulator1();  // Arbitrary choice of operand to copy.
-    other = accumulator0();
-    check = scratch0();  // Do not clobber either operand register.
+  if (is_smi(accumulator0()) && is_smi(accumulator1())) {
+    // If both operands are known to be a smi then there is no need to check
+    // the operands or result.
+    if (destination().is(no_reg)) {
+      __ or_(accumulator1(), accumulator0());
+    } else {
+      // Leave the result in the destination register.  Bitwise or is
+      // commutative.
+      __ or_(destination(), other_accumulator(destination()));
+    }
+  } else if (destination().is(no_reg)) {
+    // Result is not needed but do not clobber the operands in case of
+    // bailout.
+    __ movq(scratch0(), accumulator1());
+    __ or_(scratch0(), accumulator0());
+    __ JumpIfNotSmi(scratch0(), bailout());
   } else {
-    copied = destination();
-    other = other_accumulator(destination());
-    check = destination();
-  }
-  __ movq(scratch0(), copied);
-  __ or_(check, other);
-  // Restore the clobbered operand if necessary.
-  if (destination().is(no_reg)) {
-    __ JumpIfNotSmi(check, bailout());
-  } else {
+    // Preserve the destination operand in a scratch register in case of
+    // bailout.
     Label done;
-    __ JumpIfSmi(check, &done);
-    __ movq(copied, scratch0());
+    __ movq(scratch0(), destination());
+    __ or_(destination(), other_accumulator(destination()));
+    __ JumpIfSmi(destination(), &done);
+    __ movq(destination(), scratch0());
     __ jmp(bailout());
     __ bind(&done);
   }
+
+
+  // If we didn't bailout, the result (in fact, both inputs too) is known to
+  // be a smi.
+  set_as_smi(accumulator0());
+  set_as_smi(accumulator1());
 }
 
 
