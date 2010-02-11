@@ -8019,6 +8019,8 @@ void GenericBinaryOpStub::GenerateCall(
         }
       } else if (left.is(left_arg)) {
         __ movq(right_arg, right);
+      } else if (right.is(right_arg)) {
+        __ movq(left_arg, left);
       } else if (left.is(right_arg)) {
         if (IsOperationCommutative()) {
           __ movq(left_arg, right);
@@ -8037,8 +8039,6 @@ void GenericBinaryOpStub::GenerateCall(
           __ movq(right_arg, right);
           __ movq(left_arg, left);
         }
-      } else if (right.is(right_arg)) {
-        __ movq(left_arg, left);
       } else {
         // Order of moves is not important.
         __ movq(left_arg, left);
@@ -8074,6 +8074,10 @@ void GenericBinaryOpStub::GenerateCall(
       __ Move(left_arg, right);
       SetArgsReversed();
     } else {
+      // For non-commutative operations, left and right_arg might be
+      // the same register.  Therefore, the order of the moves is
+      // important here in order to not overwrite left before moving
+      // it to left_arg.
       __ movq(left_arg, left);
       __ Move(right_arg, right);
     }
@@ -8106,8 +8110,12 @@ void GenericBinaryOpStub::GenerateCall(
       __ Move(right_arg, left);
       SetArgsReversed();
     } else {
-      __ Move(left_arg, left);
+      // For non-commutative operations, right and left_arg might be
+      // the same register.  Therefore, the order of the moves is
+      // important here in order to not overwrite right before moving
+      // it to right_arg.
       __ movq(right_arg, right);
+      __ Move(left_arg, left);
     }
     // Update flags to indicate that arguments are in registers.
     SetArgsInRegisters();
