@@ -276,43 +276,47 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  // 4. Shift stuff one slot down the stack.
+  // 4. Check that the function really is a function.
+  { Label real_function;
+    __ testq(rdi, rdi);
+    __ j(not_zero, &real_function);
+    __ xor_(rbx, rbx);
+    // CALL_NON_FUNCTION will expect to find the non-function callee on the
+    // expression stack of the caller.  Transfer it from receiver to the
+    // caller's expression stack (and make the first argument the receiver
+    // for CALL_NON_FUNCTION) by decrementing the argument count.
+    __ decq(rax);
+    __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
+    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+            RelocInfo::CODE_TARGET);
+
+    __ bind(&real_function);
+  }
+
+  // 5. Shift arguments and return address one slot down on the stack
+  //    (overwriting the receiver).
   { Label loop;
-    __ lea(rcx, Operand(rax, +1));  // +1 ~ copy receiver too
+    __ movq(rcx, rax);
     __ bind(&loop);
     __ movq(rbx, Operand(rsp, rcx, times_pointer_size, 0));
     __ movq(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
     __ decq(rcx);
-    __ j(not_zero, &loop);
+    __ j(not_sign, &loop);
+    __ pop(rbx);  // Discard copy of return address.
+    __ decq(rax);  // One fewer argument (first argument is new receiver).
   }
 
-  // 5. Remove TOS (copy of last arguments), but keep return address.
-  __ pop(rbx);
-  __ pop(rcx);
-  __ push(rbx);
-  __ decq(rax);
-
-  // 6. Check that function really was a function and get the code to
-  //    call from the function and check that the number of expected
-  //    arguments matches what we're providing.
-  { Label invoke, trampoline;
-    __ testq(rdi, rdi);
-    __ j(not_zero, &invoke);
-    __ xor_(rbx, rbx);
-    __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
-    __ bind(&trampoline);
-    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-            RelocInfo::CODE_TARGET);
-
-    __ bind(&invoke);
-    __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ movsxlq(rbx,
-           FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
-    __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
-    __ cmpq(rax, rbx);
-    __ j(not_equal, &trampoline);
-  }
+  // 6. Get the code to call from the function and check that the number of
+  // expected arguments matches what we're providing.
+  __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movsxlq(rbx,
+         FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ movq(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  __ lea(rdx, FieldOperand(rdx, Code::kHeaderSize));
+  __ cmpq(rax, rbx);
+  __ j(not_equal,
+       Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+       RelocInfo::CODE_TARGET);
 
   // 7. Jump (tail-call) to the code in register edx without checking arguments.
   ParameterCount expected(0);

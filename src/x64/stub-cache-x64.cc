@@ -133,11 +133,10 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
 }
 
 
-template <typename Pushable>
 static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register receiver,
                                      Register holder,
-                                     Pushable name,
+                                     Register name,
                                      JSObject* holder_obj) {
   __ push(receiver);
   __ push(holder);
@@ -348,11 +347,10 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
 }
 
 
-template <class Pushable>
 static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
                                                    Register receiver,
                                                    Register holder,
-                                                   Pushable name,
+                                                   Register name,
                                                    JSObject* holder_obj) {
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
 
@@ -560,8 +558,8 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
-  explicit CallInterceptorCompiler(const ParameterCount& arguments)
-      : arguments_(arguments), argc_(arguments.immediate()) {}
+  CallInterceptorCompiler(const ParameterCount& arguments, Register name)
+      : arguments_(arguments), argc_(arguments.immediate()), name_(name) {}
 
   void CompileCacheable(MacroAssembler* masm,
                         StubCompiler* stub_compiler,
@@ -592,17 +590,17 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     }
 
     __ EnterInternalFrame();
-    __ push(holder);  // save the holder
+    __ push(holder);  // Save the holder.
+    __ push(name_);  // Save the name.
 
-    CompileCallLoadPropertyWithInterceptor(
-        masm,
-        receiver,
-        holder,
-        // Under EnterInternalFrame this refers to name.
-        Operand(rbp, (argc_ + 3) * kPointerSize),
-        holder_obj);
+    CompileCallLoadPropertyWithInterceptor(masm,
+                                           receiver,
+                                           holder,
+                                           name_,
+                                           holder_obj);
 
-    __ pop(receiver);  // restore holder
+    __ pop(name_);  // Restore the name.
+    __ pop(receiver);  // Restore the holder.
     __ LeaveInternalFrame();
 
     __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
@@ -641,11 +639,13 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                       JSObject* holder_obj,
                       Label* miss_label) {
     __ EnterInternalFrame();
+    // Save the name_ register across the call.
+    __ push(name_);
 
     PushInterceptorArguments(masm,
                              receiver,
                              holder,
-                             Operand(rbp, (argc_ + 3) * kPointerSize),
+                             name_,
                              holder_obj);
 
     ExternalReference ref = ExternalReference(
@@ -656,12 +656,14 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     CEntryStub stub(1);
     __ CallStub(&stub);
 
+    __ pop(name_);
     __ LeaveInternalFrame();
   }
 
  private:
   const ParameterCount& arguments_;
   int argc_;
+  Register name_;
 };
 
 
@@ -676,14 +678,14 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               String* name,
                                               StubCompiler::CheckType check) {
   // ----------- S t a t e -------------
-  // -----------------------------------
-  // rsp[0] return address
-  // rsp[8] argument argc
-  // rsp[16] argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = receiver
-  // rsp[(argc + 2) * 8] function name
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // -----------------------------------
 
   Label miss;
 
@@ -704,7 +706,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     case RECEIVER_MAP_CHECK:
       // Check that the maps haven't changed.
       CheckPrototypes(JSObject::cast(object), rdx, holder,
-                      rbx, rcx, name, &miss);
+                      rbx, rax, name, &miss);
 
       // Patch the receiver on the stack with the global proxy if
       // necessary.
@@ -720,13 +722,13 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ jmp(&miss);
       } else {
         // Check that the object is a two-byte string or a symbol.
-        __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rcx);
+        __ CmpObjectType(rdx, FIRST_NONSTRING_TYPE, rax);
         __ j(above_equal, &miss);
         // Check that the maps starting from the prototype haven't changed.
         GenerateLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            rcx);
-        CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
+                                            rax);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
       break;
@@ -739,14 +741,14 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         Label fast;
         // Check that the object is a smi or a heap number.
         __ JumpIfSmi(rdx, &fast);
-        __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
+        __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rax);
         __ j(not_equal, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateLoadGlobalFunctionPrototype(masm(),
                                             Context::NUMBER_FUNCTION_INDEX,
-                                            rcx);
-        CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
+                                            rax);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
       break;
@@ -767,8 +769,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         // Check that the maps starting from the prototype haven't changed.
         GenerateLoadGlobalFunctionPrototype(masm(),
                                             Context::BOOLEAN_FUNCTION_INDEX,
-                                            rcx);
-        CheckPrototypes(JSObject::cast(object->GetPrototype()), rcx, holder,
+                                            rax);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), rax, holder,
                         rbx, rdx, name, &miss);
       }
       break;
@@ -776,7 +778,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 
     case JSARRAY_HAS_FAST_ELEMENTS_CHECK:
       CheckPrototypes(JSObject::cast(object), rdx, holder,
-                      rbx, rcx, name, &miss);
+                      rbx, rax, name, &miss);
       // Make sure object->HasFastElements().
       // Get the elements array of the object.
       __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -820,14 +822,14 @@ Object* CallStubCompiler::CompileCallField(Object* object,
                                            int index,
                                            String* name) {
   // ----------- S t a t e -------------
-  // -----------------------------------
-  // rsp[0] return address
-  // rsp[8] argument argc
-  // rsp[16] argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = receiver
-  // rsp[(argc + 2) * 8] function name
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
+  // -----------------------------------
   Label miss;
 
   // Get the receiver from the stack.
@@ -840,7 +842,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // Do the right check and compute the holder register.
   Register reg =
       CheckPrototypes(JSObject::cast(object), rdx, holder,
-                      rbx, rcx, name, &miss);
+                      rbx, rax, name, &miss);
 
   GenerateFastPropertyLoad(masm(), rdi, reg, holder, index);
 
@@ -873,6 +875,13 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
+  // ...
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   // -----------------------------------
   Label miss;
 
@@ -885,7 +894,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // Get the receiver from the stack.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(arguments());
+  CallInterceptorCompiler compiler(arguments(), rcx);
   CompileLoadInterceptor(&compiler,
                          this,
                          masm(),
@@ -895,7 +904,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                          &lookup,
                          rdx,
                          rbx,
-                         rcx,
+                         rdi,
                          &miss);
 
   // Restore receiver.
@@ -935,13 +944,13 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
                                             String* name) {
   // ----------- S t a t e -------------
   // -----------------------------------
-  // rsp[0] return address
-  // rsp[8] argument argc
-  // rsp[16] argument argc - 1
+  // rcx                 : function name
+  // rsp[0]              : return address
+  // rsp[8]              : argument argc
+  // rsp[16]             : argument argc - 1
   // ...
-  // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = receiver
-  // rsp[(argc + 2) * 8] function name
+  // rsp[argc * 8]       : argument 1
+  // rsp[(argc + 1) * 8] : argument 0 = receiver
   Label miss;
 
   // Get the number of arguments.
@@ -958,7 +967,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   }
 
   // Check that the maps haven't changed.
-  CheckPrototypes(object, rdx, holder, rbx, rcx, name, &miss);
+  CheckPrototypes(object, rdx, holder, rbx, rax, name, &miss);
 
   // Get the value from the cell.
   __ Move(rdi, Handle<JSGlobalPropertyCell>(cell));
@@ -972,12 +981,12 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
     // function can all use this call IC. Before we load through the
     // function, we have to verify that it still is a function.
     __ JumpIfSmi(rdi, &miss);
-    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rax);
     __ j(not_equal, &miss);
 
     // Check the shared function info. Make sure it hasn't changed.
-    __ Move(rcx, Handle<SharedFunctionInfo>(function->shared()));
-    __ cmpq(FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset), rcx);
+    __ Move(rax, Handle<SharedFunctionInfo>(function->shared()));
+    __ cmpq(FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset), rax);
     __ j(not_equal, &miss);
   } else {
     __ Cmp(rdi, Handle<JSFunction>(function));

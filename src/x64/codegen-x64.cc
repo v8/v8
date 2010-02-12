@@ -2757,9 +2757,6 @@ void CodeGenerator::VisitCall(Call* node) {
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
 
-    // Push the name of the function and the receiver onto the stack.
-    frame_->Push(var->name());
-
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
@@ -2771,6 +2768,9 @@ void CodeGenerator::VisitCall(Call* node) {
       Load(args->at(i));
     }
 
+    // Push the name of the function on the frame.
+    frame_->Push(var->name());
+
     // Call the IC initialization code.
     CodeForSourcePosition(node->position());
     Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET_CONTEXT,
@@ -2778,7 +2778,7 @@ void CodeGenerator::VisitCall(Call* node) {
                                        loop_nesting());
     frame_->RestoreContextRegister();
     // Replace the function on the stack with the result.
-    frame_->SetElementAt(0, &result);
+    frame_->Push(&result);
 
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -2831,8 +2831,7 @@ void CodeGenerator::VisitCall(Call* node) {
                       node->position());
 
       } else {
-        // Push the name of the function and the receiver onto the stack.
-        frame_->Push(name);
+        // Push the receiver onto the frame.
         Load(property->obj());
 
         // Load the arguments.
@@ -2841,14 +2840,16 @@ void CodeGenerator::VisitCall(Call* node) {
           Load(args->at(i));
         }
 
+        // Push the name of the function onto the frame.
+        frame_->Push(name);
+
         // Call the IC initialization code.
         CodeForSourcePosition(node->position());
         Result result = frame_->CallCallIC(RelocInfo::CODE_TARGET,
                                            arg_count,
                                            loop_nesting());
         frame_->RestoreContextRegister();
-        // Replace the function on the stack with the result.
-        frame_->SetElementAt(0, &result);
+        frame_->Push(&result);
       }
 
     } else {
@@ -2939,8 +2940,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   Runtime::Function* function = node->function();
 
   if (function == NULL) {
-    // Prepare stack for calling JS runtime function.
-    frame_->Push(node->name());
     // Push the builtins object found in the current global object.
     Result temp = allocator()->Allocate();
     ASSERT(temp.is_valid());
@@ -2958,11 +2957,12 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Call the JS runtime function.
+    frame_->Push(node->name());
     Result answer = frame_->CallCallIC(RelocInfo::CODE_TARGET,
                                        arg_count,
                                        loop_nesting_);
     frame_->RestoreContextRegister();
-    frame_->SetElementAt(0, &answer);
+    frame_->Push(&answer);
   } else {
     // Call the C runtime function.
     Result answer = frame_->CallRuntime(function, arg_count);

@@ -930,18 +930,24 @@ void KeyedStoreIC::GenerateExternalArray(MacroAssembler* masm,
 
 
 void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
+  // ----------- S t a t e -------------
+  // rcx                      : function name
+  // rsp[0]                   : return address
+  // rsp[8]                   : argument argc
+  // rsp[16]                  : argument argc - 1
+  // ...
+  // rsp[argc * 8]            : argument 1
+  // rsp[(argc + 1) * 8]      : argument 0 = receiver
+  // -----------------------------------
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
-  // Get the name of the function to call from the stack.
-  // 2 ~ receiver, return address.
-  __ movq(rbx, Operand(rsp, (argc + 2) * kPointerSize));
 
   // Enter an internal frame.
   __ EnterInternalFrame();
 
   // Push the receiver and the name of the function.
   __ push(rdx);
-  __ push(rbx);
+  __ push(rcx);
 
   // Call the entry.
   CEntryStub stub(1);
@@ -979,20 +985,18 @@ Object* CallIC_Miss(Arguments args);
 
 void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rsp[0] return address
-  // rsp[8] argument argc
-  // rsp[16] argument argc - 1
+  // rcx                      : function name
+  // rsp[0]                   : return address
+  // rsp[8]                   : argument argc
+  // rsp[16]                  : argument argc - 1
   // ...
-  // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = receiver
-  // rsp[(argc + 2) * 8] function name
+  // rsp[argc * 8]            : argument 1
+  // rsp[(argc + 1) * 8]      : argument 0 = receiver
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
-  // Get the name of the function from the stack; 2 ~ return address, receiver
-  __ movq(rcx, Operand(rsp, (argc + 2) * kPointerSize));
 
   // Probe the stub cache.
   Code::Flags flags =
@@ -1045,6 +1049,16 @@ static void GenerateNormalHelper(MacroAssembler* masm,
                                  int argc,
                                  bool is_global_object,
                                  Label* miss) {
+  // ----------- S t a t e -------------
+  // rcx                    : function name
+  // rdx                    : receiver
+  // rsp[0]                 : return address
+  // rsp[8]                 : argument argc
+  // rsp[16]                : argument argc - 1
+  // ...
+  // rsp[argc * 8]          : argument 1
+  // rsp[(argc + 1) * 8]    : argument 0 = receiver
+  // -----------------------------------
   // Search dictionary - put result in register rdx.
   GenerateDictionaryLoad(masm, miss, rax, rdx, rbx, rcx, CHECK_DICTIONARY);
 
@@ -1075,20 +1089,18 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  // rsp[0] return address
-  // rsp[8] argument argc
-  // rsp[16] argument argc - 1
+  // rcx                    : function name
+  // rsp[0]                 : return address
+  // rsp[8]                 : argument argc
+  // rsp[16]                : argument argc - 1
   // ...
-  // rsp[argc * 8] argument 1
-  // rsp[(argc + 1) * 8] argument 0 = receiver
-  // rsp[(argc + 2) * 8] function name
+  // rsp[argc * 8]          : argument 1
+  // rsp[(argc + 1) * 8]    : argument 0 = receiver
   // -----------------------------------
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack.
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
-  // Get the name of the function from the stack.
-  __ movq(rcx, Operand(rsp, (argc + 2) * kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(rdx, &miss);
