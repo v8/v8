@@ -1101,6 +1101,8 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                          r3,
                          &miss);
 
+  // Move returned value, the function to call, to r1.
+  __ mov(r1, r0);
   // Restore receiver.
   __ ldr(r0, MemOperand(sp, argc * kPointerSize));
 
