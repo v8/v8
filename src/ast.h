@@ -102,6 +102,7 @@ namespace internal {
 // Forward declarations
 class TargetCollector;
 class MaterializedLiteral;
+class DefinitionInfo;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
@@ -182,7 +183,7 @@ class Expression: public AstNode {
 
   static const int kNoLabel = -1;
 
-  Expression() : num_(kNoLabel) {}
+  Expression() : num_(kNoLabel), def_(NULL), defined_vars_(NULL) {}
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -211,9 +212,20 @@ class Expression: public AstNode {
   // AST node numbering ordered by evaluation order.
   void set_num(int n) { num_ = n; }
 
+  // Data flow information.
+  DefinitionInfo* var_def() { return def_; }
+  void set_var_def(DefinitionInfo* def) { def_ = def; }
+
+  ZoneList<DefinitionInfo*>* defined_vars() { return defined_vars_; }
+  void set_defined_vars(ZoneList<DefinitionInfo*>* defined_vars) {
+    defined_vars_ = defined_vars;
+  }
+
  private:
   StaticType type_;
   int num_;
+  DefinitionInfo* def_;
+  ZoneList<DefinitionInfo*>* defined_vars_;
 };
 
 
