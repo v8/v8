@@ -2327,6 +2327,7 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Load applicand.apply onto the stack. This will usually
   // give us a megamorphic load site. Not super, but it works.
   Load(applicand);
+  frame()->Dup();
   Handle<String> name = Factory::LookupAsciiSymbol("apply");
   frame()->Push(name);
   Result answer = frame()->CallLoadIC(RelocInfo::CODE_TARGET);
@@ -4197,8 +4198,6 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
   // property case was inlined.  Ensure that there is not a test eax
   // instruction here.
   __ nop();
-  // Discard the global object. The result is in answer.
-  frame_->Drop();
   return answer;
 }
 
@@ -6276,7 +6275,7 @@ bool CodeGenerator::HasValidEntryRegisters() {
 
 
 // Emit a LoadIC call to get the value from receiver and leave it in
-// dst.  The receiver register is restored after the call.
+// dst.
 class DeferredReferenceGetNamedValue: public DeferredCode {
  public:
   DeferredReferenceGetNamedValue(Register dst,
@@ -6299,7 +6298,9 @@ class DeferredReferenceGetNamedValue: public DeferredCode {
 
 
 void DeferredReferenceGetNamedValue::Generate() {
-  __ push(receiver_);
+  if (!receiver_.is(eax)) {
+    __ mov(eax, receiver_);
+  }
   __ Set(ecx, Immediate(name_));
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
@@ -6316,7 +6317,6 @@ void DeferredReferenceGetNamedValue::Generate() {
   __ IncrementCounter(&Counters::named_load_inline_miss, 1);
 
   if (!dst_.is(eax)) __ mov(dst_, eax);
-  __ pop(receiver_);
 }
 
 
@@ -6570,6 +6570,9 @@ void Reference::GetValue() {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+      if (!persist_after_get_) {
+        cgen_->UnloadReference(this);
+      }
       break;
     }
 
@@ -6578,6 +6581,9 @@ void Reference::GetValue() {
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
 
+      if (persist_after_get_) {
+        cgen_->frame()->Dup();
+      }
       // Do not inline the inobject property case for loads from the global
       // object.  Also do not inline for unoptimized code.  This saves time
       // in the code generator.  Unoptimized code is toplevel code or code
@@ -6636,8 +6642,10 @@ void Reference::GetValue() {
 
         __ IncrementCounter(&Counters::named_load_inline, 1);
         deferred->BindExit();
-        cgen_->frame()->Push(&receiver);
         cgen_->frame()->Push(&value);
+      }
+      if (!persist_after_get_) {
+        set_unloaded();
       }
       break;
     }
@@ -6648,15 +6656,14 @@ void Reference::GetValue() {
       ASSERT(!is_global || var->is_global());
       Result value = cgen_->EmitKeyedLoad(is_global);
       cgen_->frame()->Push(&value);
+      if (!persist_after_get_) {
+        cgen_->UnloadReference(this);
+      }
       break;
     }
 
-    default:
+      default:
       UNREACHABLE();
-  }
-
-  if (!persist_after_get_) {
-    cgen_->UnloadReference(this);
   }
 }
 

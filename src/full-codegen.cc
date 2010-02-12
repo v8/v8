@@ -1050,7 +1050,13 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       // Nothing to do here.
       break;
     case NAMED_PROPERTY:
-      VisitForValue(prop->obj(), kStack);
+      if (expr->is_compound()) {
+        // We need the receiver both on the stack and in the accumulator.
+        VisitForValue(prop->obj(), kAccumulator);
+        __ push(result_register());
+      } else {
+        VisitForValue(prop->obj(), kStack);
+      }
       break;
     case KEYED_PROPERTY:
       VisitForValue(prop->obj(), kStack);

@@ -888,13 +888,28 @@ Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
 
 Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
   // Name and receiver are on the top of the frame.  The IC expects
-  // name in ecx and receiver on the stack.  It does not drop the
-  // receiver.
+  // name in ecx and receiver in eax.
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
   Result name = Pop();
-  PrepareForCall(1, 0);  // One stack arg, not callee-dropped.
-  name.ToRegister(ecx);
+  Result receiver = Pop();
+  PrepareForCall(0, 0);  // No stack arguments.
+  // Move results to the right registers:
+  if (name.is_register() && name.reg().is(eax)) {
+    if (receiver.is_register() && receiver.reg().is(ecx)) {
+      // Wrong registers.
+      __ xchg(eax, ecx);
+    } else {
+      // Register ecx is free for name, which frees eax for receiver.
+      name.ToRegister(ecx);
+      receiver.ToRegister(eax);
+    }
+  } else {
+    // Register eax is free for receiver, which frees ecx for name.
+    receiver.ToRegister(eax);
+    name.ToRegister(ecx);
+  }
   name.Unuse();
+  receiver.Unuse();
   return RawCallCodeObject(ic, mode);
 }
 

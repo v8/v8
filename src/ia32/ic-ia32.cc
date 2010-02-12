@@ -50,28 +50,29 @@ namespace internal {
 // or if name is not a symbol, and will jump to the miss_label in that case.
 static void GenerateDictionaryLoad(MacroAssembler* masm,
                                    Label* miss_label,
+                                   Register receiver,
+                                   Register name,
                                    Register r0,
                                    Register r1,
                                    Register r2,
-                                   Register name,
                                    DictionaryCheck check_dictionary) {
   // Register use:
   //
+  // name - holds the name of the property and is unchanged.
+  // receiver - holds the receiver and is unchanged.
+  // Scratch registers:
   // r0   - used to hold the property dictionary.
   //
-  // r1   - initially the receiver
-  //      - used for the index into the property dictionary
+  // r1   - used for the index into the property dictionary
   //      - holds the result on exit.
   //
   // r2   - used to hold the capacity of the property dictionary.
-  //
-  // name - holds the name of the property and is unchanged.
 
   Label done;
 
   // Check for the absence of an interceptor.
   // Load the map into r0.
-  __ mov(r0, FieldOperand(r1, JSObject::kMapOffset));
+  __ mov(r0, FieldOperand(receiver, JSObject::kMapOffset));
   // Test the has_named_interceptor bit in the map.
   __ test(FieldOperand(r0, Map::kInstanceAttributesOffset),
           Immediate(1 << (Map::kHasNamedInterceptor + (3 * 8))));
@@ -91,7 +92,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ j(equal, miss_label, not_taken);
 
   // Load properties array.
-  __ mov(r0, FieldOperand(r1, JSObject::kPropertiesOffset));
+  __ mov(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
 
   // Check that the properties array is a dictionary.
   if (check_dictionary == CHECK_DICTIONARY) {
@@ -176,13 +177,11 @@ const int LoadIC::kOffsetToLoadInstruction = 13;
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
-
-  __ mov(eax, Operand(esp, kPointerSize));
 
   StubCompiler::GenerateLoadArrayLength(masm, eax, edx, &miss);
   __ bind(&miss);
@@ -192,13 +191,11 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
-
-  __ mov(eax, Operand(esp, kPointerSize));
 
   StubCompiler::GenerateLoadStringLength(masm, eax, edx, ebx, &miss);
   __ bind(&miss);
@@ -208,13 +205,11 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
-
-  __ mov(eax, Operand(esp, kPointerSize));
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, eax, edx, ebx, &miss);
   __ bind(&miss);
@@ -364,13 +359,14 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&probe_dictionary);
   GenerateDictionaryLoad(masm,
                          &slow,
-                         ebx,
                          ecx,
-                         edx,
                          eax,
+                         ebx,
+                         edx,
+                         edi,
                          DICTIONARY_CHECK_DONE);
-  GenerateCheckNonObjectOrLoaded(masm, &slow, ecx, edx);
-  __ mov(eax, Operand(ecx));
+  GenerateCheckNonObjectOrLoaded(masm, &slow, edx, ebx);
+  __ mov(eax, Operand(edx));
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
 
@@ -1001,7 +997,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 
   // Search dictionary - put result in register edi.
   __ mov(edi, edx);
-  GenerateDictionaryLoad(masm, miss, eax, edi, ebx, ecx, CHECK_DICTIONARY);
+  GenerateDictionaryLoad(masm, miss, edx, ecx, eax, edi, ebx, CHECK_DICTIONARY);
 
   // Check that the result is not a smi.
   __ test(edi, Immediate(kSmiTagMask));
@@ -1150,12 +1146,10 @@ Object* LoadIC_Miss(Arguments args);
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
-
-  __ mov(eax, Operand(esp, kPointerSize));
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC,
@@ -1170,13 +1164,11 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss, probe, global;
-
-  __ mov(eax, Operand(esp, kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ test(eax, Immediate(kSmiTagMask));
@@ -1202,8 +1194,16 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Search the dictionary placing the result in eax.
   __ bind(&probe);
-  GenerateDictionaryLoad(masm, &miss, edx, eax, ebx, ecx, CHECK_DICTIONARY);
-  GenerateCheckNonObjectOrLoaded(masm, &miss, eax, edx);
+  GenerateDictionaryLoad(masm,
+                         &miss,
+                         eax,
+                         ecx,
+                         edx,
+                         edi,
+                         ebx,
+                         CHECK_DICTIONARY);
+  GenerateCheckNonObjectOrLoaded(masm, &miss, edi, edx);
+  __ mov(eax, edi);
   __ ret(0);
 
   // Global object access: Check access rights.
@@ -1213,20 +1213,19 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Cache miss: Restore receiver from stack and jump to runtime.
   __ bind(&miss);
-  __ mov(eax, Operand(esp, 1 * kPointerSize));
   GenerateMiss(masm);
 }
 
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
 
   __ pop(ebx);
-  __ push(Operand(esp, 0));  // receiver
+  __ push(eax);  // receiver
   __ push(ecx);  // name
   __ push(ebx);  // return address
 

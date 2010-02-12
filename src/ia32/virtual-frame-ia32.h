@@ -333,7 +333,7 @@ class VirtualFrame: public ZoneObject {
   Result InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag, int arg_count);
 
   // Call load IC.  Name and receiver are found on top of the frame.
-  // Receiver is not dropped.
+  // Both are dropped.
   Result CallLoadIC(RelocInfo::Mode mode);
 
   // Call keyed load IC.  Key and receiver are found on top of the

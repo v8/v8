@@ -1767,13 +1767,12 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            int index,
                                            String* name) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
   GenerateLoadField(object, holder, eax, ebx, edx, index, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -1788,13 +1787,12 @@ Object* LoadStubCompiler::CompileLoadCallback(String* name,
                                               JSObject* holder,
                                               AccessorInfo* callback) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
   Failure* failure = Failure::InternalError();
   bool success = GenerateLoadCallback(object, holder, eax, ecx, ebx, edx,
                                       callback, name, &miss, &failure);
@@ -1813,13 +1811,12 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
                                               Object* value,
                                               String* name) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
   GenerateLoadConstant(object, holder, eax, ebx, edx, value, name, &miss);
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::LOAD_IC);
@@ -1833,16 +1830,15 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
 
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
 
-  __ mov(eax, Operand(esp, kPointerSize));
   // TODO(368): Compile in the whole chain: all the interceptors in
   // prototypes and ultimate answer.
   GenerateLoadInterceptor(receiver,
@@ -1869,14 +1865,11 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
                                             String* name,
                                             bool is_dont_delete) {
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
   //  -- esp[0] : return address
-  //  -- esp[4] : receiver
   // -----------------------------------
   Label miss;
-
-  // Get the receiver from the stack.
-  __ mov(eax, Operand(esp, kPointerSize));
 
   // If the object is the holder then we know that it's a global
   // object which can only happen for contextual loads. In this case,
@@ -1890,19 +1883,20 @@ Object* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   CheckPrototypes(object, eax, holder, ebx, edx, name, &miss);
 
   // Get the value from the cell.
-  __ mov(eax, Immediate(Handle<JSGlobalPropertyCell>(cell)));
-  __ mov(eax, FieldOperand(eax, JSGlobalPropertyCell::kValueOffset));
+  __ mov(ebx, Immediate(Handle<JSGlobalPropertyCell>(cell)));
+  __ mov(ebx, FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
-    __ cmp(eax, Factory::the_hole_value());
+    __ cmp(ebx, Factory::the_hole_value());
     __ j(equal, &miss, not_taken);
   } else if (FLAG_debug_code) {
-    __ cmp(eax, Factory::the_hole_value());
+    __ cmp(ebx, Factory::the_hole_value());
     __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 
   __ IncrementCounter(&Counters::named_load_global_inline, 1);
+  __ mov(eax, ebx);
   __ ret(0);
 
   __ bind(&miss);
