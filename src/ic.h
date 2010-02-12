@@ -53,6 +53,7 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(LoadPropertyWithInterceptorOnly)                \
   ICU(LoadPropertyWithInterceptorForLoad)             \
   ICU(LoadPropertyWithInterceptorForCall)             \
+  ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)
 
 //
@@ -293,6 +294,7 @@ class KeyedLoadIC: public IC {
   // for all other types.
   static void GenerateExternalArray(MacroAssembler* masm,
                                     ExternalArrayType array_type);
+  static void GenerateIndexedInterceptor(MacroAssembler* masm);
 
   // Clear the use of the inlined version.
   static void ClearInlinedVersion(Address address);
@@ -328,6 +330,10 @@ class KeyedLoadIC: public IC {
     return Builtins::builtin(Builtins::KeyedLoadIC_String);
   }
   static Code* external_array_stub(JSObject::ElementsKind elements_kind);
+
+  static Code* indexed_interceptor_stub() {
+    return Builtins::builtin(Builtins::KeyedLoadIC_IndexedInterceptor);
+  }
 
   static void Clear(Address address, Code* target);
 

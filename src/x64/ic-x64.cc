@@ -573,6 +573,11 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 }
 
 
+void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
+  GenerateGeneric(masm);
+}
+
+
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax     : value

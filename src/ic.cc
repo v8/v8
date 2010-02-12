@@ -896,6 +896,8 @@ Object* KeyedLoadIC::Load(State state,
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
       if (receiver->HasExternalArrayElements()) {
         stub = external_array_stub(receiver->GetElementsKind());
+      } else if (receiver->HasIndexedInterceptor()) {
+        stub = indexed_interceptor_stub();
       }
     }
     set_target(stub);

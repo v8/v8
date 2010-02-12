@@ -920,6 +920,13 @@ Object* StoreInterceptorProperty(Arguments args) {
 }
 
 
+Object* KeyedLoadPropertyWithInterceptor(Arguments args) {
+  JSObject* receiver = JSObject::cast(args[0]);
+  uint32_t index = Smi::cast(args[1])->value();
+  return receiver->GetElementWithInterceptor(receiver, index);
+}
+
+
 Object* StubCompiler::CompileCallInitialize(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);

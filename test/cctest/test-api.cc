@@ -2529,6 +2529,195 @@ THREADED_TEST(IndexedInterceptorWithNoSetter) {
 }
 
 
+THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  obj->TurnOnAccessCheck();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var v = obj[0];"
+      "    if (v != undefined) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(IndexedInterceptorWithAccessorCheckSwitchedOn) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var expected = i;"
+      "    if (i == 5) {"
+      "      %EnableAccessChecks(obj);"
+      "      expected = undefined;"
+      "    }"
+      "    var v = obj[i];"
+      "    if (v != expected) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "    if (i == 5) %DisableAccessChecks(obj);"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(IndexedInterceptorWithDifferentIndices) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var v = obj[i];"
+      "    if (v != i) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(IndexedInterceptorWithNotSmiLookup) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var expected = i;"
+      "    if (i == 50) {"
+      "       i = 'foobar';"
+      "       expected = undefined;"
+      "    }"
+      "    var v = obj[i];"
+      "    if (v != expected) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(IndexedInterceptorGoingMegamorphic) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "var original = obj;"
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var expected = i;"
+      "    if (i == 50) {"
+      "       obj = {50: 'foobar'};"
+      "       expected = 'foobar';"
+      "    }"
+      "    var v = obj[i];"
+      "    if (v != expected) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "    if (i == 50) obj = original;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(IndexedInterceptorReceiverTurningSmi) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "var original = obj;"
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var expected = i;"
+      "    if (i == 5) {"
+      "       obj = 239;"
+      "       expected = undefined;"
+      "    }"
+      "    var v = obj[i];"
+      "    if (v != expected) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "    if (i == 5) obj = original;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
+THREADED_TEST(IndexedInterceptorOnProto) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(IdentityIndexedPropertyGetter);
+
+  LocalContext context;
+  Local<v8::Object> obj = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), obj);
+
+  const char* code =
+      "var o = {__proto__: obj};"
+      "try {"
+      "  for (var i = 0; i < 100; i++) {"
+      "    var v = o[i];"
+      "    if (v != i) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "  }"
+      "  'PASSED'"
+      "} catch(e) {"
+      "  e"
+      "}";
+  ExpectString(code, "PASSED");
+}
+
+
 THREADED_TEST(MultiContexts) {
   v8::HandleScope scope;
   v8::Handle<ObjectTemplate> templ = ObjectTemplate::New();

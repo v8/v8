@@ -312,6 +312,7 @@ Object* LoadPropertyWithInterceptorForLoad(Arguments args);
 Object* LoadPropertyWithInterceptorForCall(Arguments args);
 Object* StoreInterceptorProperty(Arguments args);
 Object* CallInterceptorProperty(Arguments args);
+Object* KeyedLoadPropertyWithInterceptor(Arguments args);
 
 
 // Support function for computing call IC miss stubs.

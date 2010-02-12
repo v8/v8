@@ -89,6 +89,7 @@ enum BuiltinExtraArguments {
   V(KeyedLoadIC_ExternalIntArray,           KEYED_LOAD_IC, MEGAMORPHIC)   \
   V(KeyedLoadIC_ExternalUnsignedIntArray,   KEYED_LOAD_IC, MEGAMORPHIC)   \
   V(KeyedLoadIC_ExternalFloatArray,         KEYED_LOAD_IC, MEGAMORPHIC)   \
+  V(KeyedLoadIC_IndexedInterceptor,         KEYED_LOAD_IC, MEGAMORPHIC)   \
                                                                           \
   V(StoreIC_Initialize,         STORE_IC, UNINITIALIZED)                  \
   V(StoreIC_Megamorphic,        STORE_IC, MEGAMORPHIC)                    \

@@ -705,6 +705,10 @@ static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
   KeyedLoadIC::GeneratePreMonomorphic(masm);
 }
 
+static void Generate_KeyedLoadIC_IndexedInterceptor(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateIndexedInterceptor(masm);
+}
+
 
 static void Generate_StoreIC_Initialize(MacroAssembler* masm) {
   StoreIC::GenerateInitialize(masm);
