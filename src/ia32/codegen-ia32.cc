@@ -7639,7 +7639,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   switch (op_) {
     case Token::ADD: {
       // Test for string arguments before calling runtime.
-      Label not_strings, not_string1, string1;
+      Label not_strings, not_string1, string1, string1_smi2;
       Result answer;
       __ test(edx, Immediate(kSmiTagMask));
       __ j(zero, &not_string1);
@@ -7648,15 +7648,56 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
       // First argument is a string, test second.
       __ test(eax, Immediate(kSmiTagMask));
-      __ j(zero, &string1);
+      __ j(zero, &string1_smi2);
       __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ecx);
       __ j(above_equal, &string1);
 
       // First and second argument are strings. Jump to the string add stub.
-      StringAddStub stub(NO_STRING_CHECK_IN_STUB);
-      __ TailCallStub(&stub);
+      StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
+      __ TailCallStub(&string_add_stub);
 
-      // Only first argument is a string.
+      __ bind(&string1_smi2);
+      // First argument is a string, second is a smi. Try to lookup the number
+      // string for the smi in the number string cache.
+      // Load the number string cache.
+      ExternalReference roots_address = ExternalReference::roots_address();
+      __ mov(ecx, Immediate(Heap::kNumberStringCacheRootIndex));
+      __ mov(ebx,
+             Operand::StaticArray(ecx, times_pointer_size, roots_address));
+      // Make the hash mask from the length of the number string cache. It
+      // contains two elements (number and string) for each cache entry.
+      __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
+      __ shr(ecx, 1);  // Divide length by two (length is not a smi).
+      __ sub(Operand(ecx), Immediate(1));  // Make mask.
+      // Calculate the entry in the number string cache. The hash value in the
+      // number string cache for smis is just the smi value.
+      __ mov(edi, eax);
+      __ SmiUntag(edi);
+      __ and_(edi, Operand(ecx));
+      // Check if the entry is the smi we are looking for.
+      __ cmp(eax,
+             FieldOperand(ebx,
+                          edi,
+                          times_twice_pointer_size,
+                          FixedArray::kHeaderSize));
+      __ IncrementCounter(equal, &Counters::string_plus_smi_hit, 1);
+      __ IncrementCounter(not_equal, &Counters::string_plus_smi_miss, 1);
+      __ j(not_equal, &string1);
+
+      // Get the string from the cache and call the string add stub to make the
+      // result.
+      __ mov(edi,
+             FieldOperand(ebx,
+                          edi,
+                          times_twice_pointer_size,
+                          FixedArray::kHeaderSize + kPointerSize));
+      __ EnterInternalFrame();
+      __ push(edx);  // Original first argument.
+      __ push(edi);  // Number to string result for second argument.
+      __ CallStub(&string_add_stub);
+      __ LeaveInternalFrame();
+      __ ret(2 * kPointerSize);
+
       __ bind(&string1);
       __ InvokeBuiltin(
           HasArgsReversed() ?

@@ -167,7 +167,9 @@ namespace internal {
   SC(string_compare_native, V8.StringCompareNative)                   \
   SC(string_compare_runtime, V8.StringCompareRuntime)                 \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                     \
-  SC(regexp_entry_native, V8.RegExpEntryNative)
+  SC(regexp_entry_native, V8.RegExpEntryNative)                       \
+  SC(string_plus_smi_hit, V8.StringPlusSmiHit)                        \
+  SC(string_plus_smi_miss, V8.StringPlusSmiMiss)
 
 // This file contains all the v8 counters that are in use.
 class Counters : AllStatic {
