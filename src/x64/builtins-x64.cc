@@ -590,6 +590,7 @@ static void AllocateJSArray(MacroAssembler* masm,
                        JSFunction::kPrototypeOrInitialMapOffset));
 
   // Check whether an empty sized array is requested.
+  __ SmiToInteger64(array_size, array_size);
   __ testq(array_size, array_size);
   __ j(not_zero, &not_empty);
 
@@ -609,7 +610,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ bind(&not_empty);
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                        times_half_pointer_size,  // array_size is a smi.
+                        times_pointer_size,
                         array_size,
                         result,
                         elements_array_end,
@@ -622,19 +623,20 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array: initial map
   // elements_array_end: start of next object
-  // array_size: size of array (smi)
+  // array_size: size of array
   __ bind(&allocated);
   __ movq(FieldOperand(result, JSObject::kMapOffset), elements_array);
   __ Move(elements_array, Factory::empty_fixed_array());
   __ movq(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
-  __ movq(FieldOperand(result, JSArray::kLengthOffset), array_size);
+  __ Integer32ToSmi(scratch, array_size);
+  __ movq(FieldOperand(result, JSArray::kLengthOffset), scratch);
 
   // Calculate the location of the elements array and set elements array member
   // of the JSArray.
   // result: JSObject
   // elements_array_end: start of next object
-  // array_size: size of array (smi)
+  // array_size: size of array
   __ lea(elements_array, Operand(result, JSArray::kSize));
   __ movq(FieldOperand(result, JSArray::kElementsOffset), elements_array);
 
@@ -642,9 +644,8 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array: elements array
   // elements_array_end: start of next object
-  // array_size: size of array (smi)
+  // array_size: size of array
   ASSERT(kSmiTag == 0);
-  __ SmiToInteger64(array_size, array_size);
   __ Move(FieldOperand(elements_array, JSObject::kMapOffset),
           Factory::fixed_array_map());
   Label not_empty_2, fill_array;
