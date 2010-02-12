@@ -1533,6 +1533,20 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
+    Register instance_type,
+    Register scratch,
+    Label *failure) {
+  if (!scratch.is(instance_type)) {
+    mov(scratch, instance_type);
+  }
+  and_(scratch,
+       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
+  cmp(scratch, kStringTag | kSeqStringTag | kAsciiStringTag);
+  j(not_equal, failure);
+}
+
+
 void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
                                                          Register object2,
                                                          Register scratch1,

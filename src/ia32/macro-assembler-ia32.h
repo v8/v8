@@ -425,6 +425,13 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // String utilities.
 
+  // Check whether the instance type represents a flat ascii string. Jump to the
+  // label if not. If the instance type can be scratched specify same register
+  // for both instance type and scratch.
+  void JumpIfInstanceTypeIsNotSequentialAscii(Register instance_type,
+                                              Register scratch,
+                                              Label *on_not_flat_ascii_string);
+
   // Checks if both objects are sequential ASCII strings, and jumps to label
   // if either is not.
   void JumpIfNotBothSequentialAsciiStrings(Register object1,
