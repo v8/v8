@@ -1848,6 +1848,39 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       break;
     }
 
+    case Token::DIV:
+      if (!reversed && int_value == 2) {
+        operand->ToRegister();
+        frame_->Spill(operand->reg());
+
+        DeferredInlineSmiOperation* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           operand->reg(),
+                                           operand->reg(),
+                                           smi_value,
+                                           overwrite_mode);
+        // Check that lowest log2(value) bits of operand are zero, and test
+        // smi tag at the same time.
+        ASSERT_EQ(0, kSmiTag);
+        ASSERT_EQ(1, kSmiTagSize);
+        __ test(operand->reg(), Immediate(3));
+        deferred->Branch(not_zero);  // Branch if non-smi or odd smi.
+        __ sar(operand->reg(), 1);
+        deferred->BindExit();
+        answer = *operand;
+      } else {
+        // Cannot fall through MOD to default case, so we duplicate the
+        // default case here.
+        Result constant_operand(value);
+        if (reversed) {
+          answer = LikelySmiBinaryOperation(op, &constant_operand, operand,
+                                            overwrite_mode);
+        } else {
+          answer = LikelySmiBinaryOperation(op, operand, &constant_operand,
+                                            overwrite_mode);
+        }
+      }
+      break;
     // Generate inline code for mod of powers of 2 and negative powers of 2.
     case Token::MOD:
       if (!reversed &&
