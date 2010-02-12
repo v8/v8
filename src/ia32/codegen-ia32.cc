@@ -3912,28 +3912,26 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+Result CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // The inevitable call will sync frame elements to memory anyway, so
   // we do it eagerly to allow us to push the arguments directly into
   // place.
-  frame_->SyncRange(0, frame_->element_count() - 1);
+  frame()->SyncRange(0, frame()->element_count() - 1);
 
   // Use the fast case closure allocation code that allocates in new
   // space for nested functions that don't need literals cloning.
   if (scope()->is_function_scope() && boilerplate->NumberOfLiterals() == 0) {
     FastNewClosureStub stub;
-    frame_->EmitPush(Immediate(boilerplate));
-    Result answer = frame_->CallStub(&stub, 1);
-    frame_->Push(&answer);
+    frame()->EmitPush(Immediate(boilerplate));
+    return frame()->CallStub(&stub, 1);
   } else {
     // Call the runtime to instantiate the function boilerplate
     // object.
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(boilerplate));
-    Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
-    frame_->Push(&result);
+    frame()->EmitPush(esi);
+    frame()->EmitPush(Immediate(boilerplate));
+    return frame()->CallRuntime(Runtime::kNewClosure, 2);
   }
 }
 
@@ -3946,14 +3944,16 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
       Compiler::BuildBoilerplate(node, script(), this);
   // Check for stack-overflow exception.
   if (HasStackOverflow()) return;
-  InstantiateBoilerplate(boilerplate);
+  Result result = InstantiateBoilerplate(boilerplate);
+  frame()->Push(&result);
 }
 
 
 void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
-  InstantiateBoilerplate(node->boilerplate());
+  Result result = InstantiateBoilerplate(node->boilerplate());
+  frame()->Push(&result);
 }
 
 

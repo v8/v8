@@ -533,7 +533,7 @@ class CodeGenerator: public AstVisitor {
   void DeclareGlobals(Handle<FixedArray> pairs);
 
   // Instantiate the function boilerplate.
-  void InstantiateBoilerplate(Handle<JSFunction> boilerplate);
+  Result InstantiateBoilerplate(Handle<JSFunction> boilerplate);
 
   // Support for type checks.
   void GenerateIsSmi(ZoneList<Expression*>* args);
