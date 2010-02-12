@@ -497,6 +497,11 @@ class PartialSerializer : public Serializer {
   virtual int RootIndex(HeapObject* o);
   virtual int PartialSnapshotCacheIndex(HeapObject* o);
   virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) {
+    // Scripts should be referred only through shared function infos.  We can't
+    // allow them to be part of the partial snapshot because they contain a
+    // unique ID, and deserializing several partial snapshots containing script
+    // would cause dupes.
+    ASSERT(!o->IsScript());
     return o->IsString() || o->IsSharedFunctionInfo() || o->IsHeapNumber();
   }
 

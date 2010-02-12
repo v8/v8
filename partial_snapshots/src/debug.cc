@@ -1679,7 +1679,7 @@ void Debug::CreateScriptCache() {
 
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
   // rid of all the cached script wrappers and the second gets rid of the
-  // scripts which is no longer referenced.
+  // scripts which are no longer referenced.
   Heap::CollectAllGarbage(false);
   Heap::CollectAllGarbage(false);
 

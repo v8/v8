@@ -2742,47 +2742,18 @@ Persistent<Context> v8::Context::New(
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
 
-  // Handle the simple cases with partial snapshot deserialization.
-  if (global_template.IsEmpty() && global_object.IsEmpty()) {
-    // Enter V8 via an ENTER_V8 scope.
-    Persistent<Context> result;
-    {
-      ENTER_V8;
-      HandleScope scope;
 #if defined(ANDROID)
-      // On mobile device, full GC is expensive, leave it to the system to
-      // decide when should make a full GC.
+  // On mobile device, full GC is expensive, leave it to the system to
+  // decide when should make a full GC.
 #else
-      // Give the heap a chance to cleanup if we've disposed contexts.
-      i::Heap::CollectAllGarbageIfContextDisposed();
+  // Give the heap a chance to cleanup if we've disposed contexts.
+  i::Heap::CollectAllGarbageIfContextDisposed();
 #endif
-      i::Handle<i::Context> env = i::Snapshot::NewContextFromSnapshot();
-      if (!env.is_null()) {
-        if (i::Bootstrapper::InstallExtensions(env, extensions)) {
-          i::Counters::contexts_created_by_snapshot.Increment();
-          return Persistent<Context>::New(Utils::ToLocal(env));
-        } else {
-          return Persistent<Context>();
-        }
-      }
-      // If there was no snapshot built into the VM then we fall through to the
-      // slow new context builder.
-    }
-  }
-
-  i::Counters::contexts_created_from_scratch.Increment();
 
   // Enter V8 via an ENTER_V8 scope.
   i::Handle<i::Context> env;
   {
     ENTER_V8;
-#if defined(ANDROID)
-    // On mobile device, full GC is expensive, leave it to the system to
-    // decide when should make a full GC.
-#else
-    // Give the heap a chance to cleanup if we've disposed contexts.
-    i::Heap::CollectAllGarbageIfContextDisposed();
-#endif
     v8::Handle<ObjectTemplate> proxy_template = global_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
