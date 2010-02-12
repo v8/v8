@@ -574,7 +574,9 @@ void CodeGenerator::LoadTypeofExpression(Expression* expr) {
   } else if (variable != NULL && variable->slot() != NULL) {
     // For a variable that rewrites to a slot, we signal it is the immediate
     // subexpression of a typeof.
-    LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
+    Result result =
+        LoadFromSlotCheckForArguments(variable->slot(), INSIDE_TYPEOF);
+    frame()->Push(&result);
   } else {
     // Anything else can be handled normally.
     Load(expr);
@@ -623,8 +625,7 @@ Result CodeGenerator::StoreArgumentsObject(bool initial) {
     // We have to skip storing into the arguments slot if it has already
     // been written to. This can happen if the a function has a local
     // variable named 'arguments'.
-    LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
-    Result probe = frame_->Pop();
+    Result probe = LoadFromSlot(arguments->slot(), NOT_INSIDE_TYPEOF);
     if (probe.is_constant()) {
       // We have to skip updating the arguments object if it has
       // been assigned a proper value.
@@ -2370,7 +2371,9 @@ void CodeGenerator::CallApplyLazy(Expression* applicand,
   // Load the receiver and the existing arguments object onto the
   // expression stack. Avoid allocating the arguments object here.
   Load(receiver);
-  LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+  Result existing_args =
+      LoadFromSlot(scope()->arguments()->var()->slot(), NOT_INSIDE_TYPEOF);
+  frame()->Push(&existing_args);
 
   // Emit the source position information after having loaded the
   // receiver and the arguments.
@@ -4023,13 +4026,12 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 }
 
 
-void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+Result CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+  Result result;
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
-
     JumpTarget slow;
     JumpTarget done;
-    Result value;
 
     // Generate fast-case code for variables that might be shadowed by
     // eval-introduced variables.  Eval is used a lot without
@@ -4037,14 +4039,10 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // perform a runtime call for all variables in the scope
     // containing the eval.
     if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
-      value = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
+      result = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
       // If there was no control flow to slow, we can exit early.
-      if (!slow.is_linked()) {
-        frame_->Push(&value);
-        return;
-      }
-
-      done.Jump(&value);
+      if (!slow.is_linked()) return result;
+      done.Jump(&result);
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
@@ -4054,21 +4052,21 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
         // Allocate a fresh register to use as a temp in
         // ContextSlotOperandCheckExtensions and to hold the result
         // value.
-        value = allocator_->Allocate();
-        ASSERT(value.is_valid());
-        __ mov(value.reg(),
+        result = allocator()->Allocate();
+        ASSERT(result.is_valid());
+        __ mov(result.reg(),
                ContextSlotOperandCheckExtensions(potential_slot,
-                                                 value,
+                                                 result,
                                                  &slow));
         if (potential_slot->var()->mode() == Variable::CONST) {
-          __ cmp(value.reg(), Factory::the_hole_value());
-          done.Branch(not_equal, &value);
-          __ mov(value.reg(), Factory::undefined_value());
+          __ cmp(result.reg(), Factory::the_hole_value());
+          done.Branch(not_equal, &result);
+          __ mov(result.reg(), Factory::undefined_value());
         }
         // There is always control flow to slow from
         // ContextSlotOperandCheckExtensions so we have to jump around
         // it.
-        done.Jump(&value);
+        done.Jump(&result);
       }
     }
 
@@ -4076,18 +4074,18 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // A runtime call is inevitable.  We eagerly sync frame elements
     // to memory so that we can push the arguments directly into place
     // on top of the frame.
-    frame_->SyncRange(0, frame_->element_count() - 1);
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(slot->var()->name()));
+    frame()->SyncRange(0, frame()->element_count() - 1);
+    frame()->EmitPush(esi);
+    frame()->EmitPush(Immediate(slot->var()->name()));
     if (typeof_state == INSIDE_TYPEOF) {
-      value =
-          frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+      result =
+          frame()->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
-      value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
+      result = frame()->CallRuntime(Runtime::kLoadContextSlot, 2);
     }
 
-    done.Bind(&value);
-    frame_->Push(&value);
+    done.Bind(&result);
+    return result;
 
   } else if (slot->var()->mode() == Variable::CONST) {
     // Const slots may contain 'the hole' value (the constant hasn't been
@@ -4098,19 +4096,21 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // potentially unsafe direct-frame access of SlotOperand.
     VirtualFrame::SpilledScope spilled_scope;
     Comment cmnt(masm_, "[ Load const");
-    JumpTarget exit;
+    Label exit;
     __ mov(ecx, SlotOperand(slot, ecx));
     __ cmp(ecx, Factory::the_hole_value());
-    exit.Branch(not_equal);
+    __ j(not_equal, &exit);
     __ mov(ecx, Factory::undefined_value());
-    exit.Bind();
-    frame_->EmitPush(ecx);
+    __ bind(&exit);
+    return Result(ecx);
 
   } else if (slot->type() == Slot::PARAMETER) {
-    frame_->PushParameterAt(slot->index());
+    frame()->PushParameterAt(slot->index());
+    return frame()->Pop();
 
   } else if (slot->type() == Slot::LOCAL) {
-    frame_->PushLocalAt(slot->index());
+    frame()->PushLocalAt(slot->index());
+    return frame()->Pop();
 
   } else {
     // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
@@ -4119,49 +4119,46 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // The use of SlotOperand below is safe for an unspilled frame
     // because it will always be a context slot.
     ASSERT(slot->type() == Slot::CONTEXT);
-    Result temp = allocator_->Allocate();
-    ASSERT(temp.is_valid());
-    __ mov(temp.reg(), SlotOperand(slot, temp.reg()));
-    frame_->Push(&temp);
+    result = allocator()->Allocate();
+    ASSERT(result.is_valid());
+    __ mov(result.reg(), SlotOperand(slot, result.reg()));
+    return result;
   }
 }
 
 
-void CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
-                                                  TypeofState state) {
-  LoadFromSlot(slot, state);
+Result CodeGenerator::LoadFromSlotCheckForArguments(Slot* slot,
+                                                    TypeofState state) {
+  Result result = LoadFromSlot(slot, state);
 
   // Bail out quickly if we're not using lazy arguments allocation.
-  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return;
+  if (ArgumentsMode() != LAZY_ARGUMENTS_ALLOCATION) return result;
 
   // ... or if the slot isn't a non-parameter arguments slot.
-  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return;
-
-  // Pop the loaded value from the stack.
-  Result value = frame_->Pop();
+  if (slot->type() == Slot::PARAMETER || !slot->is_arguments()) return result;
 
   // If the loaded value is a constant, we know if the arguments
   // object has been lazily loaded yet.
-  if (value.is_constant()) {
-    if (value.handle()->IsTheHole()) {
-      Result arguments = StoreArgumentsObject(false);
-      frame_->Push(&arguments);
+  if (result.is_constant()) {
+    if (result.handle()->IsTheHole()) {
+      result.Unuse();
+      return StoreArgumentsObject(false);
     } else {
-      frame_->Push(&value);
+      return result;
     }
-    return;
   }
 
   // The loaded value is in a register. If it is the sentinel that
   // indicates that we haven't loaded the arguments object yet, we
   // need to do it now.
   JumpTarget exit;
-  __ cmp(Operand(value.reg()), Immediate(Factory::the_hole_value()));
-  frame_->Push(&value);
-  exit.Branch(not_equal);
-  Result arguments = StoreArgumentsObject(false);
-  frame_->SetElementAt(0, &arguments);
-  exit.Bind();
+  __ cmp(Operand(result.reg()), Immediate(Factory::the_hole_value()));
+  exit.Branch(not_equal, &result);
+
+  result.Unuse();
+  result = StoreArgumentsObject(false);
+  exit.Bind(&result);
+  return result;
 }
 
 
@@ -4335,7 +4332,8 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
 
 void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
-  LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
+  Result result = LoadFromSlotCheckForArguments(node, NOT_INSIDE_TYPEOF);
+  frame()->Push(&result);
 }
 
 
@@ -6602,10 +6600,10 @@ void Reference::GetValue() {
       Comment cmnt(masm, "[ Load from Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
-      if (!persist_after_get_) {
-        cgen_->UnloadReference(this);
-      }
+      Result result =
+          cgen_->LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+      if (!persist_after_get_) set_unloaded();
+      cgen_->frame()->Push(&result);
       break;
     }
 
