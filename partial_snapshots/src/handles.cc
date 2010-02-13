@@ -243,6 +243,15 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
 }
 
 
+Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                     Handle<String> key,
+                                     Handle<Object> value,
+                                     PropertyDetails details) {
+  CALL_HEAP_FUNCTION(object->SetNormalizedProperty(*key, *value, details),
+                     Object);
+}
+
+
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key) {
   CALL_HEAP_FUNCTION(Runtime::ForceDeleteObjectProperty(object, key), Object);

@@ -210,6 +210,11 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
+Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                     Handle<String> key,
+                                     Handle<Object> value,
+                                     PropertyDetails details);
+
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key);
 

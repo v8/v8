@@ -344,6 +344,9 @@ class Genesis BASE_EMBEDDED {
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
   bool ConfigureGlobalObjects(v8::Handle<v8::ObjectTemplate> global_template);
+  void TransferMapsToDeserializedGlobals(
+    Handle<GlobalObject> inner_global_outside_snapshot,
+    Handle<GlobalObject> inner_global_from_snapshot);
 
   // Migrates all properties from the 'from' object to the 'to'
   // object and overrides the prototype in 'to' with the one from
@@ -597,6 +600,17 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     v8::Handle<v8::ObjectTemplate> global_template,
     Handle<Object> global_object,
     Handle<GlobalObject>* inner_global_out) {
+  // The argument global_template aka data is an ObjectTemplateInfo.
+  // It has a constructor pointer that points at global_constructor which is a
+  // FunctionTemplateInfo.
+  // The global_constructor is used to create or reinitialize the global_proxy.
+  // The global_constructor also has a prototype_template pointer that points at
+  // js_global_template which is an ObjectTemplateInfo.
+  // That in turn has a constructor pointer that points at
+  // js_global_constructor which is a FunctionTemplateInfo.
+  // js_global_constructor is used to make js_global_function
+  // js_global_function is used to make the new inner_global.
+  //
   // --- G l o b a l ---
   // Step 1: Create a fresh inner JSGlobalObject.
   Handle<JSFunction> js_global_function;
@@ -1383,6 +1397,20 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
 }
 
 
+void Genesis::TransferMapsToDeserializedGlobals(
+    Handle<GlobalObject> inner_global_outside_snapshot,
+    Handle<GlobalObject> inner_global_from_snapshot) {
+  Handle<Map> from_map(inner_global_outside_snapshot->map());
+#ifdef DEBUG
+  Handle<Map> to_map(inner_global_from_snapshot->map());
+  ASSERT_EQ(to_map->instance_size(), from_map->instance_size());
+  ASSERT_EQ(0, to_map->inobject_properties());
+  ASSERT_EQ(0, from_map->inobject_properties());
+#endif
+  inner_global_from_snapshot->set_map(*from_map);
+}
+
+
 bool Genesis::ConfigureGlobalObjects(
     v8::Handle<v8::ObjectTemplate> global_proxy_template) {
   Handle<JSObject> global_proxy(
@@ -1459,15 +1487,13 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           // If the property is already there we skip it
           if (result.IsValid()) continue;
           HandleScope inner;
-          Handle<DescriptorArray> inst_descs =
-              Handle<DescriptorArray>(to->map()->instance_descriptors());
+          ASSERT(!to->HasFastProperties());
+          // Add to dictionary.
           Handle<String> key = Handle<String>(descs->GetKey(i));
-          Handle<Object> entry = Handle<Object>(descs->GetCallbacksObject(i));
-          inst_descs = Factory::CopyAppendProxyDescriptor(inst_descs,
-                                                          key,
-                                                          entry,
-                                                          details.attributes());
-          to->map()->set_instance_descriptors(*inst_descs);
+          Handle<Object> callbacks(descs->GetCallbacksObject(i));
+          PropertyDetails d =
+              PropertyDetails(details.attributes(), CALLBACKS, details.index());
+          SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
         case MAP_TRANSITION:
@@ -1612,31 +1638,32 @@ Genesis::Genesis(Handle<Object> global_object,
   HandleScope scope;
   SaveContext saved_context;
 
-  if (global_template.IsEmpty()) {
-    Handle<Context> new_context = Snapshot::NewContextFromSnapshot();
-    if (!new_context.is_null()) {
-      global_context_ =
-        Handle<Context>::cast(GlobalHandles::Create(*new_context));
-      Top::set_context(*global_context_);
-      i::Counters::contexts_created_by_snapshot.Increment();
-      result_ = global_context_;
-      JSFunction* empty_function =
-          JSFunction::cast(result_->function_map()->prototype());
-      empty_function_ = Handle<JSFunction>(empty_function);
-      Handle<JSGlobalProxy> global_proxy =
-          CreateNewGlobals(global_template, global_object, NULL);
-      // CreateNewGlobals can return an inner global that it just made, but
-      // we will ignore that because we want to hook up the global proxy to
-      // the one from the snapshot.
-      Handle<GlobalObject> inner_global(
-          GlobalObject::cast(global_context_->extension()));
-      HookUpGlobalProxy(inner_global, global_proxy);
-      if (!ConfigureGlobalObjects(global_template)) return;
-    }
-  }
-  if (global_context_.is_null()) {
-    // We get here if there either was no context snapshot or we couldn't use
-    // the context snapshot because we were supplied with a global template.
+  Handle<Context> new_context = Snapshot::NewContextFromSnapshot();
+  if (!new_context.is_null()) {
+    global_context_ =
+      Handle<Context>::cast(GlobalHandles::Create(*new_context));
+    Top::set_context(*global_context_);
+    i::Counters::contexts_created_by_snapshot.Increment();
+    result_ = global_context_;
+    JSFunction* empty_function =
+        JSFunction::cast(result_->function_map()->prototype());
+    empty_function_ = Handle<JSFunction>(empty_function);
+    Handle<GlobalObject> inner_global_outside_snapshot;
+    Handle<JSGlobalProxy> global_proxy =
+        CreateNewGlobals(global_template,
+                         global_object,
+                         &inner_global_outside_snapshot);
+    // CreateNewGlobals returns an inner global that it just made, but
+    // we won't give that to HookUpGlobalProxy because we want to hook
+    // up the global proxy to the one from the snapshot.
+    Handle<GlobalObject> inner_global(
+        GlobalObject::cast(global_context_->extension()));
+    HookUpGlobalProxy(inner_global, global_proxy);
+    TransferMapsToDeserializedGlobals(inner_global_outside_snapshot,
+                                      inner_global);
+    if (!ConfigureGlobalObjects(global_template)) return;
+  } else {
+    // We get here if there was no context snapshot.
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction();
     Handle<GlobalObject> inner_global;
