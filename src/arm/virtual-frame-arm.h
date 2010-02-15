@@ -68,7 +68,8 @@ class VirtualFrame : public ZoneObject {
   MacroAssembler* masm() { return cgen()->masm(); }
 
   // Create a duplicate of an existing valid frame element.
-  FrameElement CopyElementAt(int index);
+  FrameElement CopyElementAt(int index,
+                             NumberInfo::Type info = NumberInfo::kUnknown);
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -343,7 +344,7 @@ class VirtualFrame : public ZoneObject {
   void EmitPushMultiple(int count, int src_regs);
 
   // Push an element on the virtual frame.
-  void Push(Register reg);
+  void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
   void Push(Handle<Object> value);
   void Push(Smi* value) { Push(Handle<Object>(value)); }
 
