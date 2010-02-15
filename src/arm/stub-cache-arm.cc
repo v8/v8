@@ -408,51 +408,6 @@ static void GenerateCallConstFunction(MacroAssembler* masm,
 }
 
 
-template <class Compiler>
-static void CompileLoadInterceptor(Compiler* compiler,
-                                   StubCompiler* stub_compiler,
-                                   MacroAssembler* masm,
-                                   JSObject* object,
-                                   JSObject* holder,
-                                   String* name,
-                                   LookupResult* lookup,
-                                   Register receiver,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Label* miss) {
-  ASSERT(holder->HasNamedInterceptor());
-  ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
-
-  // Check that the receiver isn't a smi.
-  __ BranchOnSmi(receiver, miss);
-
-  // Check that the maps haven't changed.
-  Register reg =
-      stub_compiler->CheckPrototypes(object, receiver, holder,
-                                     scratch1, scratch2, name, miss);
-
-  if (lookup->IsValid() && lookup->IsCacheable()) {
-    compiler->CompileCacheable(masm,
-                               stub_compiler,
-                               receiver,
-                               reg,
-                               scratch1,
-                               scratch2,
-                               holder,
-                               lookup,
-                               name,
-                               miss);
-  } else {
-    compiler->CompileRegular(masm,
-                             receiver,
-                             reg,
-                             scratch2,
-                             holder,
-                             miss);
-  }
-}
-
-
 static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register receiver,
                                      Register holder,
@@ -619,108 +574,48 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 };
 
 
-class CallInterceptorCompiler BASE_EMBEDDED {
- public:
-  CallInterceptorCompiler(const ParameterCount& arguments, Register name)
-      : arguments_(arguments), argc_(arguments.immediate()), name_(name) {}
+static void CompileLoadInterceptor(LoadInterceptorCompiler* compiler,
+                                   StubCompiler* stub_compiler,
+                                   MacroAssembler* masm,
+                                   JSObject* object,
+                                   JSObject* holder,
+                                   String* name,
+                                   LookupResult* lookup,
+                                   Register receiver,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Label* miss) {
+  ASSERT(holder->HasNamedInterceptor());
+  ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
 
-  void CompileCacheable(MacroAssembler* masm,
-                        StubCompiler* stub_compiler,
-                        Register receiver,
-                        Register holder,
-                        Register scratch1,
-                        Register scratch2,
-                        JSObject* holder_obj,
-                        LookupResult* lookup,
-                        String* name,
-                        Label* miss_label) {
-    JSFunction* function = 0;
-    bool optimize = false;
-    // So far the most popular case for failed interceptor is
-    // CONSTANT_FUNCTION sitting below.
-    if (lookup->type() == CONSTANT_FUNCTION) {
-      function = lookup->GetConstantFunction();
-      // JSArray holder is a special case for call constant function
-      // (see the corresponding code).
-      if (function->is_compiled() && !holder_obj->IsJSArray()) {
-        optimize = true;
-      }
-    }
+  // Check that the receiver isn't a smi.
+  __ BranchOnSmi(receiver, miss);
 
-    if (!optimize) {
-      CompileRegular(masm, receiver, holder, scratch2, holder_obj, miss_label);
-      return;
-    }
+  // Check that the maps haven't changed.
+  Register reg =
+      stub_compiler->CheckPrototypes(object, receiver, holder,
+                                     scratch1, scratch2, name, miss);
 
-    // Constant functions cannot sit on global object.
-    ASSERT(!lookup->holder()->IsGlobalObject());
-
-    __ EnterInternalFrame();
-    __ push(holder);  // Save the holder.
-    __ push(name_);  // Save the name.
-
-    CompileCallLoadPropertyWithInterceptor(masm,
-                                           receiver,
-                                           holder,
-                                           name_,
-                                           holder_obj);
-
-    ASSERT(!r0.is(name_));
-    ASSERT(!r0.is(scratch1));
-    __ pop(name_);  // Restore the name.
-    __ pop(scratch1);  // Restore the holder.
-    __ LeaveInternalFrame();
-
-    // Compare with no_interceptor_result_sentinel.
-    __ LoadRoot(scratch2, Heap::kNoInterceptorResultSentinelRootIndex);
-    __ cmp(r0, scratch2);
-    Label invoke;
-    __ b(ne, &invoke);
-
-    stub_compiler->CheckPrototypes(holder_obj, scratch1,
-                                   lookup->holder(), scratch1,
-                                   scratch2,
-                                   name,
-                                   miss_label);
-    GenerateCallConstFunction(masm, function, arguments_);
-
-    __ bind(&invoke);
-  }
-
-  void CompileRegular(MacroAssembler* masm,
-                      Register receiver,
-                      Register holder,
-                      Register scratch,
-                      JSObject* holder_obj,
-                      Label* miss_label) {
-    __ EnterInternalFrame();
-    // Save the name_ register across the call.
-    __ push(name_);
-
-    PushInterceptorArguments(masm,
+  if (lookup->IsValid() && lookup->IsCacheable()) {
+    compiler->CompileCacheable(masm,
+                               stub_compiler,
+                               receiver,
+                               reg,
+                               scratch1,
+                               scratch2,
+                               holder,
+                               lookup,
+                               name,
+                               miss);
+  } else {
+    compiler->CompileRegular(masm,
                              receiver,
+                             reg,
+                             scratch2,
                              holder,
-                             name_,
-                             holder_obj);
-
-    ExternalReference ref = ExternalReference(
-        IC_Utility(IC::kLoadPropertyWithInterceptorForCall));
-    __ mov(r0, Operand(5));
-    __ mov(r1, Operand(ref));
-
-    CEntryStub stub(1);
-    __ CallStub(&stub);
-
-    // Restore the name_ register.
-    __ pop(name_);
-    __ LeaveInternalFrame();
+                             miss);
   }
-
- private:
-  const ParameterCount& arguments_;
-  int argc_;
-  Register name_;
-};
+}
 
 
 #undef __
@@ -764,7 +659,7 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
     object = JSObject::cast(object->GetPrototype());
   }
 
-  // Return the register containin the holder.
+  // Return the register containing the holder.
   return result;
 }
 
@@ -1075,7 +970,14 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
+  ASSERT(holder->HasNamedInterceptor());
+  ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
   Label miss;
+
+  const Register receiver = r0;
+  const Register name_reg = r1;
+  const Register holder_reg = r2;
+  const Register scratch = r3;
 
   // Get the number of arguments.
   const int argc = arguments().immediate();
@@ -1083,28 +985,88 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
 
-  // Get the receiver from the stack into r0.
-  __ ldr(r0, MemOperand(sp, argc * kPointerSize));
-  // Load the name from the stack into r1.
-  __ ldr(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+  // Load the receiver from the stack.
+  __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
+  // Load the name from the stack.
+  __ ldr(name_reg, MemOperand(sp, (argc + 1) * kPointerSize));
 
-  CallInterceptorCompiler compiler(arguments(), r1);
-  CompileLoadInterceptor(&compiler,
-                         this,
-                         masm(),
-                         JSObject::cast(object),
-                         holder,
-                         name,
-                         &lookup,
-                         r0,
-                         r2,
-                         r3,
-                         &miss);
+  // Check that the receiver isn't a smi.
+  __ BranchOnSmi(receiver, &miss);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      CheckPrototypes(JSObject::cast(object), receiver, holder,
+                      holder_reg, scratch, name, &miss);
+  if (!reg.is(holder_reg)) {
+    __ mov(holder_reg, reg);
+  }
+
+  // If we call a constant function when the interceptor returns
+  // the no-result sentinel, generate code that optimizes this case.
+  if (lookup.IsValid() &&
+      lookup.IsCacheable() &&
+      lookup.type() == CONSTANT_FUNCTION &&
+      lookup.GetConstantFunction()->is_compiled() &&
+      !holder->IsJSArray()) {
+    // Constant functions cannot sit on global object.
+    ASSERT(!lookup.holder()->IsGlobalObject());
+
+    // Call the interceptor.
+    __ EnterInternalFrame();
+    __ push(holder_reg);
+    __ push(name_reg);
+    CompileCallLoadPropertyWithInterceptor(masm(),
+                                           receiver,
+                                           holder_reg,
+                                           name_reg,
+                                           holder);
+    __ pop(name_reg);
+    __ pop(holder_reg);
+    __ LeaveInternalFrame();
+    // r0 no longer contains the receiver.
+
+    // If interceptor returns no-result sentinal, call the constant function.
+    __ LoadRoot(scratch, Heap::kNoInterceptorResultSentinelRootIndex);
+    __ cmp(r0, scratch);
+    Label invoke;
+    __ b(ne, &invoke);
+    // Check the prototypes between the interceptor's holder and the
+    // constant function's holder.
+    CheckPrototypes(holder, holder_reg,
+                    lookup.holder(), r0,
+                    scratch,
+                    name,
+                    &miss);
+    GenerateCallConstFunction(masm(),
+                              lookup.GetConstantFunction(),
+                              arguments());
+    __ bind(&invoke);
+
+  } else {
+    // Call a runtime function to load the interceptor property.
+    __ EnterInternalFrame();
+    __ push(name_reg);
+
+    PushInterceptorArguments(masm(), receiver, holder_reg, name_reg, holder);
+
+    ExternalReference ref = ExternalReference(
+        IC_Utility(IC::kLoadPropertyWithInterceptorForCall));
+    __ mov(r0, Operand(5));
+    __ mov(r1, Operand(ref));
+
+    CEntryStub stub(1);
+    __ CallStub(&stub);
+
+    __ pop(name_reg);
+    __ LeaveInternalFrame();
+  }
+
 
   // Move returned value, the function to call, to r1.
+  // Neither receiver nor name contain their original value at this point.
   __ mov(r1, r0);
   // Restore receiver.
-  __ ldr(r0, MemOperand(sp, argc * kPointerSize));
+  __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
 
   GenerateCallFunction(masm(), object, arguments(), &miss);
 
