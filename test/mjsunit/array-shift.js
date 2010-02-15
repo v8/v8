@@ -34,13 +34,38 @@
 
 // Now check the case with array of holes and some elements on prototype.
 (function() {
-  var array = new Array(10);
+  var len = 9;
+  var array = new Array(len);
+  Array.prototype[3] = "@3";
   Array.prototype[7] = "@7";
-  assertEquals(array[0], undefined);
-  assertEquals(array[7], Array.prototype[7]);
+
+  assertEquals(len, array.length);
+  for (var i = 0; i < array.length; i++) {
+    assertEquals(array[i], Array.prototype[i]);
+  }
 
   array.shift();
 
-  assertEquals(array[0], undefined);
+  assertEquals(len - 1, array.length);
+  // Note that shift copies values from prototype into the array.
+  assertEquals(array[2], Array.prototype[3]);
+  assertTrue(array.hasOwnProperty(2));
+
+  assertEquals(array[6], Array.prototype[7]);
+  assertTrue(array.hasOwnProperty(6));
+
+  // ... but keeps the rest as holes:
+  Array.prototype[5] = "@5";
+  assertEquals(array[5], Array.prototype[5]);
+  assertFalse(array.hasOwnProperty(5));
+
+  assertEquals(array[3], Array.prototype[3]);
+  assertFalse(array.hasOwnProperty(3));
+
   assertEquals(array[7], Array.prototype[7]);
+  assertFalse(array.hasOwnProperty(7));
+
+  assertTrue(delete Array.prototype[3]);
+  assertTrue(delete Array.prototype[5]);
+  assertTrue(delete Array.prototype[7]);
 })();
