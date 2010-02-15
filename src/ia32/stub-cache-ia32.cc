@@ -1159,7 +1159,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
-Object* CallStubCompiler::CompileCallField(Object* object,
+Object* CallStubCompiler::CompileCallField(JSObject* object,
                                            JSObject* holder,
                                            int index,
                                            String* name) {
@@ -1181,9 +1181,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ j(zero, &miss, not_taken);
 
   // Do the right check and compute the holder register.
-  Register reg =
-      CheckPrototypes(JSObject::cast(object), edx, holder,
-                      ebx, eax, name, &miss);
+  Register reg = CheckPrototypes(object, edx, holder, ebx, eax, name, &miss);
 
   GenerateFastPropertyLoad(masm(), edi, reg, holder, index);
 
@@ -1373,7 +1371,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 }
 
 
-Object* CallStubCompiler::CompileCallInterceptor(Object* object,
+Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
@@ -1396,7 +1394,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 
   CallInterceptorCompiler compiler(this, arguments(), ecx);
   compiler.Compile(masm(),
-                   JSObject::cast(object),
+                   object,
                    holder,
                    name,
                    &lookup,

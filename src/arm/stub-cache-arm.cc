@@ -781,7 +781,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
 }
 
 
-Object* CallStubCompiler::CompileCallField(Object* object,
+Object* CallStubCompiler::CompileCallField(JSObject* object,
                                            JSObject* holder,
                                            int index,
                                            String* name) {
@@ -800,8 +800,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ b(eq, &miss);
 
   // Do the right check and compute the holder register.
-  Register reg =
-      CheckPrototypes(JSObject::cast(object), r0, holder, r1, r3, name, &miss);
+  Register reg = CheckPrototypes(object, r0, holder, r1, r3, name, &miss);
   GenerateFastPropertyLoad(masm(), r1, reg, holder, index);
 
   GenerateCallFunction(masm(), object, arguments(), &miss);
@@ -949,7 +948,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
 }
 
 
-Object* CallStubCompiler::CompileCallInterceptor(Object* object,
+Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
@@ -978,9 +977,8 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ BranchOnSmi(receiver, &miss);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(JSObject::cast(object), receiver, holder,
-                      holder_reg, scratch, name, &miss);
+  Register reg = CheckPrototypes(object, receiver, holder, holder_reg,
+                                 scratch, name, &miss);
   if (!reg.is(holder_reg)) {
     __ mov(holder_reg, reg);
   }

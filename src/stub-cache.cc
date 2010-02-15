@@ -484,7 +484,10 @@ Object* StubCache::ComputeCallField(int argc,
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc, in_loop);
-    code = compiler.CompileCallField(object, holder, index, name);
+    code = compiler.CompileCallField(JSObject::cast(object),
+                                     holder,
+                                     index,
+                                     name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));
@@ -518,7 +521,9 @@ Object* StubCache::ComputeCallInterceptor(int argc,
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc, NOT_IN_LOOP);
-    code = compiler.CompileCallInterceptor(object, holder, name);
+    code = compiler.CompileCallInterceptor(JSObject::cast(object),
+                                           holder,
+                                           name);
     if (code->IsFailure()) return code;
     ASSERT_EQ(flags, Code::cast(code)->flags());
     LOG(CodeCreateEvent(Logger::CALL_IC_TAG, Code::cast(code), name));

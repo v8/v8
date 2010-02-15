@@ -552,7 +552,7 @@ class CallStubCompiler: public StubCompiler {
   explicit CallStubCompiler(int argc, InLoopFlag in_loop)
       : arguments_(argc), in_loop_(in_loop) { }
 
-  Object* CompileCallField(Object* object,
+  Object* CompileCallField(JSObject* object,
                            JSObject* holder,
                            int index,
                            String* name);
@@ -561,7 +561,7 @@ class CallStubCompiler: public StubCompiler {
                               JSFunction* function,
                               String* name,
                               CheckType check);
-  Object* CompileCallInterceptor(Object* object,
+  Object* CompileCallInterceptor(JSObject* object,
                                  JSObject* holder,
                                  String* name);
   Object* CompileCallGlobal(JSObject* object,
