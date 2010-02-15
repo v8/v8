@@ -9481,3 +9481,41 @@ TEST(Regress528) {
 
   other_context.Dispose();
 }
+
+
+TEST(ScriptOrigin) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::Handle<v8::String> script = v8::String::New(
+      "function f() {}\n\nfunction g() {}");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("f")));
+  v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("g")));
+
+  v8::ScriptOrigin script_origin_f = f->GetScriptOrigin();
+  CHECK_EQ("test", *v8::String::AsciiValue(script_origin_f.ResourceName()));
+  CHECK_EQ(0, script_origin_f.ResourceLineOffset()->Int32Value());
+
+  v8::ScriptOrigin script_origin_g = g->GetScriptOrigin();
+  CHECK_EQ("test", *v8::String::AsciiValue(script_origin_g.ResourceName()));
+  CHECK_EQ(0, script_origin_g.ResourceLineOffset()->Int32Value());
+}
+
+
+TEST(ScriptLineNumber) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::Handle<v8::String> script = v8::String::New(
+      "function f() {}\n\nfunction g() {}");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("f")));
+  v8::Local<v8::Function> g = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("g")));
+  CHECK_EQ(0, f->GetScriptLineNumber());
+  CHECK_EQ(2, g->GetScriptLineNumber());
+}

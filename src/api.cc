@@ -2458,6 +2458,33 @@ Handle<Value> Function::GetName() const {
 }
 
 
+ScriptOrigin Function::GetScriptOrigin() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (func->shared()->script()->IsScript()) {
+    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    v8::ScriptOrigin origin(
+      Utils::ToLocal(i::Handle<i::Object>(script->name())),
+      v8::Integer::New(script->line_offset()->value()),
+      v8::Integer::New(script->column_offset()->value()));
+    return origin;
+  }
+  return v8::ScriptOrigin(Handle<Value>());
+}
+
+
+const int Function::kLineOffsetNotFound = -1;
+
+
+int Function::GetScriptLineNumber() const {
+  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  if (func->shared()->script()->IsScript()) {
+    i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
+    return i::GetScriptLineNumber(script, func->shared()->start_position());
+  }
+  return kLineOffsetNotFound;
+}
+
+
 int String::Length() const {
   if (IsDeadCheck("v8::String::Length()")) return 0;
   return Utils::OpenHandle(this)->length();

@@ -1361,7 +1361,15 @@ class V8EXPORT Function : public Object {
   Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
   void SetName(Handle<String> name);
   Handle<Value> GetName() const;
+
+  /**
+   * Returns zero based line number of function body and
+   * kLineOffsetNotFound if no information available.
+   */
+  int GetScriptLineNumber() const;
+  ScriptOrigin GetScriptOrigin() const;
   static inline Function* Cast(Value* obj);
+  static const int kLineOffsetNotFound;
  private:
   Function();
   static void CheckCast(Value* obj);
