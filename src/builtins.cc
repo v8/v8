@@ -313,6 +313,43 @@ BUILTIN(ArrayPop) {
 }
 
 
+BUILTIN(ArrayShift) {
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+  if (len == 0) return Heap::undefined_value();
+
+  // Fetch the prototype.
+  JSFunction* array_function =
+      Top::context()->global_context()->array_function();
+  JSObject* prototype = JSObject::cast(array_function->prototype());
+
+  // Get first element
+  FixedArray* elms = FixedArray::cast(array->elements());
+  Object* first = elms->get(0);
+
+  if (first->IsTheHole()) {
+    first = prototype->GetElement(0);
+  }
+
+  // Shift the elements.
+  for (int i = 0; i < len - 1; i++) {
+    Object* e = elms->get(i + 1);
+    if (e->IsTheHole() && prototype->HasElement(i + 1)) {
+      e = prototype->GetElement(i + 1);
+    }
+    elms->set(i, e);
+  }
+  elms->set(len - 1, Heap::the_hole_value());
+
+  // Set the length.
+  array->set_length(Smi::FromInt(len - 1));
+
+  return first;
+}
+
+
 // -----------------------------------------------------------------------------
 //
 

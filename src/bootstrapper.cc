@@ -1473,25 +1473,27 @@ void Genesis::AddSpecialFunction(Handle<JSObject> prototype,
 void Genesis::BuildSpecialFunctionTable() {
   HandleScope scope;
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
-  // Add special versions for Array.prototype.pop and push.
+  // Add special versions for some Array.prototype functions.
   Handle<JSFunction> function =
       Handle<JSFunction>(
           JSFunction::cast(global->GetProperty(Heap::Array_symbol())));
   Handle<JSObject> visible_prototype =
       Handle<JSObject>(JSObject::cast(function->prototype()));
-  // Remember to put push and pop on the hidden prototype if it's there.
-  Handle<JSObject> push_and_pop_prototype;
+  // Remember to put those specializations on the hidden prototype if present.
+  Handle<JSObject> special_prototype;
   Handle<Object> superproto(visible_prototype->GetPrototype());
   if (superproto->IsJSObject() &&
       JSObject::cast(*superproto)->map()->is_hidden_prototype()) {
-    push_and_pop_prototype = Handle<JSObject>::cast(superproto);
+    special_prototype = Handle<JSObject>::cast(superproto);
   } else {
-    push_and_pop_prototype = visible_prototype;
+    special_prototype = visible_prototype;
   }
-  AddSpecialFunction(push_and_pop_prototype, "pop",
+  AddSpecialFunction(special_prototype, "pop",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
-  AddSpecialFunction(push_and_pop_prototype, "push",
+  AddSpecialFunction(special_prototype, "push",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
+  AddSpecialFunction(special_prototype, "shift",
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayShift)));
 }
 
 

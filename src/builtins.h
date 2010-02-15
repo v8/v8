@@ -48,6 +48,7 @@ enum BuiltinExtraArguments {
                                                                     \
   V(ArrayPush, NO_EXTRA_ARGUMENTS)                                  \
   V(ArrayPop, NO_EXTRA_ARGUMENTS)                                   \
+  V(ArrayShift, NO_EXTRA_ARGUMENTS)                                 \
                                                                     \
   V(HandleApiCall, NEEDS_CALLED_FUNCTION)                           \
   V(FastHandleApiCall, NO_EXTRA_ARGUMENTS)                          \
