@@ -391,23 +391,6 @@ static void GenerateCallFunction(MacroAssembler* masm,
 }
 
 
-static void GenerateCallConstFunction(MacroAssembler* masm,
-                                      JSFunction* function,
-                                      const ParameterCount& arguments) {
-  ASSERT(function->is_compiled());
-
-  // Get the function and setup the context.
-  __ mov(r1, Operand(Handle<JSFunction>(function)));
-  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-
-  // Jump to the cached code (tail call).
-  Handle<Code> code(function->code());
-  ParameterCount expected(function->shared()->formal_parameter_count());
-  __ InvokeCode(code, expected, arguments,
-                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
-}
-
-
 static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register receiver,
                                      Register holder,
@@ -458,7 +441,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                         LookupResult* lookup,
                         String* name,
                         Label* miss_label) {
-    AccessorInfo* callback = 0;
+    AccessorInfo* callback = NULL;
     bool optimize = false;
     // So far the most popular follow ups for interceptor loads are FIELD
     // and CALLBACKS, so inline only them, other cases may be added
@@ -950,7 +933,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  GenerateCallConstFunction(masm(), function, arguments());
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -1038,9 +1021,11 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                     scratch,
                     name,
                     &miss);
-    GenerateCallConstFunction(masm(),
-                              lookup.GetConstantFunction(),
-                              arguments());
+
+    __ InvokeFunction(lookup.GetConstantFunction(),
+                      arguments(),
+                      JUMP_FUNCTION);
+
     __ bind(&invoke);
 
   } else {
@@ -1050,13 +1035,9 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 
     PushInterceptorArguments(masm(), receiver, holder_reg, name_reg, holder);
 
-    ExternalReference ref = ExternalReference(
-        IC_Utility(IC::kLoadPropertyWithInterceptorForCall));
-    __ mov(r0, Operand(5));
-    __ mov(r1, Operand(ref));
-
-    CEntryStub stub(1);
-    __ CallStub(&stub);
+    __ CallExternalReference(
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall)),
+        5);
 
     __ pop(name_reg);
     __ LeaveInternalFrame();

@@ -135,6 +135,10 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual,
                       InvokeFlag flag);
 
+  void InvokeFunction(JSFunction* function,
+                      const ParameterCount& actual,
+                      InvokeFlag flag);
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
@@ -334,6 +338,10 @@ class MacroAssembler: public Assembler {
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid, int num_arguments);
+
+  // Convenience function: call an external reference.
+  void CallExternalReference(const ExternalReference& ext,
+                             int num_arguments);
 
   // Tail call of a runtime routine (jump).
   // Like JumpToRuntime, but also takes care of passing the number

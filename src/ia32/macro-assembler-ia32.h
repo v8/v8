@@ -124,6 +124,10 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual,
                       InvokeFlag flag);
 
+  void InvokeFunction(JSFunction* function,
+                      const ParameterCount& actual,
+                      InvokeFlag flag);
+
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
   void InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag);
@@ -352,6 +356,9 @@ class MacroAssembler: public Assembler {
 
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments);
+
+  // Convenience function: call an external reference.
+  void CallExternalReference(ExternalReference ref, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
   Object* TryCallRuntime(Runtime::FunctionId id, int num_arguments);

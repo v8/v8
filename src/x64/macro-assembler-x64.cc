@@ -386,6 +386,16 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
 }
 
 
+void MacroAssembler::CallExternalReference(const ExternalReference& ext,
+                                           int num_arguments) {
+  movq(rax, Immediate(num_arguments));
+  movq(rbx, ext);
+
+  CEntryStub stub(1);
+  CallStub(&stub);
+}
+
+
 void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
                                      int num_arguments,
                                      int result_size) {
@@ -1889,6 +1899,21 @@ void MacroAssembler::InvokeFunction(Register function,
 
   ParameterCount expected(rbx);
   InvokeCode(rdx, expected, actual, flag);
+}
+
+
+void MacroAssembler::InvokeFunction(JSFunction* function,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag) {
+  ASSERT(function->is_compiled());
+  // Get the function and setup the context.
+  Move(rdi, Handle<JSFunction>(function));
+  movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+
+  // Invoke the cached code.
+  Handle<Code> code(function->code());
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
 }
 
 

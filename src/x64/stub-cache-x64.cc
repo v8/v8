@@ -435,7 +435,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                         LookupResult* lookup,
                         String* name,
                         Label* miss_label) {
-    AccessorInfo* callback = 0;
+    AccessorInfo* callback = NULL;
     bool optimize = false;
     // So far the most popular follow ups for interceptor loads are FIELD
     // and CALLBACKS, so inline only them, other cases may be added
@@ -559,7 +559,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 class CallInterceptorCompiler BASE_EMBEDDED {
  public:
   CallInterceptorCompiler(const ParameterCount& arguments, Register name)
-      : arguments_(arguments), argc_(arguments.immediate()), name_(name) {}
+      : arguments_(arguments), name_(name) {}
 
   void CompileCacheable(MacroAssembler* masm,
                         StubCompiler* stub_compiler,
@@ -589,6 +589,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
       return;
     }
 
+    ASSERT(!lookup->holder()->IsGlobalObject());
+
     __ EnterInternalFrame();
     __ push(holder);  // Save the holder.
     __ push(name_);  // Save the name.
@@ -612,22 +614,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                                    scratch2,
                                    name,
                                    miss_label);
-    if (lookup->holder()->IsGlobalObject()) {
-      __ movq(rdx, Operand(rsp, (argc_ + 1) * kPointerSize));
-      __ movq(rdx, FieldOperand(rdx, GlobalObject::kGlobalReceiverOffset));
-      __ movq(Operand(rsp, (argc_ + 1) * kPointerSize), rdx);
-    }
 
-    ASSERT(function->is_compiled());
-    // Get the function and setup the context.
-    __ Move(rdi, Handle<JSFunction>(function));
-    __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-
-    // Jump to the cached code (tail call).
-    Handle<Code> code(function->code());
-    ParameterCount expected(function->shared()->formal_parameter_count());
-    __ InvokeCode(code, expected, arguments_,
-                  RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+    __ InvokeFunction(function, arguments_, JUMP_FUNCTION);
 
     __ bind(&invoke);
   }
@@ -648,13 +636,9 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                              name_,
                              holder_obj);
 
-    ExternalReference ref = ExternalReference(
-        IC_Utility(IC::kLoadPropertyWithInterceptorForCall));
-    __ movq(rax, Immediate(5));
-    __ movq(rbx, ref);
-
-    CEntryStub stub(1);
-    __ CallStub(&stub);
+    __ CallExternalReference(
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall)),
+        5);
 
     __ pop(name_);
     __ LeaveInternalFrame();
@@ -662,7 +646,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
  private:
   const ParameterCount& arguments_;
-  int argc_;
   Register name_;
 };
 
@@ -792,16 +775,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  // Get the function and setup the context.
-  __ Move(rdi, Handle<JSFunction>(function));
-  __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-
-  // Jump to the cached code (tail call).
-  ASSERT(function->is_compiled());
-  Handle<Code> code(function->code());
-  ParameterCount expected(function->shared()->formal_parameter_count());
-  __ InvokeCode(code, expected, arguments(),
-                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+  __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
 
   // Handle call cache miss.
   __ bind(&miss);

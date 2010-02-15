@@ -152,22 +152,6 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
 }
 
 
-static void PushInterceptorArguments(MacroAssembler* masm,
-                                     Register receiver,
-                                     Register holder,
-                                     Register name,
-                                     JSObject* holder_obj) {
-  __ push(receiver);
-  __ push(holder);
-  __ push(name);
-  InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
-  ASSERT(!Heap::InNewSpace(interceptor));
-  __ mov(receiver, Immediate(Handle<Object>(interceptor)));
-  __ push(receiver);
-  __ push(FieldOperand(receiver, InterceptorInfo::kDataOffset));
-}
-
-
 void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                        int index,
                                                        Register prototype) {
@@ -287,20 +271,31 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
 }
 
 
+static void PushInterceptorArguments(MacroAssembler* masm,
+                                     Register receiver,
+                                     Register holder,
+                                     Register name,
+                                     JSObject* holder_obj) {
+  __ push(receiver);
+  __ push(holder);
+  __ push(name);
+  InterceptorInfo* interceptor = holder_obj->GetNamedInterceptor();
+  ASSERT(!Heap::InNewSpace(interceptor));
+  __ mov(receiver, Immediate(Handle<Object>(interceptor)));
+  __ push(receiver);
+  __ push(FieldOperand(receiver, InterceptorInfo::kDataOffset));
+}
+
+
 static void CompileCallLoadPropertyWithInterceptor(MacroAssembler* masm,
                                                    Register receiver,
                                                    Register holder,
                                                    Register name,
                                                    JSObject* holder_obj) {
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
-
-  ExternalReference ref =
-      ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly));
-  __ mov(eax, Immediate(5));
-  __ mov(ebx, Immediate(ref));
-
-  CEntryStub stub(1);
-  __ CallStub(&stub);
+  __ CallExternalReference(
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly)),
+        5);
 }
 
 
@@ -364,7 +359,7 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
                         LookupResult* lookup,
                         String* name,
                         Label* miss_label) {
-    AccessorInfo* callback = 0;
+    AccessorInfo* callback = NULL;
     bool optimize = false;
     // So far the most popular follow ups for interceptor loads are FIELD
     // and CALLBACKS, so inline only them, other cases may be added
@@ -683,7 +678,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                           Register name)
       : stub_compiler_(stub_compiler),
         arguments_(arguments),
-        argc_(arguments.immediate()),
         name_(name) {}
 
   void Compile(MacroAssembler* masm,
@@ -740,6 +734,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                         const CallOptimization& optimization,
                         Label* miss_label) {
     ASSERT(optimization.is_constant_call());
+    ASSERT(!lookup->holder()->IsGlobalObject());
 
     int depth1 = kInvalidProtoDepth;
     int depth2 = kInvalidProtoDepth;
@@ -780,27 +775,11 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                                     scratch1, scratch2, name,
                                     depth2, miss);
 
-    if (lookup->holder()->IsGlobalObject()) {
-      ASSERT(!can_do_fast_api_call);
-      __ mov(edx, Operand(esp, (argc_ + 1) * kPointerSize));
-      __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
-      __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edx);
-    }
-
     if (can_do_fast_api_call) {
-      GenerateFastApiCall(masm, optimization, argc_);
+      GenerateFastApiCall(masm, optimization, arguments_.immediate());
     } else {
-      // Get the function and setup the context.
-      JSFunction* function = optimization.constant_function();
-      __ mov(edi, Immediate(Handle<JSFunction>(function)));
-      __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
-      // Jump to the cached code (tail call).
-      ASSERT(function->is_compiled());
-      Handle<Code> code(function->code());
-      ParameterCount expected(function->shared()->formal_parameter_count());
-      __ InvokeCode(code, expected, arguments_,
-                    RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+      __ InvokeFunction(optimization.constant_function(), arguments_,
+                        JUMP_FUNCTION);
     }
 
     if (can_do_fast_api_call) {
@@ -838,13 +817,10 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                              name_,
                              holder_obj);
 
-    ExternalReference ref = ExternalReference(
-        IC_Utility(IC::kLoadPropertyWithInterceptorForCall));
-    __ mov(eax, Immediate(5));
-    __ mov(ebx, Immediate(ref));
-
-    CEntryStub stub(1);
-    __ CallStub(&stub);
+    __ CallExternalReference(
+          ExternalReference(
+              IC_Utility(IC::kLoadPropertyWithInterceptorForCall)),
+          5);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -876,7 +852,6 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
   StubCompiler* stub_compiler_;
   const ParameterCount& arguments_;
-  const int argc_;
   Register name_;
 };
 
@@ -1378,16 +1353,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   if (depth != kInvalidProtoDepth) {
     GenerateFastApiCall(masm(), optimization, argc);
   } else {
-    // Get the function and setup the context.
-    __ mov(edi, Immediate(Handle<JSFunction>(function)));
-    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
-    // Jump to the cached code (tail call).
-    ASSERT(function->is_compiled());
-    Handle<Code> code(function->code());
-    ParameterCount expected(function->shared()->formal_parameter_count());
-    __ InvokeCode(code, expected, arguments(),
-                  RelocInfo::CODE_TARGET, JUMP_FUNCTION);
+    __ InvokeFunction(function, arguments(), JUMP_FUNCTION);
   }
 
   // Handle call cache miss.
