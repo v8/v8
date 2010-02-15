@@ -4261,34 +4261,52 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   // The value to convert should be popped from the frame.
   Result value = frame_->Pop();
   value.ToRegister();
-  // Fast case checks.
 
-  // 'false' => false.
-  __ CompareRoot(value.reg(), Heap::kFalseValueRootIndex);
-  dest->false_target()->Branch(equal);
+  if (value.is_number()) {
+    Comment cmnt(masm_, "ONLY_NUMBER");
+    // Fast case if NumberInfo indicates only numbers.
+    if (FLAG_debug_code) {
+      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+    }
+    // Smi => false iff zero.
+    __ SmiCompare(value.reg(), Smi::FromInt(0));
+    dest->false_target()->Branch(equal);
+    Condition is_smi = masm_->CheckSmi(value.reg());
+    dest->true_target()->Branch(is_smi);
+    __ fldz();
+    __ fld_d(FieldOperand(value.reg(), HeapNumber::kValueOffset));
+    __ FCmp();
+    value.Unuse();
+    dest->Split(not_zero);
+  } else {
+    // Fast case checks.
+    // 'false' => false.
+    __ CompareRoot(value.reg(), Heap::kFalseValueRootIndex);
+    dest->false_target()->Branch(equal);
 
-  // 'true' => true.
-  __ CompareRoot(value.reg(), Heap::kTrueValueRootIndex);
-  dest->true_target()->Branch(equal);
+    // 'true' => true.
+    __ CompareRoot(value.reg(), Heap::kTrueValueRootIndex);
+    dest->true_target()->Branch(equal);
 
-  // 'undefined' => false.
-  __ CompareRoot(value.reg(), Heap::kUndefinedValueRootIndex);
-  dest->false_target()->Branch(equal);
+    // 'undefined' => false.
+    __ CompareRoot(value.reg(), Heap::kUndefinedValueRootIndex);
+    dest->false_target()->Branch(equal);
 
-  // Smi => false iff zero.
-  __ SmiCompare(value.reg(), Smi::FromInt(0));
-  dest->false_target()->Branch(equal);
-  Condition is_smi = masm_->CheckSmi(value.reg());
-  dest->true_target()->Branch(is_smi);
+    // Smi => false iff zero.
+    __ SmiCompare(value.reg(), Smi::FromInt(0));
+    dest->false_target()->Branch(equal);
+    Condition is_smi = masm_->CheckSmi(value.reg());
+    dest->true_target()->Branch(is_smi);
 
-  // Call the stub for all other cases.
-  frame_->Push(&value);  // Undo the Pop() from above.
-  ToBooleanStub stub;
-  Result temp = frame_->CallStub(&stub, 1);
-  // Convert the result to a condition code.
-  __ testq(temp.reg(), temp.reg());
-  temp.Unuse();
-  dest->Split(not_equal);
+    // Call the stub for all other cases.
+    frame_->Push(&value);  // Undo the Pop() from above.
+    ToBooleanStub stub;
+    Result temp = frame_->CallStub(&stub, 1);
+    // Convert the result to a condition code.
+    __ testq(temp.reg(), temp.reg());
+    temp.Unuse();
+    dest->Split(not_equal);
+  }
 }
 
 
@@ -5155,26 +5173,34 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // Neither operand is known to be a string.
   }
 
-  bool left_is_smi = left.is_constant() && left.handle()->IsSmi();
-  bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
-  bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
-  bool right_is_non_smi = right.is_constant() && !right.handle()->IsSmi();
+  bool left_is_smi_constant = left.is_constant() && left.handle()->IsSmi();
+  bool left_is_non_smi_constant = left.is_constant() && !left.handle()->IsSmi();
+  bool right_is_smi_constant = right.is_constant() && right.handle()->IsSmi();
+  bool right_is_non_smi_constant =
+      right.is_constant() && !right.handle()->IsSmi();
 
-  if (left_is_smi && right_is_smi) {
+  if (left_is_smi_constant && right_is_smi_constant) {
     // Compute the constant result at compile time, and leave it on the frame.
     int left_int = Smi::cast(*left.handle())->value();
     int right_int = Smi::cast(*right.handle())->value();
     if (FoldConstantSmis(op, left_int, right_int)) return;
   }
 
+  // Get number type of left and right sub-expressions.
+  bool only_numbers = left.is_number() && right.is_number();
+  bool only_smis = left.is_smi() && right.is_smi();
+
   Result answer;
-  if (left_is_non_smi || right_is_non_smi) {
-    GenericBinaryOpStub stub(op, overwrite_mode, NO_SMI_CODE_IN_STUB);
+  if (left_is_non_smi_constant || right_is_non_smi_constant) {
+    GenericBinaryOpStub stub(op,
+                             overwrite_mode,
+                             NO_SMI_CODE_IN_STUB,
+                             only_numbers);
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
-  } else if (right_is_smi) {
+  } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
                                         type, false, overwrite_mode);
-  } else if (left_is_smi) {
+  } else if (left_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
                                         type, true, overwrite_mode);
   } else {
@@ -5186,10 +5212,53 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     if (loop_nesting() > 0 && (Token::IsBitOp(op) || type->IsLikelySmi())) {
       answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
     } else {
-      GenericBinaryOpStub stub(op, overwrite_mode, NO_GENERIC_BINARY_FLAGS);
+      GenericBinaryOpStub stub(op,
+                               overwrite_mode,
+                               NO_GENERIC_BINARY_FLAGS,
+                               only_numbers);
       answer = stub.GenerateCall(masm_, frame_, &left, &right);
     }
   }
+
+  // Set NumberInfo of result according to the operation performed.
+  NumberInfo::Type info = NumberInfo::kUnknown;
+  switch (op) {
+    case Token::COMMA:
+      info = right.number_info();
+      break;
+    case Token::OR:
+    case Token::AND:
+      // Could be anything. Check inputs.
+      if (only_numbers)
+        info = NumberInfo::kNumber;
+      break;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SAR:
+    case Token::SHR:
+      // TODO(fsc): Make use of the fact that smis are 32 bits on x64.
+      info = only_smis ? NumberInfo::kSmi : NumberInfo::kNumber;
+      break;
+    case Token::SHL:
+      info = NumberInfo::kNumber;
+      break;
+    case Token::ADD:
+      // Could be strings or numbers. Check types of inputs.
+      if (only_numbers) {
+        info = NumberInfo::kNumber;
+      }
+      break;
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      info = NumberInfo::kNumber;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  answer.set_number_info(info);
   frame_->Push(&answer);
 }
 
@@ -8078,13 +8147,14 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, len),
-               "GenericBinaryOpStub_%s_%s%s_%s%s_%s",
+               "GenericBinaryOpStub_%s_%s%s_%s%s_%s%s",
                op_name,
                overwrite_name,
                (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
-               use_sse3_ ? "SSE3" : "SSE2");
+               use_sse3_ ? "SSE3" : "SSE2",
+               only_numbers_in_stub_ ? "_OnlyNumbers" : "");
   return name_;
 }
 
@@ -8408,7 +8478,15 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       // rax: y
       // rdx: x
-      FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
+      if (only_numbers_in_stub_) {
+        if (FLAG_debug_code) {
+          // Assert at runtime that inputs are only numbers.
+          __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");
+          __ AbortIfNotNumber(rax, "GenericBinaryOpStub operand not a number.");
+        }
+      } else {
+        FloatingPointHelper::CheckNumberOperands(masm, &call_runtime);
+      }
       // Fast-case: Both operands are numbers.
       // xmm4 and xmm5 are volatile XMM registers.
       FloatingPointHelper::LoadFloatOperands(masm, xmm4, xmm5);

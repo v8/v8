@@ -1598,6 +1598,17 @@ void MacroAssembler::CheckMap(Register obj,
 }
 
 
+void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
+  Label ok;
+  Condition is_smi = CheckSmi(object);
+  j(is_smi, &ok);
+  Cmp(FieldOperand(object, HeapObject::kMapOffset),
+      Factory::heap_number_map());
+  Assert(equal, msg);
+  bind(&ok);
+}
+
+
 Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register map,
                                              Register instance_type) {

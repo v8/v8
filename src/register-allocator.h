@@ -29,6 +29,7 @@
 #define V8_REGISTER_ALLOCATOR_H_
 
 #include "macro-assembler.h"
+#include "number-info.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/register-allocator-ia32.h"
@@ -64,11 +65,12 @@ class Result BASE_EMBEDDED {
   Result() { invalidate(); }
 
   // Construct a register Result.
-  explicit Result(Register reg);
+  explicit Result(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
 
   // Construct a Result whose value is a compile-time constant.
   explicit Result(Handle<Object> value) {
     value_ = TypeField::encode(CONSTANT)
+        | NumberInfoField::encode(NumberInfo::kUninitialized)
         | DataField::encode(ConstantList()->length());
     ConstantList()->Add(value);
   }
@@ -98,6 +100,14 @@ class Result BASE_EMBEDDED {
   Type type() const { return TypeField::decode(value_); }
 
   void invalidate() { value_ = TypeField::encode(INVALID); }
+
+  NumberInfo::Type number_info();
+  void set_number_info(NumberInfo::Type info);
+  bool is_number() {
+    return (number_info() & NumberInfo::kNumber) != 0;
+  }
+  bool is_smi() { return number_info() == NumberInfo::kSmi; }
+  bool is_heap_number() { return number_info() == NumberInfo::kHeapNumber; }
 
   bool is_valid() const { return type() != INVALID; }
   bool is_register() const { return type() == REGISTER; }
@@ -130,7 +140,8 @@ class Result BASE_EMBEDDED {
   uint32_t value_;
 
   class TypeField: public BitField<Type, 0, 2> {};
-  class DataField: public BitField<uint32_t, 2, 32 - 3> {};
+  class NumberInfoField : public BitField<NumberInfo::Type, 2, 3> {};
+  class DataField: public BitField<uint32_t, 5, 32 - 6> {};
 
   inline void CopyTo(Result* destination) const;
 

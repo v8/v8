@@ -320,6 +320,7 @@
         '../../src/messages.cc',
         '../../src/messages.h',
         '../../src/natives.h',
+	'../../src/number-info.h',
         '../../src/objects-debug.cc',
         '../../src/objects-inl.h',
         '../../src/objects.cc',

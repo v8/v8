@@ -655,13 +655,15 @@ class GenericBinaryOpStub: public CodeStub {
  public:
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
-                      GenericBinaryFlags flags)
+                      GenericBinaryFlags flags,
+                      bool only_numbers = false)
       : op_(op),
         mode_(mode),
         flags_(flags),
         args_in_registers_(false),
         args_reversed_(false),
-        name_(NULL) {
+        name_(NULL),
+        only_numbers_in_stub_(only_numbers) {
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -686,28 +688,32 @@ class GenericBinaryOpStub: public CodeStub {
   bool args_reversed_;  // Left and right argument are swapped.
   bool use_sse3_;
   char* name_;
+  bool only_numbers_in_stub_;
 
   const char* GetName();
 
 #ifdef DEBUG
   void Print() {
-    PrintF("GenericBinaryOpStub (op %s), "
-           "(mode %d, flags %d, registers %d, reversed %d)\n",
+    PrintF("GenericBinaryOpStub %d (op %s), "
+           "(mode %d, flags %d, registers %d, reversed %d, only_numbers %d)\n",
+           MinorKey(),
            Token::String(op_),
            static_cast<int>(mode_),
            static_cast<int>(flags_),
            static_cast<int>(args_in_registers_),
-           static_cast<int>(args_reversed_));
+           static_cast<int>(args_reversed_),
+           static_cast<int>(only_numbers_in_stub_));
   }
 #endif
 
-  // Minor key encoding in 16 bits FRASOOOOOOOOOOMM.
+  // Minor key encoding in 16 bits NFRASOOOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 10> {};
-  class SSE3Bits: public BitField<bool, 12, 1> {};
-  class ArgsInRegistersBits: public BitField<bool, 13, 1> {};
-  class ArgsReversedBits: public BitField<bool, 14, 1> {};
-  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
+  class OpBits: public BitField<Token::Value, 2, 9> {};
+  class SSE3Bits: public BitField<bool, 11, 1> {};
+  class ArgsInRegistersBits: public BitField<bool, 12, 1> {};
+  class ArgsReversedBits: public BitField<bool, 13, 1> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 14, 1> {};
+  class OnlyNumberBits: public BitField<bool, 15, 1> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
@@ -717,7 +723,8 @@ class GenericBinaryOpStub: public CodeStub {
            | FlagBits::encode(flags_)
            | SSE3Bits::encode(use_sse3_)
            | ArgsInRegistersBits::encode(args_in_registers_)
-           | ArgsReversedBits::encode(args_reversed_);
+           | ArgsReversedBits::encode(args_reversed_)
+           | OnlyNumberBits::encode(only_numbers_in_stub_);
   }
 
   void Generate(MacroAssembler* masm);

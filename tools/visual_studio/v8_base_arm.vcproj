@@ -637,6 +637,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\number-info.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\objects-debug.cc"
 				>
 				<FileConfiguration

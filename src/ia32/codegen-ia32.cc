@@ -722,35 +722,54 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   // The value to convert should be popped from the frame.
   Result value = frame_->Pop();
   value.ToRegister();
-  // Fast case checks.
 
-  // 'false' => false.
-  __ cmp(value.reg(), Factory::false_value());
-  dest->false_target()->Branch(equal);
+  if (value.is_number()) {
+    Comment cmnt(masm_, "ONLY_NUMBER");
+    // Fast case if NumberInfo indicates only numbers.
+    if (FLAG_debug_code) {
+      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+    }
+    // Smi => false iff zero.
+    ASSERT(kSmiTag == 0);
+    __ test(value.reg(), Operand(value.reg()));
+    dest->false_target()->Branch(zero);
+    __ test(value.reg(), Immediate(kSmiTagMask));
+    dest->true_target()->Branch(zero);
+    __ fldz();
+    __ fld_d(FieldOperand(value.reg(), HeapNumber::kValueOffset));
+    __ FCmp();
+    value.Unuse();
+    dest->Split(not_zero);
+  } else {
+    // Fast case checks.
+    // 'false' => false.
+    __ cmp(value.reg(), Factory::false_value());
+    dest->false_target()->Branch(equal);
 
-  // 'true' => true.
-  __ cmp(value.reg(), Factory::true_value());
-  dest->true_target()->Branch(equal);
+    // 'true' => true.
+    __ cmp(value.reg(), Factory::true_value());
+    dest->true_target()->Branch(equal);
 
-  // 'undefined' => false.
-  __ cmp(value.reg(), Factory::undefined_value());
-  dest->false_target()->Branch(equal);
+    // 'undefined' => false.
+    __ cmp(value.reg(), Factory::undefined_value());
+    dest->false_target()->Branch(equal);
 
-  // Smi => false iff zero.
-  ASSERT(kSmiTag == 0);
-  __ test(value.reg(), Operand(value.reg()));
-  dest->false_target()->Branch(zero);
-  __ test(value.reg(), Immediate(kSmiTagMask));
-  dest->true_target()->Branch(zero);
+    // Smi => false iff zero.
+    ASSERT(kSmiTag == 0);
+    __ test(value.reg(), Operand(value.reg()));
+    dest->false_target()->Branch(zero);
+    __ test(value.reg(), Immediate(kSmiTagMask));
+    dest->true_target()->Branch(zero);
 
-  // Call the stub for all other cases.
-  frame_->Push(&value);  // Undo the Pop() from above.
-  ToBooleanStub stub;
-  Result temp = frame_->CallStub(&stub, 1);
-  // Convert the result to a condition code.
-  __ test(temp.reg(), Operand(temp.reg()));
-  temp.Unuse();
-  dest->Split(not_equal);
+    // Call the stub for all other cases.
+    frame_->Push(&value);  // Undo the Pop() from above.
+    ToBooleanStub stub;
+    Result temp = frame_->CallStub(&stub, 1);
+    // Convert the result to a condition code.
+    __ test(temp.reg(), Operand(temp.reg()));
+    temp.Unuse();
+    dest->Split(not_equal);
+  }
 }
 
 
@@ -790,6 +809,10 @@ class FloatingPointHelper : public AllStatic {
   static void LoadAsIntegers(MacroAssembler* masm,
                              bool use_sse3,
                              Label* operand_conversion_failure);
+  // Test if operands are smis or heap numbers and load them
+  // into xmm0 and xmm1 if they are. Operands are in edx and eax.
+  // Leaves operands unchanged.
+  static void LoadSSE2Operands(MacroAssembler* masm);
   // Test if operands are numbers (smi or HeapNumber objects), and load
   // them into xmm0 and xmm1 if they are.  Jump to label not_numbers if
   // either operand is not a number.  Operands are in edx and eax.
@@ -817,12 +840,13 @@ const char* GenericBinaryOpStub::GetName() {
   }
 
   OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "GenericBinaryOpStub_%s_%s%s_%s%s",
+               "GenericBinaryOpStub_%s_%s%s_%s%s%s",
                op_name,
                overwrite_name,
                (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
                args_in_registers_ ? "RegArgs" : "StackArgs",
-               args_reversed_ ? "_R" : "");
+               args_reversed_ ? "_R" : "",
+               only_numbers_in_stub_ ? "_OnlyNumbers" : "");
   return name_;
 }
 
@@ -972,27 +996,35 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // Neither operand is known to be a string.
   }
 
-  bool left_is_smi = left.is_constant() && left.handle()->IsSmi();
-  bool left_is_non_smi = left.is_constant() && !left.handle()->IsSmi();
-  bool right_is_smi = right.is_constant() && right.handle()->IsSmi();
-  bool right_is_non_smi = right.is_constant() && !right.handle()->IsSmi();
+  bool left_is_smi_constant = left.is_constant() && left.handle()->IsSmi();
+  bool left_is_non_smi_constant = left.is_constant() && !left.handle()->IsSmi();
+  bool right_is_smi_constant = right.is_constant() && right.handle()->IsSmi();
+  bool right_is_non_smi_constant =
+      right.is_constant() && !right.handle()->IsSmi();
 
-  if (left_is_smi && right_is_smi) {
+  if (left_is_smi_constant && right_is_smi_constant) {
     // Compute the constant result at compile time, and leave it on the frame.
     int left_int = Smi::cast(*left.handle())->value();
     int right_int = Smi::cast(*right.handle())->value();
     if (FoldConstantSmis(op, left_int, right_int)) return;
   }
 
+  // Get number type of left and right sub-expressions.
+  bool only_numbers = left.is_number() && right.is_number();
+  bool only_smis = left.is_smi() && right.is_smi();
+
   Result answer;
-  if (left_is_non_smi || right_is_non_smi) {
+  if (left_is_non_smi_constant || right_is_non_smi_constant) {
     // Go straight to the slow case, with no smi code.
-    GenericBinaryOpStub stub(op, overwrite_mode, NO_SMI_CODE_IN_STUB);
+    GenericBinaryOpStub stub(op,
+                             overwrite_mode,
+                             NO_SMI_CODE_IN_STUB,
+                             only_numbers);
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
-  } else if (right_is_smi) {
+  } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
                                         type, false, overwrite_mode);
-  } else if (left_is_smi) {
+  } else if (left_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &right, left.handle(),
                                         type, true, overwrite_mode);
   } else {
@@ -1004,10 +1036,49 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     if (loop_nesting() > 0 && (Token::IsBitOp(op) || type->IsLikelySmi())) {
       answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
     } else {
-      GenericBinaryOpStub stub(op, overwrite_mode, NO_GENERIC_BINARY_FLAGS);
+      GenericBinaryOpStub stub(op,
+                               overwrite_mode,
+                               NO_GENERIC_BINARY_FLAGS,
+                               only_numbers);
       answer = stub.GenerateCall(masm_, frame_, &left, &right);
     }
   }
+
+  // Set NumberInfo of result according to the operation performed.
+  NumberInfo::Type info = NumberInfo::kUnknown;
+  switch (op) {
+    case Token::COMMA:
+      info = right.number_info();
+    case Token::OR:
+    case Token::AND:
+      // Could be anything. Check inputs.
+      if (only_numbers)
+        info = NumberInfo::kNumber;
+      break;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SAR:
+    case Token::SHR:
+      info = only_smis ? NumberInfo::kSmi : NumberInfo::kNumber;
+      break;
+    case Token::SHL:
+      info = NumberInfo::kNumber;
+      break;
+    case Token::ADD:
+      // Could be strings or numbers. Check types of inputs.
+      if (only_numbers) info = NumberInfo::kNumber;
+      break;
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      info = NumberInfo::kNumber;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  answer.set_number_info(info);
   frame_->Push(&answer);
 }
 
@@ -7545,7 +7616,18 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
-        FloatingPointHelper::LoadSSE2Operands(masm, &call_runtime);
+        if (only_numbers_in_stub_) {
+          if (FLAG_debug_code) {
+            // Assert at runtime that inputs are only numbers.
+            __ AbortIfNotNumber(edx,
+                                "GenericBinaryOpStub operand not a number.");
+            __ AbortIfNotNumber(eax,
+                                "GenericBinaryOpStub operand not a number.");
+          }
+          FloatingPointHelper::LoadSSE2Operands(masm);
+        } else {
+          FloatingPointHelper::LoadSSE2Operands(masm, &call_runtime);
+        }
 
         switch (op_) {
           case Token::ADD: __ addsd(xmm0, xmm1); break;
@@ -7558,7 +7640,17 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
         GenerateReturn(masm);
       } else {  // SSE2 not available, use FPU.
-        FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
+        if (only_numbers_in_stub_) {
+          if (FLAG_debug_code) {
+            // Assert at runtime that inputs are only numbers.
+            __ AbortIfNotNumber(edx,
+                                "GenericBinaryOpStub operand not a number.");
+            __ AbortIfNotNumber(eax,
+                                "GenericBinaryOpStub operand not a number.");
+          }
+        } else {
+          FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
+        }
         FloatingPointHelper::LoadFloatOperands(
             masm,
             ecx,
@@ -8065,6 +8157,35 @@ void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
   __ push(number);
   __ fild_s(Operand(esp, 0));
   __ pop(number);
+
+  __ bind(&done);
+}
+
+
+void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm) {
+  Label load_smi_edx, load_eax, load_smi_eax, done;
+  // Load operand in edx into xmm0.
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_edx, not_taken);  // Argument in edx is a smi.
+  __ movdbl(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
+
+  __ bind(&load_eax);
+  // Load operand in eax into xmm1.
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &load_smi_eax, not_taken);  // Argument in eax is a smi.
+  __ movdbl(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+  __ jmp(&done);
+
+  __ bind(&load_smi_edx);
+  __ SmiUntag(edx);  // Untag smi before converting to float.
+  __ cvtsi2sd(xmm0, Operand(edx));
+  __ SmiTag(edx);  // Retag smi for heap number overwriting test.
+  __ jmp(&load_eax);
+
+  __ bind(&load_smi_eax);
+  __ SmiUntag(eax);  // Untag smi before converting to float.
+  __ cvtsi2sd(xmm1, Operand(eax));
+  __ SmiTag(eax);  // Retag smi for heap number overwriting test.
 
   __ bind(&done);
 }

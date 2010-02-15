@@ -176,6 +176,9 @@ class MacroAssembler: public Assembler {
     sar(reg, kSmiTagSize);
   }
 
+  // Abort execution if argument is not a number. Used in debug code.
+  void AbortIfNotNumber(Register object, const char* msg);
+
   // ---------------------------------------------------------------------------
   // Exception handling
 

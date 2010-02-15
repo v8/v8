@@ -383,6 +383,17 @@ void MacroAssembler::FCmp() {
 }
 
 
+void MacroAssembler::AbortIfNotNumber(Register object, const char* msg) {
+  Label ok;
+  test(object, Immediate(kSmiTagMask));
+  j(zero, &ok);
+  cmp(FieldOperand(object, HeapObject::kMapOffset),
+      Factory::heap_number_map());
+  Assert(equal, msg);
+  bind(&ok);
+}
+
+
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, Operand(esp));

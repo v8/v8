@@ -486,6 +486,9 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
+  // Abort execution if argument is not a number. Used in debug code.
+  void AbortIfNotNumber(Register object, const char* msg);
+
   // ---------------------------------------------------------------------------
   // Exception handling
 

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
-#include "frame-element.h"
+#ifndef V8_NUMBER_INFO_H_
+#define V8_NUMBER_INFO_H_
 
 namespace v8 {
 namespace internal {
 
-// -------------------------------------------------------------------------
-// FrameElement implementation.
+class NumberInfo : public AllStatic {
+ public:
+  enum Type {
+    kUnknown = 0,
+    kNumber = 1,
+    kSmi = 3,
+    kHeapNumber = 5,
+    kUninitialized = 7
+  };
 
-NumberInfo::Type FrameElement::number_info() {
-  // Copied elements do not have number info. Instead
-  // we have to inspect their backing element in the frame.
-  ASSERT(!is_copy());
-  if (!is_constant()) return NumberInfoField::decode(value_);
-  Handle<Object> value = handle();
-  if (value->IsSmi()) return NumberInfo::kSmi;
-  if (value->IsHeapNumber()) return NumberInfo::kHeapNumber;
-  return NumberInfo::kUnknown;
-}
-
-
-FrameElement::ZoneObjectList* FrameElement::ConstantList() {
-  static ZoneObjectList list(10);
-  return &list;
-}
-
+  // Return the weakest (least precise) common type.
+  static Type Combine(Type a, Type b) {
+    // Make use of the order of enum values.
+    return static_cast<Type>(a & b);
+  }
+};
 
 } }  // namespace v8::internal
+
+#endif  // V8_NUMBER_INFO_H_
