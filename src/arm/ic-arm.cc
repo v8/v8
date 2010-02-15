@@ -59,7 +59,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // r3 - used as temporary and to hold the capacity of the property
   //      dictionary.
   //
-  // r2 - holds the name of the property and is unchanges.
+  // r2 - holds the name of the property and is unchanged.
 
   Label done;
 
@@ -219,14 +219,13 @@ Object* CallIC_Miss(Arguments args);
 
 void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  //  -- lr: return address
+  //  -- r2    : name
+  //  -- lr    : return address
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
 
   // Get the receiver of the function from the stack into r1.
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
-  // Get the name of the function from the stack; 1 ~ receiver.
-  __ ldr(r2, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Probe the stub cache.
   Code::Flags flags =
@@ -301,9 +300,9 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 
   // Patch the receiver with the global proxy if necessary.
   if (is_global_object) {
-    __ ldr(r2, MemOperand(sp, argc * kPointerSize));
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
-    __ str(r2, MemOperand(sp, argc * kPointerSize));
+    __ ldr(r0, MemOperand(sp, argc * kPointerSize));
+    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
+    __ str(r0, MemOperand(sp, argc * kPointerSize));
   }
 
   // Invoke the function.
@@ -314,14 +313,13 @@ static void GenerateNormalHelper(MacroAssembler* masm,
 
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  //  -- lr: return address
+  //  -- r2    : name
+  //  -- lr    : return address
   // -----------------------------------
   Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack into r1.
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
-  // Get the name of the function from the stack; 1 ~ receiver.
-  __ ldr(r2, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ tst(r1, Operand(kSmiTagMask));
@@ -374,18 +372,17 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
 void CallIC::GenerateMiss(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  //  -- lr: return address
+  //  -- r2    : name
+  //  -- lr    : return address
   // -----------------------------------
 
   // Get the receiver of the function from the stack.
-  __ ldr(r2, MemOperand(sp, argc * kPointerSize));
-  // Get the name of the function to call from the stack.
-  __ ldr(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+  __ ldr(r3, MemOperand(sp, argc * kPointerSize));
 
   __ EnterInternalFrame();
 
   // Push the receiver and the name of the function.
-  __ stm(db_w, sp, r1.bit() | r2.bit());
+  __ stm(db_w, sp, r2.bit() | r3.bit());
 
   // Call the entry.
   __ mov(r0, Operand(2));

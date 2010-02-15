@@ -3023,11 +3023,6 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
-
-    // Push the name of the function and the receiver onto the stack.
-    __ mov(r0, Operand(var->name()));
-    frame_->EmitPush(r0);
-
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
@@ -3039,15 +3034,14 @@ void CodeGenerator::VisitCall(Call* node) {
       LoadAndSpill(args->at(i));
     }
 
-    // Setup the receiver register and call the IC initialization code.
+    // Setup the name register and call the IC initialization code.
+    __ mov(r2, Operand(var->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
     Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
     __ ldr(cp, frame_->Context());
-    // Remove the function from the stack.
-    frame_->Drop();
     frame_->EmitPush(r0);
 
   } else if (var != NULL && var->slot() != NULL &&
@@ -3080,28 +3074,21 @@ void CodeGenerator::VisitCall(Call* node) {
       // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
       // ------------------------------------------------------------------
 
-      // Push the name of the function and the receiver onto the stack.
-      __ mov(r0, Operand(literal->handle()));
-      frame_->EmitPush(r0);
-      LoadAndSpill(property->obj());
-
+      LoadAndSpill(property->obj());  // Receiver.
       // Load the arguments.
       int arg_count = args->length();
       for (int i = 0; i < arg_count; i++) {
         LoadAndSpill(args->at(i));
       }
 
-      // Set the receiver register and call the IC initialization code.
+      // Set the name register and call the IC initialization code.
+      __ mov(r2, Operand(literal->handle()));
       InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
       Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
       CodeForSourcePosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
       __ ldr(cp, frame_->Context());
-
-      // Remove the function from the stack.
-      frame_->Drop();
-
-      frame_->EmitPush(r0);  // push after get rid of function from the stack
+      frame_->EmitPush(r0);
 
     } else {
       // -------------------------------------------
@@ -3636,8 +3623,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Prepare stack for calling JS runtime function.
-    __ mov(r0, Operand(node->name()));
-    frame_->EmitPush(r0);
     // Push the builtins object found in the current global object.
     __ ldr(r1, GlobalObject());
     __ ldr(r0, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
@@ -3652,11 +3637,11 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Call the JS runtime function.
+    __ mov(r2, Operand(node->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
     Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
-    frame_->Drop();
     frame_->EmitPush(r0);
   } else {
     // Call the C runtime function.

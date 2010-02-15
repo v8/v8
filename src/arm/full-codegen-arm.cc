@@ -1090,7 +1090,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 }
 
 void FullCodeGenerator::EmitCallWithIC(Call* expr,
-                                       Handle<Object> ignored,
+                                       Handle<Object> name,
                                        RelocInfo::Mode mode) {
   // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
@@ -1098,16 +1098,16 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   for (int i = 0; i < arg_count; i++) {
     VisitForValue(args->at(i), kStack);
   }
+  __ mov(r2, Operand(name));
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
-                                                         NOT_IN_LOOP);
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
   __ Call(ic, mode);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  // Discard the function left on TOS.
-  DropAndApply(1, context_, r0);
+  Apply(context_, r0);
 }
 
 
@@ -1124,7 +1124,6 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   __ CallStub(&stub);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  // Discard the function left on TOS.
   DropAndApply(1, context_, r0);
 }
 
@@ -1138,11 +1137,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Call to the identifier 'eval'.
     UNREACHABLE();
   } else if (var != NULL && !var->is_this() && var->is_global()) {
-    // Call to a global variable.
-    __ mov(r1, Operand(var->name()));
-    // Push global object as receiver for the call IC lookup.
+    // Push global object as receiver for the call IC.
     __ ldr(r0, CodeGenerator::GlobalObject());
-    __ stm(db_w, sp, r1.bit() | r0.bit());
+    __ push(r0);
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -1154,8 +1151,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     Literal* key = prop->key()->AsLiteral();
     if (key != NULL && key->handle()->IsSymbol()) {
       // Call to a named property, use call IC.
-      __ mov(r0, Operand(key->handle()));
-      __ push(r0);
       VisitForValue(prop->obj(), kStack);
       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
@@ -1241,10 +1236,9 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Prepare for calling JS runtime function.
-    __ mov(r1, Operand(expr->name()));
     __ ldr(r0, CodeGenerator::GlobalObject());
     __ ldr(r0, FieldMemOperand(r0, GlobalObject::kBuiltinsOffset));
-    __ stm(db_w, sp, r1.bit() | r0.bit());
+    __ push(r0);
   }
 
   // Push the arguments ("left-to-right").
@@ -1255,18 +1249,17 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Call the JS runtime function.
+    __ mov(r2, Operand(expr->name()));
     Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
                                                            NOT_IN_LOOP);
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Restore context register.
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    // Discard the function left on TOS.
-    DropAndApply(1, context_, r0);
   } else {
     // Call the C runtime function.
     __ CallRuntime(expr->function(), arg_count);
-    Apply(context_, r0);
   }
+  Apply(context_, r0);
 }
 
 

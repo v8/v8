@@ -915,7 +915,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   }
 
   // 2. Get the function to call from the stack.
-  // r0: actual number of argument
+  // r0: actual number of arguments
   { Label done, non_function, function;
     __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
     __ tst(r1, Operand(kSmiTagMask));
@@ -997,13 +997,27 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  // 4. Shift stuff one slot down the stack
+  // 4. Handle non-functions.
   // r0: actual number of arguments (including call() receiver)
   // r1: function
+  { Label done;
+    __ tst(r1, r1);
+    __ b(ne, &done);
+    __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
+    // Transfer the receiver from the first argument to the top of the
+    // caller's expression stack simply by decrementing argc.
+    __ sub(r0, r0, Operand(1));
+    __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+                         RelocInfo::CODE_TARGET);
+    __ bind(&done);
+  }
+
+  // 5. Shift arguments one slot toward the bottom of the
+  //    stack, overwriting the receiver.
   { Label loop;
     // Calculate the copy start address (destination). Copy end address is sp.
     __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
-    __ add(r2, r2, Operand(kPointerSize));  // copy receiver too
 
     __ bind(&loop);
     __ ldr(ip, MemOperand(r2, -kPointerSize));
@@ -1011,43 +1025,28 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ sub(r2, r2, Operand(kPointerSize));
     __ cmp(r2, sp);
     __ b(ne, &loop);
+    // Adjust the actual number of arguments and remove the top element.
+    __ sub(r0, r0, Operand(1));
+    __ pop();
   }
-
-  // 5. Adjust the actual number of arguments and remove the top element.
-  // r0: actual number of arguments (including call() receiver)
-  // r1: function
-  __ sub(r0, r0, Operand(1));
-  __ add(sp, sp, Operand(kPointerSize));
 
   // 6. Get the code for the function or the non-function builtin.
   //    If number of expected arguments matches, then call. Otherwise restart
   //    the arguments adaptor stub.
   // r0: actual number of arguments
   // r1: function
-  { Label invoke;
-    __ tst(r1, r1);
-    __ b(ne, &invoke);
-    __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
-    __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-                         RelocInfo::CODE_TARGET);
+  __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r2,
+         FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kCodeOffset));
+  __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ cmp(r2, r0);  // Check formal and actual parameter counts.
+  __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+          RelocInfo::CODE_TARGET, ne);
 
-    __ bind(&invoke);
-    __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r2,
-           FieldMemOperand(r3,
-                           SharedFunctionInfo::kFormalParameterCountOffset));
-    __ ldr(r3,
-           MemOperand(r3, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
-    __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ cmp(r2, r0);  // Check formal and actual parameter counts.
-    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
-                         RelocInfo::CODE_TARGET, ne);
-
-    // 7. Jump to the code in r3 without checking arguments.
-    ParameterCount expected(0);
-    __ InvokeCode(r3, expected, expected, JUMP_FUNCTION);
-  }
+  // 7. Jump (tail-call) to the code in r3 without checking arguments.
+  ParameterCount expected(0);
+  __ InvokeCode(r3, expected, expected, JUMP_FUNCTION);
 }
 
 

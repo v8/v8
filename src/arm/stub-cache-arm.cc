@@ -376,7 +376,7 @@ static void GenerateCallFunction(MacroAssembler* masm,
 
   // Check that the function really is a function.
   __ BranchOnSmi(r1, miss);
-  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
   __ b(ne, miss);
 
   // Patch the receiver on the stack with the global proxy if
@@ -803,7 +803,8 @@ Object* CallStubCompiler::CompileCallField(Object* object,
                                            int index,
                                            String* name) {
   // ----------- S t a t e -------------
-  //  -- lr: return address
+  //  -- r2    : name
+  //  -- lr    : return address
   // -----------------------------------
   Label miss;
 
@@ -817,7 +818,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
 
   // Do the right check and compute the holder register.
   Register reg =
-      CheckPrototypes(JSObject::cast(object), r0, holder, r3, r2, name, &miss);
+      CheckPrototypes(JSObject::cast(object), r0, holder, r1, r3, name, &miss);
   GenerateFastPropertyLoad(masm(), r1, reg, holder, index);
 
   GenerateCallFunction(masm(), object, arguments(), &miss);
@@ -838,7 +839,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               String* name,
                                               CheckType check) {
   // ----------- S t a t e -------------
-  //  -- lr: return address
+  //  -- r2    : name
+  //  -- lr    : return address
   // -----------------------------------
   Label miss;
 
@@ -859,7 +861,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   switch (check) {
     case RECEIVER_MAP_CHECK:
       // Check that the maps haven't changed.
-      CheckPrototypes(JSObject::cast(object), r1, holder, r3, r2, name, &miss);
+      CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, name, &miss);
 
       // Patch the receiver on the stack with the global proxy if
       // necessary.
@@ -875,13 +877,13 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         __ jmp(&miss);
       } else {
         // Check that the object is a two-byte string or a symbol.
-        __ CompareObjectType(r1, r2, r2, FIRST_NONSTRING_TYPE);
+        __ CompareObjectType(r1, r3, r3, FIRST_NONSTRING_TYPE);
         __ b(hs, &miss);
         // Check that the maps starting from the prototype haven't changed.
         GenerateLoadGlobalFunctionPrototype(masm(),
                                             Context::STRING_FUNCTION_INDEX,
-                                            r2);
-        CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
+                                            r0);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, name, &miss);
       }
       break;
@@ -895,14 +897,14 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         // Check that the object is a smi or a heap number.
         __ tst(r1, Operand(kSmiTagMask));
         __ b(eq, &fast);
-        __ CompareObjectType(r1, r2, r2, HEAP_NUMBER_TYPE);
+        __ CompareObjectType(r1, r0, r0, HEAP_NUMBER_TYPE);
         __ b(ne, &miss);
         __ bind(&fast);
         // Check that the maps starting from the prototype haven't changed.
         GenerateLoadGlobalFunctionPrototype(masm(),
                                             Context::NUMBER_FUNCTION_INDEX,
-                                            r2);
-        CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
+                                            r0);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, name, &miss);
       }
       break;
@@ -925,22 +927,22 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
         // Check that the maps starting from the prototype haven't changed.
         GenerateLoadGlobalFunctionPrototype(masm(),
                                             Context::BOOLEAN_FUNCTION_INDEX,
-                                            r2);
-        CheckPrototypes(JSObject::cast(object->GetPrototype()), r2, holder, r3,
+                                            r0);
+        CheckPrototypes(JSObject::cast(object->GetPrototype()), r0, holder, r3,
                         r1, name, &miss);
       }
       break;
     }
 
     case JSARRAY_HAS_FAST_ELEMENTS_CHECK:
-      CheckPrototypes(JSObject::cast(object), r1, holder, r3, r2, name, &miss);
+      CheckPrototypes(JSObject::cast(object), r1, holder, r3, r0, name, &miss);
       // Make sure object->HasFastElements().
       // Get the elements array of the object.
       __ ldr(r3, FieldMemOperand(r1, JSObject::kElementsOffset));
       // Check that the object is in fast mode (not dictionary).
-      __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+      __ ldr(r0, FieldMemOperand(r3, HeapObject::kMapOffset));
       __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
-      __ cmp(r2, ip);
+      __ cmp(r0, ip);
       __ b(ne, &miss);
       break;
 
@@ -968,15 +970,16 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
-  //  -- lr: return address
+  //  -- r2    : name
+  //  -- lr    : return address
   // -----------------------------------
   ASSERT(holder->HasNamedInterceptor());
   ASSERT(!holder->GetNamedInterceptor()->getter()->IsUndefined());
   Label miss;
 
   const Register receiver = r0;
-  const Register name_reg = r1;
-  const Register holder_reg = r2;
+  const Register holder_reg = r1;
+  const Register name_reg = r2;
   const Register scratch = r3;
 
   // Get the number of arguments.
@@ -985,10 +988,8 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   LookupResult lookup;
   LookupPostInterceptor(holder, name, &lookup);
 
-  // Load the receiver from the stack.
-  __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
-  // Load the name from the stack.
-  __ ldr(name_reg, MemOperand(sp, (argc + 1) * kPointerSize));
+  // Get the receiver from the stack into r0.
+  __ ldr(r0, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ BranchOnSmi(receiver, &miss);
@@ -1061,9 +1062,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
     __ LeaveInternalFrame();
   }
 
-
   // Move returned value, the function to call, to r1.
-  // Neither receiver nor name contain their original value at this point.
   __ mov(r1, r0);
   // Restore receiver.
   __ ldr(receiver, MemOperand(sp, argc * kPointerSize));
@@ -1086,7 +1085,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
                                             JSFunction* function,
                                             String* name) {
   // ----------- S t a t e -------------
-  //  -- lr: return address
+  //  -- r2    : name
+  //  -- lr    : return address
   // -----------------------------------
   Label miss;
 
@@ -1105,7 +1105,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   }
 
   // Check that the maps haven't changed.
-  CheckPrototypes(object, r0, holder, r3, r2, name, &miss);
+  CheckPrototypes(object, r0, holder, r3, r1, name, &miss);
 
   // Get the value from the cell.
   __ mov(r3, Operand(Handle<JSGlobalPropertyCell>(cell)));
@@ -1125,8 +1125,8 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
 
     // Check the shared function info. Make sure it hasn't changed.
     __ mov(r3, Operand(Handle<SharedFunctionInfo>(function->shared())));
-    __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ cmp(r2, r3);
+    __ ldr(r4, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+    __ cmp(r4, r3);
     __ b(ne, &miss);
   } else {
     __ cmp(r1, Operand(Handle<JSFunction>(function)));
@@ -1144,7 +1144,7 @@ Object* CallStubCompiler::CompileCallGlobal(JSObject* object,
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
-  __ IncrementCounter(&Counters::call_global_inline, 1, r2, r3);
+  __ IncrementCounter(&Counters::call_global_inline, 1, r1, r3);
   ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
