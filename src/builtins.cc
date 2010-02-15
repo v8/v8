@@ -246,19 +246,16 @@ BUILTIN(ArrayPush) {
   JSArray* array = JSArray::cast(*args.receiver());
   ASSERT(array->HasFastElements());
 
-  // Make sure we have space for the elements.
   int len = Smi::cast(array->length())->value();
+  int to_add = args.length() - 1;
+  if (to_add == 0) {
+    return Smi::FromInt(len);
+  }
 
-  // Set new length.
-  int new_length = len + args.length() - 1;
+  int new_length = len + to_add;
   FixedArray* elms = FixedArray::cast(array->elements());
 
-  if (new_length <= elms->length()) {
-    // Backing storage has extra space for the provided values.
-    for (int index = 0; index < args.length() - 1; index++) {
-      elms->set(index + len, args[index+1]);
-    }
-  } else {
+  if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
     Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
@@ -269,16 +266,21 @@ BUILTIN(ArrayPush) {
     WriteBarrierMode mode = new_elms->GetWriteBarrierMode(no_gc);
     // Fill out the new array with old elements.
     for (int i = 0; i < len; i++) new_elms->set(i, elms->get(i), mode);
-    // Add the provided values.
-    for (int index = 0; index < args.length() - 1; index++) {
-      new_elms->set(index + len, args[index+1], mode);
-    }
-    // Set the new backing storage.
-    array->set_elements(new_elms);
+    elms = new_elms;
+    array->set_elements(elms);
   }
+
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+
+  // Add the provided values.
+  for (int index = 0; index < to_add; index++) {
+    elms->set(index + len, args[index + 1], mode);
+  }
+
   // Set the length.
   array->set_length(Smi::FromInt(new_length));
-  return array->length();
+  return Smi::FromInt(new_length);
 }
 
 
@@ -313,6 +315,17 @@ BUILTIN(ArrayPop) {
 }
 
 
+static Object* GetElementToMove(uint32_t index,
+                                FixedArray* elms,
+                                JSObject* prototype) {
+  Object* e = elms->get(index);
+  if (e->IsTheHole() && prototype->HasElement(index)) {
+    e = prototype->GetElement(index);
+  }
+  return e;
+}
+
+
 BUILTIN(ArrayShift) {
   JSArray* array = JSArray::cast(*args.receiver());
   ASSERT(array->HasFastElements());
@@ -325,21 +338,17 @@ BUILTIN(ArrayShift) {
       Top::context()->global_context()->array_function();
   JSObject* prototype = JSObject::cast(array_function->prototype());
 
-  // Get first element
   FixedArray* elms = FixedArray::cast(array->elements());
-  Object* first = elms->get(0);
 
+  // Get first element
+  Object* first = elms->get(0);
   if (first->IsTheHole()) {
     first = prototype->GetElement(0);
   }
 
   // Shift the elements.
   for (int i = 0; i < len - 1; i++) {
-    Object* e = elms->get(i + 1);
-    if (e->IsTheHole() && prototype->HasElement(i + 1)) {
-      e = prototype->GetElement(i + 1);
-    }
-    elms->set(i, e);
+    elms->set(i, GetElementToMove(i + 1, elms, prototype));
   }
   elms->set(len - 1, Heap::the_hole_value());
 
@@ -347,6 +356,66 @@ BUILTIN(ArrayShift) {
   array->set_length(Smi::FromInt(len - 1));
 
   return first;
+}
+
+
+BUILTIN(ArrayUnshift) {
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+  int to_add = args.length() - 1;
+  // Note that we cannot quit early if to_add == 0 as
+  // values should be lifted from prototype into
+  // the array.
+
+  int new_length = len + to_add;
+  FixedArray* elms = FixedArray::cast(array->elements());
+
+  // Fetch the prototype.
+  JSFunction* array_function =
+      Top::context()->global_context()->array_function();
+  JSObject* prototype = JSObject::cast(array_function->prototype());
+
+  if (new_length > elms->length()) {
+    // New backing storage is needed.
+    int capacity = new_length + (new_length >> 1) + 16;
+    Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
+    if (obj->IsFailure()) return obj;
+
+    AssertNoAllocation no_gc;
+    FixedArray* new_elms = FixedArray::cast(obj);
+    WriteBarrierMode mode = new_elms->GetWriteBarrierMode(no_gc);
+    // Fill out the new array with old elements.
+    for (int i = 0; i < len; i++)
+      new_elms->set(to_add + i,
+                    GetElementToMove(i, elms, prototype),
+                    mode);
+
+    elms = new_elms;
+    array->set_elements(elms);
+  } else {
+    AssertNoAllocation no_gc;
+    WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+
+    // Move elements to the right
+    for (int i = 0; i < len; i++) {
+      elms->set(new_length - i - 1,
+                GetElementToMove(len - i - 1, elms, prototype),
+                mode);
+    }
+  }
+
+  // Add the provided values.
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < to_add; i++) {
+    elms->set(i, args[i + 1], mode);
+  }
+
+  // Set the length.
+  array->set_length(Smi::FromInt(new_length));
+  return Smi::FromInt(new_length);
 }
 
 

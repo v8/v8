@@ -1494,6 +1494,8 @@ void Genesis::BuildSpecialFunctionTable() {
                      Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
   AddSpecialFunction(special_prototype, "shift",
                      Handle<Code>(Builtins::builtin(Builtins::ArrayShift)));
+  AddSpecialFunction(special_prototype, "unshift",
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayUnshift)));
 }
 
 
