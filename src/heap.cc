@@ -1767,6 +1767,7 @@ Object* Heap::SmiOrNumberFromDouble(double value,
 
 
 Object* Heap::NumberToString(Object* number) {
+  Counters::number_to_string_runtime.Increment();
   Object* cached = GetNumberStringCache(number);
   if (cached != undefined_value()) {
     return cached;

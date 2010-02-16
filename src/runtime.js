@@ -178,7 +178,7 @@ function STRING_ADD_LEFT(y) {
       y = %_ValueOf(y);
     } else {
       y = IS_NUMBER(y)
-          ? %NumberToString(y)
+          ? %_NumberToString(y)
           : %ToString(%ToPrimitive(y, NO_HINT));
     }
   }
@@ -194,7 +194,7 @@ function STRING_ADD_RIGHT(y) {
       x = %_ValueOf(x);
     } else {
       x = IS_NUMBER(x)
-          ? %NumberToString(x)
+          ? %_NumberToString(x)
           : %ToString(%ToPrimitive(x, NO_HINT));
     }
   }
@@ -529,7 +529,7 @@ function ToNumber(x) {
 // ECMA-262, section 9.8, page 35.
 function ToString(x) {
   if (IS_STRING(x)) return x;
-  if (IS_NUMBER(x)) return %NumberToString(x);
+  if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));

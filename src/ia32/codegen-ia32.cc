@@ -5627,6 +5627,17 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+
+  // Load the argument on the stack and call the stub.
+  Load(args->at(0));
+  NumberToStringStub stub;
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
@@ -7782,38 +7793,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ bind(&string1_smi2);
       // First argument is a string, second is a smi. Try to lookup the number
       // string for the smi in the number string cache.
-      // Load the number string cache.
-      ExternalReference roots_address = ExternalReference::roots_address();
-      __ mov(ecx, Immediate(Heap::kNumberStringCacheRootIndex));
-      __ mov(ebx,
-             Operand::StaticArray(ecx, times_pointer_size, roots_address));
-      // Make the hash mask from the length of the number string cache. It
-      // contains two elements (number and string) for each cache entry.
-      __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
-      __ shr(ecx, 1);  // Divide length by two (length is not a smi).
-      __ sub(Operand(ecx), Immediate(1));  // Make mask.
-      // Calculate the entry in the number string cache. The hash value in the
-      // number string cache for smis is just the smi value.
-      __ mov(edi, eax);
-      __ SmiUntag(edi);
-      __ and_(edi, Operand(ecx));
-      // Check if the entry is the smi we are looking for.
-      __ cmp(eax,
-             FieldOperand(ebx,
-                          edi,
-                          times_twice_pointer_size,
-                          FixedArray::kHeaderSize));
-      __ IncrementCounter(equal, &Counters::string_plus_smi_hit, 1);
-      __ IncrementCounter(not_equal, &Counters::string_plus_smi_miss, 1);
-      __ j(not_equal, &string1);
+      NumberToStringStub::GenerateLookupNumberStringCache(
+          masm, eax, edi, ebx, ecx, true, &string1);
 
-      // Get the string from the cache and call the string add stub to make the
-      // result.
-      __ mov(edi,
-             FieldOperand(ebx,
-                          edi,
-                          times_twice_pointer_size,
-                          FixedArray::kHeaderSize + kPointerSize));
+      // Call the string add stub to make the result.
       __ EnterInternalFrame();
       __ push(edx);  // Original first argument.
       __ push(edi);  // Number to string result for second argument.
@@ -8948,6 +8931,74 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
 #endif  // V8_NATIVE_REGEXP
+}
+
+
+void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
+                                                         Register object,
+                                                         Register result,
+                                                         Register scratch1,
+                                                         Register scratch2,
+                                                         bool object_is_smi,
+                                                         Label* not_found) {
+  // Currently only lookup for smis. Check for smi if object is not known to be
+  // a smi.
+  if (!object_is_smi) {
+    ASSERT(kSmiTag == 0);
+    __ test(object, Immediate(kSmiTagMask));
+    __ j(not_zero, not_found);
+  }
+
+  // Use of registers. Register result is used as a temporary.
+  Register number_string_cache = result;
+  Register mask = scratch1;
+  Register scratch = scratch2;
+
+  // Load the number string cache.
+  ExternalReference roots_address = ExternalReference::roots_address();
+  __ mov(scratch, Immediate(Heap::kNumberStringCacheRootIndex));
+  __ mov(number_string_cache,
+         Operand::StaticArray(scratch, times_pointer_size, roots_address));
+  // Make the hash mask from the length of the number string cache. It
+  // contains two elements (number and string) for each cache entry.
+  __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
+  __ shr(mask, 1);  // Divide length by two (length is not a smi).
+  __ sub(Operand(mask), Immediate(1));  // Make mask.
+  // Calculate the entry in the number string cache. The hash value in the
+  // number string cache for smis is just the smi value.
+  __ mov(scratch, object);
+  __ SmiUntag(scratch);
+  __ and_(scratch, Operand(mask));
+  // Check if the entry is the smi we are looking for.
+  __ cmp(object,
+         FieldOperand(number_string_cache,
+                      scratch,
+                      times_twice_pointer_size,
+                      FixedArray::kHeaderSize));
+  __ j(not_equal, not_found);
+
+  // Get the result from the cache.
+  __ mov(result,
+         FieldOperand(number_string_cache,
+                      scratch,
+                      times_twice_pointer_size,
+                      FixedArray::kHeaderSize + kPointerSize));
+  __ IncrementCounter(&Counters::number_to_string_native, 1);
+}
+
+
+void NumberToStringStub::Generate(MacroAssembler* masm) {
+  Label runtime;
+
+  __ mov(ebx, Operand(esp, kPointerSize));
+
+  // Generate code to lookup number in the number string cache.
+  GenerateLookupNumberStringCache(masm, ebx, eax, ebx, ecx, false, &runtime);
+  __ ret(1 * kPointerSize);
+
+  __ bind(&runtime);
+  // Handle number to string in the runtime system if not found in the cache.
+  __ TailCallRuntime(ExternalReference(Runtime::kNumberToString), 1, 1);
 }
 
 
