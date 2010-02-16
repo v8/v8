@@ -65,7 +65,6 @@ class NumberInfo : public AllStatic {
     UNREACHABLE();
     return "Unreachable code";
   }
-
 };
 
 } }  // namespace v8::internal

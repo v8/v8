@@ -1106,7 +1106,8 @@ ScriptData* ScriptData::New(unsigned* data, int length) {
 
 Local<Script> Script::New(v8::Handle<String> source,
                           v8::ScriptOrigin* origin,
-                          v8::ScriptData* script_data) {
+                          v8::ScriptData* pre_data,
+                          v8::Handle<String> script_data) {
   ON_BAILOUT("v8::Script::New()", return Local<Script>());
   LOG_API("Script::New");
   ENTER_V8;
@@ -1126,20 +1127,17 @@ Local<Script> Script::New(v8::Handle<String> source,
     }
   }
   EXCEPTION_PREAMBLE();
-  i::ScriptDataImpl* pre_data = static_cast<i::ScriptDataImpl*>(script_data);
+  i::ScriptDataImpl* pre_data_impl = static_cast<i::ScriptDataImpl*>(pre_data);
   // We assert that the pre-data is sane, even though we can actually
   // handle it if it turns out not to be in release mode.
-  ASSERT(pre_data == NULL || pre_data->SanityCheck());
+  ASSERT(pre_data_impl == NULL || pre_data_impl->SanityCheck());
   // If the pre-data isn't sane we simply ignore it
-  if (pre_data != NULL && !pre_data->SanityCheck()) {
-    pre_data = NULL;
+  if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
+    pre_data_impl = NULL;
   }
-  i::Handle<i::JSFunction> boilerplate = i::Compiler::Compile(str,
-                                                              name_obj,
-                                                              line_offset,
-                                                              column_offset,
-                                                              NULL,
-                                                              pre_data);
+  i::Handle<i::JSFunction> boilerplate =
+      i::Compiler::Compile(str, name_obj, line_offset, column_offset, NULL,
+                           pre_data_impl, Utils::OpenHandle(*script_data));
   has_pending_exception = boilerplate.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Script>());
   return Local<Script>(ToApi<Script>(boilerplate));
@@ -1155,11 +1153,12 @@ Local<Script> Script::New(v8::Handle<String> source,
 
 Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
-                              v8::ScriptData* script_data) {
+                              v8::ScriptData* pre_data,
+                              v8::Handle<String> script_data) {
   ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
   LOG_API("Script::Compile");
   ENTER_V8;
-  Local<Script> generic = New(source, origin, script_data);
+  Local<Script> generic = New(source, origin, pre_data, script_data);
   if (generic.IsEmpty())
     return generic;
   i::Handle<i::JSFunction> boilerplate = Utils::OpenHandle(*generic);
@@ -1171,9 +1170,10 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 
 Local<Script> Script::Compile(v8::Handle<String> source,
-                              v8::Handle<Value> file_name) {
+                              v8::Handle<Value> file_name,
+                              v8::Handle<String> script_data) {
   ScriptOrigin origin(file_name);
-  return Compile(source, &origin);
+  return Compile(source, &origin, 0, script_data);
 }
 
 

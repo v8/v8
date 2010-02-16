@@ -237,7 +237,8 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                                      Handle<Object> script_name,
                                      int line_offset, int column_offset,
                                      v8::Extension* extension,
-                                     ScriptDataImpl* input_pre_data) {
+                                     ScriptDataImpl* input_pre_data,
+                                     Handle<Object> script_data) {
   int source_length = source->length();
   Counters::total_load_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
@@ -270,6 +271,9 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
       script->set_line_offset(Smi::FromInt(line_offset));
       script->set_column_offset(Smi::FromInt(column_offset));
     }
+
+    script->set_data(script_data.is_null() ? Heap::undefined_value()
+                                           : *script_data);
 
     // Compile the function and add it to the cache.
     result = MakeFunction(true,

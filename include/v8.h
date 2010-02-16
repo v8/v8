@@ -534,51 +534,76 @@ class V8EXPORT ScriptOrigin {
 class V8EXPORT Script {
  public:
 
-   /**
-    * Compiles the specified script. The ScriptOrigin* and ScriptData*
-    * parameters are owned by the caller of Script::Compile. No
-    * references to these objects are kept after compilation finishes.
-    *
-    * The script object returned is context independent; when run it
-    * will use the currently entered context.
-    */
-   static Local<Script> New(Handle<String> source,
-                            ScriptOrigin* origin = NULL,
-                            ScriptData* pre_data = NULL);
-
-   /**
-    * Compiles the specified script using the specified file name
-    * object (typically a string) as the script's origin.
-    *
-    * The script object returned is context independent; when run it
-    * will use the currently entered context.
-    */
-   static Local<Script> New(Handle<String> source,
-                            Handle<Value> file_name);
-
   /**
-   * Compiles the specified script. The ScriptOrigin* and ScriptData*
-   * parameters are owned by the caller of Script::Compile. No
-   * references to these objects are kept after compilation finishes.
+   * Compiles the specified script (context-independent).
    *
-   * The script object returned is bound to the context that was active
-   * when this function was called.  When run it will always use this
-   * context.
+   * \param source Script source code.
+   * \param origin Script origin, owned by caller, no references are kept 
+   *   when New() returns
+   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
+   *   using pre_data speeds compilation if it's done multiple times.
+   *   Owned by caller, no references are kept when New() returns.
+   * \param script_data Arbitrary data associated with script. Using
+   *   this has same effect as calling SetData(), but allows data to be 
+   *   available to compile event handlers.
+   * \return Compiled script object (context independent; when run it
+   *   will use the currently entered context).
    */
-  static Local<Script> Compile(Handle<String> source,
-                               ScriptOrigin* origin = NULL,
-                               ScriptData* pre_data = NULL);
+  static Local<Script> New(Handle<String> source,
+                           ScriptOrigin* origin = NULL,
+                           ScriptData* pre_data = NULL,
+                           Handle<String> script_data = Handle<String>());
 
   /**
    * Compiles the specified script using the specified file name
    * object (typically a string) as the script's origin.
    *
-   * The script object returned is bound to the context that was active
-   * when this function was called.  When run it will always use this
-   * context.
+   * \param source Script source code.
+   * \patam file_name file name object (typically a string) to be used 
+   *   as the script's origin.
+   * \return Compiled script object (context independent; when run it
+   *   will use the currently entered context).
+   */
+  static Local<Script> New(Handle<String> source,
+                           Handle<Value> file_name);
+
+  /**
+   * Compiles the specified script (bound to current context).
+   *
+   * \param source Script source code.
+   * \param origin Script origin, owned by caller, no references are kept 
+   *   when Compile() returns
+   * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
+   *   using pre_data speeds compilation if it's done multiple times.
+   *   Owned by caller, no references are kept when Compile() returns.
+   * \param script_data Arbitrary data associated with script. Using
+   *   this has same effect as calling SetData(), but makes data available
+   *   earlier (i.e. to compile event handlers).
+   * \return Compiled script object, bound to the context that was active
+   *   when this function was called.  When run it will always use this
+   *   context.
    */
   static Local<Script> Compile(Handle<String> source,
-                               Handle<Value> file_name);
+                               ScriptOrigin* origin = NULL,
+                               ScriptData* pre_data = NULL,
+                               Handle<String> script_data = Handle<String>());
+
+  /**
+   * Compiles the specified script using the specified file name
+   * object (typically a string) as the script's origin.
+   *
+   * \param source Script source code.
+   * \param file_name File name to use as script's origin
+   * \param script_data Arbitrary data associated with script. Using
+   *   this has same effect as calling SetData(), but makes data available
+   *   earlier (i.e. to compile event handlers).
+   * \return Compiled script object, bound to the context that was active
+   *   when this function was called.  When run it will always use this
+   *   context.
+   */
+  static Local<Script> Compile(Handle<String> source,
+                               Handle<Value> file_name,
+                               Handle<String> script_data = Handle<String>());
 
   /**
    * Runs the script returning the resulting value.  If the script is
