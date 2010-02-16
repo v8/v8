@@ -224,7 +224,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-Operand::Operand(Register base, int32_t disp): rex_(0) {
+Operand::Operand(Register base, int32_t disp) : rex_(0) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
@@ -246,7 +246,7 @@ Operand::Operand(Register base, int32_t disp): rex_(0) {
 Operand::Operand(Register base,
                  Register index,
                  ScaleFactor scale,
-                 int32_t disp): rex_(0) {
+                 int32_t disp) : rex_(0) {
   ASSERT(!index.is(rsp));
   len_ = 1;
   set_sib(scale, index, base);
@@ -261,6 +261,17 @@ Operand::Operand(Register base,
     set_modrm(2, rsp);
     set_disp32(disp);
   }
+}
+
+
+Operand::Operand(Register index,
+                 ScaleFactor scale,
+                 int32_t disp) : rex_(0) {
+  ASSERT(!index.is(rsp));
+  len_ = 1;
+  set_modrm(0, rsp);
+  set_sib(scale, index, rbp);
+  set_disp32(disp);
 }
 
 

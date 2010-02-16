@@ -8503,6 +8503,11 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // esp[0] : return address
+  // esp[4] : number of parameters
+  // esp[8] : receiver displacement
+  // esp[16] : function
+
   // The displacement is used for skipping the return address and the
   // frame pointer on the stack. It is the offset of the last
   // parameter (if any) relative to the frame pointer.
@@ -8586,7 +8591,6 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
   __ add(Operand(edi), Immediate(kPointerSize));
   __ sub(Operand(edx), Immediate(kPointerSize));
   __ dec(ecx);
-  __ test(ecx, Operand(ecx));
   __ j(not_zero, &loop);
 
   // Return and remove the on-stack parameters.
