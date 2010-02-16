@@ -2485,6 +2485,72 @@ int Function::GetScriptLineNumber() const {
 }
 
 
+namespace {
+
+// Tracks string usage to help make better decisions when
+// externalizing strings.
+//
+// Implementation note: internally this class only tracks fresh
+// strings and keeps a single use counter for them.
+class StringTracker {
+ public:
+  // Records that the given string's characters were copied to some
+  // external buffer. If this happens often we should honor
+  // externalization requests for the string.
+  static void RecordWrite(i::Handle<i::String> string) {
+    i::Address address = reinterpret_cast<i::Address>(*string);
+    i::Address top = i::Heap::NewSpaceTop();
+    if (IsFreshString(address, top)) {
+      IncrementUseCount(top);
+    }
+  }
+
+  // Estimates freshness and use frequency of the given string based
+  // on how close it is to the new space top and the recorded usage
+  // history.
+  static inline bool IsFreshUnusedString(i::Handle<i::String> string) {
+    i::Address address = reinterpret_cast<i::Address>(*string);
+    i::Address top = i::Heap::NewSpaceTop();
+    return IsFreshString(address, top) && IsUseCountLow(top);
+  }
+
+ private:
+  static inline bool IsFreshString(i::Address string, i::Address top) {
+    return top - kFreshnessLimit <= string && string <= top;
+  }
+
+  static inline bool IsUseCountLow(i::Address top) {
+    if (last_top_ != top) return true;
+    return use_count_ < kUseLimit;
+  }
+
+  static inline void IncrementUseCount(i::Address top) {
+    if (last_top_ != top) {
+      use_count_ = 0;
+      last_top_ = top;
+    }
+    ++use_count_;
+  }
+
+  // How close to the new space top a fresh string has to be.
+  static const int kFreshnessLimit = 1024;
+
+  // The number of uses required to consider a string useful.
+  static const int kUseLimit = 32;
+
+  // Single use counter shared by all fresh strings.
+  static int use_count_;
+
+  // Last new space top when the use count above was valid.
+  static i::Address last_top_;
+};
+
+int StringTracker::use_count_ = 0;
+i::Address StringTracker::last_top_ = NULL;
+
+}  // namespace
+
+
 int String::Length() const {
   if (IsDeadCheck("v8::String::Length()")) return 0;
   return Utils::OpenHandle(this)->length();
@@ -2502,6 +2568,7 @@ int String::WriteUtf8(char* buffer, int capacity) const {
   LOG_API("String::WriteUtf8");
   ENTER_V8;
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  StringTracker::RecordWrite(str);
   write_input_buffer.Reset(0, *str);
   int len = str->length();
   // Encode the first K - 3 bytes directly into the buffer since we
@@ -2545,6 +2612,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  StringTracker::RecordWrite(str);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
   str->TryFlattenIfNotFlat();
@@ -2571,6 +2639,7 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   ENTER_V8;
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  StringTracker::RecordWrite(str);
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -3138,6 +3207,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
+  if (StringTracker::IsFreshUnusedString(obj)) return false;
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     i::ExternalStringTable::AddString(*obj);
@@ -3163,6 +3233,7 @@ bool v8::String::MakeExternal(
   if (this->IsExternal()) return false;  // Already an external string.
   ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
+  if (StringTracker::IsFreshUnusedString(obj)) return false;
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
     i::ExternalStringTable::AddString(*obj);
@@ -3174,6 +3245,7 @@ bool v8::String::MakeExternal(
 bool v8::String::CanMakeExternal() {
   if (IsDeadCheck("v8::String::CanMakeExternal()")) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
+  if (StringTracker::IsFreshUnusedString(obj)) return false;
   int size = obj->Size();  // Byte size of the original string.
   if (size < i::ExternalString::kSize)
     return false;

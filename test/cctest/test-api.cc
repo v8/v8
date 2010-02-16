@@ -394,6 +394,9 @@ THREADED_TEST(ScriptMakingExternalString) {
     v8::HandleScope scope;
     LocalContext env;
     Local<String> source = String::New(two_byte_source);
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(new TestResource(two_byte_source));
     CHECK(success);
     Local<Script> script = Script::Compile(source);
@@ -416,6 +419,9 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     v8::HandleScope scope;
     LocalContext env;
     Local<String> source = v8_str(c_source);
+    // Trigger GCs so that the newly allocated string moves to old gen.
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+    i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(
         new TestAsciiResource(i::StrDup(c_source)));
     CHECK(success);
@@ -429,6 +435,80 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
   v8::internal::CompilationCache::Clear();
   v8::internal::Heap::CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResource::dispose_count);
+}
+
+
+TEST(MakingExternalStringConditions) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  // Free some space in the new space so that we can check freshness.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+
+  Local<String> small_string = String::New(AsciiToTwoByteString("small"));
+  // We should refuse to externalize newly created small string.
+  CHECK(!small_string->CanMakeExternal());
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  // Old space strings should be accepted.
+  CHECK(small_string->CanMakeExternal());
+
+  small_string = String::New(AsciiToTwoByteString("small 2"));
+  // We should refuse externalizing newly created small string.
+  CHECK(!small_string->CanMakeExternal());
+  for (int i = 0; i < 100; i++) {
+    String::Value value(small_string);
+  }
+  // Frequently used strings should be accepted.
+  CHECK(small_string->CanMakeExternal());
+
+  const int buf_size = 10 * 1024;
+  char* buf = i::NewArray<char>(buf_size);
+  memset(buf, 'a', buf_size);
+  buf[buf_size - 1] = '\0';
+  Local<String> large_string = String::New(AsciiToTwoByteString(buf));
+  i::DeleteArray(buf);
+  // Large strings should be immediately accepted.
+  CHECK(large_string->CanMakeExternal());
+}
+
+
+TEST(MakingExternalAsciiStringConditions) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  // Free some space in the new space so that we can check freshness.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);
+
+  Local<String> small_string = String::New("small");
+  // We should refuse to externalize newly created small string.
+  CHECK(!small_string->CanMakeExternal());
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  // Old space strings should be accepted.
+  CHECK(small_string->CanMakeExternal());
+
+  small_string = String::New("small 2");
+  // We should refuse externalizing newly created small string.
+  CHECK(!small_string->CanMakeExternal());
+  for (int i = 0; i < 100; i++) {
+    String::Value value(small_string);
+  }
+  // Frequently used strings should be accepted.
+  CHECK(small_string->CanMakeExternal());
+
+  const int buf_size = 10 * 1024;
+  char* buf = i::NewArray<char>(buf_size);
+  memset(buf, 'a', buf_size);
+  buf[buf_size - 1] = '\0';
+  Local<String> large_string = String::New(buf);
+  i::DeleteArray(buf);
+  // Large strings should be immediately accepted.
+  CHECK(large_string->CanMakeExternal());
 }
 
 
