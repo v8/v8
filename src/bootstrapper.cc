@@ -824,7 +824,8 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
     ASSERT(source->IsAsciiRepresentation());
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
     boilerplate =
-        Compiler::Compile(source, script_name, 0, 0, extension, NULL);
+        Compiler::Compile(source, script_name, 0, 0, extension, NULL,
+                          Handle<String>::null());
     if (boilerplate.is_null()) return false;
     cache->Add(name, boilerplate);
   }
