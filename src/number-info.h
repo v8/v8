@@ -46,6 +46,26 @@ class NumberInfo : public AllStatic {
     // Make use of the order of enum values.
     return static_cast<Type>(a & b);
   }
+
+  static bool IsNumber(Type a) {
+    ASSERT(a != kUninitialized);
+    return ((a & kNumber) != 0);
+  }
+
+  static const char* ToString(Type a) {
+    switch (a) {
+      case kUnknown: return "UnknownType";
+      case kNumber: return "NumberType";
+      case kSmi: return "SmiType";
+      case kHeapNumber: return "HeapNumberType";
+      case kUninitialized:
+        UNREACHABLE();
+        return "UninitializedType";
+    }
+    UNREACHABLE();
+    return "Unreachable code";
+  }
+
 };
 
 } }  // namespace v8::internal

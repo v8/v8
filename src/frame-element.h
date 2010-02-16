@@ -53,8 +53,18 @@ class FrameElement BASE_EMBEDDED {
     SYNCED
   };
 
-  NumberInfo::Type number_info();
-  void set_number_info(NumberInfo::Type info) {
+  inline NumberInfo::Type number_info() {
+    // Copied elements do not have number info. Instead
+    // we have to inspect their backing element in the frame.
+    ASSERT(!is_copy());
+    if (!is_constant()) return NumberInfoField::decode(value_);
+    Handle<Object> value = handle();
+    if (value->IsSmi()) return NumberInfo::kSmi;
+    if (value->IsHeapNumber()) return NumberInfo::kHeapNumber;
+    return NumberInfo::kUnknown;
+  }
+
+  inline void set_number_info(NumberInfo::Type info) {
     value_ = value_ & ~NumberInfoField::mask();
     value_ = value_ | NumberInfoField::encode(info);
   }

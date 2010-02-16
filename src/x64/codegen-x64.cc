@@ -5198,15 +5198,15 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   }
 
   // Get number type of left and right sub-expressions.
-  bool only_numbers = left.is_number() && right.is_number();
-  bool only_smis = left.is_smi() && right.is_smi();
+  NumberInfo::Type operands_type =
+      NumberInfo::Combine(left.number_info(), right.number_info());
 
   Result answer;
   if (left_is_non_smi_constant || right_is_non_smi_constant) {
     GenericBinaryOpStub stub(op,
                              overwrite_mode,
                              NO_SMI_CODE_IN_STUB,
-                             only_numbers);
+                             operands_type);
     answer = stub.GenerateCall(masm_, frame_, &left, &right);
   } else if (right_is_smi_constant) {
     answer = ConstantSmiBinaryOperation(op, &left, right.handle(),
@@ -5226,50 +5226,59 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
       GenericBinaryOpStub stub(op,
                                overwrite_mode,
                                NO_GENERIC_BINARY_FLAGS,
-                               only_numbers);
+                               operands_type);
       answer = stub.GenerateCall(masm_, frame_, &left, &right);
     }
   }
 
   // Set NumberInfo of result according to the operation performed.
-  NumberInfo::Type info = NumberInfo::kUnknown;
+  // We rely on the fact that smis have a 32 bit payload on x64.
+  ASSERT(kSmiValueSize == 32);
+  NumberInfo::Type result_type = NumberInfo::kUnknown;
   switch (op) {
     case Token::COMMA:
-      info = right.number_info();
+      result_type = right.number_info();
       break;
     case Token::OR:
     case Token::AND:
-      // Could be anything. Check inputs.
-      if (only_numbers)
-        info = NumberInfo::kNumber;
+      // Result type can be either of the two input types.
+      result_type = operands_type;
       break;
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND:
-    case Token::SAR:
-    case Token::SHR:
-      // TODO(fsc): Make use of the fact that smis are 32 bits on x64.
-      info = only_smis ? NumberInfo::kSmi : NumberInfo::kNumber;
+      // Result is always a smi.
+      result_type = NumberInfo::kSmi;
       break;
+    case Token::SAR:
     case Token::SHL:
-      info = NumberInfo::kNumber;
+      // Result is always a smi.
+      result_type = NumberInfo::kSmi;
+      break;
+    case Token::SHR:
+      // Result of x >>> y is always a smi if y >= 1, otherwise a number.
+      result_type = (right.is_constant() && right.handle()->IsSmi()
+                     && Smi::cast(*right.handle())->value() >= 1)
+          ? NumberInfo::kSmi
+          : NumberInfo::kNumber;
       break;
     case Token::ADD:
-      // Could be strings or numbers. Check types of inputs.
-      if (only_numbers) {
-        info = NumberInfo::kNumber;
-      }
+      // Result could be a string or a number. Check types of inputs.
+      result_type = NumberInfo::IsNumber(operands_type)
+          ? NumberInfo::kNumber
+          : NumberInfo::kUnknown;
       break;
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
-      info = NumberInfo::kNumber;
+      // Result is always a number.
+      result_type = NumberInfo::kNumber;
       break;
     default:
       UNREACHABLE();
   }
-  answer.set_number_info(info);
+  answer.set_number_info(result_type);
   frame_->Push(&answer);
 }
 
@@ -8242,7 +8251,7 @@ const char* GenericBinaryOpStub::GetName() {
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
                use_sse3_ ? "SSE3" : "SSE2",
-               only_numbers_in_stub_ ? "_OnlyNumbers" : "");
+               NumberInfo::ToString(operands_type_));
   return name_;
 }
 
@@ -8566,7 +8575,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       // rax: y
       // rdx: x
-      if (only_numbers_in_stub_) {
+      if (NumberInfo::IsNumber(operands_type_)) {
         if (FLAG_debug_code) {
           // Assert at runtime that inputs are only numbers.
           __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");

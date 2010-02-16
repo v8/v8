@@ -32,21 +32,6 @@
 namespace v8 {
 namespace internal {
 
-// -------------------------------------------------------------------------
-// FrameElement implementation.
-
-NumberInfo::Type FrameElement::number_info() {
-  // Copied elements do not have number info. Instead
-  // we have to inspect their backing element in the frame.
-  ASSERT(!is_copy());
-  if (!is_constant()) return NumberInfoField::decode(value_);
-  Handle<Object> value = handle();
-  if (value->IsSmi()) return NumberInfo::kSmi;
-  if (value->IsHeapNumber()) return NumberInfo::kHeapNumber;
-  return NumberInfo::kUnknown;
-}
-
-
 FrameElement::ZoneObjectList* FrameElement::ConstantList() {
   static ZoneObjectList list(10);
   return &list;
