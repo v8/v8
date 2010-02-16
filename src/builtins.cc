@@ -419,6 +419,110 @@ BUILTIN(ArrayUnshift) {
 }
 
 
+static Object* SlowArraySlice(Handle<Object> receiver,
+                              Object** arg0,
+                              Object** arg1 = NULL) {
+  HandleScope handleScope;
+
+  Handle<Object> slow_slice =
+      GetProperty(Handle<JSObject>(Top::global_context()->builtins()),
+                  "ArraySlice");
+  ASSERT(slow_slice->IsJSFunction());
+  Handle<JSFunction> function(Handle<JSFunction>::cast(slow_slice));
+  Object** args[] = { arg0, arg1 };
+  bool pending_exception = false;
+  Handle<Object> result = Execution::Call(function,
+                                          receiver,
+                                          arg1 == NULL ? 1 : 2,
+                                          args,
+                                          &pending_exception);
+  if (pending_exception) return Failure::Exception();
+  return *result;
+}
+
+
+BUILTIN(ArraySlice) {
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+
+  int n_arguments = args.length() - 1;
+
+  // Note carefully choosen defaults---if argument is missing,
+  // it's undefined which gets converted to 0 for relativeStart
+  // and to len for relativeEnd.
+  int relativeStart = 0;
+  int relativeEnd = len;
+  if (n_arguments > 0) {
+    Object* arg1 = args[1];
+    if (arg1->IsSmi()) {
+      relativeStart = Smi::cast(arg1)->value();
+    } else if (!arg1->IsUndefined()) {
+      if (n_arguments > 1) {
+        return SlowArraySlice(args.receiver(), &args[1], &args[2]);
+      } else {
+        return SlowArraySlice(args.receiver(), &args[1]);
+      }
+    }
+    if (n_arguments > 1) {
+      Object* arg2 = args[2];
+      if (arg2->IsSmi()) {
+        relativeEnd = Smi::cast(arg2)->value();
+      } else if (!arg2->IsUndefined()) {
+        return SlowArraySlice(args.receiver(), &args[1], &args[2]);
+      }
+    }
+  }
+
+  // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 6.
+  int k = (relativeStart < 0) ? Max(len + relativeStart, 0)
+                              : Min(relativeStart, len);
+
+  // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 8.
+  int final = (relativeEnd < 0) ? Max(len + relativeEnd, 0)
+                                : Min(relativeEnd, len);
+
+  // Calculate the length of result array.
+  int result_len = final - k;
+  if (result_len < 0) {
+    result_len = 0;
+  }
+
+  JSFunction* array_function =
+      Top::context()->global_context()->array_function();
+  Object* result = Heap::AllocateJSObject(array_function);
+  if (result->IsFailure()) return result;
+  JSArray* result_array = JSArray::cast(result);
+
+  result = Heap::AllocateFixedArrayWithHoles(result_len);
+  if (result->IsFailure()) return result;
+  FixedArray* result_elms = FixedArray::cast(result);
+
+  FixedArray* elms = FixedArray::cast(array->elements());
+
+  // Fetch the prototype.
+  JSObject* prototype = JSObject::cast(array_function->prototype());
+
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = result_elms->GetWriteBarrierMode(no_gc);
+
+  // Fill newly created array.
+  for (int i = 0; i < result_len; i++) {
+    result_elms->set(i,
+                     GetElementToMove(k + i, elms, prototype),
+                     mode);
+  }
+
+  // Set elements.
+  result_array->set_elements(result_elms);
+
+  // Set the length.
+  result_array->set_length(Smi::FromInt(result_len));
+  return result_array;
+}
+
+
 // -----------------------------------------------------------------------------
 //
 

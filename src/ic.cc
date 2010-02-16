@@ -455,7 +455,7 @@ Object* CallIC::LoadFunction(State state,
 
   if (result->IsJSFunction()) {
     // Check if there is an optimized (builtin) version of the function.
-    // Ignored this will degrade performance for Array.prototype.{push,pop}.
+    // Ignored this will degrade performance for some Array functions.
     // Please note we only return the optimized function iff
     // the JSObject has FastElements.
     if (object->IsJSObject() && JSObject::cast(*object)->HasFastElements()) {
