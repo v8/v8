@@ -559,17 +559,11 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Get the key and receiver object from the stack.
   __ ldm(ia, sp, r0.bit() | r1.bit());
-  // Check that the key is a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(ne, &slow);
-  __ mov(r0, Operand(r0, ASR, kSmiTagSize));
-  // Check that the object isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &slow);
 
+  // Check that the object isn't a smi.
+  __ BranchOnSmi(r1, &slow);
   // Get the map of the receiver.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-
   // Check bit field.
   __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
   __ tst(r3, Operand(kSlowCaseBitFieldMask));
@@ -582,6 +576,10 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
   __ cmp(r2, Operand(JS_OBJECT_TYPE));
   __ b(lt, &slow);
+
+  // Check that the key is a smi.
+  __ BranchOnNotSmi(r0, &slow);
+  __ mov(r0, Operand(r0, ASR, kSmiTagSize));
 
   // Get the elements array of the object.
   __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
@@ -633,7 +631,42 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 
 
 void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  GenerateGeneric(masm);
+  // ---------- S t a t e --------------
+  //  -- lr     : return address
+  //  -- sp[0]  : key
+  //  -- sp[4]  : receiver
+  // -----------------------------------
+  Label slow;
+
+  // Get the key and receiver object from the stack.
+  __ ldm(ia, sp, r0.bit() | r1.bit());
+
+  // Check that the receiver isn't a smi.
+  __ BranchOnSmi(r1, &slow);
+
+  // Check that the key is a smi.
+  __ BranchOnNotSmi(r0, &slow);
+
+  // Get the map of the receiver.
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+
+  // Check that it has indexed interceptor and access checks
+  // are not enabled for this object.
+  __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ and_(r3, r3, Operand(kSlowCaseBitFieldMask));
+  __ cmp(r3, Operand(1 << Map::kHasIndexedInterceptor));
+  __ b(ne, &slow);
+
+  // Everything is fine, call runtime.
+  __ push(r1);  // receiver
+  __ push(r0);  // key
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(ExternalReference(
+        IC_Utility(kKeyedLoadPropertyWithInterceptor)), 2, 1);
+
+  __ bind(&slow);
+  GenerateMiss(masm);
 }
 
 

@@ -574,7 +574,45 @@ void KeyedLoadIC::GenerateExternalArray(MacroAssembler* masm,
 
 
 void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  GenerateGeneric(masm);
+  // ----------- S t a t e -------------
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : key
+  //  -- rsp[16] : receiver
+  // -----------------------------------
+  Label slow;
+
+  // Load key and receiver.
+  __ movq(rax, Operand(rsp, kPointerSize));
+  __ movq(rcx, Operand(rsp, 2 * kPointerSize));
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(rcx, &slow);
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(rax, &slow);
+
+  // Get the map of the receiver.
+  __ movq(rdx, FieldOperand(rcx, HeapObject::kMapOffset));
+
+  // Check that it has indexed interceptor and access checks
+  // are not enabled for this object.
+  __ movb(rdx, FieldOperand(rdx, Map::kBitFieldOffset));
+  __ andb(rdx, Immediate(kSlowCaseBitFieldMask));
+  __ cmpb(rdx, Immediate(1 << Map::kHasIndexedInterceptor));
+  __ j(not_zero, &slow);
+
+  // Everything is fine, call runtime.
+  __ pop(rdx);
+  __ push(rcx);  // receiver
+  __ push(rax);  // key
+  __ push(rdx);  // return address
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(ExternalReference(
+        IC_Utility(kKeyedLoadPropertyWithInterceptor)), 2, 1);
+
+  __ bind(&slow);
+  GenerateMiss(masm);
 }
 
 
