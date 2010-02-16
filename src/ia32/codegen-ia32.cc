@@ -8997,7 +8997,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
   __ mov(ebx, Operand(esp, kPointerSize));
 
   // Generate code to lookup number in the number string cache.
-  GenerateLookupNumberStringCache(masm, ebx, eax, ebx, ecx, false, &runtime);
+  GenerateLookupNumberStringCache(masm, ebx, eax, ecx, edx, false, &runtime);
   __ ret(1 * kPointerSize);
 
   __ bind(&runtime);
