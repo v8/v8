@@ -489,7 +489,7 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   if (!line_ends_len)
     return -1;
 
-  if ((Smi::cast(line_ends_array->get(0)))->value() > code_pos)
+  if ((Smi::cast(line_ends_array->get(0)))->value() >= code_pos)
     return script->line_offset()->value();
 
   int left = 0;
