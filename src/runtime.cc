@@ -4850,9 +4850,6 @@ static Object* Runtime_NewClosure(Arguments args) {
 
 
 static Code* ComputeConstructStub(Handle<SharedFunctionInfo> shared) {
-  // TODO(385): Change this to create a construct stub specialized for
-  // the given map to make allocation of simple objects - and maybe
-  // arrays - much faster.
   if (FLAG_inline_new
       && shared->has_only_simple_this_property_assignments()) {
     ConstructStubCompiler compiler;
