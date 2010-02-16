@@ -623,9 +623,8 @@ function ObjectGetOwnPropertyNames(obj) {
   if (%GetInterceptorInfo(obj) & 1) {
     var indexedInterceptorNames =
         %GetIndexedInterceptorElementNames(obj);
-    if (indexedInterceptorNames) {
+    if (indexedInterceptorNames)
       propertyNames = propertyNames.concat(indexedInterceptorNames);
-    }
   }
 
   // Find all the named properties.
@@ -642,6 +641,10 @@ function ObjectGetOwnPropertyNames(obj) {
       propertyNames = propertyNames.concat(namedInterceptorNames);
     }
   }
+
+  // Property names are expected to be strings.
+  for (var i = 0; i < propertyNames.length; ++i)
+    propertyNames[i] = ToString(propertyNames[i]);
 
   return propertyNames;
 }
