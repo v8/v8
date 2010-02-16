@@ -483,25 +483,25 @@ void InitScriptLineEnds(Handle<Script> script) {
 int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   InitScriptLineEnds(script);
   AssertNoAllocation no_allocation;
-  FixedArray* line_ends_array =
-      FixedArray::cast(script->line_ends());
+  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
   const int line_ends_len = line_ends_array->length();
 
-  int line = -1;
-  if (line_ends_len > 0 &&
-      code_pos <= (Smi::cast(line_ends_array->get(0)))->value()) {
-    line = 0;
-  } else {
-    for (int i = 1; i < line_ends_len; ++i) {
-      if ((Smi::cast(line_ends_array->get(i - 1)))->value() < code_pos &&
-          code_pos <= (Smi::cast(line_ends_array->get(i)))->value()) {
-        line = i;
-        break;
-      }
+  if (!line_ends_len)
+    return -1;
+
+  if ((Smi::cast(line_ends_array->get(0)))->value() > code_pos)
+    return script->line_offset()->value();
+
+  int left = 0;
+  int right = line_ends_len;
+  while (int half = (right - left) / 2) {
+    if ((Smi::cast(line_ends_array->get(left + half)))->value() > code_pos) {
+      right -= half;
+    } else {
+      left += half;
     }
   }
-
-  return line != -1 ? line + script->line_offset()->value() : line;
+  return right + script->line_offset()->value();
 }
 
 
