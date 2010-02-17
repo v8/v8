@@ -7230,6 +7230,61 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
 }
 
 
+static bool CallbacksObjectHasSetter(Object* callbacks) {
+  if (!callbacks->IsFixedArray()) {
+    ASSERT(callbacks->IsAccessorInfo() || callbacks->IsProxy());
+    return true;
+  } else {
+    Object* setter = (FixedArray::cast(callbacks))->get(kSetterIndex);
+    if (setter->IsJSFunction()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+bool JSObject::HasSetter() {
+  for (Object* obj = this;
+       obj != Heap::null_value();
+       obj = JSObject::cast(obj)->GetPrototype()) {
+    JSObject* js_object = JSObject::cast(obj);
+    if (js_object->HasFastProperties()) {
+      DescriptorArray* descs = js_object->map()->instance_descriptors();
+      for (int i = 0; i < descs->number_of_descriptors(); i++) {
+        PropertyDetails details = descs->GetDetails(i);
+        if (details.type() == CALLBACKS) {
+          Object* callbacks = descs->GetCallbacksObject(i);
+          if (CallbacksObjectHasSetter(callbacks)) {
+            return true;
+          }
+        }
+      }
+    } else {
+      StringDictionary* dict = js_object->property_dictionary();
+      int capacity = dict->Capacity();
+      for (int i = 0; i < capacity; i++) {
+        Object* k = dict->KeyAt(i);
+        if (dict->IsKey(k)) {
+          PropertyType type = dict->DetailsAt(i).type();
+          ASSERT(type != FIELD);
+          if (type == CALLBACKS) {
+            Object* callbacks = dict->ValueAt(i);
+            if (CallbacksObjectHasSetter(callbacks)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+
+
 Object* PixelArray::SetValue(uint32_t index, Object* value) {
   uint8_t clamped_value = 0;
   if (index < static_cast<uint32_t>(length())) {

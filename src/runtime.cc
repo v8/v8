@@ -4849,18 +4849,20 @@ static Object* Runtime_NewClosure(Arguments args) {
 }
 
 
-static Code* ComputeConstructStub(Handle<SharedFunctionInfo> shared) {
+static Code* ComputeConstructStub(Handle<JSFunction> function) {
   if (FLAG_inline_new
-      && shared->has_only_simple_this_property_assignments()) {
+      && function->shared()->has_only_simple_this_property_assignments()
+      && (!function->has_instance_prototype()
+          || !JSObject::cast(function->instance_prototype())->HasSetter())) {
     ConstructStubCompiler compiler;
-    Object* code = compiler.CompileConstructStub(*shared);
+    Object* code = compiler.CompileConstructStub(function->shared());
     if (code->IsFailure()) {
       return Builtins::builtin(Builtins::JSConstructStubGeneric);
     }
     return Code::cast(code);
   }
 
-  return shared->construct_stub();
+  return function->shared()->construct_stub();
 }
 
 
@@ -4910,10 +4912,9 @@ static Object* Runtime_NewObject(Arguments args) {
   bool first_allocation = !function->has_initial_map();
   Handle<JSObject> result = Factory::NewJSObject(function);
   if (first_allocation) {
-    Handle<Map> map = Handle<Map>(function->initial_map());
     Handle<Code> stub = Handle<Code>(
-        ComputeConstructStub(Handle<SharedFunctionInfo>(function->shared())));
-    function->shared()->set_construct_stub(*stub);
+        ComputeConstructStub(Handle<JSFunction>(function)));
+    shared->set_construct_stub(*stub);
   }
 
   Counters::constructed_objects.Increment();

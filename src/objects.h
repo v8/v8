@@ -1540,6 +1540,8 @@ class JSObject: public HeapObject {
 
   Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
+  bool HasSetter();
+
  private:
   Object* SetElementWithInterceptor(uint32_t index, Object* value);
   Object* SetElementWithoutInterceptor(uint32_t index, Object* value);

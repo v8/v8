@@ -2389,9 +2389,10 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   // the inline_new flag so we only change the map if we generate a
   // specialized construct stub.
   ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (FLAG_inline_new &&
-      fun->shared()->has_only_simple_this_property_assignments() &&
-      fun->shared()->this_property_assignments_count() > 0) {
+  if (FLAG_inline_new
+      && fun->shared()->has_only_simple_this_property_assignments()
+      && fun->shared()->this_property_assignments_count() > 0
+      && !JSObject::cast(prototype)->HasSetter()) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
       count = in_object_properties;
