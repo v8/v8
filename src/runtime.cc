@@ -4768,41 +4768,6 @@ static Object* Runtime_Math_tan(Arguments args) {
 }
 
 
-// The NewArguments function is only used when constructing the
-// arguments array when calling non-functions from JavaScript in
-// runtime.js:CALL_NON_FUNCTION.
-static Object* Runtime_NewArguments(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
-  // ECMA-262, 3rd., 10.1.8, p.39
-  CONVERT_CHECKED(JSFunction, callee, args[0]);
-
-  // Compute the frame holding the arguments.
-  JavaScriptFrameIterator it;
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
-
-  const int length = frame->GetProvidedParametersCount();
-  Object* result = Heap::AllocateArgumentsObject(callee, length);
-  if (result->IsFailure()) return result;
-  if (length > 0) {
-    Object* obj =  Heap::AllocateFixedArray(length);
-    if (obj->IsFailure()) return obj;
-    FixedArray* array = FixedArray::cast(obj);
-    ASSERT(array->length() == length);
-
-    AssertNoAllocation no_gc;
-    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < length; i++) {
-      array->set(i, frame->GetParameter(i), mode);
-    }
-    JSObject::cast(result)->set_elements(array);
-  }
-  return result;
-}
-
-
 static Object* Runtime_NewArgumentsFast(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
@@ -4950,28 +4915,6 @@ static Object* Runtime_LazyCompile(Arguments args) {
   }
 
   return function->code();
-}
-
-
-static Object* Runtime_GetCalledFunction(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 0);
-  StackFrameIterator it;
-  // Get past the JS-to-C exit frame.
-  ASSERT(it.frame()->is_exit());
-  it.Advance();
-  // Get past the CALL_NON_FUNCTION activation frame.
-  ASSERT(it.frame()->is_java_script());
-  it.Advance();
-  // Argument adaptor frames do not copy the function; we have to skip
-  // past them to get to the real calling frame.
-  if (it.frame()->is_arguments_adaptor()) it.Advance();
-  // Get the function from the top of the expression stack of the
-  // calling frame.
-  StandardFrame* frame = StandardFrame::cast(it.frame());
-  int index = frame->ComputeExpressionsCount() - 1;
-  Object* result = frame->GetExpression(index);
-  return result;
 }
 
 

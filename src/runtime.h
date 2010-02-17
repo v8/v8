@@ -71,10 +71,8 @@ namespace internal {
   F(IsExtensible, 1, 1) \
   \
   /* Utilities */ \
-  F(GetCalledFunction, 0, 1) \
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
-  F(NewArguments, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \

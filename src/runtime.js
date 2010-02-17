@@ -395,26 +395,20 @@ function FILTER_KEY(key) {
 
 
 function CALL_NON_FUNCTION() {
-  var callee = %GetCalledFunction();
-  var delegate = %GetFunctionDelegate(callee);
+  var delegate = %GetFunctionDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof callee]);
+    throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-
-  var parameters = %NewArguments(delegate);
-  return delegate.apply(callee, parameters);
+  return delegate.apply(this, arguments);
 }
 
 
 function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
-  var callee = %GetCalledFunction();
-  var delegate = %GetConstructorDelegate(callee);
+  var delegate = %GetConstructorDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof callee]);
+    throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-
-  var parameters = %NewArguments(delegate);
-  return delegate.apply(callee, parameters);
+  return delegate.apply(this, arguments);
 }
 
 
