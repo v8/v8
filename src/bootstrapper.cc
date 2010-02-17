@@ -1498,6 +1498,8 @@ void Genesis::BuildSpecialFunctionTable() {
                      Handle<Code>(Builtins::builtin(Builtins::ArrayUnshift)));
   AddSpecialFunction(special_prototype, "slice",
                      Handle<Code>(Builtins::builtin(Builtins::ArraySlice)));
+  AddSpecialFunction(special_prototype, "splice",
+                     Handle<Code>(Builtins::builtin(Builtins::ArraySplice)));
 }
 
 

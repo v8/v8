@@ -419,22 +419,25 @@ BUILTIN(ArrayUnshift) {
 }
 
 
-static Object* SlowArraySlice(Handle<Object> receiver,
-                              Object** arg0,
-                              Object** arg1 = NULL) {
+static Object* CallJsBuiltin(const char* name,
+                             BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
   HandleScope handleScope;
 
-  Handle<Object> slow_slice =
+  Handle<Object> js_builtin =
       GetProperty(Handle<JSObject>(Top::global_context()->builtins()),
-                  "ArraySlice");
-  ASSERT(slow_slice->IsJSFunction());
-  Handle<JSFunction> function(Handle<JSFunction>::cast(slow_slice));
-  Object** args[] = { arg0, arg1 };
+                  name);
+  ASSERT(js_builtin->IsJSFunction());
+  Handle<JSFunction> function(Handle<JSFunction>::cast(js_builtin));
+  Vector<Object**> argv(Vector<Object**>::New(args.length() - 1));
+  int n_args = args.length() - 1;
+  for (int i = 0; i < n_args; i++) {
+    argv[i] = &args[i + 1];
+  }
   bool pending_exception = false;
   Handle<Object> result = Execution::Call(function,
-                                          receiver,
-                                          arg1 == NULL ? 1 : 2,
-                                          args,
+                                          args.receiver(),
+                                          n_args,
+                                          argv.start(),
                                           &pending_exception);
   if (pending_exception) return Failure::Exception();
   return *result;
@@ -459,18 +462,14 @@ BUILTIN(ArraySlice) {
     if (arg1->IsSmi()) {
       relativeStart = Smi::cast(arg1)->value();
     } else if (!arg1->IsUndefined()) {
-      if (n_arguments > 1) {
-        return SlowArraySlice(args.receiver(), &args[1], &args[2]);
-      } else {
-        return SlowArraySlice(args.receiver(), &args[1]);
-      }
+      return CallJsBuiltin("ArraySlice", args);
     }
     if (n_arguments > 1) {
       Object* arg2 = args[2];
       if (arg2->IsSmi()) {
         relativeEnd = Smi::cast(arg2)->value();
       } else if (!arg2->IsUndefined()) {
-        return SlowArraySlice(args.receiver(), &args[1], &args[2]);
+        return CallJsBuiltin("ArraySlice", args);
       }
     }
   }
@@ -519,6 +518,140 @@ BUILTIN(ArraySlice) {
 
   // Set the length.
   result_array->set_length(Smi::FromInt(result_len));
+  return result_array;
+}
+
+
+BUILTIN(ArraySplice) {
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+
+  int n_arguments = args.length() - 1;
+
+  // SpiderMonkey and JSC return undefined in the case where no
+  // arguments are given instead of using the implicit undefined
+  // arguments.  This does not follow ECMA-262, but we do the same for
+  // compatibility.
+  // TraceMonkey follows ECMA-262 though.
+  if (n_arguments == 0) {
+    return Heap::undefined_value();
+  }
+
+  int relativeStart = 0;
+  Object* arg1 = args[1];
+  if (arg1->IsSmi()) {
+    relativeStart = Smi::cast(arg1)->value();
+  } else if (!arg1->IsUndefined()) {
+    return CallJsBuiltin("ArraySplice", args);
+  }
+  int actualStart = (relativeStart < 0) ? Max(len + relativeStart, 0)
+                                        : Min(relativeStart, len);
+
+  // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
+  // given differently from when an undefined delete count is given.
+  // This does not follow ECMA-262, but we do the same for
+  // compatibility.
+  int deleteCount = len;
+  if (n_arguments > 1) {
+    Object* arg2 = args[2];
+    if (arg2->IsSmi()) {
+      deleteCount = Smi::cast(arg2)->value();
+    } else {
+      return CallJsBuiltin("ArraySplice", args);
+    }
+  }
+  int actualDeleteCount = Min(Max(deleteCount, 0), len - actualStart);
+
+  JSFunction* array_function =
+      Top::context()->global_context()->array_function();
+
+  // Allocate result array.
+  Object* result = Heap::AllocateJSObject(array_function);
+  if (result->IsFailure()) return result;
+  JSArray* result_array = JSArray::cast(result);
+
+  result = Heap::AllocateFixedArrayWithHoles(actualDeleteCount);
+  if (result->IsFailure()) return result;
+  FixedArray* result_elms = FixedArray::cast(result);
+
+  FixedArray* elms = FixedArray::cast(array->elements());
+
+  // Fetch the prototype.
+  JSObject* prototype = JSObject::cast(array_function->prototype());
+
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = result_elms->GetWriteBarrierMode(no_gc);
+
+  // Fill newly created array.
+  for (int k = 0; k < actualDeleteCount; k++) {
+    result_elms->set(k,
+                     GetElementToMove(actualStart + k, elms, prototype),
+                     mode);
+  }
+
+  // Set elements.
+  result_array->set_elements(result_elms);
+
+  // Set the length.
+  result_array->set_length(Smi::FromInt(actualDeleteCount));
+
+  int itemCount = (n_arguments > 1) ? (n_arguments - 2) : 0;
+
+  int new_length = len - actualDeleteCount + itemCount;
+
+  mode = elms->GetWriteBarrierMode(no_gc);
+  if (itemCount < actualDeleteCount) {
+    // Shrink the array.
+    for (int k = actualStart; k < (len - actualDeleteCount); k++) {
+      elms->set(k + itemCount,
+                GetElementToMove(k + actualDeleteCount, elms, prototype),
+                mode);
+    }
+
+    for (int k = len; k > new_length; k--) {
+      elms->set(k - 1, Heap::the_hole_value());
+    }
+  } else if (itemCount > actualDeleteCount) {
+    FixedArray* source_elms = elms;
+
+    // Check if array need to grow.
+    if (new_length > elms->length()) {
+      // New backing storage is needed.
+      int capacity = new_length + (new_length >> 1) + 16;
+      Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
+      if (obj->IsFailure()) return obj;
+
+      FixedArray* new_elms = FixedArray::cast(obj);
+      mode = new_elms->GetWriteBarrierMode(no_gc);
+
+      // Copy the part before actualStart as is.
+      for (int k = 0; k < actualStart; k++) {
+        new_elms->set(k, elms->get(k), mode);
+      }
+
+      source_elms = elms;
+      elms = new_elms;
+      array->set_elements(elms);
+    }
+
+    for (int k = len - actualDeleteCount; k > actualStart; k--) {
+      elms->set(k + itemCount - 1,
+                GetElementToMove(k + actualDeleteCount - 1,
+                                 source_elms,
+                                 prototype),
+                mode);
+    }
+  }
+
+  for (int k = actualStart; k < actualStart + itemCount; k++) {
+    elms->set(k, args[3 + k - actualStart], mode);
+  }
+
+  // Set the length.
+  array->set_length(Smi::FromInt(new_length));
+
   return result_array;
 }
 
