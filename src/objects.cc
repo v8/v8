@@ -2840,6 +2840,11 @@ Object* JSObject::DefineGetterSetter(String* name,
       if (result.type() == CALLBACKS) {
         Object* obj = result.GetCallbackObject();
         if (obj->IsFixedArray()) {
+          // The object might be in fast mode even though it has
+          // a getter/setter.
+          Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+          if (ok->IsFailure()) return ok;
+
           PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
           SetNormalizedProperty(name, obj, details);
           return obj;
