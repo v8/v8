@@ -32,6 +32,7 @@
 #include "full-codegen.h"
 #include "stub-cache.h"
 #include "debug.h"
+#include "liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -448,6 +449,8 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
   CodeGenerator::MakeCodePrologue(info);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
+  LiveEditFunctionTracker live_edit_tracker(info->function());
+
   FullCodeGenerator cgen(&masm);
   cgen.Generate(info, PRIMARY);
   if (cgen.HasStackOverflow()) {
@@ -455,7 +458,9 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
     return Handle<Code>::null();
   }
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
-  return CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  Handle<Code> result = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  live_edit_tracker.RecordFunctionCode(result);
+  return result;
 }
 
 

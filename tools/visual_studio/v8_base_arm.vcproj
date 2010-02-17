@@ -581,6 +581,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\liveedit.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\liveedit.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\log.cc"
 				>
 			</File>

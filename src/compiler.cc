@@ -38,6 +38,7 @@
 #include "rewriter.h"
 #include "scopes.h"
 #include "usage-analyzer.h"
+#include "liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -429,7 +430,8 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
   // compiled. These builtins cannot be handled lazily by the parser,
   // since we have to know if a function uses the special natives
   // syntax, which is something the parser records.
-  bool allow_lazy = literal->AllowsLazyCompilation();
+  bool allow_lazy = literal->AllowsLazyCompilation() &&
+      !LiveEditFunctionTracker::IsActive();
 
   // Generate code
   Handle<Code> code;

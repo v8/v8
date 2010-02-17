@@ -72,6 +72,7 @@ SOURCES = {
     interpreter-irregexp.cc
     jsregexp.cc
     jump-target.cc
+    liveedit.cc
     log-utils.cc
     log.cc
     mark-compact.cc

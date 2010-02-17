@@ -308,6 +308,8 @@
         '../../src/jsregexp.h',
         '../../src/list-inl.h',
         '../../src/list.h',
+        '../../src/liveedit.cc',
+        '../../src/liveedit.h',
         '../../src/log-inl.h',
         '../../src/log-utils.cc',
         '../../src/log-utils.h',
