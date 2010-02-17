@@ -4411,7 +4411,6 @@ void Reference::SetValue(InitState init_state) {
 
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
       frame->EmitPop(r0);  // value
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(r0);

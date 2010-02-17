@@ -5790,7 +5790,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     switch (op) {
       case Token::SUB: {
         GenericUnaryOpStub stub(Token::SUB, overwrite);
-        // TODO(1222589): remove dependency of TOS being cached inside stub
         Result operand = frame_->Pop();
         Result answer = frame_->CallStub(&stub, &operand);
         frame_->Push(&answer);

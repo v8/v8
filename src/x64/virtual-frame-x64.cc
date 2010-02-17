@@ -1033,7 +1033,6 @@ Result VirtualFrame::CallKeyedStoreIC() {
   // expects value in rax and key and receiver on the stack.  It does
   // not drop the key and receiver.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-  // TODO(1222589): Make the IC grab the values from the stack.
   Result value = Pop();
   PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
   value.ToRegister(rax);
