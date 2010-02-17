@@ -9563,7 +9563,7 @@ TEST(Regress528) {
 }
 
 
-TEST(ScriptOrigin) {
+THREADED_TEST(ScriptOrigin) {
   v8::HandleScope scope;
   LocalContext env;
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
@@ -9585,7 +9585,7 @@ TEST(ScriptOrigin) {
 }
 
 
-TEST(ScriptLineNumber) {
+THREADED_TEST(ScriptLineNumber) {
   v8::HandleScope scope;
   LocalContext env;
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
