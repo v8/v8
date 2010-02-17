@@ -7917,20 +7917,22 @@ static Object* Runtime_FunctionGetInferredName(Arguments args) {
 
 static Object* Runtime_ProfilerResume(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
 
   CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  v8::V8::ResumeProfilerEx(smi_modules->value());
+  CONVERT_CHECKED(Smi, smi_tag, args[1]);
+  v8::V8::ResumeProfilerEx(smi_modules->value(), smi_tag->value());
   return Heap::undefined_value();
 }
 
 
 static Object* Runtime_ProfilerPause(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
 
   CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  v8::V8::PauseProfilerEx(smi_modules->value());
+  CONVERT_CHECKED(Smi, smi_tag, args[1]);
+  v8::V8::PauseProfilerEx(smi_modules->value(), smi_tag->value());
   return Heap::undefined_value();
 }
 

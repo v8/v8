@@ -3469,14 +3469,14 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::PauseProfiler(PROFILER_MODULE_CPU);
+  PauseProfilerEx(PROFILER_MODULE_CPU);
 #endif
 }
 
 
 void V8::ResumeProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::ResumeProfiler(PROFILER_MODULE_CPU);
+  ResumeProfilerEx(PROFILER_MODULE_CPU);
 #endif
 }
 
@@ -3490,7 +3490,7 @@ bool V8::IsProfilerPaused() {
 }
 
 
-void V8::ResumeProfilerEx(int flags) {
+void V8::ResumeProfilerEx(int flags, int tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (flags & PROFILER_MODULE_HEAP_SNAPSHOT) {
     // Snapshot mode: resume modules, perform GC, then pause only
@@ -3500,19 +3500,19 @@ void V8::ResumeProfilerEx(int flags) {
     // Reset snapshot flag and CPU module flags.
     flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
     const int current_flags = i::Logger::GetActiveProfilerModules();
-    i::Logger::ResumeProfiler(flags);
+    i::Logger::ResumeProfiler(flags, tag);
     i::Heap::CollectAllGarbage(false);
-    i::Logger::PauseProfiler(~current_flags & flags);
+    i::Logger::PauseProfiler(~current_flags & flags, tag);
   } else {
-    i::Logger::ResumeProfiler(flags);
+    i::Logger::ResumeProfiler(flags, tag);
   }
 #endif
 }
 
 
-void V8::PauseProfilerEx(int flags) {
+void V8::PauseProfilerEx(int flags, int tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::PauseProfiler(flags);
+  i::Logger::PauseProfiler(flags, tag);
 #endif
 }
 

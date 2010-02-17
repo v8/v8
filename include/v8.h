@@ -2349,22 +2349,30 @@ class V8EXPORT V8 {
   static bool IsProfilerPaused();
 
   /**
-   * Resumes specified profiler modules.
+   * Resumes specified profiler modules. Can be called several times to
+   * mark the opening of a profiler events block with the given tag.
+   *
    * "ResumeProfiler" is equivalent to "ResumeProfilerEx(PROFILER_MODULE_CPU)".
    * See ProfilerModules enum.
    *
    * \param flags Flags specifying profiler modules.
+   * \param tag Profile tag.
    */
-  static void ResumeProfilerEx(int flags);
+  static void ResumeProfilerEx(int flags, int tag = 0);
 
   /**
-   * Pauses specified profiler modules.
+   * Pauses specified profiler modules. Each call to "PauseProfilerEx" closes
+   * a block of profiler events opened by a call to "ResumeProfilerEx" with the
+   * same tag value. There is no need for blocks to be properly nested.
+   * The profiler is paused when the last opened block is closed.
+   *
    * "PauseProfiler" is equivalent to "PauseProfilerEx(PROFILER_MODULE_CPU)".
    * See ProfilerModules enum.
    *
    * \param flags Flags specifying profiler modules.
+   * \param tag Profile tag.
    */
-  static void PauseProfilerEx(int flags);
+  static void PauseProfilerEx(int flags, int tag = 0);
 
   /**
    * Returns active (resumed) profiler modules.
