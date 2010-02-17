@@ -251,6 +251,9 @@ BUILTIN(ArrayPush) {
   if (to_add == 0) {
     return Smi::FromInt(len);
   }
+  // Currently fixed arrays cannot grow too big, so
+  // we should never hit this case.
+  ASSERT(to_add <= (Smi::kMaxValue - len));
 
   int new_length = len + to_add;
   FixedArray* elms = FixedArray::cast(array->elements());
@@ -370,6 +373,10 @@ BUILTIN(ArrayUnshift) {
   // the array.
 
   int new_length = len + to_add;
+  // Currently fixed arrays cannot grow too big, so
+  // we should never hit this case.
+  ASSERT(to_add <= (Smi::kMaxValue - len));
+
   FixedArray* elms = FixedArray::cast(array->elements());
 
   // Fetch the prototype.
@@ -614,6 +621,10 @@ BUILTIN(ArraySplice) {
       elms->set(k - 1, Heap::the_hole_value());
     }
   } else if (itemCount > actualDeleteCount) {
+    // Currently fixed arrays cannot grow too big, so
+    // we should never hit this case.
+    ASSERT((itemCount - actualDeleteCount) <= (Smi::kMaxValue - len));
+
     FixedArray* source_elms = elms;
 
     // Check if array need to grow.

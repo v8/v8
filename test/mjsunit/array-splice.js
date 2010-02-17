@@ -268,3 +268,22 @@
     assertFalse(array.hasOwnProperty(2 << 32 - 1));
   }
 })();
+
+
+// Check the behaviour when approaching maximal values for length.
+(function() {
+  for (var i = 0; i < 7; i++) {
+    try {
+      new Array((1 << 32) - 3).splice(-1, 0, 1, 2, 3, 4, 5);
+      throw 'Should have thrown RangeError';
+    } catch (e) {
+      assertTrue(e instanceof RangeError);
+    }
+
+    // Check smi boundary
+    var bigNum = (1 << 30) - 3;
+    var array = new Array(bigNum);
+    array.splice(-1, 0, 1, 2, 3, 4, 5, 6, 7);
+    assertEquals(bigNum + 7, array.length);
+  }
+})();
