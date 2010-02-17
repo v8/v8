@@ -65,7 +65,7 @@ namespace internal {
 // also collects compiled function codes.
 class LiveEditFunctionTracker {
  public:
-  LiveEditFunctionTracker(FunctionLiteral* fun);
+  explicit LiveEditFunctionTracker(FunctionLiteral* fun);
   ~LiveEditFunctionTracker();
   void RecordFunctionCode(Handle<Code> code);
   void RecordFunctionScope(Scope* scope);

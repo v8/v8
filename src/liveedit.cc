@@ -49,7 +49,7 @@ class FunctionInfoListener {
     // Implementation follows.
   }
 
-  void FunctionScope(Scope* scope){
+  void FunctionScope(Scope* scope) {
     // Implementation follows.
   }
 
