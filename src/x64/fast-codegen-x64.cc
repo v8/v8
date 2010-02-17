@@ -165,13 +165,9 @@ void FastCodeGenerator::EmitBitOr() {
   } else {
     // Preserve the destination operand in a scratch register in case of
     // bailout.
-    Label done;
     __ movq(scratch0(), destination());
     __ or_(destination(), other_accumulator(destination()));
-    __ JumpIfSmi(destination(), &done);
-    __ movq(destination(), scratch0());
-    __ jmp(bailout());
-    __ bind(&done);
+    __ JumpIfNotSmi(destination(), bailout());
   }
 
 
