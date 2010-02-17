@@ -1208,17 +1208,6 @@ static Object* Runtime_OptimizeObjectForAddingMultipleProperties(
 }
 
 
-static Object* Runtime_TransformToFastProperties(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  if (!object->HasFastProperties() && !object->IsGlobalObject()) {
-    TransformToFastProperties(object, 0);
-  }
-  return *object;
-}
-
-
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);
@@ -3520,17 +3509,23 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
 
 
 static Object* Runtime_ToFastProperties(Arguments args) {
+  HandleScope scope;
+
   ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    js_object->TransformToFastProperties(0);
+    if (!js_object->HasFastProperties() && !js_object->IsGlobalObject()) {
+      js_object->TransformToFastProperties(0);
+    }
   }
   return *object;
 }
 
 
 static Object* Runtime_ToSlowProperties(Arguments args) {
+  HandleScope scope;
+
   ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {

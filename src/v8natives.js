@@ -56,7 +56,7 @@ function InstallFunctions(object, attributes, functions) {
     %FunctionSetName(f, key);
     %SetProperty(object, key, f, attributes);
   }
-  %TransformToFastProperties(object);
+  %ToFastProperties(object);
 }
 
 // Emulates JSC by installing functions on a hidden prototype that
@@ -914,7 +914,7 @@ function SetupNumber() {
                "POSITIVE_INFINITY",
                1/0,
                DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %TransformToFastProperties($Number);
+  %ToFastProperties($Number);
 
   // Setup non-enumerable functions on the Number prototype object.
   InstallFunctions($Number.prototype, DONT_ENUM, $Array(
