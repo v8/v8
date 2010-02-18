@@ -4717,106 +4717,214 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
 }
 
 
+void CodeGenerator::EmitSlotAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm(), "[ Variable Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  ASSERT(var != NULL);
+  Slot* slot = var->slot();
+  ASSERT(slot != NULL);
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    Result result = LoadFromSlotCheckForArguments(slot, NOT_INSIDE_TYPEOF);
+    frame()->Push(&result);
+    Load(node->value());
+
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    GenericBinaryOperation(node->binary_op(),
+                           node->type(),
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    Load(node->value());
+  }
+
+  // Perform the assignment.
+  if (var->mode() != Variable::CONST || node->op() == Token::INIT_CONST) {
+    CodeForSourcePosition(node->position());
+    StoreToSlot(slot,
+                node->op() == Token::INIT_CONST ? CONST_INIT : NOT_CONST_INIT);
+  }
+  ASSERT(frame()->height() == original_height + 1);
+}
+
+
+void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm(), "[ Named Property Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
+  ASSERT(var == NULL || (prop == NULL && var->is_global()));
+
+  // Initialize name and evaluate the receiver subexpression.
+  Handle<String> name;
+  if (var != NULL) {
+    name = var->name();
+    LoadGlobal();
+  } else {
+    Literal* lit = prop->key()->AsLiteral();
+    ASSERT(lit != NULL);
+    name = Handle<String>::cast(lit->handle());
+    Load(prop->obj());
+  }
+
+  if (node->starts_initialization_block()) {
+    // Change to slow case in the beginning of an initialization block to
+    // avoid the quadratic behavior of repeatedly adding fast properties.
+    frame()->Dup();
+    Result ignored = frame()->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  if (node->ends_initialization_block()) {
+    // Add an extra copy of the receiver to the frame, so that it can be
+    // converted back to fast case after the assignment.
+    frame()->Dup();
+  }
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    frame()->Dup();
+    Result value = EmitNamedLoad(name, var != NULL);
+    frame()->Push(&value);
+    Load(node->value());
+
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    GenericBinaryOperation(node->binary_op(),
+                           node->type(),
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    Load(node->value());
+  }
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(var == NULL || var->mode() != Variable::CONST);
+  ASSERT(node->op() != Token::INIT_CONST);
+  CodeForSourcePosition(node->position());
+  Result answer = EmitNamedStore(name);
+  frame()->Push(&answer);
+
+  if (node->ends_initialization_block()) {
+    // The argument to the runtime call is the extra copy of the receiver,
+    // which is below the value of the assignment.  Swap the receiver and
+    // the value of the assignment expression.
+    Result result = frame()->Pop();
+    Result receiver = frame()->Pop();
+    frame()->Push(&result);
+    frame()->Push(&receiver);
+    Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  ASSERT(frame()->height() == original_height + 1);
+}
+
+
+void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Comment cmnt(masm_, "[ Named Property Assignment");
+  Property* prop = node->target()->AsProperty();
+  ASSERT(prop != NULL);
+
+  // Evaluate the receiver subexpression.
+  Load(prop->obj());
+
+  if (node->starts_initialization_block()) {
+    // Change to slow case in the beginning of an initialization block to
+    // avoid the quadratic behavior of repeatedly adding fast properties.
+    frame_->Dup();
+    Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+  }
+
+  if (node->ends_initialization_block()) {
+    // Add an extra copy of the receiver to the frame, so that it can be
+    // converted back to fast case after the assignment.
+    frame_->Dup();
+  }
+
+  // Evaluate the key subexpression.
+  Load(prop->key());
+
+  // Evaluate the right-hand side.
+  if (node->is_compound()) {
+    // Duplicate receiver and key.
+    frame()->PushElementAt(1);
+    frame()->PushElementAt(1);
+    Result value = EmitKeyedLoad();
+    frame()->Push(&value);
+    Load(node->value());
+
+    bool overwrite_value =
+        (node->value()->AsBinaryOperation() != NULL &&
+         node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
+    GenericBinaryOperation(node->binary_op(),
+                           node->type(),
+                           overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
+  } else {
+    Load(node->value());
+  }
+
+  // Perform the assignment.  It is safe to ignore constants here.
+  ASSERT(node->op() != Token::INIT_CONST);
+  CodeForSourcePosition(node->position());
+  Result answer = EmitKeyedStore(prop->key()->type());
+  frame()->Push(&answer);
+
+  if (node->ends_initialization_block()) {
+    // The argument to the runtime call is the extra copy of the receiver,
+    // which is below the value of the assignment.  Swap the receiver and
+    // the value of the assignment expression.
+    Result result = frame()->Pop();
+    Result receiver = frame()->Pop();
+    frame()->Push(&result);
+    frame()->Push(&receiver);
+    Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
+  }
+
+  ASSERT(frame()->height() == original_height + 1);
+}
+
+
 void CodeGenerator::VisitAssignment(Assignment* node) {
 #ifdef DEBUG
-  int original_height = frame_->height();
+  int original_height = frame()->height();
 #endif
-  Comment cmnt(masm_, "[ Assignment");
+  Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  Property* prop = node->target()->AsProperty();
 
-  { Reference target(this, node->target(), node->is_compound());
-    if (target.is_illegal()) {
-      // Fool the virtual frame into thinking that we left the assignment's
-      // value on the frame.
-      frame_->Push(Smi::FromInt(0));
-      return;
-    }
-    Variable* var = node->target()->AsVariableProxy()->AsVariable();
+  if (var != NULL && !var->is_global()) {
+    EmitSlotAssignment(node);
 
-    if (node->starts_initialization_block()) {
-      ASSERT(target.type() == Reference::NAMED ||
-             target.type() == Reference::KEYED);
-      // Change to slow case in the beginning of an initialization
-      // block to avoid the quadratic behavior of repeatedly adding
-      // fast properties.
+  } else if ((prop != NULL && prop->key()->IsPropertyName()) ||
+             (var != NULL && var->is_global())) {
+    // Properties whose keys are property names and global variables are
+    // treated as named property references.  We do not need to consider
+    // global 'this' because it is not a valid left-hand side.
+    EmitNamedPropertyAssignment(node);
 
-      // The receiver is the argument to the runtime call.  It is the
-      // first value pushed when the reference was loaded to the
-      // frame.
-      frame_->PushElementAt(target.size() - 1);
-      Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
-    }
-    if (node->ends_initialization_block()) {
-      // Add an extra copy of the receiver to the frame, so that it can be
-      // converted back to fast case after the assignment.
-      ASSERT(target.type() == Reference::NAMED ||
-             target.type() == Reference::KEYED);
-      if (target.type() == Reference::NAMED) {
-        frame_->Dup();
-        // Dup target receiver on stack.
-      } else {
-        ASSERT(target.type() == Reference::KEYED);
-        Result temp = frame_->Pop();
-        frame_->Dup();
-        frame_->Push(&temp);
-      }
-    }
-    if (node->op() == Token::ASSIGN ||
-        node->op() == Token::INIT_VAR ||
-        node->op() == Token::INIT_CONST) {
-      Load(node->value());
+  } else if (prop != NULL) {
+    // Other properties (including rewritten parameters for a function that
+    // uses arguments) are keyed property assignments.
+    EmitKeyedPropertyAssignment(node);
 
-    } else {  // Assignment is a compound assignment.
-      Literal* literal = node->value()->AsLiteral();
-      bool overwrite_value =
-          (node->value()->AsBinaryOperation() != NULL &&
-           node->value()->AsBinaryOperation()->ResultOverwriteAllowed());
-      Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
-      // There are two cases where the target is not read in the right hand
-      // side, that are easy to test for: the right hand side is a literal,
-      // or the right hand side is a different variable.  TakeValue invalidates
-      // the target, with an implicit promise that it will be written to again
-      // before it is read.
-      if (literal != NULL || (right_var != NULL && right_var != var)) {
-        target.TakeValue();
-      } else {
-        target.GetValue();
-      }
-      Load(node->value());
-      GenericBinaryOperation(node->binary_op(),
-                             node->type(),
-                             overwrite_value ? OVERWRITE_RIGHT : NO_OVERWRITE);
-    }
-
-    if (var != NULL &&
-        var->mode() == Variable::CONST &&
-        node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-      // Assignment ignored - leave the value on the stack.
-      UnloadReference(&target);
-    } else {
-      CodeForSourcePosition(node->position());
-      if (node->op() == Token::INIT_CONST) {
-        // Dynamic constant initializations must use the function context
-        // and initialize the actual constant declared. Dynamic variable
-        // initializations are simply assignments and use SetValue.
-        target.SetValue(CONST_INIT);
-      } else {
-        target.SetValue(NOT_CONST_INIT);
-      }
-      if (node->ends_initialization_block()) {
-        ASSERT(target.type() == Reference::UNLOADED);
-        // End of initialization block. Revert to fast case.  The
-        // argument to the runtime call is the extra copy of the receiver,
-        // which is below the value of the assignment.
-        // Swap the receiver and the value of the assignment expression.
-        Result lhs = frame_->Pop();
-        Result receiver = frame_->Pop();
-        frame_->Push(&lhs);
-        frame_->Push(&receiver);
-        Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
-      }
-    }
+  } else {
+    // Invalid left-hand side.
+    Load(node->target());
+    Result result = frame()->CallRuntime(Runtime::kThrowReferenceError, 1);
+    // The runtime call doesn't actually return but the code generator will
+    // still generate code and expects a certain frame height.
+    frame()->Push(&result);
   }
-  ASSERT(frame_->height() == original_height + 1);
+
+  ASSERT(frame()->height() == original_height + 1);
 }
 
 
@@ -5021,9 +5129,9 @@ void CodeGenerator::VisitCall(Call* node) {
         LoadGlobalReceiver();
       } else {
         Load(property->obj());
-        frame_->Dup();
+        frame()->Dup();
         Load(property->key());
-        Result function = EmitKeyedLoad(false);
+        Result function = EmitKeyedLoad();
         Result receiver = frame_->Pop();
         frame_->Push(&function);
         frame_->Push(&receiver);
@@ -6454,9 +6562,8 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
  public:
   explicit DeferredReferenceGetKeyedValue(Register dst,
                                           Register receiver,
-                                          Register key,
-                                          bool is_global)
-      : dst_(dst), receiver_(receiver), key_(key), is_global_(is_global) {
+                                          Register key)
+      : dst_(dst), receiver_(receiver), key_(key) {
     set_comment("[ DeferredReferenceGetKeyedValue");
   }
 
@@ -6469,7 +6576,6 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
   Register dst_;
   Register receiver_;
   Register key_;
-  bool is_global_;
 };
 
 
@@ -6500,10 +6606,7 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  RelocInfo::Mode mode = is_global_
-                         ? RelocInfo::CODE_TARGET_CONTEXT
-                         : RelocInfo::CODE_TARGET;
-  __ call(ic, mode);
+  __ call(ic, RelocInfo::CODE_TARGET);
   // The delta from the start of the map-compare instruction to the
   // test instruction.  We use masm_-> directly here instead of the __
   // macro because the macro sometimes uses macro expansion to turn
@@ -6567,12 +6670,91 @@ void DeferredReferenceSetKeyedValue::Generate() {
 }
 
 
-Result CodeGenerator::EmitKeyedLoad(bool is_global) {
-  Comment cmnt(masm_, "[ Load from keyed Property");
-  // Inline array load code if inside of a loop.  We do not know
-  // the receiver map yet, so we initially generate the code with
-  // a check against an invalid map.  In the inline cache code, we
-  // patch the map check if appropriate.
+Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Result result;
+  // Do not inline the inobject property case for loads from the global
+  // object.  Also do not inline for unoptimized code.  This saves time in
+  // the code generator.  Unoptimized code is toplevel code or code that is
+  // not in a loop.
+  if (is_contextual || scope()->is_global_scope() || loop_nesting() == 0) {
+    Comment cmnt(masm(), "[ Load from named Property");
+    frame()->Push(name);
+
+    RelocInfo::Mode mode = is_contextual
+        ? RelocInfo::CODE_TARGET_CONTEXT
+        : RelocInfo::CODE_TARGET;
+    result = frame()->CallLoadIC(mode);
+    // A test eax instruction following the call signals that the inobject
+    // property case was inlined.  Ensure that there is not a test eax
+    // instruction here.
+    __ nop();
+  } else {
+    // Inline the inobject property case.
+    Comment cmnt(masm(), "[ Inlined named property load");
+    Result receiver = frame()->Pop();
+    receiver.ToRegister();
+
+    result = allocator()->Allocate();
+    ASSERT(result.is_valid());
+    DeferredReferenceGetNamedValue* deferred =
+        new DeferredReferenceGetNamedValue(result.reg(), receiver.reg(), name);
+
+    // Check that the receiver is a heap object.
+    __ test(receiver.reg(), Immediate(kSmiTagMask));
+    deferred->Branch(zero);
+
+    __ bind(deferred->patch_site());
+    // This is the map check instruction that will be patched (so we can't
+    // use the double underscore macro that may insert instructions).
+    // Initially use an invalid map to force a failure.
+    masm()->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
+                Immediate(Factory::null_value()));
+    // This branch is always a forwards branch so it's always a fixed size
+    // which allows the assert below to succeed and patching to work.
+    deferred->Branch(not_equal);
+
+    // The delta from the patch label to the load offset must be statically
+    // known.
+    ASSERT(masm()->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
+           LoadIC::kOffsetToLoadInstruction);
+    // The initial (invalid) offset has to be large enough to force a 32-bit
+    // instruction encoding to allow patching with an arbitrary offset.  Use
+    // kMaxInt (minus kHeapObjectTag).
+    int offset = kMaxInt;
+    masm()->mov(result.reg(), FieldOperand(receiver.reg(), offset));
+
+    __ IncrementCounter(&Counters::named_load_inline, 1);
+    deferred->BindExit();
+  }
+  ASSERT(frame()->height() == original_height - 1);
+  return result;
+}
+
+
+Result CodeGenerator::EmitNamedStore(Handle<String> name) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  frame()->Push(name);
+  Result result = frame()->CallStoreIC();
+
+  ASSERT(frame()->height() == original_height - 2);
+  return result;
+}
+
+
+Result CodeGenerator::EmitKeyedLoad() {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Result result;
+  // Inline array load code if inside of a loop.  We do not know the
+  // receiver map yet, so we initially generate the code with a check
+  // against an invalid map.  In the inline cache code, we patch the map
+  // check if appropriate.
   if (loop_nesting() > 0) {
     Comment cmnt(masm_, "[ Inlined load from keyed Property");
 
@@ -6588,22 +6770,16 @@ Result CodeGenerator::EmitKeyedLoad(bool is_global) {
 
     // Use a fresh temporary for the index and later the loaded
     // value.
-    Result index = allocator()->Allocate();
-    ASSERT(index.is_valid());
+    result = allocator()->Allocate();
+    ASSERT(result.is_valid());
 
     DeferredReferenceGetKeyedValue* deferred =
-        new DeferredReferenceGetKeyedValue(index.reg(),
+        new DeferredReferenceGetKeyedValue(result.reg(),
                                            receiver.reg(),
-                                           key.reg(),
-                                           is_global);
+                                           key.reg());
 
-    // Check that the receiver is not a smi (only needed if this
-    // is not a load from the global context) and that it has the
-    // expected map.
-    if (!is_global) {
-      __ test(receiver.reg(), Immediate(kSmiTagMask));
-      deferred->Branch(zero);
-    }
+    __ test(receiver.reg(), Immediate(kSmiTagMask));
+    deferred->Branch(zero);
 
     // Initially, use an invalid map. The map is patched in the IC
     // initialization code.
@@ -6628,46 +6804,132 @@ Result CodeGenerator::EmitKeyedLoad(bool is_global) {
 
     // Shift the key to get the actual index value and check that
     // it is within bounds.
-    __ mov(index.reg(), key.reg());
-    __ SmiUntag(index.reg());
-    __ cmp(index.reg(),
+    __ mov(result.reg(), key.reg());
+    __ SmiUntag(result.reg());
+    __ cmp(result.reg(),
            FieldOperand(elements.reg(), FixedArray::kLengthOffset));
     deferred->Branch(above_equal);
 
-    // Load and check that the result is not the hole.  We could
-    // reuse the index or elements register for the value.
-    //
-    // TODO(206): Consider whether it makes sense to try some
-    // heuristic about which register to reuse.  For example, if
-    // one is eax, the we can reuse that one because the value
-    // coming from the deferred code will be in eax.
-    Result value = index;
-    __ mov(value.reg(), Operand(elements.reg(),
-                                index.reg(),
-                                times_4,
-                                FixedArray::kHeaderSize - kHeapObjectTag));
+    // Load and check that the result is not the hole.
+    __ mov(result.reg(), Operand(elements.reg(),
+                                 result.reg(),
+                                 times_4,
+                                 FixedArray::kHeaderSize - kHeapObjectTag));
     elements.Unuse();
-    index.Unuse();
-    __ cmp(Operand(value.reg()), Immediate(Factory::the_hole_value()));
+    __ cmp(Operand(result.reg()), Immediate(Factory::the_hole_value()));
     deferred->Branch(equal);
     __ IncrementCounter(&Counters::keyed_load_inline, 1);
 
     deferred->BindExit();
-    return value;
   } else {
     Comment cmnt(masm_, "[ Load from keyed Property");
-    RelocInfo::Mode mode = is_global
-        ? RelocInfo::CODE_TARGET_CONTEXT
-        : RelocInfo::CODE_TARGET;
-    Result answer = frame_->CallKeyedLoadIC(mode);
+    result = frame_->CallKeyedLoadIC(RelocInfo::CODE_TARGET);
     // Make sure that we do not have a test instruction after the
     // call.  A test instruction after the call is used to
     // indicate that we have generated an inline version of the
     // keyed load.  The explicit nop instruction is here because
     // the push that follows might be peep-hole optimized away.
     __ nop();
-    return answer;
   }
+  ASSERT(frame()->height() == original_height - 2);
+  return result;
+}
+
+
+Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
+#ifdef DEBUG
+  int original_height = frame()->height();
+#endif
+  Result result;
+  // Generate inlined version of the keyed store if the code is in a loop
+  // and the key is likely to be a smi.
+  if (loop_nesting() > 0 && key_type->IsLikelySmi()) {
+    Comment cmnt(masm(), "[ Inlined store to keyed Property");
+
+    // Get the receiver, key and value into registers.
+    result = frame()->Pop();
+    Result key = frame()->Pop();
+    Result receiver = frame()->Pop();
+
+    Result tmp = allocator_->Allocate();
+    ASSERT(tmp.is_valid());
+
+    // Determine whether the value is a constant before putting it in a
+    // register.
+    bool value_is_constant = result.is_constant();
+
+    // Make sure that value, key and receiver are in registers.
+    result.ToRegister();
+    key.ToRegister();
+    receiver.ToRegister();
+
+    DeferredReferenceSetKeyedValue* deferred =
+        new DeferredReferenceSetKeyedValue(result.reg(),
+                                           key.reg(),
+                                           receiver.reg());
+
+    // Check that the value is a smi if it is not a constant.  We can skip
+    // the write barrier for smis and constants.
+    if (!value_is_constant) {
+      __ test(result.reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    }
+
+    // Check that the key is a non-negative smi.
+    __ test(key.reg(), Immediate(kSmiTagMask | 0x80000000));
+    deferred->Branch(not_zero);
+
+    // Check that the receiver is not a smi.
+    __ test(receiver.reg(), Immediate(kSmiTagMask));
+    deferred->Branch(zero);
+
+    // Check that the receiver is a JSArray.
+    __ mov(tmp.reg(),
+           FieldOperand(receiver.reg(), HeapObject::kMapOffset));
+    __ movzx_b(tmp.reg(),
+               FieldOperand(tmp.reg(), Map::kInstanceTypeOffset));
+    __ cmp(tmp.reg(), JS_ARRAY_TYPE);
+    deferred->Branch(not_equal);
+
+    // Check that the key is within bounds.  Both the key and the length of
+    // the JSArray are smis.
+    __ cmp(key.reg(),
+           FieldOperand(receiver.reg(), JSArray::kLengthOffset));
+    deferred->Branch(greater_equal);
+
+    // Get the elements array from the receiver and check that it is not a
+    // dictionary.
+    __ mov(tmp.reg(),
+           FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+    // Bind the deferred code patch site to be able to locate the fixed
+    // array map comparison.  When debugging, we patch this comparison to
+    // always fail so that we will hit the IC call in the deferred code
+    // which will allow the debugger to break for fast case stores.
+    __ bind(deferred->patch_site());
+    __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
+           Immediate(Factory::fixed_array_map()));
+    deferred->Branch(not_equal);
+
+    // Store the value.
+    __ mov(Operand(tmp.reg(),
+                   key.reg(),
+                   times_2,
+                   FixedArray::kHeaderSize - kHeapObjectTag),
+           result.reg());
+    __ IncrementCounter(&Counters::keyed_store_inline, 1);
+
+    deferred->BindExit();
+  } else {
+    result = frame()->CallKeyedStoreIC();
+    // Make sure that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to
+    // indicate that we have generated an inline version of the
+    // keyed store.
+    __ nop();
+    frame()->Drop(2);
+  }
+  ASSERT(frame()->height() == original_height - 3);
+  return result;
 }
 
 
@@ -6687,7 +6949,7 @@ Handle<String> Reference::GetName() {
   } else {
     Literal* raw_name = property->key()->AsLiteral();
     ASSERT(raw_name != NULL);
-    return Handle<String>(String::cast(*raw_name->handle()));
+    return Handle<String>::cast(raw_name->handle());
   }
 }
 
@@ -6720,73 +6982,10 @@ void Reference::GetValue() {
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
-
-      if (persist_after_get_) {
-        cgen_->frame()->Dup();
-      }
-      // Do not inline the inobject property case for loads from the global
-      // object.  Also do not inline for unoptimized code.  This saves time
-      // in the code generator.  Unoptimized code is toplevel code or code
-      // that is not in a loop.
-      if (is_global ||
-          cgen_->scope()->is_global_scope() ||
-          cgen_->loop_nesting() == 0) {
-        Comment cmnt(masm, "[ Load from named Property");
-        cgen_->frame()->Push(GetName());
-
-        RelocInfo::Mode mode = is_global
-                               ? RelocInfo::CODE_TARGET_CONTEXT
-                               : RelocInfo::CODE_TARGET;
-        Result answer = cgen_->frame()->CallLoadIC(mode);
-        // A test eax instruction following the call signals that the
-        // inobject property case was inlined.  Ensure that there is not
-        // a test eax instruction here.
-        __ nop();
-        cgen_->frame()->Push(&answer);
-      } else {
-        // Inline the inobject property case.
-        Comment cmnt(masm, "[ Inlined named property load");
-        Result receiver = cgen_->frame()->Pop();
-        receiver.ToRegister();
-
-        Result value = cgen_->allocator()->Allocate();
-        ASSERT(value.is_valid());
-        DeferredReferenceGetNamedValue* deferred =
-            new DeferredReferenceGetNamedValue(value.reg(),
-                                               receiver.reg(),
-                                               GetName());
-
-        // Check that the receiver is a heap object.
-        __ test(receiver.reg(), Immediate(kSmiTagMask));
-        deferred->Branch(zero);
-
-        __ bind(deferred->patch_site());
-        // This is the map check instruction that will be patched (so we can't
-        // use the double underscore macro that may insert instructions).
-        // Initially use an invalid map to force a failure.
-        masm->cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
-                  Immediate(Factory::null_value()));
-        // This branch is always a forwards branch so it's always a fixed
-        // size which allows the assert below to succeed and patching to work.
-        deferred->Branch(not_equal);
-
-        // The delta from the patch label to the load offset must be
-        // statically known.
-        ASSERT(masm->SizeOfCodeGeneratedSince(deferred->patch_site()) ==
-               LoadIC::kOffsetToLoadInstruction);
-        // The initial (invalid) offset has to be large enough to force
-        // a 32-bit instruction encoding to allow patching with an
-        // arbitrary offset.  Use kMaxInt (minus kHeapObjectTag).
-        int offset = kMaxInt;
-        masm->mov(value.reg(), FieldOperand(receiver.reg(), offset));
-
-        __ IncrementCounter(&Counters::named_load_inline, 1);
-        deferred->BindExit();
-        cgen_->frame()->Push(&value);
-      }
-      if (!persist_after_get_) {
-        set_unloaded();
-      }
+      if (persist_after_get_) cgen_->frame()->Dup();
+      Result result = cgen_->EmitNamedLoad(GetName(), is_global);
+      if (!persist_after_get_) set_unloaded();
+      cgen_->frame()->Push(&result);
       break;
     }
 
@@ -6795,18 +6994,13 @@ void Reference::GetValue() {
         cgen_->frame()->PushElementAt(1);
         cgen_->frame()->PushElementAt(1);
       }
-      Variable* var = expression_->AsVariableProxy()->AsVariable();
-      bool is_global = var != NULL;
-      ASSERT(!is_global || var->is_global());
-      Result value = cgen_->EmitKeyedLoad(is_global);
+      Result value = cgen_->EmitKeyedLoad();
       cgen_->frame()->Push(&value);
-      if (!persist_after_get_) {
-        set_unloaded();
-      }
+      if (!persist_after_get_) set_unloaded();
       break;
     }
 
-      default:
+    default:
       UNREACHABLE();
   }
 }
@@ -6858,14 +7052,13 @@ void Reference::SetValue(InitState init_state) {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       cgen_->StoreToSlot(slot, init_state);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
     case NAMED: {
       Comment cmnt(masm, "[ Store to named Property");
-      cgen_->frame()->Push(GetName());
-      Result answer = cgen_->frame()->CallStoreIC();
+      Result answer = cgen_->EmitNamedStore(GetName());
       cgen_->frame()->Push(&answer);
       set_unloaded();
       break;
@@ -6873,108 +7066,16 @@ void Reference::SetValue(InitState init_state) {
 
     case KEYED: {
       Comment cmnt(masm, "[ Store to keyed Property");
-
-      // Generate inlined version of the keyed store if the code is in
-      // a loop and the key is likely to be a smi.
       Property* property = expression()->AsProperty();
       ASSERT(property != NULL);
-      StaticType* key_smi_analysis = property->key()->type();
-
-      if (cgen_->loop_nesting() > 0 && key_smi_analysis->IsLikelySmi()) {
-        Comment cmnt(masm, "[ Inlined store to keyed Property");
-
-        // Get the receiver, key and value into registers.
-        Result value = cgen_->frame()->Pop();
-        Result key = cgen_->frame()->Pop();
-        Result receiver = cgen_->frame()->Pop();
-
-        Result tmp = cgen_->allocator_->Allocate();
-        ASSERT(tmp.is_valid());
-
-        // Determine whether the value is a constant before putting it
-        // in a register.
-        bool value_is_constant = value.is_constant();
-
-        // Make sure that value, key and receiver are in registers.
-        value.ToRegister();
-        key.ToRegister();
-        receiver.ToRegister();
-
-        DeferredReferenceSetKeyedValue* deferred =
-            new DeferredReferenceSetKeyedValue(value.reg(),
-                                               key.reg(),
-                                               receiver.reg());
-
-        // Check that the value is a smi if it is not a constant.  We
-        // can skip the write barrier for smis and constants.
-        if (!value_is_constant) {
-          __ test(value.reg(), Immediate(kSmiTagMask));
-          deferred->Branch(not_zero);
-        }
-
-        // Check that the key is a non-negative smi.
-        __ test(key.reg(), Immediate(kSmiTagMask | 0x80000000));
-        deferred->Branch(not_zero);
-
-        // Check that the receiver is not a smi.
-        __ test(receiver.reg(), Immediate(kSmiTagMask));
-        deferred->Branch(zero);
-
-        // Check that the receiver is a JSArray.
-        __ mov(tmp.reg(),
-               FieldOperand(receiver.reg(), HeapObject::kMapOffset));
-        __ movzx_b(tmp.reg(),
-                   FieldOperand(tmp.reg(), Map::kInstanceTypeOffset));
-        __ cmp(tmp.reg(), JS_ARRAY_TYPE);
-        deferred->Branch(not_equal);
-
-        // Check that the key is within bounds.  Both the key and the
-        // length of the JSArray are smis.
-        __ cmp(key.reg(),
-               FieldOperand(receiver.reg(), JSArray::kLengthOffset));
-        deferred->Branch(greater_equal);
-
-        // Get the elements array from the receiver and check that it
-        // is not a dictionary.
-        __ mov(tmp.reg(),
-               FieldOperand(receiver.reg(), JSObject::kElementsOffset));
-        // Bind the deferred code patch site to be able to locate the
-        // fixed array map comparison.  When debugging, we patch this
-        // comparison to always fail so that we will hit the IC call
-        // in the deferred code which will allow the debugger to
-        // break for fast case stores.
-        __ bind(deferred->patch_site());
-        __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
-               Immediate(Factory::fixed_array_map()));
-        deferred->Branch(not_equal);
-
-        // Store the value.
-        __ mov(Operand(tmp.reg(),
-                       key.reg(),
-                       times_2,
-                       FixedArray::kHeaderSize - kHeapObjectTag),
-               value.reg());
-        __ IncrementCounter(&Counters::keyed_store_inline, 1);
-
-        deferred->BindExit();
-
-        cgen_->frame()->Push(&receiver);
-        cgen_->frame()->Push(&key);
-        cgen_->frame()->Push(&value);
-      } else {
-        Result answer = cgen_->frame()->CallKeyedStoreIC();
-        // Make sure that we do not have a test instruction after the
-        // call.  A test instruction after the call is used to
-        // indicate that we have generated an inline version of the
-        // keyed store.
-        __ nop();
-        cgen_->frame()->Push(&answer);
-      }
-      cgen_->UnloadReference(this);
+      Result answer = cgen_->EmitKeyedStore(property->key()->type());
+      cgen_->frame()->Push(&answer);
+      set_unloaded();
       break;
     }
 
-    default:
+    case UNLOADED:
+    case ILLEGAL:
       UNREACHABLE();
   }
 }
