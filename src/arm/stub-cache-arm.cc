@@ -579,7 +579,7 @@ static void CompileLoadInterceptor(LoadInterceptorCompiler* compiler,
       stub_compiler->CheckPrototypes(object, receiver, holder,
                                      scratch1, scratch2, name, miss);
 
-  if (lookup->IsValid() && lookup->IsCacheable()) {
+  if (lookup->IsProperty() && lookup->IsCacheable()) {
     compiler->CompileCacheable(masm,
                                stub_compiler,
                                receiver,
@@ -985,7 +985,7 @@ Object* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   // If we call a constant function when the interceptor returns
   // the no-result sentinel, generate code that optimizes this case.
-  if (lookup.IsValid() &&
+  if (lookup.IsProperty() &&
       lookup.IsCacheable() &&
       lookup.type() == CONSTANT_FUNCTION &&
       lookup.GetConstantFunction()->is_compiled() &&

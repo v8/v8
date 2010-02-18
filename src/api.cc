@@ -2207,7 +2207,7 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
-  if (lookup.IsValid()) {
+  if (lookup.IsProperty()) {
     PropertyAttributes attributes;
     i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
                                                       &lookup,
@@ -2226,7 +2226,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedProperty(*key_obj, &lookup);
-  if (lookup.IsValid()) {
+  if (lookup.IsProperty()) {
     PropertyAttributes attributes;
     i::Handle<i::Object> result(self_obj->GetProperty(*self_obj,
                                                       &lookup,

@@ -399,7 +399,7 @@ static void CompileLoadInterceptor(Compiler* compiler,
       stub_compiler->CheckPrototypes(object, receiver, holder,
                                      scratch1, scratch2, name, miss);
 
-  if (lookup->IsValid() && lookup->IsCacheable()) {
+  if (lookup->IsProperty() && lookup->IsCacheable()) {
     compiler->CompileCacheable(masm,
                                stub_compiler,
                                receiver,

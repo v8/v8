@@ -220,7 +220,7 @@ void FastCodeGenSyntaxChecker::VisitVariableProxy(VariableProxy* expr) {
   if (info()->has_global_object()) {
     LookupResult lookup;
     info()->global_object()->Lookup(*expr->name(), &lookup);
-    if (!lookup.IsValid()) {
+    if (!lookup.IsProperty()) {
       BAILOUT("Non-existing global variable");
     }
     // We do not handle global variables with accessors or interceptors.
@@ -284,7 +284,7 @@ void FastCodeGenSyntaxChecker::VisitAssignment(Assignment* expr) {
     Handle<String> name = Handle<String>::cast(key->handle());
     LookupResult lookup;
     receiver->Lookup(*name, &lookup);
-    if (!lookup.IsValid()) {
+    if (!lookup.IsProperty()) {
       BAILOUT("Assigned property not found at compile time");
     }
     if (lookup.holder() != *receiver) BAILOUT("Non-own property assignment");
@@ -322,7 +322,7 @@ void FastCodeGenSyntaxChecker::VisitProperty(Property* expr) {
     Handle<String> name = Handle<String>::cast(key->handle());
     LookupResult lookup;
     receiver->Lookup(*name, &lookup);
-    if (!lookup.IsValid()) {
+    if (!lookup.IsProperty()) {
       BAILOUT("Referenced property not found at compile time");
     }
     if (lookup.holder() != *receiver) BAILOUT("Non-own property reference");
@@ -586,7 +586,7 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   info()->global_object()->Lookup(*expr->name(), &lookup);
   // We only support normal (non-accessor/interceptor) DontDelete properties
   // for now.
-  ASSERT(lookup.IsValid());
+  ASSERT(lookup.IsProperty());
   ASSERT_EQ(NORMAL, lookup.type());
   ASSERT(lookup.IsDontDelete());
   Handle<Object> cell(info()->global_object()->GetPropertyCell(&lookup));

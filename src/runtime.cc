@@ -2895,7 +2895,7 @@ static Object* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
   // If an existing property is either FIELD, NORMAL or CONSTANT_FUNCTION
   // delete it to avoid running into trouble in DefineAccessor, which
   // handles this incorrectly if the property is readonly (does nothing)
-  if (result.IsValid() &&
+  if (result.IsProperty() &&
       (result.type() == FIELD || result.type() == NORMAL
        || result.type() == CONSTANT_FUNCTION)) {
     obj->DeleteProperty(name, JSObject::NORMAL_DELETION);

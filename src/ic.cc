@@ -330,10 +330,11 @@ static void LookupForRead(Object* object,
   while (true) {
     object->Lookup(name, lookup);
     // Besides normal conditions (property not found or it's not
-    // an interceptor), bail out of lookup is not cacheable: we won't
+    // an interceptor), bail out if lookup is not cacheable: we won't
     // be able to IC it anyway and regular lookup should work fine.
-    if (lookup->IsNotFound() || lookup->type() != INTERCEPTOR ||
-        !lookup->IsCacheable()) {
+    if (!lookup->IsFound()
+        || (lookup->type() != INTERCEPTOR)
+        || !lookup->IsCacheable()) {
       return;
     }
 
@@ -343,7 +344,7 @@ static void LookupForRead(Object* object,
     }
 
     holder->LocalLookupRealNamedProperty(name, lookup);
-    if (lookup->IsValid()) {
+    if (lookup->IsProperty()) {
       ASSERT(lookup->type() != INTERCEPTOR);
       return;
     }
@@ -422,7 +423,7 @@ Object* CallIC::LoadFunction(State state,
   LookupResult lookup;
   LookupForRead(*object, *name, &lookup);
 
-  if (!lookup.IsValid()) {
+  if (!lookup.IsProperty()) {
     // If the object does not have the requested property, check which
     // exception we need to throw.
     if (IsContextual(object)) {
@@ -493,7 +494,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
                           Handle<String> name) {
   ASSERT(lookup->IsLoaded());
   // Bail out if we didn't find a result.
-  if (!lookup->IsValid() || !lookup->IsCacheable()) return;
+  if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();
@@ -642,8 +643,8 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
   LookupResult lookup;
   LookupForRead(*object, *name, &lookup);
 
-  // If lookup is invalid, check if we need to throw an exception.
-  if (!lookup.IsValid()) {
+  // If we did not find a property, check if we need to throw an exception.
+  if (!lookup.IsProperty()) {
     if (FLAG_strict || IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
@@ -653,7 +654,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
   bool can_be_inlined =
       FLAG_use_ic &&
       state == PREMONOMORPHIC &&
-      lookup.IsValid() &&
+      lookup.IsProperty() &&
       lookup.IsLoaded() &&
       lookup.IsCacheable() &&
       lookup.holder() == *object &&
@@ -681,7 +682,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
   }
 
   PropertyAttributes attr;
-  if (lookup.IsValid() && lookup.type() == INTERCEPTOR) {
+  if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
     // Get the property.
     Object* result = object->GetProperty(*object, &lookup, *name, &attr);
     if (result->IsFailure()) return result;
@@ -704,7 +705,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
                           Handle<String> name) {
   ASSERT(lookup->IsLoaded());
   // Bail out if we didn't find a result.
-  if (!lookup->IsValid() || !lookup->IsCacheable()) return;
+  if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
   // Loading properties from values is not common, so don't try to
   // deal with non-JS objects here.
@@ -857,8 +858,8 @@ Object* KeyedLoadIC::Load(State state,
     LookupResult lookup;
     LookupForRead(*object, *name, &lookup);
 
-    // If lookup is invalid, check if we need to throw an exception.
-    if (!lookup.IsValid()) {
+    // If we did not find a property, check if we need to throw an exception.
+    if (!lookup.IsProperty()) {
       if (FLAG_strict || IsContextual(object)) {
         return ReferenceError("not_defined", name);
       }
@@ -869,7 +870,7 @@ Object* KeyedLoadIC::Load(State state,
     }
 
     PropertyAttributes attr;
-    if (lookup.IsValid() && lookup.type() == INTERCEPTOR) {
+    if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
       // Get the property.
       Object* result = object->GetProperty(*object, &lookup, *name, &attr);
       if (result->IsFailure()) return result;
@@ -921,7 +922,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
                                Handle<Object> object, Handle<String> name) {
   ASSERT(lookup->IsLoaded());
   // Bail out if we didn't find a result.
-  if (!lookup->IsValid() || !lookup->IsCacheable()) return;
+  if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
   if (!object->IsJSObject()) return;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
@@ -994,7 +995,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
 
 static bool StoreICableLookup(LookupResult* lookup) {
   // Bail out if we didn't find a result.
-  if (!lookup->IsValid() || !lookup->IsCacheable()) return false;
+  if (!lookup->IsPropertyOrTransition() || !lookup->IsCacheable()) return false;
 
   // If the property is read-only, we leave the IC in its current
   // state.
@@ -1214,7 +1215,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   if (receiver->IsJSGlobalProxy()) return;
 
   // Bail out if we didn't find a result.
-  if (!lookup->IsValid() || !lookup->IsCacheable()) return;
+  if (!lookup->IsPropertyOrTransition() || !lookup->IsCacheable()) return;
 
   // If the property is read-only, we leave the IC in its current
   // state.

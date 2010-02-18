@@ -1070,11 +1070,13 @@ Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, String* name) {
   return GetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
 }
 
+
 void StubCompiler::LookupPostInterceptor(JSObject* holder,
                                          String* name,
                                          LookupResult* lookup) {
   holder->LocalLookupRealNamedProperty(name, lookup);
-  if (lookup->IsNotFound()) {
+  if (!lookup->IsProperty()) {
+    lookup->NotFound();
     Object* proto = holder->GetPrototype();
     if (proto != Heap::null_value()) {
       proto->Lookup(name, lookup);

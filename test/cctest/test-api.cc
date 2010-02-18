@@ -2528,6 +2528,33 @@ THREADED_TEST(NamedInterceptorPropertyRead) {
 }
 
 
+static v8::Handle<Value> SetXOnPrototypeGetter(Local<String> property,
+                                               const AccessorInfo& info) {
+  // Set x on the prototype object and do not handle the get request.
+  v8::Handle<v8::Value> proto = info.Holder()->GetPrototype();
+  v8::Handle<v8::Object>::Cast(proto)->Set(v8_str("x"), v8::Integer::New(23));
+  return v8::Handle<Value>();
+}
+
+
+// This is a regression test for http://crbug.com/20104. Map
+// transitions should not interfere with post interceptor lookup.
+THREADED_TEST(NamedInterceptorMapTransitionRead) {
+  v8::HandleScope scope;
+  Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New();
+  Local<v8::ObjectTemplate> instance_template
+      = function_template->InstanceTemplate();
+  instance_template->SetNamedPropertyHandler(SetXOnPrototypeGetter);
+  LocalContext context;
+  context->Global()->Set(v8_str("F"), function_template->GetFunction());
+  // Create an instance of F and introduce a map transition for x.
+  CompileRun("var o = new F(); o.x = 23;");
+  // Create an instance of F and invoke the getter. The result should be 23.
+  Local<Value> result = CompileRun("o = new F(); o.x");
+  CHECK_EQ(result->Int32Value(), 23);
+}
+
+
 static v8::Handle<Value> IndexedPropertyGetter(uint32_t index,
                                                const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();

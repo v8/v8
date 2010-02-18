@@ -323,7 +323,7 @@ static void CompileLoadInterceptor(Compiler* compiler,
       stub_compiler->CheckPrototypes(object, receiver, holder,
                                      scratch1, scratch2, name, miss);
 
-  if (lookup->IsValid() && lookup->IsCacheable()) {
+  if (lookup->IsProperty() && lookup->IsCacheable()) {
     compiler->CompileCacheable(masm,
                                stub_compiler,
                                receiver,
@@ -484,7 +484,7 @@ class CallOptimization BASE_EMBEDDED {
       is_simple_api_call_(false),
       expected_receiver_type_(NULL),
       api_call_info_(NULL) {
-    if (!lookup->IsValid() || !lookup->IsCacheable()) return;
+    if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
 
     // We only optimize constant function calls.
     if (lookup->type() != CONSTANT_FUNCTION) return;

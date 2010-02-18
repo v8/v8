@@ -723,11 +723,11 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 #ifdef DEBUG
     LookupResult lookup;
     result->LocalLookup(Heap::callee_symbol(), &lookup);
-    ASSERT(lookup.IsValid() && (lookup.type() == FIELD));
+    ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::arguments_callee_index);
 
     result->LocalLookup(Heap::length_symbol(), &lookup);
-    ASSERT(lookup.IsValid() && (lookup.type() == FIELD));
+    ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::arguments_length_index);
 
     ASSERT(result->map()->inobject_properties() > Heap::arguments_callee_index);
@@ -1352,7 +1352,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           LookupResult result;
           to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
-          if (result.IsValid()) continue;
+          if (result.IsProperty()) continue;
           HandleScope inner;
           Handle<DescriptorArray> inst_descs =
               Handle<DescriptorArray>(to->map()->instance_descriptors());
@@ -1389,7 +1389,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // If the property is already there we skip it.
         LookupResult result;
         to->LocalLookup(String::cast(raw_key), &result);
-        if (result.IsValid()) continue;
+        if (result.IsProperty()) continue;
         // Set the property.
         Handle<String> key = Handle<String>(String::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i));
