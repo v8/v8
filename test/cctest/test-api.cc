@@ -9630,10 +9630,7 @@ THREADED_TEST(SetterOnConstructorPrototype) {
              "  this.x = 23"
              "};"
              "C2.prototype = { };"
-             "C2.prototype.__proto__ = P;"
-             ""
-             ""
-             "");
+             "C2.prototype.__proto__ = P;");
 
   v8::Local<v8::Script> script;
   script = v8::Script::Compile(v8_str("new C1();"));
@@ -9682,10 +9679,7 @@ THREADED_TEST(InterceptorOnConstructorPrototype) {
              "  this.x = 23"
              "};"
              "C2.prototype = { };"
-             "C2.prototype.__proto__ = P;"
-             ""
-             ""
-             "");
+             "C2.prototype.__proto__ = P;");
 
   v8::Local<v8::Script> script;
   script = v8::Script::Compile(v8_str("new C1();"));

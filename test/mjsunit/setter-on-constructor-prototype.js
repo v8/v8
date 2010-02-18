@@ -108,4 +108,4 @@ function RunTest(ensure_fast_case) {
 }
 
 RunTest(false);
-//RunTest(true);
+RunTest(true);

@@ -4829,7 +4829,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
   // Check the basic conditions for generating inline constructor code.
   if (!FLAG_inline_new
       || !has_only_simple_this_property_assignments()
-      || !this_property_assignments_count() > 0) {
+      || this_property_assignments_count() == 0) {
     return false;
   }
 
@@ -4840,7 +4840,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
   }
 
   // Traverse the proposed prototype chain looking for setters for properties of
-  // the same names as are set by the inline constructor..
+  // the same names as are set by the inline constructor.
   for (Object* obj = prototype;
        obj != Heap::null_value();
        obj = obj->GetPrototype()) {
