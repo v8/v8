@@ -1049,6 +1049,20 @@ Object* StoreIC::Store(State state,
     return *value;
   }
 
+
+  // Use specialized code for setting the length of arrays.
+  if (receiver->IsJSArray()
+      && name->Equals(Heap::length_symbol())
+      && receiver->AllowsSetElementsLength()) {
+#ifdef DEBUG
+    if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
+#endif
+    Code* target = Builtins::builtin(Builtins::StoreIC_ArrayLength);
+    set_target(target);
+    StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
+    return receiver->SetProperty(*name, *value, NONE);
+  }
+
   // Lookup the property locally in the receiver.
   if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
     LookupResult lookup;
@@ -1341,6 +1355,17 @@ Object* StoreIC_Miss(Arguments args) {
   IC::State state = IC::StateFrom(ic.target(), args[0]);
   return ic.Store(state, args.at<Object>(0), args.at<String>(1),
                   args.at<Object>(2));
+}
+
+
+Object* StoreIC_ArrayLength(Arguments args) {
+  NoHandleAllocation nha;
+
+  ASSERT(args.length() == 2);
+  JSObject* receiver = JSObject::cast(args[0]);
+  Object* len = args[1];
+
+  return receiver->SetElementsLength(len);
 }
 
 

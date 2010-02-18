@@ -858,6 +858,53 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : receiver
+  //  -- r2    : name
+  //  -- lr    : return address
+  // -----------------------------------
+  //
+  // This accepts as a receiver anything JSObject::SetElementsLength accepts
+  // (currently anything except for external and pixel arrays which means
+  // anything with elements of FixedArray type.), but currently is restricted
+  // to JSArray.
+  // Value must be a number, but only smis are accepted as the most common case.
+
+  Label miss;
+
+  Register receiver = r1;
+  Register value = r0;
+  Register scratch = r3;
+
+  // Check that the receiver isn't a smi.
+  __ BranchOnSmi(receiver, &miss);
+
+  // Check that the object is a JS array.
+  __ CompareObjectType(receiver, scratch, scratch, JS_ARRAY_TYPE);
+  __ b(ne, &miss);
+
+  // Check that elements are FixedArray.
+  __ ldr(scratch, FieldMemOperand(receiver, JSArray::kElementsOffset));
+  __ CompareObjectType(scratch, scratch, scratch, FIXED_ARRAY_TYPE);
+  __ b(ne, &miss);
+
+  // Check that value is a smi.
+  __ BranchOnNotSmi(value, &miss);
+
+  // Prepare tail call to StoreIC_ArrayLength.
+  __ push(receiver);
+  __ push(value);
+
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_ArrayLength)), 2, 1);
+
+  __ bind(&miss);
+
+  GenerateMiss(masm);
+}
+
+
 #undef __
 
 

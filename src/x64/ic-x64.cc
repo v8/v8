@@ -1408,6 +1408,55 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 }
 
 
+void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : name
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  //
+  // This accepts as a receiver anything JSObject::SetElementsLength accepts
+  // (currently anything except for external and pixel arrays which means
+  // anything with elements of FixedArray type.), but currently is restricted
+  // to JSArray.
+  // Value must be a number, but only smis are accepted as the most common case.
+
+  Label miss;
+
+  Register receiver = rdx;
+  Register value = rax;
+  Register scratch = rbx;
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(receiver, &miss);
+
+  // Check that the object is a JS array.
+  __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
+  __ j(not_equal, &miss);
+
+  // Check that elements are FixedArray.
+  __ movq(scratch, FieldOperand(receiver, JSArray::kElementsOffset));
+  __ CmpObjectType(scratch, FIXED_ARRAY_TYPE, scratch);
+  __ j(not_equal, &miss);
+
+  // Check that value is a smi.
+  __ JumpIfNotSmi(value, &miss);
+
+  // Prepare tail call to StoreIC_ArrayLength.
+  __ pop(scratch);
+  __ push(receiver);
+  __ push(value);
+  __ push(scratch);  // return address
+
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_ArrayLength)), 2, 1);
+
+  __ bind(&miss);
+
+  GenerateMiss(masm);
+}
+
+
 #undef __
 
 

@@ -5304,7 +5304,7 @@ static Object* ArrayLengthRangeError() {
 
 Object* JSObject::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
-  ASSERT(!HasPixelElements() && !HasExternalArrayElements());
+  ASSERT(AllowsSetElementsLength());
 
   Object* smi_length = len->ToSmi();
   if (smi_length->IsSmi()) {
