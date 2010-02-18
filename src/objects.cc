@@ -2000,10 +2000,12 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   if (!result->IsLoaded()) {
     return SetLazyProperty(result, name, value, attributes);
   }
+  PropertyDetails details = PropertyDetails(attributes, NORMAL);
+
   // Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
-      return SetNormalizedProperty(result, value);
+      return SetNormalizedProperty(name, value, details);
     case FIELD:
       return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:

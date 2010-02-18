@@ -2926,12 +2926,14 @@ static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
   // correctly in the case where a property is a field and is reset with
   // new attributes.
   if (result.IsProperty() && attr != result.GetAttributes()) {
-    PropertyDetails details = PropertyDetails(attr, NORMAL);
     // New attributes - normalize to avoid writing to instance descriptor
-    js_object->NormalizeProperties(KEEP_INOBJECT_PROPERTIES, 0);
-    return js_object->SetNormalizedProperty(*name, *obj_value, details);
+    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    // Use IgnoreAttributes version since a readonly property may be
+    // overridden and SetProperty does not allow this.
+    return js_object->IgnoreAttributesAndSetLocalProperty(*name,
+                                                          *obj_value,
+                                                          attr);
   }
-
   return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
 }
 
