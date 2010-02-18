@@ -161,12 +161,6 @@ class Logger {
   // Enable the computation of a sliding window of states.
   static void EnableSlidingStateWindow();
 
-  // Write a raw string to the log to be used as a preamble.
-  // No check is made that the 'preamble' is actually at the beginning
-  // of the log. The preample is used to write code events saved in the
-  // snapshot.
-  static void Preamble(const char* content);
-
   // Emits an event with a string value -> (name, value).
   static void StringEvent(const char* name, const char* value);
 

@@ -370,15 +370,6 @@ void Logger::LogAliases() {
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
-void Logger::Preamble(const char* content) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (!Log::IsEnabled() || !FLAG_log_code) return;
-  LogMessageBuilder msg;
-  msg.WriteCStringToLogFile(content);
-#endif
-}
-
-
 void Logger::StringEvent(const char* name, const char* value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log) UncheckedStringEvent(name, value);
