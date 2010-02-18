@@ -4845,12 +4845,6 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
        obj != Heap::null_value();
        obj = obj->GetPrototype()) {
     JSObject* js_object = JSObject::cast(obj);
-    if (!js_object->HasFastProperties()) {
-      // Only allow fast case objects, as the map check in the inline
-      // constructor which check for changes to the prototype chain cannot
-      // handle dictionary case objects.
-      return false;
-    }
     for (int i = 0; i < this_property_assignments_count(); i++) {
       LookupResult result;
       String* name = GetThisPropertyAssignmentName(i);
