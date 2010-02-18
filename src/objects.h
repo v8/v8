@@ -1540,8 +1540,6 @@ class JSObject: public HeapObject {
 
   Object* GetElementWithInterceptor(JSObject* receiver, uint32_t index);
 
-  bool HasSetter();
-
  private:
   Object* SetElementWithInterceptor(uint32_t index, Object* value);
   Object* SetElementWithoutInterceptor(uint32_t index, Object* value);
@@ -3235,6 +3233,10 @@ class SharedFunctionInfo: public HeapObject {
 
   inline bool try_full_codegen();
   inline void set_try_full_codegen(bool flag);
+
+  // Check whether a inlined constructor can be generated with the given
+  // prototype.
+  bool CanGenerateInlineConstructor(Object* prototype);
 
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.

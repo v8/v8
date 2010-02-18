@@ -4810,10 +4810,11 @@ static Object* Runtime_NewClosure(Arguments args) {
 
 
 static Code* ComputeConstructStub(Handle<JSFunction> function) {
-  if (FLAG_inline_new
-      && function->shared()->has_only_simple_this_property_assignments()
-      && (!function->has_instance_prototype()
-          || !JSObject::cast(function->instance_prototype())->HasSetter())) {
+  Handle<Object> prototype = Factory::null_value();
+  if (function->has_instance_prototype()) {
+    prototype = Handle<Object>(function->instance_prototype());
+  }
+  if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
     ConstructStubCompiler compiler;
     Object* code = compiler.CompileConstructStub(function->shared());
     if (code->IsFailure()) {

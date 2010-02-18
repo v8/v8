@@ -4825,6 +4825,46 @@ int SharedFunctionInfo::CalculateInObjectProperties() {
 }
 
 
+bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
+  // Check the basic conditions for generating inline constructor code.
+  if (!FLAG_inline_new
+      || !has_only_simple_this_property_assignments()
+      || !this_property_assignments_count() > 0) {
+    return false;
+  }
+
+  // If the prototype is null inline constructors cause no problems.
+  if (!prototype->IsJSObject()) {
+    ASSERT(prototype->IsNull());
+    return true;
+  }
+
+  // Traverse the proposed prototype chain looking for setters for properties of
+  // the same names as are set by the inline constructor..
+  for (Object* obj = prototype;
+       obj != Heap::null_value();
+       obj = obj->GetPrototype()) {
+    JSObject* js_object = JSObject::cast(obj);
+    if (!js_object->HasFastProperties()) {
+      // Only allow fast case objects, as the map check in the inline
+      // constructor which check for changes to the prototype chain cannot
+      // handle dictionary case objects.
+      return false;
+    }
+    for (int i = 0; i < this_property_assignments_count(); i++) {
+      LookupResult result;
+      String* name = GetThisPropertyAssignmentName(i);
+      js_object->LocalLookupRealNamedProperty(name, &result);
+      if (result.IsValid() && result.type() == CALLBACKS) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+
 void SharedFunctionInfo::SetThisPropertyAssignmentsInfo(
     bool only_simple_this_property_assignments,
     FixedArray* assignments) {
@@ -4878,7 +4918,6 @@ Object* SharedFunctionInfo::GetThisPropertyAssignmentConstant(int index) {
       FixedArray::cast(this_property_assignments())->get(index * 3 + 2);
   return obj;
 }
-
 
 
 // Support function for printing the source code to a StringStream
@@ -7233,61 +7272,6 @@ Object* JSObject::PrepareElementsForSort(uint32_t limit) {
   result_double->set_value(static_cast<double>(result));
   return result_double;
 }
-
-
-static bool CallbacksObjectHasSetter(Object* callbacks) {
-  if (!callbacks->IsFixedArray()) {
-    ASSERT(callbacks->IsAccessorInfo() || callbacks->IsProxy());
-    return true;
-  } else {
-    Object* setter = (FixedArray::cast(callbacks))->get(kSetterIndex);
-    if (setter->IsJSFunction()) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
-bool JSObject::HasSetter() {
-  for (Object* obj = this;
-       obj != Heap::null_value();
-       obj = JSObject::cast(obj)->GetPrototype()) {
-    JSObject* js_object = JSObject::cast(obj);
-    if (js_object->HasFastProperties()) {
-      DescriptorArray* descs = js_object->map()->instance_descriptors();
-      for (int i = 0; i < descs->number_of_descriptors(); i++) {
-        PropertyDetails details = descs->GetDetails(i);
-        if (details.type() == CALLBACKS) {
-          Object* callbacks = descs->GetCallbacksObject(i);
-          if (CallbacksObjectHasSetter(callbacks)) {
-            return true;
-          }
-        }
-      }
-    } else {
-      StringDictionary* dict = js_object->property_dictionary();
-      int capacity = dict->Capacity();
-      for (int i = 0; i < capacity; i++) {
-        Object* k = dict->KeyAt(i);
-        if (dict->IsKey(k)) {
-          PropertyType type = dict->DetailsAt(i).type();
-          ASSERT(type != FIELD);
-          if (type == CALLBACKS) {
-            Object* callbacks = dict->ValueAt(i);
-            if (CallbacksObjectHasSetter(callbacks)) {
-              return true;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return false;
-}
-
 
 
 Object* PixelArray::SetValue(uint32_t index, Object* value) {

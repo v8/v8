@@ -9599,3 +9599,106 @@ THREADED_TEST(ScriptLineNumber) {
   CHECK_EQ(0, f->GetScriptLineNumber());
   CHECK_EQ(2, g->GetScriptLineNumber());
 }
+
+
+static v8::Handle<Value> GetterWhichReturns42(Local<String> name,
+                                              const AccessorInfo& info) {
+  return v8_num(42);
+}
+
+
+static void SetterWhichSetsYOnThisTo23(Local<String> name,
+                                       Local<Value> value,
+                                       const AccessorInfo& info) {
+  info.This()->Set(v8_str("y"), v8_num(23));
+}
+
+
+THREADED_TEST(SetterOnConstructorPrototype) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("x"),
+                     GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  LocalContext context;
+  context->Global()->Set(v8_str("P"), templ->NewInstance());
+  CompileRun("function C1() {"
+             "  this.x = 23;"
+             "};"
+             "C1.prototype = P;"
+             "function C2() {"
+             "  this.x = 23"
+             "};"
+             "C2.prototype = { };"
+             "C2.prototype.__proto__ = P;"
+             ""
+             ""
+             "");
+
+  v8::Local<v8::Script> script;
+  script = v8::Script::Compile(v8_str("new C1();"));
+  for (int i = 0; i < 10; i++) {
+    v8::Handle<v8::Object> c1 = v8::Handle<v8::Object>::Cast(script->Run());
+    CHECK_EQ(42, c1->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(23, c1->Get(v8_str("y"))->Int32Value());
+  }
+
+  script = v8::Script::Compile(v8_str("new C2();"));
+  for (int i = 0; i < 10; i++) {
+    v8::Handle<v8::Object> c2 = v8::Handle<v8::Object>::Cast(script->Run());
+    CHECK_EQ(42, c2->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(23, c2->Get(v8_str("y"))->Int32Value());
+  }
+}
+
+
+static v8::Handle<Value> NamedPropertyGetterWhichReturns42(
+    Local<String> name, const AccessorInfo& info) {
+  return v8_num(42);
+}
+
+
+static v8::Handle<Value> NamedPropertySetterWhichSetsYOnThisTo23(
+    Local<String> name, Local<Value> value, const AccessorInfo& info) {
+  if (name->Equals(v8_str("x"))) {
+    info.This()->Set(v8_str("y"), v8_num(23));
+  }
+  return v8::Handle<Value>();
+}
+
+
+THREADED_TEST(InterceptorOnConstructorPrototype) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(NamedPropertyGetterWhichReturns42,
+                                 NamedPropertySetterWhichSetsYOnThisTo23);
+  LocalContext context;
+  context->Global()->Set(v8_str("P"), templ->NewInstance());
+  CompileRun("function C1() {"
+             "  this.x = 23;"
+             "};"
+             "C1.prototype = P;"
+             "function C2() {"
+             "  this.x = 23"
+             "};"
+             "C2.prototype = { };"
+             "C2.prototype.__proto__ = P;"
+             ""
+             ""
+             "");
+
+  v8::Local<v8::Script> script;
+  script = v8::Script::Compile(v8_str("new C1();"));
+  for (int i = 0; i < 10; i++) {
+    v8::Handle<v8::Object> c1 = v8::Handle<v8::Object>::Cast(script->Run());
+    CHECK_EQ(23, c1->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(42, c1->Get(v8_str("y"))->Int32Value());
+  }
+
+  script = v8::Script::Compile(v8_str("new C2();"));
+  for (int i = 0; i < 10; i++) {
+    v8::Handle<v8::Object> c2 = v8::Handle<v8::Object>::Cast(script->Run());
+    CHECK_EQ(23, c2->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(42, c2->Get(v8_str("y"))->Int32Value());
+  }
+}
