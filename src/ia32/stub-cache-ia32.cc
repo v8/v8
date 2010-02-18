@@ -1877,21 +1877,19 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                 JSObject* holder,
                                                 int index) {
   // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_field, 1);
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadField(receiver, holder, ecx, ebx, edx, index, name, &miss);
+  GenerateLoadField(receiver, holder, edx, ebx, ecx, index, name, &miss);
 
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_field, 1);
@@ -1907,14 +1905,12 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
                                                    JSObject* holder,
                                                    AccessorInfo* callback) {
   // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_callback, 1);
 
   // Check that the name has not changed.
@@ -1922,7 +1918,7 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   __ j(not_equal, &miss, not_taken);
 
   Failure* failure = Failure::InternalError();
-  bool success = GenerateLoadCallback(receiver, holder, ecx, eax, ebx, edx,
+  bool success = GenerateLoadCallback(receiver, holder, edx, eax, ebx, ecx,
                                       callback, name, &miss, &failure);
   if (!success) return failure;
 
@@ -1940,21 +1936,19 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
                                                    JSObject* holder,
                                                    Object* value) {
   // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_constant_function, 1);
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadConstant(receiver, holder, ecx, ebx, edx,
+  GenerateLoadConstant(receiver, holder, edx, ebx, ecx,
                        value, name, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_constant_function, 1);
@@ -1969,14 +1963,12 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
                                                       JSObject* holder,
                                                       String* name) {
   // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_interceptor, 1);
 
   // Check that the name has not changed.
@@ -1988,9 +1980,9 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   GenerateLoadInterceptor(receiver,
                           holder,
                           &lookup,
-                          ecx,
-                          eax,
                           edx,
+                          eax,
+                          ecx,
                           ebx,
                           name,
                           &miss);
@@ -2007,21 +1999,19 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
 
 Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_array_length, 1);
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadArrayLength(masm(), ecx, edx, &miss);
+  GenerateLoadArrayLength(masm(), edx, ecx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_array_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -2033,21 +2023,19 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 
 Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_string_length, 1);
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadStringLength(masm(), ecx, edx, ebx, &miss);
+  GenerateLoadStringLength(masm(), edx, ecx, ebx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
@@ -2059,21 +2047,19 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 
 Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
-  __ mov(eax, Operand(esp, kPointerSize));
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));
   __ IncrementCounter(&Counters::keyed_load_function_prototype, 1);
 
   // Check that the name has not changed.
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadFunctionPrototype(masm(), ecx, edx, ebx, &miss);
+  GenerateLoadFunctionPrototype(masm(), edx, ecx, ebx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_function_prototype, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);

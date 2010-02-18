@@ -645,9 +645,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(eax, Operand(ebp, kIndexOffset));
   __ jmp(&entry);
   __ bind(&loop);
-  __ mov(ecx, Operand(ebp, 2 * kPointerSize));  // load arguments
-  __ push(ecx);
-  __ push(eax);
+  __ mov(edx, Operand(ebp, 2 * kPointerSize));  // load arguments
 
   // Use inline caching to speed up access to arguments.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -657,8 +655,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // we have generated an inline version of the keyed load.  In this
   // case, we know that we are not generating a test instruction next.
 
-  // Remove IC arguments from the stack and push the nth argument.
-  __ add(Operand(esp), Immediate(2 * kPointerSize));
+  // Push the nth argument.
   __ push(eax);
 
   // Update the index on the stack and in register eax.

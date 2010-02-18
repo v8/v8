@@ -845,7 +845,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
     // Load the object.
     MemOperand object_loc = EmitSlotSearch(object_slot, eax);
-    __ push(object_loc);
+    __ mov(edx, object_loc);
 
     // Assert that the key is a smi.
     Literal* key_literal = property->key()->AsLiteral();
@@ -853,7 +853,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     ASSERT(key_literal->handle()->IsSmi());
 
     // Load the key.
-    __ push(Immediate(key_literal->handle()));
+    __ mov(eax, Immediate(key_literal->handle()));
 
     // Do a keyed property load.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -862,7 +862,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     // call. It is treated specially by the LoadIC code.
     __ nop();
     // Drop key and object left on the stack by IC.
-    DropAndApply(2, context, eax);
+    Apply(context, eax);
   }
 }
 
@@ -1189,10 +1189,10 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     Apply(context_, eax);
   } else {
     VisitForValue(expr->obj(), kStack);
-    VisitForValue(expr->key(), kStack);
+    VisitForValue(expr->key(), kAccumulator);
+    __ pop(edx);
     EmitKeyedPropertyLoad(expr);
-    // Drop key and receiver left on the stack by IC.
-    DropAndApply(2, context_, eax);
+    Apply(context_, eax);
   }
 }
 
@@ -1263,25 +1263,31 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Call to a keyed property, use keyed load IC followed by function
       // call.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
       // Record source code position for IC call.
       SetSourcePosition(prop->position());
+      if (prop->is_synthetic()) {
+        __ pop(edx);  // We do not need to keep the receiver.
+      } else {
+        __ mov(edx, Operand(esp, 0));  // Keep receiver, to call function on.
+      }
+
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       __ call(ic, RelocInfo::CODE_TARGET);
       // By emitting a nop we make sure that we do not have a "test eax,..."
       // instruction after the call it is treated specially by the LoadIC code.
       __ nop();
-      // Drop key left on the stack by IC.
-      __ Drop(1);
-      // Pop receiver.
-      __ pop(ebx);
-      // Push result (function).
-      __ push(eax);
-      // Push receiver object on stack.
       if (prop->is_synthetic()) {
+        // Push result (function).
+        __ push(eax);
+        // Push Global receiver.
         __ mov(ecx, CodeGenerator::GlobalObject());
         __ push(FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
       } else {
+        // Pop receiver.
+        __ pop(ebx);
+        // Push result (function).
+        __ push(eax);
         __ push(ebx);
       }
       EmitCallWithStub(expr);
@@ -1570,7 +1576,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       EmitNamedPropertyLoad(prop);
     } else {
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
+      __ mov(edx, Operand(esp, 0));
+      __ push(eax);
       EmitKeyedPropertyLoad(prop);
     }
   }

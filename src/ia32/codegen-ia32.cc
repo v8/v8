@@ -5021,9 +5021,9 @@ void CodeGenerator::VisitCall(Call* node) {
         LoadGlobalReceiver();
       } else {
         Load(property->obj());
+        frame_->Dup();
         Load(property->key());
         Result function = EmitKeyedLoad(false);
-        frame_->Drop();  // Key.
         Result receiver = frame_->Pop();
         frame_->Push(&function);
         frame_->Push(&receiver);
@@ -6474,9 +6474,25 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
 
 
 void DeferredReferenceGetKeyedValue::Generate() {
-  __ push(receiver_);  // First IC argument.
-  __ push(key_);       // Second IC argument.
-
+  if (!receiver_.is(eax)) {
+    // Register eax is available for key.
+    if (!key_.is(eax)) {
+      __ mov(eax, key_);
+    }
+    if (!receiver_.is(edx)) {
+      __ mov(edx, receiver_);
+    }
+  } else if (!key_.is(edx)) {
+    // Register edx is available for receiver.
+    if (!receiver_.is(edx)) {
+      __ mov(edx, receiver_);
+    }
+    if (!key_.is(eax)) {
+      __ mov(eax, key_);
+    }
+  } else {
+    __ xchg(edx, eax);
+  }
   // Calculate the delta from the IC call instruction to the map check
   // cmp instruction in the inlined version.  This delta is stored in
   // a test(eax, delta) instruction after the call so that we can find
@@ -6500,8 +6516,6 @@ void DeferredReferenceGetKeyedValue::Generate() {
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
 
   if (!dst_.is(eax)) __ mov(dst_, eax);
-  __ pop(key_);
-  __ pop(receiver_);
 }
 
 
@@ -6639,10 +6653,6 @@ Result CodeGenerator::EmitKeyedLoad(bool is_global) {
     __ IncrementCounter(&Counters::keyed_load_inline, 1);
 
     deferred->BindExit();
-    // Restore the receiver and key to the frame and push the
-    // result on top of it.
-    frame_->Push(&receiver);
-    frame_->Push(&key);
     return value;
   } else {
     Comment cmnt(masm_, "[ Load from keyed Property");
@@ -6781,13 +6791,17 @@ void Reference::GetValue() {
     }
 
     case KEYED: {
+      if (persist_after_get_) {
+        cgen_->frame()->PushElementAt(1);
+        cgen_->frame()->PushElementAt(1);
+      }
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
       Result value = cgen_->EmitKeyedLoad(is_global);
       cgen_->frame()->Push(&value);
       if (!persist_after_get_) {
-        cgen_->UnloadReference(this);
+        set_unloaded();
       }
       break;
     }

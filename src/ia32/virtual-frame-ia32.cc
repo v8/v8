@@ -924,10 +924,26 @@ Result VirtualFrame::CallLoadIC(RelocInfo::Mode mode) {
 
 
 Result VirtualFrame::CallKeyedLoadIC(RelocInfo::Mode mode) {
-  // Key and receiver are on top of the frame.  The IC expects them on
-  // the stack.  It does not drop them.
+  // Key and receiver are on top of the frame. Put them in eax and edx.
+  Result key = Pop();
+  Result receiver = Pop();
+  PrepareForCall(0, 0);
+
+  if (!key.is_register() || !key.reg().is(edx)) {
+    // Register edx is available for receiver.
+    receiver.ToRegister(edx);
+    key.ToRegister(eax);
+  } else if (!receiver.is_register() || !receiver.reg().is(eax)) {
+    // Register eax is available for key.
+    key.ToRegister(eax);
+    receiver.ToRegister(edx);
+  } else {
+    __ xchg(edx, eax);
+  }
+  key.Unuse();
+  receiver.Unuse();
+
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  PrepareForCall(2, 0);  // Two stack args, neither callee-dropped.
   return RawCallCodeObject(ic, mode);
 }
 
