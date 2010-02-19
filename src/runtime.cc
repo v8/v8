@@ -596,8 +596,9 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
 
   if (result.type() == CALLBACKS) {
     Object* structure = result.GetCallbackObject();
-    if (structure->IsProxy()) {
-      // Property that is internally implemented as a callback.
+    if (structure->IsProxy() || structure->IsAccessorInfo()) {
+      // Property that is internally implemented as a callback or
+      // an API defined callback.
       Object* value = obj->GetPropertyWithCallback(
           obj, structure, name, result.holder());
       elms->set(0, Heap::false_value());
@@ -609,7 +610,6 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
       elms->set(1, FixedArray::cast(structure)->get(0));
       elms->set(2, FixedArray::cast(structure)->get(1));
     } else {
-      // TODO(ricow): Handle API callbacks.
       return Heap::undefined_value();
     }
   } else {
@@ -619,7 +619,7 @@ static Object* Runtime_GetOwnProperty(Arguments args) {
   }
 
   elms->set(3, Heap::ToBoolean(!result.IsDontEnum()));
-  elms->set(4, Heap::ToBoolean(!result.IsReadOnly()));
+  elms->set(4, Heap::ToBoolean(!result.IsDontDelete()));
   return *desc;
 }
 
@@ -1203,17 +1203,6 @@ static Object* Runtime_OptimizeObjectForAddingMultipleProperties(
   CONVERT_SMI_CHECKED(properties, args[1]);
   if (object->HasFastProperties()) {
     NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, properties);
-  }
-  return *object;
-}
-
-
-static Object* Runtime_TransformToFastProperties(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  if (!object->HasFastProperties() && !object->IsGlobalObject()) {
-    TransformToFastProperties(object, 0);
   }
   return *object;
 }
@@ -2888,6 +2877,67 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
 }
 
 
+static Object* Runtime_DefineOrRedefineAccessorProperty(Arguments args) {
+  ASSERT(args.length() == 5);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSObject, obj, 0);
+  CONVERT_CHECKED(String, name, args[1]);
+  CONVERT_CHECKED(Smi, flag_setter, args[2]);
+  CONVERT_CHECKED(JSFunction, fun, args[3]);
+  CONVERT_CHECKED(Smi, flag_attr, args[4]);
+  int unchecked = flag_attr->value();
+  RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+  RUNTIME_ASSERT(!obj->IsNull());
+  LookupResult result;
+  obj->LocalLookupRealNamedProperty(name, &result);
+
+  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+  // If an existing property is either FIELD, NORMAL or CONSTANT_FUNCTION
+  // delete it to avoid running into trouble in DefineAccessor, which
+  // handles this incorrectly if the property is readonly (does nothing)
+  if (result.IsProperty() &&
+      (result.type() == FIELD || result.type() == NORMAL
+       || result.type() == CONSTANT_FUNCTION)) {
+    obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+  }
+  return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
+}
+
+static Object* Runtime_DefineOrRedefineDataProperty(Arguments args) {
+  ASSERT(args.length() == 4);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSObject, js_object, 0);
+  CONVERT_ARG_CHECKED(String, name, 1);
+  Handle<Object> obj_value = args.at<Object>(2);
+
+  CONVERT_CHECKED(Smi, flag, args[3]);
+  int unchecked = flag->value();
+  RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+
+  LookupResult result;
+  js_object->LocalLookupRealNamedProperty(*name, &result);
+
+  PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+
+  // Take special care when attributes are different and there is already
+  // a property. For simplicity we normalize the property which enables us
+  // to not worry about changing the instance_descriptor and creating a new
+  // map. The current version of SetObjectProperty does not handle attributes
+  // correctly in the case where a property is a field and is reset with
+  // new attributes.
+  if (result.IsProperty() && attr != result.GetAttributes()) {
+    // New attributes - normalize to avoid writing to instance descriptor
+    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES, 0);
+    // Use IgnoreAttributes version since a readonly property may be
+    // overridden and SetProperty does not allow this.
+    return js_object->IgnoreAttributesAndSetLocalProperty(*name,
+                                                          *obj_value,
+                                                          attr);
+  }
+  return Runtime::SetObjectProperty(js_object, name, obj_value, attr);
+}
+
+
 Object* Runtime::SetObjectProperty(Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> value,
@@ -3461,17 +3511,23 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
 
 
 static Object* Runtime_ToFastProperties(Arguments args) {
+  HandleScope scope;
+
   ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
     Handle<JSObject> js_object = Handle<JSObject>::cast(object);
-    js_object->TransformToFastProperties(0);
+    if (!js_object->HasFastProperties() && !js_object->IsGlobalObject()) {
+      js_object->TransformToFastProperties(0);
+    }
   }
   return *object;
 }
 
 
 static Object* Runtime_ToSlowProperties(Arguments args) {
+  HandleScope scope;
+
   ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
   if (object->IsJSObject()) {
@@ -4709,41 +4765,6 @@ static Object* Runtime_Math_tan(Arguments args) {
 }
 
 
-// The NewArguments function is only used when constructing the
-// arguments array when calling non-functions from JavaScript in
-// runtime.js:CALL_NON_FUNCTION.
-static Object* Runtime_NewArguments(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
-  // ECMA-262, 3rd., 10.1.8, p.39
-  CONVERT_CHECKED(JSFunction, callee, args[0]);
-
-  // Compute the frame holding the arguments.
-  JavaScriptFrameIterator it;
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
-
-  const int length = frame->GetProvidedParametersCount();
-  Object* result = Heap::AllocateArgumentsObject(callee, length);
-  if (result->IsFailure()) return result;
-  if (length > 0) {
-    Object* obj =  Heap::AllocateFixedArray(length);
-    if (obj->IsFailure()) return obj;
-    FixedArray* array = FixedArray::cast(obj);
-    ASSERT(array->length() == length);
-
-    AssertNoAllocation no_gc;
-    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < length; i++) {
-      array->set(i, frame->GetParameter(i), mode);
-    }
-    JSObject::cast(result)->set_elements(array);
-  }
-  return result;
-}
-
-
 static Object* Runtime_NewArgumentsFast(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
@@ -4790,21 +4811,21 @@ static Object* Runtime_NewClosure(Arguments args) {
 }
 
 
-static Code* ComputeConstructStub(Handle<SharedFunctionInfo> shared) {
-  // TODO(385): Change this to create a construct stub specialized for
-  // the given map to make allocation of simple objects - and maybe
-  // arrays - much faster.
-  if (FLAG_inline_new
-      && shared->has_only_simple_this_property_assignments()) {
+static Code* ComputeConstructStub(Handle<JSFunction> function) {
+  Handle<Object> prototype = Factory::null_value();
+  if (function->has_instance_prototype()) {
+    prototype = Handle<Object>(function->instance_prototype());
+  }
+  if (function->shared()->CanGenerateInlineConstructor(*prototype)) {
     ConstructStubCompiler compiler;
-    Object* code = compiler.CompileConstructStub(*shared);
+    Object* code = compiler.CompileConstructStub(function->shared());
     if (code->IsFailure()) {
       return Builtins::builtin(Builtins::JSConstructStubGeneric);
     }
     return Code::cast(code);
   }
 
-  return shared->construct_stub();
+  return function->shared()->construct_stub();
 }
 
 
@@ -4854,10 +4875,9 @@ static Object* Runtime_NewObject(Arguments args) {
   bool first_allocation = !function->has_initial_map();
   Handle<JSObject> result = Factory::NewJSObject(function);
   if (first_allocation) {
-    Handle<Map> map = Handle<Map>(function->initial_map());
     Handle<Code> stub = Handle<Code>(
-        ComputeConstructStub(Handle<SharedFunctionInfo>(function->shared())));
-    function->shared()->set_construct_stub(*stub);
+        ComputeConstructStub(Handle<JSFunction>(function)));
+    shared->set_construct_stub(*stub);
   }
 
   Counters::constructed_objects.Increment();
@@ -4893,28 +4913,6 @@ static Object* Runtime_LazyCompile(Arguments args) {
   }
 
   return function->code();
-}
-
-
-static Object* Runtime_GetCalledFunction(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 0);
-  StackFrameIterator it;
-  // Get past the JS-to-C exit frame.
-  ASSERT(it.frame()->is_exit());
-  it.Advance();
-  // Get past the CALL_NON_FUNCTION activation frame.
-  ASSERT(it.frame()->is_java_script());
-  it.Advance();
-  // Argument adaptor frames do not copy the function; we have to skip
-  // past them to get to the real calling frame.
-  if (it.frame()->is_arguments_adaptor()) it.Advance();
-  // Get the function from the top of the expression stack of the
-  // calling frame.
-  StandardFrame* frame = StandardFrame::cast(it.frame());
-  int index = frame->ComputeExpressionsCount() - 1;
-  Object* result = frame->GetExpression(index);
-  return result;
 }
 
 
@@ -7922,20 +7920,22 @@ static Object* Runtime_FunctionGetInferredName(Arguments args) {
 
 static Object* Runtime_ProfilerResume(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
 
   CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  v8::V8::ResumeProfilerEx(smi_modules->value());
+  CONVERT_CHECKED(Smi, smi_tag, args[1]);
+  v8::V8::ResumeProfilerEx(smi_modules->value(), smi_tag->value());
   return Heap::undefined_value();
 }
 
 
 static Object* Runtime_ProfilerPause(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
 
   CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  v8::V8::PauseProfilerEx(smi_modules->value());
+  CONVERT_CHECKED(Smi, smi_tag, args[1]);
+  v8::V8::PauseProfilerEx(smi_modules->value(), smi_tag->value());
   return Heap::undefined_value();
 }
 
