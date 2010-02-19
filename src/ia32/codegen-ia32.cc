@@ -689,6 +689,9 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is a variable proxy that does not rewrite to a
     // property.  Global variables are treated as named property references.
     if (var->is_global()) {
+      // Named loads require object in eax.  Named stores don't use references.
+      // Spilling eax makes it free, so LoadGlobal loads directly into eax.
+      frame_->Spill(eax);
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
