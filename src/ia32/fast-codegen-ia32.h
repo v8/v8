@@ -25,17 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_FAST_CODEGEN_H_
-#define V8_FAST_CODEGEN_H_
-
-#if V8_TARGET_ARCH_IA32
-#include "ia32/fast-codegen-ia32.h"
-#else
-
-#include "v8.h"
-
-#include "ast.h"
-#include "compiler.h"
+#ifndef V8_FAST_CODEGEN_IA32_H_
+#define V8_FAST_CODEGEN_IA32_H_
 
 namespace v8 {
 namespace internal {
@@ -156,6 +147,4 @@ class FastCodeGenerator: public AstVisitor {
 
 } }  // namespace v8::internal
 
-#endif  // V8_TARGET_ARCH_IA32
-
-#endif  // V8_FAST_CODEGEN_H_
+#endif  // V8_FAST_CODEGEN_IA32_H_
