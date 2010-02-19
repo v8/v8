@@ -277,7 +277,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
 
@@ -316,7 +316,7 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
     // rsi: callee's context
     allocator_->Initialize();
 
-    if (mode == PRIMARY) {
+    if (info->mode() == CompilationInfo::PRIMARY) {
       frame_->Enter();
 
       // Allocate space for locals and initialize them.
@@ -407,6 +407,12 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
       // frame to match this state.
       frame_->Adjust(3);
       allocator_->Unuse(rdi);
+
+      // Bind all the bailout labels to the beginning of the function.
+      List<CompilationInfo::Bailout*>* bailouts = info->bailouts();
+      for (int i = 0; i < bailouts->length(); i++) {
+        __ bind(bailouts->at(i)->label());
+      }
     }
 
     // Initialize the function return target after the locals are set

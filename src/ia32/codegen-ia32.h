@@ -294,15 +294,6 @@ enum ArgumentsAllocationMode {
 
 class CodeGenerator: public AstVisitor {
  public:
-  // Compilation mode.  Either the compiler is used as the primary
-  // compiler and needs to setup everything or the compiler is used as
-  // the secondary compiler for split compilation and has to handle
-  // bailouts.
-  enum Mode {
-    PRIMARY,
-    SECONDARY
-  };
-
   // Takes a function literal, generates code for it. This function should only
   // be called by compiler.cc.
   static Handle<Code> MakeCode(CompilationInfo* info);
@@ -384,7 +375,7 @@ class CodeGenerator: public AstVisitor {
   void VisitStatementsAndSpill(ZoneList<Statement*>* statements);
 
   // Main code generation function
-  void Generate(CompilationInfo* info, Mode mode);
+  void Generate(CompilationInfo* info);
 
   // Generate the return sequence code.  Should be called no more than
   // once per compiled function, immediately after binding the return

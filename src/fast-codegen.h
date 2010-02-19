@@ -36,6 +36,7 @@
 
 #include "ast.h"
 #include "compiler.h"
+#include "list.h"
 
 namespace v8 {
 namespace internal {
@@ -80,7 +81,6 @@ class FastCodeGenerator: public AstVisitor {
  private:
   MacroAssembler* masm() { return masm_; }
   CompilationInfo* info() { return info_; }
-  Label* bailout() { return &bailout_; }
 
   Register destination() { return destination_; }
   void set_destination(Register reg) { destination_ = reg; }
@@ -146,7 +146,6 @@ class FastCodeGenerator: public AstVisitor {
 
   MacroAssembler* masm_;
   CompilationInfo* info_;
-  Label bailout_;
   Register destination_;
   uint32_t smi_bits_;
 

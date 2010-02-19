@@ -456,7 +456,8 @@ Handle<Code> FastCodeGenerator::MakeCode(CompilationInfo* info) {
   // macro assembler.
   CodeGenerator cgen(&masm);
   CodeGeneratorScope scope(&cgen);
-  cgen.Generate(info, CodeGenerator::SECONDARY);
+  info->set_mode(CompilationInfo::SECONDARY);
+  cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
@@ -587,20 +588,27 @@ void FastCodeGenerator::EmitBitOr() {
       // commutative.
       __ or_(destination(), Operand(other_accumulator(destination())));
     }
-  } else if (destination().is(no_reg)) {
-    // Result is not needed but do not clobber the operands in case of
-    // bailout.
-    __ mov(scratch0(), accumulator1());
-    __ or_(scratch0(), Operand(accumulator0()));
-    __ test(scratch0(), Immediate(kSmiTagMask));
-    __ j(not_zero, bailout(), not_taken);
   } else {
-    // Preserve the destination operand in a scratch register in case of
-    // bailout.
-    __ mov(scratch0(), destination());
-    __ or_(destination(), Operand(other_accumulator(destination())));
-    __ test(destination(), Immediate(kSmiTagMask));
-    __ j(not_zero, bailout(), not_taken);
+    // Left is in accumulator1, right in accumulator0.
+    Label* bailout = NULL;
+    if (destination().is(accumulator0())) {
+      __ mov(scratch0(), accumulator0());
+      __ or_(destination(), Operand(accumulator1()));  // Or is commutative.
+      __ test(destination(), Immediate(kSmiTagMask));
+      bailout = info()->AddBailout(accumulator1(), scratch0());  // Left, right.
+    } else if (destination().is(accumulator1())) {
+      __ mov(scratch0(), accumulator1());
+      __ or_(destination(), Operand(accumulator0()));
+      __ test(destination(), Immediate(kSmiTagMask));
+      bailout = info()->AddBailout(scratch0(), accumulator0());
+    } else {
+      ASSERT(destination().is(no_reg));
+      __ mov(scratch0(), accumulator1());
+      __ or_(scratch0(), Operand(accumulator0()));
+      __ test(scratch0(), Immediate(kSmiTagMask));
+      bailout = info()->AddBailout(accumulator1(), accumulator0());
+    }
+    __ j(not_zero, bailout, not_taken);
   }
 
   // If we didn't bailout, the result (in fact, both inputs too) is known to
@@ -623,6 +631,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   // Note that we keep a live register reference to esi (context) at this
   // point.
 
+  Label* bailout_to_beginning = info()->AddBailout();
   // Receiver (this) is allocated to a fixed register.
   if (info()->has_this_properties()) {
     Comment cmnt(masm(), ";; MapCheck(this)");
@@ -633,7 +642,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
     Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
     Handle<Map> map(object->map());
     EmitLoadReceiver();
-    __ CheckMap(receiver_reg(), map, bailout(), false);
+    __ CheckMap(receiver_reg(), map, bailout_to_beginning, false);
   }
 
   // If there is a global variable access check if the global object is the
@@ -646,7 +655,7 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
     ASSERT(info()->has_global_object());
     Handle<Map> map(info()->global_object()->map());
     __ mov(scratch0(), CodeGenerator::GlobalObject());
-    __ CheckMap(scratch0(), map, bailout(), true);
+    __ CheckMap(scratch0(), map, bailout_to_beginning, true);
   }
 
   VisitStatements(function()->body());
@@ -659,8 +668,6 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   __ mov(esp, ebp);
   __ pop(ebp);
   __ ret((scope()->num_parameters() + 1) * kPointerSize);
-
-  __ bind(&bailout_);
 }
 
 

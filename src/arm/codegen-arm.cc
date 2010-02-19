@@ -142,7 +142,7 @@ Scope* CodeGenerator::scope() { return info_->function()->scope(); }
 // r1: called JS function
 // cp: callee's context
 
-void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
 
@@ -174,7 +174,7 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
     }
 #endif
 
-    if (mode == PRIMARY) {
+    if (info->mode() == CompilationInfo::PRIMARY) {
       frame_->Enter();
       // tos: code slot
 
@@ -277,6 +277,12 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
       frame_->Adjust(4);
       allocator_->Unuse(r1);
       allocator_->Unuse(lr);
+
+      // Bind all the bailout labels to the beginning of the function.
+      List<CompilationInfo::Bailout*>* bailouts = info->bailouts();
+      for (int i = 0; i < bailouts->length(); i++) {
+        __ bind(bailouts->at(i)->label());
+      }
     }
 
     // Initialize the function return target after the locals are set

@@ -248,7 +248,7 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
   CodeGenerator cgen(&masm);
   CodeGeneratorScope scope(&cgen);
   live_edit_tracker.RecordFunctionScope(info->function()->scope());
-  cgen.Generate(info, PRIMARY);
+  cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
