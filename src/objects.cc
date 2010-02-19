@@ -261,6 +261,7 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(
                                                   name,
                                                   attributes);
         }
+        break;
       }
       default:
         UNREACHABLE();

@@ -2960,8 +2960,6 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
   // Check if the given key is an array index.
   uint32_t index;
   if (Array::IndexFromObject(*key, &index)) {
-    ASSERT(attr == NONE);
-
     // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
     // of a string using [] notation.  We need to support this too in
     // JavaScript.
@@ -2981,7 +2979,6 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
   if (key->IsString()) {
     Handle<Object> result;
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      ASSERT(attr == NONE);
       result = SetElement(js_object, index, value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
@@ -2999,7 +2996,6 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    ASSERT(attr == NONE);
     return js_object->SetElement(index, *value);
   } else {
     return js_object->SetProperty(*name, *value, attr);
@@ -3016,8 +3012,6 @@ Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
   // Check if the given key is an array index.
   uint32_t index;
   if (Array::IndexFromObject(*key, &index)) {
-    ASSERT(attr == NONE);
-
     // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
     // of a string using [] notation.  We need to support this too in
     // JavaScript.
@@ -3034,7 +3028,6 @@ Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
 
   if (key->IsString()) {
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      ASSERT(attr == NONE);
       return js_object->SetElement(index, *value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
@@ -3052,7 +3045,6 @@ Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    ASSERT(attr == NONE);
     return js_object->SetElement(index, *value);
   } else {
     return js_object->IgnoreAttributesAndSetLocalProperty(*name, *value, attr);
