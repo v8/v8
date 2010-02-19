@@ -250,7 +250,7 @@ class FrameElement BASE_EMBEDDED {
   class CopiedField: public BitField<bool, 3, 1> {};
   class SyncedField: public BitField<bool, 4, 1> {};
   class NumberInfoField: public BitField<NumberInfo::Type, 5, 3> {};
-  class DataField: public BitField<uint32_t, 8, 32 - 9> {};
+  class DataField: public BitField<uint32_t, 8, 32 - 8> {};
 
   friend class VirtualFrame;
 };
