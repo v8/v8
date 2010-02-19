@@ -1175,6 +1175,25 @@ void VirtualFrame::EmitPush(Immediate immediate, NumberInfo::Type info) {
 }
 
 
+void VirtualFrame::Push(Expression* expr) {
+  ASSERT(expr->IsTrivial());
+
+  Literal* lit = expr->AsLiteral();
+  if (lit != NULL) {
+    Push(lit->handle());
+    return;
+  }
+
+  VariableProxy* proxy = expr->AsVariableProxy();
+  if (proxy != NULL && proxy->is_this()) {
+    PushParameterAt(-1);
+    return;
+  }
+
+  UNREACHABLE();
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

@@ -4762,8 +4762,9 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   Property* prop = node->target()->AsProperty();
   ASSERT(var == NULL || (prop == NULL && var->is_global()));
 
-  // Initialize name and evaluate the receiver subexpression.
+  // Initialize name and evaluate the receiver subexpression if necessary.
   Handle<String> name;
+  bool is_trivial_receiver = false;
   if (var != NULL) {
     name = var->name();
     LoadGlobal();
@@ -4771,17 +4772,23 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     Literal* lit = prop->key()->AsLiteral();
     ASSERT(lit != NULL);
     name = Handle<String>::cast(lit->handle());
-    Load(prop->obj());
+    // Do not materialize the receiver on the frame if it is trivial.
+    is_trivial_receiver = prop->obj()->IsTrivial();
+    if (!is_trivial_receiver) Load(prop->obj());
   }
 
   if (node->starts_initialization_block()) {
     // Change to slow case in the beginning of an initialization block to
     // avoid the quadratic behavior of repeatedly adding fast properties.
-    frame()->Dup();
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      frame()->Dup();
+    }
     Result ignored = frame()->CallRuntime(Runtime::kToSlowProperties, 1);
   }
 
-  if (node->ends_initialization_block()) {
+  if (node->ends_initialization_block() && !is_trivial_receiver) {
     // Add an extra copy of the receiver to the frame, so that it can be
     // converted back to fast case after the assignment.
     frame()->Dup();
@@ -4789,7 +4796,11 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
 
   // Evaluate the right-hand side.
   if (node->is_compound()) {
-    frame()->Dup();
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      frame()->Dup();
+    }
     Result value = EmitNamedLoad(name, var != NULL);
     frame()->Push(&value);
     Load(node->value());
@@ -4807,18 +4818,27 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   // Perform the assignment.  It is safe to ignore constants here.
   ASSERT(var == NULL || var->mode() != Variable::CONST);
   ASSERT(node->op() != Token::INIT_CONST);
+  if (is_trivial_receiver) {
+    Result value = frame()->Pop();
+    frame()->Push(prop->obj());
+    frame()->Push(&value);
+  }
   CodeForSourcePosition(node->position());
   Result answer = EmitNamedStore(name);
   frame()->Push(&answer);
 
   if (node->ends_initialization_block()) {
-    // The argument to the runtime call is the extra copy of the receiver,
-    // which is below the value of the assignment.  Swap the receiver and
-    // the value of the assignment expression.
-    Result result = frame()->Pop();
-    Result receiver = frame()->Pop();
-    frame()->Push(&result);
-    frame()->Push(&receiver);
+    // The argument to the runtime call is the receiver.
+    if (is_trivial_receiver) {
+      frame()->Push(prop->obj());
+    } else {
+      // A copy of the receiver is below the value of the assignment.  Swap
+      // the receiver and the value of the assignment expression.
+      Result result = frame()->Pop();
+      Result receiver = frame()->Pop();
+      frame()->Push(&result);
+      frame()->Push(&receiver);
+    }
     Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
   }
 
