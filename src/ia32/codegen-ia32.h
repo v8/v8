@@ -438,8 +438,9 @@ class CodeGenerator: public AstVisitor {
   // Receiver is passed on the frame and consumed.
   Result EmitNamedLoad(Handle<String> name, bool is_contextual);
 
-  // Reciever and value are passed on the frame and consumed.
-  Result EmitNamedStore(Handle<String> name);
+  // If the store is contextual, value is passed on the frame and consumed.
+  // Otherwise, receiver and value are passed on the frame and consumed.
+  Result EmitNamedStore(Handle<String> name, bool is_contextual);
 
   // Receiver and key are passed on the frame and consumed.
   Result EmitKeyedLoad();

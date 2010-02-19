@@ -695,8 +695,10 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is a variable proxy that does not rewrite to a
     // property.  Global variables are treated as named property references.
     if (var->is_global()) {
-      // Named loads require object in eax.  Named stores don't use references.
-      // Spilling eax makes it free, so LoadGlobal loads directly into eax.
+      // If eax is free, the register allocator prefers it.  Thus the code
+      // generator will load the global object into eax, which is where
+      // LoadIC wants it.  Most uses of Reference call LoadIC directly
+      // after the reference is created.
       frame_->Spill(eax);
       LoadGlobal();
       ref->set_type(Reference::NAMED);
@@ -4316,6 +4318,10 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
+  // The register allocator prefers eax if it is free, so the code generator
+  // will load the global object directly into eax, which is where the LoadIC
+  // expects it.
+  frame_->Spill(eax);
   LoadGlobal();
   frame_->Push(slot->var()->name());
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
@@ -4601,8 +4607,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           // Duplicate the object as the IC receiver.
           frame_->Dup();
           Load(property->value());
-          frame_->Push(key);
-          Result ignored = frame_->CallStoreIC();
+          Result dummy = frame_->CallStoreIC(Handle<String>::cast(key), false);
+          dummy.Unuse();
           break;
         }
         // Fall through
@@ -4776,10 +4782,9 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   bool is_trivial_receiver = false;
   if (var != NULL) {
     name = var->name();
-    LoadGlobal();
   } else {
     Literal* lit = prop->key()->AsLiteral();
-    ASSERT(lit != NULL);
+    ASSERT_NOT_NULL(lit);
     name = Handle<String>::cast(lit->handle());
     // Do not materialize the receiver on the frame if it is trivial.
     is_trivial_receiver = prop->obj()->IsTrivial();
@@ -4787,6 +4792,7 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   }
 
   if (node->starts_initialization_block()) {
+    ASSERT_EQ(NULL, var);
     // Change to slow case in the beginning of an initialization block to
     // avoid the quadratic behavior of repeatedly adding fast properties.
     if (is_trivial_receiver) {
@@ -4807,6 +4813,11 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
   if (node->is_compound()) {
     if (is_trivial_receiver) {
       frame()->Push(prop->obj());
+    } else if (var != NULL) {
+      // The LoadIC stub expects the object in eax.
+      // Freeing eax causes the code generator to load the global into it.
+      frame_->Spill(eax);
+      LoadGlobal();
     } else {
       frame()->Dup();
     }
@@ -4826,17 +4837,19 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
 
   // Perform the assignment.  It is safe to ignore constants here.
   ASSERT(var == NULL || var->mode() != Variable::CONST);
-  ASSERT(node->op() != Token::INIT_CONST);
+  ASSERT_NE(Token::INIT_CONST, node->op());
   if (is_trivial_receiver) {
     Result value = frame()->Pop();
     frame()->Push(prop->obj());
     frame()->Push(&value);
   }
   CodeForSourcePosition(node->position());
-  Result answer = EmitNamedStore(name);
+  bool is_contextual = (var != NULL);
+  Result answer = EmitNamedStore(name, is_contextual);
   frame()->Push(&answer);
 
   if (node->ends_initialization_block()) {
+    ASSERT_EQ(NULL, var);
     // The argument to the runtime call is the receiver.
     if (is_trivial_receiver) {
       frame()->Push(prop->obj());
@@ -4851,7 +4864,7 @@ void CodeGenerator::EmitNamedPropertyAssignment(Assignment* node) {
     Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
   }
 
-  ASSERT(frame()->height() == original_height + 1);
+  ASSERT_EQ(frame()->height(), original_height + 1);
 }
 
 
@@ -4861,7 +4874,7 @@ void CodeGenerator::EmitKeyedPropertyAssignment(Assignment* node) {
 #endif
   Comment cmnt(masm_, "[ Named Property Assignment");
   Property* prop = node->target()->AsProperty();
-  ASSERT(prop != NULL);
+  ASSERT_NOT_NULL(prop);
 
   // Evaluate the receiver subexpression.
   Load(prop->obj());
@@ -6779,14 +6792,13 @@ Result CodeGenerator::EmitNamedLoad(Handle<String> name, bool is_contextual) {
 }
 
 
-Result CodeGenerator::EmitNamedStore(Handle<String> name) {
+Result CodeGenerator::EmitNamedStore(Handle<String> name, bool is_contextual) {
 #ifdef DEBUG
-  int original_height = frame()->height();
+  int expected_height = frame()->height() - (is_contextual ? 1 : 2);
 #endif
-  frame()->Push(name);
-  Result result = frame()->CallStoreIC();
+  Result result = frame()->CallStoreIC(name, is_contextual);
 
-  ASSERT(frame()->height() == original_height - 2);
+  ASSERT_EQ(expected_height, frame()->height());
   return result;
 }
 
@@ -7103,7 +7115,7 @@ void Reference::SetValue(InitState init_state) {
 
     case NAMED: {
       Comment cmnt(masm, "[ Store to named Property");
-      Result answer = cgen_->EmitNamedStore(GetName());
+      Result answer = cgen_->EmitNamedStore(GetName(), false);
       cgen_->frame()->Push(&answer);
       set_unloaded();
       break;
