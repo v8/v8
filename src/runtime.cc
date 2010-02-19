@@ -2276,6 +2276,20 @@ static int SingleCharIndexOf(Vector<const schar> string,
   return -1;
 }
 
+
+template <typename schar>
+static int SingleCharLastIndexOf(Vector<const schar> string,
+                                 schar pattern_char,
+                                 int start_index) {
+  for (int i = start_index; i >= 0; i--) {
+    if (pattern_char == string[i]) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+
 // Trivial string search for shorter strings.
 // On return, if "complete" is set to true, the return value is the
 // final result of searching for the patter in the subject.
@@ -2459,15 +2473,16 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
-  CONVERT_CHECKED(String, sub, args[0]);
-  CONVERT_CHECKED(String, pat, args[1]);
+  CONVERT_ARG_CHECKED(String, sub, 0);
+  CONVERT_ARG_CHECKED(String, pat, 1);
   Object* index = args[2];
-
-  sub->TryFlattenIfNotFlat();
-  pat->TryFlattenIfNotFlat();
 
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
+
+  if (!sub->IsFlat()) {
+    FlattenString(sub);
+  }
 
   uint32_t pattern_length = pat->length();
   uint32_t sub_length = sub->length();
@@ -2475,6 +2490,25 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   if (start_index + pattern_length > sub_length) {
     start_index = sub_length - pattern_length;
   }
+
+  if (pattern_length == 1) {
+    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+    if (sub->IsAsciiRepresentation()) {
+      uc16 pchar = pat->Get(0);
+      if (pchar > String::kMaxAsciiCharCode) {
+        return Smi::FromInt(-1);
+      }
+      return Smi::FromInt(SingleCharLastIndexOf(sub->ToAsciiVector(),
+                                                static_cast<char>(pat->Get(0)),
+                                                start_index));
+    } else {
+      return Smi::FromInt(SingleCharLastIndexOf(sub->ToUC16Vector(),
+                                                pat->Get(0),
+                                                start_index));
+    }
+  }
+
+  pat->TryFlattenIfNotFlat();
 
   for (int i = start_index; i >= 0; i--) {
     bool found = true;

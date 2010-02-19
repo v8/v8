@@ -5422,6 +5422,25 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ test(value.reg(), Immediate(kSmiTagMask));
+  destination()->false_target()->Branch(equal);
+  // It is a heap object - get map.
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  // Check if the object is a regexp.
+  __ CmpObjectType(value.reg(), JS_REGEXP_TYPE, temp.reg());
+  value.Unuse();
+  temp.Unuse();
+  destination()->Split(equal);
+}
+
+
 void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
@@ -6370,13 +6389,10 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kBitFieldOffset));
       __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
       destination()->false_target()->Branch(not_zero);
-      __ mov(temp.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movzx_b(temp.reg(),
-                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
-      __ cmp(temp.reg(), FIRST_NONSTRING_TYPE);
+      __ CmpObjectType(answer.reg(), FIRST_NONSTRING_TYPE, temp.reg());
       temp.Unuse();
       answer.Unuse();
-      destination()->Split(less);
+      destination()->Split(below);
 
     } else if (check->Equals(Heap::boolean_symbol())) {
       __ cmp(answer.reg(), Factory::true_value());

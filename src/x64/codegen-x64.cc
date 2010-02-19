@@ -3627,6 +3627,22 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  Condition is_smi = masm_->CheckSmi(value.reg());
+  destination()->false_target()->Branch(is_smi);
+  // It is a heap object - get map.
+  // Check if the object is a regexp.
+  __ CmpObjectType(value.reg(), JS_REGEXP_TYPE, kScratchRegister);
+  value.Unuse();
+  destination()->Split(equal);
+}
+
+
 void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')

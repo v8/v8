@@ -3420,6 +3420,25 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 1);
+  LoadAndSpill(args->at(0));
+  JumpTarget answer;
+  // We need the CC bits to come out as not_equal in the case where the
+  // object is a smi.  This can't be done with the usual test opcode so
+  // we use XOR to get the right CC bits.
+  frame_->EmitPop(r0);
+  __ and_(r1, r0, Operand(kSmiTagMask));
+  __ eor(r1, r1, Operand(kSmiTagMask), SetCC);
+  answer.Branch(ne);
+  // It is a heap object - get the map. Check if the object is a regexp.
+  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE);
+  answer.Bind();
+  cc_reg_ = eq;
+}
+
+
 void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
