@@ -28,6 +28,11 @@
 #ifndef V8_FAST_CODEGEN_IA32_H_
 #define V8_FAST_CODEGEN_IA32_H_
 
+#include "v8.h"
+
+#include "ast.h"
+#include "compiler.h"
+
 namespace v8 {
 namespace internal {
 
