@@ -892,11 +892,16 @@ void Serializer::Synchronize(const char* tag) {
 Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),
       current_root_index_(0),
-      external_reference_encoder_(NULL),
+      external_reference_encoder_(new ExternalReferenceEncoder),
       large_object_total_(0) {
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
+}
+
+
+Serializer::~Serializer() {
+  delete external_reference_encoder_;
 }
 
 
@@ -906,22 +911,17 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active or weak handles.
   CHECK(HandleScopeImplementer::instance()->blocks()->is_empty());
   CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
-  CHECK_EQ(NULL, external_reference_encoder_);
   // We don't support serializing installed extensions.
   for (RegisteredExtension* ext = RegisteredExtension::first_extension();
        ext != NULL;
        ext = ext->next()) {
     CHECK_NE(v8::INSTALLED, ext->state());
   }
-  external_reference_encoder_ = new ExternalReferenceEncoder();
   Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  delete external_reference_encoder_;
-  external_reference_encoder_ = NULL;
 }
 
 
 void PartialSerializer::Serialize(Object** object) {
-  external_reference_encoder_ = new ExternalReferenceEncoder();
   this->VisitPointer(object);
 
   // After we have done the partial serialization the partial snapshot cache
@@ -935,9 +935,6 @@ void PartialSerializer::Serialize(Object** object) {
     startup_serializer_->VisitPointer(&partial_snapshot_cache_[index]);
   }
   partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
-
-  delete external_reference_encoder_;
-  external_reference_encoder_ = NULL;
 }
 
 

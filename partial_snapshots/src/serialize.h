@@ -369,6 +369,7 @@ class SerializationAddressMapper {
 class Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(SnapshotByteSink* sink);
+  ~Serializer();
   void VisitPointers(Object** start, Object** end);
   // You can call this after serialization to find out how much space was used
   // in each space.
