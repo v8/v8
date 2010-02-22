@@ -65,6 +65,9 @@ class FrameElement BASE_EMBEDDED {
   }
 
   inline void set_number_info(NumberInfo::Type info) {
+    // Copied elements do not have number info. Instead
+    // we have to inspect their backing element in the frame.
+    ASSERT(!is_copy());
     value_ = value_ & ~NumberInfoField::mask();
     value_ = value_ | NumberInfoField::encode(info);
   }
