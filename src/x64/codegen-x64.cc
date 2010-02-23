@@ -280,6 +280,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
+  Comment cmnt(masm_, "[ function compiled by virtual frame code generator");
 
   // Initialize state.
   info_ = info;
