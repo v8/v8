@@ -679,6 +679,7 @@ int DisassemblerIA32::MemoryFPUInstruction(int escape_opcode,
 
     case 0xDD: switch (regop) {
         case 0: mnem = "fld_d"; break;
+        case 2: mnem = "fstp"; break;
         case 3: mnem = "fstp_d"; break;
         default: UnimplementedInstruction();
       }
@@ -720,6 +721,7 @@ int DisassemblerIA32::RegisterFPUInstruction(int escape_opcode,
             case 0xE1: mnem = "fabs"; break;
             case 0xE4: mnem = "ftst"; break;
             case 0xE8: mnem = "fld1"; break;
+            case 0xEB: mnem = "fldpi"; break;
             case 0xEE: mnem = "fldz"; break;
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;

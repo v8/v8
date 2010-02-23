@@ -432,6 +432,10 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       24,
       "KeyedLookupCache::field_offsets()");
+  Add(ExternalReference::transcendental_cache_array_address().address(),
+      UNCLASSIFIED,
+      25,
+      "TranscendentalCache::caches()");
 }
 
 

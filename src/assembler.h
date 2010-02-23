@@ -400,6 +400,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference perform_gc_function();
   static ExternalReference random_positive_smi_function();
+  static ExternalReference transcendental_cache_array_address();
 
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys();

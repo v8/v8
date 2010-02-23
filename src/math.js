@@ -84,7 +84,7 @@ function MathCeil(x) {
 // ECMA 262 - 15.8.2.7
 function MathCos(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_cos(x);
+  return %_Math_cos(x);
 }
 
 // ECMA 262 - 15.8.2.8
@@ -176,7 +176,7 @@ function MathRound(x) {
 // ECMA 262 - 15.8.2.16
 function MathSin(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_sin(x);
+  return %_Math_sin(x);
 }
 
 // ECMA 262 - 15.8.2.17

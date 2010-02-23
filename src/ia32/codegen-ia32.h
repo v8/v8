@@ -588,6 +588,10 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
+  // Fast call to transcendental functions.
+  void GenerateMathSin(ZoneList<Expression*>* args);
+  void GenerateMathCos(ZoneList<Expression*>* args);
+
   // Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,
@@ -652,6 +656,22 @@ class CodeGenerator: public AstVisitor {
   friend class CodeGeneratorPatcher;  // Used in test-log-stack-tracer.cc
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
+};
+
+
+// Compute a transcendental math function natively, or call the
+// TranscendentalCache runtime function.
+class TranscendentalCacheStub: public CodeStub {
+ public:
+  explicit TranscendentalCacheStub(TranscendentalCache::Type type)
+      : type_(type) {}
+  void Generate(MacroAssembler* masm);
+ private:
+  TranscendentalCache::Type type_;
+  Major MajorKey() { return TranscendentalCache; }
+  int MinorKey() { return type_; }
+  Runtime::FunctionId RuntimeFunction();
+  void GenerateOperation(MacroAssembler* masm);
 };
 
 

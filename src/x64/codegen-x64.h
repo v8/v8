@@ -572,7 +572,11 @@ class CodeGenerator: public AstVisitor {
   // Fast support for number to string.
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
-  // Simple condition analysis.
+  // Fast call to math functions.
+  void GenerateMathSin(ZoneList<Expression*>* args);
+  void GenerateMathCos(ZoneList<Expression*>* args);
+
+// Simple condition analysis.
   enum ConditionAnalysis {
     ALWAYS_TRUE,
     ALWAYS_FALSE,

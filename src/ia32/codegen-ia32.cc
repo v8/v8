@@ -5825,6 +5825,24 @@ void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  TranscendentalCacheStub stub(TranscendentalCache::SIN);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
+void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  Load(args->at(0));
+  TranscendentalCacheStub stub(TranscendentalCache::COS);
+  Result result = frame_->CallStub(&stub, 1);
+  frame_->Push(&result);
+}
+
+
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
@@ -8120,6 +8138,212 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
   } else {
     __ ret(0);
   }
+}
+
+
+void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
+  // Input on stack:
+  // esp[4]: argument (should be number).
+  // esp[0]: return address.
+  // Test that eax is a number.
+  Label runtime_call;
+  Label runtime_call_clear_stack;
+  Label input_not_smi;
+  Label loaded;
+  __ mov(eax, Operand(esp, kPointerSize));
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(not_zero, &input_not_smi);
+  // Input is a smi. Untag and load it onto the FPU stack.
+  // Then load the low and high words of the double into ebx, edx.
+  ASSERT_EQ(1, kSmiTagSize);
+  __ sar(eax, 1);
+  __ sub(Operand(esp), Immediate(2 * kPointerSize));
+  __ mov(Operand(esp, 0), eax);
+  __ fild_s(Operand(esp, 0));
+  __ fst_d(Operand(esp, 0));
+  __ pop(edx);
+  __ pop(ebx);
+  __ jmp(&loaded);
+  __ bind(&input_not_smi);
+  // Check if input is a HeapNumber.
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ cmp(Operand(ebx), Immediate(Factory::heap_number_map()));
+  __ j(not_equal, &runtime_call);
+  // Input is a HeapNumber. Push it on the FPU stack and load its
+  // low and high words into ebx, edx.
+  __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
+  __ mov(edx, FieldOperand(eax, HeapNumber::kExponentOffset));
+  __ mov(ebx, FieldOperand(eax, HeapNumber::kMantissaOffset));
+
+  __ bind(&loaded);
+  // ST[0] == double value
+  // ebx = low 32 bits of double value
+  // edx = high 32 bits of double value
+  // Compute hash:
+  //   h = (low ^ high); h ^= h >> 16; h ^= h >> 8; h = h & (cacheSize - 1);
+  __ mov(ecx, ebx);
+  __ xor_(ecx, Operand(edx));
+  __ mov(eax, ecx);
+  __ sar(eax, 16);
+  __ xor_(ecx, Operand(eax));
+  __ mov(eax, ecx);
+  __ sar(eax, 8);
+  __ xor_(ecx, Operand(eax));
+  ASSERT(IsPowerOf2(TranscendentalCache::kCacheSize));
+  __ and_(Operand(ecx), Immediate(TranscendentalCache::kCacheSize - 1));
+  // ST[0] == double value.
+  // ebx = low 32 bits of double value.
+  // edx = high 32 bits of double value.
+  // ecx = TranscendentalCache::hash(double value).
+  __ mov(eax,
+         Immediate(ExternalReference::transcendental_cache_array_address()));
+  // Eax points to cache array.
+  __ mov(eax, Operand(eax, type_ * sizeof(TranscendentalCache::caches_[0])));
+  // Eax points to the cache for the type type_.
+  // If NULL, the cache hasn't been initialized yet, so go through runtime.
+  __ test(eax, Operand(eax));
+  __ j(zero, &runtime_call_clear_stack);
+#ifdef DEBUG
+  // Check that the layout of cache elements match expectations.
+  {  // NOLINT - doesn't like a single brace on a line.
+    TranscendentalCache::Element test_elem[2];
+    char* elem_start = reinterpret_cast<char*>(&test_elem[0]);
+    char* elem2_start = reinterpret_cast<char*>(&test_elem[1]);
+    char* elem_in0  = reinterpret_cast<char*>(&(test_elem[0].in[0]));
+    char* elem_in1  = reinterpret_cast<char*>(&(test_elem[0].in[1]));
+    char* elem_out = reinterpret_cast<char*>(&(test_elem[0].output));
+    CHECK_EQ(12, elem2_start - elem_start);  // Two uint_32's and a pointer.
+    CHECK_EQ(0, elem_in0 - elem_start);
+    CHECK_EQ(kIntSize, elem_in1 - elem_start);
+    CHECK_EQ(2 * kIntSize, elem_out - elem_start);
+  }
+#endif
+  // Find the address of the ecx'th entry in the cache, i.e., &eax[ecx*12].
+  __ lea(ecx, Operand(ecx, ecx, times_2, 0));
+  __ lea(ecx, Operand(eax, ecx, times_4, 0));
+  // Check if cache matches: Double value is stored in uint32_t[2] array.
+  Label cache_miss;
+  __ cmp(ebx, Operand(ecx, 0));
+  __ j(not_equal, &cache_miss);
+  __ cmp(edx, Operand(ecx, kIntSize));
+  __ j(not_equal, &cache_miss);
+  // Cache hit!
+  __ mov(eax, Operand(ecx, 2 * kIntSize));
+  __ fstp(0);
+  __ ret(kPointerSize);
+
+  __ bind(&cache_miss);
+  // Update cache with new value.
+  // We are short on registers, so use no_reg as scratch.
+  // This gives slightly larger code.
+  __ AllocateHeapNumber(eax, edi, no_reg, &runtime_call_clear_stack);
+  GenerateOperation(masm);
+  __ mov(Operand(ecx, 0), ebx);
+  __ mov(Operand(ecx, kIntSize), edx);
+  __ mov(Operand(ecx, 2 * kIntSize), eax);
+  __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+  __ ret(kPointerSize);
+
+  __ bind(&runtime_call_clear_stack);
+  __ fstp(0);
+  __ bind(&runtime_call);
+  __ TailCallRuntime(ExternalReference(RuntimeFunction()), 1, 1);
+}
+
+
+Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
+  switch (type_) {
+    // Add more cases when necessary.
+    case TranscendentalCache::SIN: return Runtime::kMath_sin;
+    case TranscendentalCache::COS: return Runtime::kMath_cos;
+    default:
+      UNIMPLEMENTED();
+      return Runtime::kAbort;
+  }
+}
+
+
+void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
+  // Only free register is edi.
+  Label done;
+  ASSERT(type_ == TranscendentalCache::SIN ||
+         type_ == TranscendentalCache::COS);
+  // More transcendental types can be added later.
+
+  // Both fsin and fcos require arguments in the range +/-2^63 and
+  // return NaN for infinities and NaN. They can share all code except
+  // the actual fsin/fcos operation.
+  Label in_range;
+  // If argument is outside the range -2^63..2^63, fsin/cos doesn't
+  // work. We must reduce it to the appropriate range.
+  __ mov(edi, edx);
+  __ and_(Operand(edi), Immediate(0x7ff00000));  // Exponent only.
+  int supported_exponent_limit =
+      (63 + HeapNumber::kExponentBias) << HeapNumber::kExponentShift;
+  __ cmp(Operand(edi), Immediate(supported_exponent_limit));
+  __ j(below, &in_range, taken);
+  // Check for infinity and NaN. Both return NaN for sin.
+  __ cmp(Operand(edi), Immediate(0x7ff00000));
+  Label non_nan_result;
+  __ j(not_equal, &non_nan_result, taken);
+  // Input is +/-Infinity or NaN. Result is NaN.
+  __ fstp(0);
+  // NaN is represented by 0x7ff8000000000000.
+  __ push(Immediate(0x7ff80000));
+  __ push(Immediate(0));
+  __ fld_d(Operand(esp, 0));
+  __ add(Operand(esp), Immediate(2 * kPointerSize));
+  __ jmp(&done);
+
+  __ bind(&non_nan_result);
+
+  // Use fpmod to restrict argument to the range +/-2*PI.
+  __ mov(edi, eax);  // Save eax before using fnstsw_ax.
+  __ fldpi();
+  __ fadd(0);
+  __ fld(1);
+  // FPU Stack: input, 2*pi, input.
+  {
+    Label no_exceptions;
+    __ fwait();
+    __ fnstsw_ax();
+    // Clear if Illegal Operand or Zero Division exceptions are set.
+    __ test(Operand(eax), Immediate(5));
+    __ j(zero, &no_exceptions);
+    __ fnclex();
+    __ bind(&no_exceptions);
+  }
+
+  // Compute st(0) % st(1)
+  {
+    Label partial_remainder_loop;
+    __ bind(&partial_remainder_loop);
+    __ fprem1();
+    __ fwait();
+    __ fnstsw_ax();
+    __ test(Operand(eax), Immediate(0x400 /* C2 */));
+    // If C2 is set, computation only has partial result. Loop to
+    // continue computation.
+    __ j(not_zero, &partial_remainder_loop);
+  }
+  // FPU Stack: input, 2*pi, input % 2*pi
+  __ fstp(2);
+  __ fstp(0);
+  __ mov(eax, edi);  // Restore eax (allocated HeapNumber pointer).
+
+  // FPU Stack: input % 2*pi
+  __ bind(&in_range);
+  switch (type_) {
+    case TranscendentalCache::SIN:
+      __ fsin();
+      break;
+    case TranscendentalCache::COS:
+      __ fcos();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  __ bind(&done);
 }
 
 

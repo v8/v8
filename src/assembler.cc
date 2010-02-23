@@ -579,6 +579,11 @@ ExternalReference ExternalReference::random_positive_smi_function() {
 }
 
 
+ExternalReference ExternalReference::transcendental_cache_array_address() {
+  return ExternalReference(TranscendentalCache::cache_array_address());
+}
+
+
 ExternalReference ExternalReference::keyed_lookup_cache_keys() {
   return ExternalReference(KeyedLookupCache::keys_address());
 }

@@ -4638,6 +4638,7 @@ static Object* Runtime_StringCompare(Arguments args) {
 static Object* Runtime_Math_abs(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_abs.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return Heap::AllocateHeapNumber(fabs(x));
@@ -4647,6 +4648,7 @@ static Object* Runtime_Math_abs(Arguments args) {
 static Object* Runtime_Math_acos(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_acos.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::ACOS, x);
@@ -4656,6 +4658,7 @@ static Object* Runtime_Math_acos(Arguments args) {
 static Object* Runtime_Math_asin(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_asin.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::ASIN, x);
@@ -4665,6 +4668,7 @@ static Object* Runtime_Math_asin(Arguments args) {
 static Object* Runtime_Math_atan(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_atan.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::ATAN, x);
@@ -4674,6 +4678,7 @@ static Object* Runtime_Math_atan(Arguments args) {
 static Object* Runtime_Math_atan2(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
+  Counters::math_atan2.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
@@ -4697,6 +4702,7 @@ static Object* Runtime_Math_atan2(Arguments args) {
 static Object* Runtime_Math_ceil(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_ceil.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return Heap::NumberFromDouble(ceiling(x));
@@ -4706,6 +4712,7 @@ static Object* Runtime_Math_ceil(Arguments args) {
 static Object* Runtime_Math_cos(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_cos.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::COS, x);
@@ -4715,6 +4722,7 @@ static Object* Runtime_Math_cos(Arguments args) {
 static Object* Runtime_Math_exp(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_exp.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::EXP, x);
@@ -4724,6 +4732,7 @@ static Object* Runtime_Math_exp(Arguments args) {
 static Object* Runtime_Math_floor(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_floor.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return Heap::NumberFromDouble(floor(x));
@@ -4733,6 +4742,7 @@ static Object* Runtime_Math_floor(Arguments args) {
 static Object* Runtime_Math_log(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_log.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::LOG, x);
@@ -4773,6 +4783,7 @@ static double powi(double x, int y) {
 static Object* Runtime_Math_pow(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
+  Counters::math_pow.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
 
@@ -4811,6 +4822,7 @@ static Object* Runtime_Math_pow(Arguments args) {
 static Object* Runtime_Math_round(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_round.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   if (signbit(x) && x >= -0.5) return Heap::minus_zero_value();
@@ -4823,6 +4835,7 @@ static Object* Runtime_Math_round(Arguments args) {
 static Object* Runtime_Math_sin(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_sin.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::SIN, x);
@@ -4832,6 +4845,7 @@ static Object* Runtime_Math_sin(Arguments args) {
 static Object* Runtime_Math_sqrt(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_sqrt.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return Heap::AllocateHeapNumber(sqrt(x));
@@ -4841,6 +4855,7 @@ static Object* Runtime_Math_sqrt(Arguments args) {
 static Object* Runtime_Math_tan(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
+  Counters::math_tan.Increment();
 
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   return TranscendentalCache::Get(TranscendentalCache::TAN, x);

@@ -1637,11 +1637,26 @@ void Assembler::fld(int i) {
 }
 
 
+void Assembler::fstp(int i) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit_farith(0xDD, 0xD8, i);
+}
+
+
 void Assembler::fld1() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xD9);
   EMIT(0xE8);
+}
+
+
+void Assembler::fldpi() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD9);
+  EMIT(0xEB);
 }
 
 
@@ -1682,6 +1697,14 @@ void Assembler::fstp_d(const Operand& adr) {
   last_pc_ = pc_;
   EMIT(0xDD);
   emit_operand(ebx, adr);
+}
+
+
+void Assembler::fst_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDD);
+  emit_operand(edx, adr);
 }
 
 

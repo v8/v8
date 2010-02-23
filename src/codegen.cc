@@ -379,6 +379,8 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateStringCompare, "_StringCompare"},
   {&CodeGenerator::GenerateRegExpExec, "_RegExpExec"},
   {&CodeGenerator::GenerateNumberToString, "_NumberToString"},
+  {&CodeGenerator::GenerateMathSin, "_Math_sin"},
+  {&CodeGenerator::GenerateMathCos, "_Math_cos"},
 };
 
 

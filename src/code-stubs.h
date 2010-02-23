@@ -48,6 +48,7 @@ namespace internal {
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
   V(FastCloneShallowArray)               \
+  V(TranscendentalCache)                 \
   V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
