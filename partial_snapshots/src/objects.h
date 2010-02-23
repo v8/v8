@@ -34,6 +34,8 @@
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/constants-mips.h"
 #endif
 
 //
@@ -1101,7 +1103,6 @@ class HeapNumber: public HeapObject {
 # define BIG_ENDIAN_FLOATING_POINT 1
 #endif
   static const int kSize = kValueOffset + kDoubleSize;
-
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;

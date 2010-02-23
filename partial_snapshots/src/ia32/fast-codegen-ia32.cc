@@ -48,42 +48,47 @@ void FastCodeGenerator::EmitReceiverMapCheck() {
     PrintF("MapCheck(this)\n");
   }
 
-  EmitLoadReceiver(edx);
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, bailout());
-
-  ASSERT(has_receiver() && receiver()->IsHeapObject());
-  Handle<HeapObject> object = Handle<HeapObject>::cast(receiver());
+  ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
+  Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
   Handle<Map> map(object->map());
-  __ cmp(FieldOperand(edx, HeapObject::kMapOffset), Immediate(map));
-  __ j(not_equal, bailout());
+
+  EmitLoadReceiver(edx);
+  __ CheckMap(edx, map, bailout(), false);
 }
 
 
-void FastCodeGenerator::EmitGlobalVariableLoad(Handle<String> name) {
-  // Compile global variable accesses as load IC calls.  The only live
-  // registers are esi (context) and possibly edx (this).  Both are also
-  // saved in the stack and esi is preserved by the call.
-  __ push(CodeGenerator::GlobalObject());
-  __ mov(ecx, name);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-  if (has_this_properties()) {
-    // Restore this.
-    EmitLoadReceiver(edx);
-  } else {
-    __ nop();  // Not test eax, indicates IC has no inlined code at call site.
+void FastCodeGenerator::EmitGlobalMapCheck() {
+  Comment cmnt(masm(), ";; GlobalMapCheck");
+  if (FLAG_print_ir) {
+    PrintF(";; GlobalMapCheck()");
+  }
+
+  ASSERT(info()->has_global_object());
+  Handle<Map> map(info()->global_object()->map());
+
+  __ mov(ebx, CodeGenerator::GlobalObject());
+  __ CheckMap(ebx, map, bailout(), true);
+}
+
+
+void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
+  ASSERT(cell->IsJSGlobalPropertyCell());
+  __ mov(eax, Immediate(cell));
+  __ mov(eax, FieldOperand(eax, JSGlobalPropertyCell::kValueOffset));
+  if (FLAG_debug_code) {
+    __ cmp(eax, Factory::the_hole_value());
+    __ Check(not_equal, "DontDelete cells can't contain the hole");
   }
 }
 
 
 void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   LookupResult lookup;
-  receiver()->Lookup(*name, &lookup);
+  info()->receiver()->Lookup(*name, &lookup);
 
-  ASSERT(lookup.holder() == *receiver());
+  ASSERT(lookup.holder() == *info()->receiver());
   ASSERT(lookup.type() == FIELD);
-  Handle<Map> map(Handle<HeapObject>::cast(receiver())->map());
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
   int index = lookup.GetFieldIndex() - map->inobject_properties();
   int offset = index * kPointerSize;
 
@@ -103,11 +108,9 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
 }
 
 
-void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
-  ASSERT(function_ == NULL);
+void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   ASSERT(info_ == NULL);
-  function_ = fun;
-  info_ = info;
+  info_ = compilation_info;
 
   // Save the caller's frame pointer and set up our own.
   Comment prologue_cmnt(masm(), ";; Prologue");
@@ -119,9 +122,13 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   // point.
 
   // Receiver (this) is allocated to edx if there are this properties.
-  if (has_this_properties()) EmitReceiverMapCheck();
+  if (info()->has_this_properties()) EmitReceiverMapCheck();
 
-  VisitStatements(fun->body());
+  // If there is a global variable access check if the global object
+  // is the same as at lazy-compilation time.
+  if (info()->has_globals()) EmitGlobalMapCheck();
+
+  VisitStatements(function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
   __ mov(eax, Factory::undefined_value());
@@ -129,7 +136,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ mov(esp, ebp);
   __ pop(ebp);
-  __ ret((fun->scope()->num_parameters() + 1) * kPointerSize);
+  __ ret((scope()->num_parameters() + 1) * kPointerSize);
 
   __ bind(&bailout_);
 }

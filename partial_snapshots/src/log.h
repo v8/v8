@@ -292,7 +292,7 @@ class Logger {
   // Logs all accessor callbacks found in the heap.
   static void LogAccessorCallbacks();
   // Used for logging stubs found in the snapshot.
-  static void LogCodeObject(Object* code_object);
+  static void LogCodeObjects();
 
  private:
 
@@ -324,6 +324,9 @@ class Logger {
 
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
+
+  // Used for logging stubs found in the snapshot.
+  static void LogCodeObject(Object* code_object);
 
   // Emits a profiler tick event. Used by the profiler thread.
   static void TickEvent(TickSample* sample, bool overflow);

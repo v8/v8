@@ -51,9 +51,10 @@ namespace internal {
 //
 // The function builds a JS frame.  Please see JavaScriptFrameConstants in
 // frames-x64.h for its layout.
-void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
-  function_ = fun;
-  SetFunctionPosition(fun);
+void FullCodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+  ASSERT(info_ == NULL);
+  info_ = info;
+  SetFunctionPosition(function());
 
   if (mode == PRIMARY) {
     __ push(rbp);  // Caller's frame pointer.
@@ -62,7 +63,7 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
     __ push(rdi);  // Callee's JS Function.
 
     { Comment cmnt(masm_, "[ Allocate locals");
-      int locals_count = fun->scope()->num_stack_slots();
+      int locals_count = scope()->num_stack_slots();
       if (locals_count == 1) {
         __ PushRoot(Heap::kUndefinedValueRootIndex);
       } else if (locals_count > 1) {
@@ -76,7 +77,7 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
     bool function_in_register = true;
 
     // Possibly allocate a local context.
-    if (fun->scope()->num_heap_slots() > 0) {
+    if (scope()->num_heap_slots() > 0) {
       Comment cmnt(masm_, "[ Allocate local context");
       // Argument to NewContext is the function, which is still in rdi.
       __ push(rdi);
@@ -87,9 +88,9 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
       __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
 
       // Copy any necessary parameters into the context.
-      int num_parameters = fun->scope()->num_parameters();
+      int num_parameters = scope()->num_parameters();
       for (int i = 0; i < num_parameters; i++) {
-        Slot* slot = fun->scope()->parameter(i)->slot();
+        Slot* slot = scope()->parameter(i)->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
           int parameter_offset = StandardFrameConstants::kCallerSPOffset +
                                      (num_parameters - 1 - i) * kPointerSize;
@@ -108,7 +109,7 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
     }
 
     // Possibly allocate an arguments object.
-    Variable* arguments = fun->scope()->arguments()->AsVariable();
+    Variable* arguments = scope()->arguments()->AsVariable();
     if (arguments != NULL) {
       // Arguments object must be allocated after the context object, in
       // case the "arguments" or ".arguments" variables are in the context.
@@ -119,10 +120,11 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
         __ push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
       }
       // The receiver is just before the parameters on the caller's stack.
-      __ lea(rdx, Operand(rbp, StandardFrameConstants::kCallerSPOffset +
-                          fun->num_parameters() * kPointerSize));
+      int offset = scope()->num_parameters() * kPointerSize;
+      __ lea(rdx,
+             Operand(rbp, StandardFrameConstants::kCallerSPOffset + offset));
       __ push(rdx);
-      __ Push(Smi::FromInt(fun->num_parameters()));
+      __ Push(Smi::FromInt(scope()->num_parameters()));
       // Arguments to ArgumentsAccessStub:
       //   function, receiver address, parameter count.
       // The stub will rewrite receiver and parameter count if the previous
@@ -133,13 +135,13 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
       __ movq(rcx, rax);
       Move(arguments->slot(), rax, rbx, rdx);
       Slot* dot_arguments_slot =
-          fun->scope()->arguments_shadow()->AsVariable()->slot();
+          scope()->arguments_shadow()->AsVariable()->slot();
       Move(dot_arguments_slot, rcx, rbx, rdx);
     }
   }
 
   { Comment cmnt(masm_, "[ Declarations");
-    VisitDeclarations(fun->scope()->declarations());
+    VisitDeclarations(scope()->declarations());
   }
 
   { Comment cmnt(masm_, "[ Stack check");
@@ -157,14 +159,14 @@ void FullCodeGenerator::Generate(FunctionLiteral* fun, Mode mode) {
 
   { Comment cmnt(masm_, "[ Body");
     ASSERT(loop_depth() == 0);
-    VisitStatements(fun->body());
+    VisitStatements(function()->body());
     ASSERT(loop_depth() == 0);
   }
 
   { Comment cmnt(masm_, "[ return <undefined>;");
     // Emit a 'return undefined' in case control fell off the end of the body.
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-    EmitReturnSequence(function_->end_position());
+    EmitReturnSequence(function()->end_position());
   }
 }
 
@@ -190,7 +192,7 @@ void FullCodeGenerator::EmitReturnSequence(int position) {
     // patch with the code required by the debugger.
     __ movq(rsp, rbp);
     __ pop(rbp);
-    __ ret((function_->scope()->num_parameters() + 1) * kPointerSize);
+    __ ret((scope()->num_parameters() + 1) * kPointerSize);
 #ifdef ENABLE_DEBUGGER_SUPPORT
     // Add padding that will be overwritten by a debugger breakpoint.  We
     // have just generated "movq rsp, rbp; pop rbp; ret k" with length 7
@@ -629,7 +631,7 @@ MemOperand FullCodeGenerator::EmitSlotSearch(Slot* slot, Register scratch) {
       return Operand(rbp, SlotOffset(slot));
     case Slot::CONTEXT: {
       int context_chain_length =
-          function_->scope()->ContextChainLength(slot->var()->scope());
+          scope()->ContextChainLength(slot->var()->scope());
       __ LoadContext(scratch, context_chain_length);
       return CodeGenerator::ContextOperand(scratch, slot->index());
     }
@@ -688,7 +690,7 @@ void FullCodeGenerator::VisitDeclaration(Declaration* decl) {
         // this specific context.
 
         // The variable in the decl always resides in the current context.
-        ASSERT_EQ(0, function_->scope()->ContextChainLength(var->scope()));
+        ASSERT_EQ(0, scope()->ContextChainLength(var->scope()));
         if (FLAG_debug_code) {
           // Check if we have the correct context pointer.
           __ movq(rbx,
@@ -767,7 +769,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ push(rsi);  // The context is the first argument.
   __ Push(pairs);
-  __ Push(Smi::FromInt(is_eval_ ? 1 : 0));
+  __ Push(Smi::FromInt(is_eval() ? 1 : 0));
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
@@ -778,7 +780,7 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate =
-      Compiler::BuildBoilerplate(expr, script_, this);
+      Compiler::BuildBoilerplate(expr, script(), this);
   if (HasStackOverflow()) return;
 
   ASSERT(boilerplate->IsBoilerplate());

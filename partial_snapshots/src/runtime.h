@@ -215,6 +215,8 @@ namespace internal {
   F(ResolvePossiblyDirectEval, 3, 2) \
   \
   F(SetProperty, -1 /* 3 or 4 */, 1) \
+  F(DefineOrRedefineDataProperty, 4, 1) \
+  F(DefineOrRedefineAccessorProperty, 5, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
   \
   /* Arrays */ \

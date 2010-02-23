@@ -149,13 +149,16 @@ Object* CodeStub::TryGetCode() {
 }
 
 
-const char* CodeStub::MajorName(CodeStub::Major major_key) {
+const char* CodeStub::MajorName(CodeStub::Major major_key,
+                                bool allow_unknown_keys) {
   switch (major_key) {
 #define DEF_CASE(name) case name: return #name;
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
     default:
-      UNREACHABLE();
+      if (!allow_unknown_keys) {
+        UNREACHABLE();
+      }
       return NULL;
   }
 }

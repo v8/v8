@@ -42,7 +42,7 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
       : info_(NULL), has_supported_syntax_(true) {
   }
 
-  void Check(FunctionLiteral* fun, CompilationInfo* info);
+  void Check(CompilationInfo* info);
 
   CompilationInfo* info() { return info_; }
   bool has_supported_syntax() { return has_supported_syntax_; }
@@ -65,29 +65,19 @@ class FastCodeGenSyntaxChecker: public AstVisitor {
 
 class FastCodeGenerator: public AstVisitor {
  public:
-  FastCodeGenerator(MacroAssembler* masm, Handle<Script> script, bool is_eval)
-      : masm_(masm),
-        script_(script),
-        is_eval_(is_eval),
-        function_(NULL),
-        info_(NULL) {
-  }
+  explicit FastCodeGenerator(MacroAssembler* masm) : masm_(masm), info_(NULL) {}
 
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval,
-                               CompilationInfo* info);
+  static Handle<Code> MakeCode(CompilationInfo* info);
 
-  void Generate(FunctionLiteral* fun, CompilationInfo* info);
+  void Generate(CompilationInfo* compilation_info);
 
  private:
   MacroAssembler* masm() { return masm_; }
-  FunctionLiteral* function() { return function_; }
+  CompilationInfo* info() { return info_; }
   Label* bailout() { return &bailout_; }
 
-  bool has_receiver() { return !info_->receiver().is_null(); }
-  Handle<Object> receiver() { return info_->receiver(); }
-  bool has_this_properties() { return info_->has_this_properties(); }
+  FunctionLiteral* function() { return info_->function(); }
+  Scope* scope() { return info_->scope(); }
 
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
@@ -102,11 +92,13 @@ class FastCodeGenerator: public AstVisitor {
   // arm-r1}.  Emit a branch to the (single) bailout label if check fails.
   void EmitReceiverMapCheck();
 
-  // Emit code to load a global variable value into {is32-eax, x64-rax,
-  // arm-r0}.  Register {ia32-edx, x64-rdx, arm-r1} is preserved if it is
-  // holding the receiver and {is32-ecx, x64-rcx, arm-r2} is always
-  // clobbered.
-  void EmitGlobalVariableLoad(Handle<String> name);
+  // Emit code to check that the global object has the same map as the
+  // global object seen at compile time.
+  void EmitGlobalMapCheck();
+
+  // Emit code to load a global variable directly from a global
+  // property cell into {ia32-eax, x64-rax, arm-r0}.
+  void EmitGlobalVariableLoad(Handle<Object> cell);
 
   // Emit a store to an own property of this.  The stored value is expected
   // in {ia32-eax, x64-rax, arm-r0} and the receiver in {is32-edx, x64-rdx,
@@ -114,10 +106,7 @@ class FastCodeGenerator: public AstVisitor {
   void EmitThisPropertyStore(Handle<String> name);
 
   MacroAssembler* masm_;
-  Handle<Script> script_;
-  bool is_eval_;
 
-  FunctionLiteral* function_;
   CompilationInfo* info_;
 
   Label bailout_;

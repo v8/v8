@@ -439,24 +439,23 @@ void FullCodeGenSyntaxChecker::VisitThisFunction(ThisFunction* expr) {
 
 #define __ ACCESS_MASM(masm())
 
-Handle<Code> FullCodeGenerator::MakeCode(FunctionLiteral* fun,
-                                         Handle<Script> script,
-                                         bool is_eval) {
+Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
+  Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
     Counters::total_full_codegen_source_size.Increment(len);
   }
-  CodeGenerator::MakeCodePrologue(fun);
+  CodeGenerator::MakeCodePrologue(info);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
-  FullCodeGenerator cgen(&masm, script, is_eval);
-  cgen.Generate(fun, PRIMARY);
+  FullCodeGenerator cgen(&masm);
+  cgen.Generate(info, PRIMARY);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
-  return CodeGenerator::MakeCodeEpilogue(fun, &masm, flags, script);
+  return CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
 }
 
 
@@ -467,7 +466,7 @@ int FullCodeGenerator::SlotOffset(Slot* slot) {
   // Adjust by a (parameter or local) base offset.
   switch (slot->type()) {
     case Slot::PARAMETER:
-      offset += (function_->scope()->num_parameters() + 1) * kPointerSize;
+      offset += (scope()->num_parameters() + 1) * kPointerSize;
       break;
     case Slot::LOCAL:
       offset += JavaScriptFrameConstants::kLocal0Offset;
@@ -520,7 +519,7 @@ void FullCodeGenerator::VisitDeclarations(
           }
         } else {
           Handle<JSFunction> function =
-              Compiler::BuildBoilerplate(decl->fun(), script_, this);
+              Compiler::BuildBoilerplate(decl->fun(), script(), this);
           // Check for stack-overflow exception.
           if (HasStackOverflow()) return;
           array->set(j++, *function);
@@ -987,7 +986,7 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
   Comment cmnt(masm_, "[ DebuggerStatement");
   SetStatementPosition(stmt);
 
-  DebugerStatementStub ces;
+  DebuggerStatementStub ces;
   __ CallStub(&ces);
   // Ignore the return value.
 #endif

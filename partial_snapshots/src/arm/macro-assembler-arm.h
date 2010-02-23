@@ -33,10 +33,18 @@
 namespace v8 {
 namespace internal {
 
+// ----------------------------------------------------------------------------
+// Static helper functions
+
+// Generate a MemOperand for loading a field from an object.
+static inline MemOperand FieldMemOperand(Register object, int offset) {
+  return MemOperand(object, offset - kHeapObjectTag);
+}
+
 
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
-
+const Register roots = { 10 };  // Roots array pointer.
 
 enum InvokeJSFlags {
   CALL_JS,
@@ -49,14 +57,7 @@ class MacroAssembler: public Assembler {
  public:
   MacroAssembler(void* buffer, int size);
 
-  // ---------------------------------------------------------------------------
-  // Low-level helpers for compiler
-
-  // Jump, Call, and Ret pseudo instructions implementing inter-working
- private:
-  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
- public:
+  // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
   void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
@@ -209,6 +210,31 @@ class MacroAssembler: public Assembler {
   // allocation is undone.
   void UndoAllocationInNewSpace(Register object, Register scratch);
 
+
+  void AllocateTwoByteString(Register result,
+                             Register length,
+                             Register scratch1,
+                             Register scratch2,
+                             Register scratch3,
+                             Label* gc_required);
+  void AllocateAsciiString(Register result,
+                           Register length,
+                           Register scratch1,
+                           Register scratch2,
+                           Register scratch3,
+                           Label* gc_required);
+  void AllocateTwoByteConsString(Register result,
+                                 Register length,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 Label* gc_required);
+  void AllocateAsciiConsString(Register result,
+                               Register length,
+                               Register scratch1,
+                               Register scratch2,
+                               Label* gc_required);
+
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -243,6 +269,29 @@ class MacroAssembler: public Assembler {
                            Register type_reg,
                            InstanceType type);
 
+
+  // Check if the map of an object is equal to a specified map and
+  // branch to label if not. Skip the smi check if not required
+  // (object is known to be a heap object)
+  void CheckMap(Register obj,
+                Register scratch,
+                Handle<Map> map,
+                Label* fail,
+                bool is_heap_object);
+
+  // Load and check the instance type of an object for being a string.
+  // Loads the type into the second argument register.
+  // Returns a condition that will be enabled if the object was a string.
+  Condition IsObjectStringType(Register obj,
+                               Register type) {
+    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset));
+    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
+    tst(type, Operand(kIsNotStringMask));
+    ASSERT_EQ(0, kStringTag);
+    return eq;
+  }
+
+
   inline void BranchOnSmi(Register value, Label* smi_label) {
     tst(value, Operand(kSmiTagMask));
     b(eq, smi_label);
@@ -257,6 +306,9 @@ class MacroAssembler: public Assembler {
   // occurred.
   void IllegalOperation(int num_arguments);
 
+  // Get the number of least significant bits from a register
+  void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);
+
   // Uses VFP instructions to Convert a Smi to a double.
   void IntegerToDoubleConversionWithVFP3(Register inReg,
                                          Register outHighReg,
@@ -268,6 +320,9 @@ class MacroAssembler: public Assembler {
 
   // Call a code stub.
   void CallStub(CodeStub* stub, Condition cond = al);
+
+  // Call a code stub.
+  void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Return from a code stub after popping its arguments.
   void StubReturn(int argc);
@@ -338,6 +393,14 @@ class MacroAssembler: public Assembler {
   bool allow_stub_calls() { return allow_stub_calls_; }
 
   // ---------------------------------------------------------------------------
+  // Smi utilities
+
+  // Jump if either of the registers contain a non-smi.
+  void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);
+  // Jump if either of the registers contain a smi.
+  void JumpIfEitherSmi(Register reg1, Register reg2, Label* on_either_smi);
+
+  // ---------------------------------------------------------------------------
   // String utilities
 
   // Checks if both objects are sequential ASCII strings and jumps to label
@@ -357,11 +420,8 @@ class MacroAssembler: public Assembler {
                                            Label* not_flat_ascii_strings);
 
  private:
-  List<Unresolved> unresolved_;
-  bool generating_stub_;
-  bool allow_stub_calls_;
-  Handle<Object> code_object_;  // This handle will be patched with the code
-                                // object on installation.
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
@@ -386,6 +446,12 @@ class MacroAssembler: public Assembler {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  List<Unresolved> unresolved_;
+  bool generating_stub_;
+  bool allow_stub_calls_;
+  // This handle will be patched with the code object on installation.
+  Handle<Object> code_object_;
 };
 
 
@@ -420,12 +486,6 @@ class CodePatcher {
 
 // -----------------------------------------------------------------------------
 // Static helper functions.
-
-// Generate a MemOperand for loading a field from an object.
-static inline MemOperand FieldMemOperand(Register object, int offset) {
-  return MemOperand(object, offset - kHeapObjectTag);
-}
-
 
 #ifdef GENERATED_CODE_COVERAGE
 #define CODE_COVERAGE_STRINGIFY(x) #x

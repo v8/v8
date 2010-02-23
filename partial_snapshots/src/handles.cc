@@ -695,7 +695,7 @@ static bool CompileLazyHelper(CompilationInfo* info,
 
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
                        ClearExceptionFlag flag) {
-  CompilationInfo info(shared, Handle<Object>::null(), 0);
+  CompilationInfo info(shared);
   return CompileLazyHelper(&info, flag);
 }
 
@@ -703,8 +703,7 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 bool CompileLazy(Handle<JSFunction> function,
                  Handle<Object> receiver,
                  ClearExceptionFlag flag) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  CompilationInfo info(shared, receiver, 0);
+  CompilationInfo info(function, 0, receiver);
   bool result = CompileLazyHelper(&info, flag);
   LOG(FunctionCreateEvent(*function));
   return result;
@@ -714,8 +713,7 @@ bool CompileLazy(Handle<JSFunction> function,
 bool CompileLazyInLoop(Handle<JSFunction> function,
                        Handle<Object> receiver,
                        ClearExceptionFlag flag) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  CompilationInfo info(shared, receiver, 1);
+  CompilationInfo info(function, 1, receiver);
   bool result = CompileLazyHelper(&info, flag);
   LOG(FunctionCreateEvent(*function));
   return result;

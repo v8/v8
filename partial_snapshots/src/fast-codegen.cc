@@ -51,8 +51,7 @@ namespace internal {
   } while (false)
 
 
-void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun,
-                                     CompilationInfo* info) {
+void FastCodeGenSyntaxChecker::Check(CompilationInfo* info) {
   info_ = info;
 
   // We do not specialize if we do not have a receiver or if it is not a
@@ -64,7 +63,7 @@ void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun,
 
   // We do not support stack or heap slots (both of which require
   // allocation).
-  Scope* scope = fun->scope();
+  Scope* scope = info->scope();
   if (scope->num_stack_slots() > 0) {
     BAILOUT("Function has stack-allocated locals");
   }
@@ -76,8 +75,10 @@ void FastCodeGenSyntaxChecker::Check(FunctionLiteral* fun,
   CHECK_BAILOUT;
 
   // We do not support empty function bodies.
-  if (fun->body()->is_empty()) BAILOUT("Function has an empty body");
-  VisitStatements(fun->body());
+  if (info->function()->body()->is_empty()) {
+    BAILOUT("Function has an empty body");
+  }
+  VisitStatements(info->function()->body());
 }
 
 
@@ -213,7 +214,16 @@ void FastCodeGenSyntaxChecker::VisitSlot(Slot* expr) {
 void FastCodeGenSyntaxChecker::VisitVariableProxy(VariableProxy* expr) {
   // Only global variable references are supported.
   Variable* var = expr->var();
-  if (!var->is_global()) BAILOUT("Non-global variable");
+  if (!var->is_global() || var->is_this()) BAILOUT("Non-global variable");
+
+  // Check if the global variable is existing and non-deletable.
+  if (info()->has_global_object()) {
+    LookupResult lookup;
+    info()->global_object()->Lookup(*expr->name(), &lookup);
+    if (!lookup.IsValid() || !lookup.IsDontDelete()) {
+      BAILOUT("Non-existing or deletable global variable");
+    }
+  }
 }
 
 
@@ -332,24 +342,20 @@ void FastCodeGenSyntaxChecker::VisitThisFunction(ThisFunction* expr) {
 
 #define __ ACCESS_MASM(masm())
 
-Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
-                                         Handle<Script> script,
-                                         bool is_eval,
-                                         CompilationInfo* info) {
+Handle<Code> FastCodeGenerator::MakeCode(CompilationInfo* info) {
   // Label the AST before calling MakeCodePrologue, so AST node numbers are
   // printed with the AST.
   AstLabeler labeler;
-  labeler.Label(fun);
-  info->set_has_this_properties(labeler.has_this_properties());
+  labeler.Label(info);
 
-  CodeGenerator::MakeCodePrologue(fun);
+  CodeGenerator::MakeCodePrologue(info);
 
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
 
   // Generate the fast-path code.
-  FastCodeGenerator fast_cgen(&masm, script, is_eval);
-  fast_cgen.Generate(fun, info);
+  FastCodeGenerator fast_cgen(&masm);
+  fast_cgen.Generate(info);
   if (fast_cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
@@ -357,16 +363,16 @@ Handle<Code> FastCodeGenerator::MakeCode(FunctionLiteral* fun,
 
   // Generate the full code for the function in bailout mode, using the same
   // macro assembler.
-  CodeGenerator cgen(&masm, script, is_eval);
+  CodeGenerator cgen(&masm);
   CodeGeneratorScope scope(&cgen);
-  cgen.Generate(fun, CodeGenerator::SECONDARY, info);
+  cgen.Generate(info, CodeGenerator::SECONDARY);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
 
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
-  return CodeGenerator::MakeCodeEpilogue(fun, &masm, flags, script);
+  return CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
 }
 
 
@@ -488,7 +494,16 @@ void FastCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
     SmartPointer<char> name = expr->name()->ToCString();
     PrintF("%d: t%d = Global(%s)\n", expr->num(), expr->num(), *name);
   }
-  EmitGlobalVariableLoad(expr->name());
+
+  // Check if we can compile a global variable load directly from the cell.
+  ASSERT(info()->has_global_object());
+  LookupResult lookup;
+  info()->global_object()->Lookup(*expr->name(), &lookup);
+  // We only support DontDelete properties for now.
+  ASSERT(lookup.IsValid());
+  ASSERT(lookup.IsDontDelete());
+  Handle<Object> cell(info()->global_object()->GetPropertyCell(&lookup));
+  EmitGlobalVariableLoad(cell);
 }
 
 

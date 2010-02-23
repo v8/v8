@@ -37,7 +37,7 @@ namespace internal {
 
 void FastCodeGenerator::EmitLoadReceiver(Register reg) {
   // Offset 2 is due to return address and saved frame pointer.
-  int index = 2 + function()->scope()->num_parameters();
+  int index = 2 + scope()->num_parameters();
   __ ldr(reg, MemOperand(sp, index * kPointerSize));
 }
 
@@ -48,42 +48,48 @@ void FastCodeGenerator::EmitReceiverMapCheck() {
     PrintF("MapCheck(this)\n");
   }
 
-  EmitLoadReceiver(r1);
-  __ BranchOnSmi(r1, bailout());
-
-  ASSERT(has_receiver() && receiver()->IsHeapObject());
-  Handle<HeapObject> object = Handle<HeapObject>::cast(receiver());
+  ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
+  Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
   Handle<Map> map(object->map());
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ mov(ip, Operand(map));
-  __ cmp(r3, ip);
-  __ b(ne, bailout());
+
+  EmitLoadReceiver(r1);
+  __ CheckMap(r1, r3, map, bailout(), false);
 }
 
 
-void FastCodeGenerator::EmitGlobalVariableLoad(Handle<String> name) {
-  // Compile global variable accesses as load IC calls.  The only live
-  // registers are cp (context) and possibly r1 (this).  Both are also saved
-  // in the stack and cp is preserved by the call.
-  __ ldr(ip, CodeGenerator::GlobalObject());
-  __ push(ip);
-  __ mov(r2, Operand(name));
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-  if (has_this_properties()) {
-    // Restore this.
-    EmitLoadReceiver(r1);
+void FastCodeGenerator::EmitGlobalMapCheck() {
+  Comment cmnt(masm(), ";; GlobalMapCheck");
+  if (FLAG_print_ir) {
+    PrintF(";; GlobalMapCheck()");
+  }
+
+  ASSERT(info()->has_global_object());
+  Handle<Map> map(info()->global_object()->map());
+
+  __ ldr(r3, CodeGenerator::GlobalObject());
+  __ CheckMap(r3, r3, map, bailout(), true);
+}
+
+
+void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
+  ASSERT(cell->IsJSGlobalPropertyCell());
+  __ mov(r0, Operand(cell));
+  __ ldr(r0, FieldMemOperand(r0, JSGlobalPropertyCell::kValueOffset));
+  if (FLAG_debug_code) {
+    __ mov(ip, Operand(Factory::the_hole_value()));
+    __ cmp(r0, ip);
+    __ Check(ne, "DontDelete cells can't contain the hole");
   }
 }
 
 
 void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   LookupResult lookup;
-  receiver()->Lookup(*name, &lookup);
+  info()->receiver()->Lookup(*name, &lookup);
 
-  ASSERT(lookup.holder() == *receiver());
+  ASSERT(lookup.holder() == *info()->receiver());
   ASSERT(lookup.type() == FIELD);
-  Handle<Map> map(Handle<HeapObject>::cast(receiver())->map());
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
   int index = lookup.GetFieldIndex() - map->inobject_properties();
   int offset = index * kPointerSize;
 
@@ -102,11 +108,9 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
 }
 
 
-void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
-  ASSERT(function_ == NULL);
+void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   ASSERT(info_ == NULL);
-  function_ = fun;
-  info_ = info;
+  info_ = compilation_info;
 
   // Save the caller's frame pointer and set up our own.
   Comment prologue_cmnt(masm(), ";; Prologue");
@@ -116,9 +120,13 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   // this point.
 
   // Receiver (this) is allocated to r1 if there are this properties.
-  if (has_this_properties()) EmitReceiverMapCheck();
+  if (info()->has_this_properties()) EmitReceiverMapCheck();
 
-  VisitStatements(fun->body());
+  // If there is a global variable access check if the global object
+  // is the same as at lazy-compilation time.
+  if (info()->has_globals()) EmitGlobalMapCheck();
+
+  VisitStatements(function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
@@ -126,7 +134,7 @@ void FastCodeGenerator::Generate(FunctionLiteral* fun, CompilationInfo* info) {
   Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
-  int32_t sp_delta = (fun->scope()->num_parameters() + 1) * kPointerSize;
+  int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
   __ add(sp, sp, Operand(sp_delta));
   __ Jump(lr);
 

@@ -196,7 +196,7 @@ void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
-  ldr(destination, MemOperand(r10, index << kPointerSizeLog2), cond);
+  ldr(destination, MemOperand(roots, index << kPointerSizeLog2), cond);
 }
 
 
@@ -940,6 +940,113 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object,
 }
 
 
+void MacroAssembler::AllocateTwoByteString(Register result,
+                                           Register length,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  mov(scratch1, Operand(length, LSL, 1));  // Length in bytes, not chars.
+  add(scratch1, scratch1,
+      Operand(kObjectAlignmentMask + SeqTwoByteString::kHeaderSize));
+  // AllocateInNewSpace expects the size in words, so we can round down
+  // to kObjectAlignment and divide by kPointerSize in the same shift.
+  ASSERT_EQ(kPointerSize, kObjectAlignmentMask + 1);
+  mov(scratch1, Operand(scratch1, ASR, kPointerSizeLog2));
+
+  // Allocate two-byte string in new space.
+  AllocateInNewSpace(scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  LoadRoot(scratch1, Heap::kStringMapRootIndex);
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
+}
+
+
+void MacroAssembler::AllocateAsciiString(Register result,
+                                         Register length,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Label* gc_required) {
+  // Calculate the number of bytes needed for the characters in the string while
+  // observing object alignment.
+  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
+  ASSERT(kCharSize == 1);
+  add(scratch1, length,
+      Operand(kObjectAlignmentMask + SeqAsciiString::kHeaderSize));
+  // AllocateInNewSpace expects the size in words, so we can round down
+  // to kObjectAlignment and divide by kPointerSize in the same shift.
+  ASSERT_EQ(kPointerSize, kObjectAlignmentMask + 1);
+  mov(scratch1, Operand(scratch1, ASR, kPointerSizeLog2));
+
+  // Allocate ASCII string in new space.
+  AllocateInNewSpace(scratch1,
+                     result,
+                     scratch2,
+                     scratch3,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map, length and hash field.
+  LoadRoot(scratch1, Heap::kAsciiStringMapRootIndex);
+  mov(scratch1, Operand(Factory::ascii_string_map()));
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
+}
+
+
+void MacroAssembler::AllocateTwoByteConsString(Register result,
+                                               Register length,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  AllocateInNewSpace(ConsString::kSize / kPointerSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+  LoadRoot(scratch1, Heap::kConsStringMapRootIndex);
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
+}
+
+
+void MacroAssembler::AllocateAsciiConsString(Register result,
+                                             Register length,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* gc_required) {
+  AllocateInNewSpace(ConsString::kSize / kPointerSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+  LoadRoot(scratch1, Heap::kConsAsciiStringMapRootIndex);
+  mov(scratch2, Operand(String::kEmptyHashField));
+  str(length, FieldMemOperand(result, String::kLengthOffset));
+  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
+  str(scratch2, FieldMemOperand(result, String::kHashFieldOffset));
+}
+
+
 void MacroAssembler::CompareObjectType(Register function,
                                        Register map,
                                        Register type_reg,
@@ -954,6 +1061,21 @@ void MacroAssembler::CompareInstanceType(Register map,
                                          InstanceType type) {
   ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   cmp(type_reg, Operand(type));
+}
+
+
+void MacroAssembler::CheckMap(Register obj,
+                              Register scratch,
+                              Handle<Map> map,
+                              Label* fail,
+                              bool is_heap_object) {
+  if (!is_heap_object) {
+    BranchOnSmi(obj, fail);
+  }
+  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  mov(ip, Operand(map));
+  cmp(scratch, ip);
+  b(ne, fail);
 }
 
 
@@ -1010,10 +1132,17 @@ void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
 }
 
 
+void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
+  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+}
+
+
 void MacroAssembler::StubReturn(int argc) {
   ASSERT(argc >= 1 && generating_stub());
-  if (argc > 1)
+  if (argc > 1) {
     add(sp, sp, Operand((argc - 1) * kPointerSize));
+  }
   Ret();
 }
 
@@ -1034,6 +1163,18 @@ void MacroAssembler::IntegerToDoubleConversionWithVFP3(Register inReg,
   vmov(s15, r7);
   vcvt(d7, s15);
   vmov(outLowReg, outHighReg, d7);
+}
+
+
+void MacroAssembler::GetLeastBitsFromSmi(Register dst,
+                                         Register src,
+                                         int num_least_bits) {
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    ubfx(dst, src, Operand(kSmiTagSize), Operand(num_least_bits - 1));
+  } else {
+    mov(dst, Operand(src, ASR, kSmiTagSize));
+    and_(dst, dst, Operand((1 << num_least_bits) - 1));
+  }
 }
 
 
@@ -1235,6 +1376,26 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // The context may be an intermediate context, not a function context.
     ldr(dst, MemOperand(cp, Context::SlotOffset(Context::FCONTEXT_INDEX)));
   }
+}
+
+
+void MacroAssembler::JumpIfNotBothSmi(Register reg1,
+                                      Register reg2,
+                                      Label* on_not_both_smi) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(reg1, Operand(kSmiTagMask));
+  tst(reg2, Operand(kSmiTagMask), eq);
+  b(ne, on_not_both_smi);
+}
+
+
+void MacroAssembler::JumpIfEitherSmi(Register reg1,
+                                     Register reg2,
+                                     Label* on_either_smi) {
+  ASSERT_EQ(0, kSmiTag);
+  tst(reg1, Operand(kSmiTagMask));
+  tst(reg2, Operand(kSmiTagMask), ne);
+  b(eq, on_either_smi);
 }
 
 

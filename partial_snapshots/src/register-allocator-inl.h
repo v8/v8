@@ -38,6 +38,8 @@
 #include "x64/register-allocator-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/register-allocator-arm-inl.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/register-allocator-mips-inl.h"
 #else
 #error Unsupported target architecture.
 #endif

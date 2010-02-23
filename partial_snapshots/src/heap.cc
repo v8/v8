@@ -1498,10 +1498,12 @@ void Heap::CreateRegExpCEntryStub() {
 #endif
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 void Heap::CreateCEntryDebugBreakStub() {
-  DebugerStatementStub stub;
+  DebuggerStatementStub stub;
   set_debugger_statement_code(*stub.GetCode());
 }
+#endif
 
 
 void Heap::CreateJSEntryStub() {
@@ -1526,12 +1528,14 @@ void Heap::CreateFixedStubs() {
   // {  CEntryStub stub;
   //    c_entry_code_ = *stub.GetCode();
   // }
-  // {  DebugerStatementStub stub;
+  // {  DebuggerStatementStub stub;
   //    debugger_statement_code_ = *stub.GetCode();
   // }
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateCEntryStub();
+#ifdef ENABLE_DEBUGGER_SUPPORT
   Heap::CreateCEntryDebugBreakStub();
+#endif
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
