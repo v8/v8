@@ -27,7 +27,6 @@
 
 {
   'variables': {
-    'chromium_code': 1,
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
     'target_arch%': 'ia32',
