@@ -479,17 +479,14 @@ class LoadInterceptorCompiler BASE_EMBEDDED {
 // Holds information about possible function call optimizations.
 class CallOptimization BASE_EMBEDDED {
  public:
-  explicit CallOptimization(LookupResult* lookup)
-    : constant_function_(NULL),
-      is_simple_api_call_(false),
-      expected_receiver_type_(NULL),
-      api_call_info_(NULL) {
-    if (!lookup->IsProperty() || !lookup->IsCacheable()) return;
-
-    // We only optimize constant function calls.
-    if (lookup->type() != CONSTANT_FUNCTION) return;
-
-    Initialize(lookup->GetConstantFunction());
+  explicit CallOptimization(LookupResult* lookup) {
+    if (!lookup->IsProperty() || !lookup->IsCacheable() ||
+        lookup->type() != CONSTANT_FUNCTION) {
+      Initialize(NULL);
+    } else {
+      // We only optimize constant function calls.
+      Initialize(lookup->GetConstantFunction());
+    }
   }
 
   explicit CallOptimization(JSFunction* function) {
@@ -537,11 +534,14 @@ class CallOptimization BASE_EMBEDDED {
 
  private:
   void Initialize(JSFunction* function) {
-    if (!function->is_compiled()) return;
+    constant_function_ = NULL;
+    is_simple_api_call_ = false;
+    expected_receiver_type_ = NULL;
+    api_call_info_ = NULL;
+
+    if (function == NULL || !function->is_compiled()) return;
 
     constant_function_ = function;
-    is_simple_api_call_ = false;
-
     AnalyzePossibleApiFunction(function);
   }
 
