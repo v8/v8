@@ -826,14 +826,21 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 }
 
 
-void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments,
-                                     int result_size) {
+void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
+                                               int num_arguments,
+                                               int result_size) {
   UNIMPLEMENTED_MIPS();
 }
 
 
-void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
+                                     int num_arguments,
+                                     int result_size) {
+  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   UNIMPLEMENTED_MIPS();
 }
 

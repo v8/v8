@@ -1186,15 +1186,22 @@ Object* MacroAssembler::TryCallRuntime(Runtime::Function* f,
 }
 
 
-void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments,
-                                     int result_size) {
+void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
+                                               int num_arguments,
+                                               int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
   Set(eax, Immediate(num_arguments));
-  JumpToRuntime(ext);
+  JumpToExternalReference(ext);
+}
+
+
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
+                                     int num_arguments,
+                                     int result_size) {
+  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
 }
 
 
@@ -1264,7 +1271,7 @@ Object* MacroAssembler::TryPopHandleScope(Register saved, Register scratch) {
 }
 
 
-void MacroAssembler::JumpToRuntime(const ExternalReference& ext) {
+void MacroAssembler::JumpToExternalReference(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(ebx, Immediate(ext));
   CEntryStub ces(1);

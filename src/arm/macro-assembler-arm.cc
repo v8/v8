@@ -1234,19 +1234,26 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
 }
 
 
-void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
-                                     int num_arguments,
-                                     int result_size) {
+void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
+                                               int num_arguments,
+                                               int result_size) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
   mov(r0, Operand(num_arguments));
-  JumpToRuntime(ext);
+  JumpToExternalReference(ext);
 }
 
 
-void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
+                                     int num_arguments,
+                                     int result_size) {
+  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 #if defined(__thumb__)
   // Thumb mode builtin.
   ASSERT((reinterpret_cast<intptr_t>(builtin.address()) & 1) == 1);

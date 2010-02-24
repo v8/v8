@@ -396,9 +396,9 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
 }
 
 
-void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
-                                     int num_arguments,
-                                     int result_size) {
+void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
+                                               int num_arguments,
+                                               int result_size) {
   // ----------- S t a t e -------------
   //  -- rsp[0] : return address
   //  -- rsp[8] : argument num_arguments - 1
@@ -411,12 +411,19 @@ void MacroAssembler::TailCallRuntime(ExternalReference const& ext,
   // should remove this need and make the runtime routine entry code
   // smarter.
   movq(rax, Immediate(num_arguments));
-  JumpToRuntime(ext, result_size);
+  JumpToExternalReference(ext, result_size);
 }
 
 
-void MacroAssembler::JumpToRuntime(const ExternalReference& ext,
-                                   int result_size) {
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
+                                     int num_arguments,
+                                     int result_size) {
+  TailCallExternalReference(ExternalReference(fid), num_arguments, result_size);
+}
+
+
+void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
+                                             int result_size) {
   // Set the entry point and jump to the C entry runtime stub.
   movq(rbx, ext);
   CEntryStub ces(result_size);

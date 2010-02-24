@@ -645,7 +645,6 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  // Eventually this should be used for all C calls.
   void CallRuntime(Runtime::Function* f, int num_arguments);
 
   // Convenience function: Same as above, but takes the fid instead.
@@ -656,14 +655,19 @@ class MacroAssembler: public Assembler {
                              int num_arguments);
 
   // Tail call of a runtime routine (jump).
-  // Like JumpToRuntime, but also takes care of passing the number
-  // of arguments.
-  void TailCallRuntime(const ExternalReference& ext,
+  // Like JumpToExternalReference, but also takes care of passing the number
+  // of parameters.
+  void TailCallExternalReference(const ExternalReference& ext,
+                                 int num_arguments,
+                                 int result_size);
+
+  // Convenience function: tail call a runtime routine (jump).
+  void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
 
   // Jump to a runtime routine.
-  void JumpToRuntime(const ExternalReference& ext, int result_size);
+  void JumpToExternalReference(const ExternalReference& ext, int result_size);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],

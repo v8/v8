@@ -349,7 +349,6 @@ class MacroAssembler: public Assembler {
   void StubReturn(int argc);
 
   // Call a runtime routine.
-  // Eventually this should be used for all C calls.
   void CallRuntime(Runtime::Function* f, int num_arguments);
 
   // Call a runtime function, returning the CodeStub object called.
@@ -367,9 +366,14 @@ class MacroAssembler: public Assembler {
   Object* TryCallRuntime(Runtime::FunctionId id, int num_arguments);
 
   // Tail call of a runtime routine (jump).
-  // Like JumpToRuntime, but also takes care of passing the number
-  // of arguments.
-  void TailCallRuntime(const ExternalReference& ext,
+  // Like JumpToExternalReference, but also takes care of passing the number
+  // of parameters.
+  void TailCallExternalReference(const ExternalReference& ext,
+                                 int num_arguments,
+                                 int result_size);
+
+  // Convenience function: tail call a runtime routine (jump).
+  void TailCallRuntime(Runtime::FunctionId fid,
                        int num_arguments,
                        int result_size);
 
@@ -384,7 +388,7 @@ class MacroAssembler: public Assembler {
   Object* TryPopHandleScope(Register saved, Register scratch);
 
   // Jump to a runtime routine.
-  void JumpToRuntime(const ExternalReference& ext);
+  void JumpToExternalReference(const ExternalReference& ext);
 
 
   // ---------------------------------------------------------------------------

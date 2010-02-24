@@ -7196,7 +7196,7 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ push(esi);
   __ push(edx);
   __ push(ecx);  // Restore return address.
-  __ TailCallRuntime(ExternalReference(Runtime::kNewClosure), 2, 1);
+  __ TailCallRuntime(Runtime::kNewClosure, 2, 1);
 }
 
 
@@ -7240,7 +7240,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
 
   // Need to collect. Call into runtime system.
   __ bind(&gc);
-  __ TailCallRuntime(ExternalReference(Runtime::kNewContext), 1, 1);
+  __ TailCallRuntime(Runtime::kNewContext, 1, 1);
 }
 
 
@@ -7295,8 +7295,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   __ ret(3 * kPointerSize);
 
   __ bind(&slow_case);
-  ExternalReference runtime(Runtime::kCreateArrayLiteralShallow);
-  __ TailCallRuntime(runtime, 3, 1);
+  __ TailCallRuntime(Runtime::kCreateArrayLiteralShallow, 3, 1);
 }
 
 
@@ -8248,7 +8247,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime_call_clear_stack);
   __ fstp(0);
   __ bind(&runtime_call);
-  __ TailCallRuntime(ExternalReference(RuntimeFunction()), 1, 1);
+  __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
 }
 
 
@@ -8912,7 +8911,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ pop(ebx);  // Return address.
   __ push(edx);
   __ push(ebx);
-  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1, 1);
+  __ TailCallRuntime(Runtime::kGetArgumentsProperty, 1, 1);
 }
 
 
@@ -9013,7 +9012,7 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3, 1);
+  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 
@@ -9022,10 +9021,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
 #ifndef V8_NATIVE_REGEXP
-  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_NATIVE_REGEXP
   if (!FLAG_regexp_entry_native) {
-    __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+    __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
     return;
   }
 
@@ -9347,7 +9346,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kRegExpExec), 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #endif  // V8_NATIVE_REGEXP
 }
 
@@ -9416,7 +9415,7 @@ void NumberToStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&runtime);
   // Handle number to string in the runtime system if not found in the cache.
-  __ TailCallRuntime(ExternalReference(Runtime::kNumberToString), 1, 1);
+  __ TailCallRuntime(Runtime::kNumberToString, 1, 1);
 }
 
 
@@ -9701,7 +9700,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ push(eax);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1, 1);
+  __ TailCallRuntime(Runtime::kStackGuard, 1, 1);
 }
 
 
@@ -9862,9 +9861,7 @@ void ApiGetterEntryStub::Generate(MacroAssembler* masm) {
   __ LeaveExitFrame(ExitFrame::MODE_NORMAL);
   __ ret(0);
   __ bind(&promote_scheduled_exception);
-  __ TailCallRuntime(ExternalReference(Runtime::kPromoteScheduledException),
-                     0,
-                     1);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 }
 
 
@@ -10493,7 +10490,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to add the two strings.
   __ bind(&string_add_runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kStringAdd), 2, 1);
+  __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 }
 
 
@@ -10903,7 +10900,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kSubString), 3, 1);
+  __ TailCallRuntime(Runtime::kSubString, 3, 1);
 }
 
 
@@ -11019,7 +11016,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ bind(&runtime);
-  __ TailCallRuntime(ExternalReference(Runtime::kStringCompare), 2, 1);
+  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 
 #undef __
