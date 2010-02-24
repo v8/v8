@@ -426,6 +426,7 @@ class ExternalReference BASE_EMBEDDED {
 
   // Static variable Heap::NewSpaceStart()
   static ExternalReference new_space_start();
+  static ExternalReference new_space_mask();
   static ExternalReference heap_always_allocate_scope_depth();
 
   // Used for fast allocation in generated code.

@@ -609,6 +609,11 @@ ExternalReference ExternalReference::new_space_start() {
 }
 
 
+ExternalReference ExternalReference::new_space_mask() {
+  return ExternalReference(reinterpret_cast<Address>(Heap::NewSpaceMask()));
+}
+
+
 ExternalReference ExternalReference::new_space_allocation_top_address() {
   return ExternalReference(Heap::NewSpaceAllocationTopAddress());
 }

@@ -221,7 +221,7 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   // remembered set bits in the new space.
   // object: heap object pointer (with tag)
   // offset: offset to store location from the object
-  and_(scratch, object, Operand(Heap::NewSpaceMask()));
+  and_(scratch, object, Operand(ExternalReference::new_space_mask()));
   cmp(scratch, Operand(ExternalReference::new_space_start()));
   b(eq, &done);
 

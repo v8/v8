@@ -104,7 +104,7 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   // Perform the store.
   __ str(r0, FieldMemOperand(r2, offset));
   __ mov(r3, Operand(offset));
-  __ RecordWrite(r2, r3, ip);
+  __ RecordWrite(r2, r3, r4);
 }
 
 
