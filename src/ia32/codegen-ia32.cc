@@ -6694,8 +6694,12 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
  public:
   DeferredReferenceSetKeyedValue(Register value,
                                  Register key,
-                                 Register receiver)
-      : value_(value), key_(key), receiver_(receiver) {
+                                 Register receiver,
+                                 Register scratch)
+      : value_(value),
+        key_(key),
+        receiver_(receiver),
+        scratch_(scratch) {
     set_comment("[ DeferredReferenceSetKeyedValue");
   }
 
@@ -6707,17 +6711,65 @@ class DeferredReferenceSetKeyedValue: public DeferredCode {
   Register value_;
   Register key_;
   Register receiver_;
+  Register scratch_;
   Label patch_site_;
 };
 
 
 void DeferredReferenceSetKeyedValue::Generate() {
   __ IncrementCounter(&Counters::keyed_store_inline_miss, 1);
-  // Push receiver and key arguments on the stack.
-  __ push(receiver_);
-  __ push(key_);
-  // Move value argument to eax as expected by the IC stub.
-  if (!value_.is(eax)) __ mov(eax, value_);
+  // Move value_ to eax, key_ to ecx, and receiver_ to edx.
+  Register old_value = value_;
+
+  // First, move value to eax.
+  if (!value_.is(eax)) {
+    if (key_.is(eax)) {
+      // Move key_ out of eax, preferably to ecx.
+      if (!value_.is(ecx) && !receiver_.is(ecx)) {
+        __ mov(ecx, key_);
+        key_ = ecx;
+      } else {
+        __ mov(scratch_, key_);
+        key_ = scratch_;
+      }
+    }
+    if (receiver_.is(eax)) {
+      // Move receiver_ out of eax, preferably to edx.
+      if (!value_.is(edx) && !key_.is(edx)) {
+        __ mov(edx, receiver_);
+        receiver_ = edx;
+      } else {
+        // Both moves to scratch are from eax, also, no valid path hits both.
+        __ mov(scratch_, receiver_);
+        receiver_ = scratch_;
+      }
+    }
+    __ mov(eax, value_);
+    value_ = eax;
+  }
+
+  // Now value_ is in eax.  Move the other two to the right positions.
+  // We do not update the variables key_ and receiver_ to ecx and edx.
+  if (key_.is(ecx)) {
+    if (!receiver_.is(edx)) {
+      __ mov(edx, receiver_);
+    }
+  } else if (key_.is(edx)) {
+    if (receiver_.is(ecx)) {
+      __ xchg(edx, ecx);
+    } else {
+      __ mov(ecx, key_);
+      if (!receiver_.is(edx)) {
+        __ mov(edx, receiver_);
+      }
+    }
+  } else {  // Key is not in edx or ecx.
+    if (!receiver_.is(edx)) {
+      __ mov(edx, receiver_);
+    }
+    __ mov(ecx, key_);
+  }
+
   // Call the IC stub.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
@@ -6730,11 +6782,8 @@ void DeferredReferenceSetKeyedValue::Generate() {
   // Here we use masm_-> instead of the __ macro because this is the
   // instruction that gets patched and coverage code gets in the way.
   masm_->test(eax, Immediate(-delta_to_patch_site));
-  // Restore value (returned from store IC), key and receiver
-  // registers.
-  if (!value_.is(eax)) __ mov(value_, eax);
-  __ pop(key_);
-  __ pop(receiver_);
+  // Restore value (returned from store IC) register.
+  if (!old_value.is(eax)) __ mov(old_value, eax);
 }
 
 
@@ -6933,7 +6982,8 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     DeferredReferenceSetKeyedValue* deferred =
         new DeferredReferenceSetKeyedValue(result.reg(),
                                            key.reg(),
-                                           receiver.reg());
+                                           receiver.reg(),
+                                           tmp.reg());
 
     // Check that the value is a smi if it is not a constant.  We can skip
     // the write barrier for smis and constants.
@@ -6993,7 +7043,6 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
     // indicate that we have generated an inline version of the
     // keyed store.
     __ nop();
-    frame()->Drop(2);
   }
   ASSERT(frame()->height() == original_height - 3);
   return result;
@@ -7135,6 +7184,7 @@ void Reference::SetValue(InitState init_state) {
       Comment cmnt(masm, "[ Store to keyed Property");
       Property* property = expression()->AsProperty();
       ASSERT(property != NULL);
+
       Result answer = cgen_->EmitKeyedStore(property->key()->type());
       cgen_->frame()->Push(&answer);
       set_unloaded();

@@ -1691,22 +1691,17 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   String* name) {
   // ----------- S t a t e -------------
   //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
   //  -- esp[0] : return address
-  //  -- esp[4] : key
-  //  -- esp[8] : receiver
   // -----------------------------------
   Label miss;
 
   __ IncrementCounter(&Counters::keyed_store_field, 1);
 
-  // Get the name from the stack.
-  __ mov(ecx, Operand(esp, 1 * kPointerSize));
   // Check that the name has not changed.
   __ cmp(Operand(ecx), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
-
-  // Get the object from the stack.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));
 
   // Generate store field code.  Trashes the name register.
   GenerateStoreField(masm(),

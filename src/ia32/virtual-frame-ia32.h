@@ -573,6 +573,14 @@ class VirtualFrame: public ZoneObject {
   // Register counts are correctly updated.
   int InvalidateFrameSlotAt(int index);
 
+  // This function assumes that a and b are the only results that could be in
+  // the registers a_reg or b_reg.  Other results can be live, but must not
+  //  be in the registers a_reg or b_reg.  The results a and b are invalidated.
+  void MoveResultsToRegisters(Result* a,
+                              Result* b,
+                              Register a_reg,
+                              Register b_reg);
+
   // Call a code stub that has already been prepared for calling (via
   // PrepareForCall).
   Result RawCallStub(CodeStub* stub);
