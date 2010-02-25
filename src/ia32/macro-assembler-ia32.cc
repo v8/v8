@@ -1622,6 +1622,41 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
 }
 
 
+void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+  int frameAlignment = OS::ActivationFrameAlignment();
+  if (frameAlignment != 0) {
+    // Make stack end at alignment and make room for num_arguments words
+    // and the original value of esp.
+    mov(scratch, esp);
+    sub(Operand(esp), Immediate((num_arguments + 1) * kPointerSize));
+    ASSERT(IsPowerOf2(frameAlignment));
+    and_(esp, -frameAlignment);
+    mov(Operand(esp, num_arguments * kPointerSize), scratch);
+  } else {
+    sub(Operand(esp), Immediate(num_arguments * kPointerSize));
+  }
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_arguments) {
+  // Trashing eax is ok as it will be the return value.
+  mov(Operand(eax), Immediate(function));
+  CallCFunction(eax, num_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function,
+                                   int num_arguments) {
+  call(Operand(function));
+  if (OS::ActivationFrameAlignment() != 0) {
+    mov(esp, Operand(esp, num_arguments * kPointerSize));
+  } else {
+    add(Operand(esp), Immediate(num_arguments * sizeof(int32_t)));
+  }
+}
+
+
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.

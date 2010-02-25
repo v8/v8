@@ -5743,21 +5743,12 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
 
-  // Make sure the frame is aligned like the OS expects.
-  static const int kFrameAlignment = OS::ActivationFrameAlignment();
-  if (kFrameAlignment > 0) {
-    ASSERT(IsPowerOf2(kFrameAlignment));
-    __ mov(edi, Operand(esp));  // Save in callee-saved register.
-    __ and_(esp, -kFrameAlignment);
-  }
+  int num_arguments = 0;
+  __ PrepareCallCFunction(num_arguments, eax);
 
   // Call V8::RandomPositiveSmi().
-  __ call(FUNCTION_ADDR(V8::RandomPositiveSmi), RelocInfo::RUNTIME_ENTRY);
-
-  // Restore stack pointer from callee-saved register edi.
-  if (kFrameAlignment > 0) {
-    __ mov(esp, Operand(edi));
-  }
+  __ CallCFunction(ExternalReference::random_positive_smi_function(),
+                   num_arguments);
 
   Result result = allocator_->Allocate(eax);
   frame_->Push(&result);
@@ -9207,48 +9198,50 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // All checks done. Now push arguments for native regexp code.
   __ IncrementCounter(&Counters::regexp_entry_native, 1);
 
+  static const int kRegExpExecuteArguments = 7;
+  __ PrepareCallCFunction(kRegExpExecuteArguments, ecx);
+
   // Argument 7: Indicate that this is a direct call from JavaScript.
-  __ push(Immediate(1));
+  __ mov(Operand(esp, 6 * kPointerSize), Immediate(1));
 
   // Argument 6: Start (high end) of backtracking stack memory area.
   __ mov(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_address));
   __ add(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
-  __ push(ecx);
+  __ mov(Operand(esp, 5 * kPointerSize), ecx);
 
   // Argument 5: static offsets vector buffer.
-  __ push(Immediate(ExternalReference::address_of_static_offsets_vector()));
+  __ mov(Operand(esp, 4 * kPointerSize),
+         Immediate(ExternalReference::address_of_static_offsets_vector()));
 
   // Argument 4: End of string data
   // Argument 3: Start of string data
-  Label push_two_byte, push_rest;
+  Label setup_two_byte, setup_rest;
   __ test(edi, Operand(edi));
   __ mov(edi, FieldOperand(eax, String::kLengthOffset));
-  __ j(zero, &push_two_byte);
+  __ j(zero, &setup_two_byte);
   __ lea(ecx, FieldOperand(eax, edi, times_1, SeqAsciiString::kHeaderSize));
-  __ push(ecx);  // Argument 4.
+  __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_1, SeqAsciiString::kHeaderSize));
-  __ push(ecx);  // Argument 3.
-  __ jmp(&push_rest);
+  __ mov(Operand(esp, 2 * kPointerSize), ecx);  // Argument 3.
+  __ jmp(&setup_rest);
 
-  __ bind(&push_two_byte);
+  __ bind(&setup_two_byte);
   __ lea(ecx, FieldOperand(eax, edi, times_2, SeqTwoByteString::kHeaderSize));
-  __ push(ecx);  // Argument 4.
+  __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
-  __ push(ecx);  // Argument 3.
+  __ mov(Operand(esp, 2 * kPointerSize), ecx);  // Argument 3.
 
-  __ bind(&push_rest);
+  __ bind(&setup_rest);
 
   // Argument 2: Previous index.
-  __ push(ebx);
+  __ mov(Operand(esp, 1 * kPointerSize), ebx);
 
   // Argument 1: Subject string.
-  __ push(eax);
+  __ mov(Operand(esp, 0 * kPointerSize), eax);
 
   // Locate the code entry and call it.
   __ add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ call(Operand(edx));
-  // Remove arguments.
-  __ add(Operand(esp), Immediate(7 * kPointerSize));
+  __ CallCFunction(edx, kRegExpExecuteArguments);
 
   // Check the result.
   Label success;
