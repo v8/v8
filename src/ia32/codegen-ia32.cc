@@ -5743,7 +5743,7 @@ void CodeGenerator::GenerateRandomPositiveSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
   frame_->SpillAll();
 
-  int num_arguments = 0;
+  static const int num_arguments = 0;
   __ PrepareCallCFunction(num_arguments, eax);
 
   // Call V8::RandomPositiveSmi().

@@ -324,7 +324,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ push(backtrack_stackpointer());
     __ push(ebx);
 
-    const int argument_count = 3;
+    static const int argument_count = 3;
     __ PrepareCallCFunction(argument_count, ecx);
     // Put arguments into allocated stack area, last argument highest on stack.
     // Parameters are
@@ -784,7 +784,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ push(edi);
 
     // Call GrowStack(backtrack_stackpointer())
-    int num_arguments = 2;
+    static const int num_arguments = 2;
     __ PrepareCallCFunction(num_arguments, ebx);
     __ lea(eax, Operand(ebp, kStackHighEnd));
     __ mov(Operand(esp, 1 * kPointerSize), eax);
@@ -951,7 +951,7 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerIA32::CallCheckStackGuardState(Register scratch) {
-  int num_arguments = 3;
+  static const int num_arguments = 3;
   __ PrepareCallCFunction(num_arguments, scratch);
   // RegExp code frame pointer.
   __ mov(Operand(esp, 2 * kPointerSize), ebp);
