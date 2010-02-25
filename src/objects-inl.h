@@ -840,15 +840,17 @@ Failure* Failure::OutOfMemoryException() {
 
 
 intptr_t Failure::value() const {
-  return reinterpret_cast<intptr_t>(this) >> kFailureTagSize;
+  return static_cast<intptr_t>(
+      reinterpret_cast<uintptr_t>(this) >> kFailureTagSize);
 }
 
 
 Failure* Failure::RetryAfterGC(int requested_bytes) {
   // Assert that the space encoding fits in the three bytes allotted for it.
   ASSERT((LAST_SPACE & ~kSpaceTagMask) == 0);
-  intptr_t requested = requested_bytes >> kObjectAlignmentBits;
-  int tag_bits = kSpaceTagSize + kFailureTypeTagSize;
+  uintptr_t requested =
+      static_cast<uintptr_t>(requested_bytes >> kObjectAlignmentBits);
+  int tag_bits = kSpaceTagSize + kFailureTypeTagSize + kFailureTagSize;
   if (((requested << tag_bits) >> tag_bits) != requested) {
     // No room for entire requested size in the bits. Round down to
     // maximally representable size.
@@ -861,7 +863,8 @@ Failure* Failure::RetryAfterGC(int requested_bytes) {
 
 
 Failure* Failure::Construct(Type type, intptr_t value) {
-  intptr_t info = (static_cast<intptr_t>(value) << kFailureTypeTagSize) | type;
+  uintptr_t info =
+      (static_cast<uintptr_t>(value) << kFailureTypeTagSize) | type;
   ASSERT(((info << kFailureTagSize) >> kFailureTagSize) == info);
   return reinterpret_cast<Failure*>((info << kFailureTagSize) | kFailureTag);
 }
