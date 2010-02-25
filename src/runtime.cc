@@ -4152,10 +4152,14 @@ static Object* Runtime_NumberToInteger(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  Object* obj = args[0];
-  if (obj->IsSmi()) return obj;
-  CONVERT_DOUBLE_CHECKED(number, obj);
-  return Heap::NumberFromDouble(DoubleToInteger(number));
+  CONVERT_DOUBLE_CHECKED(number, args[0]);
+
+  // We do not include 0 so that we don't have to treat +0 / -0 cases.
+  if (number > 0 && number <= Smi::kMaxValue) {
+    return Smi::FromInt(static_cast<int>(number));
+  } else {
+    return Heap::NumberFromDouble(DoubleToInteger(number));
+  }
 }
 
 
@@ -4163,9 +4167,7 @@ static Object* Runtime_NumberToJSUint32(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  Object* obj = args[0];
-  if (obj->IsSmi() && Smi::cast(obj)->value() >= 0) return obj;
-  CONVERT_NUMBER_CHECKED(int32_t, number, Uint32, obj);
+  CONVERT_NUMBER_CHECKED(int32_t, number, Uint32, args[0]);
   return Heap::NumberFromUint32(number);
 }
 
@@ -4174,10 +4176,14 @@ static Object* Runtime_NumberToJSInt32(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
-  Object* obj = args[0];
-  if (obj->IsSmi()) return obj;
-  CONVERT_DOUBLE_CHECKED(number, obj);
-  return Heap::NumberFromInt32(DoubleToInt32(number));
+  CONVERT_DOUBLE_CHECKED(number, args[0]);
+
+  // We do not include 0 so that we don't have to treat +0 / -0 cases.
+  if (number > 0 && number <= Smi::kMaxValue) {
+    return Smi::FromInt(static_cast<int>(number));
+  } else {
+    return Heap::NumberFromInt32(DoubleToInt32(number));
+  }
 }
 
 
