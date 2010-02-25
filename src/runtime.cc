@@ -4593,6 +4593,66 @@ static Object* Runtime_SmiLexicographicCompare(Arguments args) {
 }
 
 
+static Object* StringInputBufferCompare(String* x, String* y) {
+  static StringInputBuffer bufx;
+  static StringInputBuffer bufy;
+  bufx.Reset(x);
+  bufy.Reset(y);
+  while (bufx.has_more() && bufy.has_more()) {
+    int d = bufx.GetNext() - bufy.GetNext();
+    if (d < 0) return Smi::FromInt(LESS);
+    else if (d > 0) return Smi::FromInt(GREATER);
+  }
+
+  // x is (non-trivial) prefix of y:
+  if (bufy.has_more()) return Smi::FromInt(LESS);
+  // y is prefix of x:
+  return Smi::FromInt(bufx.has_more() ? GREATER : EQUAL);
+}
+
+
+static Object* FlatStringCompare(String* x, String* y) {
+  ASSERT(x->IsFlat());
+  ASSERT(y->IsFlat());
+  Object* equal_prefix_result = Smi::FromInt(EQUAL);
+  int prefix_length = x->length();
+  if (y->length() < prefix_length) {
+    prefix_length = y->length();
+    equal_prefix_result = Smi::FromInt(GREATER);
+  } else if (y->length() > prefix_length) {
+    equal_prefix_result = Smi::FromInt(LESS);
+  }
+  int r;
+  if (x->IsAsciiRepresentation()) {
+    Vector<const char> x_chars = x->ToAsciiVector();
+    if (y->IsAsciiRepresentation()) {
+      Vector<const char> y_chars = y->ToAsciiVector();
+      r = memcmp(x_chars.start(), y_chars.start(), prefix_length);
+    } else {
+      Vector<const uc16> y_chars = y->ToUC16Vector();
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+    }
+  } else {
+    Vector<const uc16> x_chars = x->ToUC16Vector();
+    if (y->IsAsciiRepresentation()) {
+      Vector<const char> y_chars = y->ToAsciiVector();
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+    } else {
+      Vector<const uc16> y_chars = y->ToUC16Vector();
+      r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
+    }
+  }
+  Object* result;
+  if (r == 0) {
+    result = equal_prefix_result;
+  } else {
+    result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
+  }
+  ASSERT(result == StringInputBufferCompare(x, y));
+  return result;
+}
+
+
 static Object* Runtime_StringCompare(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -4618,20 +4678,8 @@ static Object* Runtime_StringCompare(Arguments args) {
   x->TryFlattenIfNotFlat();
   y->TryFlattenIfNotFlat();
 
-  static StringInputBuffer bufx;
-  static StringInputBuffer bufy;
-  bufx.Reset(x);
-  bufy.Reset(y);
-  while (bufx.has_more() && bufy.has_more()) {
-    int d = bufx.GetNext() - bufy.GetNext();
-    if (d < 0) return Smi::FromInt(LESS);
-    else if (d > 0) return Smi::FromInt(GREATER);
-  }
-
-  // x is (non-trivial) prefix of y:
-  if (bufy.has_more()) return Smi::FromInt(LESS);
-  // y is prefix of x:
-  return Smi::FromInt(bufx.has_more() ? GREATER : EQUAL);
+  return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
+                                      : StringInputBufferCompare(x, y);
 }
 
 

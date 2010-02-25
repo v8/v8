@@ -4051,10 +4051,6 @@ class SeqString: public String {
   // Casting.
   static inline SeqString* cast(Object* obj);
 
-  // Dispatched behaviour.
-  // For regexp code.
-  uint16_t* SeqStringGetTwoByteAddress();
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);
 };
