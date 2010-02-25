@@ -72,7 +72,6 @@
 //             - Dictionary
 //             - SymbolTable
 //             - CompilationCacheTable
-//             - CodeCacheHashTable
 //             - MapCache
 //           - Context
 //           - GlobalContext
@@ -103,7 +102,6 @@
 //         - TypeSwitchInfo
 //         - DebugInfo
 //         - BreakPointInfo
-//         - CodeCache
 //
 // Formats of Object*:
 //  Smi:        [31 bit signed int] 0
@@ -271,7 +269,6 @@ enum PropertyNormalizationMode {
   V(SIGNATURE_INFO_TYPE)                                                       \
   V(TYPE_SWITCH_INFO_TYPE)                                                     \
   V(SCRIPT_TYPE)                                                               \
-  V(CODE_CACHE_TYPE)                                                           \
                                                                                \
   V(JS_VALUE_TYPE)                                                             \
   V(JS_OBJECT_TYPE)                                                            \
@@ -367,8 +364,7 @@ enum PropertyNormalizationMode {
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)            \
   V(SIGNATURE_INFO, SignatureInfo, signature_info)                             \
   V(TYPE_SWITCH_INFO, TypeSwitchInfo, type_switch_info)                        \
-  V(SCRIPT, Script, script)                                                    \
-  V(CODE_CACHE, CodeCache, code_cache)
+  V(SCRIPT, Script, script)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define STRUCT_LIST_DEBUGGER(V)                                                \
@@ -472,7 +468,6 @@ enum InstanceType {
   SIGNATURE_INFO_TYPE,
   TYPE_SWITCH_INFO_TYPE,
   SCRIPT_TYPE,
-  CODE_CACHE_TYPE,
 #ifdef ENABLE_DEBUGGER_SUPPORT
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
@@ -606,7 +601,6 @@ class Object BASE_EMBEDDED {
   inline bool IsDictionary();
   inline bool IsSymbolTable();
   inline bool IsCompilationCacheTable();
-  inline bool IsCodeCacheHashTable();
   inline bool IsMapCache();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
@@ -2928,7 +2922,7 @@ class Map: public HeapObject {
   DECL_ACCESSORS(instance_descriptors, DescriptorArray)
 
   // [stub cache]: contains stubs compiled for this map.
-  DECL_ACCESSORS(code_cache, Object)
+  DECL_ACCESSORS(code_cache, FixedArray)
 
   Object* CopyDropDescriptors();
 
@@ -3031,11 +3025,6 @@ class Map: public HeapObject {
   // Bit positions for bit field 2
   static const int kNeedsLoading = 0;
   static const int kIsExtensible = 1;
-
-  // Layout of the default cache. It holds alternating name and code objects.
-  static const int kCodeCacheEntrySize = 2;
-  static const int kCodeCacheEntryNameOffset = 0;
-  static const int kCodeCacheEntryCodeOffset = 1;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
@@ -3719,93 +3708,6 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
-};
-
-
-class CodeCache: public Struct {
- public:
-  DECL_ACCESSORS(default_cache, FixedArray)
-  DECL_ACCESSORS(normal_type_cache, Object)
-
-  // Add the code object to the cache.
-  Object* Update(String* name, Code* code);
-
-  // Lookup code object in the cache. Returns code object if found.
-  Object* Lookup(String* name, Code::Flags flags);
-
-  // Get the internal index of a code object in the cache. Returns -1 if the
-  // code object is not in that cache. This index can be used to later call
-  // RemoveByIndex. The cache cannot be modified between a call to GetIndex and
-  // RemoveByIndex.
-  int GetIndex(Code* code);
-
-  // Remove an object from the cache with the provided internal index.
-  void RemoveByIndex(int index);
-
-  static inline CodeCache* cast(Object* obj);
-
-#ifdef DEBUG
-  void CodeCachePrint();
-  void CodeCacheVerify();
-#endif
-
-  static const int kDefaultCacheOffset = HeapObject::kHeaderSize;
-  static const int kNormalTypeCacheOffset =
-      kDefaultCacheOffset + kPointerSize;
-  static const int kSize = kNormalTypeCacheOffset + kPointerSize;
-
- private:
-  Object* UpdateDefaultCache(String* name, Code* code);
-  Object* UpdateNormalTypeCache(String* name, Code* code);
-  Object* LookupDefaultCache(String* name, Code::Flags flags);
-  Object* LookupNormalTypeCache(String* name, Code::Flags flags);
-
-  // Code cache layout of the default cache. Elements are alternating name and
-  // code objects for non normal load/store/call IC's.
-  static const int kCodeCacheEntrySize = 2;
-  static const int kCodeCacheEntryNameOffset = 0;
-  static const int kCodeCacheEntryCodeOffset = 1;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCache);
-};
-
-
-class CodeCacheHashTableShape {
- public:
-  static inline bool IsMatch(HashTableKey* key, Object* value) {
-    return key->IsMatch(value);
-  }
-
-  static inline uint32_t Hash(HashTableKey* key) {
-    return key->Hash();
-  }
-
-  static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
-    return key->HashForObject(object);
-  }
-
-  static Object* AsObject(HashTableKey* key) {
-    return key->AsObject();
-  }
-
-  static const int kPrefixSize = 0;
-  static const int kEntrySize = 2;
-};
-
-
-class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
-                                           HashTableKey*> {
- public:
-  Object* Lookup(String* name, Code::Flags flags);
-  Object* Put(String* name, Code* code);
-
-  static inline CodeCacheHashTable* cast(Object* obj);
-
-  // Initial size of the fixed array backing the hash table.
-  static const int kInitialSize = 64;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCacheHashTable);
 };
 
 

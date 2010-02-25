@@ -1206,7 +1206,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
   map->set_instance_descriptors(empty_descriptor_array());
-  map->set_code_cache(undefined_value());
+  map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
@@ -1218,16 +1218,6 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
            Map::kSize - Map::kPadStart);
   }
   return map;
-}
-
-
-Object* Heap::AllocateCodeCache() {
-  Object* result = AllocateStruct(CODE_CACHE_TYPE);
-  if (result->IsFailure()) return result;
-  CodeCache* code_cache = CodeCache::cast(result);
-  code_cache->set_default_cache(empty_fixed_array());
-  code_cache->set_normal_type_cache(undefined_value());
-  return code_cache;
 }
 
 
@@ -1287,13 +1277,13 @@ bool Heap::CreateInitialMaps() {
 
   // Fix the instance_descriptors for the existing maps.
   meta_map()->set_instance_descriptors(empty_descriptor_array());
-  meta_map()->set_code_cache(undefined_value());
+  meta_map()->set_code_cache(empty_fixed_array());
 
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
-  fixed_array_map()->set_code_cache(undefined_value());
+  fixed_array_map()->set_code_cache(empty_fixed_array());
 
   oddball_map()->set_instance_descriptors(empty_descriptor_array());
-  oddball_map()->set_code_cache(undefined_value());
+  oddball_map()->set_code_cache(empty_fixed_array());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());

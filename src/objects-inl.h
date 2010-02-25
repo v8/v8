@@ -564,11 +564,6 @@ bool Object::IsCompilationCacheTable() {
 }
 
 
-bool Object::IsCodeCacheHashTable() {
-  return IsHashTable();
-}
-
-
 bool Object::IsMapCache() {
   return IsHashTable();
 }
@@ -1568,7 +1563,6 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(CompilationCacheTable)
-CAST_ACCESSOR(CodeCacheHashTable)
 CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
@@ -2261,7 +2255,7 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 ACCESSORS(Map, instance_descriptors, DescriptorArray,
           kInstanceDescriptorsOffset)
-ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
+ACCESSORS(Map, code_cache, FixedArray, kCodeCacheOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
@@ -2398,9 +2392,6 @@ INT_ACCESSORS(SharedFunctionInfo, compiler_hints,
 INT_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
 
-
-ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
-ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
 
 bool Script::HasValidSource() {
   Object* src = this->source();
@@ -3002,8 +2993,8 @@ void Map::ClearCodeCache() {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
-  ASSERT(!Heap::InNewSpace(Heap::undefined_value()));
-  WRITE_FIELD(this, kCodeCacheOffset, Heap::undefined_value());
+  ASSERT(!Heap::InNewSpace(Heap::raw_unchecked_empty_fixed_array()));
+  WRITE_FIELD(this, kCodeCacheOffset, Heap::raw_unchecked_empty_fixed_array());
 }
 
 
