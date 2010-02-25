@@ -47,10 +47,29 @@ unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::enabled_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
+
+#ifdef __arm__
+static uint64_t CpuFeaturesImpliedByCompiler() {
+  uint64_t answer = 0;
+#ifdef CAN_USE_ARMV7_INSTRUCTIONS
+  answer |= 1u << ARMv7;
+#endif  // def CAN_USE_ARMV7_INSTRUCTIONS
+  // If the compiler is allowed to use VFP then we can use VFP too in our code
+  // generation even when generating snapshots.  This won't work for cross
+  // compilation.
+#if defined(__VFP_FP__) && !defined(__SOFTFP__)
+  answer |= 1u << VFP3;
+#endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
+#ifdef CAN_USE_VFP_INSTRUCTIONS
+  answer |= 1u << VFP3;
+#endif  // def CAN_USE_VFP_INSTRUCTIONS
+  return answer;
+}
+#endif  // def __arm__
+
+
 void CpuFeatures::Probe() {
-  // If the compiler is allowed to use vfp then we can use vfp too in our
-  // code generation.
-#if !defined(__arm__)
+#ifndef __arm__
   // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is enabled.
   if (FLAG_enable_vfp3) {
       supported_ |= 1u << VFP3;
@@ -59,9 +78,10 @@ void CpuFeatures::Probe() {
   if (FLAG_enable_armv7) {
       supported_ |= 1u << ARMv7;
   }
-#else
+#else  // def __arm__
   if (Serializer::enabled()) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
+    supported_ |= CpuFeaturesImpliedByCompiler();
     return;  // No features if we might serialize.
   }
 
@@ -76,7 +96,7 @@ void CpuFeatures::Probe() {
     supported_ |= 1u << ARMv7;
     found_by_runtime_probing_ |= 1u << ARMv7;
   }
-#endif
+#endif  // def __arm__
 }
 
 
@@ -620,7 +640,7 @@ static bool MustUseIp(RelocInfo::Mode rmode) {
     if (!Serializer::enabled()) {
       Serializer::TooLateToEnableNow();
     }
-#endif
+#endif  // def DEBUG
     return Serializer::enabled();
   } else if (rmode == RelocInfo::NONE) {
     return false;
@@ -1225,14 +1245,16 @@ void Assembler::swpb(Register dst,
 
 // Exception-generating instructions and debugging support.
 void Assembler::stop(const char* msg) {
-#if !defined(__arm__)
+#ifndef __arm__
   // The simulator handles these special instructions and stops execution.
   emit(15 << 28 | ((intptr_t) msg));
-#else
-  // Just issue a simple break instruction for now. Alternatively we could use
-  // the swi(0x9f0001) instruction on Linux.
+#else  // def __arm__
+#ifdef CAN_USE_ARMV5_INSTRUCTIONS
   bkpt(0);
-#endif
+#else  // ndef CAN_USE_ARMV5_INSTRUCTIONS
+  swi(0x9f0001);
+#endif  // ndef CAN_USE_ARMV5_INSTRUCTIONS
+#endif  // def __arm__
 }
 
 
