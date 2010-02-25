@@ -3033,19 +3033,79 @@ Object* Map::CopyDropTransitions() {
 
 
 Object* Map::UpdateCodeCache(String* name, Code* code) {
-  ASSERT(code->ic_state() == MONOMORPHIC);
-  FixedArray* cache = code_cache();
+  // Allocate the code cache if not present.
+  if (code_cache()->IsUndefined()) {
+    Object* result = Heap::AllocateCodeCache();
+    if (result->IsFailure()) return result;
+    set_code_cache(result);
+  }
 
-  // When updating the code cache we disregard the type encoded in the
+  // Update the code cache.
+  return CodeCache::cast(code_cache())->Update(name, code);
+}
+
+
+Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
+  // Do a lookup if a code cache exists.
+  if (!code_cache()->IsUndefined()) {
+    return CodeCache::cast(code_cache())->Lookup(name, flags);
+  } else {
+    return Heap::undefined_value();
+  }
+}
+
+
+int Map::IndexInCodeCache(Code* code) {
+  // Get the internal index if a code cache exists.
+  if (!code_cache()->IsUndefined()) {
+    return CodeCache::cast(code_cache())->GetIndex(code);
+  }
+  return -1;
+}
+
+
+void Map::RemoveFromCodeCache(int index) {
+  // No GC is supposed to happen between a call to IndexInCodeCache and
+  // RemoveFromCodeCache so the code cache must be there.
+  ASSERT(!code_cache()->IsUndefined());
+  return CodeCache::cast(code_cache())->RemoveByIndex(index);
+}
+
+
+Object* CodeCache::Update(String* name, Code* code) {
+  ASSERT(code->ic_state() == MONOMORPHIC);
+
+  // The number of monomorphic stubs for normal load/store/call IC's can grow to
+  // a large number and therefore they need to go into a hash table. They are
+  // used to load global properties from cells.
+  if (code->type() == NORMAL) {
+    // Make sure that a hash table is allocated for the normal load code cache.
+    if (normal_type_cache()->IsUndefined()) {
+      Object* result =
+          CodeCacheHashTable::Allocate(CodeCacheHashTable::kInitialSize);
+      if (result->IsFailure()) return result;
+      set_normal_type_cache(result);
+    }
+    return UpdateNormalTypeCache(name, code);
+  } else {
+    ASSERT(default_cache()->IsFixedArray());
+    return UpdateDefaultCache(name, code);
+  }
+}
+
+
+Object* CodeCache::UpdateDefaultCache(String* name, Code* code) {
+  // When updating the default code cache we disregard the type encoded in the
   // flags. This allows call constant stubs to overwrite call field
   // stubs, etc.
   Code::Flags flags = Code::RemoveTypeFromFlags(code->flags());
 
   // First check whether we can update existing code cache without
   // extending it.
+  FixedArray* cache = default_cache();
   int length = cache->length();
   int deleted_index = -1;
-  for (int i = 0; i < length; i += 2) {
+  for (int i = 0; i < length; i += kCodeCacheEntrySize) {
     Object* key = cache->get(i);
     if (key->IsNull()) {
       if (deleted_index < 0) deleted_index = i;
@@ -3053,14 +3113,15 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
     }
     if (key->IsUndefined()) {
       if (deleted_index >= 0) i = deleted_index;
-      cache->set(i + 0, name);
-      cache->set(i + 1, code);
+      cache->set(i + kCodeCacheEntryNameOffset, name);
+      cache->set(i + kCodeCacheEntryCodeOffset, code);
       return this;
     }
     if (name->Equals(String::cast(key))) {
-      Code::Flags found = Code::cast(cache->get(i + 1))->flags();
+      Code::Flags found =
+          Code::cast(cache->get(i + kCodeCacheEntryCodeOffset))->flags();
       if (Code::RemoveTypeFromFlags(found) == flags) {
-        cache->set(i + 1, code);
+        cache->set(i + kCodeCacheEntryCodeOffset, code);
         return this;
       }
     }
@@ -3069,61 +3130,180 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
   // Reached the end of the code cache.  If there were deleted
   // elements, reuse the space for the first of them.
   if (deleted_index >= 0) {
-    cache->set(deleted_index + 0, name);
-    cache->set(deleted_index + 1, code);
+    cache->set(deleted_index + kCodeCacheEntryNameOffset, name);
+    cache->set(deleted_index + kCodeCacheEntryCodeOffset, code);
     return this;
   }
 
-  // Extend the code cache with some new entries (at least one).
-  int new_length = length + ((length >> 1) & ~1) + 2;
-  ASSERT((new_length & 1) == 0);  // must be a multiple of two
+  // Extend the code cache with some new entries (at least one). Must be a
+  // multiple of the entry size.
+  int new_length = length + ((length >> 1)) + kCodeCacheEntrySize;
+  new_length = new_length - new_length % kCodeCacheEntrySize;
+  ASSERT((new_length % kCodeCacheEntrySize) == 0);
   Object* result = cache->CopySize(new_length);
   if (result->IsFailure()) return result;
 
   // Add the (name, code) pair to the new cache.
   cache = FixedArray::cast(result);
-  cache->set(length + 0, name);
-  cache->set(length + 1, code);
-  set_code_cache(cache);
+  cache->set(length + kCodeCacheEntryNameOffset, name);
+  cache->set(length + kCodeCacheEntryCodeOffset, code);
+  set_default_cache(cache);
   return this;
 }
 
 
-Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
-  FixedArray* cache = code_cache();
+Object* CodeCache::UpdateNormalTypeCache(String* name, Code* code) {
+  // Adding a new entry can cause a new cache to be allocated.
+  CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
+  Object* new_cache = cache->Put(name, code);
+  if (new_cache->IsFailure()) return new_cache;
+  set_normal_type_cache(new_cache);
+  return this;
+}
+
+
+Object* CodeCache::Lookup(String* name, Code::Flags flags) {
+  if (Code::ExtractTypeFromFlags(flags) == NORMAL) {
+    return LookupNormalTypeCache(name, flags);
+  } else {
+    return LookupDefaultCache(name, flags);
+  }
+}
+
+
+Object* CodeCache::LookupDefaultCache(String* name, Code::Flags flags) {
+  FixedArray* cache = default_cache();
   int length = cache->length();
-  for (int i = 0; i < length; i += 2) {
-    Object* key = cache->get(i);
+  for (int i = 0; i < length; i += kCodeCacheEntrySize) {
+    Object* key = cache->get(i + kCodeCacheEntryNameOffset);
     // Skip deleted elements.
     if (key->IsNull()) continue;
     if (key->IsUndefined()) return key;
     if (name->Equals(String::cast(key))) {
-      Code* code = Code::cast(cache->get(i + 1));
-      if (code->flags() == flags) return code;
+      Code* code = Code::cast(cache->get(i + kCodeCacheEntryCodeOffset));
+      if (code->flags() == flags) {
+        return code;
+      }
     }
   }
   return Heap::undefined_value();
 }
 
 
-int Map::IndexInCodeCache(Code* code) {
-  FixedArray* array = code_cache();
+Object* CodeCache::LookupNormalTypeCache(String* name, Code::Flags flags) {
+  if (!normal_type_cache()->IsUndefined()) {
+    CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
+    return cache->Lookup(name, flags);
+  } else {
+    return Heap::undefined_value();
+  }
+}
+
+
+int CodeCache::GetIndex(Code* code) {
+  // This is not used for normal load/store/call IC's.
+  ASSERT(code->type() != NORMAL);
+
+  FixedArray* array = default_cache();
   int len = array->length();
-  for (int i = 0; i < len; i += 2) {
-    if (array->get(i + 1) == code) return i + 1;
+  for (int i = 0; i < len; i += kCodeCacheEntrySize) {
+    if (array->get(i + kCodeCacheEntryCodeOffset) == code) return i + 1;
   }
   return -1;
 }
 
 
-void Map::RemoveFromCodeCache(int index) {
-  FixedArray* array = code_cache();
+void CodeCache::RemoveByIndex(int index) {
+  FixedArray* array = default_cache();
   ASSERT(array->length() >= index && array->get(index)->IsCode());
   // Use null instead of undefined for deleted elements to distinguish
   // deleted elements from unused elements.  This distinction is used
   // when looking up in the cache and when updating the cache.
-  array->set_null(index - 1);  // key
-  array->set_null(index);  // code
+  ASSERT_EQ(1, kCodeCacheEntryCodeOffset - kCodeCacheEntryNameOffset);
+  array->set_null(index - 1);  // Name.
+  array->set_null(index);  // Code.
+}
+
+
+// The key in the code cache hash table consists of the property name and the
+// code object. The actual match is on the name and the code flags. If a key
+// is created using the flags and not a code object it can only be used for
+// lookup not to create a new entry.
+class CodeCacheHashTableKey : public HashTableKey {
+ public:
+  CodeCacheHashTableKey(String* name, Code::Flags flags)
+      : name_(name), flags_(flags), code_(NULL) { }
+
+  CodeCacheHashTableKey(String* name, Code* code)
+      : name_(name),
+        flags_(code->flags()),
+        code_(code) { }
+
+
+  bool IsMatch(Object* other) {
+    if (!other->IsFixedArray()) return false;
+    FixedArray* pair = FixedArray::cast(other);
+    String* name = String::cast(pair->get(0));
+    Code::Flags flags = Code::cast(pair->get(1))->flags();
+    if (flags != flags_) {
+      return false;
+    }
+    return name_->Equals(name);
+  }
+
+  static uint32_t NameFlagsHashHelper(String* name, Code::Flags flags) {
+    return name->Hash() ^ flags;
+  }
+
+  uint32_t Hash() { return NameFlagsHashHelper(name_, flags_); }
+
+  uint32_t HashForObject(Object* obj) {
+    FixedArray* pair = FixedArray::cast(obj);
+    String* name = String::cast(pair->get(0));
+    Code* code = Code::cast(pair->get(1));
+    return NameFlagsHashHelper(name, code->flags());
+  }
+
+  Object* AsObject() {
+    ASSERT(code_ != NULL);
+    Object* obj = Heap::AllocateFixedArray(2);
+    if (obj->IsFailure()) return obj;
+    FixedArray* pair = FixedArray::cast(obj);
+    pair->set(0, name_);
+    pair->set(1, code_);
+    return pair;
+  }
+
+ private:
+  String* name_;
+  Code::Flags flags_;
+  Code* code_;
+};
+
+
+Object* CodeCacheHashTable::Lookup(String* name, Code::Flags flags) {
+  CodeCacheHashTableKey key(name, flags);
+  int entry = FindEntry(&key);
+  if (entry == kNotFound) return Heap::undefined_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
+Object* CodeCacheHashTable::Put(String* name, Code* code) {
+  CodeCacheHashTableKey key(name, code);
+  Object* obj = EnsureCapacity(1, &key);
+
+  // Don't use this, as the table might have grown.
+  CodeCacheHashTable* cache = reinterpret_cast<CodeCacheHashTable*>(obj);
+
+  int entry = cache->FindInsertionEntry(key.Hash());
+  Object* k = key.AsObject();
+  if (k->IsFailure()) return k;
+
+  cache->set(EntryToIndex(entry), k);
+  cache->set(EntryToIndex(entry) + 1, code);
+  cache->ElementAdded();
+  return cache;
 }
 
 
@@ -6979,7 +7159,6 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   table->SetNumberOfDeletedElements(0);
   return table;
 }
-
 
 
 template<typename Shape, typename Key>
