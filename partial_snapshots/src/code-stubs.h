@@ -48,6 +48,7 @@ namespace internal {
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
   V(FastCloneShallowArray)               \
+  V(TranscendentalCache)                 \
   V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
@@ -55,6 +56,7 @@ namespace internal {
   V(CounterOp)                           \
   V(ArgumentsAccess)                     \
   V(RegExpExec)                          \
+  V(NumberToString)                      \
   V(CEntry)                              \
   V(JSEntry)                             \
   V(DebuggerStatement)

@@ -401,7 +401,7 @@
                                 >
                         </File>
                         <File
-                                RelativePath="..\..\src\fast-codegen.cc"
+                                RelativePath="..\..\src\ia32\fast-codegen-ia32.h"
                                 >
                         </File>
                         <File
@@ -577,6 +577,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\liveedit.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\liveedit.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\log.cc"
 				>
 			</File>
@@ -630,6 +638,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\natives.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\number-info.h"
 				>
 			</File>
 			<File

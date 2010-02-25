@@ -546,14 +546,16 @@ StringMirror.prototype.length = function() {
   return this.value_.length;
 };
 
+StringMirror.prototype.getTruncatedValue = function(maxLength) {
+  if (maxLength != -1 && this.length() > maxLength) {
+    return this.value_.substring(0, maxLength) +
+           '... (length: ' + this.length() + ')';
+  }
+  return this.value_;
+}
 
 StringMirror.prototype.toText = function() {
-  if (this.length() > kMaxProtocolStringLength) {
-    return this.value_.substring(0, kMaxProtocolStringLength) +
-           '... (length: ' + this.length() + ')';
-  } else {
-    return this.value_;
-  }
+  return this.getTruncatedValue(kMaxProtocolStringLength);
 }
 
 
@@ -1726,7 +1728,8 @@ ScriptMirror.prototype.value = function() {
 
 
 ScriptMirror.prototype.name = function() {
-  return this.script_.name;
+  // If we have name, we trust it more than sourceURL from comments
+  return this.script_.name || this.sourceUrlFromComment_();
 };
 
 
@@ -1819,6 +1822,29 @@ ScriptMirror.prototype.toText = function() {
   result += ')';
   return result;
 }
+
+
+/**
+ * Returns a suggested script URL from comments in script code (if found), 
+ * undefined otherwise. Used primarily by debuggers for identifying eval()'ed
+ * scripts. See 
+ * http://fbug.googlecode.com/svn/branches/firebug1.1/docs/ReleaseNotes_1.1.txt
+ * for details.
+ * 
+ * @return {?string} value for //@ sourceURL comment
+ */
+ScriptMirror.prototype.sourceUrlFromComment_ = function() {
+  if (!('sourceUrl_' in this) && this.source()) {
+    // TODO(608): the spaces in a regexp below had to be escaped as \040 
+    // because this file is being processed by js2c whose handling of spaces
+    // in regexps is broken.
+    // We're not using \s here to prevent \n from matching.
+    var sourceUrlPattern = /\/\/@[\040\t]sourceURL=[\040\t]*(\S+)[\040\t]*$/m;
+    var match = sourceUrlPattern.exec(this.source());
+    this.sourceUrl_ = match ? match[1] : undefined;
+  }
+  return this.sourceUrl_;
+};
 
 
 /**
@@ -1924,6 +1950,15 @@ JSONProtocolSerializer.prototype.inlineRefs_ = function() {
 }
 
 
+JSONProtocolSerializer.prototype.maxStringLength_ = function() {
+  if (IS_UNDEFINED(this.options_) ||
+      IS_UNDEFINED(this.options_.maxStringLength)) {
+    return kMaxProtocolStringLength;
+  }
+  return this.options_.maxStringLength;
+}
+
+
 JSONProtocolSerializer.prototype.add_ = function(mirror) {
   // If this mirror is already in the list just return.
   for (var i = 0; i < this.mirrors_.length; i++) {
@@ -1956,8 +1991,7 @@ JSONProtocolSerializer.prototype.serializeReferenceWithDisplayData_ =
       o.value = mirror.value();
       break;
     case STRING_TYPE:
-      // Limit string length.
-      o.value = mirror.toText();
+      o.value = mirror.getTruncatedValue(this.maxStringLength_());
       break;
     case FUNCTION_TYPE:
       o.name = mirror.name();
@@ -2021,11 +2055,12 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
 
     case STRING_TYPE:
       // String values might have their value cropped to keep down size.
-      if (mirror.length() > kMaxProtocolStringLength) {
-        var str = mirror.value().substring(0, kMaxProtocolStringLength);
+      if (this.maxStringLength_() != -1 &&
+          mirror.length() > this.maxStringLength_()) {
+        var str = mirror.getTruncatedValue(this.maxStringLength_());
         content.value = str;
         content.fromIndex = 0;
-        content.toIndex = kMaxProtocolStringLength;
+        content.toIndex = this.maxStringLength_();
       } else {
         content.value = mirror.value();
       }

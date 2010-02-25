@@ -178,7 +178,7 @@ function STRING_ADD_LEFT(y) {
       y = %_ValueOf(y);
     } else {
       y = IS_NUMBER(y)
-          ? %NumberToString(y)
+          ? %_NumberToString(y)
           : %ToString(%ToPrimitive(y, NO_HINT));
     }
   }
@@ -194,7 +194,7 @@ function STRING_ADD_RIGHT(y) {
       x = %_ValueOf(x);
     } else {
       x = IS_NUMBER(x)
-          ? %NumberToString(x)
+          ? %_NumberToString(x)
           : %ToString(%ToPrimitive(x, NO_HINT));
     }
   }
@@ -395,26 +395,20 @@ function FILTER_KEY(key) {
 
 
 function CALL_NON_FUNCTION() {
-  var callee = %GetCalledFunction();
-  var delegate = %GetFunctionDelegate(callee);
+  var delegate = %GetFunctionDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof callee]);
+    throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-
-  var parameters = %NewArguments(delegate);
-  return delegate.apply(callee, parameters);
+  return delegate.apply(this, arguments);
 }
 
 
 function CALL_NON_FUNCTION_AS_CONSTRUCTOR() {
-  var callee = %GetCalledFunction();
-  var delegate = %GetConstructorDelegate(callee);
+  var delegate = %GetConstructorDelegate(this);
   if (!IS_FUNCTION(delegate)) {
-    throw %MakeTypeError('called_non_callable', [typeof callee]);
+    throw %MakeTypeError('called_non_callable', [typeof this]);
   }
-
-  var parameters = %NewArguments(delegate);
-  return delegate.apply(callee, parameters);
+  return delegate.apply(this, arguments);
 }
 
 
@@ -529,6 +523,13 @@ function ToNumber(x) {
 // ECMA-262, section 9.8, page 35.
 function ToString(x) {
   if (IS_STRING(x)) return x;
+  if (IS_NUMBER(x)) return %_NumberToString(x);
+  if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
+  if (IS_UNDEFINED(x)) return 'undefined';
+  return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
+}
+
+function NonStringToString(x) {
   if (IS_NUMBER(x)) return %NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';

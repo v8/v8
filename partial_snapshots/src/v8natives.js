@@ -56,7 +56,7 @@ function InstallFunctions(object, attributes, functions) {
     %FunctionSetName(f, key);
     %SetProperty(object, key, f, attributes);
   }
-  %TransformToFastProperties(object);
+  %ToFastProperties(object);
 }
 
 // Emulates JSC by installing functions on a hidden prototype that
@@ -623,9 +623,8 @@ function ObjectGetOwnPropertyNames(obj) {
   if (%GetInterceptorInfo(obj) & 1) {
     var indexedInterceptorNames =
         %GetIndexedInterceptorElementNames(obj);
-    if (indexedInterceptorNames) {
+    if (indexedInterceptorNames)
       propertyNames = propertyNames.concat(indexedInterceptorNames);
-    }
   }
 
   // Find all the named properties.
@@ -642,6 +641,10 @@ function ObjectGetOwnPropertyNames(obj) {
       propertyNames = propertyNames.concat(namedInterceptorNames);
     }
   }
+
+  // Property names are expected to be strings.
+  for (var i = 0; i < propertyNames.length; ++i)
+    propertyNames[i] = ToString(propertyNames[i]);
 
   return propertyNames;
 }
@@ -911,7 +914,7 @@ function SetupNumber() {
                "POSITIVE_INFINITY",
                1/0,
                DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %TransformToFastProperties($Number);
+  %ToFastProperties($Number);
 
   // Setup non-enumerable functions on the Number prototype object.
   InstallFunctions($Number.prototype, DONT_ENUM, $Array(

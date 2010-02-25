@@ -34,46 +34,6 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
-// Implementation of Register
-
-Register rax = { 0 };
-Register rcx = { 1 };
-Register rdx = { 2 };
-Register rbx = { 3 };
-Register rsp = { 4 };
-Register rbp = { 5 };
-Register rsi = { 6 };
-Register rdi = { 7 };
-Register r8 = { 8 };
-Register r9 = { 9 };
-Register r10 = { 10 };
-Register r11 = { 11 };
-Register r12 = { 12 };
-Register r13 = { 13 };
-Register r14 = { 14 };
-Register r15 = { 15 };
-
-Register no_reg = { -1 };
-
-XMMRegister xmm0 = { 0 };
-XMMRegister xmm1 = { 1 };
-XMMRegister xmm2 = { 2 };
-XMMRegister xmm3 = { 3 };
-XMMRegister xmm4 = { 4 };
-XMMRegister xmm5 = { 5 };
-XMMRegister xmm6 = { 6 };
-XMMRegister xmm7 = { 7 };
-XMMRegister xmm8 = { 8 };
-XMMRegister xmm9 = { 9 };
-XMMRegister xmm10 = { 10 };
-XMMRegister xmm11 = { 11 };
-XMMRegister xmm12 = { 12 };
-XMMRegister xmm13 = { 13 };
-XMMRegister xmm14 = { 14 };
-XMMRegister xmm15 = { 15 };
-
-
-// -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
 // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
@@ -224,7 +184,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-Operand::Operand(Register base, int32_t disp): rex_(0) {
+Operand::Operand(Register base, int32_t disp) : rex_(0) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
@@ -246,7 +206,7 @@ Operand::Operand(Register base, int32_t disp): rex_(0) {
 Operand::Operand(Register base,
                  Register index,
                  ScaleFactor scale,
-                 int32_t disp): rex_(0) {
+                 int32_t disp) : rex_(0) {
   ASSERT(!index.is(rsp));
   len_ = 1;
   set_sib(scale, index, base);
@@ -261,6 +221,17 @@ Operand::Operand(Register base,
     set_modrm(2, rsp);
     set_disp32(disp);
   }
+}
+
+
+Operand::Operand(Register index,
+                 ScaleFactor scale,
+                 int32_t disp) : rex_(0) {
+  ASSERT(!index.is(rsp));
+  len_ = 1;
+  set_modrm(0, rsp);
+  set_sib(scale, index, rbp);
+  set_disp32(disp);
 }
 
 
@@ -2507,6 +2478,38 @@ void Assembler::divsd(XMMRegister dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
+
+void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x57);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::comisd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x2f);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x2e);
+  emit_sse_operand(dst, src);
+}
 
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {

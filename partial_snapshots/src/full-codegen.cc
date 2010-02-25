@@ -32,6 +32,7 @@
 #include "full-codegen.h"
 #include "stub-cache.h"
 #include "debug.h"
+#include "liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -448,6 +449,8 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
   CodeGenerator::MakeCodePrologue(info);
   const int kInitialBufferSize = 4 * KB;
   MacroAssembler masm(NULL, kInitialBufferSize);
+  LiveEditFunctionTracker live_edit_tracker(info->function());
+
   FullCodeGenerator cgen(&masm);
   cgen.Generate(info, PRIMARY);
   if (cgen.HasStackOverflow()) {
@@ -455,7 +458,9 @@ Handle<Code> FullCodeGenerator::MakeCode(CompilationInfo* info) {
     return Handle<Code>::null();
   }
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, NOT_IN_LOOP);
-  return CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  Handle<Code> result = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
+  live_edit_tracker.RecordFunctionCode(result);
+  return result;
 }
 
 
@@ -986,8 +991,7 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
   Comment cmnt(masm_, "[ DebuggerStatement");
   SetStatementPosition(stmt);
 
-  DebuggerStatementStub ces;
-  __ CallStub(&ces);
+  __ DebugBreak();
   // Ignore the return value.
 #endif
 }
@@ -1029,86 +1033,6 @@ void FullCodeGenerator::VisitSlot(Slot* expr) {
 void FullCodeGenerator::VisitLiteral(Literal* expr) {
   Comment cmnt(masm_, "[ Literal");
   Apply(context_, expr);
-}
-
-
-void FullCodeGenerator::VisitAssignment(Assignment* expr) {
-  Comment cmnt(masm_, "[ Assignment");
-  ASSERT(expr->op() != Token::INIT_CONST);
-  // Left-hand side can only be a property, a global or a (parameter or local)
-  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
-  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
-  LhsKind assign_type = VARIABLE;
-  Property* prop = expr->target()->AsProperty();
-  if (prop != NULL) {
-    assign_type =
-        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
-  }
-
-  // Evaluate LHS expression.
-  switch (assign_type) {
-    case VARIABLE:
-      // Nothing to do here.
-      break;
-    case NAMED_PROPERTY:
-      VisitForValue(prop->obj(), kStack);
-      break;
-    case KEYED_PROPERTY:
-      VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
-      break;
-  }
-
-  // If we have a compound assignment: Get value of LHS expression and
-  // store in on top of the stack.
-  if (expr->is_compound()) {
-    Location saved_location = location_;
-    location_ = kStack;
-    switch (assign_type) {
-      case VARIABLE:
-        EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
-                         Expression::kValue);
-        break;
-      case NAMED_PROPERTY:
-        EmitNamedPropertyLoad(prop);
-        __ push(result_register());
-        break;
-      case KEYED_PROPERTY:
-        EmitKeyedPropertyLoad(prop);
-        __ push(result_register());
-        break;
-    }
-    location_ = saved_location;
-  }
-
-  // Evaluate RHS expression.
-  Expression* rhs = expr->value();
-  VisitForValue(rhs, kAccumulator);
-
-  // If we have a compound assignment: Apply operator.
-  if (expr->is_compound()) {
-    Location saved_location = location_;
-    location_ = kAccumulator;
-    EmitBinaryOp(expr->binary_op(), Expression::kValue);
-    location_ = saved_location;
-  }
-
-  // Record source position before possible IC call.
-  SetSourcePosition(expr->position());
-
-  // Store the value.
-  switch (assign_type) {
-    case VARIABLE:
-      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
-                             context_);
-      break;
-    case NAMED_PROPERTY:
-      EmitNamedPropertyAssignment(expr);
-      break;
-    case KEYED_PROPERTY:
-      EmitKeyedPropertyAssignment(expr);
-      break;
-  }
 }
 
 

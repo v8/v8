@@ -37,7 +37,6 @@ namespace internal {
 
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
-      unresolved_(0),
       generating_stub_(false),
       allow_stub_calls_(true),
       code_object_(Heap::undefined_value()) {
@@ -331,14 +330,10 @@ void MacroAssembler::EnterExitFrame(ExitFrame::Mode mode) {
 
   // Push in reverse order: caller_fp, sp_on_exit, and caller_pc.
   stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
-  mov(fp, Operand(sp));  // setup new frame pointer
+  mov(fp, Operand(sp));  // Setup new frame pointer.
 
-  if (mode == ExitFrame::MODE_DEBUG) {
-    mov(ip, Operand(Smi::FromInt(0)));
-  } else {
-    mov(ip, Operand(CodeObject()));
-  }
-  push(ip);
+  mov(ip, Operand(CodeObject()));
+  push(ip);  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
@@ -550,6 +545,21 @@ void MacroAssembler::InvokeFunction(Register fun,
 }
 
 
+void MacroAssembler::InvokeFunction(JSFunction* function,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag) {
+  ASSERT(function->is_compiled());
+
+  // Get the function and setup the context.
+  mov(r1, Operand(Handle<JSFunction>(function)));
+  ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+
+  // Invoke the cached code.
+  Handle<Code> code(function->code());
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag);
+}
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::SaveRegistersToMemory(RegList regs) {
   ASSERT((regs & ~kJSCallerSaved) == 0);
@@ -607,6 +617,15 @@ void MacroAssembler::CopyRegistersFromStackToMemory(Register base,
       str(scratch, MemOperand(ip));
     }
   }
+}
+
+
+void MacroAssembler::DebugBreak() {
+  ASSERT(allow_stub_calls());
+  mov(r0, Operand(0));
+  mov(r1, Operand(ExternalReference(Runtime::kDebugBreak)));
+  CEntryStub ces(1);
+  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif
 
@@ -1205,6 +1224,16 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 }
 
 
+void MacroAssembler::CallExternalReference(const ExternalReference& ext,
+                                           int num_arguments) {
+  mov(r0, Operand(num_arguments));
+  mov(r1, Operand(ext));
+
+  CEntryStub stub(1);
+  CallStub(&stub);
+}
+
+
 void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
                                      int num_arguments,
                                      int result_size) {
@@ -1228,58 +1257,28 @@ void MacroAssembler::JumpToRuntime(const ExternalReference& builtin) {
 }
 
 
-Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
-                                            bool* resolved) {
-  // Contract with compiled functions is that the function is passed in r1.
-  int builtins_offset =
-      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
-  ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  ldr(r1, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
-  ldr(r1, FieldMemOperand(r1, builtins_offset));
-
-  return Builtins::GetCode(id, resolved);
-}
-
-
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
+  GetBuiltinEntry(r2, id);
   if (flags == CALL_JS) {
-    Call(code, RelocInfo::CODE_TARGET);
+    Call(r2);
   } else {
     ASSERT(flags == JUMP_JS);
-    Jump(code, RelocInfo::CODE_TARGET);
-  }
-
-  if (!resolved) {
-    const char* name = Builtins::GetName(id);
-    int argc = Builtins::GetArgumentsCount(id);
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(false);
-    Unresolved entry = { pc_offset() - kInstrSize, flags, name };
-    unresolved_.Add(entry);
+    Jump(r2);
   }
 }
 
 
 void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
-  bool resolved;
-  Handle<Code> code = ResolveBuiltin(id, &resolved);
-
-  mov(target, Operand(code));
-  if (!resolved) {
-    const char* name = Builtins::GetName(id);
-    int argc = Builtins::GetArgumentsCount(id);
-    uint32_t flags =
-        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
-    Unresolved entry = { pc_offset() - kInstrSize, flags, name };
-    unresolved_.Add(entry);
-  }
-
+  // Load the JavaScript builtin function from the builtins object.
+  ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  ldr(r1, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
+  int builtins_offset =
+      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
+  ldr(r1, FieldMemOperand(r1, builtins_offset));
+  // Load the code entry point from the function into the target register.
+  ldr(target, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  ldr(target, FieldMemOperand(target, SharedFunctionInfo::kCodeOffset));
   add(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
 }
 

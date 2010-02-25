@@ -179,7 +179,7 @@ class PropertyDetails BASE_EMBEDDED {
   class TypeField:       public BitField<PropertyType,       0, 3> {};
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
   class DeletedField:    public BitField<uint32_t,           6, 1> {};
-  class IndexField:      public BitField<uint32_t,           7, 31-7> {};
+  class IndexField:      public BitField<uint32_t,           7, 32-7> {};
 
   static const int kInitialIndex = 1;
  private:
@@ -1161,6 +1161,7 @@ class JSObject: public HeapObject {
   inline bool HasExternalIntElements();
   inline bool HasExternalUnsignedIntElements();
   inline bool HasExternalFloatElements();
+  inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Collects elements starting at index 0.
@@ -1300,6 +1301,9 @@ class JSObject: public HeapObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
+
+  // Set the object's prototype (only JSObject and null are allowed).
+  Object* SetPrototype(Object* value, bool skip_hidden_prototypes);
 
   // Tells whether the index'th element is present.
   inline bool HasElement(uint32_t index);
@@ -3199,6 +3203,10 @@ class SharedFunctionInfo: public HeapObject {
 
   inline bool try_full_codegen();
   inline void set_try_full_codegen(bool flag);
+
+  // Check whether a inlined constructor can be generated with the given
+  // prototype.
+  bool CanGenerateInlineConstructor(Object* prototype);
 
   // For functions which only contains this property assignments this provides
   // access to the names for the properties assigned.

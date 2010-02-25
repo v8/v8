@@ -135,6 +135,10 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual,
                       InvokeFlag flag);
 
+  void InvokeFunction(JSFunction* function,
+                      const ParameterCount& actual,
+                      InvokeFlag flag);
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
@@ -146,6 +150,7 @@ class MacroAssembler: public Assembler {
   void CopyRegistersFromStackToMemory(Register base,
                                       Register scratch,
                                       RegList regs);
+  void DebugBreak();
 #endif
 
   // ---------------------------------------------------------------------------
@@ -334,6 +339,10 @@ class MacroAssembler: public Assembler {
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId fid, int num_arguments);
 
+  // Convenience function: call an external reference.
+  void CallExternalReference(const ExternalReference& ext,
+                             int num_arguments);
+
   // Tail call of a runtime routine (jump).
   // Like JumpToRuntime, but also takes care of passing the number
   // of parameters.
@@ -351,13 +360,6 @@ class MacroAssembler: public Assembler {
   // Store the code object for the given builtin in the target register and
   // setup the function in r1.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
-
-  struct Unresolved {
-    int pc;
-    uint32_t flags;  // see Bootstrapper::FixupFlags decoders/encoders.
-    const char* name;
-  };
-  List<Unresolved>* unresolved() { return &unresolved_; }
 
   Handle<Object> CodeObject() { return code_object_; }
 
@@ -431,23 +433,10 @@ class MacroAssembler: public Assembler {
                       Label* done,
                       InvokeFlag flag);
 
-  // Prepares for a call or jump to a builtin by doing two things:
-  // 1. Emits code that fetches the builtin's function object from the context
-  //    at runtime, and puts it in the register rdi.
-  // 2. Fetches the builtin's code object, and returns it in a handle, at
-  //    compile time, so that later code can emit instructions to jump or call
-  //    the builtin directly.  If the code object has not yet been created, it
-  //    returns the builtin code object for IllegalFunction, and sets the
-  //    output parameter "resolved" to false.  Code that uses the return value
-  //    should then add the address and the builtin name to the list of fixups
-  //    called unresolved_, which is fixed up by the bootstrapper.
-  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
-
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
 
-  List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.

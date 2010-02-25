@@ -1202,11 +1202,16 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         throw new Error('Command not specified');
       }
 
-      // TODO(yurys): remove request.arguments.compactFormat check once
-      // ChromeDevTools are switched to 'inlineRefs'
-      if (request.arguments && (request.arguments.inlineRefs ||
-                                request.arguments.compactFormat)) {
-        response.setOption('inlineRefs', true);
+      if (request.arguments) {
+        var args = request.arguments;
+        // TODO(yurys): remove request.arguments.compactFormat check once
+        // ChromeDevTools are switched to 'inlineRefs'
+        if (args.inlineRefs || args.compactFormat) {
+          response.setOption('inlineRefs', true);
+        }
+        if (!IS_UNDEFINED(args.maxStringLength)) {
+          response.setOption('maxStringLength', args.maxStringLength);
+        }
       }
 
       if (request.command == 'continue') {
@@ -1934,10 +1939,14 @@ DebugCommandProcessor.prototype.profileRequest_ = function(request, response) {
   if (isNaN(modules)) {
     return response.failed('Modules is not an integer');
   }
+  var tag = parseInt(request.arguments.tag);
+  if (isNaN(tag)) {
+    tag = 0;
+  }
   if (request.arguments.command == 'resume') {
-    %ProfilerResume(modules);
+    %ProfilerResume(modules, tag);
   } else if (request.arguments.command == 'pause') {
-    %ProfilerPause(modules);
+    %ProfilerPause(modules, tag);
   } else {
     return response.failed('Unknown command');
   }

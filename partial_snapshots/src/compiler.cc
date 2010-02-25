@@ -38,6 +38,7 @@
 #include "rewriter.h"
 #include "scopes.h"
 #include "usage-analyzer.h"
+#include "liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -238,6 +239,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                                      int line_offset, int column_offset,
                                      v8::Extension* extension,
                                      ScriptDataImpl* input_pre_data,
+                                     Handle<Object> script_data,
                                      NativesFlag natives) {
   int source_length = source->length();
   Counters::total_load_size.Increment(source_length);
@@ -274,6 +276,9 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
       script->set_line_offset(Smi::FromInt(line_offset));
       script->set_column_offset(Smi::FromInt(column_offset));
     }
+
+    script->set_data(script_data.is_null() ? Heap::undefined_value()
+                                           : *script_data);
 
     // Compile the function and add it to the cache.
     result = MakeFunction(true,
@@ -429,7 +434,8 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
   // compiled. These builtins cannot be handled lazily by the parser,
   // since we have to know if a function uses the special natives
   // syntax, which is something the parser records.
-  bool allow_lazy = literal->AllowsLazyCompilation();
+  bool allow_lazy = literal->AllowsLazyCompilation() &&
+      !LiveEditFunctionTracker::IsActive();
 
   // Generate code
   Handle<Code> code;

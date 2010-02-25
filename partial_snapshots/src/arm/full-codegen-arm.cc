@@ -816,9 +816,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         if (key->handle()->IsSymbol()) {
           VisitForValue(value, kAccumulator);
           __ mov(r2, Operand(key->handle()));
+          __ ldr(r1, MemOperand(sp));
           Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
           __ Call(ic, RelocInfo::CODE_TARGET);
-          // StoreIC leaves the receiver on the stack.
           break;
         }
         // Fall through.
@@ -907,6 +907,92 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 }
 
 
+void FullCodeGenerator::VisitAssignment(Assignment* expr) {
+  Comment cmnt(masm_, "[ Assignment");
+  ASSERT(expr->op() != Token::INIT_CONST);
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
+  Property* prop = expr->target()->AsProperty();
+  if (prop != NULL) {
+    assign_type =
+        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
+  }
+
+  // Evaluate LHS expression.
+  switch (assign_type) {
+    case VARIABLE:
+      // Nothing to do here.
+      break;
+    case NAMED_PROPERTY:
+      if (expr->is_compound()) {
+        // We need the receiver both on the stack and in the accumulator.
+        VisitForValue(prop->obj(), kAccumulator);
+        __ push(result_register());
+      } else {
+        VisitForValue(prop->obj(), kStack);
+      }
+      break;
+    case KEYED_PROPERTY:
+      VisitForValue(prop->obj(), kStack);
+      VisitForValue(prop->key(), kStack);
+      break;
+  }
+
+  // If we have a compound assignment: Get value of LHS expression and
+  // store in on top of the stack.
+  if (expr->is_compound()) {
+    Location saved_location = location_;
+    location_ = kStack;
+    switch (assign_type) {
+      case VARIABLE:
+        EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
+                         Expression::kValue);
+        break;
+      case NAMED_PROPERTY:
+        EmitNamedPropertyLoad(prop);
+        __ push(result_register());
+        break;
+      case KEYED_PROPERTY:
+        EmitKeyedPropertyLoad(prop);
+        __ push(result_register());
+        break;
+    }
+    location_ = saved_location;
+  }
+
+  // Evaluate RHS expression.
+  Expression* rhs = expr->value();
+  VisitForValue(rhs, kAccumulator);
+
+  // If we have a compound assignment: Apply operator.
+  if (expr->is_compound()) {
+    Location saved_location = location_;
+    location_ = kAccumulator;
+    EmitBinaryOp(expr->binary_op(), Expression::kValue);
+    location_ = saved_location;
+  }
+
+  // Record source position before possible IC call.
+  SetSourcePosition(expr->position());
+
+  // Store the value.
+  switch (assign_type) {
+    case VARIABLE:
+      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             context_);
+      break;
+    case NAMED_PROPERTY:
+      EmitNamedPropertyAssignment(expr);
+      break;
+    case KEYED_PROPERTY:
+      EmitKeyedPropertyAssignment(expr);
+      break;
+  }
+}
+
+
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
@@ -945,21 +1031,17 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     ASSERT(!var->is_this());
     // Assignment to a global variable.  Use inline caching for the
     // assignment.  Right-hand-side value is passed in r0, variable name in
-    // r2, and the global object on the stack.
+    // r2, and the global object in r1.
     __ mov(r2, Operand(var->name()));
-    __ ldr(ip, CodeGenerator::GlobalObject());
-    __ push(ip);
+    __ ldr(r1, CodeGenerator::GlobalObject());
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     __ Call(ic, RelocInfo::CODE_TARGET);
-    // Overwrite the global object on the stack with the result if needed.
-    DropAndApply(1, context, r0);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
     __ push(result_register());  // Value.
     __ mov(r1, Operand(var->name()));
     __ stm(db_w, sp, cp.bit() | r1.bit());  // Context and name.
     __ CallRuntime(Runtime::kStoreContextSlot, 3);
-    Apply(context, r0);
 
   } else if (var->slot() != NULL) {
     Slot* slot = var->slot();
@@ -986,13 +1068,13 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         UNREACHABLE();
         break;
     }
-    Apply(context, result_register());
 
   } else {
     // Variables rewritten as properties are not treated as variables in
     // assignments.
     UNREACHABLE();
   }
+  Apply(context, result_register());
 }
 
 
@@ -1016,6 +1098,12 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+  if (expr->ends_initialization_block()) {
+    __ ldr(r1, MemOperand(sp));
+  } else {
+    __ pop(r1);
+  }
+
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
   __ Call(ic, RelocInfo::CODE_TARGET);
 
@@ -1026,9 +1114,10 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
     __ push(ip);
     __ CallRuntime(Runtime::kToFastProperties, 1);
     __ pop(r0);
+    DropAndApply(1, context_, r0);
+  } else {
+    Apply(context_, r0);
   }
-
-  DropAndApply(1, context_, r0);
 }
 
 
@@ -1087,7 +1176,7 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 }
 
 void FullCodeGenerator::EmitCallWithIC(Call* expr,
-                                       Handle<Object> ignored,
+                                       Handle<Object> name,
                                        RelocInfo::Mode mode) {
   // Code common for calls using the IC.
   ZoneList<Expression*>* args = expr->arguments();
@@ -1095,16 +1184,16 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   for (int i = 0; i < arg_count; i++) {
     VisitForValue(args->at(i), kStack);
   }
+  __ mov(r2, Operand(name));
   // Record source position for debugger.
   SetSourcePosition(expr->position());
   // Call the IC initialization code.
-  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
-                                                         NOT_IN_LOOP);
+  InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
+  Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count, in_loop);
   __ Call(ic, mode);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  // Discard the function left on TOS.
-  DropAndApply(1, context_, r0);
+  Apply(context_, r0);
 }
 
 
@@ -1121,7 +1210,6 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   __ CallStub(&stub);
   // Restore context register.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  // Discard the function left on TOS.
   DropAndApply(1, context_, r0);
 }
 
@@ -1135,11 +1223,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // Call to the identifier 'eval'.
     UNREACHABLE();
   } else if (var != NULL && !var->is_this() && var->is_global()) {
-    // Call to a global variable.
-    __ mov(r1, Operand(var->name()));
-    // Push global object as receiver for the call IC lookup.
+    // Push global object as receiver for the call IC.
     __ ldr(r0, CodeGenerator::GlobalObject());
-    __ stm(db_w, sp, r1.bit() | r0.bit());
+    __ push(r0);
     EmitCallWithIC(expr, var->name(), RelocInfo::CODE_TARGET_CONTEXT);
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -1151,8 +1237,6 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     Literal* key = prop->key()->AsLiteral();
     if (key != NULL && key->handle()->IsSymbol()) {
       // Call to a named property, use call IC.
-      __ mov(r0, Operand(key->handle()));
-      __ push(r0);
       VisitForValue(prop->obj(), kStack);
       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
@@ -1238,10 +1322,9 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Prepare for calling JS runtime function.
-    __ mov(r1, Operand(expr->name()));
     __ ldr(r0, CodeGenerator::GlobalObject());
     __ ldr(r0, FieldMemOperand(r0, GlobalObject::kBuiltinsOffset));
-    __ stm(db_w, sp, r1.bit() | r0.bit());
+    __ push(r0);
   }
 
   // Push the arguments ("left-to-right").
@@ -1252,18 +1335,17 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
   if (expr->is_jsruntime()) {
     // Call the JS runtime function.
+    __ mov(r2, Operand(expr->name()));
     Handle<Code> ic = CodeGenerator::ComputeCallInitialize(arg_count,
                                                            NOT_IN_LOOP);
     __ Call(ic, RelocInfo::CODE_TARGET);
     // Restore context register.
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    // Discard the function left on TOS.
-    DropAndApply(1, context_, r0);
   } else {
     // Call the C runtime function.
     __ CallRuntime(expr->function(), arg_count);
-    Apply(context_, r0);
   }
+  Apply(context_, r0);
 }
 
 
@@ -1548,15 +1630,15 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     case NAMED_PROPERTY: {
       __ mov(r2, Operand(prop->key()->AsLiteral()->handle()));
+      __ pop(r1);
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
       if (expr->is_postfix()) {
-        __ Drop(1);  // Result is on the stack under the receiver.
         if (context_ != Expression::kEffect) {
           ApplyTOS(context_);
         }
       } else {
-        DropAndApply(1, context_, r0);
+        Apply(context_, r0);
       }
       break;
     }

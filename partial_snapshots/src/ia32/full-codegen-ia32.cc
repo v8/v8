@@ -808,7 +808,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     Comment cmnt(masm_, "Global variable");
     // Use inline caching. Variable name is passed in ecx and the global
     // object on the stack.
-    __ push(CodeGenerator::GlobalObject());
+    __ mov(eax, CodeGenerator::GlobalObject());
     __ mov(ecx, var->name());
     Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
     __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
@@ -817,7 +817,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     // Remember that the assembler may choose to do peephole optimization
     // (eg, push/pop elimination).
     __ nop();
-    DropAndApply(1, context, eax);
+    Apply(context, eax);
 
   } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
     Comment cmnt(masm_, "Lookup slot");
@@ -845,7 +845,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
 
     // Load the object.
     MemOperand object_loc = EmitSlotSearch(object_slot, eax);
-    __ push(object_loc);
+    __ mov(edx, object_loc);
 
     // Assert that the key is a smi.
     Literal* key_literal = property->key()->AsLiteral();
@@ -853,7 +853,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     ASSERT(key_literal->handle()->IsSmi());
 
     // Load the key.
-    __ push(Immediate(key_literal->handle()));
+    __ mov(eax, Immediate(key_literal->handle()));
 
     // Do a keyed property load.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -862,7 +862,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var,
     // call. It is treated specially by the LoadIC code.
     __ nop();
     // Drop key and object left on the stack by IC.
-    DropAndApply(2, context, eax);
+    Apply(context, eax);
   }
 }
 
@@ -1009,6 +1009,99 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     ApplyTOS(context_);
   } else {
     Apply(context_, eax);
+  }
+}
+
+
+void FullCodeGenerator::VisitAssignment(Assignment* expr) {
+  Comment cmnt(masm_, "[ Assignment");
+  ASSERT(expr->op() != Token::INIT_CONST);
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot. Variables with rewrite to .arguments are treated as KEYED_PROPERTY.
+  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  LhsKind assign_type = VARIABLE;
+  Property* prop = expr->target()->AsProperty();
+  if (prop != NULL) {
+    assign_type =
+        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
+  }
+
+  // Evaluate LHS expression.
+  switch (assign_type) {
+    case VARIABLE:
+      // Nothing to do here.
+      break;
+    case NAMED_PROPERTY:
+      if (expr->is_compound()) {
+        // We need the receiver both on the stack and in the accumulator.
+        VisitForValue(prop->obj(), kAccumulator);
+        __ push(result_register());
+      } else {
+        VisitForValue(prop->obj(), kStack);
+      }
+      break;
+    case KEYED_PROPERTY:
+      if (expr->is_compound()) {
+        VisitForValue(prop->obj(), kStack);
+        VisitForValue(prop->key(), kAccumulator);
+        __ mov(edx, Operand(esp, 0));
+        __ push(eax);
+      } else {
+        VisitForValue(prop->obj(), kStack);
+        VisitForValue(prop->key(), kStack);
+      }
+      break;
+  }
+
+  // If we have a compound assignment: Get value of LHS expression and
+  // store in on top of the stack.
+  if (expr->is_compound()) {
+    Location saved_location = location_;
+    location_ = kStack;
+    switch (assign_type) {
+      case VARIABLE:
+        EmitVariableLoad(expr->target()->AsVariableProxy()->var(),
+                         Expression::kValue);
+        break;
+      case NAMED_PROPERTY:
+        EmitNamedPropertyLoad(prop);
+        __ push(result_register());
+        break;
+      case KEYED_PROPERTY:
+        EmitKeyedPropertyLoad(prop);
+        __ push(result_register());
+        break;
+    }
+    location_ = saved_location;
+  }
+
+  // Evaluate RHS expression.
+  Expression* rhs = expr->value();
+  VisitForValue(rhs, kAccumulator);
+
+  // If we have a compound assignment: Apply operator.
+  if (expr->is_compound()) {
+    Location saved_location = location_;
+    location_ = kAccumulator;
+    EmitBinaryOp(expr->binary_op(), Expression::kValue);
+    location_ = saved_location;
+  }
+
+  // Record source position before possible IC call.
+  SetSourcePosition(expr->position());
+
+  // Store the value.
+  switch (assign_type) {
+    case VARIABLE:
+      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
+                             context_);
+      break;
+    case NAMED_PROPERTY:
+      EmitNamedPropertyAssignment(expr);
+      break;
+    case KEYED_PROPERTY:
+      EmitKeyedPropertyAssignment(expr);
+      break;
   }
 }
 
@@ -1183,18 +1276,16 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Comment cmnt(masm_, "[ Property");
   Expression* key = expr->key();
 
-  // Evaluate the receiver.
-  VisitForValue(expr->obj(), kStack);
-
   if (key->IsPropertyName()) {
+    VisitForValue(expr->obj(), kAccumulator);
     EmitNamedPropertyLoad(expr);
-    // Drop receiver left on the stack by IC.
-    DropAndApply(1, context_, eax);
+    Apply(context_, eax);
   } else {
-    VisitForValue(expr->key(), kStack);
+    VisitForValue(expr->obj(), kStack);
+    VisitForValue(expr->key(), kAccumulator);
+    __ pop(edx);
     EmitKeyedPropertyLoad(expr);
-    // Drop key and receiver left on the stack by IC.
-    DropAndApply(2, context_, eax);
+    Apply(context_, eax);
   }
 }
 
@@ -1265,25 +1356,31 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // Call to a keyed property, use keyed load IC followed by function
       // call.
       VisitForValue(prop->obj(), kStack);
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
       // Record source code position for IC call.
       SetSourcePosition(prop->position());
+      if (prop->is_synthetic()) {
+        __ pop(edx);  // We do not need to keep the receiver.
+      } else {
+        __ mov(edx, Operand(esp, 0));  // Keep receiver, to call function on.
+      }
+
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       __ call(ic, RelocInfo::CODE_TARGET);
       // By emitting a nop we make sure that we do not have a "test eax,..."
       // instruction after the call it is treated specially by the LoadIC code.
       __ nop();
-      // Drop key left on the stack by IC.
-      __ Drop(1);
-      // Pop receiver.
-      __ pop(ebx);
-      // Push result (function).
-      __ push(eax);
-      // Push receiver object on stack.
       if (prop->is_synthetic()) {
+        // Push result (function).
+        __ push(eax);
+        // Push Global receiver.
         __ mov(ecx, CodeGenerator::GlobalObject());
         __ push(FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
       } else {
+        // Pop receiver.
+        __ pop(ebx);
+        // Push result (function).
+        __ push(eax);
         __ push(ebx);
       }
       EmitCallWithStub(expr);
@@ -1455,13 +1552,13 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           !proxy->var()->is_this() &&
           proxy->var()->is_global()) {
         Comment cmnt(masm_, "Global variable");
-        __ push(CodeGenerator::GlobalObject());
+        __ mov(eax, CodeGenerator::GlobalObject());
         __ mov(ecx, Immediate(proxy->name()));
         Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
         // Use a regular load, not a contextual load, to avoid a reference
         // error.
         __ call(ic, RelocInfo::CODE_TARGET);
-        __ mov(Operand(esp, 0), eax);
+        __ push(eax);
       } else if (proxy != NULL &&
                  proxy->var()->slot() != NULL &&
                  proxy->var()->slot()->type() == Slot::LOOKUP) {
@@ -1565,11 +1662,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     if (expr->is_postfix() && context_ != Expression::kEffect) {
       __ push(Immediate(Smi::FromInt(0)));
     }
-    VisitForValue(prop->obj(), kStack);
     if (assign_type == NAMED_PROPERTY) {
+      // Put the object both on the stack and in the accumulator.
+      VisitForValue(prop->obj(), kAccumulator);
+      __ push(eax);
       EmitNamedPropertyLoad(prop);
     } else {
-      VisitForValue(prop->key(), kStack);
+      VisitForValue(prop->obj(), kStack);
+      VisitForValue(prop->key(), kAccumulator);
+      __ mov(edx, Operand(esp, 0));
+      __ push(eax);
       EmitKeyedPropertyLoad(prop);
     }
   }

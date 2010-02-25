@@ -35,51 +35,36 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-void FastCodeGenerator::EmitLoadReceiver(Register reg) {
+Register FastCodeGenerator::accumulator0() { return r0; }
+Register FastCodeGenerator::accumulator1() { return r1; }
+Register FastCodeGenerator::scratch0() { return r3; }
+Register FastCodeGenerator::scratch1() { return r4; }
+Register FastCodeGenerator::receiver_reg() { return r2; }
+Register FastCodeGenerator::context_reg() { return cp; }
+
+
+void FastCodeGenerator::EmitLoadReceiver() {
   // Offset 2 is due to return address and saved frame pointer.
   int index = 2 + scope()->num_parameters();
-  __ ldr(reg, MemOperand(sp, index * kPointerSize));
-}
-
-
-void FastCodeGenerator::EmitReceiverMapCheck() {
-  Comment cmnt(masm(), ";; MapCheck(this)");
-  if (FLAG_print_ir) {
-    PrintF("MapCheck(this)\n");
-  }
-
-  ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
-  Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
-  Handle<Map> map(object->map());
-
-  EmitLoadReceiver(r1);
-  __ CheckMap(r1, r3, map, bailout(), false);
-}
-
-
-void FastCodeGenerator::EmitGlobalMapCheck() {
-  Comment cmnt(masm(), ";; GlobalMapCheck");
-  if (FLAG_print_ir) {
-    PrintF(";; GlobalMapCheck()");
-  }
-
-  ASSERT(info()->has_global_object());
-  Handle<Map> map(info()->global_object()->map());
-
-  __ ldr(r3, CodeGenerator::GlobalObject());
-  __ CheckMap(r3, r3, map, bailout(), true);
+  __ ldr(receiver_reg(), MemOperand(sp, index * kPointerSize));
 }
 
 
 void FastCodeGenerator::EmitGlobalVariableLoad(Handle<Object> cell) {
+  ASSERT(!destination().is(no_reg));
   ASSERT(cell->IsJSGlobalPropertyCell());
-  __ mov(r0, Operand(cell));
-  __ ldr(r0, FieldMemOperand(r0, JSGlobalPropertyCell::kValueOffset));
+
+  __ mov(destination(), Operand(cell));
+  __ ldr(destination(),
+         FieldMemOperand(destination(), JSGlobalPropertyCell::kValueOffset));
   if (FLAG_debug_code) {
     __ mov(ip, Operand(Factory::the_hole_value()));
-    __ cmp(r0, ip);
+    __ cmp(destination(), ip);
     __ Check(ne, "DontDelete cells can't contain the hole");
   }
+
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
 }
 
 
@@ -93,18 +78,101 @@ void FastCodeGenerator::EmitThisPropertyStore(Handle<String> name) {
   int index = lookup.GetFieldIndex() - map->inobject_properties();
   int offset = index * kPointerSize;
 
+  // We will emit the write barrier unless the stored value is statically
+  // known to be a smi.
+  bool needs_write_barrier = !is_smi(accumulator0());
+
   // Negative offsets are inobject properties.
   if (offset < 0) {
     offset += map->instance_size();
-    __ mov(r2, r1);  // Copy receiver for write barrier.
+    __ str(accumulator0(), FieldMemOperand(receiver_reg(), offset));
+    if (needs_write_barrier) {
+      // Preserve receiver from write barrier.
+      __ mov(scratch0(), receiver_reg());
+    }
   } else {
     offset += FixedArray::kHeaderSize;
-    __ ldr(r2, FieldMemOperand(r1, JSObject::kPropertiesOffset));
+    __ ldr(scratch0(),
+           FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ str(accumulator0(), FieldMemOperand(scratch0(), offset));
   }
-  // Perform the store.
-  __ str(r0, FieldMemOperand(r2, offset));
-  __ mov(r3, Operand(offset));
-  __ RecordWrite(r2, r3, r4);
+
+  if (needs_write_barrier) {
+    __ mov(scratch1(), Operand(offset));
+    __ RecordWrite(scratch0(), scratch1(), ip);
+  }
+
+  if (destination().is(accumulator1())) {
+    __ mov(accumulator1(), accumulator0());
+    if (is_smi(accumulator0())) {
+      set_as_smi(accumulator1());
+    } else {
+      clear_as_smi(accumulator1());
+    }
+  }
+}
+
+
+void FastCodeGenerator::EmitThisPropertyLoad(Handle<String> name) {
+  ASSERT(!destination().is(no_reg));
+  LookupResult lookup;
+  info()->receiver()->Lookup(*name, &lookup);
+
+  ASSERT(lookup.holder() == *info()->receiver());
+  ASSERT(lookup.type() == FIELD);
+  Handle<Map> map(Handle<HeapObject>::cast(info()->receiver())->map());
+  int index = lookup.GetFieldIndex() - map->inobject_properties();
+  int offset = index * kPointerSize;
+
+  // Perform the load.  Negative offsets are inobject properties.
+  if (offset < 0) {
+    offset += map->instance_size();
+    __ ldr(destination(), FieldMemOperand(receiver_reg(), offset));
+  } else {
+    offset += FixedArray::kHeaderSize;
+    __ ldr(scratch0(),
+           FieldMemOperand(receiver_reg(), JSObject::kPropertiesOffset));
+    __ ldr(destination(), FieldMemOperand(scratch0(), offset));
+  }
+
+  // The loaded value is not known to be a smi.
+  clear_as_smi(destination());
+}
+
+
+void FastCodeGenerator::EmitBitOr() {
+  if (is_smi(accumulator0()) && is_smi(accumulator1())) {
+    // If both operands are known to be a smi then there is no need to check
+    // the operands or result.  There is no need to perform the operation in
+    // an effect context.
+    if (!destination().is(no_reg)) {
+      __ orr(destination(), accumulator1(), Operand(accumulator0()));
+    }
+  } else {
+    // Left is in accumulator1, right in accumulator0.
+    if (destination().is(accumulator0())) {
+      __ mov(scratch0(), accumulator0());
+      __ orr(destination(), accumulator1(), Operand(accumulator1()));
+      Label* bailout =
+          info()->AddBailout(accumulator1(), scratch0());  // Left, right.
+      __ BranchOnNotSmi(destination(), bailout);
+    } else if (destination().is(accumulator1())) {
+      __ mov(scratch0(), accumulator1());
+      __ orr(destination(), accumulator1(), Operand(accumulator0()));
+      Label* bailout = info()->AddBailout(scratch0(), accumulator0());
+      __ BranchOnNotSmi(destination(), bailout);
+    } else {
+      ASSERT(destination().is(no_reg));
+      __ orr(scratch0(), accumulator1(), Operand(accumulator0()));
+      Label* bailout = info()->AddBailout(accumulator1(), accumulator0());
+      __ BranchOnNotSmi(scratch0(), bailout);
+    }
+  }
+
+  // If we didn't bailout, the result (in fact, both inputs too) is known to
+  // be a smi.
+  set_as_smi(accumulator0());
+  set_as_smi(accumulator1());
 }
 
 
@@ -119,26 +187,45 @@ void FastCodeGenerator::Generate(CompilationInfo* compilation_info) {
   // Note that we keep a live register reference to cp (context) at
   // this point.
 
-  // Receiver (this) is allocated to r1 if there are this properties.
-  if (info()->has_this_properties()) EmitReceiverMapCheck();
+  Label* bailout_to_beginning = info()->AddBailout();
+  // Receiver (this) is allocated to a fixed register.
+  if (info()->has_this_properties()) {
+    Comment cmnt(masm(), ";; MapCheck(this)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(this)\n");
+    }
+    ASSERT(info()->has_receiver() && info()->receiver()->IsHeapObject());
+    Handle<HeapObject> object = Handle<HeapObject>::cast(info()->receiver());
+    Handle<Map> map(object->map());
+    EmitLoadReceiver();
+    __ CheckMap(receiver_reg(), scratch0(), map, bailout_to_beginning, false);
+  }
 
-  // If there is a global variable access check if the global object
-  // is the same as at lazy-compilation time.
-  if (info()->has_globals()) EmitGlobalMapCheck();
+  // If there is a global variable access check if the global object is the
+  // same as at lazy-compilation time.
+  if (info()->has_globals()) {
+    Comment cmnt(masm(), ";; MapCheck(GLOBAL)");
+    if (FLAG_print_ir) {
+      PrintF("MapCheck(GLOBAL)\n");
+    }
+    ASSERT(info()->has_global_object());
+    Handle<Map> map(info()->global_object()->map());
+    __ ldr(scratch0(), CodeGenerator::GlobalObject());
+    __ CheckMap(scratch0(), scratch1(), map, bailout_to_beginning, true);
+  }
 
   VisitStatements(function()->body());
 
   Comment return_cmnt(masm(), ";; Return(<undefined>)");
+  if (FLAG_print_ir) {
+    PrintF("Return(<undefined>)\n");
+  }
   __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
-
-  Comment epilogue_cmnt(masm(), ";; Epilogue");
   __ mov(sp, fp);
   __ ldm(ia_w, sp, fp.bit() | lr.bit());
   int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
   __ add(sp, sp, Operand(sp_delta));
   __ Jump(lr);
-
-  __ bind(&bailout_);
 }
 
 

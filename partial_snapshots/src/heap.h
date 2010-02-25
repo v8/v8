@@ -101,7 +101,6 @@ namespace internal {
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   V(Code, c_entry_code, CEntryCode)                                            \
-  V(Code, debugger_statement_code, DebuggerStatementCode)                      \
   V(FixedArray, number_string_cache, NumberStringCache)                        \
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, natives_source_cache, NativesSourceCache)                      \
@@ -1051,7 +1050,6 @@ class Heap : public AllStatic {
   // These four Create*EntryStub functions are here because of a gcc-4.4 bug
   // that assigns wrong vtable entries.
   static void CreateCEntryStub();
-  static void CreateCEntryDebugBreakStub();
   static void CreateJSEntryStub();
   static void CreateJSConstructEntryStub();
   static void CreateRegExpCEntryStub();
@@ -1390,9 +1388,9 @@ class DescriptorLookupCache {
  private:
   static int Hash(DescriptorArray* array, String* name) {
     // Uses only lower 32 bits if pointers are larger.
-    uintptr_t array_hash =
+    uint32_t array_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array)) >> 2;
-    uintptr_t name_hash =
+    uint32_t name_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name)) >> 2;
     return (array_hash ^ name_hash) % kLength;
   }
@@ -1617,6 +1615,7 @@ class TranscendentalCache {
     if (e.in[0] == c.integers[0] &&
         e.in[1] == c.integers[1]) {
       ASSERT(e.output != NULL);
+      Counters::transcendental_cache_hit.Increment();
       return e.output;
     }
     double answer = Calculate(input);
@@ -1626,6 +1625,7 @@ class TranscendentalCache {
       elements_[hash].in[1] = c.integers[1];
       elements_[hash].output = heap_number;
     }
+    Counters::transcendental_cache_miss.Increment();
     return heap_number;
   }
 
@@ -1666,6 +1666,17 @@ class TranscendentalCache {
     hash ^= hash >> 8;
     return (hash & (kCacheSize - 1));
   }
+
+  static Address cache_array_address() {
+    // Used to create an external reference.
+    return reinterpret_cast<Address>(caches_);
+  }
+
+  // Allow access to the caches_ array as an ExternalReference.
+  friend class ExternalReference;
+  // Inline implementation of the caching.
+  friend class TranscendentalCacheStub;
+
   static TranscendentalCache* caches_[kNumberOfCaches];
   Element elements_[kCacheSize];
   Type type_;

@@ -1033,6 +1033,8 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint() {
   HeapObject::PrintHeader("FunctionTemplateInfo");
+  PrintF("\n - class name: ");
+  class_name()->ShortPrint();
   PrintF("\n - tag: ");
   tag()->ShortPrint();
   PrintF("\n - property_list: ");

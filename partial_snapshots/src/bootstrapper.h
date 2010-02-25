@@ -74,9 +74,6 @@ class Bootstrapper : public AllStatic {
   // Accessors for the native scripts cache. Used in lazy loading.
   static Handle<String> NativesSourceLookup(int index);
 
-  // Append code that needs fixup at the end of boot strapping.
-  static void AddFixup(Code* code, MacroAssembler* masm);
-
   // Tells whether bootstrapping is active.
   static bool IsActive() { return BootstrapperActive::IsActive(); }
 

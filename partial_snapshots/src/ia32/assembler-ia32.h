@@ -231,7 +231,8 @@ enum ScaleFactor {
   times_8 = 3,
   times_int_size = times_4,
   times_half_pointer_size = times_2,
-  times_pointer_size = times_4
+  times_pointer_size = times_4,
+  times_twice_pointer_size = times_8
 };
 
 
@@ -667,6 +668,7 @@ class Assembler : public Malloced {
   void call(Label* L);
   void call(byte* entry, RelocInfo::Mode rmode);
   void call(const Operand& adr);
+  void call(const ExternalReference& target);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Jumps
@@ -682,15 +684,18 @@ class Assembler : public Malloced {
 
   // Floating-point operations
   void fld(int i);
+  void fstp(int i);
 
   void fld1();
   void fldz();
+  void fldpi();
 
   void fld_s(const Operand& adr);
   void fld_d(const Operand& adr);
 
   void fstp_s(const Operand& adr);
   void fstp_d(const Operand& adr);
+  void fst_d(const Operand& adr);
 
   void fild_s(const Operand& adr);
   void fild_d(const Operand& adr);

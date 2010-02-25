@@ -142,7 +142,7 @@ Scope* CodeGenerator::scope() { return info_->function()->scope(); }
 // r1: called JS function
 // cp: callee's context
 
-void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
+void CodeGenerator::Generate(CompilationInfo* info) {
   // Record the position for debugging purposes.
   CodeForFunctionPosition(info->function());
 
@@ -174,7 +174,7 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
     }
 #endif
 
-    if (mode == PRIMARY) {
+    if (info->mode() == CompilationInfo::PRIMARY) {
       frame_->Enter();
       // tos: code slot
 
@@ -277,6 +277,12 @@ void CodeGenerator::Generate(CompilationInfo* info, Mode mode) {
       frame_->Adjust(4);
       allocator_->Unuse(r1);
       allocator_->Unuse(lr);
+
+      // Bind all the bailout labels to the beginning of the function.
+      List<CompilationInfo::Bailout*>* bailouts = info->bailouts();
+      for (int i = 0; i < bailouts->length(); i++) {
+        __ bind(bailouts->at(i)->label());
+      }
     }
 
     // Initialize the function return target after the locals are set
@@ -2293,8 +2299,7 @@ void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
   CodeForStatementPosition(node);
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  DebuggerStatementStub ces;
-  frame_->CallStub(&ces, 0);
+  frame_->DebugBreak();
 #endif
   // Ignore the return value.
   ASSERT(frame_->height() == original_height);
@@ -2719,9 +2724,9 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
     frame_->CallRuntime(Runtime::kCreateObjectLiteralShallow, 3);
   }
   frame_->EmitPush(r0);  // save the result
-  // r0: created object literal
-
   for (int i = 0; i < node->properties()->length(); i++) {
+    // At the start of each iteration, the top of stack contains
+    // the newly created object literal.
     ObjectLiteral::Property* property = node->properties()->at(i);
     Literal* key = property->key();
     Expression* value = property->value();
@@ -2731,34 +2736,43 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
         if (CompileTimeValue::IsCompileTimeValue(property->value())) break;
         // else fall through
-      case ObjectLiteral::Property::COMPUTED:  // fall through
+      case ObjectLiteral::Property::COMPUTED:
+        if (key->handle()->IsSymbol()) {
+          Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+          LoadAndSpill(value);
+          frame_->EmitPop(r0);
+          __ mov(r2, Operand(key->handle()));
+          __ ldr(r1, frame_->Top());  // Load the receiver.
+          frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+          break;
+        }
+        // else fall through
       case ObjectLiteral::Property::PROTOTYPE: {
+        __ ldr(r0, frame_->Top());
         frame_->EmitPush(r0);  // dup the result
         LoadAndSpill(key);
         LoadAndSpill(value);
         frame_->CallRuntime(Runtime::kSetProperty, 3);
-        // restore r0
-        __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::SETTER: {
+        __ ldr(r0, frame_->Top());
         frame_->EmitPush(r0);
         LoadAndSpill(key);
         __ mov(r0, Operand(Smi::FromInt(1)));
         frame_->EmitPush(r0);
         LoadAndSpill(value);
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
-        __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::GETTER: {
+        __ ldr(r0, frame_->Top());
         frame_->EmitPush(r0);
         LoadAndSpill(key);
         __ mov(r0, Operand(Smi::FromInt(0)));
         frame_->EmitPush(r0);
         LoadAndSpill(value);
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
-        __ ldr(r0, frame_->Top());
         break;
       }
     }
@@ -2776,17 +2790,19 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
   // Load the function of this activation.
   __ ldr(r2, frame_->Function());
-  // Literals array.
+  // Load the literals array of the function.
   __ ldr(r2, FieldMemOperand(r2, JSFunction::kLiteralsOffset));
-  // Literal index.
   __ mov(r1, Operand(Smi::FromInt(node->literal_index())));
-  // Constant elements.
   __ mov(r0, Operand(node->constant_elements()));
   frame_->EmitPushMultiple(3, r2.bit() | r1.bit() | r0.bit());
+  int length = node->values()->length();
   if (node->depth() > 1) {
     frame_->CallRuntime(Runtime::kCreateArrayLiteral, 3);
-  } else {
+  } else if (length > FastCloneShallowArrayStub::kMaximumLength) {
     frame_->CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
+  } else {
+    FastCloneShallowArrayStub stub(length);
+    frame_->CallStub(&stub, 3);
   }
   frame_->EmitPush(r0);  // save the result
   // r0: created object literal
@@ -3013,11 +3029,6 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
     // ----------------------------------
-
-    // Push the name of the function and the receiver onto the stack.
-    __ mov(r0, Operand(var->name()));
-    frame_->EmitPush(r0);
-
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
@@ -3029,15 +3040,14 @@ void CodeGenerator::VisitCall(Call* node) {
       LoadAndSpill(args->at(i));
     }
 
-    // Setup the receiver register and call the IC initialization code.
+    // Setup the name register and call the IC initialization code.
+    __ mov(r2, Operand(var->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
     Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
     __ ldr(cp, frame_->Context());
-    // Remove the function from the stack.
-    frame_->Drop();
     frame_->EmitPush(r0);
 
   } else if (var != NULL && var->slot() != NULL &&
@@ -3070,28 +3080,21 @@ void CodeGenerator::VisitCall(Call* node) {
       // JavaScript example: 'object.foo(1, 2, 3)' or 'map["key"](1, 2, 3)'
       // ------------------------------------------------------------------
 
-      // Push the name of the function and the receiver onto the stack.
-      __ mov(r0, Operand(literal->handle()));
-      frame_->EmitPush(r0);
-      LoadAndSpill(property->obj());
-
+      LoadAndSpill(property->obj());  // Receiver.
       // Load the arguments.
       int arg_count = args->length();
       for (int i = 0; i < arg_count; i++) {
         LoadAndSpill(args->at(i));
       }
 
-      // Set the receiver register and call the IC initialization code.
+      // Set the name register and call the IC initialization code.
+      __ mov(r2, Operand(literal->handle()));
       InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
       Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
       CodeForSourcePosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
       __ ldr(cp, frame_->Context());
-
-      // Remove the function from the stack.
-      frame_->Drop();
-
-      frame_->EmitPush(r0);  // push after get rid of function from the stack
+      frame_->EmitPush(r0);
 
     } else {
       // -------------------------------------------
@@ -3423,6 +3426,25 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateIsRegExp(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope;
+  ASSERT(args->length() == 1);
+  LoadAndSpill(args->at(0));
+  JumpTarget answer;
+  // We need the CC bits to come out as not_equal in the case where the
+  // object is a smi.  This can't be done with the usual test opcode so
+  // we use XOR to get the right CC bits.
+  frame_->EmitPop(r0);
+  __ and_(r1, r0, Operand(kSmiTagMask));
+  __ eor(r1, r1, Operand(kSmiTagMask), SetCC);
+  answer.Branch(ne);
+  // It is a heap object - get the map. Check if the object is a regexp.
+  __ CompareObjectType(r0, r1, r1, JS_REGEXP_TYPE);
+  answer.Bind();
+  cc_reg_ = eq;
+}
+
+
 void CodeGenerator::GenerateIsObject(ZoneList<Expression*>* args) {
   // This generates a fast version of:
   // (typeof(arg) === 'object' || %_ClassOf(arg) == 'RegExp')
@@ -3595,6 +3617,35 @@ void CodeGenerator::GenerateRegExpExec(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateNumberToString(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+
+  // Load the argument on the stack and jump to the runtime.
+  Load(args->at(0));
+
+  frame_->CallRuntime(Runtime::kNumberToString, 1);
+  frame_->EmitPush(r0);
+}
+
+
+void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  // Load the argument on the stack and jump to the runtime.
+  Load(args->at(0));
+  frame_->CallRuntime(Runtime::kMath_sin, 1);
+  frame_->EmitPush(r0);
+}
+
+
+void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
+  ASSERT_EQ(args->length(), 1);
+  // Load the argument on the stack and jump to the runtime.
+  Load(args->at(0));
+  frame_->CallRuntime(Runtime::kMath_cos, 1);
+  frame_->EmitPush(r0);
+}
+
+
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 2);
@@ -3626,8 +3677,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Prepare stack for calling JS runtime function.
-    __ mov(r0, Operand(node->name()));
-    frame_->EmitPush(r0);
     // Push the builtins object found in the current global object.
     __ ldr(r1, GlobalObject());
     __ ldr(r0, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
@@ -3642,11 +3691,11 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Call the JS runtime function.
+    __ mov(r2, Operand(node->name()));
     InLoopFlag in_loop = loop_nesting() > 0 ? IN_LOOP : NOT_IN_LOOP;
     Handle<Code> stub = ComputeCallInitialize(arg_count, in_loop);
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
-    frame_->Drop();
     frame_->EmitPush(r0);
   } else {
     // Call the C runtime function.
@@ -4389,11 +4438,11 @@ void Reference::SetValue(InitState init_state) {
       Handle<String> name(GetName());
 
       frame->EmitPop(r0);
-      // Setup the name register.
+      frame->EmitPop(r1);
       __ mov(r2, Operand(name));
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(r0);
-      cgen_->UnloadReference(this);
+      set_unloaded();
       break;
     }
 
@@ -4405,7 +4454,6 @@ void Reference::SetValue(InitState init_state) {
 
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
       frame->EmitPop(r0);  // value
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(r0);
@@ -4480,7 +4528,7 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
                         TAG_OBJECT);
 
   // Load the function from the stack.
-  __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
+  __ ldr(r3, MemOperand(sp, 0));
 
   // Setup the object header.
   __ LoadRoot(r2, Heap::kContextMapRootIndex);
@@ -4513,6 +4561,69 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Need to collect. Call into runtime system.
   __ bind(&gc);
   __ TailCallRuntime(ExternalReference(Runtime::kNewContext), 1, 1);
+}
+
+
+void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
+  // Stack layout on entry:
+  //
+  // [sp]: constant elements.
+  // [sp + kPointerSize]: literal index.
+  // [sp + (2 * kPointerSize)]: literals array.
+
+  // All sizes here are multiples of kPointerSize.
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int size = JSArray::kSize + elements_size;
+
+  // Load boilerplate object into r3 and check if we need to create a
+  // boilerplate.
+  Label slow_case;
+  __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
+  __ ldr(r0, MemOperand(sp, 1 * kPointerSize));
+  __ add(r3, r3, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ ldr(r3, MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r3, ip);
+  __ b(eq, &slow_case);
+
+  // Allocate both the JS array and the elements array in one big
+  // allocation. This avoids multiple limit checks.
+  __ AllocateInNewSpace(size / kPointerSize,
+                        r0,
+                        r1,
+                        r2,
+                        &slow_case,
+                        TAG_OBJECT);
+
+  // Copy the JS array part.
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length_ == 0)) {
+      __ ldr(r1, FieldMemOperand(r3, i));
+      __ str(r1, FieldMemOperand(r0, i));
+    }
+  }
+
+  if (length_ > 0) {
+    // Get hold of the elements array of the boilerplate and setup the
+    // elements pointer in the resulting object.
+    __ ldr(r3, FieldMemOperand(r3, JSArray::kElementsOffset));
+    __ add(r2, r0, Operand(JSArray::kSize));
+    __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
+
+    // Copy the elements array.
+    for (int i = 0; i < elements_size; i += kPointerSize) {
+      __ ldr(r1, FieldMemOperand(r3, i));
+      __ str(r1, FieldMemOperand(r2, i));
+    }
+  }
+
+  // Return and remove the on-stack parameters.
+  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ Ret();
+
+  __ bind(&slow_case);
+  ExternalReference runtime(Runtime::kCreateArrayLiteralShallow);
+  __ TailCallRuntime(runtime, 3, 1);
 }
 
 
@@ -6584,7 +6695,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ b(gt, &slow);
 
   // Get the prototype of the function (r4 is result, r2 is scratch).
-  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
+  __ ldr(r1, MemOperand(sp, 0));
   __ TryGetFunctionPrototype(r1, r4, r2, &slow);
 
   // Check that the function prototype is a JS object.
@@ -6699,19 +6810,101 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // sp[0] : number of parameters
+  // sp[4] : receiver displacement
+  // sp[8] : function
+
   // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
+  Label adaptor_frame, try_allocate, runtime;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &runtime);
+  __ b(eq, &adaptor_frame);
+
+  // Get the length from the frame.
+  __ ldr(r1, MemOperand(sp, 0));
+  __ b(&try_allocate);
 
   // Patch the arguments.length and the parameters pointer.
-  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ str(r0, MemOperand(sp, 0 * kPointerSize));
-  __ add(r3, r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ bind(&adaptor_frame);
+  __ ldr(r1, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ str(r1, MemOperand(sp, 0));
+  __ add(r3, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ add(r3, r3, Operand(StandardFrameConstants::kCallerSPOffset));
   __ str(r3, MemOperand(sp, 1 * kPointerSize));
+
+  // Try the new space allocation. Start out with computing the size
+  // of the arguments object and the elements array (in words, not
+  // bytes because AllocateInNewSpace expects words).
+  Label add_arguments_object;
+  __ bind(&try_allocate);
+  __ cmp(r1, Operand(0));
+  __ b(eq, &add_arguments_object);
+  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
+  __ add(r1, r1, Operand(FixedArray::kHeaderSize / kPointerSize));
+  __ bind(&add_arguments_object);
+  __ add(r1, r1, Operand(Heap::kArgumentsObjectSize / kPointerSize));
+
+  // Do the allocation of both objects in one go.
+  __ AllocateInNewSpace(r1, r0, r2, r3, &runtime, TAG_OBJECT);
+
+  // Get the arguments boilerplate from the current (global) context.
+  int offset = Context::SlotOffset(Context::ARGUMENTS_BOILERPLATE_INDEX);
+  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(r4, FieldMemOperand(r4, GlobalObject::kGlobalContextOffset));
+  __ ldr(r4, MemOperand(r4, offset));
+
+  // Copy the JS object part.
+  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
+    __ ldr(r3, FieldMemOperand(r4, i));
+    __ str(r3, FieldMemOperand(r0, i));
+  }
+
+  // Setup the callee in-object property.
+  ASSERT(Heap::arguments_callee_index == 0);
+  __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
+  __ str(r3, FieldMemOperand(r0, JSObject::kHeaderSize));
+
+  // Get the length (smi tagged) and set that as an in-object property too.
+  ASSERT(Heap::arguments_length_index == 1);
+  __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
+  __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize + kPointerSize));
+
+  // If there are no actual arguments, we're done.
+  Label done;
+  __ cmp(r1, Operand(0));
+  __ b(eq, &done);
+
+  // Get the parameters pointer from the stack and untag the length.
+  __ ldr(r2, MemOperand(sp, 1 * kPointerSize));
+  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
+
+  // Setup the elements pointer in the allocated arguments object and
+  // initialize the header in the elements fixed array.
+  __ add(r4, r0, Operand(Heap::kArgumentsObjectSize));
+  __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
+  __ LoadRoot(r3, Heap::kFixedArrayMapRootIndex);
+  __ str(r3, FieldMemOperand(r4, FixedArray::kMapOffset));
+  __ str(r1, FieldMemOperand(r4, FixedArray::kLengthOffset));
+
+  // Copy the fixed array slots.
+  Label loop;
+  // Setup r4 to point to the first array slot.
+  __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ bind(&loop);
+  // Pre-decrement r2 with kPointerSize on each iteration.
+  // Pre-decrement in order to skip receiver.
+  __ ldr(r3, MemOperand(r2, kPointerSize, NegPreIndex));
+  // Post-increment r4 with kPointerSize on each iteration.
+  __ str(r3, MemOperand(r4, kPointerSize, PostIndex));
+  __ sub(r1, r1, Operand(1));
+  __ cmp(r1, Operand(0));
+  __ b(ne, &loop);
+
+  // Return and remove the on-stack parameters.
+  __ bind(&done);
+  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ Ret();
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
@@ -6766,6 +6959,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ str(r1, MemOperand(sp, argc_ * kPointerSize));
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
   __ mov(r2, Operand(0));
   __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);

@@ -36,7 +36,7 @@ namespace internal {
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-static const Register kScratchRegister = r10;
+static const Register kScratchRegister = { 10 };  // r10.
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
@@ -98,6 +98,7 @@ class MacroAssembler: public Assembler {
   void CopyRegistersFromStackToMemory(Register base,
                                       Register scratch,
                                       RegList regs);
+  void DebugBreak();
 #endif
 
   // ---------------------------------------------------------------------------
@@ -145,6 +146,10 @@ class MacroAssembler: public Assembler {
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function,
+                      const ParameterCount& actual,
+                      InvokeFlag flag);
+
+  void InvokeFunction(JSFunction* function,
                       const ParameterCount& actual,
                       InvokeFlag flag);
 
@@ -481,6 +486,9 @@ class MacroAssembler: public Assembler {
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();
 
+  // Abort execution if argument is not a number. Used in debug code.
+  void AbortIfNotNumber(Register object, const char* msg);
+
   // ---------------------------------------------------------------------------
   // Exception handling
 
@@ -643,6 +651,10 @@ class MacroAssembler: public Assembler {
   // Convenience function: Same as above, but takes the fid instead.
   void CallRuntime(Runtime::FunctionId id, int num_arguments);
 
+  // Convenience function: call an external reference.
+  void CallExternalReference(const ExternalReference& ext,
+                             int num_arguments);
+
   // Tail call of a runtime routine (jump).
   // Like JumpToRuntime, but also takes care of passing the number
   // of arguments.
@@ -679,13 +691,6 @@ class MacroAssembler: public Assembler {
 
   void Ret();
 
-  struct Unresolved {
-    int pc;
-    uint32_t flags;  // see Bootstrapper::FixupFlags decoders/encoders.
-    const char* name;
-  };
-  List<Unresolved>* unresolved() { return &unresolved_; }
-
   Handle<Object> CodeObject() { return code_object_; }
 
 
@@ -717,7 +722,6 @@ class MacroAssembler: public Assembler {
   bool allow_stub_calls() { return allow_stub_calls_; }
 
  private:
-  List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
   // This handle will be patched with the code object on installation.
@@ -730,18 +734,6 @@ class MacroAssembler: public Assembler {
                       Register code_register,
                       Label* done,
                       InvokeFlag flag);
-
-  // Prepares for a call or jump to a builtin by doing two things:
-  // 1. Emits code that fetches the builtin's function object from the context
-  //    at runtime, and puts it in the register rdi.
-  // 2. Fetches the builtin's code object, and returns it in a handle, at
-  //    compile time, so that later code can emit instructions to jump or call
-  //    the builtin directly.  If the code object has not yet been created, it
-  //    returns the builtin code object for IllegalFunction, and sets the
-  //    output parameter "resolved" to false.  Code that uses the return value
-  //    should then add the address and the builtin name to the list of fixups
-  //    called unresolved_, which is fixed up by the bootstrapper.
-  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

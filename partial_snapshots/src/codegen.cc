@@ -31,6 +31,7 @@
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
+#include "liveedit.h"
 #include "oprofile-agent.h"
 #include "prettyprinter.h"
 #include "register-allocator-inl.h"
@@ -197,9 +198,6 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   Handle<Code> code =
       Factory::NewCode(desc, &sinfo, flags, masm->CodeObject());
 
-  // Add unresolved entries in the code to the fixup list.
-  Bootstrapper::AddFixup(*code, masm);
-
 #ifdef ENABLE_DISASSEMBLER
   bool print_code = Bootstrapper::IsActive()
       ? FLAG_print_builtin_code
@@ -237,6 +235,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
 // all the pieces into a Code object. This function is only to be called by
 // the compiler.cc code.
 Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
+  LiveEditFunctionTracker live_edit_tracker(info->function());
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
     int len = String::cast(script->source())->length();
@@ -248,7 +247,8 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
   MacroAssembler masm(NULL, kInitialBufferSize);
   CodeGenerator cgen(&masm);
   CodeGeneratorScope scope(&cgen);
-  cgen.Generate(info, PRIMARY);
+  live_edit_tracker.RecordFunctionScope(info->function()->scope());
+  cgen.Generate(info);
   if (cgen.HasStackOverflow()) {
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
@@ -256,7 +256,9 @@ Handle<Code> CodeGenerator::MakeCode(CompilationInfo* info) {
 
   InLoopFlag in_loop = (cgen.loop_nesting() != 0) ? IN_LOOP : NOT_IN_LOOP;
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION, in_loop);
-  return MakeCodeEpilogue(cgen.masm(), flags, info);
+  Handle<Code> result = MakeCodeEpilogue(cgen.masm(), flags, info);
+  live_edit_tracker.RecordFunctionCode(result);
+  return result;
 }
 
 
@@ -358,6 +360,7 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateIsSmi, "_IsSmi"},
   {&CodeGenerator::GenerateIsNonNegativeSmi, "_IsNonNegativeSmi"},
   {&CodeGenerator::GenerateIsArray, "_IsArray"},
+  {&CodeGenerator::GenerateIsRegExp, "_IsRegExp"},
   {&CodeGenerator::GenerateIsConstructCall, "_IsConstructCall"},
   {&CodeGenerator::GenerateArgumentsLength, "_ArgumentsLength"},
   {&CodeGenerator::GenerateArgumentsAccess, "_Arguments"},
@@ -375,6 +378,9 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateSubString, "_SubString"},
   {&CodeGenerator::GenerateStringCompare, "_StringCompare"},
   {&CodeGenerator::GenerateRegExpExec, "_RegExpExec"},
+  {&CodeGenerator::GenerateNumberToString, "_NumberToString"},
+  {&CodeGenerator::GenerateMathSin, "_Math_sin"},
+  {&CodeGenerator::GenerateMathCos, "_Math_cos"},
 };
 
 
@@ -524,13 +530,6 @@ bool ApiGetterEntryStub::GetCustomCache(Code** code_out) {
 void ApiGetterEntryStub::SetCustomCache(Code* value) {
   info()->set_load_stub_cache(value);
 }
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-void DebuggerStatementStub::Generate(MacroAssembler* masm) {
-  Runtime::Function* f = Runtime::FunctionForId(Runtime::kDebugBreak);
-  masm->TailCallRuntime(ExternalReference(f), 0, f->result_size);
-}
-#endif
 
 
 } }  // namespace v8::internal

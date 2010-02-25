@@ -71,10 +71,8 @@ namespace internal {
   F(IsExtensible, 1, 1) \
   \
   /* Utilities */ \
-  F(GetCalledFunction, 0, 1) \
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
-  F(NewArguments, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
@@ -268,7 +266,6 @@ namespace internal {
   F(InitializeConstGlobal, 2, 1) \
   F(InitializeConstContextSlot, 3, 1) \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
-  F(TransformToFastProperties, 1, 1) \
   \
   /* Debugging */ \
   F(DebugPrint, 1, 1) \
@@ -331,8 +328,8 @@ namespace internal {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F) \
-  F(ProfilerResume, 1, 1) \
-  F(ProfilerPause, 1, 1)
+  F(ProfilerResume, 2, 1) \
+  F(ProfilerPause, 2, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F)
 #endif

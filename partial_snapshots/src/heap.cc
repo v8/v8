@@ -1498,14 +1498,6 @@ void Heap::CreateRegExpCEntryStub() {
 #endif
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-void Heap::CreateCEntryDebugBreakStub() {
-  DebuggerStatementStub stub;
-  set_debugger_statement_code(*stub.GetCode());
-}
-#endif
-
-
 void Heap::CreateJSEntryStub() {
   JSEntryStub stub;
   set_js_entry_code(*stub.GetCode());
@@ -1533,9 +1525,6 @@ void Heap::CreateFixedStubs() {
   // }
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateCEntryStub();
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  Heap::CreateCEntryDebugBreakStub();
-#endif
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
 #if V8_TARGET_ARCH_ARM && V8_NATIVE_REGEXP
@@ -1778,6 +1767,7 @@ Object* Heap::SmiOrNumberFromDouble(double value,
 
 
 Object* Heap::NumberToString(Object* number) {
+  Counters::number_to_string_runtime.Increment();
   Object* cached = GetNumberStringCache(number);
   if (cached != undefined_value()) {
     return cached;
@@ -2393,12 +2383,13 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
 
-  // If the function has only simple this property assignments add field
-  // descriptors for these to the initial map as the object cannot be
-  // constructed without having these properties.
+  // If the function has only simple this property assignments add
+  // field descriptors for these to the initial map as the object
+  // cannot be constructed without having these properties.  Guard by
+  // the inline_new flag so we only change the map if we generate a
+  // specialized construct stub.
   ASSERT(in_object_properties <= Map::kMaxPreAllocatedPropertyFields);
-  if (fun->shared()->has_only_simple_this_property_assignments() &&
-      fun->shared()->this_property_assignments_count() > 0) {
+  if (fun->shared()->CanGenerateInlineConstructor(prototype)) {
     int count = fun->shared()->this_property_assignments_count();
     if (count > in_object_properties) {
       count = in_object_properties;
@@ -4120,7 +4111,7 @@ int KeyedLookupCache::Hash(Map* map, String* name) {
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
       static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> kMapHashShift;
-  return (addr_hash ^ name->Hash()) & kCapacityMask;
+  return static_cast<uint32_t>((addr_hash ^ name->Hash()) & kCapacityMask);
 }
 
 
