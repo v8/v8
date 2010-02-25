@@ -4157,9 +4157,8 @@ static Object* Runtime_NumberToInteger(Arguments args) {
   // We do not include 0 so that we don't have to treat +0 / -0 cases.
   if (number > 0 && number <= Smi::kMaxValue) {
     return Smi::FromInt(static_cast<int>(number));
-  } else {
-    return Heap::NumberFromDouble(DoubleToInteger(number));
   }
+  return Heap::NumberFromDouble(DoubleToInteger(number));
 }
 
 
@@ -4181,9 +4180,8 @@ static Object* Runtime_NumberToJSInt32(Arguments args) {
   // We do not include 0 so that we don't have to treat +0 / -0 cases.
   if (number > 0 && number <= Smi::kMaxValue) {
     return Smi::FromInt(static_cast<int>(number));
-  } else {
-    return Heap::NumberFromInt32(DoubleToInt32(number));
-  }
+  } 
+  return Heap::NumberFromInt32(DoubleToInt32(number));
 }
 
 
