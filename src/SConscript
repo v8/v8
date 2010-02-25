@@ -298,13 +298,6 @@ def ConfigureObjectFiles():
   mksnapshot_env.Replace(**context.flags['mksnapshot'])
   mksnapshot_src = 'mksnapshot.cc'
   mksnapshot = mksnapshot_env.Program('mksnapshot', [mksnapshot_src, libraries_obj, non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
-
-  # Fix build on Linux systems with PaX enabled, see
-  # http://code.google.com/p/v8/issues/detail?id=607. The dash ("-") at the
-  # beginning of the command makes scons ignore the return code, since
-  # /sbin/paxctl may not be present at all systems (especially non-Linux).
-  mksnapshot_env.AddPostAction(mksnapshot, '-/sbin/paxctl -m ${TARGET}')
-
   if context.use_snapshot:
     if context.build_snapshot:
       snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)
@@ -313,7 +306,6 @@ def ConfigureObjectFiles():
     snapshot_obj = context.ConfigureObject(env, snapshot_cc, CPPPATH=['.'])
   else:
     snapshot_obj = empty_snapshot_obj
-
   library_objs = [non_snapshot_files, libraries_obj, snapshot_obj]
   return (library_objs, d8_objs, [mksnapshot])
 
