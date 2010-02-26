@@ -5368,12 +5368,11 @@ void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
       __ cmp(FieldOperand(y.reg(), HeapObject::kMapOffset),
              Factory::heap_number_map());
       __ j(not_equal, &go_runtime);
+      // Y must be a double.
+      __ movdbl(xmm1, FieldOperand(y.reg(), HeapNumber::kValueOffset));
       // Test if y is nan.
       __ ucomisd(xmm1, xmm1);
       __ j(parity_even, &go_runtime);
-
-      // Y must be a double.
-      __ movdbl(xmm1, FieldOperand(y.reg(), HeapNumber::kValueOffset));
 
       Label x_not_smi;
       Label handle_special_cases;
