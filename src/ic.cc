@@ -1365,7 +1365,9 @@ Object* StoreIC_ArrayLength(Arguments args) {
   JSObject* receiver = JSObject::cast(args[0]);
   Object* len = args[1];
 
-  return receiver->SetElementsLength(len);
+  Object* result = receiver->SetElementsLength(len);
+  if (result->IsFailure()) return result;
+  return len;
 }
 
 
