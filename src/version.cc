@@ -35,7 +35,7 @@
 #define MAJOR_VERSION     2
 #define MINOR_VERSION     1
 #define BUILD_NUMBER      2
-#define PATCH_LEVEL       1
+#define PATCH_LEVEL       2
 #define CANDIDATE_VERSION false
 
 // Define SONAME to have the SCons build the put a specific SONAME into the
