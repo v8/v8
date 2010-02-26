@@ -3414,6 +3414,44 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateCharFromCode");
+  ASSERT(args->length() == 1);
+
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r0);
+
+  JumpTarget slow_case;
+  JumpTarget exit;
+
+  // Fast case of Heap::LookupSingleCharacterStringFromCode.
+  ASSERT(kSmiTag == 0);
+  ASSERT(kSmiShiftSize == 0);
+  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
+  __ tst(r0, Operand(kSmiTagMask |
+                     ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
+  slow_case.Branch(nz);
+
+  ASSERT(kSmiTag == 0);
+  __ mov(r1, Operand(Factory::single_character_string_cache()));
+  __ add(r1, r1, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r1, MemOperand(r1, FixedArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r1, ip);
+  slow_case.Branch(eq);
+
+  frame_->EmitPush(r1);
+  exit.Jump();
+
+  slow_case.Bind();
+  frame_->EmitPush(r0);
+  frame_->CallRuntime(Runtime::kCharFromCode, 1);
+  frame_->EmitPush(r0);
+
+  exit.Bind();
+}
+
+
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   VirtualFrame::SpilledScope spilled_scope;
   ASSERT(args->length() == 1);

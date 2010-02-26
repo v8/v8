@@ -369,6 +369,7 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateValueOf, "_ValueOf"},
   {&CodeGenerator::GenerateSetValueOf, "_SetValueOf"},
   {&CodeGenerator::GenerateFastCharCodeAt, "_FastCharCodeAt"},
+  {&CodeGenerator::GenerateCharFromCode, "_CharFromCode"},
   {&CodeGenerator::GenerateObjectEquals, "_ObjectEquals"},
   {&CodeGenerator::GenerateLog, "_Log"},
   {&CodeGenerator::GenerateRandomPositiveSmi, "_RandomPositiveSmi"},

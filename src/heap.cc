@@ -1655,7 +1655,7 @@ bool Heap::CreateInitialObjects() {
   if (InitializeNumberStringCache()->IsFailure()) return false;
 
   // Allocate cache for single character strings.
-  obj = AllocateFixedArray(String::kMaxAsciiCharCode+1);
+  obj = AllocateFixedArray(String::kMaxAsciiCharCode+1, TENURED);
   if (obj->IsFailure()) return false;
   set_single_character_string_cache(FixedArray::cast(obj));
 

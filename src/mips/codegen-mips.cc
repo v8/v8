@@ -305,6 +305,11 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }

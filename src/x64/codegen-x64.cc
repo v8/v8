@@ -3877,6 +3877,49 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateCharFromCode");
+  ASSERT(args->length() == 1);
+
+  Load(args->at(0));
+  Result code = frame_->Pop();
+  code.ToRegister();
+  ASSERT(code.is_valid());
+
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+
+  JumpTarget slow_case;
+  JumpTarget exit;
+
+  // Fast case of Heap::LookupSingleCharacterStringFromCode.
+  Condition is_smi = __ CheckSmi(code.reg());
+  slow_case.Branch(NegateCondition(is_smi), &code, not_taken);
+
+  __ SmiToInteger32(kScratchRegister, code.reg());
+  __ cmpl(kScratchRegister, Immediate(String::kMaxAsciiCharCode));
+  slow_case.Branch(above, &code, not_taken);
+
+  __ Move(temp.reg(), Factory::single_character_string_cache());
+  __ movq(temp.reg(), FieldOperand(temp.reg(),
+                                   kScratchRegister, times_pointer_size,
+                                   FixedArray::kHeaderSize));
+  __ CompareRoot(temp.reg(), Heap::kUndefinedValueRootIndex);
+  slow_case.Branch(equal, &code, not_taken);
+  code.Unuse();
+
+  frame_->Push(&temp);
+  exit.Jump();
+
+  slow_case.Bind(&code);
+  frame_->Push(&code);
+  Result result = frame_->CallRuntime(Runtime::kCharFromCode, 1);
+  frame_->Push(&result);
+
+  exit.Bind();
+}
+
+
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));

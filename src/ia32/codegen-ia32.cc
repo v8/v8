@@ -5597,6 +5597,54 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateCharFromCode(ZoneList<Expression*>* args) {
+  Comment(masm_, "[ GenerateCharFromCode");
+  ASSERT(args->length() == 1);
+
+  Load(args->at(0));
+  Result code = frame_->Pop();
+  code.ToRegister();
+  ASSERT(code.is_valid());
+
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+
+  JumpTarget slow_case;
+  JumpTarget exit;
+
+  // Fast case of Heap::LookupSingleCharacterStringFromCode.
+  ASSERT(kSmiTag == 0);
+  ASSERT(kSmiShiftSize == 0);
+  ASSERT(IsPowerOf2(String::kMaxAsciiCharCode + 1));
+  __ test(code.reg(),
+          Immediate(kSmiTagMask |
+                    ((~String::kMaxAsciiCharCode) << kSmiTagSize)));
+  slow_case.Branch(not_zero, &code, not_taken);
+
+  __ Set(temp.reg(), Immediate(Factory::single_character_string_cache()));
+  ASSERT(kSmiTag == 0);
+  ASSERT(kSmiTagSize == 1);
+  ASSERT(kSmiShiftSize == 0);
+  // At this point code register contains smi tagged ascii char code.
+  __ mov(temp.reg(), FieldOperand(temp.reg(),
+                                  code.reg(), times_half_pointer_size,
+                                  FixedArray::kHeaderSize));
+  __ cmp(temp.reg(), Factory::undefined_value());
+  slow_case.Branch(equal, &code, not_taken);
+  code.Unuse();
+
+  frame_->Push(&temp);
+  exit.Jump();
+
+  slow_case.Bind(&code);
+  frame_->Push(&code);
+  Result result = frame_->CallRuntime(Runtime::kCharFromCode, 1);
+  frame_->Push(&result);
+
+  exit.Bind();
+}
+
+
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));

@@ -563,6 +563,9 @@ class CodeGenerator: public AstVisitor {
   // Fast support for charCodeAt(n).
   void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
 
+  // Fast support for string.charAt(n) and string[n].
+  void GenerateCharFromCode(ZoneList<Expression*>* args);
+
   // Fast support for object equality testing.
   void GenerateObjectEquals(ZoneList<Expression*>* args);
 
