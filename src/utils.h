@@ -572,6 +572,30 @@ static inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
 }
 
 
+template <typename T>
+static inline void MemsetPointer(T** dest, T* value, int counter) {
+#if defined(V8_HOST_ARCH_IA32)
+#define STOS "stosl"
+#elif defined(V8_HOST_ARCH_X64)
+#define STOS "stosq"
+#endif
+
+#if defined(__GNUC__) && defined(STOS)
+  asm("cld;"
+      "rep ; " STOS
+      : /* no output */
+      : "c" (counter), "a" (value), "D" (dest)
+      : /* no clobbered list as all inputs are considered clobbered */);
+#else
+  for (int i = 0; i < counter; i++) {
+    dest[i] = value;
+  }
+#endif
+
+#undef STOS
+}
+
+
 // Calculate 10^exponent.
 int TenToThe(int exponent);
 

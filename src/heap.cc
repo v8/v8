@@ -2994,11 +2994,10 @@ Object* Heap::AllocateFixedArrayWithHoles(int length) {
     FixedArray* array = FixedArray::cast(result);
     array->set_length(length);
     // Initialize body.
-    Object* value = the_hole_value();
-    for (int index = 0; index < length; index++)  {
-      ASSERT(!Heap::InNewSpace(value));  // value = the hole
-      array->set(index, value, SKIP_WRITE_BARRIER);
-    }
+    ASSERT(!Heap::InNewSpace(the_hole_value()));
+    MemsetPointer(HeapObject::RawField(array, FixedArray::kHeaderSize),
+                  the_hole_value(),
+                  length);
   }
   return result;
 }
