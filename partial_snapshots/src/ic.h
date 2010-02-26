@@ -45,7 +45,6 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(KeyedLoadIC_Miss)                               \
   ICU(CallIC_Miss)                                    \
   ICU(StoreIC_Miss)                                   \
-  ICU(StoreIC_ArrayLength)                            \
   ICU(SharedStoreIC_ExtendStorage)                    \
   ICU(KeyedStoreIC_Miss)                              \
   /* Utilities for IC stubs. */                       \
@@ -359,7 +358,6 @@ class StoreIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
-  static void GenerateArrayLength(MacroAssembler* masm);
 
  private:
   // Update the inline cache and the global stub cache based on the

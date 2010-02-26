@@ -1079,11 +1079,6 @@ static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_ArrayLength(MacroAssembler* masm) {
-  StoreIC::GenerateArrayLength(masm);
-}
-
-
 static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
   KeyedStoreIC::GenerateGeneric(masm);
 }

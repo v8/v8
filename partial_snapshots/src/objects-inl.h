@@ -2768,13 +2768,6 @@ bool JSObject::HasIndexedInterceptor() {
 }
 
 
-bool JSObject::AllowsSetElementsLength() {
-  bool result = elements()->IsFixedArray();
-  ASSERT(result == (!HasPixelElements() && !HasExternalArrayElements()));
-  return result;
-}
-
-
 StringDictionary* JSObject::property_dictionary() {
   ASSERT(!HasFastProperties());
   return StringDictionary::cast(properties());
