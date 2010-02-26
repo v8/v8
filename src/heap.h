@@ -556,7 +556,8 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateSubString(String* buffer,
                                    int start,
-                                   int end);
+                                   int end,
+                                   PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new external string object, which is backed by a string
   // resource that resides outside the V8 heap.

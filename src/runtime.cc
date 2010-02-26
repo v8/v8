@@ -2608,8 +2608,8 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   int d = str1->Get(0) - str2->Get(0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1->TryFlattenIfNotFlat();
-  str2->TryFlattenIfNotFlat();
+  str1->TryFlatten();
+  str2->TryFlatten();
 
   static StringInputBuffer buf1;
   static StringInputBuffer buf2;
@@ -2818,7 +2818,7 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 // string->Get(index).
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
   if (index < static_cast<uint32_t>(string->length())) {
-    string->TryFlattenIfNotFlat();
+    string->TryFlatten();
     return LookupSingleCharacterStringFromCode(
         string->Get(index));
   }
@@ -3072,7 +3072,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
       result = SetElement(js_object, index, value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
-      key_string->TryFlattenIfNotFlat();
+      key_string->TryFlatten();
       result = SetProperty(js_object, key_string, value, attr);
     }
     if (result.is_null()) return Failure::Exception();
@@ -3121,7 +3121,7 @@ Object* Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
       return js_object->SetElement(index, *value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
-      key_string->TryFlattenIfNotFlat();
+      key_string->TryFlatten();
       return js_object->IgnoreAttributesAndSetLocalProperty(*key_string,
                                                             *value,
                                                             attr);
@@ -3173,7 +3173,7 @@ Object* Runtime::ForceDeleteObjectProperty(Handle<JSObject> js_object,
     key_string = Handle<String>::cast(converted);
   }
 
-  key_string->TryFlattenIfNotFlat();
+  key_string->TryFlatten();
   return js_object->DeleteProperty(*key_string, JSObject::FORCE_DELETION);
 }
 
@@ -3669,7 +3669,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
-  subject->TryFlattenIfNotFlat();
+  subject->TryFlatten();
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -3751,7 +3751,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlattenIfNotFlat();
+  source->TryFlatten();
 
   int escaped_length = 0;
   int length = source->length();
@@ -3864,7 +3864,7 @@ static Object* Runtime_URIUnescape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlattenIfNotFlat();
+  source->TryFlatten();
 
   bool ascii = true;
   int length = source->length();
@@ -3904,7 +3904,7 @@ static Object* Runtime_StringParseInt(Arguments args) {
   CONVERT_CHECKED(String, s, args[0]);
   CONVERT_SMI_CHECKED(radix, args[1]);
 
-  s->TryFlattenIfNotFlat();
+  s->TryFlatten();
 
   int len = s->length();
   int i;
@@ -4074,7 +4074,7 @@ static Object* ConvertCase(Arguments args,
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlattenIfNotFlat();
+  s->TryFlatten();
 
   int input_string_length = s->length();
   // Assume that the string is not empty; we need this assumption later
@@ -4111,7 +4111,7 @@ static Object* Runtime_StringTrim(Arguments args) {
   CONVERT_BOOLEAN_CHECKED(trimLeft, args[1]);
   CONVERT_BOOLEAN_CHECKED(trimRight, args[2]);
 
-  s->TryFlattenIfNotFlat();
+  s->TryFlatten();
   int length = s->length();
 
   int left = 0;
@@ -4679,8 +4679,8 @@ static Object* Runtime_StringCompare(Arguments args) {
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlattenIfNotFlat();
-  y->TryFlattenIfNotFlat();
+  x->TryFlatten();
+  y->TryFlatten();
 
   return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
                                       : StringInputBufferCompare(x, y);

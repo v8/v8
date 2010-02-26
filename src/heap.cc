@@ -2012,7 +2012,8 @@ Object* Heap::AllocateConsString(String* first, String* second) {
 
 Object* Heap::AllocateSubString(String* buffer,
                                 int start,
-                                int end) {
+                                int end,
+                                PretenureFlag pretenure) {
   int length = end - start;
 
   if (length == 1) {
@@ -2028,16 +2029,13 @@ Object* Heap::AllocateSubString(String* buffer,
   }
 
   // Make an attempt to flatten the buffer to reduce access time.
-  if (!buffer->IsFlat()) {
-    buffer->TryFlatten();
-  }
+  buffer->TryFlatten();
 
   Object* result = buffer->IsAsciiRepresentation()
-      ? AllocateRawAsciiString(length)
-      : AllocateRawTwoByteString(length);
+      ? AllocateRawAsciiString(length, pretenure )
+      : AllocateRawTwoByteString(length, pretenure);
   if (result->IsFailure()) return result;
   String* string_result = String::cast(result);
-
   // Copy the characters into the new object.
   if (buffer->IsAsciiRepresentation()) {
     ASSERT(string_result->IsAsciiRepresentation());

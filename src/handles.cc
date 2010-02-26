@@ -203,7 +203,7 @@ void TransformToFastProperties(Handle<JSObject> object,
 
 
 void FlattenString(Handle<String> string) {
-  CALL_HEAP_FUNCTION_VOID(string->TryFlattenIfNotFlat());
+  CALL_HEAP_FUNCTION_VOID(string->TryFlatten());
   ASSERT(string->IsFlat());
 }
 
@@ -362,8 +362,11 @@ Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
 }
 
 
-Handle<String> SubString(Handle<String> str, int start, int end) {
-  CALL_HEAP_FUNCTION(str->SubString(start, end), String);
+Handle<String> SubString(Handle<String> str,
+                         int start,
+                         int end,
+                         PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(str->SubString(start, end, pretenure), String);
 }
 
 

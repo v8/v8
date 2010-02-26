@@ -2615,7 +2615,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
   StringTracker::RecordWrite(str);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlattenIfNotFlat();
+  str->TryFlatten();
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;

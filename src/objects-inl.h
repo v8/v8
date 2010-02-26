@@ -1640,13 +1640,11 @@ bool String::Equals(String* other) {
 }
 
 
-Object* String::TryFlattenIfNotFlat() {
+Object* String::TryFlatten(PretenureFlag pretenure) {
   // We don't need to flatten strings that are already flat.  Since this code
   // is inlined, it can be helpful in the flat case to not call out to Flatten.
-  if (!IsFlat()) {
-    return TryFlatten();
-  }
-  return this;
+  if (IsFlat()) return this;
+  return SlowTryFlatten(pretenure);
 }
 
 

@@ -287,7 +287,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
                                Handle<FixedArray> second);
 
-Handle<String> SubString(Handle<String> str, int start, int end);
+Handle<String> SubString(Handle<String> str,
+                         int start,
+                         int end,
+                         PretenureFlag pretenure = NOT_TENURED);
 
 
 // Sets the expected number of properties for the function's instances.

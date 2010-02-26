@@ -1234,7 +1234,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
   Counters::total_parse_size.Increment(source->length());
 
   // Initialize parser state.
-  source->TryFlattenIfNotFlat();
+  source->TryFlatten();
   scanner_.Init(source, stream, 0, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
 
@@ -1289,7 +1289,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    bool is_expression) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
-  source->TryFlattenIfNotFlat();
+  source->TryFlatten();
   Counters::total_parse_size.Increment(source->length());
   SafeStringInputBuffer buffer(source.location());
 
@@ -1338,7 +1338,7 @@ FunctionLiteral* Parser::ParseJson(Handle<String> source,
   Counters::total_parse_size.Increment(source->length());
 
   // Initialize parser state.
-  source->TryFlattenIfNotFlat();
+  source->TryFlatten(TENURED);
   scanner_.Init(source, stream, 0, JSON);
   ASSERT(target_stack_ == NULL);
 
@@ -5088,11 +5088,10 @@ FunctionLiteral* MakeLazyAST(Handle<Script> script,
   always_allow_natives_syntax = allow_natives_syntax_before;
   // Parse the function by pulling the function source from the script source.
   Handle<String> script_source(String::cast(script->source()));
+  Handle<String> function_source =
+      SubString(script_source, start_position, end_position, TENURED);
   FunctionLiteral* result =
-      parser.ParseLazy(SubString(script_source, start_position, end_position),
-                       name,
-                       start_position,
-                       is_expression);
+      parser.ParseLazy(function_source, name, start_position, is_expression);
   return result;
 }
 

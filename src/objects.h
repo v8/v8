@@ -3837,13 +3837,13 @@ class String: public HeapObject {
   // Try to flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString.  Flatten
   // mutates the ConsString and might return a failure.
-  Object* TryFlatten();
+  Object* SlowTryFlatten(PretenureFlag pretenure);
 
   // Try to flatten the string.  Checks first inline to see if it is necessary.
-  // Do not handle allocation failures.  After calling TryFlattenIfNotFlat, the
+  // Do not handle allocation failures.  After calling TryFlatten, the
   // string could still be a ConsString, in which case a failure is returned.
   // Use FlattenString from Handles.cc to be sure to flatten.
-  inline Object* TryFlattenIfNotFlat();
+  inline Object* TryFlatten(PretenureFlag pretenure = NOT_TENURED);
 
   Vector<const char> ToAsciiVector();
   Vector<const uc16> ToUC16Vector();
@@ -3853,7 +3853,7 @@ class String: public HeapObject {
   bool MarkAsUndetectable();
 
   // Return a substring.
-  Object* SubString(int from, int to);
+  Object* SubString(int from, int to, PretenureFlag pretenure = NOT_TENURED);
 
   // String equality operations.
   inline bool Equals(String* other);

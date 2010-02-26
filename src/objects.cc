@@ -673,7 +673,7 @@ static bool AnWord(String* str) {
 }
 
 
-Object* String::TryFlatten() {
+Object* String::SlowTryFlatten(PretenureFlag pretenure) {
 #ifdef DEBUG
   // Do not attempt to flatten in debug mode when allocation is not
   // allowed.  This is to avoid an assertion failure when allocating.
@@ -691,7 +691,7 @@ Object* String::TryFlatten() {
       // There's little point in putting the flat string in new space if the
       // cons string is in old space.  It can never get GCed until there is
       // an old space GC.
-      PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
+      PretenureFlag tenure = Heap::InNewSpace(this) ? pretenure : TENURED;
       int len = length();
       Object* object;
       String* result;
@@ -2768,7 +2768,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   }
 
   // Try to flatten before operating on the string.
-  name->TryFlattenIfNotFlat();
+  name->TryFlatten();
 
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or it's prototype chain.
@@ -3546,7 +3546,7 @@ int String::Utf8Length() {
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
   // so it's still a good idea.
-  TryFlattenIfNotFlat();
+  TryFlatten();
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(0, this);
   int result = 0;
@@ -4637,9 +4637,9 @@ uint32_t String::ComputeHashField(unibrow::CharacterStream* buffer,
 }
 
 
-Object* String::SubString(int start, int end) {
+Object* String::SubString(int start, int end, PretenureFlag pretenure) {
   if (start == 0 && end == length()) return this;
-  Object* result = Heap::AllocateSubString(this, start, end);
+  Object* result = Heap::AllocateSubString(this, start, end, pretenure);
   return result;
 }
 
