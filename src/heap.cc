@@ -558,6 +558,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   VerifySymbolTable();
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
+    GCTracer::ExternalScope scope(tracer);
     global_gc_prologue_callback_();
   }
   EnsureFromSpaceIsCommitted();
@@ -591,6 +592,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
     ASSERT(!allocation_allowed_);
+    GCTracer::ExternalScope scope(tracer);
     global_gc_epilogue_callback_();
   }
   VerifySymbolTable();
@@ -4067,6 +4069,7 @@ void Heap::TracePathToGlobal() {
 GCTracer::GCTracer()
     : start_time_(0.0),
       start_size_(0.0),
+      external_time_(0.0),
       gc_count_(0),
       full_gc_count_(0),
       is_compacting_(false),
@@ -4084,10 +4087,12 @@ GCTracer::GCTracer()
 GCTracer::~GCTracer() {
   if (!FLAG_trace_gc) return;
   // Printf ONE line iff flag is set.
-  PrintF("%s %.1f -> %.1f MB, %d ms.\n",
-         CollectorString(),
-         start_size_, SizeOfHeapObjects(),
-         static_cast<int>(OS::TimeCurrentMillis() - start_time_));
+  int time = static_cast<int>(OS::TimeCurrentMillis() - start_time_);
+  int external_time = static_cast<int>(external_time_);
+  PrintF("%s %.1f -> %.1f MB, ",
+         CollectorString(), start_size_, SizeOfHeapObjects());
+  if (external_time > 0) PrintF("%d / ", external_time);
+  PrintF("%d ms.\n", time);
 
 #if defined(ENABLE_LOGGING_AND_PROFILING)
   Heap::PrintShortHeapStatistics();

@@ -1520,8 +1520,23 @@ class DisableAssertNoAllocation {
 
 class GCTracer BASE_EMBEDDED {
  public:
-  GCTracer();
+  // Time spent while in the external scope counts towards the
+  // external time in the tracer and will be reported separately.
+  class ExternalScope BASE_EMBEDDED {
+   public:
+    explicit ExternalScope(GCTracer* tracer) : tracer_(tracer) {
+      start_time_ = OS::TimeCurrentMillis();
+    }
+    ~ExternalScope() {
+      tracer_->external_time_ += OS::TimeCurrentMillis() - start_time_;
+    }
 
+   private:
+    GCTracer* tracer_;
+    double start_time_;
+  };
+
+  GCTracer();
   ~GCTracer();
 
   // Sets the collector.
@@ -1554,6 +1569,9 @@ class GCTracer BASE_EMBEDDED {
   double start_time_;  // Timestamp set in the constructor.
   double start_size_;  // Size of objects in heap set in constructor.
   GarbageCollector collector_;  // Type of collector.
+
+  // Keep track of the amount of time spent in external callbacks.
+  double external_time_;
 
   // A count (including this one, eg, the first collection is 1) of the
   // number of garbage collections.
