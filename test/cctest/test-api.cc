@@ -1334,6 +1334,21 @@ THREADED_TEST(InternalFields) {
 }
 
 
+THREADED_TEST(GlobalObjectInternalFields) {
+  v8::HandleScope scope;
+  Local<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetInternalFieldCount(1);
+  LocalContext env(NULL, global_template);
+  v8::Handle<v8::Object> global_proxy = env->Global();
+  v8::Handle<v8::Object> global =
+      v8::Handle<v8::Object>::Cast(global_proxy->GetPrototype());
+  CHECK_EQ(1, global->InternalFieldCount());
+  CHECK(global->GetInternalField(0)->IsUndefined());
+  global->SetInternalField(0, v8_num(17));
+  CHECK_EQ(17, global->GetInternalField(0)->Int32Value());
+}
+
+
 THREADED_TEST(InternalFieldsNativePointers) {
   v8::HandleScope scope;
   LocalContext env;
