@@ -217,6 +217,10 @@ class Genesis BASE_EMBEDDED {
   // deserialized, leaving the GC to pick it up.
   void HookUpGlobalProxy(Handle<GlobalObject> inner_global,
                          Handle<JSGlobalProxy> global_proxy);
+  // Similarly, we want to use the inner global that has been created by the
+  // templates passed through the API.  The inner global from the snapshot is
+  // detached from the other objects in the snapshot.
+  void HookUpInnerGlobal(Handle<GlobalObject> inner_global);
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> inner_global,
                         Handle<JSFunction> empty_function);
@@ -235,9 +239,6 @@ class Genesis BASE_EMBEDDED {
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
   bool ConfigureGlobalObjects(v8::Handle<v8::ObjectTemplate> global_template);
-  void TransferMapsToDeserializedGlobals(
-    Handle<GlobalObject> inner_global_outside_snapshot,
-    Handle<GlobalObject> inner_global_from_snapshot);
 
   // Migrates all properties from the 'from' object to the 'to'
   // object and overrides the prototype in 'to' with the one from
@@ -586,6 +587,28 @@ void Genesis::HookUpGlobalProxy(Handle<GlobalObject> inner_global,
 }
 
 
+void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
+  Handle<GlobalObject> inner_global_from_snapshot(
+      GlobalObject::cast(global_context_->extension()));
+  Handle<JSBuiltinsObject> builtins_global(global_context_->builtins());
+  global_context_->set_extension(*inner_global);
+  global_context_->set_global(*inner_global);
+  global_context_->set_security_token(*inner_global);
+  static const PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
+  ForceSetProperty(builtins_global,
+                   Factory::LookupAsciiSymbol("global"),
+                   inner_global,
+                   attributes);
+  // Setup the reference from the global object to the builtins object.
+  JSGlobalObject::cast(*inner_global)->set_builtins(*builtins_global);
+  TransferNamedProperties(inner_global_from_snapshot, inner_global);
+  TransferIndexedProperties(inner_global_from_snapshot, inner_global);
+}
+
+
+// This is only called if we are not using snapshots.  The equivalent
+// work in the snapshot case is done in HookUpInnerGlobal.
 void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                                Handle<JSFunction> empty_function) {
   // --- G l o b a l   C o n t e x t ---
@@ -1282,20 +1305,6 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
 }
 
 
-void Genesis::TransferMapsToDeserializedGlobals(
-    Handle<GlobalObject> inner_global_outside_snapshot,
-    Handle<GlobalObject> inner_global_from_snapshot) {
-  Handle<Map> from_map(inner_global_outside_snapshot->map());
-#ifdef DEBUG
-  Handle<Map> to_map(inner_global_from_snapshot->map());
-  ASSERT_EQ(to_map->instance_size(), from_map->instance_size());
-  ASSERT_EQ(0, to_map->inobject_properties());
-  ASSERT_EQ(0, from_map->inobject_properties());
-#endif
-  inner_global_from_snapshot->set_map(*from_map);
-}
-
-
 bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
   HandleScope scope;
   for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
@@ -1316,7 +1325,7 @@ bool Genesis::ConfigureGlobalObjects(
     v8::Handle<v8::ObjectTemplate> global_proxy_template) {
   Handle<JSObject> global_proxy(
       JSObject::cast(global_context()->global_proxy()));
-  Handle<JSObject> js_global(JSObject::cast(global_context()->global()));
+  Handle<JSObject> inner_global(JSObject::cast(global_context()->global()));
 
   if (!global_proxy_template.IsEmpty()) {
     // Configure the global proxy object.
@@ -1330,11 +1339,11 @@ bool Genesis::ConfigureGlobalObjects(
     if (!proxy_constructor->prototype_template()->IsUndefined()) {
       Handle<ObjectTemplateInfo> inner_data(
           ObjectTemplateInfo::cast(proxy_constructor->prototype_template()));
-      if (!ConfigureApiObject(js_global, inner_data)) return false;
+      if (!ConfigureApiObject(inner_global, inner_data)) return false;
     }
   }
 
-  SetObjectPrototype(global_proxy, js_global);
+  SetObjectPrototype(global_proxy, inner_global);
   return true;
 }
 
@@ -1557,19 +1566,15 @@ Genesis::Genesis(Handle<Object> global_object,
     JSFunction* empty_function =
         JSFunction::cast(result_->function_map()->prototype());
     empty_function_ = Handle<JSFunction>(empty_function);
-    Handle<GlobalObject> inner_global_outside_snapshot;
+    Handle<GlobalObject> inner_global;
     Handle<JSGlobalProxy> global_proxy =
         CreateNewGlobals(global_template,
                          global_object,
-                         &inner_global_outside_snapshot);
-    // CreateNewGlobals returns an inner global that it just made, but
-    // we won't give that to HookUpGlobalProxy because we want to hook
-    // up the global proxy to the one from the snapshot.
-    Handle<GlobalObject> inner_global(
-        GlobalObject::cast(global_context_->extension()));
+                         &inner_global);
+
     HookUpGlobalProxy(inner_global, global_proxy);
-    TransferMapsToDeserializedGlobals(inner_global_outside_snapshot,
-                                      inner_global);
+    HookUpInnerGlobal(inner_global);
+
     if (!ConfigureGlobalObjects(global_template)) return;
   } else {
     // We get here if there was no context snapshot.
