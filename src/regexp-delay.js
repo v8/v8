@@ -142,7 +142,7 @@ function DoRegExpExec(regexp, string, index) {
 
 function RegExpExec(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError('method_called_on_incompatible',
+    throw MakeTypeError('incompatible_method_receiver',
                         ['RegExp.prototype.exec', this]);
   }
   if (%_ArgumentsLength() == 0) {
@@ -199,7 +199,7 @@ function RegExpExec(string) {
 // else implements.
 function RegExpTest(string) {
   if (!IS_REGEXP(this)) {
-    throw MakeTypeError('method_called_on_incompatible',
+    throw MakeTypeError('incompatible_method_receiver',
                         ['RegExp.prototype.test', this]);
   }
   if (%_ArgumentsLength() == 0) {
