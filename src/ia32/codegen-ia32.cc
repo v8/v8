@@ -5296,6 +5296,10 @@ void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
       ASSERT(x.is_valid());
       ASSERT(y.is_valid());
 
+      // Save 1 in xmm3 - we need this several times later on
+      __ mov(p.reg(), Immediate(1));
+      __ cvtsi2sd(xmm3, Operand(p.reg()));
+
       Label y_nonsmi;
       Label x_is_double;
       // If y is a heap number go to that specific case.
@@ -5321,9 +5325,7 @@ void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
 
       // Save y in x as we need to check if y is negative later.
       __ mov(x.reg(), y.reg());
-      // Save 1 in xmm3 - we need this several times later on
-      __ mov(p.reg(), Immediate(1));
-      __ cvtsi2sd(xmm3, Operand(p.reg()));
+
 
       // Get absolute value of y.
       Label no_neg;
