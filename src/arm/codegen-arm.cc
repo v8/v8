@@ -3322,6 +3322,15 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 }
 
 
+// Generates the Math.pow method - currently just calls runtime.
+void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  Load(args->at(0));
+  Load(args->at(1));
+  frame_->CallRuntime(Runtime::kMath_pow, 2);
+  frame_->EmitPush(r0);
+}
+
 // This should generate code that performs a charCodeAt() call or returns
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
 // It is not yet implemented on ARM, so it always goes to the slow case.

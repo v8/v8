@@ -5275,6 +5275,181 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 }
 
 
+// Generates the Math.pow method - only handles special cases and branches to
+// the runtime system if not. Uses eax to store result and as temporary reg.
+void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    Load(args->at(0));
+    Load(args->at(1));
+    Label go_runtime;
+    Label return_preg;
+    Result p = allocator()->Allocate(eax);
+    Result y = frame_->Pop();
+    Result x= frame_->Pop();
+    if (p.is_valid() && p.reg().is(eax)) {
+      x.ToRegister();
+      y.ToRegister();
+      frame_->Spill(x.reg());
+      frame_->Spill(y.reg());
+      ASSERT(x.is_valid());
+      ASSERT(y.is_valid());
+
+      Label y_nonsmi;
+      Label x_is_double;
+      // If y is a heap number go to that specific case.
+      __ test(y.reg(), Immediate(kSmiTagMask));
+      __ j(not_zero, &y_nonsmi);
+      __ test(x.reg(), Immediate(kSmiTagMask));
+      __ j(not_zero, &x_is_double);
+
+      // Bot numbers are smis.
+      Label powi;
+      __ SmiUntag(x.reg());
+      __ cvtsi2sd(xmm0, Operand(x.reg()));
+      __ jmp(&powi);
+      // Y is smi and x is a double.
+      __ bind(&x_is_double);
+      __ cmp(FieldOperand(x.reg(), HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      __ j(not_equal, &go_runtime);
+      __ movdbl(xmm0, FieldOperand(x.reg(), HeapNumber::kValueOffset));
+
+      __ bind(&powi);
+      __ SmiUntag(y.reg());
+
+      // Save y in x as we need to check if y is negative later.
+      __ mov(x.reg(), y.reg());
+      // Save 1 in xmm3 - we need this several times later on
+      __ mov(p.reg(), Immediate(1));
+      __ cvtsi2sd(xmm3, Operand(p.reg()));
+
+      // Get absolute value of y.
+      Label no_neg;
+      __ cmp(y.reg(), 0);
+      __ j(greater_equal, &no_neg);
+      __ neg(y.reg());
+      __ bind(&no_neg);
+
+      // Optimized version of pow if y is an integer.
+      // Load xmm1 with 1.
+      __ movsd(xmm1, xmm3);
+      Label while_true;
+      Label no_multiply;
+      Label powi_done;
+      Label allocate_and_return;
+      __ bind(&while_true);
+      __ shr(y.reg(), 1);
+      __ j(not_carry, &no_multiply);
+      __ mulsd(xmm1, xmm0);
+      __ bind(&no_multiply);
+      __ test(y.reg(), Operand(y.reg()));
+      __ mulsd(xmm0, xmm0);
+      __ j(not_zero, &while_true);
+
+      __ bind(&powi_done);
+      // x has the original value of y - if y is negative return 1/result.
+      __ test(x.reg(), Operand(x.reg()));
+      __ j(positive, &allocate_and_return);
+      // Special case if xmm1 has reached infinity
+      __ mov(p.reg(), Immediate(0x7FB00000));
+      __ movd(xmm0, Operand(p.reg()));
+      __ cvtss2sd(xmm0, xmm0);
+      __ ucomisd(xmm0, xmm1);
+      __ j(equal, &go_runtime);
+      __ divsd(xmm3, xmm1);
+      __ movsd(xmm1, xmm3);
+      __ jmp(&allocate_and_return);
+
+      // y (or both) is a double - no matter what we should now work
+      // on doubles.
+      __ bind(&y_nonsmi);
+      __ cmp(FieldOperand(y.reg(), HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      __ j(not_equal, &go_runtime);
+      // Test if y is nan.
+      __ ucomisd(xmm1, xmm1);
+      __ j(parity_even, &go_runtime);
+
+      // Y must be a double.
+      __ movdbl(xmm1, FieldOperand(y.reg(), HeapNumber::kValueOffset));
+
+      Label x_not_smi;
+      Label handle_special_cases;
+      __ test(x.reg(), Immediate(kSmiTagMask));
+      __ j(not_zero, &x_not_smi);
+      __ SmiUntag(x.reg());
+      __ cvtsi2sd(xmm0, Operand(x.reg()));
+      __ jmp(&handle_special_cases);
+      __ bind(&x_not_smi);
+      __ cmp(FieldOperand(x.reg(), HeapObject::kMapOffset),
+             Factory::heap_number_map());
+      __ j(not_equal, &go_runtime);
+      __ mov(p.reg(), FieldOperand(x.reg(), HeapNumber::kExponentOffset));
+      __ and_(p.reg(), HeapNumber::kExponentMask);
+      __ cmp(Operand(p.reg()), Immediate(HeapNumber::kExponentMask));
+      // x is NaN or +/-Infinity
+      __ j(greater_equal, &go_runtime);
+      __ movdbl(xmm0, FieldOperand(x.reg(), HeapNumber::kValueOffset));
+
+      // x is in xmm0 and y is in xmm1.
+      __ bind(&handle_special_cases);
+      Label not_minus_half;
+      // Test for -0.5.
+      // Load xmm2 with -0.5.
+      __ mov(p.reg(), Immediate(0xBF000000));
+      __ movd(xmm2, Operand(p.reg()));
+      __ cvtss2sd(xmm2, xmm2);
+      // xmm2 now has -0.5.
+      __ ucomisd(xmm2, xmm1);
+      __ j(not_equal, &not_minus_half);
+
+      // Calculates reciprocal of square root.
+      // Note that 1/sqrt(x) = sqrt(1/x))
+      __ divsd(xmm3, xmm0);
+      __ movsd(xmm1, xmm3);
+      __ sqrtsd(xmm1, xmm1);
+      __ jmp(&allocate_and_return);
+
+      // Test for 0.5.
+      __ bind(&not_minus_half);
+      // Load xmm2 with 0.5.
+      // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 = xmm3
+      __ addsd(xmm2, xmm3);
+      // xmm2 now has 0.5.
+      __ ucomisd(xmm2, xmm1);
+      __ j(not_equal, &go_runtime);
+      // Calculates square root.
+      __ movsd(xmm1, xmm0);
+      __ sqrtsd(xmm1, xmm1);
+
+      __ bind(&allocate_and_return);
+      __ AllocateHeapNumber(p.reg(), y.reg(), x.reg(), &go_runtime);
+      __ movdbl(FieldOperand(p.reg(), HeapNumber::kValueOffset), xmm1);
+      __ jmp(&return_preg);
+    }
+    __ bind(&go_runtime);
+    x.Unuse();
+    y.Unuse();
+    p.Unuse();
+    Load(args->at(0));
+    Load(args->at(1));
+    frame_->CallRuntime(Runtime::kMath_pow_cfunction, 2);
+
+    // Since we store the result in p.reg() which is eax - return this value.
+    // If we called runtime the result is also in eax.
+    __ bind(&return_preg);
+    frame_->Push(eax);
+  } else {  // Simply call runtime.
+      Load(args->at(0));
+      Load(args->at(1));
+      Result res = frame_->CallRuntime(Runtime::kMath_pow, 2);
+      frame_->Push(&res);
+  }
+}
+
+
 // This generates code that performs a charCodeAt() call or returns
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
 // It can handle flat, 8 and 16 bit characters and cons strings where the

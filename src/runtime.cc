@@ -4870,6 +4870,22 @@ static Object* Runtime_Math_pow(Arguments args) {
   }
 }
 
+// Fast version of Math.pow if we know that y is not an integer and
+// y is not -0.5 or 0.5. Used as slowcase from codegen.
+static Object* Runtime_Math_pow_cfunction(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  CONVERT_DOUBLE_CHECKED(x, args[0]);
+  CONVERT_DOUBLE_CHECKED(y, args[1]);
+  if (y == 0) {
+      return Smi::FromInt(1);
+  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
+      return Heap::nan_value();
+  } else {
+      return Heap::AllocateHeapNumber(pow(x, y));
+  }
+}
+
 
 static Object* Runtime_Math_round(Arguments args) {
   NoHandleAllocation ha;

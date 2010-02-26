@@ -159,7 +159,7 @@ function MathMin(arg1, arg2) {  // length == 2
 function MathPow(x, y) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
   if (!IS_NUMBER(y)) y = ToNumber(y);
-  return %Math_pow(x, y);
+  return %_Pow(x, y);
 }
 
 // ECMA 262 - 15.8.2.14
