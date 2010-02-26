@@ -37,23 +37,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
-// -------------------------------------------------------------------------
-// VirtualFrame implementation.
-
-// On entry to a function, the virtual frame already contains the receiver,
-// the parameters, and a return address.  All frame elements are in memory.
-VirtualFrame::VirtualFrame()
-    : elements_(parameter_count() + local_count() + kPreallocatedElements),
-      stack_pointer_(parameter_count() + 1) {  // 0-based index of TOS.
-  for (int i = 0; i <= stack_pointer_; i++) {
-    elements_.Add(FrameElement::MemoryElement(NumberInfo::kUnknown));
-  }
-  for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {
-    register_locations_[i] = kIllegalIndex;
-  }
-}
-
-
 void VirtualFrame::Enter() {
   // Registers live on entry to a JS frame:
   //   rsp: stack pointer, points to return address from this function.
