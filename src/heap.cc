@@ -562,9 +562,18 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     global_gc_prologue_callback_();
   }
   EnsureFromSpaceIsCommitted();
+
+  // Perform mark-sweep with optional compaction.
   if (collector == MARK_COMPACTOR) {
     MarkCompact(tracer);
+  }
 
+  // Always perform a scavenge to make room in new space. 
+  Scavenge();
+
+  // Update the old space promotion limits after the scavenge due to
+  // promotions during scavenge.
+  if (collector == MARK_COMPACTOR) {
     int old_gen_size = PromotedSpaceSize();
     old_gen_promotion_limit_ =
         old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
@@ -572,7 +581,6 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
         old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 2);
     old_gen_exhausted_ = false;
   }
-  Scavenge();
 
   Counters::objs_since_last_young.Set(0);
 
@@ -1673,7 +1681,7 @@ Object* Heap::InitializeNumberStringCache() {
   // max_semispace_size_ ==   8 MB => number_string_cache_size = 16KB.
   int number_string_cache_size = max_semispace_size_ / 512;
   number_string_cache_size = Max(32, Min(16*KB, number_string_cache_size));
-  Object* obj = AllocateFixedArray(number_string_cache_size * 2);
+  Object* obj = AllocateFixedArray(number_string_cache_size * 2, TENURED);
   if (!obj->IsFailure()) set_number_string_cache(FixedArray::cast(obj));
   return obj;
 }
