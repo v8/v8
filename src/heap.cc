@@ -576,7 +576,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     MarkCompact(tracer);
   }
 
-  // Always perform a scavenge to make room in new space. 
+  // Always perform a scavenge to make room in new space.
   Scavenge();
 
   // Update the old space promotion limits after the scavenge due to
