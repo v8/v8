@@ -634,7 +634,7 @@ class Heap : public AllStatic {
 
   // Performs a full garbage collection if a context has been disposed
   // since the last time the check was performed.
-  static void CollectAllGarbageIfContextDisposed();
+  static void CollectAllGarbageIfContextDisposed(bool notified);
 
   // Notify the heap that a context has been disposed.
   static void NotifyContextDisposed();

@@ -2821,6 +2821,12 @@ void v8::V8::LowMemoryNotification() {
 }
 
 
+void v8::V8::ContextDisposedNotification() {
+  if (!i::V8::IsRunning()) return;
+  i::Heap::CollectAllGarbageIfContextDisposed(true);
+}
+
+
 const char* v8::V8::GetVersion() {
   static v8::internal::EmbeddedVector<char, 128> buffer;
   v8::internal::Version::GetString(buffer);
@@ -2857,7 +2863,7 @@ Persistent<Context> v8::Context::New(
     // decide when should make a full GC.
 #else
     // Give the heap a chance to cleanup if we've disposed contexts.
-    i::Heap::CollectAllGarbageIfContextDisposed();
+    i::Heap::CollectAllGarbageIfContextDisposed(false);
 #endif
     v8::Handle<ObjectTemplate> proxy_template = global_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;

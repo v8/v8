@@ -371,12 +371,20 @@ void Heap::CollectAllGarbage(bool force_compaction) {
 }
 
 
-void Heap::CollectAllGarbageIfContextDisposed() {
+void Heap::CollectAllGarbageIfContextDisposed(bool notified) {
+  // If the request has ever been the result of an explicit
+  // notification, we ignore non-notified requests. This is a
+  // temporary solution to let the two ways of achieving GC at
+  // context disposal time co-exist.
+  static bool ever_notified = false;
+  if (notified) ever_notified = true;
+  if (ever_notified && !notified) return;
+
   // If the garbage collector interface is exposed through the global
   // gc() function, we avoid being clever about forcing GCs when
   // contexts are disposed and leave it to the embedder to make
   // informed decisions about when to force a collection.
-  if (!FLAG_expose_gc && context_disposed_pending_) {
+  if (!FLAG_expose_gc && (notified || context_disposed_pending_)) {
     HistogramTimerScope scope(&Counters::gc_context);
     CollectAllGarbage(false);
   }
