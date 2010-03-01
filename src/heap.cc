@@ -594,6 +594,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
   if (collector == MARK_COMPACTOR) {
     DisableAssertNoAllocation allow_allocation;
+    GCTracer::ExternalScope scope(tracer);
     GlobalHandles::PostGarbageCollectionProcessing();
   }
 
