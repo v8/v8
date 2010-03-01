@@ -157,11 +157,10 @@ class CodeGenerator: public AstVisitor {
  private:
   // Construction/Destruction.
   explicit CodeGenerator(MacroAssembler* masm);
-  virtual ~CodeGenerator() { delete masm_; }
 
   // Accessors.
   inline bool is_eval();
-  Scope* scope() const { return scope_; }
+  inline Scope* scope();
 
   // Generating deferred code.
   void ProcessDeferred();
@@ -184,7 +183,7 @@ class CodeGenerator: public AstVisitor {
 #undef DEF_VISIT
 
   // Main code generation function
-  void Generate(CompilationInfo* info, Mode mode);
+  void Generate(CompilationInfo* info);
 
   struct InlineRuntimeLUT {
     void (CodeGenerator::*method)(ZoneList<Expression*>*);
@@ -307,6 +306,7 @@ class CodeGenerator: public AstVisitor {
   friend class JumpTarget;
   friend class Reference;
   friend class FastCodeGenerator;
+  friend class FullCodeGenerator;
   friend class FullCodeGenSyntaxChecker;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);

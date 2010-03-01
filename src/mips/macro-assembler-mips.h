@@ -115,11 +115,7 @@ class MacroAssembler: public Assembler {
                 Heap::RootListIndex index,
                 Condition cond, Register src1, const Operand& src2);
 
-  // Sets the remembered set bit for [address+offset], where address is the
-  // address of the heap object 'object'.  The address must be in the first 8K
-  // of an allocated page. The 'scratch' register is used in the
-  // implementation and all 3 registers are clobbered by the operation, as
-  // well as the ip register.
+  // Sets the remembered set bit for [address+offset].
   void RecordWrite(Register object, Register offset, Register scratch);
 
 
@@ -182,19 +178,8 @@ class MacroAssembler: public Assembler {
 
 
   // Push multiple registers on the stack.
-  // With MultiPush, lower registers are pushed first on the stack.
-  // For example if you push t0, t1, s0, and ra you get:
-  // |                       |
-  // |-----------------------|
-  // |         t0            |                     +
-  // |-----------------------|                    |
-  // |         t1            |                    |
-  // |-----------------------|                    |
-  // |         s0            |                    v
-  // |-----------------------|                     -
-  // |         ra            |
-  // |-----------------------|
-  // |                       |
+  // Registers are saved in numerical order, with higher numbered registers
+  // saved in higher memory addresses
   void MultiPush(RegList regs);
   void MultiPushReversed(RegList regs);
   void Push(Register src) {
@@ -222,6 +207,20 @@ class MacroAssembler: public Assembler {
   void Pop() {
     Add(sp, sp, Operand(kPointerSize));
   }
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // ---------------------------------------------------------------------------
+  // Debugger Support
+
+  void SaveRegistersToMemory(RegList regs);
+  void RestoreRegistersFromMemory(RegList regs);
+  void CopyRegistersFromMemoryToStack(Register base, RegList regs);
+  void CopyRegistersFromStackToMemory(Register base,
+                                      Register scratch,
+                                      RegList regs);
+  void DebugBreak();
+#endif
 
 
   // ---------------------------------------------------------------------------
