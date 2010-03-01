@@ -635,10 +635,11 @@ class Heap : public AllStatic {
 
   // Performs a full garbage collection if a context has been disposed
   // since the last time the check was performed.
-  static void CollectAllGarbageIfContextDisposed(bool notified);
+  static void CollectAllGarbageIfContextDisposedDeprecated();
 
   // Notify the heap that a context has been disposed.
   static void NotifyContextDisposed();
+  static void NotifyContextDisposedDeprecated();
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -909,7 +910,11 @@ class Heap : public AllStatic {
 
   static int always_allocate_scope_depth_;
   static int linear_allocation_scope_depth_;
-  static bool context_disposed_pending_;
+
+  // For keeping track of context disposals.
+  static int contexts_disposed_;
+  static bool context_disposed_use_deprecated_heuristic_;
+  static bool context_disposed_deprecated_pending_;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 512*KB;

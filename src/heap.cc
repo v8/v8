@@ -115,7 +115,10 @@ int Heap::gc_count_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;
 int Heap::linear_allocation_scope_depth_ = 0;
-bool Heap::context_disposed_pending_ = false;
+
+int Heap::contexts_disposed_ = 0;
+bool Heap::context_disposed_use_deprecated_heuristic_ = true;
+bool Heap::context_disposed_deprecated_pending_ = false;
 
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
@@ -371,29 +374,29 @@ void Heap::CollectAllGarbage(bool force_compaction) {
 }
 
 
-void Heap::CollectAllGarbageIfContextDisposed(bool notified) {
-  // If the request has ever been the result of an explicit
-  // notification, we ignore non-notified requests. This is a
-  // temporary solution to let the two ways of achieving GC at
-  // context disposal time co-exist.
-  static bool ever_notified = false;
-  if (notified) ever_notified = true;
-  if (ever_notified && !notified) return;
-
+void Heap::CollectAllGarbageIfContextDisposedDeprecated() {
+  if (!context_disposed_use_deprecated_heuristic_) return;
   // If the garbage collector interface is exposed through the global
   // gc() function, we avoid being clever about forcing GCs when
   // contexts are disposed and leave it to the embedder to make
   // informed decisions about when to force a collection.
-  if (!FLAG_expose_gc && (notified || context_disposed_pending_)) {
+  if (!FLAG_expose_gc && context_disposed_deprecated_pending_) {
     HistogramTimerScope scope(&Counters::gc_context);
     CollectAllGarbage(false);
   }
-  context_disposed_pending_ = false;
+  context_disposed_deprecated_pending_ = false;
 }
 
 
 void Heap::NotifyContextDisposed() {
-  context_disposed_pending_ = true;
+  context_disposed_use_deprecated_heuristic_ = false;
+  contexts_disposed_++;
+}
+
+
+void Heap::NotifyContextDisposedDeprecated() {
+  if (!context_disposed_use_deprecated_heuristic_) return;
+  context_disposed_deprecated_pending_ = true;
 }
 
 
@@ -639,7 +642,9 @@ void Heap::MarkCompact(GCTracer* tracer) {
   Shrink();
 
   Counters::objs_since_last_full.Set(0);
-  context_disposed_pending_ = false;
+
+  contexts_disposed_ = 0;
+  context_disposed_deprecated_pending_ = false;
 }
 
 
@@ -3087,6 +3092,13 @@ bool Heap::IdleNotification() {
   static const int kIdlesBeforeMarkCompact = 8;
   static int number_idle_notifications = 0;
   static int last_gc_count = gc_count_;
+
+  if (!FLAG_expose_gc && (contexts_disposed_ > 0)) {
+    HistogramTimerScope scope(&Counters::gc_context);
+    CollectAllGarbage(false);
+    ASSERT(contexts_disposed_ == 0);
+    return false;
+  }
 
   bool finished = false;
 

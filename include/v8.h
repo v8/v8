@@ -2474,9 +2474,8 @@ class V8EXPORT V8 {
   static void LowMemoryNotification();
 
   /**
-   * Optional notification that one or more context have been
-   * disposed. V8 may choose to collect garbage to get rid of any
-   * external memory associated with the disposed contexts.
+   * Optional notification that a context has been disposed. V8 uses
+   * these notifications to guide the garbage collection heuristic.
    */
   static void ContextDisposedNotification();
 

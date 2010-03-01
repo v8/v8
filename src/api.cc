@@ -438,7 +438,7 @@ bool V8::IsGlobalWeak(i::Object** obj) {
 void V8::DisposeGlobal(i::Object** obj) {
   LOG_API("DisposeGlobal");
   if (!i::V8::IsRunning()) return;
-  if ((*obj)->IsGlobalContext()) i::Heap::NotifyContextDisposed();
+  if ((*obj)->IsGlobalContext()) i::Heap::NotifyContextDisposedDeprecated();
   i::GlobalHandles::Destroy(obj);
 }
 
@@ -2823,7 +2823,7 @@ void v8::V8::LowMemoryNotification() {
 
 void v8::V8::ContextDisposedNotification() {
   if (!i::V8::IsRunning()) return;
-  i::Heap::CollectAllGarbageIfContextDisposed(true);
+  i::Heap::NotifyContextDisposed();
 }
 
 
@@ -2863,7 +2863,7 @@ Persistent<Context> v8::Context::New(
     // decide when should make a full GC.
 #else
     // Give the heap a chance to cleanup if we've disposed contexts.
-    i::Heap::CollectAllGarbageIfContextDisposed(false);
+    i::Heap::CollectAllGarbageIfContextDisposedDeprecated();
 #endif
     v8::Handle<ObjectTemplate> proxy_template = global_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
