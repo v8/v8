@@ -2618,13 +2618,14 @@ class Code: public HeapObject {
     CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
-    // No more than eight kinds. The value currently encoded in three bits in
+    BINARY_OP_IC,
+    // No more than 16 kinds. The value currently encoded in four bits in
     // Flags.
 
     // Pseudo-kinds.
     REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
-    LAST_IC_KIND = KEYED_STORE_IC
+    LAST_IC_KIND = BINARY_OP_IC
   };
 
   enum {
@@ -2670,7 +2671,7 @@ class Code: public HeapObject {
   inline bool is_keyed_store_stub() { return kind() == KEYED_STORE_IC; }
   inline bool is_call_stub() { return kind() == CALL_IC; }
 
-  // [major_key]: For kind STUB, the major key.
+  // [major_key]: For kind STUB or BINARY_OP_IC, the major key.
   inline CodeStub::Major major_key();
   inline void set_major_key(CodeStub::Major major);
 
@@ -2777,14 +2778,14 @@ class Code: public HeapObject {
   static const int kFlagsICStateShift        = 0;
   static const int kFlagsICInLoopShift       = 3;
   static const int kFlagsKindShift           = 4;
-  static const int kFlagsTypeShift           = 7;
-  static const int kFlagsArgumentsCountShift = 10;
+  static const int kFlagsTypeShift           = 8;
+  static const int kFlagsArgumentsCountShift = 11;
 
-  static const int kFlagsICStateMask        = 0x00000007;  // 0000000111
-  static const int kFlagsICInLoopMask       = 0x00000008;  // 0000001000
-  static const int kFlagsKindMask           = 0x00000070;  // 0001110000
-  static const int kFlagsTypeMask           = 0x00000380;  // 1110000000
-  static const int kFlagsArgumentsCountMask = 0xFFFFFC00;
+  static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
+  static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
+  static const int kFlagsKindMask           = 0x000000F0;  // 00011110000
+  static const int kFlagsTypeMask           = 0x00000700;  // 11100000000
+  static const int kFlagsArgumentsCountMask = 0xFFFFF800;
 
   static const int kFlagsNotUsedInLookup =
       (kFlagsICInLoopMask | kFlagsTypeMask);

@@ -123,7 +123,9 @@ void BreakLocationIterator::Next() {
     if (RelocInfo::IsCodeTarget(rmode())) {
       Address target = original_rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
-      if (code->is_inline_cache_stub() || RelocInfo::IsConstructCall(rmode())) {
+      if ((code->is_inline_cache_stub() &&
+           code->kind() != Code::BINARY_OP_IC) ||
+          RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
         return;
       }
@@ -1337,24 +1339,26 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
   if (code->is_inline_cache_stub()) {
-    if (code->is_call_stub()) {
-      return ComputeCallDebugBreak(code->arguments_count());
-    }
-    if (code->is_load_stub()) {
-      return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
-    }
-    if (code->is_store_stub()) {
-      return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
-    }
-    if (code->is_keyed_load_stub()) {
-      Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
-      return result;
-    }
-    if (code->is_keyed_store_stub()) {
-      Handle<Code> result =
-          Handle<Code>(Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
-      return result;
+    switch (code->kind()) {
+      case Code::CALL_IC:
+        return ComputeCallDebugBreak(code->arguments_count());
+
+      case Code::LOAD_IC:
+        return Handle<Code>(Builtins::builtin(Builtins::LoadIC_DebugBreak));
+
+      case Code::STORE_IC:
+        return Handle<Code>(Builtins::builtin(Builtins::StoreIC_DebugBreak));
+
+      case Code::KEYED_LOAD_IC:
+        return Handle<Code>(
+            Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
+
+      case Code::KEYED_STORE_IC:
+        return Handle<Code>(
+            Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
+
+      default:
+        UNREACHABLE();
     }
   }
   if (RelocInfo::IsConstructCall(mode)) {

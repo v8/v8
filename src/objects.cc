@@ -5126,6 +5126,7 @@ const char* Code::Kind2String(Kind kind) {
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
     case CALL_IC: return "CALL_IC";
+    case BINARY_OP_IC: return "BINARY_OP_IC";
   }
   UNREACHABLE();
   return NULL;

@@ -31,6 +31,7 @@
 #include "codegen-inl.h"
 #include "compiler.h"
 #include "debug.h"
+#include "ic-inl.h"
 #include "parser.h"
 #include "register-allocator-inl.h"
 #include "runtime.h"
@@ -6232,6 +6233,11 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   }
   // This code should be unreachable.
   __ stop("Unreachable");
+}
+
+
+Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
+  return Handle<Code>::null();
 }
 
 

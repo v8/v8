@@ -8898,6 +8898,11 @@ void GenericBinaryOpStub::GenerateReturn(MacroAssembler* masm) {
 }
 
 
+Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info) {
+  return Handle<Code>::null();
+}
+
+
 int CompareStub::MinorKey() {
   // Encode the three parameters in a unique 16 bit value.
   ASSERT(static_cast<unsigned>(cc_) < (1 << 14));

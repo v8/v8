@@ -1267,6 +1267,8 @@ void Logger::LogCodeObject(Object* object) {
     switch (code_object->kind()) {
       case Code::FUNCTION:
         return;  // We log this later using LogCompiledFunctions.
+      case Code::BINARY_OP_IC:
+        // fall through
       case Code::STUB:
         description = CodeStub::MajorName(code_object->major_key(), true);
         if (description == NULL)

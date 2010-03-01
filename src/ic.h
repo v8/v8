@@ -55,7 +55,8 @@ enum DictionaryCheck { CHECK_DICTIONARY, DICTIONARY_CHECK_DONE };
   ICU(LoadPropertyWithInterceptorForLoad)             \
   ICU(LoadPropertyWithInterceptorForCall)             \
   ICU(KeyedLoadPropertyWithInterceptor)               \
-  ICU(StoreInterceptorProperty)
+  ICU(StoreInterceptorProperty)                       \
+  ICU(BinaryOp_Patch)
 
 //
 // IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
@@ -443,6 +444,30 @@ class KeyedStoreIC: public IC {
   friend class IC;
 };
 
+
+class BinaryOpIC: public IC {
+ public:
+
+  enum TypeInfo {
+    DEFAULT,  // Initial state. When first executed, patches to one
+              // of the following states depending on the operands types.
+    HEAP_NUMBERS,  // Both arguments are HeapNumbers.
+    STRINGS,  // At least one of the arguments is String.
+    GENERIC   // Non-specialized case (processes any type combination).
+  };
+
+  BinaryOpIC() : IC(NO_EXTRA_FRAME) { }
+
+  void patch(Code* code);
+
+  static void Clear(Address address, Code* target);
+
+  static const char* GetName(TypeInfo type_info);
+
+  static State ToState(TypeInfo type_info);
+
+  static TypeInfo GetTypeInfo(Object* left, Object* right);
+};
 
 } }  // namespace v8::internal
 

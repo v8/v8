@@ -222,6 +222,7 @@ void IC::Clear(Address address) {
     case Code::STORE_IC: return StoreIC::Clear(address, target);
     case Code::KEYED_STORE_IC: return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
+    case Code::BINARY_OP_IC: return BinaryOpIC::Clear(address, target);
     default: UNREACHABLE();
   }
 }
@@ -1413,6 +1414,112 @@ Object* KeyedStoreIC_Miss(Arguments args) {
   IC::State state = IC::StateFrom(ic.target(), args[0]);
   return ic.Store(state, args.at<Object>(0), args.at<Object>(1),
                   args.at<Object>(2));
+}
+
+
+void BinaryOpIC::patch(Code* code) {
+  set_target(code);
+}
+
+
+void BinaryOpIC::Clear(Address address, Code* target) {
+  if (target->ic_state() == UNINITIALIZED) return;
+
+  // At the end of a fast case stub there should be a reference to
+  // a corresponding UNINITIALIZED stub, so look for the last reloc info item.
+  RelocInfo* rinfo = NULL;
+  for (RelocIterator it(target, RelocInfo::kCodeTargetMask);
+       !it.done(); it.next()) {
+    rinfo = it.rinfo();
+  }
+
+  ASSERT(rinfo != NULL);
+  Code* uninit_stub = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  ASSERT(uninit_stub->ic_state() == UNINITIALIZED &&
+         uninit_stub->kind() == Code::BINARY_OP_IC);
+  SetTargetAtAddress(address, uninit_stub);
+}
+
+
+const char* BinaryOpIC::GetName(TypeInfo type_info) {
+  switch (type_info) {
+    case DEFAULT: return "Default";
+    case GENERIC: return "Generic";
+    case HEAP_NUMBERS: return "HeapNumbers";
+    case STRINGS: return "Strings";
+    default: return "Invalid";
+  }
+}
+
+
+BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
+  switch (type_info) {
+    // DEFAULT is mapped to UNINITIALIZED so that calls to DEFAULT stubs
+    // are not cleared at GC.
+    case DEFAULT: return UNINITIALIZED;
+
+    // Could have mapped GENERIC to MONOMORPHIC just as well but MEGAMORPHIC is
+    // conceptually closer.
+    case GENERIC: return MEGAMORPHIC;
+
+    default: return MONOMORPHIC;
+  }
+}
+
+
+BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Object* left,
+                                             Object* right) {
+  // Patching is never requested for the two smis.
+  ASSERT(!left->IsSmi() || !right->IsSmi());
+
+  if (left->IsNumber() && right->IsNumber()) {
+    return HEAP_NUMBERS;
+  }
+
+  if (left->IsString() || right->IsString()) {
+    // Patching for fast string ADD makes sense even if only one of the
+    // arguments is a string.
+    return STRINGS;
+  }
+
+  return GENERIC;
+}
+
+
+// defined in codegen-<arch>.cc
+Handle<Code> GetBinaryOpStub(int key, BinaryOpIC::TypeInfo type_info);
+
+
+Object* BinaryOp_Patch(Arguments args) {
+  ASSERT(args.length() == 6);
+
+  Handle<Object> left = args.at<Object>(0);
+  Handle<Object> right = args.at<Object>(1);
+  Handle<Object> result = args.at<Object>(2);
+  int key = Smi::cast(args[3])->value();
+#ifdef DEBUG
+  Token::Value op = static_cast<Token::Value>(Smi::cast(args[4])->value());
+  BinaryOpIC::TypeInfo prev_type_info =
+      static_cast<BinaryOpIC::TypeInfo>(Smi::cast(args[5])->value());
+#endif  // DEBUG
+  { HandleScope scope;
+    BinaryOpIC::TypeInfo type_info = BinaryOpIC::GetTypeInfo(*left, *right);
+    Handle<Code> code = GetBinaryOpStub(key, type_info);
+    if (!code.is_null()) {
+      BinaryOpIC ic;
+      ic.patch(*code);
+#ifdef DEBUG
+      if (FLAG_trace_ic) {
+        PrintF("[BinaryOpIC (%s->%s)#%s]\n",
+            BinaryOpIC::GetName(prev_type_info),
+            BinaryOpIC::GetName(type_info),
+            Token::Name(op));
+      }
+#endif  // DEBUG
+    }
+  }
+
+  return *result;
 }
 
 
