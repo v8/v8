@@ -1230,6 +1230,17 @@ static Object* Runtime_RegExpExec(Arguments args) {
 }
 
 
+static Object* Runtime_FinishArrayPrototypeSetup(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSArray, prototype, 0);
+  // This is necessary to enable fast checks for absence of elements
+  // on Array.prototype and below.
+  prototype->set_elements(Heap::empty_fixed_array());
+  return Smi::FromInt(0);
+}
+
+
 static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 4);

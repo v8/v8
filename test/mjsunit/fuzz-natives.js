@@ -147,7 +147,10 @@ var knownProblems = {
   "DeclareGlobals": true,
 
   "PromoteScheduledException": true,
-  "DeleteHandleScopeExtensions": true
+  "DeleteHandleScopeExtensions": true,
+
+  // That can only be invoked on Array.prototype.
+  "FinishArrayPrototypeSetup": true
 };
 
 var currentlyUncallable = {

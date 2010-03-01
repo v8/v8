@@ -242,187 +242,80 @@ BUILTIN(ArrayCodeGeneric) {
 }
 
 
-BUILTIN(ArrayPush) {
-  JSArray* array = JSArray::cast(*args.receiver());
-  ASSERT(array->HasFastElements());
+static Object* AllocateUninitializedFixedArray(int len) {
+  Object* obj = Heap::AllocateRawFixedArray(len);
+  if (obj->IsFailure()) return obj;
 
-  int len = Smi::cast(array->length())->value();
-  int to_add = args.length() - 1;
-  if (to_add == 0) {
-    return Smi::FromInt(len);
-  }
-  // Currently fixed arrays cannot grow too big, so
-  // we should never hit this case.
-  ASSERT(to_add <= (Smi::kMaxValue - len));
-
-  int new_length = len + to_add;
-  FixedArray* elms = FixedArray::cast(array->elements());
-
-  if (new_length > elms->length()) {
-    // New backing storage is needed.
-    int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
-    if (obj->IsFailure()) return obj;
-
-    AssertNoAllocation no_gc;
-    FixedArray* new_elms = FixedArray::cast(obj);
-    WriteBarrierMode mode = new_elms->GetWriteBarrierMode(no_gc);
-    // Fill out the new array with old elements.
-    for (int i = 0; i < len; i++) new_elms->set(i, elms->get(i), mode);
-    elms = new_elms;
-    array->set_elements(elms);
-  }
-
-  AssertNoAllocation no_gc;
-  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-
-  // Add the provided values.
-  for (int index = 0; index < to_add; index++) {
-    elms->set(index + len, args[index + 1], mode);
-  }
-
-  // Set the length.
-  array->set_length(Smi::FromInt(new_length));
-  return Smi::FromInt(new_length);
+  reinterpret_cast<FixedArray*>(obj)->set_map(Heap::fixed_array_map());
+  FixedArray::cast(obj)->set_length(len);
+  return obj;
 }
 
 
-BUILTIN(ArrayPop) {
-  JSArray* array = JSArray::cast(*args.receiver());
-  ASSERT(array->HasFastElements());
-  Object* undefined = Heap::undefined_value();
-
-  int len = Smi::cast(array->length())->value();
-  if (len == 0) return undefined;
-
-  // Get top element
-  FixedArray* elms = FixedArray::cast(array->elements());
-  Object* top = elms->get(len - 1);
-
-  // Set the length.
-  array->set_length(Smi::FromInt(len - 1));
-
-  if (!top->IsTheHole()) {
-    // Delete the top element.
-    elms->set_the_hole(len - 1);
-    return top;
-  }
-
-  // Remember to check the prototype chain.
+static Object* AllocateJSArray() {
   JSFunction* array_function =
       Top::context()->global_context()->array_function();
-  JSObject* prototype = JSObject::cast(array_function->prototype());
-  top = prototype->GetElement(len - 1);
-
-  return top;
+  Object* result = Heap::AllocateJSObject(array_function);
+  if (result->IsFailure()) return result;
+  return result;
 }
 
 
-static Object* GetElementToMove(uint32_t index,
-                                FixedArray* elms,
-                                JSObject* prototype) {
-  Object* e = elms->get(index);
-  if (e->IsTheHole() && prototype->HasElement(index)) {
-    e = prototype->GetElement(index);
+static void CopyElements(AssertNoAllocation* no_gc,
+                         FixedArray* dst,
+                         int dst_index,
+                         FixedArray* src,
+                         int src_index,
+                         int len) {
+  ASSERT(dst != src);  // Use MoveElements instead.
+  memcpy(dst->data_start() + dst_index,
+         src->data_start() + src_index,
+         len * kPointerSize);
+  WriteBarrierMode mode = dst->GetWriteBarrierMode(*no_gc);
+  if (mode == UPDATE_WRITE_BARRIER) {
+    Heap::RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
-  return e;
 }
 
 
-BUILTIN(ArrayShift) {
-  JSArray* array = JSArray::cast(*args.receiver());
-  ASSERT(array->HasFastElements());
-
-  int len = Smi::cast(array->length())->value();
-  if (len == 0) return Heap::undefined_value();
-
-  // Fetch the prototype.
-  JSFunction* array_function =
-      Top::context()->global_context()->array_function();
-  JSObject* prototype = JSObject::cast(array_function->prototype());
-
-  FixedArray* elms = FixedArray::cast(array->elements());
-
-  // Get first element
-  Object* first = elms->get(0);
-  if (first->IsTheHole()) {
-    first = prototype->GetElement(0);
+static void MoveElements(AssertNoAllocation* no_gc,
+                         FixedArray* dst,
+                         int dst_index,
+                         FixedArray* src,
+                         int src_index,
+                         int len) {
+  memmove(dst->data_start() + dst_index,
+          src->data_start() + src_index,
+          len * kPointerSize);
+  WriteBarrierMode mode = dst->GetWriteBarrierMode(*no_gc);
+  if (mode == UPDATE_WRITE_BARRIER) {
+    Heap::RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
   }
-
-  // Shift the elements.
-  for (int i = 0; i < len - 1; i++) {
-    elms->set(i, GetElementToMove(i + 1, elms, prototype));
-  }
-  elms->set(len - 1, Heap::the_hole_value());
-
-  // Set the length.
-  array->set_length(Smi::FromInt(len - 1));
-
-  return first;
 }
 
 
-BUILTIN(ArrayUnshift) {
-  JSArray* array = JSArray::cast(*args.receiver());
-  ASSERT(array->HasFastElements());
+static void FillWithHoles(FixedArray* dst, int from, int to) {
+  MemsetPointer(dst->data_start() + from, Heap::the_hole_value(), to - from);
+}
 
-  int len = Smi::cast(array->length())->value();
-  int to_add = args.length() - 1;
-  // Note that we cannot quit early if to_add == 0 as
-  // values should be lifted from prototype into
-  // the array.
 
-  int new_length = len + to_add;
-  // Currently fixed arrays cannot grow too big, so
-  // we should never hit this case.
-  ASSERT(to_add <= (Smi::kMaxValue - len));
-
-  FixedArray* elms = FixedArray::cast(array->elements());
-
-  // Fetch the prototype.
-  JSFunction* array_function =
-      Top::context()->global_context()->array_function();
-  JSObject* prototype = JSObject::cast(array_function->prototype());
-
-  if (new_length > elms->length()) {
-    // New backing storage is needed.
-    int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
-    if (obj->IsFailure()) return obj;
-
-    AssertNoAllocation no_gc;
-    FixedArray* new_elms = FixedArray::cast(obj);
-    WriteBarrierMode mode = new_elms->GetWriteBarrierMode(no_gc);
-    // Fill out the new array with old elements.
-    for (int i = 0; i < len; i++)
-      new_elms->set(to_add + i,
-                    GetElementToMove(i, elms, prototype),
-                    mode);
-
-    elms = new_elms;
-    array->set_elements(elms);
-  } else {
-    AssertNoAllocation no_gc;
-    WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-
-    // Move elements to the right
-    for (int i = 0; i < len; i++) {
-      elms->set(new_length - i - 1,
-                GetElementToMove(len - i - 1, elms, prototype),
-                mode);
-    }
-  }
-
-  // Add the provided values.
-  AssertNoAllocation no_gc;
-  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < to_add; i++) {
-    elms->set(i, args[i + 1], mode);
-  }
-
-  // Set the length.
-  array->set_length(Smi::FromInt(new_length));
-  return Smi::FromInt(new_length);
+static bool ArrayPrototypeHasNoElements() {
+  // This method depends on non writability of Object and Array prototype
+  // fields.
+  Context* global_context = Top::context()->global_context();
+  // Array.prototype
+  JSObject* proto =
+      JSObject::cast(global_context->array_function()->prototype());
+  if (proto->elements() != Heap::empty_fixed_array()) return false;
+  // Hidden prototype
+  proto = JSObject::cast(proto->GetPrototype());
+  ASSERT(proto->elements() == Heap::empty_fixed_array());
+  // Object.prototype
+  proto = JSObject::cast(proto->GetPrototype());
+  if (proto != global_context->initial_object_prototype()) return false;
+  if (proto->elements() != Heap::empty_fixed_array()) return false;
+  ASSERT(proto->GetPrototype()->IsNull());
+  return true;
 }
 
 
@@ -451,7 +344,168 @@ static Object* CallJsBuiltin(const char* name,
 }
 
 
+BUILTIN(ArrayPush) {
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+  int to_add = args.length() - 1;
+  if (to_add == 0) {
+    return Smi::FromInt(len);
+  }
+  // Currently fixed arrays cannot grow too big, so
+  // we should never hit this case.
+  ASSERT(to_add <= (Smi::kMaxValue - len));
+
+  int new_length = len + to_add;
+  FixedArray* elms = FixedArray::cast(array->elements());
+
+  if (new_length > elms->length()) {
+    // New backing storage is needed.
+    int capacity = new_length + (new_length >> 1) + 16;
+    Object* obj = AllocateUninitializedFixedArray(capacity);
+    if (obj->IsFailure()) return obj;
+    FixedArray* new_elms = FixedArray::cast(obj);
+
+    AssertNoAllocation no_gc;
+    CopyElements(&no_gc, new_elms, 0, elms, 0, len);
+    FillWithHoles(new_elms, new_length, capacity);
+
+    elms = new_elms;
+    array->set_elements(elms);
+  }
+
+  // Add the provided values.
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+  for (int index = 0; index < to_add; index++) {
+    elms->set(index + len, args[index + 1], mode);
+  }
+
+  // Set the length.
+  array->set_length(Smi::FromInt(new_length));
+  return Smi::FromInt(new_length);
+}
+
+
+BUILTIN(ArrayPop) {
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+  if (len == 0) return Heap::undefined_value();
+
+  // Get top element
+  FixedArray* elms = FixedArray::cast(array->elements());
+  Object* top = elms->get(len - 1);
+
+  // Set the length.
+  array->set_length(Smi::FromInt(len - 1));
+
+  if (!top->IsTheHole()) {
+    // Delete the top element.
+    elms->set_the_hole(len - 1);
+    return top;
+  }
+
+  // Remember to check the prototype chain.
+  JSFunction* array_function =
+      Top::context()->global_context()->array_function();
+  JSObject* prototype = JSObject::cast(array_function->prototype());
+  top = prototype->GetElement(len - 1);
+
+  return top;
+}
+
+
+BUILTIN(ArrayShift) {
+  if (!ArrayPrototypeHasNoElements()) {
+    return CallJsBuiltin("ArrayShift", args);
+  }
+
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+  if (len == 0) return Heap::undefined_value();
+
+  FixedArray* elms = FixedArray::cast(array->elements());
+
+  // Get first element
+  Object* first = elms->get(0);
+  if (first->IsTheHole()) {
+    first = Heap::undefined_value();
+  }
+
+  // Shift the elements.
+  AssertNoAllocation no_gc;
+  MoveElements(&no_gc, elms, 0, elms, 1, len - 1);
+  elms->set(len - 1, Heap::the_hole_value());
+
+  // Set the length.
+  array->set_length(Smi::FromInt(len - 1));
+
+  return first;
+}
+
+
+BUILTIN(ArrayUnshift) {
+  if (!ArrayPrototypeHasNoElements()) {
+    return CallJsBuiltin("ArrayUnshift", args);
+  }
+
+  JSArray* array = JSArray::cast(*args.receiver());
+  ASSERT(array->HasFastElements());
+
+  int len = Smi::cast(array->length())->value();
+  int to_add = args.length() - 1;
+  // Note that we cannot quit early if to_add == 0 as
+  // values should be lifted from prototype into
+  // the array.
+
+  int new_length = len + to_add;
+  // Currently fixed arrays cannot grow too big, so
+  // we should never hit this case.
+  ASSERT(to_add <= (Smi::kMaxValue - len));
+
+  FixedArray* elms = FixedArray::cast(array->elements());
+
+  if (new_length > elms->length()) {
+    // New backing storage is needed.
+    int capacity = new_length + (new_length >> 1) + 16;
+    Object* obj = AllocateUninitializedFixedArray(capacity);
+    if (obj->IsFailure()) return obj;
+    FixedArray* new_elms = FixedArray::cast(obj);
+
+    AssertNoAllocation no_gc;
+    CopyElements(&no_gc, new_elms, to_add, elms, 0, len);
+    FillWithHoles(new_elms, new_length, capacity);
+
+    elms = new_elms;
+    array->set_elements(elms);
+  } else {
+    AssertNoAllocation no_gc;
+    MoveElements(&no_gc, elms, to_add, elms, 0, len);
+  }
+
+  // Add the provided values.
+  AssertNoAllocation no_gc;
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < to_add; i++) {
+    elms->set(i, args[i + 1], mode);
+  }
+
+  // Set the length.
+  array->set_length(Smi::FromInt(new_length));
+  return Smi::FromInt(new_length);
+}
+
+
 BUILTIN(ArraySlice) {
+  if (!ArrayPrototypeHasNoElements()) {
+    return CallJsBuiltin("ArraySlice", args);
+  }
+
   JSArray* array = JSArray::cast(*args.receiver());
   ASSERT(array->HasFastElements());
 
@@ -495,30 +549,18 @@ BUILTIN(ArraySlice) {
     result_len = 0;
   }
 
-  JSFunction* array_function =
-      Top::context()->global_context()->array_function();
-  Object* result = Heap::AllocateJSObject(array_function);
+  Object* result = AllocateJSArray();
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
 
-  result = Heap::AllocateFixedArrayWithHoles(result_len);
+  result = AllocateUninitializedFixedArray(result_len);
   if (result->IsFailure()) return result;
   FixedArray* result_elms = FixedArray::cast(result);
 
   FixedArray* elms = FixedArray::cast(array->elements());
 
-  // Fetch the prototype.
-  JSObject* prototype = JSObject::cast(array_function->prototype());
-
   AssertNoAllocation no_gc;
-  WriteBarrierMode mode = result_elms->GetWriteBarrierMode(no_gc);
-
-  // Fill newly created array.
-  for (int i = 0; i < result_len; i++) {
-    result_elms->set(i,
-                     GetElementToMove(k + i, elms, prototype),
-                     mode);
-  }
+  CopyElements(&no_gc, result_elms, 0, elms, k, result_len);
 
   // Set elements.
   result_array->set_elements(result_elms);
@@ -530,6 +572,10 @@ BUILTIN(ArraySlice) {
 
 
 BUILTIN(ArraySplice) {
+  if (!ArrayPrototypeHasNoElements()) {
+    return CallJsBuiltin("ArraySplice", args);
+  }
+
   JSArray* array = JSArray::cast(*args.receiver());
   ASSERT(array->HasFastElements());
 
@@ -571,32 +617,20 @@ BUILTIN(ArraySplice) {
   }
   int actualDeleteCount = Min(Max(deleteCount, 0), len - actualStart);
 
-  JSFunction* array_function =
-      Top::context()->global_context()->array_function();
-
   // Allocate result array.
-  Object* result = Heap::AllocateJSObject(array_function);
+  Object* result = AllocateJSArray();
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
 
-  result = Heap::AllocateFixedArrayWithHoles(actualDeleteCount);
+  result = AllocateUninitializedFixedArray(actualDeleteCount);
   if (result->IsFailure()) return result;
   FixedArray* result_elms = FixedArray::cast(result);
 
   FixedArray* elms = FixedArray::cast(array->elements());
 
-  // Fetch the prototype.
-  JSObject* prototype = JSObject::cast(array_function->prototype());
-
   AssertNoAllocation no_gc;
-  WriteBarrierMode mode = result_elms->GetWriteBarrierMode(no_gc);
-
   // Fill newly created array.
-  for (int k = 0; k < actualDeleteCount; k++) {
-    result_elms->set(k,
-                     GetElementToMove(actualStart + k, elms, prototype),
-                     mode);
-  }
+  CopyElements(&no_gc, result_elms, 0, elms, actualStart, actualDeleteCount);
 
   // Set elements.
   result_array->set_elements(result_elms);
@@ -608,18 +642,13 @@ BUILTIN(ArraySplice) {
 
   int new_length = len - actualDeleteCount + itemCount;
 
-  mode = elms->GetWriteBarrierMode(no_gc);
   if (itemCount < actualDeleteCount) {
     // Shrink the array.
-    for (int k = actualStart; k < (len - actualDeleteCount); k++) {
-      elms->set(k + itemCount,
-                GetElementToMove(k + actualDeleteCount, elms, prototype),
-                mode);
-    }
-
-    for (int k = len; k > new_length; k--) {
-      elms->set(k - 1, Heap::the_hole_value());
-    }
+    MoveElements(&no_gc,
+                 elms, actualStart + itemCount,
+                 elms, actualStart + actualDeleteCount,
+                 (len - actualDeleteCount - actualStart));
+    FillWithHoles(elms, new_length, len);
   } else if (itemCount > actualDeleteCount) {
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
@@ -631,31 +660,26 @@ BUILTIN(ArraySplice) {
     if (new_length > elms->length()) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      Object* obj = Heap::AllocateFixedArrayWithHoles(capacity);
+      Object* obj = AllocateUninitializedFixedArray(capacity);
       if (obj->IsFailure()) return obj;
-
       FixedArray* new_elms = FixedArray::cast(obj);
-      mode = new_elms->GetWriteBarrierMode(no_gc);
 
       // Copy the part before actualStart as is.
-      for (int k = 0; k < actualStart; k++) {
-        new_elms->set(k, elms->get(k), mode);
-      }
+      CopyElements(&no_gc, new_elms, 0, elms, 0, actualStart);
+      FillWithHoles(new_elms, new_length, capacity);
 
       source_elms = elms;
       elms = new_elms;
       array->set_elements(elms);
     }
 
-    for (int k = len - actualDeleteCount; k > actualStart; k--) {
-      elms->set(k + itemCount - 1,
-                GetElementToMove(k + actualDeleteCount - 1,
-                                 source_elms,
-                                 prototype),
-                mode);
-    }
+    MoveElements(&no_gc,
+                 elms, actualStart + itemCount,
+                 source_elms, actualStart + actualDeleteCount,
+                 (len - actualDeleteCount - actualStart));
   }
 
+  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   for (int k = actualStart; k < actualStart + itemCount; k++) {
     elms->set(k, args[3 + k - actualStart], mode);
   }

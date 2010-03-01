@@ -771,6 +771,9 @@ class Heap : public AllStatic {
   // Write barrier support for address[offset] = o.
   static inline void RecordWrite(Address address, int offset);
 
+  // Write barrier support for address[start : start + len[ = o.
+  static inline void RecordWrites(Address address, int start, int len);
+
   // Given an address occupied by a live code object, return that object.
   static Object* FindCodeObject(Address a);
 

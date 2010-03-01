@@ -287,3 +287,13 @@
     assertEquals(bigNum + 7, array.length);
   }
 })();
+
+(function() {
+  for (var i = 0; i < 7; i++) {
+    var a = [7, 8, 9];
+    a.splice(0, 0, 1, 2, 3, 4, 5, 6);
+    assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], a);
+    assertFalse(a.hasOwnProperty(10));
+    assertEquals(undefined, a[10]);
+  }
+})();

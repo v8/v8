@@ -60,6 +60,7 @@ namespace internal {
   F(GetArgumentsProperty, 1, 1) \
   F(ToFastProperties, 1, 1) \
   F(ToSlowProperties, 1, 1) \
+  F(FinishArrayPrototypeSetup, 1, 1) \
   \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \

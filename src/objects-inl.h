@@ -1397,6 +1397,11 @@ void FixedArray::set_the_hole(int index) {
 }
 
 
+Object** FixedArray::data_start() {
+  return HeapObject::RawField(this, kHeaderSize);
+}
+
+
 bool DescriptorArray::IsEmpty() {
   ASSERT(this == Heap::empty_descriptor_array() ||
          this->length() > 2);

@@ -1626,6 +1626,9 @@ class FixedArray: public Array {
   inline void set_null(int index);
   inline void set_the_hole(int index);
 
+  // Gives access to raw memory which stores the array's data.
+  inline Object** data_start();
+
   // Copy operations.
   inline Object* Copy();
   Object* CopySize(int new_length);
