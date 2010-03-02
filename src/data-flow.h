@@ -28,11 +28,72 @@
 #ifndef V8_DATAFLOW_H_
 #define V8_DATAFLOW_H_
 
+#include "v8.h"
+
 #include "ast.h"
 #include "compiler.h"
 
 namespace v8 {
 namespace internal {
+
+class BitVector {
+ public:
+  explicit BitVector(int length) : length_(length) {
+    ASSERT(length > 0);
+    bits_ = Vector<uint32_t>::New(1 + length / 32);
+    for (int i = 0; i < bits_.length(); i++) {
+      bits_[i] = 0;
+    }
+  }
+
+  ~BitVector() { bits_.Dispose(); }
+
+  void CopyFrom(const BitVector& other) {
+    ASSERT(other.length() == length());
+    for (int i = 0; i < bits_.length(); i++) {
+      bits_[i] = other.bits_[i];
+    }
+  }
+
+  bool Contains(int i) {
+    ASSERT(i >= 0 && i < length());
+    uint32_t block = bits_[i / 32];
+    return (block & (1U << (i % 32))) != 0;
+  }
+
+  void Add(int i) {
+    ASSERT(i >= 0 && i < length());
+    bits_[i / 32] |= (1U << (i % 32));
+  }
+
+  void Remove(int i) {
+    ASSERT(i >= 0 && i < length());
+    bits_[i / 32] &= ~(1U << (i % 32));
+  }
+
+  void Union(const BitVector& other) {
+    ASSERT(other.length() == length());
+    for (int i = 0; i < bits_.length(); i++) {
+      bits_[i] |= other.bits_[i];
+    }
+  }
+
+  void Intersect(const BitVector& other) {
+    ASSERT(other.length() == length());
+    for (int i = 0; i < bits_.length(); i++) {
+      bits_[i] &= other.bits_[i];
+    }
+  }
+
+  int length() const { return length_; }
+
+ private:
+  int length_;
+  Vector<uint32_t> bits_;
+
+  DISALLOW_COPY_AND_ASSIGN(BitVector);
+};
+
 
 // This class is used to number all expressions in the AST according to
 // their evaluation order (post-order left-to-right traversal).
