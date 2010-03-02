@@ -403,6 +403,7 @@ class Runtime : public AllStatic {
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
   static Object* GetElementOrCharAt(Handle<Object> object, uint32_t index);
+  static Object* GetElement(Handle<Object> object, uint32_t index);
 
   static Object* SetObjectProperty(Handle<Object> object,
                                    Handle<Object> key,

@@ -1975,6 +1975,23 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
 }
 
 
+bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
+  ON_BAILOUT("v8::Object::Set()", return false);
+  ENTER_V8;
+  HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> obj = i::SetElement(
+      self,
+      index,
+      value_obj);
+  has_pending_exception = obj.is_null();
+  EXCEPTION_BAILOUT_CHECK(false);
+  return true;
+}
+
+
 bool v8::Object::ForceSet(v8::Handle<Value> key,
                           v8::Handle<Value> value,
                           v8::PropertyAttribute attribs) {
@@ -2017,6 +2034,18 @@ Local<Value> v8::Object::Get(v8::Handle<Value> key) {
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result = i::GetProperty(self, key_obj);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  return Utils::ToLocal(result);
+}
+
+
+Local<Value> v8::Object::Get(uint32_t index) {
+  ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
+  ENTER_V8;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> result = i::GetElement(self, index);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(Local<Value>());
   return Utils::ToLocal(result);

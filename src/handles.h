@@ -233,6 +233,9 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
 
+Handle<Object> GetElement(Handle<Object> obj,
+                          uint32_t index);
+
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
                                           Handle<String> name,

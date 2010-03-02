@@ -2857,6 +2857,11 @@ Object* Runtime::GetElementOrCharAt(Handle<Object> object, uint32_t index) {
     return prototype->GetElement(index);
   }
 
+  return GetElement(object, index);
+}
+
+
+Object* Runtime::GetElement(Handle<Object> object, uint32_t index) {
   return object->GetElement(index);
 }
 

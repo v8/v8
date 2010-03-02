@@ -261,6 +261,10 @@ template <class T> class V8EXPORT_INLINE Handle {
     return Handle<T>(T::Cast(*that));
   }
 
+  template <class S> inline Handle<S> As() {
+    return Handle<S>::Cast(*this);
+  }
+
  private:
   T* val_;
 };
@@ -293,6 +297,10 @@ template <class T> class V8EXPORT_INLINE Local : public Handle<T> {
     if (that.IsEmpty()) return Local<T>();
 #endif
     return Local<T>(T::Cast(*that));
+  }
+
+  template <class S> inline Local<S> As() {
+    return Local<S>::Cast(*this);
   }
 
   /** Create a local handle for the content of another handle.
@@ -366,6 +374,10 @@ template <class T> class V8EXPORT_INLINE Persistent : public Handle<T> {
     if (that.IsEmpty()) return Persistent<T>();
 #endif
     return Persistent<T>(T::Cast(*that));
+  }
+
+  template <class S> inline Persistent<S> As() {
+    return Persistent<S>::Cast(*this);
   }
 
   /**
@@ -1178,6 +1190,9 @@ class V8EXPORT Object : public Value {
            Handle<Value> value,
            PropertyAttribute attribs = None);
 
+  bool Set(uint32_t index,
+           Handle<Value> value);
+
   // Sets a local property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
@@ -1191,6 +1206,8 @@ class V8EXPORT Object : public Value {
                 PropertyAttribute attribs = None);
 
   Local<Value> Get(Handle<Value> key);
+
+  Local<Value> Get(uint32_t index);
 
   // TODO(1245389): Replace the type-specific versions of these
   // functions with generic ones that accept a Handle<Value> key.

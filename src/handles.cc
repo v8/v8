@@ -283,6 +283,12 @@ Handle<Object> GetProperty(Handle<Object> obj,
 }
 
 
+Handle<Object> GetElement(Handle<Object> obj,
+                          uint32_t index) {
+  CALL_HEAP_FUNCTION(Runtime::GetElement(obj, index), Object);
+}
+
+
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
                                           Handle<String> name,
