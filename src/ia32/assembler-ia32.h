@@ -542,8 +542,12 @@ class Assembler : public Malloced {
   void cmov(Condition cc, Register dst, Handle<Object> handle);
   void cmov(Condition cc, Register dst, const Operand& src);
 
+  // Flag management.
+  void cld();
+
   // Repetitive string instructions.
   void rep_movs();
+  void rep_stos();
 
   // Exchange two registers
   void xchg(Register dst, Register src);

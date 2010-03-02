@@ -753,11 +753,26 @@ void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
 }
 
 
+void Assembler::cld() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xFC);
+}
+
+
 void Assembler::rep_movs() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xF3);
   EMIT(0xA5);
+}
+
+
+void Assembler::rep_stos() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xF3);
+  EMIT(0xAB);
 }
 
 

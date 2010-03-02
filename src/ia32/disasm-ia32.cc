@@ -89,6 +89,7 @@ static ByteMnemonic zero_operands_instr[] = {
   {0x9E, "sahf", UNSET_OP_ORDER},
   {0x99, "cdq", UNSET_OP_ORDER},
   {0x9B, "fwait", UNSET_OP_ORDER},
+  {0xFC, "cld", UNSET_OP_ORDER},
   {-1, "", UNSET_OP_ORDER}
 };
 
@@ -1218,6 +1219,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         } else if (*(data+1) == 0xA5) {
           data += 2;
           AppendToBuffer("rep_movs");
+        } else if (*(data+1) == 0xAB) {
+          data += 2;
+          AppendToBuffer("rep_stos");
         } else {
           UnimplementedInstruction();
         }
