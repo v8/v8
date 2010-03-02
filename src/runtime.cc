@@ -4941,6 +4941,39 @@ static Object* Runtime_Math_tan(Arguments args) {
 }
 
 
+static Object* Runtime_DateMakeDay(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  CONVERT_SMI_CHECKED(year, args[0]);
+  CONVERT_SMI_CHECKED(month, args[1]);
+  CONVERT_SMI_CHECKED(date, args[2]);
+
+  static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
+                                       181, 212, 243, 273, 304, 334};
+  static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
+                                            182, 213, 244, 274, 305, 335};
+
+  year += month / 12;
+  month %= 12;
+  if (month < 0) {
+    year--;
+    month += 12;
+  }
+
+  static const int base_day = 365*1969 + 1969/4 - 1969/100 + 1969/400;
+  int year1 = year - 1;
+  int day_from_year = 365 * year1 + year1 / 4 - year1 / 100 + year1 / 400 -
+                      base_day;
+
+  if (year % 4 || (year % 100 == 0 && year % 400 != 0)) {
+    return Smi::FromInt(day_from_year + day_from_month[month] + date - 1);
+  } else {
+    return Smi::FromInt(day_from_year + day_from_month_leap[month] + date - 1);
+  }
+}
+
+
 static Object* Runtime_NewArgumentsFast(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
