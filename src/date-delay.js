@@ -114,11 +114,9 @@ function EquivalentTime(t) {
   // the actual year if it is in the range 1970..2037
   if (t >= 0 && t <= 2.1e12) return t;
 
-  // We call the function from runtime.cc directly to avoid extra checks which
-  // are unneeded.
-  var day = %DateMakeDay(EquivalentYear(YEAR_FROM_TIME(t)),
-                         MONTH_FROM_TIME(t),
-                         DATE_FROM_TIME(t));
+  var day = MakeDay(EquivalentYear(YEAR_FROM_TIME(t)),
+                    MONTH_FROM_TIME(t),
+                    DATE_FROM_TIME(t));
   return MakeDate(day, TimeWithinDay(t));
 }
 

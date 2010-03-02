@@ -4961,6 +4961,9 @@ static Object* Runtime_DateMakeDay(Arguments args) {
     month += 12;
   }
 
+  ASSERT(month >= 0);
+  ASSERT(month < 12);
+
   static const int base_day = 365*1969 + 1969/4 - 1969/100 + 1969/400;
   int year1 = year - 1;
   int day_from_year = 365 * year1 + year1 / 4 - year1 / 100 + year1 / 400 -
