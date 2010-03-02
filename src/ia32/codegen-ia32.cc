@@ -10922,6 +10922,7 @@ void StringStubBase::GenerateCopyCharactersREP(MacroAssembler* masm,
   // Copy from edi to esi using rep movs instruction.
   __ mov(scratch, count);
   __ sar(count, 2);  // Number of doublewords to copy.
+  __ cld();
   __ rep_movs();
 
   // Find number of bytes left.
