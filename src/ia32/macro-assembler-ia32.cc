@@ -164,7 +164,10 @@ void MacroAssembler::RecordWrite(Register object, int offset,
   if (Serializer::enabled()) {
     // Can't do arithmetic on external references if it might get serialized.
     mov(value, Operand(object));
-    and_(value, Heap::NewSpaceMask());
+    // The mask isn't really an address.  We load it as an external reference in
+    // case the size of the new space is different between the snapshot maker
+    // and the running system.
+    and_(Operand(value), Immediate(ExternalReference::new_space_mask()));
     cmp(Operand(value), Immediate(ExternalReference::new_space_start()));
     j(equal, &done);
   } else {
