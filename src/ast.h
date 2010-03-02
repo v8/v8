@@ -183,7 +183,11 @@ class Expression: public AstNode {
 
   static const int kNoLabel = -1;
 
-  Expression() : num_(kNoLabel), def_(NULL), defined_vars_(NULL) {}
+  Expression()
+      : bitfields_(0),
+        num_(kNoLabel),
+        def_(NULL),
+        defined_vars_(NULL) {}
 
   virtual Expression* AsExpression()  { return this; }
 
@@ -225,11 +229,66 @@ class Expression: public AstNode {
     defined_vars_ = defined_vars;
   }
 
+  // AST analysis results
+
+  // True if the expression rooted at this node can be compiled by the
+  // side-effect free compiler.
+  bool side_effect_free() { return SideEffectFreeField::decode(bitfields_); }
+  void set_side_effect_free(bool is_side_effect_free) {
+    bitfields_ = (bitfields_ & ~SideEffectFreeField::mask()) |
+                 SideEffectFreeField::encode(is_side_effect_free);
+  }
+
+  // The number of unary and binary operations contained in the expression
+  // rooted at this node.  Valid only if side_effect_free() is true.
+  int expression_size() { return ExpressionSizeField::decode(bitfields_); }
+  void set_expression_size(int expression_size) {
+    bitfields_ = (bitfields_ & ~ExpressionSizeField::mask()) |
+        ExpressionSizeField::encode(Min(expression_size, ExpressionSizeMax));
+  }
+
+  // The number of expression stack slots needed to compute the expression
+  // rooted at this node.  Does not count the slot needed by the value
+  // computed by this expression. Valid only if side_effect_free() is true.
+  int stack_height() { return StackHeightField::decode(bitfields_); }
+  void set_stack_height(int stack_height) {
+    bitfields_ &= ~StackHeightField::mask();
+    bitfields_ |=
+        StackHeightField::encode(Min(stack_height, StackHeightMax));
+  }
+
  private:
+  uint32_t bitfields_;
   StaticType type_;
+
   int num_;
   DefinitionInfo* def_;
   ZoneList<DefinitionInfo*>* defined_vars_;
+
+  static const int SideEffectFreeFieldStart = 0;
+  static const int SideEffectFreeFieldLength = 1;
+  class SideEffectFreeField: public BitField<bool,
+                                             SideEffectFreeFieldStart,
+                                             SideEffectFreeFieldLength> {
+  };
+
+  static const int ExpressionSizeFieldStart =
+      SideEffectFreeFieldStart + SideEffectFreeFieldLength;
+  static const int ExpressionSizeFieldLength = 5;
+  static const int ExpressionSizeMax = (1 << ExpressionSizeFieldLength) - 1;
+  class ExpressionSizeField: public BitField<int,
+                                             ExpressionSizeFieldStart,
+                                             ExpressionSizeFieldLength> {
+  };
+
+  static const int StackHeightFieldStart =
+      ExpressionSizeFieldStart + ExpressionSizeFieldLength;
+  static const int StackHeightFieldLength = 5;
+  static const int StackHeightMax = (1 << StackHeightFieldLength) - 1;
+  class StackHeightField: public BitField<int,
+                                          StackHeightFieldStart,
+                                          StackHeightFieldLength> {
+  };
 };
 
 
