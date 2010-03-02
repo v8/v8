@@ -4971,9 +4971,9 @@ static Object* Runtime_DateMakeDay(Arguments args) {
 
   if (year % 4 || (year % 100 == 0 && year % 400 != 0)) {
     return Smi::FromInt(day_from_year + day_from_month[month] + date - 1);
-  } else {
-    return Smi::FromInt(day_from_year + day_from_month_leap[month] + date - 1);
   }
+
+  return Smi::FromInt(day_from_year + day_from_month_leap[month] + date - 1);
 }
 
 
