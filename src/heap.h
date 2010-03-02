@@ -30,6 +30,7 @@
 
 #include <math.h>
 
+#include "splay-tree-inl.h"
 #include "zone-inl.h"
 
 
