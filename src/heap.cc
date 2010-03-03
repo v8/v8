@@ -115,10 +115,7 @@ int Heap::gc_count_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;
 int Heap::linear_allocation_scope_depth_ = 0;
-
 int Heap::contexts_disposed_ = 0;
-bool Heap::context_disposed_use_deprecated_heuristic_ = true;
-bool Heap::context_disposed_deprecated_pending_ = false;
 
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
@@ -374,29 +371,8 @@ void Heap::CollectAllGarbage(bool force_compaction) {
 }
 
 
-void Heap::CollectAllGarbageIfContextDisposedDeprecated() {
-  if (!context_disposed_use_deprecated_heuristic_) return;
-  // If the garbage collector interface is exposed through the global
-  // gc() function, we avoid being clever about forcing GCs when
-  // contexts are disposed and leave it to the embedder to make
-  // informed decisions about when to force a collection.
-  if (!FLAG_expose_gc && context_disposed_deprecated_pending_) {
-    HistogramTimerScope scope(&Counters::gc_context);
-    CollectAllGarbage(false);
-  }
-  context_disposed_deprecated_pending_ = false;
-}
-
-
 void Heap::NotifyContextDisposed() {
-  context_disposed_use_deprecated_heuristic_ = false;
   contexts_disposed_++;
-}
-
-
-void Heap::NotifyContextDisposedDeprecated() {
-  if (!context_disposed_use_deprecated_heuristic_) return;
-  context_disposed_deprecated_pending_ = true;
 }
 
 
@@ -644,7 +620,6 @@ void Heap::MarkCompact(GCTracer* tracer) {
   Counters::objs_since_last_full.Set(0);
 
   contexts_disposed_ = 0;
-  context_disposed_deprecated_pending_ = false;
 }
 
 
