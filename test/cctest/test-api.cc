@@ -9740,7 +9740,7 @@ static void SetterWhichSetsYOnThisTo23(Local<String> name,
 }
 
 
-THREADED_TEST(SetterOnConstructorPrototype) {
+TEST(SetterOnConstructorPrototype) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
   templ->SetAccessor(v8_str("x"),
