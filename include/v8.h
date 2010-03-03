@@ -550,13 +550,13 @@ class V8EXPORT Script {
    * Compiles the specified script (context-independent).
    *
    * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept 
+   * \param origin Script origin, owned by caller, no references are kept
    *   when New() returns
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
    *   Owned by caller, no references are kept when New() returns.
    * \param script_data Arbitrary data associated with script. Using
-   *   this has same effect as calling SetData(), but allows data to be 
+   *   this has same effect as calling SetData(), but allows data to be
    *   available to compile event handlers.
    * \return Compiled script object (context independent; when run it
    *   will use the currently entered context).
@@ -571,7 +571,7 @@ class V8EXPORT Script {
    * object (typically a string) as the script's origin.
    *
    * \param source Script source code.
-   * \patam file_name file name object (typically a string) to be used 
+   * \param file_name file name object (typically a string) to be used
    *   as the script's origin.
    * \return Compiled script object (context independent; when run it
    *   will use the currently entered context).
@@ -583,7 +583,7 @@ class V8EXPORT Script {
    * Compiles the specified script (bound to current context).
    *
    * \param source Script source code.
-   * \param origin Script origin, owned by caller, no references are kept 
+   * \param origin Script origin, owned by caller, no references are kept
    *   when Compile() returns
    * \param pre_data Pre-parsing data, as obtained by ScriptData::PreCompile()
    *   using pre_data speeds compilation if it's done multiple times.
@@ -765,6 +765,11 @@ class V8EXPORT Value : public Data {
    * Returns true if this value is a 32-bit signed integer.
    */
   bool IsInt32() const;
+
+  /**
+   * Returns true if this value is a 32-bit signed integer.
+   */
+  bool IsUint32() const;
 
   /**
    * Returns true if this value is a Date.

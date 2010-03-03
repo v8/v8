@@ -1960,6 +1960,95 @@ static void CheckUncle(v8::TryCatch* try_catch) {
 }
 
 
+THREADED_TEST(ConversionNumber) {
+  v8::HandleScope scope;
+  LocalContext env;
+  // Very large number.
+  CompileRun("var obj = Math.pow(2,32) * 1237;");
+  Local<Value> obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(5312874545152.0, obj->ToNumber()->Value());
+  CHECK_EQ(0, obj->ToInt32()->Value());
+  CHECK(0u == obj->ToUint32()->Value());  // NOLINT - no CHECK_EQ for unsigned.
+  // Large number.
+  CompileRun("var obj = -1234567890123;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(-1234567890123.0, obj->ToNumber()->Value());
+  CHECK_EQ(-1912276171, obj->ToInt32()->Value());
+  CHECK(2382691125u == obj->ToUint32()->Value());  // NOLINT
+  // Small positive integer.
+  CompileRun("var obj = 42;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(42.0, obj->ToNumber()->Value());
+  CHECK_EQ(42, obj->ToInt32()->Value());
+  CHECK(42u == obj->ToUint32()->Value());  // NOLINT
+  // Negative integer.
+  CompileRun("var obj = -37;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(-37.0, obj->ToNumber()->Value());
+  CHECK_EQ(-37, obj->ToInt32()->Value());
+  CHECK(4294967259u == obj->ToUint32()->Value());  // NOLINT
+  // Positive non-int32 integer.
+  CompileRun("var obj = 0x81234567;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(2166572391.0, obj->ToNumber()->Value());
+  CHECK_EQ(-2128394905, obj->ToInt32()->Value());
+  CHECK(2166572391u == obj->ToUint32()->Value());  // NOLINT
+  // Fraction.
+  CompileRun("var obj = 42.3;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(42.3, obj->ToNumber()->Value());
+  CHECK_EQ(42, obj->ToInt32()->Value());
+  CHECK(42u == obj->ToUint32()->Value());  // NOLINT
+  // Large negative fraction.
+  CompileRun("var obj = -5726623061.75;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK_EQ(-5726623061.75, obj->ToNumber()->Value());
+  CHECK_EQ(-1431655765, obj->ToInt32()->Value());
+  CHECK(2863311531u == obj->ToUint32()->Value());  // NOLINT
+}
+
+
+THREADED_TEST(isNumberType) {
+  v8::HandleScope scope;
+  LocalContext env;
+  // Very large number.
+  CompileRun("var obj = Math.pow(2,32) * 1237;");
+  Local<Value> obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Large negative number.
+  CompileRun("var obj = -1234567890123;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Small positive integer.
+  CompileRun("var obj = 42;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(obj->IsInt32());
+  CHECK(obj->IsUint32());
+  // Negative integer.
+  CompileRun("var obj = -37;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Positive non-int32 integer.
+  CompileRun("var obj = 0x81234567;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(obj->IsUint32());
+  // Fraction.
+  CompileRun("var obj = 42.3;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Large negative fraction.
+  CompileRun("var obj = -5726623061.75;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+}
+
+
 THREADED_TEST(ConversionException) {
   v8::HandleScope scope;
   LocalContext env;
