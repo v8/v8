@@ -5248,7 +5248,7 @@ Object* JSObject::SetSlowElements(Object* len) {
     case DICTIONARY_ELEMENTS: {
       if (IsJSArray()) {
         uint32_t old_length =
-        static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
+            static_cast<uint32_t>(JSArray::cast(this)->length()->Number());
         element_dictionary()->RemoveNumberEntries(new_length, old_length),
         JSArray::cast(this)->set_length(len);
       }

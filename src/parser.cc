@@ -107,13 +107,13 @@ class Parser {
 
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Handle<String> source,
-                                unibrow::CharacterStream* stream,
                                 bool in_global_context);
   FunctionLiteral* ParseLazy(Handle<String> source,
                              Handle<String> name,
-                             int start_position, bool is_expression);
-  FunctionLiteral* ParseJson(Handle<String> source,
-                             unibrow::CharacterStream* stream);
+                             int start_position,
+                             int end_position,
+                             bool is_expression);
+  FunctionLiteral* ParseJson(Handle<String> source);
 
   // The minimum number of contiguous assignment that will
   // be treated as an initialization block. Benchmarks show that
@@ -1212,7 +1212,7 @@ bool Parser::PreParseProgram(Handle<String> source,
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
-  scanner_.Init(source, stream, 0, JAVASCRIPT);
+  scanner_.Initialize(source, stream, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
   DummyScope top_scope;
@@ -1226,7 +1226,6 @@ bool Parser::PreParseProgram(Handle<String> source,
 
 
 FunctionLiteral* Parser::ParseProgram(Handle<String> source,
-                                      unibrow::CharacterStream* stream,
                                       bool in_global_context) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
@@ -1235,7 +1234,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   // Initialize parser state.
   source->TryFlatten();
-  scanner_.Init(source, stream, 0, JAVASCRIPT);
+  scanner_.Initialize(source, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
 
   // Compute the parsing mode.
@@ -1286,15 +1285,15 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    Handle<String> name,
                                    int start_position,
+                                   int end_position,
                                    bool is_expression) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
-  source->TryFlatten();
   Counters::total_parse_size.Increment(source->length());
-  SafeStringInputBuffer buffer(source.location());
 
   // Initialize parser state.
-  scanner_.Init(source, &buffer, start_position, JAVASCRIPT);
+  source->TryFlatten();
+  scanner_.Initialize(source, start_position, end_position, JAVASCRIPT);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;
 
@@ -1330,8 +1329,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   return result;
 }
 
-FunctionLiteral* Parser::ParseJson(Handle<String> source,
-                                   unibrow::CharacterStream* stream) {
+FunctionLiteral* Parser::ParseJson(Handle<String> source) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(&Counters::parse);
@@ -1339,7 +1337,7 @@ FunctionLiteral* Parser::ParseJson(Handle<String> source,
 
   // Initialize parser state.
   source->TryFlatten(TENURED);
-  scanner_.Init(source, stream, 0, JSON);
+  scanner_.Initialize(source, JSON);
   ASSERT(target_stack_ == NULL);
 
   FunctionLiteral* result = NULL;
@@ -5065,13 +5063,12 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
     return NULL;
   }
   Handle<String> source = Handle<String>(String::cast(script->source()));
-  SafeStringInputBuffer input(source.location());
   FunctionLiteral* result;
   if (is_json) {
     ASSERT(compile_in_global_context);
-    result = parser.ParseJson(source, &input);
+    result = parser.ParseJson(source);
   } else {
-    result = parser.ParseProgram(source, &input, compile_in_global_context);
+    result = parser.ParseProgram(source, compile_in_global_context);
   }
   return result;
 }
@@ -5086,12 +5083,11 @@ FunctionLiteral* MakeLazyAST(Handle<Script> script,
   always_allow_natives_syntax = true;
   AstBuildingParser parser(script, true, NULL, NULL);  // always allow
   always_allow_natives_syntax = allow_natives_syntax_before;
-  // Parse the function by pulling the function source from the script source.
+  // Parse the function by pointing to the function source in the script source.
   Handle<String> script_source(String::cast(script->source()));
-  Handle<String> function_source =
-      SubString(script_source, start_position, end_position, TENURED);
   FunctionLiteral* result =
-      parser.ParseLazy(function_source, name, start_position, is_expression);
+      parser.ParseLazy(script_source, name,
+                       start_position, end_position, is_expression);
   return result;
 }
 
