@@ -4084,18 +4084,83 @@ static Object* ConvertCaseHelper(String* s,
 }
 
 
-template <class Converter>
-static Object* ConvertCase(Arguments args,
-                           unibrow::Mapping<Converter, 128>* mapping) {
-  NoHandleAllocation ha;
+static inline SeqAsciiString* TryGetSeqAsciiString(String* s) {
+  if (!s->IsFlat() || !s->IsAsciiRepresentation()) return NULL;
+  if (s->IsConsString()) {
+    ASSERT(ConsString::cast(s)->second()->length() == 0);
+    return SeqAsciiString::cast(ConsString::cast(s)->first());
+  }
+  return SeqAsciiString::cast(s);
+}
 
+
+namespace {
+
+struct ToLowerTraits {
+  typedef unibrow::ToLowercase UnibrowConverter;
+
+  static bool ConvertAscii(char* dst, char* src, int length) {
+    bool changed = false;
+    for (int i = 0; i < length; ++i) {
+      char c = src[i];
+      if ('A' <= c && c <= 'Z') {
+        c += ('a' - 'A');
+        changed = true;
+      }
+      dst[i] = c;
+    }
+    return changed;
+  }
+};
+
+
+struct ToUpperTraits {
+  typedef unibrow::ToUppercase UnibrowConverter;
+
+  static bool ConvertAscii(char* dst, char* src, int length) {
+    bool changed = false;
+    for (int i = 0; i < length; ++i) {
+      char c = src[i];
+      if ('a' <= c && c <= 'z') {
+        c -= ('a' - 'A');
+        changed = true;
+      }
+      dst[i] = c;
+    }
+    return changed;
+  }
+};
+
+}  // namespace
+
+
+template <typename ConvertTraits>
+static Object* ConvertCase(
+    Arguments args,
+    unibrow::Mapping<typename ConvertTraits::UnibrowConverter, 128>* mapping) {
+  NoHandleAllocation ha;
   CONVERT_CHECKED(String, s, args[0]);
   s->TryFlatten();
 
-  int input_string_length = s->length();
+  const int length = s->length();
   // Assume that the string is not empty; we need this assumption later
-  if (input_string_length == 0) return s;
-  int length = input_string_length;
+  if (length == 0) return s;
+
+  // Simpler handling of ascii strings.
+  //
+  // NOTE: This assumes that the upper/lower case of an ascii
+  // character is also ascii.  This is currently the case, but it
+  // might break in the future if we implement more context and locale
+  // dependent upper/lower conversions.
+  SeqAsciiString* seq_ascii = TryGetSeqAsciiString(s);
+  if (seq_ascii != NULL) {
+    Object* o = Heap::AllocateRawAsciiString(length);
+    if (o->IsFailure()) return o;
+    SeqAsciiString* result = SeqAsciiString::cast(o);
+    bool has_changed_character = ConvertTraits::ConvertAscii(
+        result->GetChars(), seq_ascii->GetChars(), length);
+    return has_changed_character ? result : s;
+  }
 
   Object* answer = ConvertCaseHelper(s, length, length, mapping);
   if (answer->IsSmi()) {
@@ -4107,17 +4172,19 @@ static Object* ConvertCase(Arguments args,
 
 
 static Object* Runtime_StringToLowerCase(Arguments args) {
-  return ConvertCase<unibrow::ToLowercase>(args, &to_lower_mapping);
+  return ConvertCase<ToLowerTraits>(args, &to_lower_mapping);
 }
 
 
 static Object* Runtime_StringToUpperCase(Arguments args) {
-  return ConvertCase<unibrow::ToUppercase>(args, &to_upper_mapping);
+  return ConvertCase<ToUpperTraits>(args, &to_upper_mapping);
 }
+
 
 static inline bool IsTrimWhiteSpace(unibrow::uchar c) {
   return unibrow::WhiteSpace::Is(c) || c == 0x200b;
 }
+
 
 static Object* Runtime_StringTrim(Arguments args) {
   NoHandleAllocation ha;
