@@ -937,7 +937,6 @@ Result VirtualFrame::CallStoreIC(Handle<String> name, bool is_contextual) {
     PrepareForCall(0, 0);
     value.ToRegister(eax);
     __ mov(edx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    __ mov(ecx, name);
     value.Unuse();
   } else {
     Result receiver = Pop();
