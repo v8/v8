@@ -6904,15 +6904,16 @@ void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
 
 
 template<typename Shape, typename Key>
-Object* HashTable<Shape, Key>::Allocate(int at_least_space_for) {
-  int capacity = RoundUpToPowerOf2(at_least_space_for);
-  if (capacity < 4) {
-    capacity = 4;  // Guarantee min capacity.
+Object* HashTable<Shape, Key>::Allocate(int at_least_space_for,
+                                        PretenureFlag pretenure) {
+  int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
+  if (capacity < 32) {
+    capacity = 32;  // Guarantee min capacity.
   } else if (capacity > HashTable::kMaxCapacity) {
     return Failure::OutOfMemoryException();
   }
 
-  Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
+  Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity), pretenure);
   if (!obj->IsFailure()) {
     HashTable::cast(obj)->SetNumberOfElements(0);
     HashTable::cast(obj)->SetNumberOfDeletedElements(0);
@@ -6945,12 +6946,17 @@ Object* HashTable<Shape, Key>::EnsureCapacity(int n, Key key) {
   int nof = NumberOfElements() + n;
   int nod = NumberOfDeletedElements();
   // Return if:
-  //   25% is still free after adding n elements and
+  //   50% is still free after adding n elements and
   //   at most 50% of the free elements are deleted elements.
-  if ((nof + (nof >> 2) <= capacity) &&
-      (nod <= (capacity - nof) >> 1)) return this;
+  if (nod <= (capacity - nof) >> 1) {
+    int needed_free = nof >> 1;
+    if (nof + needed_free <= capacity) return this;
+  }
 
-  Object* obj = Allocate(nof * 2);
+  const int kMinCapacityForPretenure = 256;
+  bool pretenure =
+      (capacity > kMinCapacityForPretenure) && !Heap::InNewSpace(this);
+  Object* obj = Allocate(nof * 2, pretenure ? TENURED : NOT_TENURED);
   if (obj->IsFailure()) return obj;
 
   AssertNoAllocation no_gc;

@@ -465,7 +465,8 @@ class Heap : public AllStatic {
 
   // AllocateHashTable is identical to AllocateFixedArray except
   // that the resulting object has hash_table_map as map.
-  static Object* AllocateHashTable(int length);
+  static Object* AllocateHashTable(int length,
+                                   PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a global (but otherwise uninitialized) context.
   static Object* AllocateGlobalContext();

@@ -1936,7 +1936,8 @@ class HashTable: public FixedArray {
   }
 
   // Returns a new HashTable object. Might return Failure.
-  static Object* Allocate(int at_least_space_for);
+  static Object* Allocate(int at_least_space_for,
+                          PretenureFlag pretenure = NOT_TENURED);
 
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }

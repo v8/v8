@@ -46,6 +46,7 @@
 #include "arm/regexp-macro-assembler-arm.h"
 #endif
 
+
 namespace v8 {
 namespace internal {
 
@@ -2984,8 +2985,8 @@ Object* Heap::AllocateFixedArrayWithHoles(int length) {
 }
 
 
-Object* Heap::AllocateHashTable(int length) {
-  Object* result = Heap::AllocateFixedArray(length);
+Object* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
+  Object* result = Heap::AllocateFixedArray(length, pretenure);
   if (result->IsFailure()) return result;
   reinterpret_cast<Array*>(result)->set_map(hash_table_map());
   ASSERT(result->IsHashTable());
