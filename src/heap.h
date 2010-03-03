@@ -632,13 +632,8 @@ class Heap : public AllStatic {
   // parameter is true.
   static void CollectAllGarbage(bool force_compaction);
 
-  // Performs a full garbage collection if a context has been disposed
-  // since the last time the check was performed.
-  static void CollectAllGarbageIfContextDisposedDeprecated();
-
   // Notify the heap that a context has been disposed.
   static void NotifyContextDisposed();
-  static void NotifyContextDisposedDeprecated();
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -912,8 +907,6 @@ class Heap : public AllStatic {
 
   // For keeping track of context disposals.
   static int contexts_disposed_;
-  static bool context_disposed_use_deprecated_heuristic_;
-  static bool context_disposed_deprecated_pending_;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 512*KB;
