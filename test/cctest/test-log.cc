@@ -390,21 +390,24 @@ class LoopingThread : public v8::internal::Thread {
 class LoopingJsThread : public LoopingThread {
  public:
   void RunLoop() {
-    {
-      v8::Locker locker;
-      CHECK(v8::internal::ThreadManager::HasId());
-      SetV8ThreadId();
-    }
+    v8::Locker locker;
+    CHECK(v8::internal::ThreadManager::HasId());
+    SetV8ThreadId();
     while (IsRunning()) {
-      v8::Locker locker;
       v8::HandleScope scope;
       v8::Persistent<v8::Context> context = v8::Context::New();
-      v8::Context::Scope context_scope(context);
-      SignalRunning();
-      CompileAndRunScript(
-          "var j; for (var i=0; i<10000; ++i) { j = Math.sin(i); }");
+      CHECK(!context.IsEmpty());
+      {
+        v8::Context::Scope context_scope(context);
+        SignalRunning();
+        CompileAndRunScript(
+            "var j; for (var i=0; i<10000; ++i) { j = Math.sin(i); }");
+      }
       context.Dispose();
-      i::OS::Sleep(1);
+      {
+        v8::Unlocker unlocker;
+        i::OS::Sleep(1);
+      }
     }
   }
 };
