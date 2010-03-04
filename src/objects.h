@@ -3280,11 +3280,22 @@ class SharedFunctionInfo: public HeapObject {
   static const int kDontAdaptArgumentsSentinel = -1;
 
   // Layout description.
-  // (An even number of integers has a size that is a multiple of a pointer.)
+  // Pointer fields.
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
   static const int kConstructStubOffset = kCodeOffset + kPointerSize;
-  static const int kLengthOffset = kConstructStubOffset + kPointerSize;
+  static const int kInstanceClassNameOffset =
+      kConstructStubOffset + kPointerSize;
+  static const int kExternalReferenceDataOffset =
+      kInstanceClassNameOffset + kPointerSize;
+  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
+  static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
+  static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
+  static const int kThisPropertyAssignmentsOffset =
+      kInferredNameOffset + kPointerSize;
+  // Integer fields.
+  static const int kLengthOffset =
+      kThisPropertyAssignmentsOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kIntSize;
@@ -3292,27 +3303,14 @@ class SharedFunctionInfo: public HeapObject {
       kExpectedNofPropertiesOffset + kIntSize;
   static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
   static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
-  static const int kInstanceClassNameOffset =
+  static const int kCompilerHintsOffset =
       kFunctionTokenPositionOffset + kIntSize;
-  static const int kExternalReferenceDataOffset =
-      kInstanceClassNameOffset + kPointerSize;
-  static const int kScriptOffset = kExternalReferenceDataOffset + kPointerSize;
-  static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
-  static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
-  static const int kCompilerHintsOffset = kInferredNameOffset + kPointerSize;
-  static const int kThisPropertyAssignmentsOffset =
-      kCompilerHintsOffset + kPointerSize;
   static const int kThisPropertyAssignmentsCountOffset =
-      kThisPropertyAssignmentsOffset + kPointerSize;
-  static const int kSize = kThisPropertyAssignmentsCountOffset + kPointerSize;
+      kCompilerHintsOffset + kIntSize;
+  // Total size.
+  static const int kSize = kThisPropertyAssignmentsCountOffset + kIntSize;
 
  private:
-  // Bit positions in length_and_flg.
-  // The least significant bit is used as the flag.
-  static const int kFlagBit         = 0;
-  static const int kLengthShift     = 1;
-  static const int kLengthMask      = ~((1 << kLengthShift) - 1);
-
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
   // the start_position_and_type field.

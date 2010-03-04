@@ -4958,11 +4958,9 @@ void SharedFunctionInfo::SourceCodePrint(StringStream* accumulator,
 
 
 void SharedFunctionInfo::SharedFunctionInfoIterateBody(ObjectVisitor* v) {
-  IteratePointers(v, kNameOffset, kConstructStubOffset + kPointerSize);
-  IteratePointers(v, kInstanceClassNameOffset, kScriptOffset + kPointerSize);
-  IteratePointers(v, kDebugInfoOffset, kInferredNameOffset + kPointerSize);
-  IteratePointers(v, kThisPropertyAssignmentsOffset,
-      kThisPropertyAssignmentsOffset + kPointerSize);
+  IteratePointers(v,
+                  kNameOffset,
+                  kThisPropertyAssignmentsOffset + kPointerSize);
 }
 
 
