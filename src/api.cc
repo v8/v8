@@ -2909,6 +2909,10 @@ Persistent<Context> v8::Context::New(
   i::Handle<i::Context> env;
   {
     ENTER_V8;
+
+    // BUG(632): Force GC to workaround instability issues.
+    i::Heap::CollectAllGarbage(false);
+
     v8::Handle<ObjectTemplate> proxy_template = global_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
