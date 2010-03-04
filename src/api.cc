@@ -3615,6 +3615,15 @@ void V8::TerminateExecution() {
 }
 
 
+bool V8::IsExecutionTerminating() {
+  if (!i::V8::IsRunning()) return false;
+  if (i::Top::has_scheduled_exception()) {
+    return i::Top::scheduled_exception() == i::Heap::termination_exception();
+  }
+  return false;
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
   if (obj.IsEmpty()) {
