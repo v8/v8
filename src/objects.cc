@@ -2180,7 +2180,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
     property_count += 2;  // Make space for two more properties.
   }
   Object* obj =
-      StringDictionary::Allocate(property_count * 2);
+      StringDictionary::Allocate(property_count);
   if (obj->IsFailure()) return obj;
   StringDictionary* dictionary = StringDictionary::cast(obj);
 
@@ -6911,9 +6911,10 @@ void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
 template<typename Shape, typename Key>
 Object* HashTable<Shape, Key>::Allocate(int at_least_space_for,
                                         PretenureFlag pretenure) {
+  const int kMinCapacity = 32;
   int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
-  if (capacity < 32) {
-    capacity = 32;  // Guarantee min capacity.
+  if (capacity < kMinCapacity) {
+    capacity = kMinCapacity;  // Guarantee min capacity.
   } else if (capacity > HashTable::kMaxCapacity) {
     return Failure::OutOfMemoryException();
   }
@@ -7103,8 +7104,7 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
     result_double = HeapNumber::cast(new_double);
   }
 
-  int capacity = dict->Capacity();
-  Object* obj = NumberDictionary::Allocate(dict->Capacity());
+  Object* obj = NumberDictionary::Allocate(dict->NumberOfElements());
   if (obj->IsFailure()) return obj;
   NumberDictionary* new_dict = NumberDictionary::cast(obj);
 
@@ -7112,6 +7112,7 @@ Object* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 
   uint32_t pos = 0;
   uint32_t undefs = 0;
+  int capacity = dict->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dict->KeyAt(i);
     if (dict->IsKey(k)) {
