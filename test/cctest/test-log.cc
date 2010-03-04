@@ -404,10 +404,7 @@ class LoopingJsThread : public LoopingThread {
             "var j; for (var i=0; i<10000; ++i) { j = Math.sin(i); }");
       }
       context.Dispose();
-      {
-        v8::Unlocker unlocker;
-        i::OS::Sleep(1);
-      }
+      i::OS::Sleep(1);
     }
   }
 };
