@@ -42,6 +42,17 @@
 })();
 
 
+// Check various variants of empty array's splicing.
+(function() {
+  for (var i = 0; i < 7; i++) {
+    assertEquals([], [].splice(0, 0));
+    assertEquals([], [].splice(1, 0));
+    assertEquals([], [].splice(0, 1));
+    assertEquals([], [].splice(-1, 0));
+  }
+})();
+
+
 // Check various forms of arguments omission.
 (function() {
   var array;

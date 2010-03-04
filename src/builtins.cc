@@ -251,6 +251,16 @@ static Object* AllocateJSArray() {
 }
 
 
+static Object* AllocateEmptyJSArray() {
+  Object* result = AllocateJSArray();
+  if (result->IsFailure()) return result;
+  JSArray* result_array = JSArray::cast(result);
+  result_array->set_length(Smi::FromInt(0));
+  result_array->set_elements(Heap::empty_fixed_array());
+  return result_array;
+}
+
+
 static void CopyElements(AssertNoAllocation* no_gc,
                          FixedArray* dst,
                          int dst_index,
@@ -535,8 +545,8 @@ BUILTIN(ArraySlice) {
 
   // Calculate the length of result array.
   int result_len = final - k;
-  if (result_len < 0) {
-    result_len = 0;
+  if (result_len <= 0) {
+    return AllocateEmptyJSArray();
   }
 
   Object* result = AllocateJSArray();
@@ -606,6 +616,9 @@ BUILTIN(ArraySplice) {
     }
   }
   int actualDeleteCount = Min(Max(deleteCount, 0), len - actualStart);
+  if (actualDeleteCount == 0) {
+    return AllocateEmptyJSArray();
+  }
 
   // Allocate result array.
   Object* result = AllocateJSArray();
