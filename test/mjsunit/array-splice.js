@@ -53,6 +53,16 @@
 })();
 
 
+// Check that even if result array is empty, receiver gets sliced.
+(function() {
+  for (var i = 0; i < 7; i++) {
+    var a = [1, 2, 3];
+    assertEquals([], a.splice(1, 0, 'a', 'b', 'c'));
+    assertEquals([1, 'a', 'b', 'c', 2, 3], a);
+  }
+})();
+
+
 // Check various forms of arguments omission.
 (function() {
   var array;

@@ -616,30 +616,34 @@ BUILTIN(ArraySplice) {
     }
   }
   int actualDeleteCount = Min(Max(deleteCount, 0), len - actualStart);
-  if (actualDeleteCount == 0) {
-    return AllocateEmptyJSArray();
-  }
-
-  // Allocate result array.
-  Object* result = AllocateJSArray();
-  if (result->IsFailure()) return result;
-  JSArray* result_array = JSArray::cast(result);
-
-  result = Heap::AllocateUninitializedFixedArray(actualDeleteCount);
-  if (result->IsFailure()) return result;
-  FixedArray* result_elms = FixedArray::cast(result);
 
   FixedArray* elms = FixedArray::cast(array->elements());
 
-  AssertNoAllocation no_gc;
-  // Fill newly created array.
-  CopyElements(&no_gc, result_elms, 0, elms, actualStart, actualDeleteCount);
+  JSArray* result_array = NULL;
+  if (actualDeleteCount == 0) {
+    Object* result = AllocateEmptyJSArray();
+    if (result->IsFailure()) return result;
+    result_array = JSArray::cast(result);
+  } else {
+    // Allocate result array.
+    Object* result = AllocateJSArray();
+    if (result->IsFailure()) return result;
+    result_array = JSArray::cast(result);
 
-  // Set elements.
-  result_array->set_elements(result_elms);
+    result = Heap::AllocateUninitializedFixedArray(actualDeleteCount);
+    if (result->IsFailure()) return result;
+    FixedArray* result_elms = FixedArray::cast(result);
 
-  // Set the length.
-  result_array->set_length(Smi::FromInt(actualDeleteCount));
+    AssertNoAllocation no_gc;
+    // Fill newly created array.
+    CopyElements(&no_gc, result_elms, 0, elms, actualStart, actualDeleteCount);
+
+    // Set elements.
+    result_array->set_elements(result_elms);
+
+    // Set the length.
+    result_array->set_length(Smi::FromInt(actualDeleteCount));
+  }
 
   int itemCount = (n_arguments > 1) ? (n_arguments - 2) : 0;
 
@@ -647,6 +651,7 @@ BUILTIN(ArraySplice) {
 
   if (itemCount < actualDeleteCount) {
     // Shrink the array.
+    AssertNoAllocation no_gc;
     MoveElements(&no_gc,
                  elms, actualStart + itemCount,
                  elms, actualStart + actualDeleteCount,
@@ -667,6 +672,7 @@ BUILTIN(ArraySplice) {
       if (obj->IsFailure()) return obj;
       FixedArray* new_elms = FixedArray::cast(obj);
 
+      AssertNoAllocation no_gc;
       // Copy the part before actualStart as is.
       CopyElements(&no_gc, new_elms, 0, elms, 0, actualStart);
       FillWithHoles(new_elms, new_length, capacity);
@@ -676,12 +682,14 @@ BUILTIN(ArraySplice) {
       array->set_elements(elms);
     }
 
+    AssertNoAllocation no_gc;
     MoveElements(&no_gc,
                  elms, actualStart + itemCount,
                  source_elms, actualStart + actualDeleteCount,
                  (len - actualDeleteCount - actualStart));
   }
 
+  AssertNoAllocation no_gc;
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
   for (int k = actualStart; k < actualStart + itemCount; k++) {
     elms->set(k, args[3 + k - actualStart], mode);
