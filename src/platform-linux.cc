@@ -331,8 +331,8 @@ void OS::LogSharedLibraryAddresses() {
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
 
     int c;
-    if (attr_r == 'r' && attr_x == 'x') {
-      // Found a readable and executable entry. Skip characters until we reach
+    if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
+      // Found a read-only executable entry. Skip characters until we reach
       // the beginning of the filename or the end of the line.
       do {
         c = getc(fp);
