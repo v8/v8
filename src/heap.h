@@ -450,8 +450,15 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateFixedArray(int length, PretenureFlag pretenure);
-  // Allocate uninitialized, non-tenured fixed array with length elements.
+  // Allocates a fixed array initialized with undefined values
   static Object* AllocateFixedArray(int length);
+
+  // Allocates an uninitialized fixed array. It must be filled by the caller.
+  //
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateUninitializedFixedArray(int length);
 
   // Make a copy of src and return it. Returns
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.

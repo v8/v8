@@ -2967,6 +2967,18 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
 }
 
 
+Object* Heap::AllocateUninitializedFixedArray(int length) {
+  if (length == 0) return empty_fixed_array();
+
+  Object* obj = AllocateRawFixedArray(length);
+  if (obj->IsFailure()) return obj;
+
+  reinterpret_cast<FixedArray*>(obj)->set_map(fixed_array_map());
+  FixedArray::cast(obj)->set_length(length);
+  return obj;
+}
+
+
 Object* Heap::AllocateFixedArrayWithHoles(int length) {
   if (length == 0) return empty_fixed_array();
   Object* result = AllocateRawFixedArray(length);

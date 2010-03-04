@@ -242,16 +242,6 @@ BUILTIN(ArrayCodeGeneric) {
 }
 
 
-static Object* AllocateUninitializedFixedArray(int len) {
-  Object* obj = Heap::AllocateRawFixedArray(len);
-  if (obj->IsFailure()) return obj;
-
-  reinterpret_cast<FixedArray*>(obj)->set_map(Heap::fixed_array_map());
-  FixedArray::cast(obj)->set_length(len);
-  return obj;
-}
-
-
 static Object* AllocateJSArray() {
   JSFunction* array_function =
       Top::context()->global_context()->array_function();
@@ -363,7 +353,7 @@ BUILTIN(ArrayPush) {
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = AllocateUninitializedFixedArray(capacity);
+    Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
     if (obj->IsFailure()) return obj;
     FixedArray* new_elms = FixedArray::cast(obj);
 
@@ -473,7 +463,7 @@ BUILTIN(ArrayUnshift) {
   if (new_length > elms->length()) {
     // New backing storage is needed.
     int capacity = new_length + (new_length >> 1) + 16;
-    Object* obj = AllocateUninitializedFixedArray(capacity);
+    Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
     if (obj->IsFailure()) return obj;
     FixedArray* new_elms = FixedArray::cast(obj);
 
@@ -553,7 +543,7 @@ BUILTIN(ArraySlice) {
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
 
-  result = AllocateUninitializedFixedArray(result_len);
+  result = Heap::AllocateUninitializedFixedArray(result_len);
   if (result->IsFailure()) return result;
   FixedArray* result_elms = FixedArray::cast(result);
 
@@ -622,7 +612,7 @@ BUILTIN(ArraySplice) {
   if (result->IsFailure()) return result;
   JSArray* result_array = JSArray::cast(result);
 
-  result = AllocateUninitializedFixedArray(actualDeleteCount);
+  result = Heap::AllocateUninitializedFixedArray(actualDeleteCount);
   if (result->IsFailure()) return result;
   FixedArray* result_elms = FixedArray::cast(result);
 
@@ -660,7 +650,7 @@ BUILTIN(ArraySplice) {
     if (new_length > elms->length()) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      Object* obj = AllocateUninitializedFixedArray(capacity);
+      Object* obj = Heap::AllocateUninitializedFixedArray(capacity);
       if (obj->IsFailure()) return obj;
       FixedArray* new_elms = FixedArray::cast(obj);
 

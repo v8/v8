@@ -530,11 +530,7 @@ function StringSplit(separator, limit) {
     var separator_length = separator.length;
 
     // If the separator string is empty then return the elements in the subject.
-    if (separator_length === 0) {
-      var result = $Array(length);
-      for (var i = 0; i < length; i++) result[i] = subject[i];
-      return result;
-    }
+    if (separator_length === 0) return %StringToArray(subject);
 
     var result = [];
     var start_index = 0;

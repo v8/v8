@@ -163,6 +163,7 @@ namespace internal {
   F(StringReplaceRegExpWithString, 4, 1) \
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \
+  F(StringToArray, 1, 1) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2, 1) \
