@@ -3430,18 +3430,25 @@ void DescriptorArray::Sort() {
   int len = number_of_descriptors();
 
   // Bottom-up max-heap construction.
-  for (int i = 1; i < len; ++i) {
-    int child_index = i;
-    while (child_index > 0) {
-      int parent_index = ((child_index + 1) >> 1) - 1;
-      uint32_t parent_hash = GetKey(parent_index)->Hash();
+  // Index of the last node with children
+  const int max_parent_index = (len / 2) - 1;
+  for (int i = max_parent_index; i >= 0; --i) {
+    int parent_index = i;
+    const uint32_t parent_hash = GetKey(i)->Hash();
+    while (parent_index <= max_parent_index) {
+      int child_index = 2 * parent_index + 1;
       uint32_t child_hash = GetKey(child_index)->Hash();
-      if (parent_hash < child_hash) {
-        Swap(parent_index, child_index);
-      } else {
-        break;
+      if (child_index + 1 < len) {
+        uint32_t right_child_hash = GetKey(child_index + 1)->Hash();
+        if (right_child_hash > child_hash) {
+          child_index++;
+          child_hash = right_child_hash;
+        }
       }
-      child_index = parent_index;
+      if (child_hash <= parent_hash) break;
+      Swap(parent_index, child_index);
+      // Now element at child_index could be < its children.
+      parent_index = child_index;  // parent_hash remains correct.
     }
   }
 
@@ -3451,21 +3458,21 @@ void DescriptorArray::Sort() {
     Swap(0, i);
     // Sift down the new top element.
     int parent_index = 0;
-    while (true) {
-      int child_index = ((parent_index + 1) << 1) - 1;
-      if (child_index >= i) break;
-      uint32_t child1_hash = GetKey(child_index)->Hash();
-      uint32_t child2_hash = GetKey(child_index + 1)->Hash();
-      uint32_t parent_hash = GetKey(parent_index)->Hash();
-      if (child_index + 1 >= i || child1_hash > child2_hash) {
-        if (parent_hash > child1_hash) break;
-        Swap(parent_index, child_index);
-        parent_index = child_index;
-      } else {
-        if (parent_hash > child2_hash) break;
-        Swap(parent_index, child_index + 1);
-        parent_index = child_index + 1;
+    const uint32_t parent_hash = GetKey(parent_index)->Hash();
+    const int max_parent_index = (i / 2) - 1;
+    while (parent_index <= max_parent_index) {
+      int child_index = parent_index * 2 + 1;
+      uint32_t child_hash = GetKey(child_index)->Hash();
+      if (child_index + 1 < i) {
+        uint32_t right_child_hash = GetKey(child_index + 1)->Hash();
+        if (right_child_hash > child_hash) {
+          child_index++;
+          child_hash = right_child_hash;
+        }
       }
+      if (child_hash <= parent_hash) break;
+      Swap(parent_index, child_index);
+      parent_index = child_index;
     }
   }
 
