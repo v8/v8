@@ -302,6 +302,10 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
 
 DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
+  // BUG(632): Disable this test until the partial_snapshots branch is
+  // merged back.
+  return;
+
   v8::HandleScope scope;
 
   Deserialize();
@@ -330,6 +334,10 @@ DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
 
 DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                SerializeTwice) {
+  // BUG(632): Disable this test until the partial_snapshots branch is
+  // merged back.
+  return;
+
   v8::HandleScope scope;
 
   Deserialize();
