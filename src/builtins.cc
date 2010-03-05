@@ -665,8 +665,6 @@ BUILTIN(ArraySplice) {
     // we should never hit this case.
     ASSERT((item_count - actual_delete_count) <= (Smi::kMaxValue - len));
 
-    FixedArray* source_elms = elms;
-
     // Check if array need to grow.
     if (new_length > elms->length()) {
       // New backing storage is needed.
@@ -678,18 +676,21 @@ BUILTIN(ArraySplice) {
       AssertNoAllocation no_gc;
       // Copy the part before actual_start as is.
       CopyElements(&no_gc, new_elms, 0, elms, 0, actual_start);
+      CopyElements(&no_gc,
+                   new_elms, actual_start + item_count,
+                   elms, actual_start + actual_delete_count,
+                   (len - actual_delete_count - actual_start));
       FillWithHoles(new_elms, new_length, capacity);
 
-      source_elms = elms;
       elms = new_elms;
       array->set_elements(elms);
+    } else {
+      AssertNoAllocation no_gc;
+      MoveElements(&no_gc,
+                   elms, actual_start + item_count,
+                   elms, actual_start + actual_delete_count,
+                   (len - actual_delete_count - actual_start));
     }
-
-    AssertNoAllocation no_gc;
-    MoveElements(&no_gc,
-                 elms, actual_start + item_count,
-                 source_elms, actual_start + actual_delete_count,
-                 (len - actual_delete_count - actual_start));
   }
 
   AssertNoAllocation no_gc;
