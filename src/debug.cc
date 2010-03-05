@@ -757,6 +757,12 @@ bool Debug::Load() {
   bool caught_exception =
       !CompileDebuggerScript(Natives::GetIndex("mirror")) ||
       !CompileDebuggerScript(Natives::GetIndex("debug"));
+
+  if (FLAG_enable_liveedit) {
+    caught_exception = caught_exception ||
+        !CompileDebuggerScript(Natives::GetIndex("liveedit"));
+  }
+
   Debugger::set_compiling_natives(false);
 
   // Make sure we mark the debugger as not loading before we might
@@ -1963,7 +1969,8 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 
 
 // Handle debugger actions when a new script is compiled.
-void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
+void Debugger::OnAfterCompile(Handle<Script> script,
+                              AfterCompileFlags after_compile_flags) {
   HandleScope scope;
 
   // Add the newly compiled script to the script cache.
@@ -2010,7 +2017,7 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
     return;
   }
   // Bail out based on state or if there is no listener for this event
-  if (in_debugger) return;
+  if (in_debugger && (after_compile_flags & SEND_WHEN_DEBUGGING) == 0) return;
   if (!Debugger::EventActive(v8::AfterCompile)) return;
 
   // Create the compile state object.

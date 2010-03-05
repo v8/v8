@@ -117,6 +117,14 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+Handle<Code> MakeCodeForLiveEdit(CompilationInfo* info) {
+  Handle<Context> context = Handle<Context>::null();
+  return MakeCode(context, info);
+}
+#endif
+
+
 static Handle<JSFunction> MakeFunction(bool is_global,
                                        bool is_eval,
                                        Compiler::ValidationState validate,
@@ -224,7 +232,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
-  Debugger::OnAfterCompile(script, fun);
+  Debugger::OnAfterCompile(script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
 
   return fun;

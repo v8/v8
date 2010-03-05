@@ -562,6 +562,7 @@
           '../../src/messages.js',
           '../../src/apinatives.js',
           '../../src/debug-delay.js',
+          '../../src/liveedit-delay.js',
           '../../src/mirror-delay.js',
           '../../src/date-delay.js',
           '../../src/json-delay.js',

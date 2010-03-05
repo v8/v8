@@ -325,7 +325,13 @@ namespace internal {
   F(SystemBreak, 0, 1) \
   F(DebugDisassembleFunction, 1, 1) \
   F(DebugDisassembleConstructor, 1, 1) \
-  F(FunctionGetInferredName, 1, 1)
+  F(FunctionGetInferredName, 1, 1) \
+  F(LiveEditFindSharedFunctionInfosForScript, 1, 1) \
+  F(LiveEditGatherCompileInfo, 2, 1) \
+  F(LiveEditReplaceScript, 3, 1) \
+  F(LiveEditReplaceFunctionCode, 2, 1) \
+  F(LiveEditRelinkFunctionToScript, 2, 1) \
+  F(LiveEditPatchFunctionPositions, 2, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
 #endif

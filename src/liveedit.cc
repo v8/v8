@@ -39,49 +39,38 @@ namespace v8 {
 namespace internal {
 
 
-class FunctionInfoListener {
- public:
-  void FunctionStarted(FunctionLiteral* fun) {
-    // Implementation follows.
+#ifdef ENABLE_DEBUGGER_SUPPORT
+
+static void CompileScriptForTracker(Handle<Script> script) {
+  const bool is_eval = false;
+  const bool is_global = true;
+  // TODO: support extensions.
+  Extension* extension = NULL;
+
+  PostponeInterruptsScope postpone;
+
+  // Only allow non-global compiles for eval.
+  ASSERT(is_eval || is_global);
+
+  // Build AST.
+  ScriptDataImpl* pre_data = NULL;
+  FunctionLiteral* lit = MakeAST(is_global, script, extension, pre_data);
+
+  // Check for parse errors.
+  if (lit == NULL) {
+    ASSERT(Top::has_pending_exception());
+    return;
   }
 
-  void FunctionDone() {
-    // Implementation follows.
-  }
+  // Compile the code.
+  CompilationInfo info(lit, script, is_eval);
+  Handle<Code> code = MakeCodeForLiveEdit(&info);
 
-  void FunctionScope(Scope* scope) {
-    // Implementation follows.
+  // Check for stack-overflow exceptions.
+  if (code.is_null()) {
+    Top::StackOverflow();
+    return;
   }
-
-  void FunctionCode(Handle<Code> function_code) {
-    // Implementation follows.
-  }
-};
-
-static FunctionInfoListener* active_function_info_listener = NULL;
-
-LiveEditFunctionTracker::LiveEditFunctionTracker(FunctionLiteral* fun) {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionStarted(fun);
-  }
-}
-LiveEditFunctionTracker::~LiveEditFunctionTracker() {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionDone();
-  }
-}
-void LiveEditFunctionTracker::RecordFunctionCode(Handle<Code> code) {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionCode(code);
-  }
-}
-void LiveEditFunctionTracker::RecordFunctionScope(Scope* scope) {
-  if (active_function_info_listener != NULL) {
-    active_function_info_listener->FunctionScope(scope);
-  }
-}
-bool LiveEditFunctionTracker::IsActive() {
-  return active_function_info_listener != NULL;
 }
 
 // Unwraps JSValue object, returning its field "value"
@@ -186,6 +175,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kScopeInfoOffset_ = 5;
   static const int kParentIndexOffset_ = 6;
   static const int kSize_ = 7;
+
+  friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };
 
 // Wraps SharedFunctionInfo along with some of its fields for passing it
@@ -219,7 +210,273 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
   static const int kEndPositionOffset_ = 2;
   static const int kSharedInfoOffset_ = 3;
   static const int kSize_ = 4;
+
+  friend class JSArrayBasedStruct<SharedInfoWrapper>;
 };
+
+class FunctionInfoListener {
+ public:
+  FunctionInfoListener() {
+    current_parent_index_ = -1;
+    len_ = 0;
+    result_ = Factory::NewJSArray(10);
+  }
+
+  void FunctionStarted(FunctionLiteral* fun) {
+    HandleScope scope;
+    FunctionInfoWrapper info = FunctionInfoWrapper::Create();
+    info.SetInitialProperties(fun->name(), fun->start_position(),
+                              fun->end_position(), fun->num_parameters(),
+                              current_parent_index_);
+    current_parent_index_ = len_;
+    SetElement(result_, len_, info.GetJSArray());
+    len_++;
+  }
+
+  void FunctionDone() {
+    HandleScope scope;
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    current_parent_index_ = info.GetParentIndex();
+  }
+
+  void FunctionScope(Scope* scope) {
+    HandleScope handle_scope;
+
+    Handle<JSArray> scope_info_list = Factory::NewJSArray(10);
+    int scope_info_length = 0;
+
+    // Saves some description of scope. It stores name and indexes of
+    // variables in the whole scope chain. Null-named slots delimit
+    // scopes of this chain.
+    Scope* outer_scope = scope->outer_scope();
+    if (outer_scope == NULL) {
+      return;
+    }
+    do {
+      ZoneList<Variable*> list(10);
+      outer_scope->CollectUsedVariables(&list);
+      int j = 0;
+      for (int i = 0; i < list.length(); i++) {
+        Variable* var1 = list[i];
+        Slot* slot = var1->slot();
+        if (slot != NULL && slot->type() == Slot::CONTEXT) {
+          if (j != i) {
+            list[j] = var1;
+          }
+          j++;
+        }
+      }
+
+      // Sort it.
+      for (int k = 1; k < j; k++) {
+        int l = k;
+        for (int m = k + 1; m < j; m++) {
+          if (list[l]->slot()->index() > list[m]->slot()->index()) {
+            l = m;
+          }
+        }
+        list[k] = list[l];
+      }
+      for (int i = 0; i < j; i++) {
+        SetElement(scope_info_list, scope_info_length, list[i]->name());
+        scope_info_length++;
+        SetElement(scope_info_list, scope_info_length,
+                   Handle<Smi>(Smi::FromInt(list[i]->slot()->index())));
+        scope_info_length++;
+      }
+      SetElement(scope_info_list, scope_info_length,
+                 Handle<Object>(Heap::null_value()));
+      scope_info_length++;
+
+      outer_scope = outer_scope->outer_scope();
+    } while (outer_scope != NULL);
+
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    info.SetScopeInfo(scope_info_list);
+  }
+
+  void FunctionCode(Handle<Code> function_code) {
+    FunctionInfoWrapper info =
+        FunctionInfoWrapper::cast(result_->GetElement(current_parent_index_));
+    info.SetFunctionCode(function_code);
+  }
+
+  Handle<JSArray> GetResult() {
+    return result_;
+  }
+
+ private:
+  Handle<JSArray> result_;
+  int len_;
+  int current_parent_index_;
+};
+
+static FunctionInfoListener* active_function_info_listener = NULL;
+
+JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
+                                     Handle<String> source) {
+  CompilationZoneScope zone_scope(DELETE_ON_EXIT);
+
+  FunctionInfoListener listener;
+  script->set_source(*source);
+  active_function_info_listener = &listener;
+  Handle<Object> original_source = Handle<Object>(script->source());
+  CompileScriptForTracker(script);
+  active_function_info_listener = NULL;
+  script->set_source(*original_source);
+
+  return *(listener.GetResult());
+}
+
+
+void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
+  HandleScope scope;
+  int len = Smi::cast(array->length())->value();
+  for (int i = 0; i < len; i++) {
+    Handle<SharedFunctionInfo> info(
+        SharedFunctionInfo::cast(array->GetElement(i)));
+    SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create();
+    Handle<String> name_handle(String::cast(info->name()));
+    info_wrapper.SetProperties(name_handle, info->start_position(),
+                               info->end_position(), info);
+    array->SetElement(i, *(info_wrapper.GetJSArray()));
+  }
+}
+
+
+void LiveEdit::ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                 Handle<JSArray> shared_info_array) {
+  HandleScope scope;
+
+  FunctionInfoWrapper compile_info_wrapper(new_compile_info_array);
+  SharedInfoWrapper shared_info_wrapper(shared_info_array);
+
+  Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
+
+  shared_info->set_code(*(compile_info_wrapper.GetFunctionCode()),
+                        UPDATE_WRITE_BARRIER);
+  shared_info->set_start_position(compile_info_wrapper.GetStartPosition());
+  shared_info->set_end_position(compile_info_wrapper.GetEndPosition());
+  // update breakpoints, original code, constructor stub
+}
+
+
+void LiveEdit::RelinkFunctionToScript(Handle<JSArray> shared_info_array,
+                                      Handle<Script> script_handle) {
+  SharedInfoWrapper shared_info_wrapper(shared_info_array);
+  Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
+
+  shared_info->set_script(*script_handle);
+}
+
+
+// For a script text change (defined as position_change_array), translates
+// position in unchanged text to position in changed text.
+// Text change is a set of non-overlapping regions in text, that have changed
+// their contents and length. It is specified as array of groups of 3 numbers:
+// (change_begin, change_end, change_end_new_position).
+// Each group describes a change in text; groups are sorted by change_begin.
+// Only position in text beyond any changes may be successfully translated.
+// If a positions is inside some region that changed, result is currently
+// undefined.
+static int TranslatePosition(int original_position,
+                             Handle<JSArray> position_change_array) {
+  int position_diff = 0;
+  int array_len = Smi::cast(position_change_array->length())->value();
+  // TODO: binary search may be used here
+  for (int i = 0; i < array_len; i += 3) {
+    int chunk_start =
+        Smi::cast(position_change_array->GetElement(i))->value();
+    int chunk_end =
+        Smi::cast(position_change_array->GetElement(i + 1))->value();
+    int chunk_changed_end =
+        Smi::cast(position_change_array->GetElement(i + 2))->value();
+    position_diff = chunk_changed_end - chunk_end;
+    if (original_position < chunk_start) {
+      break;
+    }
+    // Position mustn't be inside a chunk.
+    ASSERT(original_position >= chunk_end);
+  }
+
+  return original_position + position_diff;
+}
+
+
+void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
+                                      Handle<JSArray> position_change_array) {
+  SharedInfoWrapper shared_info_wrapper(shared_info_array);
+  Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
+
+  info->set_start_position(TranslatePosition(info->start_position(),
+                                             position_change_array));
+  info->set_end_position(TranslatePosition(info->end_position(),
+                                           position_change_array));
+
+  // Also patch rinfos (both in working code and original code), breakpoints.
+}
+
+
+LiveEditFunctionTracker::LiveEditFunctionTracker(FunctionLiteral* fun) {
+  if (active_function_info_listener != NULL) {
+    active_function_info_listener->FunctionStarted(fun);
+  }
+}
+
+
+LiveEditFunctionTracker::~LiveEditFunctionTracker() {
+  if (active_function_info_listener != NULL) {
+    active_function_info_listener->FunctionDone();
+  }
+}
+
+
+void LiveEditFunctionTracker::RecordFunctionCode(Handle<Code> code) {
+  if (active_function_info_listener != NULL) {
+    active_function_info_listener->FunctionCode(code);
+  }
+}
+
+
+void LiveEditFunctionTracker::RecordFunctionScope(Scope* scope) {
+  if (active_function_info_listener != NULL) {
+    active_function_info_listener->FunctionScope(scope);
+  }
+}
+
+
+bool LiveEditFunctionTracker::IsActive() {
+  return active_function_info_listener != NULL;
+}
+
+
+#else  // ENABLE_DEBUGGER_SUPPORT
+
+// This ifdef-else-endif section provides working or stub implementation of
+// LiveEditFunctionTracker.
+LiveEditFunctionTracker::LiveEditFunctionTracker(FunctionLiteral* fun) {
+}
+
+
+LiveEditFunctionTracker::~LiveEditFunctionTracker() {
+}
+
+
+void LiveEditFunctionTracker::RecordFunctionCode(Handle<Code> code) {
+}
+
+
+void LiveEditFunctionTracker::RecordFunctionScope(Scope* scope) {
+}
+
+
+bool LiveEditFunctionTracker::IsActive() {
+  return false;
+}
+
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 

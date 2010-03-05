@@ -38,6 +38,7 @@
 #include "debug.h"
 #include "execution.h"
 #include "jsregexp.h"
+#include "liveedit.h"
 #include "parser.h"
 #include "platform.h"
 #include "runtime.h"
@@ -8290,6 +8291,157 @@ static Object* Runtime_FunctionGetInferredName(Arguments args) {
   CONVERT_CHECKED(JSFunction, f, args[0]);
   return f->shared()->inferred_name();
 }
+
+
+static int FindSharedFunctionInfosForScript(Script* script,
+                                     FixedArray* buffer) {
+  AssertNoAllocation no_allocations;
+
+  int counter = 0;
+  int buffer_size = buffer->length();
+  HeapIterator iterator;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    ASSERT(obj != NULL);
+    if (!obj->IsSharedFunctionInfo()) {
+      continue;
+    }
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+    if (shared->script() != script) {
+      continue;
+    }
+    if (counter < buffer_size) {
+      buffer->set(counter, shared);
+    }
+    counter++;
+  }
+  return counter;
+}
+
+// For a script finds all SharedFunctionInfo's in the heap that points
+// to this script. Returns JSArray of SharedFunctionInfo wrapped
+// in OpaqueReferences.
+static Object* Runtime_LiveEditFindSharedFunctionInfosForScript(
+    Arguments args) {
+  ASSERT(args.length() == 1);
+  HandleScope scope;
+  CONVERT_CHECKED(JSValue, script_value, args[0]);
+
+  Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
+
+  const int kBufferSize = 32;
+
+  Handle<FixedArray> array;
+  array = Factory::NewFixedArray(kBufferSize);
+  int number = FindSharedFunctionInfosForScript(*script, *array);
+  if (number > kBufferSize) {
+    array = Factory::NewFixedArray(number);
+    FindSharedFunctionInfosForScript(*script, *array);
+  }
+
+  Handle<JSArray> result = Factory::NewJSArrayWithElements(array);
+  result->set_length(Smi::FromInt(number));
+
+  LiveEdit::WrapSharedFunctionInfos(result);
+
+  return *result;
+}
+
+// For a script calculates compilation information about all its functions.
+// The script source is explicitly specified by the second argument.
+// The source of the actual script is not used, however it is important that
+// all generated code keeps references to this particular instance of script.
+// Returns a JSArray of compilation infos. The array is ordered so that
+// each function with all its descendant is always stored in a continues range
+// with the function itself going first. The root function is a script function.
+static Object* Runtime_LiveEditGatherCompileInfo(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_CHECKED(JSValue, script, args[0]);
+  CONVERT_ARG_CHECKED(String, source, 1);
+  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  JSArray* result =  LiveEdit::GatherCompileInfo(script_handle, source);
+
+  if (Top::has_pending_exception()) {
+    return Failure::Exception();
+  }
+
+  return result;
+}
+
+// Changes the source of the script to a new_source and creates a new
+// script representing the old version of the script source.
+static Object* Runtime_LiveEditReplaceScript(Arguments args) {
+  ASSERT(args.length() == 3);
+  HandleScope scope;
+  CONVERT_CHECKED(JSValue, original_script_value, args[0]);
+  CONVERT_ARG_CHECKED(String, new_source, 1);
+  CONVERT_ARG_CHECKED(String, old_script_name, 2);
+  Handle<Script> original_script =
+      Handle<Script>(Script::cast(original_script_value->value()));
+
+  Handle<String> original_source(String::cast(original_script->source()));
+
+  original_script->set_source(*new_source);
+  Handle<Script> old_script = Factory::NewScript(original_source);
+  old_script->set_name(*old_script_name);
+  old_script->set_line_offset(original_script->line_offset());
+  old_script->set_column_offset(original_script->column_offset());
+  old_script->set_data(original_script->data());
+  old_script->set_type(original_script->type());
+  old_script->set_context_data(original_script->context_data());
+  old_script->set_compilation_type(original_script->compilation_type());
+  old_script->set_eval_from_shared(original_script->eval_from_shared());
+  old_script->set_eval_from_instructions_offset(
+      original_script->eval_from_instructions_offset());
+
+
+  Debugger::OnAfterCompile(old_script, Debugger::SEND_WHEN_DEBUGGING);
+
+  return *(GetScriptWrapper(old_script));
+}
+
+// Replaces code of SharedFunctionInfo with a new one.
+static Object* Runtime_LiveEditReplaceFunctionCode(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSArray, new_compile_info, 0);
+  CONVERT_ARG_CHECKED(JSArray, shared_info, 1);
+
+  LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
+
+  return Heap::undefined_value();
+}
+
+// Connects SharedFunctionInfo to another script.
+static Object* Runtime_LiveEditRelinkFunctionToScript(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSArray, shared_info_array, 0);
+  CONVERT_ARG_CHECKED(JSValue, script_value, 1);
+  Handle<Script> script = Handle<Script>(Script::cast(script_value->value()));
+
+  LiveEdit::RelinkFunctionToScript(shared_info_array, script);
+
+  return Heap::undefined_value();
+}
+
+// Updates positions of a shared function info (first parameter) according
+// to script source change. Text change is described in second parameter as
+// array of groups of 3 numbers:
+// (change_begin, change_end, change_end_new_position).
+// Each group describes a change in text; groups are sorted by change_begin.
+static Object* Runtime_LiveEditPatchFunctionPositions(Arguments args) {
+  ASSERT(args.length() == 2);
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(JSArray, shared_array, 0);
+  CONVERT_ARG_CHECKED(JSArray, position_change_array, 1);
+
+  LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
+
+  return Heap::undefined_value();
+}
+
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 

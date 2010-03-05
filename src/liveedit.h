@@ -73,6 +73,28 @@ class LiveEditFunctionTracker {
   static bool IsActive();
 };
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+
+class LiveEdit : AllStatic {
+ public:
+  static JSArray* GatherCompileInfo(Handle<Script> script,
+                                    Handle<String> source);
+
+  static void WrapSharedFunctionInfos(Handle<JSArray> array);
+
+  static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                  Handle<JSArray> shared_info_array);
+
+  static void RelinkFunctionToScript(Handle<JSArray> shared_info_array,
+                                     Handle<Script> script_handle);
+
+  static void PatchFunctionPositions(Handle<JSArray> shared_info_array,
+                                     Handle<JSArray> position_change_array);
+};
+
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
+
 } }  // namespace v8::internal
 
 #endif /* V*_LIVEEDIT_H_ */
