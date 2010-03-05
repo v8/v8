@@ -4216,21 +4216,33 @@ static Object* Runtime_StringTrim(Arguments args) {
 
 // Copies ascii characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
-// not in the cache. Returns the length of the successfully copied
-// prefix.
+// not in the cache and fills the remainder with smi zeros. Returns
+// the length of the successfully copied prefix.
 static int CopyCachedAsciiCharsToArray(const char* chars,
                                        FixedArray* elements,
                                        int length) {
   AssertNoAllocation nogc;
   FixedArray* ascii_cache = Heap::single_character_string_cache();
   Object* undefined = Heap::undefined_value();
-  for (int i = 0; i < length; ++i) {
+  int i;
+  for (i = 0; i < length; ++i) {
     Object* value = ascii_cache->get(chars[i]);
-    if (value == undefined) return i;
+    if (value == undefined) break;
     ASSERT(!Heap::InNewSpace(value));
     elements->set(i, value, SKIP_WRITE_BARRIER);
   }
-  return length;
+  if (i < length) {
+    ASSERT(Smi::FromInt(0) == 0);
+    memset(elements->data_start() + i, 0, length - i);
+  }
+#ifdef DEBUG
+  for (int j = 0; j < length; ++j) {
+    Object* element = elements->get(j);
+    ASSERT(element == Smi::FromInt(0) ||
+           (element->IsString() && String::cast(element)->LooksValid()));
+  }
+#endif
+  return i;
 }
 
 
@@ -4244,24 +4256,24 @@ static Object* Runtime_StringToArray(Arguments args) {
   s->TryFlatten();
   const int length = s->length();
 
-  Handle<FixedArray> elements = Factory::NewUninitializedFixedArray(length);
-  if (s->IsFlat()) {
-    if (s->IsAsciiRepresentation()) {
-      Vector<const char> chars = s->ToAsciiVector();
-      int num_copied_from_cache = CopyCachedAsciiCharsToArray(chars.start(),
-                                                              *elements,
-                                                              length);
-      for (int i = num_copied_from_cache; i < length; ++i) {
-        elements->set(i, *LookupSingleCharacterStringFromCode(chars[i]));
-      }
-    } else {
-      ASSERT(s->IsTwoByteRepresentation());
-      Vector<const uc16> chars = s->ToUC16Vector();
-      for (int i = 0; i < length; ++i) {
-        elements->set(i, *LookupSingleCharacterStringFromCode(chars[i]));
-      }
+  Handle<FixedArray> elements;
+  if (s->IsFlat() && s->IsAsciiRepresentation()) {
+    Object* obj = Heap::AllocateUninitializedFixedArray(length);
+    if (obj->IsFailure()) return obj;
+    elements = Handle<FixedArray>(FixedArray::cast(obj));
+
+    Vector<const char> chars = s->ToAsciiVector();
+    // Note, this will initialize all elements (not only the prefix)
+    // to prevent GC from seeing partially initialized array.
+    int num_copied_from_cache = CopyCachedAsciiCharsToArray(chars.start(),
+                                                            *elements,
+                                                            length);
+
+    for (int i = num_copied_from_cache; i < length; ++i) {
+      elements->set(i, *LookupSingleCharacterStringFromCode(chars[i]));
     }
   } else {
+    elements = Factory::NewFixedArray(length);
     for (int i = 0; i < length; ++i) {
       elements->set(i, *LookupSingleCharacterStringFromCode(s->Get(i)));
     }

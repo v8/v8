@@ -45,10 +45,6 @@ class Factory : public AllStatic {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a new uninitialized fixed array. It must be filled by
-  // the caller.
-  static Handle<FixedArray> NewUninitializedFixedArray(int size);
-
   // Allocate a new fixed array with non-existing entries (the hole).
   static Handle<FixedArray> NewFixedArrayWithHoles(int size);
 
