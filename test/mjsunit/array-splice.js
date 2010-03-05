@@ -31,13 +31,13 @@
     var array = new Array(10);
     var spliced = array.splice(1, 1, 'one', 'two');
     assertEquals(1, spliced.length);
-    assertFalse(0 in spliced, "0 in spliced: " + spliced);
+    assertFalse(0 in spliced, "0 in spliced");
 
     assertEquals(11, array.length);
-    assertFalse(0 in array, "0 in array: " + array);
+    assertFalse(0 in array, "0 in array");
     assertTrue(1 in array);
     assertTrue(2 in array);
-    assertFalse(3 in array, "3 in array: " + array);
+    assertFalse(3 in array, "3 in array");
   }
 })();
 
