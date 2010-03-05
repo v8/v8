@@ -339,6 +339,7 @@ static Object* CallJsBuiltin(const char* name,
                                           n_args,
                                           argv.start(),
                                           &pending_exception);
+  argv.Dispose();
   if (pending_exception) return Failure::Exception();
   return *result;
 }
