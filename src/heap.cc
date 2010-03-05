@@ -3081,7 +3081,7 @@ bool Heap::IdleNotification() {
   static int number_idle_notifications = 0;
   static int last_gc_count = gc_count_;
 
-  if (!FLAG_expose_gc && (contexts_disposed_ > 0)) {
+  if (contexts_disposed_ > 0) {
     HistogramTimerScope scope(&Counters::gc_context);
     CollectAllGarbage(false);
     ASSERT(contexts_disposed_ == 0);
