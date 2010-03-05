@@ -5280,7 +5280,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   }
 
   // Get number type of left and right sub-expressions.
-  NumberInfo::Type operands_type =
+  NumberInfo operands_type =
       NumberInfo::Combine(left.number_info(), right.number_info());
 
   Result answer;
@@ -5316,7 +5316,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   // Set NumberInfo of result according to the operation performed.
   // We rely on the fact that smis have a 32 bit payload on x64.
   ASSERT(kSmiValueSize == 32);
-  NumberInfo::Type result_type = NumberInfo::kUnknown;
+  NumberInfo result_type = NumberInfo::Unknown();
   switch (op) {
     case Token::COMMA:
       result_type = right.number_info();
@@ -5330,32 +5330,32 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND:
       // Result is always a smi.
-      result_type = NumberInfo::kSmi;
+      result_type = NumberInfo::Smi();
       break;
     case Token::SAR:
     case Token::SHL:
       // Result is always a smi.
-      result_type = NumberInfo::kSmi;
+      result_type = NumberInfo::Smi();
       break;
     case Token::SHR:
       // Result of x >>> y is always a smi if y >= 1, otherwise a number.
       result_type = (right.is_constant() && right.handle()->IsSmi()
                      && Smi::cast(*right.handle())->value() >= 1)
-          ? NumberInfo::kSmi
-          : NumberInfo::kNumber;
+          ? NumberInfo::Smi()
+          : NumberInfo::Number();
       break;
     case Token::ADD:
       // Result could be a string or a number. Check types of inputs.
-      result_type = NumberInfo::IsNumber(operands_type)
-          ? NumberInfo::kNumber
-          : NumberInfo::kUnknown;
+      result_type = operands_type.IsNumber()
+          ? NumberInfo::Number()
+          : NumberInfo::Unknown();
       break;
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD:
       // Result is always a number.
-      result_type = NumberInfo::kNumber;
+      result_type = NumberInfo::Number();
       break;
     default:
       UNREACHABLE();
@@ -8332,7 +8332,7 @@ const char* GenericBinaryOpStub::GetName() {
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
                use_sse3_ ? "SSE3" : "SSE2",
-               NumberInfo::ToString(operands_type_));
+               operands_type_.ToString());
   return name_;
 }
 
@@ -8656,7 +8656,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::DIV: {
       // rax: y
       // rdx: x
-      if (NumberInfo::IsNumber(operands_type_)) {
+      if (operands_type_.IsNumber()) {
         if (FLAG_debug_code) {
           // Assert at runtime that inputs are only numbers.
           __ AbortIfNotNumber(rdx, "GenericBinaryOpStub operand not a number.");

@@ -69,7 +69,7 @@ class VirtualFrame : public ZoneObject {
 
   // Create a duplicate of an existing valid frame element.
   FrameElement CopyElementAt(int index,
-                             NumberInfo::Type info = NumberInfo::kUnknown);
+                             NumberInfo info = NumberInfo::Unknown());
 
   // The number of elements on the virtual frame.
   int element_count() { return elements_.length(); }
@@ -344,7 +344,7 @@ class VirtualFrame : public ZoneObject {
   void EmitPushMultiple(int count, int src_regs);
 
   // Push an element on the virtual frame.
-  inline void Push(Register reg, NumberInfo::Type info = NumberInfo::kUnknown);
+  inline void Push(Register reg, NumberInfo info = NumberInfo::Unknown());
   inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 

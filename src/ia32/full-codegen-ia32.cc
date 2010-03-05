@@ -1130,7 +1130,8 @@ void FullCodeGenerator::EmitBinaryOp(Token::Value op,
   __ push(result_register());
   GenericBinaryOpStub stub(op,
                            NO_OVERWRITE,
-                           NO_GENERIC_BINARY_FLAGS);
+                           NO_GENERIC_BINARY_FLAGS,
+                           NumberInfo::Unknown());
   __ CallStub(&stub);
   Apply(context, eax);
 }
@@ -1744,7 +1745,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Call stub for +1/-1.
   GenericBinaryOpStub stub(expr->binary_op(),
                            NO_OVERWRITE,
-                           NO_GENERIC_BINARY_FLAGS);
+                           NO_GENERIC_BINARY_FLAGS,
+                           NumberInfo::Unknown());
   stub.GenerateCall(masm(), eax, Smi::FromInt(1));
   __ bind(&done);
 

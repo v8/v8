@@ -496,8 +496,8 @@ class CodeGenerator: public AstVisitor {
 
   // To prevent long attacker-controlled byte sequences, integer constants
   // from the JavaScript source are loaded in two parts if they are larger
-  // than 16 bits.
-  static const int kMaxSmiInlinedBits = 16;
+  // than 17 bits.
+  static const int kMaxSmiInlinedBits = 17;
   bool IsUnsafeSmi(Handle<Object> value);
   // Load an integer constant x into a register target or into the stack using
   // at most 16 bits of user-controlled data per assembly operation.
@@ -695,7 +695,7 @@ class GenericBinaryOpStub: public CodeStub {
   GenericBinaryOpStub(Token::Value op,
                       OverwriteMode mode,
                       GenericBinaryFlags flags,
-                      NumberInfo::Type operands_type = NumberInfo::kUnknown)
+                      NumberInfo operands_type)
       : op_(op),
         mode_(mode),
         flags_(flags),
@@ -704,6 +704,9 @@ class GenericBinaryOpStub: public CodeStub {
         static_operands_type_(operands_type),
         runtime_operands_type_(BinaryOpIC::DEFAULT),
         name_(NULL) {
+    if (static_operands_type_.IsSmi()) {
+      mode_ = NO_OVERWRITE;
+    }
     use_sse3_ = CpuFeatures::IsSupported(SSE3);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -715,7 +718,8 @@ class GenericBinaryOpStub: public CodeStub {
         args_in_registers_(ArgsInRegistersBits::decode(key)),
         args_reversed_(ArgsReversedBits::decode(key)),
         use_sse3_(SSE3Bits::decode(key)),
-        static_operands_type_(StaticTypeInfoBits::decode(key)),
+        static_operands_type_(NumberInfo::ExpandedRepresentation(
+            StaticTypeInfoBits::decode(key))),
         runtime_operands_type_(runtime_operands_type),
         name_(NULL) {
   }
@@ -741,7 +745,7 @@ class GenericBinaryOpStub: public CodeStub {
   bool use_sse3_;
 
   // Number type information of operands, determined by code generator.
-  NumberInfo::Type static_operands_type_;
+  NumberInfo static_operands_type_;
 
   // Operand type information determined at runtime.
   BinaryOpIC::TypeInfo runtime_operands_type_;
@@ -760,7 +764,7 @@ class GenericBinaryOpStub: public CodeStub {
            static_cast<int>(flags_),
            static_cast<int>(args_in_registers_),
            static_cast<int>(args_reversed_),
-           NumberInfo::ToString(static_operands_type_));
+           static_operands_type_.ToString());
   }
 #endif
 
@@ -771,7 +775,7 @@ class GenericBinaryOpStub: public CodeStub {
   class ArgsInRegistersBits: public BitField<bool, 10, 1> {};
   class ArgsReversedBits: public BitField<bool, 11, 1> {};
   class FlagBits: public BitField<GenericBinaryFlags, 12, 1> {};
-  class StaticTypeInfoBits: public BitField<NumberInfo::Type, 13, 3> {};
+  class StaticTypeInfoBits: public BitField<int, 13, 3> {};
   class RuntimeTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 16, 2> {};
 
   Major MajorKey() { return GenericBinaryOp; }
@@ -783,7 +787,8 @@ class GenericBinaryOpStub: public CodeStub {
            | SSE3Bits::encode(use_sse3_)
            | ArgsInRegistersBits::encode(args_in_registers_)
            | ArgsReversedBits::encode(args_reversed_)
-           | StaticTypeInfoBits::encode(static_operands_type_)
+           | StaticTypeInfoBits::encode(
+                 static_operands_type_.ThreeBitRepresentation())
            | RuntimeTypeInfoBits::encode(runtime_operands_type_);
   }
 

@@ -733,7 +733,27 @@ void CodeGenerator::ToBoolean(ControlDestination* dest) {
   Result value = frame_->Pop();
   value.ToRegister();
 
-  if (value.is_number()) {
+  if (value.is_integer32()) {  // Also takes Smi case.
+    Comment cmnt(masm_, "ONLY_INTEGER_32");
+    if (FLAG_debug_code) {
+      Label ok;
+      __ AbortIfNotNumber(value.reg(), "ToBoolean operand is not a number.");
+      __ test(value.reg(), Immediate(kSmiTagMask));
+      __ j(zero, &ok);
+      __ fldz();
+      __ fld_d(FieldOperand(value.reg(), HeapNumber::kValueOffset));
+      __ FCmp();
+      __ j(not_zero, &ok);
+      __ Abort("Smi was wrapped in HeapNumber in output from bitop");
+      __ bind(&ok);
+    }
+    // In the integer32 case there are no Smis hidden in heap numbers, so we
+    // need only test for Smi zero.
+    __ test(value.reg(), Operand(value.reg()));
+    dest->false_target()->Branch(zero);
+    value.Unuse();
+    dest->Split(not_zero);
+  } else if (value.is_number()) {
     Comment cmnt(masm_, "ONLY_NUMBER");
     // Fast case if NumberInfo indicates only numbers.
     if (FLAG_debug_code) {
@@ -817,8 +837,17 @@ class FloatingPointHelper : public AllStatic {
   // Takes the operands in edx and eax and loads them as integers in eax
   // and ecx.
   static void LoadAsIntegers(MacroAssembler* masm,
+                             NumberInfo number_info,
                              bool use_sse3,
                              Label* operand_conversion_failure);
+  static void LoadNumbersAsIntegers(MacroAssembler* masm,
+                                    NumberInfo number_info,
+                                    bool use_sse3,
+                                    Label* operand_conversion_failure);
+  static void LoadUnknownsAsIntegers(MacroAssembler* masm,
+                                     bool use_sse3,
+                                     Label* operand_conversion_failure);
+
   // Test if operands are smis or heap numbers and load them
   // into xmm0 and xmm1 if they are. Operands are in edx and eax.
   // Leaves operands unchanged.
@@ -856,7 +885,7 @@ const char* GenericBinaryOpStub::GetName() {
                (flags_ & NO_SMI_CODE_IN_STUB) ? "_NoSmiInStub" : "",
                args_in_registers_ ? "RegArgs" : "StackArgs",
                args_reversed_ ? "_R" : "",
-               NumberInfo::ToString(static_operands_type_),
+               static_operands_type_.ToString(),
                BinaryOpIC::GetName(runtime_operands_type_));
   return name_;
 }
@@ -869,8 +898,11 @@ class DeferredInlineBinaryOperation: public DeferredCode {
                                 Register dst,
                                 Register left,
                                 Register right,
+                                NumberInfo left_info,
+                                NumberInfo right_info,
                                 OverwriteMode mode)
-      : op_(op), dst_(dst), left_(left), right_(right), mode_(mode) {
+      : op_(op), dst_(dst), left_(left), right_(right),
+        left_info_(left_info), right_info_(right_info), mode_(mode) {
     set_comment("[ DeferredInlineBinaryOperation");
   }
 
@@ -881,6 +913,8 @@ class DeferredInlineBinaryOperation: public DeferredCode {
   Register dst_;
   Register left_;
   Register right_;
+  NumberInfo left_info_;
+  NumberInfo right_info_;
   OverwriteMode mode_;
 };
 
@@ -894,18 +928,22 @@ void DeferredInlineBinaryOperation::Generate() {
     CpuFeatures::Scope use_sse2(SSE2);
     Label call_runtime, after_alloc_failure;
     Label left_smi, right_smi, load_right, do_op;
-    __ test(left_, Immediate(kSmiTagMask));
-    __ j(zero, &left_smi);
-    __ cmp(FieldOperand(left_, HeapObject::kMapOffset),
-           Factory::heap_number_map());
-    __ j(not_equal, &call_runtime);
-    __ movdbl(xmm0, FieldOperand(left_, HeapNumber::kValueOffset));
-    if (mode_ == OVERWRITE_LEFT) {
-      __ mov(dst_, left_);
-    }
-    __ jmp(&load_right);
+    if (!left_info_.IsSmi()) {
+      __ test(left_, Immediate(kSmiTagMask));
+      __ j(zero, &left_smi);
+      if (!left_info_.IsNumber()) {
+        __ cmp(FieldOperand(left_, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        __ j(not_equal, &call_runtime);
+      }
+      __ movdbl(xmm0, FieldOperand(left_, HeapNumber::kValueOffset));
+      if (mode_ == OVERWRITE_LEFT) {
+        __ mov(dst_, left_);
+      }
+      __ jmp(&load_right);
 
-    __ bind(&left_smi);
+      __ bind(&left_smi);
+    }
     __ SmiUntag(left_);
     __ cvtsi2sd(xmm0, Operand(left_));
     __ SmiTag(left_);
@@ -917,23 +955,27 @@ void DeferredInlineBinaryOperation::Generate() {
     }
 
     __ bind(&load_right);
-    __ test(right_, Immediate(kSmiTagMask));
-    __ j(zero, &right_smi);
-    __ cmp(FieldOperand(right_, HeapObject::kMapOffset),
-           Factory::heap_number_map());
-    __ j(not_equal, &call_runtime);
-    __ movdbl(xmm1, FieldOperand(right_, HeapNumber::kValueOffset));
-    if (mode_ == OVERWRITE_RIGHT) {
-      __ mov(dst_, right_);
-    } else if (mode_ == NO_OVERWRITE) {
-      Label alloc_failure;
-      __ push(left_);
-      __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
-      __ pop(left_);
-    }
-    __ jmp(&do_op);
+    if (!right_info_.IsSmi()) {
+      __ test(right_, Immediate(kSmiTagMask));
+      __ j(zero, &right_smi);
+      if (!right_info_.IsNumber()) {
+        __ cmp(FieldOperand(right_, HeapObject::kMapOffset),
+               Factory::heap_number_map());
+        __ j(not_equal, &call_runtime);
+      }
+      __ movdbl(xmm1, FieldOperand(right_, HeapNumber::kValueOffset));
+      if (mode_ == OVERWRITE_RIGHT) {
+        __ mov(dst_, right_);
+      } else if (mode_ == NO_OVERWRITE) {
+        Label alloc_failure;
+        __ push(left_);
+        __ AllocateHeapNumber(dst_, left_, no_reg, &after_alloc_failure);
+        __ pop(left_);
+      }
+      __ jmp(&do_op);
 
-    __ bind(&right_smi);
+      __ bind(&right_smi);
+    }
     __ SmiUntag(right_);
     __ cvtsi2sd(xmm1, Operand(right_));
     __ SmiTag(right_);
@@ -959,10 +1001,102 @@ void DeferredInlineBinaryOperation::Generate() {
     __ pop(left_);
     __ bind(&call_runtime);
   }
-  GenericBinaryOpStub stub(op_, mode_, NO_SMI_CODE_IN_STUB);
+  GenericBinaryOpStub stub(op_,
+                           mode_,
+                           NO_SMI_CODE_IN_STUB,
+                           NumberInfo::Combine(left_info_, right_info_));
   stub.GenerateCall(masm_, left_, right_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
   __ bind(&done);
+}
+
+
+static NumberInfo CalculateNumberInfo(NumberInfo operands_type,
+                                      Token::Value op,
+                                      const Result& right,
+                                      const Result& left) {
+  // Set NumberInfo of result according to the operation performed.
+  // Rely on the fact that smis have a 31 bit payload on ia32.
+  ASSERT(kSmiValueSize == 31);
+  switch (op) {
+    case Token::COMMA:
+      return right.number_info();
+    case Token::OR:
+    case Token::AND:
+      // Result type can be either of the two input types.
+      return operands_type;
+    case Token::BIT_AND: {
+      // Anding with positive Smis will give you a Smi.
+      if (right.is_constant() && right.handle()->IsSmi() &&
+          Smi::cast(*right.handle())->value() >= 0) {
+        return NumberInfo::Smi();
+      } else if (left.is_constant() && left.handle()->IsSmi() &&
+          Smi::cast(*left.handle())->value() >= 0) {
+        return NumberInfo::Smi();
+      }
+      return (operands_type.IsSmi())
+          ? NumberInfo::Smi()
+          : NumberInfo::Integer32();
+    }
+    case Token::BIT_OR: {
+      // Oring with negative Smis will give you a Smi.
+      if (right.is_constant() && right.handle()->IsSmi() &&
+          Smi::cast(*right.handle())->value() < 0) {
+        return NumberInfo::Smi();
+      } else if (left.is_constant() && left.handle()->IsSmi() &&
+          Smi::cast(*left.handle())->value() < 0) {
+        return NumberInfo::Smi();
+      }
+      return (operands_type.IsSmi())
+          ? NumberInfo::Smi()
+          : NumberInfo::Integer32();
+    }
+    case Token::BIT_XOR:
+      // Result is always a 32 bit integer. Smi property of inputs is preserved.
+      return (operands_type.IsSmi())
+          ? NumberInfo::Smi()
+          : NumberInfo::Integer32();
+    case Token::SAR:
+      if (left.is_smi()) return NumberInfo::Smi();
+      // Result is a smi if we shift by a constant >= 1, otherwise an integer32.
+      return (right.is_constant() && right.handle()->IsSmi()
+                     && Smi::cast(*right.handle())->value() >= 1)
+          ? NumberInfo::Smi()
+          : NumberInfo::Integer32();
+    case Token::SHR:
+      // Result is a smi if we shift by a constant >= 2, otherwise an integer32.
+      return (right.is_constant() && right.handle()->IsSmi()
+                     && Smi::cast(*right.handle())->value() >= 2)
+          ? NumberInfo::Smi()
+          : NumberInfo::Integer32();
+    case Token::ADD:
+      if (operands_type.IsSmi()) {
+        // The Integer32 range is big enough to take the sum of any two Smis.
+        return NumberInfo::Integer32();
+      } else {
+        // Result could be a string or a number. Check types of inputs.
+        return operands_type.IsNumber()
+            ? NumberInfo::Number()
+            : NumberInfo::Unknown();
+      }
+    case Token::SHL:
+      return NumberInfo::Integer32();
+    case Token::SUB:
+      // The Integer32 range is big enough to take the difference of any two
+      // Smis.
+      return (operands_type.IsSmi()) ?
+                    NumberInfo::Integer32() :
+                    NumberInfo::Number();
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      // Result is always a number.
+      return NumberInfo::Number();
+    default:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+  return NumberInfo::Unknown();
 }
 
 
@@ -1021,8 +1155,10 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   }
 
   // Get number type of left and right sub-expressions.
-  NumberInfo::Type operands_type =
+  NumberInfo operands_type =
       NumberInfo::Combine(left.number_info(), right.number_info());
+
+  NumberInfo result_type = CalculateNumberInfo(operands_type, op, right, left);
 
   Result answer;
   if (left_is_non_smi_constant || right_is_non_smi_constant) {
@@ -1044,7 +1180,10 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // generate the inline Smi check code if this operation is part of a loop.
     // For all other operations only inline the Smi check code for likely smis
     // if the operation is part of a loop.
-    if (loop_nesting() > 0 && (Token::IsBitOp(op) || type->IsLikelySmi())) {
+    if (loop_nesting() > 0 &&
+        (Token::IsBitOp(op) ||
+         operands_type.IsInteger32() ||
+         type->IsLikelySmi())) {
       answer = LikelySmiBinaryOperation(op, &left, &right, overwrite_mode);
     } else {
       GenericBinaryOpStub stub(op,
@@ -1055,58 +1194,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     }
   }
 
-  // Set NumberInfo of result according to the operation performed.
-  // Rely on the fact that smis have a 31 bit payload on ia32.
-  ASSERT(kSmiValueSize == 31);
-  NumberInfo::Type result_type = NumberInfo::kUnknown;
-  switch (op) {
-    case Token::COMMA:
-      result_type = right.number_info();
-      break;
-    case Token::OR:
-    case Token::AND:
-      // Result type can be either of the two input types.
-      result_type = operands_type;
-      break;
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-      // Result is always a number. Smi property of inputs is preserved.
-      result_type = (operands_type == NumberInfo::kSmi)
-          ? NumberInfo::kSmi
-          : NumberInfo::kNumber;
-      break;
-    case Token::SAR:
-      // Result is a smi if we shift by a constant >= 1, otherwise a number.
-      result_type = (right.is_constant() && right.handle()->IsSmi()
-                     && Smi::cast(*right.handle())->value() >= 1)
-          ? NumberInfo::kSmi
-          : NumberInfo::kNumber;
-      break;
-    case Token::SHR:
-      // Result is a smi if we shift by a constant >= 2, otherwise a number.
-      result_type = (right.is_constant() && right.handle()->IsSmi()
-                     && Smi::cast(*right.handle())->value() >= 2)
-          ? NumberInfo::kSmi
-          : NumberInfo::kNumber;
-      break;
-    case Token::ADD:
-      // Result could be a string or a number. Check types of inputs.
-      result_type = NumberInfo::IsNumber(operands_type)
-          ? NumberInfo::kNumber
-          : NumberInfo::kUnknown;
-      break;
-    case Token::SHL:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD:
-      // Result is always a number.
-      result_type = NumberInfo::kNumber;
-      break;
-    default:
-      UNREACHABLE();
-  }
   answer.set_number_info(result_type);
   frame_->Push(&answer);
 }
@@ -1193,6 +1280,12 @@ bool CodeGenerator::FoldConstantSmis(Token::Value op, int left, int right) {
 }
 
 
+static void CheckTwoForSminess(MacroAssembler* masm,
+                               Register left, Register right, Register scratch,
+                               NumberInfo left_info, NumberInfo right_info,
+                               DeferredInlineBinaryOperation* deferred);
+
+
 // Implements a binary operation using a deferred code object and some
 // inline code to operate on smis quickly.
 Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
@@ -1273,6 +1366,8 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                           (op == Token::DIV) ? eax : edx,
                                           left->reg(),
                                           right->reg(),
+                                          left->number_info(),
+                                          right->number_info(),
                                           overwrite_mode);
     if (left->reg().is(right->reg())) {
       __ test(left->reg(), Immediate(kSmiTagMask));
@@ -1370,11 +1465,11 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                           answer.reg(),
                                           left->reg(),
                                           ecx,
+                                          left->number_info(),
+                                          right->number_info(),
                                           overwrite_mode);
-    __ mov(answer.reg(), left->reg());
-    __ or_(answer.reg(), Operand(ecx));
-    __ test(answer.reg(), Immediate(kSmiTagMask));
-    deferred->Branch(not_zero);
+    CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
+                       left->number_info(), right->number_info(), deferred);
 
     // Untag both operands.
     __ mov(answer.reg(), left->reg());
@@ -1444,16 +1539,12 @@ Result CodeGenerator::LikelySmiBinaryOperation(Token::Value op,
                                         answer.reg(),
                                         left->reg(),
                                         right->reg(),
+                                        left->number_info(),
+                                        right->number_info(),
                                         overwrite_mode);
-  if (left->reg().is(right->reg())) {
-    __ test(left->reg(), Immediate(kSmiTagMask));
-  } else {
-    __ mov(answer.reg(), left->reg());
-    __ or_(answer.reg(), Operand(right->reg()));
-    ASSERT(kSmiTag == 0);  // Adjust test if not the case.
-    __ test(answer.reg(), Immediate(kSmiTagMask));
-  }
-  deferred->Branch(not_zero);
+  CheckTwoForSminess(masm_, left->reg(), right->reg(), answer.reg(),
+                     left->number_info(), right->number_info(), deferred);
+
   __ mov(answer.reg(), left->reg());
   switch (op) {
     case Token::ADD:
@@ -1522,13 +1613,16 @@ class DeferredInlineSmiOperation: public DeferredCode {
   DeferredInlineSmiOperation(Token::Value op,
                              Register dst,
                              Register src,
+                             NumberInfo number_info,
                              Smi* value,
                              OverwriteMode overwrite_mode)
       : op_(op),
         dst_(dst),
         src_(src),
+        number_info_(number_info),
         value_(value),
         overwrite_mode_(overwrite_mode) {
+    if (number_info.IsSmi()) overwrite_mode_ = NO_OVERWRITE;
     set_comment("[ DeferredInlineSmiOperation");
   }
 
@@ -1538,6 +1632,7 @@ class DeferredInlineSmiOperation: public DeferredCode {
   Token::Value op_;
   Register dst_;
   Register src_;
+  NumberInfo number_info_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
@@ -1548,7 +1643,8 @@ void DeferredInlineSmiOperation::Generate() {
   GenericBinaryOpStub stub(
       op_,
       overwrite_mode_,
-      (op_ == Token::MOD) ? NO_GENERIC_BINARY_FLAGS : NO_SMI_CODE_IN_STUB);
+      (op_ == Token::MOD) ? NO_GENERIC_BINARY_FLAGS : NO_SMI_CODE_IN_STUB,
+      NumberInfo::Combine(NumberInfo::Smi(), number_info_));
   stub.GenerateCall(masm_, src_, value_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1562,9 +1658,11 @@ class DeferredInlineSmiOperationReversed: public DeferredCode {
                                      Register dst,
                                      Smi* value,
                                      Register src,
+                                     NumberInfo number_info,
                                      OverwriteMode overwrite_mode)
       : op_(op),
         dst_(dst),
+        number_info_(number_info),
         value_(value),
         src_(src),
         overwrite_mode_(overwrite_mode) {
@@ -1576,6 +1674,7 @@ class DeferredInlineSmiOperationReversed: public DeferredCode {
  private:
   Token::Value op_;
   Register dst_;
+  NumberInfo number_info_;
   Smi* value_;
   Register src_;
   OverwriteMode overwrite_mode_;
@@ -1583,7 +1682,11 @@ class DeferredInlineSmiOperationReversed: public DeferredCode {
 
 
 void DeferredInlineSmiOperationReversed::Generate() {
-  GenericBinaryOpStub igostub(op_, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  GenericBinaryOpStub igostub(
+      op_,
+      overwrite_mode_,
+      NO_SMI_CODE_IN_STUB,
+      NumberInfo::Combine(NumberInfo::Smi(), number_info_));
   igostub.GenerateCall(masm_, value_, src_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1595,9 +1698,14 @@ void DeferredInlineSmiOperationReversed::Generate() {
 class DeferredInlineSmiAdd: public DeferredCode {
  public:
   DeferredInlineSmiAdd(Register dst,
+                       NumberInfo number_info,
                        Smi* value,
                        OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+      : dst_(dst),
+        number_info_(number_info),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
+    if (number_info_.IsSmi()) overwrite_mode_ = NO_OVERWRITE;
     set_comment("[ DeferredInlineSmiAdd");
   }
 
@@ -1605,6 +1713,7 @@ class DeferredInlineSmiAdd: public DeferredCode {
 
  private:
   Register dst_;
+  NumberInfo number_info_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
@@ -1613,7 +1722,11 @@ class DeferredInlineSmiAdd: public DeferredCode {
 void DeferredInlineSmiAdd::Generate() {
   // Undo the optimistic add operation and call the shared stub.
   __ sub(Operand(dst_), Immediate(value_));
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  GenericBinaryOpStub igostub(
+      Token::ADD,
+      overwrite_mode_,
+      NO_SMI_CODE_IN_STUB,
+      NumberInfo::Combine(NumberInfo::Smi(), number_info_));
   igostub.GenerateCall(masm_, dst_, value_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1625,9 +1738,13 @@ void DeferredInlineSmiAdd::Generate() {
 class DeferredInlineSmiAddReversed: public DeferredCode {
  public:
   DeferredInlineSmiAddReversed(Register dst,
+                               NumberInfo number_info,
                                Smi* value,
                                OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+      : dst_(dst),
+        number_info_(number_info),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlineSmiAddReversed");
   }
 
@@ -1635,6 +1752,7 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 
  private:
   Register dst_;
+  NumberInfo number_info_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
@@ -1643,7 +1761,11 @@ class DeferredInlineSmiAddReversed: public DeferredCode {
 void DeferredInlineSmiAddReversed::Generate() {
   // Undo the optimistic add operation and call the shared stub.
   __ sub(Operand(dst_), Immediate(value_));
-  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  GenericBinaryOpStub igostub(
+      Token::ADD,
+      overwrite_mode_,
+      NO_SMI_CODE_IN_STUB,
+      NumberInfo::Combine(NumberInfo::Smi(), number_info_));
   igostub.GenerateCall(masm_, value_, dst_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1656,9 +1778,14 @@ void DeferredInlineSmiAddReversed::Generate() {
 class DeferredInlineSmiSub: public DeferredCode {
  public:
   DeferredInlineSmiSub(Register dst,
+                       NumberInfo number_info,
                        Smi* value,
                        OverwriteMode overwrite_mode)
-      : dst_(dst), value_(value), overwrite_mode_(overwrite_mode) {
+      : dst_(dst),
+        number_info_(number_info),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
+    if (number_info.IsSmi()) overwrite_mode_ = NO_OVERWRITE;
     set_comment("[ DeferredInlineSmiSub");
   }
 
@@ -1666,6 +1793,7 @@ class DeferredInlineSmiSub: public DeferredCode {
 
  private:
   Register dst_;
+  NumberInfo number_info_;
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
@@ -1674,7 +1802,11 @@ class DeferredInlineSmiSub: public DeferredCode {
 void DeferredInlineSmiSub::Generate() {
   // Undo the optimistic sub operation and call the shared stub.
   __ add(Operand(dst_), Immediate(value_));
-  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, NO_SMI_CODE_IN_STUB);
+  GenericBinaryOpStub igostub(
+      Token::SUB,
+      overwrite_mode_,
+      NO_SMI_CODE_IN_STUB,
+      NumberInfo::Combine(NumberInfo::Smi(), number_info_));
   igostub.GenerateCall(masm_, dst_, value_);
   if (!dst_.is(eax)) __ mov(dst_, eax);
 }
@@ -1718,17 +1850,21 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       DeferredCode* deferred = NULL;
       if (reversed) {
         deferred = new DeferredInlineSmiAddReversed(operand->reg(),
+                                                    operand->number_info(),
                                                     smi_value,
                                                     overwrite_mode);
       } else {
         deferred = new DeferredInlineSmiAdd(operand->reg(),
+                                            operand->number_info(),
                                             smi_value,
                                             overwrite_mode);
       }
       __ add(Operand(operand->reg()), Immediate(value));
       deferred->Branch(overflow);
-      __ test(operand->reg(), Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      if (!operand->number_info().IsSmi()) {
+        __ test(operand->reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+      }
       deferred->BindExit();
       answer = *operand;
       break;
@@ -1743,24 +1879,29 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
         __ Set(answer.reg(), Immediate(value));
-        deferred = new DeferredInlineSmiOperationReversed(op,
-                                                          answer.reg(),
-                                                          smi_value,
-                                                          operand->reg(),
-                                                          overwrite_mode);
+        deferred =
+            new DeferredInlineSmiOperationReversed(op,
+                                                   answer.reg(),
+                                                   smi_value,
+                                                   operand->reg(),
+                                                   operand->number_info(),
+                                                   overwrite_mode);
         __ sub(answer.reg(), Operand(operand->reg()));
       } else {
         operand->ToRegister();
         frame_->Spill(operand->reg());
         answer = *operand;
         deferred = new DeferredInlineSmiSub(operand->reg(),
+                                            operand->number_info(),
                                             smi_value,
                                             overwrite_mode);
         __ sub(Operand(operand->reg()), Immediate(value));
       }
       deferred->Branch(overflow);
-      __ test(answer.reg(), Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      if (!operand->number_info().IsSmi()) {
+        __ test(answer.reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+      }
       deferred->BindExit();
       operand->Unuse();
       break;
@@ -1777,19 +1918,27 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
         int shift_value = int_value & 0x1f;
         operand->ToRegister();
         frame_->Spill(operand->reg());
-        DeferredInlineSmiOperation* deferred =
-            new DeferredInlineSmiOperation(op,
-                                           operand->reg(),
-                                           operand->reg(),
-                                           smi_value,
-                                           overwrite_mode);
-        __ test(operand->reg(), Immediate(kSmiTagMask));
-        deferred->Branch(not_zero);
-        if (shift_value > 0) {
-          __ sar(operand->reg(), shift_value);
-          __ and_(operand->reg(), ~kSmiTagMask);
+        if (!operand->number_info().IsSmi()) {
+          DeferredInlineSmiOperation* deferred =
+              new DeferredInlineSmiOperation(op,
+                                             operand->reg(),
+                                             operand->reg(),
+                                             operand->number_info(),
+                                             smi_value,
+                                             overwrite_mode);
+          __ test(operand->reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
+          if (shift_value > 0) {
+            __ sar(operand->reg(), shift_value);
+            __ and_(operand->reg(), ~kSmiTagMask);
+          }
+          deferred->BindExit();
+        } else {
+          if (shift_value > 0) {
+            __ sar(operand->reg(), shift_value);
+            __ and_(operand->reg(), ~kSmiTagMask);
+          }
         }
-        deferred->BindExit();
         answer = *operand;
       }
       break;
@@ -1810,10 +1959,13 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
             new DeferredInlineSmiOperation(op,
                                            answer.reg(),
                                            operand->reg(),
+                                           operand->number_info(),
                                            smi_value,
                                            overwrite_mode);
-        __ test(operand->reg(), Immediate(kSmiTagMask));
-        deferred->Branch(not_zero);
+        if (!operand->number_info().IsSmi()) {
+          __ test(operand->reg(), Immediate(kSmiTagMask));
+          deferred->Branch(not_zero);
+        }
         __ mov(answer.reg(), operand->reg());
         __ SmiUntag(answer.reg());
         __ shr(answer.reg(), shift_value);
@@ -1855,10 +2007,13 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
                                                    answer.reg(),
                                                    smi_value,
                                                    right.reg(),
+                                                   right.number_info(),
                                                    overwrite_mode);
         __ mov(answer.reg(), Immediate(int_value));
         __ sar(ecx, kSmiTagSize);
-        deferred->Branch(carry);
+        if (!right.number_info().IsSmi()) {
+          deferred->Branch(carry);
+        }
         __ shl_cl(answer.reg());
         __ cmp(answer.reg(), 0xc0000000);
         deferred->Branch(sign);
@@ -1877,6 +2032,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
               new DeferredInlineSmiOperation(op,
                                              operand->reg(),
                                              operand->reg(),
+                                             operand->number_info(),
                                              smi_value,
                                              overwrite_mode);
           __ test(operand->reg(), Immediate(kSmiTagMask));
@@ -1891,10 +2047,13 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
               new DeferredInlineSmiOperation(op,
                                              answer.reg(),
                                              operand->reg(),
+                                             operand->number_info(),
                                              smi_value,
                                              overwrite_mode);
-          __ test(operand->reg(), Immediate(kSmiTagMask));
-          deferred->Branch(not_zero);
+          if (!operand->number_info().IsSmi()) {
+            __ test(operand->reg(), Immediate(kSmiTagMask));
+            deferred->Branch(not_zero);
+          }
           __ mov(answer.reg(), operand->reg());
           ASSERT(kSmiTag == 0);  // adjust code if not the case
           // We do no shifts, only the Smi conversion, if shift_value is 1.
@@ -1918,20 +2077,25 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
       frame_->Spill(operand->reg());
       DeferredCode* deferred = NULL;
       if (reversed) {
-        deferred = new DeferredInlineSmiOperationReversed(op,
-                                                          operand->reg(),
-                                                          smi_value,
-                                                          operand->reg(),
-                                                          overwrite_mode);
+        deferred =
+            new DeferredInlineSmiOperationReversed(op,
+                                                   operand->reg(),
+                                                   smi_value,
+                                                   operand->reg(),
+                                                   operand->number_info(),
+                                                   overwrite_mode);
       } else {
         deferred =  new DeferredInlineSmiOperation(op,
                                                    operand->reg(),
                                                    operand->reg(),
+                                                   operand->number_info(),
                                                    smi_value,
                                                    overwrite_mode);
       }
-      __ test(operand->reg(), Immediate(kSmiTagMask));
-      deferred->Branch(not_zero);
+      if (!operand->number_info().IsSmi()) {
+        __ test(operand->reg(), Immediate(kSmiTagMask));
+        deferred->Branch(not_zero);
+      }
       if (op == Token::BIT_AND) {
         __ and_(Operand(operand->reg()), Immediate(value));
       } else if (op == Token::BIT_XOR) {
@@ -1958,6 +2122,7 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
             new DeferredInlineSmiOperation(op,
                                            operand->reg(),
                                            operand->reg(),
+                                           operand->number_info(),
                                            smi_value,
                                            overwrite_mode);
         // Check that lowest log2(value) bits of operand are zero, and test
@@ -1989,11 +2154,13 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
           (IsPowerOf2(int_value) || IsPowerOf2(-int_value))) {
         operand->ToRegister();
         frame_->Spill(operand->reg());
-        DeferredCode* deferred = new DeferredInlineSmiOperation(op,
-                                                                operand->reg(),
-                                                                operand->reg(),
-                                                                smi_value,
-                                                                overwrite_mode);
+        DeferredCode* deferred =
+            new DeferredInlineSmiOperation(op,
+                                           operand->reg(),
+                                           operand->reg(),
+                                           operand->number_info(),
+                                           smi_value,
+                                           overwrite_mode);
         // Check for negative or non-Smi left hand side.
         __ test(operand->reg(), Immediate(kSmiTagMask | 0x80000000));
         deferred->Branch(not_zero);
@@ -2027,6 +2194,8 @@ Result CodeGenerator::ConstantSmiBinaryOperation(Token::Value op,
 
 
 static bool CouldBeNaN(const Result& result) {
+  if (result.number_info().IsSmi()) return false;
+  if (result.number_info().IsInteger32()) return false;
   if (!result.is_constant()) return true;
   if (!result.handle()->IsHeapNumber()) return false;
   return isnan(HeapNumber::cast(*result.handle())->value());
@@ -7130,8 +7299,10 @@ Result CodeGenerator::EmitKeyedLoad() {
     deferred->Branch(not_equal);
 
     // Check that the key is a smi.
-    __ test(key.reg(), Immediate(kSmiTagMask));
-    deferred->Branch(not_zero);
+    if (!key.is_smi()) {
+      __ test(key.reg(), Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    }
 
     // Get the elements array from the receiver and check that it
     // is not a dictionary.
@@ -7274,6 +7445,34 @@ Result CodeGenerator::EmitKeyedStore(StaticType* key_type) {
 
 #undef __
 #define __ ACCESS_MASM(masm)
+
+
+static void CheckTwoForSminess(MacroAssembler* masm,
+                               Register left, Register right, Register scratch,
+                               NumberInfo left_info, NumberInfo right_info,
+                               DeferredInlineBinaryOperation* deferred) {
+  if (left.is(right)) {
+    if (!left_info.IsSmi()) {
+      __ test(left, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    }
+  } else if (!left_info.IsSmi()) {
+    if (!right_info.IsSmi()) {
+      __ mov(scratch, left);
+      __ or_(scratch, Operand(right));
+      __ test(scratch, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    } else {
+      __ test(left, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    }
+  } else {
+    if (!right_info.IsSmi()) {
+      __ test(right, Immediate(kSmiTagMask));
+      deferred->Branch(not_zero);
+    }
+  }
+}
 
 
 Handle<String> Reference::GetName() {
@@ -7776,6 +7975,22 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
     __ mov(left, Operand(esp, 2 * kPointerSize));
   }
 
+  if (static_operands_type_.IsSmi()) {
+    if (op_ == Token::BIT_OR) {
+      __ or_(right, Operand(left));
+      GenerateReturn(masm);
+      return;
+    } else if (op_ == Token::BIT_AND) {
+      __ and_(right, Operand(left));
+      GenerateReturn(masm);
+      return;
+    } else if (op_ == Token::BIT_XOR) {
+      __ xor_(right, Operand(left));
+      GenerateReturn(masm);
+      return;
+    }
+  }
+
   // 2. Prepare the smi check of both operands by oring them together.
   Comment smi_check_comment(masm, "-- Smi check arguments");
   Label not_smis;
@@ -8112,7 +8327,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         Label not_floats;
         if (CpuFeatures::IsSupported(SSE2)) {
           CpuFeatures::Scope use_sse2(SSE2);
-          if (NumberInfo::IsNumber(static_operands_type_)) {
+          if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
               // Assert at runtime that inputs are only numbers.
               __ AbortIfNotNumber(edx,
@@ -8120,7 +8335,11 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
               __ AbortIfNotNumber(eax,
                                   "GenericBinaryOpStub operand not a number.");
             }
-            FloatingPointHelper::LoadSSE2Operands(masm);
+            if (static_operands_type_.IsSmi()) {
+              FloatingPointHelper::LoadSSE2Smis(masm, ecx);
+            } else {
+              FloatingPointHelper::LoadSSE2Operands(masm);
+            }
           } else {
             FloatingPointHelper::LoadSSE2Operands(masm, &call_runtime);
           }
@@ -8136,7 +8355,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
           GenerateReturn(masm);
         } else {  // SSE2 not available, use FPU.
-          if (NumberInfo::IsNumber(static_operands_type_)) {
+          if (static_operands_type_.IsNumber()) {
             if (FLAG_debug_code) {
               // Assert at runtime that inputs are only numbers.
               __ AbortIfNotNumber(edx,
@@ -8190,7 +8409,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       case Token::SHL:
       case Token::SHR: {
         Label non_smi_result;
-        FloatingPointHelper::LoadAsIntegers(masm, use_sse3_, &call_runtime);
+        FloatingPointHelper::LoadAsIntegers(masm,
+                                            static_operands_type_,
+                                            use_sse3_,
+                                            &call_runtime);
         switch (op_) {
           case Token::BIT_OR:  __ or_(eax, Operand(ecx)); break;
           case Token::BIT_AND: __ and_(eax, Operand(ecx)); break;
@@ -8719,24 +8941,29 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
 // trashed registers.
 void IntegerConvert(MacroAssembler* masm,
                     Register source,
+                    NumberInfo number_info,
                     bool use_sse3,
                     Label* conversion_failure) {
   ASSERT(!source.is(ecx) && !source.is(edi) && !source.is(ebx));
   Label done, right_exponent, normal_exponent;
   Register scratch = ebx;
   Register scratch2 = edi;
-  // Get exponent word.
-  __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
-  // Get exponent alone in scratch2.
-  __ mov(scratch2, scratch);
-  __ and_(scratch2, HeapNumber::kExponentMask);
+  if (!number_info.IsInteger32() || !use_sse3) {
+    // Get exponent word.
+    __ mov(scratch, FieldOperand(source, HeapNumber::kExponentOffset));
+    // Get exponent alone in scratch2.
+    __ mov(scratch2, scratch);
+    __ and_(scratch2, HeapNumber::kExponentMask);
+  }
   if (use_sse3) {
     CpuFeatures::Scope scope(SSE3);
-    // Check whether the exponent is too big for a 64 bit signed integer.
-    static const uint32_t kTooBigExponent =
-        (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
-    __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
-    __ j(greater_equal, conversion_failure);
+    if (!number_info.IsInteger32()) {
+      // Check whether the exponent is too big for a 64 bit signed integer.
+      static const uint32_t kTooBigExponent =
+          (HeapNumber::kExponentBias + 63) << HeapNumber::kExponentShift;
+      __ cmp(Operand(scratch2), Immediate(kTooBigExponent));
+      __ j(greater_equal, conversion_failure);
+    }
     // Load x87 register with heap number.
     __ fld_d(FieldOperand(source, HeapNumber::kValueOffset));
     // Reserve space for 64 bit answer.
@@ -8850,16 +9077,66 @@ void IntegerConvert(MacroAssembler* masm,
 
 // Input: edx, eax are the left and right objects of a bit op.
 // Output: eax, ecx are left and right integers for a bit op.
-void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
-                                         bool use_sse3,
-                                         Label* conversion_failure) {
+void FloatingPointHelper::LoadNumbersAsIntegers(MacroAssembler* masm,
+                                                NumberInfo number_info,
+                                                bool use_sse3,
+                                                Label* conversion_failure) {
   // Check float operands.
   Label arg1_is_object, check_undefined_arg1;
   Label arg2_is_object, check_undefined_arg2;
   Label load_arg2, done;
 
+  if (!number_info.IsHeapNumber()) {
+    if (!number_info.IsSmi()) {
+      __ test(edx, Immediate(kSmiTagMask));
+      __ j(not_zero, &arg1_is_object);
+    }
+    __ SmiUntag(edx);
+    __ jmp(&load_arg2);
+  }
+
+  __ bind(&arg1_is_object);
+
+  // Get the untagged integer version of the edx heap number in ecx.
+  IntegerConvert(masm, edx, number_info, use_sse3, conversion_failure);
+  __ mov(edx, ecx);
+
+  // Here edx has the untagged integer, eax has a Smi or a heap number.
+  __ bind(&load_arg2);
+  if (!number_info.IsHeapNumber()) {
+    // Test if arg2 is a Smi.
+    if (!number_info.IsSmi()) {
+      __ test(eax, Immediate(kSmiTagMask));
+      __ j(not_zero, &arg2_is_object);
+    }
+    __ SmiUntag(eax);
+    __ mov(ecx, eax);
+    __ jmp(&done);
+  }
+
+  __ bind(&arg2_is_object);
+
+  // Get the untagged integer version of the eax heap number in ecx.
+  IntegerConvert(masm, eax, number_info, use_sse3, conversion_failure);
+  __ bind(&done);
+  __ mov(eax, edx);
+}
+
+
+// Input: edx, eax are the left and right objects of a bit op.
+// Output: eax, ecx are left and right integers for a bit op.
+void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
+                                                 bool use_sse3,
+                                                 Label* conversion_failure) {
+  // Check float operands.
+  Label arg1_is_object, check_undefined_arg1;
+  Label arg2_is_object, check_undefined_arg2;
+  Label load_arg2, done;
+
+  // Test if arg1 is a Smi.
   __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &arg1_is_object);
+
   __ SmiUntag(edx);
   __ jmp(&load_arg2);
 
@@ -8874,15 +9151,22 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
   __ cmp(ebx, Factory::heap_number_map());
   __ j(not_equal, &check_undefined_arg1);
+
   // Get the untagged integer version of the edx heap number in ecx.
-  IntegerConvert(masm, edx, use_sse3, conversion_failure);
+  IntegerConvert(masm,
+                 edx,
+                 NumberInfo::Unknown(),
+                 use_sse3,
+                 conversion_failure);
   __ mov(edx, ecx);
 
   // Here edx has the untagged integer, eax has a Smi or a heap number.
   __ bind(&load_arg2);
+
   // Test if arg2 is a Smi.
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, &arg2_is_object);
+
   __ SmiUntag(eax);
   __ mov(ecx, eax);
   __ jmp(&done);
@@ -8898,10 +9182,27 @@ void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ cmp(ebx, Factory::heap_number_map());
   __ j(not_equal, &check_undefined_arg2);
+
   // Get the untagged integer version of the eax heap number in ecx.
-  IntegerConvert(masm, eax, use_sse3, conversion_failure);
+  IntegerConvert(masm,
+                 eax,
+                 NumberInfo::Unknown(),
+                 use_sse3,
+                 conversion_failure);
   __ bind(&done);
   __ mov(eax, edx);
+}
+
+
+void FloatingPointHelper::LoadAsIntegers(MacroAssembler* masm,
+                                         NumberInfo number_info,
+                                         bool use_sse3,
+                                         Label* conversion_failure) {
+  if (number_info.IsNumber()) {
+    LoadNumbersAsIntegers(masm, number_info, use_sse3, conversion_failure);
+  } else {
+    LoadUnknownsAsIntegers(masm, use_sse3, conversion_failure);
+  }
 }
 
 
@@ -9141,7 +9442,11 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     __ j(not_equal, &slow, not_taken);
 
     // Convert the heap number in eax to an untagged integer in ecx.
-    IntegerConvert(masm, eax, CpuFeatures::IsSupported(SSE3), &slow);
+    IntegerConvert(masm,
+                   eax,
+                   NumberInfo::Unknown(),
+                   CpuFeatures::IsSupported(SSE3),
+                   &slow);
 
     // Do the bitwise operation and check if the result fits in a smi.
     Label try_float;
