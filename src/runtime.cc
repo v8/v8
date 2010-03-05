@@ -5742,6 +5742,7 @@ static Object* Runtime_DebugPrint(Arguments args) {
   }
   args[0]->Print();
   if (args[0]->IsHeapObject()) {
+    PrintF("\n");
     HeapObject::cast(args[0])->map()->Print();
   }
 #else

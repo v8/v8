@@ -937,13 +937,18 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ test(ecx, Operand(ecx));
   __ j(not_zero, &not_empty_array);
 
-  // Case above assumes there is only a single slot to drop in
-  // ret, but we have two.
-  for (int i = push_count; i >= 0; i--) {
+  // The single argument passed is zero, so we jump to the code above used to
+  // handle the case of no arguments passed. To adapt the stack for that we move
+  // the return address and the pushed constructor (if pushed) one stack slot up
+  // thereby removing the passed argument. Argc is also on the stack - at the
+  // bottom - and it needs to be changed from 1 to 0 to have the call into the
+  // runtime system work in case a GC is required.
+  for (int i = push_count; i > 0; i--) {
     __ mov(eax, Operand(esp, i * kPointerSize));
     __ mov(Operand(esp, (i + 1) * kPointerSize), eax);
   }
-  __ add(Operand(esp), Immediate(kPointerSize));
+  __ add(Operand(esp), Immediate(2 * kPointerSize));  // Drop two stack slots.
+  __ push(Immediate(0));  // Treat this as a call with argc of zero.
   __ jmp(&empty_array);
 
   __ bind(&not_empty_array);
