@@ -4233,7 +4233,7 @@ static int CopyCachedAsciiCharsToArray(const char* chars,
   }
   if (i < length) {
     ASSERT(Smi::FromInt(0) == 0);
-    memset(elements->data_start() + i, 0, length - i);
+    memset(elements->data_start() + i, 0, kPointerSize * (length - i));
   }
 #ifdef DEBUG
   for (int j = 0; j < length; ++j) {
