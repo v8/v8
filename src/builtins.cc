@@ -514,21 +514,21 @@ BUILTIN(ArraySlice) {
   int n_arguments = args.length() - 1;
 
   // Note carefully choosen defaults---if argument is missing,
-  // it's undefined which gets converted to 0 for relativeStart
-  // and to len for relativeEnd.
-  int relativeStart = 0;
-  int relativeEnd = len;
+  // it's undefined which gets converted to 0 for relative_start
+  // and to len for relative_end.
+  int relative_start = 0;
+  int relative_end = len;
   if (n_arguments > 0) {
     Object* arg1 = args[1];
     if (arg1->IsSmi()) {
-      relativeStart = Smi::cast(arg1)->value();
+      relative_start = Smi::cast(arg1)->value();
     } else if (!arg1->IsUndefined()) {
       return CallJsBuiltin("ArraySlice", args);
     }
     if (n_arguments > 1) {
       Object* arg2 = args[2];
       if (arg2->IsSmi()) {
-        relativeEnd = Smi::cast(arg2)->value();
+        relative_end = Smi::cast(arg2)->value();
       } else if (!arg2->IsUndefined()) {
         return CallJsBuiltin("ArraySlice", args);
       }
@@ -536,12 +536,12 @@ BUILTIN(ArraySlice) {
   }
 
   // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 6.
-  int k = (relativeStart < 0) ? Max(len + relativeStart, 0)
-                              : Min(relativeStart, len);
+  int k = (relative_start < 0) ? Max(len + relative_start, 0)
+                               : Min(relative_start, len);
 
   // ECMAScript 232, 3rd Edition, Section 15.4.4.10, step 8.
-  int final = (relativeEnd < 0) ? Max(len + relativeEnd, 0)
-                                : Min(relativeEnd, len);
+  int final = (relative_end < 0) ? Max(len + relative_end, 0)
+                                 : Min(relative_end, len);
 
   // Calculate the length of result array.
   int result_len = final - k;
@@ -592,35 +592,35 @@ BUILTIN(ArraySplice) {
     return Heap::undefined_value();
   }
 
-  int relativeStart = 0;
+  int relative_start = 0;
   Object* arg1 = args[1];
   if (arg1->IsSmi()) {
-    relativeStart = Smi::cast(arg1)->value();
+    relative_start = Smi::cast(arg1)->value();
   } else if (!arg1->IsUndefined()) {
     return CallJsBuiltin("ArraySplice", args);
   }
-  int actualStart = (relativeStart < 0) ? Max(len + relativeStart, 0)
-                                        : Min(relativeStart, len);
+  int actual_start = (relative_start < 0) ? Max(len + relative_start, 0)
+                                          : Min(relative_start, len);
 
   // SpiderMonkey, TraceMonkey and JSC treat the case where no delete count is
   // given differently from when an undefined delete count is given.
   // This does not follow ECMA-262, but we do the same for
   // compatibility.
-  int deleteCount = len;
+  int delete_count = len;
   if (n_arguments > 1) {
     Object* arg2 = args[2];
     if (arg2->IsSmi()) {
-      deleteCount = Smi::cast(arg2)->value();
+      delete_count = Smi::cast(arg2)->value();
     } else {
       return CallJsBuiltin("ArraySplice", args);
     }
   }
-  int actualDeleteCount = Min(Max(deleteCount, 0), len - actualStart);
+  int actual_delete_count = Min(Max(delete_count, 0), len - actual_start);
 
   FixedArray* elms = FixedArray::cast(array->elements());
 
   JSArray* result_array = NULL;
-  if (actualDeleteCount == 0) {
+  if (actual_delete_count == 0) {
     Object* result = AllocateEmptyJSArray();
     if (result->IsFailure()) return result;
     result_array = JSArray::cast(result);
@@ -630,37 +630,40 @@ BUILTIN(ArraySplice) {
     if (result->IsFailure()) return result;
     result_array = JSArray::cast(result);
 
-    result = Heap::AllocateUninitializedFixedArray(actualDeleteCount);
+    result = Heap::AllocateUninitializedFixedArray(actual_delete_count);
     if (result->IsFailure()) return result;
     FixedArray* result_elms = FixedArray::cast(result);
 
     AssertNoAllocation no_gc;
     // Fill newly created array.
-    CopyElements(&no_gc, result_elms, 0, elms, actualStart, actualDeleteCount);
+    CopyElements(&no_gc,
+                 result_elms, 0,
+                 elms, actual_start,
+                 actual_delete_count);
 
     // Set elements.
     result_array->set_elements(result_elms);
 
     // Set the length.
-    result_array->set_length(Smi::FromInt(actualDeleteCount));
+    result_array->set_length(Smi::FromInt(actual_delete_count));
   }
 
-  int itemCount = (n_arguments > 1) ? (n_arguments - 2) : 0;
+  int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
 
-  int new_length = len - actualDeleteCount + itemCount;
+  int new_length = len - actual_delete_count + item_count;
 
-  if (itemCount < actualDeleteCount) {
+  if (item_count < actual_delete_count) {
     // Shrink the array.
     AssertNoAllocation no_gc;
     MoveElements(&no_gc,
-                 elms, actualStart + itemCount,
-                 elms, actualStart + actualDeleteCount,
-                 (len - actualDeleteCount - actualStart));
+                 elms, actual_start + item_count,
+                 elms, actual_start + actual_delete_count,
+                 (len - actual_delete_count - actual_start));
     FillWithHoles(elms, new_length, len);
-  } else if (itemCount > actualDeleteCount) {
+  } else if (item_count > actual_delete_count) {
     // Currently fixed arrays cannot grow too big, so
     // we should never hit this case.
-    ASSERT((itemCount - actualDeleteCount) <= (Smi::kMaxValue - len));
+    ASSERT((item_count - actual_delete_count) <= (Smi::kMaxValue - len));
 
     FixedArray* source_elms = elms;
 
@@ -673,8 +676,8 @@ BUILTIN(ArraySplice) {
       FixedArray* new_elms = FixedArray::cast(obj);
 
       AssertNoAllocation no_gc;
-      // Copy the part before actualStart as is.
-      CopyElements(&no_gc, new_elms, 0, elms, 0, actualStart);
+      // Copy the part before actual_start as is.
+      CopyElements(&no_gc, new_elms, 0, elms, 0, actual_start);
       FillWithHoles(new_elms, new_length, capacity);
 
       source_elms = elms;
@@ -684,15 +687,15 @@ BUILTIN(ArraySplice) {
 
     AssertNoAllocation no_gc;
     MoveElements(&no_gc,
-                 elms, actualStart + itemCount,
-                 source_elms, actualStart + actualDeleteCount,
-                 (len - actualDeleteCount - actualStart));
+                 elms, actual_start + item_count,
+                 source_elms, actual_start + actual_delete_count,
+                 (len - actual_delete_count - actual_start));
   }
 
   AssertNoAllocation no_gc;
   WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
-  for (int k = actualStart; k < actualStart + itemCount; k++) {
-    elms->set(k, args[3 + k - actualStart], mode);
+  for (int k = actual_start; k < actual_start + item_count; k++) {
+    elms->set(k, args[3 + k - actual_start], mode);
   }
 
   // Set the length.
