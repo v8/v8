@@ -150,7 +150,15 @@ var knownProblems = {
   "DeleteHandleScopeExtensions": true,
 
   // That can only be invoked on Array.prototype.
-  "FinishArrayPrototypeSetup": true
+  "FinishArrayPrototypeSetup": true,
+
+  // LiveEdit feature is under development currently and has fragile input.
+  "LiveEditFindSharedFunctionInfosForScript": true,
+  "LiveEditGatherCompileInfo": true,
+  "LiveEditReplaceScript": true,
+  "LiveEditReplaceFunctionCode": true,
+  "LiveEditRelinkFunctionToScript": true,
+  "LiveEditPatchFunctionPositions": true
 };
 
 var currentlyUncallable = {

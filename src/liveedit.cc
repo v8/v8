@@ -44,7 +44,7 @@ namespace internal {
 static void CompileScriptForTracker(Handle<Script> script) {
   const bool is_eval = false;
   const bool is_global = true;
-  // TODO: support extensions.
+  // TODO(635): support extensions.
   Extension* extension = NULL;
 
   PostponeInterruptsScope postpone;
@@ -385,7 +385,7 @@ static int TranslatePosition(int original_position,
                              Handle<JSArray> position_change_array) {
   int position_diff = 0;
   int array_len = Smi::cast(position_change_array->length())->value();
-  // TODO: binary search may be used here
+  // TODO(635): binary search may be used here
   for (int i = 0; i < array_len; i += 3) {
     int chunk_start =
         Smi::cast(position_change_array->GetElement(i))->value();
