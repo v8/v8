@@ -237,27 +237,19 @@ class Expression: public AstNode {
   // side-effect free compiler.
   bool side_effect_free() { return SideEffectFreeField::decode(bitfields_); }
   void set_side_effect_free(bool is_side_effect_free) {
-    bitfields_ = (bitfields_ & ~SideEffectFreeField::mask()) |
-                 SideEffectFreeField::encode(is_side_effect_free);
+    bitfields_ &= ~SideEffectFreeField::mask();
+    bitfields_ |= SideEffectFreeField::encode(is_side_effect_free);
   }
 
-  // The number of unary and binary operations contained in the expression
-  // rooted at this node.  Valid only if side_effect_free() is true.
-  int expression_size() { return ExpressionSizeField::decode(bitfields_); }
-  void set_expression_size(int expression_size) {
-    bitfields_ = (bitfields_ & ~ExpressionSizeField::mask()) |
-        ExpressionSizeField::encode(Min(expression_size, ExpressionSizeMax));
+  // Will ToInt32 ECMA 262-3 9.5) or ToUunt32 (ECMA 262-3 9.6)
+  // be applied to the value of this expression?
+  // If so, we may be able to optimize the calculation of the value.
+  bool to_int32() { return ToInt32Field::decode(bitfields_); }
+  void set_to_int32(bool to_int32) {
+    bitfields_ &= ~ToInt32Field::mask();
+    bitfields_ |= ToInt32Field::encode(to_int32);
   }
 
-  // The number of expression stack slots needed to compute the expression
-  // rooted at this node.  Does not count the slot needed by the value
-  // computed by this expression. Valid only if side_effect_free() is true.
-  int stack_height() { return StackHeightField::decode(bitfields_); }
-  void set_stack_height(int stack_height) {
-    bitfields_ &= ~StackHeightField::mask();
-    bitfields_ |=
-        StackHeightField::encode(Min(stack_height, StackHeightMax));
-  }
 
  private:
   uint32_t bitfields_;
@@ -266,30 +258,9 @@ class Expression: public AstNode {
   DefinitionInfo* def_;
   ZoneList<DefinitionInfo*>* defined_vars_;
 
-  static const int SideEffectFreeFieldStart = 0;
-  static const int SideEffectFreeFieldLength = 1;
-  class SideEffectFreeField: public BitField<bool,
-                                             SideEffectFreeFieldStart,
-                                             SideEffectFreeFieldLength> {
-  };
-
-  static const int ExpressionSizeFieldStart =
-      SideEffectFreeFieldStart + SideEffectFreeFieldLength;
-  static const int ExpressionSizeFieldLength = 5;
-  static const int ExpressionSizeMax = (1 << ExpressionSizeFieldLength) - 1;
-  class ExpressionSizeField: public BitField<int,
-                                             ExpressionSizeFieldStart,
-                                             ExpressionSizeFieldLength> {
-  };
-
-  static const int StackHeightFieldStart =
-      ExpressionSizeFieldStart + ExpressionSizeFieldLength;
-  static const int StackHeightFieldLength = 5;
-  static const int StackHeightMax = (1 << StackHeightFieldLength) - 1;
-  class StackHeightField: public BitField<int,
-                                          StackHeightFieldStart,
-                                          StackHeightFieldLength> {
-  };
+  // Using template BitField<type, start, size>.
+  class SideEffectFreeField : public BitField<bool, 0, 1> {};
+  class ToInt32Field : public BitField<bool, 1, 1> {};
 };
 
 

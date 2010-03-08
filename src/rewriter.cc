@@ -245,12 +245,13 @@ void AstOptimizer::VisitVariableProxy(VariableProxy* node) {
       func_name_inferrer_.PushName(var->name());
     }
 
-    if (var->slot() != NULL) {
+    if (FLAG_safe_int32_compiler) {
       Slot* slot = var->slot();
-      node->set_side_effect_free(
-          (slot->type() == Slot::LOCAL  && !slot->is_arguments()) ||
-          slot->type() == Slot::PARAMETER);
-      // stack_height and expression_size remain 0.
+      if (slot != NULL) {
+        node->set_side_effect_free(
+            (slot->type() == Slot::LOCAL  && !slot->is_arguments()) ||
+            slot->type() == Slot::PARAMETER);
+      }
     }
   }
 }
@@ -261,7 +262,6 @@ void AstOptimizer::VisitLiteral(Literal* node) {
   if (literal->IsSmi()) {
     node->type()->SetAsLikelySmi();
     node->set_side_effect_free(true);
-    // stack_height and expression_size remain 0.
   } else if (literal->IsString()) {
     Handle<String> lit_str(Handle<String>::cast(literal));
     if (!Heap::prototype_symbol()->Equals(*lit_str)) {
@@ -269,7 +269,6 @@ void AstOptimizer::VisitLiteral(Literal* node) {
     }
   } else if (literal->IsHeapNumber()) {
     node->set_side_effect_free(true);
-    // stack_height and expression_size remain 0.
   }
 }
 
@@ -427,22 +426,26 @@ void AstOptimizer::VisitCallRuntime(CallRuntime* node) {
 
 void AstOptimizer::VisitUnaryOperation(UnaryOperation* node) {
   Visit(node->expression());
-  switch (node->op()) {
-    case Token::ADD:
-    case Token::SUB:
-      node->set_side_effect_free(node->expression()->side_effect_free());
-      node->set_expression_size(node->expression()->expression_size() + 1);
-      node->set_stack_height(node->expression()->stack_height());
-      break;
-    case Token::DELETE:
-    case Token::TYPEOF:
-    case Token::VOID:
-    case Token::BIT_NOT:
-    case Token::NOT:
-      break;
-    default:
-      UNREACHABLE();
-      break;
+  if (FLAG_safe_int32_compiler) {
+    switch (node->op()) {
+      case Token::BIT_NOT:
+        node->expression()->set_to_int32(true);
+        // Fall through.
+      case Token::ADD:
+      case Token::SUB:
+      case Token::NOT:
+        node->set_side_effect_free(node->expression()->side_effect_free());
+        break;
+      case Token::DELETE:
+      case Token::TYPEOF:
+      case Token::VOID:
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } else if (node->op() == Token::BIT_NOT) {
+    node->expression()->set_to_int32(true);
   }
 }
 
@@ -472,6 +475,8 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
       node->type()->SetAsLikelySmiIfUnknown();
       node->left()->type()->SetAsLikelySmiIfUnknown();
       node->right()->type()->SetAsLikelySmiIfUnknown();
+      node->left()->set_to_int32(true);
+      node->right()->set_to_int32(true);
       break;
     case Token::ADD:
     case Token::SUB:
@@ -513,32 +518,31 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
       }
     }
   }
-  switch (node->op()) {
-    case Token::COMMA:
-    case Token::OR:
-    case Token::AND:
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
-    case Token::MOD:
-      break;
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-      node->set_side_effect_free(node->left()->side_effect_free() &&
-                                 node->right()->side_effect_free());
-      node->set_expression_size(node->left()->expression_size() +
-                                node->right()->expression_size() + 1);
-      node->set_stack_height(Max(node->left()->stack_height(),
-                                 node->right()->stack_height() + 1));
-      break;
-    default:
-      UNREACHABLE();
-      break;
+
+  if (FLAG_safe_int32_compiler) {
+    switch (node->op()) {
+      case Token::COMMA:
+      case Token::OR:
+      case Token::AND:
+        break;
+      case Token::BIT_OR:
+      case Token::BIT_XOR:
+      case Token::BIT_AND:
+      case Token::SHL:
+      case Token::SAR:
+      case Token::SHR:
+      case Token::ADD:
+      case Token::SUB:
+      case Token::MUL:
+      case Token::DIV:
+      case Token::MOD:
+        node->set_side_effect_free(node->left()->side_effect_free() &&
+                                   node->right()->side_effect_free());
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
   }
 }
 
