@@ -1400,6 +1400,50 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first_object,
 }
 
 
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
+    Register instance_type,
+    Register scratch,
+    Label *failure) {
+  if (!scratch.is(instance_type)) {
+    movl(scratch, instance_type);
+  }
+
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+
+  andl(scratch, Immediate(kFlatAsciiStringMask));
+  cmpl(scratch, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+  j(not_equal, failure);
+}
+
+
+void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
+    Register first_object_instance_type,
+    Register second_object_instance_type,
+    Register scratch1,
+    Register scratch2,
+    Label* on_fail) {
+  // Load instance type for both strings.
+  movq(scratch1, first_object_instance_type);
+  movq(scratch2, second_object_instance_type);
+
+  // Check that both are flat ascii strings.
+  ASSERT(kNotStringTag != 0);
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+
+  andl(scratch1, Immediate(kFlatAsciiStringMask));
+  andl(scratch2, Immediate(kFlatAsciiStringMask));
+  // Interleave the bits to check both scratch1 and scratch2 in one test.
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  cmpl(scratch1,
+       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
+  j(not_equal, on_fail);
+}
+
+
 void MacroAssembler::Move(Register dst, Handle<Object> source) {
   ASSERT(!source->IsFailure());
   if (source->IsSmi()) {

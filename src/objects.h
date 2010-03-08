@@ -1969,6 +1969,8 @@ class HashTable: public FixedArray {
   static const int kEntrySize = Shape::kEntrySize;
   static const int kElementsStartOffset =
       kHeaderSize + kElementsStartIndex * kPointerSize;
+  static const int kCapacityOffset =
+      kHeaderSize + kCapacityIndex * kPointerSize;
 
   // Constant used for denoting a absent entry.
   static const int kNotFound = -1;

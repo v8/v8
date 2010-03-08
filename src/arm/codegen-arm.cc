@@ -7249,6 +7249,170 @@ void StringStubBase::GenerateCopyCharactersLong(MacroAssembler* masm,
 }
 
 
+void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                          Register c1,
+                                                          Register c2,
+                                                          Register scratch1,
+                                                          Register scratch2,
+                                                          Register scratch3,
+                                                          Register scratch4,
+                                                          Register scratch5,
+                                                          Label* not_found) {
+  // Register scratch3 is the general scratch register in this function.
+  Register scratch = scratch3;
+
+  // Make sure that both characters are not digits as such strings has a
+  // different hash algorithm. Don't try to look for these in the symbol table.
+  Label not_array_index;
+  __ sub(scratch, c1, Operand(static_cast<int>('0')));
+  __ cmp(scratch, Operand(static_cast<int>('9' - '0')));
+  __ b(hi, &not_array_index);
+  __ sub(scratch, c2, Operand(static_cast<int>('0')));
+  __ cmp(scratch, Operand(static_cast<int>('9' - '0')));
+
+  // If check failed combine both characters into single halfword.
+  // This is required by the contract of the method: code at the
+  // not_found branch expects this combination in c1 register
+  __ orr(c1, c1, Operand(c2, LSL, kBitsPerByte), LeaveCC, ls);
+  __ b(ls, not_found);
+
+  __ bind(&not_array_index);
+  // Calculate the two character string hash.
+  Register hash = scratch1;
+  GenerateHashInit(masm, hash, c1);
+  GenerateHashAddCharacter(masm, hash, c2);
+  GenerateHashGetHash(masm, hash);
+
+  // Collect the two characters in a register.
+  Register chars = c1;
+  __ orr(chars, chars, Operand(c2, LSL, kBitsPerByte));
+
+  // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
+  // hash:  hash of two character string.
+
+  // Load symbol table
+  // Load address of first element of the symbol table.
+  Register symbol_table = c2;
+  __ LoadRoot(symbol_table, Heap::kSymbolTableRootIndex);
+
+  // Load undefined value
+  Register undefined = scratch4;
+  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
+
+  // Calculate capacity mask from the symbol table capacity.
+  Register mask = scratch2;
+  __ ldr(mask, FieldMemOperand(symbol_table, SymbolTable::kCapacityOffset));
+  __ mov(mask, Operand(mask, ASR, 1));
+  __ sub(mask, mask, Operand(1));
+
+  // Calculate untagged address of the first element of the symbol table.
+  Register first_symbol_table_element = symbol_table;
+  __ add(first_symbol_table_element, symbol_table,
+         Operand(SymbolTable::kElementsStartOffset - kHeapObjectTag));
+
+  // Registers
+  // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
+  // hash:  hash of two character string
+  // mask:  capacity mask
+  // first_symbol_table_element: address of the first element of
+  //                             the symbol table
+  // scratch: -
+
+  // Perform a number of probes in the symbol table.
+  static const int kProbes = 4;
+  Label found_in_symbol_table;
+  Label next_probe[kProbes];
+  for (int i = 0; i < kProbes; i++) {
+    Register candidate = scratch5;  // Scratch register contains candidate.
+
+    // Calculate entry in symbol table.
+    if (i > 0) {
+      __ add(candidate, hash, Operand(SymbolTable::GetProbeOffset(i)));
+    } else {
+      __ mov(candidate, hash);
+    }
+
+    __ and_(candidate, candidate, Operand(mask));
+
+    // Load the entry from the symble table.
+    ASSERT_EQ(1, SymbolTable::kEntrySize);
+    __ ldr(candidate,
+           MemOperand(first_symbol_table_element,
+                      candidate,
+                      LSL,
+                      kPointerSizeLog2));
+
+    // If entry is undefined no string with this hash can be found.
+    __ cmp(candidate, undefined);
+    __ b(eq, not_found);
+
+    // If length is not 2 the string is not a candidate.
+    __ ldr(scratch, FieldMemOperand(candidate, String::kLengthOffset));
+    __ cmp(scratch, Operand(2));
+    __ b(ne, &next_probe[i]);
+
+    // Check that the candidate is a non-external ascii string.
+    __ ldr(scratch, FieldMemOperand(candidate, HeapObject::kMapOffset));
+    __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+    __ JumpIfInstanceTypeIsNotSequentialAscii(scratch, scratch,
+                                              &next_probe[i]);
+
+    // Check if the two characters match.
+    // Assumes that word load is little endian.
+    __ ldrh(scratch, FieldMemOperand(candidate, SeqAsciiString::kHeaderSize));
+    __ cmp(chars, scratch);
+    __ b(eq, &found_in_symbol_table);
+    __ bind(&next_probe[i]);
+  }
+
+  // No matching 2 character string found by probing.
+  __ jmp(not_found);
+
+  // Scratch register contains result when we fall through to here.
+  Register result = scratch;
+  __ bind(&found_in_symbol_table);
+  if (!result.is(r0)) {
+    __ mov(r0, result);
+  }
+}
+
+
+void StringStubBase::GenerateHashInit(MacroAssembler* masm,
+                                      Register hash,
+                                      Register character) {
+  // hash = character + (character << 10);
+  __ add(hash, character, Operand(character, LSL, 10));
+  // hash ^= hash >> 6;
+  __ eor(hash, hash, Operand(hash, ASR, 6));
+}
+
+
+void StringStubBase::GenerateHashAddCharacter(MacroAssembler* masm,
+                                              Register hash,
+                                              Register character) {
+  // hash += character;
+  __ add(hash, hash, Operand(character));
+  // hash += hash << 10;
+  __ add(hash, hash, Operand(hash, LSL, 10));
+  // hash ^= hash >> 6;
+  __ eor(hash, hash, Operand(hash, ASR, 6));
+}
+
+
+void StringStubBase::GenerateHashGetHash(MacroAssembler* masm,
+                                         Register hash) {
+  // hash += hash << 3;
+  __ add(hash, hash, Operand(hash, LSL, 3));
+  // hash ^= hash >> 11;
+  __ eor(hash, hash, Operand(hash, ASR, 11));
+  // hash += hash << 15;
+  __ add(hash, hash, Operand(hash, LSL, 15), SetCC);
+
+  // if (hash == 0) hash = 27;
+  __ mov(hash, Operand(27), LeaveCC, nz);
+}
+
+
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
@@ -7284,11 +7448,14 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ sub(r2, r2, Operand(r3), SetCC);
   __ b(mi, &runtime);  // Fail if from > to.
-  // Handle sub-strings of length 2 and less in the runtime system.
+  // Special handling of sub-strings of length 1 and 2. One character strings
+  // are handled in the runtime system (looked up in the single character
+  // cache). Two character strings are looked for in the symbol cache.
   __ cmp(r2, Operand(2));
-  __ b(le, &runtime);
+  __ b(lt, &runtime);
 
   // r2: length
+  // r3: from index (untaged smi)
   // r6: from (smi)
   // r7: to (smi)
 
@@ -7302,6 +7469,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // r1: instance type
   // r2: length
+  // r3: from index (untaged smi)
   // r5: string
   // r6: from (smi)
   // r7: to (smi)
@@ -7328,6 +7496,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // r1: instance type.
   // r2: length
+  // r3: from index (untaged smi)
   // r5: string
   // r6: from (smi)
   // r7: to (smi)
@@ -7337,6 +7506,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // r1: instance type.
   // r2: result string length.
+  // r3: from index (untaged smi)
   // r5: string.
   // r6: from offset (smi)
   // Check for flat ascii string.
@@ -7344,6 +7514,35 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ tst(r1, Operand(kStringEncodingMask));
   ASSERT_EQ(0, kTwoByteStringTag);
   __ b(eq, &non_ascii_flat);
+
+  Label result_longer_than_two;
+  __ cmp(r2, Operand(2));
+  __ b(gt, &result_longer_than_two);
+
+  // Sub string of length 2 requested.
+  // Get the two characters forming the sub string.
+  __ add(r5, r5, Operand(r3));
+  __ ldrb(r3, FieldMemOperand(r5, SeqAsciiString::kHeaderSize));
+  __ ldrb(r4, FieldMemOperand(r5, SeqAsciiString::kHeaderSize + 1));
+
+  // Try to lookup two character string in symbol table.
+  Label make_two_character_string;
+  GenerateTwoCharacterSymbolTableProbe(masm, r3, r4, r1, r5, r6, r7, r9,
+                                       &make_two_character_string);
+  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ Ret();
+
+  // r2: result string length.
+  // r3: two characters combined into halfword in little endian byte order.
+  __ bind(&make_two_character_string);
+  __ AllocateAsciiString(r0, r2, r4, r5, r9, &runtime);
+  __ strh(r3, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
+  __ IncrementCounter(&Counters::sub_string_native, 1, r3, r4);
+  __ add(sp, sp, Operand(3 * kPointerSize));
+  __ Ret();
+
+  __ bind(&result_longer_than_two);
 
   // Allocate the result.
   __ AllocateAsciiString(r0, r2, r3, r4, r1, &runtime);
@@ -7553,14 +7752,52 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // r4: first string instance type (if string_check_)
   // r5: second string instance type (if string_check_)
   // Look at the length of the result of adding the two strings.
-  Label string_add_flat_result;
+  Label string_add_flat_result, longer_than_two;
   // Adding two lengths can't overflow.
   ASSERT(String::kMaxLength * 2 > String::kMaxLength);
   __ add(r6, r2, Operand(r3));
   // Use the runtime system when adding two one character strings, as it
   // contains optimizations for this specific case using the symbol table.
   __ cmp(r6, Operand(2));
-  __ b(eq, &string_add_runtime);
+  __ b(ne, &longer_than_two);
+
+  // Check that both strings are non-external ascii strings.
+  if (!string_check_) {
+    __ ldr(r4, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ ldr(r5, FieldMemOperand(r1, HeapObject::kMapOffset));
+    __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
+    __ ldrb(r5, FieldMemOperand(r5, Map::kInstanceTypeOffset));
+  }
+  __ JumpIfBothInstanceTypesAreNotSequentialAscii(r4, r5, r6, r7,
+                                                  &string_add_runtime);
+
+  // Get the two characters forming the sub string.
+  __ ldrb(r2, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
+  __ ldrb(r3, FieldMemOperand(r1, SeqAsciiString::kHeaderSize));
+
+  // Try to lookup two character string in symbol table. If it is not found
+  // just allocate a new one.
+  Label make_two_character_string;
+  GenerateTwoCharacterSymbolTableProbe(masm, r2, r3, r6, r7, r4, r5, r9,
+                                       &make_two_character_string);
+  __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+  __ add(sp, sp, Operand(2 * kPointerSize));
+  __ Ret();
+
+  __ bind(&make_two_character_string);
+  // Resulting string has length 2 and first chars of two strings
+  // are combined into single halfword in r2 register.
+  // So we can fill resulting string without two loops by a single
+  // halfword store instruction (which assumes that processor is
+  // in a little endian mode)
+  __ mov(r6, Operand(2));
+  __ AllocateAsciiString(r0, r6, r4, r5, r9, &string_add_runtime);
+  __ strh(r2, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
+  __ IncrementCounter(&Counters::string_add_native, 1, r2, r3);
+  __ add(sp, sp, Operand(2 * kPointerSize));
+  __ Ret();
+
+  __ bind(&longer_than_two);
   // Check if resulting string will be flat.
   __ cmp(r6, Operand(String::kMinNonFlatLength));
   __ b(lt, &string_add_flat_result);
@@ -7639,6 +7876,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Both strings are sequential ASCII strings. We also know that they are
   // short (since the sum of the lengths is less than kMinNonFlatLength).
+  // r6: length of resulting flat string
   __ AllocateAsciiString(r7, r6, r4, r5, r9, &string_add_runtime);
   // Locate first character of result.
   __ add(r6, r7, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));

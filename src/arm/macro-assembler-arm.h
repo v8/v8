@@ -425,6 +425,22 @@ class MacroAssembler: public Assembler {
                                            Register scratch2,
                                            Label* not_flat_ascii_strings);
 
+  // Checks if both instance types are sequential ASCII strings and jumps to
+  // label if either is not.
+  void JumpIfBothInstanceTypesAreNotSequentialAscii(
+      Register first_object_instance_type,
+      Register second_object_instance_type,
+      Register scratch1,
+      Register scratch2,
+      Label* failure);
+
+  // Check if instance type is sequential ASCII string and jump to label if
+  // it is not.
+  void JumpIfInstanceTypeIsNotSequentialAscii(Register type,
+                                              Register scratch,
+                                              Label* failure);
+
+
  private:
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);

@@ -1417,15 +1417,12 @@ void MacroAssembler::JumpIfNonSmisNotBothSequentialAsciiStrings(
   ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
   ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
-  int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
-  and_(scratch1, scratch1, Operand(kFlatAsciiStringMask));
-  and_(scratch2, scratch2, Operand(kFlatAsciiStringMask));
-  cmp(scratch1, Operand(kFlatAsciiStringTag));
-  // Ignore second test if first test failed.
-  cmp(scratch2, Operand(kFlatAsciiStringTag), eq);
-  b(ne, failure);
+
+  JumpIfBothInstanceTypesAreNotSequentialAscii(scratch1,
+                                               scratch2,
+                                               scratch1,
+                                               scratch2,
+                                               failure);
 }
 
 void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
@@ -1443,6 +1440,36 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register first,
                                              scratch1,
                                              scratch2,
                                              failure);
+}
+
+
+void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
+    Register first,
+    Register second,
+    Register scratch1,
+    Register scratch2,
+    Label* failure) {
+  int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  and_(scratch1, first, Operand(kFlatAsciiStringMask));
+  and_(scratch2, second, Operand(kFlatAsciiStringMask));
+  cmp(scratch1, Operand(kFlatAsciiStringTag));
+  // Ignore second test if first test failed.
+  cmp(scratch2, Operand(kFlatAsciiStringTag), eq);
+  b(ne, failure);
+}
+
+
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
+                                                            Register scratch,
+                                                            Label* failure) {
+  int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
+  int kFlatAsciiStringTag = ASCII_STRING_TYPE;
+  and_(scratch, type, Operand(kFlatAsciiStringMask));
+  cmp(scratch, Operand(kFlatAsciiStringTag));
+  b(ne, failure);
 }
 
 

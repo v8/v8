@@ -773,6 +773,33 @@ class StringStubBase: public CodeStub {
                                  Register src,      // Must be rsi.
                                  Register count,    // Must be rcx.
                                  bool ascii);
+
+
+  // Probe the symbol table for a two character string. If the string is
+  // not found by probing a jump to the label not_found is performed. This jump
+  // does not guarantee that the string is not in the symbol table. If the
+  // string is found the code falls through with the string in register rax.
+  void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                            Register c1,
+                                            Register c2,
+                                            Register scratch1,
+                                            Register scratch2,
+                                            Register scratch3,
+                                            Register scratch4,
+                                            Label* not_found);
+
+  // Generate string hash.
+  void GenerateHashInit(MacroAssembler* masm,
+                        Register hash,
+                        Register character,
+                        Register scratch);
+  void GenerateHashAddCharacter(MacroAssembler* masm,
+                                Register hash,
+                                Register character,
+                                Register scratch);
+  void GenerateHashGetHash(MacroAssembler* masm,
+                           Register hash,
+                           Register scratch);
 };
 
 

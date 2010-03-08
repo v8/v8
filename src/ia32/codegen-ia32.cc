@@ -11019,6 +11019,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   Label make_two_character_string, make_flat_ascii_string;
   GenerateTwoCharacterSymbolTableProbe(masm, ebx, ecx, eax, edx, edi,
                                        &make_two_character_string);
+  __ IncrementCounter(&Counters::string_add_native, 1);
   __ ret(2 * kPointerSize);
 
   __ bind(&make_two_character_string);
@@ -11299,10 +11300,7 @@ void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Calculate capacity mask from the symbol table capacity.
   Register mask = scratch2;
-  static const int kCapacityOffset =
-      FixedArray::kHeaderSize +
-      SymbolTable::kCapacityIndex * kPointerSize;
-  __ mov(mask, FieldOperand(symbol_table, kCapacityOffset));
+  __ mov(mask, FieldOperand(symbol_table, SymbolTable::kCapacityOffset));
   __ SmiUntag(mask);
   __ sub(Operand(mask), Immediate(1));
 
@@ -11327,16 +11325,12 @@ void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
     // Load the entry from the symble table.
     Register candidate = scratch;  // Scratch register contains candidate.
-    ASSERT_EQ(1, SymbolTableShape::kEntrySize);
-    static const int kFirstElementOffset =
-        FixedArray::kHeaderSize +
-        SymbolTable::kPrefixStartIndex * kPointerSize +
-        SymbolTableShape::kPrefixSize * kPointerSize;
+    ASSERT_EQ(1, SymbolTable::kEntrySize);
     __ mov(candidate,
            FieldOperand(symbol_table,
                         scratch,
                         times_pointer_size,
-                        kFirstElementOffset));
+                        SymbolTable::kElementsStartOffset));
 
     // If entry is undefined no string with this hash can be found.
     __ cmp(candidate, Factory::undefined_value());
@@ -11490,7 +11484,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   Label make_two_character_string;
   GenerateTwoCharacterSymbolTableProbe(masm, ebx, ecx, eax, edx, edi,
                                      &make_two_character_string);
-  __ ret(2 * kPointerSize);
+  __ ret(3 * kPointerSize);
 
   __ bind(&make_two_character_string);
   // Setup registers for allocating the two character string.

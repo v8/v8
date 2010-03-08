@@ -9000,16 +9000,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // rbx: length of first string
   // rcx: length of second string
   // rdx: second string
-  // r8: instance type of first string if string check was performed above
-  // r9: instance type of first string if string check was performed above
-  Label string_add_flat_result;
+  // r8: map of first string if string check was performed above
+  // r9: map of second string if string check was performed above
+  Label string_add_flat_result, longer_than_two;
   __ bind(&both_not_zero_length);
-  // Look at the length of the result of adding the two strings.
-  __ addl(rbx, rcx);
-  // Use the runtime system when adding two one character strings, as it
-  // contains optimizations for this specific case using the symbol table.
-  __ cmpl(rbx, Immediate(2));
-  __ j(equal, &string_add_runtime);
+
   // If arguments where known to be strings, maps are not loaded to r8 and r9
   // by the code above.
   if (!string_check_) {
@@ -9019,6 +9014,35 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // Get the instance types of the two strings as they will be needed soon.
   __ movzxbl(r8, FieldOperand(r8, Map::kInstanceTypeOffset));
   __ movzxbl(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
+
+  // Look at the length of the result of adding the two strings.
+  __ addl(rbx, rcx);
+  // Use the runtime system when adding two one character strings, as it
+  // contains optimizations for this specific case using the symbol table.
+  __ cmpl(rbx, Immediate(2));
+  __ j(not_equal, &longer_than_two);
+
+  // Check that both strings are non-external ascii strings.
+  __ JumpIfBothInstanceTypesAreNotSequentialAscii(r8, r9, rbx, rcx,
+                                                 &string_add_runtime);
+
+  // Get the two characters forming the sub string.
+  __ movzxbq(rbx, FieldOperand(rax, SeqAsciiString::kHeaderSize));
+  __ movzxbq(rcx, FieldOperand(rdx, SeqAsciiString::kHeaderSize));
+
+  // Try to lookup two character string in symbol table. If it is not found
+  // just allocate a new one.
+  Label make_two_character_string, make_flat_ascii_string;
+  GenerateTwoCharacterSymbolTableProbe(masm, rbx, rcx, r14, r12, rdi, r15,
+                                       &make_two_character_string);
+  __ IncrementCounter(&Counters::string_add_native, 1);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&make_two_character_string);
+  __ Set(rbx, 2);
+  __ jmp(&make_flat_ascii_string);
+
+  __ bind(&longer_than_two);
   // Check if resulting string will be flat.
   __ cmpl(rbx, Immediate(String::kMinNonFlatLength));
   __ j(below, &string_add_flat_result);
@@ -9085,6 +9109,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(zero, &non_ascii_string_add_flat_result);
   __ testl(r9, Immediate(kAsciiStringTag));
   __ j(zero, &string_add_runtime);
+
+  __ bind(&make_flat_ascii_string);
   // Both strings are ascii strings. As they are short they are both flat.
   __ AllocateAsciiString(rcx, rbx, rdi, r14, r15, &string_add_runtime);
   // rcx: result string
@@ -9235,6 +9261,179 @@ void StringStubBase::GenerateCopyCharactersREP(MacroAssembler* masm,
   __ bind(&done);
 }
 
+void StringStubBase::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                          Register c1,
+                                                          Register c2,
+                                                          Register scratch1,
+                                                          Register scratch2,
+                                                          Register scratch3,
+                                                          Register scratch4,
+                                                          Label* not_found) {
+  // Register scratch3 is the general scratch register in this function.
+  Register scratch = scratch3;
+
+  // Make sure that both characters are not digits as such strings has a
+  // different hash algorithm. Don't try to look for these in the symbol table.
+  Label not_array_index;
+  __ movq(scratch, c1);
+  __ subq(scratch, Immediate(static_cast<int>('0')));
+  __ cmpq(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ j(above, &not_array_index);
+  __ movq(scratch, c2);
+  __ subq(scratch, Immediate(static_cast<int>('0')));
+  __ cmpq(scratch, Immediate(static_cast<int>('9' - '0')));
+  __ j(below_equal, not_found);
+
+  __ bind(&not_array_index);
+  // Calculate the two character string hash.
+  Register hash = scratch1;
+  GenerateHashInit(masm, hash, c1, scratch);
+  GenerateHashAddCharacter(masm, hash, c2, scratch);
+  GenerateHashGetHash(masm, hash, scratch);
+
+  // Collect the two characters in a register.
+  Register chars = c1;
+  __ shl(c2, Immediate(kBitsPerByte));
+  __ orl(chars, c2);
+
+  // chars: two character string, char 1 in byte 0 and char 2 in byte 1.
+  // hash:  hash of two character string.
+
+  // Load the symbol table.
+  Register symbol_table = c2;
+  __ LoadRoot(symbol_table, Heap::kSymbolTableRootIndex);
+
+  // Calculate capacity mask from the symbol table capacity.
+  Register mask = scratch2;
+  __ movq(mask, FieldOperand(symbol_table, SymbolTable::kCapacityOffset));
+  __ SmiToInteger32(mask, mask);
+  __ decl(mask);
+
+  Register undefined = scratch4;
+  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
+
+  // Registers
+  // chars:        two character string, char 1 in byte 0 and char 2 in byte 1.
+  // hash:         hash of two character string (32-bit int)
+  // symbol_table: symbol table
+  // mask:         capacity mask (32-bit int)
+  // undefined:    undefined value
+  // scratch:      -
+
+  // Perform a number of probes in the symbol table.
+  static const int kProbes = 4;
+  Label found_in_symbol_table;
+  Label next_probe[kProbes];
+  for (int i = 0; i < kProbes; i++) {
+    // Calculate entry in symbol table.
+    __ movl(scratch, hash);
+    if (i > 0) {
+      __ addl(scratch, Immediate(SymbolTable::GetProbeOffset(i)));
+    }
+    __ andl(scratch, mask);
+
+    // Load the entry from the symble table.
+    Register candidate = scratch;  // Scratch register contains candidate.
+    ASSERT_EQ(1, SymbolTable::kEntrySize);
+    __ movq(candidate,
+           FieldOperand(symbol_table,
+                        scratch,
+                        times_pointer_size,
+                        SymbolTable::kElementsStartOffset));
+
+    // If entry is undefined no string with this hash can be found.
+    __ cmpq(candidate, undefined);
+    __ j(equal, not_found);
+
+    // If length is not 2 the string is not a candidate.
+    __ cmpl(FieldOperand(candidate, String::kLengthOffset), Immediate(2));
+    __ j(not_equal, &next_probe[i]);
+
+    // We use kScratchRegister as a temporary register in assumption that
+    // JumpIfInstanceTypeIsNotSequentialAscii does not use it implicitly
+    Register temp = kScratchRegister;
+
+    // Check that the candidate is a non-external ascii string.
+    __ movq(temp, FieldOperand(candidate, HeapObject::kMapOffset));
+    __ movzxbl(temp, FieldOperand(temp, Map::kInstanceTypeOffset));
+    __ JumpIfInstanceTypeIsNotSequentialAscii(
+        temp, temp, &next_probe[i]);
+
+    // Check if the two characters match.
+    __ movl(temp, FieldOperand(candidate, SeqAsciiString::kHeaderSize));
+    __ andl(temp, Immediate(0x0000ffff));
+    __ cmpl(chars, temp);
+    __ j(equal, &found_in_symbol_table);
+    __ bind(&next_probe[i]);
+  }
+
+  // No matching 2 character string found by probing.
+  __ jmp(not_found);
+
+  // Scratch register contains result when we fall through to here.
+  Register result = scratch;
+  __ bind(&found_in_symbol_table);
+  if (!result.is(rax)) {
+    __ movq(rax, result);
+  }
+}
+
+
+void StringStubBase::GenerateHashInit(MacroAssembler* masm,
+                                      Register hash,
+                                      Register character,
+                                      Register scratch) {
+  // hash = character + (character << 10);
+  __ movl(hash, character);
+  __ shll(hash, Immediate(10));
+  __ addl(hash, character);
+  // hash ^= hash >> 6;
+  __ movl(scratch, hash);
+  __ sarl(scratch, Immediate(6));
+  __ xorl(hash, scratch);
+}
+
+
+void StringStubBase::GenerateHashAddCharacter(MacroAssembler* masm,
+                                              Register hash,
+                                              Register character,
+                                              Register scratch) {
+  // hash += character;
+  __ addl(hash, character);
+  // hash += hash << 10;
+  __ movl(scratch, hash);
+  __ shll(scratch, Immediate(10));
+  __ addl(hash, scratch);
+  // hash ^= hash >> 6;
+  __ movl(scratch, hash);
+  __ sarl(scratch, Immediate(6));
+  __ xorl(hash, scratch);
+}
+
+
+void StringStubBase::GenerateHashGetHash(MacroAssembler* masm,
+                                         Register hash,
+                                         Register scratch) {
+  // hash += hash << 3;
+  __ movl(scratch, hash);
+  __ shll(scratch, Immediate(3));
+  __ addl(hash, scratch);
+  // hash ^= hash >> 11;
+  __ movl(scratch, hash);
+  __ sarl(scratch, Immediate(11));
+  __ xorl(hash, scratch);
+  // hash += hash << 15;
+  __ movl(scratch, hash);
+  __ shll(scratch, Immediate(15));
+  __ addl(hash, scratch);
+
+  // if (hash == 0) hash = 27;
+  Label hash_not_zero;
+  __ testl(hash, hash);
+  __ j(not_zero, &hash_not_zero);
+  __ movl(hash, Immediate(27));
+  __ bind(&hash_not_zero);
+}
 
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
@@ -9261,25 +9460,55 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rax: string
   // rbx: instance type
   // Calculate length of sub string using the smi values.
+  Label result_longer_than_two;
   __ movq(rcx, Operand(rsp, kToOffset));
   __ movq(rdx, Operand(rsp, kFromOffset));
   __ JumpIfNotBothPositiveSmi(rcx, rdx, &runtime);
 
   __ SmiSub(rcx, rcx, rdx, NULL);  // Overflow doesn't happen.
   __ j(negative, &runtime);
-  // Handle sub-strings of length 2 and less in the runtime system.
+  // Special handling of sub-strings of length 1 and 2. One character strings
+  // are handled in the runtime system (looked up in the single character
+  // cache). Two character strings are looked for in the symbol cache.
   __ SmiToInteger32(rcx, rcx);
   __ cmpl(rcx, Immediate(2));
-  __ j(below_equal, &runtime);
+  __ j(greater, &result_longer_than_two);
+  __ j(less, &runtime);
+
+  // Sub string of length 2 requested.
+  // rax: string
+  // rbx: instance type
+  // rcx: sub string length (value is 2)
+  // rdx: from index (smi)
+  __ JumpIfInstanceTypeIsNotSequentialAscii(rbx, rbx, &runtime);
+
+  // Get the two characters forming the sub string.
+  __ SmiToInteger32(rdx, rdx);  // From index is no longer smi.
+  __ movzxbq(rbx, FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize));
+  __ movzxbq(rcx,
+             FieldOperand(rax, rdx, times_1, SeqAsciiString::kHeaderSize + 1));
+
+  // Try to lookup two character string in symbol table.
+  Label make_two_character_string;
+  GenerateTwoCharacterSymbolTableProbe(masm, rbx, rcx, rax, rdx, rdi, r14,
+                                       &make_two_character_string);
+  __ ret(3 * kPointerSize);
+
+  __ bind(&make_two_character_string);
+  // Setup registers for allocating the two character string.
+  __ movq(rax, Operand(rsp, kStringOffset));
+  __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+  __ movzxbl(rbx, FieldOperand(rbx, Map::kInstanceTypeOffset));
+  __ Set(rcx, 2);
+
+  __ bind(&result_longer_than_two);
 
   // rax: string
   // rbx: instance type
   // rcx: result string length
   // Check for flat ascii string
   Label non_ascii_flat;
-  __ and_(rbx, Immediate(kStringRepresentationMask | kStringEncodingMask));
-  __ cmpb(rbx, Immediate(kSeqStringTag | kAsciiStringTag));
-  __ j(not_equal, &non_ascii_flat);
+  __ JumpIfInstanceTypeIsNotSequentialAscii(rbx, rbx, &non_ascii_flat);
 
   // Allocate the result.
   __ AllocateAsciiString(rax, rcx, rbx, rdx, rdi, &runtime);
