@@ -241,7 +241,7 @@ class Expression: public AstNode {
     bitfields_ |= SideEffectFreeField::encode(is_side_effect_free);
   }
 
-  // Will ToInt32 ECMA 262-3 9.5) or ToUunt32 (ECMA 262-3 9.6)
+  // Will ToInt32 (ECMA 262-3 9.5) or ToUint32 (ECMA 262-3 9.6)
   // be applied to the value of this expression?
   // If so, we may be able to optimize the calculation of the value.
   bool to_int32() { return ToInt32Field::decode(bitfields_); }
