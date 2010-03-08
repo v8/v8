@@ -2872,9 +2872,9 @@ void v8::V8::LowMemoryNotification() {
 }
 
 
-void v8::V8::ContextDisposedNotification() {
-  if (!i::V8::IsRunning()) return;
-  i::Heap::NotifyContextDisposed();
+int v8::V8::ContextDisposedNotification() {
+  if (!i::V8::IsRunning()) return 0;
+  return i::Heap::NotifyContextDisposed();
 }
 
 

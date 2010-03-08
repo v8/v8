@@ -2507,9 +2507,11 @@ class V8EXPORT V8 {
 
   /**
    * Optional notification that a context has been disposed. V8 uses
-   * these notifications to guide the garbage collection heuristic.
+   * these notifications to guide the GC heuristic. Returns the number
+   * of context disposals - including this one - since the last time
+   * V8 had a chance to clean up.
    */
-  static void ContextDisposedNotification();
+  static int ContextDisposedNotification();
 
  private:
   V8();

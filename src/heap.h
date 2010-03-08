@@ -643,7 +643,7 @@ class Heap : public AllStatic {
   static void CollectAllGarbage(bool force_compaction);
 
   // Notify the heap that a context has been disposed.
-  static void NotifyContextDisposed();
+  static int NotifyContextDisposed() { return ++contexts_disposed_; }
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.

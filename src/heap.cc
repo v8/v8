@@ -372,11 +372,6 @@ void Heap::CollectAllGarbage(bool force_compaction) {
 }
 
 
-void Heap::NotifyContextDisposed() {
-  contexts_disposed_++;
-}
-
-
 bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
   // The VM is in the GC state until exiting this function.
   VMState state(GC);
