@@ -1121,7 +1121,8 @@ void TextInstructionPrinter::VisitBlock(Block* stmt) {
 }
 
 
-void TextInstructionPrinter::VisitExpressionStatement(ExpressionStatement* stmt) {
+void TextInstructionPrinter::VisitExpressionStatement(
+    ExpressionStatement* stmt) {
   PrintF("ExpressionStatement");
 }
 
