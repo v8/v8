@@ -576,11 +576,14 @@ class CodeGenerator: public AstVisitor {
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
   // Fast support for Math.pow().
-  void GeneratePow(ZoneList<Expression*>* args);
+  void GenerateMathPow(ZoneList<Expression*>* args);
 
   // Fast call to math functions.
   void GenerateMathSin(ZoneList<Expression*>* args);
   void GenerateMathCos(ZoneList<Expression*>* args);
+
+  // Fast case for sqrt
+  void GenerateMathSqrt(ZoneList<Expression*>* args);
 
 // Simple condition analysis.
   enum ConditionAnalysis {

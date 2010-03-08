@@ -292,7 +292,12 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 }
 
 
-void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
+  UNIMPLEMENTED_MIPS();
+}
+
+
+void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
   UNIMPLEMENTED_MIPS();
 }
 

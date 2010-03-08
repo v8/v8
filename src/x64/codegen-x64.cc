@@ -3933,11 +3933,20 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 
 
 // Generates the Math.pow method - currently just calls runtime.
-void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
   Load(args->at(1));
   Result res = frame_->CallRuntime(Runtime::kMath_pow, 2);
+  frame_->Push(&res);
+}
+
+
+// Generates the Math.sqrt method - currently just calls runtime.
+void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Result res = frame_->CallRuntime(Runtime::kMath_sqrt, 1);
   frame_->Push(&res);
 }
 

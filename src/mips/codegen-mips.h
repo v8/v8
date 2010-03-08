@@ -247,7 +247,10 @@ class CodeGenerator: public AstVisitor {
   void GenerateNumberToString(ZoneList<Expression*>* args);
 
   // Fast support for Math.pow().
-  void GeneratePow(ZoneList<Expression*>* args);
+  void GenerateMathPow(ZoneList<Expression*>* args);
+  // Fast support for Math.sqrt().
+  void GenerateMathPow(ZoneList<Expression*>* args);
+
 
   // Fast support for Math.sin and Math.cos.
   inline void GenerateMathSin(ZoneList<Expression*>* args);

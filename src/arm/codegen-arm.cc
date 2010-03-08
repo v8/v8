@@ -3324,13 +3324,23 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 
 
 // Generates the Math.pow method - currently just calls runtime.
-void CodeGenerator::GeneratePow(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Load(args->at(0));
   Load(args->at(1));
   frame_->CallRuntime(Runtime::kMath_pow, 2);
   frame_->EmitPush(r0);
 }
+
+
+// Generates the Math.sqrt method - currently just calls runtime.
+void CodeGenerator::GenerateMathSqrt(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  frame_->CallRuntime(Runtime::kMath_sqrt, 1);
+  frame_->EmitPush(r0);
+}
+
 
 // This should generate code that performs a charCodeAt() call or returns
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
