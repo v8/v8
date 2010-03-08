@@ -381,9 +381,10 @@ CodeGenerator::InlineRuntimeLUT CodeGenerator::kInlineRuntimeLUT[] = {
   {&CodeGenerator::GenerateStringCompare, "_StringCompare"},
   {&CodeGenerator::GenerateRegExpExec, "_RegExpExec"},
   {&CodeGenerator::GenerateNumberToString, "_NumberToString"},
-  {&CodeGenerator::GeneratePow, "_Pow"},
+  {&CodeGenerator::GenerateMathPow, "_Math_pow"},
   {&CodeGenerator::GenerateMathSin, "_Math_sin"},
   {&CodeGenerator::GenerateMathCos, "_Math_cos"},
+  {&CodeGenerator::GenerateMathSqrt, "_Math_sqrt"},
 };
 
 

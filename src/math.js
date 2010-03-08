@@ -159,7 +159,7 @@ function MathMin(arg1, arg2) {  // length == 2
 function MathPow(x, y) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
   if (!IS_NUMBER(y)) y = ToNumber(y);
-  return %_Pow(x, y);
+  return %_Math_pow(x, y);
 }
 
 // ECMA 262 - 15.8.2.14
@@ -182,7 +182,7 @@ function MathSin(x) {
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
   if (!IS_NUMBER(x)) x = ToNumber(x);
-  return %Math_sqrt(x);
+  return %_Math_sqrt(x);
 }
 
 // ECMA 262 - 15.8.2.18
