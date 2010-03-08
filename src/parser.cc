@@ -3256,7 +3256,6 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
         result = VariableProxySentinel::this_proxy();
       } else {
         VariableProxy* recv = top_scope_->receiver();
-        recv->var_uses()->RecordRead(1);
         result = recv;
       }
       break;

@@ -232,9 +232,6 @@ DEFINE_bool(trace_exception, false,
 DEFINE_bool(preallocate_message_memory, false,
             "preallocate some memory to build stack traces.")
 
-// usage-analyzer.cc
-DEFINE_bool(usage_computation, true, "compute variable usage counts")
-
 // v8.cc
 DEFINE_bool(preemption, false,
             "activate a 100ms timer that switches between V8 threads")

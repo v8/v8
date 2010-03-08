@@ -1006,8 +1006,6 @@ class VariableProxy: public Expression {
 
   Handle<String> name() const  { return name_; }
   Variable* var() const  { return var_; }
-  UseCount* var_uses()  { return &var_uses_; }
-  UseCount* obj_uses()  { return &obj_uses_; }
   bool is_this() const  { return is_this_; }
   bool inside_with() const  { return inside_with_; }
 
@@ -1019,10 +1017,6 @@ class VariableProxy: public Expression {
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
   bool inside_with_;
-
-  // VariableProxy usage info.
-  UseCount var_uses_;  // uses of the variable value
-  UseCount obj_uses_;  // uses of the object the variable points to
 
   VariableProxy(Handle<String> name, bool is_this, bool inside_with);
   explicit VariableProxy(bool is_this);

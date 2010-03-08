@@ -35,11 +35,10 @@
 #include "debug.h"
 #include "fast-codegen.h"
 #include "full-codegen.h"
+#include "liveedit.h"
 #include "oprofile-agent.h"
 #include "rewriter.h"
 #include "scopes.h"
-#include "usage-analyzer.h"
-#include "liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -49,7 +48,7 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
   FunctionLiteral* function = info->function();
   ASSERT(function != NULL);
   // Rewrite the AST by introducing .result assignments where needed.
-  if (!Rewriter::Process(function) || !AnalyzeVariableUsage(function)) {
+  if (!Rewriter::Process(function)) {
     // Signal a stack overflow by returning a null handle.  The stack
     // overflow exception will be thrown by the caller.
     return Handle<Code>::null();
