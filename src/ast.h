@@ -117,6 +117,9 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 class AstNode: public ZoneObject {
  public:
+  static const int kNoNumber = -1;
+
+  AstNode() : num_(kNoNumber) {}
   virtual ~AstNode() { }
   virtual void Accept(AstVisitor* v) = 0;
 
@@ -141,6 +144,13 @@ class AstNode: public ZoneObject {
   virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
   virtual ArrayLiteral* AsArrayLiteral() { return NULL; }
   virtual CompareOperation* AsCompareOperation() { return NULL; }
+
+  int num() { return num_; }
+  void set_num(int n) { num_ = n; }
+
+ private:
+  // Support for ast node numbering.
+  int num_;
 };
 
 
@@ -181,11 +191,8 @@ class Expression: public AstNode {
     kTestValue
   };
 
-  static const int kNoLabel = -1;
-
   Expression()
       : bitfields_(0),
-        num_(kNoLabel),
         def_(NULL),
         defined_vars_(NULL) {}
 
@@ -214,11 +221,6 @@ class Expression: public AstNode {
 
   // Static type information for this expression.
   StaticType* type() { return &type_; }
-
-  int num() { return num_; }
-
-  // AST node numbering ordered by evaluation order.
-  void set_num(int n) { num_ = n; }
 
   // Data flow information.
   DefinitionInfo* var_def() { return def_; }
@@ -261,7 +263,6 @@ class Expression: public AstNode {
   uint32_t bitfields_;
   StaticType type_;
 
-  int num_;
   DefinitionInfo* def_;
   ZoneList<DefinitionInfo*>* defined_vars_;
 

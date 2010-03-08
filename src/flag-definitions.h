@@ -153,6 +153,7 @@ DEFINE_bool(always_fast_compiler, false,
             "try to use the speculative optimizing backend for all code")
 DEFINE_bool(trace_bailout, false,
             "print reasons for falling back to using the classic V8 backend")
+DEFINE_bool(use_flow_graph, false, "perform flow-graph based optimizations")
 
 // compilation-cache.cc
 DEFINE_bool(compilation_cache, true, "enable compilation cache")
@@ -305,6 +306,8 @@ DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
 DEFINE_bool(print_scopes, false, "print scopes")
 DEFINE_bool(print_ir, false, "print the AST as seen by the backend")
+DEFINE_bool(print_graph_text, false,
+            "print a text representation of the flow graph")
 
 // contexts.cc
 DEFINE_bool(trace_contexts, false, "trace contexts operations")

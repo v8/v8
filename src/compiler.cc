@@ -31,6 +31,7 @@
 #include "codegen-inl.h"
 #include "compilation-cache.h"
 #include "compiler.h"
+#include "data-flow.h"
 #include "debug.h"
 #include "fast-codegen.h"
 #include "full-codegen.h"
@@ -77,6 +78,17 @@ static Handle<Code> MakeCode(Handle<Context> context, CompilationInfo* info) {
     // Signal a stack overflow by returning a null handle.  The stack
     // overflow exception will be thrown by the caller.
     return Handle<Code>::null();
+  }
+
+  if (FLAG_use_flow_graph) {
+    FlowGraphBuilder builder;
+    builder.Build(function);
+
+#ifdef DEBUG
+    if (FLAG_print_graph_text) {
+      builder.graph()->PrintText(builder.postorder());
+    }
+#endif
   }
 
   // Generate code and return it.  Code generator selection is governed by
@@ -450,6 +462,17 @@ Handle<JSFunction> Compiler::BuildBoilerplate(FunctionLiteral* literal,
     // the AST optimizer/analyzer.
     if (!Rewriter::Optimize(literal)) {
       return Handle<JSFunction>::null();
+    }
+
+    if (FLAG_use_flow_graph) {
+      FlowGraphBuilder builder;
+      builder.Build(literal);
+
+#ifdef DEBUG
+      if (FLAG_print_graph_text) {
+        builder.graph()->PrintText(builder.postorder());
+      }
+#endif
     }
 
     // Generate code and return it.  The way that the compilation mode
