@@ -36,17 +36,28 @@
 namespace v8 {
 namespace internal {
 
-class BitVector {
+class BitVector BASE_EMBEDDED {
  public:
-  explicit BitVector(int length) : length_(length) {
+  explicit BitVector(int length)
+      : length_(length), bits_(Vector<uint32_t>::New(1 + length / 32)) {
     ASSERT(length > 0);
-    bits_ = Vector<uint32_t>::New(1 + length / 32);
     for (int i = 0; i < bits_.length(); i++) {
       bits_[i] = 0;
     }
   }
 
+  BitVector(const BitVector& other)
+      : length_(other.length()),
+        bits_(Vector<uint32_t>::New(1 + other.length() / 32)) {
+    CopyFrom(other);
+  }
+
   ~BitVector() { bits_.Dispose(); }
+
+  BitVector& operator=(const BitVector& rhs) {
+    if (this != &rhs) CopyFrom(rhs);
+    return *this;
+  }
 
   void CopyFrom(const BitVector& other) {
     ASSERT(other.length() == length());
@@ -85,13 +96,24 @@ class BitVector {
     }
   }
 
+  void Clear() {
+    for (int i = 0; i < bits_.length(); i++) {
+      bits_[i] = 0;
+    }
+  }
+
+  bool IsEmpty() {
+    for (int i = 0; i < bits_.length(); i++) {
+      if (bits_[i] != 0) return false;
+    }
+    return true;
+  }
+
   int length() const { return length_; }
 
  private:
   int length_;
   Vector<uint32_t> bits_;
-
-  DISALLOW_COPY_AND_ASSIGN(BitVector);
 };
 
 

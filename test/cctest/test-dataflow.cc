@@ -61,6 +61,21 @@ TEST(BitVector) {
   }
 
   {
+    BitVector v(15);
+    v.Add(0);
+    BitVector w(15);
+    w = v;
+    CHECK(w.Contains(0));
+    w.Add(1);
+    BitVector u(w);
+    CHECK(u.Contains(0));
+    CHECK(u.Contains(1));
+    v.Union(w);
+    CHECK(v.Contains(0));
+    CHECK(v.Contains(1));
+  }
+
+  {
     BitVector v(35);
     v.Add(0);
     BitVector w(35);
