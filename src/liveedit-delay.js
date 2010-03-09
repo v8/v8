@@ -384,7 +384,7 @@ Debug.LiveEditChangeScript.CompareFunctionExpectations =
 Debug.LiveEditChangeScript.CheckStackActivations = function(shared_wrapper_list,
                                                             change_log) {
   var liveedit = Debug.LiveEditChangeScript;
-	  
+      
   var shared_list = new Array();
   for (var i = 0; i < shared_wrapper_list.length; i++) {
     shared_list[i] = shared_wrapper_list[i].info;
