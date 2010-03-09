@@ -8564,15 +8564,26 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         GenerateLoadArguments(masm);
       }
 
-      __ test(edx, Immediate(kSmiTagMask));
+      // Registers containing left and right operands respectively.
+      Register lhs, rhs;
+      if (HasArgsReversed()) {
+        lhs = eax;
+        rhs = edx;
+      } else {
+        lhs = edx;
+        rhs = eax;
+      }
+
+      // Test if first argument is a string.
+      __ test(lhs, Immediate(kSmiTagMask));
       __ j(zero, &not_string1);
-      __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, ecx);
+      __ CmpObjectType(lhs, FIRST_NONSTRING_TYPE, ecx);
       __ j(above_equal, &not_string1);
 
       // First argument is a string, test second.
-      __ test(eax, Immediate(kSmiTagMask));
+      __ test(rhs, Immediate(kSmiTagMask));
       __ j(zero, &string1_smi2);
-      __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ecx);
+      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, ecx);
       __ j(above_equal, &string1);
 
       // First and second argument are strings. Jump to the string add stub.
@@ -8583,36 +8594,26 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // First argument is a string, second is a smi. Try to lookup the number
       // string for the smi in the number string cache.
       NumberToStringStub::GenerateLookupNumberStringCache(
-          masm, eax, edi, ebx, ecx, true, &string1);
+          masm, rhs, edi, ebx, ecx, true, &string1);
 
-      // Call the string add stub to make the result.
-      __ EnterInternalFrame();
-      __ push(edx);  // Original first argument.
-      __ push(edi);  // Number to string result for second argument.
-      __ CallStub(&string_add_stub);
-      __ LeaveInternalFrame();
-      __ ret(2 * kPointerSize);
+      // Replace second argument on stack and tailcall string add stub to make
+      // the result.
+      __ mov(Operand(esp, 1 * kPointerSize), edi);
+      __ TailCallStub(&string_add_stub);
 
+      // Only first argument is a string.
       __ bind(&string1);
-      __ InvokeBuiltin(
-          HasArgsReversed() ?
-              Builtins::STRING_ADD_RIGHT :
-              Builtins::STRING_ADD_LEFT,
-          JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::STRING_ADD_LEFT, JUMP_FUNCTION);
 
       // First argument was not a string, test second.
       __ bind(&not_string1);
-      __ test(eax, Immediate(kSmiTagMask));
+      __ test(rhs, Immediate(kSmiTagMask));
       __ j(zero, &not_strings);
-      __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ecx);
+      __ CmpObjectType(rhs, FIRST_NONSTRING_TYPE, ecx);
       __ j(above_equal, &not_strings);
 
       // Only second argument is a string.
-      __ InvokeBuiltin(
-          HasArgsReversed() ?
-              Builtins::STRING_ADD_LEFT :
-              Builtins::STRING_ADD_RIGHT,
-          JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::STRING_ADD_RIGHT, JUMP_FUNCTION);
 
       __ bind(&not_strings);
       // Neither argument is a string.
