@@ -246,11 +246,8 @@ void AstOptimizer::VisitVariableProxy(VariableProxy* node) {
     }
 
     if (FLAG_safe_int32_compiler) {
-      Slot* slot = var->slot();
-      if (slot != NULL) {
-        node->set_side_effect_free(
-            (slot->type() == Slot::LOCAL  && !slot->is_arguments()) ||
-            slot->type() == Slot::PARAMETER);
+      if (var->IsStackAllocated() && !var->is_arguments()) {
+        node->set_side_effect_free(true);
       }
     }
   }

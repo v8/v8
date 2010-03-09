@@ -1047,6 +1047,8 @@ class Slot: public Expression {
 
   virtual bool IsLeaf() { return true; }
 
+  bool IsStackAllocated() { return type_ == PARAMETER || type_ == LOCAL; }
+
   // Accessors
   Variable* var() const { return var_; }
   Type type() const { return type_; }

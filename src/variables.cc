@@ -85,6 +85,12 @@ Slot* Variable::slot() const {
 }
 
 
+bool Variable::IsStackAllocated() const {
+  Slot* s = slot();
+  return s != NULL && s->IsStackAllocated();
+}
+
+
 Variable::Variable(Scope* scope,
                    Handle<String> name,
                    Mode mode,

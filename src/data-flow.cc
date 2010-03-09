@@ -433,11 +433,7 @@ void FlowGraphBuilder::VisitAssignment(Assignment* expr) {
   ASSERT(var == NULL || prop == NULL);
   if (var != NULL) {
     Visit(expr->value());
-    Slot* slot = var->slot();
-    if (slot != NULL &&
-        (slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER)) {
-      definitions_.Add(expr);
-    }
+    if (var->IsStackAllocated()) definitions_.Add(expr);
 
   } else if (prop != NULL) {
     Visit(prop->obj());
@@ -499,12 +495,8 @@ void FlowGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 void FlowGraphBuilder::VisitCountOperation(CountOperation* expr) {
   Visit(expr->expression());
   Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
-  if (var != NULL) {
-    Slot* slot = var->slot();
-    if (slot != NULL &&
-        (slot->type() == Slot::LOCAL || slot->type() == Slot::PARAMETER)) {
-      definitions_.Add(expr);
-    }
+  if (var != NULL && var->IsStackAllocated()) {
+    definitions_.Add(expr);
   }
   graph_.AppendInstruction(expr);
 }

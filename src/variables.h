@@ -146,6 +146,8 @@ class Variable: public ZoneObject {
     return !is_this() && name().is_identical_to(n);
   }
 
+  bool IsStackAllocated() const;
+
   bool is_dynamic() const {
     return (mode_ == DYNAMIC ||
             mode_ == DYNAMIC_GLOBAL ||
