@@ -3076,14 +3076,7 @@ bool Heap::IdleNotification() {
   static int number_idle_notifications = 0;
   static int last_gc_count = gc_count_;
 
-  if (!FLAG_expose_gc && (contexts_disposed_ > 0)) {
-    HistogramTimerScope scope(&Counters::gc_context);
-    CollectAllGarbage(false);
-    ASSERT(contexts_disposed_ == 0);
-    last_gc_count = gc_count_;
-    return false;
-  }
-
+  bool uncommit = true;
   bool finished = false;
 
   if (last_gc_count == gc_count_) {
@@ -3094,7 +3087,12 @@ bool Heap::IdleNotification() {
   }
 
   if (number_idle_notifications == kIdlesBeforeScavenge) {
-    CollectGarbage(0, NEW_SPACE);
+    if (contexts_disposed_ > 0) {
+      HistogramTimerScope scope(&Counters::gc_context);
+      CollectAllGarbage(false);
+    } else {
+      CollectGarbage(0, NEW_SPACE);
+    }
     new_space_.Shrink();
     last_gc_count = gc_count_;
 
@@ -3114,10 +3112,29 @@ bool Heap::IdleNotification() {
     last_gc_count = gc_count_;
     number_idle_notifications = 0;
     finished = true;
+
+  } else if (contexts_disposed_ > 0) {
+    if (FLAG_expose_gc) {
+      contexts_disposed_ = 0;
+    } else {
+      HistogramTimerScope scope(&Counters::gc_context);
+      CollectAllGarbage(false);
+      last_gc_count = gc_count_;
+    }
+    // If this is the first idle notification, we reset the
+    // notification count to avoid letting idle notifications for
+    // context disposal garbage collections start a potentially too
+    // aggressive idle GC cycle.
+    if (number_idle_notifications <= 1) {
+      number_idle_notifications = 0;
+      uncommit = false;
+    }
   }
 
-  // Uncommit unused memory in new space.
-  Heap::UncommitFromSpace();
+  // Make sure that we have no pending context disposals and
+  // conditionally uncommit from space.
+  ASSERT(contexts_disposed_ == 0);
+  if (uncommit) Heap::UncommitFromSpace();
   return finished;
 }
 
