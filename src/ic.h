@@ -94,8 +94,8 @@ class IC {
   Code* target() { return GetTargetAtAddress(address()); }
   inline Address address();
 
-  // Compute the current IC state based on the target stub and the receiver.
-  static State StateFrom(Code* target, Object* receiver);
+  // Compute the current IC state based on the target stub, receiver and name.
+  static State StateFrom(Code* target, Object* receiver, Object* name);
 
   // Clear the inline cache to initial state.
   static void Clear(Address address);

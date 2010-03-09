@@ -348,6 +348,9 @@ class Heap : public AllStatic {
   // Allocate a map for the specified function
   static Object* AllocateInitialMap(JSFunction* fun);
 
+  // Allocates an empty code cache.
+  static Object* AllocateCodeCache();
+
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
   // allocation functions based on the encoding of the string buffer used to

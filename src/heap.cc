@@ -1216,6 +1216,16 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
 }
 
 
+Object* Heap::AllocateCodeCache() {
+  Object* result = AllocateStruct(CODE_CACHE_TYPE);
+  if (result->IsFailure()) return result;
+  CodeCache* code_cache = CodeCache::cast(result);
+  code_cache->set_default_cache(empty_fixed_array());
+  code_cache->set_normal_type_cache(undefined_value());
+  return code_cache;
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},

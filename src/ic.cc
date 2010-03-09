@@ -63,7 +63,9 @@ void IC::TraceIC(const char* type,
                  Code* new_target,
                  const char* extra_info) {
   if (FLAG_trace_ic) {
-    State new_state = StateFrom(new_target, Heap::undefined_value());
+    State new_state = StateFrom(new_target,
+                                Heap::undefined_value(),
+                                Heap::undefined_value());
     PrintF("[%s (%c->%c)%s", type,
            TransitionMarkFromState(old_state),
            TransitionMarkFromState(new_state),
@@ -132,7 +134,7 @@ Address IC::OriginalCodeAddress() {
 }
 #endif
 
-IC::State IC::StateFrom(Code* target, Object* receiver) {
+IC::State IC::StateFrom(Code* target, Object* receiver, Object* name) {
   IC::State state = target->ic_state();
 
   if (state != MONOMORPHIC) return state;
@@ -148,7 +150,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  int index = map->IndexInCodeCache(target);
+  int index = map->IndexInCodeCache(String::cast(name), target);
   if (index >= 0) {
     // For keyed load/store, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
@@ -160,7 +162,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
 
     // Remove the target from the code cache to avoid hitting the same
     // invalid stub again.
-    map->RemoveFromCodeCache(index);
+    map->RemoveFromCodeCache(String::cast(name), target, index);
 
     return MONOMORPHIC_PROTOTYPE_FAILURE;
   }
@@ -1300,7 +1302,7 @@ Object* CallIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   CallIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   Object* result =
       ic.LoadFunction(state, args.at<Object>(0), args.at<String>(1));
 
@@ -1333,7 +1335,7 @@ Object* LoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   LoadIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<String>(1));
 }
 
@@ -1343,7 +1345,7 @@ Object* KeyedLoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   KeyedLoadIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Load(state, args.at<Object>(0), args.at<Object>(1));
 }
 
@@ -1353,7 +1355,7 @@ Object* StoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   StoreIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Store(state, args.at<Object>(0), args.at<String>(1),
                   args.at<Object>(2));
 }
@@ -1411,7 +1413,7 @@ Object* KeyedStoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   KeyedStoreIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
+  IC::State state = IC::StateFrom(ic.target(), args[0], args[1]);
   return ic.Store(state, args.at<Object>(0), args.at<Object>(1),
                   args.at<Object>(2));
 }
