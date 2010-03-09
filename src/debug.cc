@@ -39,6 +39,7 @@
 #include "global-handles.h"
 #include "ic.h"
 #include "ic-inl.h"
+#include "messages.h"
 #include "natives.h"
 #include "stub-cache.h"
 #include "log.h"

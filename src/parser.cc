@@ -31,6 +31,7 @@
 #include "ast.h"
 #include "bootstrapper.h"
 #include "compiler.h"
+#include "messages.h"
 #include "platform.h"
 #include "runtime.h"
 #include "parser.h"

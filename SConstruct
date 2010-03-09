@@ -46,8 +46,8 @@ if ANDROID_TOP is None:
 # on linux we need these compiler flags to avoid crashes in the v8 test suite
 # and avoid dtoa.c strict aliasing issues
 if os.environ.get('GCC_VERSION') == '44':
-    GCC_EXTRA_CCFLAGS = ['-fno-tree-vrp']
-    GCC_DTOA_EXTRA_CCFLAGS = ['-fno-strict-aliasing']
+    GCC_EXTRA_CCFLAGS = ['-fno-tree-vrp', '-fno-strict-aliasing']
+    GCC_DTOA_EXTRA_CCFLAGS = []
 else:
     GCC_EXTRA_CCFLAGS = []
     GCC_DTOA_EXTRA_CCFLAGS = []

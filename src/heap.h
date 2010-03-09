@@ -31,11 +31,13 @@
 #include <math.h>
 
 #include "splay-tree-inl.h"
-#include "zone-inl.h"
-
+#include "v8-counters.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ZoneScopeInfo;
 
 // Defines all the roots in Heap.
 #define UNCONDITIONAL_STRONG_ROOT_LIST(V)                                      \

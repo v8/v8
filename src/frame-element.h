@@ -30,6 +30,7 @@
 
 #include "number-info.h"
 #include "macro-assembler.h"
+#include "zone.h"
 
 namespace v8 {
 namespace internal {
